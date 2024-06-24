@@ -1,0 +1,68 @@
+[tool.poetry]
+name = "unique-sdk"
+version = "0.8.5"
+description = ""
+authors = [
+    "Konstantin Krauss <konstantin@unique.ch>",
+    "Andreas Hauri <andreas@unique.ch>",
+]
+readme = "README.md"
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+typing-extensions = "^4.9.0"
+
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.1.8"
+pytest = "^7.4.3"
+tox = "^4.11.4"
+pyright = "^1.1.341"
+pytest-cov = "^4.1.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+target-version = "py311"
+
+[tool.ruff.lint]
+extend-select = ["I"]
+
+[tool.pyright]
+include = ["unique_sdk"]
+exclude = ["build", "**/__pycache__"]
+
+[tool.tox]
+legacy_tox_ini = """
+    [tox]
+    min_version = 4.0
+    isolated_build = true
+    env_list =
+        lint
+        py311
+        py312
+
+    [testenv]
+    allowlist_externals = poetry
+    commands_pre =
+        poetry install --no-root --sync --with dev
+
+    [testenv:py311]
+    description = run tests with python 3.11
+    basepython = python3.11
+    commands =
+        poetry run pytest --cov=unique_sdk tests/ --import-mode importlib
+
+    [testenv:py312]
+    description = run tests with python 3.12
+    basepython = python3.12
+    commands =
+        poetry run pytest --cov=unique_sdk tests/ --import-mode importlib
+
+    [testenv:lint]
+    description = lint source code
+    commands = ruff check {posargs:unique_sdk tests}
+"""

@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "custom-assistant"
+version = "0.1.0"
+description = ""
+authors = ["Konstantin Krauss <konsti@users.noreply.github.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+flask = "^3.0.0"
+unique-sdk = {path = "../..", develop = true}
+langchain = "^0.0.346"
+requests = "^2.31.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
