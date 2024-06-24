@@ -3,6 +3,9 @@ name: "[chore] Ruff Linting"
 on: 
   pull_request:
 
+env:
+  RUFF_VERSION: 0.4.10
+
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -10,7 +13,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: chartboost/ruff-action@v1
         with:
-          ruff_version: 0.4.10
+          version: ${{ env.RUFF_VERSION }}
           changed-files: 'true'
 
   format:
@@ -19,7 +22,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: chartboost/ruff-action@v1
         with:
-          ruff_version: 0.4.10
+          version: ${{ env.RUFF_VERSION }}
           changed-files: 'true'
           args: 'format --check'
 
@@ -29,12 +32,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: chartboost/ruff-action@v1
         with:
-          ruff_version: 0.4.10
+          version: ${{ env.RUFF_VERSION }}
           changed-files: 'true'
           args: 'check --select I'
       - uses: chartboost/ruff-action@v1
         with:
-          ruff_version: 0.4.10
+          version: ${{ env.RUFF_VERSION }}
           changed-files: 'true'
           args: 'format --check'
           
