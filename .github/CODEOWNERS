@@ -1,0 +1,10 @@
+# We enforce CODEOWNERS review on all PRs.
+#
+# All changes must be approved by internal reviewers before being merged to main branch.
+#
+
+* @Unique-AG/data-science @Unique-AG/codev
+
+# Code permissions
+# ! These must appear last as they must be the most specific and enforced
+.github @Unique-AG/Overwatch @Unique-AG/codev
