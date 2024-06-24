@@ -1,0 +1,37 @@
+name: Ruff
+on: [push, pull_request]
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: chartboost/ruff-action@v1
+        with:
+          ruff_version: 0.4.10
+          changed-files: 'true'
+
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: chartboost/ruff-action@v1
+        with:
+          ruff_version: 0.4.10
+          changed-files: 'true'
+          args: 'format --check'
+
+  sort-imports:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: chartboost/ruff-action@v1
+        with:
+          ruff_version: 0.4.10
+          changed-files: 'true'
+          args: 'check --select I'
+      - uses: chartboost/ruff-action@v1
+        with:
+          ruff_version: 0.4.10
+          changed-files: 'true'
+          args: 'format --check'
+          
