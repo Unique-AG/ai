@@ -79,8 +79,7 @@ def convert_to_unique_object(
     company_id: Optional[str],
     params: Optional[Dict[str, Any]] = None,
     klass_: Optional[Type["UniqueObject"]] = None,
-) -> "UniqueObject":
-    ...
+) -> "UniqueObject": ...
 
 
 @overload
@@ -90,8 +89,7 @@ def convert_to_unique_object(
     company_id: Optional[str],
     params: Optional[Dict[str, Any]] = None,
     klass_: Optional[Type["UniqueObject"]] = None,
-) -> List["UniqueObject"]:
-    ...
+) -> List["UniqueObject"]: ...
 
 
 def convert_to_unique_object(

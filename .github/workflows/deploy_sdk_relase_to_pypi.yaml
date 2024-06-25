@@ -18,11 +18,11 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.12.2' # Specify the Python version you need for your project
+        python-version: '3.11'
 
     - name: Install Poetry
       run: |
-        POETRY_VERSION='1.7.1'
+        POETRY_VERSION='1.8.3'
         PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install poetry==$POETRY_VERSION
 
     - name: Install dependencies
