@@ -7,4 +7,4 @@
 
 # Code permissions
 # ! These must appear last as they must be the most specific and enforced
-.github @Unique-AG/codev
+.github/ @Unique-AG/codev
