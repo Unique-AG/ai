@@ -1,9 +1,7 @@
-name: Publish to PyPI
+name: "[unique_sdk] Publish to PyPI"
 
 on:
   workflow_dispatch: # If you attempt to push the same version of a package to the Python Package Index (PyPI) multiple times, it will result in an error. PyPI enforces version uniqueness for packages to maintain consistency and prevent confusion among users.
-  release:
-    types: [created]
 
 env:
   PACKAGE_DIR: ./unique_sdk

@@ -79,12 +79,16 @@ def upload_file(
     return createdContent
 
 
-def download_content(companyId: str, userId: str, content_id: str, filename: str):
+def download_content(
+    companyId: str, userId: str, content_id: str, filename: str, chat_id: str = None
+):
     # Ensure the URL is a valid string
     if not isinstance(content_id, str):
         raise ValueError("URL must be a string.")
 
     url = f"{unique_sdk.api_base}/content/{content_id}/file"
+    if chat_id:
+        url = f"{url}?chatId={chat_id}"
     print(url)
 
     # Create a random directory inside /tmp
