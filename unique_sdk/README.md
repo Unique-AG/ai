@@ -680,6 +680,7 @@ pdfFile = download_content(
     companyId,
     content_id="cont_12412",
     filename="hello.pdf",
+    chat_id=None # If specified, it downloads it from the chat
 }
 ```
 
