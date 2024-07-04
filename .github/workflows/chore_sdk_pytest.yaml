@@ -1,9 +1,13 @@
 name: "[pytest] Unique SDK"
 
+env:
+  PACKAGE: unique_sdk
+
 on: 
   pull_request:
     paths:
-      - 'unique_sdk/**'
+      - '${{ env.PACKAGE_DIR }}/**'
+
 
 jobs:
   build-and-test:
