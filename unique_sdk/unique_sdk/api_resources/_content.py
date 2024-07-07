@@ -75,7 +75,8 @@ class Content(APIResource["Content"]):
 
     class UpsertParams(RequestOptions):
         input: "Content.Input"
-        scopeId: str
+        scopeId: Optional[str]
+        chatId: Optional[str]
         sourceOwnerType: str
         storeInternally: bool
         fileUrl: Optional[str]

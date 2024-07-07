@@ -36,7 +36,8 @@ def upload_file(
     path_to_file,
     displayed_filename,
     mime_type,
-    scope_or_unique_path,
+    scope_or_unique_path=None,
+    chat_id=None,
 ):
     size = os.path.getsize(path_to_file)
     createdContent = unique_sdk.Content.upsert(
@@ -48,6 +49,7 @@ def upload_file(
             "mimeType": mime_type,
         },
         scopeId=scope_or_unique_path,
+        chatId=chat_id,
     )
 
     uploadUrl = createdContent.writeUrl
@@ -74,6 +76,7 @@ def upload_file(
         },
         scopeId=scope_or_unique_path,
         fileUrl=createdContent.readUrl,
+        chatId=chat_id,
     )
 
     return createdContent
