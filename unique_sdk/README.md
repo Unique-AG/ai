@@ -254,7 +254,7 @@ unique_sdk.Content.search(
 
 #### `unique_sdk.Content.upsert`
 
-Enables upload of a new Content into the Knowledge base of unique into a specific scope with `scopeId`.
+Enables upload of a new Content into the Knowledge base of unique into a specific scope with `scopeId` or a specific `chatId`. One of the two must be set.
 
 Typical usage is the following. That creates a Content and uploads a file
 
@@ -686,7 +686,7 @@ pdfFile = download_content(
 
 #### `unique_sdk.util.file_io.upload_file`
 
-Allows for uploading files that then get ingested.
+Allows for uploading files that then get ingested in a scope or a chat.
 
 ```python
 createdContent = upload_file(
@@ -696,6 +696,7 @@ createdContent = upload_file(
     displayed_filename="hello.pdf",
     mimeType="application/pdf",
     uploadScope="scope_stcj2osgbl722m22jayidx0n",
+    chat_id=None,
 )
 ```
 
