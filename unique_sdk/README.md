@@ -254,7 +254,7 @@ unique_sdk.Content.search(
 
 #### `unique_sdk.Content.upsert`
 
-Enables upload of a new Content into the Knowledge base of unique into a specific scope with `scopeId`.
+Enables upload of a new Content into the Knowledge base of unique into a specific scope with `scopeId` or a specific `chatId`. One of the two must be set.
 
 Typical usage is the following. That creates a Content and uploads a file
 
@@ -268,54 +268,6 @@ createdContent = upload_file(
     "application/pdf",
     "scope_stcj2osgbl722m22jayidx0n",
 )
-
-def upload_file(
-    userId,
-    companyId,
-    path_to_file,
-    displayed_filename,
-    mimeType,
-    scope_or_unique_path,
-):
-    size = os.path.getsize(path_to_file)
-    createdContent = unique_sdk.Content.upsert(
-        user_id=userId,
-        company_id=companyId,
-        input={
-            "key": displayed_filename,
-            "title": displayed_filename,
-            "mimeType": mimeType,
-        },
-        scopeId=scope_or_unique_path,
-    )
-
-    uploadUrl = createdContent.writeUrl
-
-    # upload to azure blob storage SAS url uploadUrl the pdf file translatedFile make sure it is treated as a application/pdf
-    with open(path_to_file, "rb") as file:
-        requests.put(
-            uploadUrl,
-            data=file,
-            headers={
-                "X-Ms-Blob-Content-Type": mimeType,
-                "X-Ms-Blob-Type": "BlockBlob",
-            },
-        )
-
-    unique_sdk.Content.upsert(
-        user_id=userId,
-        company_id=companyId,
-        input={
-            "key": displayed_filename,
-            "title": displayed_filename,
-            "mimeType": mimeType,
-            "byteSize": size,
-        },
-        scopeId=scope_or_unique_path,
-        readUrl=createdContent.readUrl,
-    )
-
-    return createdContent
 
 ```
 
