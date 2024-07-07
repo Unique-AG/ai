@@ -269,6 +269,54 @@ createdContent = upload_file(
     "scope_stcj2osgbl722m22jayidx0n",
 )
 
+def upload_file(
+    userId,
+    companyId,
+    path_to_file,
+    displayed_filename,
+    mimeType,
+    scope_or_unique_path,
+):
+    size = os.path.getsize(path_to_file)
+    createdContent = unique_sdk.Content.upsert(
+        user_id=userId,
+        company_id=companyId,
+        input={
+            "key": displayed_filename,
+            "title": displayed_filename,
+            "mimeType": mimeType,
+        },
+        scopeId=scope_or_unique_path,
+    )
+
+    uploadUrl = createdContent.writeUrl
+
+    # upload to azure blob storage SAS url uploadUrl the pdf file translatedFile make sure it is treated as a application/pdf
+    with open(path_to_file, "rb") as file:
+        requests.put(
+            uploadUrl,
+            data=file,
+            headers={
+                "X-Ms-Blob-Content-Type": mimeType,
+                "X-Ms-Blob-Type": "BlockBlob",
+            },
+        )
+
+    unique_sdk.Content.upsert(
+        user_id=userId,
+        company_id=companyId,
+        input={
+            "key": displayed_filename,
+            "title": displayed_filename,
+            "mimeType": mimeType,
+            "byteSize": size,
+        },
+        scopeId=scope_or_unique_path,
+        readUrl=createdContent.readUrl,
+    )
+
+    return createdContent
+
 ```
 
 ### Message
@@ -638,7 +686,7 @@ pdfFile = download_content(
 
 #### `unique_sdk.util.file_io.upload_file`
 
-Allows for uploading files that then get ingested.
+Allows for uploading files that then get ingested in a scope or a chat.
 
 ```python
 createdContent = upload_file(
@@ -648,6 +696,7 @@ createdContent = upload_file(
     displayed_filename="hello.pdf",
     mimeType="application/pdf",
     uploadScope="scope_stcj2osgbl722m22jayidx0n",
+    chat_id=None,
 )
 ```
 
