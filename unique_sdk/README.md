@@ -510,8 +510,8 @@ These are the options are available for `searchType`:
 
 ```python
 search = unique_sdk.Search.create(
-    user_id,
-    company_id,
+    user_id=user_id,
+    company_id=company_id,
     chatId=chat_id
     searchString="What is the meaning of life, the universe and everything?",
     searchType="VECTOR",
@@ -534,8 +534,8 @@ Adding a `chatId` or `messages` as arguments allows the message history to provi
 
 ```python
 search_string = unique_sdk.SearchString.create(
-    user_id,
-    company_id,
+    user_id=user_id,
+    company_id=company_id,
     prompt="Was ist der Sinn des Lebens, des Universums und des ganzen Rests?",
     chat_id=chat_id
 )
@@ -553,8 +553,8 @@ you can then save it and retreive it live defined below.
 
 ```python
 c = unique_sdk.ShortTermMemory.create(
-    user_id,
-    company_id,
+    user_id=user_id,
+    company_id=company_id,
     data="hello",
     chatId="chat_x0xxtj89f7drjp4vmued3q",
     # messageId = "msg_id",
@@ -567,8 +567,8 @@ print(c)
 
 ```python
 m = unique_sdk.ShortTermMemory.find_latest(
-    user_id,
-    company_id,
+    user_id=user_id,
+    company_id=company_id,
     chatId="chat_x0xxtj89f7drjp4vmued3q",
      # messageId = "msg_id",
     memoryName="your memory name",
@@ -676,8 +676,8 @@ for example using the readUrl from a content.
 
 ```python
 pdfFile = download_content(
-    userId,
-    companyId,
+    companyId=companyId,
+    userId=userId,
     content_id="cont_12412",
     filename="hello.pdf",
     chat_id=None # If specified, it downloads it from the chat
@@ -690,8 +690,8 @@ Allows for uploading files that then get ingested in a scope or a chat.
 
 ```python
 createdContent = upload_file(
-    userId,
-    companyId,
+    companyId=companyId,
+    userId=userId,
     path_to_file="/tmp/hello.pdf",
     displayed_filename="hello.pdf",
     mimeType="application/pdf",
