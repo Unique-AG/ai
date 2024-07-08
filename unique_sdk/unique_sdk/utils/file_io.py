@@ -103,6 +103,7 @@ def download_content(
     # Download the file and save it to the random directory
     headers = {
         "x-api-version": unique_sdk.api_version,
+        "x-app-id": unique_sdk.app_id,
         "x-user-id": userId,
         "x-company-id": companyId,
         "Authorization": "Bearer %s" % (unique_sdk.api_key,),
