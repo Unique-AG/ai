@@ -13,6 +13,7 @@ class AIMessage(BaseModel):
     role: AIMessageRole
     content: str
 
+
 class AIMessageList(RootModel):
     root: List[AIMessage]
 

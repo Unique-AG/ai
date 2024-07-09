@@ -6,6 +6,7 @@ from time import gmtime
 class UTCFormatter(Formatter):
     converter = gmtime
 
+
 log_config = {
     "version": 1,
     "root": {"level": "DEBUG", "handlers": ["console"]},
@@ -24,6 +25,7 @@ log_config = {
         },
     },
 }
+
 
 def load_logging_config():
     return dictConfig(log_config)

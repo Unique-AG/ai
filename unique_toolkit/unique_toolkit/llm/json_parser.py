@@ -13,7 +13,7 @@ def convert_to_json(result: str):
 
 
 def find_last_json_object(text) -> str | None:
-    pattern = r'\{(?:[^{}]|\{[^{}]*\})*\}'
+    pattern = r"\{(?:[^{}]|\{[^{}]*\})*\}"
     matches = re.findall(pattern, text)
     if matches:
         return matches[-1]

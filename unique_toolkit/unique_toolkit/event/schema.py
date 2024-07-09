@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict
 # set config to convert camelCase to snake_case
 model_config = ConfigDict(alias_generator=camelize, populate_by_name=True)
 
+
 class UserMessage(BaseModel):
     model_config = model_config
 
