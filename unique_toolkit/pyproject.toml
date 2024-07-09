@@ -17,7 +17,7 @@ unique-sdk = "^0.8.10"
 
 
 [tool.poetry.group.dev.dependencies]
-ruff = "0.4.10"
+ruff = "0.5.0"
 pytest = "^7.4.3"
 tox = "^4.11.4"
 pyright = "^1.1.341"

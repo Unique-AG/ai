@@ -4,7 +4,7 @@ on:
   pull_request:
 
 env:
-  RUFF_VERSION: 0.4.10
+  RUFF_VERSION: 0.5.0
 
 jobs:
   lint:
