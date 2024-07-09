@@ -39,6 +39,10 @@ def upload_file(
     scope_or_unique_path=None,
     chat_id=None,
 ):
+    # check that chatid or scope_or_unique_path is provided
+    if not chat_id and not scope_or_unique_path:
+        raise ValueError("chat_id or scope_or_unique_path must be provided")
+
     size = os.path.getsize(path_to_file)
     createdContent = unique_sdk.Content.upsert(
         user_id=userId,
@@ -65,19 +69,32 @@ def upload_file(
             },
         )
 
-    unique_sdk.Content.upsert(
-        user_id=userId,
-        company_id=companyId,
-        input={
-            "key": displayed_filename,
-            "title": displayed_filename,
-            "mimeType": mime_type,
-            "byteSize": size,
-        },
-        scopeId=scope_or_unique_path,
-        fileUrl=createdContent.readUrl,
-        chatId=chat_id,
-    )
+    if chat_id:
+        unique_sdk.Content.upsert(
+            user_id=userId,
+            company_id=companyId,
+            input={
+                "key": displayed_filename,
+                "title": displayed_filename,
+                "mimeType": mime_type,
+                "byteSize": size,
+            },
+            fileUrl=createdContent.readUrl,
+            chatId=chat_id,
+        )
+    else:
+        unique_sdk.Content.upsert(
+            user_id=userId,
+            company_id=companyId,
+            input={
+                "key": displayed_filename,
+                "title": displayed_filename,
+                "mimeType": mime_type,
+                "byteSize": size,
+            },
+            fileUrl=createdContent.readUrl,
+            scopeId=scope_or_unique_path,
+        )
 
     return createdContent
 
