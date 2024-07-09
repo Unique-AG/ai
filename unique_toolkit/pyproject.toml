@@ -3,7 +3,7 @@ name = "unique_toolkit"
 version = "0.0.1"
 description = ""
 authors = [
-    "Sadique Sheik <sadique@unique.ch>",
+    "Unique Data Science <datascience@unique.ch>",
 ]
 readme = "README.md"
 license = "MIT"
@@ -11,6 +11,9 @@ license = "MIT"
 [tool.poetry.dependencies]
 python = "^3.11"
 typing-extensions = "^4.9.0"
+pydantic = "^2.8.2"
+pyhumps = "^3.8.0"
+unique-sdk = "^0.8.10"
 
 
 [tool.poetry.group.dev.dependencies]
