@@ -109,7 +109,6 @@ def download_content(
     url = f"{unique_sdk.api_base}/content/{content_id}/file"
     if chat_id:
         url = f"{url}?chatId={chat_id}"
-    print(url)
 
     # Create a random directory inside /tmp
     random_dir = tempfile.mkdtemp(dir="/tmp")
