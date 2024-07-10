@@ -7,7 +7,8 @@ try:
 except ImportError:
     requests = None
 
-from unique_sdk import _error, unique_sdk
+import unique_sdk
+from unique_sdk import _error
 
 
 def new_default_http_client(*args, **kwargs) -> "HTTPClient":
@@ -49,7 +50,6 @@ class RequestsClient(HTTPClient):
 
         verify = unique_sdk.api_verify_mode
 
-        print(f"verify: {verify}")
         try:
             try:
                 result = self._thread_local.session.request(
