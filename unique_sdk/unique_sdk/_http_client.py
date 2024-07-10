@@ -58,8 +58,8 @@ class RequestsClient(HTTPClient):
                     headers=headers,
                     data=json.dumps(post_data),
                     timeout=self._timeout,
-                    **kwargs,
                     verify=verify,
+                    **kwargs,
                 )
             except TypeError as e:
                 raise TypeError(
