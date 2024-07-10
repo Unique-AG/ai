@@ -7,6 +7,7 @@ try:
 except ImportError:
     requests = None
 
+import unique_sdk
 from unique_sdk import _error
 
 
@@ -47,6 +48,8 @@ class RequestsClient(HTTPClient):
         if getattr(self._thread_local, "session", None) is None:
             self._thread_local.session = self._session or self.requests.Session()
 
+        verify = unique_sdk.api_verify_mode
+
         try:
             try:
                 result = self._thread_local.session.request(
@@ -55,6 +58,7 @@ class RequestsClient(HTTPClient):
                     headers=headers,
                     data=json.dumps(post_data),
                     timeout=self._timeout,
+                    verify=verify,
                     **kwargs,
                 )
             except TypeError as e:
