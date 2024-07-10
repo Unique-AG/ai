@@ -1,4 +1,4 @@
-name: "[unique_sdk] Publish to PyPI"
+name: "[unique_sdk 📦] Publish to PyPI"
 
 on:
   workflow_dispatch: # If you attempt to push the same version of a package to the Python Package Index (PyPI) multiple times, it will result in an error. PyPI enforces version uniqueness for packages to maintain consistency and prevent confusion among users.
@@ -8,6 +8,7 @@ env:
 
 jobs:
   build-and-publish:
+    name: Build distribution 📦
     runs-on: ubuntu-latest
     steps:
     - name: Check out code
