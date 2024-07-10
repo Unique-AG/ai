@@ -1,6 +1,6 @@
 # Unique Tool Kit
 
-This package provides highlevel abstarctions and methods on top of `unique_sdk` to ease application development for the Unique Platform.
+This package provides highlevel abstractions and methods on top of `unique_sdk` to ease application development for the Unique Platform.
 
 
 # Development instructions
