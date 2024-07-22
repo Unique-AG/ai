@@ -1,3 +1,5 @@
+import datetime
+
 from unique_toolkit.language_model.definition import (
     LanguageModelProvider,
     create_ai_model_info,
@@ -5,8 +7,6 @@ from unique_toolkit.language_model.definition import (
 from unique_toolkit.language_model.schemas import (
     LanguageModelName,
 )
-import datetime
-
 
 AzureGpt35Turbo0613 = create_ai_model_info(
     model_name=LanguageModelName.AZURE_GPT_35_TURBO_0613,
@@ -15,7 +15,7 @@ AzureGpt35Turbo0613 = create_ai_model_info(
     info_cutoff_at=datetime.date(2021,9,1),
     published_at=datetime.date(2023,6,13),
     retirement_at=datetime.date(2024,10,1),
-    deprecated_at=datetime.date(2024,10,1),
+    deprecated=True,
 )
 
 AzureGpt35Turbo = create_ai_model_info(
@@ -25,7 +25,7 @@ AzureGpt35Turbo = create_ai_model_info(
     info_cutoff_at=datetime.date(2021,9,1),
     published_at=datetime.date(2023,3,1),
     retirement_at=datetime.date(2024,10,1),
-    deprecated_at=None,
+    deprecated=True,
 )
 
 
@@ -34,8 +34,9 @@ AzureGpt35Turbo16k = create_ai_model_info(
     provider=LanguageModelProvider.AZURE,
     token_limit=16382,
     info_cutoff_at=datetime.date(2021,9,1),
+    published_at=datetime.date(2023,6,13),
     retirement_at=datetime.date(2024,10,1),
-    deprecated_at=datetime.date(2024,10,1),
+    deprecated=True,
 )
 
 
@@ -44,8 +45,9 @@ AzureGpt40613 = create_ai_model_info(
     provider=LanguageModelProvider.AZURE,
     token_limit=8192,
     info_cutoff_at=datetime.date(2021,9,1),
+    # TODO add published_at and verify retirement_at
+    published_at=None,
     retirement_at=datetime.date(2024,10,1),
-    deprecated_at=None,
 )
 
 
@@ -55,8 +57,8 @@ AzureGpt4Turbo1106 = create_ai_model_info(
     token_limit_input=128000,
     token_limit_output=4096,
     info_cutoff_at=datetime.date(2023,4,1),
-    retirement_at=None,
-    deprecated_at=None,
+    # TODO add published_at
+    published_at=None,
 )
 
 
@@ -66,8 +68,8 @@ AzureGpt4VisionPreview = create_ai_model_info(
     token_limit_input=128000,
     token_limit_output=4096,
     info_cutoff_at=datetime.date(2023,4,1),
-    retirement_at=None,
-    deprecated_at=None,
+    # TODO add published_at
+    published_at=None,
 )
 
 AzureGpt432k0613 = create_ai_model_info(
@@ -75,8 +77,9 @@ AzureGpt432k0613 = create_ai_model_info(
     provider=LanguageModelProvider.AZURE,
     token_limit=32768,
     info_cutoff_at=datetime.date(2021,9,1),
+    # TODO add published_at and verify retirement_at
+    published_at=None,
     retirement_at=datetime.date(2024,10,1),
-    deprecated_at=None,
 )
 
 AzureGpt4Turbo20240409 = create_ai_model_info(
@@ -85,8 +88,8 @@ AzureGpt4Turbo20240409 = create_ai_model_info(
     token_limit_input=128000,
     token_limit_output=4096,
     info_cutoff_at=datetime.date(2023,12,1),
-    retirement_at=None,
-    deprecated_at=None,
+    # TODO add published_at
+    published_at=None,
 )
 
 AzureGpt4o20240513 = create_ai_model_info(
@@ -95,6 +98,6 @@ AzureGpt4o20240513 = create_ai_model_info(
     token_limit_input=128000,
     token_limit_output=4096,
     info_cutoff_at=datetime.date(2023,10,1),
-    retirement_at=None,
-    deprecated_at=None,
+    # TODO add published_at
+    published_at=None,
 )

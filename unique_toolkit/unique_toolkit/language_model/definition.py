@@ -1,7 +1,7 @@
 import warnings
 from datetime import date
 from enum import StrEnum
-from typing import ClassVar, Type, TypeVar
+from typing import ClassVar, Optional, Type, TypeVar
 
 from pydantic import BaseModel
 
@@ -15,21 +15,23 @@ T = TypeVar("T", bound="LanguageModelName")
 class LanguageModelProvider(StrEnum):
     AZURE = "AZURE"
 
+class TokenLimits(BaseModel):
+    token_limit: Optional[int] = None
+    token_limit_input: Optional[int] = None
+    token_limit_output: Optional[int] = None
 
 class LanguageModelInfo(BaseModel):
     name: LanguageModelName
     provider: LanguageModelProvider
     
-    token_limit: int
-    max_tokens: int
-    tokens_per_min: int
+    token_limits: TokenLimits = TokenLimits()
 
     info_cutoff_at: date
     published_at: date
-    retirement_at: date
+    retirement_at: Optional[date] = None
 
     deprecated: bool = False
-    deprecated_text: str = ""
+    deprecated_text: Optional[str] = None
 
 
 class LanguageModel:
@@ -51,8 +53,8 @@ class LanguageModel:
         return self.info.name.name
 
     @property
-    def token_limit(self) -> int:
-        return self.info.token_limit
+    def token_limits(self) -> TokenLimits:
+        return self.info.token_limits
 
     @classmethod
     def get_model_info(cls, model_name: LanguageModelName) -> LanguageModelInfo:
@@ -77,21 +79,23 @@ class LanguageModel:
 def create_ai_model_info(
     model_name: LanguageModelName,
     provider: LanguageModelProvider,
-    token_limit: int,
-    max_tokens: int,
-    tokens_per_min: int,
     info_cutoff_at: date,
     published_at: date,
-    retirement_at: date,
+    token_limit: Optional[int] = None,
+    token_limit_input: Optional[int] = None,
+    token_limit_output: Optional[int] = None,
+    retirement_at: Optional[date] = None,
     deprecated: bool = False,
     deprecated_text: str = "",
-) -> Type[LanguageModelName]:
+) -> Type[LanguageModel]:
     info = LanguageModelInfo(
         name=model_name,
         provider=provider,
-        token_limit=token_limit,
-        max_tokens=max_tokens,
-        tokens_per_min=tokens_per_min,
+        token_limits=TokenLimits(
+            token_limit=token_limit,
+            token_limit_input=token_limit_input,
+            token_limit_output=token_limit_output,
+        ),
         info_cutoff_at=info_cutoff_at,
         published_at=published_at,
         retirement_at=retirement_at,
