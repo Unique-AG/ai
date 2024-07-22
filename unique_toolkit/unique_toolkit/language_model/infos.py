@@ -5,113 +5,96 @@ from unique_toolkit.language_model.definition import (
 from unique_toolkit.language_model.schemas import (
     LanguageModelName,
 )
+import datetime
 
-# TODO add
-# - max_tokens
-# - tokens_per_min
-# - info_cutoff_at
-# - published_at
-# - retirement_at
+
 AzureGpt35Turbo0613 = create_ai_model_info(
     model_name=LanguageModelName.AZURE_GPT_35_TURBO_0613,
-    token_limit=3000,
     provider=LanguageModelProvider.AZURE,
+    token_limit=8192,
+    info_cutoff_at=datetime.date(2021,9,1),
+    published_at=datetime.date(2023,6,13),
+    retirement_at=datetime.date(2024,10,1),
+    deprecated_at=datetime.date(2024,10,1),
 )
 
-# TODO add
-# - max_tokens
-# - tokens_per_min
-# - info_cutoff_at
-# - published_at
-# - retirement_at
 AzureGpt35Turbo = create_ai_model_info(
     model_name=LanguageModelName.AZURE_GPT_35_TURBO,
-    token_limit=3000,
     provider=LanguageModelProvider.AZURE,
-    deprecated=True,
-    deprecated_text="Use AzureGpt35Turbo0613 instead.",
+    token_limit=4096,
+    info_cutoff_at=datetime.date(2021,9,1),
+    published_at=datetime.date(2023,3,1),
+    retirement_at=datetime.date(2024,10,1),
+    deprecated_at=None,
 )
 
-# TODO add
-# - max_tokens
-# - tokens_per_min
-# - info_cutoff_at
-# - published_at
-# - retirement_at
+
 AzureGpt35Turbo16k = create_ai_model_info(
     model_name=LanguageModelName.AZURE_GPT_35_TURBO_16K,
-    token_limit=14000,
     provider=LanguageModelProvider.AZURE,
+    token_limit=16382,
+    info_cutoff_at=datetime.date(2021,9,1),
+    retirement_at=datetime.date(2024,10,1),
+    deprecated_at=datetime.date(2024,10,1),
 )
 
-# TODO add
-# - max_tokens
-# - tokens_per_min
-# - info_cutoff_at
-# - published_at
-# - retirement_at
+
 AzureGpt40613 = create_ai_model_info(
     model_name=LanguageModelName.AZURE_GPT_4_0613,
-    token_limit=7000,
     provider=LanguageModelProvider.AZURE,
+    token_limit=8192,
+    info_cutoff_at=datetime.date(2021,9,1),
+    retirement_at=datetime.date(2024,10,1),
+    deprecated_at=None,
 )
 
-# TODO add
-# - max_tokens
-# - tokens_per_min
-# - info_cutoff_at
-# - published_at
-# - retirement_at
+
 AzureGpt4Turbo1106 = create_ai_model_info(
     model_name=LanguageModelName.AZURE_GPT_4_TURBO_1106,
-    token_limit=7000,
     provider=LanguageModelProvider.AZURE,
+    token_limit_input=128000,
+    token_limit_output=4096,
+    info_cutoff_at=datetime.date(2023,4,1),
+    retirement_at=None,
+    deprecated_at=None,
 )
 
-# TODO add
-# - max_tokens
-# - tokens_per_min
-# - info_cutoff_at
-# - published_at
-# - retirement_at
+
 AzureGpt4VisionPreview = create_ai_model_info(
     model_name=LanguageModelName.AZURE_GPT_4_VISION_PREVIEW,
-    token_limit=7000,
     provider=LanguageModelProvider.AZURE,
+    token_limit_input=128000,
+    token_limit_output=4096,
+    info_cutoff_at=datetime.date(2023,4,1),
+    retirement_at=None,
+    deprecated_at=None,
 )
 
-# TODO add
-# - max_tokens
-# - tokens_per_min
-# - info_cutoff_at
-# - published_at
-# - retirement_at
 AzureGpt432k0613 = create_ai_model_info(
     model_name=LanguageModelName.AZURE_GPT_4_32K_0613,
-    token_limit=30000,
     provider=LanguageModelProvider.AZURE,
+    token_limit=32768,
+    info_cutoff_at=datetime.date(2021,9,1),
+    retirement_at=datetime.date(2024,10,1),
+    deprecated_at=None,
 )
 
-# TODO add
-# - max_tokens
-# - tokens_per_min
-# - info_cutoff_at
-# - published_at
-# - retirement_at
 AzureGpt4Turbo20240409 = create_ai_model_info(
     model_name=LanguageModelName.AZURE_GPT_4_TURBO_2024_0409,
-    token_limit=7000,
     provider=LanguageModelProvider.AZURE,
+    token_limit_input=128000,
+    token_limit_output=4096,
+    info_cutoff_at=datetime.date(2023,12,1),
+    retirement_at=None,
+    deprecated_at=None,
 )
 
-# TODO add
-# - max_tokens
-# - tokens_per_min
-# - info_cutoff_at
-# - published_at
-# - retirement_at
 AzureGpt4o20240513 = create_ai_model_info(
     model_name=LanguageModelName.AZURE_GPT_4o_2024_0513,
-    token_limit=7000,
     provider=LanguageModelProvider.AZURE,
+    token_limit_input=128000,
+    token_limit_output=4096,
+    info_cutoff_at=datetime.date(2023,10,1),
+    retirement_at=None,
+    deprecated_at=None,
 )
