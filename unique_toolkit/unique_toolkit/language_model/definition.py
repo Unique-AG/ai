@@ -1,4 +1,5 @@
 import warnings
+from datetime import date
 from enum import StrEnum
 from typing import ClassVar, Type, TypeVar
 
@@ -17,15 +18,15 @@ class LanguageModelProvider(StrEnum):
 
 class LanguageModelInfo(BaseModel):
     name: LanguageModelName
+    provider: LanguageModelProvider
+    
     token_limit: int
     max_tokens: int
     tokens_per_min: int
 
-    provider: LanguageModelProvider
-
-    info_cutoff_at: str = ""
-    published_at: str = ""
-    retirement_at: str = ""
+    info_cutoff_at: date
+    published_at: date
+    retirement_at: date
 
     deprecated: bool = False
     deprecated_text: str = ""
@@ -75,15 +76,25 @@ class LanguageModel:
 
 def create_ai_model_info(
     model_name: LanguageModelName,
-    token_limit: int,
     provider: LanguageModelProvider,
+    token_limit: int,
+    max_tokens: int,
+    tokens_per_min: int,
+    info_cutoff_at: date,
+    published_at: date,
+    retirement_at: date,
     deprecated: bool = False,
     deprecated_text: str = "",
 ) -> Type[LanguageModelName]:
     info = LanguageModelInfo(
         name=model_name,
-        token_limit=token_limit,
         provider=provider,
+        token_limit=token_limit,
+        max_tokens=max_tokens,
+        tokens_per_min=tokens_per_min,
+        info_cutoff_at=info_cutoff_at,
+        published_at=published_at,
+        retirement_at=retirement_at,
         deprecated=deprecated,
         deprecated_text=deprecated_text,
     )

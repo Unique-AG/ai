@@ -29,10 +29,10 @@ def from_content_chunks_to_search_results(content_chunks: list[ContentChunk]):
     return [
         SearchResult(
             id=chunk.id,
-            chunkId=chunk.chunk_id,  # type: ignore
-            key=chunk.key,  # type: ignore
-            title=chunk.title,  # type: ignore
-            url=chunk.url,  # type: ignore
+            chunkId=chunk.chunk_id,
+            key=chunk.key,
+            title=chunk.title,
+            url=chunk.url,
             text=chunk.text,
             startPage=chunk.start_page,
             endPage=chunk.end_page,

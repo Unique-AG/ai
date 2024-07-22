@@ -86,12 +86,12 @@ class SearchService:
             chatId=self.state.chat_id,
             searchString=search_string,
             searchType=search_type,
-            scopeIds=scope_ids,  # type: ignore
+            scopeIds=scope_ids,
             limit=limit,
             chatOnly=self.state.chat_only,
         )
 
-        return from_searches_to_content_chunks(search_results)  # type: ignore
+        return from_searches_to_content_chunks(search_results)
 
     def search_contents(
         self,
