@@ -106,7 +106,8 @@ class ContentService:
         where: dict,
     ) -> list[Content]:
         """
-        Performs a search in the knowledge base by filter.
+        Performs a search in the knowledge base by filter (and not a smilarity search)
+        This function loads complete content of the files from the knowledge base in contrast to search_content_chunks.
 
         Args:
             where (dict): The search criteria.
