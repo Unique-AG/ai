@@ -4,11 +4,11 @@ from typing import Optional
 
 import unique_sdk
 
+from unique_toolkit.app.performance.async_wrapper import async_warning, to_async
 from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
 from unique_toolkit.chat.state import ChatState
 from unique_toolkit.content.schemas import ContentReference
 from unique_toolkit.content.utils import count_tokens
-from unique_toolkit.performance.async_wrapper import async_warning, to_async
 
 
 class ChatService:

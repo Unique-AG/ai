@@ -4,9 +4,9 @@ from typing import Optional
 import numpy as np
 import unique_sdk
 
+from unique_toolkit.app.performance.async_wrapper import async_warning, to_async
 from unique_toolkit.chat.state import ChatState
 from unique_toolkit.embedding.schemas import Embeddings
-from unique_toolkit.performance.async_wrapper import async_warning, to_async
 
 
 class EmbeddingService:

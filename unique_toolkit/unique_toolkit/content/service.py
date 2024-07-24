@@ -7,6 +7,7 @@ from typing import Optional, cast
 import requests
 import unique_sdk
 
+from unique_toolkit.app.performance.async_wrapper import async_warning, to_async
 from unique_toolkit.chat.state import ChatState
 from unique_toolkit.content.schemas import (
     Content,
@@ -14,7 +15,6 @@ from unique_toolkit.content.schemas import (
     ContentSearchType,
     ContentUploadInput,
 )
-from unique_toolkit.performance.async_wrapper import async_warning, to_async
 
 
 class ContentService:
