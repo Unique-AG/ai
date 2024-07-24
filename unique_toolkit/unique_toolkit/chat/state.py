@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Self
 
-from unique_toolkit.event.schema import Event
+from unique_toolkit.app.schemas import Event
 
 
 @dataclass
@@ -26,10 +26,10 @@ class ChatState:
     chat_id: str
     scope_ids: list[str] | None = None
     chat_only: bool = False
-    user_message_text: str = ""
-    user_message_id: str = ""
-    assistant_message_id: str = ""
-    module_name: str = ""
+    user_message_text: str | None = None
+    user_message_id: str | None = None
+    assistant_message_id: str | None = None
+    module_name: str | None = None
 
 
     @classmethod

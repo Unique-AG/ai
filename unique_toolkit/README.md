@@ -2,6 +2,34 @@
 
 This package provides highlevel abstractions and methods on top of `unique_sdk` to ease application development for the Unique Platform.
 
+# Domains
+
+## App
+
+Documentation to be added
+
+## Chat
+
+Documentation to be added
+
+## Content
+
+Documentation to be added
+
+## Embedding
+
+Documentation to be added
+
+## Language Model
+
+Documentation to be added
+
+## Performance
+
+Documentation to be added
+
+
+
 
 # Development instructions
 

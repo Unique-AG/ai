@@ -1,10 +1,15 @@
 from datetime import datetime
+from enum import StrEnum
 
 from humps import camelize
 from pydantic import BaseModel, ConfigDict
 
 # set config to convert camelCase to snake_case
-model_config = ConfigDict(alias_generator=camelize, populate_by_name=True, arbitrary_types_allowed=True)
+model_config = ConfigDict(
+    alias_generator=camelize,
+    populate_by_name=True,
+    arbitrary_types_allowed=True,
+)
 
 
 class ContentMetadata(BaseModel):
@@ -12,15 +17,16 @@ class ContentMetadata(BaseModel):
     key: str
     mime_type: str
 
+
 class ContentChunk(BaseModel):
     model_config = model_config
     id: str
     text: str
+    order: int
     key: str | None = None
     chunk_id: str | None = None
     url: str | None = None
     title: str | None = None
-    order: int
     start_page: int | None = None
     end_page: int | None = None
 
@@ -30,6 +36,7 @@ class ContentChunk(BaseModel):
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
+
 class Content(BaseModel):
     model_config = model_config
     id: str
@@ -38,15 +45,33 @@ class Content(BaseModel):
     url: str | None = None
     chunks: list[ContentChunk] = []
 
-class SearchResult(BaseModel):
-    """Schema corresponding to unique_sdk.SearchResult"""
+
+class ContentReference(BaseModel):
+    model_config = model_config
     id: str
-    chunkId: str
-    key: str
+    message_id: str
+    name: str
+    sequence_number: int
+    source: str
+    source_id: str
+    url: str
+
+
+class ContentSearchType(StrEnum):
+    COMBINED = "COMBINED"
+    VECTOR = "VECTOR"
+
+
+class ContentSearchResult(BaseModel):
+    """Schema corresponding to unique_sdk.SearchResult"""
+
+    id: str
     text: str
+    order: int
+    chunkId: str | None = None
+    key: str | None = None
     title: str | None = None
     url: str | None = None
     startPage: int | None = None
     endPage: int | None = None
-    order: int
     object: str | None = None

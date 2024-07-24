@@ -3,7 +3,7 @@ import os
 import unique_sdk
 
 
-def init_sdk():
+def init_sdk() -> str:
     """Initializes the SDK."""
     unique_sdk.api_key = get_env("API_KEY")
     unique_sdk.app_id = get_env("APP_ID")

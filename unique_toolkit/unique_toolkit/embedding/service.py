@@ -5,7 +5,7 @@ import numpy as np
 import unique_sdk
 
 from unique_toolkit.chat.state import ChatState
-from unique_toolkit.embedding.schema import Embeddings
+from unique_toolkit.embedding.schemas import Embeddings
 from unique_toolkit.performance.async_wrapper import async_warning, to_async
 
 
@@ -16,49 +16,71 @@ class EmbeddingService:
 
     _DEFAULT_TIMEOUT = 600_000
 
-    def embed_texts(self, texts: list[str], timeout: int = 600_000) -> Embeddings:
+    def embed_texts(
+        self,
+        texts: list[str],
+        timeout: int = _DEFAULT_TIMEOUT,
+    ) -> Embeddings:
         """
         Embed text.
 
         Args:
             text (str): The text to embed.
+            timeout (int): The timeout in milliseconds. Defaults to None.
 
         Returns:
             Embeddings: The Embedding object.
+
+        Raises:
+            Exception: If an error occurs.
         """
-        return self._trigger_embed_texts(texts, timeout)
+        return self._trigger_embed_texts(
+            texts=texts,
+            timeout=timeout,
+        )
 
     @to_async
     @async_warning
     def async_embed_texts(
         self,
         texts: list[str],
-        timeout: int,
+        timeout: int = _DEFAULT_TIMEOUT,
     ) -> Embeddings:
         """
         Embed text asynchronously.
 
         Args:
             text (str): The text to embed.
+            timeout (int): The timeout in milliseconds. Defaults to None.
 
         Returns:
             Embeddings: The Embedding object.
+
+        Raises:
+            Exception: If an error occurs.
         """
-        return self._trigger_embed_texts(texts, timeout)
+        return self._trigger_embed_texts(
+            texts=texts,
+            timeout=timeout,
+        )
 
     def _trigger_embed_texts(
         self,
         texts: list[str],
-        timeout: int = _DEFAULT_TIMEOUT,
+        timeout: int
     ) -> Embeddings:
         request = {
             "user_id": self.state.user_id,
             "company_id": self.state.company_id,
-            "texts": [texts],
+            "texts": texts,
             "timeout": timeout,
         }
-        response = unique_sdk.Embeddings.create(**request)
-        return Embeddings(**response)
+        try:
+            response = unique_sdk.Embeddings.create(**request)
+            return Embeddings(**response)
+        except Exception as e:
+            self.logger.error(f"Error embedding texts: {e}")
+            raise e
 
     def get_cosine_similarity(
         self,

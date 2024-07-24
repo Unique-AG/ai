@@ -1,9 +1,8 @@
 import logging
-from typing import Optional
 
 import unique_sdk
 
-from unique_toolkit.event.schema import Event
+from unique_toolkit.app.schemas import Event
 
 
 class WebhookVerificationError(Exception):
@@ -14,7 +13,7 @@ def verify_signature_and_construct_event(
     headers: dict[str, str],
     payload: bytes,
     endpoint_secret: str,
-    logger: Optional[logging.Logger] = logging.getLogger(__name__),
+    logger: logging.Logger = logging.getLogger(__name__),
 ):
     """
     Verify the signature of a webhook and construct an event object.

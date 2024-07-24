@@ -25,5 +25,5 @@ unique_log_config = {
     },
 }
 
-def load_dict_config(config: dict | None = unique_log_config):
+def load_dict_config(config: dict = unique_log_config):
     return dictConfig(config)

@@ -2,10 +2,14 @@ from enum import StrEnum
 from typing import Optional
 
 from humps import camelize
-from pydantic import BaseModel, ConfigDict, RootModel, field_validator
+from pydantic import BaseModel, ConfigDict, RootModel, field_validator, model_validator
 
 # set config to convert camelCase to snake_case
-model_config = ConfigDict(alias_generator=camelize, populate_by_name=True, arbitrary_types_allowed=True)
+model_config = ConfigDict(
+    alias_generator=camelize,
+    populate_by_name=True,
+    arbitrary_types_allowed=True,
+)
 
 
 class LanguageModelMessageRole(StrEnum):
@@ -18,7 +22,7 @@ class LanguageModelFunction(BaseModel):
     model_config = model_config
 
     name: str
-    arguments: dict[str, any]
+    arguments: dict[str, any]  # type: ignore
 
 
 class LanguageModelFunctionCall(BaseModel):
@@ -86,18 +90,56 @@ class LanguageModelResponse(BaseModel):
     choices: list[LanguageModelCompletionChoice]
 
 
-class LanguageModelResponseMessage(BaseModel):
-    content: str
+class LanguageModelStreamResponseMessage(BaseModel):
+    model_config = model_config
+
+    id: str
+    previous_message_id: str
+    role: LanguageModelMessageRole
+    text: str
+    original_text: str
+    references: list[dict[str, any]] = []  # type: ignore
+
+    # TODO make sdk return role in lowercase
+    # Currently needed as sdk returns role in uppercase
+    @field_validator("role", mode="before")
+    def set_role(cls, value: str):
+        return value.lower()
 
 
-class LanguageModelName(StrEnum):
-    AZURE_GPT_35_TURBO_0613 = "AZURE_GPT_35_TURBO_0613"
-    AZURE_GPT_35_TURBO = "AZURE_GPT_35_TURBO"
-    AZURE_GPT_35_TURBO_16K = "AZURE_GPT_35_TURBO_16K"
-    AZURE_GPT_4_0613 = "AZURE_GPT_4_0613"
-    AZURE_GPT_4_TURBO_1106 = "AZURE_GPT_4_TURBO_1106"
-    AZURE_GPT_4_VISION_PREVIEW = "AZURE_GPT_4_VISION_PREVIEW"
-    AZURE_GPT_4_32K_0613 = "AZURE_GPT_4_32K_0613"
-    AZURE_GPT_4_TURBO_2024_0409 = "AZURE_GPT_4_TURBO_2024_0409"
-    AZURE_GPT_4o_2024_0513 = "AZURE_GPT_4o_2024_0513"
+class LanguageModelStreamResponse(BaseModel):
+    model_config = model_config
 
+    message: LanguageModelStreamResponseMessage
+    tool_calls: Optional[list[LanguageModelFunctionCall]] = None
+
+
+class TokenLimits(BaseModel):
+    token_limit: Optional[int] = None
+    token_limit_input: Optional[int] = None
+    token_limit_output: Optional[int] = None
+
+    @model_validator(mode="after")
+    def validate_model(self):
+        token_limit = self.token_limit
+        token_limit_input = self.token_limit_input
+        token_limit_output = self.token_limit_output
+
+        if (
+            token_limit is None
+            and token_limit_input is None
+            and token_limit_output is None
+        ):
+            raise ValueError(
+                "At least one of token_limit, token_limit_input or token_limit_output must be set"
+            )
+
+        if (
+            token_limit is None
+            and token_limit_input is not None
+            and token_limit_output is not None
+        ):
+            self.token_limit = token_limit_input + token_limit_output
+
+        return self
+    

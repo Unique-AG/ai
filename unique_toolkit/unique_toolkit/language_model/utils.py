@@ -2,30 +2,30 @@ import json as j
 import re
 
 
-def convert_to_json(result: str):
+def convert_string_to_json(string: str):
     """
     Removes any json tags and converts string to json.
 
     Args:
-        result: The string to convert to json.
+        string: The string to convert to json.
     
     Returns:
         dict: The json object.
 
     Raises:
-        ValueError: If the result cannot be converted to json.
+        ValueError: If the string cannot be converted to json.
     """
-    cleaned_result = find_last_json_object(result)
+    cleaned_result = find_last_json_object(string)
     if not cleaned_result:
-        raise ValueError("Could not find a valid json object in the result.")
+        raise ValueError("Could not find a valid json object in the string.")
     try:
         json = j.loads(cleaned_result)
     except j.JSONDecodeError:
-        raise ValueError("Could not convert the result to JSON.")
+        raise ValueError("Could not convert the string to JSON.")
     return json
 
 
-def find_last_json_object(text) -> str | None:
+def find_last_json_object(text: str) -> str | None:
     """
     Finds the last json object in a string.
     
