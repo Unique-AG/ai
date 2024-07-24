@@ -174,18 +174,22 @@ class ContentService:
                 company_id=self.state.company_id,
                 chatId=self.state.chat_id,
                 # TODO add type parameter
-                where=where, # type: ignore
+                where=where,  # type: ignore
             )
         except Exception as e:
             self.logger.error(f"Error while searching contents: {e}")
             raise e
-        
+
         return map_contents(contents)
-    
+
     # TODO implement, see unique_sdk.utils.file_io.py
     def upload_content(self):
-        raise NotImplementedError("Not implemented yet. Please use unique_sdk.utils.file_io.py for now.")
-    
+        raise NotImplementedError(
+            "Not implemented yet. Please use unique_sdk.utils.file_io.py for now."
+        )
+
     # TODO implement, see unique_sdk.utils.file_io.py
     def download_content(self):
-        raise NotImplementedError("Not implemented yet. Please use unique_sdk.utils.file_io.py for now.")
+        raise NotImplementedError(
+            "Not implemented yet. Please use unique_sdk.utils.file_io.py for now."
+        )

@@ -19,15 +19,16 @@ test_assistant_id = os.getenv("TEST_ASSISTANT_ID")
 test_user_message_id = os.getenv("TEST_USER_MESSAGE_ID")
 test_scope_id = os.getenv("TEST_SCOPE_ID")
 
+
 @pytest.fixture
 def chat_state():
     chat_state = ChatState(
-        user_id=test_user_id, # type: ignore
-        company_id=test_company_id, # type: ignore
-        assistant_id=test_assistant_id, # type: ignore
-        chat_id=test_chat_id, # type: ignore
-        user_message_id=test_user_message_id, # type: ignore
-        scope_ids=[test_scope_id] # type: ignore
+        user_id=test_user_id,  # type: ignore
+        company_id=test_company_id,  # type: ignore
+        assistant_id=test_assistant_id,  # type: ignore
+        chat_id=test_chat_id,  # type: ignore
+        user_message_id=test_user_message_id,  # type: ignore
+        scope_ids=[test_scope_id],  # type: ignore
     )
     chat_service = ChatService(chat_state)
     message = chat_service.create_assistant_message("Test assistant message")

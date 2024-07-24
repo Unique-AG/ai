@@ -102,7 +102,7 @@ class LanguageModelService:
         except Exception as e:
             self.logger.error(f"Error completing: {e}")
             raise e
-        
+
         return LanguageModelResponse(**result)
 
     def stream_complete(
@@ -191,7 +191,7 @@ class LanguageModelService:
                 endPage=chunk.end_page,
                 order=chunk.order,
                 object=chunk.object,
-            ) # type: ignore
+            )  # type: ignore
             for chunk in content_chunks
         ]
 

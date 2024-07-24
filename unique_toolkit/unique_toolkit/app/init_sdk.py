@@ -14,6 +14,7 @@ def init_sdk() -> str:
     endpoint_secret = get_env("ENDPOINT_SECRET")
     return endpoint_secret
 
+
 def get_env(var_name):
     val = os.environ.get(var_name)
     if not val:

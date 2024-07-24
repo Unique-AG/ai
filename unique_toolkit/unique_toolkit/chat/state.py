@@ -31,7 +31,6 @@ class ChatState:
     assistant_message_id: str | None = None
     module_name: str | None = None
 
-
     @classmethod
     def from_event(cls, event: Event) -> Self:
         """
@@ -57,5 +56,5 @@ class ChatState:
             user_message_text=event.payload.user_message.text,
             user_message_id=event.payload.user_message.id,
             assistant_message_id=event.payload.assistant_message.id,
-            module_name=event.payload.name
+            module_name=event.payload.name,
         )

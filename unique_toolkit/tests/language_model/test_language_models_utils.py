@@ -1,4 +1,3 @@
-    
 import unittest
 
 from unique_toolkit.language_model.utils import (
@@ -34,7 +33,7 @@ class TestLanguageModelUtils(unittest.TestCase):
             convert_string_to_json(input_string)
 
     def test_convert_no_json(self):
-        input_string = 'This is just a regular string'
+        input_string = "This is just a regular string"
         with self.assertRaises(ValueError):
             convert_string_to_json(input_string)
 
@@ -49,5 +48,5 @@ class TestLanguageModelUtils(unittest.TestCase):
         self.assertEqual(find_last_json_object(input_string), expected_output)
 
     def test_find_last_json_object_no_json(self):
-        input_string = 'This is just a regular string'
+        input_string = "This is just a regular string"
         self.assertIsNone(find_last_json_object(input_string))

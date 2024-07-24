@@ -20,16 +20,22 @@ class TestContentServiceUnit:
         self.service = ContentService(self.chat_state)
 
     def test_search_content_chunks(self):
-        with patch.object(unique_sdk.Search, 'create') as mock_create:
+        with patch.object(unique_sdk.Search, "create") as mock_create:
             mock_create.return_value = [
-                {"id": "1", "text": "Test chunk", "startPage": 1, "endPage": 1, "order": 1}
+                {
+                    "id": "1",
+                    "text": "Test chunk",
+                    "startPage": 1,
+                    "endPage": 1,
+                    "order": 1,
+                }
             ]
-            
+
             result = self.service.search_content_chunks(
                 search_string="test",
                 search_type=ContentSearchType.COMBINED,
                 limit=10,
-                scope_ids=["scope1", "scope2"]
+                scope_ids=["scope1", "scope2"],
             )
 
             assert isinstance(result, list)
@@ -46,11 +52,11 @@ class TestContentServiceUnit:
                 searchType="COMBINED",
                 scopeIds=["scope1", "scope2"],
                 limit=10,
-                chatOnly=False
+                chatOnly=False,
             )
 
     def test_search_contents(self):
-        with patch.object(unique_sdk.Content, 'search') as mock_search:
+        with patch.object(unique_sdk.Content, "search") as mock_search:
             mock_search.return_value = [
                 {
                     "id": "1",
@@ -58,8 +64,14 @@ class TestContentServiceUnit:
                     "title": "Test Content",
                     "url": "http://test.com",
                     "chunks": [
-                        {"id": "chunk1", "text": "Test chunk", "startPage": 1, "endPage": 1, "order": 1}
-                    ]
+                        {
+                            "id": "chunk1",
+                            "text": "Test chunk",
+                            "startPage": 1,
+                            "endPage": 1,
+                            "order": 1,
+                        }
+                    ],
                 }
             ]
 
@@ -77,15 +89,21 @@ class TestContentServiceUnit:
                 user_id="test_user",
                 company_id="test_company",
                 chatId="test_chat",
-                where={"key": "test_key"}
+                where={"key": "test_key"},
             )
 
     def test_error_handling_search_content_chunks(self):
-        with patch.object(unique_sdk.Search, 'create', side_effect=Exception("API Error")):
+        with patch.object(
+            unique_sdk.Search, "create", side_effect=Exception("API Error")
+        ):
             with pytest.raises(Exception, match="API Error"):
-                self.service.search_content_chunks("test", ContentSearchType.COMBINED, 10, None)
+                self.service.search_content_chunks(
+                    "test", ContentSearchType.COMBINED, 10, None
+                )
 
     def test_error_handling_search_contents(self):
-        with patch.object(unique_sdk.Content, 'search', side_effect=Exception("API Error")):
+        with patch.object(
+            unique_sdk.Content, "search", side_effect=Exception("API Error")
+        ):
             with pytest.raises(Exception, match="API Error"):
                 self.service.search_contents({"key": "test_key"})

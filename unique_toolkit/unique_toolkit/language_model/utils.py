@@ -8,7 +8,7 @@ def convert_string_to_json(string: str):
 
     Args:
         string: The string to convert to json.
-    
+
     Returns:
         dict: The json object.
 
@@ -28,15 +28,15 @@ def convert_string_to_json(string: str):
 def find_last_json_object(text: str) -> str | None:
     """
     Finds the last json object in a string.
-    
+
     Args:
         text: The text to search for the last json object.
-    
+
     Returns:
         str | None: The last json object as a string or None if no json object was found.
     """
 
-    pattern = r'\{(?:[^{}]|\{[^{}]*\})*\}'
+    pattern = r"\{(?:[^{}]|\{[^{}]*\})*\}"
     matches = re.findall(pattern, text)
     if matches:
         return matches[-1]

@@ -7,7 +7,9 @@ from unique_toolkit.app.schemas import Event
 
 class WebhookVerificationError(Exception):
     """Custom exception for webhook verification errors."""
+
     pass
+
 
 def verify_signature_and_construct_event(
     headers: dict[str, str],
@@ -25,7 +27,7 @@ def verify_signature_and_construct_event(
         logger (logging.Logger): A logger instance for logging messages.
 
     Returns:
-        Union[Event, Tuple[Dict[str, bool], int]]: 
+        Union[Event, Tuple[Dict[str, bool], int]]:
             If successful, returns an Event object.
             If unsuccessful, returns a tuple with an error response and HTTP status code.
 
@@ -54,4 +56,3 @@ def verify_signature_and_construct_event(
     except unique_sdk.SignatureVerificationError as e:
         logger.error("⚠️  Webhook signature verification failed. " + str(e))
         raise WebhookVerificationError(f"Signature verification failed: {str(e)}")
-        

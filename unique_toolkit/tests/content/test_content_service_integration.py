@@ -21,11 +21,12 @@ class TestContentServiceIntegration:
         assert isinstance(result, list)
         assert all(isinstance(chunk, ContentChunk) for chunk in result)
         assert len(result) > 0
-        assert all(hasattr(chunk, 'id') for chunk in result)
-        assert all(hasattr(chunk, 'text') for chunk in result)
+        assert all(hasattr(chunk, "id") for chunk in result)
+        assert all(hasattr(chunk, "text") for chunk in result)
 
     def test_search_contents(self):
-        filter = [{
+        filter = [
+            {
                 "key": {
                     "equals": "test",
                 },
@@ -43,17 +44,16 @@ class TestContentServiceIntegration:
         assert isinstance(result, list)
         assert all(isinstance(content, Content) for content in result)
         if len(result) > 0:
-            assert all(hasattr(content, 'id') for content in result)
-            assert all(hasattr(content, 'key') for content in result)
-            assert all(hasattr(content, 'chunks') for content in result)
+            assert all(hasattr(content, "id") for content in result)
+            assert all(hasattr(content, "key") for content in result)
+            assert all(hasattr(content, "chunks") for content in result)
             assert all(isinstance(content.chunks, list) for content in result)
-
 
     def test_error_handling(self):
         with pytest.raises(Exception):
             # This should raise an exception due to invalid search type
             self.service.search_content_chunks(
                 search_string="test",
-                search_type="invalid_type", # type: ignore
+                search_type="invalid_type",  # type: ignore
                 limit=10,
             )

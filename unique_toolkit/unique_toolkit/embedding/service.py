@@ -64,11 +64,7 @@ class EmbeddingService:
             timeout=timeout,
         )
 
-    def _trigger_embed_texts(
-        self,
-        texts: list[str],
-        timeout: int
-    ) -> Embeddings:
+    def _trigger_embed_texts(self, texts: list[str], timeout: int) -> Embeddings:
         request = {
             "user_id": self.state.user_id,
             "company_id": self.state.company_id,

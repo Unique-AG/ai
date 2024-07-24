@@ -10,7 +10,7 @@ def convert_chat_history_to_injectable_string(
 
     Args:
         history (list[ChatMessage]): The chat history.
-    
+
     Returns:
         tuple[list[str], int]: The chat history and the token length of the chat context.
     """

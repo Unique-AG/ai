@@ -11,9 +11,11 @@ from unique_toolkit.app.schemas import (
 
 class TestEventSchemas(unittest.TestCase):
     def test_event_user_message_deserialization(self):
-        json_data = '{"id": "msg1", "text": "Hello", "createdAt": "2023-01-01T00:00:00Z"}'
+        json_data = (
+            '{"id": "msg1", "text": "Hello", "createdAt": "2023-01-01T00:00:00Z"}'
+        )
         user_message = EventUserMessage.model_validate_json(json_data)
-        
+
         assert user_message.id == "msg1"
         assert user_message.text == "Hello"
         assert user_message.created_at == "2023-01-01T00:00:00Z"
@@ -21,12 +23,12 @@ class TestEventSchemas(unittest.TestCase):
     def test_event_assistant_message_deserialization(self):
         json_data = '{"id": "msg2", "createdAt": "2023-01-01T00:01:00Z"}'
         assistant_message = EventAssistantMessage.model_validate_json(json_data)
-        
+
         assert assistant_message.id == "msg2"
         assert assistant_message.created_at == "2023-01-01T00:01:00Z"
 
     def test_event_payload_deserialization(self):
-        json_data = '''{
+        json_data = """{
             "name": "unique.chat.external-module.chosen",
             "description": "Test description",
             "configuration": {"key": "value"},
@@ -42,9 +44,9 @@ class TestEventSchemas(unittest.TestCase):
                 "createdAt": "2023-01-01T00:01:00Z"
             },
             "text": "Optional text"
-        }'''
+        }"""
         payload = EventPayload.model_validate_json(json_data)
-        
+
         assert payload.name == EventName.EXTERNAL_MODULE_CHOSEN
         assert payload.description == "Test description"
         assert payload.configuration == {"key": "value"}
@@ -55,7 +57,7 @@ class TestEventSchemas(unittest.TestCase):
         assert payload.text == "Optional text"
 
     def test_event_deserialization(self):
-        json_data = '''{
+        json_data = """{
             "id": "event1",
             "event": "test_event",
             "userId": "user1",
@@ -78,9 +80,9 @@ class TestEventSchemas(unittest.TestCase):
             },
             "createdAt": 1672531200,
             "version": "1.0"
-        }'''
+        }"""
         event = Event.model_validate_json(json_data)
-        
+
         assert event.id == "event1"
         assert event.event == "test_event"
         assert event.user_id == "user1"
@@ -91,9 +93,8 @@ class TestEventSchemas(unittest.TestCase):
         assert event.created_at == 1672531200
         assert event.version == "1.0"
 
-
     def test_snake_case_conversion(self):
-        json_data = '''{
+        json_data = """{
             "id": "event1",
             "event": "test_event",
             "userId": "user1",
@@ -114,9 +115,9 @@ class TestEventSchemas(unittest.TestCase):
                     "createdAt": "2023-01-01T00:01:00Z"
                 }
             }
-        }'''
+        }"""
         event = Event.model_validate_json(json_data)
-        
+
         assert hasattr(event, "user_id")
         assert hasattr(event, "company_id")
         assert hasattr(event.payload, "chat_id")

@@ -83,7 +83,7 @@ class ChatService:
             references,
             debug_info,
         )
-    
+
     def get_full_history(self) -> list[ChatMessage]:
         """
         Loads the full chat history for the chat session synchronously.
@@ -95,7 +95,7 @@ class ChatService:
             Exception: If the loading fails.
         """
         return self._get_full_history()
-    
+
     @to_async
     @async_warning
     def async_get_full_history(self) -> list[ChatMessage]:
@@ -232,7 +232,7 @@ class ChatService:
             message = unique_sdk.Message.modify(
                 user_id=self.state.user_id,
                 company_id=self.state.company_id,
-                id=message_id, # type: ignore
+                id=message_id,  # type: ignore
                 chatId=self.state.chat_id,
                 text=content,
                 references=self._map_references(references),  # type: ignore
@@ -310,8 +310,8 @@ class ChatService:
                 filtered_messages.append(message)
 
         return self._map_to_chat_messages(filtered_messages)
-    
-    def _trigger_list_messages(self, chat_id:str):
+
+    def _trigger_list_messages(self, chat_id: str):
         try:
             messages = unique_sdk.Message.list(
                 user_id=self.state.user_id,
@@ -322,7 +322,6 @@ class ChatService:
         except Exception as e:
             self.logger.error(f"Failed to list chat history: {e}")
             raise e
-        
 
     @staticmethod
     def _map_to_chat_messages(messages: list[dict]):

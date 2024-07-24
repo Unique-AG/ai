@@ -22,7 +22,7 @@ class TestEmbeddingServiceUnit:
         self.service = EmbeddingService(self.chat_state)
 
     def test_embed_texts(self):
-        with patch.object(unique_sdk.Embeddings, 'create') as mock_create:
+        with patch.object(unique_sdk.Embeddings, "create") as mock_create:
             mock_create.return_value = {"embeddings": [[0.1, 0.2, 0.3]]}
             texts = ["Test text"]
             result = self.service.embed_texts(texts)
@@ -32,11 +32,11 @@ class TestEmbeddingServiceUnit:
                 user_id="test_user",
                 company_id="test_company",
                 texts=texts,
-                timeout=600_000
+                timeout=600_000,
             )
 
     def test_trigger_embed_texts(self):
-        with patch.object(unique_sdk.Embeddings, 'create') as mock_create:
+        with patch.object(unique_sdk.Embeddings, "create") as mock_create:
             mock_create.return_value = {"embeddings": [[0.1, 0.2, 0.3]]}
             texts = ["Test text"]
             result = self.service._trigger_embed_texts(texts, 600_000)
@@ -46,7 +46,7 @@ class TestEmbeddingServiceUnit:
                 user_id="test_user",
                 company_id="test_company",
                 texts=texts,
-                timeout=600_000
+                timeout=600_000,
             )
 
     def test_get_cosine_similarity(self):
@@ -72,6 +72,8 @@ class TestEmbeddingServiceUnit:
         assert service.logger is not None
 
     def test_error_handling_search_contents(self):
-        with patch.object(unique_sdk.Embeddings, 'create', side_effect=Exception("API Error")):
+        with patch.object(
+            unique_sdk.Embeddings, "create", side_effect=Exception("API Error")
+        ):
             with pytest.raises(Exception, match="API Error"):
                 self.service.embed_texts(["Test text"])

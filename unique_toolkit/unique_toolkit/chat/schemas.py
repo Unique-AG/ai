@@ -4,11 +4,15 @@ from humps import camelize
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 # set config to convert camelCase to snake_case
-model_config = ConfigDict(alias_generator=camelize, populate_by_name=True, arbitrary_types_allowed=True)
+model_config = ConfigDict(
+    alias_generator=camelize, populate_by_name=True, arbitrary_types_allowed=True
+)
+
 
 class ChatMessageRole(str, Enum):
     USER = "user"
     ASSISTANT = "assistant"
+
 
 class ChatMessage(BaseModel):
     model_config = model_config
