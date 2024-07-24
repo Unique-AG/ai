@@ -19,6 +19,8 @@ test_assistant_id = os.getenv("TEST_ASSISTANT_ID")
 test_user_message_id = os.getenv("TEST_USER_MESSAGE_ID")
 test_scope_id = os.getenv("TEST_SCOPE_ID")
 
+collect_ignore_glob = ["*_integration.py"]
+
 
 @pytest.fixture
 def chat_state():
