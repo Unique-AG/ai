@@ -39,39 +39,3 @@ target-version = "py311"
 
 [tool.ruff.lint]
 extend-select = ["I"]
-
-[tool.pyright]
-include = ["unique_sdk"]
-exclude = ["build", "**/__pycache__"]
-
-[tool.tox]
-legacy_tox_ini = """
-    [tox]
-    min_version = 4.0
-    isolated_build = true
-    env_list =
-        lint
-        py311
-        py312
-
-    [testenv]
-    allowlist_externals = poetry
-    commands_pre =
-        poetry install --no-root --sync --with dev
-
-    [testenv:py311]
-    description = run tests with python 3.11
-    basepython = python3.11
-    commands =
-        poetry run pytest --cov=unique_sdk tests/ --import-mode importlib
-
-    [testenv:py312]
-    description = run tests with python 3.12
-    basepython = python3.12
-    commands =
-        poetry run pytest --cov=unique_sdk tests/ --import-mode importlib
-
-    [testenv:lint]
-    description = lint source code
-    commands = ruff check {posargs:unique_sdk tests}
-"""
