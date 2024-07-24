@@ -3,7 +3,7 @@ import logging
 import unittest
 from unittest.mock import MagicMock, patch
 
-from unique_toolkit.performance.async_executor import AsyncExecutor
+from unique_toolkit.app.performance.async_executor import AsyncExecutor
 
 
 class TestAsyncExecutor(unittest.TestCase):

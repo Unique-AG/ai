@@ -46,7 +46,7 @@ class TestLanguageModelSchemas:
                             {
                                 "function": {
                                     "name": "name",
-                                    "arguments": {"key": "value"},
+                                    "arguments": '{"key": "value"}',
                                 },
                                 "id": "id",
                                 "type": "type",

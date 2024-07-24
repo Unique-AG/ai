@@ -5,7 +5,7 @@ from typing import ClassVar, Optional, Type, cast
 
 from pydantic import BaseModel
 
-from unique_toolkit.language_model.schemas import TokenLimits
+from unique_toolkit.language_model.schemas import LanguageModelTokenLimits
 
 
 class LanguageModelName(StrEnum):
@@ -29,7 +29,7 @@ class LanguageModelInfo(BaseModel):
     version: str
     provider: LanguageModelProvider
 
-    token_limits: TokenLimits
+    token_limits: LanguageModelTokenLimits
 
     info_cutoff_at: date
     published_at: date
@@ -186,7 +186,7 @@ def create_language_model(
         name=name,
         version=version,
         provider=provider,
-        token_limits=TokenLimits(
+        token_limits=LanguageModelTokenLimits(
             token_limit=token_limit,
             token_limit_input=token_limit_input,
             token_limit_output=token_limit_output,

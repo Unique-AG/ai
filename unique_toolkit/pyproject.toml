@@ -1,11 +1,14 @@
 [tool.poetry]
 name = "unique_toolkit"
-version = "0.0.2"
+version = "1.0.0"
 description = ""
 authors = [
-    "Unique Data Science <datascience@unique.ch>",
+    "Martin Fadler <martin.fadler@unique.ch>",
+    "Sadique Sheik <sadique@unique.ch>",
+    "Fabian Schläpfer <fabian@unique.ch>",
+    "Pascal Hauri <pascal@unique.ch>",
 ]
-readme = "README.md"
+readme = ["README.md", "CHANGELOG.md"]
 license = "MIT"
 
 [tool.poetry.dependencies]

@@ -8,10 +8,9 @@ from unique_toolkit.embedding.schemas import Embeddings
 from unique_toolkit.embedding.service import EmbeddingService
 
 
-@pytest.mark.usefixtures("chat_state")
 class TestEmbeddingServiceUnit:
     @pytest.fixture(autouse=True)
-    def setup(self, chat_state):
+    def setup(self):
         # This method will be called before each test
         self.chat_state = ChatState(
             user_id="test_user",
@@ -62,18 +61,20 @@ class TestEmbeddingServiceUnit:
         expected = 1  # Identical vectors have cosine similarity of 1
         assert pytest.approx(result) == expected
 
-    def test_init_with_logger(self, chat_state):
+    def test_init_with_logger(self):
         logger = Mock()
-        service = EmbeddingService(chat_state, logger)
+        service = EmbeddingService(self.chat_state, logger)
         assert service.logger == logger
 
-    def test_init_without_logger(self, chat_state):
-        service = EmbeddingService(chat_state)
+    def test_init_without_logger(self):
+        service = EmbeddingService(self.chat_state)
         assert service.logger is not None
 
     def test_error_handling_search_contents(self):
         with patch.object(
-            unique_sdk.Embeddings, "create", side_effect=Exception("API Error")
+            unique_sdk.Embeddings,
+            "create",
+            side_effect=Exception("API Error"),
         ):
             with pytest.raises(Exception, match="API Error"):
                 self.service.embed_texts(["Test text"])

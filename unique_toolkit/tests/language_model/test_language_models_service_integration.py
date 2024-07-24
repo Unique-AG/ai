@@ -6,15 +6,40 @@ import pytest
 from unique_toolkit.content.schemas import ContentChunk, ContentMetadata
 from unique_toolkit.language_model.infos import LanguageModelName
 from unique_toolkit.language_model.schemas import (
+    LanguageModelMessage,
+    LanguageModelMessageRole,
     LanguageModelMessages,
     LanguageModelSystemMessage,
+    LanguageModelTool,
+    LanguageModelToolParameterProperty,
+    LanguageModelToolParameters,
     LanguageModelUserMessage,
 )
 from unique_toolkit.language_model.service import LanguageModelService
 
+# Sample tool for testing
+weather_tool = LanguageModelTool(
+    name="get_weather",
+    description="Get the current weather for a location",
+    parameters=LanguageModelToolParameters(
+        type="object",
+        properties={
+            "location": LanguageModelToolParameterProperty(
+                type="string", description="The city and state, e.g. San Francisco, CA"
+            ),
+            "unit": LanguageModelToolParameterProperty(
+                type="string",
+                description="The unit system to use. Either 'celsius' or 'fahrenheit'.",
+                enum=["celsius", "fahrenheit"],
+            ),
+        },
+        required=["location"],
+    ),
+)
+
 
 @pytest.mark.usefixtures("chat_state")
-class TestLanguageModelService(unittest.TestCase):
+class TestLanguageModelServiceIntegration(unittest.TestCase):
     @pytest.fixture(autouse=True)
     def setup(self, chat_state):
         # This method will be called before each test
@@ -74,3 +99,41 @@ class TestLanguageModelService(unittest.TestCase):
         )
         self.assertIsNotNone(response)
         self.assertIsInstance(response.message.text, str)
+
+    def test_complete_with_tool(self):
+        messages = LanguageModelMessages(
+            [
+                LanguageModelMessage(
+                    role=LanguageModelMessageRole.USER,
+                    content="What's the weather in New York?",
+                )
+            ]
+        )
+
+        response = self.service.complete(
+            messages=messages,
+            model_name=LanguageModelName.AZURE_GPT_4_0613,
+            tools=[weather_tool],
+        )
+
+        assert response.choices[0].message.tool_calls is not None
+        assert response.choices[0].message.tool_calls[0].function.name == "get_weather"
+
+    def test_stream_complete_with_tool(self):
+        messages = LanguageModelMessages(
+            [
+                LanguageModelMessage(
+                    role=LanguageModelMessageRole.USER,
+                    content="What's the weather in New York?",
+                )
+            ]
+        )
+
+        response = self.service.stream_complete(
+            messages=messages,
+            model_name=LanguageModelName.AZURE_GPT_4_0613,
+            tools=[weather_tool],
+        )
+
+        assert response.tool_calls is not None
+        assert response.tool_calls[0].name == "get_weather"

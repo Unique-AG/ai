@@ -1,5 +1,6 @@
+import json
 from enum import StrEnum
-from typing import Optional
+from typing import Any, Optional
 
 from humps import camelize
 from pydantic import BaseModel, ConfigDict, RootModel, field_validator, model_validator
@@ -21,15 +22,20 @@ class LanguageModelMessageRole(StrEnum):
 class LanguageModelFunction(BaseModel):
     model_config = model_config
 
+    id: Optional[str] = None
     name: str
-    arguments: dict[str, any]  # type: ignore
+    arguments: Optional[dict[str, any]] = None  # type: ignore
+
+    @field_validator("arguments", mode="before")
+    def set_arguments(cls, value):
+        return json.loads(value)
 
 
 class LanguageModelFunctionCall(BaseModel):
     model_config = model_config
 
     id: str
-    type: str
+    type: Optional[str] = None
     function: LanguageModelFunction
 
 
@@ -37,7 +43,7 @@ class LanguageModelMessage(BaseModel):
     model_config = model_config
 
     role: LanguageModelMessageRole
-    content: str
+    content: Optional[str] = None
     name: Optional[str] = None
     tool_calls: Optional[list[LanguageModelFunctionCall]] = None
 
@@ -97,7 +103,7 @@ class LanguageModelStreamResponseMessage(BaseModel):
     previous_message_id: str
     role: LanguageModelMessageRole
     text: str
-    original_text: str
+    original_text: Optional[str] = None
     references: list[dict[str, any]] = []  # type: ignore
 
     # TODO make sdk return role in lowercase
@@ -111,10 +117,10 @@ class LanguageModelStreamResponse(BaseModel):
     model_config = model_config
 
     message: LanguageModelStreamResponseMessage
-    tool_calls: Optional[list[LanguageModelFunctionCall]] = None
+    tool_calls: Optional[list[LanguageModelFunction]] = None
 
 
-class TokenLimits(BaseModel):
+class LanguageModelTokenLimits(BaseModel):
     token_limit: Optional[int] = None
     token_limit_input: Optional[int] = None
     token_limit_output: Optional[int] = None
@@ -142,3 +148,21 @@ class TokenLimits(BaseModel):
             self.token_limit = token_limit_input + token_limit_output
 
         return self
+
+
+class LanguageModelToolParameterProperty(BaseModel):
+    type: str
+    description: str
+    enum: Optional[list[Any]] = None
+
+
+class LanguageModelToolParameters(BaseModel):
+    type: str = "object"
+    properties: dict[str, LanguageModelToolParameterProperty]
+    required: list[str]
+
+
+class LanguageModelTool(BaseModel):
+    name: str
+    description: str
+    parameters: LanguageModelToolParameters

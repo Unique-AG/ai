@@ -27,5 +27,5 @@ unique_log_config = {
 }
 
 
-def load_dict_config(config: dict = unique_log_config):
+def init_logging(config: dict = unique_log_config):
     return dictConfig(config)

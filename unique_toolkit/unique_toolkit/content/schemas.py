@@ -1,5 +1,6 @@
 from datetime import datetime
 from enum import StrEnum
+from typing import Optional
 
 from humps import camelize
 from pydantic import BaseModel, ConfigDict
@@ -44,6 +45,8 @@ class Content(BaseModel):
     title: str | None = None
     url: str | None = None
     chunks: list[ContentChunk] = []
+    write_url: str | None = None
+    read_url: str | None = None
 
 
 class ContentReference(BaseModel):
@@ -75,3 +78,13 @@ class ContentSearchResult(BaseModel):
     startPage: int | None = None
     endPage: int | None = None
     object: str | None = None
+
+
+class ContentUploadInput(BaseModel):
+    key: str
+    title: str
+    mime_type: str
+
+    owner_type: Optional[str] = None
+    owner_id: Optional[str] = None
+    byte_size: Optional[int] = None

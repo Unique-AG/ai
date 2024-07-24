@@ -7,14 +7,39 @@ from unique_toolkit.chat.state import ChatState
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.language_model.infos import LanguageModelName
 from unique_toolkit.language_model.schemas import (
+    LanguageModelMessage,
+    LanguageModelMessageRole,
     LanguageModelMessages,
     LanguageModelResponse,
     LanguageModelStreamResponse,
+    LanguageModelTool,
+    LanguageModelToolParameterProperty,
+    LanguageModelToolParameters,
 )
 from unique_toolkit.language_model.service import LanguageModelService
 
+# Mock tool for testing
+mock_tool = LanguageModelTool(
+    name="get_weather",
+    description="Get the current weather for a location",
+    parameters=LanguageModelToolParameters(
+        type="object",
+        properties={
+            "location": LanguageModelToolParameterProperty(
+                type="string", description="The city and state, e.g. San Francisco, CA"
+            ),
+            "unit": LanguageModelToolParameterProperty(
+                type="string",
+                description="The unit system to use. Either 'celsius' or 'fahrenheit'.",
+                enum=["celsius", "fahrenheit"],
+            ),
+        },
+        required=["location"],
+    ),
+)
 
-class TestLanguageModelService:
+
+class TestLanguageModelServiceUnit:
     @pytest.fixture(autouse=True)
     def setup(self):
         self.chat_state = ChatState(
@@ -52,6 +77,7 @@ class TestLanguageModelService:
                 messages=[],
                 timeout=240000,
                 temperature=0.0,
+                options={},
             )
 
     def test_stream_complete(self):
@@ -98,3 +124,94 @@ class TestLanguageModelService:
                 self.service.stream_complete(
                     LanguageModelMessages([]), LanguageModelName.AZURE_GPT_4_TURBO_1106
                 )
+
+    def test_complete_with_tool(self):
+        messages = LanguageModelMessages(
+            [
+                LanguageModelMessage(
+                    role=LanguageModelMessageRole.USER,
+                    content="What's the weather in New York?",
+                )
+            ]
+        )
+
+        with patch.object(unique_sdk.ChatCompletion, "create") as mock_create:
+            mock_create.return_value = {
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {
+                            "role": "assistant",
+                            "content": "The weather in New York is 70 degrees Fahrenheit.",
+                            "toolCalls": [
+                                {
+                                    "id": "test_tool_id",
+                                    "type": "function",
+                                    "function": {
+                                        "id": "test_function_id",
+                                        "name": "get_weather",
+                                        "arguments": '{"location": "New York, NY","unit": "fahrenheit"}',
+                                    },
+                                },
+                            ],
+                        },
+                        "finishReason": "function_call",
+                    }
+                ],
+            }
+
+            response = self.service.complete(
+                messages=messages,
+                model_name=LanguageModelName.AZURE_GPT_35_TURBO,
+                tools=[mock_tool],
+            )
+
+            assert response.choices[0].message.tool_calls is not None
+            assert (
+                response.choices[0].message.tool_calls[0].function.name == "get_weather"
+            )
+            arguments = response.choices[0].message.tool_calls[0].function.arguments
+            assert arguments is not None
+            assert "New York, NY" in arguments.values()
+
+    def test_stream_complete_with_tool(self):
+        messages = LanguageModelMessages(
+            [
+                LanguageModelMessage(
+                    role=LanguageModelMessageRole.USER,
+                    content="What's the weather in New York?",
+                )
+            ]
+        )
+
+        with patch.object(
+            unique_sdk.Integrated, "chat_stream_completion"
+        ) as mock_stream:
+            mock_stream.return_value = {
+                "message": {
+                    "id": "test_stream_id",
+                    "previousMessageId": "test_previous_message_id",
+                    "role": "ASSISTANT",
+                    "text": "Streamed response",
+                    "originalText": "Streamed response original",
+                },
+                "toolCalls": [
+                    {
+                        "id": "test_tool_id",
+                        "name": "get_weather",
+                        "arguments": '{"location": "London, UK", "unit": "celsius"}',
+                    }
+                ],
+            }
+
+            response = self.service.stream_complete(
+                messages=messages,
+                model_name=LanguageModelName.AZURE_GPT_35_TURBO,
+                tools=[mock_tool],
+            )
+
+            assert response.tool_calls is not None
+            assert response.tool_calls[0].name == "get_weather"
+            arguments = response.tool_calls[0].arguments
+            assert arguments is not None
+            assert "London, UK" in arguments.values()

@@ -12,7 +12,6 @@ model_config = ConfigDict(
 
 class EventName(StrEnum):
     EXTERNAL_MODULE_CHOSEN = "unique.chat.external-module.chosen"
-    USER_MESSAGE_CREATED = "unique.chat.user-message.created"
 
 
 class EventUserMessage(BaseModel):
