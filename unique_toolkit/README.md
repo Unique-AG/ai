@@ -16,7 +16,7 @@ In addition, the `app` module provides functions to initialize and secure apps a
 
 ## Changelog
 
-See the [CHANGELOG.md](https://github.com/yourusername/yourproject/blob/main/CHANGELOG.md) file for details on changes and version history.
+See the [CHANGELOG.md](https://github.com/Unique-AG/ai/blob/main/unique_toolkit/CHANGELOG.md) file for details on changes and version history.
 
 # Domains
 
