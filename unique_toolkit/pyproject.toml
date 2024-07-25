@@ -22,7 +22,6 @@ python-dotenv = "^1.0.1"
 requests = "^2.32.3"
 regex = "^2024.5.15"
 tiktoken = "^0.7.0"
-pytest-asyncio = "^0.23.8"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -32,6 +31,7 @@ tox = "^4.11.4"
 pyright = "^1.1.341"
 pytest-cov = "^4.1.0"
 pre-commit = "^3.7.1"
+pytest-asyncio = "^0.23.8"
 
 [build-system]
 requires = ["poetry-core"]
