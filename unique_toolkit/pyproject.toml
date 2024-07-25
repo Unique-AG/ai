@@ -1,11 +1,14 @@
 [tool.poetry]
 name = "unique_toolkit"
-version = "0.0.2"
+version = "0.5.0"
 description = ""
 authors = [
-    "Unique Data Science <datascience@unique.ch>",
+    "Martin Fadler <martin.fadler@unique.ch>",
+    "Sadique Sheik <sadique@unique.ch>",
+    "Fabian Schläpfer <fabian@unique.ch>",
+    "Pascal Hauri <pascal@unique.ch>",
 ]
-readme = "README.md"
+readme = ["README.md", "CHANGELOG.md"]
 license = "MIT"
 
 [tool.poetry.dependencies]
@@ -14,6 +17,11 @@ typing-extensions = "^4.9.0"
 pydantic = "^2.8.2"
 pyhumps = "^3.8.0"
 unique-sdk = "^0.8.10"
+numpy = "^2.0.1"
+python-dotenv = "^1.0.1"
+requests = "^2.32.3"
+regex = "^2024.5.15"
+tiktoken = "^0.7.0"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -23,6 +31,7 @@ tox = "^4.11.4"
 pyright = "^1.1.341"
 pytest-cov = "^4.1.0"
 pre-commit = "^3.7.1"
+pytest-asyncio = "^0.23.8"
 
 [build-system]
 requires = ["poetry-core"]
@@ -33,39 +42,3 @@ target-version = "py311"
 
 [tool.ruff.lint]
 extend-select = ["I"]
-
-[tool.pyright]
-include = ["unique_sdk"]
-exclude = ["build", "**/__pycache__"]
-
-[tool.tox]
-legacy_tox_ini = """
-    [tox]
-    min_version = 4.0
-    isolated_build = true
-    env_list =
-        lint
-        py311
-        py312
-
-    [testenv]
-    allowlist_externals = poetry
-    commands_pre =
-        poetry install --no-root --sync --with dev
-
-    [testenv:py311]
-    description = run tests with python 3.11
-    basepython = python3.11
-    commands =
-        poetry run pytest --cov=unique_sdk tests/ --import-mode importlib
-
-    [testenv:py312]
-    description = run tests with python 3.12
-    basepython = python3.12
-    commands =
-        poetry run pytest --cov=unique_sdk tests/ --import-mode importlib
-
-    [testenv:lint]
-    description = lint source code
-    commands = ruff check {posargs:unique_sdk tests}
-"""
