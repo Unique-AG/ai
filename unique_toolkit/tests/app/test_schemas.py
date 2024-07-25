@@ -59,11 +59,11 @@ class TestEventSchemas(unittest.TestCase):
     def test_event_deserialization(self):
         json_data = """{
             "id": "event1",
-            "event": "test_event",
+            "event": "unique.chat.external-module.chosen",
             "userId": "user1",
             "companyId": "company1",
             "payload": {
-                "name": "unique.chat.external-module.chosen",
+                "name": "test_module",
                 "description": "Test description",
                 "configuration": {"key": "value"},
                 "chatId": "chat1",
@@ -84,10 +84,10 @@ class TestEventSchemas(unittest.TestCase):
         event = Event.model_validate_json(json_data)
 
         assert event.id == "event1"
-        assert event.event == "test_event"
+        assert event.event == EventName.EXTERNAL_MODULE_CHOSEN
         assert event.user_id == "user1"
         assert event.company_id == "company1"
-        assert event.payload.name == EventName.EXTERNAL_MODULE_CHOSEN
+        assert event.payload.name == "test_module"
         assert event.payload.chat_id == "chat1"
         assert event.payload.user_message.text == "Hello"
         assert event.created_at == 1672531200
@@ -96,11 +96,11 @@ class TestEventSchemas(unittest.TestCase):
     def test_snake_case_conversion(self):
         json_data = """{
             "id": "event1",
-            "event": "test_event",
+            "event": "unique.chat.external-module.chosen",
             "userId": "user1",
             "companyId": "company1",
             "payload": {
-                "name": "unique.chat.external-module.chosen",
+                "name": "test_module",
                 "description": "Test",
                 "configuration": {},
                 "chatId": "chat1",

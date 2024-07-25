@@ -32,7 +32,7 @@ class EventAssistantMessage(BaseModel):
 class EventPayload(BaseModel):
     model_config = model_config
 
-    name: EventName
+    name: str
     description: str
     configuration: dict[str, Any]
     chat_id: str
@@ -46,7 +46,7 @@ class Event(BaseModel):
     model_config = model_config
 
     id: str
-    event: str
+    event: EventName
     user_id: str
     company_id: str
     payload: EventPayload
