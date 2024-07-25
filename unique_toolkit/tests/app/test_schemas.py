@@ -84,10 +84,10 @@ class TestEventSchemas(unittest.TestCase):
         event = Event.model_validate_json(json_data)
 
         assert event.id == "event1"
-        assert event.event == "test_event"
+        assert event.event == EventName.EXTERNAL_MODULE_CHOSEN
         assert event.user_id == "user1"
         assert event.company_id == "company1"
-        assert event.payload.name == EventName.EXTERNAL_MODULE_CHOSEN
+        assert event.payload.name == "test_module"
         assert event.payload.chat_id == "chat1"
         assert event.payload.user_message.text == "Hello"
         assert event.created_at == 1672531200
