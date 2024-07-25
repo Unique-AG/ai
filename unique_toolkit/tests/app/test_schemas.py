@@ -59,11 +59,11 @@ class TestEventSchemas(unittest.TestCase):
     def test_event_deserialization(self):
         json_data = """{
             "id": "event1",
-            "event": "test_event",
+            "event": "unique.chat.external-module.chosen",
             "userId": "user1",
             "companyId": "company1",
             "payload": {
-                "name": "unique.chat.external-module.chosen",
+                "name": "test_module",
                 "description": "Test description",
                 "configuration": {"key": "value"},
                 "chatId": "chat1",
@@ -96,11 +96,11 @@ class TestEventSchemas(unittest.TestCase):
     def test_snake_case_conversion(self):
         json_data = """{
             "id": "event1",
-            "event": "test_event",
+            "event": "unique.chat.external-module.chosen",
             "userId": "user1",
             "companyId": "company1",
             "payload": {
-                "name": "unique.chat.external-module.chosen",
+                "name": "test_module",
                 "description": "Test",
                 "configuration": {},
                 "chatId": "chat1",
