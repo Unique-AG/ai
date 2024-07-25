@@ -34,5 +34,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `schemas.py` containing relevant schemas such as `LanguageModelResponse`.
   - `utils.py` with utility functions for parsing language model output.
 
-## [0.0.2] - 2024-07-23
+## [0.0.2] - 2024-07-10
 - Initial release of `unique_toolkit`.
