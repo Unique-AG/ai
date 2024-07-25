@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] - 2024-07-23
+## [0.5.0] - 2024-07-23
 ### Added
 - Added `unique_toolkit.app` module with the following components:
   - `init_logging.py` for initializing the logger.
@@ -34,5 +34,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `schemas.py` containing relevant schemas such as `LanguageModelResponse`.
   - `utils.py` with utility functions for parsing language model output.
 
-## [0.0.2] - 2024-07-23
+## [0.0.2] - 2024-07-10
 - Initial release of `unique_toolkit`.
