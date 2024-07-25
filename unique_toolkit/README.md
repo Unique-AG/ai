@@ -10,9 +10,9 @@ The Toolkit is structured along the following domains:
 
 Each domain comprises a service class (in `service.py`) which encapsulates the basic functionalities to interact with the domain entities, the schemas 
 (in `schemas.py`) used in the service and required for interacting with the service functions, utility functions (in `utils.py`) which give additional
-functionality to interact with the domain entities (all domains except Embedding) and other domain specific functionalities which are explained in the respective domain documentation.
+functionality to interact with the domain entities (all domains except embedding) and other domain specific functionalities which are explained in the respective domain documentation.
 
-In addition, the `app` module provides functions to initialize and secure apps and perform parallel reuqests (only with async app like Flask) that will interact with the Unique platform. 
+In addition, the `unique_toolkit.app` module provides functions to initialize apps that interact with the Unique platform. It also includes some utility functions to run async tasks in parallel (async webserver and app implementation required).
 
 ## Changelog
 
