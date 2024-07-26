@@ -21,7 +21,7 @@ class ChatMessage(BaseModel):
     object: str | None = None
     content: str = Field(alias="text")
     role: ChatMessageRole
-    debug_info: dict = {}
+    debug_info: dict | None = {}
 
     # TODO make sdk return role consistently in lowercase
     # Currently needed as sdk returns role in uppercase
