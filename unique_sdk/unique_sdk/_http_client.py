@@ -1,6 +1,6 @@
 import json
 import threading
-from typing import ClassVar, Optional
+from typing import ClassVar, Mapping, Optional, Tuple, Union
 
 try:
     import requests
@@ -15,6 +15,13 @@ try:
 except ImportError:
     httpx = None
 
+try:
+    import aiohttp
+    from aiohttp import ClientTimeout as AIOHTTPTimeout
+    from aiohttp import StreamReader as AIOHTTPStreamReader
+except ImportError:
+    aiohttp = None
+
 import unique_sdk
 from unique_sdk import _error
 
@@ -25,7 +32,10 @@ def new_default_http_client(*args, **kwargs) -> "HTTPClient":
 
 
 def new_http_client_async_fallback(*args, **kwargs) -> "HTTPClient":
-    impl = HTTPXClient
+    if httpx:
+        impl = HTTPXClient
+    elif aiohttp:
+        impl = AIOHTTPClient
     return impl(*args, **kwargs)
 
 
@@ -41,6 +51,9 @@ class HTTPClient(object):
 
     def request(self, method, url, headers, post_data=None):
         raise NotImplementedError("HTTPClient subclasses must implement `request`")
+
+    def close(self):
+        raise NotImplementedError("HTTPClient subclasses must implement `close`")
 
     async def request_async(self, method, url, headers, post_data=None):
         if self._async_fallback_client is not None:
@@ -79,7 +92,11 @@ class RequestsClient(HTTPClient):
 
     def request(self, method, url, headers, post_data=None):
         return self._request_internal(
-            method, url, headers, post_data, is_streaming=False
+            method,
+            url,
+            headers,
+            post_data,
+            is_streaming=False,
         )
 
     def _request_internal(self, method, url, headers, post_data, is_streaming):
@@ -123,36 +140,49 @@ class RequestsClient(HTTPClient):
 
         return content, status_code, result.headers
 
+    def close(self):
+        if getattr(self._thread_local, "session", None) is not None:
+            self._thread_local.session.close()
+
+    def request_async(self) -> Tuple[bytes, int, Mapping[str, str]]:
+        raise NotImplementedError(
+            "RequestsSession does not support asynchronous requests."
+        )
+
 
 class HTTPXClient(HTTPClient):
     name = "httpx"
 
+    _client: HTTPXClientType
+
     def __init__(
         self,
-        timeout=600,
-        allow_sync_methods=False,
+        timeout: Optional[Union[float, "HTTPXTimeout"]] = 600,
         **kwargs,
     ):
         super(HTTPXClient, self).__init__(**kwargs)
 
-        if httpx is None:
-            raise ImportError(
-                "Unexpected: tried to initialize HTTPXClient but the httpx module is not present."
-            )
-
-        if anyio is None:
-            raise ImportError(
-                "Unexpected: tried to initialize HTTPXClient but the anyio module is not present."
-            )
+        assert httpx is not None
+        assert anyio is not None
 
         self.httpx = httpx
         self.anyio = anyio
 
         self._client_async = httpx.AsyncClient(**kwargs)
-        self._client = None
-        if allow_sync_methods:
-            self._client = httpx.Client(**kwargs)
+        self._client = httpx.Client(**kwargs)
         self._timeout = timeout
+
+    def _get_request_args_kwargs(
+        self, method: str, url: str, headers: Mapping[str, str], post_data
+    ):
+        kwargs = {}
+
+        if self._timeout:
+            kwargs["timeout"] = self._timeout
+        return [
+            (method, url),
+            {"headers": headers, "data": post_data or {}, **kwargs},
+        ]
 
     def request(
         self,
@@ -161,18 +191,15 @@ class HTTPXClient(HTTPClient):
         headers: Mapping[str, str],
         post_data=None,
     ) -> Tuple[bytes, int, Mapping[str, str]]:
-        if self._client is None:
-            raise RuntimeError(
-                "Stripe: HTTPXClient was initialized with allow_sync_methods=False, "
-                "so it cannot be used for synchronous requests."
-            )
-        args, kwargs = self._get_request_args_kwargs(
-            method, url, headers, post_data
-        )
+        args, kwargs = self._get_request_args_kwargs(method, url, headers, post_data)
         try:
             response = self._client.request(*args, **kwargs)
-        except Exception as e:
-            self._handle_request_error(e)
+        except Exception:
+            raise _error.APIConnectionError(
+                "Unexpected error communicating with Unique. "
+                "If this problem persists, let us know at support@unique.ch",
+                http_status=500,
+            )
 
         content = response.content
         status_code = response.status_code
@@ -186,61 +213,9 @@ class HTTPXClient(HTTPClient):
         headers: Mapping[str, str],
         post_data=None,
     ) -> Tuple[bytes, int, Mapping[str, str]]:
-        args, kwargs = self._get_request_args_kwargs(
-            method, url, headers, post_data
-        )
+        args, kwargs = self._get_request_args_kwargs(method, url, headers, post_data)
         try:
             response = await self._client_async.request(*args, **kwargs)
-        except Exception as e:
-            self._handle_request_error(e)
-
-        content = response.content
-        status_code = response.status_code
-        response_headers = response.headers
-        return content, status_code, response_headers
-
-    async def request_async(
-        self,
-        method,
-        url,
-        headers,
-        post_data=None,
-    ):
-        return await self._request_internal_async(
-            method, url, headers, post_data, is_streaming=False
-        )
-
-    async def _request_internal_async(
-        self, method, url, headers, post_data, is_streaming
-    ):
-        kwargs = {}
-
-        if getattr(self._thread_local, "session", None) is None:
-            self._thread_local.session = self._session or self.httpx.Client()
-
-        try:
-            try:
-                result = self._thread_local.session.request(
-                    method,
-                    url,
-                    headers=headers,
-                    data=json.dumps(post_data),
-                    timeout=self._timeout,
-                    **kwargs,
-                )
-            except TypeError as e:
-                raise TypeError(
-                    "Warning: It looks like your installed version of the "
-                    '"requests" library is not compatible with Unique SDK\'s '
-                    "usage thereof. (HINT: The most likely cause is that "
-                    'your "requests" library is out of date. You can fix '
-                    'that by running "pip install -U requests".) The '
-                    "underlying error was: %s" % (e,)
-                )
-
-            content = result.content
-            status_code = result.status_code
-
         except Exception:
             raise _error.APIConnectionError(
                 "Unexpected error communicating with Unique. "
@@ -248,4 +223,102 @@ class HTTPXClient(HTTPClient):
                 http_status=500,
             )
 
-        return content, status_code, result.headers
+        content = response.content
+        status_code = response.status_code
+        response_headers = response.headers
+        return content, status_code, response_headers
+
+    def close(self):
+        if self._client is not None:
+            self._client.close()
+
+    async def close_async(self):
+        await self._client_async.aclose()
+
+
+class AIOHTTPClient(HTTPClient):
+    name = "aiohttp"
+
+    def __init__(
+        self,
+        timeout: Optional[Union[float, "AIOHTTPTimeout"]] = 80,
+        **kwargs,
+    ):
+        super(AIOHTTPClient, self).__init__(**kwargs)
+
+        if aiohttp is None:
+            raise ImportError(
+                "Unexpected: tried to initialize AIOHTTPClient but the aiohttp module is not present."
+            )
+
+        self._timeout = timeout
+        self._cached_session = None
+
+    @property
+    def _session(self):
+        assert aiohttp is not None
+
+        if self._cached_session is None:
+            kwargs = {}
+            kwargs["connector"] = aiohttp.TCPConnector(verify_ssl=False)
+            self._cached_session = aiohttp.ClientSession(**kwargs)
+
+        return self._cached_session
+
+    def request(self) -> Tuple[bytes, int, Mapping[str, str]]:
+        raise NotImplementedError(
+            "AIOHTTPClient does not support synchronous requests."
+        )
+
+    def _get_request_args_kwargs(
+        self, method: str, url: str, headers: Mapping[str, str], post_data
+    ):
+        args = (method, url)
+        kwargs = {}
+        if self._timeout:
+            kwargs["timeout"] = self._timeout
+
+        kwargs["headers"] = headers
+        kwargs["data"] = post_data
+        return args, kwargs
+
+    async def request_async(
+        self,
+        method: str,
+        url: str,
+        headers: Mapping[str, str],
+        post_data=None,
+    ) -> Tuple[bytes, int, Mapping[str, str]]:
+        (
+            content,
+            status_code,
+            response_headers,
+        ) = await self._internal_request_async(
+            method, url, headers, post_data=post_data
+        )
+
+        return (await content.read()), status_code, response_headers
+
+    async def _internal_request_async(
+        self, method: str, url: str, headers: Mapping[str, str], post_data=None
+    ) -> Tuple["AIOHTTPStreamReader", int, Mapping[str, str]]:
+        args, kwargs = self._get_request_args_kwargs(method, url, headers, post_data)
+        try:
+            response = await self._session.request(*args, **kwargs)
+        except Exception:
+            raise _error.APIConnectionError(
+                "Unexpected error communicating with Unique. "
+                "If this problem persists, let us know at support@unique.ch",
+                http_status=500,
+            )
+
+        content = response.content
+        status_code = response.status
+        response_headers = response.headers
+        return content, status_code, response_headers
+
+    def close(self):
+        pass
+
+    async def close_async(self):
+        await self._session.close()

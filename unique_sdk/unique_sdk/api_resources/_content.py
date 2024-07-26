@@ -98,11 +98,32 @@ class Content(APIResource["Content"]):
 
     @classmethod
     def search(
-        cls, user_id: str, company_id: str, **params: Unpack["Content.SearchParams"]
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Content.SearchParams"],
     ) -> List["Content"]:
         return cast(
-            "Content",
+            List["Content"],
             cls._static_request(
+                "post",
+                "/content/search",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    async def search_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Content.SearchParams"],
+    ) -> List["Content"]:
+        return cast(
+            List["Content"],
+            await cls._static_request_async(
                 "post",
                 "/content/search",
                 user_id,
@@ -124,6 +145,27 @@ class Content(APIResource["Content"]):
         return cast(
             "Content",
             cls._static_request(
+                "post",
+                "/content/upsert",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    async def upsert_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Content.UpsertParams"],
+    ) -> "Content":
+        """
+        UpsertsContent
+        """
+        return cast(
+            "Content",
+            await cls._static_request_async(
                 "post",
                 "/content/upsert",
                 user_id,

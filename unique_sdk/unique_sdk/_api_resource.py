@@ -27,6 +27,11 @@ class APIResource(UniqueObject, Generic[T]):
             "get", self.instance_url(), user_id, company_id
         )
 
+    async def refresh_async(self, user_id, company_id) -> Self:
+        return await self._request_and_refresh_async(
+            "get", self.instance_url(), user_id, company_id
+        )
+
     @classmethod
     def class_url(cls) -> str:
         if cls == APIResource:
@@ -83,6 +88,33 @@ class APIResource(UniqueObject, Generic[T]):
 
     # The `method_` and `url_` arguments are suffixed with an underscore to
     # avoid conflicting with actual request parameters in `params`.
+    async def _request_async(
+        self,
+        method_,
+        url_,
+        user_id,
+        company_id,
+        headers=None,
+        params=None,
+    ) -> UniqueObject:
+        obj = await UniqueObject._request_async(
+            self,
+            method_,
+            url_,
+            user_id,
+            company_id,
+            headers,
+            params,
+        )
+
+        if type(self) is type(obj):
+            self.refresh_from(obj, user_id, company_id)
+            return self
+        else:
+            return obj
+
+    # The `method_` and `url_` arguments are suffixed with an underscore to
+    # avoid conflicting with actual request parameters in `params`.
     def _request_and_refresh(
         self,
         method_: Literal["get", "post", "delete"],
@@ -93,6 +125,30 @@ class APIResource(UniqueObject, Generic[T]):
         params: Optional[Mapping[str, Any]] = None,
     ) -> Self:
         obj = UniqueObject._request(
+            self,
+            method_,
+            url_,
+            user_id,
+            company_id,
+            headers,
+            params,
+        )
+
+        self.refresh_from(obj, user_id, company_id)
+        return self
+
+    # The `method_` and `url_` arguments are suffixed with an underscore to
+    # avoid conflicting with actual request parameters in `params`.
+    async def _request_and_refresh_async(
+        self,
+        method_: Literal["get", "post", "delete"],
+        url_: str,
+        user_id: str,
+        company_id: str,
+        headers: Optional[Dict[str, str]] = None,
+        params: Optional[Mapping[str, Any]] = None,
+    ) -> Self:
+        obj = await UniqueObject._request_async(
             self,
             method_,
             url_,
@@ -121,4 +177,22 @@ class APIResource(UniqueObject, Generic[T]):
         requestor = APIRequestor(user_id=user_id, company_id=company_id)
 
         response = requestor.request(method_, url_, params)
+        return convert_to_unique_object(response, user_id, company_id, params)
+
+    # The `method_` and `url_` arguments are suffixed with an underscore to
+    # avoid conflicting with actual request parameters in `params`.
+    @classmethod
+    async def _static_request_async(
+        cls,
+        method_,
+        url_,
+        user_id: Optional[str] = None,
+        company_id: Optional[str] = None,
+        params=None,
+    ):
+        params = None if params is None else params.copy()
+
+        requestor = APIRequestor(user_id=user_id, company_id=company_id)
+
+        response = await requestor.request_async(method_, url_, params)
         return convert_to_unique_object(response, user_id, company_id, params)

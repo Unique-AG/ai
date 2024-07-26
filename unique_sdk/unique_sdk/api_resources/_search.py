@@ -45,3 +45,18 @@ class Search(APIResource["Search"]):
                 params=params,
             ),
         )
+
+    @classmethod
+    async def create_async(
+        cls, user_id: str, company_id: str, **params: Unpack["Search.CreateParams"]
+    ) -> "Search":
+        return cast(
+            "Search",
+            await cls._static_request_async(
+                "post",
+                "/search/search",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )

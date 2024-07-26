@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "unique-sdk"
+name = "unique_sdk"
 version = "0.8.11"
 description = ""
 authors = [
