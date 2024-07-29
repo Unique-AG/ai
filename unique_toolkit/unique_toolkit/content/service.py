@@ -323,8 +323,6 @@ class ContentService:
             Exception: If the download fails.
         """
 
-        print("download chat id", chat_id)
-
         url = f"{unique_sdk.api_base}/content/{content_id}/file"
         if chat_id:
             url = f"{url}?chatId={chat_id}"
