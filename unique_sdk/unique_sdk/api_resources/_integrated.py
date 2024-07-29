@@ -78,3 +78,27 @@ class Integrated(APIResource["Integrated"]):
                 params,
             ),
         )
+
+    @classmethod
+    async def chat_stream_completion_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Integrated.CreateStream"],
+    ) -> "Message":
+        """
+        Executes a call to the language model and streams to the chat in real-time.
+        It automatically inserts references that are mentioned by the model.
+        In the form of [sourceX]. The reference documents must be given as a list in searchContext.
+        """
+        url = "/integrated/chat/stream-completions"
+        return cast(
+            "Message",
+            await cls._static_request_async(
+                "post",
+                url,
+                user_id,
+                company_id,
+                params,
+            ),
+        )

@@ -19,3 +19,15 @@ class Acronyms(APIResource["Acronyms"]):
                 company_id=company_id,
             ),
         )
+
+    @classmethod
+    async def get_async(cls, user_id: str, company_id: str) -> "Acronyms":
+        return cast(
+            "Acronyms",
+            await cls._static_request_async(
+                "get",
+                "/company/acronyms",
+                user_id,
+                company_id=company_id,
+            ),
+        )

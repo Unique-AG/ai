@@ -88,7 +88,32 @@ class Message(APIResource["Message"]):
         return result
 
     @classmethod
-    def retrieve(
+    async def list_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Message.ListParams"],
+    ) -> ListObject["Message"]:
+        """
+        Returns a list of messages for a given chat.
+        """
+        result = await cls._static_request_async(
+            "get",
+            cls.class_url(),
+            user_id,
+            company_id,
+            params=params,
+        )
+
+        if not isinstance(result, ListObject):
+            raise TypeError(
+                "Expected list object from API, got %s" % (type(result).__name__)
+            )
+
+        return result
+
+    @classmethod
+    async def retrieve_async(
         cls,
         user_id: str,
         company_id: str,
@@ -99,7 +124,7 @@ class Message(APIResource["Message"]):
         Retrieves a Message object.
         """
         instance = cls(user_id, company_id, id, **params)
-        instance.refresh(user_id, company_id)
+        await instance.refresh_async(user_id, company_id)
         return instance
 
     @classmethod
@@ -124,6 +149,27 @@ class Message(APIResource["Message"]):
         )
 
     @classmethod
+    async def create_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Message.CreateParams"],
+    ) -> "Message":
+        """
+        Creates a new message object.
+        """
+        return cast(
+            "Message",
+            await cls._static_request_async(
+                "post",
+                cls.class_url(),
+                user_id,
+                company_id,
+                params,
+            ),
+        )
+
+    @classmethod
     def modify(
         cls,
         user_id: str,
@@ -138,6 +184,29 @@ class Message(APIResource["Message"]):
         return cast(
             "Message",
             cls._static_request(
+                "patch",
+                url,
+                user_id,
+                company_id,
+                params,
+            ),
+        )
+
+    @classmethod
+    async def modify_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        id: str,
+        **params: Unpack["Message.ModifyParams"],
+    ) -> "Message":
+        """
+        Updates an existing message object.
+        """
+        url = "%s/%s" % (cls.class_url(), quote_plus(id))
+        return cast(
+            "Message",
+            await cls._static_request_async(
                 "patch",
                 url,
                 user_id,
@@ -193,6 +262,23 @@ class Message(APIResource["Message"]):
         Permanently deletes a message. It cannot be undone.
         """
         return self._request_and_refresh(
+            "delete",
+            self.instance_url(),
+            user_id,
+            company_id,
+            params=params,
+        )
+
+    async def delete_async(  # pyright: ignore[reportGeneralTypeIssues]
+        self,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Message.DeleteParams"],
+    ) -> "Message":
+        """
+        Permanently deletes a message. It cannot be undone.
+        """
+        return await self._request_and_refresh_async(
             "delete",
             self.instance_url(),
             user_id,
