@@ -62,7 +62,7 @@ class TestContentServiceUnit(unittest.TestCase):
                 scopeIds=["scope1", "scope2"],
                 limit=10,
                 reranker=None,
-                language="English",
+                language="english",
                 chatOnly=False,
             )
 
