@@ -19,7 +19,7 @@ from unique_toolkit.content.schemas import (
 
 
 class ContentService:
-    DEFAULT_FTS_SEARCH_LANGUAGE = "English"
+    DEFAULT_FTS_SEARCH_LANGUAGE = "english"
 
     def __init__(self, state: ChatState, logger: Optional[logging.Logger] = None):
         self.state = state
@@ -42,7 +42,7 @@ class ContentService:
             search_type (ContentSearchType): The type of search to perform.
             limit (int): The maximum number of results to return.
             reranker (Optional[RerankerConfig]): The reranker configuration. Defaults to None.
-            fts_search_language (str): The language for the full-text search. Defaults to "English".
+            fts_search_language (str): The language for the full-text search. Defaults to "english".
             scope_ids (Optional[list[str]]): The scope IDs. Defaults to None.
 
         Returns:
