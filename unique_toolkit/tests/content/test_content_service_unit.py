@@ -61,6 +61,8 @@ class TestContentServiceUnit(unittest.TestCase):
                 searchType="COMBINED",
                 scopeIds=["scope1", "scope2"],
                 limit=10,
+                reranker=None,
+                language="English",
                 chatOnly=False,
             )
 
