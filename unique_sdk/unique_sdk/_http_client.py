@@ -1,6 +1,6 @@
 import json
 import threading
-from typing import ClassVar, Mapping, Optional, Tuple, Union
+from typing import ClassVar, Mapping, Optional, Tuple
 
 try:
     import requests
@@ -10,15 +10,12 @@ except ImportError:
 try:
     import anyio
     import httpx
-    from httpx import Client as HTTPXClientType
-    from httpx import Timeout as HTTPXTimeout
 except ImportError:
     httpx = None
+    anyio = None
 
 try:
     import aiohttp
-    from aiohttp import ClientTimeout as AIOHTTPTimeout
-    from aiohttp import StreamReader as AIOHTTPStreamReader
 except ImportError:
     aiohttp = None
 
@@ -32,10 +29,10 @@ def new_default_http_client(*args, **kwargs) -> "HTTPClient":
 
 
 def new_http_client_async_fallback(*args, **kwargs) -> "HTTPClient":
-    if httpx:
-        impl = HTTPXClient
-    elif aiohttp:
+    if aiohttp:
         impl = AIOHTTPClient
+    elif httpx:
+        impl = HTTPXClient
     return impl(*args, **kwargs)
 
 
@@ -144,20 +141,13 @@ class RequestsClient(HTTPClient):
         if getattr(self._thread_local, "session", None) is not None:
             self._thread_local.session.close()
 
-    def request_async(self) -> Tuple[bytes, int, Mapping[str, str]]:
-        raise NotImplementedError(
-            "RequestsSession does not support asynchronous requests."
-        )
-
 
 class HTTPXClient(HTTPClient):
     name = "httpx"
 
-    _client: HTTPXClientType
-
     def __init__(
         self,
-        timeout: Optional[Union[float, "HTTPXTimeout"]] = 600,
+        timeout: Optional[float] = 600,
         **kwargs,
     ):
         super(HTTPXClient, self).__init__(**kwargs)
@@ -181,7 +171,7 @@ class HTTPXClient(HTTPClient):
             kwargs["timeout"] = self._timeout
         return [
             (method, url),
-            {"headers": headers, "data": post_data or {}, **kwargs},
+            {"headers": headers, "data": json.dumps(post_data) or {}, **kwargs},
         ]
 
     def request(
@@ -241,7 +231,7 @@ class AIOHTTPClient(HTTPClient):
 
     def __init__(
         self,
-        timeout: Optional[Union[float, "AIOHTTPTimeout"]] = 80,
+        timeout: Optional[float] = 80,
         **kwargs,
     ):
         super(AIOHTTPClient, self).__init__(**kwargs)
@@ -279,7 +269,7 @@ class AIOHTTPClient(HTTPClient):
             kwargs["timeout"] = self._timeout
 
         kwargs["headers"] = headers
-        kwargs["data"] = post_data
+        kwargs["data"] = json.dumps(post_data)
         return args, kwargs
 
     async def request_async(
@@ -301,7 +291,7 @@ class AIOHTTPClient(HTTPClient):
 
     async def _internal_request_async(
         self, method: str, url: str, headers: Mapping[str, str], post_data=None
-    ) -> Tuple["AIOHTTPStreamReader", int, Mapping[str, str]]:
+    ):
         args, kwargs = self._get_request_args_kwargs(method, url, headers, post_data)
         try:
             response = await self._session.request(*args, **kwargs)
