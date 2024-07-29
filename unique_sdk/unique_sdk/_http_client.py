@@ -33,6 +33,8 @@ def new_http_client_async_fallback(*args, **kwargs) -> "HTTPClient":
         impl = AIOHTTPClient
     elif httpx:
         impl = HTTPXClient
+    else:
+        impl = NoImportFoundAsyncClient
     return impl(*args, **kwargs)
 
 
@@ -49,9 +51,6 @@ class HTTPClient(object):
     def request(self, method, url, headers, post_data=None):
         raise NotImplementedError("HTTPClient subclasses must implement `request`")
 
-    def close(self):
-        raise NotImplementedError("HTTPClient subclasses must implement `close`")
-
     async def request_async(self, method, url, headers, post_data=None):
         if self._async_fallback_client is not None:
             return await self._async_fallback_client.request_async(
@@ -60,11 +59,6 @@ class HTTPClient(object):
         raise NotImplementedError(
             "HTTPClient subclasses must implement `request_async`"
         )
-
-    async def close_async(self):
-        if self._async_fallback_client is not None:
-            return await self._async_fallback_client.close_async()
-        raise NotImplementedError("HTTPClient subclasses must implement `close_async`")
 
 
 class RequestsClient(HTTPClient):
@@ -136,10 +130,6 @@ class RequestsClient(HTTPClient):
             )
 
         return content, status_code, result.headers
-
-    def close(self):
-        if getattr(self._thread_local, "session", None) is not None:
-            self._thread_local.session.close()
 
 
 class HTTPXClient(HTTPClient):
@@ -217,13 +207,6 @@ class HTTPXClient(HTTPClient):
         status_code = response.status_code
         response_headers = response.headers
         return content, status_code, response_headers
-
-    def close(self):
-        if self._client is not None:
-            self._client.close()
-
-    async def close_async(self):
-        await self._client_async.aclose()
 
 
 class AIOHTTPClient(HTTPClient):
@@ -307,8 +290,26 @@ class AIOHTTPClient(HTTPClient):
         response_headers = response.headers
         return content, status_code, response_headers
 
-    def close(self):
-        pass
 
-    async def close_async(self):
-        await self._session.close()
+class NoImportFoundAsyncClient(HTTPClient):
+    def __init__(self, **kwargs):
+        super(NoImportFoundAsyncClient, self).__init__(**kwargs)
+
+    @staticmethod
+    def raise_async_client_import_error():
+        raise ImportError(
+            (
+                "Import httpx and aiohttp not found. To make async http requests,"
+                "you must either install httpx or aiohttp."
+            )
+        )
+
+    async def request_async(
+        self, method: str, url: str, headers: Mapping[str, str], post_data=None
+    ):
+        self.raise_async_client_import_error()
+
+    async def request_stream_async(
+        self, method: str, url: str, headers: Mapping[str, str], post_data=None
+    ):
+        self.raise_async_client_import_error()
