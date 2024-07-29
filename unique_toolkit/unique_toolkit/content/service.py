@@ -19,7 +19,7 @@ from unique_toolkit.content.schemas import (
 
 
 class ContentService:
-    DEFAULT_FTS_SEARCH_LANGUAGE = "english"
+    DEFAULT_FTS_LANGUAGE = "english"
 
     def __init__(self, state: ChatState, logger: Optional[logging.Logger] = None):
         self.state = state
@@ -30,8 +30,8 @@ class ContentService:
         search_string: str,
         search_type: ContentSearchType,
         limit: int,
-        reranker: Optional[RerankerConfig] = None,
-        fts_search_language: str = DEFAULT_FTS_SEARCH_LANGUAGE,
+        reranker_config: Optional[RerankerConfig] = None,
+        fts_language: str = DEFAULT_FTS_LANGUAGE,
         scope_ids: Optional[list[str]] = None,
     ) -> list[ContentChunk]:
         """
@@ -41,8 +41,8 @@ class ContentService:
             search_string (str): The search string.
             search_type (ContentSearchType): The type of search to perform.
             limit (int): The maximum number of results to return.
-            reranker (Optional[RerankerConfig]): The reranker configuration. Defaults to None.
-            fts_search_language (str): The language for the full-text search. Defaults to "english".
+            reranker_config (Optional[RerankerConfig]): The reranker configuration. Defaults to None.
+            fts_language (str): The language for the full-text search. Defaults to "english".
             scope_ids (Optional[list[str]]): The scope IDs. Defaults to None.
 
         Returns:
@@ -52,8 +52,8 @@ class ContentService:
             search_string=search_string,
             search_type=search_type,
             limit=limit,
-            reranker=reranker,
-            fts_search_language=fts_search_language,
+            reranker_config=reranker_config,
+            fts_language=fts_language,
             scope_ids=scope_ids,
         )
 
@@ -64,8 +64,8 @@ class ContentService:
         search_string: str,
         search_type: ContentSearchType,
         limit: int,
-        reranker: Optional[RerankerConfig] = None,
-        fts_search_language: str = "english",
+        reranker_config: Optional[RerankerConfig] = None,
+        fts_language: str = "english",
         scope_ids: Optional[list[str]] = None,
     ):
         """
@@ -75,8 +75,8 @@ class ContentService:
             search_string (str): The search string.
             search_type (ContentSearchType): The type of search to perform.
             limit (int): The maximum number of results to return.
-            reranker (Optional[RerankerConfig]): The reranker configuration. Defaults to None.
-            fts_search_language (str): The language for the full-text search. Defaults to "english".
+            reranker_config (Optional[RerankerConfig]): The reranker configuration. Defaults to None.
+            fts_language (str): The language for the full-text search. Defaults to "english".
             scope_ids (Optional[list[str]]): The scope IDs. Defaults to [].
 
         Returns:
@@ -86,8 +86,8 @@ class ContentService:
             search_string=search_string,
             search_type=search_type,
             limit=limit,
-            reranker=reranker,
-            fts_search_language=fts_search_language,
+            reranker_config=reranker_config,
+            fts_language=fts_language,
             scope_ids=scope_ids,
         )
 
@@ -96,8 +96,8 @@ class ContentService:
         search_string: str,
         search_type: ContentSearchType,
         limit: int,
-        reranker: Optional[RerankerConfig] = None,
-        fts_search_language: str = "english",
+        reranker_config: Optional[RerankerConfig] = None,
+        fts_language: str = "english",
         scope_ids: Optional[list[str]] = None,
     ) -> list[ContentChunk]:
         scope_ids = scope_ids or self.state.scope_ids or []
@@ -114,8 +114,8 @@ class ContentService:
                 searchType=search_type.name,
                 scopeIds=scope_ids,
                 limit=limit,
-                reranker=reranker,
-                language=fts_search_language,
+                reranker=reranker_config,
+                language=fts_language,
                 chatOnly=self.state.chat_only,
             )
         except Exception as e:
