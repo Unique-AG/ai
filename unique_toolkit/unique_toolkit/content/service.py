@@ -14,6 +14,7 @@ from unique_toolkit.content.schemas import (
     ContentChunk,
     ContentSearchType,
     ContentUploadInput,
+    RerankerConfig,
 )
 
 
@@ -27,6 +28,8 @@ class ContentService:
         search_string: str,
         search_type: ContentSearchType,
         limit: int,
+        reranker: Optional[RerankerConfig] = None,
+        fts_search_language: str = "english",
         scope_ids: Optional[list[str]] = None,
     ) -> list[ContentChunk]:
         """
@@ -36,16 +39,20 @@ class ContentService:
             search_string (str): The search string.
             search_type (ContentSearchType): The type of search to perform.
             limit (int): The maximum number of results to return.
+            reranker (Optional[RerankerConfig]): The reranker configuration. Defaults to None.
+            fts_search_language (str): The language for the full-text search. Defaults to "english".
             scope_ids (Optional[list[str]]): The scope IDs. Defaults to None.
 
         Returns:
             list[ContentChunk]: The search results.
         """
         return self._trigger_search_content_chunks(
-            search_string,
-            search_type,
-            limit,
-            scope_ids,
+            search_string=search_string,
+            search_type=search_type,
+            limit=limit,
+            reranker=reranker,
+            fts_search_language=fts_search_language,
+            scope_ids=scope_ids,
         )
 
     @to_async
@@ -55,7 +62,9 @@ class ContentService:
         search_string: str,
         search_type: ContentSearchType,
         limit: int,
-        scope_ids: Optional[list[str]],
+        reranker: Optional[RerankerConfig] = None,
+        fts_search_language: str = "english",
+        scope_ids: Optional[list[str]] = None,
     ):
         """
         Performs an asynchronous search for content chunks in the knowledge base.
@@ -64,16 +73,20 @@ class ContentService:
             search_string (str): The search string.
             search_type (ContentSearchType): The type of search to perform.
             limit (int): The maximum number of results to return.
+            reranker (Optional[RerankerConfig]): The reranker configuration. Defaults to None.
+            fts_search_language (str): The language for the full-text search. Defaults to "english".
             scope_ids (Optional[list[str]]): The scope IDs. Defaults to [].
 
         Returns:
             list[ContentChunk]: The search results.
         """
         return self._trigger_search_content_chunks(
-            search_string,
-            search_type,
-            limit,
-            scope_ids,
+            search_string=search_string,
+            search_type=search_type,
+            limit=limit,
+            reranker=reranker,
+            fts_search_language=fts_search_language,
+            scope_ids=scope_ids,
         )
 
     def _trigger_search_content_chunks(
@@ -81,7 +94,9 @@ class ContentService:
         search_string: str,
         search_type: ContentSearchType,
         limit: int,
-        scope_ids: Optional[list[str]],
+        reranker: Optional[RerankerConfig] = None,
+        fts_search_language: str = "english",
+        scope_ids: Optional[list[str]] = None,
     ) -> list[ContentChunk]:
         scope_ids = scope_ids or self.state.scope_ids or []
 
@@ -97,6 +112,8 @@ class ContentService:
                 searchType=search_type.name,
                 scopeIds=scope_ids,
                 limit=limit,
+                reranker=reranker,
+                language=fts_search_language,
                 chatOnly=self.state.chat_only,
             )
         except Exception as e:
