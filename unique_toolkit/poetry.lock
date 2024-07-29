@@ -935,13 +935,13 @@ files = [
 
 [[package]]
 name = "unique-sdk"
-version = "0.8.11"
+version = "0.9.0"
 description = ""
 optional = false
 python-versions = "<4.0,>=3.11"
 files = [
-    {file = "unique_sdk-0.8.11-py3-none-any.whl", hash = "sha256:015eb29716905c383d6a96cd53a8a5c61bb588aa2cdaa62cc9754b44e9152761"},
-    {file = "unique_sdk-0.8.11.tar.gz", hash = "sha256:cb2a3f2e9a6e4f6aca8e7af3bd1d23793d5636de0157f541d366717a6f3228f5"},
+    {file = "unique_sdk-0.9.0-py3-none-any.whl", hash = "sha256:42f01c8867fd5f275bfc5922c14fdb3f74728976b81482040214c0b5a8a7b3e6"},
+    {file = "unique_sdk-0.9.0.tar.gz", hash = "sha256:b3c1395755ff2201e8178be90fcc2a062a87462d12dc74cdbd0bb9cd675f4fec"},
 ]
 
 [package.dependencies]
@@ -987,4 +987,4 @@ test = ["covdefaults (>=2.3)", "coverage (>=7.2.7)", "coverage-enable-subprocess
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "5ca2033247979205cf0b0533e742456199c8ec1e41d006f2ecf485002a02c8b7"
+content-hash = "09447f5a272c0c7359939e78948758dd5818de53d659fc19a4db14d149741d53"
