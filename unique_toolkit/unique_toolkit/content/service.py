@@ -19,7 +19,7 @@ from unique_toolkit.content.schemas import (
 
 
 class ContentService:
-    DEFAULT_FTS_LANGUAGE = "english"
+    DEFAULT_SEARCH_LANGUAGE = "english"
 
     def __init__(self, state: ChatState, logger: Optional[logging.Logger] = None):
         self.state = state
@@ -31,7 +31,7 @@ class ContentService:
         search_type: ContentSearchType,
         limit: int,
         reranker_config: Optional[RerankerConfig] = None,
-        fts_language: str = DEFAULT_FTS_LANGUAGE,
+        search_language: str = DEFAULT_SEARCH_LANGUAGE,
         scope_ids: Optional[list[str]] = None,
     ) -> list[ContentChunk]:
         """
@@ -42,7 +42,7 @@ class ContentService:
             search_type (ContentSearchType): The type of search to perform.
             limit (int): The maximum number of results to return.
             reranker_config (Optional[RerankerConfig]): The reranker configuration. Defaults to None.
-            fts_language (str): The language for the full-text search. Defaults to "english".
+            search_language (str): The language for the full-text search. Defaults to "english".
             scope_ids (Optional[list[str]]): The scope IDs. Defaults to None.
 
         Returns:
@@ -53,7 +53,7 @@ class ContentService:
             search_type=search_type,
             limit=limit,
             reranker_config=reranker_config,
-            fts_language=fts_language,
+            search_language=search_language,
             scope_ids=scope_ids,
         )
 
@@ -65,7 +65,7 @@ class ContentService:
         search_type: ContentSearchType,
         limit: int,
         reranker_config: Optional[RerankerConfig] = None,
-        fts_language: str = "english",
+        search_language: str = "english",
         scope_ids: Optional[list[str]] = None,
     ):
         """
@@ -76,7 +76,7 @@ class ContentService:
             search_type (ContentSearchType): The type of search to perform.
             limit (int): The maximum number of results to return.
             reranker_config (Optional[RerankerConfig]): The reranker configuration. Defaults to None.
-            fts_language (str): The language for the full-text search. Defaults to "english".
+            search_language (str): The language for the full-text search. Defaults to "english".
             scope_ids (Optional[list[str]]): The scope IDs. Defaults to [].
 
         Returns:
@@ -87,7 +87,7 @@ class ContentService:
             search_type=search_type,
             limit=limit,
             reranker_config=reranker_config,
-            fts_language=fts_language,
+            search_language=search_language,
             scope_ids=scope_ids,
         )
 
@@ -97,7 +97,7 @@ class ContentService:
         search_type: ContentSearchType,
         limit: int,
         reranker_config: Optional[RerankerConfig] = None,
-        fts_language: str = "english",
+        search_language: str = "english",
         scope_ids: Optional[list[str]] = None,
     ) -> list[ContentChunk]:
         scope_ids = scope_ids or self.state.scope_ids or []
@@ -115,7 +115,7 @@ class ContentService:
                 scopeIds=scope_ids,
                 limit=limit,
                 reranker=reranker_config,
-                language=fts_language,
+                language=search_language,
                 chatOnly=self.state.chat_only,
             )
         except Exception as e:
