@@ -60,3 +60,17 @@ class ChatCompletion(APIResource["ChatCompletion"]):
                 params=params,
             ),
         )
+
+    @classmethod
+    async def create_async(
+        cls, company_id: str, **params: Unpack["ChatCompletion.CreateParams"]
+    ) -> "ChatCompletion":
+        return cast(
+            "ChatCompletion",
+            await cls._static_request_async(
+                "post",
+                cls.class_url(),
+                company_id=company_id,
+                params=params,
+            ),
+        )

@@ -32,11 +32,23 @@ The Unique Python SDK provides access to the public API of Unique FinanceGPT. It
 
 ## Installation
 
-Install UniqueSDK and its peer dependency `requests` via pip using the following commands:
+Install UniqueSDK and its peer dependency `requests` and when planning to run async requests also `httpx` or `aiohttp` via pip using the following commands:
 
 ```bash
 pip install unique_sdk
 pip install requests
+```
+
+Optional for async requests:
+
+```bash
+pip install httpx
+```
+
+or
+
+```bash
+pip install aiohttp
 ```
 
 ## Requirements
@@ -215,6 +227,8 @@ unique_sdk.Message.modify(
 - [Chat Completion](#chat-completion)
 - [Search](#search)
 - [Search String](#search-string)
+
+Most of the API services provide an asynchronous version of the method. The async methods are suffixed with `_async`.
 
 ### Content
 

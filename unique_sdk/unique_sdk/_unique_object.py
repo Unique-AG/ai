@@ -270,6 +270,30 @@ class UniqueObject(Dict[str, Any]):
 
         return _util.convert_to_unique_object(response, user_id, company_id, params)
 
+    # The `method_` and `url_` arguments are suffixed with an underscore to
+    # avoid conflicting with actual request parameters in `params`.
+    async def _request_async(
+        self,
+        method_: Literal["get", "post", "patch", "delete"],
+        url_: str,
+        user_id: Optional[str],
+        company_id: Optional[str],
+        headers: Optional[Dict[str, str]] = None,
+        params: Optional[Mapping[str, Any]] = None,
+    ) -> "UniqueObject":
+        params = None if params is None else dict(params)
+
+        user_id = user_id or self.user_id
+        company_id = company_id or self.company_id
+
+        params = params or self._retrieve_params
+
+        requestor = unique_sdk.APIRequestor(user_id=user_id, company_id=company_id)
+
+        response = await requestor.request_async(method_, url_, params, headers)
+
+        return _util.convert_to_unique_object(response, user_id, company_id, params)
+
     # This class overrides __setitem__ to throw exceptions on inputs that it
     # doesn't like. This can cause problems when we try to copy an object
     # wholesale because some data that's returned from the API may not be valid

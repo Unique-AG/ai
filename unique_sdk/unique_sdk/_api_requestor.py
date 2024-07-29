@@ -86,7 +86,9 @@ class APIRequestor(object):
         if unique_sdk.default_http_client:
             self._client = unique_sdk.default_http_client
         else:
-            unique_sdk.default_http_client = _http_client.new_default_http_client()
+            unique_sdk.default_http_client = _http_client.new_default_http_client(
+                async_fallback_client=_http_client.new_http_client_async_fallback(),
+            )
             self._client = unique_sdk.default_http_client
 
     def request(
@@ -97,6 +99,19 @@ class APIRequestor(object):
         headers: Optional[Mapping[str, str]] = None,
     ) -> UniqueResponse:
         rbody, rcode, rheaders = self.request_raw(
+            method.lower(), url, params, headers, is_streaming=False
+        )
+        resp = self.interpret_response(rbody, rcode, rheaders)
+        return resp
+
+    async def request_async(
+        self,
+        method: str,
+        url: str,
+        params: Optional[Mapping[str, Any]] = None,
+        headers: Optional[Mapping[str, str]] = None,
+    ) -> UniqueResponse:
+        rbody, rcode, rheaders = await self.request_raw_async(
             method.lower(), url, params, headers, is_streaming=False
         )
         resp = self.interpret_response(rbody, rcode, rheaders)
@@ -148,6 +163,77 @@ class APIRequestor(object):
         params: Optional[Mapping[str, Any]] = None,
         supplied_headers: Optional[Mapping[str, str]] = None,
         is_streaming: bool = False,
+    ):
+        method, abs_url, headers, post_data = self._get_request_args(
+            method,
+            url,
+            params,
+            supplied_headers,
+        )
+
+        _util.log_info("Request to Unique", method=method, path=abs_url)
+        _util.log_debug(
+            "Request details",
+            data=post_data,
+            headers=headers,
+            api_version=self.api_version,
+        )
+
+        rcontent, rcode, rheaders = self._client.request(
+            method, abs_url, headers, post_data
+        )
+
+        _util.log_info("Unique response", path=abs_url, status=rcode)
+        _util.log_debug("Unique response body", body=rcontent)
+
+        if "Request-Id" in rheaders:
+            request_id = rheaders["Request-Id"]
+            _util.log_debug("Unique request id", request_id=request_id)
+
+        return rcontent, rcode, rheaders
+
+    async def request_raw_async(
+        self,
+        method: str,
+        url: str,
+        params: Optional[Mapping[str, Any]] = None,
+        supplied_headers: Optional[Mapping[str, str]] = None,
+        is_streaming: bool = False,
+    ):
+        method, abs_url, headers, post_data = self._get_request_args(
+            method,
+            url,
+            params,
+            supplied_headers,
+        )
+
+        _util.log_info("Async request to Unique", method=method, path=abs_url)
+        _util.log_debug(
+            "Async request details",
+            data=post_data,
+            headers=headers,
+            api_version=self.api_version,
+        )
+
+        rcontent, rcode, rheaders = await self._client.request_async(
+            method, abs_url, headers, post_data
+        )
+
+        _util.log_info("Unique response", path=abs_url, status=rcode)
+        _util.log_debug("Unique response body", body=rcontent)
+
+        if "Request-Id" in rheaders:
+            request_id = rheaders["Request-Id"]
+            _util.log_debug("Unique request id", request_id=request_id)
+
+        return rcontent, rcode, rheaders
+
+    def _get_request_args(
+        self,
+        method: str,
+        url: str,
+        params: Optional[Mapping[str, Any]] = None,
+        supplied_headers: Optional[Mapping[str, str]] = None,
     ):
         supplied_headers_dict: Optional[Dict[str, str]] = (
             dict(supplied_headers) if supplied_headers is not None else None
@@ -217,26 +303,7 @@ class APIRequestor(object):
             for key, value in supplied_headers_dict.items():
                 headers[key] = value
 
-        _util.log_info("Request to Unique", method=method, path=abs_url)
-        _util.log_debug(
-            "Request details",
-            data=post_data,
-            headers=headers,
-            api_version=self.api_version,
-        )
-
-        rcontent, rcode, rheaders = self._client.request(
-            method, abs_url, headers, post_data
-        )
-
-        _util.log_info("Unique response", path=abs_url, status=rcode)
-        _util.log_debug("Unique response body", body=rcontent)
-
-        if "Request-Id" in rheaders:
-            request_id = rheaders["Request-Id"]
-            _util.log_debug("Unique request id", request_id=request_id)
-
-        return rcontent, rcode, rheaders
+        return method, abs_url, headers, post_data
 
     def rename_keys(self, obj: Optional[Mapping[str, Any]]):
         if obj is None:

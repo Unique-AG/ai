@@ -11,7 +11,7 @@ api_key: Optional[str] = None
 app_id: Optional[str] = None
 api_base: str = "https://gateway.unique.app/public/chat-gen2"
 api_version: str = _ApiVersion.CURRENT
-api_verify_mode: str = True
+api_verify_mode: bool = True
 default_http_client: Optional["HTTPClient"] = None
 
 # Set to either 'debug' or 'info', controls console logging
@@ -40,6 +40,8 @@ from unique_sdk._http_client import (
 )
 from unique_sdk._http_client import (
     RequestsClient as RequestsClient,
+    HTTPXClient as HTTPXClient,
+    AIOHTTPClient as AIOHTTPClient,
 )
 from unique_sdk._http_client import (
     new_default_http_client as new_default_http_client,

@@ -48,6 +48,27 @@ class ShortTermMemory(APIResource["ShortTermMemory"]):
         )
 
     @classmethod
+    async def create_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["ShortTermMemory.CreateParams"],
+    ) -> "ShortTermMemory":
+        """
+        Create Short Term Memory
+        """
+        return cast(
+            "ShortTermMemory",
+            await cls._static_request_async(
+                "post",
+                "/short-term-memory",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
     def find_latest(
         cls,
         user_id: str,
@@ -61,6 +82,28 @@ class ShortTermMemory(APIResource["ShortTermMemory"]):
         return cast(
             "ShortTermMemory",
             cls._static_request(
+                "post",
+                "/short-term-memory/find-latest",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    async def find_latest_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        id: str,
+        **params: Unpack["ShortTermMemory.FindParams"],
+    ) -> "ShortTermMemory":
+        """
+        Find latest Short Term Memory
+        """
+        return cast(
+            "ShortTermMemory",
+            await cls._static_request_async(
                 "post",
                 "/short-term-memory/find-latest",
                 user_id,
