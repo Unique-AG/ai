@@ -65,7 +65,7 @@ class ContentService:
         search_type: ContentSearchType,
         limit: int,
         reranker_config: Optional[RerankerConfig] = None,
-        search_language: str = "english",
+        search_language: str = DEFAULT_SEARCH_LANGUAGE,
         scope_ids: Optional[list[str]] = None,
     ):
         """
@@ -97,7 +97,7 @@ class ContentService:
         search_type: ContentSearchType,
         limit: int,
         reranker_config: Optional[RerankerConfig] = None,
-        search_language: str = "english",
+        search_language: str = DEFAULT_SEARCH_LANGUAGE,
         scope_ids: Optional[list[str]] = None,
     ) -> list[ContentChunk]:
         scope_ids = scope_ids or self.state.scope_ids or []
