@@ -6,7 +6,7 @@ authors = [
     "Konstantin Krauss <konstantin@unique.ch>",
     "Andreas Hauri <andreas@unique.ch>",
 ]
-readme = "README.md"
+readme = ["README.md", "CHANGELOG.md"]
 license = "MIT"
 
 [tool.poetry.dependencies]
