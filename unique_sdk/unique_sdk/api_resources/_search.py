@@ -1,4 +1,4 @@
-from typing import Any, ClassVar, Dict, List, Literal, Optional, cast
+from typing import Any, ClassVar, Dict, Literal, Optional, cast
 
 from typing_extensions import NotRequired, Unpack
 
@@ -13,9 +13,9 @@ class Search(APIResource["Search"]):
         chatId: str
         searchString: str
         searchType: Literal["VECTOR", "COMBINED"]
-        langugage: NotRequired[str]
-        reranker: NotRequired[dict]
-        scopeIds: NotRequired[List[str]]
+        language: NotRequired[str]
+        reranker: NotRequired[dict[str, Any]]
+        scopeIds: NotRequired[list[str]]
         chatOnly: NotRequired[bool]
         limit: NotRequired[int]
         page: NotRequired[int]
