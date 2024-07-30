@@ -13,6 +13,8 @@ class Search(APIResource["Search"]):
         chatId: str
         searchString: str
         searchType: Literal["VECTOR", "COMBINED"]
+        langugage: NotRequired[str]
+        reranker: NotRequired[dict]
         scopeIds: NotRequired[List[str]]
         chatOnly: NotRequired[bool]
         limit: NotRequired[int]

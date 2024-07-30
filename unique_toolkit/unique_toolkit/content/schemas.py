@@ -88,3 +88,9 @@ class ContentUploadInput(BaseModel):
     owner_type: Optional[str] = None
     owner_id: Optional[str] = None
     byte_size: Optional[int] = None
+
+
+class RerankerConfig(BaseModel):
+    model_config = model_config
+    deployment_name: str
+    options: dict | None = None

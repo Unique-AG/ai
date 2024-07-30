@@ -521,6 +521,8 @@ These are the options are available for `searchType`:
 `limit` (max 1000) and `page` are optional for iterating over results.
 `chatOnly` Restricts the search exclusively to documents uploaded within the chat.
 `scopeIds` Specifies a collection of scope IDs to confine the search.
+`language` Optional. The language specification for full text search.
+`reranker` Optional. The reranker service to be used for re-ranking the search results.
 
 ```python
 search = unique_sdk.Search.create(
@@ -531,6 +533,8 @@ search = unique_sdk.Search.create(
     searchType="VECTOR",
     chatOnly=false,
     scopeIds=["scope_..."],
+    language="German",
+    reranker={"deploymentName": "my_deployment"},
     limit=20,
     page=1
 )
