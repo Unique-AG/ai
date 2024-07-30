@@ -215,3 +215,173 @@ class TestLanguageModelServiceUnit:
             arguments = response.tool_calls[0].arguments
             assert arguments is not None
             assert "London, UK" in arguments.values()
+
+    async def test_complete_async(self):
+        with patch.object(unique_sdk.ChatCompletion, "create_async") as mock_create:
+            mock_create.return_value = {
+                "choices": [
+                    {
+                        "index": 0,
+                        "finishReason": "completed",
+                        "message": {
+                            "content": "Test response",
+                            "role": "assistant",
+                        },
+                    }
+                ]
+            }
+            messages = LanguageModelMessages([])
+            model_name = LanguageModelName.AZURE_GPT_4_TURBO_1106
+
+            result = await self.service.complete_async(messages, model_name)
+
+            assert isinstance(result, LanguageModelResponse)
+            assert result.choices[0].message.content == "Test response"
+            mock_create.assert_called_once_with(
+                company_id="test_company",
+                model=model_name.name,
+                messages=[],
+                timeout=240000,
+                temperature=0.0,
+                options={},
+            )
+
+    async def test_stream_complete_async(self):
+        with patch.object(
+            unique_sdk.Integrated, "chat_stream_completion_async"
+        ) as mock_stream_complete:
+            mock_stream_complete.return_value = {
+                "message": {
+                    "id": "test_message",
+                    "previousMessageId": "test_previous_message",
+                    "role": "ASSISTANT",
+                    "text": "Streamed response",
+                    "originalText": "Streamed response original",
+                }
+            }
+            messages = LanguageModelMessages([])
+            model_name = LanguageModelName.AZURE_GPT_4_TURBO_1106
+            content_chunks = [
+                ContentChunk(id="1", chunk_id="1", key="test", order=1, text="test")
+            ]
+
+            result = await self.service.stream_complete_async(
+                messages, model_name, content_chunks
+            )
+
+            assert isinstance(result, LanguageModelStreamResponse)
+            assert result.message.text == "Streamed response"
+            mock_stream_complete.assert_called_once()
+
+    async def test_error_handling_complete_async(self):
+        with patch.object(
+            unique_sdk.ChatCompletion,
+            "create_async",
+            side_effect=Exception("API Error"),
+        ):
+            with pytest.raises(Exception, match="API Error"):
+                await self.service.complete_async(
+                    LanguageModelMessages([]), LanguageModelName.AZURE_GPT_4_TURBO_1106
+                )
+
+    async def test_error_handling_stream_complete_async(self):
+        with patch.object(
+            unique_sdk.Integrated,
+            "chat_stream_completion_async",
+            side_effect=Exception("Stream Error"),
+        ):
+            with pytest.raises(Exception, match="Stream Error"):
+                await self.service.stream_complete_async(
+                    LanguageModelMessages([]), LanguageModelName.AZURE_GPT_4_TURBO_1106
+                )
+
+    async def test_complete_with_tool_async(self):
+        messages = LanguageModelMessages(
+            [
+                LanguageModelMessage(
+                    role=LanguageModelMessageRole.USER,
+                    content="What's the weather in New York?",
+                )
+            ]
+        )
+
+        with patch.object(unique_sdk.ChatCompletion, "create_async") as mock_create:
+            mock_create.return_value = {
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {
+                            "role": "assistant",
+                            "content": "The weather in New York is 70 degrees Fahrenheit.",
+                            "toolCalls": [
+                                {
+                                    "id": "test_tool_id",
+                                    "type": "function",
+                                    "function": {
+                                        "id": "test_function_id",
+                                        "name": "get_weather",
+                                        "arguments": '{"location": "New York, NY","unit": "fahrenheit"}',
+                                    },
+                                },
+                            ],
+                        },
+                        "finishReason": "function_call",
+                    }
+                ],
+            }
+
+            response = await self.service.complete_async(
+                messages=messages,
+                model_name=LanguageModelName.AZURE_GPT_35_TURBO,
+                tools=[mock_tool],
+            )
+
+            assert response.choices[0].message.tool_calls is not None
+            assert (
+                response.choices[0].message.tool_calls[0].function.name == "get_weather"
+            )
+            arguments = response.choices[0].message.tool_calls[0].function.arguments
+            assert arguments is not None
+            assert "New York, NY" in arguments.values()
+
+    async def test_stream_complete_with_tool_async(self):
+        messages = LanguageModelMessages(
+            [
+                LanguageModelMessage(
+                    role=LanguageModelMessageRole.USER,
+                    content="What's the weather in New York?",
+                )
+            ]
+        )
+
+        with patch.object(
+            unique_sdk.Integrated, "chat_stream_completion_async"
+        ) as mock_stream:
+            mock_stream.return_value = {
+                "message": {
+                    "id": "test_stream_id",
+                    "previousMessageId": "test_previous_message_id",
+                    "role": "ASSISTANT",
+                    "text": "Streamed response",
+                    "originalText": "Streamed response original",
+                },
+                "toolCalls": [
+                    {
+                        "id": "test_tool_id",
+                        "name": "get_weather",
+                        "arguments": '{"location": "London, UK", "unit": "celsius"}',
+                    }
+                ],
+            }
+
+            response = await self.service.stream_complete_async(
+                messages=messages,
+                model_name=LanguageModelName.AZURE_GPT_35_TURBO,
+                tools=[mock_tool],
+            )
+
+            assert response.tool_calls is not None
+            assert response.tool_calls[0].name == "get_weather"
+            arguments = response.tool_calls[0].arguments
+            assert arguments is not None
+            assert "London, UK" in arguments.values()

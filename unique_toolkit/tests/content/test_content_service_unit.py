@@ -63,7 +63,7 @@ class TestContentServiceUnit(unittest.TestCase):
                 limit=10,
                 reranker=None,
                 language="english",
-                chatOnly=False,
+                chatOnly=None,
             )
 
     def test_search_contents(self):
@@ -109,12 +109,103 @@ class TestContentServiceUnit(unittest.TestCase):
         ):
             with pytest.raises(Exception, match="API Error"):
                 self.service.search_content_chunks(
-                    "test", ContentSearchType.COMBINED, 10, None
+                    "test", ContentSearchType.COMBINED, 10
                 )
 
     def test_error_handling_search_contents(self):
         with patch.object(
             unique_sdk.Content, "search", side_effect=Exception("API Error")
+        ):
+            with pytest.raises(Exception, match="API Error"):
+                self.service.search_contents({"key": "test_key"})
+
+    async def test_search_content_chunks_async(self):
+        with patch.object(unique_sdk.Search, "create_async") as mock_create:
+            mock_create.return_value = [
+                {
+                    "id": "1",
+                    "text": "Test chunk",
+                    "startPage": 1,
+                    "endPage": 1,
+                    "order": 1,
+                }
+            ]
+
+            result = await self.service.search_content_chunks_async(
+                search_string="test",
+                search_type=ContentSearchType.COMBINED,
+                limit=10,
+                scope_ids=["scope1", "scope2"],
+            )
+
+            assert isinstance(result, list)
+            assert all(isinstance(chunk, ContentChunk) for chunk in result)
+            assert len(result) == 1
+            assert result[0].id == "1"
+            assert result[0].text == "Test chunk"
+
+            mock_create.assert_called_once_with(
+                user_id="test_user",
+                company_id="test_company",
+                chatId="test_chat",
+                searchString="test",
+                searchType="COMBINED",
+                scopeIds=["scope1", "scope2"],
+                limit=10,
+                reranker=None,
+                language="english",
+                chatOnly=None,
+            )
+
+    async def test_search_contents_async(self):
+        with patch.object(unique_sdk.Content, "search_async") as mock_search:
+            mock_search.return_value = [
+                {
+                    "id": "1",
+                    "key": "test_key",
+                    "title": "Test Content",
+                    "url": "http://test.com",
+                    "chunks": [
+                        {
+                            "id": "chunk1",
+                            "text": "Test chunk",
+                            "startPage": 1,
+                            "endPage": 1,
+                            "order": 1,
+                        }
+                    ],
+                }
+            ]
+
+            result = await self.service.search_contents_async(where={"key": "test_key"})
+
+            assert isinstance(result, list)
+            assert all(isinstance(content, Content) for content in result)
+            assert len(result) == 1
+            assert result[0].id == "1"
+            assert result[0].key == "test_key"
+            assert len(result[0].chunks) == 1
+            assert result[0].chunks[0].id == "chunk1"
+
+            mock_search.assert_called_once_with(
+                user_id="test_user",
+                company_id="test_company",
+                chatId="test_chat",
+                where={"key": "test_key"},
+            )
+
+    async def test_error_handling_search_content_chunks_async(self):
+        with patch.object(
+            unique_sdk.Search, "create_async", side_effect=Exception("API Error")
+        ):
+            with pytest.raises(Exception, match="API Error"):
+                await self.service.search_content_chunks_async(
+                    "test", ContentSearchType.COMBINED, 10
+                )
+
+    async def test_error_handling_search_contents_async(self):
+        with patch.object(
+            unique_sdk.Content, "search_async", side_effect=Exception("API Error")
         ):
             with pytest.raises(Exception, match="API Error"):
                 self.service.search_contents({"key": "test_key"})

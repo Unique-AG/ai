@@ -19,7 +19,6 @@ test_company_id = os.getenv("TEST_COMPANY_ID") or "test_company_id"
 test_chat_id = os.getenv("TEST_CHAT_ID") or "test_chat_id"
 test_assistant_id = os.getenv("TEST_ASSISTANT_ID") or "test_assistant_id"
 test_user_message_id = os.getenv("TEST_USER_MESSAGE_ID") or "test_user_message_id"
-test_scope_id = os.getenv("TEST_SCOPE_ID") or "test_scope_id"
 
 # Comment this line to run integration tests, this does currently work only locally
 collect_ignore_glob = ["*_integration.py"]
@@ -33,7 +32,6 @@ def chat_state():
         assistant_id=test_assistant_id,  # type: ignore
         chat_id=test_chat_id,  # type: ignore
         user_message_id=test_user_message_id,  # type: ignore
-        scope_ids=[test_scope_id],  # type: ignore
     )
     chat_service = ChatService(chat_state)
     message = chat_service.create_assistant_message("Test assistant message")

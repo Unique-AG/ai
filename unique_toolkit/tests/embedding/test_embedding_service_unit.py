@@ -34,11 +34,11 @@ class TestEmbeddingServiceUnit:
                 timeout=600_000,
             )
 
-    def test_trigger_embed_texts(self):
-        with patch.object(unique_sdk.Embeddings, "create") as mock_create:
+    async def test_embed_texts_async(self):
+        with patch.object(unique_sdk.Embeddings, "create_async") as mock_create:
             mock_create.return_value = {"embeddings": [[0.1, 0.2, 0.3]]}
             texts = ["Test text"]
-            result = self.service._trigger_embed_texts(texts, 600_000)
+            result = await self.service.embed_texts_async(texts)
             assert isinstance(result, Embeddings)
             assert result.embeddings == [[0.1, 0.2, 0.3]]
             mock_create.assert_called_once_with(
@@ -78,3 +78,12 @@ class TestEmbeddingServiceUnit:
         ):
             with pytest.raises(Exception, match="API Error"):
                 self.service.embed_texts(["Test text"])
+
+    async def test_error_handling_search_contents_async(self):
+        with patch.object(
+            unique_sdk.Embeddings,
+            "create_async",
+            side_effect=Exception("API Error"),
+        ):
+            with pytest.raises(Exception, match="API Error"):
+                await self.service.embed_texts_async(["Test text"])

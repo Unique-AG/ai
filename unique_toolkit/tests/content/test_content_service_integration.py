@@ -22,6 +22,7 @@ class TestContentServiceIntegration(unittest.TestCase):
             search_string="test",
             search_type=ContentSearchType.COMBINED,
             limit=10,
+            scope_ids=["test_scope_id"],
         )
 
         assert isinstance(result, list)
@@ -37,7 +38,7 @@ class TestContentServiceIntegration(unittest.TestCase):
                     "equals": "test",
                 },
                 "ownerId": {
-                    "equals": self.state.scope_ids[0],  # type: ignore
+                    "equals": ["test_scope_id"],
                 },
             },
         ]
@@ -64,6 +65,54 @@ class TestContentServiceIntegration(unittest.TestCase):
                 limit=10,
             )
 
+    async def test_search_content_chunks_async(self):
+        result = await self.service.search_content_chunks_async(
+            search_string="test",
+            search_type=ContentSearchType.COMBINED,
+            limit=10,
+            scope_ids=["test_scope_id"],
+        )
+
+        assert isinstance(result, list)
+        assert all(isinstance(chunk, ContentChunk) for chunk in result)
+        assert len(result) > 0
+        assert all(hasattr(chunk, "id") for chunk in result)
+        assert all(hasattr(chunk, "text") for chunk in result)
+
+    async def test_search_contents_async(self):
+        filter = [
+            {
+                "key": {
+                    "equals": "test",
+                },
+                "ownerId": {
+                    "equals": ["test_scope_id"],  # type: ignore
+                },
+            },
+        ]
+
+        where = {
+            "OR": filter,
+        }
+        result = await self.service.search_contents_async(where=where)
+
+        assert isinstance(result, list)
+        assert all(isinstance(content, Content) for content in result)
+        if len(result) > 0:
+            assert all(hasattr(content, "id") for content in result)
+            assert all(hasattr(content, "key") for content in result)
+            assert all(hasattr(content, "chunks") for content in result)
+            assert all(isinstance(content.chunks, list) for content in result)
+
+    async def test_error_handling_async(self):
+        with pytest.raises(Exception):
+            # This should raise an exception due to invalid search type
+            await self.service.search_content_chunks_async(
+                search_string="test",
+                search_type="invalid_type",  # type: ignore
+                limit=10,
+            )
+
     def test_upload_and_download_content(self):
         # Create a temporary file for testing
         with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as temp_file:
@@ -76,7 +125,6 @@ class TestContentServiceIntegration(unittest.TestCase):
                 path_to_content=temp_file_path,
                 content_name="integration_test.txt",
                 mime_type="text/plain",
-                scope_id=self.state.scope_ids[0],  # type: ignore
             )
 
             self.assertIsNotNone(uploaded_content)

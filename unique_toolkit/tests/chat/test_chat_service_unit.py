@@ -154,3 +154,144 @@ class TestChatServiceUnit:
         ):
             with pytest.raises(Exception, match="Creation Error"):
                 self.service.create_assistant_message("New message")
+
+    async def test_modify_assistant_message_async(self):
+        with patch.object(
+            unique_sdk.Message, "modify_async", autospec=True
+        ) as mock_modify:
+            mock_modify.return_value = {
+                "id": "test_message",
+                "content": "Modified message",
+                "role": "assistant",
+            }
+            references = [
+                ContentReference(
+                    id="doc123",
+                    message_id="message123",
+                    name="Document 1",
+                    sequence_number=1,
+                    source_id="source123",
+                    source="source",
+                    url="http://example.com",
+                )
+            ]
+
+            result = self.service.modify_assistant_message_async(
+                content="Modified message",
+                message_id="test_assistant_message",
+                references=references,
+                debug_info={},
+            )
+
+            assert isinstance(result, ChatMessage)
+            assert result.content == "Modified message"
+            assert result.role == ChatMessageRole.ASSISTANT
+
+            mock_modify.assert_called_once_with(
+                user_id="test_user",
+                company_id="test_company",
+                id="test_assistant_message",
+                chatId="test_chat",
+                text="Modified message",
+                references=[
+                    {
+                        "name": "Document 1",
+                        "url": "http://example.com",
+                        "sequenceNumber": 1,
+                        "sourceId": "source123",
+                        "source": "source",
+                    }
+                ],
+                debugInfo={},
+            )
+
+    async def test_get_history_async(self):
+        with patch.object(unique_sdk.Message, "list_async", autospec=True) as mock_list:
+            mock_list.return_value = {
+                "object": "list",
+                "data": [
+                    {"id": "message1", "text": "Message 1", "role": "assistant"},
+                    {"id": "message2", "text": "Message 2", "role": "user"},
+                    {"id": "message3", "text": "Message 3", "role": "assistant"},
+                    {"id": "message4", "text": "Message 4", "role": "user"},
+                ],
+            }
+
+            (
+                full_history,
+                selected_history,
+            ) = await self.service.get_full_and_selected_history_async(
+                token_limit=100,
+                percent_of_max_tokens=0.8,
+                max_messages=1,
+            )
+
+            assert len(selected_history) == 1
+            assert len(full_history) == 2
+            assert all(
+                isinstance(msg, ChatMessage) for msg in selected_history + full_history
+            )
+
+            mock_list.assert_called_once_with(
+                user_id="test_user",
+                company_id="test_company",
+                chatId="test_chat",
+            )
+
+    async def test_create_assistant_message_async(self):
+        with patch.object(
+            unique_sdk.Message, "create_async", autospec=True
+        ) as mock_create:
+            mock_create.return_value = {
+                "id": "new_message",
+                "content": "New assistant message",
+                "role": "assistant",
+            }
+
+            result = self.service.create_assistant_message_async(
+                content="New assistant message", references=[], debug_info={}
+            )
+
+            assert isinstance(result, ChatMessage)
+            assert result.content == "New assistant message"
+            assert result.role == ChatMessageRole.ASSISTANT
+
+            mock_create.assert_called_once_with(
+                user_id="test_user",
+                company_id="test_company",
+                chatId="test_chat",
+                assistantId="test_assistant",
+                text="New assistant message",
+                role="ASSISTANT",
+                references=[],
+                debugInfo={},
+            )
+
+    async def test_error_handling_modify_message_async(self):
+        with patch.object(
+            unique_sdk.Message,
+            "modify_async",
+            autospec=True,
+            side_effect=Exception("API Error"),
+        ):
+            with pytest.raises(Exception, match="API Error"):
+                await self.service.modify_assistant_message_async("Modified message")
+
+    async def test_error_handling_get_history_async(self):
+        with patch.object(
+            unique_sdk.Message,
+            "list_async",
+            side_effect=Exception("History Error"),
+        ):
+            with pytest.raises(Exception, match="History Error"):
+                await self.service.get_full_and_selected_history_async(100, 0.8, 10)
+
+    async def test_error_handling_create_message_async(self):
+        with patch.object(
+            unique_sdk.Message,
+            "create_async",
+            autospec=True,
+            side_effect=Exception("Creation Error"),
+        ):
+            with pytest.raises(Exception, match="Creation Error"):
+                await self.service.create_assistant_message_async("New message")
