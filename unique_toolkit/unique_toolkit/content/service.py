@@ -100,8 +100,6 @@ class ContentService:
         search_language: str = DEFAULT_SEARCH_LANGUAGE,
         scope_ids: Optional[list[str]] = None,
     ) -> list[ContentChunk]:
-        scope_ids = scope_ids or self.state.scope_ids or []
-
         if not scope_ids:
             self.logger.warning("No scope IDs provided for search.")
 
@@ -114,7 +112,7 @@ class ContentService:
                 searchType=search_type.name,
                 scopeIds=scope_ids,
                 limit=limit,
-                reranker=reranker_config,
+                reranker=reranker_config.model_dump() if reranker_config else None,
                 language=search_language,
                 chatOnly=self.state.chat_only,
             )
