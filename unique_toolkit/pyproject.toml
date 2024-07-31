@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_toolkit"
-version = "0.5.5"
+version = "0.5.6"
 description = ""
 authors = [
     "Martin Fadler <martin.fadler@unique.ch>",
@@ -16,7 +16,7 @@ python = "^3.11"
 typing-extensions = "^4.9.0"
 pydantic = "^2.8.2"
 pyhumps = "^3.8.0"
-unique-sdk = "^0.9"
+unique-sdk = "^0.9.2"
 numpy = "^1.26.4"
 python-dotenv = "^1.0.1"
 requests = "^2.32.3"
