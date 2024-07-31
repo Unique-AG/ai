@@ -1,6 +1,4 @@
-from typing import Any, ClassVar, Dict, Literal, Optional, cast
-
-from typing_extensions import NotRequired, Unpack
+from typing import Any, ClassVar, Dict, Literal, NotRequired, Optional, Unpack, cast
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
@@ -13,12 +11,12 @@ class Search(APIResource["Search"]):
         chatId: str
         searchString: str
         searchType: Literal["VECTOR", "COMBINED"]
-        language: NotRequired[str]
-        reranker: NotRequired[dict[str, Any]]
-        scopeIds: NotRequired[list[str]]
-        chatOnly: NotRequired[bool]
-        limit: NotRequired[int]
-        page: NotRequired[int]
+        language: NotRequired[Optional[str]]
+        reranker: NotRequired[Optional[dict[str, Any]]]
+        scopeIds: NotRequired[Optional[list[str]]]
+        chatOnly: NotRequired[Optional[bool]]
+        limit: NotRequired[Optional[int]]
+        page: NotRequired[Optional[int]]
 
     id: str
     chunkId: str

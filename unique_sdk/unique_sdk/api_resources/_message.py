@@ -4,14 +4,14 @@ from typing import (
     Dict,
     List,
     Literal,
+    NotRequired,
     Optional,
     TypedDict,
+    Unpack,
     cast,
     overload,
 )
 from urllib.parse import quote_plus
-
-from typing_extensions import NotRequired, Unpack
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._list_object import ListObject
@@ -37,13 +37,13 @@ class Message(APIResource["Message"]):
         chatId: str
         assistantId: str
         role: Literal["ASSISTANT"]
-        text: NotRequired["str"]
+        text: NotRequired[Optional["str"]]
         references: Optional[List["Message.Reference"]]
         debugInfo: Optional[Dict[str, Any]]
 
     class ModifyParams(RequestOptions):
         chatId: str
-        text: NotRequired["str"]
+        text: NotRequired[Optional["str"]]
         references: Optional[List["Message.Reference"]]
         debugInfo: Optional[Dict[str, Any]]
 
