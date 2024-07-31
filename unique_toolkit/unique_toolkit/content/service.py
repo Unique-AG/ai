@@ -69,7 +69,9 @@ class ContentService(BaseService):
                 searchType=search_type.name,
                 scopeIds=scope_ids,
                 limit=limit,
-                reranker=reranker_config.model_dump() if reranker_config else None,
+                reranker=reranker_config.model_dump(by_alias=True)
+                if reranker_config
+                else None,
                 language=search_language,
                 chatOnly=chat_only,
             )
@@ -121,7 +123,9 @@ class ContentService(BaseService):
                 searchType=search_type.name,
                 scopeIds=scope_ids,
                 limit=limit,
-                reranker=reranker_config.model_dump() if reranker_config else None,
+                reranker=reranker_config.model_dump(by_alias=True)
+                if reranker_config
+                else None,
                 language=search_language,
                 chatOnly=chat_only,
             )
