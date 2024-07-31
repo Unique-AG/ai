@@ -69,8 +69,8 @@ class ContentService(BaseService):
                 searchType=search_type.name,
                 scopeIds=scope_ids,
                 limit=limit,
-                reranker=reranker_config,  # type: ignore
-                language=search_language,  # type: ignore
+                reranker=reranker_config.model_dump() if reranker_config else None,
+                language=search_language,
                 chatOnly=chat_only,
             )
         except Exception as e:
@@ -121,9 +121,8 @@ class ContentService(BaseService):
                 searchType=search_type.name,
                 scopeIds=scope_ids,
                 limit=limit,
-                # TODO fix types in SDK
-                reranker=reranker_config.model_dump() if reranker_config else None,  # type: ignore
-                language=search_language,  # type: ignore
+                reranker=reranker_config.model_dump() if reranker_config else None,
+                language=search_language,
                 chatOnly=chat_only,
             )
         except Exception as e:
