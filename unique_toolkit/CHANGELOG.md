@@ -7,7 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.5.6] - 2024-07-30
 - Bug fix: `ContentService.search_content_chunks` and it's `async` equivalent now accept `None` as a valid parameter value for `scope_ids`.
-- `LanguageModel.complete`, `LanguageModel.stream_complete` and the `async` variants accept `Messages` type instead of `LanguageModelMessages` to be able to accept `ChatMessage` type data as part of messages.
 
 ## [0.5.5] - 2024-07-30
 - Added parameters to `ContentService.search_content_chunks` and `ContentService.async_search_content_chunks`
