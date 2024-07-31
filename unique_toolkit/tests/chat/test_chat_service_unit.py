@@ -155,6 +155,7 @@ class TestChatServiceUnit:
             with pytest.raises(Exception, match="Creation Error"):
                 self.service.create_assistant_message("New message")
 
+    @pytest.mark.asyncio
     async def test_modify_assistant_message_async(self):
         with patch.object(
             unique_sdk.Message, "modify_async", autospec=True
@@ -176,7 +177,7 @@ class TestChatServiceUnit:
                 )
             ]
 
-            result = self.service.modify_assistant_message_async(
+            result = await self.service.modify_assistant_message_async(
                 content="Modified message",
                 message_id="test_assistant_message",
                 references=references,
@@ -205,6 +206,7 @@ class TestChatServiceUnit:
                 debugInfo={},
             )
 
+    @pytest.mark.asyncio
     async def test_get_history_async(self):
         with patch.object(unique_sdk.Message, "list_async", autospec=True) as mock_list:
             mock_list.return_value = {
@@ -238,6 +240,7 @@ class TestChatServiceUnit:
                 chatId="test_chat",
             )
 
+    @pytest.mark.asyncio
     async def test_create_assistant_message_async(self):
         with patch.object(
             unique_sdk.Message, "create_async", autospec=True
@@ -248,7 +251,7 @@ class TestChatServiceUnit:
                 "role": "assistant",
             }
 
-            result = self.service.create_assistant_message_async(
+            result = await self.service.create_assistant_message_async(
                 content="New assistant message", references=[], debug_info={}
             )
 
@@ -267,6 +270,7 @@ class TestChatServiceUnit:
                 debugInfo={},
             )
 
+    @pytest.mark.asyncio
     async def test_error_handling_modify_message_async(self):
         with patch.object(
             unique_sdk.Message,
@@ -277,6 +281,7 @@ class TestChatServiceUnit:
             with pytest.raises(Exception, match="API Error"):
                 await self.service.modify_assistant_message_async("Modified message")
 
+    @pytest.mark.asyncio
     async def test_error_handling_get_history_async(self):
         with patch.object(
             unique_sdk.Message,
@@ -286,6 +291,7 @@ class TestChatServiceUnit:
             with pytest.raises(Exception, match="History Error"):
                 await self.service.get_full_and_selected_history_async(100, 0.8, 10)
 
+    @pytest.mark.asyncio
     async def test_error_handling_create_message_async(self):
         with patch.object(
             unique_sdk.Message,

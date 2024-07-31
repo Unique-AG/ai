@@ -1,4 +1,3 @@
-import unittest
 from datetime import datetime
 
 import pytest
@@ -39,7 +38,7 @@ weather_tool = LanguageModelTool(
 
 
 @pytest.mark.usefixtures("chat_state")
-class TestLanguageModelServiceIntegration(unittest.TestCase):
+class TestLanguageModelServiceIntegration:
     @pytest.fixture(autouse=True)
     def setup(self, chat_state):
         # This method will be called before each test
@@ -58,18 +57,18 @@ class TestLanguageModelServiceIntegration(unittest.TestCase):
             messages=self.test_messages,
             model_name=self.model_name,
         )
-        self.assertEqual(len(response.choices), 1)
+        assert len(response.choices) == 1
 
         choice = response.choices[0]
-        self.assertIsInstance(choice.message.content, str)
+        assert isinstance(choice.message.content, str)
 
     def test_can_stream_complete(self):
         response = self.service.stream_complete(
             messages=self.test_messages,
             model_name=self.model_name,
         )
-        self.assertIsNotNone(response)
-        self.assertIsInstance(response.message.text, str)
+        assert response is not None
+        assert isinstance(response.message.text, str)
 
     def test_can_stream_complete_with_search_context(self):
         content_chunks = [
@@ -97,8 +96,8 @@ class TestLanguageModelServiceIntegration(unittest.TestCase):
             model_name=self.model_name,
             content_chunks=content_chunks,
         )
-        self.assertIsNotNone(response)
-        self.assertIsInstance(response.message.text, str)
+        assert response is not None
+        assert isinstance(response.message.text, str)
 
     def test_complete_with_tool(self):
         messages = LanguageModelMessages(
@@ -138,24 +137,28 @@ class TestLanguageModelServiceIntegration(unittest.TestCase):
         assert response.tool_calls is not None
         assert response.tool_calls[0].name == "get_weather"
 
+    @pytest.mark.asyncio
     async def test_can_complete_async(self):
         response = await self.service.complete_async(
             messages=self.test_messages,
             model_name=self.model_name,
         )
-        self.assertEqual(len(response.choices), 1)
+        assert len(response.choices) == 1
 
         choice = response.choices[0]
-        self.assertIsInstance(choice.message.content, str)
+        assert isinstance(choice.message.content, str)
 
+    @pytest.mark.asyncio
     async def test_can_stream_complete_async(self):
         response = await self.service.stream_complete_async(
             messages=self.test_messages,
             model_name=self.model_name,
         )
-        self.assertIsNotNone(response)
-        self.assertIsInstance(response.message.text, str)
 
+        assert response is not None
+        assert isinstance(response.message.text, str)
+
+    @pytest.mark.asyncio
     async def test_can_stream_complete_with_search_context_async(self):
         content_chunks = [
             ContentChunk(
@@ -182,9 +185,11 @@ class TestLanguageModelServiceIntegration(unittest.TestCase):
             model_name=self.model_name,
             content_chunks=content_chunks,
         )
-        self.assertIsNotNone(response)
-        self.assertIsInstance(response.message.text, str)
 
+        assert response is not None
+        assert isinstance(response.message.text, str)
+
+    @pytest.mark.asyncio
     async def test_complete_with_tool_async(self):
         messages = LanguageModelMessages(
             [
@@ -204,6 +209,7 @@ class TestLanguageModelServiceIntegration(unittest.TestCase):
         assert response.choices[0].message.tool_calls is not None
         assert response.choices[0].message.tool_calls[0].function.name == "get_weather"
 
+    @pytest.mark.asyncio
     async def test_stream_complete_with_tool_async(self):
         messages = LanguageModelMessages(
             [

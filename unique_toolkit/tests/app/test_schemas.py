@@ -1,5 +1,3 @@
-import unittest
-
 from unique_toolkit.app.schemas import (
     Event,
     EventAssistantMessage,
@@ -9,7 +7,7 @@ from unique_toolkit.app.schemas import (
 )
 
 
-class TestEventSchemas(unittest.TestCase):
+class TestEventSchemas:
     def test_event_user_message_deserialization(self):
         json_data = (
             '{"id": "msg1", "text": "Hello", "createdAt": "2023-01-01T00:00:00Z"}'

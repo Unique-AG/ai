@@ -1,17 +1,17 @@
 import os
 import tempfile
-import unittest
 from pathlib import Path
 
 import pytest
 
+from tests.conftest import test_scope_id
 from unique_toolkit.chat.state import ChatState
 from unique_toolkit.content.schemas import Content, ContentChunk, ContentSearchType
 from unique_toolkit.content.service import ContentService
 
 
 @pytest.mark.usefixtures("chat_state")
-class TestContentServiceIntegration(unittest.TestCase):
+class TestContentServiceIntegration:
     @pytest.fixture(autouse=True)
     def setup(self, chat_state: ChatState):
         self.state = chat_state
@@ -38,7 +38,7 @@ class TestContentServiceIntegration(unittest.TestCase):
                     "equals": "test",
                 },
                 "ownerId": {
-                    "equals": ["test_scope_id"],
+                    "equals": f"{[test_scope_id]}",
                 },
             },
         ]
@@ -65,6 +65,7 @@ class TestContentServiceIntegration(unittest.TestCase):
                 limit=10,
             )
 
+    @pytest.mark.asyncio
     async def test_search_content_chunks_async(self):
         result = await self.service.search_content_chunks_async(
             search_string="test",
@@ -79,6 +80,7 @@ class TestContentServiceIntegration(unittest.TestCase):
         assert all(hasattr(chunk, "id") for chunk in result)
         assert all(hasattr(chunk, "text") for chunk in result)
 
+    @pytest.mark.asyncio
     async def test_search_contents_async(self):
         filter = [
             {
@@ -104,6 +106,7 @@ class TestContentServiceIntegration(unittest.TestCase):
             assert all(hasattr(content, "chunks") for content in result)
             assert all(isinstance(content.chunks, list) for content in result)
 
+    @pytest.mark.asyncio
     async def test_error_handling_async(self):
         with pytest.raises(Exception):
             # This should raise an exception due to invalid search type
@@ -125,11 +128,12 @@ class TestContentServiceIntegration(unittest.TestCase):
                 path_to_content=temp_file_path,
                 content_name="integration_test.txt",
                 mime_type="text/plain",
+                scope_id=test_scope_id,
             )
 
-            self.assertIsNotNone(uploaded_content)
-            self.assertIsNotNone(uploaded_content.id)
-            self.assertEqual(uploaded_content.key, "integration_test.txt")
+            assert uploaded_content is not None
+            assert uploaded_content.id is not None
+            assert uploaded_content.key == "integration_test.txt"
 
             # Test download_content
             downloaded_path = self.service.download_content(
@@ -138,13 +142,13 @@ class TestContentServiceIntegration(unittest.TestCase):
                 chat_id=None,
             )
 
-            self.assertIsInstance(downloaded_path, Path)
-            self.assertTrue(downloaded_path.exists())
-            self.assertEqual(downloaded_path.name, "integration_test.txt")
+            assert isinstance(downloaded_path, Path)
+            assert downloaded_path.exists()
+            assert downloaded_path.name == "integration_test.txt"
 
             with open(downloaded_path, "rb") as f:
                 content = f.read()
-                self.assertEqual(content, b"Test content for integration")
+                assert content == b"Test content for integration"
 
         finally:
             # Clean up
@@ -168,9 +172,9 @@ class TestContentServiceIntegration(unittest.TestCase):
                 chat_id=self.state.chat_id,
             )
 
-            self.assertIsNotNone(uploaded_content)
-            self.assertIsNotNone(uploaded_content.id)
-            self.assertEqual(uploaded_content.key, "chat_integration_test.txt")
+            assert uploaded_content is not None
+            assert uploaded_content.id is not None
+            assert uploaded_content.key == "chat_integration_test.txt"
 
             # Test download_content with chat_id
             downloaded_path = self.service.download_content(
@@ -179,13 +183,13 @@ class TestContentServiceIntegration(unittest.TestCase):
                 chat_id=self.state.chat_id,
             )
 
-            self.assertIsInstance(downloaded_path, Path)
-            self.assertTrue(downloaded_path.exists())
-            self.assertEqual(downloaded_path.name, "chat_integration_test.txt")
+            assert isinstance(downloaded_path, Path)
+            assert downloaded_path.exists()
+            assert downloaded_path.name == "chat_integration_test.txt"
 
             with open(downloaded_path, "rb") as f:
                 content = f.read()
-                self.assertEqual(content, b"Test content for chat integration")
+                assert content == b"Test content for chat integration"
 
         finally:
             # Clean up

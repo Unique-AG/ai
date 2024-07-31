@@ -1,80 +1,91 @@
 import asyncio
 import logging
-import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import Mock
 
-from unique_toolkit.app.performance.async_executor import AsyncExecutor
+import pytest
+
+from unique_toolkit.app.performance.async_tasks import run_async_tasks_parallel
 
 
-class TestAsyncExecutor(unittest.TestCase):
-    def setUp(self):
+class TestRunAsyncTasksParallel:
+    @pytest.fixture(autouse=True)
+    def setup_method(self):
         self.logger = logging.getLogger("test_logger")
-        self.executor = AsyncExecutor(logger=self.logger)
+        self.logger.setLevel(logging.DEBUG)
 
-    async def async_task(self, result):
-        await asyncio.sleep(0.1)
-        return result
+    @pytest.mark.asyncio
+    async def test_successful_tasks(self):
+        async def successful_task(result):
+            await asyncio.sleep(0.1)
+            return result
 
-    def test_init(self):
-        self.assertIsInstance(self.executor.logger, logging.Logger)
-        self.assertIsNotNone(self.executor.context_manager)
+        tasks = [successful_task(i) for i in range(5)]
+        results = await run_async_tasks_parallel(tasks, max_tasks=2, logger=self.logger)
 
-    @patch("async_executor.asyncio.Semaphore")
-    @patch("async_executor.asyncio.gather")
-    async def test_run_async_tasks(self, mock_gather, mock_semaphore):
-        mock_gather.return_value = [1, 2, 3]
-        mock_semaphore.return_value.__aenter__.return_value = None
-        mock_semaphore.return_value.__aexit__.return_value = None
+        assert len(results) == 5
+        assert results == [0, 1, 2, 3, 4]
 
-        tasks = [self.async_task(i) for i in range(3)]
-        results = await self.executor.run_async_tasks(tasks, max_tasks=2)
+    @pytest.mark.asyncio
+    async def test_failed_tasks(self):
+        async def failed_task():
+            await asyncio.sleep(0.1)
+            raise ValueError("Task failed")
 
-        self.assertEqual(results, [1, 2, 3])
-        mock_semaphore.assert_called_once_with(2)
-        mock_gather.assert_called_once()
+        tasks = [failed_task() for _ in range(3)]
+        results = await run_async_tasks_parallel(tasks, logger=self.logger)
 
-    @patch("async_executor.ThreadPoolExecutor")
-    async def test_run_async_tasks_in_threads(self, mock_thread_pool):
-        mock_executor = MagicMock()
-        mock_thread_pool.return_value.__enter__.return_value = mock_executor
-        mock_executor.map.return_value = [[1], [2, 3]]
+        assert len(results) == 3
+        for result in results:
+            assert isinstance(result, ValueError)
+            assert str(result) == "Task failed"
 
-        tasks = [self.async_task(i) for i in range(3)]
-        results = await self.executor.run_async_tasks_in_threads(
-            tasks, max_threads=2, max_tasks=2
-        )
+    @pytest.mark.asyncio
+    async def test_mixed_tasks(self):
+        async def successful_task(result):
+            await asyncio.sleep(0.1)
+            return result
 
-        self.assertEqual(results, [1, 2, 3])
-        mock_thread_pool.assert_called_once_with(max_workers=2)
-        mock_executor.map.assert_called_once()
+        async def failed_task():
+            await asyncio.sleep(0.1)
+            raise ValueError("Task failed")
 
-    async def test_run_async_tasks_with_exception(self):
-        async def failing_task():
-            raise ValueError("Test exception")
+        tasks = [successful_task(1), failed_task(), successful_task(2)]
+        results = await run_async_tasks_parallel(tasks, logger=self.logger)
 
-        tasks = [self.async_task(1), failing_task(), self.async_task(3)]
-        results = await self.executor.run_async_tasks(tasks, max_tasks=2)
+        assert len(results) == 3
+        assert results[0] == 1
+        assert isinstance(results[1], ValueError)
+        assert results[2] == 2
 
-        self.assertEqual(len(results), 3)
-        self.assertEqual(results[0], 1)
-        self.assertIsInstance(results[1], ValueError)
-        self.assertEqual(str(results[1]), "Test exception")
-        self.assertEqual(results[2], 3)
+    @pytest.mark.asyncio
+    async def test_max_tasks(self):
+        async def slow_task(result):
+            await asyncio.sleep(0.5)
+            return result
 
-    @patch("async_executor.asyncio.new_event_loop")
-    async def test_run_async_tasks_in_threads_with_exception(self, mock_new_event_loop):
-        mock_loop = MagicMock()
-        mock_new_event_loop.return_value = mock_loop
-        mock_loop.run_until_complete.side_effect = [
-            [1],
-            Exception("Test thread exception"),
-            [3],
-        ]
+        tasks = [slow_task(i) for i in range(5)]
 
-        tasks = [self.async_task(i) for i in range(3)]
-        with self.assertRaises(Exception) as context:
-            await self.executor.run_async_tasks_in_threads(
-                tasks, max_threads=3, max_tasks=1
-            )
+        start_time = asyncio.get_event_loop().time()
+        results = await run_async_tasks_parallel(tasks, max_tasks=2, logger=self.logger)
+        end_time = asyncio.get_event_loop().time()
 
-        self.assertEqual(str(context.exception), "Test thread exception")
+        assert results == [0, 1, 2, 3, 4]
+        # With max_tasks=2, it should take about 1.5 seconds (3 batches of 0.5 seconds)
+        assert 1.4 < (end_time - start_time) < 1.6
+
+    @pytest.mark.asyncio
+    async def test_logging(self):
+        mock_logger = Mock(spec=logging.Logger)
+
+        async def successful_task():
+            return "Success"
+
+        async def failed_task():
+            raise ValueError("Task failed")
+
+        tasks = [successful_task(), failed_task()]
+        await run_async_tasks_parallel(tasks, logger=mock_logger)
+
+        assert mock_logger.info.call_count == 2  # Two tasks started
+        assert mock_logger.error.call_count == 1  # One task failed
+        assert mock_logger.debug.call_count == 2  # Two tasks finished

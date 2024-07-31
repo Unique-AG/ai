@@ -24,6 +24,7 @@ class TestEmbeddingServiceIntegration:
             for value in embedding
         )
 
+    @pytest.mark.asyncio
     async def test_embed_texts_async(self):
         texts = ["This is a test sentence.", "This is another test sentence."]
         result = await self.service.embed_texts_async(texts)
@@ -55,6 +56,7 @@ class TestEmbeddingServiceIntegration:
         with pytest.raises(Exception):
             self.service.embed_texts([""] * 1000)
 
+    @pytest.mark.asyncio
     async def test_embed_texts_error_handling_async(self):
         with pytest.raises(Exception):
             await self.service.embed_texts_async([""] * 1000)

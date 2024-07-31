@@ -34,6 +34,7 @@ class TestEmbeddingServiceUnit:
                 timeout=600_000,
             )
 
+    @pytest.mark.asyncio
     async def test_embed_texts_async(self):
         with patch.object(unique_sdk.Embeddings, "create_async") as mock_create:
             mock_create.return_value = {"embeddings": [[0.1, 0.2, 0.3]]}
@@ -79,6 +80,7 @@ class TestEmbeddingServiceUnit:
             with pytest.raises(Exception, match="API Error"):
                 self.service.embed_texts(["Test text"])
 
+    @pytest.mark.asyncio
     async def test_error_handling_search_contents_async(self):
         with patch.object(
             unique_sdk.Embeddings,

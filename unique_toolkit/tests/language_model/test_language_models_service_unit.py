@@ -216,6 +216,7 @@ class TestLanguageModelServiceUnit:
             assert arguments is not None
             assert "London, UK" in arguments.values()
 
+    @pytest.mark.asyncio
     async def test_complete_async(self):
         with patch.object(unique_sdk.ChatCompletion, "create_async") as mock_create:
             mock_create.return_value = {
@@ -246,6 +247,7 @@ class TestLanguageModelServiceUnit:
                 options={},
             )
 
+    @pytest.mark.asyncio
     async def test_stream_complete_async(self):
         with patch.object(
             unique_sdk.Integrated, "chat_stream_completion_async"
@@ -273,6 +275,7 @@ class TestLanguageModelServiceUnit:
             assert result.message.text == "Streamed response"
             mock_stream_complete.assert_called_once()
 
+    @pytest.mark.asyncio
     async def test_error_handling_complete_async(self):
         with patch.object(
             unique_sdk.ChatCompletion,
@@ -284,6 +287,7 @@ class TestLanguageModelServiceUnit:
                     LanguageModelMessages([]), LanguageModelName.AZURE_GPT_4_TURBO_1106
                 )
 
+    @pytest.mark.asyncio
     async def test_error_handling_stream_complete_async(self):
         with patch.object(
             unique_sdk.Integrated,
@@ -295,6 +299,7 @@ class TestLanguageModelServiceUnit:
                     LanguageModelMessages([]), LanguageModelName.AZURE_GPT_4_TURBO_1106
                 )
 
+    @pytest.mark.asyncio
     async def test_complete_with_tool_async(self):
         messages = LanguageModelMessages(
             [
@@ -344,6 +349,7 @@ class TestLanguageModelServiceUnit:
             assert arguments is not None
             assert "New York, NY" in arguments.values()
 
+    @pytest.mark.asyncio
     async def test_stream_complete_with_tool_async(self):
         messages = LanguageModelMessages(
             [

@@ -66,11 +66,10 @@ class LanguageModelService(CommonService):
                 temperature=temperature,
                 options=options,  # type: ignore
             )
+            return LanguageModelResponse(**response)
         except Exception as e:
             self.logger.error(f"Error completing: {e}")
             raise e
-
-        return LanguageModelResponse(**response)
 
     async def complete_async(
         self,
@@ -108,11 +107,10 @@ class LanguageModelService(CommonService):
                 temperature=temperature,
                 options=options,  # type: ignore
             )
+            return LanguageModelResponse(**response)
         except Exception as e:
             self.logger.error(f"Error completing: {e}")
             raise e
-
-        return LanguageModelResponse(**response)
 
     def stream_complete(
         self,
@@ -166,11 +164,10 @@ class LanguageModelService(CommonService):
                 options=options,  # type: ignore
                 startText=start_text,
             )
+            return LanguageModelStreamResponse(**response)
         except Exception as e:
             self.logger.error(f"Error streaming completion: {e}")
             raise e
-
-        return LanguageModelStreamResponse(**response)
 
     async def stream_complete_async(
         self,
@@ -199,9 +196,10 @@ class LanguageModelService(CommonService):
         Returns:
             The LanguageModelStreamResponse object once the stream has finished.
         """
+
         options = self._add_tools_to_options({}, tools)
         search_context = self._to_search_context(content_chunks)
-        messages = messages.model_dump(exclude_none=True)
+        messages = messages.model_dump(exclude_none=True, exclude=["tool_calls"])
 
         try:
             response = await unique_sdk.Integrated.chat_stream_completion_async(
@@ -224,14 +222,15 @@ class LanguageModelService(CommonService):
                 options=options,  # type: ignore
                 startText=start_text,
             )
+            return LanguageModelStreamResponse(**response)
         except Exception as e:
             self.logger.error(f"Error streaming completion: {e}")
             raise e
 
-        return LanguageModelStreamResponse(**response)
-
     @staticmethod
-    def _to_search_context(chunks: list[ContentChunk]) -> dict:
+    def _to_search_context(chunks: list[ContentChunk]) -> dict | None:
+        if not chunks:
+            return None
         return [
             unique_sdk.Integrated.SearchResult(
                 id=chunk.id,

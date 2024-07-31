@@ -13,12 +13,15 @@ load_dotenv(dotenv_path=DOTENV_TEST_PATH)
 unique_sdk.api_key = os.getenv("TEST_API_KEY") or "test_api_key"
 unique_sdk.app_id = os.getenv("TEST_APP_ID") or "test_app_id"
 unique_sdk.api_base = os.getenv("TEST_API_BASE") or "http://test.com"
+# unique_sdk.log = "debug"
+unique_sdk.default_http_client = unique_sdk.HTTPXClient()
 
 test_user_id = os.getenv("TEST_USER_ID") or "test_user_id"
 test_company_id = os.getenv("TEST_COMPANY_ID") or "test_company_id"
 test_chat_id = os.getenv("TEST_CHAT_ID") or "test_chat_id"
 test_assistant_id = os.getenv("TEST_ASSISTANT_ID") or "test_assistant_id"
 test_user_message_id = os.getenv("TEST_USER_MESSAGE_ID") or "test_user_message_id"
+test_scope_id = os.getenv("TEST_SCOPE_ID") or "test_scope_id"
 
 # Comment this line to run integration tests, this does currently work only locally
 collect_ignore_glob = ["*_integration.py"]

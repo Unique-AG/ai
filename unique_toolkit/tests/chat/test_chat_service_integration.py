@@ -74,6 +74,26 @@ class TestChatServiceIntegration:
         assert hasattr(modified_message, "debug_info")
         assert modified_message.debug_info == debug_info
 
+    def test_get_full_history(self):
+        self.service.create_assistant_message("Message 1")
+        self.service.create_assistant_message("Message 2")
+
+        full_history = self.service.get_full_history()
+
+        assert isinstance(full_history, list)
+        assert all(isinstance(msg, ChatMessage) for msg in full_history)
+
+    @pytest.mark.asyncio
+    async def test_get_full_history_async(self):
+        self.service.create_assistant_message("Message 1")
+        self.service.create_assistant_message("Message 2")
+
+        full_history = await self.service.get_full_history_async()
+
+        assert isinstance(full_history, list)
+        assert all(isinstance(msg, ChatMessage) for msg in full_history)
+
+    @pytest.mark.asyncio
     async def test_create_and_modify_assistant_message_async(self):
         new_message = await self.service.create_assistant_message_async(
             content="Hello, this is a test message.", references=[], debug_info={}
@@ -89,6 +109,7 @@ class TestChatServiceIntegration:
         assert modified_message.content == "This message has been modified."
         assert modified_message.role == ChatMessageRole.ASSISTANT
 
+    @pytest.mark.asyncio
     async def test_get_full_and_selected_history_async(self):
         await self.service.create_assistant_message_async("Message 1")
         await self.service.create_assistant_message_async("Message 2")
@@ -107,6 +128,7 @@ class TestChatServiceIntegration:
             isinstance(msg, ChatMessage) for msg in selected_history + full_history
         )
 
+    @pytest.mark.asyncio
     async def test_create_message_with_references_async(self):
         references = [
             ContentReference(
@@ -125,6 +147,7 @@ class TestChatServiceIntegration:
         assert isinstance(message, ChatMessage)
         assert message.content == "This message has a reference."
 
+    @pytest.mark.asyncio
     async def test_modify_message_with_debug_info_async(self):
         new_message = await self.service.create_assistant_message_async(
             "Original message"
