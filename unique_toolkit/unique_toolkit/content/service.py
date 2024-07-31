@@ -39,7 +39,7 @@ class ContentService(BaseService):
         limit: int,
         search_language: str = DEFAULT_SEARCH_LANGUAGE,
         reranker_config: Optional[RerankerConfig] = None,
-        scope_ids: Optional[list[str]] = [],
+        scope_ids: Optional[list[str]] = None,
         chat_only: Optional[bool] = None,
     ) -> list[ContentChunk]:
         """
@@ -91,7 +91,7 @@ class ContentService(BaseService):
         limit: int,
         search_language: str = DEFAULT_SEARCH_LANGUAGE,
         reranker_config: Optional[RerankerConfig] = None,
-        scope_ids: Optional[list[str]] = [],
+        scope_ids: Optional[list[str]] = None,
         chat_only: Optional[bool] = None,
     ):
         """
