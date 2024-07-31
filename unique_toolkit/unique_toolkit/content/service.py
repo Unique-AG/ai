@@ -103,7 +103,7 @@ class ContentService(BaseService):
             limit (int): The maximum number of results to return.
             search_language (str): The language for the full-text search. Defaults to "english".
             reranker_config (Optional[RerankerConfig]): The reranker configuration. Defaults to None.
-            scope_ids (Optional[list[str]]): The scope IDs. Defaults to [].
+            scope_ids (Optional[list[str]]): The scope IDs. Defaults to None.
             chat_only (Optional[bool]): Whether to search only in the current chat. Defaults to None.
 
         Returns:
