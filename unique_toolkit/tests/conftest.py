@@ -13,6 +13,8 @@ load_dotenv(dotenv_path=DOTENV_TEST_PATH)
 unique_sdk.api_key = os.getenv("TEST_API_KEY") or "test_api_key"
 unique_sdk.app_id = os.getenv("TEST_APP_ID") or "test_app_id"
 unique_sdk.api_base = os.getenv("TEST_API_BASE") or "http://test.com"
+# unique_sdk.log = "debug"
+# unique_sdk.default_http_client = unique_sdk.HTTPXClient()
 
 test_user_id = os.getenv("TEST_USER_ID") or "test_user_id"
 test_company_id = os.getenv("TEST_COMPANY_ID") or "test_company_id"
@@ -33,7 +35,6 @@ def chat_state():
         assistant_id=test_assistant_id,  # type: ignore
         chat_id=test_chat_id,  # type: ignore
         user_message_id=test_user_message_id,  # type: ignore
-        scope_ids=[test_scope_id],  # type: ignore
     )
     chat_service = ChatService(chat_state)
     message = chat_service.create_assistant_message("Test assistant message")

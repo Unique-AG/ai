@@ -3,15 +3,16 @@ import re
 from typing import Optional
 
 import unique_sdk
+from unique_sdk._list_object import ListObject
 
-from unique_toolkit.app.performance.async_wrapper import async_warning, to_async
+from unique_toolkit._common._base_service import BaseService
 from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
 from unique_toolkit.chat.state import ChatState
 from unique_toolkit.content.schemas import ContentReference
 from unique_toolkit.content.utils import count_tokens
 
 
-class ChatService:
+class ChatService(BaseService):
     """
     Provides all functionalities to manage the chat session.
 
@@ -21,8 +22,10 @@ class ChatService:
     """
 
     def __init__(self, state: ChatState, logger: Optional[logging.Logger] = None):
-        self.state = state
-        self.logger = logger or logging.getLogger(__name__)
+        super().__init__(state, logger)
+
+    DEFAULT_PERCENT_OF_MAX_TOKENS = 0.15
+    DEFAULT_MAX_MESSAGES = 4
 
     def modify_assistant_message(
         self,
@@ -46,16 +49,24 @@ class ChatService:
         Raises:
             Exception: If the modification fails.
         """
-        return self._trigger_modify_assistant_message(
-            content=content,
-            message_id=message_id,
-            references=references,
-            debug_info=debug_info,
-        )
+        message_id = message_id or self.state.assistant_message_id
 
-    @to_async
-    @async_warning
-    def async_modify_assistant_message(
+        try:
+            message = unique_sdk.Message.modify(
+                user_id=self.state.user_id,
+                company_id=self.state.company_id,
+                id=message_id,  # type: ignore
+                chatId=self.state.chat_id,
+                text=content,
+                references=self._map_references(references),  # type: ignore
+                debugInfo=debug_info or {},
+            )
+        except Exception as e:
+            self.logger.error(f"Failed to modify assistant message: {e}")
+            raise e
+        return ChatMessage(**message)
+
+    async def modify_assistant_message_async(
         self,
         content: str,
         references: list[ContentReference] = [],
@@ -77,12 +88,22 @@ class ChatService:
         Raises:
             Exception: If the modification fails.
         """
-        return self._trigger_modify_assistant_message(
-            content,
-            message_id,
-            references,
-            debug_info,
-        )
+        message_id = message_id or self.state.assistant_message_id
+
+        try:
+            message = await unique_sdk.Message.modify_async(
+                user_id=self.state.user_id,
+                company_id=self.state.company_id,
+                id=message_id,  # type: ignore
+                chatId=self.state.chat_id,
+                text=content,
+                references=self._map_references(references),  # type: ignore
+                debugInfo=debug_info or {},
+            )
+        except Exception as e:
+            self.logger.error(f"Failed to modify assistant message: {e}")
+            raise e
+        return ChatMessage(**message)
 
     def get_full_history(self) -> list[ChatMessage]:
         """
@@ -96,9 +117,7 @@ class ChatService:
         """
         return self._get_full_history()
 
-    @to_async
-    @async_warning
-    def async_get_full_history(self) -> list[ChatMessage]:
+    async def get_full_history_async(self) -> list[ChatMessage]:
         """
         Loads the full chat history for the chat session asynchronously.
 
@@ -108,21 +127,21 @@ class ChatService:
         Raises:
             Exception: If the loading fails.
         """
-        return self._get_full_history()
+        return await self._get_full_history_async()
 
     def get_full_and_selected_history(
         self,
         token_limit: int,
-        percent_of_max_tokens: float,
-        max_messages: int,
+        percent_of_max_tokens: float = DEFAULT_PERCENT_OF_MAX_TOKENS,
+        max_messages: int = DEFAULT_MAX_MESSAGES,
     ) -> tuple[list[ChatMessage], list[ChatMessage]]:
         """
         Loads the chat history for the chat session synchronously.
 
         Args:
             token_limit (int): The maximum number of tokens to load.
-            percent_of_max_tokens (float): The percentage of the maximum tokens to load.
-            max_messages (int): The maximum number of messages to load.
+            percent_of_max_tokens (float): The percentage of the maximum tokens to load. Defaults to 0.15.
+            max_messages (int): The maximum number of messages to load. Defaults to 4.
 
         Returns:
             tuple[list[ChatMessage], list[ChatMessage]]: The selected and full chat history.
@@ -130,27 +149,28 @@ class ChatService:
         Raises:
             Exception: If the loading fails.
         """
-        return self._get_full_and_selected_history(
-            token_limit=token_limit,
-            percent_of_max_tokens=percent_of_max_tokens,
+        full_history = self._get_full_history()
+        selected_history = self._get_selection_from_history(
+            full_history=full_history,
+            max_tokens=int(round(token_limit * percent_of_max_tokens)),
             max_messages=max_messages,
         )
 
-    @to_async
-    @async_warning
-    def async_get_full_and_selected_history(
+        return full_history, selected_history
+
+    async def get_full_and_selected_history_async(
         self,
         token_limit: int,
-        percent_of_max_tokens: float,
-        max_messages: int,
+        percent_of_max_tokens: float = DEFAULT_PERCENT_OF_MAX_TOKENS,
+        max_messages: int = DEFAULT_MAX_MESSAGES,
     ) -> tuple[list[ChatMessage], list[ChatMessage]]:
         """
         Loads the chat history for the chat session asynchronously.
 
         Args:
             token_limit (int): The maximum number of tokens to load.
-            percent_of_max_tokens (float): The percentage of the maximum tokens to load.
-            max_messages (int): The maximum number of messages to load.
+            percent_of_max_tokens (float): The percentage of the maximum tokens to load. Defaults to 0.15.
+            max_messages (int): The maximum number of messages to load. Defaults to 4.
 
         Returns:
             tuple[list[ChatMessage], list[ChatMessage]]: The selected and full chat history.
@@ -158,11 +178,14 @@ class ChatService:
         Raises:
             Exception: If the loading fails.
         """
-        return self._get_full_and_selected_history(
-            token_limit=token_limit,
-            percent_of_max_tokens=percent_of_max_tokens,
+        full_history = await self._get_full_history_async()
+        selected_history = self._get_selection_from_history(
+            full_history=full_history,
+            max_tokens=int(round(token_limit * percent_of_max_tokens)),
             max_messages=max_messages,
         )
+
+        return full_history, selected_history
 
     def create_assistant_message(
         self,
@@ -184,15 +207,24 @@ class ChatService:
         Raises:
             Exception: If the creation fails.
         """
-        return self._trigger_create_assistant_message(
-            content=content,
-            references=references,
-            debug_info=debug_info,
-        )
 
-    @to_async
-    @async_warning
-    def async_create_assistant_message(
+        try:
+            message = unique_sdk.Message.create(
+                user_id=self.state.user_id,
+                company_id=self.state.company_id,
+                chatId=self.state.chat_id,
+                assistantId=self.state.assistant_id,
+                text=content,
+                role=ChatMessageRole.ASSISTANT.name,
+                references=self._map_references(references),  # type: ignore
+                debugInfo=debug_info,
+            )
+        except Exception as e:
+            self.logger.error(f"Failed to create assistant message: {e}")
+            raise e
+        return ChatMessage(**message)
+
+    async def create_assistant_message_async(
         self,
         content: str,
         references: list[ContentReference] = [],
@@ -212,45 +244,8 @@ class ChatService:
         Raises:
             Exception: If the creation fails.
         """
-
-        return self._trigger_create_assistant_message(
-            content=content,
-            references=references,
-            debug_info=debug_info,
-        )
-
-    def _trigger_modify_assistant_message(
-        self,
-        content: str,
-        message_id: Optional[str],
-        references: list[ContentReference],
-        debug_info: dict,
-    ) -> ChatMessage:
-        message_id = message_id or self.state.assistant_message_id
-
         try:
-            message = unique_sdk.Message.modify(
-                user_id=self.state.user_id,
-                company_id=self.state.company_id,
-                id=message_id,  # type: ignore
-                chatId=self.state.chat_id,
-                text=content,
-                references=self._map_references(references),  # type: ignore
-                debugInfo=debug_info or {},
-            )
-        except Exception as e:
-            self.logger.error(f"Failed to modify assistant message: {e}")
-            raise e
-        return ChatMessage(**message)
-
-    def _trigger_create_assistant_message(
-        self,
-        content: str,
-        references: list[ContentReference],
-        debug_info: dict,
-    ) -> ChatMessage:
-        try:
-            message = unique_sdk.Message.create(
+            message = await unique_sdk.Message.create_async(
                 user_id=self.state.user_id,
                 company_id=self.state.company_id,
                 chatId=self.state.chat_id,
@@ -278,25 +273,21 @@ class ChatService:
             for ref in references
         ]
 
-    def _get_full_and_selected_history(
-        self,
-        token_limit,
-        percent_of_max_tokens=0.15,
-        max_messages=4,
-    ):
-        full_history = self._get_full_history()
-        selected_history = self._get_selection_from_history(
-            full_history,
-            int(round(token_limit * percent_of_max_tokens)),
-            max_messages,
-        )
-
-        return full_history, selected_history
-
     def _get_full_history(self):
-        SYSTEM_MESSAGE_PREFIX = "[SYSTEM] "
-
         messages = self._trigger_list_messages(self.state.chat_id)
+        messages = self._filter_valid_messages(messages)
+
+        return self._map_to_chat_messages(messages)
+
+    async def _get_full_history_async(self):
+        messages = await self._trigger_list_messages_async(self.state.chat_id)
+        messages = self._filter_valid_messages(messages)
+
+        return self._map_to_chat_messages(messages)
+
+    @staticmethod
+    def _filter_valid_messages(messages: ListObject[unique_sdk.Message]):
+        SYSTEM_MESSAGE_PREFIX = "[SYSTEM] "
 
         # Remove the last two messages
         messages = messages["data"][:-2]  # type: ignore
@@ -309,11 +300,23 @@ class ChatService:
             else:
                 filtered_messages.append(message)
 
-        return self._map_to_chat_messages(filtered_messages)
+        return filtered_messages
 
     def _trigger_list_messages(self, chat_id: str):
         try:
             messages = unique_sdk.Message.list(
+                user_id=self.state.user_id,
+                company_id=self.state.company_id,
+                chatId=chat_id,
+            )
+            return messages
+        except Exception as e:
+            self.logger.error(f"Failed to list chat history: {e}")
+            raise e
+
+    async def _trigger_list_messages_async(self, chat_id: str):
+        try:
+            messages = await unique_sdk.Message.list_async(
                 user_id=self.state.user_id,
                 company_id=self.state.company_id,
                 chatId=chat_id,

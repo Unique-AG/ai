@@ -24,6 +24,20 @@ class TestEmbeddingServiceIntegration:
             for value in embedding
         )
 
+    @pytest.mark.asyncio
+    async def test_embed_texts_async(self):
+        texts = ["This is a test sentence.", "This is another test sentence."]
+        result = await self.service.embed_texts_async(texts)
+
+        assert isinstance(result, Embeddings)
+        assert len(result.embeddings) == len(texts)
+        assert all(isinstance(embedding, list) for embedding in result.embeddings)
+        assert all(
+            isinstance(value, float)
+            for embedding in result.embeddings
+            for value in embedding
+        )
+
     def test_get_cosine_similarity(self):
         texts = [
             "This is the first sentence.",
@@ -41,6 +55,11 @@ class TestEmbeddingServiceIntegration:
     def test_embed_texts_error_handling(self):
         with pytest.raises(Exception):
             self.service.embed_texts([""] * 1000)
+
+    @pytest.mark.asyncio
+    async def test_embed_texts_error_handling_async(self):
+        with pytest.raises(Exception):
+            await self.service.embed_texts_async([""] * 1000)
 
     def test_embed_texts_consistency(self):
         text = "This is a test sentence for consistency."

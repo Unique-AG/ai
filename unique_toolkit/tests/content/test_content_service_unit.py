@@ -1,6 +1,5 @@
 import os
 import tempfile
-import unittest
 from pathlib import Path
 from unittest.mock import ANY, Mock, patch
 
@@ -17,7 +16,7 @@ from unique_toolkit.content.schemas import (
 from unique_toolkit.content.service import ContentService
 
 
-class TestContentServiceUnit(unittest.TestCase):
+class TestContentServiceUnit:
     @pytest.fixture(autouse=True)
     def setup(self):
         self.chat_state = ChatState(
@@ -63,7 +62,7 @@ class TestContentServiceUnit(unittest.TestCase):
                 limit=10,
                 reranker=None,
                 language="english",
-                chatOnly=False,
+                chatOnly=None,
             )
 
     def test_search_contents(self):
@@ -109,7 +108,7 @@ class TestContentServiceUnit(unittest.TestCase):
         ):
             with pytest.raises(Exception, match="API Error"):
                 self.service.search_content_chunks(
-                    "test", ContentSearchType.COMBINED, 10, None
+                    "test", ContentSearchType.COMBINED, 10
                 )
 
     def test_error_handling_search_contents(self):
@@ -118,6 +117,93 @@ class TestContentServiceUnit(unittest.TestCase):
         ):
             with pytest.raises(Exception, match="API Error"):
                 self.service.search_contents({"key": "test_key"})
+
+    @pytest.mark.asyncio
+    async def test_search_content_chunks_async(self):
+        with patch.object(unique_sdk.Search, "create_async") as mock_create:
+            mock_create.return_value = [
+                {
+                    "id": "1",
+                    "text": "Test chunk",
+                    "startPage": 1,
+                    "endPage": 1,
+                    "order": 1,
+                }
+            ]
+
+            result = await self.service.search_content_chunks_async(
+                search_string="test",
+                search_type=ContentSearchType.COMBINED,
+                limit=10,
+                scope_ids=["scope1", "scope2"],
+            )
+
+            assert isinstance(result, list)
+            assert all(isinstance(chunk, ContentChunk) for chunk in result)
+            assert len(result) == 1
+            assert result[0].id == "1"
+            assert result[0].text == "Test chunk"
+
+            mock_create.assert_called_once_with(
+                user_id="test_user",
+                company_id="test_company",
+                chatId="test_chat",
+                searchString="test",
+                searchType="COMBINED",
+                scopeIds=["scope1", "scope2"],
+                limit=10,
+                reranker=None,
+                language="english",
+                chatOnly=None,
+            )
+
+    @pytest.mark.asyncio
+    async def test_search_contents_async(self):
+        with patch.object(unique_sdk.Content, "search_async") as mock_search:
+            mock_search.return_value = [
+                {
+                    "id": "1",
+                    "key": "test_key",
+                    "title": "Test Content",
+                    "url": "http://test.com",
+                    "chunks": [
+                        {
+                            "id": "chunk1",
+                            "text": "Test chunk",
+                            "startPage": 1,
+                            "endPage": 1,
+                            "order": 1,
+                        }
+                    ],
+                }
+            ]
+
+            result = await self.service.search_contents_async(where={"key": "test_key"})
+
+            assert isinstance(result, list)
+            assert all(isinstance(content, Content) for content in result)
+            assert len(result) == 1
+            assert result[0].id == "1"
+            assert result[0].key == "test_key"
+            assert len(result[0].chunks) == 1
+            assert result[0].chunks[0].id == "chunk1"
+
+            mock_search.assert_called_once_with(
+                user_id="test_user",
+                company_id="test_company",
+                chatId="test_chat",
+                where={"key": "test_key"},
+            )
+
+    @pytest.mark.asyncio
+    async def test_error_handling_search_content_chunks_async(self):
+        with patch.object(
+            unique_sdk.Search, "create_async", side_effect=Exception("API Error")
+        ):
+            with pytest.raises(Exception, match="API Error"):
+                await self.service.search_content_chunks_async(
+                    "test", ContentSearchType.COMBINED, 10
+                )
 
     def test_trigger_upsert_content(self):
         with patch.object(unique_sdk.Content, "upsert") as mock_upsert:
@@ -142,11 +228,11 @@ class TestContentServiceUnit(unittest.TestCase):
                 chat_id="test_chat",
             )
 
-            self.assertIsInstance(result, Content)
-            self.assertEqual(result.id, "test_content_id")
-            self.assertEqual(result.key, "test.txt")
-            self.assertEqual(result.write_url, "http://test-write-url.com")
-            self.assertEqual(result.read_url, "http://test-read-url.com")
+            assert isinstance(result, Content)
+            assert result.id == "test_content_id"
+            assert result.key == "test.txt"
+            assert result.write_url == "http://test-write-url.com"
+            assert result.read_url == "http://test-read-url.com"
 
             mock_upsert.assert_called_once_with(
                 user_id="test_user",
@@ -196,10 +282,10 @@ class TestContentServiceUnit(unittest.TestCase):
                 scope_id="test_scope",
             )
 
-            self.assertIsInstance(result, Content)
-            self.assertEqual(result.id, "test_content_id")
-            self.assertEqual(result.write_url, "http://test-write-url.com")
-            self.assertEqual(result.read_url, "http://test-read-url.com")
+            assert isinstance(result, Content)
+            assert result.id == "test_content_id"
+            assert result.write_url == "http://test-write-url.com"
+            assert result.read_url == "http://test-read-url.com"
 
             mock_put.assert_called_once_with(
                 url="http://test-write-url.com",
@@ -226,10 +312,10 @@ class TestContentServiceUnit(unittest.TestCase):
             chat_id="test_chat_id",
         )
 
-        self.assertIsInstance(result, Path)
-        self.assertTrue(result.exists())
-        self.assertEqual(result.name, "test.txt")
-        self.assertEqual(result.read_bytes(), b"Test content")
+        assert isinstance(result, Path)
+        assert result.exists()
+        assert result.name == "test.txt"
+        assert result.read_bytes() == b"Test content"
 
         # Clean up the temporary file
         result.unlink()

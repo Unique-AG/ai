@@ -6,14 +6,6 @@ from typing import Any, Callable, Coroutine, TypeVar
 T = TypeVar("T")
 
 
-def to_async(func: Callable[..., T]) -> Callable[..., Coroutine[Any, Any, T]]:
-    @wraps(func)
-    async def wrapper(*args, **kwargs) -> T:
-        return await asyncio.to_thread(func, *args, **kwargs)
-
-    return wrapper
-
-
 def async_warning(func):
     @wraps(func)
     async def wrapper(*args, **kwargs):
@@ -24,5 +16,24 @@ def async_warning(func):
             stacklevel=2,
         )
         return await func(*args, **kwargs)
+
+    return wrapper
+
+
+@async_warning
+def to_async(func: Callable[..., T]) -> Callable[..., Coroutine[Any, Any, T]]:
+    """
+    Decorator to convert a synchronous function to an asynchronous function using a thread pool executor.
+
+    Args:
+        func (Callable[..., T]): The synchronous function to convert.
+
+    Returns:
+        Callable[..., Coroutine[Any, Any, T]]: The asynchronous function.
+    """
+
+    @wraps(func)
+    async def wrapper(*args, **kwargs) -> T:
+        return await asyncio.to_thread(func, *args, **kwargs)
 
     return wrapper
