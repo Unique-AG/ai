@@ -8,10 +8,10 @@ from unique_toolkit.chat.state import ChatState
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.language_model.infos import LanguageModelName
 from unique_toolkit.language_model.schemas import (
+    LanguageModelMessages,
     LanguageModelResponse,
     LanguageModelStreamResponse,
     LanguageModelTool,
-    Messages,
 )
 
 
@@ -25,7 +25,7 @@ class LanguageModelService:
 
     def complete(
         self,
-        messages: Messages,
+        messages: LanguageModelMessages,
         model_name: LanguageModelName,
         temperature: float = _DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = _DEFAULT_COMPLETE_TIMEOUT,
@@ -35,7 +35,7 @@ class LanguageModelService:
         Calls the completion endpoint synchronously without streaming the response.
 
         Args:
-            messages (Messages): The Messages obj to complete.
+            messages (LanguageModelMessages): The LanguageModelMessages obj to complete.
             model_name (LanguageModelName): The model name.
             temperature (float): The temperature value. Defaults to 0.
             timeout (int): The timeout value in milliseconds. Defaults to 240_000.
@@ -56,7 +56,7 @@ class LanguageModelService:
     @async_warning
     def async_complete(
         self,
-        messages: Messages,
+        messages: LanguageModelMessages,
         model_name: LanguageModelName,
         temperature: float = _DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = _DEFAULT_COMPLETE_TIMEOUT,
@@ -66,7 +66,7 @@ class LanguageModelService:
         Calls the completion endpoint asynchronously without streaming the response.
 
         Args:
-            messages (Messages): The messages to complete.
+            messages (LanguageModelMessages): The messages to complete.
             model_name (LanguageModelName): The model name.
             temperature (float): The temperature value. Defaults to 0.
             timeout (int): The timeout value in milliseconds. Defaults to 240_000.
@@ -85,14 +85,14 @@ class LanguageModelService:
 
     def _trigger_complete(
         self,
-        messages: Messages,
+        messages: LanguageModelMessages,
         model_name: LanguageModelName,
         temperature: float,
         timeout: int,
         tools: Optional[list[LanguageModelTool]] = None,
     ) -> LanguageModelResponse:
         options = self._add_tools_to_options({}, tools)
-        messages = messages.model_dump(exclude_none=True)
+        messages = messages.model_dump(exclude_none=True, exclude={"tool_calls"})
         try:
             response = unique_sdk.ChatCompletion.create(
                 company_id=self.state.company_id,
@@ -114,7 +114,7 @@ class LanguageModelService:
 
     def stream_complete(
         self,
-        messages: Messages,
+        messages: LanguageModelMessages,
         model_name: LanguageModelName,
         content_chunks: list[ContentChunk] = [],
         debug_info: dict = {},
@@ -127,7 +127,7 @@ class LanguageModelService:
         Streams a completion in the chat session synchronously.
 
         Args:
-            messages (Messages): The Messages object to stream.
+            messages (LanguageModelMessages): The LanguageModelMessages object to stream.
             content_chunks (list[ContentChunk]): The ContentChunks objects.
             model_name (LanguageModelName): The language model to use for the completion.
             debug_info (dict): The debug information. Defaults to {}.
@@ -154,7 +154,7 @@ class LanguageModelService:
     @async_warning
     def async_stream_complete(
         self,
-        messages: Messages,
+        messages: LanguageModelMessages,
         model_name: LanguageModelName,
         content_chunks: list[ContentChunk] = [],
         debug_info: dict = {},
@@ -167,7 +167,7 @@ class LanguageModelService:
         Streams a completion in the chat session asynchronously.
 
         Args:
-            messages (Messages): The Messages object to stream.
+            messages (LanguageModelMessages): The LanguageModelMessages object to stream.
             content_chunks (list[ContentChunk]): The content chunks.
             model_name (LanguageModelName): The language model to use for the completion.
             debug_info (dict): The debug information. Defaults to {}.
@@ -192,7 +192,7 @@ class LanguageModelService:
 
     def _trigger_stream_complete(
         self,
-        messages: Messages,
+        messages: LanguageModelMessages,
         model_name: LanguageModelName,
         content_chunks: list[ContentChunk],
         debug_info: dict,
@@ -217,7 +217,7 @@ class LanguageModelService:
             for chunk in content_chunks
         ]
 
-        messages = messages.model_dump(exclude_none=True)
+        messages = messages.model_dump(exclude_none=True, exclude={"tool_calls"})
 
         try:
             response = unique_sdk.Integrated.chat_stream_completion(

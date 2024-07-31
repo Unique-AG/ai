@@ -5,8 +5,6 @@ from typing import Any, Optional
 from humps import camelize
 from pydantic import BaseModel, ConfigDict, RootModel, field_validator, model_validator
 
-from unique_toolkit.chat.schemas import ChatMessage
-
 # set config to convert camelCase to snake_case
 model_config = ConfigDict(
     alias_generator=camelize,
@@ -76,18 +74,6 @@ class LanguageModelAssistantMessage(LanguageModelMessage):
 
 class LanguageModelMessages(RootModel):
     root: list[LanguageModelMessage]
-
-    def __iter__(self):
-        return iter(self.root)
-
-    def __getitem__(self, item):
-        return self.root[item]
-
-
-class Messages(RootModel):
-    """A generic class for a list of messages. This is to enable the use of other message types such as `ChatMessage`"""
-
-    root: list[LanguageModelMessage | ChatMessage]
 
     def __iter__(self):
         return iter(self.root)
