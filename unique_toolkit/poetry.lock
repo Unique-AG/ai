@@ -638,13 +638,13 @@ testing = ["covdefaults (>=2.3)", "pytest (>=8.2.2)", "pytest-cov (>=5)", "pytes
 
 [[package]]
 name = "pyright"
-version = "1.1.373"
+version = "1.1.374"
 description = "Command line wrapper for pyright"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "pyright-1.1.373-py3-none-any.whl", hash = "sha256:b805413227f2c209f27b14b55da27fe5e9fb84129c9f1eb27708a5d12f6f000e"},
-    {file = "pyright-1.1.373.tar.gz", hash = "sha256:f41bcfc8b9d1802b09921a394d6ae1ce19694957b628bc657629688daf8a83ff"},
+    {file = "pyright-1.1.374-py3-none-any.whl", hash = "sha256:55752bcf7a3646d293cd76710a983b71e16f6128aab2d42468e6eb7e46c0a70d"},
+    {file = "pyright-1.1.374.tar.gz", hash = "sha256:d01b2daf864ba5e0362e56b844984865970d7204158e61eb685e2dab7804cb82"},
 ]
 
 [package.dependencies]
@@ -1022,13 +1022,13 @@ files = [
 
 [[package]]
 name = "unique-sdk"
-version = "0.9.0"
+version = "0.9.3"
 description = ""
 optional = false
 python-versions = "<4.0,>=3.11"
 files = [
-    {file = "unique_sdk-0.9.0-py3-none-any.whl", hash = "sha256:42f01c8867fd5f275bfc5922c14fdb3f74728976b81482040214c0b5a8a7b3e6"},
-    {file = "unique_sdk-0.9.0.tar.gz", hash = "sha256:b3c1395755ff2201e8178be90fcc2a062a87462d12dc74cdbd0bb9cd675f4fec"},
+    {file = "unique_sdk-0.9.3-py3-none-any.whl", hash = "sha256:563a2c22f3d342f145cc003c8c33c847e787dc7d6221988f9c3e96344ee1bb84"},
+    {file = "unique_sdk-0.9.3.tar.gz", hash = "sha256:4d08bbe389d98645660998ed97ab80dbc646db0f3f505d91b0ddb4d9b91979f5"},
 ]
 
 [package.dependencies]
@@ -1074,4 +1074,4 @@ test = ["covdefaults (>=2.3)", "coverage (>=7.2.7)", "coverage-enable-subprocess
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "6bc129be7fb14c04228ac7053c7d10eabee10a0f412d1d2abeb837d8df8cee28"
+content-hash = "6ff1a2d254744cd784cee3c856b2d300f106470fc3de010035aa39fb69691423"

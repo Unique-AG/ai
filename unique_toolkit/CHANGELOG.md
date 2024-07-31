@@ -5,15 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.5.6] - 2024-07-30
+## [0.5.7] - 2024-07-31
 - Replace mocked async service calls with async calls in `unique_sdk` 
 - Change async methods name from `async_*` to `*_async`
 - Remove `chat_only` and `scope_ids` attributes from `ChatState` class
 - Replace `AsyncExecutor` by simpler utility function `run_async_tasks_parallel`
 
+## [0.5.6] - 2024-07-30
+- Bug fix: `ContentService.search_content_chunks` and it's `async` equivalent now accept `None` as a valid parameter value for `scope_ids`.
+
 ## [0.5.5] - 2024-07-30
 - Added parameters to `ContentService.search_content_chunks` and `ContentService.async_search_content_chunks`
-  - `reranker_config` to optinally reranker the search results
+  - `reranker_config` to optinally rerank the search results
   - `search_language` to specify a language for full-text-search
 
 ## [0.5.4] - 2024-07-26

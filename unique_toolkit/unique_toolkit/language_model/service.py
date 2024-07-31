@@ -93,7 +93,7 @@ class LanguageModelService(CommonService):
             str: The completed message content.
         """
         options = self._add_tools_to_options({}, tools)
-        messages = messages.model_dump(exclude_none=True)
+        messages = messages.model_dump(exclude_none=True, exclude={"tool_calls"})
         try:
             response = await unique_sdk.ChatCompletion.create_async(
                 company_id=self.state.company_id,

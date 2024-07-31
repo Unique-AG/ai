@@ -121,7 +121,8 @@ class ContentService(CommonService):
                 searchType=search_type.name,
                 scopeIds=scope_ids,
                 limit=limit,
-                reranker=reranker_config,  # type: ignore
+                # TODO fix types in SDK
+                reranker=reranker_config.model_dump() if reranker_config else None,  # type: ignore
                 language=search_language,  # type: ignore
                 chatOnly=chat_only,
             )
