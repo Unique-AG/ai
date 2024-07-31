@@ -8,10 +8,10 @@ from unique_toolkit.chat.state import ChatState
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.language_model.infos import LanguageModelName
 from unique_toolkit.language_model.schemas import (
-    LanguageModelMessages,
     LanguageModelResponse,
     LanguageModelStreamResponse,
     LanguageModelTool,
+    Messages,
 )
 
 
@@ -25,7 +25,7 @@ class LanguageModelService:
 
     def complete(
         self,
-        messages: LanguageModelMessages,
+        messages: Messages,
         model_name: LanguageModelName,
         temperature: float = _DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = _DEFAULT_COMPLETE_TIMEOUT,
@@ -35,7 +35,7 @@ class LanguageModelService:
         Calls the completion endpoint synchronously without streaming the response.
 
         Args:
-            messages (LanguageModelMessages): The LanguageModelMessages obj to complete.
+            messages (Messages): The Messages obj to complete.
             model_name (LanguageModelName): The model name.
             temperature (float): The temperature value. Defaults to 0.
             timeout (int): The timeout value in milliseconds. Defaults to 240_000.
@@ -56,7 +56,7 @@ class LanguageModelService:
     @async_warning
     def async_complete(
         self,
-        messages: LanguageModelMessages,
+        messages: Messages,
         model_name: LanguageModelName,
         temperature: float = _DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = _DEFAULT_COMPLETE_TIMEOUT,
@@ -66,7 +66,7 @@ class LanguageModelService:
         Calls the completion endpoint asynchronously without streaming the response.
 
         Args:
-            messages (LanguageModelMessages): The messages to complete.
+            messages (Messages): The messages to complete.
             model_name (LanguageModelName): The model name.
             temperature (float): The temperature value. Defaults to 0.
             timeout (int): The timeout value in milliseconds. Defaults to 240_000.
@@ -85,7 +85,7 @@ class LanguageModelService:
 
     def _trigger_complete(
         self,
-        messages: LanguageModelMessages,
+        messages: Messages,
         model_name: LanguageModelName,
         temperature: float,
         timeout: int,
@@ -114,7 +114,7 @@ class LanguageModelService:
 
     def stream_complete(
         self,
-        messages: LanguageModelMessages,
+        messages: Messages,
         model_name: LanguageModelName,
         content_chunks: list[ContentChunk] = [],
         debug_info: dict = {},
@@ -127,7 +127,7 @@ class LanguageModelService:
         Streams a completion in the chat session synchronously.
 
         Args:
-            messages (LanguageModelMessages): The LanguageModelMessages object to stream.
+            messages (Messages): The Messages object to stream.
             content_chunks (list[ContentChunk]): The ContentChunks objects.
             model_name (LanguageModelName): The language model to use for the completion.
             debug_info (dict): The debug information. Defaults to {}.
@@ -154,7 +154,7 @@ class LanguageModelService:
     @async_warning
     def async_stream_complete(
         self,
-        messages: LanguageModelMessages,
+        messages: Messages,
         model_name: LanguageModelName,
         content_chunks: list[ContentChunk] = [],
         debug_info: dict = {},
@@ -167,7 +167,7 @@ class LanguageModelService:
         Streams a completion in the chat session asynchronously.
 
         Args:
-            messages (LanguageModelMessages): The LanguageModelMessages object to stream.
+            messages (Messages): The Messages object to stream.
             content_chunks (list[ContentChunk]): The content chunks.
             model_name (LanguageModelName): The language model to use for the completion.
             debug_info (dict): The debug information. Defaults to {}.
@@ -192,7 +192,7 @@ class LanguageModelService:
 
     def _trigger_stream_complete(
         self,
-        messages: LanguageModelMessages,
+        messages: Messages,
         model_name: LanguageModelName,
         content_chunks: list[ContentChunk],
         debug_info: dict,

@@ -110,9 +110,9 @@ class ContentService:
                 chatId=self.state.chat_id,
                 searchString=search_string,
                 searchType=search_type.name,
-                scopeIds=scope_ids,
+                scopeIds=scope_ids,  # type: ignore
                 limit=limit,
-                reranker=reranker_config.model_dump() if reranker_config else None,
+                reranker=reranker_config.model_dump() if reranker_config else None,  # type: ignore
                 language=search_language,
                 chatOnly=self.state.chat_only,
             )
