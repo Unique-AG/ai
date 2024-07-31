@@ -14,7 +14,7 @@ unique_sdk.api_key = os.getenv("TEST_API_KEY") or "test_api_key"
 unique_sdk.app_id = os.getenv("TEST_APP_ID") or "test_app_id"
 unique_sdk.api_base = os.getenv("TEST_API_BASE") or "http://test.com"
 # unique_sdk.log = "debug"
-unique_sdk.default_http_client = unique_sdk.HTTPXClient()
+# unique_sdk.default_http_client = unique_sdk.HTTPXClient()
 
 test_user_id = os.getenv("TEST_USER_ID") or "test_user_id"
 test_company_id = os.getenv("TEST_COMPANY_ID") or "test_company_id"
