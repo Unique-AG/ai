@@ -1,6 +1,13 @@
-from typing import ClassVar, List, Literal, Optional, TypedDict, cast
-
-from typing_extensions import NotRequired, Unpack
+from typing import (
+    ClassVar,
+    List,
+    Literal,
+    NotRequired,
+    Optional,
+    TypedDict,
+    Unpack,
+    cast,
+)
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
@@ -35,8 +42,8 @@ class ChatCompletion(APIResource["ChatCompletion"]):
                 "AZURE_GPT_4_32K_0613",
             ]
         ]
-        timeout: NotRequired["int"]
-        temperature: NotRequired["float"]
+        timeout: NotRequired[Optional["int"]]
+        temperature: NotRequired[Optional["float"]]
         messages: List[ChatCompletionRequestMessage]
 
     model: Literal[
