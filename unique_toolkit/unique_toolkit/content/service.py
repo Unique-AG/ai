@@ -7,7 +7,7 @@ from typing import Optional, cast
 import requests
 import unique_sdk
 
-from unique_toolkit._common._common_service import CommonService
+from unique_toolkit._common._base_service import BaseService
 from unique_toolkit.chat.state import ChatState
 from unique_toolkit.content.schemas import (
     Content,
@@ -18,7 +18,7 @@ from unique_toolkit.content.schemas import (
 )
 
 
-class ContentService(CommonService):
+class ContentService(BaseService):
     """
     Provides methods for searching, downloading and uploading content in the knowledge base.
 

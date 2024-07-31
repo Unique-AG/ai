@@ -5,14 +5,14 @@ from typing import Optional
 import unique_sdk
 from unique_sdk._list_object import ListObject
 
-from unique_toolkit._common._common_service import CommonService
+from unique_toolkit._common._base_service import BaseService
 from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
 from unique_toolkit.chat.state import ChatState
 from unique_toolkit.content.schemas import ContentReference
 from unique_toolkit.content.utils import count_tokens
 
 
-class ChatService(CommonService):
+class ChatService(BaseService):
     """
     Provides all functionalities to manage the chat session.
 

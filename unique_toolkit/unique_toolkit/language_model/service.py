@@ -3,7 +3,7 @@ from typing import Optional, cast
 
 import unique_sdk
 
-from unique_toolkit._common._common_service import CommonService
+from unique_toolkit._common._base_service import BaseService
 from unique_toolkit.chat.state import ChatState
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.language_model.infos import LanguageModelName
@@ -15,7 +15,7 @@ from unique_toolkit.language_model.schemas import (
 )
 
 
-class LanguageModelService(CommonService):
+class LanguageModelService(BaseService):
     """
     Provides methods to interact with the Language Model by generating responses.
 

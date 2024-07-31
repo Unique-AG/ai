@@ -4,12 +4,12 @@ from typing import Optional
 import numpy as np
 import unique_sdk
 
-from unique_toolkit._common._common_service import CommonService
+from unique_toolkit._common._base_service import BaseService
 from unique_toolkit.chat.state import ChatState
 from unique_toolkit.embedding.schemas import Embeddings
 
 
-class EmbeddingService(CommonService):
+class EmbeddingService(BaseService):
     """
     Provides methods to interact with the Embedding service.
 
