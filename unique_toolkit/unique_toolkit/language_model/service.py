@@ -92,7 +92,7 @@ class LanguageModelService:
         tools: Optional[list[LanguageModelTool]] = None,
     ) -> LanguageModelResponse:
         options = self._add_tools_to_options({}, tools)
-        messages = messages.model_dump(exclude_none=True)
+        messages = messages.model_dump(exclude_none=True, exclude={"tool_calls"})
         try:
             response = unique_sdk.ChatCompletion.create(
                 company_id=self.state.company_id,
@@ -217,7 +217,7 @@ class LanguageModelService:
             for chunk in content_chunks
         ]
 
-        messages = messages.model_dump(exclude_none=True)
+        messages = messages.model_dump(exclude_none=True, exclude={"tool_calls"})
 
         try:
             response = unique_sdk.Integrated.chat_stream_completion(
