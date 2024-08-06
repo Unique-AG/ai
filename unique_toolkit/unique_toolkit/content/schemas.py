@@ -47,6 +47,8 @@ class Content(BaseModel):
     chunks: list[ContentChunk] = []
     write_url: str | None = None
     read_url: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 
 class ContentReference(BaseModel):
