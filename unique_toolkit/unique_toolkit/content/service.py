@@ -12,9 +12,9 @@ from unique_toolkit.chat.state import ChatState
 from unique_toolkit.content.schemas import (
     Content,
     ContentChunk,
+    ContentRerankerConfig,
     ContentSearchType,
     ContentUploadInput,
-    RerankerConfig,
 )
 
 
@@ -38,7 +38,7 @@ class ContentService(BaseService):
         search_type: ContentSearchType,
         limit: int,
         search_language: str = DEFAULT_SEARCH_LANGUAGE,
-        reranker_config: Optional[RerankerConfig] = None,
+        reranker_config: Optional[ContentRerankerConfig] = None,
         scope_ids: Optional[list[str]] = None,
         chat_only: Optional[bool] = None,
     ) -> list[ContentChunk]:
@@ -50,7 +50,7 @@ class ContentService(BaseService):
             search_type (ContentSearchType): The type of search to perform.
             limit (int): The maximum number of results to return.
             search_language (str): The language for the full-text search. Defaults to "english".
-            reranker_config (Optional[RerankerConfig]): The reranker configuration. Defaults to None.
+            reranker_config (Optional[ContentRerankerConfig]): The reranker configuration. Defaults to None.
             scope_ids (Optional[list[str]]): The scope IDs. Defaults to None.
             chat_only (Optional[bool]): Whether to search only in the current chat. Defaults to None.
 
@@ -69,7 +69,9 @@ class ContentService(BaseService):
                 searchType=search_type.name,
                 scopeIds=scope_ids,
                 limit=limit,
-                reranker=reranker_config.model_dump() if reranker_config else None,
+                reranker=reranker_config.model_dump(by_alias=True)
+                if reranker_config
+                else None,
                 language=search_language,
                 chatOnly=chat_only,
             )
@@ -90,7 +92,7 @@ class ContentService(BaseService):
         search_type: ContentSearchType,
         limit: int,
         search_language: str = DEFAULT_SEARCH_LANGUAGE,
-        reranker_config: Optional[RerankerConfig] = None,
+        reranker_config: Optional[ContentRerankerConfig] = None,
         scope_ids: Optional[list[str]] = None,
         chat_only: Optional[bool] = None,
     ):
@@ -102,7 +104,7 @@ class ContentService(BaseService):
             search_type (ContentSearchType): The type of search to perform.
             limit (int): The maximum number of results to return.
             search_language (str): The language for the full-text search. Defaults to "english".
-            reranker_config (Optional[RerankerConfig]): The reranker configuration. Defaults to None.
+            reranker_config (Optional[ContentRerankerConfig]): The reranker configuration. Defaults to None.
             scope_ids (Optional[list[str]]): The scope IDs. Defaults to None.
             chat_only (Optional[bool]): Whether to search only in the current chat. Defaults to None.
 
@@ -121,7 +123,9 @@ class ContentService(BaseService):
                 searchType=search_type.name,
                 scopeIds=scope_ids,
                 limit=limit,
-                reranker=reranker_config.model_dump() if reranker_config else None,
+                reranker=reranker_config.model_dump(by_alias=True)
+                if reranker_config
+                else None,
                 language=search_language,
                 chatOnly=chat_only,
             )

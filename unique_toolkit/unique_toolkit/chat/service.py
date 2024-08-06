@@ -9,7 +9,7 @@ from unique_toolkit._common._base_service import BaseService
 from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
 from unique_toolkit.chat.state import ChatState
 from unique_toolkit.content.schemas import ContentReference
-from unique_toolkit.content.utils import count_tokens
+from unique_toolkit.embedding.utils import count_tokens
 
 
 class ChatService(BaseService):

@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.10] - 2024-08-6
+- made all domain specific functions and classes directly importable from `unique_toolkit.[DOMAIN_NAME]`
+- renamed `RerankerConfig` to `ContentRerankerConfig`
+- renamed `get_cosine_similarity` to `calculate_cosine_similarity` and moved it to `unique_toolkit.embedding.utils`
+- moved `calculate_tokens` from `unique_toolkit.content.utils` to `unique_toolkit.embedding.utils`
+
+## [0.5.9] - 2024-08-6
+- added `created_at` and `updated_at` to content schema
+
+## [0.5.8] - 2024-08-1
+- `RerankerConfig` serialization alias added
+
 ## [0.5.7] - 2024-07-31
 - Replace mocked async service calls with async calls in `unique_sdk` 
 - Change async methods name from `async_*` to `*_async`

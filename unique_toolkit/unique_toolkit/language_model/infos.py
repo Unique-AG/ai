@@ -1,4 +1,3 @@
-import warnings
 from datetime import date
 from enum import StrEnum
 from typing import ClassVar, Optional, Type, cast
@@ -149,10 +148,11 @@ class LanguageModel:
     def get_model_info(cls, model_name: LanguageModelName) -> LanguageModelInfo:
         for subclass in cls.__subclasses__():
             if hasattr(subclass, "info") and subclass._info.name == model_name:
-                if subclass._info.retirement_at:
-                    warning_text = f"WARNING: {subclass._info.name} will be retired on {subclass._info.retirement_at.isoformat()} and from then on not accessible anymore. {subclass._info.retirement_text}"
-                    print(warning_text)
-                    warnings.warn(warning_text, DeprecationWarning, stacklevel=2)
+                # TODO find alternative solution for warning
+                # if subclass._info.retirement_at:
+                #     warning_text = f"WARNING: {subclass._info.name} will be retired on {subclass._info.retirement_at.isoformat()} and from then on not accessible anymore. {subclass._info.retirement_text}"
+                #     print(warning_text)
+                #     warnings.warn(warning_text, DeprecationWarning, stacklevel=2)
                 return subclass._info
         raise ValueError(f"Model {model_name} not found.")
 

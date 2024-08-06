@@ -24,7 +24,7 @@ class LanguageModelFunction(BaseModel):
 
     id: Optional[str] = None
     name: str
-    arguments: Optional[dict[str, any]] = None  # type: ignore
+    arguments: Optional[dict[str, list | dict | str | int | float | bool]] = None  # type: ignore
 
     @field_validator("arguments", mode="before")
     def set_arguments(cls, value):
@@ -104,7 +104,7 @@ class LanguageModelStreamResponseMessage(BaseModel):
     role: LanguageModelMessageRole
     text: str
     original_text: Optional[str] = None
-    references: list[dict[str, any]] = []  # type: ignore
+    references: list[dict[str, list | dict | str | int | float | bool]] = []  # type: ignore
 
     # TODO make sdk return role in lowercase
     # Currently needed as sdk returns role in uppercase

@@ -1,7 +1,6 @@
 import logging
 from typing import Optional
 
-import numpy as np
 import unique_sdk
 
 from unique_toolkit._common._base_service import BaseService
@@ -82,13 +81,3 @@ class EmbeddingService(BaseService):
             "texts": texts,
             "timeout": timeout,
         }
-
-    def get_cosine_similarity(
-        self,
-        embedding_1: list[float],
-        embedding_2: list[float],
-    ) -> float:
-        """Get cosine similarity."""
-        return np.dot(embedding_1, embedding_2) / (
-            np.linalg.norm(embedding_1) * np.linalg.norm(embedding_2)
-        )

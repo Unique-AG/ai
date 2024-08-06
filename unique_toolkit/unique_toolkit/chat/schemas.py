@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import StrEnum
 
 from humps import camelize
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -9,7 +9,7 @@ model_config = ConfigDict(
 )
 
 
-class ChatMessageRole(str, Enum):
+class ChatMessageRole(StrEnum):
     USER = "user"
     ASSISTANT = "assistant"
 

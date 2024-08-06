@@ -3,7 +3,7 @@ from enum import StrEnum
 from typing import Optional
 
 from humps import camelize
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 # set config to convert camelCase to snake_case
 model_config = ConfigDict(
@@ -47,6 +47,8 @@ class Content(BaseModel):
     chunks: list[ContentChunk] = []
     write_url: str | None = None
     read_url: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 
 class ContentReference(BaseModel):
@@ -90,7 +92,7 @@ class ContentUploadInput(BaseModel):
     byte_size: Optional[int] = None
 
 
-class RerankerConfig(BaseModel):
+class ContentRerankerConfig(BaseModel):
     model_config = model_config
-    deployment_name: str
+    deployment_name: str = Field(serialization_alias="deploymentName")
     options: dict | None = None
