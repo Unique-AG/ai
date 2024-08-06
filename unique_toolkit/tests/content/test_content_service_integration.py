@@ -55,6 +55,8 @@ class TestContentServiceIntegration:
             assert all(hasattr(content, "key") for content in result)
             assert all(hasattr(content, "chunks") for content in result)
             assert all(isinstance(content.chunks, list) for content in result)
+            assert all(hasattr(content, "createdAt") for content in result)
+            assert all(hasattr(content, "updatedAt") for content in result)
 
     def test_error_handling(self):
         with pytest.raises(Exception):
@@ -105,6 +107,8 @@ class TestContentServiceIntegration:
             assert all(hasattr(content, "key") for content in result)
             assert all(hasattr(content, "chunks") for content in result)
             assert all(isinstance(content.chunks, list) for content in result)
+            assert all(hasattr(content, "createdAt") for content in result)
+            assert all(hasattr(content, "updatedAt") for content in result)
 
     @pytest.mark.asyncio
     async def test_error_handling_async(self):

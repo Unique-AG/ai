@@ -212,6 +212,8 @@ class ContentService(BaseService):
             title=content["title"],
             url=content["url"],
             chunks=[self._map_content_chunk(chunk) for chunk in content["chunks"]],
+            created_at=content["createdAt"],
+            updated_at=content["updatedAt"],
         )
 
     def _map_contents(self, contents):
