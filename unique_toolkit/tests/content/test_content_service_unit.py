@@ -82,6 +82,8 @@ class TestContentServiceUnit:
                             "order": 1,
                         }
                     ],
+                    "createdAt": "2021-01-01T00:00:00Z",
+                    "updatedAt": "2021-01-01T00:00:00Z",
                 }
             ]
 
@@ -175,6 +177,8 @@ class TestContentServiceUnit:
                             "order": 1,
                         }
                     ],
+                    "createdAt": "2021-01-01T00:00:00Z",
+                    "updatedAt": "2021-01-01T00:00:00Z",
                 }
             ]
 
