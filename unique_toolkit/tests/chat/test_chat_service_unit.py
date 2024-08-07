@@ -1,3 +1,4 @@
+from datetime import datetime
 from unittest.mock import patch
 
 import pytest
@@ -67,6 +68,7 @@ class TestChatServiceUnit:
                     }
                 ],
                 debugInfo={},
+                completedAt=datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f"),
             )
 
     def test_get_history(self):
@@ -204,6 +206,7 @@ class TestChatServiceUnit:
                     }
                 ],
                 debugInfo={},
+                completedAt=datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
             )
 
     @pytest.mark.asyncio
