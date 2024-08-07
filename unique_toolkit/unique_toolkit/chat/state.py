@@ -48,5 +48,7 @@ class ChatState:
             user_message_id=event.payload.user_message.id,
             assistant_message_id=event.payload.assistant_message.id,
             module_name=event.payload.name,
-            translate_to_language=event.payload.additional_parameters.translate_to_language if event.payload.additional_parameters.translate_to_language else None,
+            translate_to_language=event.payload.additional_parameters.translate_to_language
+            if event.payload.additional_parameters.translate_to_language
+            else None,
         )
