@@ -122,7 +122,7 @@ def _generate_pages_postfix(chunks: list[ContentChunk]) -> str:
         return list(range(start, end + 1))
 
     page_numbers_array = [
-        gen_all_numbers_in_between(s.start_page, s.end_page) for s in chunks
+        gen_all_numbers_in_between(c.start_page, c.end_page) for c in chunks
     ]
     page_numbers = [number for sublist in page_numbers_array for number in sublist]
     page_numbers = [p for p in page_numbers if p > 0]
@@ -169,3 +169,20 @@ def pick_content_chunks_for_token_window(
         token_count += searchtoken_count
 
     return picked_chunks
+
+
+def count_tokens(text: str, encoding_model="cl100k_base") -> int:
+    """
+    Counts the number of tokens in the provided text.
+
+    This function encodes the input text using a predefined encoding scheme
+    and returns the number of tokens in the encoded text.
+
+    Parameters:
+    - text (str): The text to count tokens for.
+
+    Returns:
+    - int: The number of tokens in the text.
+    """
+    encoding = tiktoken.get_encoding(encoding_model)
+    return len(encoding.encode(text))

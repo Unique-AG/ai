@@ -36,7 +36,7 @@ class ChatState:
             event (Event): The Event object.
 
         Returns:
-            ChatManager: The ChatManager instance.
+            ChatState: The ChatState instance.
         """
         return cls(
             user_id=event.user_id,

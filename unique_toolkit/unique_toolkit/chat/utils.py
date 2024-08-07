@@ -1,5 +1,5 @@
 from unique_toolkit.chat.schemas import ChatMessage
-from unique_toolkit.embedding.utils import count_tokens
+from unique_toolkit.content.utils import count_tokens
 
 
 def convert_chat_history_to_injectable_string(

@@ -24,6 +24,9 @@ from .schemas import (
 )
 from .service import ContentService as ContentService
 from .utils import (
+    count_tokens as count_tokens,
+)
+from .utils import (
     merge_content_chunks as merge_content_chunks,
 )
 from .utils import (
