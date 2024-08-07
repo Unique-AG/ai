@@ -1,5 +1,5 @@
 from enum import StrEnum
-from typing import Any
+from typing import Any, Optional
 
 from humps import camelize
 from pydantic import BaseModel, ConfigDict
@@ -29,6 +29,12 @@ class EventAssistantMessage(BaseModel):
     created_at: str
 
 
+class EventAdditionalParameters(BaseModel):
+    model_config = model_config
+
+    translate_to_language: Optional[str]
+
+
 class EventPayload(BaseModel):
     model_config = model_config
 
@@ -40,6 +46,7 @@ class EventPayload(BaseModel):
     user_message: EventUserMessage
     assistant_message: EventAssistantMessage
     text: str | None = None
+    additional_parameters: Optional[EventAdditionalParameters]
 
 
 class Event(BaseModel):

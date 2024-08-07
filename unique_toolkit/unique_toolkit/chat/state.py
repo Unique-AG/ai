@@ -26,6 +26,7 @@ class ChatState:
     user_message_id: str | None = None
     assistant_message_id: str | None = None
     module_name: str | None = None
+    translate_to_language: str | None = None
 
     @classmethod
     def from_event(cls, event: Event) -> Self:
@@ -47,4 +48,5 @@ class ChatState:
             user_message_id=event.payload.user_message.id,
             assistant_message_id=event.payload.assistant_message.id,
             module_name=event.payload.name,
+            translate_to_language=event.payload.additional_parameters.translate_to_language if event.payload.additional_parameters.translate_to_language else None,
         )
