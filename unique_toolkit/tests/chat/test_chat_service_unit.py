@@ -206,7 +206,7 @@ class TestChatServiceUnit:
                     }
                 ],
                 debugInfo={},
-                completedAt=datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
+                completedAt=datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f"),
             )
 
     @pytest.mark.asyncio
