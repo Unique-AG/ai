@@ -6,8 +6,8 @@ import unique_sdk
 from unique_sdk._list_object import ListObject
 
 from unique_toolkit._common._base_service import BaseService
+from unique_toolkit.app.schemas import Event
 from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
-from unique_toolkit.chat.state import ChatState
 from unique_toolkit.content.schemas import ContentReference
 from unique_toolkit.content.utils import count_tokens
 
@@ -17,12 +17,12 @@ class ChatService(BaseService):
     Provides all functionalities to manage the chat session.
 
     Attributes:
-        state (ChatState): The chat state.
+        event (Event): The Event object.
         logger (Optional[logging.Logger]): The logger. Defaults to None.
     """
 
-    def __init__(self, state: ChatState, logger: Optional[logging.Logger] = None):
-        super().__init__(state, logger)
+    def __init__(self, event: Event, logger: Optional[logging.Logger] = None):
+        super().__init__(event, logger)
 
     DEFAULT_PERCENT_OF_MAX_TOKENS = 0.15
     DEFAULT_MAX_MESSAGES = 4
@@ -49,14 +49,14 @@ class ChatService(BaseService):
         Raises:
             Exception: If the modification fails.
         """
-        message_id = message_id or self.state.assistant_message_id
+        message_id = message_id or self.event.payload.assistant_message.id
 
         try:
             message = unique_sdk.Message.modify(
-                user_id=self.state.user_id,
-                company_id=self.state.company_id,
+                user_id=self.event.user_id,
+                company_id=self.event.company_id,
                 id=message_id,  # type: ignore
-                chatId=self.state.chat_id,
+                chatId=self.event.payload.chat_id,
                 text=content,
                 references=self._map_references(references),  # type: ignore
                 debugInfo=debug_info or {},
@@ -88,14 +88,14 @@ class ChatService(BaseService):
         Raises:
             Exception: If the modification fails.
         """
-        message_id = message_id or self.state.assistant_message_id
+        message_id = message_id or self.event.payload.assistant_message.id
 
         try:
             message = await unique_sdk.Message.modify_async(
-                user_id=self.state.user_id,
-                company_id=self.state.company_id,
+                user_id=self.event.user_id,
+                company_id=self.event.company_id,
                 id=message_id,  # type: ignore
-                chatId=self.state.chat_id,
+                chatId=self.event.payload.chat_id,
                 text=content,
                 references=self._map_references(references),  # type: ignore
                 debugInfo=debug_info or {},
@@ -210,10 +210,10 @@ class ChatService(BaseService):
 
         try:
             message = unique_sdk.Message.create(
-                user_id=self.state.user_id,
-                company_id=self.state.company_id,
-                chatId=self.state.chat_id,
-                assistantId=self.state.assistant_id,
+                user_id=self.event.user_id,
+                company_id=self.event.company_id,
+                chatId=self.event.payload.chat_id,
+                assistantId=self.event.payload.assistant_id,
                 text=content,
                 role=ChatMessageRole.ASSISTANT.name,
                 references=self._map_references(references),  # type: ignore
@@ -246,10 +246,10 @@ class ChatService(BaseService):
         """
         try:
             message = await unique_sdk.Message.create_async(
-                user_id=self.state.user_id,
-                company_id=self.state.company_id,
-                chatId=self.state.chat_id,
-                assistantId=self.state.assistant_id,
+                user_id=self.event.user_id,
+                company_id=self.event.company_id,
+                chatId=self.event.payload.chat_id,
+                assistantId=self.event.payload.assistant_id,
                 text=content,
                 role=ChatMessageRole.ASSISTANT.name,
                 references=self._map_references(references),  # type: ignore
@@ -274,13 +274,13 @@ class ChatService(BaseService):
         ]
 
     def _get_full_history(self):
-        messages = self._trigger_list_messages(self.state.chat_id)
+        messages = self._trigger_list_messages(self.event.payload.chat_id)
         messages = self._filter_valid_messages(messages)
 
         return self._map_to_chat_messages(messages)
 
     async def _get_full_history_async(self):
-        messages = await self._trigger_list_messages_async(self.state.chat_id)
+        messages = await self._trigger_list_messages_async(self.event.payload.chat_id)
         messages = self._filter_valid_messages(messages)
 
         return self._map_to_chat_messages(messages)
@@ -305,8 +305,8 @@ class ChatService(BaseService):
     def _trigger_list_messages(self, chat_id: str):
         try:
             messages = unique_sdk.Message.list(
-                user_id=self.state.user_id,
-                company_id=self.state.company_id,
+                user_id=self.event.user_id,
+                company_id=self.event.company_id,
                 chatId=chat_id,
             )
             return messages
@@ -317,8 +317,8 @@ class ChatService(BaseService):
     async def _trigger_list_messages_async(self, chat_id: str):
         try:
             messages = await unique_sdk.Message.list_async(
-                user_id=self.state.user_id,
-                company_id=self.state.company_id,
+                user_id=self.event.user_id,
+                company_id=self.event.company_id,
                 chatId=chat_id,
             )
             return messages

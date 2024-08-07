@@ -1,11 +1,10 @@
 import logging
 from typing import Optional
 
-import numpy as np
 import unique_sdk
 
 from unique_toolkit._common._base_service import BaseService
-from unique_toolkit.chat.state import ChatState
+from unique_toolkit.app.schemas import Event
 from unique_toolkit.embedding.schemas import Embeddings
 
 
@@ -14,12 +13,12 @@ class EmbeddingService(BaseService):
     Provides methods to interact with the Embedding service.
 
     Attributes:
-        state (ChatState): The ChatState object.
+        event (Event): The Event object.
         logger (Optional[logging.Logger]): The logger object. Defaults t∏o None.
     """
 
-    def __init__(self, state: ChatState, logger: Optional[logging.Logger] = None):
-        super().__init__(state, logger)
+    def __init__(self, event: Event, logger: Optional[logging.Logger] = None):
+        super().__init__(event, logger)
 
     DEFAULT_TIMEOUT = 600_000
 
@@ -77,18 +76,8 @@ class EmbeddingService(BaseService):
 
     def _get_request_obj(self, texts: list[str], timeout: int) -> dict:
         return {
-            "user_id": self.state.user_id,
-            "company_id": self.state.company_id,
+            "user_id": self.event.user_id,
+            "company_id": self.event.company_id,
             "texts": texts,
             "timeout": timeout,
         }
-
-    def get_cosine_similarity(
-        self,
-        embedding_1: list[float],
-        embedding_2: list[float],
-    ) -> float:
-        """Get cosine similarity."""
-        return np.dot(embedding_1, embedding_2) / (
-            np.linalg.norm(embedding_1) * np.linalg.norm(embedding_2)
-        )

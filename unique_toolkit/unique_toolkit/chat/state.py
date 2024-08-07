@@ -5,7 +5,7 @@ from unique_toolkit.app.schemas import Event
 
 
 @dataclass
-class ChatState:
+class ChatStateTemplate:
     """
     Represents the state of the chat session.
 
@@ -36,12 +36,12 @@ class ChatState:
             event (Event): The Event object.
 
         Returns:
-            ChatManager: The ChatManager instance.
+            ChatState: The ChatState instance.
         """
         return cls(
             user_id=event.user_id,
-            chat_id=event.payload.chat_id,
             company_id=event.company_id,
+            chat_id=event.payload.chat_id,
             assistant_id=event.payload.assistant_id,
             user_message_text=event.payload.user_message.text,
             user_message_id=event.payload.user_message.id,

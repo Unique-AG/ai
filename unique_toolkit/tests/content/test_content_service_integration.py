@@ -5,17 +5,17 @@ from pathlib import Path
 import pytest
 
 from tests.conftest import test_scope_id
-from unique_toolkit.chat.state import ChatState
+from unique_toolkit.app.schemas import Event
 from unique_toolkit.content.schemas import Content, ContentChunk, ContentSearchType
 from unique_toolkit.content.service import ContentService
 
 
-@pytest.mark.usefixtures("chat_state")
+@pytest.mark.usefixtures("event")
 class TestContentServiceIntegration:
     @pytest.fixture(autouse=True)
-    def setup(self, chat_state: ChatState):
-        self.state = chat_state
-        self.service = ContentService(chat_state)
+    def setup(self, event: Event):
+        self.event = event
+        self.service = ContentService(event)
 
     def test_search_content_chunks(self):
         result = self.service.search_content_chunks(
@@ -173,7 +173,7 @@ class TestContentServiceIntegration:
                 path_to_content=temp_file_path,
                 content_name="chat_integration_test.txt",
                 mime_type="text/plain",
-                chat_id=self.state.chat_id,
+                chat_id=self.event.payload.chat_id,
             )
 
             assert uploaded_content is not None
@@ -184,7 +184,7 @@ class TestContentServiceIntegration:
             downloaded_path = self.service.download_content(
                 content_id=uploaded_content.id,
                 content_name="chat_integration_test.txt",
-                chat_id=self.state.chat_id,
+                chat_id=self.event.payload.chat_id,
             )
 
             assert isinstance(downloaded_path, Path)

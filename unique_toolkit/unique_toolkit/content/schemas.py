@@ -92,7 +92,7 @@ class ContentUploadInput(BaseModel):
     byte_size: Optional[int] = None
 
 
-class RerankerConfig(BaseModel):
+class ContentRerankerConfig(BaseModel):
     model_config = model_config
     deployment_name: str = Field(serialization_alias="deploymentName")
     options: dict | None = None

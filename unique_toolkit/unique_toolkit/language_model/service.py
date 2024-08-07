@@ -4,7 +4,7 @@ from typing import Optional, cast
 import unique_sdk
 
 from unique_toolkit._common._base_service import BaseService
-from unique_toolkit.chat.state import ChatState
+from unique_toolkit.app.schemas import Event
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.language_model.infos import LanguageModelName
 from unique_toolkit.language_model.schemas import (
@@ -20,12 +20,12 @@ class LanguageModelService(BaseService):
     Provides methods to interact with the Language Model by generating responses.
 
     Attributes:
-        state (ChatState): The ChatState object.
+        event (Event): The Event object.
         logger (Optional[logging.Logger]): The logger object. Defaults to None.
     """
 
-    def __init__(self, state: ChatState, logger: Optional[logging.Logger] = None):
-        super().__init__(state, logger)
+    def __init__(self, event: Event, logger: Optional[logging.Logger] = None):
+        super().__init__(event, logger)
 
     DEFAULT_COMPLETE_TIMEOUT = 240_000
     DEFAULT_COMPLETE_TEMPERATURE = 0.0
@@ -55,9 +55,9 @@ class LanguageModelService(BaseService):
         messages = messages.model_dump(exclude_none=True)
         try:
             response = unique_sdk.ChatCompletion.create(
-                company_id=self.state.company_id,
+                company_id=self.event.company_id,
                 # TODO change or extend types in unique_sdk
-                model=model_name.name,  # type: ignore
+                model=model_name.name,
                 messages=cast(
                     list[unique_sdk.Integrated.ChatCompletionRequestMessage],
                     messages,
@@ -96,9 +96,9 @@ class LanguageModelService(BaseService):
         messages = messages.model_dump(exclude_none=True, exclude={"tool_calls"})
         try:
             response = await unique_sdk.ChatCompletion.create_async(
-                company_id=self.state.company_id,
+                company_id=self.event.company_id,
                 # TODO change or extend types in unique_sdk
-                model=model_name.name,  # type: ignore
+                model=model_name.name,
                 messages=cast(
                     list[unique_sdk.Integrated.ChatCompletionRequestMessage],
                     messages,
@@ -145,21 +145,21 @@ class LanguageModelService(BaseService):
 
         try:
             response = unique_sdk.Integrated.chat_stream_completion(
-                user_id=self.state.user_id,
-                company_id=self.state.company_id,
-                assistantMessageId=self.state.assistant_message_id,  # type: ignore
-                userMessageId=self.state.user_message_id,  # type: ignore
+                user_id=self.event.user_id,
+                company_id=self.event.company_id,
+                assistantMessageId=self.event.payload.assistant_message.id,
+                userMessageId=self.event.payload.user_message.id,
                 messages=cast(
                     list[unique_sdk.Integrated.ChatCompletionRequestMessage],
                     messages,
                 ),
-                chatId=self.state.chat_id,
+                chatId=self.event.payload.chat_id,
                 searchContext=search_context,
                 # TODO change or extend types in unique_sdk
-                model=model_name.name,  # type: ignore
+                model=model_name.name,
                 timeout=timeout,
                 temperature=temperature,
-                assistantId=self.state.assistant_id,
+                assistantId=self.event.payload.assistant_id,
                 debugInfo=debug_info,
                 options=options,  # type: ignore
                 startText=start_text,
@@ -203,22 +203,22 @@ class LanguageModelService(BaseService):
 
         try:
             response = await unique_sdk.Integrated.chat_stream_completion_async(
-                user_id=self.state.user_id,
-                company_id=self.state.company_id,
-                assistantMessageId=self.state.assistant_message_id,  # type: ignore
-                userMessageId=self.state.user_message_id,  # type: ignore
+                user_id=self.event.user_id,
+                company_id=self.event.company_id,
+                assistantMessageId=self.event.payload.assistant_message.id,
+                userMessageId=self.event.payload.user_message.id,
                 messages=cast(
                     list[unique_sdk.Integrated.ChatCompletionRequestMessage],
                     messages,
                 ),
-                chatId=self.state.chat_id,
+                chatId=self.event.payload.chat_id,
                 searchContext=search_context,
-                # TODO change or extend types in unique_sdk
-                model=model_name.name,  # type: ignore
+                model=model_name.name,
                 timeout=timeout,
                 temperature=temperature,
-                assistantId=self.state.assistant_id,
+                assistantId=self.event.payload.assistant_id,
                 debugInfo=debug_info,
+                # TODO change or extend types in unique_sdk
                 options=options,  # type: ignore
                 startText=start_text,
             )

@@ -8,13 +8,13 @@ import requests
 import unique_sdk
 
 from unique_toolkit._common._base_service import BaseService
-from unique_toolkit.chat.state import ChatState
+from unique_toolkit.app.schemas import Event
 from unique_toolkit.content.schemas import (
     Content,
     ContentChunk,
+    ContentRerankerConfig,
     ContentSearchType,
     ContentUploadInput,
-    RerankerConfig,
 )
 
 
@@ -23,12 +23,12 @@ class ContentService(BaseService):
     Provides methods for searching, downloading and uploading content in the knowledge base.
 
     Attributes:
-        state (ChatState): The chat state.
+        event (Event): The Event object.
         logger (Optional[logging.Logger]): The logger. Defaults to None.
     """
 
-    def __init__(self, state: ChatState, logger: Optional[logging.Logger] = None):
-        super().__init__(state, logger)
+    def __init__(self, event: Event, logger: Optional[logging.Logger] = None):
+        super().__init__(event, logger)
 
     DEFAULT_SEARCH_LANGUAGE = "english"
 
@@ -38,7 +38,7 @@ class ContentService(BaseService):
         search_type: ContentSearchType,
         limit: int,
         search_language: str = DEFAULT_SEARCH_LANGUAGE,
-        reranker_config: Optional[RerankerConfig] = None,
+        reranker_config: Optional[ContentRerankerConfig] = None,
         scope_ids: Optional[list[str]] = None,
         chat_only: Optional[bool] = None,
     ) -> list[ContentChunk]:
@@ -50,7 +50,7 @@ class ContentService(BaseService):
             search_type (ContentSearchType): The type of search to perform.
             limit (int): The maximum number of results to return.
             search_language (str): The language for the full-text search. Defaults to "english".
-            reranker_config (Optional[RerankerConfig]): The reranker configuration. Defaults to None.
+            reranker_config (Optional[ContentRerankerConfig]): The reranker configuration. Defaults to None.
             scope_ids (Optional[list[str]]): The scope IDs. Defaults to None.
             chat_only (Optional[bool]): Whether to search only in the current chat. Defaults to None.
 
@@ -62,9 +62,9 @@ class ContentService(BaseService):
 
         try:
             searches = unique_sdk.Search.create(
-                user_id=self.state.user_id,
-                company_id=self.state.company_id,
-                chatId=self.state.chat_id,
+                user_id=self.event.user_id,
+                company_id=self.event.company_id,
+                chatId=self.event.payload.chat_id,
                 searchString=search_string,
                 searchType=search_type.name,
                 scopeIds=scope_ids,
@@ -92,7 +92,7 @@ class ContentService(BaseService):
         search_type: ContentSearchType,
         limit: int,
         search_language: str = DEFAULT_SEARCH_LANGUAGE,
-        reranker_config: Optional[RerankerConfig] = None,
+        reranker_config: Optional[ContentRerankerConfig] = None,
         scope_ids: Optional[list[str]] = None,
         chat_only: Optional[bool] = None,
     ):
@@ -104,7 +104,7 @@ class ContentService(BaseService):
             search_type (ContentSearchType): The type of search to perform.
             limit (int): The maximum number of results to return.
             search_language (str): The language for the full-text search. Defaults to "english".
-            reranker_config (Optional[RerankerConfig]): The reranker configuration. Defaults to None.
+            reranker_config (Optional[ContentRerankerConfig]): The reranker configuration. Defaults to None.
             scope_ids (Optional[list[str]]): The scope IDs. Defaults to None.
             chat_only (Optional[bool]): Whether to search only in the current chat. Defaults to None.
 
@@ -116,9 +116,9 @@ class ContentService(BaseService):
 
         try:
             searches = await unique_sdk.Search.create_async(
-                user_id=self.state.user_id,
-                company_id=self.state.company_id,
-                chatId=self.state.chat_id,
+                user_id=self.event.user_id,
+                company_id=self.event.company_id,
+                chatId=self.event.payload.chat_id,
                 searchString=search_string,
                 searchType=search_type.name,
                 scopeIds=scope_ids,
@@ -156,9 +156,9 @@ class ContentService(BaseService):
         """
         try:
             contents = unique_sdk.Content.search(
-                user_id=self.state.user_id,
-                company_id=self.state.company_id,
-                chatId=self.state.chat_id,
+                user_id=self.event.user_id,
+                company_id=self.event.company_id,
+                chatId=self.event.payload.chat_id,
                 # TODO add type parameter
                 where=where,  # type: ignore
             )
@@ -183,9 +183,9 @@ class ContentService(BaseService):
         """
         try:
             contents = await unique_sdk.Content.search_async(
-                user_id=self.state.user_id,
-                company_id=self.state.company_id,
-                chatId=self.state.chat_id,
+                user_id=self.event.user_id,
+                company_id=self.event.company_id,
+                chatId=self.event.payload.chat_id,
                 # TODO add type parameter
                 where=where,  # type: ignore
             )
@@ -325,8 +325,8 @@ class ContentService(BaseService):
                     "mimeType": input.mime_type,
                 }
             content = unique_sdk.Content.upsert(
-                user_id=self.state.user_id,
-                company_id=self.state.company_id,
+                user_id=self.event.user_id,
+                company_id=self.event.company_id,
                 input=input_json,  # type: ignore
                 fileUrl=content_url,
                 scopeId=scope_id,
@@ -374,8 +374,8 @@ class ContentService(BaseService):
         headers = {
             "x-api-version": unique_sdk.api_version,
             "x-app-id": unique_sdk.app_id,
-            "x-user-id": self.state.user_id,
-            "x-company-id": self.state.company_id,
+            "x-user-id": self.event.user_id,
+            "x-company-id": self.event.company_id,
             "Authorization": "Bearer %s" % (unique_sdk.api_key,),
         }
 

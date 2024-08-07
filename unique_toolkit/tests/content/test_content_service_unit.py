@@ -6,7 +6,7 @@ from unittest.mock import ANY, Mock, patch
 import pytest
 import unique_sdk
 
-from unique_toolkit.chat.state import ChatState
+from tests.test_obj_factory import get_event_obj
 from unique_toolkit.content.schemas import (
     Content,
     ContentChunk,
@@ -19,13 +19,13 @@ from unique_toolkit.content.service import ContentService
 class TestContentServiceUnit:
     @pytest.fixture(autouse=True)
     def setup(self):
-        self.chat_state = ChatState(
+        self.event = get_event_obj(
             user_id="test_user",
             company_id="test_company",
             assistant_id="test_assistant",
             chat_id="test_chat",
         )
-        self.service = ContentService(self.chat_state)
+        self.service = ContentService(self.event)
 
     def test_search_content_chunks(self):
         with patch.object(unique_sdk.Search, "create") as mock_create:

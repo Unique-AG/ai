@@ -1,12 +1,14 @@
 from enum import StrEnum
-from typing import Any
+from typing import Any, Optional
 
 from humps import camelize
 from pydantic import BaseModel, ConfigDict
 
 # set config to convert camelCase to snake_case
 model_config = ConfigDict(
-    alias_generator=camelize, populate_by_name=True, arbitrary_types_allowed=True
+    alias_generator=camelize,
+    populate_by_name=True,
+    arbitrary_types_allowed=True,
 )
 
 
@@ -29,6 +31,12 @@ class EventAssistantMessage(BaseModel):
     created_at: str
 
 
+class EventAdditionalParameters(BaseModel):
+    model_config = model_config
+
+    translate_to_language: Optional[str] = None
+
+
 class EventPayload(BaseModel):
     model_config = model_config
 
@@ -39,7 +47,8 @@ class EventPayload(BaseModel):
     assistant_id: str
     user_message: EventUserMessage
     assistant_message: EventAssistantMessage
-    text: str | None = None
+    text: Optional[str] = None
+    additional_parameters: Optional[EventAdditionalParameters] = None
 
 
 class Event(BaseModel):
@@ -50,5 +59,5 @@ class Event(BaseModel):
     user_id: str
     company_id: str
     payload: EventPayload
-    created_at: int | None = None
-    version: str | None = None
+    created_at: Optional[int] = None
+    version: Optional[str] = None

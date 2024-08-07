@@ -4,22 +4,22 @@ import pytest
 import unique_sdk
 import unique_sdk.utils
 
+from tests.test_obj_factory import get_event_obj
 from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
 from unique_toolkit.chat.service import ChatService
-from unique_toolkit.chat.state import ChatState
 from unique_toolkit.content.schemas import ContentReference
 
 
 class TestChatServiceUnit:
     @pytest.fixture(autouse=True)
     def setup(self):
-        self.chat_state = ChatState(
+        self.event = get_event_obj(
             user_id="test_user",
             company_id="test_company",
             chat_id="test_chat",
             assistant_id="test_assistant",
         )
-        self.service = ChatService(self.chat_state)
+        self.service = ChatService(self.event)
 
     def test_modify_assistant_message(self):
         with patch.object(unique_sdk.Message, "modify", autospec=True) as mock_modify:

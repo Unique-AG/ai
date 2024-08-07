@@ -41,7 +41,8 @@ class TestEventSchemas:
                 "id": "msg2",
                 "createdAt": "2023-01-01T00:01:00Z"
             },
-            "text": "Optional text"
+            "text": "Optional text",
+            "additionalParameters": {"translateToLanguage": "en"}
         }"""
         payload = EventPayload.model_validate_json(json_data)
 
@@ -53,6 +54,8 @@ class TestEventSchemas:
         assert payload.user_message.id == "msg1"
         assert payload.assistant_message.id == "msg2"
         assert payload.text == "Optional text"
+        assert payload.additional_parameters is not None
+        assert payload.additional_parameters.translate_to_language == "en"
 
     def test_event_deserialization(self):
         json_data = """{
@@ -74,7 +77,9 @@ class TestEventSchemas:
                 "assistantMessage": {
                     "id": "msg2",
                     "createdAt": "2023-01-01T00:01:00Z"
-                }
+                },
+                "text": "Optional text",
+                "additionalParameters": {"translateToLanguage": "en"}
             },
             "createdAt": 1672531200,
             "version": "1.0"
@@ -88,6 +93,10 @@ class TestEventSchemas:
         assert event.payload.name == "test_module"
         assert event.payload.chat_id == "chat1"
         assert event.payload.user_message.text == "Hello"
+        assert event.payload.assistant_message.created_at == "2023-01-01T00:01:00Z"
+        assert event.payload.text == "Optional text"
+        assert event.payload.additional_parameters is not None
+        assert event.payload.additional_parameters.translate_to_language == "en"
         assert event.created_at == 1672531200
         assert event.version == "1.0"
 
