@@ -1,5 +1,6 @@
 import logging
 import re
+from datetime import datetime
 from typing import Optional
 
 import unique_sdk
@@ -60,6 +61,7 @@ class ChatService(BaseService):
                 text=content,
                 references=self._map_references(references),  # type: ignore
                 debugInfo=debug_info or {},
+                completedAt=datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f"),
             )
         except Exception as e:
             self.logger.error(f"Failed to modify assistant message: {e}")
@@ -99,6 +101,7 @@ class ChatService(BaseService):
                 text=content,
                 references=self._map_references(references),  # type: ignore
                 debugInfo=debug_info or {},
+                completedAt=datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f"),
             )
         except Exception as e:
             self.logger.error(f"Failed to modify assistant message: {e}")

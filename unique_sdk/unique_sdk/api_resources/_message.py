@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import (
     Any,
     ClassVar,
@@ -46,6 +47,7 @@ class Message(APIResource["Message"]):
         text: NotRequired[Optional["str"]]
         references: Optional[List["Message.Reference"]]
         debugInfo: Optional[Dict[str, Any]]
+        completedAt: Optional[datetime]
 
     class DeleteParams(RequestOptions):
         chatId: str

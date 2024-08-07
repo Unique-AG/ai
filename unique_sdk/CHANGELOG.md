@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.5] - 2024-08-07
+- Add `completedAt` to `ModifyParams`
+
 ## [0.9.4] - 2024-07-31
 - Add `close` and `close_async` to `http_client`
 - Make `httpx` the default client for async requests
