@@ -2,6 +2,7 @@ from datetime import datetime
 
 import pytest
 
+from unique_toolkit.app.schemas import Event
 from unique_toolkit.content.schemas import ContentChunk, ContentMetadata
 from unique_toolkit.language_model.infos import LanguageModelName
 from unique_toolkit.language_model.schemas import (
@@ -37,13 +38,12 @@ weather_tool = LanguageModelTool(
 )
 
 
-@pytest.mark.usefixtures("chat_state")
+@pytest.mark.usefixtures("event")
 class TestLanguageModelServiceIntegration:
     @pytest.fixture(autouse=True)
-    def setup(self, chat_state):
-        # This method will be called before each test
-        self.chat_state = chat_state  # You might need to initialize this properly
-        self.service = LanguageModelService(self.chat_state)
+    def setup(self, event: Event):
+        self.event = event
+        self.service = LanguageModelService(self.event)
         self.test_messages = LanguageModelMessages(
             [
                 LanguageModelSystemMessage(content="You are Shakespeare"),

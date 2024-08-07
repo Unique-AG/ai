@@ -3,7 +3,7 @@ from unittest.mock import Mock, patch
 import pytest
 import unique_sdk
 
-from unique_toolkit.chat.state import ChatState
+from tests.test_obj_factory import get_event_obj
 from unique_toolkit.embedding.schemas import Embeddings
 from unique_toolkit.embedding.service import EmbeddingService
 
@@ -12,13 +12,13 @@ class TestEmbeddingServiceUnit:
     @pytest.fixture(autouse=True)
     def setup(self):
         # This method will be called before each test
-        self.chat_state = ChatState(
+        self.event = get_event_obj(
             user_id="test_user",
             company_id="test_company",
             assistant_id="test_assistant",
             chat_id="test_chat",
         )
-        self.service = EmbeddingService(self.chat_state)
+        self.service = EmbeddingService(self.event)
 
     def test_embed_texts(self):
         with patch.object(unique_sdk.Embeddings, "create") as mock_create:
@@ -51,11 +51,11 @@ class TestEmbeddingServiceUnit:
 
     def test_init_with_logger(self):
         logger = Mock()
-        service = EmbeddingService(self.chat_state, logger)
+        service = EmbeddingService(self.event, logger)
         assert service.logger == logger
 
     def test_init_without_logger(self):
-        service = EmbeddingService(self.chat_state)
+        service = EmbeddingService(self.event)
         assert service.logger is not None
 
     def test_error_handling_search_contents(self):

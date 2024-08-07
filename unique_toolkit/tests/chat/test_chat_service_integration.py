@@ -1,15 +1,16 @@
 import pytest
 
+from unique_toolkit.app.schemas import Event
 from unique_toolkit.chat.service import ChatMessage, ChatMessageRole, ChatService
 from unique_toolkit.content.schemas import ContentReference
 
 
-@pytest.mark.usefixtures("chat_state")
+@pytest.mark.usefixtures("event")
 class TestChatServiceIntegration:
     @pytest.fixture(autouse=True)
-    def setup(self, chat_state):
-        self.chat_state = chat_state
-        self.service = ChatService(self.chat_state)
+    def setup(self, event: Event):
+        self.event = event
+        self.service = ChatService(self.event)
 
     def test_create_and_modify_assistant_message(self):
         new_message = self.service.create_assistant_message(

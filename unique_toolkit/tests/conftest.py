@@ -4,8 +4,8 @@ import pytest
 import unique_sdk
 from dotenv import load_dotenv
 
+from tests.test_obj_factory import get_event_obj
 from unique_toolkit.chat.service import ChatService
-from unique_toolkit.chat.state import ChatState
 
 DOTENV_TEST_PATH = ".env.test"
 
@@ -28,16 +28,16 @@ collect_ignore_glob = ["*_integration.py"]
 
 
 @pytest.fixture
-def chat_state():
-    chat_state = ChatState(
-        user_id=test_user_id,  # type: ignore
-        company_id=test_company_id,  # type: ignore
-        assistant_id=test_assistant_id,  # type: ignore
-        chat_id=test_chat_id,  # type: ignore
-        user_message_id=test_user_message_id,  # type: ignore
+def event():
+    event = get_event_obj(
+        user_id=test_user_id,
+        company_id=test_company_id,
+        chat_id=test_chat_id,
+        assistant_id=test_assistant_id,
+        user_message_id=test_user_message_id,
     )
-    chat_service = ChatService(chat_state)
+    chat_service = ChatService(event)
     message = chat_service.create_assistant_message("Test assistant message")
     if message.id is not None:
-        chat_state.assistant_message_id = message.id
-    return chat_state
+        event.payload.assistant_message.id = message.id
+    return event

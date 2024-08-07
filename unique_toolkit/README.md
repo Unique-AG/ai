@@ -33,7 +33,6 @@ The `unique_toolkit.app` module encompasses functions for initializing and secur
 
 The `unique_toolkit.chat` module encompasses all chat related functionality.
 
-- `state.py` comprises the ChatState which is used to store the current state of the chat interaction and the user information.
 - `service.py` comprises the ChatService and provides an interface to manage and load the chat history and interact with the chat ui, e.g., creating a new assistant message.
 - `schemas.py` comprises all relevant schemas, e.g., ChatMessage, used in the ChatService.
 - `utils.py` comprises utility functions to use and convert ChatMessage objects in assistants, e.g., convert_chat_history_to_injectable_string converts the chat history to a string that can be injected into a prompt. 

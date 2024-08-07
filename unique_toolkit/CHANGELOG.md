@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - renamed `get_cosine_similarity` to `calculate_cosine_similarity` and moved it to `unique_toolkit.embedding.utils`
 - moved `calculate_tokens` from `unique_toolkit.content.utils` to `unique_toolkit.embedding.utils`
 - disabled deprecation warning in `LanguageModel`
+- added `additional_parameters` to event
+- removed `ChatState` and use `Event` instead
 
 ## [0.5.10] - 2024-08-6
 - fix content schema
