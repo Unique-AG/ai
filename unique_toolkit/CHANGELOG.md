@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.5.12] - 2024-08-7
 - added `completedAt` datetime to `unique_sdk.Message.modify` and `unique_sdk.Message.modify_async`
+- added `original_text` and `language` to `EventUserMessage`
 
 ## [0.5.11] - 2024-08-6
 - made all domain specific functions and classes directly importable from `unique_toolkit.[DOMAIN_NAME]`

@@ -1,6 +1,6 @@
-from datetime import datetime
-from unittest.mock import patch
 
+from unittest.mock import patch
+from datetime import datetime
 import pytest
 import unique_sdk
 import unique_sdk.utils
@@ -23,12 +23,18 @@ class TestChatServiceUnit:
         self.service = ChatService(self.event)
 
     def test_modify_assistant_message(self):
-        with patch.object(unique_sdk.Message, "modify", autospec=True) as mock_modify:
+        with patch.object(unique_sdk.Message, "modify", autospec=True) as mock_modify, patch("datetime.datetime", autospec=True) as mock_datetime:
             mock_modify.return_value = {
                 "id": "test_message",
                 "content": "Modified message",
                 "role": "assistant",
             }
+
+            # Create a mock datetime object
+            mocked_now = datetime(2024, 8, 8, 12, 0, 0, 0)
+            mock_datetime.now.return_value = mocked_now
+            mocked_now_str = mocked_now.strftime("%Y-%m-%d %H:%M:%S.%f")
+
             references = [
                 ContentReference(
                     id="doc123",
@@ -68,7 +74,7 @@ class TestChatServiceUnit:
                     }
                 ],
                 debugInfo={},
-                completedAt=datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f"),
+                completedAt=mocked_now_str,
             )
 
     def test_get_history(self):
@@ -161,12 +167,16 @@ class TestChatServiceUnit:
     async def test_modify_assistant_message_async(self):
         with patch.object(
             unique_sdk.Message, "modify_async", autospec=True
-        ) as mock_modify:
+        ) as mock_modify, patch.object(datetime, "datetime") as mock_datetime:
             mock_modify.return_value = {
                 "id": "test_message",
                 "content": "Modified message",
                 "role": "assistant",
             }
+
+            mocked_now = datetime(2023, 1, 1, 12, 0, 0).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+            mock_datetime.now.return_value = mocked_now
+
             references = [
                 ContentReference(
                     id="doc123",
@@ -183,7 +193,7 @@ class TestChatServiceUnit:
                 content="Modified message",
                 message_id="test_assistant_message",
                 references=references,
-                debug_info={},
+                debug_info={}
             )
 
             assert isinstance(result, ChatMessage)
@@ -206,7 +216,7 @@ class TestChatServiceUnit:
                     }
                 ],
                 debugInfo={},
-                completedAt=datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f"),
+                completedAt=mocked_now,
             )
 
     @pytest.mark.asyncio
