@@ -29,6 +29,8 @@ def get_event_obj(
                 id=user_message_id,
                 text="Test user message",
                 created_at="2021-01-01T00:00:00Z",
+                language="DE",
+                original_text="Test user message",
             ),
             assistant_message=EventAssistantMessage(
                 id="assistant_message_id", created_at="2021-01-01T00:00:00Z"
