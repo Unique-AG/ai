@@ -9,9 +9,7 @@ from unique_toolkit.app.schemas import (
 
 class TestEventSchemas:
     def test_event_user_message_deserialization(self):
-        json_data = (
-            '{"id": "msg1", "text": "Hello", "createdAt": "2023-01-01T00:00:00Z"}'
-        )
+        json_data = '{"id": "msg1", "text": "Hello", "createdAt": "2023-01-01T00:00:00Z", "originalText": "Hello", "language": "en"}'
         user_message = EventUserMessage.model_validate_json(json_data)
 
         assert user_message.id == "msg1"
@@ -35,7 +33,9 @@ class TestEventSchemas:
             "userMessage": {
                 "id": "msg1",
                 "text": "Hello",
-                "createdAt": "2023-01-01T00:00:00Z"
+                "createdAt": "2023-01-01T00:00:00Z",
+                "originalText": "Hello",
+                "language": "en"
             },
             "assistantMessage": {
                 "id": "msg2",
@@ -72,7 +72,9 @@ class TestEventSchemas:
                 "userMessage": {
                     "id": "msg1",
                     "text": "Hello",
-                    "createdAt": "2023-01-01T00:00:00Z"
+                    "createdAt": "2023-01-01T00:00:00Z",
+                    "originalText": "Hello",
+                    "language": "en"
                 },
                 "assistantMessage": {
                     "id": "msg2",
@@ -115,7 +117,9 @@ class TestEventSchemas:
                 "userMessage": {
                     "id": "msg1",
                     "text": "Hello",
-                    "createdAt": "2023-01-01T00:00:00Z"
+                    "createdAt": "2023-01-01T00:00:00Z",
+                    "originalText": "Hello",
+                    "language": "en"
                 },
                 "assistantMessage": {
                     "id": "msg2",

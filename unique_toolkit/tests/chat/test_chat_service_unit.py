@@ -9,10 +9,20 @@ from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.schemas import ContentReference
 
+mocked_datetime = "2024-08-08 12:00:00.000000"
+
+
+@pytest.fixture
+def mock_get_datetime_now(mocker):
+    return mocker.patch(
+        "unique_toolkit._common._time_utils.get_datetime_now",
+        return_value=mocked_datetime,
+    )
+
 
 class TestChatServiceUnit:
     @pytest.fixture(autouse=True)
-    def setup(self):
+    def setup(self, mock_get_datetime_now):
         self.event = get_event_obj(
             user_id="test_user",
             company_id="test_company",
@@ -20,6 +30,7 @@ class TestChatServiceUnit:
             assistant_id="test_assistant",
         )
         self.service = ChatService(self.event)
+        self.mock_get_datetime_now = mock_get_datetime_now
 
     def test_modify_assistant_message(self):
         with patch.object(unique_sdk.Message, "modify", autospec=True) as mock_modify:
@@ -28,6 +39,7 @@ class TestChatServiceUnit:
                 "content": "Modified message",
                 "role": "assistant",
             }
+
             references = [
                 ContentReference(
                     id="doc123",
@@ -67,6 +79,7 @@ class TestChatServiceUnit:
                     }
                 ],
                 debugInfo={},
+                completedAt=mocked_datetime,
             )
 
     def test_get_history(self):
@@ -165,6 +178,7 @@ class TestChatServiceUnit:
                 "content": "Modified message",
                 "role": "assistant",
             }
+
             references = [
                 ContentReference(
                     id="doc123",
@@ -204,6 +218,7 @@ class TestChatServiceUnit:
                     }
                 ],
                 debugInfo={},
+                completedAt=mocked_datetime,
             )
 
     @pytest.mark.asyncio

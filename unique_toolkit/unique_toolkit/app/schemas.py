@@ -21,7 +21,9 @@ class EventUserMessage(BaseModel):
 
     id: str
     text: str
+    original_text: str
     created_at: str
+    language: str
 
 
 class EventAssistantMessage(BaseModel):

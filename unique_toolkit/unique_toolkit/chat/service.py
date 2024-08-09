@@ -5,6 +5,7 @@ from typing import Optional
 import unique_sdk
 from unique_sdk._list_object import ListObject
 
+from unique_toolkit._common import _time_utils
 from unique_toolkit._common._base_service import BaseService
 from unique_toolkit.app.schemas import Event
 from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
@@ -55,11 +56,12 @@ class ChatService(BaseService):
             message = unique_sdk.Message.modify(
                 user_id=self.event.user_id,
                 company_id=self.event.company_id,
-                id=message_id,  # type: ignore
+                id=message_id,
                 chatId=self.event.payload.chat_id,
                 text=content,
-                references=self._map_references(references),  # type: ignore
+                references=self._map_references(references),
                 debugInfo=debug_info or {},
+                completedAt=_time_utils.get_datetime_now(),  # type: ignore
             )
         except Exception as e:
             self.logger.error(f"Failed to modify assistant message: {e}")
@@ -94,11 +96,12 @@ class ChatService(BaseService):
             message = await unique_sdk.Message.modify_async(
                 user_id=self.event.user_id,
                 company_id=self.event.company_id,
-                id=message_id,  # type: ignore
+                id=message_id,
                 chatId=self.event.payload.chat_id,
                 text=content,
-                references=self._map_references(references),  # type: ignore
+                references=self._map_references(references),
                 debugInfo=debug_info or {},
+                completedAt=_time_utils.get_datetime_now(),  # type: ignore
             )
         except Exception as e:
             self.logger.error(f"Failed to modify assistant message: {e}")
