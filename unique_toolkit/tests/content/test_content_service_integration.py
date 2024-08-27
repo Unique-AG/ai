@@ -203,7 +203,7 @@ class TestContentServiceIntegration:
                 downloaded_path.parent.rmdir()
 
     def test_download_content_with_specified_dir_path(self):
-       # Create a temporary file for testing
+        # Create a temporary file for testing
         with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as temp_file:
             temp_file.write(b"Test content for integration")
             temp_file_path = temp_file.name

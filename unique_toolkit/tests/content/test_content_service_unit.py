@@ -346,7 +346,9 @@ class TestContentServiceUnit:
         assert result.exists()
         assert result.name == "test.txt"
         assert result.read_bytes() == b"Test content"
-        assert result.parent.parent == root_dir.absolute()
+        assert (
+            result.parent.parent.absolute().as_posix() == root_dir.absolute().as_posix
+        )
 
         result = self.service.download_content(
             content_id="test_content_id",
@@ -358,7 +360,9 @@ class TestContentServiceUnit:
         assert result.exists()
         assert result.name == "test.txt"
         assert result.read_bytes() == b"Test content"
-        assert result.parent.parent == root_dir.absolute()
+        assert (
+            result.parent.parent.absolute().as_posix() == root_dir.absolute().as_posix
+        )
 
         # Clean up the temporary file
         result.unlink()
