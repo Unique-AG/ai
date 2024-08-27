@@ -2,7 +2,7 @@ import logging
 import os
 import tempfile
 from pathlib import Path
-from typing import Optional, cast
+from typing import Optional, Union, cast
 
 import requests
 import unique_sdk
@@ -344,6 +344,7 @@ class ContentService(BaseService):
         content_id: str,
         content_name: str,
         chat_id: Optional[str] = None,
+        dir_path: Optional[Union[str, Path]] = "/tmp",
     ) -> Path:
         """
         Downloads content to temporary directory
@@ -352,6 +353,7 @@ class ContentService(BaseService):
             content_id (str): The id of the uploaded content.
             content_name (str): The name of the uploaded content.
             chat_id (Optional[str]): The chat_id, defaults to None.
+            dir_path (Optional[Union[str, Path]]): The directory path to download the content to, defaults to "/tmp". If not provided, the content will be downloaded to a random directory inside /tmp. Be aware that this directory won't be cleaned up automatically.
 
         Returns:
             content_path: The path to the downloaded content in the temporary directory.
@@ -365,7 +367,7 @@ class ContentService(BaseService):
             url = f"{url}?chatId={chat_id}"
 
         # Create a random directory inside /tmp
-        random_dir = tempfile.mkdtemp(dir="/tmp")
+        random_dir = tempfile.mkdtemp(dir=dir_path)
 
         # Create the full file path
         content_path = Path(random_dir) / content_name

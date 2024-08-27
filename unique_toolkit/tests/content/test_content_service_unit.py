@@ -1,4 +1,5 @@
 import os
+import shutil
 import tempfile
 from pathlib import Path
 from unittest.mock import ANY, Mock, patch
@@ -324,3 +325,41 @@ class TestContentServiceUnit:
         # Clean up the temporary file
         result.unlink()
         result.parent.rmdir()
+
+    @patch("requests.get")
+    def test_download_content_with_dir(self, mock_get):
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.content = b"Test content"
+        mock_get.return_value = mock_response
+
+        root_dir = Path("./tmp_root_dir")
+        root_dir.mkdir(parents=True, exist_ok=True)
+
+        result = self.service.download_content(
+            content_id="test_content_id",
+            content_name="test.txt",
+            dir_path=root_dir,
+        )
+
+        assert isinstance(result, Path)
+        assert result.exists()
+        assert result.name == "test.txt"
+        assert result.read_bytes() == b"Test content"
+        assert result.parent.parent == root_dir.absolute()
+
+        result = self.service.download_content(
+            content_id="test_content_id",
+            content_name="test.txt",
+            dir_path=root_dir.as_posix(),
+        )
+
+        assert isinstance(result, Path)
+        assert result.exists()
+        assert result.name == "test.txt"
+        assert result.read_bytes() == b"Test content"
+        assert result.parent.parent == root_dir.absolute()
+
+        # Clean up the temporary file
+        result.unlink()
+        shutil.rmtree(root_dir)

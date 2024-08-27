@@ -201,3 +201,67 @@ class TestContentServiceIntegration:
             if "downloaded_path" in locals():
                 downloaded_path.unlink()
                 downloaded_path.parent.rmdir()
+
+    def test_download_content_with_specified_dir_path(self):
+       # Create a temporary file for testing
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as temp_file:
+            temp_file.write(b"Test content for integration")
+            temp_file_path = temp_file.name
+
+        try:
+            # Test upload_content
+            uploaded_content = self.service.upload_content(
+                path_to_content=temp_file_path,
+                content_name="integration_test.txt",
+                mime_type="text/plain",
+                scope_id=test_scope_id,
+            )
+
+            assert uploaded_content is not None
+            assert uploaded_content.id is not None
+            assert uploaded_content.key == "integration_test.txt"
+
+            # Test download_content with Path object
+            random_dir = Path(temp_file_path).parent / "random_dir"
+            os.makedirs(random_dir, exist_ok=True)
+
+            downloaded_path = self.service.download_content(
+                content_id=uploaded_content.id,
+                content_name="integration_test.txt",
+                dir_path=random_dir,
+            )
+
+            assert isinstance(downloaded_path, Path)
+            assert downloaded_path.exists()
+            assert downloaded_path.name == "integration_test.txt"
+            assert downloaded_path.parent.parent == Path(random_dir)
+
+            with open(downloaded_path, "rb") as f:
+                content = f.read()
+                assert content == b"Test content for integration"
+
+            # Test download_content from string path
+            random_dir = Path(temp_file_path).parent / "random_dir"
+            os.makedirs(random_dir, exist_ok=True)
+
+            downloaded_path = self.service.download_content(
+                content_id=uploaded_content.id,
+                content_name="integration_test.txt",
+                dir_path=random_dir.as_posix(),
+            )
+
+            assert isinstance(downloaded_path, Path)
+            assert downloaded_path.exists()
+            assert downloaded_path.name == "integration_test.txt"
+            assert downloaded_path.parent.parent == Path(random_dir)
+
+            with open(downloaded_path, "rb") as f:
+                content = f.read()
+                assert content == b"Test content for integration"
+
+        finally:
+            # Clean up
+            os.unlink(temp_file_path)
+            if "downloaded_path" in locals():
+                downloaded_path.unlink()
+                downloaded_path.parent.rmdir()
