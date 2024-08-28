@@ -105,6 +105,73 @@ class TestLanguageModelServiceUnit:
             assert result.message.text == "Streamed response"
             mock_stream_complete.assert_called_once()
 
+    def test_complete_with_custom_model(self):
+        with patch.object(unique_sdk.ChatCompletion, "create") as mock_create:
+            mock_create.return_value = {
+                "choices": [
+                    {
+                        "index": 0,
+                        "finishReason": "completed",
+                        "message": {
+                            "content": "Test response",
+                            "role": "assistant",
+                        },
+                    }
+                ]
+            }
+            messages = LanguageModelMessages([])
+            model_name = "My Custom Model"
+
+            result = self.service.complete(messages, model_name)
+
+            assert isinstance(result, LanguageModelResponse)
+            assert result.choices[0].message.content == "Test response"
+            mock_create.assert_called_once_with(
+                company_id="test_company",
+                model=model_name,
+                messages=[],
+                timeout=240000,
+                temperature=0.0,
+                options={},
+            )
+
+    def test_stream_complete_with_custom_model(self):
+        with patch.object(
+            unique_sdk.Integrated, "chat_stream_completion"
+        ) as mock_stream_complete:
+            mock_stream_complete.return_value = {
+                "message": {
+                    "id": "test_message",
+                    "previousMessageId": "test_previous_message",
+                    "role": "ASSISTANT",
+                    "text": "Streamed response",
+                    "originalText": "Streamed response original",
+                }
+            }
+            messages = LanguageModelMessages([])
+            model_name = "My Custom Model"
+
+            result = self.service.stream_complete(messages, model_name)
+
+            assert isinstance(result, LanguageModelStreamResponse)
+            assert result.message.text == "Streamed response"
+            mock_stream_complete.assert_called_once_with(
+                user_id="test_user",
+                company_id="test_company",
+                assistantMessageId="assistant_message_id",
+                userMessageId="user_message_id",
+                messages=[],
+                chatId="test_chat",
+                searchContext=None,
+                model=model_name,
+                timeout=240000,
+                temperature=0.0,
+                assistantId="test_assistant",
+                debugInfo={},
+                options={},
+                startText=None,
+            )
+
     def test_error_handling_complete(self):
         with patch.object(
             unique_sdk.ChatCompletion, "create", side_effect=Exception("API Error")
@@ -248,6 +315,37 @@ class TestLanguageModelServiceUnit:
             )
 
     @pytest.mark.asyncio
+    async def test_complete_async_with_custom_model(self):
+        with patch.object(unique_sdk.ChatCompletion, "create_async") as mock_create:
+            mock_create.return_value = {
+                "choices": [
+                    {
+                        "index": 0,
+                        "finishReason": "completed",
+                        "message": {
+                            "content": "Test response",
+                            "role": "assistant",
+                        },
+                    }
+                ]
+            }
+            messages = LanguageModelMessages([])
+            model_name = "My custom model"
+
+            result = await self.service.complete_async(messages, model_name)
+
+            assert isinstance(result, LanguageModelResponse)
+            assert result.choices[0].message.content == "Test response"
+            mock_create.assert_called_once_with(
+                company_id="test_company",
+                model=model_name,
+                messages=[],
+                timeout=240000,
+                temperature=0.0,
+                options={},
+            )
+
+    @pytest.mark.asyncio
     async def test_stream_complete_async(self):
         with patch.object(
             unique_sdk.Integrated, "chat_stream_completion_async"
@@ -274,6 +372,44 @@ class TestLanguageModelServiceUnit:
             assert isinstance(result, LanguageModelStreamResponse)
             assert result.message.text == "Streamed response"
             mock_stream_complete.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_stream_complete_async_with_custom_model(self):
+        with patch.object(
+            unique_sdk.Integrated, "chat_stream_completion_async"
+        ) as mock_stream_complete:
+            mock_stream_complete.return_value = {
+                "message": {
+                    "id": "test_message",
+                    "previousMessageId": "test_previous_message",
+                    "role": "ASSISTANT",
+                    "text": "Streamed response",
+                    "originalText": "Streamed response original",
+                }
+            }
+            messages = LanguageModelMessages([])
+            model_name = "My custom model"
+
+            result = await self.service.stream_complete_async(messages, model_name)
+
+            assert isinstance(result, LanguageModelStreamResponse)
+            assert result.message.text == "Streamed response"
+            mock_stream_complete.assert_awaited_once_with(
+                user_id="test_user",
+                company_id="test_company",
+                assistantMessageId="assistant_message_id",
+                userMessageId="user_message_id",
+                messages=[],
+                chatId="test_chat",
+                searchContext=None,
+                model=model_name,
+                timeout=240000,
+                temperature=0.0,
+                assistantId="test_assistant",
+                debugInfo={},
+                options={},
+                startText=None,
+            )
 
     @pytest.mark.asyncio
     async def test_error_handling_complete_async(self):
