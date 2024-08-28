@@ -51,7 +51,6 @@ class LanguageModel:
         """
         Returns all infos about the model:
         - name
-        - custom_name
         - version
         - provider
         - token_limits
