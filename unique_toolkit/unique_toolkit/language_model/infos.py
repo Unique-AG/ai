@@ -155,6 +155,9 @@ class LanguageModel:
 
     @classmethod
     def get_model_info(cls, model_name: LanguageModelName | str) -> LanguageModelInfo:
+        if not model_name:
+            raise ValueError("Model name must be provided to get the model info.")
+
         for subclass in cls.__subclasses__():
             if hasattr(subclass, "info") and subclass._info.name == model_name:
                 # TODO find alternative solution for warning

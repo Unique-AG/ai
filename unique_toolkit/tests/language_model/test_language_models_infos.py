@@ -1,5 +1,7 @@
 from datetime import date
 
+import pytest
+
 from unique_toolkit.language_model.infos import (
     LanguageModel,
     LanguageModelInfo,
@@ -53,3 +55,7 @@ class TestLanguageModelInfos:
         assert model.retirement_at is None
         assert model.deprecated_at is None
         assert model.retirement_text is None
+
+    def test_get_language_model_raises_error_for_invalid_model(self):
+        with pytest.raises(ValueError):
+            LanguageModel("")
