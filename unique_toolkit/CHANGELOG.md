@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.16] - 2024-08-27
+- Fix `ContentService.upload_content` function.
+
 ## [0.5.15] - 2024-08-27
 - Possibility to specify root directory in `ContentService.download_content`
 
