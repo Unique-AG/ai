@@ -22,17 +22,18 @@ class LanguageModelName(StrEnum):
 
 class LanguageModelProvider(StrEnum):
     AZURE = "AZURE"
+    CUSTOM = "CUSTOM"
 
 
 class LanguageModelInfo(BaseModel):
-    name: LanguageModelName
+    name: LanguageModelName | str
     version: str
     provider: LanguageModelProvider
 
-    token_limits: LanguageModelTokenLimits
+    token_limits: Optional[LanguageModelTokenLimits] = None
 
-    info_cutoff_at: date
-    published_at: date
+    info_cutoff_at: Optional[date] = None
+    published_at: Optional[date] = None
     retirement_at: Optional[date] = None
 
     deprecated_at: Optional[date] = None
@@ -42,7 +43,7 @@ class LanguageModelInfo(BaseModel):
 class LanguageModel:
     _info: ClassVar[LanguageModelInfo]
 
-    def __init__(self, model_name: LanguageModelName):
+    def __init__(self, model_name: LanguageModelName | str):
         self._model_info = self.get_model_info(model_name)
 
     @property
@@ -62,9 +63,9 @@ class LanguageModel:
         return self._model_info
 
     @property
-    def name(self) -> LanguageModelName:
+    def name(self) -> LanguageModelName | str:
         """
-        Returns the LanguageModelName of the model.
+        Returns the LanguageModelName of the model or the name string when it is a custom / not defined model.
         """
         return self._model_info.name
 
@@ -73,10 +74,13 @@ class LanguageModel:
         """
         Returns the name of the model as a string.
         """
-        return self._model_info.name.name
+        if isinstance(self._model_info.name, LanguageModelName):
+            return self._model_info.name.name
+        else:
+            return self._model_info.name
 
     @property
-    def version(self) -> str:
+    def version(self) -> Optional[str]:
         """
         Returns the version of the model.
         """
@@ -87,31 +91,34 @@ class LanguageModel:
         """
         Returns the maximum number of tokens for the model.
         """
-        return self._model_info.token_limits.token_limit
+        if self._model_info.token_limits:
+            return self._model_info.token_limits.token_limit
 
     @property
     def token_limit_input(self) -> Optional[int]:
         """
         Returns the maximum number of input tokens for the model.
         """
-        return self._model_info.token_limits.token_limit_input
+        if self._model_info.token_limits:
+            return self._model_info.token_limits.token_limit_input
 
     @property
     def token_limit_output(self) -> Optional[int]:
         """
         Returns the maximum number of output tokens for the model.
         """
-        return self._model_info.token_limits.token_limit_output
+        if self._model_info.token_limits:
+            return self._model_info.token_limits.token_limit_output
 
     @property
-    def info_cutoff_at(self) -> date:
+    def info_cutoff_at(self) -> Optional[date]:
         """
         Returns the date the model was last updated.
         """
         return self._model_info.info_cutoff_at
 
     @property
-    def published_at(self) -> date:
+    def published_at(self) -> Optional[date]:
         """
         Returns the date the model was published.
         """
@@ -146,7 +153,10 @@ class LanguageModel:
         return self._model_info.provider
 
     @classmethod
-    def get_model_info(cls, model_name: LanguageModelName) -> LanguageModelInfo:
+    def get_model_info(cls, model_name: LanguageModelName | str) -> LanguageModelInfo:
+        if not model_name:
+            raise ValueError("Model name must be provided to get the model info.")
+
         for subclass in cls.__subclasses__():
             if hasattr(subclass, "info") and subclass._info.name == model_name:
                 # TODO find alternative solution for warning
@@ -155,7 +165,12 @@ class LanguageModel:
                 #     print(warning_text)
                 #     warnings.warn(warning_text, DeprecationWarning, stacklevel=2)
                 return subclass._info
-        raise ValueError(f"Model {model_name} not found.")
+
+        return LanguageModelInfo(
+            name=model_name,
+            version="custom",
+            provider=LanguageModelProvider.CUSTOM,
+        )
 
     @classmethod
     def list_models(cls) -> list[LanguageModelInfo]:

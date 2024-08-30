@@ -1,5 +1,7 @@
 from datetime import date
 
+import pytest
+
 from unique_toolkit.language_model.infos import (
     LanguageModel,
     LanguageModelInfo,
@@ -9,7 +11,7 @@ from unique_toolkit.language_model.infos import (
 
 
 class TestLanguageModelInfos:
-    def test_can_list_all_models(self):
+    def test_can_list_all_defined_models(self):
         models = LanguageModel.list_models()
         assert len(models) == 10
         assert all(isinstance(model, LanguageModelInfo) for model in models)
@@ -38,3 +40,22 @@ class TestLanguageModelInfos:
         assert model.token_limit_input == 128000
         assert model.token_limit_output == 4096
         assert model.token_limit == 128000 + 4096
+
+    def test_get_custom_language_model(self):
+        model = LanguageModel("My Custom Model")
+
+        assert model.name == "My Custom Model"
+        assert model.provider == LanguageModelProvider.CUSTOM
+        assert model.version == "custom"
+        assert model.published_at is None
+        assert model.info_cutoff_at is None
+        assert model.token_limit_input is None
+        assert model.token_limit_output is None
+        assert model.token_limit is None
+        assert model.retirement_at is None
+        assert model.deprecated_at is None
+        assert model.retirement_text is None
+
+    def test_get_language_model_raises_error_for_invalid_model(self):
+        with pytest.raises(ValueError):
+            LanguageModel("")
