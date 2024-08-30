@@ -40,6 +40,7 @@ class ContentService(BaseService):
         reranker_config: Optional[ContentRerankerConfig] = None,
         scope_ids: Optional[list[str]] = None,
         chat_only: Optional[bool] = None,
+        metadata_filter: Optional[dict] = None,
     ) -> list[ContentChunk]:
         """
         Performs a synchronous search for content chunks in the knowledge base.
@@ -52,6 +53,7 @@ class ContentService(BaseService):
             reranker_config (Optional[ContentRerankerConfig]): The reranker configuration. Defaults to None.
             scope_ids (Optional[list[str]]): The scope IDs. Defaults to None.
             chat_only (Optional[bool]): Whether to search only in the current chat. Defaults to None.
+            metadata_filter (Optional[dict]): The metadata filter. Defaults to None.
 
         Returns:
             list[ContentChunk]: The search results.
@@ -75,6 +77,7 @@ class ContentService(BaseService):
                 ),
                 language=search_language,
                 chatOnly=chat_only,
+                metaDataFilter=metadata_filter,
             )
         except Exception as e:
             self.logger.error(f"Error while searching content chunks: {e}")
@@ -96,6 +99,7 @@ class ContentService(BaseService):
         reranker_config: Optional[ContentRerankerConfig] = None,
         scope_ids: Optional[list[str]] = None,
         chat_only: Optional[bool] = None,
+        metadata_filter: Optional[dict] = None,
     ):
         """
         Performs an asynchronous search for content chunks in the knowledge base.
@@ -108,6 +112,7 @@ class ContentService(BaseService):
             reranker_config (Optional[ContentRerankerConfig]): The reranker configuration. Defaults to None.
             scope_ids (Optional[list[str]]): The scope IDs. Defaults to None.
             chat_only (Optional[bool]): Whether to search only in the current chat. Defaults to None.
+            metadata_filter (Optional[dict]): The metadata filter. Defaults to None.
 
         Returns:
             list[ContentChunk]: The search results.
@@ -131,6 +136,7 @@ class ContentService(BaseService):
                 ),
                 language=search_language,
                 chatOnly=chat_only,
+                metaDataFilter=metadata_filter,
             )
         except Exception as e:
             self.logger.error(f"Error while searching content chunks: {e}")
