@@ -14,7 +14,6 @@ from unique_toolkit.content.schemas import (
     ContentChunk,
     ContentRerankerConfig,
     ContentSearchType,
-    ContentUploadInput,
 )
 
 
@@ -69,9 +68,11 @@ class ContentService(BaseService):
                 searchType=search_type.name,
                 scopeIds=scope_ids,
                 limit=limit,
-                reranker=reranker_config.model_dump(by_alias=True)
-                if reranker_config
-                else None,
+                reranker=(
+                    reranker_config.model_dump(by_alias=True)
+                    if reranker_config
+                    else None
+                ),
                 language=search_language,
                 chatOnly=chat_only,
             )
@@ -123,9 +124,11 @@ class ContentService(BaseService):
                 searchType=search_type.name,
                 scopeIds=scope_ids,
                 limit=limit,
-                reranker=reranker_config.model_dump(by_alias=True)
-                if reranker_config
-                else None,
+                reranker=(
+                    reranker_config.model_dump(by_alias=True)
+                    if reranker_config
+                    else None
+                ),
                 language=search_language,
                 chatOnly=chat_only,
             )
@@ -241,16 +244,43 @@ class ContentService(BaseService):
             Content: The uploaded content.
         """
 
-        byte_size = os.path.getsize(path_to_content)
-        created_content = self._trigger_upsert_content(
-            input=ContentUploadInput(
-                key=content_name, title=content_name, mime_type=mime_type
-            ),
-            scope_id=scope_id,
-            chat_id=chat_id,
-        )
+        try:
+            return self._trigger_upload_content(
+                path_to_content=path_to_content,
+                content_name=content_name,
+                mime_type=mime_type,
+                scope_id=scope_id,
+                chat_id=chat_id,
+            )
+        except Exception as e:
+            self.logger.error(f"Error while uploading content: {e}")
+            raise e
 
-        write_url = created_content.write_url
+    def _trigger_upload_content(
+        self,
+        path_to_content: str,
+        content_name: str,
+        mime_type: str,
+        scope_id: Optional[str] = None,
+        chat_id: Optional[str] = None,
+    ):
+        if not chat_id and not scope_id:
+            raise ValueError("chat_id or scope_id must be provided")
+
+        byte_size = os.path.getsize(path_to_content)
+        created_content = unique_sdk.Content.upsert(
+            user_id=self.event.user_id,
+            company_id=self.event.company_id,
+            input={
+                "key": content_name,
+                "title": content_name,
+                "mimeType": mime_type,
+            },
+            scopeId=scope_id,
+            chatId=chat_id,
+        )  # type: ignore
+
+        write_url = created_content["writeUrl"]
 
         if not write_url:
             error_msg = "Write url for uploaded content is missing"
@@ -268,7 +298,7 @@ class ContentService(BaseService):
                 },
             )
 
-        read_url = created_content.read_url
+        read_url = created_content["readUrl"]
 
         if not read_url:
             error_msg = "Read url for uploaded content is missing"
@@ -276,68 +306,33 @@ class ContentService(BaseService):
             raise ValueError(error_msg)
 
         if chat_id:
-            self._trigger_upsert_content(
-                input=ContentUploadInput(
-                    key=content_name,
-                    title=content_name,
-                    mime_type=mime_type,
-                    byte_size=byte_size,
-                ),
-                content_url=read_url,
-                chat_id=chat_id,
-            )
-        else:
-            self._trigger_upsert_content(
-                input=ContentUploadInput(
-                    key=content_name,
-                    title=content_name,
-                    mime_type=mime_type,
-                    byte_size=byte_size,
-                ),
-                content_url=read_url,
-                scope_id=scope_id,
-            )
-
-        return created_content
-
-    def _trigger_upsert_content(
-        self,
-        input: ContentUploadInput,
-        scope_id: Optional[str] = None,
-        chat_id: Optional[str] = None,
-        content_url: Optional[str] = None,
-    ):
-        if not chat_id and not scope_id:
-            raise ValueError("chat_id or scope_id must be provided")
-
-        try:
-            if input.byte_size:
-                input_json = {
-                    "key": input.key,
-                    "title": input.title,
-                    "mimeType": input.mime_type,
-                    "byteSize": input.byte_size,
-                }
-            else:
-                input_json = {
-                    "key": input.key,
-                    "title": input.title,
-                    "mimeType": input.mime_type,
-                }
-            content = unique_sdk.Content.upsert(
+            unique_sdk.Content.upsert(
                 user_id=self.event.user_id,
                 company_id=self.event.company_id,
-                input=input_json,  # type: ignore
-                fileUrl=content_url,
-                scopeId=scope_id,
+                input={
+                    "key": content_name,
+                    "title": content_name,
+                    "mimeType": mime_type,
+                    "byteSize": byte_size,
+                },
+                fileUrl=read_url,
                 chatId=chat_id,
-                sourceOwnerType=None,  # type: ignore
-                storeInternally=False,
-            )
-            return Content(**content)
-        except Exception as e:
-            self.logger.error(f"Error while uploading content: {e}")
-            raise e
+            )  # type: ignore
+        else:
+            unique_sdk.Content.upsert(
+                user_id=self.event.user_id,
+                company_id=self.event.company_id,
+                input={
+                    "key": content_name,
+                    "title": content_name,
+                    "mimeType": mime_type,
+                    "byteSize": byte_size,
+                },
+                fileUrl=read_url,
+                scopeId=scope_id,
+            )  # type: ignore
+
+        return Content(**created_content)
 
     def download_content(
         self,

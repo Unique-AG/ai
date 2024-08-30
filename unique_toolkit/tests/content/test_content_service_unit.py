@@ -12,7 +12,6 @@ from unique_toolkit.content.schemas import (
     Content,
     ContentChunk,
     ContentSearchType,
-    ContentUploadInput,
 )
 from unique_toolkit.content.service import ContentService
 
@@ -210,7 +209,8 @@ class TestContentServiceUnit:
                     "test", ContentSearchType.COMBINED, 10
                 )
 
-    def test_trigger_upsert_content(self):
+    @patch("requests.put")
+    def test_upload_content(self, mock_put):
         with patch.object(unique_sdk.Content, "upsert") as mock_upsert:
             mock_upsert.return_value = {
                 "id": "test_content_id",
@@ -221,63 +221,30 @@ class TestContentServiceUnit:
                 "writeUrl": "http://test-write-url.com",
                 "readUrl": "http://test-read-url.com",
             }
-
-            input_data = ContentUploadInput(
-                key="test.txt", title="test.txt", mime_type="text/plain", byte_size=100
-            )
-
-            result = self.service._trigger_upsert_content(
-                input=input_data,
-                scope_id="test_scope",
-                content_url="http://test-file-url.com",
-                chat_id="test_chat",
-            )
-
-            assert isinstance(result, Content)
-            assert result.id == "test_content_id"
-            assert result.key == "test.txt"
-            assert result.write_url == "http://test-write-url.com"
-            assert result.read_url == "http://test-read-url.com"
-
-            mock_upsert.assert_called_once_with(
-                user_id="test_user",
-                company_id="test_company",
-                input={
-                    "key": "test.txt",
-                    "title": "test.txt",
-                    "mimeType": "text/plain",
-                    "byteSize": 100,
-                },
-                fileUrl="http://test-file-url.com",
-                scopeId="test_scope",
-                chatId="test_chat",
-                sourceOwnerType=None,
-                storeInternally=False,
-            )
-
-    @patch("requests.put")
-    def test_upload_content(self, mock_put):
-        with patch.object(
-            ContentService, "_trigger_upsert_content"
-        ) as mock_trigger_upsert:
             # Create a temporary file for testing
             with tempfile.NamedTemporaryFile(delete=False) as temp_file:
                 temp_file.write(b"Test content")
                 temp_content_path = temp_file.name
 
-            mock_trigger_upsert.side_effect = [
-                Content(
-                    id="test_content_id",
-                    key="test_content_key",
-                    write_url="http://test-write-url.com",
-                    read_url="http://test-read-url.com",
-                ),
-                Content(
-                    id="test_content_id",
-                    key="test_content_key",
-                    write_url="http://test-write-url.com",
-                    read_url="http://test-read-url.com",
-                ),
+            mock_upsert.side_effect = [
+                {
+                    "id": "test_content_id",
+                    "key": "test.txt",
+                    "title": "test.txt",
+                    "mimeType": "text/plain",
+                    "byteSize": 100,
+                    "writeUrl": "http://test-write-url.com",
+                    "readUrl": "http://test-read-url.com",
+                },
+                {
+                    "id": "test_content_id",
+                    "key": "test.txt",
+                    "title": "test.txt",
+                    "mimeType": "text/plain",
+                    "byteSize": 100,
+                    "writeUrl": "http://test-write-url.com",
+                    "readUrl": "http://test-read-url.com",
+                },
             ]
 
             result = self.service.upload_content(
