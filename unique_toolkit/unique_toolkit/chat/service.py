@@ -28,7 +28,7 @@ class ChatService(BaseService):
     DEFAULT_PERCENT_OF_MAX_TOKENS = 0.15
     DEFAULT_MAX_MESSAGES = 4
 
-    async def update_debug_info_async(self, debug_info: dict) -> ChatMessage:
+    async def update_debug_info_async(self, debug_info: dict):
         """
         Updates the debug information for the chat session.
 
@@ -37,13 +37,12 @@ class ChatService(BaseService):
         """
         params = self._construct_message_params(assistant=False, debug_info=debug_info)
         try:
-            message = await unique_sdk.Message.modify_async(**params)
+            await unique_sdk.Message.modify_async(**params)
         except Exception as e:
             self.logger.error(f"Failed to update debug info: {e}")
             raise e
-        return ChatMessage(**message)
 
-    def update_debug_info(self, debug_info: dict) -> ChatMessage:
+    def update_debug_info(self, debug_info: dict):
         """
         Updates the debug information for the chat session.
 
@@ -52,11 +51,10 @@ class ChatService(BaseService):
         """
         params = self._construct_message_params(assistant=False, debug_info=debug_info)
         try:
-            message = unique_sdk.Message.modify(**params)
+            unique_sdk.Message.modify(**params)
         except Exception as e:
             self.logger.error(f"Failed to update debug info: {e}")
             raise e
-        return ChatMessage(**message)
 
     def modify_user_message(
         self,
@@ -496,6 +494,8 @@ class ChatService(BaseService):
         else:
             # User message ID
             message_id = self.event.payload.user_message.id
+            if content is None:
+                content = self.event.payload.user_message.text
 
         params = {
             "user_id": self.event.user_id,
