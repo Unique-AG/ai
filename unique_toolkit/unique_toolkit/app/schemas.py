@@ -51,6 +51,9 @@ class EventPayload(BaseModel):
     assistant_message: EventAssistantMessage
     text: Optional[str] = None
     additional_parameters: Optional[EventAdditionalParameters] = None
+    user_metadata: Optional[dict[str, Any]] = None
+    tool_parameters: Optional[dict[str, Any]] = None
+    metadata_filter: Optional[dict[str, Any]] = None
 
 
 class Event(BaseModel):
