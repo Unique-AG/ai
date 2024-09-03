@@ -63,6 +63,7 @@ class TestContentServiceUnit:
                 reranker=None,
                 language="english",
                 chatOnly=None,
+                metaDataFilter=None,
             )
 
     def test_search_contents(self):
@@ -157,6 +158,7 @@ class TestContentServiceUnit:
                 reranker=None,
                 language="english",
                 chatOnly=None,
+                metaDataFilter=None,
             )
 
     @pytest.mark.asyncio

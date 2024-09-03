@@ -14,7 +14,12 @@ model_config = ConfigDict(
 
 
 class ContentMetadata(BaseModel):
-    model_config = model_config
+    model_config = ConfigDict(
+        alias_generator=camelize,
+        populate_by_name=True,
+        arbitrary_types_allowed=True,
+        extra="allow",
+    )
     key: str
     mime_type: str
 

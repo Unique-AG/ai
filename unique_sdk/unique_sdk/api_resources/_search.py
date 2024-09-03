@@ -17,6 +17,7 @@ class Search(APIResource["Search"]):
         chatOnly: NotRequired[Optional[bool]]
         limit: NotRequired[Optional[int]]
         page: NotRequired[Optional[int]]
+        metaDataFilter: NotRequired[Optional[dict[str, Any]]]
 
     id: str
     chunkId: str
