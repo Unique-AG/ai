@@ -974,7 +974,7 @@ files = [
 
 [[package]]
 name = "unique-sdk"
-version = "0.9.5"
+version = "0.9.6"
 description = ""
 optional = false
 python-versions = "^3.11"
@@ -1028,4 +1028,4 @@ test = ["covdefaults (>=2.3)", "coverage (>=7.2.7)", "coverage-enable-subprocess
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "747aae34f7a5ecfef48e5461711613bb208ba22de9394dd6afcf266ddc9f5ea3"
+content-hash = "bb7a38ebc6791ba405d0a00dd33ec28cfa489346d069b40162e7b0e6524fde3e"

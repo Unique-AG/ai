@@ -5,8 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.18] - 2024-09-03
+- Adds option to use `metadata_filter` with search.
+- Adds `user_metadata`, `tool_parameters` and `metadata_filter` to `EventPayload`.
+- Adds `update_debug_info` and `modify_user_message` (and the corresponding `async` variants) to `ChatService`.
+
 ## [0.5.17] - 2024-08-30
-- Add option to initiate `LanguageModel` with a string
+- Add option to initiate `LanguageModel` with a string.
 - Add option to call `LanguageModelService` functions also with a string instead of `LanguageModelName` enum for parameter `model_name`.
 
 ## [0.5.16] - 2024-08-29
