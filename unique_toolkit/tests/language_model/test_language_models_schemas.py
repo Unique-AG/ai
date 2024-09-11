@@ -19,6 +19,31 @@ class TestLanguageModelSchemas:
         expected = """{"role":"user","content":"blah"}"""
         assert message.model_dump_json(exclude_none=True) == expected
 
+    def test_can_serialize_message_with_image(self):
+        message = LanguageModelUserMessage(
+            content=[
+                {"type": "text", "content": "text_content"},
+                {
+                    "type": "image_url",
+                    "imageUrl": {"url": "image_string_base64"},
+                },
+            ]
+        )
+        expected = """{"role":"user","content":[{"type":"text","content":"text_content"},{"type":"image_url","imageUrl":{"url":"image_string_base64"}}]}"""
+        assert message.model_dump_json(exclude_none=True) == expected
+
+        message = LanguageModelSystemMessage(
+            content=[
+                {"type": "text", "content": "text_content"},
+                {
+                    "type": "image_url",
+                    "imageUrl": {"url": "image_string_base64"},
+                },
+            ]
+        )
+        expected = """{"role":"system","content":[{"type":"text","content":"text_content"},{"type":"image_url","imageUrl":{"url":"image_string_base64"}}]}"""
+        assert message.model_dump_json(exclude_none=True) == expected
+
     def test_can_serialize_messages(self):
         messages = LanguageModelMessages(
             [
