@@ -43,7 +43,7 @@ class LanguageModelMessage(BaseModel):
     model_config = model_config
 
     role: LanguageModelMessageRole
-    content: Optional[str] = None
+    content: Optional[str | list[dict]] = None
     name: Optional[str] = None
     tool_calls: Optional[list[LanguageModelFunctionCall]] = None
 

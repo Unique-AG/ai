@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.19] - 2024-09-11
+- `LanguageModelMessage` now supports content as a list of dictionnary. Useful when adding image_url content along user message. 
+
 ## [0.5.18] - 2024-09-03
 - Adds option to use `metadata_filter` with search.
 - Adds `user_metadata`, `tool_parameters` and `metadata_filter` to `EventPayload`.
