@@ -113,10 +113,9 @@ class LanguageModelService(BaseService):
         model = (
             model_name.name if isinstance(model_name, LanguageModelName) else model_name
         )
-
         try:
             response = await unique_sdk.ChatCompletion.create_async(
-                company_id,
+                company_id=company_id,
                 model=model,
                 messages=cast(
                     list[unique_sdk.Integrated.ChatCompletionRequestMessage],
@@ -168,7 +167,6 @@ class LanguageModelService(BaseService):
             tools=tools,
             logger=self.logger
         )
-
 
     def stream_complete(
         self,
