@@ -74,7 +74,7 @@ class LanguageModelService(BaseService):
         except Exception as e:
             self.logger.error(f"Error completing: {e}")
             raise e
- 
+
     @classmethod
     async def complete_async_util(
         cls,
@@ -84,7 +84,7 @@ class LanguageModelService(BaseService):
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
         tools: Optional[list[LanguageModelTool]] = None,
-        logger: Optional[logging.Logger] = logging.getLogger(__name__)
+        logger: Optional[logging.Logger] = logging.getLogger(__name__),
     ) -> LanguageModelResponse:
         """
         Calls the completion endpoint asynchronously without streaming the response.
@@ -165,7 +165,7 @@ class LanguageModelService(BaseService):
             temperature=temperature,
             timeout=timeout,
             tools=tools,
-            logger=self.logger
+            logger=self.logger,
         )
 
     def stream_complete(
