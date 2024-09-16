@@ -1,7 +1,14 @@
 from enum import StrEnum
+from typing import Optional
 
 from humps import camelize
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+)
 
 # set config to convert camelCase to snake_case
 model_config = ConfigDict(
@@ -12,6 +19,22 @@ model_config = ConfigDict(
 class ChatMessageRole(StrEnum):
     USER = "user"
     ASSISTANT = "assistant"
+    TOOL = "tool"
+
+
+class Function(BaseModel):
+    model_config = model_config
+
+    name: str
+    arguments: str
+
+
+class ToolCall(BaseModel):
+    model_config = model_config
+
+    id: str
+    type: str
+    function: Function
 
 
 class ChatMessage(BaseModel):
@@ -21,6 +44,8 @@ class ChatMessage(BaseModel):
     object: str | None = None
     content: str = Field(alias="text")
     role: ChatMessageRole
+    tool_calls: Optional[list[ToolCall]] = None
+    tool_call_id: Optional[str] = None
     debug_info: dict | None = {}
 
     # TODO make sdk return role consistently in lowercase
@@ -28,3 +53,10 @@ class ChatMessage(BaseModel):
     @field_validator("role", mode="before")
     def set_role(cls, value: str):
         return value.lower()
+
+    # Ensure tool_call_ids is required if role is 'tool'
+    @model_validator(mode="after")
+    def check_tool_call_ids_for_tool_role(self):
+        if self.role == ChatMessageRole.TOOL and not self.tool_call_id:
+            raise ValueError("tool_call_ids is required when role is 'tool'")
+        return self
