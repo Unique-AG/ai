@@ -75,37 +75,47 @@ class LanguageModelService(BaseService):
             self.logger.error(f"Error completing: {e}")
             raise e
 
-    async def complete_async(
-        self,
+    @classmethod
+    async def complete_async_util(
+        cls,
+        company_id: str,
         messages: LanguageModelMessages,
         model_name: LanguageModelName | str,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
         tools: Optional[list[LanguageModelTool]] = None,
-    ):
+        logger: Optional[logging.Logger] = logging.getLogger(__name__),
+    ) -> LanguageModelResponse:
         """
         Calls the completion endpoint asynchronously without streaming the response.
 
+        This method sends a request to the completion endpoint using the provided messages, model name,
+        temperature, timeout, and optional tools. It returns a `LanguageModelResponse` object containing
+        the completed result.
+
         Args:
+            company_id (str): The company ID associated with the request.
             messages (LanguageModelMessages): The messages to complete.
-            model_name (LanguageModelName | str): The model name.
-            temperature (float): The temperature value. Defaults to 0.
-            timeout (int): The timeout value in milliseconds. Defaults to 240_000.
-            tools (Optional[list[LanguageModelTool]]): The tools to use. Defaults to None.
+            model_name (LanguageModelName | str): The model name to use for the completion.
+            temperature (float): The temperature setting for the completion. Defaults to 0.
+            timeout (int): The timeout value in milliseconds for the request. Defaults to 240_000.
+            tools (Optional[list[LanguageModelTool]]): Optional list of tools to include in the request.
+            logger (Optional[logging.Logger], optional): The logger used to log errors. Defaults to the logger for the current module.
 
         Returns:
-            str: The completed message content.
+            LanguageModelResponse: The response object containing the completed result.
+
+        Raises:
+            Exception: If an error occurs during the request, an exception is raised and logged.
         """
-        options = self._add_tools_to_options({}, tools)
+        options = cls._add_tools_to_options({}, tools)
         messages = messages.model_dump(exclude_none=True, exclude={"tool_calls"})
         model = (
             model_name.name if isinstance(model_name, LanguageModelName) else model_name
         )
-
         try:
             response = await unique_sdk.ChatCompletion.create_async(
-                company_id=self.event.company_id,
-                # TODO change or extend types in unique_sdk
+                company_id=company_id,
                 model=model,
                 messages=cast(
                     list[unique_sdk.Integrated.ChatCompletionRequestMessage],
@@ -117,8 +127,46 @@ class LanguageModelService(BaseService):
             )
             return LanguageModelResponse(**response)
         except Exception as e:
-            self.logger.error(f"Error completing: {e}")
+            logger.error(f"Error completing: {e}")
             raise e
+
+    async def complete_async(
+        self,
+        messages: LanguageModelMessages,
+        model_name: LanguageModelName | str,
+        temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
+        timeout: int = DEFAULT_COMPLETE_TIMEOUT,
+        tools: Optional[list[LanguageModelTool]] = None,
+    ) -> LanguageModelResponse:
+        """
+        Calls the completion endpoint asynchronously without streaming the response.
+
+        This method utilizes the class method `complete_async_util` to perform the asynchronous completion
+        request using the provided messages, model name, temperature, timeout, and optional tools. It
+        returns a `LanguageModelResponse` object containing the result of the completion.
+
+        Args:
+            messages (LanguageModelMessages): The messages to complete.
+            model_name (LanguageModelName | str): The model name to use for the completion.
+            temperature (float): The temperature setting for the completion. Defaults to 0.0.
+            timeout (int): The timeout value in milliseconds for the request. Defaults to 240,000.
+            tools (Optional[list[LanguageModelTool]]): Optional list of tools to include in the request.
+
+        Returns:
+            LanguageModelResponse: The response object containing the completed result.
+
+        Raises:
+            Exception: If an error occurs during the completion request.
+        """
+        return await self.complete_async_util(
+            company_id=self.event.company_id,
+            messages=messages,
+            model_name=model_name,
+            temperature=temperature,
+            timeout=timeout,
+            tools=tools,
+            logger=self.logger,
+        )
 
     def stream_complete(
         self,
