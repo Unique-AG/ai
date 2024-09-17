@@ -40,6 +40,9 @@ from .schemas import (
     LanguageModelTool as LanguageModelTool,
 )
 from .schemas import (
+    LanguageModelToolMessage as LanguageModelToolMessage,
+)
+from .schemas import (
     LanguageModelToolParameterProperty as LanguageModelToolParameterProperty,
 )
 from .schemas import (
