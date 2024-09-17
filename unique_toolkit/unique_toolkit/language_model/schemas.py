@@ -17,6 +17,7 @@ class LanguageModelMessageRole(StrEnum):
     USER = "user"
     SYSTEM = "system"
     ASSISTANT = "assistant"
+    TOOL = "tool"
 
 
 class LanguageModelFunction(BaseModel):
@@ -70,6 +71,14 @@ class LanguageModelAssistantMessage(LanguageModelMessage):
     @field_validator("role", mode="before")
     def set_role(cls, value):
         return LanguageModelMessageRole.ASSISTANT
+
+
+class LanguageModelToolMessage(LanguageModelMessage):
+    role: LanguageModelMessageRole = LanguageModelMessageRole.TOOL
+
+    @field_validator("role", mode="before")
+    def set_role(cls, value):
+        return LanguageModelMessageRole.TOOL
 
 
 class LanguageModelMessages(RootModel):

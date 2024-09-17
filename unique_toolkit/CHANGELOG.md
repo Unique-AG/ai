@@ -5,8 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.22] - 2024-09-17
+- Add `LanguageModelToolMessage` as additional `LanguageModelMessage`
+
 ## [0.5.21] - 2024-09-16
-- Add `tool` as new role `ChatMessage`, as well as `tool_calls` and `tool_call_id` as additional parameters
+- Add `tool` as new role to `ChatMessage`, as well as `tool_calls` and `tool_call_id` as additional parameters
 
 ## [0.5.20] - 2024-09-16
 - `LanguageModelService` now supports complete_util_async that can be called without instantiating the class, currently being used in the Hallucination service and evaluation API

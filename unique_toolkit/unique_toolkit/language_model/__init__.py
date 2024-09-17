@@ -4,6 +4,9 @@ from .schemas import (
     LanguageModelAssistantMessage as LanguageModelAssistantMessage,
 )
 from .schemas import (
+    LanguageModelToolMessage as LanguageModelToolMessage,
+)
+from .schemas import (
     LanguageModelCompletionChoice as LanguageModelCompletionChoice,
 )
 from .schemas import (
