@@ -4,9 +4,6 @@ from .schemas import (
     LanguageModelAssistantMessage as LanguageModelAssistantMessage,
 )
 from .schemas import (
-    LanguageModelToolMessage as LanguageModelToolMessage,
-)
-from .schemas import (
     LanguageModelCompletionChoice as LanguageModelCompletionChoice,
 )
 from .schemas import (
@@ -41,6 +38,9 @@ from .schemas import (
 )
 from .schemas import (
     LanguageModelTool as LanguageModelTool,
+)
+from .schemas import (
+    LanguageModelToolMessage as LanguageModelToolMessage,
 )
 from .schemas import (
     LanguageModelToolParameterProperty as LanguageModelToolParameterProperty,
