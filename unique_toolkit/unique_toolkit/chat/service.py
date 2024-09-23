@@ -555,7 +555,7 @@ class ChatService(BaseService):
             "user_id": self.event.user_id,
             "company_id": self.event.company_id,
             "assistantId": assistantId,
-            "role": role.value.upper(),
+            "role": "ABC",
             "chatId": self.event.payload.chat_id,
             "text": content,
             "references": self._map_references(references) if references else [],
