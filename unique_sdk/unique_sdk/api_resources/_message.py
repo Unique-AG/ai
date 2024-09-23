@@ -41,6 +41,7 @@ class Message(APIResource["Message"]):
         text: NotRequired[Optional["str"]]
         references: Optional[List["Message.Reference"]]
         debugInfo: Optional[Dict[str, Any]]
+        completedAt: Optional[datetime]
 
     class ModifyParams(RequestOptions):
         chatId: str

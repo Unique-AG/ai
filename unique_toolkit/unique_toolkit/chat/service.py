@@ -62,6 +62,7 @@ class ChatService(BaseService):
         references: Optional[list[ContentReference]] = None,
         debug_info: Optional[dict] = None,
         message_id: Optional[str] = None,
+        set_completed_at: Optional[bool] = False,
     ) -> ChatMessage:
         """
         Modifies a message in the chat session synchronously.
@@ -71,6 +72,7 @@ class ChatService(BaseService):
             references (list[ContentReference]): list of ContentReference objects. Defaults to [].
             debug_info (dict[str, Any]]]): Debug information. Defaults to {}.
             message_id (str, optional): The message ID. Defaults to None, then the ChatState user message id is used.
+            set_completed_at (Optional[bool]): Whether to set the completed_at field with the current date time. Defaults to False.
 
         Returns:
             ChatMessage: The modified message.
@@ -85,6 +87,7 @@ class ChatService(BaseService):
                 references=references,
                 debug_info=debug_info,
                 message_id=message_id,
+                set_completed_at=set_completed_at,
             )
             message = unique_sdk.Message.modify(**params)
         except Exception as e:
@@ -98,6 +101,7 @@ class ChatService(BaseService):
         references: list[ContentReference] = [],
         debug_info: dict = {},
         message_id: Optional[str] = None,
+        set_completed_at: Optional[bool] = False,
     ) -> ChatMessage:
         """
         Modifies a message in the chat session asynchronously.
@@ -107,6 +111,7 @@ class ChatService(BaseService):
             message_id (str, optional): The message ID. Defaults to None, then the ChatState user message id is used.
             references (list[ContentReference]): list of ContentReference objects. Defaults to None.
             debug_info (Optional[dict[str, Any]]], optional): Debug information. Defaults to None.
+            set_completed_at (Optional[bool]): Whether to set the completed_at field with the current date time. Defaults to False.
 
         Returns:
             ChatMessage: The modified message.
@@ -121,6 +126,7 @@ class ChatService(BaseService):
                 references=references,
                 debug_info=debug_info,
                 message_id=message_id,
+                set_completed_at=set_completed_at,
             )
             message = await unique_sdk.Message.modify_async(**params)
         except Exception as e:
@@ -134,6 +140,7 @@ class ChatService(BaseService):
         references: list[ContentReference] = [],
         debug_info: dict = {},
         message_id: Optional[str] = None,
+        set_completed_at: Optional[bool] = False,
     ) -> ChatMessage:
         """
         Modifies a message in the chat session synchronously.
@@ -143,6 +150,7 @@ class ChatService(BaseService):
             references (list[ContentReference]): list of ContentReference objects. Defaults to [].
             debug_info (dict[str, Any]]]): Debug information. Defaults to {}.
             message_id (Optional[str]): The message ID. Defaults to None.
+            set_completed_at (Optional[bool]): Whether to set the completed_at field with the current date time. Defaults to False.
 
         Returns:
             ChatMessage: The modified message.
@@ -157,6 +165,7 @@ class ChatService(BaseService):
                 references=references,
                 debug_info=debug_info,
                 message_id=message_id,
+                set_completed_at=set_completed_at,
             )
             message = unique_sdk.Message.modify(**params)
         except Exception as e:
@@ -170,6 +179,7 @@ class ChatService(BaseService):
         references: list[ContentReference] = [],
         debug_info: dict = {},
         message_id: Optional[str] = None,
+        set_completed_at: Optional[bool] = False,
     ) -> ChatMessage:
         """
         Modifies a message in the chat session asynchronously.
@@ -179,6 +189,7 @@ class ChatService(BaseService):
             message_id (str, optional): The message ID. Defaults to None, then the ChatState assistant message id is used.
             references (list[ContentReference]): list of ContentReference objects. Defaults to None.
             debug_info (Optional[dict[str, Any]]], optional): Debug information. Defaults to None.
+            set_completed_at (Optional[bool]): Whether to set the completed_at field with the current date time. Defaults to False.
 
         Returns:
             ChatMessage: The modified message.
@@ -193,6 +204,7 @@ class ChatService(BaseService):
                 references=references,
                 debug_info=debug_info,
                 message_id=message_id,
+                set_completed_at=set_completed_at,
             )
             message = await unique_sdk.Message.modify_async(**params)
         except Exception as e:
@@ -287,6 +299,7 @@ class ChatService(BaseService):
         content: str,
         references: list[ContentReference] = [],
         debug_info: dict = {},
+        set_completed_at: Optional[bool] = False,
     ):
         """
         Creates a message in the chat session synchronously.
@@ -295,6 +308,7 @@ class ChatService(BaseService):
             content (str): The content for the message.
             references (list[ContentReference]): list of ContentReference objects. Defaults to None.
             debug_info (dict[str, Any]]): Debug information. Defaults to None.
+            set_completed_at (Optional[bool]): Whether to set the completed_at field with the current date time. Defaults to False.
 
         Returns:
             ChatMessage: The created message.
@@ -304,16 +318,15 @@ class ChatService(BaseService):
         """
 
         try:
-            message = unique_sdk.Message.create(
-                user_id=self.event.user_id,
-                company_id=self.event.company_id,
-                chatId=self.event.payload.chat_id,
-                assistantId=self.event.payload.assistant_id,
-                text=content,
-                role=ChatMessageRole.ASSISTANT.name,
-                references=self._map_references(references),  # type: ignore
-                debugInfo=debug_info,
+            params = self._construct_message_params(
+                assistant=True,
+                content=content,
+                references=references,
+                debug_info=debug_info,
+                set_completed_at=set_completed_at,
             )
+
+            message = unique_sdk.Message.create(**params)
         except Exception as e:
             self.logger.error(f"Failed to create assistant message: {e}")
             raise e
@@ -324,6 +337,7 @@ class ChatService(BaseService):
         content: str,
         references: list[ContentReference] = [],
         debug_info: dict = {},
+        set_completed_at: Optional[bool] = False,
     ):
         """
         Creates a message in the chat session asynchronously.
@@ -332,6 +346,7 @@ class ChatService(BaseService):
             content (str): The content for the message.
             references (list[ContentReference]): list of references. Defaults to None.
             debug_info (dict[str, Any]]): Debug information. Defaults to None.
+            set_completed_at (Optional[bool]): Whether to set the completed_at field with the current date time. Defaults to False.
 
         Returns:
             ChatMessage: The created message.
@@ -340,16 +355,15 @@ class ChatService(BaseService):
             Exception: If the creation fails.
         """
         try:
-            message = await unique_sdk.Message.create_async(
-                user_id=self.event.user_id,
-                company_id=self.event.company_id,
-                chatId=self.event.payload.chat_id,
-                assistantId=self.event.payload.assistant_id,
-                text=content,
-                role=ChatMessageRole.ASSISTANT.name,
-                references=self._map_references(references),  # type: ignore
-                debugInfo=debug_info,
+            params = self._construct_message_params(
+                assistant=True,
+                content=content,
+                references=references,
+                debug_info=debug_info,
+                set_completed_at=set_completed_at,
             )
+
+            message = await unique_sdk.Message.create_async(**params)
         except Exception as e:
             self.logger.error(f"Failed to create assistant message: {e}")
             raise e
@@ -484,6 +498,7 @@ class ChatService(BaseService):
         references: Optional[list[ContentReference]] = None,
         debug_info: Optional[dict] = None,
         message_id: Optional[str] = None,
+        set_completed_at: Optional[bool] = False,
     ):
         if message_id:
             # Message ID specified. No need to guess
@@ -497,6 +512,11 @@ class ChatService(BaseService):
             if content is None:
                 content = self.event.payload.user_message.text
 
+        if set_completed_at:
+            completed_at_datetime = _time_utils.get_datetime_now()
+        else:
+            completed_at_datetime = None
+
         params = {
             "user_id": self.event.user_id,
             "company_id": self.event.company_id,
@@ -505,6 +525,6 @@ class ChatService(BaseService):
             "text": content,
             "references": self._map_references(references) if references else [],
             "debugInfo": debug_info,
-            "completedAt": _time_utils.get_datetime_now(),
+            "completedAt": completed_at_datetime,
         }
         return params
