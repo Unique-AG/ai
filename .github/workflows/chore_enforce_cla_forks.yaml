@@ -1,0 +1,13 @@
+name: "[chore] Enforce CLA on forks 🍴"
+
+on: 
+  pull_request:
+
+jobs:
+  cla:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.pull_request.head.repo.full_name != 'unique-ag/ai' }}
+    steps:
+      - run: |
+          echo "This repository is not accepting pull requests from forks as of today. Please get in touch with the maintainers to sign the CLA."
+          exit 1
