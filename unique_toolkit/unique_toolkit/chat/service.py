@@ -35,7 +35,9 @@ class ChatService(BaseService):
         Args:
             debug_info (dict): The new debug information.
         """
-        params = self._construct_message_modify_params(assistant=False, debug_info=debug_info)
+        params = self._construct_message_modify_params(
+            assistant=False, debug_info=debug_info
+        )
         try:
             await unique_sdk.Message.modify_async(**params)
         except Exception as e:
@@ -49,7 +51,9 @@ class ChatService(BaseService):
         Args:
             debug_info (dict): The new debug information.
         """
-        params = self._construct_message_modify_params(assistant=False, debug_info=debug_info)
+        params = self._construct_message_modify_params(
+            assistant=False, debug_info=debug_info
+        )
         try:
             unique_sdk.Message.modify(**params)
         except Exception as e:
@@ -526,7 +530,6 @@ class ChatService(BaseService):
             "completedAt": completed_at_datetime,
         }
         return params
-
 
     def _construct_message_create_params(
         self,
