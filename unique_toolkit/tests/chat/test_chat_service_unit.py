@@ -451,7 +451,7 @@ class TestChatServiceUnit:
                 chatId="test_chat",
                 assistantId="test_assistant",
                 text="New assistant message",
-                role=ChatMessageRole.ASSISTANT,
+                role="ASSISTANT",
                 references=[],
                 debugInfo={},
                 completedAt=None,
