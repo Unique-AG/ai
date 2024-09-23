@@ -403,9 +403,9 @@ class TestChatServiceUnit:
             unique_sdk.Message, "create_async", autospec=True
         ) as mock_create:
             mock_create.return_value = {
-                "id": "new_message",
                 "content": "New assistant message",
                 "role": "assistant",
+                "assistant_message_id": "assistant_message_id",
             }
 
             result = await self.service.create_assistant_message_async(
@@ -423,7 +423,7 @@ class TestChatServiceUnit:
                 user_id="test_user",
                 company_id="test_company",
                 chatId="test_chat",
-                assistantId="test_assistant",
+                assistantId="assistant_message_id",
                 text="New assistant message",
                 role=ChatMessageRole.ASSISTANT,
                 references=[],
@@ -436,9 +436,9 @@ class TestChatServiceUnit:
             unique_sdk.Message, "create_async", autospec=True
         ) as mock_create:
             mock_create.return_value = {
-                "id": "new_message",
                 "content": "New assistant message",
                 "role": "assistant",
+                "assistant_message_id": "assistant_message_id",
             }
 
             result = await self.service.create_assistant_message_async(
@@ -453,7 +453,7 @@ class TestChatServiceUnit:
                 user_id="test_user",
                 company_id="test_company",
                 chatId="test_chat",
-                assistantId="test_assistant",
+                assistantId="assistant_message_id",
                 text="New assistant message",
                 role=ChatMessageRole.ASSISTANT,
                 references=[],
