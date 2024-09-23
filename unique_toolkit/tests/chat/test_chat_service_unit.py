@@ -422,7 +422,7 @@ class TestChatServiceUnit:
                 chatId="test_chat",
                 assistantId="test_assistant",
                 text="New assistant message",
-                role=ChatMessageRole.ASSISTANT.value.upper(),
+                role="ABC",
                 references=[],
                 debugInfo={},
                 completedAt=mocked_datetime,
