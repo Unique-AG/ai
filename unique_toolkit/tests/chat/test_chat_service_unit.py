@@ -58,7 +58,7 @@ class TestChatServiceUnit:
                 message_id="test_assistant_message",
                 references=references,
                 debug_info={},
-                assistant_message_is_finished=True,
+                set_completed_at=True,
             )
 
             assert isinstance(result, ChatMessage)
@@ -176,7 +176,7 @@ class TestChatServiceUnit:
                 content="New assistant message",
                 references=[],
                 debug_info={},
-                assistant_message_is_finished=True,
+                set_completed_at=True,
             )
 
             assert isinstance(result, ChatMessage)
@@ -187,7 +187,7 @@ class TestChatServiceUnit:
                 user_id="test_user",
                 company_id="test_company",
                 assistantId="test_assistant",
-                role=ChatMessageRole.ASSISTANT.value,
+                role=ChatMessageRole.ASSISTANT.value.lower(),
                 chatId="test_chat",
                 text="New assistant message",
                 references=[],
@@ -282,7 +282,7 @@ class TestChatServiceUnit:
                 message_id="test_assistant_message",
                 references=references,
                 debug_info={},
-                assistant_message_is_finished=True,
+                set_completed_at=True,
             )
 
             assert isinstance(result, ChatMessage)
@@ -409,7 +409,7 @@ class TestChatServiceUnit:
                 content="New assistant message",
                 references=[],
                 debug_info={},
-                assistant_message_is_finished=True,
+                set_completed_at=True,
             )
 
             assert isinstance(result, ChatMessage)
@@ -422,7 +422,7 @@ class TestChatServiceUnit:
                 chatId="test_chat",
                 assistantId="test_assistant",
                 text="New assistant message",
-                role=ChatMessageRole.ASSISTANT.value,
+                role=ChatMessageRole.ASSISTANT.value.lower(),
                 references=[],
                 debugInfo={},
                 completedAt=mocked_datetime,
