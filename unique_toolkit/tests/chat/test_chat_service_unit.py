@@ -181,7 +181,7 @@ class TestChatServiceUnit:
 
             assert isinstance(result, ChatMessage)
             assert result.content == "New assistant message"
-            assert result.role == "ASSISTANT"
+            assert result.role == ChatMessageRole.ASSISTANT.value
 
             mock_create.assert_called_once_with(
                 user_id="test_user",
@@ -414,7 +414,7 @@ class TestChatServiceUnit:
 
             assert isinstance(result, ChatMessage)
             assert result.content == "New assistant message"
-            assert result.role == "ASSISTANT"
+            assert result.role == ChatMessageRole.ASSISTANT.value
 
             mock_create.assert_called_once_with(
                 user_id="test_user",
