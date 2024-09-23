@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [0.5.23] - 2024-09-23
-- Add `set_completed_at` as a boolen parameter to the following functions: `modify_user_message`, `modify_user_message_async`, `modify_assistant_message`, `modify_assistant_message_async`, `create_assistant_message` and `create_assistant_message`. This parameter allows the `completedAt` timestamp on the database to be updated when set to True.
+- Add `assistant_message_is_finished` as a boolen parameter to the following functions: `modify_user_message`, `modify_user_message_async`, `modify_assistant_message`, `modify_assistant_message_async`, `create_assistant_message` and `create_assistant_message`. This parameter allows the `completedAt` timestamp on the database to be updated when set to True.
 
 ## [0.5.22] - 2024-09-17
 - Add `LanguageModelToolMessage` as additional `LanguageModelMessage`

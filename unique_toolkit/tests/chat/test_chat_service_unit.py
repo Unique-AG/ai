@@ -58,7 +58,7 @@ class TestChatServiceUnit:
                 message_id="test_assistant_message",
                 references=references,
                 debug_info={},
-                set_completed_at=True,
+                assistant_message_is_finished=True,
             )
 
             assert isinstance(result, ChatMessage)
@@ -176,7 +176,7 @@ class TestChatServiceUnit:
                 content="New assistant message",
                 references=[],
                 debug_info={},
-                set_completed_at=True,
+                assistant_message_is_finished=True,
             )
 
             assert isinstance(result, ChatMessage)
@@ -282,7 +282,7 @@ class TestChatServiceUnit:
                 message_id="test_assistant_message",
                 references=references,
                 debug_info={},
-                set_completed_at=True,
+                assistant_message_is_finished=True,
             )
 
             assert isinstance(result, ChatMessage)
@@ -409,7 +409,7 @@ class TestChatServiceUnit:
                 content="New assistant message",
                 references=[],
                 debug_info={},
-                set_completed_at=True,
+                assistant_message_is_finished=True,
             )
 
             assert isinstance(result, ChatMessage)
@@ -422,7 +422,7 @@ class TestChatServiceUnit:
                 chatId="test_chat",
                 assistantId="test_assistant",
                 text="New assistant message",
-                role=ChatMessageRole.ASSISTANT.value.upper(),
+                role=ChatMessageRole.ASSISTANT,
                 references=[],
                 debugInfo={},
                 completedAt=mocked_datetime,
