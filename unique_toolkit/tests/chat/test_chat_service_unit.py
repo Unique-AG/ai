@@ -168,9 +168,9 @@ class TestChatServiceUnit:
         # Test with update completedAt
         with patch.object(unique_sdk.Message, "create", autospec=True) as mock_create:
             mock_create.return_value = {
-                "id": "new_message",
                 "content": "New assistant message",
                 "role": "assistant",
+                "assistant_message_id": "assistant_message_id",
             }
 
             result = self.service.create_assistant_message(
@@ -187,10 +187,10 @@ class TestChatServiceUnit:
             mock_create.assert_called_once_with(
                 user_id="test_user",
                 company_id="test_company",
-                chatId="test_chat",
-                assistantId="test_assistant",
-                text="New assistant message",
+                assistantId="assistant_message_id",
                 role="ASSISTANT",
+                chatId="test_chat",
+                text="New assistant message",
                 references=[],
                 debugInfo={},
                 completedAt=mocked_datetime,
@@ -199,9 +199,9 @@ class TestChatServiceUnit:
         # Test without update completedAt
         with patch.object(unique_sdk.Message, "create", autospec=True) as mock_create:
             mock_create.return_value = {
-                "id": "new_message",
                 "content": "New assistant message",
                 "role": "assistant",
+                "assistant_message_id": "assistant_message_id",
             }
 
             result = self.service.create_assistant_message(
@@ -217,10 +217,10 @@ class TestChatServiceUnit:
             mock_create.assert_called_once_with(
                 user_id="test_user",
                 company_id="test_company",
-                chatId="test_chat",
-                assistantId="test_assistant",
-                text="New assistant message",
+                assistantId="assistant_message_id",
                 role="ASSISTANT",
+                chatId="test_chat",
+                text="New assistant message",
                 references=[],
                 debugInfo={},
                 completedAt=None,

@@ -35,7 +35,7 @@ class ChatService(BaseService):
         Args:
             debug_info (dict): The new debug information.
         """
-        params = self._construct_message_params(assistant=False, debug_info=debug_info)
+        params = self._construct_message_modify_params(assistant=False, debug_info=debug_info)
         try:
             await unique_sdk.Message.modify_async(**params)
         except Exception as e:
@@ -49,7 +49,7 @@ class ChatService(BaseService):
         Args:
             debug_info (dict): The new debug information.
         """
-        params = self._construct_message_params(assistant=False, debug_info=debug_info)
+        params = self._construct_message_modify_params(assistant=False, debug_info=debug_info)
         try:
             unique_sdk.Message.modify(**params)
         except Exception as e:
@@ -81,7 +81,7 @@ class ChatService(BaseService):
             Exception: If the modification fails.
         """
         try:
-            params = self._construct_message_params(
+            params = self._construct_message_modify_params(
                 assistant=False,
                 content=content,
                 references=references,
@@ -120,7 +120,7 @@ class ChatService(BaseService):
             Exception: If the modification fails.
         """
         try:
-            params = self._construct_message_params(
+            params = self._construct_message_modify_params(
                 assistant=False,
                 content=content,
                 references=references,
@@ -159,7 +159,7 @@ class ChatService(BaseService):
             Exception: If the modification fails.
         """
         try:
-            params = self._construct_message_params(
+            params = self._construct_message_modify_params(
                 assistant=True,
                 content=content,
                 references=references,
@@ -198,7 +198,7 @@ class ChatService(BaseService):
             Exception: If the modification fails.
         """
         try:
-            params = self._construct_message_params(
+            params = self._construct_message_modify_params(
                 assistant=True,
                 content=content,
                 references=references,
@@ -318,8 +318,7 @@ class ChatService(BaseService):
         """
 
         try:
-            params = self._construct_message_params(
-                assistant=True,
+            params = self._construct_message_create_params(
                 content=content,
                 references=references,
                 debug_info=debug_info,
@@ -355,8 +354,7 @@ class ChatService(BaseService):
             Exception: If the creation fails.
         """
         try:
-            params = self._construct_message_params(
-                assistant=True,
+            params = self._construct_message_create_params(
                 content=content,
                 references=references,
                 debug_info=debug_info,
@@ -491,7 +489,7 @@ class ChatService(BaseService):
         last_index = max(0, last_index)
         return messages[last_index:]
 
-    def _construct_message_params(
+    def _construct_message_modify_params(
         self,
         assistant: bool = True,
         content: Optional[str] = None,
@@ -521,6 +519,40 @@ class ChatService(BaseService):
             "user_id": self.event.user_id,
             "company_id": self.event.company_id,
             "id": message_id,
+            "chatId": self.event.payload.chat_id,
+            "text": content,
+            "references": self._map_references(references) if references else [],
+            "debugInfo": debug_info,
+            "completedAt": completed_at_datetime,
+        }
+        return params
+
+
+    def _construct_message_create_params(
+        self,
+        role: ChatMessageRole = ChatMessageRole.ASSISTANT,
+        content: Optional[str] = None,
+        references: Optional[list[ContentReference]] = None,
+        debug_info: Optional[dict] = None,
+        assistantId: Optional[str] = None,
+        set_completed_at: Optional[bool] = False,
+    ):
+        if assistantId:
+            # Assistant ID specified. No need to guess
+            assistantId = assistantId
+        else:
+            assistantId = self.event.payload.assistant_id
+
+        if set_completed_at:
+            completed_at_datetime = _time_utils.get_datetime_now()
+        else:
+            completed_at_datetime = None
+
+        params = {
+            "user_id": self.event.user_id,
+            "company_id": self.event.company_id,
+            "assistantId": assistantId,
+            "role": role,
             "chatId": self.event.payload.chat_id,
             "text": content,
             "references": self._map_references(references) if references else [],
