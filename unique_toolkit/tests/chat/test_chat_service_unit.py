@@ -402,7 +402,7 @@ class TestChatServiceUnit:
         ) as mock_create:
             mock_create.return_value = {
                 "content": "New assistant message",
-                "role": "assistant",
+                "role": "ASSISTANT",
             }
 
             result = await self.service.create_assistant_message_async(
