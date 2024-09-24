@@ -9,7 +9,7 @@ authors = [
     "Pascal Hauri <pascal@unique.ch>",
 ]
 readme = ["README.md", "CHANGELOG.md"]
-license = "MIT"
+license = "Proprietary"
 
 [tool.poetry.dependencies]
 python = "^3.11"
