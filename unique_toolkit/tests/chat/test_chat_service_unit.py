@@ -33,6 +33,58 @@ class TestChatServiceUnit:
         self.mock_get_datetime_now = mock_get_datetime_now
 
     def test_modify_assistant_message(self):
+        # Test with update completedAt
+        with patch.object(unique_sdk.Message, "modify", autospec=True) as mock_modify:
+            mock_modify.return_value = {
+                "id": "test_message",
+                "content": "Modified message",
+                "role": "assistant",
+            }
+
+            references = [
+                ContentReference(
+                    id="doc123",
+                    message_id="message123",
+                    name="Document 1",
+                    sequence_number=1,
+                    source_id="source123",
+                    source="source",
+                    url="http://example.com",
+                )
+            ]
+
+            result = self.service.modify_assistant_message(
+                content="Modified message",
+                message_id="test_assistant_message",
+                references=references,
+                debug_info={},
+                set_completed_at=True,
+            )
+
+            assert isinstance(result, ChatMessage)
+            assert result.content == "Modified message"
+            assert result.role == ChatMessageRole.ASSISTANT
+
+            mock_modify.assert_called_once_with(
+                user_id="test_user",
+                company_id="test_company",
+                id="test_assistant_message",
+                chatId="test_chat",
+                text="Modified message",
+                references=[
+                    {
+                        "name": "Document 1",
+                        "url": "http://example.com",
+                        "sequenceNumber": 1,
+                        "sourceId": "source123",
+                        "source": "source",
+                    }
+                ],
+                debugInfo={},
+                completedAt=mocked_datetime,
+            )
+
+        # Test without update completedAt
         with patch.object(unique_sdk.Message, "modify", autospec=True) as mock_modify:
             mock_modify.return_value = {
                 "id": "test_message",
@@ -79,7 +131,7 @@ class TestChatServiceUnit:
                     }
                 ],
                 debugInfo={},
-                completedAt=mocked_datetime,
+                completedAt=None,
             )
 
     def test_get_history(self):
@@ -113,15 +165,47 @@ class TestChatServiceUnit:
             )
 
     def test_create_assistant_message(self):
+        # Test with update completedAt
         with patch.object(unique_sdk.Message, "create", autospec=True) as mock_create:
             mock_create.return_value = {
-                "id": "new_message",
                 "content": "New assistant message",
                 "role": "assistant",
             }
 
             result = self.service.create_assistant_message(
-                content="New assistant message", references=[], debug_info={}
+                content="New assistant message",
+                references=[],
+                debug_info={},
+                set_completed_at=True,
+            )
+
+            assert isinstance(result, ChatMessage)
+            assert result.content == "New assistant message"
+            assert result.role == ChatMessageRole.ASSISTANT.value
+
+            mock_create.assert_called_once_with(
+                user_id="test_user",
+                company_id="test_company",
+                assistantId="test_assistant",
+                role="ASSISTANT",
+                chatId="test_chat",
+                text="New assistant message",
+                references=[],
+                debugInfo={},
+                completedAt=mocked_datetime,
+            )
+
+        # Test without update completedAt
+        with patch.object(unique_sdk.Message, "create", autospec=True) as mock_create:
+            mock_create.return_value = {
+                "content": "New assistant message",
+                "role": "assistant",
+            }
+
+            result = self.service.create_assistant_message(
+                content="New assistant message",
+                references=[],
+                debug_info={},
             )
 
             assert isinstance(result, ChatMessage)
@@ -131,12 +215,13 @@ class TestChatServiceUnit:
             mock_create.assert_called_once_with(
                 user_id="test_user",
                 company_id="test_company",
-                chatId="test_chat",
                 assistantId="test_assistant",
-                text="New assistant message",
                 role="ASSISTANT",
+                chatId="test_chat",
+                text="New assistant message",
                 references=[],
                 debugInfo={},
+                completedAt=None,
             )
 
     def test_error_handling_modify_message(self):
@@ -170,6 +255,60 @@ class TestChatServiceUnit:
 
     @pytest.mark.asyncio
     async def test_modify_assistant_message_async(self):
+        # Test with update completedAt
+        with patch.object(
+            unique_sdk.Message, "modify_async", autospec=True
+        ) as mock_modify:
+            mock_modify.return_value = {
+                "id": "test_message",
+                "content": "Modified message",
+                "role": "assistant",
+            }
+
+            references = [
+                ContentReference(
+                    id="doc123",
+                    message_id="message123",
+                    name="Document 1",
+                    sequence_number=1,
+                    source_id="source123",
+                    source="source",
+                    url="http://example.com",
+                )
+            ]
+
+            result = await self.service.modify_assistant_message_async(
+                content="Modified message",
+                message_id="test_assistant_message",
+                references=references,
+                debug_info={},
+                set_completed_at=True,
+            )
+
+            assert isinstance(result, ChatMessage)
+            assert result.content == "Modified message"
+            assert result.role == ChatMessageRole.ASSISTANT
+
+            mock_modify.assert_called_once_with(
+                user_id="test_user",
+                company_id="test_company",
+                id="test_assistant_message",
+                chatId="test_chat",
+                text="Modified message",
+                references=[
+                    {
+                        "name": "Document 1",
+                        "url": "http://example.com",
+                        "sequenceNumber": 1,
+                        "sourceId": "source123",
+                        "source": "source",
+                    }
+                ],
+                debugInfo={},
+                completedAt=mocked_datetime,
+            )
+
+        # Test without update completedAt
         with patch.object(
             unique_sdk.Message, "modify_async", autospec=True
         ) as mock_modify:
@@ -218,7 +357,7 @@ class TestChatServiceUnit:
                     }
                 ],
                 debugInfo={},
-                completedAt=mocked_datetime,
+                completedAt=None,
             )
 
     @pytest.mark.asyncio
@@ -257,11 +396,43 @@ class TestChatServiceUnit:
 
     @pytest.mark.asyncio
     async def test_create_assistant_message_async(self):
+        # Test with update completedAt
         with patch.object(
             unique_sdk.Message, "create_async", autospec=True
         ) as mock_create:
             mock_create.return_value = {
-                "id": "new_message",
+                "content": "New assistant message",
+                "role": "ASSISTANT",
+            }
+
+            result = await self.service.create_assistant_message_async(
+                content="New assistant message",
+                references=[],
+                debug_info={},
+                set_completed_at=True,
+            )
+
+            assert isinstance(result, ChatMessage)
+            assert result.content == "New assistant message"
+            assert result.role == ChatMessageRole.ASSISTANT.value
+
+            mock_create.assert_called_once_with(
+                user_id="test_user",
+                company_id="test_company",
+                chatId="test_chat",
+                assistantId="test_assistant",
+                text="New assistant message",
+                role="ASSISTANT",
+                references=[],
+                debugInfo={},
+                completedAt=mocked_datetime,
+            )
+
+        # Test without update completedAt
+        with patch.object(
+            unique_sdk.Message, "create_async", autospec=True
+        ) as mock_create:
+            mock_create.return_value = {
                 "content": "New assistant message",
                 "role": "assistant",
             }
@@ -283,6 +454,7 @@ class TestChatServiceUnit:
                 role="ASSISTANT",
                 references=[],
                 debugInfo={},
+                completedAt=None,
             )
 
     @pytest.mark.asyncio
