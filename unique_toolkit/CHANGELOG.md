@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.24] - 2024-09-25
+- Add `originalText` to `_construct_message_modify_params` and `_construct_message_create_params`. This addition makes sure that the `originalText` on the database is populated with the `text`
+
 ## [0.5.23] - 2024-09-23
 - Add `set_completed_at` as a boolen parameter to the following functions: `modify_user_message`, `modify_user_message_async`, `modify_assistant_message`, `modify_assistant_message_async`, `create_assistant_message` and `create_assistant_message`. This parameter allows the `completedAt` timestamp on the database to be updated when set to True.
 
