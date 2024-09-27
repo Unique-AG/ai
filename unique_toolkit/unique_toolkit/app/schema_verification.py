@@ -2,7 +2,10 @@ import json
 from jsonschema import validate, ValidationError
 from typing import Any, Dict
 
-def validate_event_payload(event_payload: Dict[str, Any], schema_file_path: str) -> bool:
+
+def validate_event_payload(
+    event_payload: Dict[str, Any], schema_file_path: str
+) -> bool:
     """
     Validate the given event payload against a JSON schema.
 
@@ -17,7 +20,7 @@ def validate_event_payload(event_payload: Dict[str, Any], schema_file_path: str)
         ValidationError: If the payload does not conform to the JSON schema.
     """
     # Load the JSON schema from the provided file path
-    with open(schema_file_path, 'r') as schema_file:
+    with open(schema_file_path, "r") as schema_file:
         schema = json.load(schema_file)
 
     # Validate the payload against the schema
@@ -28,6 +31,7 @@ def validate_event_payload(event_payload: Dict[str, Any], schema_file_path: str)
     except ValidationError as e:
         print(f"Payload is invalid: {e.message}")
         raise
+
 
 # Example usage
 if __name__ == "__main__":
@@ -41,16 +45,16 @@ if __name__ == "__main__":
             "id": "user_msg_789",
             "text": "hello",
             "createdAt": "2023-09-26T00:00:00Z",
-            "language": "en"
+            "language": "en",
         },
         "assistantMessage": {
             "id": "assistant_msg_101",
-            "createdAt": "2023-09-26T00:00:00Z"
-        }
+            "createdAt": "2023-09-26T00:00:00Z",
+        },
     }
 
     # Validate the payload against the schema located at 'scehma.json'
     try:
-        validate_event_payload(event_payload, 'schema.json')
+        validate_event_payload(event_payload, "schema.json")
     except ValidationError:
         pass
