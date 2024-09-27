@@ -3,7 +3,14 @@ from enum import StrEnum
 from typing import Any, Optional, Self
 
 from humps import camelize
-from pydantic import BaseModel, ConfigDict, RootModel, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    RootModel,
+    field_validator,
+    model_validator,
+)
 
 # set config to convert camelCase to snake_case
 model_config = ConfigDict(
@@ -47,6 +54,7 @@ class LanguageModelMessage(BaseModel):
     content: Optional[str | list[dict]] = None
     name: Optional[str] = None
     tool_calls: Optional[list[LanguageModelFunctionCall]] = None
+    tool_call_id: Optional[str] = Field(None, serialization_alias="toolCallId")
 
 
 class LanguageModelSystemMessage(LanguageModelMessage):

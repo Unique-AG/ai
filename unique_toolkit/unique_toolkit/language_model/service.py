@@ -197,7 +197,7 @@ class LanguageModelService(BaseService):
         """
         options = self._add_tools_to_options({}, tools)
         search_context = self._to_search_context(content_chunks)
-        messages = messages.model_dump(exclude_none=True)
+        messages = messages.model_dump(exclude_none=True, by_alias=True)
         model = (
             model_name.name if isinstance(model_name, LanguageModelName) else model_name
         )
