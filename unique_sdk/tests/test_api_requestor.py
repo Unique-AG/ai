@@ -89,11 +89,13 @@ def test_api_encode_with_complex_data():
 
 
 # Test APIRequestor initialization
-def test_api_requestor_initialization():
+@patch("unique_sdk._http_client.requests")
+def test_api_requestor_initialization(mock_requests):
     user_id = "test_user"
     company_id = "test_company"
     api_key = "test_key"
     app_id = "test_app"
+    mock_requests.return_value = "response"
 
     requestor = APIRequestor(
         user_id=user_id, company_id=company_id, key=api_key, app_id=app_id
@@ -107,12 +109,14 @@ def test_api_requestor_initialization():
 
 
 # Test request_headers in APIRequestor
-def test_request_headers():
+@patch("unique_sdk._http_client.requests")
+def test_request_headers(mock_requests):
     user_id = "test_user"
     company_id = "test_company"
     api_key = "test_key"
     app_id = "test_app"
     method = "post"
+    mock_requests.return_value = "response"
 
     requestor = APIRequestor(
         user_id=user_id, company_id=company_id, key=api_key, app_id=app_id
@@ -129,12 +133,14 @@ def test_request_headers():
 
 
 # Test _get_request_args method in APIRequestor
+@patch("unique_sdk._http_client.requests")
 @patch("unique_sdk._api_requestor._api_encode", return_value=[("key", "value")])
 @patch(
     "unique_sdk._api_requestor._build_api_url",
     return_value="https://api.example.com/resource?key=value",
 )
-def test_get_request_args(mock_build_api_url, mock_api_encode):
+def test_get_request_args(mock_build_api_url, mock_api_encode, mock_requests):
+    mock_requests.return_value = "response"
     requestor = APIRequestor(
         user_id="user_id", company_id="company_id", key="api_key", app_id="app_id"
     )
@@ -154,7 +160,9 @@ def test_get_request_args(mock_build_api_url, mock_api_encode):
 
 
 # Test handling of invalid request method
-def test_get_request_args_invalid_method():
+@patch("unique_sdk._http_client.requests")
+def test_get_request_args_invalid_method(mock_requests):
+    mock_requests.return_value = "response"
     requestor = APIRequestor(
         user_id="user_id", company_id="company_id", key="api_key", app_id="app_id"
     )
@@ -163,9 +171,10 @@ def test_get_request_args_invalid_method():
         requestor._get_request_args("invalid_method", "/resource", {})
 
 
-@pytest.mark.unit
-def test_request_raw():
+@patch("unique_sdk._http_client.requests")
+def test_request_raw(mock_requests):
     # Set up the mock return value for the client's request
+    mock_requests.return_value = "response"
     _client = MagicMock()
     _client.name = "request_name"
     _client.request.return_value = ("response_body", 200, {"Request-Id": "req_id"})
