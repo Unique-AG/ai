@@ -137,7 +137,6 @@ def test_requests_client_no_session_to_close(mock_requests, mock_threading):
 
 
 # Testing HTTPXClient
-@pytest.mark.unit
 @pytest.mark.asyncio
 async def test_httpx_client_async_request(mock_httpx, mock_anyio):
     mock_response = Mock()
