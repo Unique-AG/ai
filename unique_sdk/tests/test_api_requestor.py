@@ -14,10 +14,12 @@ from unique_sdk._api_requestor import (
     _encode_nested_dict,
 )
 
+
 @pytest.fixture
 def mock_requests():
     with patch("unique_sdk._http_client.requests") as mock_requests:
         yield mock_requests
+
 
 # Test _encode_datetime
 @pytest.mark.parametrize(

@@ -51,7 +51,9 @@ def mock_threading():
 
 
 # Testing new_default_http_client
-def test_new_default_http_client(mock_anyio):
+@patch("unique_sdk._http_client.requests")
+def test_new_default_http_client(mock_requests, mock_anyio):
+    mock_requests.return_value = "check"
     mock_anyio.return_value = True
     client = new_default_http_client()
     assert isinstance(client, RequestsClient)
