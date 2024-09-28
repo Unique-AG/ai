@@ -64,7 +64,6 @@ def test_class_url_on_subclass():
     assert MessageResource.class_url() == expected_url
 
 
-@pytest.mark.unit
 @pytest.mark.parametrize("method", ["get", "post", "delete"])
 @patch.object(MessageResource, "refresh_from")
 def test_request_and_refresh_sync(refresh_from_mock, mock_unique_object, method):
