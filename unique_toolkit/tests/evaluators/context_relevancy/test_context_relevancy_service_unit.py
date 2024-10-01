@@ -15,7 +15,6 @@ from unique_toolkit.evaluators.schemas import (
 
 
 class TestContextRelevancyEvaluator:
-    @pytest.fixture(autouse=True)
     def setup(self):
         self.event = MagicMock(spec=Event)
         self.event.company_id = "test_company_id"

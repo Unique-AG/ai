@@ -16,7 +16,6 @@ from unique_toolkit.language_model.schemas import LanguageModelMessages
 
 
 class TestContextRelevancyUtils:
-    @pytest.fixture(autouse=True)
     def setup(self):
         self.mock_input = MagicMock(spec=EvaluationMetricInput)
         self.mock_input.context_texts = ["Some context"]
@@ -45,42 +44,38 @@ class TestContextRelevancyUtils:
             )
 
     @pytest.mark.asyncio
-    async def test_check_context_relevancy_async_success(self):
+    @patch("unique_toolkit.evaluators.context_relevancy.utils.parse_eval_metric_result")
+    @patch(
+        "unique_toolkit.language_model.service.LanguageModelService.complete_async_util"
+    )
+    @patch("unique_toolkit.evaluators.context_relevancy.utils._get_msgs")
+    async def test_check_context_relevancy_async_success(
+        self, mock_get_msgs, mock_complete_async_util, mock_parse_result
+    ):
         self.mock_input.validate_required_fields.return_value = None
         self.mock_input.context_texts = ["Some context"]
         self.mock_input.input_text = "Some input"
         self.mock_input.get_joined_context_texts.return_value = "Joined context"
 
-        with (
-            patch(
-                "unique_toolkit.evaluators.context_relevancy.utils._get_msgs"
-            ) as mock_get_msgs,
-            patch(
-                "unique_toolkit.language_model.service.LanguageModelService.complete_async_util"
-            ) as mock_complete_async_util,
-            patch(
-                "unique_toolkit.evaluators.context_relevancy.utils.parse_eval_metric_result"
-            ) as mock_parse_result,
-        ):
-            mock_get_msgs.return_value = MagicMock(spec=LanguageModelMessages)
-            mock_complete_async_util.return_value = AsyncMock()
-            mock_complete_async_util.return_value.choices = [MagicMock()]
-            mock_complete_async_util.return_value.choices[
-                0
-            ].message.content = "Test content"
-            mock_parse_result.return_value = MagicMock(spec=EvaluationMetricResult)
+        mock_get_msgs.return_value = MagicMock(spec=LanguageModelMessages)
+        mock_complete_async_util.return_value = AsyncMock()
+        mock_complete_async_util.return_value.choices = [MagicMock()]
+        mock_complete_async_util.return_value.choices[
+            0
+        ].message.content = "Test content"
+        mock_parse_result.return_value = MagicMock(spec=EvaluationMetricResult)
 
-            result = await check_context_relevancy_async(
-                self.company_id, self.mock_input, self.mock_config, self.mock_logger
-            )
+        result = await check_context_relevancy_async(
+            self.company_id, self.mock_input, self.mock_config, self.mock_logger
+        )
 
-            assert result is not None
-            self.mock_input.validate_required_fields.assert_called_once()
-            mock_get_msgs.assert_called_once_with(self.mock_input, self.mock_config)
-            mock_complete_async_util.assert_called_once()
-            mock_parse_result.assert_called_once_with(
-                "Test content", EvaluationMetricName.CONTEXT_RELEVANCY
-            )
+        assert result is not None
+        self.mock_input.validate_required_fields.assert_called_once()
+        mock_get_msgs.assert_called_once_with(self.mock_input, self.mock_config)
+        mock_complete_async_util.assert_called_once()
+        mock_parse_result.assert_called_once_with(
+            "Test content", EvaluationMetricName.CONTEXT_RELEVANCY
+        )
 
     @pytest.mark.asyncio
     async def test_check_context_relevancy_async_missing_fields(self):
@@ -95,82 +90,74 @@ class TestContextRelevancyUtils:
             )
 
     @pytest.mark.asyncio
-    async def test_check_context_relevancy_async_empty_result(self):
+    @patch(
+        "unique_toolkit.language_model.service.LanguageModelService.complete_async_util"
+    )
+    @patch("unique_toolkit.evaluators.context_relevancy.utils._get_msgs")
+    async def test_check_context_relevancy_async_empty_result(
+        self, mock_get_msgs, mock_complete_async_util
+    ):
         self.mock_input.validate_required_fields.return_value = None
         self.mock_input.context_texts = ["Some context"]
 
-        with (
-            patch(
-                "unique_toolkit.evaluators.context_relevancy.utils._get_msgs"
-            ) as mock_get_msgs,
-            patch(
-                "unique_toolkit.language_model.service.LanguageModelService.complete_async_util"
-            ) as mock_complete_async_util,
+        mock_get_msgs.return_value = MagicMock(spec=LanguageModelMessages)
+        mock_complete_async_util.return_value = AsyncMock()
+        mock_complete_async_util.return_value.choices = [MagicMock()]
+        mock_complete_async_util.return_value.choices[0].message.content = None
+
+        with pytest.raises(
+            EvaluatorException,
+            match="Context relevancy evaluation did not return a result.",
         ):
-            mock_get_msgs.return_value = MagicMock(spec=LanguageModelMessages)
-            mock_complete_async_util.return_value = AsyncMock()
-            mock_complete_async_util.return_value.choices = [MagicMock()]
-            mock_complete_async_util.return_value.choices[0].message.content = None
-
-            with pytest.raises(
-                EvaluatorException,
-                match="Context relevancy evaluation did not return a result.",
-            ):
-                await check_context_relevancy_async(
-                    self.company_id, self.mock_input, self.mock_config, self.mock_logger
-                )
-
-    @pytest.mark.asyncio
-    async def test_check_context_relevancy_async_exception(self):
-        self.mock_input.validate_required_fields.return_value = None
-        self.mock_input.context_texts = ["Some context"]
-
-        with (
-            patch(
-                "unique_toolkit.evaluators.context_relevancy.utils._get_msgs"
-            ) as mock_get_msgs,
-            patch(
-                "unique_toolkit.language_model.service.LanguageModelService.complete_async_util"
-            ) as mock_complete_async_util,
-        ):
-            mock_get_msgs.return_value = MagicMock(spec=LanguageModelMessages)
-            mock_complete_async_util.side_effect = Exception("Test exception")
-
-            with pytest.raises(
-                EvaluatorException,
-                match="Error occurred during context relevancy metric analysis",
-            ):
-                await check_context_relevancy_async(
-                    self.company_id, self.mock_input, self.mock_config, self.mock_logger
-                )
-
-    @pytest.mark.asyncio
-    async def test_check_context_relevancy_async_logging(self):
-        self.mock_input.validate_required_fields.return_value = None
-        self.mock_input.context_texts = ["Some context"]
-
-        with (
-            patch(
-                "unique_toolkit.evaluators.context_relevancy.utils._get_msgs"
-            ) as mock_get_msgs,
-            patch(
-                "unique_toolkit.language_model.service.LanguageModelService.complete_async_util"
-            ) as mock_complete_async_util,
-            patch(
-                "unique_toolkit.evaluators.context_relevancy.utils.parse_eval_metric_result"
-            ),
-        ):
-            mock_get_msgs.return_value = MagicMock(spec=LanguageModelMessages)
-            mock_complete_async_util.return_value = AsyncMock()
-            mock_complete_async_util.return_value.choices = [MagicMock()]
-            mock_complete_async_util.return_value.choices[
-                0
-            ].message.content = "Test content"
-
             await check_context_relevancy_async(
                 self.company_id, self.mock_input, self.mock_config, self.mock_logger
             )
 
-            self.mock_logger.info.assert_called_once_with(
-                "Analyzing context relevancy with test_model."
+    @pytest.mark.asyncio
+    @patch(
+        "unique_toolkit.language_model.service.LanguageModelService.complete_async_util"
+    )
+    @patch("unique_toolkit.evaluators.context_relevancy.utils._get_msgs")
+    async def test_check_context_relevancy_async_exception(
+        self, mock_get_msgs, mock_complete_async_util
+    ):
+        self.mock_input.validate_required_fields.return_value = None
+        self.mock_input.context_texts = ["Some context"]
+
+        mock_get_msgs.return_value = MagicMock(spec=LanguageModelMessages)
+        mock_complete_async_util.side_effect = Exception("Test exception")
+
+        with pytest.raises(
+            EvaluatorException,
+            match="Error occurred during context relevancy metric analysis",
+        ):
+            await check_context_relevancy_async(
+                self.company_id, self.mock_input, self.mock_config, self.mock_logger
             )
+
+    @pytest.mark.asyncio
+    @patch("unique_toolkit.evaluators.context_relevancy.utils.parse_eval_metric_result")
+    @patch(
+        "unique_toolkit.language_model.service.LanguageModelService.complete_async_util"
+    )
+    @patch("unique_toolkit.evaluators.context_relevancy.utils._get_msgs")
+    async def test_check_context_relevancy_async_logging(
+        self, mock_get_msgs, mock_complete_async_util, mock_parse_result
+    ):
+        self.mock_input.validate_required_fields.return_value = None
+        self.mock_input.context_texts = ["Some context"]
+
+        mock_get_msgs.return_value = MagicMock(spec=LanguageModelMessages)
+        mock_complete_async_util.return_value = AsyncMock()
+        mock_complete_async_util.return_value.choices = [MagicMock()]
+        mock_complete_async_util.return_value.choices[
+            0
+        ].message.content = "Test content"
+
+        await check_context_relevancy_async(
+            self.company_id, self.mock_input, self.mock_config, self.mock_logger
+        )
+
+        self.mock_logger.info.assert_called_once_with(
+            "Analyzing context relevancy with test_model."
+        )
