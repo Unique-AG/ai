@@ -70,6 +70,13 @@ async def check_context_relevancy(
 
     input.validate_required_fields(context_relevancy_required_input_fields)
 
+    if input.context_texts and len(input.context_texts) == 0:
+        error_message = "No context texts provided."
+        raise EvaluatorException(
+            user_message=error_message,
+            error_message=error_message,
+        )
+
     try:
         msgs = _get_msgs(input, config)
         result = await LanguageModelService.complete_async_util(
@@ -113,9 +120,7 @@ def _get_msgs(
 
     user_msg_templ = Template(_get_user_prompt(config))
     user_msg_content = user_msg_templ.substitute(
-        input_text=input.input_text,
-        contexts_text=input.get_joined_context_texts(tag_name="reference"),
-        output_text=input.output_text,
+        input_text=input.input_text, contexts_text=input.get_joined_context_texts()
     )
     user_msg = LanguageModelUserMessage(content=user_msg_content)
     return LanguageModelMessages([system_msg, user_msg])

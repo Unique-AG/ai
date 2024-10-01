@@ -21,7 +21,7 @@ class HallucinationEvaluator:
         self.event = event
         self.logger = logger
 
-    async def analyze(
+    async def run(
         self,
         input: EvaluationMetricInput,
         config: EvaluationMetricConfig = hallucination_metric_default_config,

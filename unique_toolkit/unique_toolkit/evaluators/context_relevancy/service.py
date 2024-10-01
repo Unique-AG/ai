@@ -2,13 +2,12 @@ from logging import Logger
 
 from unique_toolkit.app.schemas import Event
 from unique_toolkit.evaluators.config import EvaluationMetricConfig
+from unique_toolkit.evaluators.context_relevancy.constants import default_config
+from unique_toolkit.evaluators.context_relevancy.utils import check_context_relevancy
 from unique_toolkit.evaluators.schemas import (
     EvaluationMetricInput,
     EvaluationMetricResult,
 )
-
-from .constants import default_config
-from .utils import check_context_relevancy
 
 
 class ContextRelevancyEvaluator:
@@ -20,7 +19,7 @@ class ContextRelevancyEvaluator:
         self.event = event
         self.logger = logger
 
-    async def analyze(
+    async def run(
         self,
         input: EvaluationMetricInput,
         config: EvaluationMetricConfig = default_config,
