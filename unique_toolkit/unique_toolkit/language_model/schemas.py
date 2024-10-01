@@ -1,4 +1,5 @@
 import json
+from copy import deepcopy
 from enum import StrEnum
 from typing import Any, Optional, Self
 
@@ -30,9 +31,9 @@ class LanguageModelMessageRole(StrEnum):
 class LanguageModelFunction(BaseModel):
     model_config = model_config
 
-    id: Optional[str] = None
+    id: str
     name: str
-    arguments: Optional[dict[str, list | dict | str | int | float | bool]] = None  # type: ignore
+    arguments: Optional[dict[str, list | dict | str | int | float | bool] | str] = None  # type: ignore
 
     @field_validator("arguments", mode="before")
     def set_arguments(cls, value):
@@ -46,14 +47,35 @@ class LanguageModelFunctionCall(BaseModel):
     type: Optional[str] = None
     function: LanguageModelFunction
 
+    @staticmethod
+    def create_assistant_message_from_tool_calls(
+        tool_calls: list[LanguageModelFunction],
+    ):
+        # tool_calls variable is muatable. This avoids affecting the original tool_calls list
+        copy_tool_calls = deepcopy(tool_calls)
+
+        for tool_call in copy_tool_calls:
+            if isinstance(tool_call.arguments, dict):
+                tool_call.arguments = json.dumps(tool_call.arguments)
+
+        assistant_message = LanguageModelAssistantMessage(
+            content="",
+            tool_calls=[
+                LanguageModelFunctionCall(
+                    id=tool_call.id,
+                    type="function",
+                    function=tool_call,
+                )
+                for tool_call in copy_tool_calls
+            ],
+        )
+        return assistant_message
+
 
 class LanguageModelMessage(BaseModel):
     model_config = model_config
-
     role: LanguageModelMessageRole
     content: Optional[str | list[dict]] = None
-    name: Optional[str] = None
-    tool_calls: Optional[list[LanguageModelFunctionCall]] = None
 
 
 class LanguageModelSystemMessage(LanguageModelMessage):
@@ -74,6 +96,7 @@ class LanguageModelUserMessage(LanguageModelMessage):
 
 class LanguageModelAssistantMessage(LanguageModelMessage):
     role: LanguageModelMessageRole = LanguageModelMessageRole.ASSISTANT
+    tool_calls: Optional[list[LanguageModelFunctionCall]] = None
 
     @field_validator("role", mode="before")
     def set_role(cls, value):
@@ -82,6 +105,8 @@ class LanguageModelAssistantMessage(LanguageModelMessage):
 
 class LanguageModelToolMessage(LanguageModelMessage):
     role: LanguageModelMessageRole = LanguageModelMessageRole.TOOL
+    name: str
+    tool_call_id: str = Field(serialization_alias="toolCallId")
 
     @field_validator("role", mode="before")
     def set_role(cls, value):
@@ -89,7 +114,13 @@ class LanguageModelToolMessage(LanguageModelMessage):
 
 
 class LanguageModelMessages(RootModel):
-    root: list[LanguageModelMessage]
+    root: list[
+        LanguageModelMessage
+        | LanguageModelToolMessage
+        | LanguageModelAssistantMessage
+        | LanguageModelSystemMessage
+        | LanguageModelUserMessage
+    ]
 
     def __iter__(self):
         return iter(self.root)

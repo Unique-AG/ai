@@ -127,7 +127,7 @@ class LanguageModelService(BaseService):
             )
             return LanguageModelResponse(**response)
         except Exception as e:
-            logger.error(f"Error completing: {e}")
+            logger.error(f"Error completing: {e}")  # type: ignore
             raise e
 
     async def complete_async(
@@ -197,7 +197,7 @@ class LanguageModelService(BaseService):
         """
         options = self._add_tools_to_options({}, tools)
         search_context = self._to_search_context(content_chunks)
-        messages = messages.model_dump(exclude_none=True)
+        messages = messages.model_dump(exclude_none=True, by_alias=True)
         model = (
             model_name.name if isinstance(model_name, LanguageModelName) else model_name
         )
@@ -258,7 +258,9 @@ class LanguageModelService(BaseService):
 
         options = self._add_tools_to_options({}, tools)
         search_context = self._to_search_context(content_chunks)
-        messages = messages.model_dump(exclude_none=True, exclude=["tool_calls"])
+        messages = messages.model_dump(
+            exclude_none=True, by_alias=True, exclude=["tool_calls"]
+        )
         model = (
             model_name.name if isinstance(model_name, LanguageModelName) else model_name
         )
