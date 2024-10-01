@@ -7,7 +7,7 @@ from unique_toolkit.evaluators.config import (
 from unique_toolkit.evaluators.hallucination.constants import (
     hallucination_metric_default_config,
 )
-from unique_toolkit.evaluators.hallucination.utils import check_hallucination
+from unique_toolkit.evaluators.hallucination.utils import check_hallucination_async
 from unique_toolkit.evaluators.schemas import (
     EvaluationMetricInput,
     EvaluationMetricResult,
@@ -36,7 +36,7 @@ class HallucinationEvaluator:
         If no contexts or history are referenced in the generated output, the method verifies
         that the output does not contain any relevant information to answer the question.
 
-        This method calls `check_hallucination` to perform the actual analysis. The `check_hallucination`
+        This method calls `check_hallucination_async` to perform the actual analysis. The `check_hallucination_async`
         function handles the evaluation using the company ID from the event, the provided input, and the configuration.
 
         Args:
@@ -53,6 +53,6 @@ class HallucinationEvaluator:
             self.logger.info("Hallucination metric is not enabled.")
             return None
 
-        return await check_hallucination(
+        return await check_hallucination_async(
             company_id=self.event.company_id, input=input, config=config
         )

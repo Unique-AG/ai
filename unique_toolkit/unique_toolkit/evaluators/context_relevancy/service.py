@@ -3,7 +3,9 @@ from logging import Logger
 from unique_toolkit.app.schemas import Event
 from unique_toolkit.evaluators.config import EvaluationMetricConfig
 from unique_toolkit.evaluators.context_relevancy.constants import default_config
-from unique_toolkit.evaluators.context_relevancy.utils import check_context_relevancy
+from unique_toolkit.evaluators.context_relevancy.utils import (
+    check_context_relevancy_async,
+)
 from unique_toolkit.evaluators.schemas import (
     EvaluationMetricInput,
     EvaluationMetricResult,
@@ -43,7 +45,7 @@ class ContextRelevancyEvaluator:
             self.logger.info("Context relevancy metric is not enabled.")
             return None
 
-        return await check_context_relevancy(
+        return await check_context_relevancy_async(
             company_id=self.event.company_id,
             input=input,
             config=config,

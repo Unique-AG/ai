@@ -30,14 +30,14 @@ class TestHallucinationEvaluator:
         expected_result = MagicMock(spec=EvaluationMetricResult)
 
         with patch(
-            "unique_toolkit.evaluators.hallucination.service.check_hallucination"
-        ) as mock_check_hallucination:
-            mock_check_hallucination.return_value = expected_result
+            "unique_toolkit.evaluators.hallucination.service.check_hallucination_async"
+        ) as mock_check_hallucination_async:
+            mock_check_hallucination_async.return_value = expected_result
 
-            result = await self.evaluator.analyze(self.mock_input, self.mock_config)
+            result = await self.evaluator.run(self.mock_input, self.mock_config)
 
             assert result == expected_result
-            mock_check_hallucination.assert_called_once_with(
+            mock_check_hallucination_async.assert_called_once_with(
                 company_id=self.event.company_id,
                 input=self.mock_input,
                 config=self.mock_config,
@@ -47,7 +47,7 @@ class TestHallucinationEvaluator:
     async def test_analyze_metric_disabled(self):
         self.mock_config.enabled = False
 
-        result = await self.evaluator.analyze(self.mock_input, self.mock_config)
+        result = await self.evaluator.run(self.mock_input, self.mock_config)
 
         assert result is None
         self.logger.info.assert_called_once_with("Hallucination metric is not enabled.")
@@ -62,14 +62,14 @@ class TestHallucinationEvaluator:
 
         try:
             with patch(
-                "unique_toolkit.evaluators.hallucination.service.check_hallucination"
-            ) as mock_check_hallucination:
-                mock_check_hallucination.return_value = expected_result
+                "unique_toolkit.evaluators.hallucination.service.check_hallucination_async"
+            ) as mock_check_hallucination_async:
+                mock_check_hallucination_async.return_value = expected_result
 
-                result = await self.evaluator.analyze(self.mock_input)
+                result = await self.evaluator.run(self.mock_input)
 
                 assert result == expected_result
-                mock_check_hallucination.assert_called_once_with(
+                mock_check_hallucination_async.assert_called_once_with(
                     company_id=self.event.company_id,
                     input=self.mock_input,
                     config=hallucination_metric_default_config,
@@ -83,9 +83,9 @@ class TestHallucinationEvaluator:
         self.mock_config.enabled = True
 
         with patch(
-            "unique_toolkit.evaluators.hallucination.service.check_hallucination"
-        ) as mock_check_hallucination:
-            mock_check_hallucination.side_effect = Exception("Test exception")
+            "unique_toolkit.evaluators.hallucination.service.check_hallucination_async"
+        ) as mock_check_hallucination_async:
+            mock_check_hallucination_async.side_effect = Exception("Test exception")
 
             with pytest.raises(Exception, match="Test exception"):
-                await self.evaluator.analyze(self.mock_input, self.mock_config)
+                await self.evaluator.run(self.mock_input, self.mock_config)

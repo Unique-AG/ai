@@ -4,6 +4,15 @@ from string import Template
 from unique_toolkit.evaluators.config import (
     EvaluationMetricConfig,
 )
+from unique_toolkit.evaluators.context_relevancy.constants import (
+    SYSTEM_MSG_KEY,
+    USER_MSG_KEY,
+    context_relevancy_required_input_fields,
+)
+from unique_toolkit.evaluators.context_relevancy.prompts import (
+    CONTEXT_RELEVANCY_METRIC_SYSTEM_MSG,
+    CONTEXT_RELEVANCY_METRIC_USER_MSG,
+)
 from unique_toolkit.evaluators.exception import EvaluatorException
 from unique_toolkit.evaluators.output_parser import (
     parse_eval_metric_result,
@@ -20,20 +29,10 @@ from unique_toolkit.language_model.schemas import (
 )
 from unique_toolkit.language_model.service import LanguageModelService
 
-from .constants import (
-    SYSTEM_MSG_KEY,
-    USER_MSG_KEY,
-    context_relevancy_required_input_fields,
-)
-from .prompts import (
-    CONTEXT_RELEVANCY_METRIC_SYSTEM_MSG,
-    CONTEXT_RELEVANCY_METRIC_USER_MSG,
-)
-
 logger = logging.getLogger(__name__)
 
 
-async def check_context_relevancy(
+async def check_context_relevancy_async(
     company_id: str,
     input: EvaluationMetricInput,
     config: EvaluationMetricConfig,

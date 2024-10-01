@@ -1,14 +1,13 @@
 from unique_toolkit.evaluators.config import EvaluationMetricConfig
+from unique_toolkit.evaluators.context_relevancy.prompts import (
+    CONTEXT_RELEVANCY_METRIC_SYSTEM_MSG,
+    CONTEXT_RELEVANCY_METRIC_USER_MSG,
+)
 from unique_toolkit.evaluators.schemas import (
     EvaluationMetricName,
 )
 from unique_toolkit.language_model.infos import LanguageModel
 from unique_toolkit.language_model.service import LanguageModelName
-
-from .prompts import (
-    CONTEXT_RELEVANCY_METRIC_SYSTEM_MSG,
-    CONTEXT_RELEVANCY_METRIC_USER_MSG,
-)
 
 SYSTEM_MSG_KEY = "systemPrompt"
 USER_MSG_KEY = "userPrompt"

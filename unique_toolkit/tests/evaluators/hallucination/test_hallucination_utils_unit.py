@@ -4,7 +4,7 @@ import pytest
 
 from unique_toolkit.evaluators.config import EvaluationMetricConfig
 from unique_toolkit.evaluators.exception import EvaluatorException
-from unique_toolkit.evaluators.hallucination.utils import check_hallucination
+from unique_toolkit.evaluators.hallucination.utils import check_hallucination_async
 from unique_toolkit.evaluators.schemas import (
     EvaluationMetricInput,
     EvaluationMetricName,
@@ -24,7 +24,7 @@ class TestHallucinationUtils:
         self.company_id = "test_company"
 
     @pytest.mark.asyncio
-    async def test_check_hallucination_success(self):
+    async def test_check_hallucination_async_success(self):
         self.mock_input.validate_required_fields.return_value = None
 
         with (
@@ -46,7 +46,7 @@ class TestHallucinationUtils:
             ].message.content = "Test content"
             mock_parse_result.return_value = MagicMock(spec=EvaluationMetricResult)
 
-            result = await check_hallucination(
+            result = await check_hallucination_async(
                 self.company_id, self.mock_input, self.mock_config, self.mock_logger
             )
 
@@ -61,19 +61,19 @@ class TestHallucinationUtils:
             )
 
     @pytest.mark.asyncio
-    async def test_check_hallucination_missing_fields(self):
+    async def test_check_hallucination_async_missing_fields(self):
         message = "Missing required fields"
         self.mock_input.validate_required_fields.side_effect = EvaluatorException(
             error_message=message, user_message=message
         )
 
         with pytest.raises(EvaluatorException, match="Missing required fields"):
-            await check_hallucination(
+            await check_hallucination_async(
                 self.company_id, self.mock_input, self.mock_config, self.mock_logger
             )
 
     @pytest.mark.asyncio
-    async def test_check_hallucination_empty_result(self):
+    async def test_check_hallucination_async_empty_result(self):
         self.mock_input.validate_required_fields.return_value = None
 
         with (
@@ -93,12 +93,12 @@ class TestHallucinationUtils:
                 EvaluatorException,
                 match="Hallucination evaluation did not return a result.",
             ):
-                await check_hallucination(
+                await check_hallucination_async(
                     self.company_id, self.mock_input, self.mock_config, self.mock_logger
                 )
 
     @pytest.mark.asyncio
-    async def test_check_hallucination_exception(self):
+    async def test_check_hallucination_async_exception(self):
         self.mock_input.validate_required_fields.return_value = None
 
         with (
@@ -116,12 +116,12 @@ class TestHallucinationUtils:
                 EvaluatorException,
                 match="Error occurred during hallucination metric analysis",
             ):
-                await check_hallucination(
+                await check_hallucination_async(
                     self.company_id, self.mock_input, self.mock_config, self.mock_logger
                 )
 
     @pytest.mark.asyncio
-    async def test_check_hallucination_logging(self):
+    async def test_check_hallucination_async_logging(self):
         self.mock_input.validate_required_fields.return_value = None
 
         with (
@@ -142,7 +142,7 @@ class TestHallucinationUtils:
                 0
             ].message.content = "Test content"
 
-            await check_hallucination(
+            await check_hallucination_async(
                 self.company_id, self.mock_input, self.mock_config, self.mock_logger
             )
 

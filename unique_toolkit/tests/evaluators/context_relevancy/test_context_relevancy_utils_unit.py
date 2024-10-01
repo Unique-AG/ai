@@ -3,7 +3,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from unique_toolkit.evaluators.config import EvaluationMetricConfig
-from unique_toolkit.evaluators.context_relevancy.utils import check_context_relevancy
+from unique_toolkit.evaluators.context_relevancy.utils import (
+    check_context_relevancy_async,
+)
 from unique_toolkit.evaluators.exception import EvaluatorException
 from unique_toolkit.evaluators.schemas import (
     EvaluationMetricInput,
@@ -33,17 +35,17 @@ class TestContextRelevancyUtils:
         self.company_id = "test_company"
 
     @pytest.mark.asyncio
-    async def test_check_context_relevancy_empty_context_texts(self):
+    async def test_check_context_relevancy_async_empty_context_texts(self):
         self.mock_input.validate_required_fields.return_value = None
         self.mock_input.context_texts = []
 
         with pytest.raises(EvaluatorException):
-            await check_context_relevancy(
+            await check_context_relevancy_async(
                 self.company_id, self.mock_input, self.mock_config, self.mock_logger
             )
 
     @pytest.mark.asyncio
-    async def test_check_context_relevancy_success(self):
+    async def test_check_context_relevancy_async_success(self):
         self.mock_input.validate_required_fields.return_value = None
         self.mock_input.context_texts = ["Some context"]
         self.mock_input.input_text = "Some input"
@@ -68,7 +70,7 @@ class TestContextRelevancyUtils:
             ].message.content = "Test content"
             mock_parse_result.return_value = MagicMock(spec=EvaluationMetricResult)
 
-            result = await check_context_relevancy(
+            result = await check_context_relevancy_async(
                 self.company_id, self.mock_input, self.mock_config, self.mock_logger
             )
 
@@ -81,19 +83,19 @@ class TestContextRelevancyUtils:
             )
 
     @pytest.mark.asyncio
-    async def test_check_context_relevancy_missing_fields(self):
+    async def test_check_context_relevancy_async_missing_fields(self):
         message = "Missing required fields"
         self.mock_input.validate_required_fields.side_effect = EvaluatorException(
             error_message=message, user_message=message
         )
 
         with pytest.raises(EvaluatorException, match="Missing required fields"):
-            await check_context_relevancy(
+            await check_context_relevancy_async(
                 self.company_id, self.mock_input, self.mock_config, self.mock_logger
             )
 
     @pytest.mark.asyncio
-    async def test_check_context_relevancy_empty_result(self):
+    async def test_check_context_relevancy_async_empty_result(self):
         self.mock_input.validate_required_fields.return_value = None
         self.mock_input.context_texts = ["Some context"]
 
@@ -114,12 +116,12 @@ class TestContextRelevancyUtils:
                 EvaluatorException,
                 match="Context relevancy evaluation did not return a result.",
             ):
-                await check_context_relevancy(
+                await check_context_relevancy_async(
                     self.company_id, self.mock_input, self.mock_config, self.mock_logger
                 )
 
     @pytest.mark.asyncio
-    async def test_check_context_relevancy_exception(self):
+    async def test_check_context_relevancy_async_exception(self):
         self.mock_input.validate_required_fields.return_value = None
         self.mock_input.context_texts = ["Some context"]
 
@@ -138,12 +140,12 @@ class TestContextRelevancyUtils:
                 EvaluatorException,
                 match="Error occurred during context relevancy metric analysis",
             ):
-                await check_context_relevancy(
+                await check_context_relevancy_async(
                     self.company_id, self.mock_input, self.mock_config, self.mock_logger
                 )
 
     @pytest.mark.asyncio
-    async def test_check_context_relevancy_logging(self):
+    async def test_check_context_relevancy_async_logging(self):
         self.mock_input.validate_required_fields.return_value = None
         self.mock_input.context_texts = ["Some context"]
 
@@ -165,7 +167,7 @@ class TestContextRelevancyUtils:
                 0
             ].message.content = "Test content"
 
-            await check_context_relevancy(
+            await check_context_relevancy_async(
                 self.company_id, self.mock_input, self.mock_config, self.mock_logger
             )
 

@@ -5,6 +5,13 @@ from unique_toolkit.evaluators.config import (
     EvaluationMetricConfig,
 )
 from unique_toolkit.evaluators.exception import EvaluatorException
+from unique_toolkit.evaluators.hallucination.constants import (
+    SYSTEM_MSG_DEFAULT_KEY,
+    SYSTEM_MSG_KEY,
+    USER_MSG_DEFAULT_KEY,
+    USER_MSG_KEY,
+    hallucination_required_input_fields,
+)
 from unique_toolkit.evaluators.output_parser import (
     parse_eval_metric_result,
 )
@@ -20,13 +27,6 @@ from unique_toolkit.language_model.schemas import (
 )
 from unique_toolkit.language_model.service import LanguageModelService
 
-from .constants import (
-    SYSTEM_MSG_DEFAULT_KEY,
-    SYSTEM_MSG_KEY,
-    USER_MSG_DEFAULT_KEY,
-    USER_MSG_KEY,
-    hallucination_required_input_fields,
-)
 from .prompts import (
     HALLUCINATION_METRIC_SYSTEM_MSG,
     HALLUCINATION_METRIC_SYSTEM_MSG_DEFAULT,
@@ -37,7 +37,7 @@ from .prompts import (
 logger = logging.getLogger(__name__)
 
 
-async def check_hallucination(
+async def check_hallucination_async(
     company_id: str,
     input: EvaluationMetricInput,
     config: EvaluationMetricConfig,

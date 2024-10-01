@@ -30,11 +30,11 @@ class TestContextRelevancyEvaluator:
         expected_result = MagicMock(spec=EvaluationMetricResult)
 
         with patch(
-            "unique_toolkit.evaluators.context_relevancy.service.check_context_relevancy"
+            "unique_toolkit.evaluators.context_relevancy.service.check_context_relevancy_async"
         ) as mock_check_relevancy:
             mock_check_relevancy.return_value = expected_result
 
-            result = await self.evaluator.analyze(self.mock_input, self.mock_config)
+            result = await self.evaluator.run(self.mock_input, self.mock_config)
 
             assert result == expected_result
             mock_check_relevancy.assert_called_once_with(
@@ -48,7 +48,7 @@ class TestContextRelevancyEvaluator:
     async def test_analyze_metric_disabled(self):
         self.mock_config.enabled = False
 
-        result = await self.evaluator.analyze(self.mock_input, self.mock_config)
+        result = await self.evaluator.run(self.mock_input, self.mock_config)
 
         assert result is None
         self.logger.info.assert_called_once_with(
@@ -65,11 +65,11 @@ class TestContextRelevancyEvaluator:
 
         try:
             with patch(
-                "unique_toolkit.evaluators.context_relevancy.service.check_context_relevancy"
+                "unique_toolkit.evaluators.context_relevancy.service.check_context_relevancy_async"
             ) as mock_check_relevancy:
                 mock_check_relevancy.return_value = expected_result
 
-                result = await self.evaluator.analyze(self.mock_input)
+                result = await self.evaluator.run(self.mock_input)
 
                 assert result == expected_result
                 mock_check_relevancy.assert_called_once_with(
@@ -87,9 +87,9 @@ class TestContextRelevancyEvaluator:
         self.mock_config.enabled = True
 
         with patch(
-            "unique_toolkit.evaluators.context_relevancy.service.check_context_relevancy"
+            "unique_toolkit.evaluators.context_relevancy.service.check_context_relevancy_async"
         ) as mock_check_relevancy:
             mock_check_relevancy.side_effect = Exception("Test exception")
 
             with pytest.raises(Exception, match="Test exception"):
-                await self.evaluator.analyze(self.mock_input, self.mock_config)
+                await self.evaluator.run(self.mock_input, self.mock_config)

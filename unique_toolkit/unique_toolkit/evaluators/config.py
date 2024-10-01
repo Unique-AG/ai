@@ -2,13 +2,12 @@ from humps import camelize
 from pydantic import BaseModel, ConfigDict, field_validator
 
 from unique_toolkit._common.validators import validate_and_init_language_model
+from unique_toolkit.evaluators.schemas import (
+    EvaluationMetricName,
+)
 from unique_toolkit.language_model.infos import (
     LanguageModel,
     LanguageModelName,
-)
-
-from .schemas import (
-    EvaluationMetricName,
 )
 
 model_config = ConfigDict(
