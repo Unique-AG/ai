@@ -106,7 +106,7 @@ class LanguageModelAssistantMessage(LanguageModelMessage):
 class LanguageModelToolMessage(LanguageModelMessage):
     role: LanguageModelMessageRole = LanguageModelMessageRole.TOOL
     name: str
-    tool_call_id: str = Field(serialization_alias="toolCallId")
+    tool_call_id: str
 
     @field_validator("role", mode="before")
     def set_role(cls, value):
