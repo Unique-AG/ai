@@ -126,7 +126,6 @@ def valid_tool_calls():
     ]
 
 
-@pytest.mark.unit
 def test_language_model_function_arguments_validation():
     """Test that the arguments field is properly validated and processed."""
     # Test when arguments are passed as a JSON string
