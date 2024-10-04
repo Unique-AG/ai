@@ -1,3 +1,4 @@
+import random
 import time
 from typing import (
     Any,
@@ -182,6 +183,8 @@ class APIResource(UniqueObject, Generic[T]):
 
         max_retries = 3
         attempts = 0
+        initial_delay = 2
+        backoff_factor = 2
         while attempts < max_retries:
             try:
                 response = requestor.request(method_, url_, params)
@@ -190,7 +193,12 @@ class APIResource(UniqueObject, Generic[T]):
                 attempts += 1
                 if attempts >= max_retries:
                     raise RetryError(f"Failed after {max_retries} attempts: {e}")
-                time.sleep(2)
+                # Calculate exponential backoff with some randomness (jitter)
+                delay = initial_delay * (backoff_factor ** (attempts - 1))
+                jitter = random.uniform(
+                    0, 0.1 * delay
+                )
+                time.sleep(delay + jitter)
 
     # The `method_` and `url_` arguments are suffixed with an underscore to
     # avoid conflicting with actual request parameters in `params`.
