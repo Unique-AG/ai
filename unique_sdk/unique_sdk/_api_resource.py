@@ -190,6 +190,9 @@ class APIResource(UniqueObject, Generic[T]):
                 response = requestor.request(method_, url_, params)
                 return convert_to_unique_object(response, user_id, company_id, params)
             except APIError as e:
+                # Check if error message contains the specific text
+                if "problem proxying the request" not in str(e):
+                    raise APIError(e)
                 attempts += 1
                 if attempts >= max_retries:
                     raise RetryError(f"Failed after {max_retries} attempts: {e}")
@@ -222,6 +225,9 @@ class APIResource(UniqueObject, Generic[T]):
                 response = await requestor.request_async(method_, url_, params)
                 return convert_to_unique_object(response, user_id, company_id, params)
             except APIError as e:
+                # Check if error message contains the specific text
+                if "problem proxying the request" not in str(e):
+                    raise APIError(e)
                 attempts += 1
                 if attempts >= max_retries:
                     raise RetryError(f"Failed after {max_retries} attempts: {e}")
