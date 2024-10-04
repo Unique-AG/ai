@@ -1,3 +1,4 @@
+import time
 from typing import (
     Any,
     ClassVar,
@@ -12,12 +13,14 @@ from typing import (
 from urllib.parse import quote_plus
 
 from unique_sdk._api_requestor import APIRequestor
-from unique_sdk._error import InvalidRequestError
+from unique_sdk._error import APIError, InvalidRequestError
 from unique_sdk._unique_object import UniqueObject
 from unique_sdk._util import convert_to_unique_object
 
 T = TypeVar("T", bound=UniqueObject)
 
+class RetryError(APIError):
+    pass
 
 class APIResource(UniqueObject, Generic[T]):
     OBJECT_NAME: ClassVar[str]
@@ -173,11 +176,19 @@ class APIResource(UniqueObject, Generic[T]):
         params=None,
     ):
         params = None if params is None else params.copy()
-
         requestor = APIRequestor(user_id=user_id, company_id=company_id)
 
-        response = requestor.request(method_, url_, params)
-        return convert_to_unique_object(response, user_id, company_id, params)
+        max_retries = 3
+        attempts = 0
+        while attempts < max_retries:
+            try:
+                response = requestor.request(method_, url_, params)
+                return convert_to_unique_object(response, user_id, company_id, params)
+            except APIError as e:
+                attempts += 1
+                if attempts >= max_retries:
+                    raise RetryError(f"Failed after {max_retries} attempts: {e}")
+                time.sleep(2)
 
     # The `method_` and `url_` arguments are suffixed with an underscore to
     # avoid conflicting with actual request parameters in `params`.
@@ -193,6 +204,15 @@ class APIResource(UniqueObject, Generic[T]):
         params = None if params is None else params.copy()
 
         requestor = APIRequestor(user_id=user_id, company_id=company_id)
-
-        response = await requestor.request_async(method_, url_, params)
-        return convert_to_unique_object(response, user_id, company_id, params)
+    
+        max_retries = 3
+        attempts = 0
+        while attempts < max_retries:
+            try:
+                response = await requestor.request_async(method_, url_, params)
+                return convert_to_unique_object(response, user_id, company_id, params)
+            except APIError as e:
+                attempts += 1
+                if attempts >= max_retries:
+                    raise RetryError(f"Failed after {max_retries} attempts: {e}")
+                time.sleep(2)
