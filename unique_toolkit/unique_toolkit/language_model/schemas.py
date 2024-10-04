@@ -7,7 +7,6 @@ from humps import camelize
 from pydantic import (
     BaseModel,
     ConfigDict,
-    Field,
     RootModel,
     field_validator,
     model_validator,
@@ -37,7 +36,9 @@ class LanguageModelFunction(BaseModel):
 
     @field_validator("arguments", mode="before")
     def set_arguments(cls, value):
-        return json.loads(value)
+        if isinstance(value, str):
+            return json.loads(value)  # Only deserialize if it's a string
+        return value  # Return the value as-is if it's already a dict
 
 
 class LanguageModelFunctionCall(BaseModel):
