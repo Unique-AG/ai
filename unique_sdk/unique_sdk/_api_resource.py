@@ -19,8 +19,10 @@ from unique_sdk._util import convert_to_unique_object
 
 T = TypeVar("T", bound=UniqueObject)
 
+
 class RetryError(APIError):
     pass
+
 
 class APIResource(UniqueObject, Generic[T]):
     OBJECT_NAME: ClassVar[str]
@@ -204,7 +206,7 @@ class APIResource(UniqueObject, Generic[T]):
         params = None if params is None else params.copy()
 
         requestor = APIRequestor(user_id=user_id, company_id=company_id)
-    
+
         max_retries = 3
         attempts = 0
         while attempts < max_retries:
