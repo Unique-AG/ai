@@ -60,10 +60,6 @@ class APIError(UniqueError):
     pass
 
 
-class RetryError(APIError):
-    pass
-
-
 class APIConnectionError(UniqueError):
     should_retry: bool
 

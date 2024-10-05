@@ -12,7 +12,7 @@ from typing import Any, Callable, Dict, List, Optional, TypeVar, Union, cast, ov
 from typing_extensions import TYPE_CHECKING, Type
 
 import unique_sdk  # noqa: F401
-from unique_sdk._error import RetryError
+from unique_sdk._error import APIError
 
 if TYPE_CHECKING:
     from unique_sdk._unique_object import UniqueObject
@@ -215,7 +215,7 @@ def retry_on_error(
 
                     attempts += 1
                     if attempts >= max_retries:
-                        raise RetryError(f"Failed after {max_retries} attempts: {e}")
+                        raise APIError(f"Failed after {max_retries} attempts: {e}")
 
                     # Calculate exponential backoff with some randomness (jitter)
                     delay = initial_delay * (backoff_factor ** (attempts - 1))
@@ -234,7 +234,7 @@ def retry_on_error(
 
                     attempts += 1
                     if attempts >= max_retries:
-                        raise RetryError(f"Failed after {max_retries} attempts: {e}")
+                        raise APIError(f"Failed after {max_retries} attempts: {e}")
 
                     # Calculate exponential backoff with some randomness (jitter)
                     delay = initial_delay * (backoff_factor ** (attempts - 1))
