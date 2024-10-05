@@ -1,13 +1,18 @@
+import asyncio
 import functools
 import logging
 import os
+import random
 import re
 import sys
-from typing import Any, Dict, List, Optional, TypeVar, Union, cast, overload
+import time
+from functools import wraps
+from typing import Any, Callable, Dict, List, Optional, TypeVar, Union, cast, overload
 
 from typing_extensions import TYPE_CHECKING, Type
 
 import unique_sdk  # noqa: F401
+from unique_sdk._error import RetryError
 
 if TYPE_CHECKING:
     from unique_sdk._unique_object import UniqueObject
@@ -188,3 +193,57 @@ class class_method_variant(object):
                 return class_method(*args, **kwargs)
 
         return _wrapper
+
+
+def retry_on_error(
+    max_retries=3,
+    initial_delay=1,
+    backoff_factor=2,
+    error_message="problem proxying the request",
+):
+    def decorator(func: Callable) -> Callable:
+        @wraps(func)
+        async def async_wrapper(*args, **kwargs) -> Any:
+            attempts = 0
+            while attempts < max_retries:
+                try:
+                    return await func(*args, **kwargs)
+                except Exception as e:
+                    # Check if error message contains the specific text
+                    if error_message not in str(e):
+                        raise e  # Raise the error if it doesn't contain the specific message
+
+                    attempts += 1
+                    if attempts >= max_retries:
+                        raise RetryError(f"Failed after {max_retries} attempts: {e}")
+
+                    # Calculate exponential backoff with some randomness (jitter)
+                    delay = initial_delay * (backoff_factor ** (attempts - 1))
+                    jitter = random.uniform(0, 0.1 * delay)
+                    await asyncio.sleep(delay + jitter)
+
+        def sync_wrapper(*args, **kwargs) -> Any:
+            attempts = 0
+            while attempts < max_retries:
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    # Check if error message contains the specific text
+                    if error_message not in str(e):
+                        raise e  # Raise the error if it doesn't contain the specific message
+
+                    attempts += 1
+                    if attempts >= max_retries:
+                        raise RetryError(f"Failed after {max_retries} attempts: {e}")
+
+                    # Calculate exponential backoff with some randomness (jitter)
+                    delay = initial_delay * (backoff_factor ** (attempts - 1))
+                    jitter = random.uniform(0, 0.1 * delay)
+                    time.sleep(delay + jitter)
+
+        # Return the appropriate wrapper based on whether the function is async
+        if asyncio.iscoroutinefunction(func):
+            return async_wrapper
+        return sync_wrapper
+
+    return decorator
