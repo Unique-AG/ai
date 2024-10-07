@@ -199,7 +199,7 @@ def retry_on_error(
     initial_delay=1,
     backoff_factor=2,
     error_message="problem proxying the request",
-    error_class=APIError
+    error_class=APIError,
 ):
     def decorator(func: Callable) -> Callable:
         @wraps(func)
