@@ -199,6 +199,7 @@ def retry_on_error(
     initial_delay=1,
     backoff_factor=2,
     error_message="problem proxying the request",
+    error_class=APIError
 ):
     def decorator(func: Callable) -> Callable:
         @wraps(func)
@@ -214,7 +215,7 @@ def retry_on_error(
 
                     attempts += 1
                     if attempts >= max_retries:
-                        raise APIError(f"Failed after {max_retries} attempts: {e}")
+                        raise error_class(f"Failed after {max_retries} attempts: {e}")
 
                     # Calculate exponential backoff with some randomness (jitter)
                     delay = initial_delay * (backoff_factor ** (attempts - 1))
@@ -233,7 +234,7 @@ def retry_on_error(
 
                     attempts += 1
                     if attempts >= max_retries:
-                        raise APIError(f"Failed after {max_retries} attempts: {e}")
+                        raise error_class(f"Failed after {max_retries} attempts: {e}")
 
                     # Calculate exponential backoff with some randomness (jitter)
                     delay = initial_delay * (backoff_factor ** (attempts - 1))
