@@ -164,7 +164,12 @@ class APIResource(UniqueObject, Generic[T]):
     # The `method_` and `url_` arguments are suffixed with an underscore to
     # avoid conflicting with actual request parameters in `params`.
     @classmethod
-    @retry_on_error(error_message="problem proxying the request")
+    @retry_on_error(
+        error_messages=[
+            "problem proxying the request",
+            "Upstream service reached a hard timeout",
+        ]
+    )
     def _static_request(
         cls,
         method_,
@@ -183,7 +188,12 @@ class APIResource(UniqueObject, Generic[T]):
     # The `method_` and `url_` arguments are suffixed with an underscore to
     # avoid conflicting with actual request parameters in `params`.
     @classmethod
-    @retry_on_error(error_message="problem proxying the request")
+    @retry_on_error(
+        error_messages=[
+            "problem proxying the request",
+            "Upstream service reached a hard timeout",
+        ]
+    )
     async def _static_request_async(
         cls,
         method_,

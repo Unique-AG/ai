@@ -195,10 +195,10 @@ class class_method_variant(object):
 
 
 def retry_on_error(
-    max_retries=3,
-    initial_delay=1,
-    backoff_factor=2,
-    error_message="problem proxying the request",
+    max_retries: int = 3,
+    initial_delay: int = 1,
+    backoff_factor: int = 2,
+    error_messages: List[str] = ["problem proxying the request"],
     error_class=APIError,
 ):
     def decorator(func: Callable) -> Callable:
@@ -209,9 +209,8 @@ def retry_on_error(
                 try:
                     return await func(*args, **kwargs)
                 except Exception as e:
-                    # Check if error message contains the specific text
-                    if error_message not in str(e):
-                        raise e  # Raise the error if it doesn't contain the specific message
+                    if not any(err_msg in str(e) for err_msg in error_messages):
+                        raise e  # Raise the error if none of the messages match
 
                     attempts += 1
                     if attempts >= max_retries:
@@ -228,9 +227,8 @@ def retry_on_error(
                 try:
                     return func(*args, **kwargs)
                 except Exception as e:
-                    # Check if error message contains the specific text
-                    if error_message not in str(e):
-                        raise e  # Raise the error if it doesn't contain the specific message
+                    if not any(err_msg in str(e) for err_msg in error_messages):
+                        raise e  # Raise the error if none of the messages match
 
                     attempts += 1
                     if attempts >= max_retries:

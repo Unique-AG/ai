@@ -21,7 +21,7 @@ def test_retry_on_error_sync_success():
 def test_retry_on_error_sync_retries_on_specific_error(mock_sleep):
     """Test sync function retries when specific error message is encountered."""
 
-    @retry_on_error(max_retries=3, error_message="Retry this error")
+    @retry_on_error(max_retries=3, error_messages=["Retry this error"])
     def func():
         raise ConnectionError("Retry this error")
 
@@ -34,7 +34,7 @@ def test_retry_on_error_sync_retries_on_specific_error(mock_sleep):
 def test_retry_on_error_sync_no_retry_on_different_error(mock_sleep):
     """Test sync function doesn't retry on different error message."""
 
-    @retry_on_error(max_retries=3, error_message="Retry this error")
+    @retry_on_error(max_retries=3, error_messages=["Retry this error"])
     def func():
         raise ConnectionError("Different error")
 
@@ -61,7 +61,7 @@ async def test_retry_on_error_async_success():
 async def test_retry_on_error_async_retries_on_specific_error(mock_async_sleep):
     """Test async function retries when specific error message is encountered."""
 
-    @retry_on_error(max_retries=3, error_message="Retry this error")
+    @retry_on_error(max_retries=3, error_messages=["Retry this error"])
     async def func():
         raise ConnectionError("Retry this error")
 
@@ -75,7 +75,7 @@ async def test_retry_on_error_async_retries_on_specific_error(mock_async_sleep):
 async def test_retry_on_error_async_no_retry_on_different_error(mock_async_sleep):
     """Test async function doesn't retry on different error message."""
 
-    @retry_on_error(max_retries=3, error_message="Retry this error")
+    @retry_on_error(max_retries=3, error_messages=["Retry this error"])
     async def func():
         raise ConnectionError("Different error")
 

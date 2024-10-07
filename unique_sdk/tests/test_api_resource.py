@@ -160,6 +160,24 @@ async def test_static_request_async_retry_on_specific_error(
 
 
 @pytest.mark.asyncio
+@patch("asyncio.sleep", return_value=None)
+async def test_static_request_async_retry_on_specific_error_second(
+    mock_asyncio_sleep, mock_api_requestor
+):
+    mock_api_requestor.return_value.request_async.side_effect = ConnectionError(
+        "Upstream service reached a hard timeout"
+    )
+    with pytest.raises(APIError, match="Failed after 3 attempts"):
+        await MessageResource._static_request_async(
+            "get", "/messages", "user_1", "company_1"
+        )
+    assert (
+        mock_api_requestor.return_value.request_async.call_count == 3
+    )  # Ensure it retries 3 times
+    assert mock_asyncio_sleep.call_count == 2
+
+
+@pytest.mark.asyncio
 async def test_static_request_async_no_retry_on_different_error(mock_api_requestor):
     mock_api_requestor.return_value.request_async.side_effect = ConnectionError(
         "Some other error"
@@ -177,6 +195,21 @@ async def test_static_request_async_no_retry_on_different_error(mock_api_request
 def test_static_request_sync_retry_on_specific_error(mock_sleep, mock_api_requestor):
     mock_api_requestor.return_value.request.side_effect = ConnectionError(
         "There was a problem proxying the request"
+    )
+    with pytest.raises(APIError, match="Failed after 3 attempts"):
+        MessageResource._static_request("get", "/messages", "user_1", "company_1")
+    assert (
+        mock_api_requestor.return_value.request.call_count == 3
+    )  # Ensure it retries 3 times
+    assert mock_sleep.call_count == 2
+
+
+@patch("time.sleep", return_value=None)
+def test_static_request_sync_retry_on_specific_error_second(
+    mock_sleep, mock_api_requestor
+):
+    mock_api_requestor.return_value.request.side_effect = ConnectionError(
+        "Upstream service reached a hard timeout"
     )
     with pytest.raises(APIError, match="Failed after 3 attempts"):
         MessageResource._static_request("get", "/messages", "user_1", "company_1")
