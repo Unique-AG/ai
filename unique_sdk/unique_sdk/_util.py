@@ -26,10 +26,9 @@ logger: logging.Logger = logging.getLogger("unique")
 def _console_log_level():
     if unique_sdk.log in ["debug", "info"]:
         return unique_sdk.log
-    elif UNIQUE_LOG in ["debug", "info"]:
+    if UNIQUE_LOG in ["debug", "info"]:
         return UNIQUE_LOG
-    else:
-        return None
+    return None
 
 
 def log_debug(message, **params):
