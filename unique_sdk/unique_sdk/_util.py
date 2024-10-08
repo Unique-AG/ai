@@ -195,10 +195,10 @@ class class_method_variant(object):
 
 
 def retry_on_error(
+    error_messages: List[str],
     max_retries: int = 3,
     initial_delay: int = 1,
     backoff_factor: int = 2,
-    error_messages: List[str] = ["problem proxying the request"],
     error_class=APIError,
 ):
     def decorator(func: Callable) -> Callable:

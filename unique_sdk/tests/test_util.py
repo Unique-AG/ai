@@ -9,7 +9,7 @@ from unique_sdk._util import APIError, retry_on_error
 def test_retry_on_error_sync_success():
     """Test decorator on a sync function with no retries (success on first attempt)."""
 
-    @retry_on_error(max_retries=3)
+    @retry_on_error(max_retries=3, error_messages=[])
     def func():
         return "Success"
 
@@ -48,7 +48,7 @@ def test_retry_on_error_sync_no_retry_on_different_error(mock_sleep):
 async def test_retry_on_error_async_success():
     """Test decorator on an async function with no retries (success on first attempt)."""
 
-    @retry_on_error(max_retries=3)
+    @retry_on_error(max_retries=3, error_messages=[])
     async def func():
         return "Success"
 

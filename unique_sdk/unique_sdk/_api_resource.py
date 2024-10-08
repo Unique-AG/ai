@@ -18,6 +18,16 @@ from unique_sdk._util import convert_to_unique_object, retry_on_error
 
 T = TypeVar("T", bound=UniqueObject)
 
+retry_dict = {
+    "error_messages": [
+        "problem proxying the request",
+        "Upstream service reached a hard timeout",
+    ],
+    "max_retries": 3,
+    "backoff_factor": 2,
+    "initial_delay": 1,
+}
+
 
 class APIResource(UniqueObject, Generic[T]):
     OBJECT_NAME: ClassVar[str]
@@ -164,12 +174,7 @@ class APIResource(UniqueObject, Generic[T]):
     # The `method_` and `url_` arguments are suffixed with an underscore to
     # avoid conflicting with actual request parameters in `params`.
     @classmethod
-    @retry_on_error(
-        error_messages=[
-            "problem proxying the request",
-            "Upstream service reached a hard timeout",
-        ]
-    )
+    @retry_on_error(**retry_dict)
     def _static_request(
         cls,
         method_,
@@ -188,12 +193,7 @@ class APIResource(UniqueObject, Generic[T]):
     # The `method_` and `url_` arguments are suffixed with an underscore to
     # avoid conflicting with actual request parameters in `params`.
     @classmethod
-    @retry_on_error(
-        error_messages=[
-            "problem proxying the request",
-            "Upstream service reached a hard timeout",
-        ]
-    )
+    @retry_on_error(**retry_dict)
     async def _static_request_async(
         cls,
         method_,
