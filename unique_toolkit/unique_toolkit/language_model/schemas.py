@@ -7,8 +7,8 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     RootModel,
-    field_serializer,
     field_validator,
+    model_serializer,
     model_validator,
 )
 
@@ -40,11 +40,18 @@ class LanguageModelFunction(BaseModel):
             return json.loads(value)
         return value
 
-    @field_serializer("arguments")
-    def serialize_arguments(cls, value):
-        if isinstance(value, dict):
-            return json.dumps(value)
-        return value
+    @model_serializer()
+    def serialize_model(self):
+        seralization = {}
+        if self.id:
+            seralization["id"] = self.id
+        seralization["name"] = self.name
+        seralization["arguments"] = json.dumps(self.arguments)
+        return seralization
+
+    # @field_serializer("arguments", return_type=str, when_used="always")
+    # def serialize_arguments(self, arguments: Optional[dict[str, Any] | str]):
+    #     return str(self.arguments)
 
 
 class LanguageModelFunctionCall(BaseModel):
@@ -64,11 +71,7 @@ class LanguageModelFunctionCall(BaseModel):
                 LanguageModelFunctionCall(
                     id=tool_call.id,
                     type="function",
-                    function=LanguageModelFunction(
-                        id=tool_call.id,
-                        name=tool_call.name,
-                        arguments=tool_call.arguments,
-                    ),
+                    function=tool_call,
                 )
                 for tool_call in tool_calls
             ],
