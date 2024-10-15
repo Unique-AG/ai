@@ -164,15 +164,16 @@ def test_language_model_function_call_creation(valid_tool_calls):
             valid_tool_calls
         )
     )
+    print(assistant_message, "what are the assistant messages")
 
     # Ensure the tool_calls are copied and serialized properly
     for tool_call in assistant_message.tool_calls:
         assert isinstance(
-            tool_call.function.arguments, str
+            tool_call.function.arguments, dict
         )  # arguments should be serialized to a string
 
         # Check if arguments can be deserialized back to the original dict
-        assert json.loads(tool_call.function.arguments) == {
+        assert tool_call.function.arguments == {
             "param1": "value1",
             "param2": 2,
         } or {"key": "value"}
@@ -212,9 +213,11 @@ def test_language_model_function_call_creation(valid_tool_calls):
         assistant_message.tool_calls[0].function.id
         == expected_message.tool_calls[0].function.id
     )
-    assert assistant_message.tool_calls[0].function.arguments == json.dumps(
-        expected_message.tool_calls[0].function.arguments
+    assert (
+        assistant_message.tool_calls[0].function.arguments
+        == expected_message.tool_calls[0].function.arguments
     )
+
     assert assistant_message.tool_calls[1].id == expected_message.tool_calls[1].id
     assert assistant_message.tool_calls[1].type == expected_message.tool_calls[1].type
     assert (
@@ -225,8 +228,9 @@ def test_language_model_function_call_creation(valid_tool_calls):
         assistant_message.tool_calls[1].function.id
         == expected_message.tool_calls[1].function.id
     )
-    assert assistant_message.tool_calls[1].function.arguments == json.dumps(
-        expected_message.tool_calls[1].function.arguments
+    assert (
+        assistant_message.tool_calls[1].function.arguments
+        == expected_message.tool_calls[1].function.arguments
     )
 
 
