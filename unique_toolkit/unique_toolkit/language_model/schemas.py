@@ -46,7 +46,8 @@ class LanguageModelFunction(BaseModel):
         if self.id:
             seralization["id"] = self.id
         seralization["name"] = self.name
-        seralization["arguments"] = json.dumps(self.arguments)
+        if self.arguments:
+                seralization["arguments"] = json.dumps(self.arguments)
         return seralization
 
     # @field_serializer("arguments", return_type=str, when_used="always")
