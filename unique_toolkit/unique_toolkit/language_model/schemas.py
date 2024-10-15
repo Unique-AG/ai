@@ -8,6 +8,7 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     RootModel,
+    field_serializer,
     field_validator,
     model_validator,
 )
@@ -30,21 +31,27 @@ class LanguageModelMessageRole(StrEnum):
 class LanguageModelFunction(BaseModel):
     model_config = model_config
 
-    id: str
+    id: Optional[str] = None
     name: str
-    arguments: Optional[dict[str, list | dict | str | int | float | bool] | str] = None  # type: ignore
+    arguments: Optional[dict[str, Any] | str] = None  # type: ignore
 
     @field_validator("arguments", mode="before")
     def set_arguments(cls, value):
         if isinstance(value, str):
-            return json.loads(value)  # Only deserialize if it's a string
-        return value  # Return the value as-is if it's already a dict
+            return json.loads(value)
+        return value
+
+    @field_serializer("arguments")
+    def serialize_arguments(cls, value):
+        if isinstance(value, dict):
+            return json.dumps(value)
+        return value
 
 
 class LanguageModelFunctionCall(BaseModel):
     model_config = model_config
 
-    id: str
+    id: Optional[str] = None
     type: Optional[str] = None
     function: LanguageModelFunction
 
@@ -55,17 +62,17 @@ class LanguageModelFunctionCall(BaseModel):
         # tool_calls variable is muatable. This avoids affecting the original tool_calls list
         copy_tool_calls = deepcopy(tool_calls)
 
-        for tool_call in copy_tool_calls:
-            if isinstance(tool_call.arguments, dict):
-                tool_call.arguments = json.dumps(tool_call.arguments)
-
         assistant_message = LanguageModelAssistantMessage(
             content="",
             tool_calls=[
                 LanguageModelFunctionCall(
                     id=tool_call.id,
                     type="function",
-                    function=tool_call,
+                    function=LanguageModelFunction(
+                        id=tool_call.id,
+                        name=tool_call.name,
+                        arguments=tool_call.arguments,
+                    ),
                 )
                 for tool_call in copy_tool_calls
             ],
