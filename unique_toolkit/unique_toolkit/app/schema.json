@@ -1,0 +1,173 @@
+{
+    "$ref": "#/definitions/EventModulePayload",
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "definitions": {
+      "EventModulePayload": {
+        "additionalProperties": {},
+        "properties": {
+          "additionalParameters": {
+            "additionalProperties": false,
+            "properties": {
+              "translateToLanguage": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "translateToLanguage"
+            ],
+            "type": "object"
+          },
+          "assistantId": {
+            "type": "string"
+          },
+          "assistantMessage": {
+            "additionalProperties": false,
+            "properties": {
+              "createdAt": {
+                "type": "string"
+              },
+              "id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "createdAt"
+            ],
+            "type": "object"
+          },
+          "chatId": {
+            "type": "string"
+          },
+          "configuration": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "$ref": "#/definitions/alias-assistant-module.ts-84-161-assistant-module.ts-0-662"
+                  },
+                  "type": "array"
+                },
+                {
+                  "$ref": "#/definitions/interface-assistant-module.ts-0-54-assistant-module.ts-0-662"
+                }
+              ]
+            },
+            "type": "object"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "userMessage": {
+            "additionalProperties": false,
+            "properties": {
+              "createdAt": {
+                "type": "string"
+              },
+              "id": {
+                "type": "string"
+              },
+              "language": {
+                "type": "string"
+              },
+              "originalText": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "text",
+              "createdAt",
+              "originalText",
+              "language"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "name",
+          "description",
+          "configuration",
+          "chatId",
+          "assistantId",
+          "userMessage",
+          "assistantMessage"
+        ],
+        "type": "object"
+      },
+      "alias-assistant-module.ts-84-161-assistant-module.ts-0-662": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          },
+          {
+            "items": {
+              "$ref": "#/definitions/alias-assistant-module.ts-84-161-assistant-module.ts-0-662"
+            },
+            "type": "array"
+          },
+          {
+            "$ref": "#/definitions/interface-assistant-module.ts-0-54-assistant-module.ts-0-662"
+          }
+        ]
+      },
+      "interface-assistant-module.ts-0-54-assistant-module.ts-0-662": {
+        "additionalProperties": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "items": {
+                "$ref": "#/definitions/alias-assistant-module.ts-84-161-assistant-module.ts-0-662"
+              },
+              "type": "array"
+            },
+            {
+              "$ref": "#/definitions/interface-assistant-module.ts-0-54-assistant-module.ts-0-662"
+            }
+          ]
+        },
+        "type": "object"
+      }
+    }
+  }
