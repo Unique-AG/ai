@@ -1,5 +1,4 @@
 import json
-from copy import deepcopy
 from enum import StrEnum
 from typing import Any, Optional, Self
 
@@ -59,9 +58,6 @@ class LanguageModelFunctionCall(BaseModel):
     def create_assistant_message_from_tool_calls(
         tool_calls: list[LanguageModelFunction],
     ):
-        # tool_calls variable is muatable. This avoids affecting the original tool_calls list
-        copy_tool_calls = deepcopy(tool_calls)
-
         assistant_message = LanguageModelAssistantMessage(
             content="",
             tool_calls=[
@@ -74,7 +70,7 @@ class LanguageModelFunctionCall(BaseModel):
                         arguments=tool_call.arguments,
                     ),
                 )
-                for tool_call in copy_tool_calls
+                for tool_call in tool_calls
             ],
         )
         return assistant_message
