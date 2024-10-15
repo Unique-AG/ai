@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.25] - 2024-10-15
+- Adding support for function calling. Assistant message for tool calls can be directly created with `LanguageModelFunctionCall.create_assistant_message_from_tool_calls`. Better separation of schemas for different types of `LanguageModelMessages`.
+
 ## [0.5.24] - 2024-09-26
 - Add `originalText` to `_construct_message_modify_params` and `_construct_message_create_params`. This addition makes sure that the `originalText` on the database is populated with the `text`
 

@@ -50,11 +50,6 @@ class LanguageModelFunction(BaseModel):
             seralization["arguments"] = json.dumps(self.arguments)
         return seralization
 
-    # @field_serializer("arguments", return_type=str, when_used="always")
-    # def serialize_arguments(self, arguments: Optional[dict[str, Any] | str]):
-    #     return str(self.arguments)
-
-
 class LanguageModelFunctionCall(BaseModel):
     model_config = model_config
 
