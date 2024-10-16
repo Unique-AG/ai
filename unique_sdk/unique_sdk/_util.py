@@ -1,13 +1,18 @@
+import asyncio
 import functools
 import logging
 import os
+import random
 import re
 import sys
-from typing import Any, Dict, List, Optional, TypeVar, Union, cast, overload
+import time
+from functools import wraps
+from typing import Any, Callable, Dict, List, Optional, TypeVar, Union, cast, overload
 
 from typing_extensions import TYPE_CHECKING, Type
 
 import unique_sdk  # noqa: F401
+from unique_sdk._error import APIError
 
 if TYPE_CHECKING:
     from unique_sdk._unique_object import UniqueObject
@@ -21,10 +26,9 @@ logger: logging.Logger = logging.getLogger("unique")
 def _console_log_level():
     if unique_sdk.log in ["debug", "info"]:
         return unique_sdk.log
-    elif UNIQUE_LOG in ["debug", "info"]:
+    if UNIQUE_LOG in ["debug", "info"]:
         return UNIQUE_LOG
-    else:
-        return None
+    return None
 
 
 def log_debug(message, **params):
@@ -188,3 +192,60 @@ class class_method_variant(object):
                 return class_method(*args, **kwargs)
 
         return _wrapper
+
+
+def retry_on_error(
+    error_messages: List[str],
+    max_retries: int = 3,
+    initial_delay: int = 1,
+    backoff_factor: int = 2,
+    error_class=APIError,
+):
+    def decorator(func: Callable) -> Callable:
+        @wraps(func)
+        async def async_wrapper(*args, **kwargs) -> Any:
+            attempts = 0
+            while attempts < max_retries:
+                try:
+                    return await func(*args, **kwargs)
+                except Exception as e:
+                    if not any(
+                        err_msg.lower() in str(e).lower() for err_msg in error_messages
+                    ):
+                        raise e  # Raise the error if none of the messages match
+
+                    attempts += 1
+                    if attempts >= max_retries:
+                        raise error_class(f"Failed after {max_retries} attempts: {e}")
+
+                    # Calculate exponential backoff with some randomness (jitter)
+                    delay = initial_delay * (backoff_factor ** (attempts - 1))
+                    jitter = random.uniform(0, 0.1 * delay)
+                    await asyncio.sleep(delay + jitter)
+
+        def sync_wrapper(*args, **kwargs) -> Any:
+            attempts = 0
+            while attempts < max_retries:
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    if not any(
+                        err_msg.lower() in str(e).lower() for err_msg in error_messages
+                    ):
+                        raise e  # Raise the error if none of the messages match
+
+                    attempts += 1
+                    if attempts >= max_retries:
+                        raise error_class(f"Failed after {max_retries} attempts: {e}")
+
+                    # Calculate exponential backoff with some randomness (jitter)
+                    delay = initial_delay * (backoff_factor ** (attempts - 1))
+                    jitter = random.uniform(0, 0.1 * delay)
+                    time.sleep(delay + jitter)
+
+        # Return the appropriate wrapper based on whether the function is async
+        if asyncio.iscoroutinefunction(func):
+            return async_wrapper
+        return sync_wrapper
+
+    return decorator
