@@ -6,8 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [0.9.8] - 2024-10-16
-- Add `retries` for `_static_request` and `_static_request_async` in `APIResource`
-
+- Add `retries` for `_static_request` and `_static_request_async` in `APIResource` - When the error messages contains either  `"problem proxying the request"`,
+        or `"Upstream service reached a hard timeout"`,
 ## [0.9.7] - 2024-09-23
 - Add `completedAt` to `CreateParams` of `Message`
 
