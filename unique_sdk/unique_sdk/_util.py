@@ -209,7 +209,9 @@ def retry_on_error(
                 try:
                     return await func(*args, **kwargs)
                 except Exception as e:
-                    if not any(err_msg in str(e) for err_msg in error_messages):
+                    if not any(
+                        err_msg.lower() in str(e).lower() for err_msg in error_messages
+                    ):
                         raise e  # Raise the error if none of the messages match
 
                     attempts += 1
@@ -227,7 +229,9 @@ def retry_on_error(
                 try:
                     return func(*args, **kwargs)
                 except Exception as e:
-                    if not any(err_msg in str(e) for err_msg in error_messages):
+                    if not any(
+                        err_msg.lower() in str(e).lower() for err_msg in error_messages
+                    ):
                         raise e  # Raise the error if none of the messages match
 
                     attempts += 1
