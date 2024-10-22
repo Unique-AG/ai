@@ -204,6 +204,13 @@ class ContentService(BaseService):
 
         return self._map_contents(contents)
 
+    def search_content_on_chat(
+        self,
+    ) -> list[Content]:
+        where = {"ownerId": {"equals": self.event.payload.chat_id}}
+
+        return self.search_contents(where)
+
     @staticmethod
     def _map_content_chunk(content_chunk: dict):
         return ContentChunk(
