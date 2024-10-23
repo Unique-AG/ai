@@ -455,7 +455,9 @@ unique_sdk.Integrated.chat_stream_completion(
     startText= "I want to tell you about: ", # optional
     model= "AZURE_GPT_4_32K_0613", # optional
     timeout=8000,  # optional in ms
-    temperature=0.3,  # optional
+    options={
+                "temperature": 0.5
+            } # optional
 )
 ```
 
@@ -474,7 +476,10 @@ chat_completion = unique_sdk.ChatCompletion.create(
     messages=[
         {"role": "system", "content": "You are a helpful assistant."},
         {"role": "user", "content": "Hello!"},
-    ]
+    ],
+    options={
+            "temperature": 0.5
+        } # optional
 )
 ```
 

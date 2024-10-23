@@ -95,6 +95,7 @@ def chat_completion():
             company_id=company_id,
             model="AZURE_GPT_35_TURBO",
             messages=payload["messages"],
+            options={"temperature": 0.5},
         )
 
         return jsonify(chat_completion)
