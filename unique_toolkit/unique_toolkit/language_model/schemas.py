@@ -3,7 +3,14 @@ from enum import StrEnum
 from typing import Any, Optional, Self
 
 from humps import camelize
-from pydantic import BaseModel, ConfigDict, RootModel, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    RootModel,
+    field_validator,
+    model_validator,
+)
 
 # set config to convert camelCase to snake_case
 model_config = ConfigDict(
@@ -173,7 +180,11 @@ class LanguageModelToolParameters(BaseModel):
 
 
 class LanguageModelTool(BaseModel):
-    name: str
+    name: str = Field(
+        ...,
+        pattern=r"^[a-zA-Z_-]+$",
+        description="Name must adhere to the pattern ^[a-zA-Z_-]+$",
+    )
     description: str
     parameters: LanguageModelToolParameters
     returns: LanguageModelToolParameterProperty | LanguageModelToolParameters | None = (
