@@ -20,6 +20,35 @@ class LanguageModelName(StrEnum):
     AZURE_GPT_4o_MINI_2024_0718 = "AZURE_GPT_4o_MINI_2024_0718"
 
 
+class EncoderName(StrEnum):
+    O200K_BASE = "o200k_base"
+    CL100K_BASE = "cl100k_base"
+
+
+def get_encoder_name(model_name: LanguageModelName) -> Optional[EncoderName]:
+    LMN = LanguageModelName
+    match model_name:
+        case (
+            LMN.AZURE_GPT_35_TURBO
+            | LMN.AZURE_GPT_35_TURBO_16K
+            | LMN.AZURE_GPT_35_TURBO_0613
+        ):
+            return EncoderName.CL100K_BASE
+        case (
+            LMN.AZURE_GPT_4_0613
+            | LMN.AZURE_GPT_4_TURBO_1106
+            | LMN.AZURE_GPT_4_VISION_PREVIEW
+            | LMN.AZURE_GPT_4_32K_0613
+            | LMN.AZURE_GPT_4_TURBO_2024_0409
+        ):
+            return EncoderName.CL100K_BASE
+        case LMN.AZURE_GPT_4o_2024_0513 | LMN.AZURE_GPT_4o_MINI_2024_0718:
+            return EncoderName.O200K_BASE
+        case _:
+            print(f"{model_name} is not supported. Please add encoder information.")
+            return None
+
+
 class LanguageModelProvider(StrEnum):
     AZURE = "AZURE"
     CUSTOM = "CUSTOM"
@@ -30,6 +59,7 @@ class LanguageModelInfo(BaseModel):
     version: str
     provider: LanguageModelProvider
 
+    encoder_name: Optional[EncoderName] = None
     token_limits: Optional[LanguageModelTokenLimits] = None
 
     info_cutoff_at: Optional[date] = None
@@ -53,6 +83,7 @@ class LanguageModel:
         - name
         - version
         - provider
+        - encoder_name
         - token_limits
         - info_cutoff_at
         - published_at
@@ -85,6 +116,13 @@ class LanguageModel:
         Returns the version of the model.
         """
         return self._model_info.version
+
+    @property
+    def encoder_name(self) -> Optional[EncoderName]:
+        """
+        Returns the encoder_name used for the model.
+        """
+        return self._model_info.encoder_name
 
     @property
     def token_limit(self) -> Optional[int]:
@@ -191,6 +229,7 @@ def create_language_model(
     provider: LanguageModelProvider,
     info_cutoff_at: date,
     published_at: date,
+    encoder_name: Optional[EncoderName] = None,
     token_limit: Optional[int] = None,
     token_limit_input: Optional[int] = None,
     token_limit_output: Optional[int] = None,
@@ -202,6 +241,7 @@ def create_language_model(
         name=name,
         version=version,
         provider=provider,
+        encoder_name=encoder_name,
         token_limits=LanguageModelTokenLimits(
             token_limit=token_limit,
             token_limit_input=token_limit_input,
@@ -229,6 +269,7 @@ AzureGpt35Turbo0613 = create_language_model(
     name=LanguageModelName.AZURE_GPT_35_TURBO_0613,
     provider=LanguageModelProvider.AZURE,
     version="0613",
+    encoder_name=get_encoder_name(LanguageModelName.AZURE_GPT_35_TURBO_0613),
     token_limit=8192,
     info_cutoff_at=date(2021, 9, 1),
     published_at=date(2023, 6, 13),
@@ -239,6 +280,7 @@ AzureGpt35Turbo = create_language_model(
     name=LanguageModelName.AZURE_GPT_35_TURBO,
     provider=LanguageModelProvider.AZURE,
     version="0301",
+    encoder_name=get_encoder_name(LanguageModelName.AZURE_GPT_35_TURBO),
     token_limit=4096,
     info_cutoff_at=date(2021, 9, 1),
     published_at=date(2023, 3, 1),
@@ -249,6 +291,7 @@ AzureGpt35Turbo16k = create_language_model(
     name=LanguageModelName.AZURE_GPT_35_TURBO_16K,
     provider=LanguageModelProvider.AZURE,
     version="0613",
+    encoder_name=get_encoder_name(LanguageModelName.AZURE_GPT_35_TURBO_16K),
     token_limit=16382,
     info_cutoff_at=date(2021, 9, 1),
     published_at=date(2023, 6, 13),
@@ -260,6 +303,7 @@ AzureGpt40613 = create_language_model(
     name=LanguageModelName.AZURE_GPT_4_0613,
     provider=LanguageModelProvider.AZURE,
     version="0613",
+    encoder_name=get_encoder_name(LanguageModelName.AZURE_GPT_4_0613),
     token_limit=8192,
     info_cutoff_at=date(2021, 9, 1),
     published_at=date(2023, 6, 13),
@@ -272,6 +316,7 @@ AzureGpt4Turbo1106 = create_language_model(
     name=LanguageModelName.AZURE_GPT_4_TURBO_1106,
     provider=LanguageModelProvider.AZURE,
     version="1106-preview",
+    encoder_name=get_encoder_name(LanguageModelName.AZURE_GPT_4_TURBO_1106),
     token_limit_input=128000,
     token_limit_output=4096,
     info_cutoff_at=date(2023, 4, 1),
@@ -283,6 +328,7 @@ AzureGpt4VisionPreview = create_language_model(
     name=LanguageModelName.AZURE_GPT_4_VISION_PREVIEW,
     provider=LanguageModelProvider.AZURE,
     version="vision-preview",
+    encoder_name=get_encoder_name(LanguageModelName.AZURE_GPT_4_VISION_PREVIEW),
     token_limit_input=128000,
     token_limit_output=4096,
     info_cutoff_at=date(2023, 4, 1),
@@ -293,6 +339,7 @@ AzureGpt432k0613 = create_language_model(
     name=LanguageModelName.AZURE_GPT_4_32K_0613,
     provider=LanguageModelProvider.AZURE,
     version="1106-preview",
+    encoder_name=get_encoder_name(LanguageModelName.AZURE_GPT_4_32K_0613),
     token_limit=32768,
     info_cutoff_at=date(2021, 9, 1),
     published_at=date(2023, 6, 13),
@@ -302,6 +349,7 @@ AzureGpt432k0613 = create_language_model(
 
 AzureGpt4Turbo20240409 = create_language_model(
     name=LanguageModelName.AZURE_GPT_4_TURBO_2024_0409,
+    encoder_name=get_encoder_name(LanguageModelName.AZURE_GPT_4_TURBO_2024_0409),
     provider=LanguageModelProvider.AZURE,
     version="turbo-2024-04-09",
     token_limit_input=128000,
@@ -312,6 +360,7 @@ AzureGpt4Turbo20240409 = create_language_model(
 
 AzureGpt4o20240513 = create_language_model(
     name=LanguageModelName.AZURE_GPT_4o_2024_0513,
+    encoder_name=get_encoder_name(LanguageModelName.AZURE_GPT_4o_2024_0513),
     provider=LanguageModelProvider.AZURE,
     version="2024-05-13",
     token_limit_input=128000,
@@ -324,6 +373,7 @@ AzureGpt4oMini20240718 = create_language_model(
     name=LanguageModelName.AZURE_GPT_4o_MINI_2024_0718,
     provider=LanguageModelProvider.AZURE,
     version="2024-07-18",
+    encoder_name=get_encoder_name(LanguageModelName.AZURE_GPT_4o_MINI_2024_0718),
     token_limit_input=128000,
     token_limit_output=16384,
     info_cutoff_at=date(2023, 10, 1),

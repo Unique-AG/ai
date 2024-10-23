@@ -3,6 +3,7 @@ from datetime import date
 import pytest
 
 from unique_toolkit.language_model.infos import (
+    EncoderName,
     LanguageModel,
     LanguageModelInfo,
     LanguageModelName,
@@ -40,6 +41,7 @@ class TestLanguageModelInfos:
         assert model.token_limit_input == 128000
         assert model.token_limit_output == 4096
         assert model.token_limit == 128000 + 4096
+        assert model.encoder_name == EncoderName.CL100K_BASE
 
     def test_get_custom_language_model(self):
         model = LanguageModel("My Custom Model")
@@ -49,6 +51,7 @@ class TestLanguageModelInfos:
         assert model.version == "custom"
         assert model.published_at is None
         assert model.info_cutoff_at is None
+        assert model.encoder_name is None
         assert model.token_limit_input is None
         assert model.token_limit_output is None
         assert model.token_limit is None
