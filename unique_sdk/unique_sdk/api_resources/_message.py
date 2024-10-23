@@ -116,6 +116,21 @@ class Message(APIResource["Message"]):
         return result
 
     @classmethod
+    def retrieve(
+        cls,
+        user_id: str,
+        company_id: str,
+        id: str,
+        **params: Unpack["Message.RetrieveParams"],
+    ) -> "Message":
+        """
+        Retrieves a Message object.
+        """
+        instance = cls(user_id, company_id, id, **params)
+        instance.refresh(user_id, company_id)
+        return instance
+    
+    @classmethod
     async def retrieve_async(
         cls,
         user_id: str,
