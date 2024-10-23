@@ -45,7 +45,6 @@ class Integrated(APIResource["Integrated"]):
             ]
         ]
         timeout: NotRequired["int"]
-        temperature: NotRequired["float"]
         messages: List["Integrated.ChatCompletionRequestMessage"]
         searchContext: NotRequired[List["Integrated.SearchResult"]]
         chatId: str

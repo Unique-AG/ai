@@ -165,10 +165,9 @@ class TestLanguageModelServiceUnit:
                 searchContext=None,
                 model=model_name,
                 timeout=240000,
-                temperature=0.0,
                 assistantId="test_assistant",
                 debugInfo={},
-                options={},
+                options={"temperature": 0.0},
                 startText=None,
             )
 
@@ -404,10 +403,9 @@ class TestLanguageModelServiceUnit:
                 searchContext=None,
                 model=model_name,
                 timeout=240000,
-                temperature=0.0,
                 assistantId="test_assistant",
                 debugInfo={},
-                options={},
+                options={"temperature": 0.0},
                 startText=None,
             )
 
