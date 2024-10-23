@@ -196,6 +196,7 @@ class LanguageModelService(BaseService):
             The LanguageModelStreamResponse object once the stream has finished.
         """
         options = self._add_tools_to_options({}, tools)
+        options['temperature'] = temperature
         search_context = self._to_search_context(content_chunks)
         messages = messages.model_dump(exclude_none=True)
         model = (
@@ -257,6 +258,7 @@ class LanguageModelService(BaseService):
         """
 
         options = self._add_tools_to_options({}, tools)
+        options['temperature'] = temperature
         search_context = self._to_search_context(content_chunks)
         messages = messages.model_dump(exclude_none=True, exclude=["tool_calls"])
         model = (
