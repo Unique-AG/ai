@@ -10,6 +10,7 @@ from pydantic import (
     RootModel,
     field_validator,
     model_validator,
+    Field,
 )
 
 # set config to convert camelCase to snake_case
