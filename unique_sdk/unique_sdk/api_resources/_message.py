@@ -129,7 +129,7 @@ class Message(APIResource["Message"]):
         instance = cls(user_id, company_id, id, **params)
         instance.refresh(user_id, company_id)
         return instance
-    
+
     @classmethod
     async def retrieve_async(
         cls,
