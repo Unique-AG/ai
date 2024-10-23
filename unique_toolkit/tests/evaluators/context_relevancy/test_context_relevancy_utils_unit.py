@@ -1,3 +1,4 @@
+from unittest import TestCase
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -15,7 +16,7 @@ from unique_toolkit.evaluators.schemas import (
 from unique_toolkit.language_model.schemas import LanguageModelMessages
 
 
-class TestContextRelevancyUtils:
+class TestContextRelevancyUtils(TestCase):
     def setup(self):
         self.mock_input = MagicMock(spec=EvaluationMetricInput)
         self.mock_input.context_texts = ["Some context"]
