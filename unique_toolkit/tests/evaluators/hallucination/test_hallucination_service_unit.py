@@ -1,3 +1,4 @@
+from unittest import TestCase
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -14,7 +15,7 @@ from unique_toolkit.evaluators.schemas import (
 )
 
 
-class TestHallucinationEvaluator:
+class TestHallucinationEvaluator(TestCase):
     def setup(self):
         self.event = MagicMock(spec=Event)
         self.event.company_id = "test_company_id"
