@@ -5,9 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.9.9] - 2024-10-22
-- Verify tool name for `LanguageModelTool` to conform with frontent requirements.
-- Add `search_on_chat` to `ContentService`
+## [0.9.10] - 2024-10-23
+- Remove `temperature` parameter from `Integrated.chat_stream_completion`, `Integrated.chat_stream_completion_async`, `ChatCompletion.create` and `ChatCompletion.create_async` methods. To use `temperature` parameter, set the attribute in `options` parameter instead.
+
+## [0.9.9] - 2024-10-23
+- Revert deletion of `Message.retrieve` method
 
 ## [0.9.8] - 2024-10-16
 - Add `retries` for `_static_request` and `_static_request_async` in `APIResource` - When the error messages contains either  `"problem proxying the request"`,

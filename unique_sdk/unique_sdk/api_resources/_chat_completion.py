@@ -43,7 +43,6 @@ class ChatCompletion(APIResource["ChatCompletion"]):
             ]
         ]
         timeout: NotRequired[Optional["int"]]
-        temperature: NotRequired[Optional["float"]]
         messages: List[ChatCompletionRequestMessage]
 
     model: Literal[

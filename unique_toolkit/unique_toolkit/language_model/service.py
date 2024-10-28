@@ -196,6 +196,7 @@ class LanguageModelService(BaseService):
             The LanguageModelStreamResponse object once the stream has finished.
         """
         options = self._add_tools_to_options({}, tools)
+        options["temperature"] = temperature
         search_context = self._to_search_context(content_chunks)
         messages = messages.model_dump(exclude_none=True, by_alias=True)
         model = (
@@ -217,7 +218,6 @@ class LanguageModelService(BaseService):
                 # TODO change or extend types in unique_sdk
                 model=model,
                 timeout=timeout,
-                temperature=temperature,
                 assistantId=self.event.payload.assistant_id,
                 debugInfo=debug_info,
                 options=options,  # type: ignore
@@ -257,6 +257,7 @@ class LanguageModelService(BaseService):
         """
 
         options = self._add_tools_to_options({}, tools)
+        options["temperature"] = temperature
         search_context = self._to_search_context(content_chunks)
         messages = messages.model_dump(exclude_none=True, by_alias=True)
         model = (
@@ -277,7 +278,6 @@ class LanguageModelService(BaseService):
                 searchContext=search_context,
                 model=model,
                 timeout=timeout,
-                temperature=temperature,
                 assistantId=self.event.payload.assistant_id,
                 debugInfo=debug_info,
                 # TODO change or extend types in unique_sdk
