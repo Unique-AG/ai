@@ -76,8 +76,9 @@ class TestLanguageModelServiceUnit:
                 model=model_name.name,
                 messages=[],
                 timeout=240000,
-                temperature=0.0,
-                options={},
+                options={
+                    "temperature": 0.0,
+                },
             )
 
     def test_stream_complete(self):
@@ -131,8 +132,9 @@ class TestLanguageModelServiceUnit:
                 model=model_name,
                 messages=[],
                 timeout=240000,
-                temperature=0.0,
-                options={},
+                options={
+                    "temperature": 0.0,
+                },
             )
 
     def test_stream_complete_with_custom_model(self):
@@ -309,8 +311,9 @@ class TestLanguageModelServiceUnit:
                 model=model_name.name,
                 messages=[],
                 timeout=240000,
-                temperature=0.0,
-                options={},
+                options={
+                    "temperature": 0.0,
+                },
             )
 
     @pytest.mark.asyncio
@@ -340,8 +343,9 @@ class TestLanguageModelServiceUnit:
                 model=model_name,
                 messages=[],
                 timeout=240000,
-                temperature=0.0,
-                options={},
+                options={
+                    "temperature": 0.0,
+                },
             )
 
     @pytest.mark.asyncio

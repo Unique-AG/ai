@@ -52,6 +52,7 @@ class LanguageModelService(BaseService):
             LanguageModelResponse: The LanguageModelResponse object.
         """
         options = self._add_tools_to_options({}, tools)
+        options["temperature"] = temperature
         messages = messages.model_dump(exclude_none=True)
         model = (
             model_name.name if isinstance(model_name, LanguageModelName) else model_name
@@ -67,7 +68,6 @@ class LanguageModelService(BaseService):
                     messages,
                 ),
                 timeout=timeout,
-                temperature=temperature,
                 options=options,  # type: ignore
             )
             return LanguageModelResponse(**response)
@@ -109,6 +109,7 @@ class LanguageModelService(BaseService):
             Exception: If an error occurs during the request, an exception is raised and logged.
         """
         options = cls._add_tools_to_options({}, tools)
+        options["temperature"] = temperature
         messages = messages.model_dump(exclude_none=True, exclude={"tool_calls"})
         model = (
             model_name.name if isinstance(model_name, LanguageModelName) else model_name
@@ -122,7 +123,6 @@ class LanguageModelService(BaseService):
                     messages,
                 ),
                 timeout=timeout,
-                temperature=temperature,
                 options=options,  # type: ignore
             )
             return LanguageModelResponse(**response)
