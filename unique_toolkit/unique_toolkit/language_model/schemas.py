@@ -10,6 +10,7 @@ from pydantic import (
     field_validator,
     model_serializer,
     model_validator,
+    Field
 )
 
 # set config to convert camelCase to snake_case
@@ -80,6 +81,7 @@ class LanguageModelMessage(BaseModel):
     model_config = model_config
     role: LanguageModelMessageRole
     content: Optional[str | list[dict]] = None
+    tool_calls: Optional[list[LanguageModelFunctionCall]] = None
 
 
 class LanguageModelSystemMessage(LanguageModelMessage):
@@ -100,7 +102,6 @@ class LanguageModelUserMessage(LanguageModelMessage):
 
 class LanguageModelAssistantMessage(LanguageModelMessage):
     role: LanguageModelMessageRole = LanguageModelMessageRole.ASSISTANT
-    tool_calls: Optional[list[LanguageModelFunctionCall]] = None
 
     @field_validator("role", mode="before")
     def set_role(cls, value):

@@ -17,6 +17,7 @@ class ChatCompletionRequestMessage(TypedDict, total=False):
     role: Literal["system", "user", "assistant"]
     content: str
     name: Optional[str]
+    tool_call_id: Optional[str]
 
 
 class ChatCompletionResponseMessage(TypedDict):
