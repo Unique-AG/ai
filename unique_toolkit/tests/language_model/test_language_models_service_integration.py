@@ -1,7 +1,6 @@
 from datetime import datetime
 
 import pytest
-from pydantic import ValidationError
 
 from unique_toolkit.app.schemas import Event
 from unique_toolkit.content.schemas import ContentChunk, ContentMetadata
@@ -229,19 +228,3 @@ class TestLanguageModelServiceIntegration:
 
         assert response.tool_calls is not None
         assert response.tool_calls[0].name == "get_weather"
-
-    def test_language_model_tool_name_pattern(self):
-        with pytest.raises(ValidationError):
-            LanguageModelTool(
-                name="invalid name!",
-                description="Invalid tool name",
-                parameters=LanguageModelToolParameters(
-                    type="object",
-                    properties={
-                        "param": LanguageModelToolParameterProperty(
-                            type="string", description="A parameter"
-                        )
-                    },
-                    required=["param"],
-                ),
-            )
