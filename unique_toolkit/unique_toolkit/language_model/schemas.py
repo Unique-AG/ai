@@ -50,6 +50,7 @@ class LanguageModelFunction(BaseModel):
             seralization["arguments"] = json.dumps(self.arguments)
         return seralization
 
+
 class LanguageModelFunctionCall(BaseModel):
     model_config = model_config
 
