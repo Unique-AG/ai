@@ -1,9 +1,15 @@
+import pytest
+from pydantic import ValidationError
+
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessage,
     LanguageModelMessageRole,
     LanguageModelMessages,
     LanguageModelResponse,
     LanguageModelSystemMessage,
+    LanguageModelTool,
+    LanguageModelToolParameterProperty,
+    LanguageModelToolParameters,
     LanguageModelUserMessage,
 )
 
@@ -100,3 +106,37 @@ class TestLanguageModelSchemas:
         assert tool_call.type == "type"
         assert tool_call.function.name == "name"
         assert tool_call.function.arguments == {"key": "value"}
+
+    def test_language_model_tool_raises_validation_error_for_bad_name(self):
+        with pytest.raises(ValidationError):
+            LanguageModelTool(
+                name="invalid name!",
+                description="Invalid tool name",
+                parameters=LanguageModelToolParameters(
+                    type="object",
+                    properties={
+                        "param": LanguageModelToolParameterProperty(
+                            type="string", description="A parameter"
+                        )
+                    },
+                    required=["param"],
+                ),
+            )
+
+    def test_language_model_tool_name_pattern_raised_validation_error(self):
+        for name in ["DocumentSummarizerV2", "SearchInVectorDBV2"]:
+            tool = LanguageModelTool(
+                name=name,
+                description="Invalid tool name",
+                parameters=LanguageModelToolParameters(
+                    type="object",
+                    properties={
+                        "param": LanguageModelToolParameterProperty(
+                            type="string", description="A parameter"
+                        )
+                    },
+                    required=["param"],
+                ),
+            )
+
+            assert tool.name == name
