@@ -226,4 +226,3 @@ class TestLanguageModelServiceIntegration:
 
         assert response.tool_calls is not None
         assert response.tool_calls[0].name == "get_weather"
-

@@ -1,7 +1,7 @@
 import json
 
 import pytest
-from pydantic import ValidationError 
+from pydantic import ValidationError
 
 from unique_toolkit.language_model.schemas import (
     LanguageModelAssistantMessage,
@@ -15,12 +15,11 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelUserMessage,
     LanguageModelTool,
     LanguageModelToolParameters,
-    LanguageModelToolParameterProperty
+    LanguageModelToolParameterProperty,
 )
 
 import pytest
 from pydantic import ValidationError
-
 
 
 class TestLanguageModelSchemas:
@@ -254,7 +253,8 @@ def test_invalid_tool_call_argument_type():
             ]
         )
 
-def test_language_model_tool_name_pattern(self):
+
+def test_language_model_tool_name_pattern():
     with pytest.raises(ValidationError):
         LanguageModelTool(
             name="invalid name!",
