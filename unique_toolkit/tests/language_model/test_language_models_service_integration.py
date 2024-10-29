@@ -1,5 +1,7 @@
 from datetime import datetime
 
+import pytest
+
 from unique_toolkit.app.schemas import Event
 from unique_toolkit.content.schemas import ContentChunk, ContentMetadata
 from unique_toolkit.language_model.infos import LanguageModelName

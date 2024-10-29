@@ -5,11 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.5.29] - 2024-10-15
+## [0.5.31] - 2024-10-29
 - Adding support for function calling. Assistant message for tool calls can be directly created with `LanguageModelFunctionCall.create_assistant_message_from_tool_calls`. Better separation of schemas for different types of `LanguageModelMessages`.
 
+## [0.5.30] - 2024-10-28
+- Correctly use `temperature` parameter in `LanguageModelService.complete` and `LanguageModelService.complete_async` methods
+
+## [0.5.29] - 2024-10-28
+- Allow numbers in `LanguageModelTool` name
+
 ## [0.5.28] - 2024-10-23
-- Correctly use `temperature` parameter in `LanguageModelService.complete`, `LanguageModelService.complete_async`, `LanguageModelService.stream_complete` and `LanguageModelService.stream_complete_async` methods
+- Correctly use `temperature` parameter in `LanguageModelService.stream_complete` and `LanguageModelService.stream_complete_async` methods
 
 ## [0.5.27] - 2024-10-22
 - Add encoder_name to to language model info
