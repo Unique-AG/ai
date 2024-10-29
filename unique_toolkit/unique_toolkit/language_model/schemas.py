@@ -11,7 +11,6 @@ from pydantic import (
     field_validator,
     model_serializer,
     model_validator,
-    Field,
 )
 
 # set config to convert camelCase to snake_case
