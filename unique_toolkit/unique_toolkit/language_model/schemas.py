@@ -6,6 +6,7 @@ from humps import camelize
 from pydantic import (
     BaseModel,
     ConfigDict,
+    Field,
     RootModel,
     field_validator,
     model_serializer,
