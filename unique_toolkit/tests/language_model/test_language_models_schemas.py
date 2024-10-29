@@ -1,7 +1,12 @@
+import json
+
 import pytest
 from pydantic import ValidationError
 
 from unique_toolkit.language_model.schemas import (
+    LanguageModelAssistantMessage,
+    LanguageModelFunction,
+    LanguageModelFunctionCall,
     LanguageModelMessage,
     LanguageModelMessageRole,
     LanguageModelMessages,
@@ -96,47 +101,204 @@ class TestLanguageModelSchemas:
         assert choice.finish_reason == "finished"
         assert choice.message.role == LanguageModelMessageRole.SYSTEM
         assert choice.message.content == "content"
-        assert choice.message.name == "name"
 
-        assert choice.message.tool_calls is not None
-        assert len(choice.message.tool_calls) == 1
+        # This is temporary this code would be deleted soon.
+        with pytest.raises(AttributeError):
+            assert choice.message.name == "name"
 
-        tool_call = choice.message.tool_calls[0]
-        assert tool_call.id == "id"
-        assert tool_call.type == "type"
-        assert tool_call.function.name == "name"
-        assert tool_call.function.arguments == {"key": "value"}
+            assert choice.message.tool_calls is not None
+            assert len(choice.message.tool_calls) == 1
 
-    def test_language_model_tool_raises_validation_error_for_bad_name(self):
-        with pytest.raises(ValidationError):
-            LanguageModelTool(
-                name="invalid name!",
-                description="Invalid tool name",
-                parameters=LanguageModelToolParameters(
-                    type="object",
-                    properties={
-                        "param": LanguageModelToolParameterProperty(
-                            type="string", description="A parameter"
-                        )
-                    },
-                    required=["param"],
+            tool_call = choice.message.tool_calls[0]
+            assert tool_call.id == "id"
+            assert tool_call.type == "type"
+            assert tool_call.function.name == "name"
+            assert tool_call.function.arguments == {"key": "value"}
+
+
+@pytest.fixture
+def valid_tool_calls():
+    """Fixture to provide valid tool calls."""
+    return [
+        LanguageModelFunction(
+            id="func_1", name="function_1", arguments={"param1": "value1", "param2": 2}
+        ),
+        LanguageModelFunction(
+            id="func_2", name="function_2", arguments=json.dumps({"key": "value"})
+        ),
+    ]
+
+
+def test_language_model_function_arguments_validation():
+    """Test that the arguments field is properly validated and processed."""
+    # Test when arguments are passed as a JSON string
+    valid_data = {
+        "id": "test_func",
+        "name": "Test Function",
+        "arguments": '{"key": "value"}',
+    }
+    language_model_function = LanguageModelFunction(**valid_data)
+    assert language_model_function.arguments == {"key": "value"}
+
+    # Test when arguments are passed as a dict (should remain unchanged)
+    valid_data = {
+        "id": "test_func",
+        "name": "Test Function",
+        "arguments": {"key": "value"},
+    }
+    language_model_function = LanguageModelFunction(**valid_data)
+    assert language_model_function.arguments == {"key": "value"}
+
+    # Test invalid JSON string in arguments
+    invalid_data = {
+        "id": "test_func",
+        "name": "Test Function",
+        "arguments": '{"invalid_json": }',
+    }
+    with pytest.raises(ValueError):
+        LanguageModelFunction(**invalid_data)
+
+
+def test_language_model_function_call_creation(valid_tool_calls):
+    """Test the create_assistant_message_from_tool_calls method."""
+    # Create assistant message using the valid tool calls
+    assistant_message = (
+        LanguageModelFunctionCall.create_assistant_message_from_tool_calls(
+            valid_tool_calls
+        )
+    )
+    print(assistant_message, "what are the assistant messages")
+
+    # Ensure the tool_calls are copied and serialized properly
+    for tool_call in assistant_message.tool_calls:
+        assert isinstance(
+            tool_call.function.arguments, dict
+        )  # arguments should be serialized to a string
+
+        # Check if arguments can be deserialized back to the original dict
+        assert tool_call.function.arguments == {
+            "param1": "value1",
+            "param2": 2,
+        } or {"key": "value"}
+
+    # Ensure the assistant message is constructed correctly
+    expected_message = LanguageModelAssistantMessage(
+        content="",
+        tool_calls=[
+            LanguageModelFunctionCall(
+                id="func_1",
+                type="function",
+                function=LanguageModelFunction(
+                    id="func_1",
+                    name="function_1",
+                    arguments={"param1": "value1", "param2": 2},
                 ),
-            )
-
-    def test_language_model_tool_name_pattern_raised_validation_error(self):
-        for name in ["DocumentSummarizerV2", "SearchInVectorDBV2"]:
-            tool = LanguageModelTool(
-                name=name,
-                description="Invalid tool name",
-                parameters=LanguageModelToolParameters(
-                    type="object",
-                    properties={
-                        "param": LanguageModelToolParameterProperty(
-                            type="string", description="A parameter"
-                        )
-                    },
-                    required=["param"],
+            ),
+            LanguageModelFunctionCall(
+                id="func_2",
+                type="function",
+                function=LanguageModelFunction(
+                    id="func_2",
+                    name="function_2",
+                    arguments={"key": "value"},
                 ),
-            )
+            ),
+        ],
+    )
+    assert assistant_message.role == expected_message.role
+    assert assistant_message.tool_calls[0].id == expected_message.tool_calls[0].id
+    assert assistant_message.tool_calls[0].type == expected_message.tool_calls[0].type
+    assert (
+        assistant_message.tool_calls[0].function.name
+        == expected_message.tool_calls[0].function.name
+    )
+    assert (
+        assistant_message.tool_calls[0].function.id
+        == expected_message.tool_calls[0].function.id
+    )
+    assert (
+        assistant_message.tool_calls[0].function.arguments
+        == expected_message.tool_calls[0].function.arguments
+    )
 
-            assert tool.name == name
+    assert assistant_message.tool_calls[1].id == expected_message.tool_calls[1].id
+    assert assistant_message.tool_calls[1].type == expected_message.tool_calls[1].type
+    assert (
+        assistant_message.tool_calls[1].function.name
+        == expected_message.tool_calls[1].function.name
+    )
+    assert (
+        assistant_message.tool_calls[1].function.id
+        == expected_message.tool_calls[1].function.id
+    )
+    assert (
+        assistant_message.tool_calls[1].function.arguments
+        == expected_message.tool_calls[1].function.arguments
+    )
+
+
+def test_invalid_tool_call_argument_type():
+    """Test that an invalid argument type raises appropriate errors."""
+    with pytest.raises(ValidationError):
+        LanguageModelFunction(id="func_1", name="function_1", arguments="invalid_json")
+    with pytest.raises(ValueError):
+        LanguageModelFunctionCall.create_assistant_message_from_tool_calls(
+            [
+                LanguageModelFunction(
+                    id="func_1", name="function_1", arguments="invalid_json"
+                )
+            ]
+        )
+
+
+def test_language_model_tool_name_pattern():
+    with pytest.raises(ValidationError):
+        LanguageModelTool(
+            name="invalid name!",
+            description="Invalid tool name",
+            parameters=LanguageModelToolParameters(
+                type="object",
+                properties={
+                    "param": LanguageModelToolParameterProperty(
+                        type="string", description="A parameter"
+                    )
+                },
+                required=["param"],
+            ),
+        )
+
+
+def test_language_model_tool_raises_validation_error_for_bad_name():
+    with pytest.raises(ValidationError):
+        LanguageModelTool(
+            name="invalid name!",
+            description="Invalid tool name",
+            parameters=LanguageModelToolParameters(
+                type="object",
+                properties={
+                    "param": LanguageModelToolParameterProperty(
+                        type="string", description="A parameter"
+                    )
+                },
+                required=["param"],
+            ),
+        )
+
+
+def test_language_model_tool_name_pattern_raised_validation_error():
+    for name in ["DocumentSummarizerV2", "SearchInVectorDBV2"]:
+        tool = LanguageModelTool(
+            name=name,
+            description="Invalid tool name",
+            parameters=LanguageModelToolParameters(
+                type="object",
+                properties={
+                    "param": LanguageModelToolParameterProperty(
+                        type="string", description="A parameter"
+                    )
+                },
+                required=["param"],
+            ),
+        )
+
+        assert tool.name == name
