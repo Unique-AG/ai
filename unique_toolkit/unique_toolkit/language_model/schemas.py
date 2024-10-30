@@ -1,6 +1,7 @@
 import json
 from enum import StrEnum
 from typing import Any, Optional, Self
+from uuid import uuid4
 
 from humps import camelize
 from pydantic import (
@@ -40,6 +41,10 @@ class LanguageModelFunction(BaseModel):
         if isinstance(value, str):
             return json.loads(value)
         return value
+
+    @field_validator("id", mode="before")
+    def randomize_id(cls, value):
+        return uuid4().hex
 
     @model_serializer()
     def serialize_model(self):
