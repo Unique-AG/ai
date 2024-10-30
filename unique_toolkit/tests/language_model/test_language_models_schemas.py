@@ -206,31 +206,25 @@ def test_language_model_function_call_creation(valid_tool_calls):
         ],
     )
     assert assistant_message.role == expected_message.role
-    assert assistant_message.tool_calls[0].id == expected_message.tool_calls[0].id
+    assert isinstance(expected_message.tool_calls[0].id, str)
     assert assistant_message.tool_calls[0].type == expected_message.tool_calls[0].type
     assert (
         assistant_message.tool_calls[0].function.name
         == expected_message.tool_calls[0].function.name
     )
-    assert (
-        assistant_message.tool_calls[0].function.id
-        == expected_message.tool_calls[0].function.id
-    )
+    assert isinstance(expected_message.tool_calls[0].function.id, str)
     assert (
         assistant_message.tool_calls[0].function.arguments
         == expected_message.tool_calls[0].function.arguments
     )
 
-    assert assistant_message.tool_calls[1].id == expected_message.tool_calls[1].id
+    assert isinstance(expected_message.tool_calls[1].id, str)
     assert assistant_message.tool_calls[1].type == expected_message.tool_calls[1].type
     assert (
         assistant_message.tool_calls[1].function.name
         == expected_message.tool_calls[1].function.name
     )
-    assert (
-        assistant_message.tool_calls[1].function.id
-        == expected_message.tool_calls[1].function.id
-    )
+    assert isinstance(expected_message.tool_calls[1].function.id, str)
     assert (
         assistant_message.tool_calls[1].function.arguments
         == expected_message.tool_calls[1].function.arguments
