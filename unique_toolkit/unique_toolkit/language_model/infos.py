@@ -17,6 +17,7 @@ class LanguageModelName(StrEnum):
     AZURE_GPT_4_32K_0613 = "AZURE_GPT_4_32K_0613"
     AZURE_GPT_4_TURBO_2024_0409 = "AZURE_GPT_4_TURBO_2024_0409"
     AZURE_GPT_4o_2024_0513 = "AZURE_GPT_4o_2024_0513"
+    AZURE_GPT_4o_2024_0806 = "AZURE_GPT_4o_2024_0806"
     AZURE_GPT_4o_MINI_2024_0718 = "AZURE_GPT_4o_MINI_2024_0718"
 
 
@@ -42,7 +43,11 @@ def get_encoder_name(model_name: LanguageModelName) -> Optional[EncoderName]:
             | LMN.AZURE_GPT_4_TURBO_2024_0409
         ):
             return EncoderName.CL100K_BASE
-        case LMN.AZURE_GPT_4o_2024_0513 | LMN.AZURE_GPT_4o_MINI_2024_0718:
+        case (
+            LMN.AZURE_GPT_4o_2024_0513
+            | LMN.AZURE_GPT_4o_2024_0806
+            | LMN.AZURE_GPT_4o_MINI_2024_0718
+        ):
             return EncoderName.O200K_BASE
         case _:
             print(f"{model_name} is not supported. Please add encoder information.")
@@ -367,6 +372,17 @@ AzureGpt4o20240513 = create_language_model(
     token_limit_output=4096,
     info_cutoff_at=date(2023, 10, 1),
     published_at=date(2024, 5, 13),
+)
+
+AzureGpt4o20240806 = create_language_model(
+    name=LanguageModelName.AZURE_GPT_4o_2024_0806,
+    encoder_name=get_encoder_name(LanguageModelName.AZURE_GPT_4o_2024_0806),
+    provider=LanguageModelProvider.AZURE,
+    version="2024-08-06",
+    token_limit_input=128000,
+    token_limit_output=16384,
+    info_cutoff_at=date(2023, 10, 1),
+    published_at=date(2024, 8, 6),
 )
 
 AzureGpt4oMini20240718 = create_language_model(
