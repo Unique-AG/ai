@@ -14,7 +14,7 @@ from unique_toolkit.language_model.infos import (
 class TestLanguageModelInfos:
     def test_can_list_all_defined_models(self):
         models = LanguageModel.list_models()
-        assert len(models) == 10
+        assert len(models) == 11
         assert all(isinstance(model, LanguageModelInfo) for model in models)
         assert all(model.name for model in models)
 
@@ -28,6 +28,7 @@ class TestLanguageModelInfos:
         assert LanguageModelName.AZURE_GPT_35_TURBO in model_names
         assert LanguageModelName.AZURE_GPT_35_TURBO_0613 in model_names
         assert LanguageModelName.AZURE_GPT_4o_2024_0513 in model_names
+        assert LanguageModelName.AZURE_GPT_4o_2024_0806 in model_names
         assert LanguageModelName.AZURE_GPT_4o_MINI_2024_0718 in model_names
 
     def test_get_language_model(self):
