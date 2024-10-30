@@ -14,7 +14,7 @@ from unique_toolkit.language_model.infos import (
 class TestLanguageModelInfos:
     def test_can_list_all_defined_models(self):
         models = LanguageModel.list_models()
-        assert len(models) == 10
+        assert len(models) == 11
         assert all(isinstance(model, LanguageModelInfo) for model in models)
         assert all(model.name for model in models)
 
