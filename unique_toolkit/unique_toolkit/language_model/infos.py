@@ -43,7 +43,11 @@ def get_encoder_name(model_name: LanguageModelName) -> Optional[EncoderName]:
             | LMN.AZURE_GPT_4_TURBO_2024_0409
         ):
             return EncoderName.CL100K_BASE
-        case LMN.AZURE_GPT_4o_2024_0513 | LMN.AZURE_GPT_4o_2024_0806 | LMN.AZURE_GPT_4o_MINI_2024_0718:
+        case (
+            LMN.AZURE_GPT_4o_2024_0513
+            | LMN.AZURE_GPT_4o_2024_0806
+            | LMN.AZURE_GPT_4o_MINI_2024_0718
+        ):
             return EncoderName.O200K_BASE
         case _:
             print(f"{model_name} is not supported. Please add encoder information.")
