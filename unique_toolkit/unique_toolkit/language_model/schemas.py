@@ -194,7 +194,7 @@ class LanguageModelTokenLimits(BaseModel):
             and token_limit_output is None
         ):
             raise ValueError(
-                "At least one of token_limit, token_limit_input or token_limit_output must be set"
+                "Either token_limit or the pair token_limit_input and token_limit_output must be set"
             )
 
         if (
