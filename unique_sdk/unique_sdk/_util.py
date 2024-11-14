@@ -200,7 +200,7 @@ def retry_on_error(
     initial_delay: int = 1,
     backoff_factor: int = 2,
     error_class=APIError,
-    should_retry_5xx=False
+    should_retry_5xx=False,
 ):
     def decorator(func: Callable) -> Callable:
         @wraps(func)
