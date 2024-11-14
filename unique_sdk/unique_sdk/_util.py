@@ -200,6 +200,7 @@ def retry_on_error(
     initial_delay: int = 1,
     backoff_factor: int = 2,
     error_class=APIError,
+    should_retry_5xx=False
 ):
     def decorator(func: Callable) -> Callable:
         @wraps(func)
@@ -209,10 +210,15 @@ def retry_on_error(
                 try:
                     return await func(*args, **kwargs)
                 except Exception as e:
-                    if not any(
+                    should_retry = any(
                         err_msg.lower() in str(e).lower() for err_msg in error_messages
-                    ):
-                        raise e  # Raise the error if none of the messages match
+                    )
+                    # Add 5xx check if `should_retry_5xx` is True
+                    if should_retry_5xx and hasattr(e, "status_code"):
+                        should_retry = should_retry or (500 <= e.status_code < 600)
+
+                    if not should_retry:
+                        raise e  # Raise the error if no retry condition is met
 
                     attempts += 1
                     if attempts >= max_retries:
@@ -229,10 +235,15 @@ def retry_on_error(
                 try:
                     return func(*args, **kwargs)
                 except Exception as e:
-                    if not any(
+                    should_retry = any(
                         err_msg.lower() in str(e).lower() for err_msg in error_messages
-                    ):
-                        raise e  # Raise the error if none of the messages match
+                    )
+                    # Add 5xx check if `should_retry_5xx` is True
+                    if should_retry_5xx and hasattr(e, "status_code"):
+                        should_retry = should_retry or (500 <= e.status_code < 600)
+
+                    if not should_retry:
+                        raise e  # Raise the error if no retry condition is met
 
                     attempts += 1
                     if attempts >= max_retries:
