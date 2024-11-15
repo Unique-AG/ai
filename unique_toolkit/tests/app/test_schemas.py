@@ -42,7 +42,7 @@ class TestEventSchemas:
                 "createdAt": "2023-01-01T00:01:00Z"
             },
             "text": "Optional text",
-            "additionalParameters": {"translateToLanguage": "en"}
+            "additionalParameters": {"translateToLanguage": "en", "contentIdToTranslate": "content_1234"}
         }"""
         payload = EventPayload.model_validate_json(json_data)
 
@@ -56,6 +56,7 @@ class TestEventSchemas:
         assert payload.text == "Optional text"
         assert payload.additional_parameters is not None
         assert payload.additional_parameters.translate_to_language == "en"
+        assert payload.additional_parameters.content_id_to_translate == "content_1234"
 
     def test_event_deserialization(self):
         json_data = """{
@@ -81,7 +82,7 @@ class TestEventSchemas:
                     "createdAt": "2023-01-01T00:01:00Z"
                 },
                 "text": "Optional text",
-                "additionalParameters": {"translateToLanguage": "en"}
+                "additionalParameters": {"translateToLanguage": "en", "contentIdToTranslate": "content_1234"}
             },
             "createdAt": 1672531200,
             "version": "1.0"
@@ -99,6 +100,10 @@ class TestEventSchemas:
         assert event.payload.text == "Optional text"
         assert event.payload.additional_parameters is not None
         assert event.payload.additional_parameters.translate_to_language == "en"
+        assert (
+            event.payload.additional_parameters.content_id_to_translate
+            == "content_1234"
+        )
         assert event.created_at == 1672531200
         assert event.version == "1.0"
 
