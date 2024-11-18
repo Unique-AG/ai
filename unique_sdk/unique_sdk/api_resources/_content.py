@@ -65,6 +65,9 @@ class Content(APIResource["Content"]):
         where: "Content.ContentWhereInput"
         chatId: NotRequired[str]
 
+    class IngestionConfig(TypedDict):
+        uniqueIngestionMode: str
+
     class Input(TypedDict):
         key: str
         title: Optional[str]
@@ -72,6 +75,7 @@ class Content(APIResource["Content"]):
         ownerType: str
         ownerId: str
         byteSize: Optional[int]
+        ingestionConfig: "Content.IngestionConfig"
 
     class UpsertParams(RequestOptions):
         input: "Content.Input"
