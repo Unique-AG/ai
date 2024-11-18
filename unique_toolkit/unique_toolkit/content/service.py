@@ -242,6 +242,7 @@ class ContentService(BaseService):
         mime_type: str,
         scope_id: Optional[str] = None,
         chat_id: Optional[str] = None,
+        skip_ingestion: Optional[bool] = False,
     ):
         """
         Uploads content to the knowledge base.
@@ -264,6 +265,7 @@ class ContentService(BaseService):
                 mime_type=mime_type,
                 scope_id=scope_id,
                 chat_id=chat_id,
+                skip_ingestion=skip_ingestion,
             )
         except Exception as e:
             self.logger.error(f"Error while uploading content: {e}")
@@ -276,6 +278,7 @@ class ContentService(BaseService):
         mime_type: str,
         scope_id: Optional[str] = None,
         chat_id: Optional[str] = None,
+        skip_ingestion: Optional[bool] = False,
     ):
         if not chat_id and not scope_id:
             raise ValueError("chat_id or scope_id must be provided")
@@ -318,16 +321,21 @@ class ContentService(BaseService):
             self.logger.error(error_msg)
             raise ValueError(error_msg)
 
+        input_dict = {
+            "key": content_name,
+            "title": content_name,
+            "mimeType": mime_type,
+            "byteSize": byte_size,
+        }
+
+        if skip_ingestion:
+            input_dict["ingestionConfig"] = {"uniqueIngestionMode": "SKIP_INGESTION"}
+
         if chat_id:
             unique_sdk.Content.upsert(
                 user_id=self.event.user_id,
                 company_id=self.event.company_id,
-                input={
-                    "key": content_name,
-                    "title": content_name,
-                    "mimeType": mime_type,
-                    "byteSize": byte_size,
-                },
+                input=input_dict,
                 fileUrl=read_url,
                 chatId=chat_id,
             )  # type: ignore
@@ -335,12 +343,7 @@ class ContentService(BaseService):
             unique_sdk.Content.upsert(
                 user_id=self.event.user_id,
                 company_id=self.event.company_id,
-                input={
-                    "key": content_name,
-                    "title": content_name,
-                    "mimeType": mime_type,
-                    "byteSize": byte_size,
-                },
+                input=input_dict,
                 fileUrl=read_url,
                 scopeId=scope_id,
             )  # type: ignore
