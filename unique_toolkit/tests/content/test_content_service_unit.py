@@ -273,6 +273,87 @@ class TestContentServiceUnit:
             # Clean up the temporary file
             os.unlink(temp_content_path)
 
+    @patch("requests.put")
+    def test_upload_with_skip_ingestion_content(self, mock_put):
+        with patch.object(unique_sdk.Content, "upsert") as mock_upsert:
+            # Create a temporary file for testing
+            with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                temp_file.write(b"Test content")
+                temp_content_path = temp_file.name
+                temp_file_size = temp_file.tell()
+
+            mock_upsert.side_effect = [
+                {
+                    "id": "test_content_id",
+                    "key": "test.txt",
+                    "title": "test.txt",
+                    "mimeType": "text/plain",
+                    "byteSize": temp_file_size,
+                    "writeUrl": "http://test-write-url.com",
+                    "readUrl": "http://test-read-url.com",
+                },
+                {
+                    "id": "test_content_id",
+                    "key": "test.txt",
+                    "title": "test.txt",
+                    "mimeType": "text/plain",
+                    "byteSize": temp_file_size,
+                    "writeUrl": "http://test-write-url.com",
+                    "readUrl": "http://test-read-url.com",
+                },
+            ]
+
+            result = self.service.upload_content(
+                path_to_content=temp_content_path,
+                content_name="test.txt",
+                mime_type="text/plain",
+                scope_id="test_scope",
+                skip_ingestion=True,
+            )
+
+            assert isinstance(result, Content)
+            assert result.id == "test_content_id"
+            assert result.write_url == "http://test-write-url.com"
+            assert result.read_url == "http://test-read-url.com"
+
+            # First upsert call
+            first_upsert_call = mock_upsert.call_args_list[0]
+            assert first_upsert_call[1]["user_id"] == "test_user"
+            assert first_upsert_call[1]["company_id"] == "test_company"
+            assert first_upsert_call[1]["input"] == {
+                "key": "test.txt",
+                "title": "test.txt",
+                "mimeType": "text/plain",
+            }
+            assert first_upsert_call[1]["scopeId"] == "test_scope"
+
+            # PUT call check
+            mock_put.assert_called_once_with(
+                url="http://test-write-url.com",
+                data=ANY,
+                headers={
+                    "X-Ms-Blob-Content-Type": "text/plain",
+                    "X-Ms-Blob-Type": "BlockBlob",
+                },
+            )
+
+            # Second upsert call
+            second_upsert_call = mock_upsert.call_args_list[1]
+            assert second_upsert_call[1]["user_id"] == "test_user"
+            assert second_upsert_call[1]["company_id"] == "test_company"
+            assert second_upsert_call[1]["input"] == {
+                "key": "test.txt",
+                "title": "test.txt",
+                "mimeType": "text/plain",
+                "byteSize": temp_file_size,
+                "ingestionConfig": {"uniqueIngestionMode": "SKIP_INGESTION"},
+            }
+            assert second_upsert_call[1]["fileUrl"] == "http://test-read-url.com"
+            assert second_upsert_call[1]["scopeId"] == "test_scope"
+
+            # Clean up the temporary file
+            os.unlink(temp_content_path)
+
     @patch("requests.get")
     def test_download_content(self, mock_get):
         mock_response = Mock()
