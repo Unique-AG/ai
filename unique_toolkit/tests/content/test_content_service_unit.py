@@ -449,11 +449,15 @@ class TestContentServiceUnit:
     def test_download_content_to_file_by_id(self, mock_get):
         mock_response = Mock()
         mock_response.status_code = 200
-        mock_response.headers = {"Content-Disposition": 'attachment; filename="test.txt"'}
+        mock_response.headers = {
+            "Content-Disposition": 'attachment; filename="test.txt"'
+        }
         mock_response.content = b"Test content"
         mock_get.return_value = mock_response
 
-        result = self.service.download_content_to_file_by_id(content_id="test_content_id")
+        result = self.service.download_content_to_file_by_id(
+            content_id="test_content_id"
+        )
 
         assert isinstance(result, Path)
         assert result.exists()
@@ -478,7 +482,9 @@ class TestContentServiceUnit:
         mock_response.content = b"Test content"
         mock_get.return_value = mock_response
 
-        result = self.service.request_content_by_id(content_id="test_content_id", chat_id="test_chat_id")
+        result = self.service.request_content_by_id(
+            content_id="test_content_id", chat_id="test_chat_id"
+        )
 
         assert result.status_code == 200
         assert result.content == b"Test content"
@@ -501,7 +507,9 @@ class TestContentServiceUnit:
         mock_response.content = b"Not Found"
         mock_get.return_value = mock_response
 
-        result = self.service.request_content_by_id(content_id="invalid_id", chat_id="test_chat_id")
+        result = self.service.request_content_by_id(
+            content_id="invalid_id", chat_id="test_chat_id"
+        )
 
         assert result.status_code == 404
         assert result.content == b"Not Found"
@@ -524,7 +532,9 @@ class TestContentServiceUnit:
         mock_response.content = b"Internal Server Error"
         mock_get.return_value = mock_response
 
-        result = self.service.request_content_by_id(content_id="test_content_id", chat_id="test_chat_id")
+        result = self.service.request_content_by_id(
+            content_id="test_content_id", chat_id="test_chat_id"
+        )
 
         assert result.status_code == 500
         assert result.content == b"Internal Server Error"
@@ -547,7 +557,9 @@ class TestContentServiceUnit:
         mock_response.content = b"Test content"
         mock_get.return_value = mock_response
 
-        result = self.service.request_content_by_id(content_id="test_content_id", chat_id=None)
+        result = self.service.request_content_by_id(
+            content_id="test_content_id", chat_id=None
+        )
 
         assert result.status_code == 200
         assert result.content == b"Test content"
@@ -567,11 +579,15 @@ class TestContentServiceUnit:
     def test_download_content_to_file_by_id_with_filename(self, mock_get):
         mock_response = Mock()
         mock_response.status_code = 200
-        mock_response.headers = {"Content-Disposition": 'attachment; filename="custom_name.txt"'}
+        mock_response.headers = {
+            "Content-Disposition": 'attachment; filename="custom_name.txt"'
+        }
         mock_response.content = b"Test content"
         mock_get.return_value = mock_response
 
-        result = self.service.download_content_to_file_by_id(content_id="test_content_id", filename="custom_name.txt")
+        result = self.service.download_content_to_file_by_id(
+            content_id="test_content_id", filename="custom_name.txt"
+        )
 
         assert isinstance(result, Path)
         assert result.exists()

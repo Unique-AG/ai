@@ -10,9 +10,10 @@ from tests.test_obj_factory import get_event_obj
 from unique_toolkit.chat.service import ChatService
 
 collect_ignore_glob = []
-RUN_INTEGRATION_TEST = False 
+RUN_INTEGRATION_TEST = False
 
 logger = logging.getLogger(__name__)
+
 
 def get_env_variable(var_name, default=None):
     """Retrieve an environment variable and log a warning if it is missing."""
@@ -24,13 +25,12 @@ def get_env_variable(var_name, default=None):
 
 # This is only necessary if you run integration tests
 if RUN_INTEGRATION_TEST:
-
-    DOTENV_TEST_PATH = Path(__file__).parent/".env.test"
+    DOTENV_TEST_PATH = Path(__file__).parent / ".env.test"
     if not DOTENV_TEST_PATH.exists():
         raise Exception(f"{DOTENV_TEST_PATH.parent} does not exists.")
     load_dotenv(dotenv_path=DOTENV_TEST_PATH)
-    
-    #Configure the unique_sdk with environment variables
+
+    # Configure the unique_sdk with environment variables
     unique_sdk.api_key = get_env_variable("TEST_API_KEY")
     unique_sdk.app_id = get_env_variable("TEST_APP_ID")
     unique_sdk.api_base = get_env_variable("TEST_API_BASE")
@@ -48,6 +48,7 @@ if RUN_INTEGRATION_TEST:
     test_scope_id = get_env_variable("TEST_SCOPE_ID")
 else:
     collect_ignore_glob.append("*_integration.py")
+
 
 @pytest.fixture
 def event():

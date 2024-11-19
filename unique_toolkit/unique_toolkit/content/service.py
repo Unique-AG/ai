@@ -379,7 +379,7 @@ class ContentService(BaseService):
         }
 
         return requests.get(url, headers=headers)
-    
+
     def download_content_to_file_by_id(
         self,
         content_id: str,
@@ -432,7 +432,7 @@ class ContentService(BaseService):
 
         return content_path
 
-    #TODO: Discuss if we should deprecate this method due to unclear use by content_name
+    # TODO: Discuss if we should deprecate this method due to unclear use by content_name
     def download_content(
         self,
         content_id: str,

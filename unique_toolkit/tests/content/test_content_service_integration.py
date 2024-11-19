@@ -345,9 +345,7 @@ class TestContentServiceIntegration:
             os.makedirs(random_dir, exist_ok=True)
 
             downloaded_path = self.service.download_content_to_file_by_id(
-                content_id=uploaded_content.id,
-                dir_path=random_dir,
-                filename=None
+                content_id=uploaded_content.id, dir_path=random_dir, filename=None
             )
 
             assert isinstance(downloaded_path, Path)
