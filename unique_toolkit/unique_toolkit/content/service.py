@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import tempfile
 from pathlib import Path
 from typing import Optional, Union, cast
@@ -350,6 +351,76 @@ class ContentService(BaseService):
 
         return Content(**created_content)
 
+    def send_download_content_from_chat_request(
+        self, content_id: str, chat_id: str
+    ) -> requests.Response:
+        url = f"{unique_sdk.api_base}/content/{content_id}/file"
+        if chat_id:
+            url = f"{url}?chatId={chat_id}"
+
+            # Download the file and save it to the random directory
+        headers = {
+            "x-api-version": unique_sdk.api_version,
+            "x-app-id": unique_sdk.app_id,
+            "x-user-id": self.event.user_id,
+            "x-company-id": self.event.company_id,
+            "Authorization": "Bearer %s" % (unique_sdk.api_key,),
+        }
+
+        return requests.get(url, headers=headers)
+
+    def download_content_from_chat_to_file_by_id(
+        self,
+        content_id: str,
+        chat_id: Optional[str] = None,
+        filename: str | None = None,
+        tmp_dir_path: Optional[Union[str, Path]] = "/tmp",
+    ):
+        """
+        Downloads content from a chat and saves it to a file.
+
+        Args:
+            content_id (str): The ID of the content to download.
+            chat_id (Optional[str]): The ID of the chat. Defaults to None.
+            filename (str | None): The name of the file to save the content as. If not provided, the original filename will be used. Defaults to None.
+            tmp_dir_path (Optional[Union[str, Path]]): The path to the temporary directory where the content will be saved. Defaults to "/tmp".
+
+        Returns:
+            Path: The path to the downloaded file.
+
+        Raises:
+            Exception: If the download fails or the filename cannot be determined.
+        """
+
+        response = self.send_download_content_from_chat_request(content_id, chat_id)
+        random_dir = tempfile.mkdtemp(dir=tmp_dir_path)
+
+        if response.status_code == 200:
+            if filename:
+                content_path = Path(random_dir) / filename
+            else:
+                pattern = r'filename="([^"]+)"'
+                match = re.search(
+                    pattern, response.headers.get("Content-Disposition", "")
+                )
+                if match and len(match) > 0:
+                    content_path = Path(random_dir) / f"{match[0]}"
+                else:
+                    error_msg = (
+                        "Error downloading file: Filename could not be determined"
+                    )
+                    self.logger.error(error_msg)
+                    raise Exception(error_msg)
+
+            with open(content_path, "wb") as file:
+                file.write(response.content)
+        else:
+            error_msg = f"Error downloading file: Status code {response.status_code}"
+            self.logger.error(error_msg)
+            raise Exception(error_msg)
+
+        return content_path
+
     def download_content(
         self,
         content_id: str,
@@ -373,26 +444,11 @@ class ContentService(BaseService):
             Exception: If the download fails.
         """
 
-        url = f"{unique_sdk.api_base}/content/{content_id}/file"
-        if chat_id:
-            url = f"{url}?chatId={chat_id}"
+        response = self.send_download_content_from_chat_request(content_id, chat_id)
 
-        # Create a random directory inside /tmp
         random_dir = tempfile.mkdtemp(dir=dir_path)
-
-        # Create the full file path
         content_path = Path(random_dir) / content_name
 
-        # Download the file and save it to the random directory
-        headers = {
-            "x-api-version": unique_sdk.api_version,
-            "x-app-id": unique_sdk.app_id,
-            "x-user-id": self.event.user_id,
-            "x-company-id": self.event.company_id,
-            "Authorization": "Bearer %s" % (unique_sdk.api_key,),
-        }
-
-        response = requests.get(url, headers=headers)
         if response.status_code == 200:
             with open(content_path, "wb") as file:
                 file.write(response.content)
