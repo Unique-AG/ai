@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 
 from unique_sdk import _error
+from unique_sdk._error import APIConnectionError
 from unique_sdk._http_client import (
     AIOHTTPClient,
     HTTPXClient,
@@ -225,3 +226,14 @@ async def test_no_import_found_async_client_close_error():
     client = NoImportFoundAsyncClient()
     with pytest.raises(ImportError):
         await client.close_async()
+
+
+def test_requests_client_raises_api_connection_error_with_original_error(mock_requests):
+    mock_requests.Session.return_value.request.side_effect = Exception("Network error")
+
+    client = RequestsClient()
+
+    with pytest.raises(APIConnectionError) as excinfo:
+        client.request("GET", "https://mock-url", {"header": "value"})
+
+    assert "(Original error) Network error" in str(excinfo.value)

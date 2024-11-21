@@ -13,6 +13,7 @@ from unique_sdk._api_requestor import (
     _encode_datetime,
     _encode_nested_dict,
 )
+from unique_sdk._error import APIError
 
 
 @pytest.fixture
@@ -223,3 +224,27 @@ async def test_request_raw_async():
     assert rcontent == "response_body"
     assert rcode == 200
     assert rheaders == {"Request-Id": "req_id"}
+
+
+def test_api_requestor_handle_error_response_with_original_error():
+    requestor = APIRequestor(user_id="user_id", company_id="company_id")
+    mock_response = {
+        "error": {
+            "message": "API error",
+            "type": "api_error",
+            "cause": {
+                "error": {"message": "Test error", "code": "TEST"},
+                "status": 500,
+            },
+        }
+    }
+    mock_rbody = '{"error": {"message": "API error"}}'
+    mock_rcode = 500
+    mock_rheaders = {}
+
+    with pytest.raises(APIError) as excinfo:
+        requestor.handle_error_response(
+            mock_rbody, mock_rcode, mock_response, mock_rheaders
+        )
+
+    assert "(Original error) TEST: Test error" in str(excinfo.value)
