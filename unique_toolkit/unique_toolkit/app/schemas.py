@@ -37,6 +37,7 @@ class EventAdditionalParameters(BaseModel):
     model_config = model_config
 
     translate_to_language: Optional[str] = None
+    content_id_to_translate: Optional[str] = None
 
 
 class EventPayload(BaseModel):
