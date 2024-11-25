@@ -22,10 +22,12 @@ retry_dict = {
     "error_messages": [
         "problem proxying the request",
         "Upstream service reached a hard timeout",
+        "Invalid response body from API",
     ],
     "max_retries": 3,
     "backoff_factor": 2,
     "initial_delay": 1,
+    "should_retry_5xx": True,
 }
 
 
