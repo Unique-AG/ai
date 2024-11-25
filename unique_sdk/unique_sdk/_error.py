@@ -9,6 +9,7 @@ class UniqueError(Exception):
     headers: Optional[Dict[str, str]]
     code: Optional[str]
     request_id: Optional[str]
+    original_error: Optional[Exception | str]
 
     def __init__(
         self,
@@ -18,6 +19,7 @@ class UniqueError(Exception):
         json_body: Optional[object] = None,
         headers: Optional[Dict[str, str]] = None,
         code: Optional[str] = None,
+        original_error: Optional[Exception | str] = None,
     ):
         super(UniqueError, self).__init__(message)
 
@@ -38,6 +40,13 @@ class UniqueError(Exception):
         self.headers = headers or {}
         self.code = code
         self.request_id = self.headers.get("request-id", None)
+        self.original_error = original_error
+
+    def __str__(self):
+        msg = self._message or "<empty message>"
+        if self.original_error:
+            msg += f"\n(Original error) {str(self.original_error)}"
+        return msg
 
 
 class UniqueErrorWithParamsCode(UniqueError):
@@ -72,9 +81,10 @@ class APIConnectionError(UniqueError):
         headers=None,
         code=None,
         should_retry=False,
+        original_error=None,
     ):
         super(APIConnectionError, self).__init__(
-            message, http_body, http_status, json_body, headers, code
+            message, http_body, http_status, json_body, headers, code, original_error
         )
         self.should_retry = should_retry
 
@@ -97,9 +107,10 @@ class InvalidRequestError(UniqueErrorWithParamsCode):
         http_status=None,
         json_body=None,
         headers=None,
+        original_error=None,
     ):
         super(InvalidRequestError, self).__init__(
-            message, http_body, http_status, json_body, headers, code
+            message, http_body, http_status, json_body, headers, code, original_error
         )
         self.params = params
 

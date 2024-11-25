@@ -339,13 +339,14 @@ class APIRequestor(object):
                 rcode,
                 rheaders,
             )
-        except Exception:
+        except Exception as e:
             raise _error.APIError(
                 "Invalid response body from API: %s "
                 "(HTTP response code was %d)" % (rbody, rcode),
                 cast(bytes, rbody),
                 rcode,
                 rheaders,
+                original_error=e,
             )
         if self._should_handle_code_as_error(rcode):
             self.handle_error_response(rbody, rcode, resp.data, rheaders)
@@ -374,33 +375,57 @@ class APIRequestor(object):
         raise err
 
     def specific_api_error(self, rbody, rcode, resp, rheaders, error_data):
+        cause = error_data.get("cause", {})
+        status = cause.get("status", rcode)
+
         _util.log_info(
             "Unique error received",
-            error_code=error_data.get("code"),
+            error_code=status,
             error_type=error_data.get("type"),
             error_message=error_data.get("message"),
             error_params=error_data.get("params"),
         )
 
-        if rcode in [400, 404]:
+        error = cause.get("error", {}) if cause else {}
+        error_code = error.get("code", "<Unknown code>")
+        error_message = error.get("message", "<No message>")
+        original_error = f"{error_code}: {error_message}"
+
+        if status in [400, 404]:
             return _error.InvalidRequestError(
-                error_data.get("message"),
-                error_data.get("params"),
-                error_data.get("code"),
-                rbody,
-                rcode,
-                resp,
-                rheaders,
+                message=error_data.get("message"),
+                params=error_data.get("params"),
+                code=error_data.get("code"),
+                http_body=rbody,
+                http_status=rcode,
+                json_body=resp,
+                headers=rheaders,
+                original_error=original_error,
             )
-        elif rcode == 401:
+        elif status == 401:
             return _error.AuthenticationError(
-                error_data.get("message"), rbody, rcode, resp, rheaders
+                message=error_data.get("message"),
+                http_body=rbody,
+                http_status=status,
+                json_body=resp,
+                headers=rheaders,
+                original_error=original_error,
             )
-        elif rcode == 403:
+        elif status == 403:
             return _error.PermissionError(
-                error_data.get("message"), rbody, rcode, resp, rheaders
+                message=error_data.get("message"),
+                http_body=rbody,
+                http_status=status,
+                json_body=resp,
+                headers=rheaders,
+                original_error=original_error,
             )
         else:
             return _error.APIError(
-                error_data.get("message"), rbody, rcode, resp, rheaders
+                message=error_data.get("message"),
+                http_body=rbody,
+                http_status=status,
+                json_body=resp,
+                headers=rheaders,
+                original_error=original_error,
             )

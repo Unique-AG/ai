@@ -130,11 +130,12 @@ class RequestsClient(HTTPClient):
             content = result.content
             status_code = result.status_code
 
-        except Exception:
+        except Exception as e:
             raise _error.APIConnectionError(
                 "Unexpected error communicating with Unique. "
                 "If this problem persists, let us know at support@unique.ch",
                 http_status=500,
+                original_error=e,
             )
 
         return content, status_code, result.headers
@@ -186,11 +187,12 @@ class HTTPXClient(HTTPClient):
         args, kwargs = self._get_request_args_kwargs(method, url, headers, post_data)
         try:
             response = self._client.request(*args, **kwargs)
-        except Exception:
+        except Exception as e:
             raise _error.APIConnectionError(
                 "Unexpected error communicating with Unique. "
                 "If this problem persists, let us know at support@unique.ch",
                 http_status=500,
+                original_error=e,
             )
 
         content = response.content
@@ -208,11 +210,12 @@ class HTTPXClient(HTTPClient):
         args, kwargs = self._get_request_args_kwargs(method, url, headers, post_data)
         try:
             response = await self._client_async.request(*args, **kwargs)
-        except Exception:
+        except Exception as e:
             raise _error.APIConnectionError(
                 "Unexpected error communicating with Unique. "
                 "If this problem persists, let us know at support@unique.ch",
                 http_status=500,
+                original_error=e,
             )
 
         content = response.content
@@ -297,11 +300,12 @@ class AIOHTTPClient(HTTPClient):
         args, kwargs = self._get_request_args_kwargs(method, url, headers, post_data)
         try:
             response = await self._session.request(*args, **kwargs)
-        except Exception:
+        except Exception as e:
             raise _error.APIConnectionError(
                 "Unexpected error communicating with Unique. "
                 "If this problem persists, let us know at support@unique.ch",
                 http_status=500,
+                original_error=e,
             )
 
         content = response.content
