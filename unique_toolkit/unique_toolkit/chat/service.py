@@ -140,7 +140,8 @@ class ChatService(BaseService):
 
     def modify_assistant_message(
         self,
-        content: str,
+        content: str | None = None,
+        original_content: str | None = None,
         references: list[ContentReference] = [],
         debug_info: dict = {},
         message_id: Optional[str] = None,
@@ -150,7 +151,8 @@ class ChatService(BaseService):
         Modifies a message in the chat session synchronously.
 
         Args:
-            content (str): The new content for the message.
+            content (str, optional): The new content for the message.
+            original_content (str, optional): The original content for the message.
             references (list[ContentReference]): list of ContentReference objects. Defaults to [].
             debug_info (dict[str, Any]]]): Debug information. Defaults to {}.
             message_id (Optional[str]): The message ID. Defaults to None.
@@ -166,6 +168,7 @@ class ChatService(BaseService):
             params = self._construct_message_modify_params(
                 assistant=True,
                 content=content,
+                original_content=original_content,
                 references=references,
                 debug_info=debug_info,
                 message_id=message_id,
@@ -190,7 +193,8 @@ class ChatService(BaseService):
         Modifies a message in the chat session asynchronously.
 
         Args:
-            content (str): The new content for the message.
+            content (str, optional): The new content for the message.
+            original_content (str, optional): The original content for the message.
             message_id (str, optional): The message ID. Defaults to None, then the ChatState assistant message id is used.
             references (list[ContentReference]): list of ContentReference objects. Defaults to None.
             debug_info (Optional[dict[str, Any]]], optional): Debug information. Defaults to None.
