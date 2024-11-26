@@ -307,6 +307,7 @@ class ChatService(BaseService):
     def create_assistant_message(
         self,
         content: str,
+        original_content: str | None = None,
         references: list[ContentReference] = [],
         debug_info: dict = {},
         set_completed_at: Optional[bool] = False,
@@ -316,6 +317,7 @@ class ChatService(BaseService):
 
         Args:
             content (str): The content for the message.
+            original_content (str, optional): The original content for the message.
             references (list[ContentReference]): list of ContentReference objects. Defaults to None.
             debug_info (dict[str, Any]]): Debug information. Defaults to None.
             set_completed_at (Optional[bool]): Whether to set the completedAt field with the current date time. Defaults to False.
@@ -326,10 +328,13 @@ class ChatService(BaseService):
         Raises:
             Exception: If the creation fails.
         """
+        if original_content is None:
+            original_content = content
 
         try:
             params = self._construct_message_create_params(
                 content=content,
+                original_content=original_content,
                 references=references,
                 debug_info=debug_info,
                 set_completed_at=set_completed_at,
@@ -344,6 +349,7 @@ class ChatService(BaseService):
     async def create_assistant_message_async(
         self,
         content: str,
+        original_content: str | None = None,
         references: list[ContentReference] = [],
         debug_info: dict = {},
         set_completed_at: Optional[bool] = False,
@@ -353,6 +359,7 @@ class ChatService(BaseService):
 
         Args:
             content (str): The content for the message.
+            original_content (str, optional): The original content for the message.
             references (list[ContentReference]): list of references. Defaults to None.
             debug_info (dict[str, Any]]): Debug information. Defaults to None.
             set_completed_at (Optional[bool]): Whether to set the completedAt field with the current date time. Defaults to False.
@@ -363,9 +370,13 @@ class ChatService(BaseService):
         Raises:
             Exception: If the creation fails.
         """
+        if original_content is None:
+            original_content = content
+
         try:
             params = self._construct_message_create_params(
                 content=content,
+                original_content=original_content,
                 references=references,
                 debug_info=debug_info,
                 set_completed_at=set_completed_at,
@@ -543,6 +554,7 @@ class ChatService(BaseService):
         self,
         role: ChatMessageRole = ChatMessageRole.ASSISTANT,
         content: Optional[str] = None,
+        original_content: Optional[str] = None,
         references: Optional[list[ContentReference]] = None,
         debug_info: Optional[dict] = None,
         assistantId: Optional[str] = None,
@@ -559,6 +571,9 @@ class ChatService(BaseService):
         else:
             completed_at_datetime = None
 
+        if original_content is None:
+            original_content = content
+
         params = {
             "user_id": self.event.user_id,
             "company_id": self.event.company_id,
@@ -566,6 +581,7 @@ class ChatService(BaseService):
             "role": role.value.upper(),
             "chatId": self.event.payload.chat_id,
             "text": content,
+            "originalText": original_content,
             "references": self._map_references(references) if references else [],
             "debugInfo": debug_info,
             "completedAt": completed_at_datetime,
