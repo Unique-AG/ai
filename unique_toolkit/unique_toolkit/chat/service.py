@@ -179,7 +179,8 @@ class ChatService(BaseService):
 
     async def modify_assistant_message_async(
         self,
-        content: str,
+        content: str | None = None,
+        original_content: str | None = None,
         references: list[ContentReference] = [],
         debug_info: dict = {},
         message_id: Optional[str] = None,
@@ -205,6 +206,7 @@ class ChatService(BaseService):
             params = self._construct_message_modify_params(
                 assistant=True,
                 content=content,
+                original_content=original_content,
                 references=references,
                 debug_info=debug_info,
                 message_id=message_id,
@@ -497,6 +499,7 @@ class ChatService(BaseService):
         self,
         assistant: bool = True,
         content: Optional[str] = None,
+        original_content: Optional[str] = None,
         references: Optional[list[ContentReference]] = None,
         debug_info: Optional[dict] = None,
         message_id: Optional[str] = None,
@@ -525,7 +528,7 @@ class ChatService(BaseService):
             "id": message_id,
             "chatId": self.event.payload.chat_id,
             "text": content,
-            "originalText": content,
+            "originalText": original_content,
             "references": self._map_references(references) if references else [],
             "debugInfo": debug_info,
             "completedAt": completed_at_datetime,
@@ -559,7 +562,6 @@ class ChatService(BaseService):
             "role": role.value.upper(),
             "chatId": self.event.payload.chat_id,
             "text": content,
-            "originalText": content,
             "references": self._map_references(references) if references else [],
             "debugInfo": debug_info,
             "completedAt": completed_at_datetime,
