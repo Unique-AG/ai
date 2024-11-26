@@ -92,6 +92,12 @@ class LanguageModelMessage(BaseModel):
 
     def __str__(self):
         return format_message(self.role.capitalize(), message=self.content, num_tabs=1)
+    
+    def to_openai_dict(self)->dict[str,str]:
+        return {k: v for k,v in json.loads(self.model_dump_json(serialize_as_any=True)).items() if v is not None}
+
+    def token_count(self, encode: callable[[str], int])->int:
+        return 1
 
 
 class LanguageModelSystemMessage(LanguageModelMessage):
