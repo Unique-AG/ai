@@ -71,7 +71,7 @@ class TestChatServiceUnit:
                 id="test_assistant_message",
                 chatId="test_chat",
                 text="Modified message",
-                originalText="Modified message",
+                originalText=None,
                 references=[
                     {
                         "name": "Document 1",
@@ -122,7 +122,7 @@ class TestChatServiceUnit:
                 id="test_assistant_message",
                 chatId="test_chat",
                 text="Modified message",
-                originalText="Modified message",
+                originalText=None,
                 references=[
                     {
                         "name": "Document 1",
@@ -299,7 +299,7 @@ class TestChatServiceUnit:
                 id="test_assistant_message",
                 chatId="test_chat",
                 text="Modified message",
-                originalText="Modified message",
+                originalText=None,
                 references=[
                     {
                         "name": "Document 1",
@@ -352,7 +352,7 @@ class TestChatServiceUnit:
                 id="test_assistant_message",
                 chatId="test_chat",
                 text="Modified message",
-                originalText="Modified message",
+                originalText=None,
                 references=[
                     {
                         "name": "Document 1",
