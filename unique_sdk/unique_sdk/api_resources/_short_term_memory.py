@@ -20,7 +20,6 @@ class ShortTermMemory(APIResource["ShortTermMemory"]):
         chatId: Optional[str]
         messageId: Optional[str]
 
-    id: str
     memoryName: str
     chatId: Optional[str]
     messageId: Optional[str]
@@ -73,7 +72,6 @@ class ShortTermMemory(APIResource["ShortTermMemory"]):
         cls,
         user_id: str,
         company_id: str,
-        id: str,
         **params: Unpack["ShortTermMemory.FindParams"],
     ) -> "ShortTermMemory":
         """
@@ -95,7 +93,6 @@ class ShortTermMemory(APIResource["ShortTermMemory"]):
         cls,
         user_id: str,
         company_id: str,
-        id: str,
         **params: Unpack["ShortTermMemory.FindParams"],
     ) -> "ShortTermMemory":
         """
