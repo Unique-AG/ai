@@ -13,6 +13,7 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelResponse,
     LanguageModelSystemMessage,
     LanguageModelTool,
+    LanguageModelToolMessage,
     LanguageModelToolParameterProperty,
     LanguageModelToolParameters,
     LanguageModelUserMessage,
@@ -114,6 +115,40 @@ class TestLanguageModelSchemas:
             assert tool_call.type == "type"
             assert tool_call.function.name == "name"
             assert tool_call.function.arguments == {"key": "value"}
+
+    def test_language_model_system_message_str(self):
+        message = LanguageModelSystemMessage(content="System message content")
+        expected_output = "System:\n\tSystem message content"
+        assert str(message) == expected_output
+
+    def test_language_model_user_message_str(self):
+        message = LanguageModelUserMessage(content="User message content")
+        expected_output = "User:\n\tUser message content"
+        assert str(message) == expected_output
+
+    def test_language_model_assistant_message_str(self):
+        message = LanguageModelAssistantMessage(content="Assistant message content")
+        expected_output = "Assistant:\n\tAssistant message content"
+        assert str(message) == expected_output
+
+    def test_language_model_tool_message_str(self):
+        message = LanguageModelToolMessage(
+            name="Tool Name", tool_call_id="123", content="Tool message content"
+        )
+        expected_output = "Tool:\n\tTool Name, 123, Tool message content"
+        assert str(message) == expected_output
+
+    def test_language_model_messages_str(self):
+        messages = LanguageModelMessages(
+            [
+                LanguageModelSystemMessage(content="System message content"),
+                LanguageModelUserMessage(content="User message content"),
+            ]
+        )
+        expected_output = (
+            "System:\n\tSystem message content\n\nUser:\n\tUser message content"
+        )
+        assert str(messages) == expected_output
 
 
 @pytest.fixture

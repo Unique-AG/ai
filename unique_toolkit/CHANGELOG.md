@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.38] - 2024-11-26
+- Added string representation to `LanguageModelMessage` and `LanguageModelMessages` class
+
 ## [0.5.37] - 2024-11-26
 - `content` parameter in `ChatService.modify_assistant_message` and `ChatService.modify_assistant_message_async` is now optional
 - Added optional parameter `original_content` to `ChatService.modify_assistant_message` and `ChatService.modify_assistant_message_async`

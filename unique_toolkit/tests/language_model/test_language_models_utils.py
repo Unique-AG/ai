@@ -3,6 +3,7 @@ import unittest
 from unique_toolkit.language_model.utils import (
     convert_string_to_json,
     find_last_json_object,
+    format_message,  # Importing the format_message function
 )
 
 
@@ -50,3 +51,21 @@ class TestLanguageModelUtils(unittest.TestCase):
     def test_find_last_json_object_no_json(self):
         input_string = "This is just a regular string"
         self.assertIsNone(find_last_json_object(input_string))
+
+    def test_format_message_single_line(self):
+        user = "Alice"
+        message = "Hello"
+        expected_output = "Alice:\n\tHello"
+        self.assertEqual(format_message(user, message), expected_output)
+
+    def test_format_message_multi_line(self):
+        user = "Bob"
+        message = "Hello\nWorld"
+        expected_output = "Bob:\n\tHello\n\tWorld"
+        self.assertEqual(format_message(user, message), expected_output)
+
+    def test_format_message_with_tabs(self):
+        user = "Charlie"
+        message = "Line 1\nLine 2"
+        expected_output = "Charlie:\n\t\tLine 1\n\t\tLine 2"
+        self.assertEqual(format_message(user, message, num_tabs=2), expected_output)
