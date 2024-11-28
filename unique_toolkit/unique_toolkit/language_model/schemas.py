@@ -14,6 +14,8 @@ from pydantic import (
     model_validator,
 )
 
+from unique_toolkit.language_model.utils import format_message
+
 # set config to convert camelCase to snake_case
 model_config = ConfigDict(
     alias_generator=camelize,
@@ -88,6 +90,9 @@ class LanguageModelMessage(BaseModel):
     content: Optional[str | list[dict]] = None
     tool_calls: Optional[list[LanguageModelFunctionCall]] = None
 
+    def __str__(self):
+        return format_message(self.role.capitalize(), message=self.content, num_tabs=1)
+
 
 class LanguageModelSystemMessage(LanguageModelMessage):
     role: LanguageModelMessageRole = LanguageModelMessageRole.SYSTEM
@@ -118,6 +123,13 @@ class LanguageModelToolMessage(LanguageModelMessage):
     name: str
     tool_call_id: str
 
+    def __str__(self):
+        return format_message(
+            user=self.role.capitalize(),
+            message=f"{self.name}, {self.tool_call_id}, {self.content}",
+            num_tabs=1,
+        )
+
     @field_validator("role", mode="before")
     def set_role(cls, value):
         return LanguageModelMessageRole.TOOL
@@ -131,6 +143,9 @@ class LanguageModelMessages(RootModel):
         | LanguageModelSystemMessage
         | LanguageModelUserMessage
     ]
+
+    def __str__(self):
+        return "\n\n".join([str(message) for message in self.root])
 
     def __iter__(self):
         return iter(self.root)
