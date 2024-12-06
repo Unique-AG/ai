@@ -18,6 +18,7 @@ class Search(APIResource["Search"]):
         limit: NotRequired[Optional[int]]
         page: NotRequired[Optional[int]]
         metaDataFilter: NotRequired[Optional[dict[str, Any]]]
+        contentIds: NotRequired[Optional[list[str]]]
 
     id: str
     chunkId: str
