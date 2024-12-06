@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_sdk"
-version = "0.9.13"
+version = "0.9.14"
 description = ""
 authors = [
     "Martin Fadler <martin.fadler@unique.ch>",
@@ -22,6 +22,8 @@ tox = "^4.11.4"
 pyright = "^1.1.341"
 pytest-cov = "^4.1.0"
 pytest-asyncio = "^0.24.0"
+requests = "^2.32.3"
+httpx = "^0.28.1"
 
 [build-system]
 requires = ["poetry-core"]
