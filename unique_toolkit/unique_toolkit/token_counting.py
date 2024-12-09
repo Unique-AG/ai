@@ -57,19 +57,16 @@ def get_encoder(model_str) -> tiktoken.Encoding:
     
     return encoding
 
-def num_tokens_from_messages(messages, encode: Callable[[str], int] ) -> int:
+def num_tokens_from_messages(messages: list[dict[str,str]], encode: Callable[[str], list[int]] ) -> int:
     """Return the number of tokens used by a list of messages."""
     
-    extra_tokens_per_message = 3
-    extra_tokens_per_name = 1
-
     num_tokens = 0
     for message in messages:
-        num_tokens += extra_tokens_per_message
+        num_tokens += 3 # extra_tokens_per_message
         for key, value in message.items():
             num_tokens += len(encode(value))
             if key == "name":
-                num_tokens += extra_tokens_per_name
+                num_tokens +=  1 #extra_tokens_per_name
     num_tokens += 3
 
     return num_tokens
@@ -107,9 +104,9 @@ def get_special_token(model: OpenAIModelName) -> SpecialToolCallingTokens:
         )
     return special_token
 
-def num_tokens_for_tools(functions:list[dict[str,Any]], special_token: SpecialToolCallingTokens, encode: Callable[[str], int]):
+def num_tokens_for_tools(functions:list[dict[str,Any]], special_token: SpecialToolCallingTokens, encode: Callable[[str], list[int]]):
 
-    def num_token_function_enum(properties: dict[str, str], encode: Callable[[str], int]):
+    def num_token_function_enum(properties: dict[str, Any], encode: Callable[[str], list[int]]):
         
         enum_token_count = 0
         enum_token_count += special_token.enum_init
@@ -135,7 +132,7 @@ def num_tokens_for_tools(functions:list[dict[str,Any]], special_token: SpecialTo
                     if "enum" in properties[key].keys():
                         func_token_count += num_token_function_enum(properties, encode)                        
                     
-                    func_token_count += len(encode(f"{key}:{properties[key]["type"]}:{properties[key]["description"].rstrip(".").rstrip()}"))
+                    func_token_count += len(encode(f"{key}:{properties[key]['type']}:{properties[key]['description'].rstrip('.').rstrip()}"))
         
         func_token_count += special_token.func_end
         

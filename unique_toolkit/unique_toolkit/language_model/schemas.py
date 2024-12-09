@@ -3,6 +3,7 @@ from enum import StrEnum
 from typing import Any, Optional, Self
 from uuid import uuid4
 
+from unique_toolkit.token_counting import num_tokens_from_messages 
 from humps import camelize
 from pydantic import (
     BaseModel,
@@ -93,13 +94,7 @@ class LanguageModelMessage(BaseModel):
     def __str__(self):
         return format_message(self.role.capitalize(), message=self.content, num_tabs=1)
     
-    def to_openai_dict(self)->dict[str,str]:
-        return {k: v for k,v in json.loads(self.model_dump_json(serialize_as_any=True)).items() if v is not None}
-
-    def token_count(self, encode: callable[[str], int])->int:
-        return 1
-
-
+    
 class LanguageModelSystemMessage(LanguageModelMessage):
     role: LanguageModelMessageRole = LanguageModelMessageRole.SYSTEM
 
@@ -149,7 +144,8 @@ class LanguageModelMessages(RootModel):
         | LanguageModelSystemMessage
         | LanguageModelUserMessage
     ]
-
+    
+    
     def __str__(self):
         return "\n\n".join([str(message) for message in self.root])
 
