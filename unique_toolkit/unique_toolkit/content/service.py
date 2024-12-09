@@ -42,6 +42,7 @@ class ContentService(BaseService):
         scope_ids: Optional[list[str]] = None,
         chat_only: Optional[bool] = None,
         metadata_filter: Optional[dict] = None,
+        content_ids: Optional[list[str]] = None,
     ) -> list[ContentChunk]:
         """
         Performs a synchronous search for content chunks in the knowledge base.
@@ -55,7 +56,7 @@ class ContentService(BaseService):
             scope_ids (Optional[list[str]]): The scope IDs. Defaults to None.
             chat_only (Optional[bool]): Whether to search only in the current chat. Defaults to None.
             metadata_filter (Optional[dict]): UniqueQL metadata filter. Defaults to None.
-
+            content_ids (Optional[list[str]]): The content IDs to search. Defaults to None.
         Returns:
             list[ContentChunk]: The search results.
         """
@@ -79,6 +80,7 @@ class ContentService(BaseService):
                 language=search_language,
                 chatOnly=chat_only,
                 metaDataFilter=metadata_filter,
+                contentIds=content_ids,
             )
         except Exception as e:
             self.logger.error(f"Error while searching content chunks: {e}")
@@ -101,6 +103,7 @@ class ContentService(BaseService):
         scope_ids: Optional[list[str]] = None,
         chat_only: Optional[bool] = None,
         metadata_filter: Optional[dict] = None,
+        content_ids: Optional[list[str]] = None,
     ):
         """
         Performs an asynchronous search for content chunks in the knowledge base.
@@ -114,7 +117,7 @@ class ContentService(BaseService):
             scope_ids (Optional[list[str]]): The scope IDs. Defaults to None.
             chat_only (Optional[bool]): Whether to search only in the current chat. Defaults to None.
             metadata_filter (Optional[dict]): UniqueQL metadata filter. Defaults to None.
-
+            content_ids (Optional[list[str]]): The content IDs to search. Defaults to None.
         Returns:
             list[ContentChunk]: The search results.
         """
@@ -138,6 +141,7 @@ class ContentService(BaseService):
                 language=search_language,
                 chatOnly=chat_only,
                 metaDataFilter=metadata_filter,
+                contentIds=content_ids,
             )
         except Exception as e:
             self.logger.error(f"Error while searching content chunks: {e}")

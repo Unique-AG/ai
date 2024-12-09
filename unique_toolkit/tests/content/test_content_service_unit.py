@@ -64,6 +64,7 @@ class TestContentServiceUnit:
                 language="english",
                 chatOnly=None,
                 metaDataFilter=None,
+                contentIds=None,
             )
 
     def test_search_contents(self):
@@ -159,6 +160,7 @@ class TestContentServiceUnit:
                 language="english",
                 chatOnly=None,
                 metaDataFilter=None,
+                contentIds=None,
             )
 
     @pytest.mark.asyncio
