@@ -29,6 +29,7 @@ class ContentService(BaseService):
 
     def __init__(self, event: Event, logger: Optional[logging.Logger] = None):
         super().__init__(event, logger)
+        self.metadata_filter = event.payload.metadata_filter
 
     DEFAULT_SEARCH_LANGUAGE = "english"
 
@@ -55,13 +56,16 @@ class ContentService(BaseService):
             reranker_config (Optional[ContentRerankerConfig]): The reranker configuration. Defaults to None.
             scope_ids (Optional[list[str]]): The scope IDs. Defaults to None.
             chat_only (Optional[bool]): Whether to search only in the current chat. Defaults to None.
-            metadata_filter (Optional[dict]): UniqueQL metadata filter. Defaults to None.
+            metadata_filter (Optional[dict]): UniqueQL metadata filter. If unspecified/None, it tries to use the metadata filter from the event. Defaults to None.
             content_ids (Optional[list[str]]): The content IDs to search. Defaults to None.
         Returns:
             list[ContentChunk]: The search results.
         """
         if not scope_ids:
             self.logger.warning("No scope IDs provided for search.")
+
+        if metadata_filter is None:
+            metadata_filter = self.metadata_filter
 
         try:
             searches = unique_sdk.Search.create(
@@ -116,13 +120,16 @@ class ContentService(BaseService):
             reranker_config (Optional[ContentRerankerConfig]): The reranker configuration. Defaults to None.
             scope_ids (Optional[list[str]]): The scope IDs. Defaults to None.
             chat_only (Optional[bool]): Whether to search only in the current chat. Defaults to None.
-            metadata_filter (Optional[dict]): UniqueQL metadata filter. Defaults to None.
+            metadata_filter (Optional[dict]): UniqueQL metadata filter. If unspecified/None, it tries to use the metadata filter from the event. Defaults to None.
             content_ids (Optional[list[str]]): The content IDs to search. Defaults to None.
         Returns:
             list[ContentChunk]: The search results.
         """
         if not scope_ids:
             self.logger.warning("No scope IDs provided for search.")
+
+        if metadata_filter is None:
+            metadata_filter = self.metadata_filter
 
         try:
             searches = await unique_sdk.Search.create_async(
