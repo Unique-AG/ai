@@ -24,6 +24,11 @@ class TestContentServiceUnit:
             company_id="test_company",
             assistant_id="test_assistant",
             chat_id="test_chat",
+            metadata_filter={
+                "path": ["key"],
+                "operator": "equals",
+                "value": "test_key",
+            },
         )
         self.service = ContentService(self.event)
 
@@ -63,7 +68,12 @@ class TestContentServiceUnit:
                 reranker=None,
                 language="english",
                 chatOnly=None,
-                metaDataFilter=None,
+                metaDataFilter={
+                    "path": ["key"],
+                    "operator": "equals",
+                    "value": "test_key",
+                },
+                contentIds=None,
             )
 
     def test_search_contents(self):
@@ -158,7 +168,12 @@ class TestContentServiceUnit:
                 reranker=None,
                 language="english",
                 chatOnly=None,
-                metaDataFilter=None,
+                metaDataFilter={
+                    "path": ["key"],
+                    "operator": "equals",
+                    "value": "test_key",
+                },
+                contentIds=None,
             )
 
     @pytest.mark.asyncio
