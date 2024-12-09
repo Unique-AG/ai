@@ -13,6 +13,7 @@ def get_event_obj(
     chat_id: str,
     assistant_id: str,
     user_message_id: str = "user_message_id",
+    metadata_filter: dict | None = None,
 ):
     return Event(
         id="some-id",
@@ -35,5 +36,6 @@ def get_event_obj(
             assistant_message=EventAssistantMessage(
                 id="assistant_message_id", created_at="2021-01-01T00:00:00Z"
             ),
+            metadata_filter=metadata_filter,
         ),
     )
