@@ -356,7 +356,7 @@ class LanguageModelService(BaseService):
             - search_context (Optional[dict]): Processed content chunks if provided
         """
 
-        options = LanguageModelService._add_tools_to_options({}, tools)
+        options = cls._add_tools_to_options({}, tools)
         options["temperature"] = temperature
         if other_options:
             options.update(other_options)
