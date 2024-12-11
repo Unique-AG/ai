@@ -53,7 +53,7 @@ class LanguageModelService(BaseService):
         Returns:
             LanguageModelResponse: The LanguageModelResponse object.
         """
-        options, model, messages_dict, _ = self._prepare_completion_params(
+        options, model, messages_dict, _ = self.prepare_completion_params_util(
             messages=messages,
             model_name=model_name,
             temperature=temperature,
@@ -112,7 +112,7 @@ class LanguageModelService(BaseService):
         Raises:
             Exception: If an error occurs during the request, an exception is raised and logged.
         """
-        options, model, messages_dict, _ = cls._prepare_completion_params(
+        options, model, messages_dict, _ = cls.prepare_completion_params_util(
             messages=messages,
             model_name=model_name,
             temperature=temperature,
@@ -204,13 +204,15 @@ class LanguageModelService(BaseService):
         Returns:
             The LanguageModelStreamResponse object once the stream has finished.
         """
-        options, model, messages_dict, search_context = self._prepare_completion_params(
-            messages=messages,
-            model_name=model_name,
-            temperature=temperature,
-            tools=tools,
-            other_options=other_options,
-            content_chunks=content_chunks,
+        options, model, messages_dict, search_context = (
+            self.prepare_completion_params_util(
+                messages=messages,
+                model_name=model_name,
+                temperature=temperature,
+                tools=tools,
+                other_options=other_options,
+                content_chunks=content_chunks,
+            )
         )
 
         try:
@@ -265,13 +267,15 @@ class LanguageModelService(BaseService):
         Returns:
             The LanguageModelStreamResponse object once the stream has finished.
         """
-        options, model, messages_dict, search_context = self._prepare_completion_params(
-            messages=messages,
-            model_name=model_name,
-            temperature=temperature,
-            tools=tools,
-            other_options=other_options,
-            content_chunks=content_chunks,
+        options, model, messages_dict, search_context = (
+            self.prepare_completion_params_util(
+                messages=messages,
+                model_name=model_name,
+                temperature=temperature,
+                tools=tools,
+                other_options=other_options,
+                content_chunks=content_chunks,
+            )
         )
 
         try:
@@ -331,8 +335,9 @@ class LanguageModelService(BaseService):
             ]
         return options
 
-    @staticmethod
-    def _prepare_completion_params(
+    @classmethod
+    def prepare_completion_params_util(
+        cls,
         messages: LanguageModelMessages,
         model_name: LanguageModelName | str,
         temperature: float,
