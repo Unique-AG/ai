@@ -73,6 +73,25 @@ class LanguageModelService:
             user_id=event.user_id,
         )
 
+    @classmethod
+    def from_properties(
+        cls,
+        company_id: str,
+        user_id: Optional[str] = None,
+        assistant_message_id: Optional[str] = None,
+        user_message_id: Optional[str] = None,
+        chat_id: Optional[str] = None,
+        assistant_id: Optional[str] = None,
+    ) -> "LanguageModelService":
+        return cls(
+            company_id=company_id,
+            user_id=user_id,
+            assistant_message_id=assistant_message_id,
+            user_message_id=user_message_id,
+            chat_id=chat_id,
+            assistant_id=assistant_id,
+        )
+
     DEFAULT_COMPLETE_TIMEOUT = 240_000
     DEFAULT_COMPLETE_TEMPERATURE = 0.0
 
