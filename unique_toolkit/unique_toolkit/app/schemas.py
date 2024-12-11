@@ -67,3 +67,25 @@ class Event(BaseModel):
     payload: EventPayload
     created_at: Optional[int] = None
     version: Optional[str] = None
+
+
+class BaseEvent(BaseModel):
+    model_config = model_config
+
+    id: str
+    event: str
+    user_id: str
+    company_id: str
+
+
+class ChatEvent(BaseEvent):
+    model_config = model_config
+
+    event: EventName
+    payload: EventPayload
+    created_at: Optional[int] = None
+    version: Optional[str] = None
+
+
+class MagicTableEvent(BaseEvent):
+    model_config = model_config

@@ -3,8 +3,8 @@ from typing import Optional, cast
 
 import unique_sdk
 
-from unique_toolkit._common._base_service import BaseService
-from unique_toolkit.app.schemas import Event
+from unique_toolkit._common.validators import validate_required_parameters
+from unique_toolkit.app.schemas import ChatEvent, MagicTableEvent
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.language_model.infos import LanguageModelName
 from unique_toolkit.language_model.schemas import (
@@ -14,18 +14,64 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelTool,
 )
 
+logger = logging.getLogger(f"toolkit.{__name__}")
 
-class LanguageModelService(BaseService):
+
+class LanguageModelService:
     """
     Provides methods to interact with the Language Model by generating responses.
 
     Attributes:
-        event (Event): The Event object.
-        logger (Optional[logging.Logger]): The logger object. Defaults to None.
+        company_id (str): The company ID.
+        user_id (Optional[str]): The user ID.
+        assistant_message_id (Optional[str]): The assistant message ID.
+        user_message_id (Optional[str]): The user message ID.
+        chat_id (Optional[str]): The chat ID.
+        assistant_id (Optional[str]): The assistant ID.
     """
 
-    def __init__(self, event: Event, logger: Optional[logging.Logger] = None):
-        super().__init__(event, logger)
+    def __init__(
+        self,
+        company_id: str,
+        user_id: Optional[str] = None,
+        assistant_message_id: Optional[str] = None,
+        user_message_id: Optional[str] = None,
+        chat_id: Optional[str] = None,
+        assistant_id: Optional[str] = None,
+    ):
+        self.company_id = company_id
+        self.user_id = user_id
+        self.assistant_message_id = assistant_message_id
+        self.user_message_id = user_message_id
+        self.chat_id = chat_id
+        self.assistant_id = assistant_id
+
+    @classmethod
+    def from_chat_event(cls, event: ChatEvent) -> "LanguageModelService":
+        """
+        Creates a LanguageModelService instance from a chat event.
+
+        Args:
+            event (Event): The chat event containing necessary information.
+
+        Returns:
+            LanguageModelService: A new instance initialized with event data.
+        """
+        return cls(
+            company_id=event.company_id,
+            user_id=event.user_id,
+            assistant_message_id=event.payload.assistant_message.id,
+            user_message_id=event.payload.user_message.id,
+            chat_id=event.payload.chat_id,
+            assistant_id=event.payload.assistant_id,
+        )
+
+    @classmethod
+    def from_magic_table_event(cls, event: MagicTableEvent) -> "LanguageModelService":
+        return cls(
+            company_id=event.company_id,
+            user_id=event.user_id,
+        )
 
     DEFAULT_COMPLETE_TIMEOUT = 240_000
     DEFAULT_COMPLETE_TEMPERATURE = 0.0
@@ -51,6 +97,8 @@ class LanguageModelService(BaseService):
         Returns:
             LanguageModelResponse: The LanguageModelResponse object.
         """
+        validate_required_parameters({"company_id": self.company_id})
+
         options = self._add_tools_to_options({}, tools)
         options["temperature"] = temperature
         messages = messages.model_dump(exclude_none=True)
@@ -60,8 +108,7 @@ class LanguageModelService(BaseService):
 
         try:
             response = unique_sdk.ChatCompletion.create(
-                company_id=self.event.company_id,
-                # TODO change or extend types in unique_sdk
+                company_id=self.company_id,
                 model=model,
                 messages=cast(
                     list[unique_sdk.Integrated.ChatCompletionRequestMessage],
@@ -72,7 +119,7 @@ class LanguageModelService(BaseService):
             )
             return LanguageModelResponse(**response)
         except Exception as e:
-            self.logger.error(f"Error completing: {e}")
+            logger.error(f"Error completing: {e}")
             raise e
 
     @classmethod
@@ -84,7 +131,6 @@ class LanguageModelService(BaseService):
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
         tools: Optional[list[LanguageModelTool]] = None,
-        logger: Optional[logging.Logger] = logging.getLogger(__name__),
     ) -> LanguageModelResponse:
         """
         Calls the completion endpoint asynchronously without streaming the response.
@@ -100,7 +146,6 @@ class LanguageModelService(BaseService):
             temperature (float): The temperature setting for the completion. Defaults to 0.
             timeout (int): The timeout value in milliseconds for the request. Defaults to 240_000.
             tools (Optional[list[LanguageModelTool]]): Optional list of tools to include in the request.
-            logger (Optional[logging.Logger], optional): The logger used to log errors. Defaults to the logger for the current module.
 
         Returns:
             LanguageModelResponse: The response object containing the completed result.
@@ -159,13 +204,12 @@ class LanguageModelService(BaseService):
             Exception: If an error occurs during the completion request.
         """
         return await self.complete_async_util(
-            company_id=self.event.company_id,
+            company_id=self.company_id,
             messages=messages,
             model_name=model_name,
             temperature=temperature,
             timeout=timeout,
             tools=tools,
-            logger=self.logger,
         )
 
     def stream_complete(
@@ -195,6 +239,17 @@ class LanguageModelService(BaseService):
         Returns:
             The LanguageModelStreamResponse object once the stream has finished.
         """
+        validate_required_parameters(
+            {
+                "company_id": self.company_id,
+                "user_id": self.user_id,
+                "assistant_message_id": self.assistant_message_id,
+                "user_message_id": self.user_message_id,
+                "chat_id": self.chat_id,
+                "assistant_id": self.assistant_id,
+            }
+        )
+
         options = self._add_tools_to_options({}, tools)
         options["temperature"] = temperature
         search_context = self._to_search_context(content_chunks)
@@ -205,27 +260,26 @@ class LanguageModelService(BaseService):
 
         try:
             response = unique_sdk.Integrated.chat_stream_completion(
-                user_id=self.event.user_id,
-                company_id=self.event.company_id,
-                assistantMessageId=self.event.payload.assistant_message.id,
-                userMessageId=self.event.payload.user_message.id,
+                user_id=self.user_id,
+                company_id=self.company_id,
+                assistantMessageId=self.assistant_message_id,
+                userMessageId=self.user_message_id,
                 messages=cast(
                     list[unique_sdk.Integrated.ChatCompletionRequestMessage],
                     messages,
                 ),
-                chatId=self.event.payload.chat_id,
+                chatId=self.chat_id,
                 searchContext=search_context,
-                # TODO change or extend types in unique_sdk
                 model=model,
                 timeout=timeout,
-                assistantId=self.event.payload.assistant_id,
+                assistantId=self.assistant_id,
                 debugInfo=debug_info,
                 options=options,  # type: ignore
                 startText=start_text,
             )
             return LanguageModelStreamResponse(**response)
         except Exception as e:
-            self.logger.error(f"Error streaming completion: {e}")
+            logger.error(f"Error streaming completion: {e}")
             raise e
 
     async def stream_complete_async(
@@ -255,6 +309,16 @@ class LanguageModelService(BaseService):
         Returns:
             The LanguageModelStreamResponse object once the stream has finished.
         """
+        validate_required_parameters(
+            {
+                "company_id": self.company_id,
+                "user_id": self.user_id,
+                "assistant_message_id": self.assistant_message_id,
+                "user_message_id": self.user_message_id,
+                "chat_id": self.chat_id,
+                "assistant_id": self.assistant_id,
+            }
+        )
 
         options = self._add_tools_to_options({}, tools)
         options["temperature"] = temperature
@@ -266,19 +330,19 @@ class LanguageModelService(BaseService):
 
         try:
             response = await unique_sdk.Integrated.chat_stream_completion_async(
-                user_id=self.event.user_id,
-                company_id=self.event.company_id,
-                assistantMessageId=self.event.payload.assistant_message.id,
-                userMessageId=self.event.payload.user_message.id,
+                user_id=self.user_id,
+                company_id=self.company_id,
+                assistantMessageId=self.assistant_message_id,
+                userMessageId=self.user_message_id,
                 messages=cast(
                     list[unique_sdk.Integrated.ChatCompletionRequestMessage],
                     messages,
                 ),
-                chatId=self.event.payload.chat_id,
+                chatId=self.chat_id,
                 searchContext=search_context,
                 model=model,
                 timeout=timeout,
-                assistantId=self.event.payload.assistant_id,
+                assistantId=self.assistant_id,
                 debugInfo=debug_info,
                 # TODO change or extend types in unique_sdk
                 options=options,  # type: ignore
@@ -286,7 +350,7 @@ class LanguageModelService(BaseService):
             )
             return LanguageModelStreamResponse(**response)
         except Exception as e:
-            self.logger.error(f"Error streaming completion: {e}")
+            logger.error(f"Error streaming completion: {e}")
             raise e
 
     @staticmethod
