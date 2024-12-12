@@ -97,17 +97,28 @@ class TestLanguageModelInfos:
 
     def test_language_model_token_limits_with_total(self):
         limits = LanguageModelTokenLimits(token_limit=10000)
-        assert limits.token_limit_input == 4000.0
-        assert limits.token_limit_output == 6000.0
+        assert limits.token_limit_input == 4000
+        assert limits.token_limit_output == 6000
 
     def test_language_model_token_limits_with_total_and_fraction(self):
         limits = LanguageModelTokenLimits(token_limit=10000, fraction_input=0.2)
-        assert limits.token_limit_input == 2000.0
-        assert limits.token_limit_output == 8000.0
+        assert isinstance(limits.token_limit_input, int)
+        assert isinstance(limits.token_limit_output, int)
+        assert limits.token_limit_input == 2000
+        assert limits.token_limit_output == 8000
 
     def test_language_model_token_limits_raises_error_empty(self):
         with pytest.raises(ValueError):
             LanguageModelTokenLimits()
+
+    def test_rounding_does_not_exceed_token_limit(self):
+        limits = LanguageModelTokenLimits(token_limit=2000, fraction_input=0.47)
+        assert isinstance(limits.token_limit_input, int)
+        assert isinstance(limits.token_limit_output, int)
+
+        assert (
+            limits.token_limit_input + limits.token_limit_output <= limits.token_limit
+        )
 
     def test_language_model_token_limits_raises_error_for_partial_input(self):
         with pytest.raises(ValueError):
