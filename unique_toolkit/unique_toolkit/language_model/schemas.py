@@ -1,4 +1,5 @@
 import json
+import math
 from enum import StrEnum
 from typing import Any, Optional, Self
 from uuid import uuid4
@@ -212,8 +213,10 @@ class LanguageModelTokenLimits(BaseModel):
             if not self.fraction_input:
                 self.fraction_input = 0.4
 
-            self.token_limit_input = self.fraction_input * self.token_limit
-            self.token_limit_output = (1 - self.fraction_input) * self.token_limit
+            self.token_limit_input = math.floor(self.fraction_input * self.token_limit)
+            self.token_limit_output = math.floor(
+                (1 - self.fraction_input) * self.token_limit
+            )
             return self
 
         raise ValueError(
