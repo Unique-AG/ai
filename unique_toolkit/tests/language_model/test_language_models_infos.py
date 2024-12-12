@@ -9,6 +9,7 @@ from unique_toolkit.language_model.infos import (
     LanguageModelName,
     LanguageModelProvider,
 )
+from unique_toolkit.language_model.schemas import LanguageModelTokenLimits
 
 
 class TestLanguageModelInfos:
@@ -63,3 +64,60 @@ class TestLanguageModelInfos:
     def test_get_language_model_raises_error_for_invalid_model(self):
         with pytest.raises(ValueError):
             LanguageModel("")
+
+    # New tests for LanguageModelTokenLimits
+    def test_language_model_token_limits_with_input_output(self):
+        test_cases = [
+            {
+                "input": 2000,
+                "output": 2000,
+                "expected_total": 4000,
+                "expected_fraction": 0.5,
+            },
+            {
+                "input": 3000,
+                "output": 1000,
+                "expected_total": 4000,
+                "expected_fraction": 0.75,
+            },
+            {
+                "input": 1000,
+                "output": 3000,
+                "expected_total": 4000,
+                "expected_fraction": 0.25,
+            },
+        ]
+
+        for case in test_cases:
+            limits = LanguageModelTokenLimits(
+                token_limit_input=case["input"], token_limit_output=case["output"]
+            )
+            assert limits.token_limit == case["expected_total"]
+            assert abs(limits.fraction_input - case["expected_fraction"]) < 1e-10
+
+    def test_language_model_token_limits_with_total(self):
+        limits = LanguageModelTokenLimits(token_limit=10000)
+        assert limits.token_limit_input == 4000.0
+        assert limits.token_limit_output == 6000.0
+
+    def test_language_model_token_limits_with_total_and_fraction(self):
+        limits = LanguageModelTokenLimits(token_limit=10000, fraction_input=0.2)
+        assert limits.token_limit_input == 2000.0
+        assert limits.token_limit_output == 8000.0
+
+    def test_language_model_token_limits_raises_error_empty(self):
+        with pytest.raises(ValueError):
+            LanguageModelTokenLimits()
+
+    def test_language_model_token_limits_raises_error_for_partial_input(self):
+        with pytest.raises(ValueError):
+            LanguageModelTokenLimits(token_limit_input=1000)
+
+        with pytest.raises(ValueError):
+            LanguageModelTokenLimits(token_limit_output=1000)
+
+        with pytest.raises(ValueError):
+            LanguageModelTokenLimits(fraction_input=0.5)
+
+        with pytest.raises(ValueError):
+            LanguageModelTokenLimits(token_limit_input=1000, fraction_input=0.5)
