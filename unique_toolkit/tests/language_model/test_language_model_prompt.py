@@ -14,23 +14,23 @@ def test_prompt_initialization():
     assert prompt.content == "Hello, World Earth!"
 
 
-def test_prompt_format():
+def test_prompt_substitute():
     prompt = Prompt("Hello, $name!")
-    formatted = prompt.format(name="Alice")
-    assert formatted == "Hello, Alice!"
+    substituted = prompt.substitute(name="Alice")
+    assert substituted == "Hello, Alice!"
     assert prompt.content == "Hello, Alice!"
 
 
-def test_prompt_format_multiple_variables():
+def test_prompt_substitute_multiple_variables():
     prompt = Prompt("$greeting $name! How is the $time?")
-    formatted = prompt.format(greeting="Hello", name="Bob", time="morning")
-    assert formatted == "Hello Bob! How is the morning?"
+    substituted = prompt.substitute(greeting="Hello", name="Bob", time="morning")
+    assert substituted == "Hello Bob! How is the morning?"
 
 
-def test_prompt_format_missing_variable():
+def test_prompt_substitute_missing_variable():
     prompt = Prompt("Hello, $name!")
     with pytest.raises(KeyError):
-        prompt.format()
+        prompt.substitute()
 
 
 def test_prompt_to_user_msg():

@@ -19,8 +19,8 @@ class Prompt:
         # Create a prompt with a template and set variables
         prompt = Prompt("Hello, ${name}!", name="World")
 
-        # Format the template with variables and return the formatted content
-        content = prompt.format(name="World")
+        # Substitute the template with variables and return the formatted content
+        content = prompt.substitute(name="World")
 
         # Get the formatted content
         content = prompt.content  # Returns "Hello, World!"
@@ -38,7 +38,7 @@ class Prompt:
         content: Returns the current formatted content string
 
     Methods:
-        format(**kwargs): Formats the template with the given variables
+        substitute(**kwargs): Substitutes the template with the given variables
         to_user_msg(): Converts the prompt to a LanguageModelUserMessage
         to_user_msg_with_images(images): Converts the prompt to a LanguageModelUserMessage with images
     """
@@ -69,15 +69,15 @@ class Prompt:
         """
         return self._content
 
-    def format(self, **kwargs: Any) -> str:
+    def substitute(self, **kwargs: Any) -> str:
         """
-        Formats the template with the given kwargs. Raises KeyError if a required parameter is missing.
+        Substitutes the template with the given kwargs. Raises KeyError if a required parameter is missing.
 
         Args:
             **kwargs: Keyword arguments to substitute into the template.
 
         Returns:
-            str: The formatted template string.
+            str: The substituted template string.
 
         Raises:
             KeyError: If a required parameter in the template is missing from kwargs.
