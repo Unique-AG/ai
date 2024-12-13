@@ -23,6 +23,8 @@ retry_dict = {
         "problem proxying the request",
         "Upstream service reached a hard timeout",
         "Invalid response body from API",
+        "You can retry your request",
+        "Internal server error",
     ],
     "max_retries": 3,
     "backoff_factor": 2,
