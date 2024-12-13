@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.9.15] - 2024-12-06
+- Add `Internal server error` and `You can retry your request` to the retry logic
+
 ## [0.9.14] - 2024-12-06
 - Add `contentIds` to `Search.create` and `Search.create_async`
 
