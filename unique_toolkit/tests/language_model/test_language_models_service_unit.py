@@ -1,3 +1,4 @@
+import json
 from unittest.mock import patch
 
 import pytest
@@ -214,6 +215,8 @@ class TestLanguageModelServiceUnit:
         assert response.choices[0].message.tool_calls[0].function.name == "get_weather"
         arguments = response.choices[0].message.tool_calls[0].function.arguments
         assert arguments is not None
+        if isinstance(arguments, str):
+            arguments = json.loads(arguments)
         assert "New York, NY" in arguments.values()
 
     @patch.object(unique_sdk.Integrated, "chat_stream_completion")
@@ -254,6 +257,8 @@ class TestLanguageModelServiceUnit:
         assert response.tool_calls[0].name == "get_weather"
         arguments = response.tool_calls[0].arguments
         assert arguments is not None
+        if isinstance(arguments, str):
+            arguments = json.loads(arguments)
         assert "London, UK" in arguments.values()
 
     @pytest.mark.asyncio
@@ -444,6 +449,8 @@ class TestLanguageModelServiceUnit:
         assert response.choices[0].message.tool_calls[0].function.name == "get_weather"
         arguments = response.choices[0].message.tool_calls[0].function.arguments
         assert arguments is not None
+        if isinstance(arguments, str):
+            arguments = json.loads(arguments)
         assert "New York, NY" in arguments.values()
 
     @pytest.mark.asyncio
@@ -485,6 +492,8 @@ class TestLanguageModelServiceUnit:
         assert response.tool_calls[0].name == "get_weather"
         arguments = response.tool_calls[0].arguments
         assert arguments is not None
+        if isinstance(arguments, str):
+            arguments = json.loads(arguments)
         assert "London, UK" in arguments.values()
 
     def testprepare_completion_params_util_basic(self):
