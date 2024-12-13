@@ -1,5 +1,8 @@
 from .infos import LanguageModel as LanguageModel
 from .infos import LanguageModelName as LanguageModelName
+from .prompt import (
+    Prompt as Prompt,
+)
 from .schemas import (
     LanguageModelAssistantMessage as LanguageModelAssistantMessage,
 )
