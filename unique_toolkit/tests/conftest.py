@@ -20,6 +20,7 @@ def get_env_variable(var_name, default=None):
     value = os.getenv(var_name, default)
     if value is None:
         logger.warning(f"Environment variable '{var_name}' is not set.")
+        value = var_name
     return value
 
 
@@ -29,25 +30,25 @@ if RUN_INTEGRATION_TEST:
     if not DOTENV_TEST_PATH.exists():
         raise Exception(f"{DOTENV_TEST_PATH.parent} does not exists.")
     load_dotenv(dotenv_path=DOTENV_TEST_PATH)
-
-    # Configure the unique_sdk with environment variables
-    unique_sdk.api_key = get_env_variable("TEST_API_KEY")
-    unique_sdk.app_id = get_env_variable("TEST_APP_ID")
-    unique_sdk.api_base = get_env_variable("TEST_API_BASE")
-
-    # Optionally configure logging and HTTP client
-    # unique_sdk.log = "debug"
-    # unique_sdk.default_http_client = unique_sdk.HTTPXClient()
-
-    # Retrieve additional test identifiers from environment variables
-    test_user_id = get_env_variable("TEST_USER_ID")
-    test_company_id = get_env_variable("TEST_COMPANY_ID")
-    test_chat_id = get_env_variable("TEST_CHAT_ID")
-    test_assistant_id = get_env_variable("TEST_ASSISTANT_ID")
-    test_user_message_id = get_env_variable("TEST_USER_MESSAGE_ID")
-    test_scope_id = get_env_variable("TEST_SCOPE_ID")
 else:
     collect_ignore_glob.append("*_integration.py")
+
+# Configure the unique_sdk with environment variables
+unique_sdk.api_key = get_env_variable("TEST_API_KEY")
+unique_sdk.app_id = get_env_variable("TEST_APP_ID")
+unique_sdk.api_base = get_env_variable("TEST_API_BASE")
+
+# Optionally configure logging and HTTP client
+# unique_sdk.log = "debug"
+# unique_sdk.default_http_client = unique_sdk.HTTPXClient()
+
+# Retrieve additional test identifiers from environment variables
+test_user_id = get_env_variable("TEST_USER_ID")
+test_company_id = get_env_variable("TEST_COMPANY_ID")
+test_chat_id = get_env_variable("TEST_CHAT_ID")
+test_assistant_id = get_env_variable("TEST_ASSISTANT_ID")
+test_user_message_id = get_env_variable("TEST_USER_MESSAGE_ID")
+test_scope_id = get_env_variable("TEST_SCOPE_ID")
 
 
 @pytest.fixture

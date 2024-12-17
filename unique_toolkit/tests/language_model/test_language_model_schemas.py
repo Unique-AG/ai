@@ -105,7 +105,7 @@ class TestLanguageModelSchemas:
 
         # This is temporary this code would be deleted soon.
         with pytest.raises(AttributeError):
-            assert choice.message.name == "name"
+            assert choice.message.name == "name"  # type: ignore
 
             assert choice.message.tool_calls is not None
             assert len(choice.message.tool_calls) == 1
@@ -205,7 +205,7 @@ def test_language_model_function_call_creation(valid_tool_calls):
     print(assistant_message, "what are the assistant messages")
 
     # Ensure the tool_calls are copied and serialized properly
-    for tool_call in assistant_message.tool_calls:
+    for tool_call in assistant_message.tool_calls or []:
         assert isinstance(
             tool_call.function.arguments, dict
         )  # arguments should be serialized to a string
@@ -241,6 +241,9 @@ def test_language_model_function_call_creation(valid_tool_calls):
         ],
     )
     assert assistant_message.role == expected_message.role
+
+    assert assistant_message.tool_calls is not None
+    assert expected_message.tool_calls is not None
     assert isinstance(expected_message.tool_calls[0].id, str)
     assert assistant_message.tool_calls[0].type == expected_message.tool_calls[0].type
     assert (
