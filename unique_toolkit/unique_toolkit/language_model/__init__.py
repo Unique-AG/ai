@@ -1,5 +1,8 @@
 from .infos import LanguageModel as LanguageModel
 from .infos import LanguageModelName as LanguageModelName
+from .prompt import (
+    Prompt as Prompt,
+)
 from .schemas import (
     LanguageModelAssistantMessage as LanguageModelAssistantMessage,
 )
@@ -60,3 +63,5 @@ from .utils import (
 from .utils import (
     find_last_json_object as find_last_json_object,
 )
+
+DOMAIN_NAME = "language_model"

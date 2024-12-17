@@ -3,6 +3,7 @@ from typing import Any, Optional
 
 from humps import camelize
 from pydantic import BaseModel, ConfigDict
+from typing_extensions import deprecated
 
 # set config to convert camelCase to snake_case
 model_config = ConfigDict(
@@ -57,6 +58,9 @@ class EventPayload(BaseModel):
     metadata_filter: Optional[dict[str, Any]] = None
 
 
+@deprecated(
+    "Use `ChatEvent` instead. This class will be removed in the next major version."
+)
 class Event(BaseModel):
     model_config = model_config
 

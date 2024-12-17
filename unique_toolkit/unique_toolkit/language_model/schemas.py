@@ -1,4 +1,5 @@
 import json
+import math
 from enum import StrEnum
 from typing import Any, Optional, Self
 from uuid import uuid4
@@ -197,29 +198,30 @@ class LanguageModelTokenLimits(BaseModel):
     token_limit_input: Optional[int] = None
     token_limit_output: Optional[int] = None
 
+    fraction_input: float = Field(default=0.4, le=1, ge=0)
+
     @model_validator(mode="after")
-    def validate_model(self):
-        token_limit = self.token_limit
-        token_limit_input = self.token_limit_input
-        token_limit_output = self.token_limit_output
+    def check_required_fields(self):
+        # Best case input and output is determined
+        if self.token_limit_input and self.token_limit_output:
+            self.token_limit = self.token_limit_input + self.token_limit_output
+            self.fraction_input = self.token_limit_input / self.token_limit
+            return self
 
-        if (
-            token_limit is None
-            and token_limit_input is None
-            and token_limit_output is None
-        ):
-            raise ValueError(
-                "At least one of token_limit, token_limit_input or token_limit_output must be set"
+        # Deal with case where only token_limit and optional fraction_input is given
+        if self.token_limit:
+            if not self.fraction_input:
+                self.fraction_input = 0.4
+
+            self.token_limit_input = math.floor(self.fraction_input * self.token_limit)
+            self.token_limit_output = math.floor(
+                (1 - self.fraction_input) * self.token_limit
             )
+            return self
 
-        if (
-            token_limit is None
-            and token_limit_input is not None
-            and token_limit_output is not None
-        ):
-            self.token_limit = token_limit_input + token_limit_output
-
-        return self
+        raise ValueError(
+            'Either "token_limit_input" and "token_limit_output" must be provided together, or "token_limit" must be provided.'
+        )
 
 
 class LanguageModelToolParameterProperty(BaseModel):
