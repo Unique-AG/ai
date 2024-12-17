@@ -63,5 +63,3 @@ from .utils import (
 from .utils import (
     find_last_json_object as find_last_json_object,
 )
-
-DOMAIN_NAME = "language_model"

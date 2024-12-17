@@ -4,10 +4,10 @@ import pytest
 
 from unique_toolkit.app.schemas import (
     ChatEvent,
-    EventAssistantMessage,
+    ChatEventAssistantMessage,
+    ChatEventPayload,
+    ChatEventUserMessage,
     EventName,
-    EventPayload,
-    EventUserMessage,
     MagicTableEvent,
 )
 from unique_toolkit.content.schemas import ContentChunk
@@ -25,45 +25,47 @@ from unique_toolkit.language_model.service import LanguageModelService
 class TestLanguageModelServiceUnit:
     @pytest.fixture(autouse=True)
     def setup(self):
-        self.event = ChatEvent(
+        self.chat_event = ChatEvent(
             id="test-id",
             event=EventName.EXTERNAL_MODULE_CHOSEN,
             user_id="test_user",
             company_id="test_company",
-            payload=EventPayload(
+            payload=ChatEventPayload(
                 assistant_id="test_assistant",
                 chat_id="test_chat",
                 name="module",
                 description="module_description",
                 configuration={},
-                user_message=EventUserMessage(
+                user_message=ChatEventUserMessage(
                     id="user_message_id",
                     text="Test user message",
                     created_at="2021-01-01T00:00:00Z",
                     language="DE",
                     original_text="Test user message",
                 ),
-                assistant_message=EventAssistantMessage(
+                assistant_message=ChatEventAssistantMessage(
                     id="assistant_message_id", created_at="2021-01-01T00:00:00Z"
                 ),
                 metadata_filter={},
             ),
         )
-        self.service = LanguageModelService.from_chat_event(self.event)
+        self.service = LanguageModelService(self.chat_event)
 
-    def test_from_chat_event(self):
-        """Test the from_chat_event class method"""
-        service = LanguageModelService.from_chat_event(self.event)
+    def test_init_with_chat_event(self):
+        """Test initialization with ChatEvent"""
+        service = LanguageModelService(self.chat_event)
 
         assert service.company_id == "test_company"
         assert service.user_id == "test_user"
-        assert service.assistant_message_id == self.event.payload.assistant_message.id
-        assert service.user_message_id == self.event.payload.user_message.id
+        assert (
+            service.assistant_message_id == self.chat_event.payload.assistant_message.id
+        )
+        assert service.user_message_id == self.chat_event.payload.user_message.id
         assert service.chat_id == "test_chat"
         assert service.assistant_id == "test_assistant"
 
-    def test_from_magic_table_event(self):
-        """Test the from_magic_table_event class method"""
+    def test_init_with_magic_table_event(self):
+        """Test initialization with MagicTableEvent"""
         magic_table_event = MagicTableEvent(
             id="test-id",
             event="test-event",
@@ -71,7 +73,7 @@ class TestLanguageModelServiceUnit:
             company_id="test_company",
         )
 
-        service = LanguageModelService.from_magic_table_event(magic_table_event)
+        service = LanguageModelService(magic_table_event)
 
         assert service.company_id == "test_company"
         assert service.user_id == "test_user"
@@ -79,18 +81,6 @@ class TestLanguageModelServiceUnit:
         assert service.user_message_id is None
         assert service.chat_id is None
         assert service.assistant_id is None
-
-    @patch("unique_toolkit.language_model.service.complete")
-    def test_complete_missing_required_params(self, mock_complete):
-        """Test complete method with missing required parameters"""
-        mock_complete.return_value = LanguageModelResponse(choices=[])
-        service = LanguageModelService(company_id=None)  # type: ignore
-
-        with pytest.raises(ValueError, match="Required values cannot be None"):
-            service.complete(
-                messages=LanguageModelMessages([]),
-                model_name=LanguageModelName.AZURE_GPT_4_TURBO_1106,
-            )
 
     @patch("unique_toolkit.language_model.service.stream_complete")
     def test_stream_complete_missing_required_params(self, mock_stream_complete):
@@ -103,11 +93,14 @@ class TestLanguageModelServiceUnit:
                 text="test",
             )
         )
-        service = LanguageModelService(
+
+        event = MagicTableEvent(
+            id="test-id",
+            event=EventName.EXTERNAL_MODULE_CHOSEN,
+            user_id="user_id",
             company_id="test_company",
-            user_id=None,  # Missing required param
-            chat_id="test_chat",
         )
+        service = LanguageModelService(event)
 
         with pytest.raises(ValueError, match="Required values cannot be None"):
             service.stream_complete(

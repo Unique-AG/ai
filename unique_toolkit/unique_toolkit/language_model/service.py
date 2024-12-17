@@ -1,15 +1,13 @@
 import logging
-from typing import Optional
-
-from typing_extensions import deprecated
+from typing import Optional, overload
 
 from unique_toolkit._common.validate_required_values import validate_required_values
 from unique_toolkit.app.schemas import ChatEvent, Event, MagicTableEvent
 from unique_toolkit.content.schemas import ContentChunk
-from unique_toolkit.language_model import DOMAIN_NAME
 from unique_toolkit.language_model.constants import (
     DEFAULT_COMPLETE_TEMPERATURE,
     DEFAULT_COMPLETE_TIMEOUT,
+    DOMAIN_NAME,
 )
 from unique_toolkit.language_model.functions import (
     complete,
@@ -41,90 +39,33 @@ class LanguageModelService:
         assistant_id (Optional[str]): The assistant ID.
     """
 
+    @overload
+    def __init__(self, event: Event): ...
+
+    @overload
+    def __init__(self, event: ChatEvent): ...
+
+    @overload
+    def __init__(self, event: MagicTableEvent): ...
+
     def __init__(
         self,
-        company_id: str,
-        user_id: Optional[str] = None,
-        assistant_message_id: Optional[str] = None,
-        user_message_id: Optional[str] = None,
-        chat_id: Optional[str] = None,
-        assistant_id: Optional[str] = None,
+        event: ChatEvent | MagicTableEvent | Event,
     ):
-        self.company_id = company_id
-        self.user_id = user_id
-        self.assistant_message_id = assistant_message_id
-        self.user_message_id = user_message_id
-        self.chat_id = chat_id
-        self.assistant_id = assistant_id
-
-    @deprecated(
-        "Use `from_chat_event` or `from_magic_table_event` instead. This method will be removed in the next major version."
-    )
-    @classmethod
-    def from_event(cls, event: Event) -> "LanguageModelService":
-        """
-        Creates a LanguageModelService instance from an event.
-
-        Args:
-            event (Event): The chat event containing necessary information.
-
-        Returns:
-            LanguageModelService: A new instance initialized with event data.
-        """
-        return cls(
-            company_id=event.company_id,
-            user_id=event.user_id,
-            assistant_message_id=event.payload.assistant_message.id,
-            user_message_id=event.payload.user_message.id,
-            chat_id=event.payload.chat_id,
-            assistant_id=event.payload.assistant_id,
-        )
-
-    @classmethod
-    def from_chat_event(cls, event: ChatEvent) -> "LanguageModelService":
-        """
-        Creates a LanguageModelService instance from a chat event.
-
-        Args:
-            event (Event): The chat event containing necessary information.
-
-        Returns:
-            LanguageModelService: A new instance initialized with event data.
-        """
-        return cls(
-            company_id=event.company_id,
-            user_id=event.user_id,
-            assistant_message_id=event.payload.assistant_message.id,
-            user_message_id=event.payload.user_message.id,
-            chat_id=event.payload.chat_id,
-            assistant_id=event.payload.assistant_id,
-        )
-
-    @classmethod
-    def from_magic_table_event(cls, event: MagicTableEvent) -> "LanguageModelService":
-        return cls(
-            company_id=event.company_id,
-            user_id=event.user_id,
-        )
-
-    @classmethod
-    def from_properties(
-        cls,
-        company_id: str,
-        user_id: Optional[str] = None,
-        assistant_message_id: Optional[str] = None,
-        user_message_id: Optional[str] = None,
-        chat_id: Optional[str] = None,
-        assistant_id: Optional[str] = None,
-    ) -> "LanguageModelService":
-        return cls(
-            company_id=company_id,
-            user_id=user_id,
-            assistant_message_id=assistant_message_id,
-            user_message_id=user_message_id,
-            chat_id=chat_id,
-            assistant_id=assistant_id,
-        )
+        if isinstance(event, (ChatEvent, Event)):
+            self.company_id = event.company_id
+            self.user_id = event.user_id
+            self.assistant_message_id = event.payload.assistant_message.id
+            self.user_message_id = event.payload.user_message.id
+            self.chat_id = event.payload.chat_id
+            self.assistant_id = event.payload.assistant_id
+        elif isinstance(event, MagicTableEvent):
+            self.company_id = event.company_id
+            self.user_id = event.user_id
+            self.assistant_message_id = None
+            self.user_message_id = None
+            self.chat_id = None
+            self.assistant_id = None
 
     def complete(
         self,

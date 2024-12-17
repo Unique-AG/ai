@@ -1,16 +1,16 @@
 from unique_toolkit.app.schemas import (
+    ChatEventAssistantMessage,
+    ChatEventPayload,
+    ChatEventUserMessage,
     Event,
-    EventAssistantMessage,
     EventName,
-    EventPayload,
-    EventUserMessage,
 )
 
 
 class TestEventSchemas:
     def test_event_user_message_deserialization(self):
         json_data = '{"id": "msg1", "text": "Hello", "createdAt": "2023-01-01T00:00:00Z", "originalText": "Hello", "language": "en"}'
-        user_message = EventUserMessage.model_validate_json(json_data)
+        user_message = ChatEventUserMessage.model_validate_json(json_data)
 
         assert user_message.id == "msg1"
         assert user_message.text == "Hello"
@@ -18,7 +18,7 @@ class TestEventSchemas:
 
     def test_event_assistant_message_deserialization(self):
         json_data = '{"id": "msg2", "createdAt": "2023-01-01T00:01:00Z"}'
-        assistant_message = EventAssistantMessage.model_validate_json(json_data)
+        assistant_message = ChatEventAssistantMessage.model_validate_json(json_data)
 
         assert assistant_message.id == "msg2"
         assert assistant_message.created_at == "2023-01-01T00:01:00Z"
@@ -44,7 +44,7 @@ class TestEventSchemas:
             "text": "Optional text",
             "additionalParameters": {"translateToLanguage": "en", "contentIdToTranslate": "content_1234"}
         }"""
-        payload = EventPayload.model_validate_json(json_data)
+        payload = ChatEventPayload.model_validate_json(json_data)
 
         assert payload.name == EventName.EXTERNAL_MODULE_CHOSEN
         assert payload.description == "Test description"

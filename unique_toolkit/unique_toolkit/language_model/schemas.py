@@ -92,7 +92,7 @@ class LanguageModelMessage(BaseModel):
     tool_calls: Optional[list[LanguageModelFunctionCall]] = None
 
     def __str__(self):
-        return format_message(self.role.capitalize(), message=self.content, num_tabs=1)
+        return format_message(self.role.capitalize(), message=self.content, num_tabs=1)  # type: ignore
 
 
 class LanguageModelSystemMessage(LanguageModelMessage):
