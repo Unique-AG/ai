@@ -74,11 +74,12 @@ class LanguageModelService:
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
         tools: Optional[list[LanguageModelTool]] = None,
-        other_options: Optional[dict] = None,
-    ) -> LanguageModelResponse:
+        other_options: dict | None = None,
+    ) -> LanguageModelResponse:  # type: ignore
         """
         Calls the completion endpoint synchronously without streaming the response.
         """
+
         [company_id] = validate_required_values([self.company_id])
 
         return complete(

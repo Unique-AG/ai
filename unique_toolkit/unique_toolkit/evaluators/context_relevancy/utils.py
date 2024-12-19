@@ -22,12 +22,12 @@ from unique_toolkit.evaluators.schemas import (
     EvaluationMetricName,
     EvaluationMetricResult,
 )
+from unique_toolkit.language_model.functions import complete_async
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
     LanguageModelSystemMessage,
     LanguageModelUserMessage,
 )
-from unique_toolkit.language_model.service import LanguageModelService
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +78,7 @@ async def check_context_relevancy_async(
 
     try:
         msgs = _get_msgs(input, config)
-        result = await LanguageModelService.complete_async_util(
+        result = await complete_async(
             company_id=company_id, messages=msgs, model_name=model_name
         )
         result_content = result.choices[0].message.content
@@ -89,7 +89,8 @@ async def check_context_relevancy_async(
                 user_message=error_message,
             )
         return parse_eval_metric_result(
-            result_content, EvaluationMetricName.CONTEXT_RELEVANCY
+            result_content,
+            EvaluationMetricName.CONTEXT_RELEVANCY,
         )
     except Exception as e:
         error_message = "Error occurred during context relevancy metric analysis"
