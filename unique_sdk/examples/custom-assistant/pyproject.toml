@@ -10,7 +10,7 @@ python = "^3.11"
 flask = "^3.0.0"
 unique-sdk = {path = "../..", develop = true}
 langchain = "^0.2.3"
-requests = "^2.31.0"
+requests = "^2.32.2"
 
 
 [build-system]
