@@ -1682,7 +1682,7 @@ files = [
 
 [[package]]
 name = "unique-sdk"
-version = "0.9.16"
+version = "0.9.17"
 description = ""
 optional = false
 python-versions = "^3.11"
@@ -1747,4 +1747,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "7f2e7d58f078d4f7396b881ca9af71f8cd1d85ad60c7902f97019cd0a0da8985"
+content-hash = "0abeef74e773bbdaeae2f66b7ed8c0af2c432a35eeaa1332947ae00c19f7b440"
