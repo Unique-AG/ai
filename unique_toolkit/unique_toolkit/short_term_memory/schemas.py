@@ -17,7 +17,7 @@ class ShortTermMemory(BaseModel):
     key: str = Field(alias="object")
     chat_id: str | None
     message_id: str | None
-    data: str | dict
+    data: str | dict | int | float | bool
 
     @field_validator("chat_id", "message_id", mode="before")
     def validate_chat_id_or_message_id(cls, v, info):
