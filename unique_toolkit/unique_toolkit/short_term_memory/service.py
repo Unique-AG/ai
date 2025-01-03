@@ -9,7 +9,11 @@ from .schemas import ShortTermMemory
 
 class ShortTermMemoryService:
     def __init__(
-        self, user_id: str, company_id: str, chat_id: str | None, message_id: str | None
+        self,
+        user_id: str,
+        company_id: str,
+        chat_id: str | None,
+        message_id: str | None = None,
     ):
         assert chat_id or message_id, "Either chat_id or message_id must be provided"
         self.user_id = user_id
