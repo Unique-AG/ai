@@ -1,6 +1,6 @@
 from typing import ClassVar, Literal, Optional, cast
 
-from typing_extensions import Unpack
+from typing_extensions import NotRequired, Unpack
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
@@ -12,13 +12,13 @@ class ShortTermMemory(APIResource["ShortTermMemory"]):
     class CreateParams(RequestOptions):
         memoryName: str
         chatId: Optional[str]
-        messageId: Optional[str]
+        messageId: NotRequired[Optional[str]]
         data: Optional[str]
 
     class FindParams(RequestOptions):
         memoryName: str
         chatId: Optional[str]
-        messageId: Optional[str]
+        messageId: NotRequired[Optional[str]]
 
     id: str
     memoryName: str
@@ -73,7 +73,6 @@ class ShortTermMemory(APIResource["ShortTermMemory"]):
         cls,
         user_id: str,
         company_id: str,
-        id: str,
         **params: Unpack["ShortTermMemory.FindParams"],
     ) -> "ShortTermMemory":
         """
@@ -95,7 +94,6 @@ class ShortTermMemory(APIResource["ShortTermMemory"]):
         cls,
         user_id: str,
         company_id: str,
-        id: str,
         **params: Unpack["ShortTermMemory.FindParams"],
     ) -> "ShortTermMemory":
         """
