@@ -1,4 +1,3 @@
-import logging
 import os
 import re
 import tempfile
@@ -10,13 +9,6 @@ import unique_sdk
 
 from unique_toolkit._common._base_service import BaseService
 from unique_toolkit.app.schemas import ChatEvent, Event, MagicTableEvent
-from unique_toolkit.content.schemas import (
-    Content,
-    ContentChunk,
-    ContentRerankerConfig,
-    ContentSearchType,
-)
-
 from unique_toolkit.content.functions import (
     create_search,
     create_search_async,
@@ -24,7 +16,12 @@ from unique_toolkit.content.functions import (
     search_content_async,
     upsert_content,
 )
-
+from unique_toolkit.content.schemas import (
+    Content,
+    ContentChunk,
+    ContentRerankerConfig,
+    ContentSearchType,
+)
 from unique_toolkit.content.utils import map_contents
 
 

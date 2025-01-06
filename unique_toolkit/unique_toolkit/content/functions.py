@@ -1,5 +1,6 @@
+from typing import Optional
+
 import unique_sdk
-from typing import Optional, Union
 
 
 def create_search(

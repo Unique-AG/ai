@@ -3,11 +3,12 @@ import re
 from typing import Optional
 
 import unique_sdk
+from unique_sdk._list_object import ListObject
+
 from unique_toolkit._common import _time_utils
 from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
 from unique_toolkit.content.schemas import ContentReference
 from unique_toolkit.content.utils import count_tokens
-from unique_sdk._list_object import ListObject
 
 logger = logging.getLogger(__name__)
 

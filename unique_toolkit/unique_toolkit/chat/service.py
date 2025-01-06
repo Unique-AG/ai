@@ -5,9 +5,6 @@ import unique_sdk
 
 from unique_toolkit._common._base_service import BaseService
 from unique_toolkit.app.schemas import Event
-from unique_toolkit.chat.schemas import ChatMessage
-from unique_toolkit.content.schemas import ContentReference
-
 from unique_toolkit.chat.functions import (
     construct_message_create_params,
     construct_message_modify_params,
@@ -15,6 +12,8 @@ from unique_toolkit.chat.functions import (
     get_full_history_async,
     get_selection_from_history,
 )
+from unique_toolkit.chat.schemas import ChatMessage
+from unique_toolkit.content.schemas import ContentReference
 
 
 class ChatService(BaseService):
