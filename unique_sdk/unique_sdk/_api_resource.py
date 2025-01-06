@@ -25,6 +25,7 @@ retry_dict = {
         "Invalid response body from API",
         "You can retry your request",
         "Internal server error",
+        "Connection aborted",
     ],
     "max_retries": 3,
     "backoff_factor": 2,

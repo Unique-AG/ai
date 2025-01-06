@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - remove the `Event` dependency from `LanguageModelService`
 - move SDK calls to `unique_toolkit.language_model.functions`
 - ...
+## [0.5.45] - 2025-01-03
+- Added `ShortTermMemoryService` class to handle short term memory.
+
+## [0.5.44] - 2024-12-18
+- Add `event_constructor` to `verify_signature_and_construct_event` to allow for custom event construction.
 
 ## [0.5.43] - 2024-12-13
 - Add `Prompt` class to handle templated prompts that can be formatted into LanguageModelSystemMessage and LanguageModelUserMessage.
