@@ -52,16 +52,14 @@ class LanguageModelService:
         self,
         event: ChatEvent | MagicTableEvent | Event,
     ):
+        self.company_id = event.company_id
+        self.user_id = event.user_id
         if isinstance(event, (ChatEvent, Event)):
-            self.company_id = event.company_id
-            self.user_id = event.user_id
             self.assistant_message_id = event.payload.assistant_message.id
             self.user_message_id = event.payload.user_message.id
             self.chat_id = event.payload.chat_id
             self.assistant_id = event.payload.assistant_id
         elif isinstance(event, MagicTableEvent):
-            self.company_id = event.company_id
-            self.user_id = event.user_id
             self.assistant_message_id = None
             self.user_message_id = None
             self.chat_id = None

@@ -1,16 +1,20 @@
 import logging
-import re
 from typing import Optional
 
 import unique_sdk
-from unique_sdk._list_object import ListObject
 
-from unique_toolkit._common import _time_utils
 from unique_toolkit._common._base_service import BaseService
 from unique_toolkit.app.schemas import Event
-from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
+from unique_toolkit.chat.schemas import ChatMessage
 from unique_toolkit.content.schemas import ContentReference
-from unique_toolkit.content.utils import count_tokens
+
+from unique_toolkit.chat.functions import (
+    construct_message_create_params,
+    construct_message_modify_params,
+    get_full_history,
+    get_full_history_async,
+    get_selection_from_history,
+)
 
 
 class ChatService(BaseService):
@@ -35,8 +39,15 @@ class ChatService(BaseService):
         Args:
             debug_info (dict): The new debug information.
         """
-        params = self._construct_message_modify_params(
-            assistant=False, debug_info=debug_info
+        params = construct_message_modify_params(
+            event_user_id=self.event.user_id,
+            event_company_id=self.event.company_id,
+            event_payload_assistant_message_id=self.event.payload.assistant_message.id,
+            event_payload_chat_id=self.event.payload.chat_id,
+            event_payload_user_message_id=self.event.payload.user_message.id,
+            event_payload_user_message_text=self.event.payload.user_message.text,
+            assistant=False,
+            debug_info=debug_info,
         )
         try:
             await unique_sdk.Message.modify_async(**params)
@@ -51,8 +62,15 @@ class ChatService(BaseService):
         Args:
             debug_info (dict): The new debug information.
         """
-        params = self._construct_message_modify_params(
-            assistant=False, debug_info=debug_info
+        params = construct_message_modify_params(
+            event_user_id=self.event.user_id,
+            event_company_id=self.event.company_id,
+            event_payload_assistant_message_id=self.event.payload.assistant_message.id,
+            event_payload_chat_id=self.event.payload.chat_id,
+            event_payload_user_message_id=self.event.payload.user_message.id,
+            event_payload_user_message_text=self.event.payload.user_message.text,
+            assistant=False,
+            debug_info=debug_info,
         )
         try:
             unique_sdk.Message.modify(**params)
@@ -85,7 +103,13 @@ class ChatService(BaseService):
             Exception: If the modification fails.
         """
         try:
-            params = self._construct_message_modify_params(
+            params = construct_message_modify_params(
+                event_user_id=self.event.user_id,
+                event_company_id=self.event.company_id,
+                event_payload_assistant_message_id=self.event.payload.assistant_message.id,
+                event_payload_chat_id=self.event.payload.chat_id,
+                event_payload_user_message_id=self.event.payload.user_message.id,
+                event_payload_user_message_text=self.event.payload.user_message.text,
                 assistant=False,
                 content=content,
                 references=references,
@@ -124,7 +148,13 @@ class ChatService(BaseService):
             Exception: If the modification fails.
         """
         try:
-            params = self._construct_message_modify_params(
+            params = construct_message_modify_params(
+                event_user_id=self.event.user_id,
+                event_company_id=self.event.company_id,
+                event_payload_assistant_message_id=self.event.payload.assistant_message.id,
+                event_payload_chat_id=self.event.payload.chat_id,
+                event_payload_user_message_id=self.event.payload.user_message.id,
+                event_payload_user_message_text=self.event.payload.user_message.text,
                 assistant=False,
                 content=content,
                 references=references,
@@ -165,7 +195,13 @@ class ChatService(BaseService):
             Exception: If the modification fails.
         """
         try:
-            params = self._construct_message_modify_params(
+            params = construct_message_modify_params(
+                event_user_id=self.event.user_id,
+                event_company_id=self.event.company_id,
+                event_payload_assistant_message_id=self.event.payload.assistant_message.id,
+                event_payload_chat_id=self.event.payload.chat_id,
+                event_payload_user_message_id=self.event.payload.user_message.id,
+                event_payload_user_message_text=self.event.payload.user_message.text,
                 assistant=True,
                 content=content,
                 original_content=original_content,
@@ -207,7 +243,13 @@ class ChatService(BaseService):
             Exception: If the modification fails.
         """
         try:
-            params = self._construct_message_modify_params(
+            params = construct_message_modify_params(
+                event_user_id=self.event.user_id,
+                event_company_id=self.event.company_id,
+                event_payload_assistant_message_id=self.event.payload.assistant_message.id,
+                event_payload_chat_id=self.event.payload.chat_id,
+                event_payload_user_message_id=self.event.payload.user_message.id,
+                event_payload_user_message_text=self.event.payload.user_message.text,
                 assistant=True,
                 content=content,
                 original_content=original_content,
@@ -232,7 +274,11 @@ class ChatService(BaseService):
         Raises:
             Exception: If the loading fails.
         """
-        return self._get_full_history()
+        return get_full_history(
+            event_user_id=self.event.user_id,
+            event_company_id=self.event.company_id,
+            event_payload_chat_id=self.event.payload.chat_id,
+        )
 
     async def get_full_history_async(self) -> list[ChatMessage]:
         """
@@ -244,7 +290,11 @@ class ChatService(BaseService):
         Raises:
             Exception: If the loading fails.
         """
-        return await self._get_full_history_async()
+        return await get_full_history_async(
+            event_user_id=self.event.user_id,
+            event_company_id=self.event.company_id,
+            event_payload_chat_id=self.event.payload.chat_id,
+        )
 
     def get_full_and_selected_history(
         self,
@@ -266,8 +316,12 @@ class ChatService(BaseService):
         Raises:
             Exception: If the loading fails.
         """
-        full_history = self._get_full_history()
-        selected_history = self._get_selection_from_history(
+        full_history = get_full_history(
+            event_user_id=self.event.user_id,
+            event_company_id=self.event.company_id,
+            event_payload_chat_id=self.event.payload.chat_id,
+        )
+        selected_history = get_selection_from_history(
             full_history=full_history,
             max_tokens=int(round(token_limit * percent_of_max_tokens)),
             max_messages=max_messages,
@@ -295,8 +349,12 @@ class ChatService(BaseService):
         Raises:
             Exception: If the loading fails.
         """
-        full_history = await self._get_full_history_async()
-        selected_history = self._get_selection_from_history(
+        full_history = await get_full_history_async(
+            event_user_id=self.event.user_id,
+            event_company_id=self.event.company_id,
+            event_payload_chat_id=self.event.payload.chat_id,
+        )
+        selected_history = get_selection_from_history(
             full_history=full_history,
             max_tokens=int(round(token_limit * percent_of_max_tokens)),
             max_messages=max_messages,
@@ -332,7 +390,11 @@ class ChatService(BaseService):
             original_content = content
 
         try:
-            params = self._construct_message_create_params(
+            params = construct_message_create_params(
+                event_user_id=self.event.user_id,
+                event_company_id=self.event.company_id,
+                event_payload_chat_id=self.event.payload.chat_id,
+                event_payload_assistant_id=self.event.payload.assistant_id,
                 content=content,
                 original_content=original_content,
                 references=references,
@@ -374,7 +436,11 @@ class ChatService(BaseService):
             original_content = content
 
         try:
-            params = self._construct_message_create_params(
+            params = construct_message_create_params(
+                event_user_id=self.event.user_id,
+                event_company_id=self.event.company_id,
+                event_payload_chat_id=self.event.payload.chat_id,
+                event_payload_assistant_id=self.event.payload.assistant_id,
                 content=content,
                 original_content=original_content,
                 references=references,
@@ -387,203 +453,3 @@ class ChatService(BaseService):
             self.logger.error(f"Failed to create assistant message: {e}")
             raise e
         return ChatMessage(**message)
-
-    @staticmethod
-    def _map_references(references: list[ContentReference]):
-        return [
-            {
-                "name": ref.name,
-                "url": ref.url,
-                "sequenceNumber": ref.sequence_number,
-                "sourceId": ref.source_id,
-                "source": ref.source,
-            }
-            for ref in references
-        ]
-
-    def _get_full_history(self):
-        messages = self._trigger_list_messages(self.event.payload.chat_id)
-        messages = self._filter_valid_messages(messages)
-
-        return self._map_to_chat_messages(messages)
-
-    async def _get_full_history_async(self):
-        messages = await self._trigger_list_messages_async(self.event.payload.chat_id)
-        messages = self._filter_valid_messages(messages)
-
-        return self._map_to_chat_messages(messages)
-
-    @staticmethod
-    def _filter_valid_messages(messages: ListObject[unique_sdk.Message]):
-        SYSTEM_MESSAGE_PREFIX = "[SYSTEM] "
-
-        # Remove the last two messages
-        messages = messages["data"][:-2]  # type: ignore
-        filtered_messages = []
-        for message in messages:
-            if message["text"] is None:
-                continue
-            elif SYSTEM_MESSAGE_PREFIX in message["text"]:
-                continue
-            else:
-                filtered_messages.append(message)
-
-        return filtered_messages
-
-    def _trigger_list_messages(self, chat_id: str):
-        try:
-            messages = unique_sdk.Message.list(
-                user_id=self.event.user_id,
-                company_id=self.event.company_id,
-                chatId=chat_id,
-            )
-            return messages
-        except Exception as e:
-            self.logger.error(f"Failed to list chat history: {e}")
-            raise e
-
-    async def _trigger_list_messages_async(self, chat_id: str):
-        try:
-            messages = await unique_sdk.Message.list_async(
-                user_id=self.event.user_id,
-                company_id=self.event.company_id,
-                chatId=chat_id,
-            )
-            return messages
-        except Exception as e:
-            self.logger.error(f"Failed to list chat history: {e}")
-            raise e
-
-    @staticmethod
-    def _map_to_chat_messages(messages: list[dict]):
-        return [ChatMessage(**msg) for msg in messages]
-
-    def _get_selection_from_history(
-        self,
-        full_history: list[ChatMessage],
-        max_tokens: int,
-        max_messages=4,
-    ):
-        messages = full_history[-max_messages:]
-        filtered_messages = [m for m in messages if m.content]
-        mapped_messages = []
-
-        for m in filtered_messages:
-            m.content = re.sub(r"<sup>\d+</sup>", "", m.content)
-            m.role = (
-                ChatMessageRole.ASSISTANT
-                if m.role == ChatMessageRole.ASSISTANT
-                else ChatMessageRole.USER
-            )
-            mapped_messages.append(m)
-
-        return self._pick_messages_in_reverse_for_token_window(
-            messages=mapped_messages,
-            limit=max_tokens,
-        )
-
-    def _pick_messages_in_reverse_for_token_window(
-        self,
-        messages: list[ChatMessage],
-        limit: int,
-    ) -> list[ChatMessage]:
-        if len(messages) < 1 or limit < 1:
-            return []
-
-        last_index = len(messages) - 1
-        token_count = count_tokens(messages[last_index].content)
-        while token_count > limit:
-            self.logger.debug(
-                f"Limit too low for the initial message. Last message TokenCount {token_count} available tokens {limit} - cutting message in half until it fits"
-            )
-            content = messages[last_index].content
-            messages[last_index].content = content[: len(content) // 2] + "..."
-            token_count = count_tokens(messages[last_index].content)
-
-        while token_count <= limit and last_index > 0:
-            token_count = count_tokens(
-                "".join([msg.content for msg in messages[:last_index]])
-            )
-            if token_count <= limit:
-                last_index -= 1
-
-        last_index = max(0, last_index)
-        return messages[last_index:]
-
-    def _construct_message_modify_params(
-        self,
-        assistant: bool = True,
-        content: Optional[str] = None,
-        original_content: Optional[str] = None,
-        references: Optional[list[ContentReference]] = None,
-        debug_info: Optional[dict] = None,
-        message_id: Optional[str] = None,
-        set_completed_at: Optional[bool] = False,
-    ):
-        if message_id:
-            # Message ID specified. No need to guess
-            message_id = message_id
-        elif assistant:
-            # Assistant message ID
-            message_id = self.event.payload.assistant_message.id
-        else:
-            # User message ID
-            message_id = self.event.payload.user_message.id
-            if content is None:
-                content = self.event.payload.user_message.text
-
-        if set_completed_at:
-            completed_at_datetime = _time_utils.get_datetime_now()
-        else:
-            completed_at_datetime = None
-
-        params = {
-            "user_id": self.event.user_id,
-            "company_id": self.event.company_id,
-            "id": message_id,
-            "chatId": self.event.payload.chat_id,
-            "text": content,
-            "originalText": original_content,
-            "references": self._map_references(references) if references else [],
-            "debugInfo": debug_info,
-            "completedAt": completed_at_datetime,
-        }
-        return params
-
-    def _construct_message_create_params(
-        self,
-        role: ChatMessageRole = ChatMessageRole.ASSISTANT,
-        content: Optional[str] = None,
-        original_content: Optional[str] = None,
-        references: Optional[list[ContentReference]] = None,
-        debug_info: Optional[dict] = None,
-        assistantId: Optional[str] = None,
-        set_completed_at: Optional[bool] = False,
-    ):
-        if assistantId:
-            # Assistant ID specified. No need to guess
-            assistantId = assistantId
-        else:
-            assistantId = self.event.payload.assistant_id
-
-        if set_completed_at:
-            completed_at_datetime = _time_utils.get_datetime_now()
-        else:
-            completed_at_datetime = None
-
-        if original_content is None:
-            original_content = content
-
-        params = {
-            "user_id": self.event.user_id,
-            "company_id": self.event.company_id,
-            "assistantId": assistantId,
-            "role": role.value.upper(),
-            "chatId": self.event.payload.chat_id,
-            "text": content,
-            "originalText": original_content,
-            "references": self._map_references(references) if references else [],
-            "debugInfo": debug_info,
-            "completedAt": completed_at_datetime,
-        }
-        return params
