@@ -3,19 +3,29 @@ import os
 import re
 import tempfile
 from pathlib import Path
-from typing import Optional, Union, cast
+from typing import Optional, Union, cast, overload
 
 import requests
 import unique_sdk
 
 from unique_toolkit._common._base_service import BaseService
-from unique_toolkit.app.schemas import Event
+from unique_toolkit.app.schemas import ChatEvent, Event, MagicTableEvent
 from unique_toolkit.content.schemas import (
     Content,
     ContentChunk,
     ContentRerankerConfig,
     ContentSearchType,
 )
+
+from unique_toolkit.content.functions import (
+    create_search,
+    create_search_async,
+    search_content,
+    search_content_async,
+    upsert_content,
+)
+
+from unique_toolkit.content.utils import map_contents
 
 
 class ContentService(BaseService):
@@ -27,11 +37,36 @@ class ContentService(BaseService):
         logger (Optional[logging.Logger]): The logger. Defaults to None.
     """
 
-    def __init__(self, event: Event, logger: Optional[logging.Logger] = None):
-        super().__init__(event, logger)
-        self.metadata_filter = event.payload.metadata_filter
-
     DEFAULT_SEARCH_LANGUAGE = "english"
+
+    @overload
+    def __init__(self, event: Event): ...
+
+    @overload
+    def __init__(self, event: ChatEvent): ...
+
+    @overload
+    def __init__(self, event: MagicTableEvent): ...
+
+    def __init__(
+        self,
+        event: ChatEvent | MagicTableEvent | Event,
+    ):
+        super().__init__(event)
+        self.metadata_filter = event.payload.metadata_filter
+        if isinstance(event, (ChatEvent, Event)):
+            self.company_id = event.company_id
+            self.user_id = event.user_id
+            self.assistant_message_id = event.payload.assistant_message.id
+            self.user_message_id = event.payload.user_message.id
+            self.chat_id = event.payload.chat_id
+            self.assistant_id = event.payload.assistant_id
+        elif isinstance(event, MagicTableEvent):
+            self.company_id = event.company_id
+            self.user_id = event.user_id
+            self.assistant_message_id = None
+            self.user_message_id = None
+            self.chat_id = None
 
     def search_content_chunks(
         self,
@@ -68,13 +103,13 @@ class ContentService(BaseService):
             metadata_filter = self.metadata_filter
 
         try:
-            searches = unique_sdk.Search.create(
-                user_id=self.event.user_id,
-                company_id=self.event.company_id,
-                chatId=self.event.payload.chat_id,
-                searchString=search_string,
-                searchType=search_type.name,
-                scopeIds=scope_ids,
+            searches = create_search(
+                user_id=self.user_id,
+                company_id=self.company_id,
+                chat_id=self.chat_id,
+                search_string=search_string,
+                search_type=search_type.name,
+                scope_ids=scope_ids,
                 limit=limit,
                 reranker=(
                     reranker_config.model_dump(by_alias=True)
@@ -82,9 +117,9 @@ class ContentService(BaseService):
                     else None
                 ),
                 language=search_language,
-                chatOnly=chat_only,
-                metaDataFilter=metadata_filter,
-                contentIds=content_ids,
+                chat_only=chat_only,
+                metadata_filter=metadata_filter,
+                content_ids=content_ids,
             )
         except Exception as e:
             self.logger.error(f"Error while searching content chunks: {e}")
@@ -132,13 +167,13 @@ class ContentService(BaseService):
             metadata_filter = self.metadata_filter
 
         try:
-            searches = await unique_sdk.Search.create_async(
-                user_id=self.event.user_id,
-                company_id=self.event.company_id,
-                chatId=self.event.payload.chat_id,
-                searchString=search_string,
-                searchType=search_type.name,
-                scopeIds=scope_ids,
+            searches = await create_search_async(
+                user_id=self.user_id,
+                company_id=self.company_id,
+                chat_id=self.chat_id,
+                search_string=search_string,
+                search_type=search_type.name,
+                scope_ids=scope_ids,
                 limit=limit,
                 reranker=(
                     reranker_config.model_dump(by_alias=True)
@@ -146,9 +181,9 @@ class ContentService(BaseService):
                     else None
                 ),
                 language=search_language,
-                chatOnly=chat_only,
-                metaDataFilter=metadata_filter,
-                contentIds=content_ids,
+                chat_only=chat_only,
+                metadata_filter=metadata_filter,
+                content_ids=content_ids,
             )
         except Exception as e:
             self.logger.error(f"Error while searching content chunks: {e}")
@@ -176,10 +211,10 @@ class ContentService(BaseService):
             list[Content]: The search results.
         """
         try:
-            contents = unique_sdk.Content.search(
-                user_id=self.event.user_id,
-                company_id=self.event.company_id,
-                chatId=self.event.payload.chat_id,
+            contents = search_content(
+                user_id=self.user_id,
+                company_id=self.company_id,
+                chat_id=self.chat_id,
                 # TODO add type parameter
                 where=where,  # type: ignore
             )
@@ -187,7 +222,7 @@ class ContentService(BaseService):
             self.logger.error(f"Error while searching contents: {e}")
             raise e
 
-        return self._map_contents(contents)
+        return map_contents(contents)
 
     async def search_contents_async(
         self,
@@ -203,10 +238,10 @@ class ContentService(BaseService):
             list[Content]: The search results.
         """
         try:
-            contents = await unique_sdk.Content.search_async(
-                user_id=self.event.user_id,
-                company_id=self.event.company_id,
-                chatId=self.event.payload.chat_id,
+            contents = await search_content_async(
+                user_id=self.user_id,
+                company_id=self.company_id,
+                chat_id=self.chat_id,
                 # TODO add type parameter
                 where=where,  # type: ignore
             )
@@ -214,38 +249,14 @@ class ContentService(BaseService):
             self.logger.error(f"Error while searching contents: {e}")
             raise e
 
-        return self._map_contents(contents)
+        return map_contents(contents)
 
     def search_content_on_chat(
         self,
     ) -> list[Content]:
-        where = {"ownerId": {"equals": self.event.payload.chat_id}}
+        where = {"ownerId": {"equals": self.chat_id}}
 
         return self.search_contents(where)
-
-    @staticmethod
-    def _map_content_chunk(content_chunk: dict):
-        return ContentChunk(
-            id=content_chunk["id"],
-            text=content_chunk["text"],
-            start_page=content_chunk["startPage"],
-            end_page=content_chunk["endPage"],
-            order=content_chunk["order"],
-        )
-
-    def _map_content(self, content: dict):
-        return Content(
-            id=content["id"],
-            key=content["key"],
-            title=content["title"],
-            url=content["url"],
-            chunks=[self._map_content_chunk(chunk) for chunk in content["chunks"]],
-            created_at=content["createdAt"],
-            updated_at=content["updatedAt"],
-        )
-
-    def _map_contents(self, contents):
-        return [self._map_content(content) for content in contents]
 
     def upload_content(
         self,
@@ -296,16 +307,16 @@ class ContentService(BaseService):
             raise ValueError("chat_id or scope_id must be provided")
 
         byte_size = os.path.getsize(path_to_content)
-        created_content = unique_sdk.Content.upsert(
-            user_id=self.event.user_id,
-            company_id=self.event.company_id,
-            input={
+        created_content = upsert_content(
+            user_id=self.user_id,
+            company_id=self.company_id,
+            input_data={
                 "key": content_name,
                 "title": content_name,
                 "mimeType": mime_type,
             },
-            scopeId=scope_id,
-            chatId=chat_id,
+            scope_id=scope_id,
+            chat_id=chat_id,
         )  # type: ignore
 
         write_url = created_content["writeUrl"]
@@ -344,20 +355,20 @@ class ContentService(BaseService):
             input_dict["ingestionConfig"] = {"uniqueIngestionMode": "SKIP_INGESTION"}
 
         if chat_id:
-            unique_sdk.Content.upsert(
-                user_id=self.event.user_id,
-                company_id=self.event.company_id,
-                input=input_dict,
-                fileUrl=read_url,
-                chatId=chat_id,
+            upsert_content(
+                user_id=self.user_id,
+                company_id=self.company_id,
+                input_data=input_dict,
+                file_url=read_url,
+                chat_id=chat_id,
             )  # type: ignore
         else:
-            unique_sdk.Content.upsert(
-                user_id=self.event.user_id,
-                company_id=self.event.company_id,
-                input=input_dict,
-                fileUrl=read_url,
-                scopeId=scope_id,
+            upsert_content(
+                user_id=self.user_id,
+                company_id=self.company_id,
+                input_data=input_dict,
+                file_url=read_url,
+                scope_id=scope_id,
             )  # type: ignore
 
         return Content(**created_content)
@@ -384,8 +395,8 @@ class ContentService(BaseService):
         headers = {
             "x-api-version": unique_sdk.api_version,
             "x-app-id": unique_sdk.app_id,
-            "x-user-id": self.event.user_id,
-            "x-company-id": self.event.company_id,
+            "x-user-id": self.user_id,
+            "x-company-id": self.company_id,
             "Authorization": "Bearer %s" % (unique_sdk.api_key,),
         }
 

@@ -32,6 +32,7 @@ class TestContentServiceUnit:
         )
         self.service = ContentService(self.event)
 
+    @pytest.mark.unit
     def test_search_content_chunks(self):
         with patch.object(unique_sdk.Search, "create") as mock_create:
             mock_create.return_value = [
