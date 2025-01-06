@@ -4,6 +4,8 @@ from unique_sdk.api_resources._short_term_memory import (
     ShortTermMemory as ShortTermMemoryAPI,
 )
 
+from unique_toolkit.app import Event
+
 from .schemas import ShortTermMemory
 
 
@@ -20,6 +22,15 @@ class ShortTermMemoryService:
         self.company_id = company_id
         self.chat_id = chat_id
         self.message_id = message_id
+
+    @classmethod
+    def from_chat_event(cls, chat_event: Event) -> "ShortTermMemoryService":
+        return cls(
+            user_id=chat_event.user_id,
+            company_id=chat_event.company_id,
+            chat_id=chat_event.payload.chat_id,
+            message_id=chat_event.payload.user_message.id,
+        )
 
     async def get(self, key: str) -> ShortTermMemory:
         stm = await ShortTermMemoryAPI.find_latest_async(
