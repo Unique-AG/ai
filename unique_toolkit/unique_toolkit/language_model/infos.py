@@ -307,7 +307,7 @@ AzureGpt35Turbo16k = create_language_model(
 )
 
 
-AzureGpt35Turbo0613 = create_language_model(
+AzureGpt35Turbo0125 = create_language_model(
     name=LanguageModelName.AZURE_GPT_35_TURBO_0125,
     provider=LanguageModelProvider.AZURE,
     version="0125",
