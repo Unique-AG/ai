@@ -116,7 +116,7 @@ class TestLanguageModelInfos:
         limits = LanguageModelTokenLimits(token_limit=2000, fraction_input=0.47)
         assert isinstance(limits.token_limit_input, int)
         assert isinstance(limits.token_limit_output, int)
-
+        assert isinstance(limits.token_limit, int)
         assert (
             limits.token_limit_input + limits.token_limit_output <= limits.token_limit
         )

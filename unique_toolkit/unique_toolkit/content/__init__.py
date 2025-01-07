@@ -35,3 +35,5 @@ from .utils import (
 from .utils import (
     sort_content_chunks as sort_content_chunks,
 )
+
+DOMAIN_NAME = "content"
