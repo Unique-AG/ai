@@ -4,7 +4,7 @@ from typing import Optional
 import unique_sdk
 
 from unique_toolkit._common._base_service import BaseService
-from unique_toolkit.app.schemas import ChatEvent, Event
+from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.chat.functions import (
     construct_message_create_params,
     construct_message_modify_params,
