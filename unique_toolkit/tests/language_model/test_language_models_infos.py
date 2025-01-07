@@ -28,6 +28,7 @@ class TestLanguageModelInfos:
         assert LanguageModelName.AZURE_GPT_35_TURBO_16K in model_names
         assert LanguageModelName.AZURE_GPT_35_TURBO in model_names
         assert LanguageModelName.AZURE_GPT_35_TURBO_0613 in model_names
+        assert LanguageModelName.AZURE_GPT_35_TURBO_0125 in model_names
         assert LanguageModelName.AZURE_GPT_4o_2024_0513 in model_names
         assert LanguageModelName.AZURE_GPT_4o_2024_0806 in model_names
         assert LanguageModelName.AZURE_GPT_4o_MINI_2024_0718 in model_names

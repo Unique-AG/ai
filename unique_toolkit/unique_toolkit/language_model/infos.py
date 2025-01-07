@@ -11,6 +11,7 @@ class LanguageModelName(StrEnum):
     AZURE_GPT_35_TURBO_0613 = "AZURE_GPT_35_TURBO_0613"
     AZURE_GPT_35_TURBO = "AZURE_GPT_35_TURBO"
     AZURE_GPT_35_TURBO_16K = "AZURE_GPT_35_TURBO_16K"
+    AZURE_GPT_35_TURBO_0125 = "AZURE_GPT_35_TURBO_0125"
     AZURE_GPT_4_0613 = "AZURE_GPT_4_0613"
     AZURE_GPT_4_TURBO_1106 = "AZURE_GPT_4_TURBO_1106"
     AZURE_GPT_4_VISION_PREVIEW = "AZURE_GPT_4_VISION_PREVIEW"
@@ -33,6 +34,7 @@ def get_encoder_name(model_name: LanguageModelName) -> Optional[EncoderName]:
             LMN.AZURE_GPT_35_TURBO
             | LMN.AZURE_GPT_35_TURBO_16K
             | LMN.AZURE_GPT_35_TURBO_0613
+            | LMN.AZURE_GPT_35_TURBO_0125
         ):
             return EncoderName.CL100K_BASE
         case (
@@ -278,7 +280,7 @@ AzureGpt35Turbo0613 = create_language_model(
     token_limit=8192,
     info_cutoff_at=date(2021, 9, 1),
     published_at=date(2023, 6, 13),
-    retirement_at=date(2024, 10, 1),
+    retirement_at=date(2025, 2, 13),
 )
 
 AzureGpt35Turbo = create_language_model(
@@ -289,6 +291,7 @@ AzureGpt35Turbo = create_language_model(
     token_limit=4096,
     info_cutoff_at=date(2021, 9, 1),
     published_at=date(2023, 3, 1),
+    retirement_at=date(2025, 2, 13),
 )
 
 
@@ -300,7 +303,20 @@ AzureGpt35Turbo16k = create_language_model(
     token_limit=16382,
     info_cutoff_at=date(2021, 9, 1),
     published_at=date(2023, 6, 13),
-    retirement_at=date(2024, 10, 1),
+    retirement_at=date(2025, 2, 13),
+)
+
+
+AzureGpt35Turbo0613 = create_language_model(
+    name=LanguageModelName.AZURE_GPT_35_TURBO_0125,
+    provider=LanguageModelProvider.AZURE,
+    version="0125",
+    encoder_name=get_encoder_name(LanguageModelName.AZURE_GPT_35_TURBO_0125),
+    token_limit_input=16385,
+    token_limit_output=4096,
+    info_cutoff_at=date(2021, 9, 1),
+    published_at=date(2023, 1, 25),
+    retirement_at=date(5, 3, 31),
 )
 
 
@@ -313,7 +329,7 @@ AzureGpt40613 = create_language_model(
     info_cutoff_at=date(2021, 9, 1),
     published_at=date(2023, 6, 13),
     deprecated_at=date(2024, 10, 1),
-    retirement_at=date(2025, 6, 1),
+    retirement_at=date(2025, 6, 6),
 )
 
 
@@ -349,7 +365,7 @@ AzureGpt432k0613 = create_language_model(
     info_cutoff_at=date(2021, 9, 1),
     published_at=date(2023, 6, 13),
     deprecated_at=date(2024, 10, 1),
-    retirement_at=date(2025, 6, 1),
+    retirement_at=date(2025, 6, 6),
 )
 
 AzureGpt4Turbo20240409 = create_language_model(

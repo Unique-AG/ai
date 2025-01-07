@@ -207,7 +207,7 @@ class TestLanguageModelServiceUnit:
 
         response = self.service.complete(
             messages=messages,
-            model_name=LanguageModelName.AZURE_GPT_35_TURBO,
+            model_name=LanguageModelName.AZURE_GPT_35_TURBO_0125,
             tools=[mock_tool],
         )
 
@@ -249,7 +249,7 @@ class TestLanguageModelServiceUnit:
 
         response = self.service.stream_complete(
             messages=messages,
-            model_name=LanguageModelName.AZURE_GPT_35_TURBO,
+            model_name=LanguageModelName.AZURE_GPT_35_TURBO_0125,
             tools=[mock_tool],
         )
 
@@ -442,7 +442,7 @@ class TestLanguageModelServiceUnit:
 
         response = await self.service.complete_async(
             messages=messages,
-            model_name=LanguageModelName.AZURE_GPT_35_TURBO,
+            model_name=LanguageModelName.AZURE_GPT_35_TURBO_0125,
             tools=[mock_tool],
         )
         assert response.choices[0].message.tool_calls is not None
@@ -484,7 +484,7 @@ class TestLanguageModelServiceUnit:
 
         response = await self.service.stream_complete_async(
             messages=messages,
-            model_name=LanguageModelName.AZURE_GPT_35_TURBO,
+            model_name=LanguageModelName.AZURE_GPT_35_TURBO_0125,
             tools=[mock_tool],
         )
 
