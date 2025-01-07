@@ -4,7 +4,7 @@ from typing import Optional
 import unique_sdk
 
 from unique_toolkit._common._base_service import BaseService
-from unique_toolkit.app.schemas import Event
+from unique_toolkit.app.schemas import ChatEvent, Event
 from unique_toolkit.chat.functions import (
     construct_message_create_params,
     construct_message_modify_params,
@@ -25,7 +25,7 @@ class ChatService(BaseService):
         logger (Optional[logging.Logger]): The logger. Defaults to None.
     """
 
-    def __init__(self, event: Event, logger: Optional[logging.Logger] = None):
+    def __init__(self, event: ChatEvent, logger: Optional[logging.Logger] = None):
         super().__init__(event, logger)
 
     DEFAULT_PERCENT_OF_MAX_TOKENS = 0.15
