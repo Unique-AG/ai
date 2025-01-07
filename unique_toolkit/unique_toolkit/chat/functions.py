@@ -1,6 +1,6 @@
 import logging
 import re
-from typing import Optional
+from typing import Any, Dict, List, Optional
 
 import unique_sdk
 from unique_sdk._list_object import ListObject
@@ -13,7 +13,7 @@ from unique_toolkit.content.utils import count_tokens
 logger = logging.getLogger(__name__)
 
 
-def map_references(references: list[ContentReference]):
+def map_references(references: List[ContentReference]) -> List[Dict[str, Any]]:
     return [
         {
             "name": ref.name,
@@ -40,7 +40,7 @@ def construct_message_modify_params(
     debug_info: Optional[dict] = None,
     message_id: Optional[str] = None,
     set_completed_at: Optional[bool] = False,
-):
+) -> Dict[str, Any]:
     completed_at_datetime = None
 
     if message_id:
@@ -83,15 +83,10 @@ def construct_message_create_params(
     debug_info: Optional[dict] = None,
     assistantId: Optional[str] = None,
     set_completed_at: Optional[bool] = False,
-):
-    assistantId = event_payload_assistant_id
-    completed_at_datetime = None
-    if assistantId:
-        # Assistant ID specified. No need to guess
-        assistantId = assistantId
-
-    if set_completed_at:
-        completed_at_datetime = _time_utils.get_datetime_now()
+) -> Dict[str, Any]:
+    if assistantId is None:
+        # if Assistant ID isn't specified. change event_payload_assistant.
+        assistantId = event_payload_assistant_id
 
     if original_content is None:
         original_content = content
@@ -106,7 +101,7 @@ def construct_message_create_params(
         "originalText": original_content,
         "references": map_references(references) if references else [],
         "debugInfo": debug_info,
-        "completedAt": completed_at_datetime,
+        "completedAt": _time_utils.get_datetime_now() if set_completed_at else None,
     }
     return params
 
@@ -115,7 +110,7 @@ def get_selection_from_history(
     full_history: list[ChatMessage],
     max_tokens: int,
     max_messages=4,
-):
+) -> List[ChatMessage]:
     messages = full_history[-max_messages:]
     filtered_messages = [m for m in messages if m.content]
     mapped_messages = []
@@ -135,14 +130,14 @@ def get_selection_from_history(
     )
 
 
-def map_to_chat_messages(messages: list[dict]):
+def map_to_chat_messages(messages: list[dict]) -> List[ChatMessage]:
     return [ChatMessage(**msg) for msg in messages]
 
 
 def pick_messages_in_reverse_for_token_window(
     messages: list[ChatMessage],
     limit: int,
-) -> list[ChatMessage]:
+) -> List[ChatMessage]:
     if len(messages) < 1 or limit < 1:
         return []
 
@@ -167,7 +162,9 @@ def pick_messages_in_reverse_for_token_window(
     return messages[last_index:]
 
 
-def trigger_list_messages(event_user_id, event_company_id, chat_id: str):
+def trigger_list_messages(
+    event_user_id, event_company_id, chat_id: str
+) -> ListObject[unique_sdk.Message]:
     try:
         messages = unique_sdk.Message.list(
             user_id=event_user_id,
@@ -182,7 +179,7 @@ def trigger_list_messages(event_user_id, event_company_id, chat_id: str):
 
 async def trigger_list_messages_async(
     event_user_id: str, event_company_id: str, chat_id: str
-):
+) -> ListObject[unique_sdk.Message]:
     try:
         messages = await unique_sdk.Message.list_async(
             user_id=event_user_id,
@@ -195,7 +192,9 @@ async def trigger_list_messages_async(
         raise e
 
 
-def get_full_history(event_user_id, event_company_id, event_payload_chat_id):
+def get_full_history(
+    event_user_id, event_company_id, event_payload_chat_id
+) -> List[ChatMessage]:
     messages = trigger_list_messages(
         event_user_id, event_company_id, event_payload_chat_id
     )
@@ -206,7 +205,7 @@ def get_full_history(event_user_id, event_company_id, event_payload_chat_id):
 
 async def get_full_history_async(
     event_user_id, event_company_id, event_payload_chat_id
-):
+) -> List[ChatMessage]:
     messages = await trigger_list_messages_async(
         event_user_id, event_company_id, event_payload_chat_id
     )
@@ -215,7 +214,9 @@ async def get_full_history_async(
     return map_to_chat_messages(messages)
 
 
-def filter_valid_messages(messages: ListObject[unique_sdk.Message]):
+def filter_valid_messages(
+    messages: ListObject[unique_sdk.Message],
+) -> List[Dict[str, Any]]:
     SYSTEM_MESSAGE_PREFIX = "[SYSTEM] "
 
     # Remove the last two messages

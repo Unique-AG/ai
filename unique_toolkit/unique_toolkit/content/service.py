@@ -37,6 +37,11 @@ class ContentService(BaseService):
     DEFAULT_SEARCH_LANGUAGE = "english"
 
     @overload
+    def __init__(self, compnay_id: str, user_id: str | None = None):
+        self.company_id = compnay_id
+        self.user_id = user_id
+
+    @overload
     def __init__(self, event: Event): ...
 
     @overload

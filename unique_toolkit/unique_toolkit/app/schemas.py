@@ -41,6 +41,16 @@ class ChatEventUserMessage(BaseModel):
     language: str
 
 
+@deprecated(
+    "Use `ChatEventUserMessage` instead. "
+    "This class will be removed in the next major version."
+)
+class EventUserMessage(ChatEventUserMessage):
+    """Deprecated: Use `ChatEventUserMessage` instead."""
+
+    pass
+
+
 class ChatEventAssistantMessage(BaseModel):
     model_config = model_config
 
@@ -48,11 +58,31 @@ class ChatEventAssistantMessage(BaseModel):
     created_at: str
 
 
+@deprecated(
+    "Use `ChatEventAssistantMessage` instead. "
+    "This class will be removed in the next major version."
+)
+class EventAssistantMessage(ChatEventAssistantMessage):
+    """Deprecated: Use `ChatEventAssistantMessage` instead."""
+
+    pass
+
+
 class ChatEventAdditionalParameters(BaseModel):
     model_config = model_config
 
     translate_to_language: Optional[str] = None
     content_id_to_translate: Optional[str] = None
+
+
+@deprecated(
+    "Use `ChatEventAdditionalParameters` instead. "
+    "This class will be removed in the next major version."
+)
+class EventAdditionalParameters(ChatEventAdditionalParameters):
+    """Deprecated: Use `ChatEventAdditionalParameters` instead."""
+
+    pass
 
 
 class ChatEventPayload(BaseModel):
@@ -70,6 +100,14 @@ class ChatEventPayload(BaseModel):
     user_metadata: Optional[dict[str, Any]] = None
     tool_parameters: Optional[dict[str, Any]] = None
     metadata_filter: Optional[dict[str, Any]] = None
+
+
+@deprecated("""UUse `ChatEventPayload` instead.
+            This class will be removed in the next major version.""")
+class EventPayload(ChatEventPayload):
+    user_message: EventUserMessage
+    assistant_message: EventAssistantMessage
+    additional_parameters: Optional[EventAdditionalParameters] = None
 
 
 @deprecated(
