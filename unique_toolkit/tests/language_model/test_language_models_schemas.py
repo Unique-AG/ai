@@ -76,7 +76,7 @@ class TestLanguageModelSchemas:
                     "index": 0,
                     "finishReason": "finished",
                     "message": {
-                        "role": "system",
+                        "role": "assistant",
                         "content": "content",
                         "name": "name",
                         "toolCalls": [
@@ -100,7 +100,7 @@ class TestLanguageModelSchemas:
         choice = response.choices[0]
         assert choice.index == 0
         assert choice.finish_reason == "finished"
-        assert choice.message.role == LanguageModelMessageRole.SYSTEM
+        assert choice.message.role == LanguageModelMessageRole.ASSISTANT
         assert choice.message.content == "content"
 
         # This is temporary this code would be deleted soon.
