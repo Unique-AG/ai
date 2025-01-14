@@ -8,7 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.6.0] - 2024-12-17
 - remove the `Event` dependency from `LanguageModelService`
 - move SDK calls to `unique_toolkit.language_model.functions`
-- ...
+
+## [0.5.46] - 2025-01-07
+ - Added `AZURE_GPT_35_TURBO_0125` as new model into toolkit.
+
 ## [0.5.45] - 2025-01-03
 - Added `ShortTermMemoryService` class to handle short term memory.
 
