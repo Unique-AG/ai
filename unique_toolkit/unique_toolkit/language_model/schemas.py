@@ -89,7 +89,6 @@ class LanguageModelMessage(BaseModel):
     model_config = model_config
     role: LanguageModelMessageRole
     content: Optional[str | list[dict]] = None
-    tool_calls: Optional[list[LanguageModelFunctionCall]] = None
 
     def __str__(self):
         return format_message(self.role.capitalize(), message=self.content, num_tabs=1)
@@ -113,6 +112,7 @@ class LanguageModelUserMessage(LanguageModelMessage):
 
 class LanguageModelAssistantMessage(LanguageModelMessage):
     role: LanguageModelMessageRole = LanguageModelMessageRole.ASSISTANT
+    tool_calls: Optional[list[LanguageModelFunctionCall]] = None
 
     @field_validator("role", mode="before")
     def set_role(cls, value):
@@ -159,7 +159,7 @@ class LanguageModelCompletionChoice(BaseModel):
     model_config = model_config
 
     index: int
-    message: LanguageModelMessage
+    message: LanguageModelAssistantMessage
     finish_reason: str
 
 
