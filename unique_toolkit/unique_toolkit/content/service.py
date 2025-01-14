@@ -1,3 +1,4 @@
+import logging
 import os
 import re
 import tempfile
@@ -7,7 +8,6 @@ from typing import Optional, Union, cast, overload
 import requests
 import unique_sdk
 
-from unique_toolkit._common._base_service import BaseService
 from unique_toolkit.app.schemas import ChatEvent, Event, MagicTableEvent
 from unique_toolkit.content.functions import (
     create_search,
@@ -24,8 +24,13 @@ from unique_toolkit.content.schemas import (
 )
 from unique_toolkit.content.utils import map_contents
 
+DOMAIN_NAME = "content"
 
-class ContentService(BaseService):
+
+logger = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
+
+
+class ContentService:
     """
     Provides methods for searching, downloading and uploading content in the knowledge base.
 
@@ -35,11 +40,6 @@ class ContentService(BaseService):
     """
 
     DEFAULT_SEARCH_LANGUAGE = "english"
-
-    @overload
-    def __init__(self, compnay_id: str, user_id: str | None = None):
-        self.company_id = compnay_id
-        self.user_id = user_id
 
     @overload
     def __init__(self, event: Event): ...
@@ -52,23 +52,19 @@ class ContentService(BaseService):
 
     def __init__(
         self,
-        event: ChatEvent | MagicTableEvent | Event,
+        event: ChatEvent | MagicTableEvent | Event | None = None,
+        company_id: str | None = None,
+        user_id: str | None = None,
     ):
-        super().__init__(event)
-        self.metadata_filter = event.payload.metadata_filter
-        if isinstance(event, (ChatEvent, Event)):
+        if event:
             self.company_id = event.company_id
             self.user_id = event.user_id
-            self.assistant_message_id = event.payload.assistant_message.id
-            self.user_message_id = event.payload.user_message.id
-            self.chat_id = event.payload.chat_id
-            self.assistant_id = event.payload.assistant_id
-        elif isinstance(event, MagicTableEvent):
-            self.company_id = event.company_id
-            self.user_id = event.user_id
-            self.assistant_message_id = None
-            self.user_message_id = None
-            self.chat_id = None
+            self.metadata_filter = event.payload.metadata_filter
+            if isinstance(event, (ChatEvent, Event)):
+                self.chat_id = event.payload.chat_id
+        elif company_id is not None or user_id is not None:
+            self.company_id = company_id
+            self.user_id = user_id
 
     def search_content_chunks(
         self,
@@ -99,7 +95,7 @@ class ContentService(BaseService):
             list[ContentChunk]: The search results.
         """
         if not scope_ids:
-            self.logger.warning("No scope IDs provided for search.")
+            logger.warning("No scope IDs provided for search.")
 
         if metadata_filter is None:
             metadata_filter = self.metadata_filter
@@ -124,7 +120,7 @@ class ContentService(BaseService):
                 content_ids=content_ids,
             )
         except Exception as e:
-            self.logger.error(f"Error while searching content chunks: {e}")
+            logger.error(f"Error while searching content chunks: {e}")
             raise e
 
         def map_to_content_chunks(searches: list[unique_sdk.Search]):
@@ -163,7 +159,7 @@ class ContentService(BaseService):
             list[ContentChunk]: The search results.
         """
         if not scope_ids:
-            self.logger.warning("No scope IDs provided for search.")
+            logger.warning("No scope IDs provided for search.")
 
         if metadata_filter is None:
             metadata_filter = self.metadata_filter
@@ -188,7 +184,7 @@ class ContentService(BaseService):
                 content_ids=content_ids,
             )
         except Exception as e:
-            self.logger.error(f"Error while searching content chunks: {e}")
+            logger.error(f"Error while searching content chunks: {e}")
             raise e
 
         def map_to_content_chunks(searches: list[unique_sdk.Search]):
@@ -221,7 +217,7 @@ class ContentService(BaseService):
                 where=where,  # type: ignore
             )
         except Exception as e:
-            self.logger.error(f"Error while searching contents: {e}")
+            logger.error(f"Error while searching contents: {e}")
             raise e
 
         return map_contents(contents)
@@ -248,7 +244,7 @@ class ContentService(BaseService):
                 where=where,  # type: ignore
             )
         except Exception as e:
-            self.logger.error(f"Error while searching contents: {e}")
+            logger.error(f"Error while searching contents: {e}")
             raise e
 
         return map_contents(contents)
@@ -293,7 +289,7 @@ class ContentService(BaseService):
                 skip_ingestion=skip_ingestion,
             )
         except Exception as e:
-            self.logger.error(f"Error while uploading content: {e}")
+            logger.error(f"Error while uploading content: {e}")
             raise e
 
     def _trigger_upload_content(
@@ -325,7 +321,7 @@ class ContentService(BaseService):
 
         if not write_url:
             error_msg = "Write url for uploaded content is missing"
-            self.logger.error(error_msg)
+            logger.error(error_msg)
             raise ValueError(error_msg)
 
         # upload to azure blob storage SAS url uploadUrl the pdf file translatedFile make sure it is treated as a application/pdf
@@ -343,7 +339,7 @@ class ContentService(BaseService):
 
         if not read_url:
             error_msg = "Read url for uploaded content is missing"
-            self.logger.error(error_msg)
+            logger.error(error_msg)
             raise ValueError(error_msg)
 
         input_dict = {
@@ -444,14 +440,14 @@ class ContentService(BaseService):
                     error_msg = (
                         "Error downloading file: Filename could not be determined"
                     )
-                    self.logger.error(error_msg)
+                    logger.error(error_msg)
                     raise Exception(error_msg)
 
             with open(content_path, "wb") as file:
                 file.write(response.content)
         else:
             error_msg = f"Error downloading file: Status code {response.status_code}"
-            self.logger.error(error_msg)
+            logger.error(error_msg)
             raise Exception(error_msg)
 
         return content_path
@@ -490,7 +486,7 @@ class ContentService(BaseService):
                 file.write(response.content)
         else:
             error_msg = f"Error downloading file: Status code {response.status_code}"
-            self.logger.error(error_msg)
+            logger.error(error_msg)
             raise Exception(error_msg)
 
         return content_path

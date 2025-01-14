@@ -3,7 +3,6 @@ from typing import Optional
 
 import unique_sdk
 
-from unique_toolkit._common._base_service import BaseService
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.chat.functions import (
     construct_message_create_params,
@@ -15,8 +14,13 @@ from unique_toolkit.chat.functions import (
 from unique_toolkit.chat.schemas import ChatMessage
 from unique_toolkit.content.schemas import ContentReference
 
+DOMAIN_NAME = "chat"
 
-class ChatService(BaseService):
+
+logger = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
+
+
+class ChatService:
     """
     Provides all functionalities to manage the chat session.
 
@@ -25,8 +29,14 @@ class ChatService(BaseService):
         logger (Optional[logging.Logger]): The logger. Defaults to None.
     """
 
-    def __init__(self, event: ChatEvent, logger: Optional[logging.Logger] = None):
-        super().__init__(event, logger)
+    def __init__(self, event: ChatEvent):
+        self.company_id = event.company_id
+        self.user_id = event.user_id
+        self.assistant_message_id = event.payload.assistant_message.id
+        self.user_message_id = event.payload.user_message.id
+        self.chat_id = event.payload.chat_id
+        self.assistant_id = event.payload.assistant_id
+        self.user_message_text = (event.payload.user_message.text,)
 
     DEFAULT_PERCENT_OF_MAX_TOKENS = 0.15
     DEFAULT_MAX_MESSAGES = 4
@@ -39,19 +49,19 @@ class ChatService(BaseService):
             debug_info (dict): The new debug information.
         """
         params = construct_message_modify_params(
-            event_user_id=self.event.user_id,
-            event_company_id=self.event.company_id,
-            event_payload_assistant_message_id=self.event.payload.assistant_message.id,
-            event_payload_chat_id=self.event.payload.chat_id,
-            event_payload_user_message_id=self.event.payload.user_message.id,
-            event_payload_user_message_text=self.event.payload.user_message.text,
+            event_user_id=self.user_id,
+            event_company_id=self.company_id,
+            event_payload_assistant_message_id=self.assistant_message_id,
+            event_payload_chat_id=self.chat_id,
+            event_payload_user_message_id=self.user_message_id,
+            event_payload_user_message_text=self.user_message_text,
             assistant=False,
             debug_info=debug_info,
         )
         try:
             await unique_sdk.Message.modify_async(**params)
         except Exception as e:
-            self.logger.error(f"Failed to update debug info: {e}")
+            logger.error(f"Failed to update debug info: {e}")
             raise e
 
     def update_debug_info(self, debug_info: dict):
@@ -62,19 +72,19 @@ class ChatService(BaseService):
             debug_info (dict): The new debug information.
         """
         params = construct_message_modify_params(
-            event_user_id=self.event.user_id,
-            event_company_id=self.event.company_id,
-            event_payload_assistant_message_id=self.event.payload.assistant_message.id,
-            event_payload_chat_id=self.event.payload.chat_id,
-            event_payload_user_message_id=self.event.payload.user_message.id,
-            event_payload_user_message_text=self.event.payload.user_message.text,
+            event_user_id=self.user_id,
+            event_company_id=self.company_id,
+            event_payload_assistant_message_id=self.assistant_message_id,
+            event_payload_chat_id=self.chat_id,
+            event_payload_user_message_id=self.user_message_id,
+            event_payload_user_message_text=self.user_message_text,
             assistant=False,
             debug_info=debug_info,
         )
         try:
             unique_sdk.Message.modify(**params)
         except Exception as e:
-            self.logger.error(f"Failed to update debug info: {e}")
+            logger.error(f"Failed to update debug info: {e}")
             raise e
 
     def modify_user_message(
@@ -103,12 +113,12 @@ class ChatService(BaseService):
         """
         try:
             params = construct_message_modify_params(
-                event_user_id=self.event.user_id,
-                event_company_id=self.event.company_id,
-                event_payload_assistant_message_id=self.event.payload.assistant_message.id,
-                event_payload_chat_id=self.event.payload.chat_id,
-                event_payload_user_message_id=self.event.payload.user_message.id,
-                event_payload_user_message_text=self.event.payload.user_message.text,
+                event_user_id=self.user_id,
+                event_company_id=self.company_id,
+                event_payload_assistant_message_id=self.assistant_message_id,
+                event_payload_chat_id=self.chat_id,
+                event_payload_user_message_id=self.user_message_id,
+                event_payload_user_message_text=self.user_message_text,
                 assistant=False,
                 content=content,
                 references=references,
@@ -118,7 +128,7 @@ class ChatService(BaseService):
             )
             message = unique_sdk.Message.modify(**params)
         except Exception as e:
-            self.logger.error(f"Failed to modify user message: {e}")
+            logger.error(f"Failed to modify user message: {e}")
             raise e
         return ChatMessage(**message)
 
@@ -148,12 +158,12 @@ class ChatService(BaseService):
         """
         try:
             params = construct_message_modify_params(
-                event_user_id=self.event.user_id,
-                event_company_id=self.event.company_id,
-                event_payload_assistant_message_id=self.event.payload.assistant_message.id,
-                event_payload_chat_id=self.event.payload.chat_id,
-                event_payload_user_message_id=self.event.payload.user_message.id,
-                event_payload_user_message_text=self.event.payload.user_message.text,
+                event_user_id=self.user_id,
+                event_company_id=self.company_id,
+                event_payload_assistant_message_id=self.assistant_message_id,
+                event_payload_chat_id=self.chat_id,
+                event_payload_user_message_id=self.user_message_id,
+                event_payload_user_message_text=self.user_message_text,
                 assistant=False,
                 content=content,
                 references=references,
@@ -163,7 +173,7 @@ class ChatService(BaseService):
             )
             message = await unique_sdk.Message.modify_async(**params)
         except Exception as e:
-            self.logger.error(f"Failed to modify user message: {e}")
+            logger.error(f"Failed to modify user message: {e}")
             raise e
         return ChatMessage(**message)
 
@@ -195,12 +205,12 @@ class ChatService(BaseService):
         """
         try:
             params = construct_message_modify_params(
-                event_user_id=self.event.user_id,
-                event_company_id=self.event.company_id,
-                event_payload_assistant_message_id=self.event.payload.assistant_message.id,
-                event_payload_chat_id=self.event.payload.chat_id,
-                event_payload_user_message_id=self.event.payload.user_message.id,
-                event_payload_user_message_text=self.event.payload.user_message.text,
+                event_user_id=self.user_id,
+                event_company_id=self.company_id,
+                event_payload_assistant_message_id=self.assistant_message_id,
+                event_payload_chat_id=self.chat_id,
+                event_payload_user_message_id=self.user_message_id,
+                event_payload_user_message_text=self.user_message_text,
                 assistant=True,
                 content=content,
                 original_content=original_content,
@@ -211,7 +221,7 @@ class ChatService(BaseService):
             )
             message = unique_sdk.Message.modify(**params)
         except Exception as e:
-            self.logger.error(f"Failed to modify assistant message: {e}")
+            logger.error(f"Failed to modify assistant message: {e}")
             raise e
         return ChatMessage(**message)
 
@@ -243,12 +253,12 @@ class ChatService(BaseService):
         """
         try:
             params = construct_message_modify_params(
-                event_user_id=self.event.user_id,
-                event_company_id=self.event.company_id,
-                event_payload_assistant_message_id=self.event.payload.assistant_message.id,
-                event_payload_chat_id=self.event.payload.chat_id,
-                event_payload_user_message_id=self.event.payload.user_message.id,
-                event_payload_user_message_text=self.event.payload.user_message.text,
+                event_user_id=self.user_id,
+                event_company_id=self.company_id,
+                event_payload_assistant_message_id=self.assistant_message_id,
+                event_payload_chat_id=self.chat_id,
+                event_payload_user_message_id=self.user_message_id,
+                event_payload_user_message_text=self.user_message_text,
                 assistant=True,
                 content=content,
                 original_content=original_content,
@@ -259,7 +269,7 @@ class ChatService(BaseService):
             )
             message = await unique_sdk.Message.modify_async(**params)
         except Exception as e:
-            self.logger.error(f"Failed to modify assistant message: {e}")
+            logger.error(f"Failed to modify assistant message: {e}")
             raise e
         return ChatMessage(**message)
 
@@ -274,9 +284,9 @@ class ChatService(BaseService):
             Exception: If the loading fails.
         """
         return get_full_history(
-            event_user_id=self.event.user_id,
-            event_company_id=self.event.company_id,
-            event_payload_chat_id=self.event.payload.chat_id,
+            event_user_id=self.user_id,
+            event_company_id=self.company_id,
+            event_payload_chat_id=self.chat_id,
         )
 
     async def get_full_history_async(self) -> list[ChatMessage]:
@@ -290,9 +300,9 @@ class ChatService(BaseService):
             Exception: If the loading fails.
         """
         return await get_full_history_async(
-            event_user_id=self.event.user_id,
-            event_company_id=self.event.company_id,
-            event_payload_chat_id=self.event.payload.chat_id,
+            event_user_id=self.user_id,
+            event_company_id=self.company_id,
+            event_payload_chat_id=self.chat_id,
         )
 
     def get_full_and_selected_history(
@@ -316,9 +326,9 @@ class ChatService(BaseService):
             Exception: If the loading fails.
         """
         full_history = get_full_history(
-            event_user_id=self.event.user_id,
-            event_company_id=self.event.company_id,
-            event_payload_chat_id=self.event.payload.chat_id,
+            event_user_id=self.user_id,
+            event_company_id=self.company_id,
+            event_payload_chat_id=self.chat_id,
         )
         selected_history = get_selection_from_history(
             full_history=full_history,
@@ -349,9 +359,9 @@ class ChatService(BaseService):
             Exception: If the loading fails.
         """
         full_history = await get_full_history_async(
-            event_user_id=self.event.user_id,
-            event_company_id=self.event.company_id,
-            event_payload_chat_id=self.event.payload.chat_id,
+            event_user_id=self.user_id,
+            event_company_id=self.company_id,
+            event_payload_chat_id=self.chat_id,
         )
         selected_history = get_selection_from_history(
             full_history=full_history,
@@ -390,10 +400,10 @@ class ChatService(BaseService):
 
         try:
             params = construct_message_create_params(
-                event_user_id=self.event.user_id,
-                event_company_id=self.event.company_id,
-                event_payload_chat_id=self.event.payload.chat_id,
-                event_payload_assistant_id=self.event.payload.assistant_id,
+                event_user_id=self.user_id,
+                event_company_id=self.company_id,
+                event_payload_chat_id=self.chat_id,
+                event_payload_assistant_id=self.assistant_id,
                 content=content,
                 original_content=original_content,
                 references=references,
@@ -403,7 +413,7 @@ class ChatService(BaseService):
 
             message = unique_sdk.Message.create(**params)
         except Exception as e:
-            self.logger.error(f"Failed to create assistant message: {e}")
+            logger.error(f"Failed to create assistant message: {e}")
             raise e
         return ChatMessage(**message)
 
@@ -436,10 +446,10 @@ class ChatService(BaseService):
 
         try:
             params = construct_message_create_params(
-                event_user_id=self.event.user_id,
-                event_company_id=self.event.company_id,
-                event_payload_chat_id=self.event.payload.chat_id,
-                event_payload_assistant_id=self.event.payload.assistant_id,
+                event_user_id=self.user_id,
+                event_company_id=self.company_id,
+                event_payload_chat_id=self.chat_id,
+                event_payload_assistant_id=self.assistant_id,
                 content=content,
                 original_content=original_content,
                 references=references,
@@ -449,6 +459,6 @@ class ChatService(BaseService):
 
             message = await unique_sdk.Message.create_async(**params)
         except Exception as e:
-            self.logger.error(f"Failed to create assistant message: {e}")
+            logger.error(f"Failed to create assistant message: {e}")
             raise e
         return ChatMessage(**message)

@@ -40,9 +40,7 @@ class LanguageModelService:
     """
 
     @overload
-    def __init__(self, compnay_id: str, user_id: str | None = None):
-        self.company_id = compnay_id
-        self.user_id = user_id
+    def __init__(self, compnay_id: str, user_id: str | None = None): ...
 
     @overload
     def __init__(self, event: Event): ...
@@ -55,22 +53,28 @@ class LanguageModelService:
 
     def __init__(
         self,
-        event: ChatEvent | MagicTableEvent | Event,
+        event: ChatEvent | MagicTableEvent | Event | None = None,
+        company_id: str | None = None,
+        user_id: str | None = None,
     ):
-        if isinstance(event, (ChatEvent, Event)):
-            self.company_id = event.company_id
-            self.user_id = event.user_id
-            self.assistant_message_id = event.payload.assistant_message.id
-            self.user_message_id = event.payload.user_message.id
-            self.chat_id = event.payload.chat_id
-            self.assistant_id = event.payload.assistant_id
-        elif isinstance(event, MagicTableEvent):
-            self.company_id = event.company_id
-            self.user_id = event.user_id
-            self.assistant_message_id = None
-            self.user_message_id = None
-            self.chat_id = None
-            self.assistant_id = None
+        if event:
+            if isinstance(event, (ChatEvent, Event)):
+                self.company_id = event.company_id
+                self.user_id = event.user_id
+                self.assistant_message_id = event.payload.assistant_message.id
+                self.user_message_id = event.payload.user_message.id
+                self.chat_id = event.payload.chat_id
+                self.assistant_id = event.payload.assistant_id
+            elif isinstance(event, MagicTableEvent):
+                self.company_id = event.company_id
+                self.user_id = event.user_id
+                self.assistant_message_id = None
+                self.user_message_id = None
+                self.chat_id = None
+                self.assistant_id = None
+        if company_id or user_id:
+            self.company_id = company_id
+            self.user_id = user_id
 
     def complete(
         self,
