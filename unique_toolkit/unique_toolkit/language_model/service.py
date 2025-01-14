@@ -72,7 +72,7 @@ class LanguageModelService:
                 self.user_message_id = None
                 self.chat_id = None
                 self.assistant_id = None
-        if company_id or user_id:
+        if company_id is not None or user_id is not None:
             self.company_id = company_id
             self.user_id = user_id
 
