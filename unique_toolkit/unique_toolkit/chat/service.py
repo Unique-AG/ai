@@ -3,7 +3,7 @@ from typing import Optional
 
 import unique_sdk
 
-from unique_toolkit.app.schemas import ChatEvent
+from unique_toolkit.app.schemas import ChatEvent, Event
 from unique_toolkit.chat.functions import (
     construct_message_create_params,
     construct_message_modify_params,
@@ -29,7 +29,7 @@ class ChatService:
         logger (Optional[logging.Logger]): The logger. Defaults to None.
     """
 
-    def __init__(self, event: ChatEvent):
+    def __init__(self, event: ChatEvent | Event):
         self.company_id = event.company_id
         self.user_id = event.user_id
         self.assistant_message_id = event.payload.assistant_message.id

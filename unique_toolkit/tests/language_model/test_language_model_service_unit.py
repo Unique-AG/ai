@@ -8,7 +8,6 @@ from unique_toolkit.app.schemas import (
     ChatEventPayload,
     ChatEventUserMessage,
     EventName,
-    MagicTableEvent,
 )
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.language_model.infos import LanguageModelName
@@ -63,50 +62,6 @@ class TestLanguageModelServiceUnit:
         assert service.user_message_id == self.chat_event.payload.user_message.id
         assert service.chat_id == "test_chat"
         assert service.assistant_id == "test_assistant"
-
-    def test_init_with_magic_table_event(self):
-        """Test initialization with MagicTableEvent"""
-        magic_table_event = MagicTableEvent(
-            id="test-id",
-            event="test-event",
-            user_id="test_user",
-            company_id="test_company",
-        )
-
-        service = LanguageModelService(magic_table_event)
-
-        assert service.company_id == "test_company"
-        assert service.user_id == "test_user"
-        assert service.assistant_message_id is None
-        assert service.user_message_id is None
-        assert service.chat_id is None
-        assert service.assistant_id is None
-
-    @patch("unique_toolkit.language_model.service.stream_complete")
-    def test_stream_complete_missing_required_params(self, mock_stream_complete):
-        """Test stream_complete method with missing required parameters"""
-        mock_stream_complete.return_value = LanguageModelStreamResponse(
-            message=LanguageModelStreamResponseMessage(
-                id="id",
-                previous_message_id="previous_message_id",
-                role=LanguageModelMessageRole.ASSISTANT,
-                text="test",
-            )
-        )
-
-        event = MagicTableEvent(
-            id="test-id",
-            event=EventName.EXTERNAL_MODULE_CHOSEN,
-            user_id="user_id",
-            company_id="test_company",
-        )
-        service = LanguageModelService(event)
-
-        with pytest.raises(ValueError, match="Required values cannot be None"):
-            service.stream_complete(
-                messages=LanguageModelMessages([]),
-                model_name=LanguageModelName.AZURE_GPT_4_TURBO_1106,
-            )
 
     @patch("unique_toolkit.language_model.service.complete")
     def test_complete(self, mock_complete):

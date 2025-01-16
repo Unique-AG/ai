@@ -2,7 +2,7 @@ import logging
 from typing import Optional, overload
 
 from unique_toolkit._common.validate_required_values import validate_required_values
-from unique_toolkit.app.schemas import ChatEvent, Event, MagicTableEvent
+from unique_toolkit.app.schemas import BaseEvent, ChatEvent, Event
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.language_model.constants import (
     DEFAULT_COMPLETE_TEMPERATURE,
@@ -26,6 +26,8 @@ from unique_toolkit.language_model.schemas import (
 logger = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
 
 
+# TODO: This class is handling multiple (at least 2) responsibilities,
+# it should be splitted to handle unique responsibilties.
 class LanguageModelService:
     """
     Provides methods to interact with the Language Model by generating responses.
@@ -45,36 +47,31 @@ class LanguageModelService:
     @overload
     def __init__(self, event: Event): ...
 
-    @overload
-    def __init__(self, event: ChatEvent): ...
-
-    @overload
-    def __init__(self, event: MagicTableEvent): ...
-
     def __init__(
         self,
-        event: ChatEvent | MagicTableEvent | Event | None = None,
+        event: BaseEvent | None = None,
         company_id: str | None = None,
         user_id: str | None = None,
+        assistant_message_id: str | None = None,
+        chat_id: str | None = None,
+        assistant_id: str | None = None,
+        user_message_id: str | None = None,
     ):
+        self.company_id = company_id
+        self.user_id = user_id
+        self.assistant_message_id = assistant_message_id
+        self.user_message_id = user_message_id
+        self.chat_id = chat_id
+        self.assistant_id = assistant_id
+
         if event:
+            self.company_id = event.company_id
+            self.user_id = event.user_id
             if isinstance(event, (ChatEvent, Event)):
-                self.company_id = event.company_id
-                self.user_id = event.user_id
                 self.assistant_message_id = event.payload.assistant_message.id
                 self.user_message_id = event.payload.user_message.id
                 self.chat_id = event.payload.chat_id
                 self.assistant_id = event.payload.assistant_id
-            elif isinstance(event, MagicTableEvent):
-                self.company_id = event.company_id
-                self.user_id = event.user_id
-                self.assistant_message_id = None
-                self.user_message_id = None
-                self.chat_id = None
-                self.assistant_id = None
-        if company_id is not None or user_id is not None:
-            self.company_id = company_id
-            self.user_id = user_id
 
     def complete(
         self,

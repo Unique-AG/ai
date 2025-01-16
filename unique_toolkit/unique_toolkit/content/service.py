@@ -8,7 +8,7 @@ from typing import Optional, Union, cast, overload
 import requests
 import unique_sdk
 
-from unique_toolkit.app.schemas import ChatEvent, Event, MagicTableEvent
+from unique_toolkit.app.schemas import BaseEvent, ChatEvent, Event
 from unique_toolkit.content.functions import (
     create_search,
     create_search_async,
@@ -42,29 +42,28 @@ class ContentService:
     DEFAULT_SEARCH_LANGUAGE = "english"
 
     @overload
+    def __init__(self, company_id: str, user_id: str): ...
+
+    @overload
     def __init__(self, event: Event): ...
-
     @overload
-    def __init__(self, event: ChatEvent): ...
-
-    @overload
-    def __init__(self, event: MagicTableEvent): ...
+    def __init__(self, event: BaseEvent): ...
 
     def __init__(
         self,
-        event: ChatEvent | MagicTableEvent | Event | None = None,
+        event: BaseEvent | None = None,
         company_id: str | None = None,
         user_id: str | None = None,
     ):
+        self.company_id = company_id
+        self.user_id = user_id
+        self.metadata_filter = None
         if event:
             self.company_id = event.company_id
             self.user_id = event.user_id
-            self.metadata_filter = event.payload.metadata_filter
             if isinstance(event, (ChatEvent, Event)):
+                self.metadata_filter = event.payload.metadata_filter
                 self.chat_id = event.payload.chat_id
-        elif company_id is not None or user_id is not None:
-            self.company_id = company_id
-            self.user_id = user_id
 
     def search_content_chunks(
         self,
