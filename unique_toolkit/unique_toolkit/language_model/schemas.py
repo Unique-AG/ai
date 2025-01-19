@@ -173,7 +173,9 @@ class LanguageModelStreamResponseMessage(BaseModel):
     model_config = model_config
 
     id: str
-    previous_message_id: str
+    previous_message_id: (
+        str | None
+    )  # Stream response can return a null previous_message_id if an assisstant message is manually added
     role: LanguageModelMessageRole
     text: str
     original_text: Optional[str] = None
@@ -244,7 +246,9 @@ class LanguageModelTool(BaseModel):
         description="Name must adhere to the pattern ^[a-zA-Z_-]+$",
     )
     description: str
-    parameters: LanguageModelToolParameters
+    parameters: (
+        LanguageModelToolParameters | dict
+    )  # dict represents json schema dumped from pydantic
     returns: LanguageModelToolParameterProperty | LanguageModelToolParameters | None = (
         None
     )

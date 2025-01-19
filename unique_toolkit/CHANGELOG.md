@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.48] - 2025-01-19
+- Added the possibility define tool parameters with a json schema (Useful when generating tool parameters from a pydantic object)
+
 ## [0.5.47] - 2025-01-07
 - Added a message builder to build language model messages conveniently without importing all different messages.
 - Move tool_calls to assistant message as not needed anywhere else.
