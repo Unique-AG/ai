@@ -1,7 +1,7 @@
 import json
 
 import pytest
-from pydantic import ValidationError
+from pydantic import BaseModel, Field, ValidationError
 
 from unique_toolkit.language_model.schemas import (
     LanguageModelAssistantMessage,
@@ -331,3 +331,21 @@ def test_language_model_tool_name_pattern_raised_validation_error():
         )
 
         assert tool.name == name
+
+
+def test_language_model_tool_parameters_dump_from_pydantic():
+    class TestParameters(BaseModel):
+        param: str = Field(description="A parameter")
+        param2: int = Field(description="A parameter")
+
+    tool = LanguageModelTool(
+        name="DocumentSummarizerV2",
+        description="Invalid tool name",
+        parameters=TestParameters.model_json_schema(),
+    )
+
+    assert tool.parameters.properties["param"].type == "string"
+    assert tool.parameters.properties["param"].description == "A parameter"
+    assert tool.parameters.properties["param2"].type == "integer"
+    assert tool.parameters.properties["param2"].description == "A parameter"
+    assert tool.parameters.required == ["param", "param2"]
