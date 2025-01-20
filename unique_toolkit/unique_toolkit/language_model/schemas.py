@@ -89,7 +89,6 @@ class LanguageModelMessage(BaseModel):
     model_config = model_config
     role: LanguageModelMessageRole
     content: Optional[str | list[dict]] = None
-    tool_calls: Optional[list[LanguageModelFunctionCall]] = None
 
     def __str__(self):
         return format_message(self.role.capitalize(), message=self.content, num_tabs=1)  # type: ignore
@@ -113,6 +112,7 @@ class LanguageModelUserMessage(LanguageModelMessage):
 
 class LanguageModelAssistantMessage(LanguageModelMessage):
     role: LanguageModelMessageRole = LanguageModelMessageRole.ASSISTANT
+    tool_calls: Optional[list[LanguageModelFunctionCall]] = None
 
     @field_validator("role", mode="before")
     def set_role(cls, value):
@@ -159,7 +159,7 @@ class LanguageModelCompletionChoice(BaseModel):
     model_config = model_config
 
     index: int
-    message: LanguageModelMessage
+    message: LanguageModelAssistantMessage
     finish_reason: str
 
 
@@ -173,7 +173,9 @@ class LanguageModelStreamResponseMessage(BaseModel):
     model_config = model_config
 
     id: str
-    previous_message_id: str
+    previous_message_id: (
+        str | None
+    )  # Stream response can return a null previous_message_id if an assisstant message is manually added
     role: LanguageModelMessageRole
     text: str
     original_text: Optional[str] = None
@@ -244,7 +246,9 @@ class LanguageModelTool(BaseModel):
         description="Name must adhere to the pattern ^[a-zA-Z_-]+$",
     )
     description: str
-    parameters: LanguageModelToolParameters
+    parameters: (
+        LanguageModelToolParameters | dict
+    )  # dict represents json schema dumped from pydantic
     returns: LanguageModelToolParameterProperty | LanguageModelToolParameters | None = (
         None
     )
