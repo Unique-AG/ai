@@ -233,10 +233,11 @@ def retry_on_error(
         def sync_wrapper(*args, **kwargs) -> Any:
             attempts = 0
             while attempts < max_retries:
-                logger.error(f"Retrying because of {e}")
                 try:
                     return func(*args, **kwargs)
                 except Exception as e:
+                    logger.error(f"Retrying because of {e}")
+
                     should_retry = any(
                         err_msg.lower() in str(e).lower() for err_msg in error_messages
                     )
