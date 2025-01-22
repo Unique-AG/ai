@@ -22,7 +22,6 @@ retry_dict = {
     "error_messages": [
         "problem proxying the request",
         "Upstream service reached a hard timeout",
-        "Invalid response body from API",
         "You can retry your request",
         "Internal server error",
         "Connection aborted",
