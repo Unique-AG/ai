@@ -1,7 +1,7 @@
 import json
 
 import pytest
-from pydantic import ValidationError
+from pydantic import BaseModel, Field, ValidationError
 
 from unique_toolkit.language_model.schemas import (
     LanguageModelAssistantMessage,
@@ -76,7 +76,7 @@ class TestLanguageModelSchemas:
                     "index": 0,
                     "finishReason": "finished",
                     "message": {
-                        "role": "system",
+                        "role": "assistant",
                         "content": "content",
                         "name": "name",
                         "toolCalls": [
@@ -100,7 +100,7 @@ class TestLanguageModelSchemas:
         choice = response.choices[0]
         assert choice.index == 0
         assert choice.finish_reason == "finished"
-        assert choice.message.role == LanguageModelMessageRole.SYSTEM
+        assert choice.message.role == LanguageModelMessageRole.ASSISTANT
         assert choice.message.content == "content"
 
         # This is temporary this code would be deleted soon.
@@ -360,3 +360,22 @@ def test_language_model_assistant_message_with_parsed_and_refusal():
     # Test serialization
     expected = """{"role":"assistant","content":"Test content","parsed":{"key":"value","nested":{"data":123}},"refusal":"I cannot perform this action"}"""
     assert message.model_dump_json(exclude_none=True) == expected
+
+
+def test_language_model_tool_parameters_dump_from_pydantic():
+    class TestParameters(BaseModel):
+        param: str = Field(description="A parameter")
+        param2: int = Field(description="A parameter")
+
+    tool = LanguageModelTool(
+        name="DocumentSummarizerV2",
+        description="Invalid tool name",
+        parameters=TestParameters.model_json_schema(),
+    )
+
+    assert isinstance(tool.parameters, LanguageModelToolParameters)
+    assert tool.parameters.properties["param"].type == "string"
+    assert tool.parameters.properties["param"].description == "A parameter"
+    assert tool.parameters.properties["param2"].type == "integer"
+    assert tool.parameters.properties["param2"].description == "A parameter"
+    assert tool.parameters.required == ["param", "param2"]

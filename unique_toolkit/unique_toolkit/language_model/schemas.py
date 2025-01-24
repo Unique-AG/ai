@@ -35,7 +35,7 @@ class LanguageModelMessageRole(StrEnum):
 class LanguageModelFunction(BaseModel):
     model_config = model_config
 
-    id: Optional[str] = None
+    id: str | None = None
     name: str
     arguments: Optional[dict[str, Any] | str] = None  # type: ignore
 
@@ -63,8 +63,8 @@ class LanguageModelFunction(BaseModel):
 class LanguageModelFunctionCall(BaseModel):
     model_config = model_config
 
-    id: Optional[str] = None
-    type: Optional[str] = None
+    id: str | None = None
+    type: str | None = None
     function: LanguageModelFunction
 
     @staticmethod
@@ -89,7 +89,6 @@ class LanguageModelMessage(BaseModel):
     model_config = model_config
     role: LanguageModelMessageRole
     content: str | list[dict] | None = None
-    tool_calls: list[LanguageModelFunctionCall] | None = None
 
     def __str__(self):
         if not self.content:
@@ -122,6 +121,7 @@ class LanguageModelAssistantMessage(LanguageModelMessage):
     role: LanguageModelMessageRole = LanguageModelMessageRole.ASSISTANT
     parsed: dict | None = None
     refusal: str | None = None
+    tool_calls: list[LanguageModelFunctionCall] | None = None
 
     @field_validator("role", mode="before")
     def set_role(cls, value):
@@ -168,7 +168,7 @@ class LanguageModelCompletionChoice(BaseModel):
     model_config = model_config
 
     index: int
-    message: LanguageModelMessage
+    message: LanguageModelAssistantMessage
     finish_reason: str
 
 
@@ -182,10 +182,12 @@ class LanguageModelStreamResponseMessage(BaseModel):
     model_config = model_config
 
     id: str
-    previous_message_id: str
+    previous_message_id: (
+        str | None
+    )  # Stream response can return a null previous_message_id if an assisstant message is manually added
     role: LanguageModelMessageRole
     text: str
-    original_text: Optional[str] = None
+    original_text: str | None = None
     references: list[dict[str, list | dict | str | int | float | bool]] = []  # type: ignore
 
     # TODO make sdk return role in lowercase
@@ -253,7 +255,9 @@ class LanguageModelTool(BaseModel):
         description="Name must adhere to the pattern ^[a-zA-Z_-]+$",
     )
     description: str
-    parameters: LanguageModelToolParameters
+    parameters: (
+        LanguageModelToolParameters | dict
+    )  # dict represents json schema dumped from pydantic
     returns: LanguageModelToolParameterProperty | LanguageModelToolParameters | None = (
         None
     )

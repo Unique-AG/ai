@@ -5,8 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.9.16] - Unreleased
+## [0.9.17] - 2025-01-03
+- BREAKING CHANGE!! Removed unused `id` from `ShortTermMemory` create and find methods.
+
+## [0.9.16] - 2024-12-19
 - Corrected return type of `Search.create` and `Search.create_async` to `List[Search]`
+- Retry on `Connection aborted` error
 
 ## [0.9.15] - 2024-12-06
 - Add `Internal server error` and `You can retry your request` to the retry logic
