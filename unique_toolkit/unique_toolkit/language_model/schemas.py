@@ -88,11 +88,18 @@ class LanguageModelFunctionCall(BaseModel):
 class LanguageModelMessage(BaseModel):
     model_config = model_config
     role: LanguageModelMessageRole
-    content: Optional[str | list[dict]] = None
-    tool_calls: Optional[list[LanguageModelFunctionCall]] = None
+    content: str | list[dict] | None = None
+    tool_calls: list[LanguageModelFunctionCall] | None = None
 
     def __str__(self):
-        return format_message(self.role.capitalize(), message=self.content, num_tabs=1)
+        if not self.content:
+            message = ""
+        if isinstance(self.content, str):
+            message = self.content
+        elif isinstance(self.content, list):
+            message = json.dumps(self.content)
+
+        return format_message(self.role.capitalize(), message=message, num_tabs=1)
 
 
 class LanguageModelSystemMessage(LanguageModelMessage):
@@ -113,6 +120,8 @@ class LanguageModelUserMessage(LanguageModelMessage):
 
 class LanguageModelAssistantMessage(LanguageModelMessage):
     role: LanguageModelMessageRole = LanguageModelMessageRole.ASSISTANT
+    parsed: dict | None = None
+    refusal: str | None = None
 
     @field_validator("role", mode="before")
     def set_role(cls, value):
