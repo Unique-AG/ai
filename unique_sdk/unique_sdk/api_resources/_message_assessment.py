@@ -13,10 +13,12 @@ class MessageAssessment(APIResource["MessageAssessment"]):
 
     class MessageAssessmentCreateParams(RequestOptions):
         assistant_message_id: str
+        # TODO: add params
         pass
 
     class MessageAssessmentModifyParams(RequestOptions):
         assistant_message_id: str
+        # TODO: add params
         pass
 
     @classmethod
@@ -37,7 +39,7 @@ class MessageAssessment(APIResource["MessageAssessment"]):
         company_id: str,
         **params: Unpack["MessageAssessmentCreateParams"],
     ) -> "MessageAssessment":
-        return cls._static_request(
+        return cls._static_request_async(
             "post", cls.class_url(), user_id, company_id, params=params
         )
 
@@ -49,5 +51,16 @@ class MessageAssessment(APIResource["MessageAssessment"]):
         **params: Unpack["MessageAssessmentModifyParams"],
     ) -> "MessageAssessment":
         return cls._static_request(
+            "patch", cls.class_url(), user_id, company_id, params=params
+        )
+
+    @classmethod
+    def modify_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["MessageAssessmentModifyParams"],
+    ) -> "MessageAssessment":
+        return cls._static_request_async(
             "patch", cls.class_url(), user_id, company_id, params=params
         )
