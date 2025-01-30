@@ -13,13 +13,18 @@ class MessageAssessment(APIResource["MessageAssessment"]):
 
     class MessageAssessmentCreateParams(RequestOptions):
         assistant_message_id: str
-        # TODO: add params
-        pass
+        status: Literal["PENDING", "DONE", "ERROR"]
+        explanation: str
+        label: Literal["POSITIVE", "NEGATIVE", "VERIFIED", "UNVERIFIED"]
+        type: Literal["HALLUCINATION", "COMPLIANCE"]
+        isVisible: bool
 
     class MessageAssessmentModifyParams(RequestOptions):
         assistant_message_id: str
-        # TODO: add params
-        pass
+        status: Literal["PENDING", "DONE", "ERROR"]
+        explanation: str
+        label: Literal["POSITIVE", "NEGATIVE", "VERIFIED", "UNVERIFIED"]
+        type: Literal["HALLUCINATION", "COMPLIANCE"]
 
     @classmethod
     def create(
