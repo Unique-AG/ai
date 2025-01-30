@@ -38,8 +38,8 @@ class LanguageModelService(BaseService):
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
         tools: Optional[list[LanguageModelTool]] = None,
-        pydantic_model: Optional[Type[BaseModel]] = None,
-        enforce_schema: bool = False,
+        structured_output_model: Optional[Type[BaseModel]] = None,
+        structured_output_enforce_schema: bool = False,
         other_options: Optional[dict] = None,
     ):
         """
@@ -56,14 +56,14 @@ class LanguageModelService(BaseService):
         Returns:
             LanguageModelResponse: The LanguageModelResponse object.
         """
-        options, model, messages_dict, _ = self.prepare_completion_params_util(
+        options, model, messages_dict, _ = self._prepare_completion_params_util(
             messages=messages,
             model_name=model_name,
             temperature=temperature,
             tools=tools,
             other_options=other_options,
-            pydantic_model=pydantic_model,
-            enforce_schema=enforce_schema,
+            structured_output_model=structured_output_model,
+            structured_output_enforce_schema=structured_output_enforce_schema,
         )
 
         try:
@@ -82,9 +82,8 @@ class LanguageModelService(BaseService):
             self.logger.error(f"Error completing: {e}")
             raise e
 
-    @classmethod
     async def complete_async_util(
-        cls,
+        self,
         company_id: str,
         messages: LanguageModelMessages,
         model_name: LanguageModelName | str,
@@ -92,8 +91,8 @@ class LanguageModelService(BaseService):
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
         tools: Optional[list[LanguageModelTool]] = None,
         other_options: Optional[dict] = None,
-        pydantic_model: Optional[Type[BaseModel]] = None,
-        enforce_schema: bool = False,
+        structured_output_model: Optional[Type[BaseModel]] = None,
+        structured_output_enforce_schema: bool = False,
         logger: Optional[logging.Logger] = logging.getLogger(__name__),
     ) -> LanguageModelResponse:
         """
@@ -119,14 +118,14 @@ class LanguageModelService(BaseService):
         Raises:
             Exception: If an error occurs during the request, an exception is raised and logged.
         """
-        options, model, messages_dict, _ = cls.prepare_completion_params_util(
+        options, model, messages_dict, _ = self._prepare_completion_params_util(
             messages=messages,
             model_name=model_name,
             temperature=temperature,
             tools=tools,
             other_options=other_options,
-            pydantic_model=pydantic_model,
-            enforce_schema=enforce_schema,
+            structured_output_model=structured_output_model,
+            structured_output_enforce_schema=structured_output_enforce_schema,
         )
 
         try:
@@ -214,7 +213,7 @@ class LanguageModelService(BaseService):
             The LanguageModelStreamResponse object once the stream has finished.
         """
         options, model, messages_dict, search_context = (
-            self.prepare_completion_params_util(
+            self._prepare_completion_params_util(
                 messages=messages,
                 model_name=model_name,
                 temperature=temperature,
@@ -277,7 +276,7 @@ class LanguageModelService(BaseService):
             The LanguageModelStreamResponse object once the stream has finished.
         """
         options, model, messages_dict, search_context = (
-            self.prepare_completion_params_util(
+            self._prepare_completion_params_util(
                 messages=messages,
                 model_name=model_name,
                 temperature=temperature,
@@ -344,34 +343,32 @@ class LanguageModelService(BaseService):
             ]
         return options
 
-    @classmethod
-    def _add_output_schema_from_pydantic(
-        cls,
-        completion_options: dict,
-        pydantic_model: Type[BaseModel],
-        enforce_schema: bool = False,
+    @staticmethod
+    def _add_response_format_to_options(
+        options: dict,
+        structured_output_model: Type[BaseModel],
+        structured_output_enforce_schema: bool = False,
     ) -> dict:
-        completion_options["responseFormat"] = {
+        options["responseFormat"] = {
             "type": "json_schema",
             "json_schema": {
-                "name": pydantic_model.__name__,
-                "strict": enforce_schema,
-                "schema": pydantic_model.model_json_schema(),
+                "name": structured_output_model.__name__,
+                "strict": structured_output_enforce_schema,
+                "schema": structured_output_model.model_json_schema(),
             },
         }
-        return completion_options
+        return options
 
-    @classmethod
-    def prepare_completion_params_util(
-        cls,
+    def _prepare_completion_params_util(
+        self,
         messages: LanguageModelMessages,
         model_name: LanguageModelName | str,
         temperature: float,
         tools: Optional[list[LanguageModelTool]] = None,
         other_options: Optional[dict] = None,
         content_chunks: Optional[list[ContentChunk]] = None,
-        pydantic_model: Optional[Type[BaseModel]] = None,
-        enforce_schema: bool = False,
+        structured_output_model: Optional[Type[BaseModel]] = None,
+        structured_output_enforce_schema: bool = False,
     ) -> tuple[dict, str, dict, Optional[dict]]:
         """
         Prepares common parameters for completion requests.
@@ -384,13 +381,14 @@ class LanguageModelService(BaseService):
             - search_context (Optional[dict]): Processed content chunks if provided
         """
 
-        options = cls._add_tools_to_options({}, tools)
-        options["temperature"] = temperature
+        options = self._add_tools_to_options({}, tools)
 
-        if pydantic_model:
-            options = cls._add_output_schema_from_pydantic(
-                options, pydantic_model, enforce_schema
+        if structured_output_model:
+            options = self._add_response_format_to_options(
+                options, structured_output_model, structured_output_enforce_schema
             )
+
+        options["temperature"] = temperature
 
         if other_options:
             options.update(other_options)
