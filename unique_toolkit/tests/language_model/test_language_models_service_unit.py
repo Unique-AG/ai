@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 import pytest
 import unique_sdk
+from pydantic import BaseModel
 
 from tests.test_obj_factory import get_event_obj
 from unique_toolkit.content.schemas import ContentChunk
@@ -38,6 +39,11 @@ mock_tool = LanguageModelTool(
         required=["location"],
     ),
 )
+
+
+class PydanticModel(BaseModel):
+    name: str
+    age: int
 
 
 class TestLanguageModelServiceUnit:
@@ -502,7 +508,7 @@ class TestLanguageModelServiceUnit:
         temperature = 0.5
 
         options, model, messages_dict, search_context = (
-            LanguageModelService.prepare_completion_params_util(
+            self.service._prepare_completion_params_util(
                 messages=messages,
                 model_name=model_name,
                 temperature=temperature,
@@ -519,7 +525,7 @@ class TestLanguageModelServiceUnit:
         other_options = {"max_tokens": 100, "top_p": 0.9}
 
         options, model, messages_dict, search_context = (
-            LanguageModelService.prepare_completion_params_util(
+            self.service._prepare_completion_params_util(
                 messages=messages,
                 model_name="custom_model",
                 temperature=0.7,
@@ -701,3 +707,31 @@ class TestLanguageModelServiceUnit:
             },
             startText=None,
         )
+
+    def test_add_output_schema_from_pydantic_enforce_schema(self):
+        options = {}
+        options = LanguageModelService._add_response_format_to_options(
+            options, PydanticModel, structured_output_enforce_schema=True
+        )
+        assert options["responseFormat"] == {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "PydanticModel",
+                "strict": True,
+                "schema": PydanticModel.model_json_schema(),
+            },
+        }
+
+    def test_add_output_schema_from_pydantic_no_enforce_schema(self):
+        options = {}
+        options = LanguageModelService._add_response_format_to_options(
+            options, PydanticModel, structured_output_enforce_schema=False
+        )
+        assert options["responseFormat"] == {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "PydanticModel",
+                "strict": False,
+                "schema": PydanticModel.model_json_schema(),
+            },
+        }
