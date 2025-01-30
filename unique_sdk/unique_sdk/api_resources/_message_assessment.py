@@ -33,8 +33,9 @@ class MessageAssessment(APIResource["MessageAssessment"]):
         company_id: str,
         **params: Unpack["MessageAssessment.CreateParams"],
     ) -> "MessageAssessment":
+        url = "/message-assessment"
         return cls._static_request(
-            "post", cls.class_url(), user_id, company_id, params=params
+            "post", url, user_id, company_id, params=params
         )
 
     @classmethod
@@ -44,8 +45,9 @@ class MessageAssessment(APIResource["MessageAssessment"]):
         company_id: str,
         **params: Unpack["MessageAssessment.CreateParams"],
     ) -> "MessageAssessment":
+        url = "/message-assessment"
         return cls._static_request_async(
-            "post", cls.class_url(), user_id, company_id, params=params
+            "post", url, user_id, company_id, params=params
         )
 
     @classmethod
@@ -55,8 +57,9 @@ class MessageAssessment(APIResource["MessageAssessment"]):
         company_id: str,
         **params: Unpack["MessageAssessment.ModifyParams"],
     ) -> "MessageAssessment":
+        url = "/message-assessment"
         return cls._static_request(
-            "patch", cls.class_url(), user_id, company_id, params=params
+            "patch", url, user_id, company_id, params=params
         )
 
     @classmethod
@@ -66,6 +69,7 @@ class MessageAssessment(APIResource["MessageAssessment"]):
         company_id: str,
         **params: Unpack["MessageAssessment.ModifyParams"],
     ) -> "MessageAssessment":
+        url = "/message-assessment"
         return cls._static_request_async(
-            "patch", cls.class_url(), user_id, company_id, params=params
+            "patch", url, user_id, company_id, params=params
         )
