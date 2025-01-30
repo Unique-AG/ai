@@ -11,7 +11,7 @@ from unique_sdk._request_options import RequestOptions
 class MessageAssessment(APIResource["MessageAssessment"]):
     OBJECT_NAME: ClassVar[Literal["message_assessment"]] = "message_assessment"
 
-    class MessageAssessmentCreateParams(RequestOptions):
+    class CreateParams(RequestOptions):
         assistant_message_id: str
         status: Literal["PENDING", "DONE", "ERROR"]
         explanation: str
@@ -19,7 +19,7 @@ class MessageAssessment(APIResource["MessageAssessment"]):
         type: Literal["HALLUCINATION", "COMPLIANCE"]
         isVisible: bool
 
-    class MessageAssessmentModifyParams(RequestOptions):
+    class ModifyParams(RequestOptions):
         assistant_message_id: str
         status: Literal["PENDING", "DONE", "ERROR"]
         explanation: str
@@ -31,7 +31,7 @@ class MessageAssessment(APIResource["MessageAssessment"]):
         cls,
         user_id: str,
         company_id: str,
-        **params: Unpack["MessageAssessmentCreateParams"],
+        **params: Unpack["MessageAssessment.CreateParams"],
     ) -> "MessageAssessment":
         return cls._static_request(
             "post", cls.class_url(), user_id, company_id, params=params
@@ -42,7 +42,7 @@ class MessageAssessment(APIResource["MessageAssessment"]):
         cls,
         user_id: str,
         company_id: str,
-        **params: Unpack["MessageAssessmentCreateParams"],
+        **params: Unpack["MessageAssessment.CreateParams"],
     ) -> "MessageAssessment":
         return cls._static_request_async(
             "post", cls.class_url(), user_id, company_id, params=params
@@ -53,7 +53,7 @@ class MessageAssessment(APIResource["MessageAssessment"]):
         cls,
         user_id: str,
         company_id: str,
-        **params: Unpack["MessageAssessmentModifyParams"],
+        **params: Unpack["MessageAssessment.ModifyParams"],
     ) -> "MessageAssessment":
         return cls._static_request(
             "patch", cls.class_url(), user_id, company_id, params=params
@@ -64,7 +64,7 @@ class MessageAssessment(APIResource["MessageAssessment"]):
         cls,
         user_id: str,
         company_id: str,
-        **params: Unpack["MessageAssessmentModifyParams"],
+        **params: Unpack["MessageAssessment.ModifyParams"],
     ) -> "MessageAssessment":
         return cls._static_request_async(
             "patch", cls.class_url(), user_id, company_id, params=params
