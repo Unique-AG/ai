@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 import pytest
 import unique_sdk
+from pydantic import BaseModel
 
 from tests.test_obj_factory import get_event_obj
 from unique_toolkit.content.schemas import ContentChunk
@@ -38,6 +39,11 @@ mock_tool = LanguageModelTool(
         required=["location"],
     ),
 )
+
+
+class PydanticModel(BaseModel):
+    name: str
+    age: int
 
 
 class TestLanguageModelServiceUnit:
@@ -701,3 +707,31 @@ class TestLanguageModelServiceUnit:
             },
             startText=None,
         )
+
+    def test_add_output_schema_from_pydantic_enforce_schema(self):
+        options = {}
+        options = LanguageModelService._add_output_schema_from_pydantic(
+            options, PydanticModel, enforce_schema=True
+        )
+        assert options["responseFormat"] == {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "PydanticModel",
+                "strict": True,
+                "schema": PydanticModel.model_json_schema(),
+            },
+        }
+
+    def test_add_output_schema_from_pydantic_no_enforce_schema(self):
+        options = {}
+        options = LanguageModelService._add_output_schema_from_pydantic(
+            options, PydanticModel, enforce_schema=False
+        )
+        assert options["responseFormat"] == {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "PydanticModel",
+                "strict": False,
+                "schema": PydanticModel.model_json_schema(),
+            },
+        }

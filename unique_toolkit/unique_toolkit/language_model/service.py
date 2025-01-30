@@ -1,7 +1,8 @@
 import logging
-from typing import Optional, cast
+from typing import Optional, Type, cast
 
 import unique_sdk
+from pydantic import BaseModel
 
 from unique_toolkit._common._base_service import BaseService
 from unique_toolkit.app.schemas import Event
@@ -37,6 +38,8 @@ class LanguageModelService(BaseService):
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
         tools: Optional[list[LanguageModelTool]] = None,
+        pydantic_model: Optional[Type[BaseModel]] = None,
+        enforce_schema: bool = False,
         other_options: Optional[dict] = None,
     ):
         """
@@ -59,6 +62,8 @@ class LanguageModelService(BaseService):
             temperature=temperature,
             tools=tools,
             other_options=other_options,
+            pydantic_model=pydantic_model,
+            enforce_schema=enforce_schema,
         )
 
         try:
@@ -87,6 +92,8 @@ class LanguageModelService(BaseService):
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
         tools: Optional[list[LanguageModelTool]] = None,
         other_options: Optional[dict] = None,
+        pydantic_model: Optional[Type[BaseModel]] = None,
+        enforce_schema: bool = False,
         logger: Optional[logging.Logger] = logging.getLogger(__name__),
     ) -> LanguageModelResponse:
         """
@@ -118,6 +125,8 @@ class LanguageModelService(BaseService):
             temperature=temperature,
             tools=tools,
             other_options=other_options,
+            pydantic_model=pydantic_model,
+            enforce_schema=enforce_schema,
         )
 
         try:
@@ -336,6 +345,23 @@ class LanguageModelService(BaseService):
         return options
 
     @classmethod
+    def _add_output_schema_from_pydantic(
+        cls,
+        completion_options: dict,
+        pydantic_model: Type[BaseModel],
+        enforce_schema: bool = False,
+    ) -> dict:
+        completion_options["responseFormat"] = {
+            "type": "json_schema",
+            "json_schema": {
+                "name": pydantic_model.__name__,
+                "strict": enforce_schema,
+                "schema": pydantic_model.model_json_schema(),
+            },
+        }
+        return completion_options
+
+    @classmethod
     def prepare_completion_params_util(
         cls,
         messages: LanguageModelMessages,
@@ -344,6 +370,8 @@ class LanguageModelService(BaseService):
         tools: Optional[list[LanguageModelTool]] = None,
         other_options: Optional[dict] = None,
         content_chunks: Optional[list[ContentChunk]] = None,
+        pydantic_model: Optional[Type[BaseModel]] = None,
+        enforce_schema: bool = False,
     ) -> tuple[dict, str, dict, Optional[dict]]:
         """
         Prepares common parameters for completion requests.
@@ -358,6 +386,12 @@ class LanguageModelService(BaseService):
 
         options = cls._add_tools_to_options({}, tools)
         options["temperature"] = temperature
+
+        if pydantic_model:
+            options = cls._add_output_schema_from_pydantic(
+                options, pydantic_model, enforce_schema
+            )
+
         if other_options:
             options.update(other_options)
 
