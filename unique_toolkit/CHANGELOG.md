@@ -5,9 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.51] - 2025-01-30
+- Add missing structured output arguments in complete_async
+
 ## [0.5.50] - 2025-01-30
 - Add the possibility to define completion output structure through a pydantic class
-
 
 ## [0.5.49] - 2025-01-24
 - Add `parsed` and `refusal` to `LanguageModelAssistantMessage` to support structured output
