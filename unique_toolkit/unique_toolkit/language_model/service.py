@@ -38,6 +38,8 @@ class LanguageModelService(BaseService):
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
         tools: Optional[list[LanguageModelTool]] = None,
+        structured_output_model: Optional[Type[BaseModel]] = None,
+        structured_output_enforce_schema: bool = False,
         other_options: Optional[dict] = None,
     ):
         """
@@ -49,17 +51,21 @@ class LanguageModelService(BaseService):
             temperature (float): The temperature value. Defaults to 0.
             timeout (int): The timeout value in milliseconds. Defaults to 240_000.
             tools (Optional[list[LanguageModelTool]]): The tools to use. Defaults to None.
+            structured_output_model (Optional[Type[BaseModel]]): The structured output model. Defaults to None.
+            structured_output_enforce_schema (bool): Whether to enforce the schema. Defaults to False.
             other_options (Optional[dict]): The other options to use. Defaults to None.
 
         Returns:
             LanguageModelResponse: The LanguageModelResponse object.
         """
-        options, model, messages_dict, _ = self.prepare_completion_params_util(
+        options, model, messages_dict, _ = self._prepare_completion_params_util(
             messages=messages,
             model_name=model_name,
             temperature=temperature,
             tools=tools,
             other_options=other_options,
+            structured_output_model=structured_output_model,
+            structured_output_enforce_schema=structured_output_enforce_schema,
         )
 
         try:
@@ -78,9 +84,8 @@ class LanguageModelService(BaseService):
             self.logger.error(f"Error completing: {e}")
             raise e
 
-    @classmethod
     async def complete_async_util(
-        cls,
+        self,
         company_id: str,
         messages: LanguageModelMessages,
         model_name: LanguageModelName | str,
@@ -88,6 +93,8 @@ class LanguageModelService(BaseService):
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
         tools: Optional[list[LanguageModelTool]] = None,
         other_options: Optional[dict] = None,
+        structured_output_model: Optional[Type[BaseModel]] = None,
+        structured_output_enforce_schema: bool = False,
         logger: Optional[logging.Logger] = logging.getLogger(__name__),
     ) -> LanguageModelResponse:
         """
@@ -105,6 +112,8 @@ class LanguageModelService(BaseService):
             timeout (int): The timeout value in milliseconds for the request. Defaults to 240_000.
             tools (Optional[list[LanguageModelTool]]): Optional list of tools to include in the request.
             other_options (Optional[dict]): The other options to use. Defaults to None.
+            structured_output_model (Optional[Type[BaseModel]]): The structured output model. Defaults to None.
+            structured_output_enforce_schema (bool): Whether to enforce the schema. Defaults to False.
             logger (Optional[logging.Logger], optional): The logger used to log errors. Defaults to the logger for the current module.
 
         Returns:
@@ -113,12 +122,14 @@ class LanguageModelService(BaseService):
         Raises:
             Exception: If an error occurs during the request, an exception is raised and logged.
         """
-        options, model, messages_dict, _ = cls.prepare_completion_params_util(
+        options, model, messages_dict, _ = self._prepare_completion_params_util(
             messages=messages,
             model_name=model_name,
             temperature=temperature,
             tools=tools,
             other_options=other_options,
+            structured_output_model=structured_output_model,
+            structured_output_enforce_schema=structured_output_enforce_schema,
         )
 
         try:
@@ -144,6 +155,8 @@ class LanguageModelService(BaseService):
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
         tools: Optional[list[LanguageModelTool]] = None,
+        structured_output_model: Optional[Type[BaseModel]] = None,
+        structured_output_enforce_schema: bool = False,
         other_options: Optional[dict] = None,
     ) -> LanguageModelResponse:
         """
@@ -159,6 +172,8 @@ class LanguageModelService(BaseService):
             temperature (float): The temperature setting for the completion. Defaults to 0.0.
             timeout (int): The timeout value in milliseconds for the request. Defaults to 240,000.
             tools (Optional[list[LanguageModelTool]]): Optional list of tools to include in the request.
+            structured_output_model (Optional[Type[BaseModel]]): The structured output model. Defaults to None.
+            structured_output_enforce_schema (bool): Whether to enforce the schema. Defaults to False.
             other_options (Optional[dict]): The other options to use. Defaults to None.
         Returns:
             LanguageModelResponse: The response object containing the completed result.
@@ -175,6 +190,8 @@ class LanguageModelService(BaseService):
             tools=tools,
             other_options=other_options,
             logger=self.logger,
+            structured_output_model=structured_output_model,
+            structured_output_enforce_schema=structured_output_enforce_schema,
         )
 
     def stream_complete(
@@ -206,7 +223,7 @@ class LanguageModelService(BaseService):
             The LanguageModelStreamResponse object once the stream has finished.
         """
         options, model, messages_dict, search_context = (
-            self.prepare_completion_params_util(
+            self._prepare_completion_params_util(
                 messages=messages,
                 model_name=model_name,
                 temperature=temperature,
@@ -269,7 +286,7 @@ class LanguageModelService(BaseService):
             The LanguageModelStreamResponse object once the stream has finished.
         """
         options, model, messages_dict, search_context = (
-            self.prepare_completion_params_util(
+            self._prepare_completion_params_util(
                 messages=messages,
                 model_name=model_name,
                 temperature=temperature,
@@ -353,7 +370,7 @@ class LanguageModelService(BaseService):
         return options
 
     @classmethod
-    def prepare_completion_params_util(
+    def _prepare_completion_params_util(
         cls,
         messages: LanguageModelMessages,
         model_name: LanguageModelName | str,
@@ -383,6 +400,7 @@ class LanguageModelService(BaseService):
             )
 
         options["temperature"] = temperature
+
         if other_options:
             options.update(other_options)
 
