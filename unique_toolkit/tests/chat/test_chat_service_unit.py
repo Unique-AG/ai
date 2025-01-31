@@ -1,4 +1,3 @@
-import asyncio
 from unittest.mock import patch
 
 import pytest
@@ -317,7 +316,6 @@ class TestChatServiceUnit:
         mock_create.return_value = {
             "id": "test_assessment",
             "messageId": "msg_123",
-            "assistantMessageId": "test_message",
             "status": "DONE",
             "explanation": "Test explanation",
             "label": "NEGATIVE",
@@ -347,7 +345,7 @@ class TestChatServiceUnit:
         mock_create.assert_called_once_with(
             user_id="test_user",
             company_id="test_company",
-            assistant_message_id="test_message",
+            messageId="test_message",
             status="DONE",
             explanation="Test explanation",
             label="NEGATIVE",
@@ -360,7 +358,6 @@ class TestChatServiceUnit:
         mock_modify.return_value = {
             "id": "test_assessment",
             "messageId": "msg_123",
-            "assistantMessageId": "test_message",
             "status": "DONE",
             "explanation": "Modified explanation",
             "label": "POSITIVE",
@@ -388,7 +385,94 @@ class TestChatServiceUnit:
         mock_modify.assert_called_once_with(
             user_id="test_user",
             company_id="test_company",
+            messageId="test_message",
+            status="DONE",
+            explanation="Modified explanation",
+            label="POSITIVE",
+            type="HALLUCINATION",
+        )
+
+    @pytest.mark.asyncio
+    @patch.object(unique_sdk.MessageAssessment, "create_async", autospec=True)
+    async def test_create_message_assessment_async(self, mock_create):
+        mock_response = {
+            "id": "test_assessment",
+            "messageId": "msg_123",
+            "status": "DONE",
+            "explanation": "Test explanation",
+            "label": "NEGATIVE",
+            "type": "HALLUCINATION",
+            "isVisible": True,
+            "createdAt": mocked_datetime,
+            "updatedAt": mocked_datetime,
+            "object": "message_assessment",
+        }
+
+        mock_create.return_value = mock_response
+
+        result = await self.service.create_message_assessment_async(
             assistant_message_id="test_message",
+            status=MessageAssessmentStatus.DONE,
+            explanation="Test explanation",
+            label=MessageAssessmentLabel.NEGATIVE,
+            type=MessageAssessmentType.HALLUCINATION,
+            is_visible=True,
+        )
+
+        assert isinstance(result, MessageAssessment)
+        assert result.status == MessageAssessmentStatus.DONE.name
+        assert result.explanation == "Test explanation"
+        assert result.label == MessageAssessmentLabel.NEGATIVE.name
+        assert result.type == MessageAssessmentType.HALLUCINATION.name
+        assert result.is_visible is True
+
+        mock_create.assert_called_once_with(
+            user_id="test_user",
+            company_id="test_company",
+            messageId="test_message",
+            status="DONE",
+            explanation="Test explanation",
+            label="NEGATIVE",
+            type="HALLUCINATION",
+            isVisible=True,
+        )
+
+    @pytest.mark.asyncio
+    @patch.object(unique_sdk.MessageAssessment, "modify_async", autospec=True)
+    async def test_modify_message_assessment_async(self, mock_modify):
+        mock_response = {
+            "id": "test_assessment",
+            "messageId": "msg_123",
+            "status": "DONE",
+            "explanation": "Modified explanation",
+            "label": "POSITIVE",
+            "type": "HALLUCINATION",
+            "isVisible": True,
+            "createdAt": mocked_datetime,
+            "updatedAt": mocked_datetime,
+            "object": "message_assessment",
+        }
+
+        mock_modify.return_value = mock_response
+
+        result = await self.service.modify_message_assessment_async(
+            assistant_message_id="test_message",
+            status=MessageAssessmentStatus.DONE,
+            explanation="Modified explanation",
+            label=MessageAssessmentLabel.POSITIVE,
+            type=MessageAssessmentType.HALLUCINATION,
+        )
+
+        assert isinstance(result, MessageAssessment)
+        assert result.status == MessageAssessmentStatus.DONE.name
+        assert result.explanation == "Modified explanation"
+        assert result.label == MessageAssessmentLabel.POSITIVE.name
+        assert result.type == MessageAssessmentType.HALLUCINATION.name
+
+        mock_modify.assert_called_once_with(
+            user_id="test_user",
+            company_id="test_company",
+            messageId="test_message",
             status="DONE",
             explanation="Modified explanation",
             label="POSITIVE",
@@ -398,11 +482,9 @@ class TestChatServiceUnit:
     @pytest.mark.asyncio
     @patch.object(unique_sdk.MessageAssessment, "create_async", autospec=True)
     async def test_error_handling_create_message_assessment_async(self, mock_create):
-        error = Exception("Creation Error")
-        mock_create.return_value = asyncio.Future()
-        mock_create.return_value.set_exception(error)
+        mock_create.side_effect = Exception("Creation Error")
 
-        with pytest.raises(Exception):
+        with pytest.raises(Exception, match="Creation Error"):
             await self.service.create_message_assessment_async(
                 assistant_message_id="test_message",
                 status=MessageAssessmentStatus.DONE,
@@ -414,11 +496,9 @@ class TestChatServiceUnit:
     @pytest.mark.asyncio
     @patch.object(unique_sdk.MessageAssessment, "modify_async", autospec=True)
     async def test_error_handling_modify_message_assessment_async(self, mock_modify):
-        error = Exception("Modification Error")
-        mock_modify.return_value = asyncio.Future()
-        mock_modify.return_value.set_exception(error)
+        mock_modify.side_effect = Exception("Modification Error")
 
-        with pytest.raises(Exception):
+        with pytest.raises(Exception, match="Modification Error"):
             await self.service.modify_message_assessment_async(
                 assistant_message_id="test_message",
                 status=MessageAssessmentStatus.DONE,
