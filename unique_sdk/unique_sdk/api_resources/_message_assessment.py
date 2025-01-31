@@ -10,6 +10,7 @@ from unique_sdk._request_options import RequestOptions
 
 class MessageAssessment(APIResource["MessageAssessment"]):
     OBJECT_NAME: ClassVar[Literal["message_assessment"]] = "message_assessment"
+    RESOURCE_URL = "/message-assessment"
 
     class CreateParams(RequestOptions):
         assistant_message_id: str
@@ -33,9 +34,8 @@ class MessageAssessment(APIResource["MessageAssessment"]):
         company_id: str,
         **params: Unpack["MessageAssessment.CreateParams"],
     ) -> "MessageAssessment":
-        url = "/message-assessment"
         return cls._static_request(
-            "post", url, user_id, company_id, params=params
+            "post", cls.RESOURCE_URL, user_id, company_id, params=params
         )
 
     @classmethod
@@ -45,9 +45,8 @@ class MessageAssessment(APIResource["MessageAssessment"]):
         company_id: str,
         **params: Unpack["MessageAssessment.CreateParams"],
     ) -> "MessageAssessment":
-        url = "/message-assessment"
         return cls._static_request_async(
-            "post", url, user_id, company_id, params=params
+            "post", cls.RESOURCE_URL, user_id, company_id, params=params
         )
 
     @classmethod
@@ -57,19 +56,17 @@ class MessageAssessment(APIResource["MessageAssessment"]):
         company_id: str,
         **params: Unpack["MessageAssessment.ModifyParams"],
     ) -> "MessageAssessment":
-        url = "/message-assessment"
         return cls._static_request(
-            "patch", url, user_id, company_id, params=params
+            "patch", cls.RESOURCE_URL, user_id, company_id, params=params
         )
 
     @classmethod
-    def modify_async(
+    async def modify_async(
         cls,
         user_id: str,
         company_id: str,
         **params: Unpack["MessageAssessment.ModifyParams"],
     ) -> "MessageAssessment":
-        url = "/message-assessment"
         return cls._static_request_async(
-            "patch", url, user_id, company_id, params=params
+            "patch", cls.RESOURCE_URL, user_id, company_id, params=params
         )

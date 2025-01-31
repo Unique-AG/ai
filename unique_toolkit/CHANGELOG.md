@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.50] - 2025-02-01
+- Add `MessageAssessment` schemas and functions to `ChatService` to handle message assessments.
+- Fix `LanguageModelService.complete_async_util` to use the correct async method.
+
 ## [0.5.49] - 2025-01-24
 - Add `parsed` and `refusal` to `LanguageModelAssistantMessage` to support structured output
 
