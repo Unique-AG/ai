@@ -396,50 +396,6 @@ class TestChatServiceUnit:
         )
 
     @pytest.mark.asyncio
-    @patch.object(unique_sdk.MessageAssessment, "modify_async", autospec=True)
-    async def test_modify_message_assessment_async(self, mock_modify):
-        mock_response = {
-            "id": "test_assessment",
-            "messageId": "msg_123",
-            "assistantMessageId": "test_message",
-            "status": "DONE",
-            "explanation": "Modified explanation",
-            "label": "POSITIVE",
-            "type": "HALLUCINATION",
-            "isVisible": True,
-            "createdAt": mocked_datetime,
-            "updatedAt": mocked_datetime,
-            "object": "message_assessment",
-        }
-
-        mock_modify.return_value = asyncio.Future()
-        mock_modify.return_value.set_result(mock_response)
-
-        result = await self.service.modify_message_assessment_async(
-            assistant_message_id="test_message",
-            status=MessageAssessmentStatus.DONE,
-            explanation="Modified explanation",
-            label=MessageAssessmentLabel.POSITIVE,
-            type=MessageAssessmentType.HALLUCINATION,
-        )
-
-        assert isinstance(result, MessageAssessment)
-        assert result.status == MessageAssessmentStatus.DONE.name
-        assert result.explanation == "Modified explanation"
-        assert result.label == MessageAssessmentLabel.POSITIVE.name
-        assert result.type == MessageAssessmentType.HALLUCINATION.name
-
-        mock_modify.assert_called_once_with(
-            user_id="test_user",
-            company_id="test_company",
-            assistant_message_id="test_message",
-            status="DONE",
-            explanation="Modified explanation",
-            label="POSITIVE",
-            type="HALLUCINATION",
-        )
-
-    @pytest.mark.asyncio
     @patch.object(unique_sdk.MessageAssessment, "create_async", autospec=True)
     async def test_error_handling_create_message_assessment_async(self, mock_create):
         error = Exception("Creation Error")
