@@ -13,19 +13,19 @@ class MessageAssessment(APIResource["MessageAssessment"]):
     RESOURCE_URL = "/message-assessment"
 
     class CreateParams(RequestOptions):
-        assistant_message_id: str
+        messageId: str
         status: Literal["PENDING", "DONE", "ERROR"]
-        explanation: str
-        label: Literal["POSITIVE", "NEGATIVE", "VERIFIED", "UNVERIFIED"]
-        type: Literal["HALLUCINATION", "COMPLIANCE"]
+        explanation: str | None
+        label: Literal["POSITIVE", "NEGATIVE", "VERIFIED", "UNVERIFIED"] | None
+        type: Literal["HALLUCINATION", "COMPLIANCE"] | None
         isVisible: bool
 
     class ModifyParams(RequestOptions):
-        assistant_message_id: str
-        status: Literal["PENDING", "DONE", "ERROR"]
-        explanation: str
-        label: Literal["POSITIVE", "NEGATIVE", "VERIFIED", "UNVERIFIED"]
+        messageId: str
         type: Literal["HALLUCINATION", "COMPLIANCE"]
+        status: Literal["PENDING", "DONE", "ERROR"] | None
+        explanation: str | None
+        label: Literal["POSITIVE", "NEGATIVE", "VERIFIED", "UNVERIFIED"] | None
 
     @classmethod
     def create(
@@ -35,7 +35,7 @@ class MessageAssessment(APIResource["MessageAssessment"]):
         **params: Unpack["MessageAssessment.CreateParams"],
     ) -> "MessageAssessment":
         return cls._static_request(
-            "post", cls.RESOURCE_URL, user_id, company_id, params=params
+            "post", "/message-assessment", user_id, company_id, params=params
         )
 
     @classmethod
@@ -45,8 +45,8 @@ class MessageAssessment(APIResource["MessageAssessment"]):
         company_id: str,
         **params: Unpack["MessageAssessment.CreateParams"],
     ) -> "MessageAssessment":
-        return cls._static_request_async(
-            "post", cls.RESOURCE_URL, user_id, company_id, params=params
+        return await cls._static_request_async(
+            "post", "/message-assessment", user_id, company_id, params=params
         )
 
     @classmethod
@@ -56,9 +56,8 @@ class MessageAssessment(APIResource["MessageAssessment"]):
         company_id: str,
         **params: Unpack["MessageAssessment.ModifyParams"],
     ) -> "MessageAssessment":
-        return cls._static_request(
-            "patch", cls.RESOURCE_URL, user_id, company_id, params=params
-        )
+        url = f"{cls.RESOURCE_URL}/{params['messageId']}"
+        return cls._static_request("patch", url, user_id, company_id, params=params)
 
     @classmethod
     async def modify_async(
@@ -67,6 +66,7 @@ class MessageAssessment(APIResource["MessageAssessment"]):
         company_id: str,
         **params: Unpack["MessageAssessment.ModifyParams"],
     ) -> "MessageAssessment":
-        return cls._static_request_async(
-            "patch", cls.RESOURCE_URL, user_id, company_id, params=params
+        url = f"{cls.RESOURCE_URL}/{params['messageId']}"
+        return await cls._static_request_async(
+            "patch", url, user_id, company_id, params=params
         )

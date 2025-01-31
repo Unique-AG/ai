@@ -87,7 +87,6 @@ class MessageAssessment(BaseModel):
     id: str
     object: str
     message_id: str
-    assistant_message_id: str
     status: MessageAssessmentStatus
     explanation: str
     label: MessageAssessmentLabel

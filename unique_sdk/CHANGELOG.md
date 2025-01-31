@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.20] - 2025-02-01
+- Add url parameter to `MessageAssessment.create_async` and `MessageAssessment.modify_async`
+
 ## [0.9.19] - 2025-01-31
 - Add `MessageAssessment` resource
 
