@@ -625,7 +625,7 @@ class ChatService(BaseService):
             assessment = unique_sdk.MessageAssessment.create(
                 user_id=self.event.user_id,
                 company_id=self.event.company_id,
-                assistant_message_id=assistant_message_id,
+                messageId=assistant_message_id,
                 status=status.name,
                 explanation=explanation,
                 label=label.name,
@@ -667,7 +667,7 @@ class ChatService(BaseService):
             assessment = await unique_sdk.MessageAssessment.create_async(
                 user_id=self.event.user_id,
                 company_id=self.event.company_id,
-                assistant_message_id=assistant_message_id,
+                messageId=assistant_message_id,
                 status=status.name,
                 explanation=explanation,
                 label=label.name,
@@ -707,7 +707,7 @@ class ChatService(BaseService):
             assessment = unique_sdk.MessageAssessment.modify(
                 user_id=self.event.user_id,
                 company_id=self.event.company_id,
-                assistant_message_id=assistant_message_id,
+                messageId=assistant_message_id,
                 status=status.name,
                 explanation=explanation,
                 label=label.name,
@@ -746,7 +746,7 @@ class ChatService(BaseService):
             assessment = await unique_sdk.MessageAssessment.modify_async(
                 user_id=self.event.user_id,
                 company_id=self.event.company_id,
-                assistant_message_id=assistant_message_id,
+                messageId=assistant_message_id,
                 status=status.name,
                 explanation=explanation,
                 label=label.name,
