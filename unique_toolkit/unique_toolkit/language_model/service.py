@@ -1,7 +1,8 @@
 import logging
-from typing import Optional, cast
+from typing import Optional, Type, cast
 
 import unique_sdk
+from pydantic import BaseModel
 
 from unique_toolkit._common._base_service import BaseService
 from unique_toolkit.app.schemas import Event
@@ -335,6 +336,22 @@ class LanguageModelService(BaseService):
             ]
         return options
 
+    @staticmethod
+    def _add_response_format_to_options(
+        options: dict,
+        structured_output_model: Type[BaseModel],
+        structured_output_enforce_schema: bool = False,
+    ) -> dict:
+        options["responseFormat"] = {
+            "type": "json_schema",
+            "json_schema": {
+                "name": structured_output_model.__name__,
+                "strict": structured_output_enforce_schema,
+                "schema": structured_output_model.model_json_schema(),
+            },
+        }
+        return options
+
     @classmethod
     def prepare_completion_params_util(
         cls,
@@ -344,6 +361,8 @@ class LanguageModelService(BaseService):
         tools: Optional[list[LanguageModelTool]] = None,
         other_options: Optional[dict] = None,
         content_chunks: Optional[list[ContentChunk]] = None,
+        structured_output_model: Optional[Type[BaseModel]] = None,
+        structured_output_enforce_schema: bool = False,
     ) -> tuple[dict, str, dict, Optional[dict]]:
         """
         Prepares common parameters for completion requests.
@@ -357,6 +376,12 @@ class LanguageModelService(BaseService):
         """
 
         options = cls._add_tools_to_options({}, tools)
+
+        if structured_output_model:
+            options = cls._add_response_format_to_options(
+                options, structured_output_model, structured_output_enforce_schema
+            )
+
         options["temperature"] = temperature
         if other_options:
             options.update(other_options)
