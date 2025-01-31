@@ -35,7 +35,7 @@ class LanguageModelMessageRole(StrEnum):
 class LanguageModelFunction(BaseModel):
     model_config = model_config
 
-    id: Optional[str] = None
+    id: str | None = None
     name: str
     arguments: Optional[dict[str, Any] | str] = None  # type: ignore
 
@@ -63,8 +63,8 @@ class LanguageModelFunction(BaseModel):
 class LanguageModelFunctionCall(BaseModel):
     model_config = model_config
 
-    id: Optional[str] = None
-    type: Optional[str] = None
+    id: str | None = None
+    type: str | None = None
     function: LanguageModelFunction
 
     @staticmethod
@@ -88,10 +88,17 @@ class LanguageModelFunctionCall(BaseModel):
 class LanguageModelMessage(BaseModel):
     model_config = model_config
     role: LanguageModelMessageRole
-    content: Optional[str | list[dict]] = None
+    content: str | list[dict] | None = None
 
     def __str__(self):
-        return format_message(self.role.capitalize(), message=self.content, num_tabs=1)  # type: ignore
+        if not self.content:
+            message = ""
+        if isinstance(self.content, str):
+            message = self.content
+        elif isinstance(self.content, list):
+            message = json.dumps(self.content)
+
+        return format_message(self.role.capitalize(), message=message, num_tabs=1)
 
 
 class LanguageModelSystemMessage(LanguageModelMessage):
@@ -112,7 +119,9 @@ class LanguageModelUserMessage(LanguageModelMessage):
 
 class LanguageModelAssistantMessage(LanguageModelMessage):
     role: LanguageModelMessageRole = LanguageModelMessageRole.ASSISTANT
-    tool_calls: Optional[list[LanguageModelFunctionCall]] = None
+    parsed: dict | None = None
+    refusal: str | None = None
+    tool_calls: list[LanguageModelFunctionCall] | None = None
 
     @field_validator("role", mode="before")
     def set_role(cls, value):
@@ -178,7 +187,7 @@ class LanguageModelStreamResponseMessage(BaseModel):
     )  # Stream response can return a null previous_message_id if an assisstant message is manually added
     role: LanguageModelMessageRole
     text: str
-    original_text: Optional[str] = None
+    original_text: str | None = None
     references: list[dict[str, list | dict | str | int | float | bool]] = []  # type: ignore
 
     # TODO make sdk return role in lowercase

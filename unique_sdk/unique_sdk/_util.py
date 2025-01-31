@@ -210,6 +210,7 @@ def retry_on_error(
                 try:
                     return await func(*args, **kwargs)
                 except Exception as e:
+                    logger.error(f"Retrying because of {e}")
                     should_retry = any(
                         err_msg.lower() in str(e).lower() for err_msg in error_messages
                     )
@@ -235,6 +236,8 @@ def retry_on_error(
                 try:
                     return func(*args, **kwargs)
                 except Exception as e:
+                    logger.error(f"Retrying because of {e}")
+
                     should_retry = any(
                         err_msg.lower() in str(e).lower() for err_msg in error_messages
                     )

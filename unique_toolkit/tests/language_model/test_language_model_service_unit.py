@@ -80,6 +80,8 @@ class TestLanguageModelServiceUnit:
             timeout=240000,
             tools=None,
             other_options=None,
+            structured_output_enforce_schema=False,
+            structured_output_model=None,
         )
 
     @patch("unique_toolkit.language_model.service.stream_complete")
@@ -139,6 +141,8 @@ class TestLanguageModelServiceUnit:
             timeout=240000,
             tools=None,
             other_options=None,
+            structured_output_enforce_schema=False,
+            structured_output_model=None,
         )
 
     @pytest.mark.asyncio

@@ -202,10 +202,10 @@ def test_language_model_function_call_creation(valid_tool_calls):
             valid_tool_calls
         )
     )
-    print(assistant_message, "what are the assistant messages")
 
     # Ensure the tool_calls are copied and serialized properly
-    for tool_call in assistant_message.tool_calls or []:
+    assert assistant_message.tool_calls is not None
+    for tool_call in assistant_message.tool_calls:
         assert isinstance(
             tool_call.function.arguments, dict
         )  # arguments should be serialized to a string
@@ -336,6 +336,34 @@ def test_language_model_tool_name_pattern_raised_validation_error():
         assert tool.name == name
 
 
+def test_language_model_assistant_message_with_parsed_and_refusal():
+    """Test that LanguageModelAssistantMessage can handle parsed and refusal fields."""
+    # Test with parsed data
+    parsed_data = {"key": "value", "nested": {"data": 123}}
+    message = LanguageModelAssistantMessage(content="Test content", parsed=parsed_data)
+    assert message.parsed == parsed_data
+    assert message.refusal is None
+
+    # Test with refusal
+    refusal_message = "I cannot perform this action"
+    message = LanguageModelAssistantMessage(
+        content="Test content", refusal=refusal_message
+    )
+    assert message.refusal == refusal_message
+    assert message.parsed is None
+
+    # Test with both parsed and refusal
+    message = LanguageModelAssistantMessage(
+        content="Test content", parsed=parsed_data, refusal=refusal_message
+    )
+    assert message.parsed == parsed_data
+    assert message.refusal == refusal_message
+
+    # Test serialization
+    expected = """{"role":"assistant","content":"Test content","parsed":{"key":"value","nested":{"data":123}},"refusal":"I cannot perform this action"}"""
+    assert message.model_dump_json(exclude_none=True) == expected
+
+
 def test_language_model_tool_parameters_dump_from_pydantic():
     class TestParameters(BaseModel):
         param: str = Field(description="A parameter")
@@ -347,6 +375,7 @@ def test_language_model_tool_parameters_dump_from_pydantic():
         parameters=TestParameters.model_json_schema(),
     )
 
+    assert isinstance(tool.parameters, LanguageModelToolParameters)
     assert tool.parameters.properties["param"].type == "string"
     assert tool.parameters.properties["param"].description == "A parameter"
     assert tool.parameters.properties["param2"].type == "integer"

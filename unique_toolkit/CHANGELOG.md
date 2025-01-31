@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.6.0] - 2024-12-17
 - remove the `Event` dependency from `LanguageModelService`
 - move SDK calls to `unique_toolkit.language_model.functions`
+## [0.5.51] - 2025-01-30
+- Add missing structured output arguments in complete_async
+
+## [0.5.50] - 2025-01-30
+- Add the possibility to define completion output structure through a pydantic class
+
+## [0.5.49] - 2025-01-24
+- Add `parsed` and `refusal` to `LanguageModelAssistantMessage` to support structured output
 
 ## [0.5.48] - 2025-01-19
 - Added the possibility define tool parameters with a json schema (Useful when generating tool parameters from a pydantic object)

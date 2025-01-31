@@ -1,5 +1,7 @@
 import logging
-from typing import Optional, overload
+from typing import Optional, Type, overload
+
+from pydantic import BaseModel
 
 from unique_toolkit._common.validate_required_values import validate_required_values
 from unique_toolkit.app.schemas import BaseEvent, ChatEvent, Event
@@ -80,6 +82,8 @@ class LanguageModelService:
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
         tools: Optional[list[LanguageModelTool]] = None,
+        structured_output_model: Optional[Type[BaseModel]] = None,
+        structured_output_enforce_schema: bool = False,
         other_options: Optional[dict] = None,
     ) -> LanguageModelResponse:
         """
@@ -95,6 +99,8 @@ class LanguageModelService:
             timeout=timeout,
             tools=tools,
             other_options=other_options,
+            structured_output_model=structured_output_model,
+            structured_output_enforce_schema=structured_output_enforce_schema,
         )
 
     async def complete_async(
@@ -104,6 +110,8 @@ class LanguageModelService:
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
         tools: Optional[list[LanguageModelTool]] = None,
+        structured_output_model: Optional[Type[BaseModel]] = None,
+        structured_output_enforce_schema: bool = False,
         other_options: Optional[dict] = None,
     ) -> LanguageModelResponse:
         """
@@ -119,6 +127,8 @@ class LanguageModelService:
             timeout=timeout,
             tools=tools,
             other_options=other_options,
+            structured_output_model=structured_output_model,
+            structured_output_enforce_schema=structured_output_enforce_schema,
         )
 
     def stream_complete(
