@@ -8,7 +8,14 @@ from unique_sdk._list_object import ListObject
 from unique_toolkit._common import _time_utils
 from unique_toolkit._common._base_service import BaseService
 from unique_toolkit.app.schemas import Event
-from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
+from unique_toolkit.chat.schemas import (
+    ChatMessage,
+    ChatMessageRole,
+    MessageAssessment,
+    MessageAssessmentLabel,
+    MessageAssessmentStatus,
+    MessageAssessmentType,
+)
 from unique_toolkit.content.schemas import ContentReference
 from unique_toolkit.content.utils import count_tokens
 
@@ -587,3 +594,165 @@ class ChatService(BaseService):
             "completedAt": completed_at_datetime,
         }
         return params
+
+    def create_message_assessment(
+        self,
+        assistant_message_id: str,
+        status: MessageAssessmentStatus,
+        explanation: str,
+        label: MessageAssessmentLabel,
+        type: MessageAssessmentType,
+        is_visible: bool = True,
+    ) -> MessageAssessment:
+        """
+        Creates a message assessment for an assistant message synchronously.
+
+        Args:
+            assistant_message_id (str): The ID of the assistant message to assess
+            status (MessageAssessmentStatus): The status of the assessment (e.g. "DONE")
+            explanation (str): Explanation of the assessment
+            label (MessageAssessmentLabel): The assessment label (e.g. "NEGATIVE")
+            type (MessageAssessmentType): The type of assessment (e.g. "HALLUCINATION")
+            is_visible (bool): Whether the assessment is visible to users. Defaults to True.
+
+        Returns:
+            MessageAssessment: The created message assessment
+
+        Raises:
+            Exception: If the creation fails
+        """
+        try:
+            assessment = unique_sdk.MessageAssessment.create(
+                user_id=self.event.user_id,
+                company_id=self.event.company_id,
+                assistant_message_id=assistant_message_id,
+                status=status.name,
+                explanation=explanation,
+                label=label.name,
+                type=type.name,
+                isVisible=is_visible,
+            )
+            return MessageAssessment(**assessment)
+        except Exception as e:
+            self.logger.error(f"Failed to create message assessment: {e}")
+            raise e
+
+    async def create_message_assessment_async(
+        self,
+        assistant_message_id: str,
+        status: MessageAssessmentStatus,
+        explanation: str,
+        label: MessageAssessmentLabel,
+        type: MessageAssessmentType,
+        is_visible: bool = True,
+    ) -> MessageAssessment:
+        """
+        Creates a message assessment for an assistant message asynchronously.
+
+        Args:
+            assistant_message_id (str): The ID of the assistant message to assess
+            status (MessageAssessmentStatus): The status of the assessment (e.g. "DONE")
+            explanation (str): Explanation of the assessment
+            label (MessageAssessmentLabel): The assessment label (e.g. "NEGATIVE")
+            type (MessageAssessmentType): The type of assessment (e.g. "HALLUCINATION")
+            is_visible (bool): Whether the assessment is visible to users. Defaults to True.
+
+        Returns:
+            MessageAssessment: The created message assessment
+
+        Raises:
+            Exception: If the creation fails
+        """
+        try:
+            assessment = await unique_sdk.MessageAssessment.create_async(
+                user_id=self.event.user_id,
+                company_id=self.event.company_id,
+                assistant_message_id=assistant_message_id,
+                status=status.name,
+                explanation=explanation,
+                label=label.name,
+                type=type.name,
+                isVisible=is_visible,
+            )
+            return MessageAssessment(**assessment)
+        except Exception as e:
+            self.logger.error(f"Failed to create message assessment: {e}")
+            raise e
+
+    def modify_message_assessment(
+        self,
+        assistant_message_id: str,
+        status: MessageAssessmentStatus,
+        explanation: str,
+        label: MessageAssessmentLabel,
+        type: MessageAssessmentType,
+    ) -> MessageAssessment:
+        """
+        Modifies a message assessment for an assistant message synchronously.
+
+        Args:
+            assistant_message_id (str): The ID of the assistant message to assess
+            status (MessageAssessmentStatus): The status of the assessment (e.g. "DONE")
+            explanation (str): Explanation of the assessment
+            label (MessageAssessmentLabel): The assessment label (e.g. "NEGATIVE")
+            type (MessageAssessmentType): The type of assessment (e.g. "HALLUCINATION")
+
+        Returns:
+            dict: The modified message assessment
+
+        Raises:
+            Exception: If the modification fails
+        """
+        try:
+            assessment = unique_sdk.MessageAssessment.modify(
+                user_id=self.event.user_id,
+                company_id=self.event.company_id,
+                assistant_message_id=assistant_message_id,
+                status=status.name,
+                explanation=explanation,
+                label=label.name,
+                type=type.name,
+            )
+            return MessageAssessment(**assessment)
+        except Exception as e:
+            self.logger.error(f"Failed to modify message assessment: {e}")
+            raise e
+
+    async def modify_message_assessment_async(
+        self,
+        assistant_message_id: str,
+        status: MessageAssessmentStatus,
+        explanation: str,
+        label: MessageAssessmentLabel,
+        type: MessageAssessmentType,
+    ) -> MessageAssessment:
+        """
+        Modifies a message assessment for an assistant message asynchronously.
+
+        Args:
+            assistant_message_id (str): The ID of the assistant message to assess
+            status (MessageAssessmentStatus): The status of the assessment (e.g. "DONE")
+            explanation (str): Explanation of the assessment
+            label (MessageAssessmentLabel): The assessment label (e.g. "NEGATIVE")
+            type (MessageAssessmentType): The type of assessment (e.g. "HALLUCINATION")
+
+        Returns:
+            MessageAssessment: The modified message assessment
+
+        Raises:
+            Exception: If the modification fails
+        """
+        try:
+            assessment = await unique_sdk.MessageAssessment.modify_async(
+                user_id=self.event.user_id,
+                company_id=self.event.company_id,
+                assistant_message_id=assistant_message_id,
+                status=status.name,
+                explanation=explanation,
+                label=label.name,
+                type=type.name,
+            )
+            return MessageAssessment(**assessment)
+        except Exception as e:
+            self.logger.error(f"Failed to modify message assessment: {e}")
+            raise e

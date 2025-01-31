@@ -19,6 +19,7 @@ The Unique Python SDK provides access to the public API of Unique FinanceGPT. It
    - [Search](#search)
    - [Search String](#search-string)
    - [Short Term Memory](#short-term-memory)
+   - [Message Assessment](#message-assessment)
 6. [UniqueQL](#uniqueql)
    - [Query Structure](#uniqueql-query-structure)
    - [Metadata Filtering](#metadata-filtering)
@@ -572,6 +573,7 @@ you need to provide an `memoryName` as an identifier.
 
 you can then save it and retreive it live defined below.
 
+
 #### `unique_sdk.ShortTermMemory.create`
 
 ```python
@@ -597,6 +599,43 @@ m = unique_sdk.ShortTermMemory.find_latest(
     memoryName="your memory name",
 )
 print(m)
+```
+
+### Message Assessment
+
+Used to create and modify message assessments for tracking hallucinations and compliance evaluations of assistant messages.
+
+#### `unique_sdk.MessageAssessment.create`
+
+Create a new message assessment for an assistant message.
+
+```python
+assessment = unique_sdk.MessageAssessment.create(
+    user_id=user_id,
+    company_id=company_id,
+    assistant_message_id="msg_...",
+    status="DONE",
+    explanation="This response contains incorrect information about...",
+    label="NEGATIVE",
+    type="HALLUCINATION",
+    isVisible=True
+)
+```
+
+#### `unique_sdk.MessageAssessment.modify` 
+
+Modify an existing message assessment.
+
+```python
+assessment = unique_sdk.MessageAssessment.modify(
+    user_id=user_id,
+    company_id=company_id,
+    assistant_message_id="msg_...",
+    status="DONE",
+    explanation="Updated explanation...",
+    label="NEGATIVE",
+    type="HALLUCINATION"
+)
 ```
 
 ## UniqueQL

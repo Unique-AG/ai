@@ -1,3 +1,4 @@
+from datetime import datetime
 from enum import StrEnum
 from typing import Optional
 
@@ -60,3 +61,37 @@ class ChatMessage(BaseModel):
         if self.role == ChatMessageRole.TOOL and not self.tool_call_id:
             raise ValueError("tool_call_ids is required when role is 'tool'")
         return self
+
+
+class MessageAssessmentStatus(StrEnum):
+    PENDING = "PENDING"
+    DONE = "DONE"
+    ERROR = "ERROR"
+
+
+class MessageAssessmentLabel(StrEnum):
+    POSITIVE = "POSITIVE"
+    NEGATIVE = "NEGATIVE"
+    VERIFIED = "VERIFIED"
+    UNVERIFIED = "UNVERIFIED"
+
+
+class MessageAssessmentType(StrEnum):
+    HALLUCINATION = "HALLUCINATION"
+    COMPLIANCE = "COMPLIANCE"
+
+
+class MessageAssessment(BaseModel):
+    model_config = model_config
+
+    id: str
+    object: str
+    message_id: str
+    assistant_message_id: str
+    status: MessageAssessmentStatus
+    explanation: str
+    label: MessageAssessmentLabel
+    type: MessageAssessmentType
+    is_visible: bool
+    created_at: datetime
+    updated_at: datetime

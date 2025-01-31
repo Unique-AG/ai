@@ -84,8 +84,9 @@ class LanguageModelService(BaseService):
             self.logger.error(f"Error completing: {e}")
             raise e
 
+    @classmethod
     async def complete_async_util(
-        self,
+        cls,
         company_id: str,
         messages: LanguageModelMessages,
         model_name: LanguageModelName | str,
@@ -122,7 +123,7 @@ class LanguageModelService(BaseService):
         Raises:
             Exception: If an error occurs during the request, an exception is raised and logged.
         """
-        options, model, messages_dict, _ = self._prepare_completion_params_util(
+        options, model, messages_dict, _ = cls._prepare_completion_params_util(
             messages=messages,
             model_name=model_name,
             temperature=temperature,
@@ -369,8 +370,9 @@ class LanguageModelService(BaseService):
         }
         return options
 
+    @classmethod
     def _prepare_completion_params_util(
-        self,
+        cls,
         messages: LanguageModelMessages,
         model_name: LanguageModelName | str,
         temperature: float,
@@ -391,10 +393,10 @@ class LanguageModelService(BaseService):
             - search_context (Optional[dict]): Processed content chunks if provided
         """
 
-        options = self._add_tools_to_options({}, tools)
+        options = cls._add_tools_to_options({}, tools)
 
         if structured_output_model:
-            options = self._add_response_format_to_options(
+            options = cls._add_response_format_to_options(
                 options, structured_output_model, structured_output_enforce_schema
             )
 
