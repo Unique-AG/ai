@@ -84,8 +84,9 @@ class LanguageModelService(BaseService):
             self.logger.error(f"Error completing: {e}")
             raise e
 
+    @classmethod
     async def complete_async_util(
-        self,
+        cls,
         company_id: str,
         messages: LanguageModelMessages,
         model_name: LanguageModelName | str,
@@ -122,7 +123,7 @@ class LanguageModelService(BaseService):
         Raises:
             Exception: If an error occurs during the request, an exception is raised and logged.
         """
-        options, model, messages_dict, _ = self._prepare_completion_params_util(
+        options, model, messages_dict, _ = cls._prepare_completion_params_util(
             messages=messages,
             model_name=model_name,
             temperature=temperature,
