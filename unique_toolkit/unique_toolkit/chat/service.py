@@ -599,9 +599,9 @@ class ChatService(BaseService):
         self,
         assistant_message_id: str,
         status: MessageAssessmentStatus,
-        explanation: str,
-        label: MessageAssessmentLabel,
         type: MessageAssessmentType,
+        explanation: str | None = None,
+        label: MessageAssessmentLabel | None = None,
         is_visible: bool = True,
     ) -> MessageAssessment:
         """
@@ -610,9 +610,9 @@ class ChatService(BaseService):
         Args:
             assistant_message_id (str): The ID of the assistant message to assess
             status (MessageAssessmentStatus): The status of the assessment (e.g. "DONE")
-            explanation (str): Explanation of the assessment
-            label (MessageAssessmentLabel): The assessment label (e.g. "NEGATIVE")
             type (MessageAssessmentType): The type of assessment (e.g. "HALLUCINATION")
+            explanation (str | None): Explanation of the assessment
+            label (MessageAssessmentLabel | None): The assessment label (e.g. "NEGATIVE")
             is_visible (bool): Whether the assessment is visible to users. Defaults to True.
 
         Returns:
@@ -628,8 +628,8 @@ class ChatService(BaseService):
                 messageId=assistant_message_id,
                 status=status.name,
                 explanation=explanation,
-                label=label.name,
-                type=type.name,
+                label=label.name if label else None,
+                type=type.name if type else None,
                 isVisible=is_visible,
             )
             return MessageAssessment(**assessment)
@@ -641,9 +641,9 @@ class ChatService(BaseService):
         self,
         assistant_message_id: str,
         status: MessageAssessmentStatus,
-        explanation: str,
-        label: MessageAssessmentLabel,
         type: MessageAssessmentType,
+        explanation: str | None = None,
+        label: MessageAssessmentLabel | None = None,
         is_visible: bool = True,
     ) -> MessageAssessment:
         """
@@ -652,9 +652,9 @@ class ChatService(BaseService):
         Args:
             assistant_message_id (str): The ID of the assistant message to assess
             status (MessageAssessmentStatus): The status of the assessment (e.g. "DONE")
-            explanation (str): Explanation of the assessment
-            label (MessageAssessmentLabel): The assessment label (e.g. "NEGATIVE")
             type (MessageAssessmentType): The type of assessment (e.g. "HALLUCINATION")
+            explanation (str | None): Explanation of the assessment
+            label (MessageAssessmentLabel | None): The assessment label (e.g. "NEGATIVE")
             is_visible (bool): Whether the assessment is visible to users. Defaults to True.
 
         Returns:
@@ -670,8 +670,8 @@ class ChatService(BaseService):
                 messageId=assistant_message_id,
                 status=status.name,
                 explanation=explanation,
-                label=label.name,
-                type=type.name,
+                label=label.name if label else None,
+                type=type.name if type else None,
                 isVisible=is_visible,
             )
             return MessageAssessment(**assessment)
@@ -683,9 +683,9 @@ class ChatService(BaseService):
         self,
         assistant_message_id: str,
         status: MessageAssessmentStatus,
-        explanation: str,
-        label: MessageAssessmentLabel,
         type: MessageAssessmentType,
+        explanation: str | None = None,
+        label: MessageAssessmentLabel | None = None,
     ) -> MessageAssessment:
         """
         Modifies a message assessment for an assistant message synchronously.
@@ -693,8 +693,8 @@ class ChatService(BaseService):
         Args:
             assistant_message_id (str): The ID of the assistant message to assess
             status (MessageAssessmentStatus): The status of the assessment (e.g. "DONE")
-            explanation (str): Explanation of the assessment
-            label (MessageAssessmentLabel): The assessment label (e.g. "NEGATIVE")
+            explanation (str | None): Explanation of the assessment
+            label (MessageAssessmentLabel | None): The assessment label (e.g. "NEGATIVE")
             type (MessageAssessmentType): The type of assessment (e.g. "HALLUCINATION")
 
         Returns:
@@ -710,7 +710,7 @@ class ChatService(BaseService):
                 messageId=assistant_message_id,
                 status=status.name,
                 explanation=explanation,
-                label=label.name,
+                label=label.name if label else None,
                 type=type.name,
             )
             return MessageAssessment(**assessment)
@@ -721,10 +721,10 @@ class ChatService(BaseService):
     async def modify_message_assessment_async(
         self,
         assistant_message_id: str,
-        status: MessageAssessmentStatus,
-        explanation: str,
-        label: MessageAssessmentLabel,
         type: MessageAssessmentType,
+        status: MessageAssessmentStatus | None = None,
+        explanation: str | None = None,
+        label: MessageAssessmentLabel | None = None,
     ) -> MessageAssessment:
         """
         Modifies a message assessment for an assistant message asynchronously.
@@ -732,8 +732,8 @@ class ChatService(BaseService):
         Args:
             assistant_message_id (str): The ID of the assistant message to assess
             status (MessageAssessmentStatus): The status of the assessment (e.g. "DONE")
-            explanation (str): Explanation of the assessment
-            label (MessageAssessmentLabel): The assessment label (e.g. "NEGATIVE")
+            explanation (str | None): Explanation of the assessment
+            label (MessageAssessmentLabel | None): The assessment label (e.g. "NEGATIVE")
             type (MessageAssessmentType): The type of assessment (e.g. "HALLUCINATION")
 
         Returns:
@@ -747,9 +747,9 @@ class ChatService(BaseService):
                 user_id=self.event.user_id,
                 company_id=self.event.company_id,
                 messageId=assistant_message_id,
-                status=status.name,
+                status=status.name if status else None,
                 explanation=explanation,
-                label=label.name,
+                label=label.name if label else None,
                 type=type.name,
             )
             return MessageAssessment(**assessment)

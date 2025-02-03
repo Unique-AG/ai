@@ -15,10 +15,10 @@ class MessageAssessment(APIResource["MessageAssessment"]):
     class CreateParams(RequestOptions):
         messageId: str
         status: Literal["PENDING", "DONE", "ERROR"]
+        type: Literal["HALLUCINATION", "COMPLIANCE"]
+        isVisible: bool
         explanation: str | None
         label: Literal["POSITIVE", "NEGATIVE", "VERIFIED", "UNVERIFIED"] | None
-        type: Literal["HALLUCINATION", "COMPLIANCE"] | None
-        isVisible: bool
 
     class ModifyParams(RequestOptions):
         messageId: str

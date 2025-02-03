@@ -88,9 +88,9 @@ class MessageAssessment(BaseModel):
     object: str
     message_id: str
     status: MessageAssessmentStatus
-    explanation: str
-    label: MessageAssessmentLabel
     type: MessageAssessmentType
+    explanation: str | None = None
+    label: MessageAssessmentLabel | None = None
     is_visible: bool
-    created_at: datetime
-    updated_at: datetime
+    created_at: datetime | None = None
+    updated_at: datetime | None = None

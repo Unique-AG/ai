@@ -376,6 +376,8 @@ class APIRequestor(object):
 
     def specific_api_error(self, rbody, rcode, resp, rheaders, error_data):
         cause = error_data.get("cause", {})
+        if isinstance(cause, str):
+            cause = {"error": {"message": cause}, "status": rcode}
         status = cause.get("status", rcode)
 
         _util.log_info(
