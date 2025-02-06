@@ -8,6 +8,14 @@ import pytest
 import unique_sdk
 
 from tests.test_obj_factory import get_event_obj
+from unique_toolkit.app.schemas import (
+    BaseEvent,
+    Event,
+    EventAssistantMessage,
+    EventName,
+    EventPayload,
+    EventUserMessage,
+)
 from unique_toolkit.content.schemas import (
     Content,
     ContentChunk,
@@ -641,3 +649,104 @@ class TestContentServiceUnit:
                 "Authorization": "Bearer %s" % (unique_sdk.api_key,),
             },
         )
+
+    def test_init_with_chat_event(self):
+        """Test initialization with ChatEvent"""
+        chat_event = get_event_obj(
+            user_id="test_user",
+            company_id="test_company",
+            chat_id="test_chat",
+            assistant_id="test_assistant",
+            metadata_filter={
+                "path": ["key"],
+                "operator": "equals",
+                "value": "test_key",
+            },
+        )
+        service = ContentService(chat_event)
+
+        assert service.company_id == "test_company"
+        assert service.user_id == "test_user"
+        assert service.chat_id == "test_chat"
+        assert service.metadata_filter == {
+            "path": ["key"],
+            "operator": "equals",
+            "value": "test_key",
+        }
+
+    def test_init_with_base_event(self):
+        """Test initialization with BaseEvent"""
+        base_event = BaseEvent(
+            id="test-id",
+            company_id="base_company",
+            user_id="base_user",
+            event=EventName.EXTERNAL_MODULE_CHOSEN,
+        )
+        service = ContentService(base_event)
+
+        assert service.company_id == "base_company"
+        assert service.user_id == "base_user"
+        assert not hasattr(service, "chat_id")
+
+    def test_init_with_direct_params(self):
+        """Test initialization with direct parameters"""
+        service = ContentService(company_id="direct_company", user_id="direct_user")
+
+        assert service.company_id == "direct_company"
+        assert service.user_id == "direct_user"
+        assert not hasattr(service, "chat_id")
+        assert service.metadata_filter is None
+
+    def test_init_with_no_params(self):
+        """Test initialization with no parameters should raise error"""
+        with pytest.raises(ValueError) as exc_info:
+            ContentService()
+        assert "Required values cannot be None" in str(exc_info.value)
+
+    def test_init_with_partial_params(self):
+        """Test initialization with partial parameters should raise error"""
+        with pytest.raises(ValueError) as exc_info:
+            ContentService(company_id="test_company")
+        assert "Required values cannot be None" in str(exc_info.value)
+
+    def test_init_with_event(self):
+        """Test initialization with Event"""
+        event = Event(
+            id="test-id",
+            company_id="test_company",
+            user_id="test_user",
+            event=EventName.EXTERNAL_MODULE_CHOSEN,
+            payload=EventPayload(
+                name="module",
+                description="description",
+                configuration={},
+                assistant_message=EventAssistantMessage(
+                    id="asst_msg_id",
+                    created_at="2021-01-01T00:00:00Z",
+                ),
+                user_message=EventUserMessage(
+                    id="user_msg_id",
+                    text="Hello user",
+                    original_text="Hello user",
+                    created_at="2021-01-01T00:00:00Z",
+                    language="english",
+                ),
+                chat_id="test_chat",
+                assistant_id="test_assistant",
+                metadata_filter={
+                    "path": ["key"],
+                    "operator": "equals",
+                    "value": "test_key",
+                },
+            ),
+        )
+        service = ContentService(event)
+
+        assert service.company_id == "test_company"
+        assert service.user_id == "test_user"
+        assert service.chat_id == "test_chat"
+        assert service.metadata_filter == {
+            "path": ["key"],
+            "operator": "equals",
+            "value": "test_key",
+        }

@@ -1,16 +1,141 @@
 import logging
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import unique_sdk
 from unique_sdk._list_object import ListObject
 
 from unique_toolkit._common import _time_utils
+from unique_toolkit.chat.constants import DEFAULT_MAX_MESSAGES
 from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
 from unique_toolkit.content.schemas import ContentReference
 from unique_toolkit.content.utils import count_tokens
 
 logger = logging.getLogger(__name__)
+
+
+def modify_message(
+    user_id: str,
+    company_id: str,
+    assistant_message_id: str,
+    chat_id: str,
+    user_message_id: str,
+    user_message_text: str,
+    assistant: bool,
+    content: str | None = None,
+    original_content: str | None = None,
+    references: list[ContentReference] | None = None,
+    debug_info: dict | None = None,
+    message_id: str | None = None,
+    set_completed_at: bool = False,
+) -> ChatMessage:
+    """
+    Modifies a chat message synchronously.
+
+    Args:
+        user_id (str): The user ID.
+        company_id (str): The company ID.
+        assistant_message_id (str): The assistant message ID.
+        chat_id (str): The chat ID.
+        user_message_id (str): The user message ID.
+        user_message_text (str): The user message text.
+        assistant (bool): Whether the message is an assistant message.
+        content (str, optional): The new content for the message.
+        original_content (str, optional): The original content for the message.
+        message_id (str, optional): The message ID. Defaults to None, then the ChatState assistant message id is used.
+        references (list[ContentReference]): list of ContentReference objects. Defaults to None.
+        debug_info (dict[str, Any]], optional): Debug information. Defaults to None.
+        set_completed_at (bool, optional): Whether to set the completedAt field with the current date time. Defaults to False.
+
+    Returns:
+        ChatMessage: The modified message.
+
+    Raises:
+        Exception: If the modification fails.
+    """
+    try:
+        params = _construct_message_modify_params(
+            user_id=user_id,
+            company_id=company_id,
+            assistant_message_id=assistant_message_id,
+            chat_id=chat_id,
+            user_message_id=user_message_id,
+            user_message_text=user_message_text,
+            assistant=assistant,
+            content=content,
+            original_content=original_content,
+            references=references,
+            debug_info=debug_info,
+            message_id=message_id,
+            set_completed_at=set_completed_at,
+        )
+        message = unique_sdk.Message.modify(**params)
+        return ChatMessage(**message)
+    except Exception as e:
+        logger.error(f"Failed to modify user message: {e}")
+        raise e
+
+
+async def modify_message_async(
+    user_id: str,
+    company_id: str,
+    assistant_message_id: str,
+    chat_id: str,
+    user_message_id: str,
+    user_message_text: str,
+    assistant: bool,
+    content: str | None = None,
+    original_content: str | None = None,
+    references: list[ContentReference] | None = None,
+    debug_info: dict | None = None,
+    message_id: str | None = None,
+    set_completed_at: bool = False,
+) -> ChatMessage:
+    """
+    Modifies a chat message asynchronously.
+
+    Args:
+        user_id (str): The user ID.
+        company_id (str): The company ID.
+        assistant_message_id (str): The assistant message ID.
+        chat_id (str): The chat ID.
+        user_message_id (str): The user message ID.
+        user_message_text (str): The user message text.
+        assistant (bool): Whether the message is an assistant message.
+        content (str, optional): The new content for the message.
+        original_content (str, optional): The original content for the message.
+        message_id (str, optional): The message ID. Defaults to None, then the ChatState assistant message id is used.
+        references (list[ContentReference]): list of ContentReference objects. Defaults to None.
+        debug_info (dict[str, Any]], optional): Debug information. Defaults to None.
+        set_completed_at (bool, optional): Whether to set the completedAt field with the current date time. Defaults to False.
+
+    Returns:
+        ChatMessage: The modified message.
+
+    Raises:
+        Exception: If the modification fails.
+    """
+    try:
+        params = _construct_message_modify_params(
+            user_id=user_id,
+            company_id=company_id,
+            assistant_message_id=assistant_message_id,
+            chat_id=chat_id,
+            user_message_id=user_message_id,
+            user_message_text=user_message_text,
+            assistant=assistant,
+            content=content,
+            original_content=original_content,
+            references=references,
+            debug_info=debug_info,
+            message_id=message_id,
+            set_completed_at=set_completed_at,
+        )
+        message = await unique_sdk.Message.modify_async(**params)
+        return ChatMessage(**message)
+    except Exception as e:
+        logger.error(f"Failed to modify user message: {e}")
+        raise e
 
 
 def map_references(references: List[ContentReference]) -> List[Dict[str, Any]]:
@@ -26,20 +151,20 @@ def map_references(references: List[ContentReference]) -> List[Dict[str, Any]]:
     ]
 
 
-def construct_message_modify_params(
-    event_user_id: str,
-    event_company_id: str,
-    event_payload_chat_id: str,
-    event_payload_assistant_message_id: str,
-    event_payload_user_message_id: str,
-    event_payload_user_message_text: str,
+def _construct_message_modify_params(
+    user_id: str,
+    company_id: str,
+    assistant_message_id: str,
+    chat_id: str,
+    user_message_id: str,
+    user_message_text: str,
     assistant: bool = True,
-    content: Optional[str] = None,
-    original_content: Optional[str] = None,
-    references: Optional[list[ContentReference]] = None,
-    debug_info: Optional[dict] = None,
-    message_id: Optional[str] = None,
-    set_completed_at: Optional[bool] = False,
+    content: str | None = None,
+    original_content: str | None = None,
+    references: list[ContentReference] | None = None,
+    debug_info: dict | None = None,
+    message_id: str | None = None,
+    set_completed_at: bool = False,
 ) -> Dict[str, Any]:
     completed_at_datetime = None
 
@@ -48,20 +173,20 @@ def construct_message_modify_params(
         message_id = message_id
     elif assistant:
         # Assistant message ID
-        message_id = event_payload_assistant_message_id
+        message_id = assistant_message_id
     else:
-        message_id = event_payload_user_message_id
+        message_id = user_message_id
         if content is None:
-            content = event_payload_user_message_text
+            content = user_message_text
 
     if set_completed_at:
         completed_at_datetime = _time_utils.get_datetime_now()
 
     params = {
-        "user_id": event_user_id,
-        "company_id": event_company_id,
+        "user_id": user_id,
+        "company_id": company_id,
         "id": message_id,
-        "chatId": event_payload_chat_id,
+        "chatId": chat_id,
         "text": content,
         "originalText": original_content,
         "references": map_references(references) if references else [],
@@ -71,45 +196,153 @@ def construct_message_modify_params(
     return params
 
 
-def construct_message_create_params(
-    event_user_id: str,
-    event_company_id: str,
-    event_payload_chat_id: str,
-    event_payload_assistant_id: str,
-    role: ChatMessageRole = ChatMessageRole.ASSISTANT,
-    content: Optional[str] = None,
-    original_content: Optional[str] = None,
-    references: Optional[list[ContentReference]] = None,
-    debug_info: Optional[dict] = None,
-    assistantId: Optional[str] = None,
-    set_completed_at: Optional[bool] = False,
-) -> Dict[str, Any]:
-    if assistantId is None:
-        # if Assistant ID isn't specified. change event_payload_assistant.
-        assistantId = event_payload_assistant_id
+def create_message(
+    user_id: str,
+    company_id: str,
+    chat_id: str,
+    assistant_id: str,
+    role: ChatMessageRole,
+    content: str | None = None,
+    original_content: str | None = None,
+    references: list[ContentReference] | None = None,
+    debug_info: dict | None = None,
+    set_completed_at: bool | None = False,
+):
+    """
+    Creates a message in the chat session synchronously.
 
+    Args:
+        user_id (str): The user ID.
+        company_id (str): The company ID.
+        chat_id (str): The chat ID.
+        assistant_id (str): The assistant ID.
+        role (ChatMessageRole): The role of the message.
+        content (str, optional): The content for the message. Defaults to None.
+        original_content (str, optional): The original content for the message. Defaults to None.
+        references (list[ContentReference], optional): list of ContentReference objects. Defaults to None.
+        debug_info (dict[str, Any]], optional): Debug information. Defaults to None.
+        set_completed_at (Optional[bool]): Whether to set the completedAt field with the current date time. Defaults to False.
+
+    Returns:
+        ChatMessage: The created message.
+
+    Raises:
+        Exception: If the creation fails.
+    """
     if original_content is None:
         original_content = content
 
-    params = {
-        "user_id": event_user_id,
-        "company_id": event_company_id,
-        "assistantId": assistantId,
+    try:
+        params = _construct_message_create_params(
+            user_id=user_id,
+            company_id=company_id,
+            chat_id=chat_id,
+            assistant_id=assistant_id,
+            role=role,
+            content=content,
+            original_content=original_content,
+            references=references,
+            debug_info=debug_info,
+            set_completed_at=set_completed_at,
+        )
+
+        message = unique_sdk.Message.create(**params)
+        return ChatMessage(**message)
+    except Exception as e:
+        logger.error(f"Failed to create assistant message: {e}")
+        raise e
+
+
+async def create_message_async(
+    user_id: str,
+    company_id: str,
+    chat_id: str,
+    assistant_id: str,
+    role: ChatMessageRole,
+    content: str | None = None,
+    original_content: str | None = None,
+    references: list[ContentReference] | None = None,
+    debug_info: dict | None = None,
+    set_completed_at: bool | None = False,
+):
+    """
+    Creates a message in the chat session synchronously.
+
+    Args:
+        user_id (str): The user ID.
+        company_id (str): The company ID.
+        chat_id (str): The chat ID.
+        assistant_id (str): The assistant ID.
+        role (ChatMessageRole): The role of the message.
+        content (str, optional): The content for the message. Defaults to None.
+        original_content (str, optional): The original content for the message. Defaults to None.
+        references (list[ContentReference], optional): list of ContentReference objects. Defaults to None.
+        debug_info (dict[str, Any]], optional): Debug information. Defaults to None.
+        set_completed_at (Optional[bool]): Whether to set the completedAt field with the current date time. Defaults to False.
+
+    Returns:
+        ChatMessage: The created message.
+
+    Raises:
+        Exception: If the creation fails.
+    """
+    if original_content is None:
+        original_content = content
+
+    try:
+        params = _construct_message_create_params(
+            user_id=user_id,
+            company_id=company_id,
+            chat_id=chat_id,
+            assistant_id=assistant_id,
+            role=role,
+            content=content,
+            original_content=original_content,
+            references=references,
+            debug_info=debug_info,
+            set_completed_at=set_completed_at,
+        )
+
+        message = await unique_sdk.Message.create_async(**params)
+        return ChatMessage(**message)
+    except Exception as e:
+        logger.error(f"Failed to create assistant message: {e}")
+        raise e
+
+
+def _construct_message_create_params(
+    user_id: str,
+    company_id: str,
+    chat_id: str,
+    assistant_id: str,
+    role: ChatMessageRole,
+    content: str | None = None,
+    original_content: str | None = None,
+    references: list[ContentReference] | None = None,
+    debug_info: dict | None = None,
+    set_completed_at: bool | None = False,
+) -> Dict[str, Any]:
+    if original_content is None:
+        original_content = content
+
+    return {
+        "user_id": user_id,
+        "company_id": company_id,
+        "assistantId": assistant_id,
         "role": role.value.upper(),
-        "chatId": event_payload_chat_id,
+        "chatId": chat_id,
         "text": content,
         "originalText": original_content,
         "references": map_references(references) if references else [],
         "debugInfo": debug_info,
         "completedAt": _time_utils.get_datetime_now() if set_completed_at else None,
     }
-    return params
 
 
 def get_selection_from_history(
     full_history: list[ChatMessage],
     max_tokens: int,
-    max_messages=4,
+    max_messages=DEFAULT_MAX_MESSAGES,
 ) -> List[ChatMessage]:
     messages = full_history[-max_messages:]
     filtered_messages = [m for m in messages if m.content]
@@ -162,7 +395,7 @@ def pick_messages_in_reverse_for_token_window(
     return messages[last_index:]
 
 
-def trigger_list_messages(
+def list_messages(
     event_user_id, event_company_id, chat_id: str
 ) -> ListObject[unique_sdk.Message]:
     try:
@@ -177,7 +410,7 @@ def trigger_list_messages(
         raise e
 
 
-async def trigger_list_messages_async(
+async def list_messages_async(
     event_user_id: str, event_company_id: str, chat_id: str
 ) -> ListObject[unique_sdk.Message]:
     try:
@@ -195,9 +428,7 @@ async def trigger_list_messages_async(
 def get_full_history(
     event_user_id, event_company_id, event_payload_chat_id
 ) -> List[ChatMessage]:
-    messages = trigger_list_messages(
-        event_user_id, event_company_id, event_payload_chat_id
-    )
+    messages = list_messages(event_user_id, event_company_id, event_payload_chat_id)
     messages = filter_valid_messages(messages)
 
     return map_to_chat_messages(messages)
@@ -206,7 +437,7 @@ def get_full_history(
 async def get_full_history_async(
     event_user_id, event_company_id, event_payload_chat_id
 ) -> List[ChatMessage]:
-    messages = await trigger_list_messages_async(
+    messages = await list_messages_async(
         event_user_id, event_company_id, event_payload_chat_id
     )
     messages = filter_valid_messages(messages)

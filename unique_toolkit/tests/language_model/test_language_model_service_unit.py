@@ -3,6 +3,7 @@ from unittest.mock import patch
 import pytest
 
 from unique_toolkit.app.schemas import (
+    BaseEvent,
     ChatEvent,
     ChatEventAssistantMessage,
     ChatEventPayload,
@@ -62,6 +63,52 @@ class TestLanguageModelServiceUnit:
         assert service.user_message_id == self.chat_event.payload.user_message.id
         assert service.chat_id == "test_chat"
         assert service.assistant_id == "test_assistant"
+
+    def test_init_with_direct_params(self):
+        """Test initialization with direct parameters"""
+        service = LanguageModelService(
+            company_id="direct_company",
+            user_id="direct_user",
+            assistant_message_id="direct_assistant_msg",
+            chat_id="direct_chat",
+            assistant_id="direct_assistant",
+            user_message_id="direct_user_msg",
+        )
+
+        assert service.company_id == "direct_company"
+        assert service.user_id == "direct_user"
+        assert service.assistant_message_id == "direct_assistant_msg"
+        assert service.user_message_id == "direct_user_msg"
+        assert service.chat_id == "direct_chat"
+        assert service.assistant_id == "direct_assistant"
+
+    def test_init_with_base_event(self):
+        """Test initialization with BaseEvent"""
+        base_event = BaseEvent(
+            id="test-id",
+            company_id="base_company",
+            user_id="base_user",
+            event=EventName.EXTERNAL_MODULE_CHOSEN,
+        )
+        service = LanguageModelService(base_event)
+
+        assert service.company_id == "base_company"
+        assert service.user_id == "base_user"
+        assert service.assistant_message_id is None
+        assert service.user_message_id is None
+        assert service.chat_id is None
+        assert service.assistant_id is None
+
+    def test_init_with_no_params(self):
+        """Test initialization with no parameters"""
+        service = LanguageModelService()
+
+        assert service.company_id is None
+        assert service.user_id is None
+        assert service.assistant_message_id is None
+        assert service.user_message_id is None
+        assert service.chat_id is None
+        assert service.assistant_id is None
 
     @patch("unique_toolkit.language_model.service.complete")
     def test_complete(self, mock_complete):

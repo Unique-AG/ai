@@ -10,8 +10,8 @@ from unique_toolkit.language_model.functions import (
     _to_search_context,
     complete,
     complete_async,
-    stream_complete,
-    stream_complete_async,
+    stream_complete_to_chat,
+    stream_complete_to_chat_async,
 )
 from unique_toolkit.language_model.infos import LanguageModelName
 from unique_toolkit.language_model.schemas import (
@@ -180,7 +180,7 @@ def test_stream_complete_basic(mock_stream):
     }
 
     messages = LanguageModelMessages([])
-    result = stream_complete(
+    result = stream_complete_to_chat(
         company_id="test_company",
         user_id="test_user",
         assistant_message_id="test_assistant_msg",
@@ -209,7 +209,7 @@ async def test_stream_complete_async_basic(mock_stream):
     }
 
     messages = LanguageModelMessages([])
-    result = await stream_complete_async(
+    result = await stream_complete_to_chat_async(
         company_id="test_company",
         user_id="test_user",
         assistant_message_id="test_assistant_msg",

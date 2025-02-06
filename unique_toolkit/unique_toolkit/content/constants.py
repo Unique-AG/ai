@@ -1,1 +1,2 @@
 DOMAIN_NAME = "content"
+DEFAULT_SEARCH_LANGUAGE = "english"

@@ -134,7 +134,7 @@ async def complete_async(
         raise e
 
 
-def stream_complete(
+def stream_complete_to_chat(
     company_id: str,
     user_id: str,
     assistant_message_id: str,
@@ -208,7 +208,7 @@ def stream_complete(
         raise e
 
 
-async def stream_complete_async(
+async def stream_complete_to_chat_async(
     company_id: str,
     user_id: str,
     assistant_message_id: str,

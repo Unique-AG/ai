@@ -1,21 +1,23 @@
 import logging
 from typing import Optional
 
-import unique_sdk
-
 from unique_toolkit.app.schemas import ChatEvent, Event
+from unique_toolkit.chat.constants import (
+    DEFAULT_MAX_MESSAGES,
+    DEFAULT_PERCENT_OF_MAX_TOKENS,
+    DOMAIN_NAME,
+)
 from unique_toolkit.chat.functions import (
-    construct_message_create_params,
-    construct_message_modify_params,
+    create_message,
+    create_message_async,
     get_full_history,
     get_full_history_async,
     get_selection_from_history,
+    modify_message,
+    modify_message_async,
 )
-from unique_toolkit.chat.schemas import ChatMessage
+from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
 from unique_toolkit.content.schemas import ContentReference
-
-DOMAIN_NAME = "chat"
-
 
 logger = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
 
@@ -25,21 +27,19 @@ class ChatService:
     Provides all functionalities to manage the chat session.
 
     Attributes:
-        event (Event): The Event object.
+        event (Event | ChatEvent): The Event object.
         logger (Optional[logging.Logger]): The logger. Defaults to None.
     """
 
     def __init__(self, event: ChatEvent | Event):
+        self.event = event
         self.company_id = event.company_id
         self.user_id = event.user_id
         self.assistant_message_id = event.payload.assistant_message.id
         self.user_message_id = event.payload.user_message.id
         self.chat_id = event.payload.chat_id
         self.assistant_id = event.payload.assistant_id
-        self.user_message_text = (event.payload.user_message.text,)
-
-    DEFAULT_PERCENT_OF_MAX_TOKENS = 0.15
-    DEFAULT_MAX_MESSAGES = 4
+        self.user_message_text = event.payload.user_message.text
 
     async def update_debug_info_async(self, debug_info: dict):
         """
@@ -48,21 +48,17 @@ class ChatService:
         Args:
             debug_info (dict): The new debug information.
         """
-        params = construct_message_modify_params(
-            event_user_id=self.user_id,
-            event_company_id=self.company_id,
-            event_payload_assistant_message_id=self.assistant_message_id,
-            event_payload_chat_id=self.chat_id,
-            event_payload_user_message_id=self.user_message_id,
-            event_payload_user_message_text=self.user_message_text,
+
+        return await modify_message_async(
+            user_id=self.user_id,
+            company_id=self.company_id,
+            assistant_message_id=self.assistant_message_id,
+            chat_id=self.chat_id,
+            user_message_id=self.user_message_id,
+            user_message_text=self.user_message_text,
             assistant=False,
             debug_info=debug_info,
         )
-        try:
-            await unique_sdk.Message.modify_async(**params)
-        except Exception as e:
-            logger.error(f"Failed to update debug info: {e}")
-            raise e
 
     def update_debug_info(self, debug_info: dict):
         """
@@ -71,32 +67,28 @@ class ChatService:
         Args:
             debug_info (dict): The new debug information.
         """
-        params = construct_message_modify_params(
-            event_user_id=self.user_id,
-            event_company_id=self.company_id,
-            event_payload_assistant_message_id=self.assistant_message_id,
-            event_payload_chat_id=self.chat_id,
-            event_payload_user_message_id=self.user_message_id,
-            event_payload_user_message_text=self.user_message_text,
+
+        return modify_message(
+            user_id=self.user_id,
+            company_id=self.company_id,
+            assistant_message_id=self.assistant_message_id,
+            chat_id=self.chat_id,
+            user_message_id=self.user_message_id,
+            user_message_text=self.user_message_text,
             assistant=False,
             debug_info=debug_info,
         )
-        try:
-            unique_sdk.Message.modify(**params)
-        except Exception as e:
-            logger.error(f"Failed to update debug info: {e}")
-            raise e
 
     def modify_user_message(
         self,
         content: str,
-        references: Optional[list[ContentReference]] = None,
-        debug_info: Optional[dict] = None,
-        message_id: Optional[str] = None,
-        set_completed_at: Optional[bool] = False,
+        references: list[ContentReference] = [],
+        debug_info: dict = {},
+        message_id: str | None = None,
+        set_completed_at: bool | None = False,
     ) -> ChatMessage:
         """
-        Modifies a message in the chat session synchronously.
+        Modifies a user message in the chat session synchronously.
 
         Args:
             content (str): The new content for the message.
@@ -111,34 +103,28 @@ class ChatService:
         Raises:
             Exception: If the modification fails.
         """
-        try:
-            params = construct_message_modify_params(
-                event_user_id=self.user_id,
-                event_company_id=self.company_id,
-                event_payload_assistant_message_id=self.assistant_message_id,
-                event_payload_chat_id=self.chat_id,
-                event_payload_user_message_id=self.user_message_id,
-                event_payload_user_message_text=self.user_message_text,
-                assistant=False,
-                content=content,
-                references=references,
-                debug_info=debug_info,
-                message_id=message_id,
-                set_completed_at=set_completed_at,
-            )
-            message = unique_sdk.Message.modify(**params)
-        except Exception as e:
-            logger.error(f"Failed to modify user message: {e}")
-            raise e
-        return ChatMessage(**message)
+        return modify_message(
+            user_id=self.user_id,
+            company_id=self.company_id,
+            assistant_message_id=self.assistant_message_id,
+            chat_id=self.chat_id,
+            user_message_id=self.user_message_id,
+            user_message_text=self.user_message_text,
+            assistant=False,
+            content=content,
+            references=references,
+            debug_info=debug_info,
+            message_id=message_id,
+            set_completed_at=set_completed_at or False,
+        )
 
     async def modify_user_message_async(
         self,
         content: str,
         references: list[ContentReference] = [],
         debug_info: dict = {},
-        message_id: Optional[str] = None,
-        set_completed_at: Optional[bool] = False,
+        message_id: str | None = None,
+        set_completed_at: bool | None = False,
     ) -> ChatMessage:
         """
         Modifies a message in the chat session asynchronously.
@@ -147,8 +133,8 @@ class ChatService:
             content (str): The new content for the message.
             message_id (str, optional): The message ID. Defaults to None, then the ChatState user message id is used.
             references (list[ContentReference]): list of ContentReference objects. Defaults to None.
-            debug_info (Optional[dict[str, Any]]], optional): Debug information. Defaults to None.
-            set_completed_at (Optional[bool]): Whether to set the completedAt field with the current date time. Defaults to False.
+            debug_info (dict[str, Any]]]): Debug information. Defaults to {}.
+            set_completed_at (bool, optional): Whether to set the completedAt field with the current date time. Defaults to False.
 
         Returns:
             ChatMessage: The modified message.
@@ -156,26 +142,20 @@ class ChatService:
         Raises:
             Exception: If the modification fails.
         """
-        try:
-            params = construct_message_modify_params(
-                event_user_id=self.user_id,
-                event_company_id=self.company_id,
-                event_payload_assistant_message_id=self.assistant_message_id,
-                event_payload_chat_id=self.chat_id,
-                event_payload_user_message_id=self.user_message_id,
-                event_payload_user_message_text=self.user_message_text,
-                assistant=False,
-                content=content,
-                references=references,
-                debug_info=debug_info,
-                message_id=message_id,
-                set_completed_at=set_completed_at,
-            )
-            message = await unique_sdk.Message.modify_async(**params)
-        except Exception as e:
-            logger.error(f"Failed to modify user message: {e}")
-            raise e
-        return ChatMessage(**message)
+        return await modify_message_async(
+            user_id=self.user_id,
+            company_id=self.company_id,
+            assistant_message_id=self.assistant_message_id,
+            chat_id=self.chat_id,
+            user_message_id=self.user_message_id,
+            user_message_text=self.user_message_text,
+            assistant=False,
+            content=content,
+            references=references,
+            debug_info=debug_info,
+            message_id=message_id,
+            set_completed_at=set_completed_at or False,
+        )
 
     def modify_assistant_message(
         self,
@@ -183,8 +163,8 @@ class ChatService:
         original_content: str | None = None,
         references: list[ContentReference] = [],
         debug_info: dict = {},
-        message_id: Optional[str] = None,
-        set_completed_at: Optional[bool] = False,
+        message_id: str | None = None,
+        set_completed_at: bool | None = False,
     ) -> ChatMessage:
         """
         Modifies a message in the chat session synchronously.
@@ -203,27 +183,21 @@ class ChatService:
         Raises:
             Exception: If the modification fails.
         """
-        try:
-            params = construct_message_modify_params(
-                event_user_id=self.user_id,
-                event_company_id=self.company_id,
-                event_payload_assistant_message_id=self.assistant_message_id,
-                event_payload_chat_id=self.chat_id,
-                event_payload_user_message_id=self.user_message_id,
-                event_payload_user_message_text=self.user_message_text,
-                assistant=True,
-                content=content,
-                original_content=original_content,
-                references=references,
-                debug_info=debug_info,
-                message_id=message_id,
-                set_completed_at=set_completed_at,
-            )
-            message = unique_sdk.Message.modify(**params)
-        except Exception as e:
-            logger.error(f"Failed to modify assistant message: {e}")
-            raise e
-        return ChatMessage(**message)
+        return modify_message(
+            user_id=self.user_id,
+            company_id=self.company_id,
+            assistant_message_id=self.assistant_message_id,
+            chat_id=self.chat_id,
+            user_message_id=self.user_message_id,
+            user_message_text=self.user_message_text,
+            assistant=True,
+            content=content,
+            original_content=original_content,
+            references=references,
+            debug_info=debug_info,
+            message_id=message_id,
+            set_completed_at=set_completed_at or False,
+        )
 
     async def modify_assistant_message_async(
         self,
@@ -231,8 +205,8 @@ class ChatService:
         original_content: str | None = None,
         references: list[ContentReference] = [],
         debug_info: dict = {},
-        message_id: Optional[str] = None,
-        set_completed_at: Optional[bool] = False,
+        message_id: str | None = None,
+        set_completed_at: bool | None = False,
     ) -> ChatMessage:
         """
         Modifies a message in the chat session asynchronously.
@@ -242,8 +216,8 @@ class ChatService:
             original_content (str, optional): The original content for the message.
             message_id (str, optional): The message ID. Defaults to None, then the ChatState assistant message id is used.
             references (list[ContentReference]): list of ContentReference objects. Defaults to None.
-            debug_info (Optional[dict[str, Any]]], optional): Debug information. Defaults to None.
-            set_completed_at (Optional[bool]): Whether to set the completedAt field with the current date time. Defaults to False.
+            debug_info (dict[str, Any]], optional): Debug information. Defaults to None.
+            set_completed_at (bool, optional): Whether to set the completedAt field with the current date time. Defaults to False.
 
         Returns:
             ChatMessage: The modified message.
@@ -251,27 +225,22 @@ class ChatService:
         Raises:
             Exception: If the modification fails.
         """
-        try:
-            params = construct_message_modify_params(
-                event_user_id=self.user_id,
-                event_company_id=self.company_id,
-                event_payload_assistant_message_id=self.assistant_message_id,
-                event_payload_chat_id=self.chat_id,
-                event_payload_user_message_id=self.user_message_id,
-                event_payload_user_message_text=self.user_message_text,
-                assistant=True,
-                content=content,
-                original_content=original_content,
-                references=references,
-                debug_info=debug_info,
-                message_id=message_id,
-                set_completed_at=set_completed_at,
-            )
-            message = await unique_sdk.Message.modify_async(**params)
-        except Exception as e:
-            logger.error(f"Failed to modify assistant message: {e}")
-            raise e
-        return ChatMessage(**message)
+
+        return await modify_message_async(
+            user_id=self.user_id,
+            company_id=self.company_id,
+            assistant_message_id=self.assistant_message_id,
+            chat_id=self.chat_id,
+            user_message_id=self.user_message_id,
+            user_message_text=self.user_message_text,
+            assistant=True,
+            content=content,
+            original_content=original_content,
+            references=references,
+            debug_info=debug_info,
+            message_id=message_id,
+            set_completed_at=set_completed_at or False,
+        )
 
     def get_full_history(self) -> list[ChatMessage]:
         """
@@ -395,27 +364,18 @@ class ChatService:
         Raises:
             Exception: If the creation fails.
         """
-        if original_content is None:
-            original_content = content
-
-        try:
-            params = construct_message_create_params(
-                event_user_id=self.user_id,
-                event_company_id=self.company_id,
-                event_payload_chat_id=self.chat_id,
-                event_payload_assistant_id=self.assistant_id,
-                content=content,
-                original_content=original_content,
-                references=references,
-                debug_info=debug_info,
-                set_completed_at=set_completed_at,
-            )
-
-            message = unique_sdk.Message.create(**params)
-        except Exception as e:
-            logger.error(f"Failed to create assistant message: {e}")
-            raise e
-        return ChatMessage(**message)
+        return create_message(
+            user_id=self.user_id,
+            company_id=self.company_id,
+            chat_id=self.chat_id,
+            assistant_id=self.assistant_id,
+            role=ChatMessageRole.ASSISTANT,
+            content=content,
+            original_content=original_content,
+            references=references,
+            debug_info=debug_info,
+            set_completed_at=set_completed_at,
+        )
 
     async def create_assistant_message_async(
         self,
@@ -441,24 +401,16 @@ class ChatService:
         Raises:
             Exception: If the creation fails.
         """
-        if original_content is None:
-            original_content = content
 
-        try:
-            params = construct_message_create_params(
-                event_user_id=self.user_id,
-                event_company_id=self.company_id,
-                event_payload_chat_id=self.chat_id,
-                event_payload_assistant_id=self.assistant_id,
-                content=content,
-                original_content=original_content,
-                references=references,
-                debug_info=debug_info,
-                set_completed_at=set_completed_at,
-            )
-
-            message = await unique_sdk.Message.create_async(**params)
-        except Exception as e:
-            logger.error(f"Failed to create assistant message: {e}")
-            raise e
-        return ChatMessage(**message)
+        return await create_message_async(
+            user_id=self.user_id,
+            company_id=self.company_id,
+            chat_id=self.chat_id,
+            assistant_id=self.assistant_id,
+            role=ChatMessageRole.ASSISTANT,
+            content=content,
+            original_content=original_content,
+            references=references,
+            debug_info=debug_info,
+            set_completed_at=set_completed_at,
+        )

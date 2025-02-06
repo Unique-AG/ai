@@ -1,6 +1,7 @@
 import re
 
 import tiktoken
+import unique_sdk
 
 from unique_toolkit.content.schemas import (
     Content,
@@ -213,3 +214,7 @@ def map_content(content: dict):
 
 def map_contents(contents):
     return [map_content(content) for content in contents]
+
+
+def map_to_content_chunks(searches: list[unique_sdk.Search]):
+    return [ContentChunk(**search) for search in searches]
