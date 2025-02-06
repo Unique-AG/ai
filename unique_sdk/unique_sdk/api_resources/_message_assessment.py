@@ -35,7 +35,7 @@ class MessageAssessment(APIResource["MessageAssessment"]):
         **params: Unpack["MessageAssessment.CreateParams"],
     ) -> "MessageAssessment":
         return cls._static_request(
-            "post", "/message-assessment", user_id, company_id, params=params
+            "post", cls.RESOURCE_URL, user_id, company_id, params=params
         )
 
     @classmethod
@@ -46,7 +46,7 @@ class MessageAssessment(APIResource["MessageAssessment"]):
         **params: Unpack["MessageAssessment.CreateParams"],
     ) -> "MessageAssessment":
         return await cls._static_request_async(
-            "post", "/message-assessment", user_id, company_id, params=params
+            "post", cls.RESOURCE_URL, user_id, company_id, params=params
         )
 
     @classmethod
