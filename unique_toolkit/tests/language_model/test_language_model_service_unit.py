@@ -131,7 +131,7 @@ class TestLanguageModelServiceUnit:
             structured_output_model=None,
         )
 
-    @patch("unique_toolkit.language_model.service.stream_complete")
+    @patch("unique_toolkit.language_model.service.stream_complete_to_chat")
     def test_stream_complete(self, mock_stream_complete):
         """Test stream_complete method delegates correctly to function"""
         mock_stream_complete.return_value = LanguageModelStreamResponse(
@@ -148,7 +148,7 @@ class TestLanguageModelServiceUnit:
             ContentChunk(id="1", chunk_id="1", key="test", order=1, text="test")
         ]
 
-        self.service.stream_complete(
+        self.service.stream_complete_to_chat(
             messages=messages, model_name=model_name, content_chunks=content_chunks
         )
 
@@ -193,7 +193,7 @@ class TestLanguageModelServiceUnit:
         )
 
     @pytest.mark.asyncio
-    @patch("unique_toolkit.language_model.service.stream_complete_async")
+    @patch("unique_toolkit.language_model.service.stream_complete_to_chat_async")
     async def test_stream_complete_async(self, mock_stream_complete_async):
         """Test stream_complete_async method delegates correctly to function"""
         mock_stream_complete_async.return_value = LanguageModelStreamResponse(
@@ -210,7 +210,7 @@ class TestLanguageModelServiceUnit:
             ContentChunk(id="1", chunk_id="1", key="test", order=1, text="test")
         ]
 
-        await self.service.stream_complete_async(
+        await self.service.stream_complete_to_chat_async(
             messages=messages, model_name=model_name, content_chunks=content_chunks
         )
 
