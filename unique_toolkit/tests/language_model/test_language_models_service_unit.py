@@ -7,6 +7,10 @@ from pydantic import BaseModel
 
 from tests.test_obj_factory import get_event_obj
 from unique_toolkit.content.schemas import ContentChunk
+from unique_toolkit.language_model.functions import (
+    _add_response_format_to_options,
+    _prepare_completion_params_util,
+)
 from unique_toolkit.language_model.infos import LanguageModelName
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessage,
@@ -507,12 +511,10 @@ class TestLanguageModelServiceUnit:
         model_name = LanguageModelName.AZURE_GPT_4_TURBO_1106
         temperature = 0.5
 
-        options, model, messages_dict, search_context = (
-            self.service._prepare_completion_params_util(
-                messages=messages,
-                model_name=model_name,
-                temperature=temperature,
-            )
+        options, model, messages_dict, search_context = _prepare_completion_params_util(
+            messages=messages,
+            model_name=model_name,
+            temperature=temperature,
         )
 
         assert options == {"temperature": 0.5}
@@ -524,14 +526,12 @@ class TestLanguageModelServiceUnit:
         messages = LanguageModelMessages([])
         other_options = {"max_tokens": 100, "top_p": 0.9}
 
-        options, model, messages_dict, search_context = (
-            self.service._prepare_completion_params_util(
-                messages=messages,
-                model_name="custom_model",
-                temperature=0.7,
-                tools=[mock_tool],
-                other_options=other_options,
-            )
+        options, model, messages_dict, search_context = _prepare_completion_params_util(
+            messages=messages,
+            model_name="custom_model",
+            temperature=0.7,
+            tools=[mock_tool],
+            other_options=other_options,
         )
 
         expected_options = {
@@ -710,7 +710,7 @@ class TestLanguageModelServiceUnit:
 
     def test_add_output_schema_from_pydantic_enforce_schema(self):
         options = {}
-        options = LanguageModelService._add_response_format_to_options(
+        options = _add_response_format_to_options(
             options, PydanticModel, structured_output_enforce_schema=True
         )
         assert options["responseFormat"] == {
@@ -724,7 +724,7 @@ class TestLanguageModelServiceUnit:
 
     def test_add_output_schema_from_pydantic_no_enforce_schema(self):
         options = {}
-        options = LanguageModelService._add_response_format_to_options(
+        options = _add_response_format_to_options(
             options, PydanticModel, structured_output_enforce_schema=False
         )
         assert options["responseFormat"] == {

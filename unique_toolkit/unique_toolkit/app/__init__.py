@@ -6,6 +6,24 @@ from .performance.async_tasks import (
 )
 from .performance.async_wrapper import to_async as to_async
 from .schemas import (
+    BaseEvent as BaseEvent,
+)
+from .schemas import (
+    ChatEvent as ChatEvent,
+)
+from .schemas import (
+    ChatEventAdditionalParameters as ChatEventAdditionalParameters,
+)
+from .schemas import (
+    ChatEventAssistantMessage as ChatEventAssistantMessage,
+)
+from .schemas import (
+    ChatEventPayload as ChatEventPayload,
+)
+from .schemas import (
+    ChatEventUserMessage as ChatEventUserMessage,
+)
+from .schemas import (
     Event as Event,
 )
 from .schemas import (
@@ -23,3 +41,5 @@ from .schemas import (
 from .verification import (
     verify_signature_and_construct_event as verify_signature_and_construct_event,
 )
+
+DOMAIN_NAME = "app"

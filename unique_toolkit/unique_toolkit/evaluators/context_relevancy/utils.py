@@ -79,7 +79,9 @@ async def check_context_relevancy_async(
     try:
         msgs = _get_msgs(input, config)
         result = await LanguageModelService.complete_async_util(
-            company_id=company_id, messages=msgs, model_name=model_name
+            company_id=company_id,
+            messages=msgs,
+            model_name=model_name,
         )
         result_content = result.choices[0].message.content
         if not result_content:
@@ -89,7 +91,8 @@ async def check_context_relevancy_async(
                 user_message=error_message,
             )
         return parse_eval_metric_result(
-            result_content, EvaluationMetricName.CONTEXT_RELEVANCY
+            result_content,  # type: ignore
+            EvaluationMetricName.CONTEXT_RELEVANCY,
         )
     except Exception as e:
         error_message = "Error occurred during context relevancy metric analysis"

@@ -241,6 +241,8 @@ def test_language_model_function_call_creation(valid_tool_calls):
         ],
     )
     assert assistant_message.role == expected_message.role
+
+    assert assistant_message.tool_calls is not None
     assert expected_message.tool_calls is not None
     assert isinstance(expected_message.tool_calls[0].id, str)
     assert assistant_message.tool_calls[0].type == expected_message.tool_calls[0].type
