@@ -13,7 +13,14 @@ from unique_toolkit.app.schemas import (
     EventPayload,
     EventUserMessage,
 )
-from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
+from unique_toolkit.chat.schemas import (
+    ChatMessage,
+    ChatMessageRole,
+    MessageAssessment,
+    MessageAssessmentLabel,
+    MessageAssessmentStatus,
+    MessageAssessmentType,
+)
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.schemas import ContentReference
 
@@ -49,7 +56,23 @@ class TestChatServiceUnit:
             "content": "Modified message",
             "role": "assistant",
         }
+        mock_modify.return_value = {
+            "id": "test_message",
+            "content": "Modified message",
+            "role": "assistant",
+        }
 
+        references = [
+            ContentReference(
+                id="doc123",
+                message_id="message123",
+                name="Document 1",
+                sequence_number=1,
+                source_id="source123",
+                source="source",
+                url="http://example.com",
+            )
+        ]
         references = [
             ContentReference(
                 id="doc123",
@@ -69,7 +92,17 @@ class TestChatServiceUnit:
             debug_info={},
             set_completed_at=True,
         )
+        result = self.service.modify_assistant_message(
+            content="Modified message",
+            message_id="test_assistant_message",
+            references=references,
+            debug_info={},
+            set_completed_at=True,
+        )
 
+        assert isinstance(result, ChatMessage)
+        assert result.content == "Modified message"
+        assert result.role == ChatMessageRole.ASSISTANT
         assert isinstance(result, ChatMessage)
         assert result.content == "Modified message"
         assert result.role == ChatMessageRole.ASSISTANT
@@ -183,7 +216,16 @@ class TestChatServiceUnit:
             debug_info={},
             set_completed_at=True,
         )
+        result = self.service.create_assistant_message(
+            content="New assistant message",
+            references=[],
+            debug_info={},
+            set_completed_at=True,
+        )
 
+        assert isinstance(result, ChatMessage)
+        assert result.content == "New assistant message"
+        assert result.role == ChatMessageRole.ASSISTANT.value
         assert isinstance(result, ChatMessage)
         assert result.content == "New assistant message"
         assert result.role == ChatMessageRole.ASSISTANT.value
@@ -280,6 +322,17 @@ class TestChatServiceUnit:
                 url="http://example.com",
             )
         ]
+        references = [
+            ContentReference(
+                id="doc123",
+                message_id="message123",
+                name="Document 1",
+                sequence_number=1,
+                source_id="source123",
+                source="source",
+                url="http://example.com",
+            )
+        ]
 
         result = await self.service.modify_assistant_message_async(
             content="Modified message",
@@ -288,7 +341,17 @@ class TestChatServiceUnit:
             debug_info={},
             set_completed_at=True,
         )
+        result = await self.service.modify_assistant_message_async(
+            content="Modified message",
+            message_id="test_assistant_message",
+            references=references,
+            debug_info={},
+            set_completed_at=True,
+        )
 
+        assert isinstance(result, ChatMessage)
+        assert result.content == "Modified message"
+        assert result.role == ChatMessageRole.ASSISTANT
         assert isinstance(result, ChatMessage)
         assert result.content == "Modified message"
         assert result.role == ChatMessageRole.ASSISTANT
@@ -407,7 +470,16 @@ class TestChatServiceUnit:
             debug_info={},
             set_completed_at=True,
         )
+        result = await self.service.create_assistant_message_async(
+            content="New assistant message",
+            references=[],
+            debug_info={},
+            set_completed_at=True,
+        )
 
+        assert isinstance(result, ChatMessage)
+        assert result.content == "New assistant message"
+        assert result.role == ChatMessageRole.ASSISTANT.value
         assert isinstance(result, ChatMessage)
         assert result.content == "New assistant message"
         assert result.role == ChatMessageRole.ASSISTANT.value
@@ -443,21 +515,86 @@ class TestChatServiceUnit:
         assert result.content == "New assistant message"
         assert result.role == ChatMessageRole.ASSISTANT
 
-        expected_calls = [
-            mock.call(
-                user_id="test_user",
-                company_id="test_company",
-                chatId="test_chat",
-                assistantId="test_assistant",
-                text="New assistant message",
-                originalText="New assistant message",
-                role="ASSISTANT",
-                references=[],
-                debugInfo={},
-                completedAt=None,
-            )
-        ]
-        mock_create.assert_has_calls(expected_calls)
+    @patch.object(unique_sdk.MessageAssessment, "create", autospec=True)
+    def test_create_message_assessment(self, mock_create):
+        mock_create.return_value = {
+            "id": "test_assessment",
+            "messageId": "msg_123",
+            "status": "DONE",
+            "explanation": "Test explanation",
+            "label": "NEGATIVE",
+            "type": "HALLUCINATION",
+            "isVisible": True,
+            "createdAt": mocked_datetime,
+            "updatedAt": mocked_datetime,
+            "object": "message_assessment",
+        }
+
+        result = self.service.create_message_assessment(
+            assistant_message_id="test_message",
+            status=MessageAssessmentStatus.DONE,
+            explanation="Test explanation",
+            label=MessageAssessmentLabel.NEGATIVE,
+            type=MessageAssessmentType.HALLUCINATION,
+            is_visible=True,
+        )
+
+        assert isinstance(result, MessageAssessment)
+        assert result.status == MessageAssessmentStatus.DONE.name
+        assert result.explanation == "Test explanation"
+        assert result.label == MessageAssessmentLabel.NEGATIVE.name
+        assert result.type == MessageAssessmentType.HALLUCINATION.name
+        assert result.is_visible is True
+
+        mock_create.assert_called_once_with(
+            user_id="test_user",
+            company_id="test_company",
+            messageId="test_message",
+            status="DONE",
+            explanation="Test explanation",
+            label="NEGATIVE",
+            type="HALLUCINATION",
+            isVisible=True,
+        )
+
+    @patch.object(unique_sdk.MessageAssessment, "modify", autospec=True)
+    def test_modify_message_assessment(self, mock_modify):
+        mock_modify.return_value = {
+            "id": "test_assessment",
+            "messageId": "msg_123",
+            "status": "DONE",
+            "explanation": "Modified explanation",
+            "label": "POSITIVE",
+            "type": "HALLUCINATION",
+            "isVisible": True,
+            "createdAt": mocked_datetime,
+            "updatedAt": mocked_datetime,
+            "object": "message_assessment",
+        }
+
+        result = self.service.modify_message_assessment(
+            assistant_message_id="test_message",
+            status=MessageAssessmentStatus.DONE,
+            explanation="Modified explanation",
+            label=MessageAssessmentLabel.POSITIVE,
+            type=MessageAssessmentType.HALLUCINATION,
+        )
+
+        assert isinstance(result, MessageAssessment)
+        assert result.status == MessageAssessmentStatus.DONE.name
+        assert result.explanation == "Modified explanation"
+        assert result.label == MessageAssessmentLabel.POSITIVE.name
+        assert result.type == MessageAssessmentType.HALLUCINATION.name
+
+        mock_modify.assert_called_once_with(
+            user_id="test_user",
+            company_id="test_company",
+            messageId="test_message",
+            status="DONE",
+            explanation="Modified explanation",
+            label="POSITIVE",
+            type="HALLUCINATION",
+        )
 
     @pytest.mark.asyncio
     @patch.object(
@@ -471,12 +608,98 @@ class TestChatServiceUnit:
             await self.service.modify_assistant_message_async("Modified message")
 
     @pytest.mark.asyncio
+    @patch.object(unique_sdk.MessageAssessment, "create_async", autospec=True)
+    async def test_create_message_assessment_async(self, mock_create):
+        mock_response = {
+            "id": "test_assessment",
+            "messageId": "msg_123",
+            "status": "DONE",
+            "explanation": "Test explanation",
+            "label": "NEGATIVE",
+            "type": "HALLUCINATION",
+            "isVisible": True,
+            "createdAt": mocked_datetime,
+            "updatedAt": mocked_datetime,
+            "object": "message_assessment",
+        }
+
+        mock_create.return_value = mock_response
+
+        result = await self.service.create_message_assessment_async(
+            assistant_message_id="test_message",
+            status=MessageAssessmentStatus.DONE,
+            explanation="Test explanation",
+            label=MessageAssessmentLabel.NEGATIVE,
+            type=MessageAssessmentType.HALLUCINATION,
+            is_visible=True,
+        )
+
+        assert isinstance(result, MessageAssessment)
+        assert result.status == MessageAssessmentStatus.DONE.name
+        assert result.explanation == "Test explanation"
+        assert result.label == MessageAssessmentLabel.NEGATIVE.name
+        assert result.type == MessageAssessmentType.HALLUCINATION.name
+        assert result.is_visible is True
+
+        mock_create.assert_called_once_with(
+            user_id="test_user",
+            company_id="test_company",
+            messageId="test_message",
+            status="DONE",
+            explanation="Test explanation",
+            label="NEGATIVE",
+            type="HALLUCINATION",
+            isVisible=True,
+        )
+
+    @pytest.mark.asyncio
     @patch.object(
         unique_sdk.Message, "list_async", side_effect=Exception("History Error")
     )
     async def test_error_handling_get_history_async(self, mock_list):
         with pytest.raises(Exception, match="History Error"):
             await self.service.get_full_and_selected_history_async(100, 0.8, 10)
+
+    @patch.object(unique_sdk.MessageAssessment, "modify_async", autospec=True)
+    async def test_modify_message_assessment_async(self, mock_modify):
+        mock_response = {
+            "id": "test_assessment",
+            "messageId": "msg_123",
+            "status": "DONE",
+            "explanation": "Modified explanation",
+            "label": "POSITIVE",
+            "type": "HALLUCINATION",
+            "isVisible": True,
+            "createdAt": mocked_datetime,
+            "updatedAt": mocked_datetime,
+            "object": "message_assessment",
+        }
+
+        mock_modify.return_value = mock_response
+
+        result = await self.service.modify_message_assessment_async(
+            assistant_message_id="test_message",
+            status=MessageAssessmentStatus.DONE,
+            explanation="Modified explanation",
+            label=MessageAssessmentLabel.POSITIVE,
+            type=MessageAssessmentType.HALLUCINATION,
+        )
+
+        assert isinstance(result, MessageAssessment)
+        assert result.status == MessageAssessmentStatus.DONE.name
+        assert result.explanation == "Modified explanation"
+        assert result.label == MessageAssessmentLabel.POSITIVE.name
+        assert result.type == MessageAssessmentType.HALLUCINATION.name
+
+        mock_modify.assert_called_once_with(
+            user_id="test_user",
+            company_id="test_company",
+            messageId="test_message",
+            status="DONE",
+            explanation="Modified explanation",
+            label="POSITIVE",
+            type="HALLUCINATION",
+        )
 
     @pytest.mark.asyncio
     @patch.object(

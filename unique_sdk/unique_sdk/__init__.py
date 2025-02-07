@@ -82,6 +82,9 @@ from unique_sdk.api_resources._short_term_memory import (
 )
 from unique_sdk.api_resources._embedding import Embeddings as Embeddings
 from unique_sdk.api_resources._acronyms import Acronyms as Acronyms
+from unique_sdk.api_resources._message_assessment import (
+    MessageAssessment as MessageAssessment,
+)
 
 # Unique QL
 

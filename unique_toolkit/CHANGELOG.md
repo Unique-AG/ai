@@ -6,8 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [0.6.0] - 2024-12-17
-- remove the `Event` dependency from `LanguageModelService`
-- move SDK calls to `unique_toolkit.language_model.functions`
+- make for each domain, its base functionality accessible from `functions.py`
+- make it possible to instantiate the domain services directly from different event types, inhereted from common `BaseEvent`
+- extend the functionalities in the ShortTermMemoryService by adding the `find_latest_memory` and `create_memory` functions for sync and async usage
+- remove logger dependency from service classes
+- marked deprecated:
+  - `from_chat_event` in ShortTermMemoryService, use `ShortTermMemoryService(event=event)` instead
+  - `complete_async_util` in LanguageModelService, use `functions.complete_async` instead
+  - `stream_complete_async` in LanguageModelService, use `stream_complete_to_chat_async` instead
+  - `stream_complete` in LanguageModelService, use `stream_complete_to_chat` instead
+  - `Event` and nested schemas in `app`, use `ChatEvent` and `ChatEventUserMessage`, `ChatEventAssistantMessage` and `ChatEventToolMessage` instead
+
+## [0.5.53] - 2025-02-01
+- Correct `MessageAssessment` schemas
+
+## [0.5.52] - 2025-02-01
+- Add `MessageAssessment` schemas and functions to `ChatService` to handle message assessments.
+- Fix `LanguageModelService.complete_async_util` to use the correct async method.
 
 ## [0.5.51] - 2025-01-30
 - Add missing structured output arguments in complete_async

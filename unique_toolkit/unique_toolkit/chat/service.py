@@ -9,14 +9,25 @@ from unique_toolkit.chat.constants import (
 )
 from unique_toolkit.chat.functions import (
     create_message,
+    create_message_assessment,
+    create_message_assessment_async,
     create_message_async,
     get_full_history,
     get_full_history_async,
     get_selection_from_history,
     modify_message,
+    modify_message_assessment,
+    modify_message_assessment_async,
     modify_message_async,
 )
-from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
+from unique_toolkit.chat.schemas import (
+    ChatMessage,
+    ChatMessageRole,
+    MessageAssessment,
+    MessageAssessmentLabel,
+    MessageAssessmentStatus,
+    MessageAssessmentType,
+)
 from unique_toolkit.content.schemas import ContentReference
 
 logger = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
@@ -419,4 +430,146 @@ class ChatService:
             references=references,
             debug_info=debug_info,
             set_completed_at=set_completed_at,
+        )
+
+    def create_message_assessment(
+        self,
+        assistant_message_id: str,
+        status: MessageAssessmentStatus,
+        type: MessageAssessmentType,
+        explanation: str | None = None,
+        label: MessageAssessmentLabel | None = None,
+        is_visible: bool = True,
+    ) -> MessageAssessment:
+        """
+        Creates a message assessment for an assistant message synchronously.
+
+        Args:
+            assistant_message_id (str): The ID of the assistant message to assess
+            status (MessageAssessmentStatus): The status of the assessment (e.g. "DONE")
+            type (MessageAssessmentType): The type of assessment (e.g. "HALLUCINATION")
+            explanation (str | None): Explanation of the assessment
+            label (MessageAssessmentLabel | None): The assessment label (e.g. "NEGATIVE")
+            is_visible (bool): Whether the assessment is visible to users. Defaults to True.
+
+        Returns:
+            MessageAssessment: The created message assessment
+
+        Raises:
+            Exception: If the creation fails
+        """
+        return create_message_assessment(
+            user_id=self.user_id,
+            company_id=self.company_id,
+            assistant_message_id=assistant_message_id,
+            status=status,
+            type=type,
+            explanation=explanation,
+            label=label,
+            is_visible=is_visible,
+        )
+
+    async def create_message_assessment_async(
+        self,
+        assistant_message_id: str,
+        status: MessageAssessmentStatus,
+        type: MessageAssessmentType,
+        explanation: str | None = None,
+        label: MessageAssessmentLabel | None = None,
+        is_visible: bool = True,
+    ) -> MessageAssessment:
+        """
+        Creates a message assessment for an assistant message asynchronously.
+
+        Args:
+            assistant_message_id (str): The ID of the assistant message to assess
+            status (MessageAssessmentStatus): The status of the assessment (e.g. "DONE")
+            type (MessageAssessmentType): The type of assessment (e.g. "HALLUCINATION")
+            explanation (str | None): Explanation of the assessment
+            label (MessageAssessmentLabel | None): The assessment label (e.g. "NEGATIVE")
+            is_visible (bool): Whether the assessment is visible to users. Defaults to True.
+
+        Returns:
+            MessageAssessment: The created message assessment
+
+        Raises:
+            Exception: If the creation fails
+        """
+        return await create_message_assessment_async(
+            user_id=self.user_id,
+            company_id=self.company_id,
+            assistant_message_id=assistant_message_id,
+            status=status,
+            type=type,
+            explanation=explanation,
+            label=label,
+            is_visible=is_visible,
+        )
+
+    def modify_message_assessment(
+        self,
+        assistant_message_id: str,
+        status: MessageAssessmentStatus,
+        type: MessageAssessmentType,
+        explanation: str | None = None,
+        label: MessageAssessmentLabel | None = None,
+    ) -> MessageAssessment:
+        """
+        Modifies a message assessment for an assistant message synchronously.
+
+        Args:
+            assistant_message_id (str): The ID of the assistant message to assess
+            status (MessageAssessmentStatus): The status of the assessment (e.g. "DONE")
+            explanation (str | None): Explanation of the assessment
+            label (MessageAssessmentLabel | None): The assessment label (e.g. "NEGATIVE")
+            type (MessageAssessmentType): The type of assessment (e.g. "HALLUCINATION")
+
+        Returns:
+            dict: The modified message assessment
+
+        Raises:
+            Exception: If the modification fails
+        """
+        return modify_message_assessment(
+            user_id=self.user_id,
+            company_id=self.company_id,
+            assistant_message_id=assistant_message_id,
+            status=status,
+            type=type,
+            explanation=explanation,
+            label=label,
+        )
+
+    async def modify_message_assessment_async(
+        self,
+        assistant_message_id: str,
+        type: MessageAssessmentType,
+        status: MessageAssessmentStatus | None = None,
+        explanation: str | None = None,
+        label: MessageAssessmentLabel | None = None,
+    ) -> MessageAssessment:
+        """
+        Modifies a message assessment for an assistant message asynchronously.
+
+        Args:
+            assistant_message_id (str): The ID of the assistant message to assess
+            status (MessageAssessmentStatus): The status of the assessment (e.g. "DONE")
+            explanation (str | None): Explanation of the assessment
+            label (MessageAssessmentLabel | None): The assessment label (e.g. "NEGATIVE")
+            type (MessageAssessmentType): The type of assessment (e.g. "HALLUCINATION")
+
+        Returns:
+            MessageAssessment: The modified message assessment
+
+        Raises:
+            Exception: If the modification fails
+        """
+        return await modify_message_assessment_async(
+            user_id=self.user_id,
+            company_id=self.company_id,
+            assistant_message_id=assistant_message_id,
+            status=status,
+            type=type,
+            explanation=explanation,
+            label=label,
         )
