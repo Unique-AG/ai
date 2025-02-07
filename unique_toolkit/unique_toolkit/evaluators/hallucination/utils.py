@@ -91,7 +91,8 @@ async def check_hallucination_async(
                 user_message=error_message,
             )
         return parse_eval_metric_result(
-            result_content, EvaluationMetricName.HALLUCINATION
+            result_content,  # type: ignore
+            EvaluationMetricName.HALLUCINATION,
         )
     except Exception as e:
         error_message = "Error occurred during hallucination metric analysis"

@@ -33,7 +33,10 @@ class ContentService:
 
     Attributes:
         event (Event | BaseEvent | None): The Event object.
-        logger (Optional[logging.Logger]): The logger. Defaults to None.
+        company_id (str | None): The company ID.
+        user_id (str | None): The user ID.
+        metadata_filter (dict | None): The metadata filter.
+        chat_id (str | None): The chat ID.
     """
 
     def __init__(

@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.6.0] - 2024-12-17
 - remove the `Event` dependency from `LanguageModelService`
 - move SDK calls to `unique_toolkit.language_model.functions`
+
 ## [0.5.51] - 2025-01-30
 - Add missing structured output arguments in complete_async
 

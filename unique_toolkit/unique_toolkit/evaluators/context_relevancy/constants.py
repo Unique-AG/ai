@@ -4,6 +4,7 @@ from unique_toolkit.evaluators.context_relevancy.prompts import (
     CONTEXT_RELEVANCY_METRIC_USER_MSG,
 )
 from unique_toolkit.evaluators.schemas import (
+    EvaluationMetricInputFieldName,
     EvaluationMetricName,
 )
 from unique_toolkit.language_model.infos import LanguageModel
@@ -14,9 +15,8 @@ USER_MSG_KEY = "userPrompt"
 
 # Required input fields for context relevancy evaluation
 context_relevancy_required_input_fields = [
-    "input_text",
-    "output_text",
-    "context_texts",
+    EvaluationMetricInputFieldName.INPUT_TEXT,
+    EvaluationMetricInputFieldName.CONTEXT_TEXTS,
 ]
 
 

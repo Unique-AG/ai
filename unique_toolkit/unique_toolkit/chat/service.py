@@ -28,7 +28,13 @@ class ChatService:
 
     Attributes:
         event (Event | ChatEvent): The Event object.
-        logger (Optional[logging.Logger]): The logger. Defaults to None.
+        company_id (str | None): The company ID.
+        user_id (str | None): The user ID.
+        assistant_message_id (str | None): The assistant message ID.
+        user_message_id (str | None): The user message ID.
+        chat_id (str | None): The chat ID.
+        assistant_id (str | None): The assistant ID.
+        user_message_text (str | None): The user message text.
     """
 
     def __init__(self, event: ChatEvent | Event):

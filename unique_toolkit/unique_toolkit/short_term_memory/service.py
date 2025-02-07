@@ -14,6 +14,17 @@ from .schemas import ShortTermMemory
 
 
 class ShortTermMemoryService:
+    """
+    Provides methods to manage short term memory.
+
+    Attributes:
+        event (Event | BaseEvent | None): The event object.
+        user_id (str | None): The user ID.
+        company_id (str | None): The company ID.
+        chat_id (str | None): The chat ID.
+        message_id (str | None): The message ID.
+    """
+
     def __init__(
         self,
         event: Event | BaseEvent | None = None,

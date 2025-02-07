@@ -12,7 +12,8 @@ class EmbeddingService(BaseService):
 
     Attributes:
         event (Event): The Event object.
-        logger (Optional[logging.Logger]): The logger object. Defaults t∏o None.
+        company_id (str | None): The company ID.
+        user_id (str | None): The user ID.
     """
 
     def __init__(
