@@ -334,7 +334,6 @@ class TestChatServiceUnit:
             chatId="test_chat",
         )
 
-    @pytest.mark.unit
     @pytest.mark.asyncio
     @patch.object(unique_sdk.Message, "create_async", autospec=True)
     async def test_create_assistant_message_async(self, mock_create):
