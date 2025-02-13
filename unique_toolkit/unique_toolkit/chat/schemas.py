@@ -54,7 +54,7 @@ class ChatMessage(BaseModel):
     debug_info: dict | None = {}
     created_at: datetime | None = Field(default=None, alias="createdAt")
     completed_at: datetime | None = Field(default=None, alias="createdAt")
-    updated_at: datetime | None = Field(default=None, alias="createdAt")
+    updated_at: datetime | None = Field(default=None, alias="updatedAt")
 
     # TODO make sdk return role consistently in lowercase
     # Currently needed as sdk returns role in uppercase
