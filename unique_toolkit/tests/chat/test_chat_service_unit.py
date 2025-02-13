@@ -50,6 +50,7 @@ class TestChatServiceUnit:
             "originalText": "originText",
             "createdAt": mocked_datetime,
             "updatedAt": mocked_datetime,
+            "completedAt": mocked_datetime,
         }
 
         references = [
@@ -109,6 +110,7 @@ class TestChatServiceUnit:
                     "originalText": "originText",
                     "createdAt": mocked_datetime,
                     "updatedAt": mocked_datetime,
+                    "completedAt": mocked_datetime,
                 },
                 {
                     "id": "message2",
@@ -118,6 +120,7 @@ class TestChatServiceUnit:
                     "originalText": "originText",
                     "createdAt": mocked_datetime,
                     "updatedAt": mocked_datetime,
+                    "completedAt": mocked_datetime,
                 },
                 {
                     "id": "message3",
@@ -127,6 +130,7 @@ class TestChatServiceUnit:
                     "originalText": "originText",
                     "createdAt": mocked_datetime,
                     "updatedAt": mocked_datetime,
+                    "completedAt": mocked_datetime,
                 },
                 {
                     "id": "message4",
@@ -136,6 +140,7 @@ class TestChatServiceUnit:
                     "originalText": "originText",
                     "createdAt": mocked_datetime,
                     "updatedAt": mocked_datetime,
+                    "completedAt": mocked_datetime,
                 },
             ],
         }
@@ -167,6 +172,7 @@ class TestChatServiceUnit:
             "originalText": "originText",
             "createdAt": mocked_datetime,
             "updatedAt": mocked_datetime,
+            "completedAt": mocked_datetime,
         }
 
         result = self.service.create_assistant_message(
@@ -222,6 +228,7 @@ class TestChatServiceUnit:
             "originalText": "originText",
             "createdAt": mocked_datetime,
             "updatedAt": mocked_datetime,
+            "completedAt": mocked_datetime,
         }
 
         references = [
@@ -282,6 +289,7 @@ class TestChatServiceUnit:
                     "originalText": "originText",
                     "createdAt": mocked_datetime,
                     "updatedAt": mocked_datetime,
+                    "completedAt": mocked_datetime,
                 },
                 {
                     "id": "message2",
@@ -291,6 +299,7 @@ class TestChatServiceUnit:
                     "originalText": "originText",
                     "createdAt": mocked_datetime,
                     "updatedAt": mocked_datetime,
+                    "completedAt": mocked_datetime,
                 },
                 {
                     "id": "message3",
@@ -300,6 +309,7 @@ class TestChatServiceUnit:
                     "originalText": "originText",
                     "createdAt": mocked_datetime,
                     "updatedAt": mocked_datetime,
+                    "completedAt": mocked_datetime,
                 },
                 {
                     "id": "message4",
@@ -309,6 +319,7 @@ class TestChatServiceUnit:
                     "originalText": "originText",
                     "createdAt": mocked_datetime,
                     "updatedAt": mocked_datetime,
+                    "completedAt": mocked_datetime,
                 },
             ],
         }
@@ -344,6 +355,7 @@ class TestChatServiceUnit:
             "originalText": "originText",
             "createdAt": mocked_datetime,
             "updatedAt": mocked_datetime,
+            "completedAt": mocked_datetime,
         }
 
         result = await self.service.create_assistant_message_async(
@@ -446,6 +458,7 @@ class TestChatServiceUnit:
             "isVisible": True,
             "createdAt": mocked_datetime,
             "updatedAt": mocked_datetime,
+            "completedAt": mocked_datetime,
             "object": "message_assessment",
         }
 

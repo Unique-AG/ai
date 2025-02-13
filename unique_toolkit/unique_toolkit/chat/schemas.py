@@ -43,18 +43,18 @@ class ChatMessage(BaseModel):
     model_config = model_config
 
     id: str | None = None
-    chat_id: str | None = Field(default=None, alias="chatId")
+    chat_id: str
     object: str | None = None
     content: str | None = Field(default=None, alias="text")
     original_content: str | None = Field(default=None, alias="originalText")
     role: ChatMessageRole
-    gpt_request: list[dict] | None = Field(default=None, alias="gptRequest")
+    gpt_request: list[dict] | None = None
     tool_calls: Optional[list[ToolCall]] = None
     tool_call_id: Optional[str] = None
     debug_info: dict | None = {}
-    created_at: datetime | None = Field(default=None, alias="createdAt")
-    completed_at: datetime | None = Field(default=None, alias="completedAt")
-    updated_at: datetime | None = Field(default=None, alias="updatedAt")
+    created_at: datetime
+    completed_at: datetime | None = None
+    updated_at: datetime | None = None
 
     # TODO make sdk return role consistently in lowercase
     # Currently needed as sdk returns role in uppercase
