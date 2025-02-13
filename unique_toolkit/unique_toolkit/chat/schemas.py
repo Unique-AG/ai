@@ -48,12 +48,12 @@ class ChatMessage(BaseModel):
     content: str | None = Field(default=None, alias="text")
     original_content: str | None = Field(default=None, alias="originalText")
     role: ChatMessageRole
-    gptRequest: list[dict] | None = None
+    gpt_request: list[dict] | None = Field(default=None, alias="gptRequest")
     tool_calls: Optional[list[ToolCall]] = None
     tool_call_id: Optional[str] = None
     debug_info: dict | None = {}
     created_at: datetime | None = Field(default=None, alias="createdAt")
-    completed_at: datetime | None = Field(default=None, alias="createdAt")
+    completed_at: datetime | None = Field(default=None, alias="completedAt")
     updated_at: datetime | None = Field(default=None, alias="updatedAt")
 
     # TODO make sdk return role consistently in lowercase
