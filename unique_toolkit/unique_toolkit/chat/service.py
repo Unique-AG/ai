@@ -390,6 +390,7 @@ class ChatService(BaseService):
             )
 
             message = await unique_sdk.Message.create_async(**params)
+            print(message, "what is in the message")
         except Exception as e:
             self.logger.error(f"Failed to create assistant message: {e}")
             raise e
