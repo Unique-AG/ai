@@ -1,6 +1,5 @@
 from datetime import datetime
 from enum import StrEnum
-from typing import Optional
 
 from humps import camelize
 from pydantic import (
@@ -49,10 +48,10 @@ class ChatMessage(BaseModel):
     original_content: str | None = Field(default=None, alias="originalText")
     role: ChatMessageRole
     gpt_request: list[dict] | None = None
-    tool_calls: Optional[list[ToolCall]] = None
-    tool_call_id: Optional[str] = None
+    tool_calls: list[ToolCall] | None = None
+    tool_call_id: str | None = None
     debug_info: dict | None = {}
-    created_at: datetime
+    created_at: datetime | None = None
     completed_at: datetime | None = None
     updated_at: datetime | None = None
 
