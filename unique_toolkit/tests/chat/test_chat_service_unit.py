@@ -46,6 +46,11 @@ class TestChatServiceUnit:
             "id": "test_message",
             "content": "Modified message",
             "role": "assistant",
+            "chatId": "chatId123",
+            "originalText": "originText",
+            "createdAt": mocked_datetime,
+            "updatedAt": mocked_datetime,
+            "completedAt": mocked_datetime,
         }
 
         references = [
@@ -97,10 +102,46 @@ class TestChatServiceUnit:
         mock_list.return_value = {
             "object": "list",
             "data": [
-                {"id": "message1", "text": "Message 1", "role": "assistant"},
-                {"id": "message2", "text": "Message 2", "role": "user"},
-                {"id": "message3", "text": "Message 3", "role": "assistant"},
-                {"id": "message4", "text": "Message 4", "role": "user"},
+                {
+                    "id": "message1",
+                    "text": "Message 1",
+                    "role": "assistant",
+                    "chatId": "chatId123",
+                    "originalText": "originText",
+                    "createdAt": mocked_datetime,
+                    "updatedAt": mocked_datetime,
+                    "completedAt": mocked_datetime,
+                },
+                {
+                    "id": "message2",
+                    "text": "Message 2",
+                    "role": "user",
+                    "chatId": "chatId123",
+                    "originalText": "originText",
+                    "createdAt": mocked_datetime,
+                    "updatedAt": mocked_datetime,
+                    "completedAt": mocked_datetime,
+                },
+                {
+                    "id": "message3",
+                    "text": "Message 3",
+                    "role": "assistant",
+                    "chatId": "chatId123",
+                    "originalText": "originText",
+                    "createdAt": mocked_datetime,
+                    "updatedAt": mocked_datetime,
+                    "completedAt": mocked_datetime,
+                },
+                {
+                    "id": "message4",
+                    "text": "Message 4",
+                    "role": "user",
+                    "chatId": "chatId123",
+                    "originalText": "originText",
+                    "createdAt": mocked_datetime,
+                    "updatedAt": mocked_datetime,
+                    "completedAt": mocked_datetime,
+                },
             ],
         }
 
@@ -127,6 +168,11 @@ class TestChatServiceUnit:
         mock_create.return_value = {
             "content": "New assistant message",
             "role": "assistant",
+            "chatId": "chatId123",
+            "originalText": "originText",
+            "createdAt": mocked_datetime,
+            "updatedAt": mocked_datetime,
+            "completedAt": mocked_datetime,
         }
 
         result = self.service.create_assistant_message(
@@ -178,6 +224,11 @@ class TestChatServiceUnit:
             "id": "test_message",
             "content": "Modified message",
             "role": "assistant",
+            "chatId": "chatId123",
+            "originalText": "originText",
+            "createdAt": mocked_datetime,
+            "updatedAt": mocked_datetime,
+            "completedAt": mocked_datetime,
         }
 
         references = [
@@ -230,10 +281,46 @@ class TestChatServiceUnit:
         mock_list.return_value = {
             "object": "list",
             "data": [
-                {"id": "message1", "text": "Message 1", "role": "assistant"},
-                {"id": "message2", "text": "Message 2", "role": "user"},
-                {"id": "message3", "text": "Message 3", "role": "assistant"},
-                {"id": "message4", "text": "Message 4", "role": "user"},
+                {
+                    "id": "message1",
+                    "text": "Message 1",
+                    "role": "assistant",
+                    "chatId": "chatId123",
+                    "originalText": "originText",
+                    "createdAt": mocked_datetime,
+                    "updatedAt": mocked_datetime,
+                    "completedAt": mocked_datetime,
+                },
+                {
+                    "id": "message2",
+                    "text": "Message 2",
+                    "role": "user",
+                    "chatId": "chatId123",
+                    "originalText": "originText",
+                    "createdAt": mocked_datetime,
+                    "updatedAt": mocked_datetime,
+                    "completedAt": mocked_datetime,
+                },
+                {
+                    "id": "message3",
+                    "text": "Message 3",
+                    "role": "assistant",
+                    "chatId": "chatId123",
+                    "originalText": "originText",
+                    "createdAt": mocked_datetime,
+                    "updatedAt": mocked_datetime,
+                    "completedAt": mocked_datetime,
+                },
+                {
+                    "id": "message4",
+                    "text": "Message 4",
+                    "role": "user",
+                    "chatId": "chatId123",
+                    "originalText": "originText",
+                    "createdAt": mocked_datetime,
+                    "updatedAt": mocked_datetime,
+                    "completedAt": mocked_datetime,
+                },
             ],
         }
 
@@ -263,11 +350,17 @@ class TestChatServiceUnit:
     async def test_create_assistant_message_async(self, mock_create):
         mock_create.return_value = {
             "content": "New assistant message",
+            "chat_id": "chatId123",
             "role": "ASSISTANT",
+            "originalText": "originText",
+            "createdAt": mocked_datetime,
+            "updatedAt": mocked_datetime,
+            "completedAt": mocked_datetime,
         }
 
         result = await self.service.create_assistant_message_async(
             content="New assistant message",
+            original_content="what is the content",
             references=[],
             debug_info={},
             set_completed_at=True,
@@ -283,7 +376,7 @@ class TestChatServiceUnit:
             chatId="test_chat",
             assistantId="test_assistant",
             text="New assistant message",
-            originalText="New assistant message",
+            originalText="what is the content",
             role="ASSISTANT",
             references=[],
             debugInfo={},
@@ -365,6 +458,7 @@ class TestChatServiceUnit:
             "isVisible": True,
             "createdAt": mocked_datetime,
             "updatedAt": mocked_datetime,
+            "completedAt": mocked_datetime,
             "object": "message_assessment",
         }
 
