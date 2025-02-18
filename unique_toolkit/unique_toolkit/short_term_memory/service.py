@@ -18,7 +18,6 @@ class ShortTermMemoryService:
     Provides methods to manage short term memory.
 
     Attributes:
-        event (Event | BaseEvent | None): The event object.
         user_id (str | None): The user ID.
         company_id (str | None): The company ID.
         chat_id (str | None): The chat ID.
@@ -33,7 +32,7 @@ class ShortTermMemoryService:
         chat_id: str | None = None,
         message_id: str | None = None,
     ):
-        self.event = event
+        self._event = event
         if event:
             self.company_id = event.company_id
             self.user_id = event.user_id
@@ -49,6 +48,19 @@ class ShortTermMemoryService:
             self.user_id = user_id
             self.chat_id = chat_id
             self.message_id = message_id
+
+    @property
+    @deprecated(
+        "The event property is deprecated and will be removed in a future version."
+    )
+    def event(self) -> Event | BaseEvent | None:
+        """
+        Get the event object (deprecated).
+
+        Returns:
+            Event | BaseEvent | None: The event object.
+        """
+        return self._event
 
     @classmethod
     @deprecated("Instantiate class directly from event")

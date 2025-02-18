@@ -1,3 +1,5 @@
+from typing_extensions import deprecated
+
 from unique_toolkit._common._base_service import BaseService
 from unique_toolkit._common.validate_required_values import validate_required_values
 from unique_toolkit.app.schemas import BaseEvent, Event
@@ -11,7 +13,6 @@ class EmbeddingService(BaseService):
     Provides methods to interact with the Embedding service.
 
     Attributes:
-        event (Event): The Event object.
         company_id (str | None): The company ID.
         user_id (str | None): The user ID.
     """
@@ -22,7 +23,7 @@ class EmbeddingService(BaseService):
         company_id: str | None = None,
         user_id: str | None = None,
     ):
-        self.event = event
+        self._event = event
         if event:
             self.company_id = event.company_id
             self.user_id = event.user_id
@@ -30,6 +31,19 @@ class EmbeddingService(BaseService):
             [company_id, user_id] = validate_required_values([company_id, user_id])
             self.company_id = company_id
             self.user_id = user_id
+
+    @property
+    @deprecated(
+        "The event property is deprecated and will be removed in a future version."
+    )
+    def event(self) -> Event | BaseEvent | None:
+        """
+        Get the event object (deprecated).
+
+        Returns:
+            Event | BaseEvent | None: The event object.
+        """
+        return self._event
 
     def embed_texts(
         self,

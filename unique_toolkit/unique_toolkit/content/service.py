@@ -2,6 +2,7 @@ import logging
 from pathlib import Path
 
 from requests import Response
+from typing_extensions import deprecated
 
 from unique_toolkit._common.validate_required_values import validate_required_values
 from unique_toolkit.app.schemas import BaseEvent, ChatEvent, Event
@@ -32,7 +33,6 @@ class ContentService:
     Provides methods for searching, downloading and uploading content in the knowledge base.
 
     Attributes:
-        event (Event | BaseEvent | None): The Event object.
         company_id (str | None): The company ID.
         user_id (str | None): The user ID.
         metadata_filter (dict | None): The metadata filter.
@@ -45,7 +45,7 @@ class ContentService:
         company_id: str | None = None,
         user_id: str | None = None,
     ):
-        self.event = event
+        self._event = event  # Changed to protected attribute
         if event:
             self.company_id = event.company_id
             self.user_id = event.user_id
@@ -57,6 +57,19 @@ class ContentService:
             self.company_id = company_id
             self.user_id = user_id
             self.metadata_filter = None
+
+    @property
+    @deprecated(
+        "The event property is deprecated and will be removed in a future version."
+    )
+    def event(self) -> Event | BaseEvent | None:
+        """
+        Get the event object (deprecated).
+
+        Returns:
+            Event | BaseEvent | None: The event object.
+        """
+        return self._event
 
     def search_content_chunks(
         self,

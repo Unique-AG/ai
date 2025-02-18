@@ -34,7 +34,6 @@ class LanguageModelService:
     Provides methods to interact with the Language Model by generating responses.
 
     Args:
-        event (Event | BaseEvent | None, optional): The event object containing chat information. Defaults to None.
         company_id (str | None, optional): The company identifier. Defaults to None.
         user_id (str | None, optional): The user identifier. Defaults to None.
         assistant_message_id (str | None, optional): The assistant message identifier. Defaults to None.
@@ -53,7 +52,7 @@ class LanguageModelService:
         assistant_id: str | None = None,
         user_message_id: str | None = None,
     ):
-        self.event = event
+        self._event = event
         self.company_id = company_id
         self.user_id = user_id
         self.assistant_message_id = assistant_message_id
@@ -69,6 +68,19 @@ class LanguageModelService:
                 self.user_message_id = event.payload.user_message.id
                 self.chat_id = event.payload.chat_id
                 self.assistant_id = event.payload.assistant_id
+
+    @property
+    @deprecated(
+        "The event property is deprecated and will be removed in a future version."
+    )
+    def event(self) -> Event | BaseEvent | None:
+        """
+        Get the event object (deprecated).
+
+        Returns:
+            Event | BaseEvent | None: The event object.
+        """
+        return self._event
 
     def complete(
         self,

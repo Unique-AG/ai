@@ -1,6 +1,8 @@
 import logging
 from typing import Optional
 
+from typing_extensions import deprecated
+
 from unique_toolkit.app.schemas import ChatEvent, Event
 from unique_toolkit.chat.constants import (
     DEFAULT_MAX_MESSAGES,
@@ -38,7 +40,6 @@ class ChatService:
     Provides all functionalities to manage the chat session.
 
     Attributes:
-        event (Event | ChatEvent): The Event object.
         company_id (str | None): The company ID.
         user_id (str | None): The user ID.
         assistant_message_id (str | None): The assistant message ID.
@@ -49,7 +50,7 @@ class ChatService:
     """
 
     def __init__(self, event: ChatEvent | Event):
-        self.event = event
+        self._event = event
         self.company_id = event.company_id
         self.user_id = event.user_id
         self.assistant_message_id = event.payload.assistant_message.id
@@ -57,6 +58,19 @@ class ChatService:
         self.chat_id = event.payload.chat_id
         self.assistant_id = event.payload.assistant_id
         self.user_message_text = event.payload.user_message.text
+
+    @property
+    @deprecated(
+        "The event property is deprecated and will be removed in a future version."
+    )
+    def event(self) -> Event | ChatEvent | None:
+        """
+        Get the event object (deprecated).
+
+        Returns:
+            Event | BaseEvent | None: The event object.
+        """
+        return self._event
 
     async def update_debug_info_async(self, debug_info: dict):
         """
