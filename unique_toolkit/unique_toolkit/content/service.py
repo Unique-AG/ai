@@ -64,6 +64,9 @@ class ContentService(BaseService):
         if not scope_ids:
             self.logger.warning("No scope IDs provided for search.")
 
+        if content_ids:
+            self.logger.info("Searching chunks for content IDs: %s", content_ids)
+
         if metadata_filter is None:
             metadata_filter = self.metadata_filter
 
@@ -128,6 +131,9 @@ class ContentService(BaseService):
         if not scope_ids:
             self.logger.warning("No scope IDs provided for search.")
 
+        if content_ids:
+            self.logger.info("Searching chunks for content IDs: %s", content_ids)
+
         if metadata_filter is None:
             metadata_filter = self.metadata_filter
 
@@ -175,6 +181,9 @@ class ContentService(BaseService):
         Returns:
             list[Content]: The search results.
         """
+        if where.get("contentId"):
+            self.logger.info("Searching content for content ID: %s", where["contentId"])
+
         try:
             contents = unique_sdk.Content.search(
                 user_id=self.event.user_id,
@@ -202,6 +211,9 @@ class ContentService(BaseService):
         Returns:
             list[Content]: The search results.
         """
+        if where.get("contentId"):
+            self.logger.info("Searching content for content ID: %s", where["contentId"])
+
         try:
             contents = await unique_sdk.Content.search_async(
                 user_id=self.event.user_id,
@@ -376,6 +388,7 @@ class ContentService(BaseService):
             requests.Response: The response object containing the downloaded content.
 
         """
+        self.logger.info("Requesting content by ID: %s", content_id)
         url = f"{unique_sdk.api_base}/content/{content_id}/file"
         if chat_id:
             url = f"{url}?chatId={chat_id}"
@@ -414,6 +427,7 @@ class ContentService(BaseService):
             Exception: If the download fails or the filename cannot be determined.
         """
 
+        self.logger.info("Requesting content by ID: %s", content_id)
         response = self.request_content_by_id(content_id, chat_id)
         random_dir = tempfile.mkdtemp(dir=tmp_dir_path)
 
@@ -467,6 +481,7 @@ class ContentService(BaseService):
             Exception: If the download fails.
         """
 
+        self.logger.info("Downloading content by ID: %s", content_id)
         response = self.request_content_by_id(content_id, chat_id)
 
         random_dir = tempfile.mkdtemp(dir=dir_path)
