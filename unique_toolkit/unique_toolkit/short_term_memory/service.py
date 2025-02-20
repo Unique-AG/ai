@@ -43,10 +43,34 @@ class ShortTermMemoryService:
 
         return ShortTermMemory(**stm)
 
-    async def set(self, key: str, value: str | dict):
+    def get_sync(self, key: str) -> ShortTermMemory:
+        stm = ShortTermMemoryAPI.find_latest(
+            user_id=self.user_id,
+            company_id=self.company_id,
+            memoryName=key,
+            chatId=self.chat_id,
+            messageId=self.message_id,
+        )
+
+        return ShortTermMemory(**stm)
+
+    async def set(self, key: str, value: str | dict) -> ShortTermMemory:
         if isinstance(value, dict):
             value = json.dumps(value)
         stm = await ShortTermMemoryAPI.create_async(
+            user_id=self.user_id,
+            company_id=self.company_id,
+            memoryName=key,
+            chatId=self.chat_id,
+            messageId=self.message_id,
+            data=value,
+        )
+        return ShortTermMemory(**stm)
+
+    def set_sync(self, key: str, value: str | dict) -> ShortTermMemory:
+        if isinstance(value, dict):
+            value = json.dumps(value)
+        stm = ShortTermMemoryAPI.create(
             user_id=self.user_id,
             company_id=self.company_id,
             memoryName=key,
