@@ -17,16 +17,17 @@ class MessageAssessment(APIResource["MessageAssessment"]):
         status: Literal["PENDING", "DONE", "ERROR"]
         type: Literal["HALLUCINATION", "COMPLIANCE"]
         isVisible: bool
+        title: str | None
         explanation: str | None
-        label: Literal["POSITIVE", "NEGATIVE", "VERIFIED", "UNVERIFIED"] | None
+        label: Literal["RED", "YELLOW", "GREEN"] | None
 
     class ModifyParams(RequestOptions):
         messageId: str
         type: Literal["HALLUCINATION", "COMPLIANCE"]
         status: Literal["PENDING", "DONE", "ERROR"] | None
+        title: str | None
         explanation: str | None
-        label: Literal["POSITIVE", "NEGATIVE", "VERIFIED", "UNVERIFIED"] | None
-
+        label: Literal["RED", "YELLOW", "GREEN"] | None
     @classmethod
     def create(
         cls,

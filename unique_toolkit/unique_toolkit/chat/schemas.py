@@ -76,10 +76,9 @@ class MessageAssessmentStatus(StrEnum):
 
 
 class MessageAssessmentLabel(StrEnum):
-    POSITIVE = "POSITIVE"
-    NEGATIVE = "NEGATIVE"
-    VERIFIED = "VERIFIED"
-    UNVERIFIED = "UNVERIFIED"
+    RED = "RED"
+    YELLOW = "YELLOW"
+    GREEN = "GREEN"
 
 
 class MessageAssessmentType(StrEnum):
@@ -95,6 +94,7 @@ class MessageAssessment(BaseModel):
     message_id: str
     status: MessageAssessmentStatus
     type: MessageAssessmentType
+    title: str | None = None
     explanation: str | None = None
     label: MessageAssessmentLabel | None = None
     is_visible: bool
