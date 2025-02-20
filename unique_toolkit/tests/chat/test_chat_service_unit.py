@@ -532,7 +532,7 @@ class TestChatServiceUnit:
             label="RED",
             type="HALLUCINATION",
             isVisible=True,
-            title = None,
+            title=None,
         )
 
     @pytest.mark.asyncio

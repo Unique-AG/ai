@@ -28,6 +28,7 @@ class MessageAssessment(APIResource["MessageAssessment"]):
         title: str | None
         explanation: str | None
         label: Literal["RED", "YELLOW", "GREEN"] | None
+
     @classmethod
     def create(
         cls,
