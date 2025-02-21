@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.6.0] - 2024-12-17
+## [0.6.0] - 2025-02-21
 - make for each domain, its base functionality accessible from `functions.py`
 - make it possible to instantiate the domain services directly from different event types, inhereted from common `BaseEvent`
 - extend the functionalities in the ShortTermMemoryService by adding the `find_latest_memory` and `create_memory` functions for sync and async usage
@@ -16,6 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `stream_complete_async` in LanguageModelService, use `stream_complete_to_chat_async` instead
   - `stream_complete` in LanguageModelService, use `stream_complete_to_chat` instead
   - `Event` and nested schemas in `app`, use `ChatEvent` and `ChatEventUserMessage`, `ChatEventAssistantMessage` and `ChatEventToolMessage` instead
+
+## [0.5.56] - 2025-02-19
+- Add `MessageAssessment` title field and change label values
+
+## [0.5.55] - 2025-02-18
+- Log `contentId` for better debugging
+
+## [0.5.54] - 2025-02-10
+- Add `created_at`, `completed_at`, `updated_at` and `gpt_request` to `ChatMessage` schema.
 
 ## [0.5.53] - 2025-02-01
 - Correct `MessageAssessment` schemas

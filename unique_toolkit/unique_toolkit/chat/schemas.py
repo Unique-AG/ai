@@ -1,6 +1,5 @@
 from datetime import datetime
 from enum import StrEnum
-from typing import Optional
 
 from humps import camelize
 from pydantic import (
@@ -39,15 +38,22 @@ class ToolCall(BaseModel):
 
 
 class ChatMessage(BaseModel):
+    # This model should strictly meets https://github.com/Unique-AG/monorepo/blob/master/node/apps/node-chat/src/public-api/2023-12-06/dtos/message/public-message.dto.ts
     model_config = model_config
 
     id: str | None = None
+    chat_id: str
     object: str | None = None
-    content: str = Field(alias="text")
+    content: str | None = Field(default=None, alias="text")
+    original_content: str | None = Field(default=None, alias="originalText")
     role: ChatMessageRole
-    tool_calls: Optional[list[ToolCall]] = None
-    tool_call_id: Optional[str] = None
+    gpt_request: list[dict] | None = None
+    tool_calls: list[ToolCall] | None = None
+    tool_call_id: str | None = None
     debug_info: dict | None = {}
+    created_at: datetime | None = None
+    completed_at: datetime | None = None
+    updated_at: datetime | None = None
 
     # TODO make sdk return role consistently in lowercase
     # Currently needed as sdk returns role in uppercase
@@ -70,10 +76,9 @@ class MessageAssessmentStatus(StrEnum):
 
 
 class MessageAssessmentLabel(StrEnum):
-    POSITIVE = "POSITIVE"
-    NEGATIVE = "NEGATIVE"
-    VERIFIED = "VERIFIED"
-    UNVERIFIED = "UNVERIFIED"
+    RED = "RED"
+    YELLOW = "YELLOW"
+    GREEN = "GREEN"
 
 
 class MessageAssessmentType(StrEnum):
@@ -89,6 +94,7 @@ class MessageAssessment(BaseModel):
     message_id: str
     status: MessageAssessmentStatus
     type: MessageAssessmentType
+    title: str | None = None
     explanation: str | None = None
     label: MessageAssessmentLabel | None = None
     is_visible: bool

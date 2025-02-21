@@ -55,6 +55,16 @@ class TestChatServiceUnit:
             "id": "test_message",
             "content": "Modified message",
             "role": "assistant",
+            "chatId": "chatId123",
+            "originalText": "originText",
+            "createdAt": mocked_datetime,
+            "updatedAt": mocked_datetime,
+            "completedAt": mocked_datetime,
+        }
+        mock_modify.return_value = {
+            "id": "test_message",
+            "content": "Modified message",
+            "role": "assistant",
         }
         mock_modify.return_value = {
             "id": "test_message",
@@ -177,10 +187,46 @@ class TestChatServiceUnit:
         mock_list.return_value = {
             "object": "list",
             "data": [
-                {"id": "message1", "text": "Message 1", "role": "assistant"},
-                {"id": "message2", "text": "Message 2", "role": "user"},
-                {"id": "message3", "text": "Message 3", "role": "assistant"},
-                {"id": "message4", "text": "Message 4", "role": "user"},
+                {
+                    "id": "message1",
+                    "text": "Message 1",
+                    "role": "assistant",
+                    "chatId": "chatId123",
+                    "originalText": "originText",
+                    "createdAt": mocked_datetime,
+                    "updatedAt": mocked_datetime,
+                    "completedAt": mocked_datetime,
+                },
+                {
+                    "id": "message2",
+                    "text": "Message 2",
+                    "role": "user",
+                    "chatId": "chatId123",
+                    "originalText": "originText",
+                    "createdAt": mocked_datetime,
+                    "updatedAt": mocked_datetime,
+                    "completedAt": mocked_datetime,
+                },
+                {
+                    "id": "message3",
+                    "text": "Message 3",
+                    "role": "assistant",
+                    "chatId": "chatId123",
+                    "originalText": "originText",
+                    "createdAt": mocked_datetime,
+                    "updatedAt": mocked_datetime,
+                    "completedAt": mocked_datetime,
+                },
+                {
+                    "id": "message4",
+                    "text": "Message 4",
+                    "role": "user",
+                    "chatId": "chatId123",
+                    "originalText": "originText",
+                    "createdAt": mocked_datetime,
+                    "updatedAt": mocked_datetime,
+                    "completedAt": mocked_datetime,
+                },
             ],
         }
 
@@ -427,10 +473,46 @@ class TestChatServiceUnit:
         mock_list.return_value = {
             "object": "list",
             "data": [
-                {"id": "message1", "text": "Message 1", "role": "assistant"},
-                {"id": "message2", "text": "Message 2", "role": "user"},
-                {"id": "message3", "text": "Message 3", "role": "assistant"},
-                {"id": "message4", "text": "Message 4", "role": "user"},
+                {
+                    "id": "message1",
+                    "text": "Message 1",
+                    "role": "assistant",
+                    "chatId": "chatId123",
+                    "originalText": "originText",
+                    "createdAt": mocked_datetime,
+                    "updatedAt": mocked_datetime,
+                    "completedAt": mocked_datetime,
+                },
+                {
+                    "id": "message2",
+                    "text": "Message 2",
+                    "role": "user",
+                    "chatId": "chatId123",
+                    "originalText": "originText",
+                    "createdAt": mocked_datetime,
+                    "updatedAt": mocked_datetime,
+                    "completedAt": mocked_datetime,
+                },
+                {
+                    "id": "message3",
+                    "text": "Message 3",
+                    "role": "assistant",
+                    "chatId": "chatId123",
+                    "originalText": "originText",
+                    "createdAt": mocked_datetime,
+                    "updatedAt": mocked_datetime,
+                    "completedAt": mocked_datetime,
+                },
+                {
+                    "id": "message4",
+                    "text": "Message 4",
+                    "role": "user",
+                    "chatId": "chatId123",
+                    "originalText": "originText",
+                    "createdAt": mocked_datetime,
+                    "updatedAt": mocked_datetime,
+                    "completedAt": mocked_datetime,
+                },
             ],
         }
 
@@ -461,7 +543,12 @@ class TestChatServiceUnit:
         # Test with update completedAt
         mock_create.return_value = {
             "content": "New assistant message",
+            "chat_id": "chatId123",
             "role": "ASSISTANT",
+            "originalText": "originText",
+            "createdAt": mocked_datetime,
+            "updatedAt": mocked_datetime,
+            "completedAt": mocked_datetime,
         }
 
         result = await self.service.create_assistant_message_async(
@@ -522,7 +609,7 @@ class TestChatServiceUnit:
             "messageId": "msg_123",
             "status": "DONE",
             "explanation": "Test explanation",
-            "label": "NEGATIVE",
+            "label": "RED",
             "type": "HALLUCINATION",
             "isVisible": True,
             "createdAt": mocked_datetime,
@@ -534,7 +621,7 @@ class TestChatServiceUnit:
             assistant_message_id="test_message",
             status=MessageAssessmentStatus.DONE,
             explanation="Test explanation",
-            label=MessageAssessmentLabel.NEGATIVE,
+            label=MessageAssessmentLabel.RED,
             type=MessageAssessmentType.HALLUCINATION,
             is_visible=True,
         )
@@ -542,7 +629,7 @@ class TestChatServiceUnit:
         assert isinstance(result, MessageAssessment)
         assert result.status == MessageAssessmentStatus.DONE.name
         assert result.explanation == "Test explanation"
-        assert result.label == MessageAssessmentLabel.NEGATIVE.name
+        assert result.label == MessageAssessmentLabel.RED.name
         assert result.type == MessageAssessmentType.HALLUCINATION.name
         assert result.is_visible is True
 
@@ -552,9 +639,10 @@ class TestChatServiceUnit:
             messageId="test_message",
             status="DONE",
             explanation="Test explanation",
-            label="NEGATIVE",
+            label="RED",
             type="HALLUCINATION",
             isVisible=True,
+            title=None,
         )
 
     @patch.object(unique_sdk.MessageAssessment, "modify", autospec=True)
@@ -564,11 +652,12 @@ class TestChatServiceUnit:
             "messageId": "msg_123",
             "status": "DONE",
             "explanation": "Modified explanation",
-            "label": "POSITIVE",
+            "label": "GREEN",
             "type": "HALLUCINATION",
             "isVisible": True,
             "createdAt": mocked_datetime,
             "updatedAt": mocked_datetime,
+            "completedAt": mocked_datetime,
             "object": "message_assessment",
         }
 
@@ -576,14 +665,14 @@ class TestChatServiceUnit:
             assistant_message_id="test_message",
             status=MessageAssessmentStatus.DONE,
             explanation="Modified explanation",
-            label=MessageAssessmentLabel.POSITIVE,
+            label=MessageAssessmentLabel.GREEN,
             type=MessageAssessmentType.HALLUCINATION,
         )
 
         assert isinstance(result, MessageAssessment)
         assert result.status == MessageAssessmentStatus.DONE.name
         assert result.explanation == "Modified explanation"
-        assert result.label == MessageAssessmentLabel.POSITIVE.name
+        assert result.label == MessageAssessmentLabel.GREEN.name
         assert result.type == MessageAssessmentType.HALLUCINATION.name
 
         mock_modify.assert_called_once_with(
@@ -592,7 +681,7 @@ class TestChatServiceUnit:
             messageId="test_message",
             status="DONE",
             explanation="Modified explanation",
-            label="POSITIVE",
+            label="GREEN",
             type="HALLUCINATION",
         )
 
@@ -615,12 +704,13 @@ class TestChatServiceUnit:
             "messageId": "msg_123",
             "status": "DONE",
             "explanation": "Test explanation",
-            "label": "NEGATIVE",
+            "label": "RED",
             "type": "HALLUCINATION",
             "isVisible": True,
             "createdAt": mocked_datetime,
             "updatedAt": mocked_datetime,
             "object": "message_assessment",
+            "title": None,
         }
 
         mock_create.return_value = mock_response
@@ -629,7 +719,7 @@ class TestChatServiceUnit:
             assistant_message_id="test_message",
             status=MessageAssessmentStatus.DONE,
             explanation="Test explanation",
-            label=MessageAssessmentLabel.NEGATIVE,
+            label=MessageAssessmentLabel.RED,
             type=MessageAssessmentType.HALLUCINATION,
             is_visible=True,
         )
@@ -637,7 +727,7 @@ class TestChatServiceUnit:
         assert isinstance(result, MessageAssessment)
         assert result.status == MessageAssessmentStatus.DONE.name
         assert result.explanation == "Test explanation"
-        assert result.label == MessageAssessmentLabel.NEGATIVE.name
+        assert result.label == MessageAssessmentLabel.RED.name
         assert result.type == MessageAssessmentType.HALLUCINATION.name
         assert result.is_visible is True
 
@@ -647,9 +737,10 @@ class TestChatServiceUnit:
             messageId="test_message",
             status="DONE",
             explanation="Test explanation",
-            label="NEGATIVE",
+            label="RED",
             type="HALLUCINATION",
             isVisible=True,
+            title=None,
         )
 
     @pytest.mark.asyncio
@@ -667,7 +758,7 @@ class TestChatServiceUnit:
             "messageId": "msg_123",
             "status": "DONE",
             "explanation": "Modified explanation",
-            "label": "POSITIVE",
+            "label": "GREEN",
             "type": "HALLUCINATION",
             "isVisible": True,
             "createdAt": mocked_datetime,
@@ -681,14 +772,14 @@ class TestChatServiceUnit:
             assistant_message_id="test_message",
             status=MessageAssessmentStatus.DONE,
             explanation="Modified explanation",
-            label=MessageAssessmentLabel.POSITIVE,
+            label=MessageAssessmentLabel.GREEN,
             type=MessageAssessmentType.HALLUCINATION,
         )
 
         assert isinstance(result, MessageAssessment)
         assert result.status == MessageAssessmentStatus.DONE.name
         assert result.explanation == "Modified explanation"
-        assert result.label == MessageAssessmentLabel.POSITIVE.name
+        assert result.label == MessageAssessmentLabel.GREEN.name
         assert result.type == MessageAssessmentType.HALLUCINATION.name
 
         mock_modify.assert_called_once_with(
@@ -697,8 +788,9 @@ class TestChatServiceUnit:
             messageId="test_message",
             status="DONE",
             explanation="Modified explanation",
-            label="POSITIVE",
+            label="GREEN",
             type="HALLUCINATION",
+            title=None,
         )
 
     @pytest.mark.asyncio
