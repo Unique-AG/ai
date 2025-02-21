@@ -24,11 +24,11 @@ from unique_toolkit.chat.functions import (
 )
 from unique_toolkit.chat.schemas import (
     ChatMessage,
+    ChatMessageAssessment,
+    ChatMessageAssessmentLabel,
+    ChatMessageAssessmentStatus,
+    ChatMessageAssessmentType,
     ChatMessageRole,
-    MessageAssessment,
-    MessageAssessmentLabel,
-    MessageAssessmentStatus,
-    MessageAssessmentType,
 )
 from unique_toolkit.content.schemas import ContentReference
 
@@ -449,13 +449,13 @@ class ChatService:
     def create_message_assessment(
         self,
         assistant_message_id: str,
-        status: MessageAssessmentStatus,
-        type: MessageAssessmentType,
+        status: ChatMessageAssessmentStatus,
+        type: ChatMessageAssessmentType,
         title: str | None = None,
         explanation: str | None = None,
-        label: MessageAssessmentLabel | None = None,
+        label: ChatMessageAssessmentLabel | None = None,
         is_visible: bool = True,
-    ) -> MessageAssessment:
+    ) -> ChatMessageAssessment:
         """
         Creates a message assessment for an assistant message synchronously.
 
@@ -469,7 +469,7 @@ class ChatService:
             is_visible (bool): Whether the assessment is visible to users. Defaults to True.
 
         Returns:
-            MessageAssessment: The created message assessment
+            ChatMessageAssessment: The created message assessment
 
         Raises:
             Exception: If the creation fails
@@ -480,6 +480,7 @@ class ChatService:
             assistant_message_id=assistant_message_id,
             status=status,
             type=type,
+            title=title,
             explanation=explanation,
             label=label,
             is_visible=is_visible,
@@ -488,27 +489,27 @@ class ChatService:
     async def create_message_assessment_async(
         self,
         assistant_message_id: str,
-        status: MessageAssessmentStatus,
-        type: MessageAssessmentType,
+        status: ChatMessageAssessmentStatus,
+        type: ChatMessageAssessmentType,
         title: str | None = None,
         explanation: str | None = None,
-        label: MessageAssessmentLabel | None = None,
+        label: ChatMessageAssessmentLabel | None = None,
         is_visible: bool = True,
-    ) -> MessageAssessment:
+    ) -> ChatMessageAssessment:
         """
         Creates a message assessment for an assistant message asynchronously.
 
         Args:
             assistant_message_id (str): The ID of the assistant message to assess
-            status (MessageAssessmentStatus): The status of the assessment (e.g. "DONE")
-            type (MessageAssessmentType): The type of assessment (e.g. "HALLUCINATION")
+            status (ChatMessageAssessmentStatus): The status of the assessment (e.g. "DONE")
+            type (ChatMessageAssessmentType): The type of assessment (e.g. "HALLUCINATION")
             title (str | None): The title of the assessment
             explanation (str | None): Explanation of the assessment
-            label (MessageAssessmentLabel | None): The assessment label (e.g. "RED")
+            label (ChatMessageAssessmentLabel | None): The assessment label (e.g. "RED")
             is_visible (bool): Whether the assessment is visible to users. Defaults to True.
 
         Returns:
-            MessageAssessment: The created message assessment
+            ChatMessageAssessment: The created message assessment
 
         Raises:
             Exception: If the creation fails
@@ -519,6 +520,7 @@ class ChatService:
             assistant_message_id=assistant_message_id,
             status=status,
             type=type,
+            title=title,
             explanation=explanation,
             label=label,
             is_visible=is_visible,
@@ -527,12 +529,12 @@ class ChatService:
     def modify_message_assessment(
         self,
         assistant_message_id: str,
-        status: MessageAssessmentStatus,
-        type: MessageAssessmentType,
+        status: ChatMessageAssessmentStatus,
+        type: ChatMessageAssessmentType,
         title: str | None = None,
         explanation: str | None = None,
-        label: MessageAssessmentLabel | None = None,
-    ) -> MessageAssessment:
+        label: ChatMessageAssessmentLabel | None = None,
+    ) -> ChatMessageAssessment:
         """
         Modifies a message assessment for an assistant message synchronously.
 
@@ -541,8 +543,8 @@ class ChatService:
             status (MessageAssessmentStatus): The status of the assessment (e.g. "DONE")
             title (str | None): The title of the assessment
             explanation (str | None): Explanation of the assessment
-            label (MessageAssessmentLabel | None): The assessment label (e.g. "RED")
-            type (MessageAssessmentType): The type of assessment (e.g. "HALLUCINATION")
+            label (ChatMessageAssessmentLabel | None): The assessment label (e.g. "RED")
+            type (ChatMessageAssessmentType): The type of assessment (e.g. "HALLUCINATION")
 
         Returns:
             dict: The modified message assessment
@@ -556,6 +558,7 @@ class ChatService:
             assistant_message_id=assistant_message_id,
             status=status,
             type=type,
+            title=title,
             explanation=explanation,
             label=label,
         )
@@ -563,25 +566,25 @@ class ChatService:
     async def modify_message_assessment_async(
         self,
         assistant_message_id: str,
-        type: MessageAssessmentType,
+        type: ChatMessageAssessmentType,
         title: str | None = None,
-        status: MessageAssessmentStatus | None = None,
+        status: ChatMessageAssessmentStatus | None = None,
         explanation: str | None = None,
-        label: MessageAssessmentLabel | None = None,
-    ) -> MessageAssessment:
+        label: ChatMessageAssessmentLabel | None = None,
+    ) -> ChatMessageAssessment:
         """
         Modifies a message assessment for an assistant message asynchronously.
 
         Args:
             assistant_message_id (str): The ID of the assistant message to assess
-            status (MessageAssessmentStatus): The status of the assessment (e.g. "DONE")
+            status (ChatMessageAssessmentStatus): The status of the assessment (e.g. "DONE")
             title (str | None): The title of the assessment
             explanation (str | None): Explanation of the assessment
-            label (MessageAssessmentLabel | None): The assessment label (e.g. "RED")
-            type (MessageAssessmentType): The type of assessment (e.g. "HALLUCINATION")
+            label (ChatMessageAssessmentLabel | None): The assessment label (e.g. "RED")
+            type (ChatMessageAssessmentType): The type of assessment (e.g. "HALLUCINATION")
 
         Returns:
-            MessageAssessment: The modified message assessment
+            ChatMessageAssessment: The modified message assessment
 
         Raises:
             Exception: If the modification fails
@@ -592,6 +595,7 @@ class ChatService:
             assistant_message_id=assistant_message_id,
             status=status,
             type=type,
+            title=title,
             explanation=explanation,
             label=label,
         )

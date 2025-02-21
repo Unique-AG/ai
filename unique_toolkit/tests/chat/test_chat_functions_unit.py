@@ -93,6 +93,7 @@ def test_get_full_history(mock_sdk):
                 "content": "Message 1",
                 "object": None,
                 "debug_info": {},
+                "chatId": "chat123",
             },
             {
                 "text": "Message 2",
@@ -101,6 +102,7 @@ def test_get_full_history(mock_sdk):
                 "content": "Message 2",
                 "object": None,
                 "debug_info": {},
+                "chatId": "chat123",
             },
             {
                 "text": "[SYSTEM] System message",
@@ -109,6 +111,7 @@ def test_get_full_history(mock_sdk):
                 "content": "[SYSTEM] System message",
                 "object": None,
                 "debug_info": {},
+                "chatId": "chat123",
             },
         ]
     }
@@ -117,7 +120,6 @@ def test_get_full_history(mock_sdk):
     # Execute
     result = get_full_history("user123", "company123", "chat123")
 
-    print("result", result)
     # Assert
     assert len(result) == 1  # Only first message should remain after filtering
     assert all(isinstance(msg, ChatMessage) for msg in result)
@@ -130,16 +132,19 @@ def test_get_selection_from_history():
             id="1",
             role=ChatMessageRole.USER,
             text="Short message 1",
+            chat_id="chat123",
         ),
         ChatMessage(
             id="2",
             role=ChatMessageRole.ASSISTANT,
             text="Short message 2",
+            chat_id="chat123",
         ),
         ChatMessage(
             id="3",
             role=ChatMessageRole.USER,
             text="Short message 3",
+            chat_id="chat123",
         ),
     ]
 
@@ -339,16 +344,19 @@ def test_pick_messages_in_reverse_for_token_window():
             id="1",
             role=ChatMessageRole.USER,
             text="Short message 1",
+            chat_id="chat123",
         ),
         ChatMessage(
             id="2",
             role=ChatMessageRole.ASSISTANT,
             text="Short message 2",
+            chat_id="chat123",
         ),
         ChatMessage(
             id="3",
             role=ChatMessageRole.USER,
             text="A very long message that should exceed the token limit " * 10,
+            chat_id="chat123",
         ),
     ]
 
@@ -357,6 +365,7 @@ def test_pick_messages_in_reverse_for_token_window():
 
     # Assert
     assert len(result) > 0
+    assert result[-1].content
     assert result[-1].content.endswith("...")  # Verify message was truncated
 
 
@@ -365,7 +374,12 @@ def test_pick_messages_in_reverse_for_token_window_empty():
     assert pick_messages_in_reverse_for_token_window([], 100) == []
     assert (
         pick_messages_in_reverse_for_token_window(
-            [ChatMessage(id="1", role=ChatMessageRole.USER, text="test")], 0
+            [
+                ChatMessage(
+                    id="1", role=ChatMessageRole.USER, text="test", chat_id="chat123"
+                )
+            ],
+            0,
         )
         == []
     )

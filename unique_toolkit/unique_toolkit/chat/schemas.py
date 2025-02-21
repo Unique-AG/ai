@@ -69,34 +69,34 @@ class ChatMessage(BaseModel):
         return self
 
 
-class MessageAssessmentStatus(StrEnum):
+class ChatMessageAssessmentStatus(StrEnum):
     PENDING = "PENDING"
     DONE = "DONE"
     ERROR = "ERROR"
 
 
-class MessageAssessmentLabel(StrEnum):
+class ChatMessageAssessmentLabel(StrEnum):
     RED = "RED"
     YELLOW = "YELLOW"
     GREEN = "GREEN"
 
 
-class MessageAssessmentType(StrEnum):
+class ChatMessageAssessmentType(StrEnum):
     HALLUCINATION = "HALLUCINATION"
     COMPLIANCE = "COMPLIANCE"
 
 
-class MessageAssessment(BaseModel):
+class ChatMessageAssessment(BaseModel):
     model_config = model_config
 
     id: str
     object: str
     message_id: str
-    status: MessageAssessmentStatus
-    type: MessageAssessmentType
+    status: ChatMessageAssessmentStatus
+    type: ChatMessageAssessmentType
     title: str | None = None
     explanation: str | None = None
-    label: MessageAssessmentLabel | None = None
+    label: ChatMessageAssessmentLabel | None = None
     is_visible: bool
     created_at: datetime | None = None
     updated_at: datetime | None = None

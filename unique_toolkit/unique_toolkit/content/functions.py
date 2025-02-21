@@ -53,6 +53,9 @@ def search_content_chunks(
     if not scope_ids:
         logger.warning("No scope IDs provided for search.")
 
+    if content_ids:
+        logger.info(f"Searching for content chunks with content_ids: {content_ids}")
+
     try:
         searches = unique_sdk.Search.create(
             user_id=user_id,
@@ -96,6 +99,11 @@ async def search_content_chunks_async(
     if not scope_ids:
         logger.warning("No scope IDs provided for search.")
 
+    if content_ids:
+        logger.info(
+            f"Searching for content chunks asynchronously with content_ids: {content_ids}"
+        )
+
     try:
         searches = await unique_sdk.Search.create_async(
             user_id=user_id,
@@ -137,6 +145,9 @@ def search_contents(
     Returns:
         list[Content]: The search results.
     """
+    if where.get("contentId"):
+        logger.info(f"Searching for content with content_id: {where['contentId']}")
+
     try:
         contents = unique_sdk.Content.search(
             user_id=user_id,
@@ -158,6 +169,8 @@ async def search_contents_async(
     where: dict,
 ):
     """Asynchronously searches for content in the knowledge base."""
+    if where.get("contentId"):
+        logger.info(f"Searching for content with content_id: {where['contentId']}")
 
     try:
         contents = await unique_sdk.Content.search_async(
@@ -348,6 +361,7 @@ def request_content_by_id(
         requests.Response: The response object containing the downloaded content.
 
     """
+    logger.info(f"Requesting content with content_id: {content_id}")
     url = f"{unique_sdk.api_base}/content/{content_id}/file"
     if chat_id:
         url = f"{url}?chatId={chat_id}"
@@ -390,6 +404,7 @@ def download_content_to_file_by_id(
         Exception: If the download fails or the filename cannot be determined.
     """
 
+    logger.info(f"Downloading content to file with content_id: {content_id}")
     response = request_content_by_id(user_id, company_id, content_id, chat_id)
     random_dir = tempfile.mkdtemp(dir=tmp_dir_path)
 
@@ -443,6 +458,7 @@ def download_content(
         Exception: If the download fails.
     """
 
+    logger.info(f"Downloading content with content_id: {content_id}")
     response = request_content_by_id(user_id, company_id, content_id, chat_id)
 
     random_dir = tempfile.mkdtemp(dir=dir_path)
