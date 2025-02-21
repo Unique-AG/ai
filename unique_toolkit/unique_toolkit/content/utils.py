@@ -1,8 +1,10 @@
 import re
 
 import tiktoken
+import unique_sdk
 
 from unique_toolkit.content.schemas import (
+    Content,
     ContentChunk,
 )
 
@@ -186,3 +188,33 @@ def count_tokens(text: str, encoding_model="cl100k_base") -> int:
     """
     encoding = tiktoken.get_encoding(encoding_model)
     return len(encoding.encode(text))
+
+
+def map_content_chunk(content_chunk: dict):
+    return ContentChunk(
+        id=content_chunk["id"],
+        text=content_chunk["text"],
+        start_page=content_chunk["startPage"],
+        end_page=content_chunk["endPage"],
+        order=content_chunk["order"],
+    )
+
+
+def map_content(content: dict):
+    return Content(
+        id=content["id"],
+        key=content["key"],
+        title=content["title"],
+        url=content["url"],
+        chunks=[map_content_chunk(chunk) for chunk in content["chunks"]],
+        created_at=content["createdAt"],
+        updated_at=content["updatedAt"],
+    )
+
+
+def map_contents(contents):
+    return [map_content(content) for content in contents]
+
+
+def map_to_content_chunks(searches: list[unique_sdk.Search]):
+    return [ContentChunk(**search) for search in searches]

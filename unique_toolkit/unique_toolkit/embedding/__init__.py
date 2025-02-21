@@ -1,3 +1,6 @@
+from .constants import (
+    DOMAIN_NAME as DOMAIN_NAME,
+)
 from .schemas import Embeddings as Embeddings
 from .service import EmbeddingService as EmbeddingService
 from .utils import (

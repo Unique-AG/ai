@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2025-02-21
+- make for each domain, its base functionality accessible from `functions.py`
+- make it possible to instantiate the domain services directly from different event types, inhereted from common `BaseEvent`
+- extend the functionalities in the ShortTermMemoryService by adding the `find_latest_memory` and `create_memory` functions for sync and async usage
+- remove logger dependency from service classes
+- marked deprecated:
+  - `from_chat_event` in ShortTermMemoryService, use `ShortTermMemoryService(event=event)` instead
+  - `complete_async_util` in LanguageModelService, use `functions.complete_async` instead
+  - `stream_complete_async` in LanguageModelService, use `stream_complete_to_chat_async` instead
+  - `stream_complete` in LanguageModelService, use `stream_complete_to_chat` instead
+  - `Event` and nested schemas in `app`, use `ChatEvent` and `ChatEventUserMessage`, `ChatEventAssistantMessage` and `ChatEventToolMessage` instead
+
 ## [0.5.56] - 2025-02-19
 - Add `MessageAssessment` title field and change label values
 
@@ -38,7 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Move tool_calls to assistant message as not needed anywhere else.
 
 ## [0.5.46] - 2025-01-07
-- Added `AZURE_GPT_35_TURBO_0125` as new model into toolkit.
+ - Added `AZURE_GPT_35_TURBO_0125` as new model into toolkit.
 
 ## [0.5.45] - 2025-01-03
 - Added `ShortTermMemoryService` class to handle short term memory.

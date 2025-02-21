@@ -1,3 +1,4 @@
+from .constants import DOMAIN_NAME as DOMAIN_NAME
 from .schemas import (
     Content as Content,
 )

@@ -1,4 +1,4 @@
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 import unique_sdk
@@ -49,16 +49,7 @@ class TestEmbeddingServiceUnit:
                 timeout=600_000,
             )
 
-    def test_init_with_logger(self):
-        logger = Mock()
-        service = EmbeddingService(self.event, logger)
-        assert service.logger == logger
-
-    def test_init_without_logger(self):
-        service = EmbeddingService(self.event)
-        assert service.logger is not None
-
-    def test_error_handling_search_contents(self):
+    def test_error_handling_embed_texts(self):
         with patch.object(
             unique_sdk.Embeddings,
             "create",
@@ -68,7 +59,7 @@ class TestEmbeddingServiceUnit:
                 self.service.embed_texts(["Test text"])
 
     @pytest.mark.asyncio
-    async def test_error_handling_search_contents_async(self):
+    async def test_error_handling_embed_texts_async(self):
         with patch.object(
             unique_sdk.Embeddings,
             "create_async",

@@ -1,4 +1,7 @@
 from unique_toolkit.app.schemas import (
+    ChatEventAssistantMessage,
+    ChatEventPayload,
+    ChatEventUserMessage,
     Event,
     EventAssistantMessage,
     EventName,
@@ -139,3 +142,53 @@ class TestEventSchemas:
         assert hasattr(event.payload, "chat_id")
         assert hasattr(event.payload, "assistant_id")
         assert hasattr(event.payload.user_message, "created_at")
+
+    def test_chat_event_user_message_deserialization(self):
+        json_data = '{"id": "msg1", "text": "Hello", "createdAt": "2023-01-01T00:00:00Z", "originalText": "Hello", "language": "en"}'
+        user_message = ChatEventUserMessage.model_validate_json(json_data)
+
+        assert user_message.id == "msg1"
+        assert user_message.text == "Hello"
+        assert user_message.created_at == "2023-01-01T00:00:00Z"
+
+    def test_chat_event_assistant_message_deserialization(self):
+        json_data = '{"id": "msg2", "createdAt": "2023-01-01T00:01:00Z"}'
+        assistant_message = ChatEventAssistantMessage.model_validate_json(json_data)
+
+        assert assistant_message.id == "msg2"
+        assert assistant_message.created_at == "2023-01-01T00:01:00Z"
+
+    def test_chat_event_payload_deserialization(self):
+        json_data = """{
+            "name": "unique.chat.external-module.chosen",
+            "description": "Test description",
+            "configuration": {"key": "value"},
+            "chatId": "chat1",
+            "assistantId": "assistant1",
+            "userMessage": {
+                "id": "msg1",
+                "text": "Hello",
+                "createdAt": "2023-01-01T00:00:00Z",
+                "originalText": "Hello",
+                "language": "en"
+            },
+            "assistantMessage": {
+                "id": "msg2",
+                "createdAt": "2023-01-01T00:01:00Z"
+            },
+            "text": "Optional text",
+            "additionalParameters": {"translateToLanguage": "en", "contentIdToTranslate": "content_1234"}
+        }"""
+        payload = ChatEventPayload.model_validate_json(json_data)
+
+        assert payload.name == EventName.EXTERNAL_MODULE_CHOSEN
+        assert payload.description == "Test description"
+        assert payload.configuration == {"key": "value"}
+        assert payload.chat_id == "chat1"
+        assert payload.assistant_id == "assistant1"
+        assert payload.user_message.id == "msg1"
+        assert payload.assistant_message.id == "msg2"
+        assert payload.text == "Optional text"
+        assert payload.additional_parameters is not None
+        assert payload.additional_parameters.translate_to_language == "en"
+        assert payload.additional_parameters.content_id_to_translate == "content_1234"

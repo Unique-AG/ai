@@ -1,3 +1,4 @@
+from .constants import DOMAIN_NAME as DOMAIN_NAME
 from .infos import LanguageModel as LanguageModel
 from .infos import LanguageModelName as LanguageModelName
 from .prompt import (

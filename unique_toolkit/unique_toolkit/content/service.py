@@ -1,15 +1,23 @@
 import logging
-import os
-import re
-import tempfile
 from pathlib import Path
-from typing import Optional, Union, cast
 
-import requests
-import unique_sdk
+from requests import Response
+from typing_extensions import deprecated
 
-from unique_toolkit._common._base_service import BaseService
-from unique_toolkit.app.schemas import Event
+from unique_toolkit._common.validate_required_values import validate_required_values
+from unique_toolkit.app.schemas import BaseEvent, ChatEvent, Event
+from unique_toolkit.content import DOMAIN_NAME
+from unique_toolkit.content.constants import DEFAULT_SEARCH_LANGUAGE
+from unique_toolkit.content.functions import (
+    download_content,
+    download_content_to_file_by_id,
+    request_content_by_id,
+    search_content_chunks,
+    search_content_chunks_async,
+    search_contents,
+    search_contents_async,
+    upload_content,
+)
 from unique_toolkit.content.schemas import (
     Content,
     ContentChunk,
@@ -17,21 +25,51 @@ from unique_toolkit.content.schemas import (
     ContentSearchType,
 )
 
+logger = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
 
-class ContentService(BaseService):
+
+class ContentService:
     """
     Provides methods for searching, downloading and uploading content in the knowledge base.
 
     Attributes:
-        event (Event): The Event object.
-        logger (Optional[logging.Logger]): The logger. Defaults to None.
+        company_id (str | None): The company ID.
+        user_id (str | None): The user ID.
+        metadata_filter (dict | None): The metadata filter.
+        chat_id (str | None): The chat ID.
     """
 
-    def __init__(self, event: Event, logger: Optional[logging.Logger] = None):
-        super().__init__(event, logger)
-        self.metadata_filter = event.payload.metadata_filter
+    def __init__(
+        self,
+        event: Event | BaseEvent | None = None,
+        company_id: str | None = None,
+        user_id: str | None = None,
+    ):
+        self._event = event  # Changed to protected attribute
+        if event:
+            self.company_id = event.company_id
+            self.user_id = event.user_id
+            if isinstance(event, (ChatEvent, Event)):
+                self.metadata_filter = event.payload.metadata_filter
+                self.chat_id = event.payload.chat_id
+        else:
+            [company_id, user_id] = validate_required_values([company_id, user_id])
+            self.company_id = company_id
+            self.user_id = user_id
+            self.metadata_filter = None
 
-    DEFAULT_SEARCH_LANGUAGE = "english"
+    @property
+    @deprecated(
+        "The event property is deprecated and will be removed in a future version."
+    )
+    def event(self) -> Event | BaseEvent | None:
+        """
+        Get the event object (deprecated).
+
+        Returns:
+            Event | BaseEvent | None: The event object.
+        """
+        return self._event
 
     def search_content_chunks(
         self,
@@ -39,11 +77,11 @@ class ContentService(BaseService):
         search_type: ContentSearchType,
         limit: int,
         search_language: str = DEFAULT_SEARCH_LANGUAGE,
-        reranker_config: Optional[ContentRerankerConfig] = None,
-        scope_ids: Optional[list[str]] = None,
-        chat_only: Optional[bool] = None,
-        metadata_filter: Optional[dict] = None,
-        content_ids: Optional[list[str]] = None,
+        reranker_config: ContentRerankerConfig | None = None,
+        scope_ids: list[str] | None = None,
+        chat_only: bool | None = None,
+        metadata_filter: dict | None = None,
+        content_ids: list[str] | None = None,
     ) -> list[ContentChunk]:
         """
         Performs a synchronous search for content chunks in the knowledge base.
@@ -53,52 +91,37 @@ class ContentService(BaseService):
             search_type (ContentSearchType): The type of search to perform.
             limit (int): The maximum number of results to return.
             search_language (str): The language for the full-text search. Defaults to "english".
-            reranker_config (Optional[ContentRerankerConfig]): The reranker configuration. Defaults to None.
-            scope_ids (Optional[list[str]]): The scope IDs. Defaults to None.
-            chat_only (Optional[bool]): Whether to search only in the current chat. Defaults to None.
-            metadata_filter (Optional[dict]): UniqueQL metadata filter. If unspecified/None, it tries to use the metadata filter from the event. Defaults to None.
-            content_ids (Optional[list[str]]): The content IDs to search. Defaults to None.
+            reranker_config (ContentRerankerConfig | None): The reranker configuration. Defaults to None.
+            scope_ids (list[str] | None): The scope IDs. Defaults to None.
+            chat_only (bool | None): Whether to search only in the current chat. Defaults to None.
+            metadata_filter (dict | None): UniqueQL metadata filter. If unspecified/None, it tries to use the metadata filter from the event. Defaults to None.
+            content_ids (list[str] | None): The content IDs to search. Defaults to None.
         Returns:
             list[ContentChunk]: The search results.
         """
-        if not scope_ids:
-            self.logger.warning("No scope IDs provided for search.")
-
-        if content_ids:
-            self.logger.info("Searching chunks for content IDs: %s", content_ids)
 
         if metadata_filter is None:
             metadata_filter = self.metadata_filter
 
         try:
-            searches = unique_sdk.Search.create(
-                user_id=self.event.user_id,
-                company_id=self.event.company_id,
-                chatId=self.event.payload.chat_id,
-                searchString=search_string,
-                searchType=search_type.name,
-                scopeIds=scope_ids,
+            searches = search_content_chunks(
+                user_id=self.user_id,
+                company_id=self.company_id,
+                chat_id=self.chat_id,
+                search_string=search_string,
+                search_type=search_type,
                 limit=limit,
-                reranker=(
-                    reranker_config.model_dump(by_alias=True)
-                    if reranker_config
-                    else None
-                ),
-                language=search_language,
-                chatOnly=chat_only,
-                metaDataFilter=metadata_filter,
-                contentIds=content_ids,
+                search_language=search_language,
+                reranker_config=reranker_config,
+                scope_ids=scope_ids,
+                chat_only=chat_only,
+                metadata_filter=metadata_filter,
+                content_ids=content_ids,
             )
+            return searches
         except Exception as e:
-            self.logger.error(f"Error while searching content chunks: {e}")
+            logger.error(f"Error while searching content chunks: {e}")
             raise e
-
-        def map_to_content_chunks(searches: list[unique_sdk.Search]):
-            return [ContentChunk(**search) for search in searches]
-
-        # TODO change return type in sdk from Search to list[Search]
-        searches = cast(list[unique_sdk.Search], searches)
-        return map_to_content_chunks(searches)
 
     async def search_content_chunks_async(
         self,
@@ -106,11 +129,11 @@ class ContentService(BaseService):
         search_type: ContentSearchType,
         limit: int,
         search_language: str = DEFAULT_SEARCH_LANGUAGE,
-        reranker_config: Optional[ContentRerankerConfig] = None,
-        scope_ids: Optional[list[str]] = None,
-        chat_only: Optional[bool] = None,
-        metadata_filter: Optional[dict] = None,
-        content_ids: Optional[list[str]] = None,
+        reranker_config: ContentRerankerConfig | None = None,
+        scope_ids: list[str] | None = None,
+        chat_only: bool | None = None,
+        metadata_filter: dict | None = None,
+        content_ids: list[str] | None = None,
     ):
         """
         Performs an asynchronous search for content chunks in the knowledge base.
@@ -120,52 +143,36 @@ class ContentService(BaseService):
             search_type (ContentSearchType): The type of search to perform.
             limit (int): The maximum number of results to return.
             search_language (str): The language for the full-text search. Defaults to "english".
-            reranker_config (Optional[ContentRerankerConfig]): The reranker configuration. Defaults to None.
-            scope_ids (Optional[list[str]]): The scope IDs. Defaults to None.
-            chat_only (Optional[bool]): Whether to search only in the current chat. Defaults to None.
-            metadata_filter (Optional[dict]): UniqueQL metadata filter. If unspecified/None, it tries to use the metadata filter from the event. Defaults to None.
-            content_ids (Optional[list[str]]): The content IDs to search. Defaults to None.
+            reranker_config (ContentRerankerConfig | None): The reranker configuration. Defaults to None.
+            scope_ids (list[str] | None): The scope IDs. Defaults to None.
+            chat_only (bool | None): Whether to search only in the current chat. Defaults to None.
+            metadata_filter (dict | None): UniqueQL metadata filter. If unspecified/None, it tries to use the metadata filter from the event. Defaults to None.
+            content_ids (list[str] | None): The content IDs to search. Defaults to None.
         Returns:
             list[ContentChunk]: The search results.
         """
-        if not scope_ids:
-            self.logger.warning("No scope IDs provided for search.")
-
-        if content_ids:
-            self.logger.info("Searching chunks for content IDs: %s", content_ids)
-
         if metadata_filter is None:
             metadata_filter = self.metadata_filter
 
         try:
-            searches = await unique_sdk.Search.create_async(
-                user_id=self.event.user_id,
-                company_id=self.event.company_id,
-                chatId=self.event.payload.chat_id,
-                searchString=search_string,
-                searchType=search_type.name,
-                scopeIds=scope_ids,
+            searches = await search_content_chunks_async(
+                user_id=self.user_id,
+                company_id=self.company_id,
+                chat_id=self.chat_id,
+                search_string=search_string,
+                search_type=search_type,
                 limit=limit,
-                reranker=(
-                    reranker_config.model_dump(by_alias=True)
-                    if reranker_config
-                    else None
-                ),
-                language=search_language,
-                chatOnly=chat_only,
-                metaDataFilter=metadata_filter,
-                contentIds=content_ids,
+                search_language=search_language,
+                reranker_config=reranker_config,
+                scope_ids=scope_ids,
+                chat_only=chat_only,
+                metadata_filter=metadata_filter,
+                content_ids=content_ids,
             )
+            return searches
         except Exception as e:
-            self.logger.error(f"Error while searching content chunks: {e}")
+            logger.error(f"Error while searching content chunks: {e}")
             raise e
-
-        def map_to_content_chunks(searches: list[unique_sdk.Search]):
-            return [ContentChunk(**search) for search in searches]
-
-        # TODO change return type in sdk from Search to list[Search]
-        searches = cast(list[unique_sdk.Search], searches)
-        return map_to_content_chunks(searches)
 
     def search_contents(
         self,
@@ -181,22 +188,12 @@ class ContentService(BaseService):
         Returns:
             list[Content]: The search results.
         """
-        if where.get("contentId"):
-            self.logger.info("Searching content for content ID: %s", where["contentId"])
-
-        try:
-            contents = unique_sdk.Content.search(
-                user_id=self.event.user_id,
-                company_id=self.event.company_id,
-                chatId=self.event.payload.chat_id,
-                # TODO add type parameter
-                where=where,  # type: ignore
-            )
-        except Exception as e:
-            self.logger.error(f"Error while searching contents: {e}")
-            raise e
-
-        return self._map_contents(contents)
+        return search_contents(
+            user_id=self.user_id,
+            company_id=self.company_id,
+            chat_id=self.chat_id,
+            where=where,
+        )
 
     async def search_contents_async(
         self,
@@ -211,62 +208,28 @@ class ContentService(BaseService):
         Returns:
             list[Content]: The search results.
         """
-        if where.get("contentId"):
-            self.logger.info("Searching content for content ID: %s", where["contentId"])
-
-        try:
-            contents = await unique_sdk.Content.search_async(
-                user_id=self.event.user_id,
-                company_id=self.event.company_id,
-                chatId=self.event.payload.chat_id,
-                # TODO add type parameter
-                where=where,  # type: ignore
-            )
-        except Exception as e:
-            self.logger.error(f"Error while searching contents: {e}")
-            raise e
-
-        return self._map_contents(contents)
+        return await search_contents_async(
+            user_id=self.user_id,
+            company_id=self.company_id,
+            chat_id=self.chat_id,
+            where=where,
+        )
 
     def search_content_on_chat(
         self,
     ) -> list[Content]:
-        where = {"ownerId": {"equals": self.event.payload.chat_id}}
+        where = {"ownerId": {"equals": self.chat_id}}
 
         return self.search_contents(where)
-
-    @staticmethod
-    def _map_content_chunk(content_chunk: dict):
-        return ContentChunk(
-            id=content_chunk["id"],
-            text=content_chunk["text"],
-            start_page=content_chunk["startPage"],
-            end_page=content_chunk["endPage"],
-            order=content_chunk["order"],
-        )
-
-    def _map_content(self, content: dict):
-        return Content(
-            id=content["id"],
-            key=content["key"],
-            title=content["title"],
-            url=content["url"],
-            chunks=[self._map_content_chunk(chunk) for chunk in content["chunks"]],
-            created_at=content["createdAt"],
-            updated_at=content["updatedAt"],
-        )
-
-    def _map_contents(self, contents):
-        return [self._map_content(content) for content in contents]
 
     def upload_content(
         self,
         path_to_content: str,
         content_name: str,
         mime_type: str,
-        scope_id: Optional[str] = None,
-        chat_id: Optional[str] = None,
-        skip_ingestion: Optional[bool] = False,
+        scope_id: str | None = None,
+        chat_id: str | None = None,
+        skip_ingestion: bool = False,
     ):
         """
         Uploads content to the knowledge base.
@@ -275,108 +238,30 @@ class ContentService(BaseService):
             path_to_content (str): The path to the content to upload.
             content_name (str): The name of the content.
             mime_type (str): The MIME type of the content.
-            scope_id (Optional[str]): The scope ID. Defaults to None.
-            chat_id (Optional[str]): The chat ID. Defaults to None.
+            scope_id (str | None): The scope ID. Defaults to None.
+            chat_id (str | None): The chat ID. Defaults to None.
+            skip_ingestion (bool): Whether to skip ingestion. Defaults to False.
 
         Returns:
             Content: The uploaded content.
         """
 
-        try:
-            return self._trigger_upload_content(
-                path_to_content=path_to_content,
-                content_name=content_name,
-                mime_type=mime_type,
-                scope_id=scope_id,
-                chat_id=chat_id,
-                skip_ingestion=skip_ingestion,
-            )
-        except Exception as e:
-            self.logger.error(f"Error while uploading content: {e}")
-            raise e
-
-    def _trigger_upload_content(
-        self,
-        path_to_content: str,
-        content_name: str,
-        mime_type: str,
-        scope_id: Optional[str] = None,
-        chat_id: Optional[str] = None,
-        skip_ingestion: Optional[bool] = False,
-    ):
-        if not chat_id and not scope_id:
-            raise ValueError("chat_id or scope_id must be provided")
-
-        byte_size = os.path.getsize(path_to_content)
-        created_content = unique_sdk.Content.upsert(
-            user_id=self.event.user_id,
-            company_id=self.event.company_id,
-            input={
-                "key": content_name,
-                "title": content_name,
-                "mimeType": mime_type,
-            },
-            scopeId=scope_id,
-            chatId=chat_id,
-        )  # type: ignore
-
-        write_url = created_content["writeUrl"]
-
-        if not write_url:
-            error_msg = "Write url for uploaded content is missing"
-            self.logger.error(error_msg)
-            raise ValueError(error_msg)
-
-        # upload to azure blob storage SAS url uploadUrl the pdf file translatedFile make sure it is treated as a application/pdf
-        with open(path_to_content, "rb") as file:
-            requests.put(
-                url=write_url,
-                data=file,
-                headers={
-                    "X-Ms-Blob-Content-Type": mime_type,
-                    "X-Ms-Blob-Type": "BlockBlob",
-                },
-            )
-
-        read_url = created_content["readUrl"]
-
-        if not read_url:
-            error_msg = "Read url for uploaded content is missing"
-            self.logger.error(error_msg)
-            raise ValueError(error_msg)
-
-        input_dict = {
-            "key": content_name,
-            "title": content_name,
-            "mimeType": mime_type,
-            "byteSize": byte_size,
-        }
-
-        if skip_ingestion:
-            input_dict["ingestionConfig"] = {"uniqueIngestionMode": "SKIP_INGESTION"}
-
-        if chat_id:
-            unique_sdk.Content.upsert(
-                user_id=self.event.user_id,
-                company_id=self.event.company_id,
-                input=input_dict,
-                fileUrl=read_url,
-                chatId=chat_id,
-            )  # type: ignore
-        else:
-            unique_sdk.Content.upsert(
-                user_id=self.event.user_id,
-                company_id=self.event.company_id,
-                input=input_dict,
-                fileUrl=read_url,
-                scopeId=scope_id,
-            )  # type: ignore
-
-        return Content(**created_content)
+        return upload_content(
+            user_id=self.user_id,
+            company_id=self.company_id,
+            path_to_content=path_to_content,
+            content_name=content_name,
+            mime_type=mime_type,
+            scope_id=scope_id,
+            chat_id=chat_id,
+            skip_ingestion=skip_ingestion,
+        )
 
     def request_content_by_id(
-        self, content_id: str, chat_id: str | None
-    ) -> requests.Response:
+        self,
+        content_id: str,
+        chat_id: str | None,
+    ) -> Response:
         """
         Sends a request to download content from a chat.
 
@@ -388,37 +273,28 @@ class ContentService(BaseService):
             requests.Response: The response object containing the downloaded content.
 
         """
-        self.logger.info("Requesting content by ID: %s", content_id)
-        url = f"{unique_sdk.api_base}/content/{content_id}/file"
-        if chat_id:
-            url = f"{url}?chatId={chat_id}"
-
-        # Download the file and save it to the random directory
-        headers = {
-            "x-api-version": unique_sdk.api_version,
-            "x-app-id": unique_sdk.app_id,
-            "x-user-id": self.event.user_id,
-            "x-company-id": self.event.company_id,
-            "Authorization": "Bearer %s" % (unique_sdk.api_key,),
-        }
-
-        return requests.get(url, headers=headers)
+        return request_content_by_id(
+            user_id=self.user_id,
+            company_id=self.company_id,
+            content_id=content_id,
+            chat_id=chat_id,
+        )
 
     def download_content_to_file_by_id(
         self,
         content_id: str,
-        chat_id: Optional[str] = None,
+        chat_id: str | None = None,
         filename: str | None = None,
-        tmp_dir_path: Optional[Union[str, Path]] = "/tmp",
+        tmp_dir_path: str | Path | None = "/tmp",
     ):
         """
         Downloads content from a chat and saves it to a file.
 
         Args:
             content_id (str): The ID of the content to download.
-            chat_id (Optional[str]): The ID of the chat to download from. Defaults to None and the file is downloaded from the knowledge base.
+            chat_id (str | None): The ID of the chat to download from. Defaults to None and the file is downloaded from the knowledge base.
             filename (str | None): The name of the file to save the content as. If not provided, the original filename will be used. Defaults to None.
-            tmp_dir_path (Optional[Union[str, Path]]): The path to the temporary directory where the content will be saved. Defaults to "/tmp".
+            tmp_dir_path (str | Path | None): The path to the temporary directory where the content will be saved. Defaults to "/tmp".
 
         Returns:
             Path: The path to the downloaded file.
@@ -427,43 +303,22 @@ class ContentService(BaseService):
             Exception: If the download fails or the filename cannot be determined.
         """
 
-        self.logger.info("Requesting content by ID: %s", content_id)
-        response = self.request_content_by_id(content_id, chat_id)
-        random_dir = tempfile.mkdtemp(dir=tmp_dir_path)
-
-        if response.status_code == 200:
-            if filename:
-                content_path = Path(random_dir) / filename
-            else:
-                pattern = r'filename="([^"]+)"'
-                match = re.search(
-                    pattern, response.headers.get("Content-Disposition", "")
-                )
-                if match:
-                    content_path = Path(random_dir) / match.group(1)
-                else:
-                    error_msg = (
-                        "Error downloading file: Filename could not be determined"
-                    )
-                    self.logger.error(error_msg)
-                    raise Exception(error_msg)
-
-            with open(content_path, "wb") as file:
-                file.write(response.content)
-        else:
-            error_msg = f"Error downloading file: Status code {response.status_code}"
-            self.logger.error(error_msg)
-            raise Exception(error_msg)
-
-        return content_path
+        return download_content_to_file_by_id(
+            user_id=self.user_id,
+            company_id=self.company_id,
+            content_id=content_id,
+            chat_id=chat_id,
+            filename=filename,
+            tmp_dir_path=tmp_dir_path,
+        )
 
     # TODO: Discuss if we should deprecate this method due to unclear use by content_name
     def download_content(
         self,
         content_id: str,
         content_name: str,
-        chat_id: Optional[str] = None,
-        dir_path: Optional[Union[str, Path]] = "/tmp",
+        chat_id: str | None = None,
+        dir_path: str | Path | None = "/tmp",
     ) -> Path:
         """
         Downloads content to temporary directory
@@ -481,18 +336,11 @@ class ContentService(BaseService):
             Exception: If the download fails.
         """
 
-        self.logger.info("Downloading content by ID: %s", content_id)
-        response = self.request_content_by_id(content_id, chat_id)
-
-        random_dir = tempfile.mkdtemp(dir=dir_path)
-        content_path = Path(random_dir) / content_name
-
-        if response.status_code == 200:
-            with open(content_path, "wb") as file:
-                file.write(response.content)
-        else:
-            error_msg = f"Error downloading file: Status code {response.status_code}"
-            self.logger.error(error_msg)
-            raise Exception(error_msg)
-
-        return content_path
+        return download_content(
+            user_id=self.user_id,
+            company_id=self.company_id,
+            content_id=content_id,
+            content_name=content_name,
+            chat_id=chat_id,
+            dir_path=dir_path,
+        )
