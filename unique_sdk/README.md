@@ -616,8 +616,9 @@ assessment = unique_sdk.MessageAssessment.create(
     assistant_message_id="msg_...",
     status="DONE",
     explanation="This response contains incorrect information about...",
-    label="NEGATIVE",
+    label="RED",
     type="HALLUCINATION",
+    title="Hallucination detected",
     isVisible=True
 )
 ```
@@ -633,7 +634,8 @@ assessment = unique_sdk.MessageAssessment.modify(
     assistant_message_id="msg_...",
     status="DONE",
     explanation="Updated explanation...",
-    label="NEGATIVE",
+    label="RED",
+    title="update title"
     type="HALLUCINATION"
 )
 ```

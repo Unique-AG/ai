@@ -411,7 +411,7 @@ class TestChatServiceUnit:
             "messageId": "msg_123",
             "status": "DONE",
             "explanation": "Test explanation",
-            "label": "NEGATIVE",
+            "label": "RED",
             "type": "HALLUCINATION",
             "isVisible": True,
             "createdAt": mocked_datetime,
@@ -423,7 +423,7 @@ class TestChatServiceUnit:
             assistant_message_id="test_message",
             status=MessageAssessmentStatus.DONE,
             explanation="Test explanation",
-            label=MessageAssessmentLabel.NEGATIVE,
+            label=MessageAssessmentLabel.RED,
             type=MessageAssessmentType.HALLUCINATION,
             is_visible=True,
         )
@@ -431,7 +431,7 @@ class TestChatServiceUnit:
         assert isinstance(result, MessageAssessment)
         assert result.status == MessageAssessmentStatus.DONE.name
         assert result.explanation == "Test explanation"
-        assert result.label == MessageAssessmentLabel.NEGATIVE.name
+        assert result.label == MessageAssessmentLabel.RED.name
         assert result.type == MessageAssessmentType.HALLUCINATION.name
         assert result.is_visible is True
 
@@ -441,9 +441,10 @@ class TestChatServiceUnit:
             messageId="test_message",
             status="DONE",
             explanation="Test explanation",
-            label="NEGATIVE",
+            label="RED",
             type="HALLUCINATION",
             isVisible=True,
+            title=None,
         )
 
     @patch.object(unique_sdk.MessageAssessment, "modify", autospec=True)
@@ -453,7 +454,7 @@ class TestChatServiceUnit:
             "messageId": "msg_123",
             "status": "DONE",
             "explanation": "Modified explanation",
-            "label": "POSITIVE",
+            "label": "GREEN",
             "type": "HALLUCINATION",
             "isVisible": True,
             "createdAt": mocked_datetime,
@@ -466,14 +467,14 @@ class TestChatServiceUnit:
             assistant_message_id="test_message",
             status=MessageAssessmentStatus.DONE,
             explanation="Modified explanation",
-            label=MessageAssessmentLabel.POSITIVE,
+            label=MessageAssessmentLabel.GREEN,
             type=MessageAssessmentType.HALLUCINATION,
         )
 
         assert isinstance(result, MessageAssessment)
         assert result.status == MessageAssessmentStatus.DONE.name
         assert result.explanation == "Modified explanation"
-        assert result.label == MessageAssessmentLabel.POSITIVE.name
+        assert result.label == MessageAssessmentLabel.GREEN.name
         assert result.type == MessageAssessmentType.HALLUCINATION.name
 
         mock_modify.assert_called_once_with(
@@ -482,8 +483,9 @@ class TestChatServiceUnit:
             messageId="test_message",
             status="DONE",
             explanation="Modified explanation",
-            label="POSITIVE",
+            label="GREEN",
             type="HALLUCINATION",
+            title=None,
         )
 
     @pytest.mark.asyncio
@@ -494,12 +496,13 @@ class TestChatServiceUnit:
             "messageId": "msg_123",
             "status": "DONE",
             "explanation": "Test explanation",
-            "label": "NEGATIVE",
+            "label": "RED",
             "type": "HALLUCINATION",
             "isVisible": True,
             "createdAt": mocked_datetime,
             "updatedAt": mocked_datetime,
             "object": "message_assessment",
+            "title": None,
         }
 
         mock_create.return_value = mock_response
@@ -508,7 +511,7 @@ class TestChatServiceUnit:
             assistant_message_id="test_message",
             status=MessageAssessmentStatus.DONE,
             explanation="Test explanation",
-            label=MessageAssessmentLabel.NEGATIVE,
+            label=MessageAssessmentLabel.RED,
             type=MessageAssessmentType.HALLUCINATION,
             is_visible=True,
         )
@@ -516,7 +519,7 @@ class TestChatServiceUnit:
         assert isinstance(result, MessageAssessment)
         assert result.status == MessageAssessmentStatus.DONE.name
         assert result.explanation == "Test explanation"
-        assert result.label == MessageAssessmentLabel.NEGATIVE.name
+        assert result.label == MessageAssessmentLabel.RED.name
         assert result.type == MessageAssessmentType.HALLUCINATION.name
         assert result.is_visible is True
 
@@ -526,9 +529,10 @@ class TestChatServiceUnit:
             messageId="test_message",
             status="DONE",
             explanation="Test explanation",
-            label="NEGATIVE",
+            label="RED",
             type="HALLUCINATION",
             isVisible=True,
+            title=None,
         )
 
     @pytest.mark.asyncio
@@ -539,7 +543,7 @@ class TestChatServiceUnit:
             "messageId": "msg_123",
             "status": "DONE",
             "explanation": "Modified explanation",
-            "label": "POSITIVE",
+            "label": "GREEN",
             "type": "HALLUCINATION",
             "isVisible": True,
             "createdAt": mocked_datetime,
@@ -553,14 +557,14 @@ class TestChatServiceUnit:
             assistant_message_id="test_message",
             status=MessageAssessmentStatus.DONE,
             explanation="Modified explanation",
-            label=MessageAssessmentLabel.POSITIVE,
+            label=MessageAssessmentLabel.GREEN,
             type=MessageAssessmentType.HALLUCINATION,
         )
 
         assert isinstance(result, MessageAssessment)
         assert result.status == MessageAssessmentStatus.DONE.name
         assert result.explanation == "Modified explanation"
-        assert result.label == MessageAssessmentLabel.POSITIVE.name
+        assert result.label == MessageAssessmentLabel.GREEN.name
         assert result.type == MessageAssessmentType.HALLUCINATION.name
 
         mock_modify.assert_called_once_with(
@@ -569,8 +573,9 @@ class TestChatServiceUnit:
             messageId="test_message",
             status="DONE",
             explanation="Modified explanation",
-            label="POSITIVE",
+            label="GREEN",
             type="HALLUCINATION",
+            title=None,
         )
 
     @pytest.mark.asyncio
@@ -583,7 +588,7 @@ class TestChatServiceUnit:
                 assistant_message_id="test_message",
                 status=MessageAssessmentStatus.DONE,
                 explanation="Test explanation",
-                label=MessageAssessmentLabel.NEGATIVE,
+                label=MessageAssessmentLabel.RED,
                 type=MessageAssessmentType.HALLUCINATION,
             )
 
@@ -597,6 +602,6 @@ class TestChatServiceUnit:
                 assistant_message_id="test_message",
                 status=MessageAssessmentStatus.DONE,
                 explanation="Modified explanation",
-                label=MessageAssessmentLabel.POSITIVE,
+                label=MessageAssessmentLabel.GREEN,
                 type=MessageAssessmentType.HALLUCINATION,
             )
