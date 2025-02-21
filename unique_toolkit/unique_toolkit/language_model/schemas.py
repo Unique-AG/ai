@@ -205,8 +205,9 @@ class LanguageModelStreamResponse(BaseModel):
     message: LanguageModelStreamResponseMessage
     tool_calls: Optional[list[LanguageModelFunction]] = None
 
+
 class LanguageModelTokenLimits(BaseModel):
-    token_limit_input: int 
+    token_limit_input: int
     token_limit_output: int
 
     _fraction_adaptable = PrivateAttr(default=False)
@@ -214,34 +215,29 @@ class LanguageModelTokenLimits(BaseModel):
     @property
     @deprecated("""
     Deprecated: Use the more specific `token_limit_input` and `token_limit_output` instead.
-    """
-    ) 
+    """)
     def token_limit(self):
         return self.token_limit_input + self.token_limit_output
 
     @token_limit.setter
     @deprecated("""
     Deprecated: Token limit can only be reduced
-    """
-    )
+    """)
     def token_limit(self, token_limit, fraction_input=0.4):
-
-        if self.token_limit > token_limit :
-            self.token_limit_input = math.floor(fraction_input* token_limit)
-            self.token_limit_output = math.floor((1-fraction_input)*token_limit)
+        if self.token_limit > token_limit:
+            self.token_limit_input = math.floor(fraction_input * token_limit)
+            self.token_limit_output = math.floor((1 - fraction_input) * token_limit)
             self._fraction_adaptable = True
 
     def adapt_fraction(self, fraction_input: float):
         if self._fraction_adaptable:
             token_limit = self.token_limit_input + self.token_limit_output
-            self.token_limit_input = math.floor(fraction_input*token_limit)  
-            self.token_limit_output = math.floor((1-fraction_input)*token_limit)  
-    
+            self.token_limit_input = math.floor(fraction_input * token_limit)
+            self.token_limit_output = math.floor((1 - fraction_input) * token_limit)
+
     @model_validator(mode="before")
     def check_required_fields(cls, data):
-        
         if isinstance(data, dict):
-
             if {"token_limit_input", "token_limit_output"}.issubset(data.keys()):
                 return data
 
@@ -250,10 +246,11 @@ class LanguageModelTokenLimits(BaseModel):
                 fraction_input = data.get("fraction_input", 0.4)
 
                 data["token_limit_input"] = math.floor(fraction_input * token_limit)
-                data["token_limit_output"] = math.floor((1-fraction_input)*token_limit)
+                data["token_limit_output"] = math.floor(
+                    (1 - fraction_input) * token_limit
+                )
                 data["_fraction_adaptpable"] = True
             return data
-            
 
         raise ValueError(
             'Either "token_limit_input" and "token_limit_output" must be provided together, or "token_limit" must be provided.'

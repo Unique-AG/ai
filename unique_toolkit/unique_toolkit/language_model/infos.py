@@ -1,8 +1,9 @@
 from datetime import date
 from enum import StrEnum
-from typing import ClassVar, Optional, Type, cast
+from typing import ClassVar, Optional
 
 from pydantic import BaseModel
+from typing_extensions import deprecated
 
 from unique_toolkit.language_model.schemas import LanguageModelTokenLimits
 
@@ -60,6 +61,7 @@ class LanguageModelProvider(StrEnum):
     AZURE = "AZURE"
     CUSTOM = "CUSTOM"
 
+
 class LanguageModelInfo(BaseModel):
     name: LanguageModelName | str
     version: str
@@ -78,127 +80,159 @@ class LanguageModelInfo(BaseModel):
     @classmethod
     def from_name(cls, model_name: LanguageModelName):
         match model_name:
-
             case LanguageModelName.AZURE_GPT_35_TURBO_0613:
-                return cls(name=model_name.value,
-                            provider=LanguageModelProvider.AZURE,
-                            version="0613",
-                            encoder_name=get_encoder_name(model_name),
-                            token_limits=LanguageModelTokenLimits(token_limit=8192),
-                            info_cutoff_at=date(2021, 9, 1),
-                            published_at=date(2023, 6, 13),
-                            retirement_at=date(2025, 2, 13))
+                return cls(
+                    name=model_name.value,
+                    provider=LanguageModelProvider.AZURE,
+                    version="0613",
+                    encoder_name=get_encoder_name(model_name),
+                    token_limits=LanguageModelTokenLimits(token_limit=8192),
+                    info_cutoff_at=date(2021, 9, 1),
+                    published_at=date(2023, 6, 13),
+                    retirement_at=date(2025, 2, 13),
+                )
             case LanguageModelName.AZURE_GPT_35_TURBO:
-                return cls(name=model_name,
-                            provider=LanguageModelProvider.AZURE,
-                            version="0301",
-                            encoder_name=get_encoder_name(model_name),
-                            token_limits=LanguageModelTokenLimits(token_limit=4096),
-                            info_cutoff_at=date(2021, 9, 1),
-                            published_at=date(2023, 3, 1),
-                            retirement_at=date(2025, 2, 13))
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.AZURE,
+                    version="0301",
+                    encoder_name=get_encoder_name(model_name),
+                    token_limits=LanguageModelTokenLimits(token_limit=4096),
+                    info_cutoff_at=date(2021, 9, 1),
+                    published_at=date(2023, 3, 1),
+                    retirement_at=date(2025, 2, 13),
+                )
             case LanguageModelName.AZURE_GPT_35_TURBO_16K:
-                return cls(name=model_name,
-                            provider=LanguageModelProvider.AZURE,
-                            version="0613",
-                            encoder_name=get_encoder_name(model_name),
-                            token_limits=LanguageModelTokenLimits(token_limit=16382),
-                            info_cutoff_at=date(2021, 9, 1),
-                            published_at=date(2023, 6, 13),
-                            retirement_at=date(2025, 2, 13))
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.AZURE,
+                    version="0613",
+                    encoder_name=get_encoder_name(model_name),
+                    token_limits=LanguageModelTokenLimits(token_limit=16382),
+                    info_cutoff_at=date(2021, 9, 1),
+                    published_at=date(2023, 6, 13),
+                    retirement_at=date(2025, 2, 13),
+                )
             case LanguageModelName.AZURE_GPT_35_TURBO_0125:
-                return cls(name=model_name,
-                            provider=LanguageModelProvider.AZURE,
-                            version="0125",
-                            encoder_name=get_encoder_name(model_name),
-                            token_limits=LanguageModelTokenLimits(token_limit_input=16385,
-                                                                  token_limit_output=4096),
-                            info_cutoff_at=date(2021, 9, 1),
-                            published_at=date(2023, 1, 25),
-                            retirement_at=date(5, 3, 31))
-            case LanguageModelName.AZURE_GPT_4_0613:    
-                return cls(name=model_name,
-                            provider=LanguageModelProvider.AZURE,
-                            version="0613",
-                            encoder_name=get_encoder_name(model_name),
-                            token_limits=LanguageModelTokenLimits(token_limit=8192),
-                            info_cutoff_at=date(2021, 9, 1),
-                            published_at=date(2023, 6, 13),
-                            deprecated_at=date(2024, 10, 1),
-                            retirement_at=date(2025, 6, 6))
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.AZURE,
+                    version="0125",
+                    encoder_name=get_encoder_name(model_name),
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=16385, token_limit_output=4096
+                    ),
+                    info_cutoff_at=date(2021, 9, 1),
+                    published_at=date(2023, 1, 25),
+                    retirement_at=date(5, 3, 31),
+                )
+            case LanguageModelName.AZURE_GPT_4_0613:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.AZURE,
+                    version="0613",
+                    encoder_name=get_encoder_name(model_name),
+                    token_limits=LanguageModelTokenLimits(token_limit=8192),
+                    info_cutoff_at=date(2021, 9, 1),
+                    published_at=date(2023, 6, 13),
+                    deprecated_at=date(2024, 10, 1),
+                    retirement_at=date(2025, 6, 6),
+                )
             case LanguageModelName.AZURE_GPT_4_TURBO_1106:
-                return cls(name=model_name,
-                            provider=LanguageModelProvider.AZURE,
-                            version="1106-preview",
-                            encoder_name=get_encoder_name(model_name),
-                            token_limits=LanguageModelTokenLimits(token_limit_input=128000,
-                                                                  token_limit_output=4096),
-                            info_cutoff_at=date(2023, 4, 1),
-                            published_at=date(2023, 11, 6))
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.AZURE,
+                    version="1106-preview",
+                    encoder_name=get_encoder_name(model_name),
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=128000, token_limit_output=4096
+                    ),
+                    info_cutoff_at=date(2023, 4, 1),
+                    published_at=date(2023, 11, 6),
+                )
             case LanguageModelName.AZURE_GPT_4_VISION_PREVIEW:
-                return cls(name=model_name,
-                            provider=LanguageModelProvider.AZURE,
-                            version="vision-preview",
-                            encoder_name=get_encoder_name(model_name),
-                            token_limits=LanguageModelTokenLimits(token_limit_input=128000,
-                                                                  token_limit_output=4096),
-                            info_cutoff_at=date(2023, 4, 1),
-                            published_at=date(2023, 11, 6))
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.AZURE,
+                    version="vision-preview",
+                    encoder_name=get_encoder_name(model_name),
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=128000, token_limit_output=4096
+                    ),
+                    info_cutoff_at=date(2023, 4, 1),
+                    published_at=date(2023, 11, 6),
+                )
             case LanguageModelName.AZURE_GPT_4_32K_0613:
-                return cls(name=model_name,
-                            provider=LanguageModelProvider.AZURE,
-                            version="1106-preview",
-                            encoder_name=get_encoder_name(model_name),
-                            token_limits=LanguageModelTokenLimits(token_limit=32768),
-                            info_cutoff_at=date(2021, 9, 1),
-                            published_at=date(2023, 6, 13),
-                            deprecated_at=date(2024, 10, 1),
-                            retirement_at=date(2025, 6, 6))
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.AZURE,
+                    version="1106-preview",
+                    encoder_name=get_encoder_name(model_name),
+                    token_limits=LanguageModelTokenLimits(token_limit=32768),
+                    info_cutoff_at=date(2021, 9, 1),
+                    published_at=date(2023, 6, 13),
+                    deprecated_at=date(2024, 10, 1),
+                    retirement_at=date(2025, 6, 6),
+                )
             case LanguageModelName.AZURE_GPT_4_TURBO_2024_0409:
-                return cls(name=model_name,
-                            encoder_name=get_encoder_name(model_name),
-                            provider=LanguageModelProvider.AZURE,
-                            version="turbo-2024-04-09",
-                            token_limits=LanguageModelTokenLimits(token_limit_input=128000,
-                                                                  token_limit_output=4096),
-                            info_cutoff_at=date(2023, 12, 1),
-                            published_at=date(2024, 4, 9))
+                return cls(
+                    name=model_name,
+                    encoder_name=get_encoder_name(model_name),
+                    provider=LanguageModelProvider.AZURE,
+                    version="turbo-2024-04-09",
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=128000, token_limit_output=4096
+                    ),
+                    info_cutoff_at=date(2023, 12, 1),
+                    published_at=date(2024, 4, 9),
+                )
             case LanguageModelName.AZURE_GPT_4o_2024_0513:
-                return cls(name=model_name,
-                            encoder_name=get_encoder_name(model_name),
-                            provider=LanguageModelProvider.AZURE,
-                            version="2024-05-13",
-                            token_limits=LanguageModelTokenLimits(token_limit_input=128000,
-                                                                  token_limit_output=4096),
-                            info_cutoff_at=date(2023, 10, 1),
-                            published_at=date(2024, 5, 13))
+                return cls(
+                    name=model_name,
+                    encoder_name=get_encoder_name(model_name),
+                    provider=LanguageModelProvider.AZURE,
+                    version="2024-05-13",
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=128000, token_limit_output=4096
+                    ),
+                    info_cutoff_at=date(2023, 10, 1),
+                    published_at=date(2024, 5, 13),
+                )
             case LanguageModelName.AZURE_GPT_4o_2024_0806:
-                return cls(name=model_name,
-                            encoder_name=get_encoder_name(model_name),
-                            provider=LanguageModelProvider.AZURE,
-                            version="2024-08-06",
-                            token_limits=LanguageModelTokenLimits(token_limit_input=128000,
-                                                                  token_limit_output=16384),
-                            info_cutoff_at=date(2023, 10, 1),
-                            published_at=date(2024, 8, 6))
+                return cls(
+                    name=model_name,
+                    encoder_name=get_encoder_name(model_name),
+                    provider=LanguageModelProvider.AZURE,
+                    version="2024-08-06",
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=128000, token_limit_output=16384
+                    ),
+                    info_cutoff_at=date(2023, 10, 1),
+                    published_at=date(2024, 8, 6),
+                )
             case LanguageModelName.AZURE_GPT_4o_MINI_2024_0718:
-                return cls(name=model_name,
-                            provider=LanguageModelProvider.AZURE,
-                            version="2024-07-18",
-                            encoder_name=get_encoder_name(model_name),
-                            token_limits=LanguageModelTokenLimits(token_limit_input=128000,
-                                                                  token_limit_output=16384),
-                            info_cutoff_at=date(2023, 10, 1),
-                            published_at=date(2024, 7, 18))
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.AZURE,
+                    version="2024-07-18",
+                    encoder_name=get_encoder_name(model_name),
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=128000, token_limit_output=16384
+                    ),
+                    info_cutoff_at=date(2023, 10, 1),
+                    published_at=date(2024, 7, 18),
+                )
             case _:
-                
                 if isinstance(model_name, LanguageModelName):
-                    raise ValueError(f"{model_name} is not supported. Please add model information in toolkit.")
-                
-                return cls(name=model_name,
-                            version="custom",
-                            provider=LanguageModelProvider.CUSTOM,
-                        )
+                    raise ValueError(
+                        f"{model_name} is not supported. Please add model information in toolkit."
+                    )
+
+                return cls(
+                    name=model_name,
+                    version="custom",
+                    provider=LanguageModelProvider.CUSTOM,
+                )
 
     @property
     def display_name(self) -> str:
@@ -212,6 +246,11 @@ class LanguageModelInfo(BaseModel):
             return self.name
 
 
+@deprecated(
+    """
+Use `LanguageModelInfo` instead of `LanguageModel`
+"""
+)
 class LanguageModel:
     _info: ClassVar[LanguageModelInfo]
 
@@ -334,7 +373,6 @@ class LanguageModel:
 
     @classmethod
     def get_model_info(cls, model_name: LanguageModelName | str) -> LanguageModelInfo:
-
         if isinstance(model_name, LanguageModelName):
             return LanguageModelInfo.from_name(model_name)
 
@@ -343,7 +381,7 @@ class LanguageModel:
             version="custom",
             provider=LanguageModelProvider.CUSTOM,
         )
-    
+
     @classmethod
     def list_models(cls) -> list[LanguageModelInfo]:
         """

@@ -65,9 +65,7 @@ class TestLanguageModelInfos:
     def test_get_language_model_returns_custom_model_for_string(self):
         name = "custom"
         LanguageModel(name) == LanguageModelInfo(
-            name=name,
-            version="custom",
-            provider=LanguageModelProvider.CUSTOM
+            name=name, version="custom", provider=LanguageModelProvider.CUSTOM
         )
 
     # New tests for LanguageModelTokenLimits
