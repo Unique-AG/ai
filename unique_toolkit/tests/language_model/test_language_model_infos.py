@@ -62,9 +62,13 @@ class TestLanguageModelInfos:
         assert model.deprecated_at is None
         assert model.retirement_text is None
 
-    def test_get_language_model_raises_error_for_invalid_model(self):
-        with pytest.raises(ValueError):
-            LanguageModel("")
+    def test_get_language_model_returns_custom_model_for_string(self):
+        name = "custom"
+        LanguageModel(name) == LanguageModelInfo(
+            name=name,
+            version="custom",
+            provider=LanguageModelProvider.CUSTOM
+        )
 
     # New tests for LanguageModelTokenLimits
     def test_language_model_token_limits_with_input_output(self):
