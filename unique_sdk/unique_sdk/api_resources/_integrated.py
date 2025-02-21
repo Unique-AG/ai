@@ -38,8 +38,6 @@ class Integrated(APIResource["Integrated"]):
     class CreateStream(RequestOptions):
         model: NotRequired[
             Literal[
-                "AZURE_GPT_35_TURBO",
-                "AZURE_GPT_35_TURBO_16K",
                 "AZURE_GPT_4_0613",
                 "AZURE_GPT_4_32K_0613",
             ]

@@ -23,7 +23,7 @@ context_relevancy_required_input_fields = [
 default_config = EvaluationMetricConfig(
     enabled=False,
     name=EvaluationMetricName.CONTEXT_RELEVANCY,
-    language_model=LanguageModel(LanguageModelName.AZURE_GPT_35_TURBO_0613),
+    language_model=LanguageModel(LanguageModelName.AZURE_GPT_35_TURBO_0125),
     score_to_emoji={"LOW": "🟢", "MEDIUM": "🟡", "HIGH": "🔴"},
     custom_prompts={
         SYSTEM_MSG_KEY: CONTEXT_RELEVANCY_METRIC_SYSTEM_MSG,

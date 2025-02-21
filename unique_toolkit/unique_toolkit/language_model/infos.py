@@ -9,9 +9,6 @@ from unique_toolkit.language_model.schemas import LanguageModelTokenLimits
 
 
 class LanguageModelName(StrEnum):
-    AZURE_GPT_35_TURBO_0613 = "AZURE_GPT_35_TURBO_0613"
-    AZURE_GPT_35_TURBO = "AZURE_GPT_35_TURBO"
-    AZURE_GPT_35_TURBO_16K = "AZURE_GPT_35_TURBO_16K"
     AZURE_GPT_35_TURBO_0125 = "AZURE_GPT_35_TURBO_0125"
     AZURE_GPT_4_0613 = "AZURE_GPT_4_0613"
     AZURE_GPT_4_TURBO_1106 = "AZURE_GPT_4_TURBO_1106"
@@ -31,12 +28,7 @@ class EncoderName(StrEnum):
 def get_encoder_name(model_name: LanguageModelName) -> Optional[EncoderName]:
     LMN = LanguageModelName
     match model_name:
-        case (
-            LMN.AZURE_GPT_35_TURBO
-            | LMN.AZURE_GPT_35_TURBO_16K
-            | LMN.AZURE_GPT_35_TURBO_0613
-            | LMN.AZURE_GPT_35_TURBO_0125
-        ):
+        case LMN.AZURE_GPT_35_TURBO_0125:
             return EncoderName.CL100K_BASE
         case (
             LMN.AZURE_GPT_4_0613
@@ -80,39 +72,6 @@ class LanguageModelInfo(BaseModel):
     @classmethod
     def from_name(cls, model_name: LanguageModelName):
         match model_name:
-            case LanguageModelName.AZURE_GPT_35_TURBO_0613:
-                return cls(
-                    name=model_name.value,
-                    provider=LanguageModelProvider.AZURE,
-                    version="0613",
-                    encoder_name=get_encoder_name(model_name),
-                    token_limits=LanguageModelTokenLimits(token_limit=8192),
-                    info_cutoff_at=date(2021, 9, 1),
-                    published_at=date(2023, 6, 13),
-                    retirement_at=date(2025, 2, 13),
-                )
-            case LanguageModelName.AZURE_GPT_35_TURBO:
-                return cls(
-                    name=model_name,
-                    provider=LanguageModelProvider.AZURE,
-                    version="0301",
-                    encoder_name=get_encoder_name(model_name),
-                    token_limits=LanguageModelTokenLimits(token_limit=4096),
-                    info_cutoff_at=date(2021, 9, 1),
-                    published_at=date(2023, 3, 1),
-                    retirement_at=date(2025, 2, 13),
-                )
-            case LanguageModelName.AZURE_GPT_35_TURBO_16K:
-                return cls(
-                    name=model_name,
-                    provider=LanguageModelProvider.AZURE,
-                    version="0613",
-                    encoder_name=get_encoder_name(model_name),
-                    token_limits=LanguageModelTokenLimits(token_limit=16382),
-                    info_cutoff_at=date(2021, 9, 1),
-                    published_at=date(2023, 6, 13),
-                    retirement_at=date(2025, 2, 13),
-                )
             case LanguageModelName.AZURE_GPT_35_TURBO_0125:
                 return cls(
                     name=model_name,
