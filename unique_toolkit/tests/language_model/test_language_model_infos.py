@@ -98,7 +98,6 @@ class TestLanguageModelInfos:
                 token_limit_input=case["input"], token_limit_output=case["output"]
             )
             assert limits.token_limit == case["expected_total"]
-            assert abs(limits.fraction_input - case["expected_fraction"]) < 1e-10
 
     def test_language_model_token_limits_with_total(self):
         limits = LanguageModelTokenLimits(token_limit=10000)

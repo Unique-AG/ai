@@ -9,11 +9,13 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    PrivateAttr,
     RootModel,
     field_validator,
     model_serializer,
     model_validator,
 )
+from typing_extensions import deprecated
 
 from unique_toolkit.language_model.utils import format_message
 
@@ -203,32 +205,44 @@ class LanguageModelStreamResponse(BaseModel):
     message: LanguageModelStreamResponseMessage
     tool_calls: Optional[list[LanguageModelFunction]] = None
 
-
 class LanguageModelTokenLimits(BaseModel):
-    token_limit: Optional[int] = None
-    token_limit_input: Optional[int] = None
-    token_limit_output: Optional[int] = None
+    token_limit_input: int 
+    token_limit_output: int
 
-    fraction_input: float = Field(default=0.4, le=1, ge=0)
+    _fraction_adaptable = PrivateAttr(default=False)
 
-    @model_validator(mode="after")
-    def check_required_fields(self):
-        # Best case input and output is determined
-        if self.token_limit_input and self.token_limit_output:
-            self.token_limit = self.token_limit_input + self.token_limit_output
-            self.fraction_input = self.token_limit_input / self.token_limit
-            return self
+    @property
+    @deprecated("""
+    Deprecated: Use the more specific `token_limit_input` and `token_limit_output` instead.
+    """
+    ) 
+    def token_limit(self):
+        return self.token_limit_input + self.token_limit_output
 
-        # Deal with case where only token_limit and optional fraction_input is given
-        if self.token_limit:
-            if not self.fraction_input:
-                self.fraction_input = 0.4
+    def adapt_fraction(self, fraction_input: float):
 
-            self.token_limit_input = math.floor(self.fraction_input * self.token_limit)
-            self.token_limit_output = math.floor(
-                (1 - self.fraction_input) * self.token_limit
-            )
-            return self
+        if self._fraction_adaptable:
+            token_limit = self.token_limit_input + self.token_limit_output
+            self.token_limit_input = math.floor(fraction_input*token_limit)  
+            self.token_limit_output = math.floor((1-fraction_input)*token_limit)  
+    
+    @model_validator(mode="before")
+    def check_required_fields(cls, data):
+        
+        if isinstance(data, dict):
+
+            if {"token_limit_input", "token_limit_output"}.issubset(data.keys()):
+                return data
+
+            if {"token_limit"}.issubset(data.keys()):
+                token_limit = data.get("token_limit")
+                fraction_input = data.get("fraction_input", 0.4)
+
+                data["token_limit_input"] = math.floor(fraction_input * token_limit)
+                data["token_limit_output"] = math.floor((1-fraction_input)*token_limit)
+                data["_fraction_adaptpable"] = True
+            return data
+            
 
         raise ValueError(
             'Either "token_limit_input" and "token_limit_output" must be provided together, or "token_limit" must be provided.'
