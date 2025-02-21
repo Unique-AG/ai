@@ -219,8 +219,19 @@ class LanguageModelTokenLimits(BaseModel):
     def token_limit(self):
         return self.token_limit_input + self.token_limit_output
 
-    def adapt_fraction(self, fraction_input: float):
+    @token_limit.setter
+    @deprecated("""
+    Deprecated: Token limit can only be reduced
+    """
+    )
+    def token_limit(self, token_limit, fraction_input=0.4):
 
+        if self.token_limit > token_limit :
+            self.token_limit_input = math.floor(fraction_input* token_limit)
+            self.token_limit_output = math.floor((1-fraction_input)*token_limit)
+            self._fraction_adaptable = True
+
+    def adapt_fraction(self, fraction_input: float):
         if self._fraction_adaptable:
             token_limit = self.token_limit_input + self.token_limit_output
             self.token_limit_input = math.floor(fraction_input*token_limit)  
