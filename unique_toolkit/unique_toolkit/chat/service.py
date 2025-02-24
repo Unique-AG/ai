@@ -395,8 +395,8 @@ class ChatService:
         original_content: str | None = None,
         references: list[ContentReference] = [],
         debug_info: dict = {},
-        set_completed_at: Optional[bool] = False,
-    ):
+        set_completed_at: bool | None = False,
+    ) -> ChatMessage:
         """
         Creates a message in the chat session synchronously.
 
@@ -413,7 +413,7 @@ class ChatService:
         Raises:
             Exception: If the creation fails.
         """
-        return create_message(
+        chat_message = create_message(
             user_id=self.user_id,
             company_id=self.company_id,
             chat_id=self.chat_id,
@@ -425,6 +425,9 @@ class ChatService:
             debug_info=debug_info,
             set_completed_at=set_completed_at,
         )
+        # Update the assistant message id
+        self.assistant_message_id = chat_message.id
+        return chat_message
 
     async def create_assistant_message_async(
         self,
@@ -432,8 +435,8 @@ class ChatService:
         original_content: str | None = None,
         references: list[ContentReference] = [],
         debug_info: dict = {},
-        set_completed_at: Optional[bool] = False,
-    ):
+        set_completed_at: bool | None = False,
+    ) -> ChatMessage:
         """
         Creates a message in the chat session asynchronously.
 
@@ -451,7 +454,7 @@ class ChatService:
             Exception: If the creation fails.
         """
 
-        return await create_message_async(
+        chat_message = await create_message_async(
             user_id=self.user_id,
             company_id=self.company_id,
             chat_id=self.chat_id,
@@ -463,6 +466,9 @@ class ChatService:
             debug_info=debug_info,
             set_completed_at=set_completed_at,
         )
+        # Update the assistant message id
+        self.assistant_message_id = chat_message.id
+        return chat_message
 
     def create_message_assessment(
         self,
