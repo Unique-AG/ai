@@ -6,7 +6,6 @@ import unique_sdk
 from pydantic import BaseModel
 
 from tests.test_obj_factory import get_event_obj
-from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.language_model.functions import (
     _add_response_format_to_options,
     _prepare_completion_params_util,
@@ -17,7 +16,6 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelMessageRole,
     LanguageModelMessages,
     LanguageModelResponse,
-    LanguageModelStreamResponse,
     LanguageModelTool,
     LanguageModelToolParameterProperty,
     LanguageModelToolParameters,
@@ -92,29 +90,6 @@ class TestLanguageModelServiceUnit:
             },
         )
 
-    @patch.object(unique_sdk.Integrated, "chat_stream_completion")
-    def test_stream_complete(self, mock_stream_complete):
-        mock_stream_complete.return_value = {
-            "message": {
-                "id": "test_message",
-                "previousMessageId": "test_previous_message",
-                "role": "ASSISTANT",
-                "text": "Streamed response",
-                "originalText": "Streamed response original",
-            }
-        }
-        messages = LanguageModelMessages([])
-        model_name = LanguageModelName.AZURE_GPT_4_TURBO_1106
-        content_chunks = [
-            ContentChunk(id="1", chunk_id="1", key="test", order=1, text="test")
-        ]
-
-        result = self.service.stream_complete(messages, model_name, content_chunks)
-
-        assert isinstance(result, LanguageModelStreamResponse)
-        assert result.message.text == "Streamed response"
-        mock_stream_complete.assert_called_once()
-
     @patch.object(unique_sdk.ChatCompletion, "create")
     def test_complete_with_custom_model(self, mock_create):
         mock_create.return_value = {
@@ -144,40 +119,6 @@ class TestLanguageModelServiceUnit:
             options={
                 "temperature": 0.0,
             },
-        )
-
-    @patch.object(unique_sdk.Integrated, "chat_stream_completion")
-    def test_stream_complete_with_custom_model(self, mock_stream_complete):
-        mock_stream_complete.return_value = {
-            "message": {
-                "id": "test_message",
-                "previousMessageId": "test_previous_message",
-                "role": "ASSISTANT",
-                "text": "Streamed response",
-                "originalText": "Streamed response original",
-            }
-        }
-        messages = LanguageModelMessages([])
-        model_name = "My Custom Model"
-
-        result = self.service.stream_complete(messages, model_name)
-
-        assert isinstance(result, LanguageModelStreamResponse)
-        assert result.message.text == "Streamed response"
-        mock_stream_complete.assert_called_once_with(
-            user_id="test_user",
-            company_id="test_company",
-            assistantMessageId="assistant_message_id",
-            userMessageId="user_message_id",
-            messages=[],
-            chatId="test_chat",
-            searchContext=None,
-            model=model_name,
-            timeout=240000,
-            assistantId="test_assistant",
-            debugInfo={},
-            options={"temperature": 0.0},
-            startText=None,
         )
 
     @patch.object(unique_sdk.ChatCompletion, "create")
@@ -229,48 +170,6 @@ class TestLanguageModelServiceUnit:
             arguments = json.loads(arguments)
         assert "New York, NY" in arguments.values()
 
-    @patch.object(unique_sdk.Integrated, "chat_stream_completion")
-    def test_stream_complete_with_tool(self, mock_stream):
-        messages = LanguageModelMessages(
-            [
-                LanguageModelMessage(
-                    role=LanguageModelMessageRole.USER,
-                    content="What's the weather in New York?",
-                )
-            ]
-        )
-
-        mock_stream.return_value = {
-            "message": {
-                "id": "test_stream_id",
-                "previousMessageId": "test_previous_message_id",
-                "role": "ASSISTANT",
-                "text": "Streamed response",
-                "originalText": "Streamed response original",
-            },
-            "toolCalls": [
-                {
-                    "id": "test_tool_id",
-                    "name": "get_weather",
-                    "arguments": '{"location": "London, UK", "unit": "celsius"}',
-                }
-            ],
-        }
-
-        response = self.service.stream_complete(
-            messages=messages,
-            model_name=LanguageModelName.AZURE_GPT_35_TURBO_0125,
-            tools=[mock_tool],
-        )
-
-        assert response.tool_calls is not None
-        assert response.tool_calls[0].name == "get_weather"
-        arguments = response.tool_calls[0].arguments
-        assert arguments is not None
-        if isinstance(arguments, str):
-            arguments = json.loads(arguments)
-        assert "London, UK" in arguments.values()
-
     @pytest.mark.asyncio
     @patch.object(unique_sdk.ChatCompletion, "create_async")
     async def test_complete_async(self, mock_create):
@@ -302,32 +201,6 @@ class TestLanguageModelServiceUnit:
                 "temperature": 0.0,
             },
         )
-
-    @pytest.mark.asyncio
-    @patch.object(unique_sdk.Integrated, "chat_stream_completion_async")
-    async def test_stream_complete_async(self, mock_stream_complete):
-        mock_stream_complete.return_value = {
-            "message": {
-                "id": "test_message",
-                "previousMessageId": "test_previous_message",
-                "role": "ASSISTANT",
-                "text": "Streamed response",
-                "originalText": "Streamed response original",
-            }
-        }
-        messages = LanguageModelMessages([])
-        model_name = LanguageModelName.AZURE_GPT_4_TURBO_1106
-        content_chunks = [
-            ContentChunk(id="1", chunk_id="1", key="test", order=1, text="test")
-        ]
-
-        result = await self.service.stream_complete_async(
-            messages, model_name, content_chunks
-        )
-
-        assert isinstance(result, LanguageModelStreamResponse)
-        assert result.message.text == "Streamed response"
-        mock_stream_complete.assert_called_once()
 
     @pytest.mark.asyncio
     @patch.object(unique_sdk.ChatCompletion, "create_async")
@@ -362,55 +235,11 @@ class TestLanguageModelServiceUnit:
         )
 
     @pytest.mark.asyncio
-    @patch.object(unique_sdk.Integrated, "chat_stream_completion_async")
-    async def test_stream_complete_async_with_custom_model(self, mock_stream_complete):
-        mock_stream_complete.return_value = {
-            "message": {
-                "id": "test_message",
-                "previousMessageId": "test_previous_message",
-                "role": "ASSISTANT",
-                "text": "Streamed response",
-                "originalText": "Streamed response original",
-            }
-        }
-        messages = LanguageModelMessages([])
-        model_name = "My custom model"
-
-        result = await self.service.stream_complete_async(messages, model_name)
-
-        assert isinstance(result, LanguageModelStreamResponse)
-        assert result.message.text == "Streamed response"
-        mock_stream_complete.assert_awaited_once_with(
-            user_id="test_user",
-            company_id="test_company",
-            assistantMessageId="assistant_message_id",
-            userMessageId="user_message_id",
-            messages=[],
-            chatId="test_chat",
-            searchContext=None,
-            model=model_name,
-            timeout=240000,
-            assistantId="test_assistant",
-            debugInfo={},
-            options={"temperature": 0.0},
-            startText=None,
-        )
-
-    @pytest.mark.asyncio
     @patch.object(unique_sdk.ChatCompletion, "create_async")
     async def test_error_handling_complete_async(self, mock_create):
         mock_create.side_effect = Exception("API Error")
         with pytest.raises(Exception, match="API Error"):
             await self.service.complete_async(
-                LanguageModelMessages([]), LanguageModelName.AZURE_GPT_4_TURBO_1106
-            )
-
-    @pytest.mark.asyncio
-    @patch.object(unique_sdk.Integrated, "chat_stream_completion_async")
-    async def test_error_handling_stream_complete_async(self, mock_stream_complete):
-        mock_stream_complete.side_effect = Exception("Stream Error")
-        with pytest.raises(Exception, match="Stream Error"):
-            await self.service.stream_complete_async(
                 LanguageModelMessages([]), LanguageModelName.AZURE_GPT_4_TURBO_1106
             )
 
@@ -462,49 +291,6 @@ class TestLanguageModelServiceUnit:
         if isinstance(arguments, str):
             arguments = json.loads(arguments)
         assert "New York, NY" in arguments.values()
-
-    @pytest.mark.asyncio
-    @patch.object(unique_sdk.Integrated, "chat_stream_completion_async")
-    async def test_stream_complete_with_tool_async(self, mock_stream):
-        messages = LanguageModelMessages(
-            [
-                LanguageModelMessage(
-                    role=LanguageModelMessageRole.USER,
-                    content="What's the weather in New York?",
-                )
-            ]
-        )
-
-        mock_stream.return_value = {
-            "message": {
-                "id": "test_stream_id",
-                "previousMessageId": "test_previous_message_id",
-                "role": "ASSISTANT",
-                "text": "Streamed response",
-                "originalText": "Streamed response original",
-            },
-            "toolCalls": [
-                {
-                    "id": "test_tool_id",
-                    "name": "get_weather",
-                    "arguments": '{"location": "London, UK", "unit": "celsius"}',
-                }
-            ],
-        }
-
-        response = await self.service.stream_complete_async(
-            messages=messages,
-            model_name=LanguageModelName.AZURE_GPT_35_TURBO_0125,
-            tools=[mock_tool],
-        )
-
-        assert response.tool_calls is not None
-        assert response.tool_calls[0].name == "get_weather"
-        arguments = response.tool_calls[0].arguments
-        assert arguments is not None
-        if isinstance(arguments, str):
-            arguments = json.loads(arguments)
-        assert "London, UK" in arguments.values()
 
     def testprepare_completion_params_util_basic(self):
         messages = LanguageModelMessages([])
@@ -588,48 +374,6 @@ class TestLanguageModelServiceUnit:
         )
 
     @pytest.mark.asyncio
-    @patch.object(unique_sdk.Integrated, "chat_stream_completion")
-    async def test_stream_complete_with_other_options(self, mock_stream_complete):
-        mock_stream_complete.return_value = {
-            "message": {
-                "id": "test_message",
-                "previousMessageId": "test_previous_message",
-                "role": "ASSISTANT",
-                "text": "Streamed response",
-                "originalText": "Streamed response original",
-            }
-        }
-        messages = LanguageModelMessages([])
-        model_name = LanguageModelName.AZURE_GPT_4_TURBO_1106
-        other_options = {"presence_penalty": 0.6, "frequency_penalty": 0.8}
-
-        result = self.service.stream_complete(
-            messages, model_name, other_options=other_options
-        )
-
-        assert isinstance(result, LanguageModelStreamResponse)
-        assert result.message.text == "Streamed response"
-        mock_stream_complete.assert_called_once_with(
-            user_id="test_user",
-            company_id="test_company",
-            assistantMessageId="assistant_message_id",
-            userMessageId="user_message_id",
-            messages=[],
-            chatId="test_chat",
-            searchContext=None,
-            model=model_name.name,
-            timeout=240000,
-            assistantId="test_assistant",
-            debugInfo={},
-            options={
-                "temperature": 0.0,
-                "presence_penalty": 0.6,
-                "frequency_penalty": 0.8,
-            },
-            startText=None,
-        )
-
-    @pytest.mark.asyncio
     @patch.object(unique_sdk.ChatCompletion, "create_async")
     async def test_complete_async_with_other_options(self, mock_create):
         mock_create.return_value = {
@@ -664,48 +408,6 @@ class TestLanguageModelServiceUnit:
                 "best_of": 2,
                 "stop": ["\n"],
             },
-        )
-
-    @pytest.mark.asyncio
-    @patch.object(unique_sdk.Integrated, "chat_stream_completion_async")
-    async def test_stream_complete_async_with_other_options(self, mock_stream_complete):
-        mock_stream_complete.return_value = {
-            "message": {
-                "id": "test_message",
-                "previousMessageId": "test_previous_message",
-                "role": "ASSISTANT",
-                "text": "Streamed response",
-                "originalText": "Streamed response original",
-            }
-        }
-        messages = LanguageModelMessages([])
-        model_name = LanguageModelName.AZURE_GPT_4_TURBO_1106
-        other_options = {"presence_penalty": 0.6, "frequency_penalty": 0.8}
-
-        result = await self.service.stream_complete_async(
-            messages, model_name, other_options=other_options
-        )
-
-        assert isinstance(result, LanguageModelStreamResponse)
-        assert result.message.text == "Streamed response"
-        mock_stream_complete.assert_awaited_once_with(
-            user_id="test_user",
-            company_id="test_company",
-            assistantMessageId="assistant_message_id",
-            userMessageId="user_message_id",
-            messages=[],
-            chatId="test_chat",
-            searchContext=None,
-            model=model_name.name,
-            timeout=240000,
-            assistantId="test_assistant",
-            debugInfo={},
-            options={
-                "temperature": 0.0,
-                "presence_penalty": 0.6,
-                "frequency_penalty": 0.8,
-            },
-            startText=None,
         )
 
     def test_add_output_schema_from_pydantic_enforce_schema(self):

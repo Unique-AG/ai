@@ -1,3 +1,4 @@
+import json
 from unittest import mock
 from unittest.mock import patch
 
@@ -22,9 +23,39 @@ from unique_toolkit.chat.schemas import (
     ChatMessageRole,
 )
 from unique_toolkit.chat.service import ChatService
-from unique_toolkit.content.schemas import ContentReference
+from unique_toolkit.content.schemas import ContentChunk, ContentReference
+from unique_toolkit.language_model.infos import LanguageModelName
+from unique_toolkit.language_model.schemas import (
+    LanguageModelMessage,
+    LanguageModelMessageRole,
+    LanguageModelMessages,
+    LanguageModelStreamResponse,
+    LanguageModelStreamResponseMessage,
+    LanguageModelTool,
+    LanguageModelToolParameterProperty,
+    LanguageModelToolParameters,
+)
 
 mocked_datetime = "2024-08-08 12:00:00.000000"
+# Mock tool for testing
+mock_tool = LanguageModelTool(
+    name="get_weather",
+    description="Get the current weather for a location",
+    parameters=LanguageModelToolParameters(
+        type="object",
+        properties={
+            "location": LanguageModelToolParameterProperty(
+                type="string", description="The city and state, e.g. San Francisco, CA"
+            ),
+            "unit": LanguageModelToolParameterProperty(
+                type="string",
+                description="The unit system to use. Either 'celsius' or 'fahrenheit'.",
+                enum=["celsius", "fahrenheit"],
+            ),
+        },
+        required=["location"],
+    ),
+)
 
 
 @pytest.fixture
@@ -868,3 +899,378 @@ class TestChatServiceUnit:
         assert service.chat_id == "test_chat"
         assert service.assistant_id == "test_assistant"
         assert service.user_message_text == "Hello user"
+
+    @patch("unique_toolkit.chat.service.stream_complete_to_chat")
+    def test_stream_complete_to_chat(self, mock_stream_complete):
+        """Test stream_complete method delegates correctly to function"""
+        mock_stream_complete.return_value = LanguageModelStreamResponse(
+            message=LanguageModelStreamResponseMessage(
+                id="id",
+                previous_message_id="previous_message_id",
+                role=LanguageModelMessageRole.ASSISTANT,
+                text="test",
+            )
+        )
+        messages = LanguageModelMessages([])
+        model_name = LanguageModelName.AZURE_GPT_4_TURBO_1106
+        content_chunks = [
+            ContentChunk(id="1", chunk_id="1", key="test", order=1, text="test")
+        ]
+
+        self.service.stream_complete(
+            messages=messages, model_name=model_name, content_chunks=content_chunks
+        )
+
+        mock_stream_complete.assert_called_once_with(
+            company_id="test_company",
+            user_id="test_user",
+            assistant_message_id="assistant_message_id",
+            user_message_id="user_message_id",
+            chat_id="test_chat",
+            assistant_id="test_assistant",
+            messages=messages,
+            model_name=model_name,
+            content_chunks=content_chunks,
+            debug_info={},
+            temperature=0.0,
+            timeout=240000,
+            tools=None,
+            start_text=None,
+            other_options=None,
+        )
+
+    @pytest.mark.asyncio
+    @patch("unique_toolkit.chat.service.stream_complete_to_chat_async")
+    async def test_stream_complete_to_chat_async(self, mock_stream_complete_async):
+        """Test stream_complete_async method delegates correctly to function"""
+        mock_stream_complete_async.return_value = LanguageModelStreamResponse(
+            message=LanguageModelStreamResponseMessage(
+                id="id",
+                previous_message_id="previous_message_id",
+                role=LanguageModelMessageRole.ASSISTANT,
+                text="test",
+            )
+        )
+        messages = LanguageModelMessages([])
+        model_name = LanguageModelName.AZURE_GPT_4_TURBO_1106
+        content_chunks = [
+            ContentChunk(id="1", chunk_id="1", key="test", order=1, text="test")
+        ]
+
+        await self.service.stream_complete_async(
+            messages=messages, model_name=model_name, content_chunks=content_chunks
+        )
+
+        mock_stream_complete_async.assert_called_once_with(
+            company_id="test_company",
+            user_id="test_user",
+            assistant_message_id="assistant_message_id",
+            user_message_id="user_message_id",
+            chat_id="test_chat",
+            assistant_id="test_assistant",
+            messages=messages,
+            model_name=model_name,
+            content_chunks=content_chunks,
+            debug_info={},
+            temperature=0.0,
+            timeout=240000,
+            tools=None,
+            start_text=None,
+            other_options=None,
+        )
+
+    @patch.object(unique_sdk.Integrated, "chat_stream_completion")
+    def test_stream_complete(self, mock_stream_complete):
+        mock_stream_complete.return_value = {
+            "message": {
+                "id": "test_message",
+                "previousMessageId": "test_previous_message",
+                "role": "ASSISTANT",
+                "text": "Streamed response",
+                "originalText": "Streamed response original",
+            }
+        }
+        messages = LanguageModelMessages([])
+        model_name = LanguageModelName.AZURE_GPT_4_TURBO_1106
+        content_chunks = [
+            ContentChunk(id="1", chunk_id="1", key="test", order=1, text="test")
+        ]
+
+        result = self.service.stream_complete(messages, model_name, content_chunks)
+
+        assert isinstance(result, LanguageModelStreamResponse)
+        assert result.message.text == "Streamed response"
+        mock_stream_complete.assert_called_once()
+
+    @pytest.mark.asyncio
+    @patch.object(unique_sdk.Integrated, "chat_stream_completion")
+    async def test_stream_complete_with_other_options(self, mock_stream_complete):
+        mock_stream_complete.return_value = {
+            "message": {
+                "id": "test_message",
+                "previousMessageId": "test_previous_message",
+                "role": "ASSISTANT",
+                "text": "Streamed response",
+                "originalText": "Streamed response original",
+            }
+        }
+        messages = LanguageModelMessages([])
+        model_name = LanguageModelName.AZURE_GPT_4_TURBO_1106
+        other_options = {"presence_penalty": 0.6, "frequency_penalty": 0.8}
+
+        result = self.service.stream_complete(
+            messages, model_name, other_options=other_options
+        )
+
+        assert isinstance(result, LanguageModelStreamResponse)
+        assert result.message.text == "Streamed response"
+        mock_stream_complete.assert_called_once_with(
+            user_id="test_user",
+            company_id="test_company",
+            assistantMessageId="assistant_message_id",
+            userMessageId="user_message_id",
+            messages=[],
+            chatId="test_chat",
+            searchContext=None,
+            model=model_name.name,
+            timeout=240000,
+            assistantId="test_assistant",
+            debugInfo={},
+            options={
+                "temperature": 0.0,
+                "presence_penalty": 0.6,
+                "frequency_penalty": 0.8,
+            },
+            startText=None,
+        )
+
+    @pytest.mark.asyncio
+    @patch.object(unique_sdk.Integrated, "chat_stream_completion_async")
+    async def test_stream_complete_async_with_other_options(self, mock_stream_complete):
+        mock_stream_complete.return_value = {
+            "message": {
+                "id": "test_message",
+                "previousMessageId": "test_previous_message",
+                "role": "ASSISTANT",
+                "text": "Streamed response",
+                "originalText": "Streamed response original",
+            }
+        }
+        messages = LanguageModelMessages([])
+        model_name = LanguageModelName.AZURE_GPT_4_TURBO_1106
+        other_options = {"presence_penalty": 0.6, "frequency_penalty": 0.8}
+
+        result = await self.service.stream_complete_async(
+            messages, model_name, other_options=other_options
+        )
+
+        assert isinstance(result, LanguageModelStreamResponse)
+        assert result.message.text == "Streamed response"
+        mock_stream_complete.assert_awaited_once_with(
+            user_id="test_user",
+            company_id="test_company",
+            assistantMessageId="assistant_message_id",
+            userMessageId="user_message_id",
+            messages=[],
+            chatId="test_chat",
+            searchContext=None,
+            model=model_name.name,
+            timeout=240000,
+            assistantId="test_assistant",
+            debugInfo={},
+            options={
+                "temperature": 0.0,
+                "presence_penalty": 0.6,
+                "frequency_penalty": 0.8,
+            },
+            startText=None,
+        )
+
+    @patch.object(unique_sdk.Integrated, "chat_stream_completion")
+    def test_stream_complete_with_custom_model(self, mock_stream_complete):
+        mock_stream_complete.return_value = {
+            "message": {
+                "id": "test_message",
+                "previousMessageId": "test_previous_message",
+                "role": "ASSISTANT",
+                "text": "Streamed response",
+                "originalText": "Streamed response original",
+            }
+        }
+        messages = LanguageModelMessages([])
+        model_name = "My Custom Model"
+
+        result = self.service.stream_complete(messages, model_name)
+
+        assert isinstance(result, LanguageModelStreamResponse)
+        assert result.message.text == "Streamed response"
+        mock_stream_complete.assert_called_once_with(
+            user_id="test_user",
+            company_id="test_company",
+            assistantMessageId="assistant_message_id",
+            userMessageId="user_message_id",
+            messages=[],
+            chatId="test_chat",
+            searchContext=None,
+            model=model_name,
+            timeout=240000,
+            assistantId="test_assistant",
+            debugInfo={},
+            options={"temperature": 0.0},
+            startText=None,
+        )
+
+    @patch.object(unique_sdk.Integrated, "chat_stream_completion")
+    def test_stream_complete_with_tool(self, mock_stream):
+        messages = LanguageModelMessages(
+            [
+                LanguageModelMessage(
+                    role=LanguageModelMessageRole.USER,
+                    content="What's the weather in New York?",
+                )
+            ]
+        )
+
+        mock_stream.return_value = {
+            "message": {
+                "id": "test_stream_id",
+                "previousMessageId": "test_previous_message_id",
+                "role": "ASSISTANT",
+                "text": "Streamed response",
+                "originalText": "Streamed response original",
+            },
+            "toolCalls": [
+                {
+                    "id": "test_tool_id",
+                    "name": "get_weather",
+                    "arguments": '{"location": "London, UK", "unit": "celsius"}',
+                }
+            ],
+        }
+
+        response = self.service.stream_complete(
+            messages=messages,
+            model_name=LanguageModelName.AZURE_GPT_35_TURBO_0125,
+            tools=[mock_tool],
+        )
+
+        assert response.tool_calls is not None
+        assert response.tool_calls[0].name == "get_weather"
+        arguments = response.tool_calls[0].arguments
+        assert arguments is not None
+        if isinstance(arguments, str):
+            arguments = json.loads(arguments)
+        assert "London, UK" in arguments.values()
+
+    @pytest.mark.asyncio
+    @patch.object(unique_sdk.Integrated, "chat_stream_completion_async")
+    async def test_stream_complete_async(self, mock_stream_complete):
+        mock_stream_complete.return_value = {
+            "message": {
+                "id": "test_message",
+                "previousMessageId": "test_previous_message",
+                "role": "ASSISTANT",
+                "text": "Streamed response",
+                "originalText": "Streamed response original",
+            }
+        }
+        messages = LanguageModelMessages([])
+        model_name = LanguageModelName.AZURE_GPT_4_TURBO_1106
+        content_chunks = [
+            ContentChunk(id="1", chunk_id="1", key="test", order=1, text="test")
+        ]
+
+        result = await self.service.stream_complete_async(
+            messages, model_name, content_chunks
+        )
+
+        assert isinstance(result, LanguageModelStreamResponse)
+        assert result.message.text == "Streamed response"
+        mock_stream_complete.assert_called_once()
+
+    @pytest.mark.asyncio
+    @patch.object(unique_sdk.Integrated, "chat_stream_completion_async")
+    async def test_stream_complete_async_with_custom_model(self, mock_stream_complete):
+        mock_stream_complete.return_value = {
+            "message": {
+                "id": "test_message",
+                "previousMessageId": "test_previous_message",
+                "role": "ASSISTANT",
+                "text": "Streamed response",
+                "originalText": "Streamed response original",
+            }
+        }
+        messages = LanguageModelMessages([])
+        model_name = "My custom model"
+
+        result = await self.service.stream_complete_async(messages, model_name)
+
+        assert isinstance(result, LanguageModelStreamResponse)
+        assert result.message.text == "Streamed response"
+        mock_stream_complete.assert_awaited_once_with(
+            user_id="test_user",
+            company_id="test_company",
+            assistantMessageId="assistant_message_id",
+            userMessageId="user_message_id",
+            messages=[],
+            chatId="test_chat",
+            searchContext=None,
+            model=model_name,
+            timeout=240000,
+            assistantId="test_assistant",
+            debugInfo={},
+            options={"temperature": 0.0},
+            startText=None,
+        )
+
+    @pytest.mark.asyncio
+    @patch.object(unique_sdk.Integrated, "chat_stream_completion_async")
+    async def test_error_handling_stream_complete_async(self, mock_stream_complete):
+        mock_stream_complete.side_effect = Exception("Stream Error")
+        with pytest.raises(Exception, match="Stream Error"):
+            await self.service.stream_complete_async(
+                LanguageModelMessages([]), LanguageModelName.AZURE_GPT_4_TURBO_1106
+            )
+
+    @pytest.mark.asyncio
+    @patch.object(unique_sdk.Integrated, "chat_stream_completion_async")
+    async def test_stream_complete_with_tool_async(self, mock_stream):
+        messages = LanguageModelMessages(
+            [
+                LanguageModelMessage(
+                    role=LanguageModelMessageRole.USER,
+                    content="What's the weather in New York?",
+                )
+            ]
+        )
+
+        mock_stream.return_value = {
+            "message": {
+                "id": "test_stream_id",
+                "previousMessageId": "test_previous_message_id",
+                "role": "ASSISTANT",
+                "text": "Streamed response",
+                "originalText": "Streamed response original",
+            },
+            "toolCalls": [
+                {
+                    "id": "test_tool_id",
+                    "name": "get_weather",
+                    "arguments": '{"location": "London, UK", "unit": "celsius"}',
+                }
+            ],
+        }
+
+        response = await self.service.stream_complete_async(
+            messages=messages,
+            model_name=LanguageModelName.AZURE_GPT_35_TURBO_0125,
+            tools=[mock_tool],
+        )
+
+        assert response.tool_calls is not None
+        assert response.tool_calls[0].name == "get_weather"
+        arguments = response.tool_calls[0].arguments
+        assert arguments is not None
+        if isinstance(arguments, str):
+            arguments = json.loads(arguments)
+        assert "London, UK" in arguments.values()
