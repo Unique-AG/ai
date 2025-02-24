@@ -3,6 +3,7 @@ from typing import Optional
 
 from typing_extensions import deprecated
 
+from unique_toolkit._common.validate_required_values import validate_required_values
 from unique_toolkit.app.schemas import ChatEvent, Event
 from unique_toolkit.chat.constants import (
     DEFAULT_MAX_MESSAGES,
@@ -30,7 +31,23 @@ from unique_toolkit.chat.schemas import (
     ChatMessageAssessmentType,
     ChatMessageRole,
 )
-from unique_toolkit.content.schemas import ContentReference
+from unique_toolkit.content.schemas import ContentChunk, ContentReference
+from unique_toolkit.language_model.constants import (
+    DEFAULT_COMPLETE_TEMPERATURE,
+    DEFAULT_COMPLETE_TIMEOUT,
+)
+from unique_toolkit.language_model.functions import (
+    stream_complete_to_chat,
+    stream_complete_to_chat_async,
+)
+from unique_toolkit.language_model.infos import (
+    LanguageModelName,
+)
+from unique_toolkit.language_model.schemas import (
+    LanguageModelMessages,
+    LanguageModelStreamResponse,
+    LanguageModelTool,
+)
 
 logger = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
 
@@ -598,4 +615,107 @@ class ChatService:
             title=title,
             explanation=explanation,
             label=label,
+        )
+
+    def stream_complete(
+        self,
+        messages: LanguageModelMessages,
+        model_name: LanguageModelName | str,
+        content_chunks: list[ContentChunk] = [],
+        debug_info: dict = {},
+        temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
+        timeout: int = DEFAULT_COMPLETE_TIMEOUT,
+        tools: Optional[list[LanguageModelTool]] = None,
+        start_text: Optional[str] = None,
+        other_options: Optional[dict] = None,
+    ) -> LanguageModelStreamResponse:
+        """
+        Streams a completion in the chat session synchronously.
+        """
+        [
+            company_id,
+            user_id,
+            assistant_message_id,
+            user_message_id,
+            chat_id,
+            assistant_id,
+        ] = validate_required_values(
+            [
+                self.company_id,
+                self.user_id,
+                self.assistant_message_id,
+                self.user_message_id,
+                self.chat_id,
+                self.assistant_id,
+            ]
+        )
+
+        return stream_complete_to_chat(
+            company_id=company_id,
+            user_id=user_id,
+            assistant_message_id=assistant_message_id,
+            user_message_id=user_message_id,
+            chat_id=chat_id,
+            assistant_id=assistant_id,
+            messages=messages,
+            model_name=model_name,
+            content_chunks=content_chunks,
+            debug_info=debug_info,
+            temperature=temperature,
+            timeout=timeout,
+            tools=tools,
+            start_text=start_text,
+            other_options=other_options,
+        )
+
+    async def stream_complete_async(
+        self,
+        messages: LanguageModelMessages,
+        model_name: LanguageModelName | str,
+        content_chunks: list[ContentChunk] = [],
+        debug_info: dict = {},
+        temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
+        timeout: int = DEFAULT_COMPLETE_TIMEOUT,
+        tools: Optional[list[LanguageModelTool]] = None,
+        start_text: Optional[str] = None,
+        other_options: Optional[dict] = None,
+    ) -> LanguageModelStreamResponse:
+        """
+        Streams a completion in the chat session asynchronously.
+        """
+
+        [
+            company_id,
+            user_id,
+            assistant_message_id,
+            user_message_id,
+            chat_id,
+            assistant_id,
+        ] = validate_required_values(
+            [
+                self.company_id,
+                self.user_id,
+                self.assistant_message_id,
+                self.user_message_id,
+                self.chat_id,
+                self.assistant_id,
+            ]
+        )
+
+        return await stream_complete_to_chat_async(
+            company_id=company_id,
+            user_id=user_id,
+            assistant_message_id=assistant_message_id,
+            user_message_id=user_message_id,
+            chat_id=chat_id,
+            assistant_id=assistant_id,
+            messages=messages,
+            model_name=model_name,
+            content_chunks=content_chunks,
+            debug_info=debug_info,
+            temperature=temperature,
+            timeout=timeout,
+            tools=tools,
+            start_text=start_text,
+            other_options=other_options,
         )

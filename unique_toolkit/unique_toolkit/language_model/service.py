@@ -168,7 +168,7 @@ class LanguageModelService:
             structured_output_enforce_schema=structured_output_enforce_schema,
         )
 
-    @deprecated("Use stream_complete_to_chat instead")
+    @deprecated("Use stream_complete in ChatService instead")
     def stream_complete(
         self,
         messages: LanguageModelMessages,
@@ -220,6 +220,7 @@ class LanguageModelService:
             other_options=other_options,
         )
 
+    @deprecated("Use stream_complete in ChatService instead")
     def stream_complete_to_chat(
         self,
         messages: LanguageModelMessages,
@@ -271,7 +272,7 @@ class LanguageModelService:
             other_options=other_options,
         )
 
-    @deprecated("Use stream_complete_to_chat_async instead")
+    @deprecated("Use stream_complete_async in ChatService instead")
     async def stream_complete_async(
         self,
         messages: LanguageModelMessages,
@@ -324,6 +325,7 @@ class LanguageModelService:
             other_options=other_options,
         )
 
+    @deprecated("Use stream_complete_async in ChatService instead")
     async def stream_complete_to_chat_async(
         self,
         messages: LanguageModelMessages,
