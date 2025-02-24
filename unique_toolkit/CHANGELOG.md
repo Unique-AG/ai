@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [0.6.1] - 2025-02-25
-- [BREAKING] `LanguageModelService.stream_complete` and `LanguageModelService.stream_complete_async` are now moved to `ChatService.stream_complete` and `ChatService.stream_complete_async`.
+- [BREAKING] `LanguageModelService.stream_complete` and `LanguageModelService.stream_complete_async` are now moved to `ChatService.stream_complete` and `ChatService.stream_complete_async`. Correspondingly `assistant_message_id` and `user_message_id` are removed from `LanguageModelService`.
 - Add `create_user_message` and `create_user_message_async` to `ChatService` (similar to `create_assistant_message` and `create_assistant_message_async`)
 
 ## [0.6.0] - 2025-02-21
