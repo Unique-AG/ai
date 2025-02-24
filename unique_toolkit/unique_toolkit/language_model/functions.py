@@ -6,12 +6,13 @@ from pydantic import BaseModel
 
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.evaluators import DOMAIN_NAME
-from unique_toolkit.language_model.constants import (
+
+from .constants import (
     DEFAULT_COMPLETE_TEMPERATURE,
     DEFAULT_COMPLETE_TIMEOUT,
 )
-from unique_toolkit.language_model.infos import LanguageModelName
-from unique_toolkit.language_model.schemas import (
+from .infos import LanguageModelName
+from .schemas import (
     LanguageModelMessages,
     LanguageModelResponse,
     LanguageModelTool,

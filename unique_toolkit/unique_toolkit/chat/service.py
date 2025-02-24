@@ -36,10 +36,6 @@ from unique_toolkit.language_model.constants import (
     DEFAULT_COMPLETE_TEMPERATURE,
     DEFAULT_COMPLETE_TIMEOUT,
 )
-from unique_toolkit.language_model.functions import (
-    stream_complete_to_chat,
-    stream_complete_to_chat_async,
-)
 from unique_toolkit.language_model.infos import (
     LanguageModelName,
 )
@@ -47,6 +43,11 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
     LanguageModelStreamResponse,
     LanguageModelTool,
+)
+
+from .functions import (
+    stream_complete_to_chat,
+    stream_complete_to_chat_async,
 )
 
 logger = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
