@@ -33,7 +33,7 @@ The `unique_toolkit.app` module encompasses functions for initializing and secur
 The `unique_toolkit.chat` module encompasses all chat related functionality.
 
 - `functions.py` comprises the functions to manage and load the chat history and interact with the chat ui, e.g., creating a new assistant message.
-- `service.py` comprises the ChatService and provides an interface to manage and load the chat history and interact with the chat ui, e.g., creating a new assistant message.
+- `service.py` comprises the ChatService and provides an interface to manage and load the chat history and interact with the chat ui, e.g., creating a new assistant message and stream complete.
 - `schemas.py` comprises all relevant schemas, e.g., ChatMessage, used in the ChatService.
 - `utils.py` comprises utility functions to use and convert ChatMessage objects in assistants, e.g., convert_chat_history_to_injectable_string converts the chat history to a string that can be injected into a prompt. 
 
@@ -61,7 +61,7 @@ Unique platform.
 
 - `infos.py` comprises the information on all language models deployed through the Unique platform. We recommend to use the LanguageModel class, initialized with the LanguageModelName, e.g., LanguageModel(LanguageModelName.AZURE_GPT_35_TURBO_0125) to get the information on the specific language model like the name, version, token limits or retirement date.
 - `functions.py` comprises the functions to complete and stream complete to chat.
-- `service.py` comprises the LanguageModelService and provides an interface to interact with the language models, e.g., complete or stream_complete. 
+- `service.py` comprises the LanguageModelService and provides an interface to interact with the language models, e.g., complete. 
 - `schemas.py` comprises all relevant schemas, e.g., LanguageModelResponse, used in the LanguageModelService.
 - `utils.py` comprises utility functions to parse the output of the language model, e.g., convert_string_to_json finds and parses the last json object in a string.
 

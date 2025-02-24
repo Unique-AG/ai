@@ -3,6 +3,7 @@ from typing import Optional
 
 from typing_extensions import deprecated
 
+from unique_toolkit._common.validate_required_values import validate_required_values
 from unique_toolkit.app.schemas import ChatEvent, Event
 from unique_toolkit.chat.constants import (
     DEFAULT_MAX_MESSAGES,
@@ -30,7 +31,24 @@ from unique_toolkit.chat.schemas import (
     ChatMessageAssessmentType,
     ChatMessageRole,
 )
-from unique_toolkit.content.schemas import ContentReference
+from unique_toolkit.content.schemas import ContentChunk, ContentReference
+from unique_toolkit.language_model.constants import (
+    DEFAULT_COMPLETE_TEMPERATURE,
+    DEFAULT_COMPLETE_TIMEOUT,
+)
+from unique_toolkit.language_model.infos import (
+    LanguageModelName,
+)
+from unique_toolkit.language_model.schemas import (
+    LanguageModelMessages,
+    LanguageModelStreamResponse,
+    LanguageModelTool,
+)
+
+from .functions import (
+    stream_complete_to_chat,
+    stream_complete_to_chat_async,
+)
 
 logger = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
 
@@ -377,8 +395,8 @@ class ChatService:
         original_content: str | None = None,
         references: list[ContentReference] = [],
         debug_info: dict = {},
-        set_completed_at: Optional[bool] = False,
-    ):
+        set_completed_at: bool | None = False,
+    ) -> ChatMessage:
         """
         Creates a message in the chat session synchronously.
 
@@ -395,7 +413,7 @@ class ChatService:
         Raises:
             Exception: If the creation fails.
         """
-        return create_message(
+        chat_message = create_message(
             user_id=self.user_id,
             company_id=self.company_id,
             chat_id=self.chat_id,
@@ -407,6 +425,9 @@ class ChatService:
             debug_info=debug_info,
             set_completed_at=set_completed_at,
         )
+        # Update the assistant message id
+        self.assistant_message_id = chat_message.id
+        return chat_message
 
     async def create_assistant_message_async(
         self,
@@ -414,8 +435,8 @@ class ChatService:
         original_content: str | None = None,
         references: list[ContentReference] = [],
         debug_info: dict = {},
-        set_completed_at: Optional[bool] = False,
-    ):
+        set_completed_at: bool | None = False,
+    ) -> ChatMessage:
         """
         Creates a message in the chat session asynchronously.
 
@@ -433,7 +454,7 @@ class ChatService:
             Exception: If the creation fails.
         """
 
-        return await create_message_async(
+        chat_message = await create_message_async(
             user_id=self.user_id,
             company_id=self.company_id,
             chat_id=self.chat_id,
@@ -445,6 +466,90 @@ class ChatService:
             debug_info=debug_info,
             set_completed_at=set_completed_at,
         )
+        # Update the assistant message id
+        self.assistant_message_id = chat_message.id
+        return chat_message
+
+    def create_user_message(
+        self,
+        content: str,
+        original_content: str | None = None,
+        references: list[ContentReference] = [],
+        debug_info: dict = {},
+        set_completed_at: bool | None = False,
+    ) -> ChatMessage:
+        """
+        Creates a user message in the chat session synchronously.
+
+        Args:
+            content (str): The content for the message.
+            original_content (str, optional): The original content for the message.
+            references (list[ContentReference]): list of ContentReference objects. Defaults to None.
+            debug_info (dict[str, Any]]): Debug information. Defaults to None.
+            set_completed_at (Optional[bool]): Whether to set the completedAt field with the current date time. Defaults to False.
+
+        Returns:
+            ChatMessage: The created message.
+
+        Raises:
+            Exception: If the creation fails.
+        """
+        chat_message = create_message(
+            user_id=self.user_id,
+            company_id=self.company_id,
+            chat_id=self.chat_id,
+            assistant_id=self.assistant_id,
+            role=ChatMessageRole.USER,
+            content=content,
+            original_content=original_content,
+            references=references,
+            debug_info=debug_info,
+            set_completed_at=set_completed_at,
+        )
+        # Update the user message id
+        self.user_message_id = chat_message.id
+        return chat_message
+
+    async def create_user_message_async(
+        self,
+        content: str,
+        original_content: str | None = None,
+        references: list[ContentReference] = [],
+        debug_info: dict = {},
+        set_completed_at: bool | None = False,
+    ) -> ChatMessage:
+        """
+        Creates a user message in the chat session asynchronously.
+
+        Args:
+            content (str): The content for the message.
+            original_content (str, optional): The original content for the message.
+            references (list[ContentReference]): list of references. Defaults to None.
+            debug_info (dict[str, Any]]): Debug information. Defaults to None.
+            set_completed_at (Optional[bool]): Whether to set the completedAt field with the current date time. Defaults to False.
+
+        Returns:
+            ChatMessage: The created message.
+
+        Raises:
+            Exception: If the creation fails.
+        """
+
+        chat_message = await create_message_async(
+            user_id=self.user_id,
+            company_id=self.company_id,
+            chat_id=self.chat_id,
+            assistant_id=self.assistant_id,
+            role=ChatMessageRole.USER,
+            content=content,
+            original_content=original_content,
+            references=references,
+            debug_info=debug_info,
+            set_completed_at=set_completed_at,
+        )
+        # Update the user message id
+        self.user_message_id = chat_message.id
+        return chat_message
 
     def create_message_assessment(
         self,
@@ -598,4 +703,107 @@ class ChatService:
             title=title,
             explanation=explanation,
             label=label,
+        )
+
+    def stream_complete(
+        self,
+        messages: LanguageModelMessages,
+        model_name: LanguageModelName | str,
+        content_chunks: list[ContentChunk] = [],
+        debug_info: dict = {},
+        temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
+        timeout: int = DEFAULT_COMPLETE_TIMEOUT,
+        tools: Optional[list[LanguageModelTool]] = None,
+        start_text: Optional[str] = None,
+        other_options: Optional[dict] = None,
+    ) -> LanguageModelStreamResponse:
+        """
+        Streams a completion in the chat session synchronously.
+        """
+        [
+            company_id,
+            user_id,
+            assistant_message_id,
+            user_message_id,
+            chat_id,
+            assistant_id,
+        ] = validate_required_values(
+            [
+                self.company_id,
+                self.user_id,
+                self.assistant_message_id,
+                self.user_message_id,
+                self.chat_id,
+                self.assistant_id,
+            ]
+        )
+
+        return stream_complete_to_chat(
+            company_id=company_id,
+            user_id=user_id,
+            assistant_message_id=assistant_message_id,
+            user_message_id=user_message_id,
+            chat_id=chat_id,
+            assistant_id=assistant_id,
+            messages=messages,
+            model_name=model_name,
+            content_chunks=content_chunks,
+            debug_info=debug_info,
+            temperature=temperature,
+            timeout=timeout,
+            tools=tools,
+            start_text=start_text,
+            other_options=other_options,
+        )
+
+    async def stream_complete_async(
+        self,
+        messages: LanguageModelMessages,
+        model_name: LanguageModelName | str,
+        content_chunks: list[ContentChunk] = [],
+        debug_info: dict = {},
+        temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
+        timeout: int = DEFAULT_COMPLETE_TIMEOUT,
+        tools: Optional[list[LanguageModelTool]] = None,
+        start_text: Optional[str] = None,
+        other_options: Optional[dict] = None,
+    ) -> LanguageModelStreamResponse:
+        """
+        Streams a completion in the chat session asynchronously.
+        """
+
+        [
+            company_id,
+            user_id,
+            assistant_message_id,
+            user_message_id,
+            chat_id,
+            assistant_id,
+        ] = validate_required_values(
+            [
+                self.company_id,
+                self.user_id,
+                self.assistant_message_id,
+                self.user_message_id,
+                self.chat_id,
+                self.assistant_id,
+            ]
+        )
+
+        return await stream_complete_to_chat_async(
+            company_id=company_id,
+            user_id=user_id,
+            assistant_message_id=assistant_message_id,
+            user_message_id=user_message_id,
+            chat_id=chat_id,
+            assistant_id=assistant_id,
+            messages=messages,
+            model_name=model_name,
+            content_chunks=content_chunks,
+            debug_info=debug_info,
+            temperature=temperature,
+            timeout=timeout,
+            tools=tools,
+            start_text=start_text,
+            other_options=other_options,
         )
