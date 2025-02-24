@@ -32,10 +32,8 @@ class LanguageModelService:
     Args:
         company_id (str | None, optional): The company identifier. Defaults to None.
         user_id (str | None, optional): The user identifier. Defaults to None.
-        assistant_message_id (str | None, optional): The assistant message identifier. Defaults to None.
         chat_id (str | None, optional): The chat identifier. Defaults to None.
         assistant_id (str | None, optional): The assistant identifier. Defaults to None.
-        user_message_id (str | None, optional): The user message identifier. Defaults to None.
     """
 
     def __init__(
@@ -43,16 +41,12 @@ class LanguageModelService:
         event: Event | BaseEvent | None = None,
         company_id: str | None = None,
         user_id: str | None = None,
-        assistant_message_id: str | None = None,
         chat_id: str | None = None,
         assistant_id: str | None = None,
-        user_message_id: str | None = None,
     ):
         self._event = event
         self.company_id = company_id
         self.user_id = user_id
-        self.assistant_message_id = assistant_message_id
-        self.user_message_id = user_message_id
         self.chat_id = chat_id
         self.assistant_id = assistant_id
 
@@ -60,8 +54,6 @@ class LanguageModelService:
             self.company_id = event.company_id
             self.user_id = event.user_id
             if isinstance(event, (ChatEvent, Event)):
-                self.assistant_message_id = event.payload.assistant_message.id
-                self.user_message_id = event.payload.user_message.id
                 self.chat_id = event.payload.chat_id
                 self.assistant_id = event.payload.assistant_id
 
