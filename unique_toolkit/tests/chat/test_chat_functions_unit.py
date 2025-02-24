@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 import pytest
+import unique_sdk
 
 from unique_toolkit.chat.functions import (
     ChatMessage,
@@ -15,8 +16,12 @@ from unique_toolkit.chat.functions import (
     modify_message,
     modify_message_async,
     pick_messages_in_reverse_for_token_window,
+    stream_complete_to_chat,
+    stream_complete_to_chat_async,
 )
 from unique_toolkit.content.schemas import ContentReference
+from unique_toolkit.language_model.infos import LanguageModelName
+from unique_toolkit.language_model.schemas import LanguageModelMessages
 
 
 @pytest.fixture
@@ -383,3 +388,60 @@ def test_pick_messages_in_reverse_for_token_window_empty():
         )
         == []
     )
+
+
+@patch.object(unique_sdk.Integrated, "chat_stream_completion")
+def test_stream_complete_basic(mock_stream):
+    mock_stream.return_value = {
+        "message": {
+            "id": "test_message",
+            "previousMessageId": "test_previous_message",
+            "role": "ASSISTANT",
+            "text": "Streamed response",
+            "originalText": "Streamed response original",
+        }
+    }
+
+    messages = LanguageModelMessages([])
+    result = stream_complete_to_chat(
+        company_id="test_company",
+        user_id="test_user",
+        assistant_message_id="test_assistant_msg",
+        user_message_id="test_user_msg",
+        chat_id="test_chat",
+        assistant_id="test_assistant",
+        messages=messages,
+        model_name=LanguageModelName.AZURE_GPT_4_TURBO_1106,
+    )
+
+    assert result.message.text == "Streamed response"
+    mock_stream.assert_called_once()
+
+
+@pytest.mark.asyncio
+@patch.object(unique_sdk.Integrated, "chat_stream_completion_async")
+async def test_stream_complete_async_basic(mock_stream):
+    mock_stream.return_value = {
+        "message": {
+            "id": "test_message",
+            "previousMessageId": "test_previous_message",
+            "role": "ASSISTANT",
+            "text": "Streamed response",
+            "originalText": "Streamed response original",
+        }
+    }
+
+    messages = LanguageModelMessages([])
+    result = await stream_complete_to_chat_async(
+        company_id="test_company",
+        user_id="test_user",
+        assistant_message_id="test_assistant_msg",
+        user_message_id="test_user_msg",
+        chat_id="test_chat",
+        assistant_id="test_assistant",
+        messages=messages,
+        model_name=LanguageModelName.AZURE_GPT_4_TURBO_1106,
+    )
+
+    assert result.message.text == "Streamed response"
+    mock_stream.assert_called_once()

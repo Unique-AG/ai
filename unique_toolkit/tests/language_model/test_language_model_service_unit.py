@@ -57,10 +57,6 @@ class TestLanguageModelServiceUnit:
 
         assert service.company_id == "test_company"
         assert service.user_id == "test_user"
-        assert (
-            service.assistant_message_id == self.chat_event.payload.assistant_message.id
-        )
-        assert service.user_message_id == self.chat_event.payload.user_message.id
         assert service.chat_id == "test_chat"
         assert service.assistant_id == "test_assistant"
 
@@ -69,16 +65,12 @@ class TestLanguageModelServiceUnit:
         service = LanguageModelService(
             company_id="direct_company",
             user_id="direct_user",
-            assistant_message_id="direct_assistant_msg",
             chat_id="direct_chat",
             assistant_id="direct_assistant",
-            user_message_id="direct_user_msg",
         )
 
         assert service.company_id == "direct_company"
         assert service.user_id == "direct_user"
-        assert service.assistant_message_id == "direct_assistant_msg"
-        assert service.user_message_id == "direct_user_msg"
         assert service.chat_id == "direct_chat"
         assert service.assistant_id == "direct_assistant"
 
@@ -94,8 +86,6 @@ class TestLanguageModelServiceUnit:
 
         assert service.company_id == "base_company"
         assert service.user_id == "base_user"
-        assert service.assistant_message_id is None
-        assert service.user_message_id is None
         assert service.chat_id is None
         assert service.assistant_id is None
 
@@ -105,8 +95,6 @@ class TestLanguageModelServiceUnit:
 
         assert service.company_id is None
         assert service.user_id is None
-        assert service.assistant_message_id is None
-        assert service.user_message_id is None
         assert service.chat_id is None
         assert service.assistant_id is None
 
