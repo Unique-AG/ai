@@ -470,6 +470,87 @@ class ChatService:
         self.assistant_message_id = chat_message.id
         return chat_message
 
+    def create_user_message(
+        self,
+        content: str,
+        original_content: str | None = None,
+        references: list[ContentReference] = [],
+        debug_info: dict = {},
+        set_completed_at: bool | None = False,
+    ) -> ChatMessage:
+        """
+        Creates a user message in the chat session synchronously.
+
+        Args:
+            content (str): The content for the message.
+            original_content (str, optional): The original content for the message.
+            references (list[ContentReference]): list of ContentReference objects. Defaults to None.
+            debug_info (dict[str, Any]]): Debug information. Defaults to None.
+            set_completed_at (Optional[bool]): Whether to set the completedAt field with the current date time. Defaults to False.
+
+        Returns:
+            ChatMessage: The created message.
+
+        Raises:
+            Exception: If the creation fails.
+        """
+        chat_message = create_message(
+            user_id=self.user_id,
+            company_id=self.company_id,
+            chat_id=self.chat_id,
+            assistant_id=self.assistant_id,
+            role=ChatMessageRole.USER,
+            content=content,
+            original_content=original_content,
+            references=references,
+            debug_info=debug_info,
+            set_completed_at=set_completed_at,
+        )
+        # Update the user message id
+        self.user_message_id = chat_message.id
+        return chat_message
+
+    async def create_user_message_async(
+        self,
+        content: str,
+        original_content: str | None = None,
+        references: list[ContentReference] = [],
+        debug_info: dict = {},
+        set_completed_at: bool | None = False,
+    ) -> ChatMessage:
+        """
+        Creates a user message in the chat session asynchronously.
+
+        Args:
+            content (str): The content for the message.
+            original_content (str, optional): The original content for the message.
+            references (list[ContentReference]): list of references. Defaults to None.
+            debug_info (dict[str, Any]]): Debug information. Defaults to None.
+            set_completed_at (Optional[bool]): Whether to set the completedAt field with the current date time. Defaults to False.
+
+        Returns:
+            ChatMessage: The created message.
+
+        Raises:
+            Exception: If the creation fails.
+        """
+
+        chat_message = await create_message_async(
+            user_id=self.user_id,
+            company_id=self.company_id,
+            chat_id=self.chat_id,
+            assistant_id=self.assistant_id,
+            role=ChatMessageRole.USER,
+            content=content,
+            original_content=original_content,
+            references=references,
+            debug_info=debug_info,
+            set_completed_at=set_completed_at,
+        )
+        # Update the user message id
+        self.user_message_id = chat_message.id
+        return chat_message
+
     def create_message_assessment(
         self,
         assistant_message_id: str,
