@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, Type, cast
+from typing import Type, cast
 
 import unique_sdk
 from pydantic import BaseModel
@@ -14,7 +14,6 @@ from unique_toolkit.language_model.infos import LanguageModelName
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
     LanguageModelResponse,
-    LanguageModelStreamResponse,
     LanguageModelTool,
 )
 
@@ -27,9 +26,9 @@ def complete(
     model_name: LanguageModelName | str,
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
     timeout: int = DEFAULT_COMPLETE_TIMEOUT,
-    tools: Optional[list[LanguageModelTool]] = None,
-    other_options: Optional[dict] = None,
-    structured_output_model: Optional[Type[BaseModel]] = None,
+    tools: list[LanguageModelTool] | None = None,
+    other_options: dict | None = None,
+    structured_output_model: Type[BaseModel] | None = None,
     structured_output_enforce_schema: bool = False,
 ) -> LanguageModelResponse:
     """
@@ -80,9 +79,9 @@ async def complete_async(
     model_name: LanguageModelName | str,
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
     timeout: int = DEFAULT_COMPLETE_TIMEOUT,
-    tools: Optional[list[LanguageModelTool]] = None,
-    other_options: Optional[dict] = None,
-    structured_output_model: Optional[Type[BaseModel]] = None,
+    tools: list[LanguageModelTool] | None = None,
+    other_options: dict | None = None,
+    structured_output_model: Type[BaseModel] | None = None,
     structured_output_enforce_schema: bool = False,
 ) -> LanguageModelResponse:
     """
@@ -134,142 +133,9 @@ async def complete_async(
         raise e
 
 
-def stream_complete_to_chat(
-    company_id: str,
-    user_id: str,
-    assistant_message_id: str,
-    user_message_id: str,
-    chat_id: str,
-    assistant_id: str,
-    messages: LanguageModelMessages,
-    model_name: LanguageModelName | str,
-    content_chunks: list[ContentChunk] = [],
-    debug_info: dict = {},
-    temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
-    timeout: int = DEFAULT_COMPLETE_TIMEOUT,
-    tools: Optional[list[LanguageModelTool]] = None,
-    start_text: Optional[str] = None,
-    other_options: Optional[dict] = None,
-) -> LanguageModelStreamResponse:
-    """
-    Streams a completion synchronously.
-
-    Args:
-        company_id (str): The company ID associated with the request.
-        user_id (str): The user ID for the request.
-        assistant_message_id (str): The assistant message ID.
-        user_message_id (str): The user message ID.
-        chat_id (str): The chat ID.
-        assistant_id (str): The assistant ID.
-        messages (LanguageModelMessages): The messages to complete.
-        model_name (LanguageModelName | str): The model name.
-        content_chunks (list[ContentChunk]): Content chunks for context.
-        debug_info (dict): Debug information.
-        temperature (float): Temperature setting.
-        timeout (int): Timeout in milliseconds.
-        tools (Optional[list[LanguageModelTool]]): Optional tools.
-        start_text (Optional[str]): Starting text.
-        other_options (Optional[dict]): Additional options.
-
-    Returns:
-        LanguageModelStreamResponse: The streaming response object.
-    """
-    options, model, messages_dict, search_context = _prepare_completion_params_util(
-        messages=messages,
-        model_name=model_name,
-        temperature=temperature,
-        tools=tools,
-        other_options=other_options,
-        content_chunks=content_chunks,
-    )
-
-    try:
-        response = unique_sdk.Integrated.chat_stream_completion(
-            user_id=user_id,
-            company_id=company_id,
-            assistantMessageId=assistant_message_id,
-            userMessageId=user_message_id,
-            messages=cast(
-                list[unique_sdk.Integrated.ChatCompletionRequestMessage],
-                messages_dict,
-            ),
-            chatId=chat_id,
-            searchContext=search_context,
-            model=model,
-            timeout=timeout,
-            assistantId=assistant_id,
-            debugInfo=debug_info,
-            options=options,  # type: ignore
-            startText=start_text,
-        )
-        return LanguageModelStreamResponse(**response)
-    except Exception as e:
-        logger.error(f"Error streaming completion: {e}")
-        raise e
-
-
-async def stream_complete_to_chat_async(
-    company_id: str,
-    user_id: str,
-    assistant_message_id: str,
-    user_message_id: str,
-    chat_id: str,
-    assistant_id: str,
-    messages: LanguageModelMessages,
-    model_name: LanguageModelName | str,
-    content_chunks: list[ContentChunk] = [],
-    debug_info: dict = {},
-    temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
-    timeout: int = DEFAULT_COMPLETE_TIMEOUT,
-    tools: Optional[list[LanguageModelTool]] = None,
-    start_text: Optional[str] = None,
-    other_options: Optional[dict] = None,
-) -> LanguageModelStreamResponse:
-    """
-    Streams a completion asynchronously.
-
-    Args: [same as stream_complete]
-
-    Returns:
-        LanguageModelStreamResponse: The streaming response object.
-    """
-    options, model, messages_dict, search_context = _prepare_completion_params_util(
-        messages=messages,
-        model_name=model_name,
-        temperature=temperature,
-        tools=tools,
-        other_options=other_options,
-        content_chunks=content_chunks,
-    )
-
-    try:
-        response = await unique_sdk.Integrated.chat_stream_completion_async(
-            user_id=user_id,
-            company_id=company_id,
-            assistantMessageId=assistant_message_id,
-            userMessageId=user_message_id,
-            messages=cast(
-                list[unique_sdk.Integrated.ChatCompletionRequestMessage],
-                messages_dict,
-            ),
-            chatId=chat_id,
-            searchContext=search_context,
-            model=model,
-            timeout=timeout,
-            assistantId=assistant_id,
-            debugInfo=debug_info,
-            options=options,  # type: ignore
-            startText=start_text,
-        )
-        return LanguageModelStreamResponse(**response)
-    except Exception as e:
-        logger.error(f"Error streaming completion: {e}")
-        raise e
-
-
 def _add_tools_to_options(
     options: dict,
-    tools: Optional[list[LanguageModelTool]],
+    tools: list[LanguageModelTool] | None,
 ) -> dict:
     if tools:
         options["tools"] = [
@@ -321,12 +187,12 @@ def _prepare_completion_params_util(
     messages: LanguageModelMessages,
     model_name: LanguageModelName | str,
     temperature: float,
-    tools: Optional[list[LanguageModelTool]] = None,
-    other_options: Optional[dict] = None,
-    content_chunks: Optional[list[ContentChunk]] = None,
-    structured_output_model: Optional[Type[BaseModel]] = None,
+    tools: list[LanguageModelTool] | None = None,
+    other_options: dict | None = None,
+    content_chunks: list[ContentChunk] | None = None,
+    structured_output_model: Type[BaseModel] | None = None,
     structured_output_enforce_schema: bool = False,
-) -> tuple[dict, str, dict, Optional[dict]]:
+) -> tuple[dict, str, dict, dict | None]:
     """
     Prepares common parameters for completion requests.
 
@@ -335,7 +201,7 @@ def _prepare_completion_params_util(
         - options (dict): Combined options including tools and temperature
         - model (str): Resolved model name
         - messages_dict (dict): Processed messages
-        - search_context (Optional[dict]): Processed content chunks if provided
+        - search_context (dict | None): Processed content chunks if provided
     """
 
     options = _add_tools_to_options({}, tools)
