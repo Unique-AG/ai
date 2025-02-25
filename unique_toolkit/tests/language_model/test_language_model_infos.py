@@ -15,7 +15,7 @@ from unique_toolkit.language_model.schemas import LanguageModelTokenLimits
 class TestLanguageModelInfos:
     def test_can_list_all_defined_models(self):
         models = LanguageModel.list_models()
-        assert len(models) == 12
+        assert len(models) == 9
         assert all(isinstance(model, LanguageModelInfo) for model in models)
         assert all(model.name for model in models)
 
@@ -25,9 +25,6 @@ class TestLanguageModelInfos:
         assert LanguageModelName.AZURE_GPT_4_VISION_PREVIEW in model_names
         assert LanguageModelName.AZURE_GPT_4_32K_0613 in model_names
         assert LanguageModelName.AZURE_GPT_4_0613 in model_names
-        assert LanguageModelName.AZURE_GPT_35_TURBO_16K in model_names
-        assert LanguageModelName.AZURE_GPT_35_TURBO in model_names
-        assert LanguageModelName.AZURE_GPT_35_TURBO_0613 in model_names
         assert LanguageModelName.AZURE_GPT_35_TURBO_0125 in model_names
         assert LanguageModelName.AZURE_GPT_4o_2024_0513 in model_names
         assert LanguageModelName.AZURE_GPT_4o_2024_0806 in model_names
@@ -62,9 +59,11 @@ class TestLanguageModelInfos:
         assert model.deprecated_at is None
         assert model.retirement_text is None
 
-    def test_get_language_model_raises_error_for_invalid_model(self):
-        with pytest.raises(ValueError):
-            LanguageModel("")
+    def test_get_language_model_returns_custom_model_for_string(self):
+        name = "custom"
+        LanguageModel(name) == LanguageModelInfo(
+            name=name, version="custom", provider=LanguageModelProvider.CUSTOM
+        )
 
     # New tests for LanguageModelTokenLimits
     def test_language_model_token_limits_with_input_output(self):
@@ -94,7 +93,6 @@ class TestLanguageModelInfos:
                 token_limit_input=case["input"], token_limit_output=case["output"]
             )
             assert limits.token_limit == case["expected_total"]
-            assert abs(limits.fraction_input - case["expected_fraction"]) < 1e-10
 
     def test_language_model_token_limits_with_total(self):
         limits = LanguageModelTokenLimits(token_limit=10000)

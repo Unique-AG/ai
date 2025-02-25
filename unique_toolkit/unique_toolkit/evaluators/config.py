@@ -25,7 +25,7 @@ class EvaluationMetricConfig(BaseModel):
     enabled: bool = False
     name: EvaluationMetricName
     language_model: LanguageModel = LanguageModel(
-        LanguageModelName.AZURE_GPT_35_TURBO_0613
+        LanguageModelName.AZURE_GPT_35_TURBO_0125
     )
     custom_prompts: dict[str, str] = {}
     score_to_emoji: dict[str, str] = {}

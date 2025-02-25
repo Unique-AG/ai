@@ -20,9 +20,6 @@ class SearchString(APIResource["SearchString"]):
         messages: NotRequired[List[HistoryMessage]]
         languageModel: NotRequired[
             Literal[
-                "AZURE_GPT_35_TURBO",
-                "AZURE_GPT_35_TURBO_0613",
-                "AZURE_GPT_35_TURBO_16K",
                 "AZURE_GPT_4_0613",
                 "AZURE_GPT_4_32K_0613",
                 "AZURE_GPT_4_TURBO_1106",
