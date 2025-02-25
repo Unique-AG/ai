@@ -146,7 +146,7 @@ async def test_static_request_async_success(mock_api_requestor):
 async def test_static_request_async_retry_on_specific_error(
     mock_asyncio_sleep, mock_api_requestor
 ):
-    mock_api_requestor.return_value.request_async.side_effect = ConnectionError(
+    mock_api_requestor.return_value.request_async.side_effect = APIError(
         "There was a problem proxying the request"
     )
     with pytest.raises(APIError, match="Failed after 3 attempts"):
@@ -164,7 +164,7 @@ async def test_static_request_async_retry_on_specific_error(
 async def test_static_request_async_retry_on_specific_error_second(
     mock_asyncio_sleep, mock_api_requestor
 ):
-    mock_api_requestor.return_value.request_async.side_effect = ConnectionError(
+    mock_api_requestor.return_value.request_async.side_effect = APIError(
         "Upstream service reached a hard timeout"
     )
     with pytest.raises(APIError, match="Failed after 3 attempts"):
@@ -193,7 +193,7 @@ async def test_static_request_async_no_retry_on_different_error(mock_api_request
 
 @patch("time.sleep", return_value=None)
 def test_static_request_sync_retry_on_specific_error(mock_sleep, mock_api_requestor):
-    mock_api_requestor.return_value.request.side_effect = ConnectionError(
+    mock_api_requestor.return_value.request.side_effect = APIError(
         "There was a problem proxying the request"
     )
     with pytest.raises(APIError, match="Failed after 3 attempts"):
@@ -208,7 +208,7 @@ def test_static_request_sync_retry_on_specific_error(mock_sleep, mock_api_reques
 def test_static_request_sync_retry_on_specific_error_second(
     mock_sleep, mock_api_requestor
 ):
-    mock_api_requestor.return_value.request.side_effect = ConnectionError(
+    mock_api_requestor.return_value.request.side_effect = APIError(
         "Upstream service reached a hard timeout"
     )
     with pytest.raises(APIError, match="Failed after 3 attempts"):

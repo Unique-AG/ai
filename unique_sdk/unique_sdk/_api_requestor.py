@@ -354,14 +354,15 @@ class APIRequestor(object):
 
     def handle_error_response(self, rbody, rcode, resp, rheaders) -> NoReturn:
         try:
-            error_data = resp["error"]
-        except (KeyError, TypeError):
+            error_data = resp.get("error")
+        except TypeError as e:
             raise _error.APIError(
                 "Invalid response object from API: %r (HTTP response code "
                 "was %d)" % (rbody, rcode),
                 rbody,
                 rcode,
                 resp,
+                original_error=e,
             )
 
         err = None
