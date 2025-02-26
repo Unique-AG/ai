@@ -366,6 +366,7 @@ class APIRequestor(object):
         raise err
 
     def specific_api_error(self, rbody, rcode, resp, rheaders, error_data):
+        error_data = error_data or resp
         cause = error_data.get("cause", {})
         if isinstance(cause, str):
             cause = {"error": {"message": cause}, "status": rcode}
@@ -383,7 +384,6 @@ class APIRequestor(object):
         error_code = error.get("code", "<Unknown code>")
         error_message = error.get("message", "<No message>")
         original_error = f"{error_code}: {error_message}"
-        error_data = error_data or resp
 
         if status in [400, 404]:
             return _error.InvalidRequestError(
