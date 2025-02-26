@@ -1,56 +1,29 @@
-import pytest
-
 from unique_toolkit.language_model import (
-    LanguageModelMessages,
     LanguageModelMessageRole,
+    LanguageModelMessages,
 )
-
-
-def test_create_builder():
-    """Test creating a new builder from LanguageModelMessages."""
-    builder = LanguageModelMessages.create_builder()
-    
-    # Build a message sequence
-    messages = (
-        builder
-        .system_message_append("You are a helpful assistant.")
-        .user_message_append("Hello!")
-        .assistant_message_append("How can I help you today?")
-        .build()
-    )
-    
-    # Verify the messages
-    assert len(messages.root) == 3
-    assert messages.root[0].role == LanguageModelMessageRole.SYSTEM
-    assert messages.root[0].content == "You are a helpful assistant."
-    assert messages.root[1].role == LanguageModelMessageRole.USER
-    assert messages.root[1].content == "Hello!"
-    assert messages.root[2].role == LanguageModelMessageRole.ASSISTANT
-    assert messages.root[2].content == "How can I help you today?"
 
 
 def test_existing_messages_builder():
     """Test creating a builder from existing messages."""
     # Create initial messages
-    initial_builder = LanguageModelMessages.create_builder()
+    initial_builder = LanguageModelMessages([]).builder()
     initial_messages = (
-        initial_builder
-        .system_message_append("You are a helpful assistant.")
+        initial_builder.system_message_append("You are a helpful assistant.")
         .user_message_append("Hello!")
         .build()
     )
-    
+
     # Create a builder from existing messages
     builder = initial_messages.builder()
-    
+
     # Add more messages
     updated_messages = (
-        builder
-        .assistant_message_append("How can I help you today?")
+        builder.assistant_message_append("How can I help you today?")
         .user_message_append("Tell me about Python.")
         .build()
     )
-    
+
     # Verify the messages
     assert len(updated_messages.root) == 4
     assert updated_messages.root[0].role == LanguageModelMessageRole.SYSTEM
@@ -61,28 +34,27 @@ def test_existing_messages_builder():
     assert updated_messages.root[2].content == "How can I help you today?"
     assert updated_messages.root[3].role == LanguageModelMessageRole.USER
     assert updated_messages.root[3].content == "Tell me about Python."
-    
+
     # Verify original messages are unchanged
     assert len(initial_messages.root) == 2
 
 
 def test_tool_message():
     """Test adding tool messages."""
-    builder = LanguageModelMessages.create_builder()
-    
+    builder = LanguageModelMessages([]).builder()
+
     messages = (
-        builder
-        .system_message_append("You are a helpful assistant.")
+        builder.system_message_append("You are a helpful assistant.")
         .user_message_append("What's the weather?")
         .assistant_message_append("I'll check the weather for you.")
         .tool_message_append(
-            name="get_weather", 
-            tool_call_id="call_123", 
-            content='{"temperature": 72, "condition": "sunny"}'
+            name="get_weather",
+            tool_call_id="call_123",
+            content='{"temperature": 72, "condition": "sunny"}',
         )
         .build()
     )
-    
+
     # Verify the tool message
     assert len(messages.root) == 4
     assert messages.root[3].role == LanguageModelMessageRole.TOOL
@@ -93,17 +65,12 @@ def test_tool_message():
 
 def test_image_message():
     """Test adding image messages."""
-    builder = LanguageModelMessages.create_builder()
-    
-    messages = (
-        builder
-        .image_message_append(
-            content="What's in this image?",
-            images=["https://example.com/image.jpg"]
-        )
-        .build()
-    )
-    
+    builder = LanguageModelMessages([]).builder()
+
+    messages = builder.image_message_append(
+        content="What's in this image?", images=["https://example.com/image.jpg"]
+    ).build()
+
     # Verify the image message
     assert len(messages.root) == 1
     assert messages.root[0].role == LanguageModelMessageRole.USER
@@ -111,4 +78,7 @@ def test_image_message():
     assert messages.root[0].content[0]["type"] == "text"
     assert messages.root[0].content[0]["text"] == "What's in this image?"
     assert messages.root[0].content[1]["type"] == "image_url"
-    assert messages.root[0].content[1]["imageUrl"]["url"] == "https://example.com/image.jpg" 
+    assert (
+        messages.root[0].content[1]["imageUrl"]["url"]
+        == "https://example.com/image.jpg"
+    )

@@ -168,15 +168,10 @@ class LanguageModelMessages(RootModel):
     def builder(self):
         """Returns a MessagesBuilder instance pre-populated with existing messages."""
         from unique_toolkit.language_model.builder import MessagesBuilder
+
         builder = MessagesBuilder()
         builder.messages = self.root.copy()  # Start with existing messages
         return builder
-
-    @staticmethod
-    def create_builder():
-        """Returns a new MessagesBuilder instance for building message sequences."""
-        from unique_toolkit.language_model.builder import MessagesBuilder
-        return MessagesBuilder()
 
 
 class LanguageModelCompletionChoice(BaseModel):

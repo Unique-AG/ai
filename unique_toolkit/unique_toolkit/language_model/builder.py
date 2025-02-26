@@ -34,10 +34,10 @@ class MessagesBuilder:
                     {"type": "image_url", "imageUrl": {"url": image}}
                     for image in images
                 ],
-            ])
+            ]
+        )
         self.messages.append(message)
         return self
-
 
     def assistant_message_append(self, content: str) -> Self:
         """Appends an assistant message to the messages list."""

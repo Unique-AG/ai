@@ -7,7 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 ## [0.6.3] - 2025-02-26
-- Add `create_builder` method to `LanguageModelMessages` class
 - Add `builder` method to `LanguageModelMessages` class
 
 ## [0.6.2] - 2025-02-25
