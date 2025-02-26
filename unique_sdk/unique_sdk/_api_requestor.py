@@ -353,16 +353,7 @@ class APIRequestor(object):
         return resp
 
     def handle_error_response(self, rbody, rcode, resp, rheaders) -> NoReturn:
-        try:
-            error_data = resp["error"]
-        except (KeyError, TypeError):
-            raise _error.APIError(
-                "Invalid response object from API: %r (HTTP response code "
-                "was %d)" % (rbody, rcode),
-                rbody,
-                rcode,
-                resp,
-            )
+        error_data = resp.get("error")
 
         err = None
 
@@ -375,6 +366,7 @@ class APIRequestor(object):
         raise err
 
     def specific_api_error(self, rbody, rcode, resp, rheaders, error_data):
+        error_data = error_data or resp
         cause = error_data.get("cause", {})
         if isinstance(cause, str):
             cause = {"error": {"message": cause}, "status": rcode}

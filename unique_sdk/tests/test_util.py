@@ -23,7 +23,7 @@ def test_retry_on_error_sync_retries_on_specific_error(mock_sleep):
 
     @retry_on_error(max_retries=3, error_messages=["Retry this error"])
     def func():
-        raise ConnectionError("Retry this error")
+        raise APIError("Retry this error")
 
     with pytest.raises(APIError, match="Failed after 3 attempts"):
         func()
@@ -63,7 +63,7 @@ async def test_retry_on_error_async_retries_on_specific_error(mock_async_sleep):
 
     @retry_on_error(max_retries=3, error_messages=["Retry this error"])
     async def func():
-        raise ConnectionError("Retry this error")
+        raise APIError("Retry this error")
 
     with pytest.raises(APIError, match="Failed after 3 attempts"):
         await func()

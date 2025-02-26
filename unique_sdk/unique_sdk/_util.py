@@ -12,7 +12,7 @@ from typing import Any, Callable, Dict, List, Optional, TypeVar, Union, cast, ov
 from typing_extensions import TYPE_CHECKING, Type
 
 import unique_sdk  # noqa: F401
-from unique_sdk._error import APIError
+from unique_sdk._error import APIConnectionError, APIError, UniqueError
 
 if TYPE_CHECKING:
     from unique_sdk._unique_object import UniqueObject
@@ -209,14 +209,20 @@ def retry_on_error(
             while attempts < max_retries:
                 try:
                     return await func(*args, **kwargs)
-                except Exception as e:
+                except (APIError, APIConnectionError) as e:
+                    e = cast(UniqueError, e)
                     logger.error(f"Retrying because of {e}")
                     should_retry = any(
                         err_msg.lower() in str(e).lower() for err_msg in error_messages
                     )
                     # Add 5xx check if `should_retry_5xx` is True
-                    if should_retry_5xx and hasattr(e, "status_code"):
-                        should_retry = should_retry or (500 <= e.status_code < 600)
+                    has_valid_status = (
+                        hasattr(e, "http_status") and e.http_status is not None
+                    )
+                    if should_retry_5xx and has_valid_status:
+                        should_retry = should_retry or (
+                            500 <= int(cast(int, e.http_status)) < 600
+                        )
 
                     if not should_retry:
                         raise e  # Raise the error if no retry condition is met
@@ -235,15 +241,20 @@ def retry_on_error(
             while attempts < max_retries:
                 try:
                     return func(*args, **kwargs)
-                except Exception as e:
+                except (APIError, APIConnectionError) as e:
+                    e = cast(UniqueError, e)
                     logger.error(f"Retrying because of {e}")
-
                     should_retry = any(
                         err_msg.lower() in str(e).lower() for err_msg in error_messages
                     )
                     # Add 5xx check if `should_retry_5xx` is True
-                    if should_retry_5xx and hasattr(e, "status_code"):
-                        should_retry = should_retry or (500 <= e.status_code < 600)
+                    has_valid_status = (
+                        hasattr(e, "http_status") and e.http_status is not None
+                    )
+                    if should_retry_5xx and has_valid_status:
+                        should_retry = should_retry or (
+                            500 <= int(cast(int, e.http_status)) < 600
+                        )
 
                     if not should_retry:
                         raise e  # Raise the error if no retry condition is met
