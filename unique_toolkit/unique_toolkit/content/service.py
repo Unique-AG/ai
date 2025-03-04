@@ -10,6 +10,7 @@ from unique_toolkit.content import DOMAIN_NAME
 from unique_toolkit.content.constants import DEFAULT_SEARCH_LANGUAGE
 from unique_toolkit.content.functions import (
     download_content,
+    download_content_to_bytes,
     download_content_to_file_by_id,
     request_content_by_id,
     search_content_chunks,
@@ -17,6 +18,7 @@ from unique_toolkit.content.functions import (
     search_contents,
     search_contents_async,
     upload_content,
+    upload_content_from_bytes,
 )
 from unique_toolkit.content.schemas import (
     Content,
@@ -222,6 +224,41 @@ class ContentService:
 
         return self.search_contents(where)
 
+    def upload_content_from_bytes(
+        self,
+        content: bytes,
+        content_name: str,
+        mime_type: str,
+        scope_id: str | None = None,
+        chat_id: str | None = None,
+        skip_ingestion: bool = False,
+    ) -> Content:
+        """
+        Uploads content to the knowledge base.
+
+        Args:
+            content (bytes): The content to upload.
+            content_name (str): The name of the content.
+            mime_type (str): The MIME type of the content.
+            scope_id (str | None): The scope ID. Defaults to None.
+            chat_id (str | None): The chat ID. Defaults to None.
+            skip_ingestion (bool): Whether to skip ingestion. Defaults to False.
+
+        Returns:
+            Content: The uploaded content.
+        """
+
+        return upload_content_from_bytes(
+            user_id=self.user_id,
+            company_id=self.company_id,
+            content=content,
+            content_name=content_name,
+            mime_type=mime_type,
+            scope_id=scope_id,
+            chat_id=chat_id,
+            skip_ingestion=skip_ingestion,
+        )
+
     def upload_content(
         self,
         path_to_content: str,
@@ -343,4 +380,30 @@ class ContentService:
             content_name=content_name,
             chat_id=chat_id,
             dir_path=dir_path,
+        )
+
+    def download_content_to_bytes(
+        self,
+        content_id: str,
+        chat_id: str | None = None,
+    ) -> bytes:
+        """
+        Downloads content to memory
+
+        Args:
+            content_id (str): The id of the uploaded content.
+            chat_id (Optional[str]): The chat_id, defaults to None.
+
+        Returns:
+            bytes: The downloaded content.
+
+        Raises:
+            Exception: If the download fails.
+        """
+
+        return download_content_to_bytes(
+            user_id=self.user_id,
+            company_id=self.company_id,
+            content_id=content_id,
+            chat_id=chat_id,
         )

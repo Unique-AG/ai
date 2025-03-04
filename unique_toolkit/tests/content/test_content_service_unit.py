@@ -298,6 +298,63 @@ class TestContentServiceUnit:
             os.unlink(temp_content_path)
 
     @patch("requests.put")
+    def test_upload_content_from_bytes(self, mock_put):
+        with patch.object(unique_sdk.Content, "upsert") as mock_upsert:
+            mock_upsert.return_value = {
+                "id": "test_content_id",
+                "key": "test.txt",
+                "title": "test.txt",
+                "mimeType": "text/plain",
+                "byteSize": 100,
+                "writeUrl": "http://test-write-url.com",
+                "readUrl": "http://test-read-url.com",
+            }
+            # Create a temporary file for testing
+            content = b"Test content"
+
+            mock_upsert.side_effect = [
+                {
+                    "id": "test_content_id",
+                    "key": "test.txt",
+                    "title": "test.txt",
+                    "mimeType": "text/plain",
+                    "byteSize": 100,
+                    "writeUrl": "http://test-write-url.com",
+                    "readUrl": "http://test-read-url.com",
+                },
+                {
+                    "id": "test_content_id",
+                    "key": "test.txt",
+                    "title": "test.txt",
+                    "mimeType": "text/plain",
+                    "byteSize": 100,
+                    "writeUrl": "http://test-write-url.com",
+                    "readUrl": "http://test-read-url.com",
+                },
+            ]
+
+            result = self.service.upload_content_from_bytes(
+                content=content,
+                content_name="test.txt",
+                mime_type="text/plain",
+                scope_id="test_scope",
+            )
+
+            assert isinstance(result, Content)
+            assert result.id == "test_content_id"
+            assert result.write_url == "http://test-write-url.com"
+            assert result.read_url == "http://test-read-url.com"
+
+            mock_put.assert_called_once_with(
+                url="http://test-write-url.com",
+                data=ANY,
+                headers={
+                    "X-Ms-Blob-Content-Type": "text/plain",
+                    "X-Ms-Blob-Type": "BlockBlob",
+                },
+            )
+
+    @patch("requests.put")
     def test_upload_with_skip_ingestion_content(self, mock_put):
         with patch.object(unique_sdk.Content, "upsert") as mock_upsert:
             # Create a temporary file for testing
@@ -399,6 +456,21 @@ class TestContentServiceUnit:
         # Clean up the temporary file
         result.unlink()
         result.parent.rmdir()
+
+    @patch("requests.get")
+    def test_download_content_to_memory(self, mock_get):
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.content = b"Test content"
+        mock_get.return_value = mock_response
+
+        result = self.service.download_content_to_bytes(
+            content_id="test_content_id",
+            chat_id="test_chat_id",
+        )
+
+        assert isinstance(result, bytes)
+        assert result == b"Test content"
 
     @patch("requests.get")
     def test_download_content_with_dir(self, mock_get):
