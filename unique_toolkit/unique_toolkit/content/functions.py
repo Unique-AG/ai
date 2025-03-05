@@ -204,6 +204,49 @@ def _upsert_content(
     )  # type: ignore
 
 
+def upload_content_from_bytes(
+    user_id: str,
+    company_id: str,
+    content: bytes,
+    content_name: str,
+    mime_type: str,
+    scope_id: str | None = None,
+    chat_id: str | None = None,
+    skip_ingestion: bool = False,
+):
+    """
+    Uploads content to the knowledge base.
+
+    Args:
+        user_id (str): The user ID.
+        company_id (str): The company ID.
+        content (bytes): The content to upload.
+        content_name (str): The name of the content.
+        mime_type (str): The MIME type of the content.
+        scope_id (str | None): The scope ID. Defaults to None.
+        chat_id (str | None): The chat ID. Defaults to None.
+        skip_ingestion (bool): Whether to skip ingestion. Defaults to False.
+
+    Returns:
+        Content: The uploaded content.
+    """
+
+    try:
+        return _trigger_upload_content(
+            user_id=user_id,
+            company_id=company_id,
+            content=content,
+            content_name=content_name,
+            mime_type=mime_type,
+            scope_id=scope_id,
+            chat_id=chat_id,
+            skip_ingestion=skip_ingestion,
+        )
+    except Exception as e:
+        logger.error(f"Error while uploading content: {e}")
+        raise e
+
+
 def upload_content(
     user_id: str,
     company_id: str,
@@ -235,7 +278,7 @@ def upload_content(
         return _trigger_upload_content(
             user_id=user_id,
             company_id=company_id,
-            path_to_content=path_to_content,
+            content=path_to_content,
             content_name=content_name,
             mime_type=mime_type,
             scope_id=scope_id,
@@ -250,7 +293,7 @@ def upload_content(
 def _trigger_upload_content(
     user_id: str,
     company_id: str,
-    path_to_content: str,
+    content: str | Path | bytes,
     content_name: str,
     mime_type: str,
     scope_id: str | None = None,
@@ -263,7 +306,7 @@ def _trigger_upload_content(
     Args:
         user_id (str): The user ID.
         company_id (str): The company ID.
-        path_to_content (str): The path to the content to upload.
+        content (str | Path | bytes): The content to upload. If string or Path, file will be read from disk.
         content_name (str): The name of the content.
         mime_type (str): The MIME type of the content.
         scope_id (str | None): The scope ID. Defaults to None.
@@ -277,7 +320,9 @@ def _trigger_upload_content(
     if not chat_id and not scope_id:
         raise ValueError("chat_id or scope_id must be provided")
 
-    byte_size = os.path.getsize(path_to_content)
+    byte_size = (
+        os.path.getsize(content) if isinstance(content, (Path, str)) else len(content)
+    )
     created_content = _upsert_content(
         user_id=user_id,
         company_id=company_id,
@@ -297,16 +342,24 @@ def _trigger_upload_content(
         logger.error(error_msg)
         raise ValueError(error_msg)
 
+    headers = {
+        "X-Ms-Blob-Content-Type": mime_type,
+        "X-Ms-Blob-Type": "BlockBlob",
+    }
     # upload to azure blob storage SAS url uploadUrl the pdf file translatedFile make sure it is treated as a application/pdf
-    with open(path_to_content, "rb") as file:
+    if isinstance(content, bytes):
         requests.put(
             url=write_url,
-            data=file,
-            headers={
-                "X-Ms-Blob-Content-Type": mime_type,
-                "X-Ms-Blob-Type": "BlockBlob",
-            },
+            data=content,
+            headers=headers,
         )
+    else:
+        with open(content, "rb") as file:
+            requests.put(
+                url=write_url,
+                data=file,
+                headers=headers,
+            )
 
     read_url = created_content["readUrl"]
 
@@ -429,6 +482,23 @@ def download_content_to_file_by_id(
         raise Exception(error_msg)
 
     return content_path
+
+
+def download_content_to_bytes(
+    user_id: str,
+    company_id: str,
+    content_id: str,
+    chat_id: str | None,
+) -> bytes:
+    logger.info(f"Downloading content with content_id: {content_id}")
+    response = request_content_by_id(user_id, company_id, content_id, chat_id)
+
+    if response.status_code != 200:
+        error_msg = f"Error downloading file: Status code {response.status_code}"
+        logger.error(error_msg)
+        raise Exception(error_msg)
+
+    return response.content
 
 
 # TODO: Discuss if we should deprecate this method due to unclear use by content_name
