@@ -238,26 +238,25 @@ def test_download_content(mock_sdk, tmp_path):
         assert result.read_text() == "test content"
 
 
-def test_download_content_to_memory():
+@patch("unique_toolkit.content.functions.request_content_by_id")
+def test_download_content_to_memory(mock_request):
     # Setup
     mock_response = Mock()
     mock_response.status_code = 200
     mock_response.content = b"test content"
 
-    with patch(
-        "unique_toolkit.content.functions.request_content_by_id",
-        return_value=mock_response,
-    ):
-        # Execute
-        result = download_content_to_bytes(
-            user_id="user123",
-            company_id="company123",
-            content_id="content123",
-            chat_id="chat123",
-        )
+    mock_request.return_value = mock_response
 
-        # Assert
-        assert result == b"test content"
+    # Execute
+    result = download_content_to_bytes(
+        user_id="user123",
+        company_id="company123",
+        content_id="content123",
+        chat_id="chat123",
+    )
+
+    # Assert
+    assert result == b"test content"
 
 
 def test_search_with_reranker_config(mock_sdk, sample_content_chunk_data):
