@@ -99,7 +99,7 @@ class TestLanguageModelServiceUnit:
         """Test complete method delegates correctly to function"""
         mock_complete.return_value = LanguageModelResponse(choices=[])
         messages = LanguageModelMessages([])
-        model_name = LanguageModelName.AZURE_GPT_4_TURBO_1106
+        model_name = LanguageModelName.AZURE_GPT_4_0613
 
         self.service.complete(messages=messages, model_name=model_name)
 
@@ -121,7 +121,7 @@ class TestLanguageModelServiceUnit:
         """Test complete_async method delegates correctly to function"""
         mock_complete_async.return_value = LanguageModelResponse(choices=[])
         messages = LanguageModelMessages([])
-        model_name = LanguageModelName.AZURE_GPT_4_TURBO_1106
+        model_name = LanguageModelName.AZURE_GPT_4_0613
 
         await self.service.complete_async(messages=messages, model_name=model_name)
 

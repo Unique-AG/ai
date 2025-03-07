@@ -57,7 +57,7 @@ class TestLanguageModelFunctionsIntegration:
                 LanguageModelUserMessage(content="Tell a joke"),
             ]
         )
-        self.model_name = LanguageModelName.AZURE_GPT_4_TURBO_1106
+        self.model_name = LanguageModelName.AZURE_GPT_4_0613
 
     def test_complete(self):
         """Test basic completion without streaming"""

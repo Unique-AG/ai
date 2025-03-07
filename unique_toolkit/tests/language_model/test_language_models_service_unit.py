@@ -74,7 +74,7 @@ class TestLanguageModelServiceUnit:
             ]
         }
         messages = LanguageModelMessages([])
-        model_name = LanguageModelName.AZURE_GPT_4_TURBO_1106
+        model_name = LanguageModelName.AZURE_GPT_4_0613
 
         result = self.service.complete(messages, model_name)
 
@@ -186,7 +186,7 @@ class TestLanguageModelServiceUnit:
             ]
         }
         messages = LanguageModelMessages([])
-        model_name = LanguageModelName.AZURE_GPT_4_TURBO_1106
+        model_name = LanguageModelName.AZURE_GPT_4_0613
 
         result = await self.service.complete_async(messages, model_name)
 
@@ -240,7 +240,7 @@ class TestLanguageModelServiceUnit:
         mock_create.side_effect = Exception("API Error")
         with pytest.raises(Exception, match="API Error"):
             await self.service.complete_async(
-                LanguageModelMessages([]), LanguageModelName.AZURE_GPT_4_TURBO_1106
+                LanguageModelMessages([]), LanguageModelName.AZURE_GPT_4_0613
             )
 
     @pytest.mark.asyncio
@@ -294,7 +294,7 @@ class TestLanguageModelServiceUnit:
 
     def testprepare_completion_params_util_basic(self):
         messages = LanguageModelMessages([])
-        model_name = LanguageModelName.AZURE_GPT_4_TURBO_1106
+        model_name = LanguageModelName.AZURE_GPT_4_0613
         temperature = 0.5
 
         options, model, messages_dict, search_context = _prepare_completion_params_util(
@@ -352,7 +352,7 @@ class TestLanguageModelServiceUnit:
             ]
         }
         messages = LanguageModelMessages([])
-        model_name = LanguageModelName.AZURE_GPT_4_TURBO_1106
+        model_name = LanguageModelName.AZURE_GPT_4_0613
         other_options = {"max_tokens": 100, "top_p": 0.9}
 
         result = self.service.complete(
@@ -389,7 +389,7 @@ class TestLanguageModelServiceUnit:
             ]
         }
         messages = LanguageModelMessages([])
-        model_name = LanguageModelName.AZURE_GPT_4_TURBO_1106
+        model_name = LanguageModelName.AZURE_GPT_4_0613
         other_options = {"best_of": 2, "stop": ["\n"]}
 
         result = await self.service.complete_async(

@@ -42,7 +42,7 @@ mock_tool = LanguageModelTool(
 
 def test_prepare_completion_params_util_basic():
     messages = LanguageModelMessages([])
-    model_name = LanguageModelName.AZURE_GPT_4_TURBO_1106
+    model_name = LanguageModelName.AZURE_GPT_4_0613
     temperature = 0.5
 
     options, model, messages_dict, search_context = _prepare_completion_params_util(
@@ -131,7 +131,7 @@ def test_complete_basic(mock_create):
     result = complete(
         company_id="test_company",
         messages=messages,
-        model_name=LanguageModelName.AZURE_GPT_4_TURBO_1106,
+        model_name=LanguageModelName.AZURE_GPT_4_0613,
     )
 
     assert result.choices[0].message.content == "Test response"
@@ -158,7 +158,7 @@ async def test_complete_async_basic(mock_create):
     result = await complete_async(
         company_id="test_company",
         messages=messages,
-        model_name=LanguageModelName.AZURE_GPT_4_TURBO_1106,
+        model_name=LanguageModelName.AZURE_GPT_4_0613,
     )
 
     assert result.choices[0].message.content == "Test response"

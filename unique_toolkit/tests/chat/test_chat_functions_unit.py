@@ -411,7 +411,7 @@ def test_stream_complete_basic(mock_stream):
         chat_id="test_chat",
         assistant_id="test_assistant",
         messages=messages,
-        model_name=LanguageModelName.AZURE_GPT_4_TURBO_1106,
+        model_name=LanguageModelName.AZURE_GPT_4_0613,
     )
 
     assert result.message.text == "Streamed response"
@@ -440,7 +440,7 @@ async def test_stream_complete_async_basic(mock_stream):
         chat_id="test_chat",
         assistant_id="test_assistant",
         messages=messages,
-        model_name=LanguageModelName.AZURE_GPT_4_TURBO_1106,
+        model_name=LanguageModelName.AZURE_GPT_4_0613,
     )
 
     assert result.message.text == "Streamed response"
