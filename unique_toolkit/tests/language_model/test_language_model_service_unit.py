@@ -51,10 +51,10 @@ class TestLanguageModelServiceUnit:
         """Test initialization with ChatEvent"""
         service = LanguageModelService(self.chat_event)
 
-        assert service.company_id == "test_company"
-        assert service.user_id == "test_user"
-        assert service.chat_id == "test_chat"
-        assert service.assistant_id == "test_assistant"
+        assert service._company_id == "test_company"
+        assert service._user_id == "test_user"
+        assert service._chat_id == "test_chat"
+        assert service._assistant_id == "test_assistant"
 
     def test_init_with_direct_params(self):
         """Test initialization with direct parameters"""
@@ -65,10 +65,10 @@ class TestLanguageModelServiceUnit:
             assistant_id="direct_assistant",
         )
 
-        assert service.company_id == "direct_company"
-        assert service.user_id == "direct_user"
-        assert service.chat_id == "direct_chat"
-        assert service.assistant_id == "direct_assistant"
+        assert service._company_id == "direct_company"
+        assert service._user_id == "direct_user"
+        assert service._chat_id == "direct_chat"
+        assert service._assistant_id == "direct_assistant"
 
     def test_init_with_base_event(self):
         """Test initialization with BaseEvent"""
@@ -80,19 +80,19 @@ class TestLanguageModelServiceUnit:
         )
         service = LanguageModelService(base_event)
 
-        assert service.company_id == "base_company"
-        assert service.user_id == "base_user"
-        assert service.chat_id is None
-        assert service.assistant_id is None
+        assert service._company_id == "base_company"
+        assert service._user_id == "base_user"
+        assert service._chat_id is None
+        assert service._assistant_id is None
 
     def test_init_with_no_params(self):
         """Test initialization with no parameters"""
         service = LanguageModelService()
 
-        assert service.company_id is None
-        assert service.user_id is None
-        assert service.chat_id is None
-        assert service.assistant_id is None
+        assert service._company_id is None
+        assert service._user_id is None
+        assert service._chat_id is None
+        assert service._assistant_id is None
 
     @patch("unique_toolkit.language_model.service.complete")
     def test_complete(self, mock_complete):

@@ -25,6 +25,7 @@ from unique_toolkit.language_model.schemas import (
 logger = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
 
 
+
 class LanguageModelService:
     """
     Provides methods to interact with the Language Model by generating responses.
@@ -39,23 +40,53 @@ class LanguageModelService:
     def __init__(
         self,
         event: Event | BaseEvent | None = None,
-        company_id: str | None = None,
         user_id: str | None = None,
-        chat_id: str | None = None,
-        assistant_id: str | None = None,
+        **kwargs # TODO: Remove kwargs once we deprectate company_id
     ):
         self._event = event
-        self.company_id = company_id
-        self.user_id = user_id
-        self.chat_id = chat_id
-        self.assistant_id = assistant_id
+        self._company_id = kwargs.get("company_id", None)
+        self._user_id = user_id
+        self._chat_id = kwargs.get("chat_id", None)
+        self._assistant_id = kwargs.get("assistant_id", None)
 
         if event:
-            self.company_id = event.company_id
-            self.user_id = event.user_id
+            self._company_id = event.company_id
+            self._user_id = event.user_id
             if isinstance(event, (ChatEvent, Event)):
-                self.chat_id = event.payload.chat_id
-                self.assistant_id = event.payload.assistant_id
+                self._chat_id = event.payload.chat_id
+                self._assistant_id = event.payload.assistant_id
+
+    @property
+    @deprecated(
+        "assistant_id is deprecated and will be removed in a future version."
+    )
+    def assistant_id(self) -> str | None:
+        return self._assistant_id
+    
+        
+    @property
+    @deprecated(
+        "The user_id property is deprecated and will be removed in a future version."
+    )
+    def user_id(self) -> str | None:
+        return self._user_id
+
+    @property
+    @deprecated(
+        "The chat_id property is deprecated and will be removed in a future version."
+    )
+    def chat_id(self) -> str | None:
+        return self._chat_id
+
+    @property
+    @deprecated(
+        "The company_id property is deprecated and will be removed in a future version."
+    )
+    def company_id(self) -> str | None:
+        """
+        Get the company identifier.
+        """
+        return self._company_id
 
     @property
     @deprecated(
@@ -84,7 +115,7 @@ class LanguageModelService:
         """
         Calls the completion endpoint synchronously without streaming the response.
         """
-        [company_id] = validate_required_values([self.company_id])
+        [company_id] = validate_required_values([self._company_id])
 
         return complete(
             company_id=company_id,
@@ -112,7 +143,7 @@ class LanguageModelService:
         """
         Calls the completion endpoint asynchronously without streaming the response.
         """
-        [company_id] = validate_required_values([self.company_id])
+        [company_id] = validate_required_values([self._company_id])
 
         return await complete_async(
             company_id=company_id,
