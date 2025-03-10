@@ -496,6 +496,12 @@ result = unique_sdk.Embeddings.create(
     company_id=company_id,
     texts=["hello", "hello"],
 )
+
+# result = unique_sdk.Embeddings.create(
+#     user_id="307820057868697608",
+#     company_id="307820057868632072",
+#     texts=["hello", "hello"],
+# )
 print(result.embeddings[0][0])
 ```
 

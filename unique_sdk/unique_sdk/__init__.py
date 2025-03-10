@@ -10,6 +10,7 @@ from unique_sdk._api_version import _ApiVersion
 api_key: Optional[str] = None
 app_id: Optional[str] = None
 api_base: str = "https://gateway.unique.app/public/chat-gen2"
+# api_base = "http://localhost:8092/public/"
 api_version: str = _ApiVersion.CURRENT
 api_verify_mode: bool = True
 default_http_client: Optional["HTTPClient"] = None
