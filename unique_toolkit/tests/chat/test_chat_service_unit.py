@@ -912,7 +912,7 @@ class TestChatServiceUnit:
             )
         )
         messages = LanguageModelMessages([])
-        model_name = LanguageModelName.AZURE_GPT_4_TURBO_1106
+        model_name = LanguageModelName.AZURE_GPT_4_0613
         content_chunks = [
             ContentChunk(id="1", chunk_id="1", key="test", order=1, text="test")
         ]
@@ -952,7 +952,7 @@ class TestChatServiceUnit:
             )
         )
         messages = LanguageModelMessages([])
-        model_name = LanguageModelName.AZURE_GPT_4_TURBO_1106
+        model_name = LanguageModelName.AZURE_GPT_4_0613
         content_chunks = [
             ContentChunk(id="1", chunk_id="1", key="test", order=1, text="test")
         ]
@@ -991,7 +991,7 @@ class TestChatServiceUnit:
             }
         }
         messages = LanguageModelMessages([])
-        model_name = LanguageModelName.AZURE_GPT_4_TURBO_1106
+        model_name = LanguageModelName.AZURE_GPT_4_0613
         content_chunks = [
             ContentChunk(id="1", chunk_id="1", key="test", order=1, text="test")
         ]
@@ -1015,7 +1015,7 @@ class TestChatServiceUnit:
             }
         }
         messages = LanguageModelMessages([])
-        model_name = LanguageModelName.AZURE_GPT_4_TURBO_1106
+        model_name = LanguageModelName.AZURE_GPT_4_0613
         other_options = {"presence_penalty": 0.6, "frequency_penalty": 0.8}
 
         result = self.service.stream_complete(
@@ -1057,7 +1057,7 @@ class TestChatServiceUnit:
             }
         }
         messages = LanguageModelMessages([])
-        model_name = LanguageModelName.AZURE_GPT_4_TURBO_1106
+        model_name = LanguageModelName.AZURE_GPT_4_0613
         other_options = {"presence_penalty": 0.6, "frequency_penalty": 0.8}
 
         result = await self.service.stream_complete_async(
@@ -1175,7 +1175,7 @@ class TestChatServiceUnit:
             }
         }
         messages = LanguageModelMessages([])
-        model_name = LanguageModelName.AZURE_GPT_4_TURBO_1106
+        model_name = LanguageModelName.AZURE_GPT_4_0613
         content_chunks = [
             ContentChunk(id="1", chunk_id="1", key="test", order=1, text="test")
         ]
@@ -1229,7 +1229,7 @@ class TestChatServiceUnit:
         mock_stream_complete.side_effect = Exception("Stream Error")
         with pytest.raises(Exception, match="Stream Error"):
             await self.service.stream_complete_async(
-                LanguageModelMessages([]), LanguageModelName.AZURE_GPT_4_TURBO_1106
+                LanguageModelMessages([]), LanguageModelName.AZURE_GPT_4_0613
             )
 
     @pytest.mark.asyncio

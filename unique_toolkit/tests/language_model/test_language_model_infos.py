@@ -1,5 +1,3 @@
-from datetime import date
-
 import pytest
 
 from unique_toolkit.language_model.infos import (
@@ -15,33 +13,19 @@ from unique_toolkit.language_model.schemas import LanguageModelTokenLimits
 class TestLanguageModelInfos:
     def test_can_list_all_defined_models(self):
         models = LanguageModel.list_models()
-        assert len(models) == 9
+        assert len(models) == 10
         assert all(isinstance(model, LanguageModelInfo) for model in models)
         assert all(model.name for model in models)
 
         model_names = [model.name for model in models]
-        assert LanguageModelName.AZURE_GPT_4_TURBO_1106 in model_names
+        assert LanguageModelName.AZURE_GPT_4_0613 in model_names
         assert LanguageModelName.AZURE_GPT_4_TURBO_2024_0409 in model_names
-        assert LanguageModelName.AZURE_GPT_4_VISION_PREVIEW in model_names
         assert LanguageModelName.AZURE_GPT_4_32K_0613 in model_names
         assert LanguageModelName.AZURE_GPT_4_0613 in model_names
         assert LanguageModelName.AZURE_GPT_35_TURBO_0125 in model_names
         assert LanguageModelName.AZURE_GPT_4o_2024_0513 in model_names
         assert LanguageModelName.AZURE_GPT_4o_2024_0806 in model_names
         assert LanguageModelName.AZURE_GPT_4o_MINI_2024_0718 in model_names
-
-    def test_get_language_model(self):
-        model = LanguageModel(LanguageModelName.AZURE_GPT_4_TURBO_1106)
-
-        assert model.name == LanguageModelName.AZURE_GPT_4_TURBO_1106
-        assert model.provider == LanguageModelProvider.AZURE
-        assert model.version == "1106-preview"
-        assert model.published_at == date(2023, 11, 6)
-        assert model.info_cutoff_at == date(2023, 4, 1)
-        assert model.token_limit_input == 128000
-        assert model.token_limit_output == 4096
-        assert model.token_limit == 128000 + 4096
-        assert model.encoder_name == EncoderName.CL100K_BASE
 
     def test_get_custom_language_model(self):
         model = LanguageModel("My Custom Model")
@@ -51,10 +35,10 @@ class TestLanguageModelInfos:
         assert model.version == "custom"
         assert model.published_at is None
         assert model.info_cutoff_at is None
-        assert model.encoder_name is None
-        assert model.token_limit_input is None
-        assert model.token_limit_output is None
-        assert model.token_limit is None
+        assert model.encoder_name == EncoderName.CL100K_BASE
+        assert model.token_limit_input == 7_000
+        assert model.token_limit_output == 1_000
+        assert model.token_limit == 8_000
         assert model.retirement_at is None
         assert model.deprecated_at is None
         assert model.retirement_text is None
@@ -62,7 +46,9 @@ class TestLanguageModelInfos:
     def test_get_language_model_returns_custom_model_for_string(self):
         name = "custom"
         LanguageModel(name) == LanguageModelInfo(
-            name=name, version="custom", provider=LanguageModelProvider.CUSTOM
+            name=name,
+            version="custom",
+            provider=LanguageModelProvider.CUSTOM,
         )
 
     # New tests for LanguageModelTokenLimits
