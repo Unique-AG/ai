@@ -496,7 +496,7 @@ result = unique_sdk.Embeddings.create(
     company_id=company_id,
     texts=["hello", "hello"],
 )
-
+print(result.embeddings[0][0])
 ```
 
 ### Acronyms
