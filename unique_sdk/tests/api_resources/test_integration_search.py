@@ -1,8 +1,6 @@
 import pytest
-from unittest.mock import patch
 
 from unique_sdk.api_resources._search import Search
-
 
 
 @pytest.mark.integration
@@ -20,7 +18,7 @@ class TestSearch:
             page=1,
             chatOnly=False,
         )
-        
+
         assert isinstance(response, list)
         if response:
             result = response[0]
@@ -48,9 +46,9 @@ class TestSearch:
             chatOnly=True,
             scopeIds=["scope1"],
             metaDataFilter={"key": "value"},
-            contentIds=["content1"]
+            contentIds=["content1"],
         )
-        
+
         assert isinstance(response, list)
         if response:
             result = response[0]
@@ -71,13 +69,13 @@ class TestSearch:
             chatId="test-chat-id",
             searchString="vector search query",
             searchType="VECTOR",
-            limit=10
+            limit=10,
         )
-        
+
         assert isinstance(response, list)
         if response:
-            assert all(hasattr(item, 'id') for item in response)
-            assert all(hasattr(item, 'text') for item in response)
+            assert all(hasattr(item, "id") for item in response)
+            assert all(hasattr(item, "text") for item in response)
 
     def test_combined_search(self, test_user_id, test_company_id):
         """Test combined search approach."""
@@ -88,10 +86,10 @@ class TestSearch:
             searchString="combined search query",
             searchType="COMBINED",
             limit=10,
-            reranker={"model": "test-model"}
+            reranker={"model": "test-model"},
         )
-        
+
         assert isinstance(response, list)
         if response:
-            assert all(hasattr(item, 'id') for item in response)
-            assert all(hasattr(item, 'text') for item in response)
+            assert all(hasattr(item, "id") for item in response)
+            assert all(hasattr(item, "text") for item in response)
