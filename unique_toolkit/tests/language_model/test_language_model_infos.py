@@ -13,7 +13,7 @@ from unique_toolkit.language_model.schemas import LanguageModelTokenLimits
 class TestLanguageModelInfos:
     def test_can_list_all_defined_models(self):
         models = LanguageModel.list_models()
-        assert len(models) == 7
+        assert len(models) == 10
         assert all(isinstance(model, LanguageModelInfo) for model in models)
         assert all(model.name for model in models)
 
@@ -36,8 +36,8 @@ class TestLanguageModelInfos:
         assert model.published_at is None
         assert model.info_cutoff_at is None
         assert model.encoder_name == EncoderName.CL100K_BASE
-        assert model.token_limit_input == 4_000
-        assert model.token_limit_output == 4_000
+        assert model.token_limit_input == 7_000
+        assert model.token_limit_output == 1_000
         assert model.token_limit == 8_000
         assert model.retirement_at is None
         assert model.deprecated_at is None

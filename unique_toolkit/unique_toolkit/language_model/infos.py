@@ -16,6 +16,9 @@ class LanguageModelName(StrEnum):
     AZURE_GPT_4o_2024_0513 = "AZURE_GPT_4o_2024_0513"
     AZURE_GPT_4o_2024_0806 = "AZURE_GPT_4o_2024_0806"
     AZURE_GPT_4o_MINI_2024_0718 = "AZURE_GPT_4o_MINI_2024_0718"
+    AZURE_GPT_o1_2024_1217 = "AZURE_GPT_o1_2024_1217"
+    AZURE_GPT_o1_MINI_2024_0912 = "AZURE_GPT_o1_MINI_2024_0912"
+    AZURE_GPT_o3_MINI_2025_0131 = "AZURE_GPT_o3_MINI_2025_0131"
 
 
 class EncoderName(StrEnum):
@@ -71,7 +74,7 @@ class LanguageModelInfo(BaseModel):
 
     # TODO: Discuss if this is a sensible defaut
     token_limits: LanguageModelTokenLimits = LanguageModelTokenLimits(
-        token_limit_input=4_000, token_limit_output=4_000
+        token_limit_input=7_000, token_limit_output=1_000
     )
     capabilities: list[ModelCapabilities] = [ModelCapabilities.STREAMING]
 
@@ -110,7 +113,10 @@ class LanguageModelInfo(BaseModel):
                     provider=LanguageModelProvider.AZURE,
                     version="0613",
                     encoder_name=EncoderName.CL100K_BASE,
-                    capabilities=[ModelCapabilities.FUNCTION_CALLING],
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                    ],
                     token_limits=LanguageModelTokenLimits(token_limit=8192),
                     info_cutoff_at=date(2021, 9, 1),
                     published_at=date(2023, 6, 13),
@@ -143,7 +149,6 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.STRUCTURED_OUTPUT,
                         ModelCapabilities.VISION,
                         ModelCapabilities.STREAMING,
-                        ModelCapabilities.STRUCTURED_OUTPUT,
                     ],
                     provider=LanguageModelProvider.AZURE,
                     version="turbo-2024-04-09",
@@ -209,6 +214,62 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2023, 10, 1),
                     published_at=date(2024, 7, 18),
+                )
+            case LanguageModelName.AZURE_GPT_o1_2024_1217:
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.AZURE,
+                    version="2024-12-17",
+                    encoder_name=EncoderName.O200K_BASE,
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=200_000, token_limit_output=100_000
+                    ),
+                    info_cutoff_at=date(2023, 10, 1),
+                    published_at=date(2024, 12, 17),
+                )
+            case LanguageModelName.AZURE_GPT_o1_MINI_2024_0912:
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.AZURE,
+                    version="2024-09-12",
+                    encoder_name=EncoderName.O200K_BASE,
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=128_000, token_limit_output=65_536
+                    ),
+                    info_cutoff_at=date(2023, 10, 1),
+                    published_at=date(2024, 9, 12),
+                )
+            case LanguageModelName.AZURE_GPT_o3_MINI_2025_0131:
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.AZURE,
+                    version="2025-01-31",
+                    encoder_name=EncoderName.O200K_BASE,
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=200_000, token_limit_output=100_000
+                    ),
+                    info_cutoff_at=date(2023, 10, 1),
+                    published_at=date(2025, 1, 31),
                 )
             case _:
                 if isinstance(model_name, LanguageModelName):
