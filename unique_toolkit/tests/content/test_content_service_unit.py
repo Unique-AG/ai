@@ -69,7 +69,7 @@ class TestContentServiceUnit:
             mock_create.assert_called_once_with(
                 user_id="test_user",
                 company_id="test_company",
-                chatId="test_chat",
+                chatId="",
                 searchString="test",
                 searchType="COMBINED",
                 scopeIds=["scope1", "scope2"],
@@ -120,7 +120,7 @@ class TestContentServiceUnit:
             mock_search.assert_called_once_with(
                 user_id="test_user",
                 company_id="test_company",
-                chatId="test_chat",
+                chatId="",
                 where={"key": "test_key"},
             )
 
@@ -169,7 +169,7 @@ class TestContentServiceUnit:
             mock_create.assert_called_once_with(
                 user_id="test_user",
                 company_id="test_company",
-                chatId="test_chat",
+                chatId="",
                 searchString="test",
                 searchType="COMBINED",
                 scopeIds=["scope1", "scope2"],
@@ -221,7 +221,7 @@ class TestContentServiceUnit:
             mock_search.assert_called_once_with(
                 user_id="test_user",
                 company_id="test_company",
-                chatId="test_chat",
+                chatId="",
                 where={"key": "test_key"},
             )
 
@@ -537,8 +537,8 @@ class TestContentServiceUnit:
             mock_search.assert_called_once_with(
                 user_id="test_user",
                 company_id="test_company",
-                chatId="test_chat",
-                where={"ownerId": {"equals": "test_chat"}},
+                chatId="",
+                where={"ownerId": {"equals": ""}},
             )
 
     @patch("requests.get")
@@ -739,7 +739,6 @@ class TestContentServiceUnit:
 
         assert service.company_id == "test_company"
         assert service.user_id == "test_user"
-        assert service.chat_id == "test_chat"
         assert service.metadata_filter == {
             "path": ["key"],
             "operator": "equals",
@@ -816,7 +815,6 @@ class TestContentServiceUnit:
 
         assert service.company_id == "test_company"
         assert service.user_id == "test_user"
-        assert service.chat_id == "test_chat"
         assert service.metadata_filter == {
             "path": ["key"],
             "operator": "equals",
