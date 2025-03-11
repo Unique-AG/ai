@@ -102,7 +102,7 @@ class ChatEventPayload(BaseModel):
     metadata_filter: Optional[dict[str, Any]] = None
 
 
-@deprecated("""UUse `ChatEventPayload` instead.
+@deprecated("""Use `ChatEventPayload` instead.
             This class will be removed in the next major version.""")
 class EventPayload(ChatEventPayload):
     user_message: EventUserMessage
