@@ -48,6 +48,7 @@ class ContentService:
         user_id: str | None = None,
     ):
         self._event = event  # Changed to protected attribute
+        self.chat_id = ''
         if event:
             self.company_id = event.company_id
             self.user_id = event.user_id
