@@ -3,6 +3,7 @@ from typing_extensions import Self
 from unique_toolkit.language_model import (
     LanguageModelAssistantMessage,
     LanguageModelMessage,
+    LanguageModelMessageRole,
     LanguageModelMessages,
     LanguageModelSystemMessage,
     LanguageModelToolMessage,
@@ -13,6 +14,11 @@ from unique_toolkit.language_model import (
 class MessagesBuilder:
     def __init__(self):
         self.messages: list[LanguageModelMessage] = []
+
+    def message_append(self, role: LanguageModelMessageRole, content: str):
+        message = LanguageModelMessage(role=role, content=content)
+        self.messages.append(message)
+        return self
 
     def system_message_append(self, content: str) -> Self:
         """Appends a system message to the messages list."""
@@ -26,15 +32,18 @@ class MessagesBuilder:
         self.messages.append(message)
         return self  # Return self to allow method chaining
 
-    def image_message_append(self, content: str, images: list[str]) -> Self:
-        message = LanguageModelUserMessage(
+    def image_message_append(
+        self, content: str, images: list[str], role=LanguageModelMessageRole.USER
+    ) -> Self:
+        message = LanguageModelMessage(
+            role=role,
             content=[
                 {"type": "text", "text": content},
                 *[
                     {"type": "image_url", "imageUrl": {"url": image}}
                     for image in images
                 ],
-            ]
+            ],
         )
         self.messages.append(message)
         return self
