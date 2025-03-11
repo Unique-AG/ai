@@ -107,7 +107,7 @@ class ContentService:
             searches = search_content_chunks(
                 user_id=self.user_id,
                 company_id=self.company_id,
-                chat_id='',
+                chat_id="",
                 search_string=search_string,
                 search_type=search_type,
                 limit=limit,
@@ -158,7 +158,7 @@ class ContentService:
             searches = await search_content_chunks_async(
                 user_id=self.user_id,
                 company_id=self.company_id,
-                chat_id='',
+                chat_id="",
                 search_string=search_string,
                 search_type=search_type,
                 limit=limit,
