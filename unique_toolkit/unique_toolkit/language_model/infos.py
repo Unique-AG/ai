@@ -16,9 +16,10 @@ class LanguageModelName(StrEnum):
     AZURE_GPT_4o_2024_0513 = "AZURE_GPT_4o_2024_0513"
     AZURE_GPT_4o_2024_0806 = "AZURE_GPT_4o_2024_0806"
     AZURE_GPT_4o_MINI_2024_0718 = "AZURE_GPT_4o_MINI_2024_0718"
-    AZURE_GPT_o1_2024_1217 = "AZURE_GPT_o1_2024_1217"
-    AZURE_GPT_o1_MINI_2024_0912 = "AZURE_GPT_o1_MINI_2024_0912"
-    AZURE_GPT_o3_MINI_2025_0131 = "AZURE_GPT_o3_MINI_2025_0131"
+    AZURE_o1_PREVIEW_2024_0912 = "AZURE_o1_PREVIEW_2024_0912"
+    AZURE_o1_2024_1217 = "AZURE_o1_2024_1217"
+    AZURE_o1_MINI_2024_0912 = "AZURE_o1_MINI_2024_0912"
+    AZURE_o3_MINI_2025_0131 = "AZURE_o3_MINI_2025_0131"
 
 
 class EncoderName(StrEnum):
@@ -215,7 +216,7 @@ class LanguageModelInfo(BaseModel):
                     info_cutoff_at=date(2023, 10, 1),
                     published_at=date(2024, 7, 18),
                 )
-            case LanguageModelName.AZURE_GPT_o1_2024_1217:
+            case LanguageModelName.AZURE_o1_2024_1217:
                 return cls(
                     name=model_name,
                     capabilities=[
@@ -234,7 +235,10 @@ class LanguageModelInfo(BaseModel):
                     info_cutoff_at=date(2023, 10, 1),
                     published_at=date(2024, 12, 17),
                 )
-            case LanguageModelName.AZURE_GPT_o1_MINI_2024_0912:
+            case (
+                LanguageModelName.AZURE_o1_MINI_2024_0912
+                | LanguageModelName.AZURE_o1_PREVIEW_2024_0912
+            ):
                 return cls(
                     name=model_name,
                     capabilities=[
@@ -253,7 +257,7 @@ class LanguageModelInfo(BaseModel):
                     info_cutoff_at=date(2023, 10, 1),
                     published_at=date(2024, 9, 12),
                 )
-            case LanguageModelName.AZURE_GPT_o3_MINI_2025_0131:
+            case LanguageModelName.AZURE_o3_MINI_2025_0131:
                 return cls(
                     name=model_name,
                     capabilities=[
