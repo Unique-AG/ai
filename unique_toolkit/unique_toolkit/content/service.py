@@ -215,10 +215,8 @@ class ContentService:
             where=where,
         )
 
-    def search_content_on_chat(
-        self,
-    ) -> list[Content]:
-        where = {"ownerId": {"equals": ""}}
+    def search_content_on_chat(self, chat_id: str) -> list[Content]:
+        where = {"ownerId": {"equals": chat_id}}
 
         return self.search_contents(where)
 

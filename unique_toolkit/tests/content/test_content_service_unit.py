@@ -528,7 +528,7 @@ class TestContentServiceUnit:
                 }
             ]
 
-            result = self.service.search_content_on_chat()
+            result = self.service.search_content_on_chat(chat_id="chat_id")
 
             assert isinstance(result, list)
             assert len(result) == 1
@@ -538,7 +538,7 @@ class TestContentServiceUnit:
                 user_id="test_user",
                 company_id="test_company",
                 chatId="",
-                where={"ownerId": {"equals": ""}},
+                where={"ownerId": {"equals": "chat_id"}},
             )
 
     @patch("requests.get")
