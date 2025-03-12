@@ -6,9 +6,10 @@ from unique_toolkit.content.schemas import ContentChunk, ContentMetadata
 from unique_toolkit.language_model.functions import (
     complete,
     complete_async,
-    stream_complete,
-    stream_complete_async,
 )
+
+from unique_toolkit.chat.functions import stream_complete_to_chat, stream_complete_to_chat_async
+
 from unique_toolkit.language_model.infos import LanguageModelName
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessage,
@@ -92,7 +93,7 @@ class TestLanguageModelFunctionsIntegration:
 
     def test_stream_complete(self):
         """Test streaming completion"""
-        response = stream_complete(
+        response = stream_complete_to_chat(
             company_id=self.company_id,
             user_id=self.user_id,
             assistant_message_id=self.assistant_message_id,
@@ -127,7 +128,7 @@ class TestLanguageModelFunctionsIntegration:
                 updated_at=datetime(2024, 7, 22, 11, 57, 3, 446000),
             )
         ]
-        response = stream_complete(
+        response = stream_complete_to_chat(
             company_id=self.company_id,
             user_id=self.user_id,
             assistant_message_id=self.assistant_message_id,
@@ -152,7 +153,7 @@ class TestLanguageModelFunctionsIntegration:
             ]
         )
 
-        response = stream_complete(
+        response = stream_complete_to_chat(
             company_id=self.company_id,
             user_id=self.user_id,
             assistant_message_id=self.assistant_message_id,
@@ -203,7 +204,7 @@ class TestLanguageModelFunctionsIntegration:
     @pytest.mark.asyncio
     async def test_stream_complete_async(self):
         """Test asynchronous streaming completion"""
-        response = await stream_complete_async(
+        response = await stream_complete_to_chat_async(
             company_id=self.company_id,
             user_id=self.user_id,
             assistant_message_id=self.assistant_message_id,
