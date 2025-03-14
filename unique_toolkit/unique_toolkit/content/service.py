@@ -38,7 +38,6 @@ class ContentService:
         company_id (str | None): The company ID.
         user_id (str | None): The user ID.
         metadata_filter (dict | None): The metadata filter.
-        chat_id (str | None): The chat ID.
     """
 
     def __init__(
@@ -48,17 +47,16 @@ class ContentService:
         user_id: str | None = None,
     ):
         self._event = event  # Changed to protected attribute
+        self.metadata_filter = None
         if event:
             self.company_id = event.company_id
             self.user_id = event.user_id
             if isinstance(event, (ChatEvent, Event)):
                 self.metadata_filter = event.payload.metadata_filter
-                self.chat_id = event.payload.chat_id
         else:
             [company_id, user_id] = validate_required_values([company_id, user_id])
             self.company_id = company_id
             self.user_id = user_id
-            self.metadata_filter = None
 
     @property
     @deprecated(
@@ -109,7 +107,7 @@ class ContentService:
             searches = search_content_chunks(
                 user_id=self.user_id,
                 company_id=self.company_id,
-                chat_id=self.chat_id,
+                chat_id="",
                 search_string=search_string,
                 search_type=search_type,
                 limit=limit,
@@ -160,7 +158,7 @@ class ContentService:
             searches = await search_content_chunks_async(
                 user_id=self.user_id,
                 company_id=self.company_id,
-                chat_id=self.chat_id,
+                chat_id="",
                 search_string=search_string,
                 search_type=search_type,
                 limit=limit,
@@ -193,7 +191,6 @@ class ContentService:
         return search_contents(
             user_id=self.user_id,
             company_id=self.company_id,
-            chat_id=self.chat_id,
             where=where,
         )
 
@@ -213,14 +210,11 @@ class ContentService:
         return await search_contents_async(
             user_id=self.user_id,
             company_id=self.company_id,
-            chat_id=self.chat_id,
             where=where,
         )
 
-    def search_content_on_chat(
-        self,
-    ) -> list[Content]:
-        where = {"ownerId": {"equals": self.chat_id}}
+    def search_content_on_chat(self, chat_id: str) -> list[Content]:
+        where = {"ownerId": {"equals": chat_id}}
 
         return self.search_contents(where)
 

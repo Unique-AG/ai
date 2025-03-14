@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2025-03-11
+- Fix the issue with `ShortTermMemoryService.create_memory_async` adding `self.chat_id` and `self.message_id` as part of the parameter.
+- Breaking chang: `ContentService.search_content_on_chat` now requires you pass in a `chat_id` for the specific chat instance
+
 ## [0.6.9] - 2025-03-11
 - Add o1-preview as part of the language model info, make the name consistent across board.
 

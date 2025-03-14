@@ -112,7 +112,6 @@ def test_search_contents(mock_sdk, sample_content_data):
     result = search_contents(
         user_id="user123",
         company_id="company123",
-        chat_id="chat123",
         where={"key": "test.pdf"},
     )
 
@@ -134,7 +133,6 @@ async def test_search_contents_async(mock_sdk, sample_content_data):
     result = await search_contents_async(
         user_id="user123",
         company_id="company123",
-        chat_id="chat123",
         where={"key": "test.pdf"},
     )
 
@@ -421,7 +419,6 @@ async def test_search_contents_async_error(mock_sdk):
         await search_contents_async(
             user_id="user123",
             company_id="company123",
-            chat_id="chat123",
             where={"key": "test.pdf"},
         )
     assert isinstance(exc_info.value, Exception)

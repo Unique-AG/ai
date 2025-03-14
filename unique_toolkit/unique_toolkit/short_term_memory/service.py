@@ -136,6 +136,8 @@ class ShortTermMemoryService:
             company_id=self.company_id,
             key=key,
             value=value,
+            chat_id=self.chat_id,
+            message_id=self.message_id,
         )
 
     def create_memory(self, key: str, value: str | dict):
