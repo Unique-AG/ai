@@ -120,7 +120,6 @@ class TestContentServiceUnit:
             mock_search.assert_called_once_with(
                 user_id="test_user",
                 company_id="test_company",
-                chatId="",
                 where={"key": "test_key"},
             )
 
@@ -221,7 +220,6 @@ class TestContentServiceUnit:
             mock_search.assert_called_once_with(
                 user_id="test_user",
                 company_id="test_company",
-                chatId="",
                 where={"key": "test_key"},
             )
 
@@ -537,7 +535,6 @@ class TestContentServiceUnit:
             mock_search.assert_called_once_with(
                 user_id="test_user",
                 company_id="test_company",
-                chatId="",
                 where={"ownerId": {"equals": "chat_id"}},
             )
 

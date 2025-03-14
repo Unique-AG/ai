@@ -191,7 +191,6 @@ class ContentService:
         return search_contents(
             user_id=self.user_id,
             company_id=self.company_id,
-            chat_id="",
             where=where,
         )
 
@@ -211,7 +210,6 @@ class ContentService:
         return await search_contents_async(
             user_id=self.user_id,
             company_id=self.company_id,
-            chat_id="",
             where=where,
         )
 
