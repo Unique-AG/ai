@@ -36,7 +36,7 @@ class ContentService:
 
     Attributes:
         event: BaseEvent | Event, this can be None ONLY if company_id and user_id are provided.
-        company_id (str): The company ID. 
+        company_id (str): The company ID.
         user_id (str): The user ID.
         metadata_filter (dict | None): is only initialised from an Event(Deprecated) or ChatEvent.
     """
@@ -110,6 +110,9 @@ class ContentService:
         if metadata_filter is None:
             metadata_filter = self.metadata_filter
 
+        if chat_only and not chat_id:
+            raise ValueError("Please provide chat_id when limiting with chat_only")
+
         try:
             searches = search_content_chunks(
                 user_id=self.user_id,
@@ -166,6 +169,9 @@ class ContentService:
         """
         if metadata_filter is None:
             metadata_filter = self.metadata_filter
+
+        if chat_only and not chat_id:
+            raise ValueError("Please provide chat_id when limiting with chat_only.")
 
         try:
             searches = await search_content_chunks_async(

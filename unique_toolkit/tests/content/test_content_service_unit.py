@@ -233,6 +233,31 @@ class TestContentServiceUnit:
                     "test", ContentSearchType.COMBINED, 10
                 )
 
+    def test_error_handling_incommensurate_use_of_chat_id_and_chat_only_sync(self):
+        with pytest.raises(ValueError):
+            # This should raise an exception due to invalid search type
+            self.service.search_content_chunks(
+                search_string="test",
+                search_type=ContentSearchType.COMBINED,
+                limit=10,
+                chat_only=True,
+                scope_ids=[""],
+            )
+
+    @pytest.mark.asyncio
+    async def test_error_handling_incommensurate_use_of_chat_id_and_chat_only_async(
+        self,
+    ):
+        with pytest.raises(ValueError):
+            # This should raise an exception due to invalid search type
+            await self.service.search_content_chunks_async(
+                search_string="test",
+                search_type=ContentSearchType.COMBINED,
+                limit=10,
+                chat_only=True,
+                scope_ids=[""],
+            )
+
     @patch("requests.put")
     def test_upload_content(self, mock_put):
         with patch.object(unique_sdk.Content, "upsert") as mock_upsert:
