@@ -277,8 +277,6 @@ class ContentService:
             Content: The uploaded content.
         """
 
-        chat_id = chat_id or self.chat_id  # type: ignore
-
         return upload_content_from_bytes(
             user_id=self.user_id,
             company_id=self.company_id,
@@ -314,8 +312,6 @@ class ContentService:
             Content: The uploaded content.
         """
 
-        chat_id = chat_id or self.chat_id  # type: ignore
-
         return upload_content(
             user_id=self.user_id,
             company_id=self.company_id,
@@ -330,7 +326,7 @@ class ContentService:
     def request_content_by_id(
         self,
         content_id: str,
-        chat_id: str | None,
+        chat_id: str | None = None,
     ) -> Response:
         """
         Sends a request to download content from a chat.
