@@ -77,6 +77,7 @@ class ContentService:
         search_type: ContentSearchType,
         limit: int,
         search_language: str = DEFAULT_SEARCH_LANGUAGE,
+        chat_id: str | None = None,
         reranker_config: ContentRerankerConfig | None = None,
         scope_ids: list[str] | None = None,
         chat_only: bool | None = None,
@@ -90,24 +91,31 @@ class ContentService:
             search_string (str): The search string.
             search_type (ContentSearchType): The type of search to perform.
             limit (int): The maximum number of results to return.
-            search_language (str): The language for the full-text search. Defaults to "english".
-            reranker_config (ContentRerankerConfig | None): The reranker configuration. Defaults to None.
-            scope_ids (list[str] | None): The scope IDs. Defaults to None.
-            chat_only (bool | None): Whether to search only in the current chat. Defaults to None.
-            metadata_filter (dict | None): UniqueQL metadata filter. If unspecified/None, it tries to use the metadata filter from the event. Defaults to None.
-            content_ids (list[str] | None): The content IDs to search. Defaults to None.
+            search_language (str, optional): The language for the full-text search. Defaults to "english".
+            chat_id (str, optional): The chat ID for context. Defaults to empty string.
+            reranker_config (ContentRerankerConfig | None, optional): The reranker configuration. Defaults to None.
+            scope_ids (list[str] | None, optional): The scope IDs to filter by. Defaults to None.
+            chat_only (bool | None, optional): Whether to search only in the current chat. Defaults to None.
+            metadata_filter (dict | None, optional): UniqueQL metadata filter. If unspecified/None, it tries to use the metadata filter from the event. Defaults to None.
+            content_ids (list[str] | None, optional): The content IDs to search within. Defaults to None.
+
         Returns:
             list[ContentChunk]: The search results.
+
+        Raises:
+            Exception: If there's an error during the search operation.
         """
 
         if metadata_filter is None:
             metadata_filter = self.metadata_filter
+        if chat_id is None:
+            chat_id = ''
 
         try:
             searches = search_content_chunks(
                 user_id=self.user_id,
                 company_id=self.company_id,
-                chat_id="",
+                chat_id=chat_id,
                 search_string=search_string,
                 search_type=search_type,
                 limit=limit,
@@ -129,6 +137,7 @@ class ContentService:
         search_type: ContentSearchType,
         limit: int,
         search_language: str = DEFAULT_SEARCH_LANGUAGE,
+        chat_id: str | None = None,
         reranker_config: ContentRerankerConfig | None = None,
         scope_ids: list[str] | None = None,
         chat_only: bool | None = None,
@@ -142,23 +151,30 @@ class ContentService:
             search_string (str): The search string.
             search_type (ContentSearchType): The type of search to perform.
             limit (int): The maximum number of results to return.
-            search_language (str): The language for the full-text search. Defaults to "english".
-            reranker_config (ContentRerankerConfig | None): The reranker configuration. Defaults to None.
-            scope_ids (list[str] | None): The scope IDs. Defaults to None.
-            chat_only (bool | None): Whether to search only in the current chat. Defaults to None.
-            metadata_filter (dict | None): UniqueQL metadata filter. If unspecified/None, it tries to use the metadata filter from the event. Defaults to None.
-            content_ids (list[str] | None): The content IDs to search. Defaults to None.
+            search_language (str, optional): The language for the full-text search. Defaults to "english".
+            chat_id (str, optional): The chat ID for context. Defaults to empty string.
+            reranker_config (ContentRerankerConfig | None, optional): The reranker configuration. Defaults to None.
+            scope_ids (list[str] | None, optional): The scope IDs to filter by. Defaults to None.
+            chat_only (bool | None, optional): Whether to search only in the current chat. Defaults to None.
+            metadata_filter (dict | None, optional): UniqueQL metadata filter. If unspecified/None, it tries to use the metadata filter from the event. Defaults to None.
+            content_ids (list[str] | None, optional): The content IDs to search within. Defaults to None.
+
         Returns:
             list[ContentChunk]: The search results.
+
+        Raises:
+            Exception: If there's an error during the search operation.
         """
         if metadata_filter is None:
             metadata_filter = self.metadata_filter
+        if chat_id is None:
+            chat_id = ''
 
         try:
             searches = await search_content_chunks_async(
                 user_id=self.user_id,
                 company_id=self.company_id,
-                chat_id="",
+                chat_id=chat_id,
                 search_string=search_string,
                 search_type=search_type,
                 limit=limit,
