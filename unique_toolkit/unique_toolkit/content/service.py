@@ -35,9 +35,10 @@ class ContentService:
     Provides methods for searching, downloading and uploading content in the knowledge base.
 
     Attributes:
-        company_id (str | None): The company ID.
-        user_id (str | None): The user ID.
-        metadata_filter (dict | None): The metadata filter.
+        event: BaseEvent | Event, this can be None ONLY if company_id and user_id are provided.
+        company_id (str): The company ID. 
+        user_id (str): The user ID.
+        metadata_filter (dict | None): is only initialised from an Event(Deprecated) or ChatEvent.
     """
 
     def __init__(
