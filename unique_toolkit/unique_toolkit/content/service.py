@@ -109,7 +109,7 @@ class ContentService:
         if metadata_filter is None:
             metadata_filter = self.metadata_filter
         if chat_id is None:
-            chat_id = ''
+            chat_id = ""
 
         try:
             searches = search_content_chunks(
@@ -168,7 +168,7 @@ class ContentService:
         if metadata_filter is None:
             metadata_filter = self.metadata_filter
         if chat_id is None:
-            chat_id = ''
+            chat_id = ""
 
         try:
             searches = await search_content_chunks_async(
