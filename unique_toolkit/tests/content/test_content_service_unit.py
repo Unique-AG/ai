@@ -40,7 +40,6 @@ class TestContentServiceUnit:
         )
         self.service = ContentService(self.event)
 
-    @pytest.mark.unit
     def test_search_content_chunks(self):
         with patch.object(unique_sdk.Search, "create") as mock_create:
             mock_create.return_value = [
@@ -69,7 +68,7 @@ class TestContentServiceUnit:
             mock_create.assert_called_once_with(
                 user_id="test_user",
                 company_id="test_company",
-                chatId="",
+                chatId="test_chat",
                 searchString="test",
                 searchType="COMBINED",
                 scopeIds=["scope1", "scope2"],
@@ -120,6 +119,7 @@ class TestContentServiceUnit:
             mock_search.assert_called_once_with(
                 user_id="test_user",
                 company_id="test_company",
+                chatId="test_chat",
                 where={"key": "test_key"},
             )
 
@@ -168,7 +168,7 @@ class TestContentServiceUnit:
             mock_create.assert_called_once_with(
                 user_id="test_user",
                 company_id="test_company",
-                chatId="",
+                chatId="test_chat",
                 searchString="test",
                 searchType="COMBINED",
                 scopeIds=["scope1", "scope2"],
@@ -219,6 +219,7 @@ class TestContentServiceUnit:
 
             mock_search.assert_called_once_with(
                 user_id="test_user",
+                chatId="test_chat",
                 company_id="test_company",
                 where={"key": "test_key"},
             )
@@ -236,6 +237,7 @@ class TestContentServiceUnit:
     def test_error_handling_incommensurate_use_of_chat_id_and_chat_only_sync(self):
         with pytest.raises(ValueError):
             # This should raise an exception due to invalid search type
+            self.service.chat_id = None
             self.service.search_content_chunks(
                 search_string="test",
                 search_type=ContentSearchType.COMBINED,
@@ -248,6 +250,7 @@ class TestContentServiceUnit:
     async def test_error_handling_incommensurate_use_of_chat_id_and_chat_only_async(
         self,
     ):
+        self.service.chat_id = None
         with pytest.raises(ValueError):
             # This should raise an exception due to invalid search type
             await self.service.search_content_chunks_async(
@@ -560,6 +563,7 @@ class TestContentServiceUnit:
             mock_search.assert_called_once_with(
                 user_id="test_user",
                 company_id="test_company",
+                chatId="chat_id",
                 where={"ownerId": {"equals": "chat_id"}},
             )
 
@@ -583,7 +587,7 @@ class TestContentServiceUnit:
         assert result.read_bytes() == b"Test content"
 
         mock_get.assert_called_once_with(
-            f"{unique_sdk.api_base}/content/test_content_id/file",
+            f"{unique_sdk.api_base}/content/test_content_id/file?chatId=test_chat",
             headers={
                 "x-api-version": unique_sdk.api_version,
                 "x-app-id": unique_sdk.app_id,
@@ -675,15 +679,13 @@ class TestContentServiceUnit:
         mock_response.content = b"Test content"
         mock_get.return_value = mock_response
 
-        result = self.service.request_content_by_id(
-            content_id="test_content_id", chat_id=None
-        )
+        result = self.service.request_content_by_id(content_id="test_content_id")
 
         assert result.status_code == 200
         assert result.content == b"Test content"
 
         mock_get.assert_called_once_with(
-            f"{unique_sdk.api_base}/content/test_content_id/file",
+            f"{unique_sdk.api_base}/content/test_content_id/file?chatId=test_chat",
             headers={
                 "x-api-version": unique_sdk.api_version,
                 "x-app-id": unique_sdk.app_id,
@@ -713,7 +715,7 @@ class TestContentServiceUnit:
         assert result.read_bytes() == b"Test content"
 
         mock_get.assert_called_once_with(
-            f"{unique_sdk.api_base}/content/test_content_id/file",
+            f"{unique_sdk.api_base}/content/test_content_id/file?chatId=test_chat",
             headers={
                 "x-api-version": unique_sdk.api_version,
                 "x-app-id": unique_sdk.app_id,
@@ -734,7 +736,7 @@ class TestContentServiceUnit:
             self.service.download_content_to_file_by_id(content_id="test_content_id")
 
         mock_get.assert_called_once_with(
-            f"{unique_sdk.api_base}/content/test_content_id/file",
+            f"{unique_sdk.api_base}/content/test_content_id/file?chatId=test_chat",
             headers={
                 "x-api-version": unique_sdk.api_version,
                 "x-app-id": unique_sdk.app_id,
@@ -787,7 +789,7 @@ class TestContentServiceUnit:
 
         assert service.company_id == "direct_company"
         assert service.user_id == "direct_user"
-        assert not hasattr(service, "chat_id")
+        assert hasattr(service, "chat_id")
         assert service.metadata_filter is None
 
     def test_init_with_no_params(self):

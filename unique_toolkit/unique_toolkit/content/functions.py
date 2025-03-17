@@ -130,6 +130,7 @@ async def search_content_chunks_async(
 def search_contents(
     user_id: str,
     company_id: str,
+    chat_id: str,
     where: dict,
 ):
     """
@@ -151,6 +152,7 @@ def search_contents(
         contents = unique_sdk.Content.search(
             user_id=user_id,
             company_id=company_id,
+            chatId=chat_id,
             # TODO add type parameter in SDK
             where=where,  # type: ignore
         )
@@ -163,6 +165,7 @@ def search_contents(
 async def search_contents_async(
     user_id: str,
     company_id: str,
+    chat_id: str,
     where: dict,
 ):
     """Asynchronously searches for content in the knowledge base."""
@@ -173,6 +176,7 @@ async def search_contents_async(
         contents = await unique_sdk.Content.search_async(
             user_id=user_id,
             company_id=company_id,
+            chatId=chat_id,
             where=where,  # type: ignore
         )
         return map_contents(contents)

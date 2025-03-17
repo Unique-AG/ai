@@ -38,6 +38,7 @@ class ContentService:
         event: BaseEvent | Event, this can be None ONLY if company_id and user_id are provided.
         company_id (str): The company ID.
         user_id (str): The user ID.
+        chat_id (str): The chat ID. Defaults to None
         metadata_filter (dict | None): is only initialised from an Event(Deprecated) or ChatEvent.
     """
 
@@ -46,6 +47,7 @@ class ContentService:
         event: Event | BaseEvent | None = None,
         company_id: str | None = None,
         user_id: str | None = None,
+        chat_id: str | None = None,
     ):
         self._event = event  # Changed to protected attribute
         self.metadata_filter = None
@@ -54,10 +56,12 @@ class ContentService:
             self.user_id = event.user_id
             if isinstance(event, (ChatEvent, Event)):
                 self.metadata_filter = event.payload.metadata_filter
+                self.chat_id = event.payload.chat_id
         else:
             [company_id, user_id] = validate_required_values([company_id, user_id])
             self.company_id = company_id
             self.user_id = user_id
+            self.chat_id = chat_id
 
     @property
     @deprecated(
@@ -109,6 +113,8 @@ class ContentService:
 
         if metadata_filter is None:
             metadata_filter = self.metadata_filter
+
+        chat_id = chat_id or self.chat_id  # type: ignore
 
         if chat_only and not chat_id:
             raise ValueError("Please provide chat_id when limiting with chat_only")
@@ -170,6 +176,8 @@ class ContentService:
         if metadata_filter is None:
             metadata_filter = self.metadata_filter
 
+        chat_id = chat_id or self.chat_id  # type: ignore
+
         if chat_only and not chat_id:
             raise ValueError("Please provide chat_id when limiting with chat_only.")
 
@@ -196,6 +204,7 @@ class ContentService:
     def search_contents(
         self,
         where: dict,
+        chat_id: str = "",
     ) -> list[Content]:
         """
         Performs a search in the knowledge base by filter (and not a smilarity search)
@@ -207,15 +216,19 @@ class ContentService:
         Returns:
             list[Content]: The search results.
         """
+        chat_id = chat_id or self.chat_id  # type: ignore
+
         return search_contents(
             user_id=self.user_id,
             company_id=self.company_id,
+            chat_id=chat_id,
             where=where,
         )
 
     async def search_contents_async(
         self,
         where: dict,
+        chat_id: str = "",
     ) -> list[Content]:
         """
         Performs an asynchronous search for content files in the knowledge base by filter.
@@ -226,16 +239,19 @@ class ContentService:
         Returns:
             list[Content]: The search results.
         """
+        chat_id = chat_id or self.chat_id  # type: ignore
+
         return await search_contents_async(
             user_id=self.user_id,
             company_id=self.company_id,
+            chat_id=chat_id,
             where=where,
         )
 
     def search_content_on_chat(self, chat_id: str) -> list[Content]:
         where = {"ownerId": {"equals": chat_id}}
 
-        return self.search_contents(where)
+        return self.search_contents(where, chat_id=chat_id)
 
     def upload_content_from_bytes(
         self,
@@ -310,7 +326,7 @@ class ContentService:
     def request_content_by_id(
         self,
         content_id: str,
-        chat_id: str | None,
+        chat_id: str | None = None,
     ) -> Response:
         """
         Sends a request to download content from a chat.
@@ -323,6 +339,8 @@ class ContentService:
             requests.Response: The response object containing the downloaded content.
 
         """
+        chat_id = chat_id or self.chat_id  # type: ignore
+
         return request_content_by_id(
             user_id=self.user_id,
             company_id=self.company_id,
@@ -352,6 +370,8 @@ class ContentService:
         Raises:
             Exception: If the download fails or the filename cannot be determined.
         """
+
+        chat_id = chat_id or self.chat_id  # type: ignore
 
         return download_content_to_file_by_id(
             user_id=self.user_id,
@@ -386,6 +406,8 @@ class ContentService:
             Exception: If the download fails.
         """
 
+        chat_id = chat_id or self.chat_id  # type: ignore
+
         return download_content(
             user_id=self.user_id,
             company_id=self.company_id,
@@ -413,7 +435,7 @@ class ContentService:
         Raises:
             Exception: If the download fails.
         """
-
+        chat_id = chat_id or self.chat_id  # type: ignore
         return download_content_to_bytes(
             user_id=self.user_id,
             company_id=self.company_id,
