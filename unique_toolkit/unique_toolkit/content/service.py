@@ -77,7 +77,7 @@ class ContentService:
         search_type: ContentSearchType,
         limit: int,
         search_language: str = DEFAULT_SEARCH_LANGUAGE,
-        chat_id: str | None = None,
+        chat_id: str = "",
         reranker_config: ContentRerankerConfig | None = None,
         scope_ids: list[str] | None = None,
         chat_only: bool | None = None,
@@ -108,8 +108,6 @@ class ContentService:
 
         if metadata_filter is None:
             metadata_filter = self.metadata_filter
-        if chat_id is None:
-            chat_id = ""
 
         try:
             searches = search_content_chunks(
@@ -137,7 +135,7 @@ class ContentService:
         search_type: ContentSearchType,
         limit: int,
         search_language: str = DEFAULT_SEARCH_LANGUAGE,
-        chat_id: str | None = None,
+        chat_id: str = "",
         reranker_config: ContentRerankerConfig | None = None,
         scope_ids: list[str] | None = None,
         chat_only: bool | None = None,
@@ -167,8 +165,6 @@ class ContentService:
         """
         if metadata_filter is None:
             metadata_filter = self.metadata_filter
-        if chat_id is None:
-            chat_id = ""
 
         try:
             searches = await search_content_chunks_async(
