@@ -2,6 +2,8 @@ from typing_extensions import Self
 
 from unique_toolkit.language_model import (
     LanguageModelAssistantMessage,
+    LanguageModelFunction,
+    LanguageModelFunctionCall,
     LanguageModelMessage,
     LanguageModelMessageRole,
     LanguageModelMessages,
@@ -48,11 +50,22 @@ class MessagesBuilder:
         self.messages.append(message)
         return self
 
-    def assistant_message_append(self, content: str) -> Self:
+    def assistant_message_append(
+        self, content: str, tool_calls: list[LanguageModelFunction] | None = None
+    ) -> Self:
         """Appends an assistant message to the messages list."""
         message = LanguageModelAssistantMessage(content=content)
+        if tool_calls:
+            message.tool_calls = [
+                LanguageModelFunctionCall(
+                    id=tool_call.id,
+                    type="function",
+                    function=tool_call,
+                )
+                for tool_call in tool_calls
+            ]
         self.messages.append(message)
-        return self  # Return self to allow method chaining
+        return self
 
     def tool_message_append(self, name: str, tool_call_id: str, content: str) -> Self:
         """Appends a tool message to the messages list."""
@@ -60,7 +73,7 @@ class MessagesBuilder:
             name=name, tool_call_id=tool_call_id, content=content
         )
         self.messages.append(message)
-        return self  # Return self to allow method chaining
+        return self
 
     def build(self, reset: bool = True) -> LanguageModelMessages:
         """Returns the list of messages and resets the builder"""
