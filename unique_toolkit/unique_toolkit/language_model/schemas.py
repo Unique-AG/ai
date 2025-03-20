@@ -264,7 +264,7 @@ class LanguageModelTokenLimits(BaseModel):
             'Either "token_limit_input" and "token_limit_output" must be provided together, or "token_limit" must be provided.'
         )
 
-
+@deprecated("Deprecated as `LanguageModelTool` is deprecated in favor of `LanguageModelToolDescription`")
 class LanguageModelToolParameterProperty(BaseModel):
     type: str
     description: str
@@ -272,12 +272,14 @@ class LanguageModelToolParameterProperty(BaseModel):
     items: Optional[Self] = None
 
 
+@deprecated("Deprecated as `LanguageModelTool` is deprecated in favor of `LanguageModelToolDescription`")
 class LanguageModelToolParameters(BaseModel):
     type: str = "object"
     properties: dict[str, LanguageModelToolParameterProperty]
     required: list[str]
 
 
+@deprecated("Deprecated as `LanguageModelTool` use `LanguageModelToolDescription` instead")
 class LanguageModelTool(BaseModel):
     name: str = Field(
         ...,
@@ -286,8 +288,31 @@ class LanguageModelTool(BaseModel):
     )
     description: str
     parameters: (
-        LanguageModelToolParameters | dict
+        LanguageModelToolParameters | dict[str, Any]
     )  # dict represents json schema dumped from pydantic
     returns: LanguageModelToolParameterProperty | LanguageModelToolParameters | None = (
         None
     )
+
+
+class LanguageModelToolDescription(BaseModel):
+    name: str = Field(
+        ...,
+        pattern=r"^[a-zA-Z1-9_-]+$",
+        description="Name must adhere to the pattern ^[a-zA-Z1-9_-]+$",
+    )
+    description: str = Field(
+        ...,
+        description="Description of what the tool is doing the tool",
+    )
+    parameter_model: type[BaseModel] = Field(
+        ...,
+        description="Pydantic model for the tool parameters",
+    )
+
+    @property
+    def parameters(self):
+        """
+        Returns the parameters of the tool as a json schema
+        """
+        return self.parameter_model.model_json_schema()
