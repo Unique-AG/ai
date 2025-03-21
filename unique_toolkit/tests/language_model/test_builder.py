@@ -1,6 +1,7 @@
 from unique_toolkit.language_model.builder import MessagesBuilder
 from unique_toolkit.language_model.schemas import (
     LanguageModelAssistantMessage,
+    LanguageModelFunction,
     LanguageModelMessages,
     LanguageModelSystemMessage,
     LanguageModelToolMessage,
@@ -62,3 +63,57 @@ def test_model_dump():
     assert isinstance(dump[0], dict)
     assert dump[0]["role"] == "system"
     assert dump[0]["content"] == "System message"
+
+
+def test_assistant_message_append_with_tool_calls():
+    builder = MessagesBuilder()
+    tool_calls = [
+        LanguageModelFunction(
+            name="weather",
+            arguments={
+                "query": "current weather in Zurich",
+                "language": "English",
+                "time_sensitive_query": {
+                    "query": "current weather in Zurich March 2025",
+                    "time_sensitive_flag": True,
+                },
+            },
+        ),
+        LanguageModelFunction(
+            name="weather",
+            arguments='{"query": "current weather in Zurich", "language": "English", "time_sensitive_query": {"query": "current weather in Zurich March 2025", "time_sensitive_flag": true}}',
+        ),
+    ]
+    builder.assistant_message_append(
+        "This is an assistant message with tools.", tool_calls
+    )
+
+    assert len(builder.messages) == 1
+    assert isinstance(builder.messages[0], LanguageModelAssistantMessage)
+    assert builder.messages[0].content == "This is an assistant message with tools."
+
+    # Verify tool calls were properly added
+    assert builder.messages[0].tool_calls is not None
+    assert len(builder.messages[0].tool_calls) == 2
+
+    # Check first tool call
+    assert builder.messages[0].tool_calls[0].function.name == "weather"
+    assert builder.messages[0].tool_calls[0].function.arguments == {
+        "query": "current weather in Zurich",
+        "language": "English",
+        "time_sensitive_query": {
+            "query": "current weather in Zurich March 2025",
+            "time_sensitive_flag": True,
+        },
+    }
+
+    # Check second tool call
+    assert builder.messages[0].tool_calls[1].function.name == "weather"
+    assert builder.messages[0].tool_calls[0].function.arguments == {
+        "query": "current weather in Zurich",
+        "language": "English",
+        "time_sensitive_query": {
+            "query": "current weather in Zurich March 2025",
+            "time_sensitive_flag": True,
+        },
+    }
