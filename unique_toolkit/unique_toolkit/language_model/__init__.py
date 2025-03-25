@@ -11,6 +11,9 @@ from .schemas import (
     LanguageModelCompletionChoice as LanguageModelCompletionChoice,
 )
 from .schemas import (
+    LanguageModelDeveloperMessage as LanguageModelDeveloperMessage,
+)
+from .schemas import (
     LanguageModelFunction as LanguageModelFunction,
 )
 from .schemas import (

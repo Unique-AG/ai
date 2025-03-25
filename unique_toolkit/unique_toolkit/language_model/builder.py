@@ -2,6 +2,7 @@ from typing_extensions import Self
 
 from unique_toolkit.language_model import (
     LanguageModelAssistantMessage,
+    LanguageModelDeveloperMessage,
     LanguageModelFunction,
     LanguageModelFunctionCall,
     LanguageModelMessage,
@@ -25,6 +26,12 @@ class MessagesBuilder:
     def system_message_append(self, content: str) -> Self:
         """Appends a system message to the messages list."""
         message = LanguageModelSystemMessage(content=content)
+        self.messages.append(message)
+        return self  # Return self to allow method chaining
+
+    def developer_message_append(self, content: str) -> Self:
+        """Appends a system message to the messages list."""
+        message = LanguageModelDeveloperMessage(content=content)
         self.messages.append(message)
         return self  # Return self to allow method chaining
 
