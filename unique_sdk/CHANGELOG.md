@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 ## [0.9.23] - 2025-03-25
-- Define programming language classifier explicitly for python 3.11 and 3.12
+- Define programming language classifier explicitly for python 3.11
 
 ## [0.9.22] - 2025-02-25
 - update the retry_on_error to only `APIError` and `APIConnectionError` update the `resp["error"]` to be `resp.get("error")` to avoid key error
