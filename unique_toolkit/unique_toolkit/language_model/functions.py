@@ -6,6 +6,10 @@ from pydantic import BaseModel
 
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.evaluators import DOMAIN_NAME
+from unique_toolkit.language_model import (
+    LanguageModelSystemMessage,
+    LanguageModelUserMessage,
+)
 
 from .constants import (
     DEFAULT_COMPLETE_TEMPERATURE,
@@ -184,6 +188,21 @@ def _add_response_format_to_options(
     return options
 
 
+def _cannot_use_system_message(model: LanguageModelName) -> bool:
+    return model in [
+        LanguageModelName.AZURE_o1_2024_1217,
+        LanguageModelName.AZURE_o1_MINI_2024_0912,
+        LanguageModelName.AZURE_o1_PREVIEW_2024_0912,
+        LanguageModelName.AZURE_o3_MINI_2025_0131,
+    ]
+
+
+def _system_message_to_user_message(
+    message: LanguageModelSystemMessage,
+) -> LanguageModelUserMessage:
+    return LanguageModelUserMessage(content=message.content)
+
+
 def _prepare_completion_params_util(
     messages: LanguageModelMessages,
     model_name: LanguageModelName | str,
@@ -215,6 +234,16 @@ def _prepare_completion_params_util(
         options.update(other_options)
 
     model = model_name.name if isinstance(model_name, LanguageModelName) else model_name
+
+    if _cannot_use_system_message(model):
+        messages = LanguageModelMessages(
+            [
+                _system_message_to_user_message(m)
+                if isinstance(m, LanguageModelSystemMessage)
+                else m
+                for m in messages
+            ]
+        )
 
     # Different methods need different message dump parameters
     messages_dict = messages.model_dump(
