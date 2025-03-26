@@ -264,7 +264,10 @@ class LanguageModelTokenLimits(BaseModel):
             'Either "token_limit_input" and "token_limit_output" must be provided together, or "token_limit" must be provided.'
         )
 
-@deprecated("Deprecated as `LanguageModelTool` is deprecated in favor of `LanguageModelToolDescription`")
+
+@deprecated(
+    "Deprecated as `LanguageModelTool` is deprecated in favor of `LanguageModelToolDescription`"
+)
 class LanguageModelToolParameterProperty(BaseModel):
     type: str
     description: str
@@ -272,14 +275,18 @@ class LanguageModelToolParameterProperty(BaseModel):
     items: Optional[Self] = None
 
 
-@deprecated("Deprecated as `LanguageModelTool` is deprecated in favor of `LanguageModelToolDescription`")
+@deprecated(
+    "Deprecated as `LanguageModelTool` is deprecated in favor of `LanguageModelToolDescription`"
+)
 class LanguageModelToolParameters(BaseModel):
     type: str = "object"
     properties: dict[str, LanguageModelToolParameterProperty]
     required: list[str]
 
 
-@deprecated("Deprecated as `LanguageModelTool` use `LanguageModelToolDescription` instead")
+@deprecated(
+    "Deprecated as `LanguageModelTool` use `LanguageModelToolDescription` instead"
+)
 class LanguageModelTool(BaseModel):
     name: str = Field(
         ...,
