@@ -284,9 +284,10 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.FUNCTION_CALLING,
                         ModelCapabilities.STREAMING,
                         ModelCapabilities.REASONING,
+                        ModelCapabilities.VISION,
                     ],
                     provider=LanguageModelProvider.AZURE,
-                    version="2025-01-31",
+                    version="2025-02-27",
                     encoder_name=EncoderName.O200K_BASE,
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=128_000, token_limit_output=16_384
