@@ -2,6 +2,7 @@ import json
 import math
 from enum import StrEnum
 from typing import Any, Optional, Self
+from pydantic import field_serializer
 from uuid import uuid4
 
 from humps import camelize
@@ -312,7 +313,7 @@ class LanguageModelToolDescription(BaseModel):
         ...,
         description="Description of what the tool is doing the tool",
     )
-    parameter_model: type[BaseModel] = Field(
+    parameters: type[BaseModel] = Field(
         ...,
         description="Pydantic model for the tool parameters",
     )
@@ -323,9 +324,6 @@ class LanguageModelToolDescription(BaseModel):
         description="Setting strict to true will ensure function calls reliably adhere to the function schema, instead of being best effort. If set to True the `parameter_model` set `model_config = {'extra':'forbid'}` must be set for on all BaseModels.",
     )
 
-    @property
-    def parameters(self):
-        """
-        Returns the parameters of the tool as a json schema
-        """
-        return self.parameter_model.model_json_schema()
+    @field_serializer("parameters")
+    def serialize_parameters(self, parameters: type[BaseModel] ):
+        return parameters.model_json_schema()

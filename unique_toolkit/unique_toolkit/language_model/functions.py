@@ -1,6 +1,7 @@
 import logging
 from typing import Type, cast
 
+from unique_toolkit.language_model.schemas import LanguageModelToolDescription
 import unique_sdk
 from pydantic import BaseModel
 
@@ -136,7 +137,7 @@ async def complete_async(
 
 def _add_tools_to_options(
     options: dict,
-    tools: list[LanguageModelTool] | None,
+    tools: list[LanguageModelTool] | list[LanguageModelToolDescription] | None,
 ) -> dict:
     if tools:
         options["tools"] = [
@@ -183,12 +184,11 @@ def _add_response_format_to_options(
     }
     return options
 
-
 def _prepare_completion_params_util(
     messages: LanguageModelMessages,
     model_name: LanguageModelName | str,
     temperature: float,
-    tools: list[LanguageModelTool] | None = None,
+    tools: list[LanguageModelTool] | list[LanguageModelToolDescription] | None = None,
     other_options: dict | None = None,
     content_chunks: list[ContentChunk] | None = None,
     structured_output_model: Type[BaseModel] | None = None,
@@ -206,6 +206,7 @@ def _prepare_completion_params_util(
     """
 
     options = _add_tools_to_options({}, tools)
+
     if structured_output_model:
         options = _add_response_format_to_options(
             options, structured_output_model, structured_output_enforce_schema
