@@ -686,7 +686,7 @@ def stream_complete_to_chat(
     debug_info: dict = {},
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
     timeout: int = DEFAULT_COMPLETE_TIMEOUT,
-    tools: list[LanguageModelTool | LanguageModelToolDescription ] | None = None,
+    tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
     start_text: str | None = None,
     other_options: dict | None = None,
 ) -> LanguageModelStreamResponse:
@@ -760,7 +760,7 @@ async def stream_complete_to_chat_async(
     debug_info: dict = {},
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
     timeout: int = DEFAULT_COMPLETE_TIMEOUT,
-    tools: list[LanguageModelTool | LanguageModelToolDescription ] | None = None,
+    tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
     start_text: str | None = None,
     other_options: dict | None = None,
 ) -> LanguageModelStreamResponse:

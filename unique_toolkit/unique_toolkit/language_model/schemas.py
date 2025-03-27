@@ -2,7 +2,6 @@ import json
 import math
 from enum import StrEnum
 from typing import Any, Optional, Self
-from pydantic import field_serializer
 from uuid import uuid4
 
 from humps import camelize
@@ -12,6 +11,7 @@ from pydantic import (
     Field,
     PrivateAttr,
     RootModel,
+    field_serializer,
     field_validator,
     model_serializer,
     model_validator,
@@ -325,5 +325,5 @@ class LanguageModelToolDescription(BaseModel):
     )
 
     @field_serializer("parameters")
-    def serialize_parameters(self, parameters: type[BaseModel] ):
+    def serialize_parameters(self, parameters: type[BaseModel]):
         return parameters.model_json_schema()

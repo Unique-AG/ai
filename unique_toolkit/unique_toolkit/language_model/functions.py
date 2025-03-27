@@ -1,7 +1,6 @@
 import logging
 from typing import Type, cast
 
-from unique_toolkit.language_model.schemas import LanguageModelToolDescription
 import unique_sdk
 from pydantic import BaseModel
 
@@ -29,7 +28,7 @@ def complete(
     model_name: LanguageModelName | str,
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
     timeout: int = DEFAULT_COMPLETE_TIMEOUT,
-    tools: list[LanguageModelTool | LanguageModelToolDescription ] | None = None,
+    tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
     other_options: dict | None = None,
     structured_output_model: Type[BaseModel] | None = None,
     structured_output_enforce_schema: bool = False,
@@ -82,7 +81,7 @@ async def complete_async(
     model_name: LanguageModelName | str,
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
     timeout: int = DEFAULT_COMPLETE_TIMEOUT,
-    tools: list[LanguageModelTool | LanguageModelToolDescription ] | None = None,
+    tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
     other_options: dict | None = None,
     structured_output_model: Type[BaseModel] | None = None,
     structured_output_enforce_schema: bool = False,
@@ -138,7 +137,7 @@ async def complete_async(
 
 def _add_tools_to_options(
     options: dict,
-    tools: list[LanguageModelTool | LanguageModelToolDescription ] | None,
+    tools: list[LanguageModelTool | LanguageModelToolDescription] | None,
 ) -> dict:
     if tools:
         options["tools"] = [
@@ -185,11 +184,12 @@ def _add_response_format_to_options(
     }
     return options
 
+
 def _prepare_completion_params_util(
     messages: LanguageModelMessages,
     model_name: LanguageModelName | str,
     temperature: float,
-    tools: list[LanguageModelTool | LanguageModelToolDescription ] | None = None,
+    tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
     other_options: dict | None = None,
     content_chunks: list[ContentChunk] | None = None,
     structured_output_model: Type[BaseModel] | None = None,
