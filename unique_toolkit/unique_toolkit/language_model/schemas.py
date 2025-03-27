@@ -317,6 +317,12 @@ class LanguageModelToolDescription(BaseModel):
         description="Pydantic model for the tool parameters",
     )
 
+    # TODO: This should be default `True` but if this is the case the parameter_model needs to include additional properties
+    strict: bool = Field(
+        default=False,
+        description="Setting strict to true will ensure function calls reliably adhere to the function schema, instead of being best effort. If set to True the `parameter_model` set `model_config = {'extra':'forbid'}` must be set for on all BaseModels.",
+    )
+
     @property
     def parameters(self):
         """
