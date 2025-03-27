@@ -92,13 +92,21 @@ class LanguageModelMessage(BaseModel):
     role: LanguageModelMessageRole
     content: str | list[dict] | None = None
 
-    def __str__(self):
+    def __str__(self, hide_images: bool = True):
         if not self.content:
             message = ""
         if isinstance(self.content, str):
             message = self.content
         elif isinstance(self.content, list):
-            message = json.dumps(self.content)
+            content = self.content.copy()
+            content = [c for c in content if c.get("type", "") != "image" ]
+
+            if len(content)>1:
+                message = json.dumps(content)
+            elif len(content) == 1:
+                message = content[0]
+            else:
+                message = ""
 
         return format_message(self.role.capitalize(), message=message, num_tabs=1)
 
