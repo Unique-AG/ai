@@ -99,7 +99,9 @@ class LanguageModelMessage(BaseModel):
             message = self.content
         elif isinstance(self.content, list):
             content = self.content.copy()
-            content = [c for c in content if c.get("type", "") != "image" ]
+
+            if hide_images:
+                content = [c for c in content if c.get("type", "") != "image" ]
 
             if len(content)>1:
                 message = json.dumps(content)
