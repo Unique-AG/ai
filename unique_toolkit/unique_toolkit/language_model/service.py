@@ -20,6 +20,7 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
     LanguageModelResponse,
     LanguageModelTool,
+    LanguageModelToolDescription,
 )
 
 logger = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
@@ -76,7 +77,7 @@ class LanguageModelService:
         model_name: LanguageModelName | str,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
-        tools: Optional[list[LanguageModelTool]] = None,
+        tools: Optional[list[LanguageModelTool | LanguageModelToolDescription]] = None,
         structured_output_model: Optional[Type[BaseModel]] = None,
         structured_output_enforce_schema: bool = False,
         other_options: Optional[dict] = None,
@@ -104,7 +105,7 @@ class LanguageModelService:
         model_name: LanguageModelName | str,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
-        tools: Optional[list[LanguageModelTool]] = None,
+        tools: Optional[list[LanguageModelTool | LanguageModelToolDescription]] = None,
         structured_output_model: Optional[Type[BaseModel]] = None,
         structured_output_enforce_schema: bool = False,
         other_options: Optional[dict] = None,
@@ -135,7 +136,7 @@ class LanguageModelService:
         model_name: LanguageModelName | str,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
-        tools: Optional[list[LanguageModelTool]] = None,
+        tools: Optional[list[LanguageModelTool | LanguageModelToolDescription]] = None,
         structured_output_model: Optional[Type[BaseModel]] = None,
         structured_output_enforce_schema: bool = False,
         other_options: Optional[dict] = None,
