@@ -77,8 +77,8 @@ class APIRequestor(object):
         app_id=None,
     ):
         self.api_base = unique_sdk.api_base
-        self.api_key = key
-        self.app_id = app_id
+        self.api_key = key or unique_sdk.api_key
+        self.app_id = app_id or unique_sdk.app_id
         self.api_version = unique_sdk.api_version
         self.user_id = user_id
         self.company_id = company_id
