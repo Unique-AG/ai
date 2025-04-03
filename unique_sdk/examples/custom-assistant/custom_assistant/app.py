@@ -9,11 +9,12 @@ import unique_sdk
 from custom_assistant.external_module_handler import handle_module_message
 from custom_assistant.user_event_handler import handle_user_message
 
-unique_sdk.api_key = "YOUR_API_KEY"
-unique_sdk.app_id = "YOUR_APP_ID"
-endpoint_secret = "YOUR_ENDPOINT_SECRET"
+unique_sdk.api_key = "ukey_IJPpQJFa9XZX7Jc0qTIas3EPK76DPleC7ID19wiAtjk"
+unique_sdk.app_id = "app_grg3zsdjt3keqqqa8z15gy2v"
+unique_sdk.api_base = "http://localhost:8092/public"
+endpoint_secret = "usig_zEhncWF-v0TmbpiEFtMwUHXQkFNSIHWkdHTounurHko"
 user_id = "USER_ID"
-company_id = "COMPANY_ID"
+company_id = "278364823136239623"
 
 dictConfig(
     {
@@ -86,14 +87,39 @@ def search_string():
         return jsonify(str(e)), HTTPStatus.INTERNAL_SERVER_ERROR
 
 
-@app.route("/openai/chat/completion", methods=["POST"])
-def chat_completion():
+@app.route("/azure-openai/chat/completion", methods=["POST"])
+def azure_openai_chat_completion():
     payload = request.get_json()
 
     try:
         chat_completion = unique_sdk.ChatCompletion.create(
             company_id=company_id,
             model="AZURE_GPT_35_TURBO",
+            messages=payload["messages"],
+            options={"temperature": 0.5},
+        )
+
+        return jsonify(chat_completion)
+    except unique_sdk.InvalidRequestError as e:
+        message = str(e)
+        params = e.params
+        return make_response(
+            jsonify({"message": message, "params": params}), e.http_status
+        )
+    except unique_sdk.UniqueError as e:
+        return make_response(jsonify(str(e)), e.http_status)
+    except Exception as e:
+        return jsonify(str(e)), HTTPStatus.INTERNAL_SERVER_ERROR
+
+
+@app.route("/litellm/chat/completion", methods=["POST"])
+def litellm_chat_completion():
+    payload = request.get_json()
+
+    try:
+        chat_completion = unique_sdk.ChatCompletion.create(
+            company_id=company_id,
+            model="litellm:anthropic-claude-3-7-sonnet-thinking",
             messages=payload["messages"],
             options={"temperature": 0.5},
         )

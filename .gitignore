@@ -122,6 +122,7 @@ celerybeat.pid
 
 # Environments
 .env
+.env.local
 .env.test
 .venv
 env/
@@ -163,3 +164,6 @@ cython_debug/
 
 # VSCode
 .vscode
+
+# Apple
+.DS_Store

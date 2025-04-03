@@ -1,8 +1,7 @@
 from pprint import pprint
 from typing import Any, Dict
 
-from langchain.llms import Ollama
-
+# from langchain.llms import Ollama
 import unique_sdk
 
 
@@ -11,8 +10,10 @@ def handle_user_message(payload: Dict[str, Any], user_id: str, company_id: str):
     chat_id = payload["chatId"]
     assistant_id = payload["assistantId"]
 
-    llm = Ollama(model="llama2")
-    response = llm.invoke(text)
+    # llm = Ollama(model="llama2")
+    # response = llm.invoke(text)
+
+    response = text
 
     message = unique_sdk.Message.create(
         user_id=user_id,
