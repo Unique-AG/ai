@@ -10,7 +10,7 @@ packages = [{ include = "src"}]
 python = "^3.11"
 python-dotenv = "^1.0.1"
 unique-sdk = "^0.9.4"
-gunicorn = "^21.2.0"
+gunicorn = "^23.0.0"
 unique-toolkit = "^0.6.8"
 pydantic-settings = "^2.8.1"
 sseclient = "^0.0.27"
