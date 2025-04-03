@@ -9,12 +9,11 @@ import unique_sdk
 from custom_assistant.external_module_handler import handle_module_message
 from custom_assistant.user_event_handler import handle_user_message
 
-unique_sdk.api_key = "ukey_IJPpQJFa9XZX7Jc0qTIas3EPK76DPleC7ID19wiAtjk"
-unique_sdk.app_id = "app_grg3zsdjt3keqqqa8z15gy2v"
-unique_sdk.api_base = "http://localhost:8092/public"
-endpoint_secret = "usig_zEhncWF-v0TmbpiEFtMwUHXQkFNSIHWkdHTounurHko"
+unique_sdk.api_key = "YOUR_API_KEY"
+unique_sdk.app_id = "YOUR_APP_ID"
+endpoint_secret = "YOUR_ENDPOINT_SECRET"
 user_id = "USER_ID"
-company_id = "278364823136239623"
+company_id = "COMPANY_ID"
 
 dictConfig(
     {
