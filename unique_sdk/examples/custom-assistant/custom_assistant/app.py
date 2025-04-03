@@ -86,14 +86,39 @@ def search_string():
         return jsonify(str(e)), HTTPStatus.INTERNAL_SERVER_ERROR
 
 
-@app.route("/openai/chat/completion", methods=["POST"])
-def chat_completion():
+@app.route("/azure-openai/chat/completion", methods=["POST"])
+def azure_openai_chat_completion():
     payload = request.get_json()
 
     try:
         chat_completion = unique_sdk.ChatCompletion.create(
             company_id=company_id,
             model="AZURE_GPT_35_TURBO",
+            messages=payload["messages"],
+            options={"temperature": 0.5},
+        )
+
+        return jsonify(chat_completion)
+    except unique_sdk.InvalidRequestError as e:
+        message = str(e)
+        params = e.params
+        return make_response(
+            jsonify({"message": message, "params": params}), e.http_status
+        )
+    except unique_sdk.UniqueError as e:
+        return make_response(jsonify(str(e)), e.http_status)
+    except Exception as e:
+        return jsonify(str(e)), HTTPStatus.INTERNAL_SERVER_ERROR
+
+
+@app.route("/litellm/chat/completion", methods=["POST"])
+def litellm_chat_completion():
+    payload = request.get_json()
+
+    try:
+        chat_completion = unique_sdk.ChatCompletion.create(
+            company_id=company_id,
+            model="litellm:anthropic-claude-3-7-sonnet-thinking",
             messages=payload["messages"],
             options={"temperature": 0.5},
         )
