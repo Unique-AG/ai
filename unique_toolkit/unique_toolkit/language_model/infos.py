@@ -283,7 +283,6 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.STRUCTURED_OUTPUT,
                         ModelCapabilities.FUNCTION_CALLING,
                         ModelCapabilities.STREAMING,
-                        ModelCapabilities.REASONING,
                         ModelCapabilities.VISION,
                     ],
                     provider=LanguageModelProvider.AZURE,
