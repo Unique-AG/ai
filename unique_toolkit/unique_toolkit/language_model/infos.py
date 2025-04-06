@@ -81,12 +81,12 @@ class LanguageModelInfo(BaseModel):
     )
     capabilities: list[ModelCapabilities] = [ModelCapabilities.STREAMING]
 
-    info_cutoff_at: date | None = None
-    published_at: date | None= None
-    retirement_at: date | None= None
+    info_cutoff_at: date | SkipJsonSchema[None] = None
+    published_at: date | SkipJsonSchema[None] = None
+    retirement_at: date | SkipJsonSchema[None] = None
 
-    deprecated_at: date | None= None
-    retirement_text: str | None= None
+    deprecated_at: date | SkipJsonSchema[None] = None
+    retirement_text: str | SkipJsonSchema[None] = None
 
     @classmethod
     def from_name(cls, model_name: LanguageModelName) -> Self:
