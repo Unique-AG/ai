@@ -3,6 +3,7 @@ from enum import StrEnum
 from typing import ClassVar, Optional, Self
 
 from pydantic import BaseModel
+from pydantic.json_schema import SkipJsonSchema
 from typing_extensions import deprecated
 
 from unique_toolkit.language_model.schemas import LanguageModelTokenLimits
@@ -80,12 +81,12 @@ class LanguageModelInfo(BaseModel):
     )
     capabilities: list[ModelCapabilities] = [ModelCapabilities.STREAMING]
 
-    info_cutoff_at: Optional[date] = None
-    published_at: Optional[date] = None
-    retirement_at: Optional[date] = None
+    info_cutoff_at: date | SkipJsonSchema[None] = None
+    published_at: date | SkipJsonSchema[None]= None
+    retirement_at: date | SkipJsonSchema[None]= None
 
-    deprecated_at: Optional[date] = None
-    retirement_text: Optional[str] = None
+    deprecated_at: date | SkipJsonSchema[None]= None
+    retirement_text: str | SkipJsonSchema[None]= None
 
     @classmethod
     def from_name(cls, model_name: LanguageModelName) -> Self:
