@@ -3,6 +3,7 @@ from enum import StrEnum
 from typing import ClassVar, Optional, Self
 
 from pydantic import BaseModel
+from pydantic.json_schema import SkipJsonSchema
 from typing_extensions import deprecated
 
 from unique_toolkit.language_model.schemas import LanguageModelTokenLimits
@@ -16,8 +17,10 @@ class LanguageModelName(StrEnum):
     AZURE_GPT_4o_2024_0513 = "AZURE_GPT_4o_2024_0513"
     AZURE_GPT_4o_2024_0806 = "AZURE_GPT_4o_2024_0806"
     AZURE_GPT_4o_MINI_2024_0718 = "AZURE_GPT_4o_MINI_2024_0718"
+    AZURE_o1_MINI_2024_0912 = "AZURE_o1_MINI_2024_0912"
     AZURE_o1_2024_1217 = "AZURE_o1_2024_1217"
     AZURE_o3_MINI_2025_0131 = "AZURE_o3_MINI_2025_0131"
+    AZURE_GPT_45_PREVIEW_2025_0227 = "AZURE_GPT_45_PREVIEW_2025_0227"
 
 
 class EncoderName(StrEnum):
@@ -77,12 +80,12 @@ class LanguageModelInfo(BaseModel):
     )
     capabilities: list[ModelCapabilities] = [ModelCapabilities.STREAMING]
 
-    info_cutoff_at: Optional[date] = None
-    published_at: Optional[date] = None
-    retirement_at: Optional[date] = None
+    info_cutoff_at: date | SkipJsonSchema[None] = None
+    published_at: date | SkipJsonSchema[None] = None
+    retirement_at: date | SkipJsonSchema[None] = None
 
-    deprecated_at: Optional[date] = None
-    retirement_text: Optional[str] = None
+    deprecated_at: date | SkipJsonSchema[None] = None
+    retirement_text: str | SkipJsonSchema[None] = None
 
     @classmethod
     def from_name(cls, model_name: LanguageModelName) -> Self:
@@ -214,6 +217,25 @@ class LanguageModelInfo(BaseModel):
                     info_cutoff_at=date(2023, 10, 1),
                     published_at=date(2024, 7, 18),
                 )
+            case LanguageModelName.AZURE_o1_MINI_2024_0912:
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.AZURE,
+                    version="2024-09-12",
+                    encoder_name=EncoderName.O200K_BASE,
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=128_000, token_limit_output=65_536
+                    ),
+                    info_cutoff_at=date(2023, 10, 1),
+                    published_at=date(2024, 9, 12),
+                )
             case LanguageModelName.AZURE_o1_2024_1217:
                 return cls(
                     name=model_name,
@@ -250,6 +272,24 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2023, 10, 1),
                     published_at=date(2025, 1, 31),
+                )
+            case LanguageModelName.AZURE_GPT_45_PREVIEW_2025_0227:
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                    ],
+                    provider=LanguageModelProvider.AZURE,
+                    version="2025-02-27",
+                    encoder_name=EncoderName.O200K_BASE,
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=128_000, token_limit_output=16_384
+                    ),
+                    info_cutoff_at=date(2023, 10, 1),
+                    published_at=date(2025, 2, 27),
                 )
             case _:
                 if isinstance(model_name, LanguageModelName):
