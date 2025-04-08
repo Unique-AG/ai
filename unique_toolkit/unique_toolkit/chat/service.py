@@ -69,13 +69,13 @@ class ChatService:
 
     def __init__(self, event: ChatEvent | Event):
         self._event = event
-        self.company_id = event.company_id
-        self.user_id = event.user_id
-        self.assistant_message_id = event.payload.assistant_message.id
-        self.user_message_id = event.payload.user_message.id
-        self.chat_id = event.payload.chat_id
-        self.assistant_id = event.payload.assistant_id
-        self.user_message_text = event.payload.user_message.text
+        self._company_id = event.company_id
+        self._user_id = event.user_id
+        self._assistant_message_id = event.payload.assistant_message.id
+        self._user_message_id = event.payload.user_message.id
+        self._chat_id = event.payload.chat_id
+        self._assistant_id = event.payload.assistant_id
+        self._user_message_text = event.payload.user_message.text
 
     @property
     @deprecated(
@@ -89,6 +89,97 @@ class ChatService:
             Event | BaseEvent | None: The event object.
         """
         return self._event
+    
+    @property
+    @deprecated(
+        "The company_id property is deprecated and will be removed in a future version."
+    )
+    def company_id(self) -> str | None:
+        """
+        Get the company identifier (deprecated).
+
+        Returns:
+            str | None: The company identifier.
+        """
+        return self._company_id
+    
+    @property
+    @deprecated(
+        "The user_id property is deprecated and will be removed in a future version."
+    )
+    def user_id(self) -> str | None:
+        """
+        Get the user identifier (deprecated).
+
+        Returns:
+            str | None: The user identifier.
+        """
+        return self._user_id
+    
+    @property
+    @deprecated(
+        "The assistant_message_id property is deprecated and will be removed in a future version."
+    )
+    def assistant_message_id(self) -> str | None:
+        """
+        Get the assistant message identifier (deprecated).
+
+        Returns:
+            str | None: The assistant message identifier.
+        """
+        return self._assistant_message_id
+    
+    @property
+    @deprecated(
+        "The user_message_id property is deprecated and will be removed in a future version."
+    )
+    def user_message_id(self) -> str | None:
+        """
+        Get the user message identifier (deprecated).
+
+        Returns:
+            str | None: The user message identifier.
+        """
+        return self._user_message_id
+    
+    @property
+    @deprecated(
+        "The chat_id property is deprecated and will be removed in a future version."
+    )
+    def chat_id(self) -> str | None:
+        """
+        Get the chat identifier (deprecated).
+
+        Returns:
+            str | None: The chat identifier.
+        """
+        return self._chat_id
+    
+    @property
+    @deprecated(
+        "The assistant_id property is deprecated and will be removed in a future version."
+    )
+    def assistant_id(self) -> str | None:
+        """
+        Get the assistant identifier (deprecated).
+
+        Returns:
+            str | None: The assistant identifier.
+        """
+        return self._assistant_id
+    
+    @property
+    @deprecated(
+        "The user_message_text property is deprecated and will be removed in a future version."
+    )
+    def user_message_text(self) -> str | None:
+        """
+        Get the user message text (deprecated).
+
+        Returns:
+            str | None: The user message text.
+        """
+        return self._user_message_text
 
     async def update_debug_info_async(self, debug_info: dict):
         """
@@ -99,12 +190,12 @@ class ChatService:
         """
 
         return await modify_message_async(
-            user_id=self.user_id,
-            company_id=self.company_id,
-            assistant_message_id=self.assistant_message_id,
-            chat_id=self.chat_id,
-            user_message_id=self.user_message_id,
-            user_message_text=self.user_message_text,
+            user_id=self._user_id,
+            company_id=self._company_id,
+            assistant_message_id=self._assistant_message_id,
+            chat_id=self._chat_id,
+            user_message_id=self._user_message_id,
+            user_message_text=self._user_message_text,
             assistant=False,
             debug_info=debug_info,
         )
@@ -118,12 +209,12 @@ class ChatService:
         """
 
         return modify_message(
-            user_id=self.user_id,
-            company_id=self.company_id,
-            assistant_message_id=self.assistant_message_id,
-            chat_id=self.chat_id,
-            user_message_id=self.user_message_id,
-            user_message_text=self.user_message_text,
+            user_id=self._user_id,
+            company_id=self._company_id,
+            assistant_message_id=self._assistant_message_id,
+            chat_id=self._chat_id,
+            user_message_id=self._user_message_id,
+            user_message_text=self._user_message_text,
             assistant=False,
             debug_info=debug_info,
         )
@@ -153,12 +244,12 @@ class ChatService:
             Exception: If the modification fails.
         """
         return modify_message(
-            user_id=self.user_id,
-            company_id=self.company_id,
-            assistant_message_id=self.assistant_message_id,
-            chat_id=self.chat_id,
-            user_message_id=self.user_message_id,
-            user_message_text=self.user_message_text,
+            user_id=self._user_id,
+            company_id=self._company_id,
+            assistant_message_id=self._assistant_message_id,
+            chat_id=self._chat_id,
+            user_message_id=self._user_message_id,
+            user_message_text=self._user_message_text,
             assistant=False,
             content=content,
             references=references,
@@ -192,12 +283,12 @@ class ChatService:
             Exception: If the modification fails.
         """
         return await modify_message_async(
-            user_id=self.user_id,
-            company_id=self.company_id,
-            assistant_message_id=self.assistant_message_id,
-            chat_id=self.chat_id,
-            user_message_id=self.user_message_id,
-            user_message_text=self.user_message_text,
+            user_id=self._user_id,
+            company_id=self._company_id,
+            assistant_message_id=self._assistant_message_id,
+            chat_id=self._chat_id,
+            user_message_id=self._user_message_id,
+            user_message_text=self._user_message_text,
             assistant=False,
             content=content,
             references=references,
@@ -233,12 +324,12 @@ class ChatService:
             Exception: If the modification fails.
         """
         return modify_message(
-            user_id=self.user_id,
-            company_id=self.company_id,
-            assistant_message_id=self.assistant_message_id,
-            chat_id=self.chat_id,
-            user_message_id=self.user_message_id,
-            user_message_text=self.user_message_text,
+            user_id=self._user_id,
+            company_id=self._company_id,
+            assistant_message_id=self._assistant_message_id,
+            chat_id=self._chat_id,
+            user_message_id=self._user_message_id,
+            user_message_text=self._user_message_text,
             assistant=True,
             content=content,
             original_content=original_content,
@@ -276,12 +367,12 @@ class ChatService:
         """
 
         return await modify_message_async(
-            user_id=self.user_id,
-            company_id=self.company_id,
-            assistant_message_id=self.assistant_message_id,
-            chat_id=self.chat_id,
-            user_message_id=self.user_message_id,
-            user_message_text=self.user_message_text,
+            user_id=self._user_id,
+            company_id=self._company_id,
+            assistant_message_id=self._assistant_message_id,
+            chat_id=self._chat_id,
+            user_message_id=self._user_message_id,
+            user_message_text=self._user_message_text,
             assistant=True,
             content=content,
             original_content=original_content,
@@ -302,9 +393,9 @@ class ChatService:
             Exception: If the loading fails.
         """
         return get_full_history(
-            event_user_id=self.user_id,
-            event_company_id=self.company_id,
-            event_payload_chat_id=self.chat_id,
+            event_user_id=self._user_id,
+            event_company_id=self._company_id,
+            event_payload_chat_id=self._chat_id,
         )
 
     async def get_full_history_async(self) -> list[ChatMessage]:
@@ -318,9 +409,9 @@ class ChatService:
             Exception: If the loading fails.
         """
         return await get_full_history_async(
-            event_user_id=self.user_id,
-            event_company_id=self.company_id,
-            event_payload_chat_id=self.chat_id,
+            event_user_id=self._user_id,
+            event_company_id=self._company_id,
+            event_payload_chat_id=self._chat_id,
         )
 
     def get_full_and_selected_history(
@@ -344,9 +435,9 @@ class ChatService:
             Exception: If the loading fails.
         """
         full_history = get_full_history(
-            event_user_id=self.user_id,
-            event_company_id=self.company_id,
-            event_payload_chat_id=self.chat_id,
+            event_user_id=self._user_id,
+            event_company_id=self._company_id,
+            event_payload_chat_id=self._chat_id,
         )
         selected_history = get_selection_from_history(
             full_history=full_history,
@@ -377,9 +468,9 @@ class ChatService:
             Exception: If the loading fails.
         """
         full_history = await get_full_history_async(
-            event_user_id=self.user_id,
-            event_company_id=self.company_id,
-            event_payload_chat_id=self.chat_id,
+            event_user_id=self._user_id,
+            event_company_id=self._company_id,
+            event_payload_chat_id=self._chat_id,
         )
         selected_history = get_selection_from_history(
             full_history=full_history,
@@ -414,10 +505,10 @@ class ChatService:
             Exception: If the creation fails.
         """
         chat_message = create_message(
-            user_id=self.user_id,
-            company_id=self.company_id,
-            chat_id=self.chat_id,
-            assistant_id=self.assistant_id,
+            user_id=self._user_id,
+            company_id=self._company_id,
+            chat_id=self._chat_id,
+            assistant_id=self._assistant_id,
             role=ChatMessageRole.ASSISTANT,
             content=content,
             original_content=original_content,
@@ -426,7 +517,7 @@ class ChatService:
             set_completed_at=set_completed_at,
         )
         # Update the assistant message id
-        self.assistant_message_id = chat_message.id
+        self._assistant_message_id = chat_message.id
         return chat_message
 
     async def create_assistant_message_async(
@@ -455,10 +546,10 @@ class ChatService:
         """
 
         chat_message = await create_message_async(
-            user_id=self.user_id,
-            company_id=self.company_id,
-            chat_id=self.chat_id,
-            assistant_id=self.assistant_id,
+            user_id=self._user_id,
+            company_id=self._company_id,
+            chat_id=self._chat_id,
+            assistant_id=self._assistant_id,
             role=ChatMessageRole.ASSISTANT,
             content=content,
             original_content=original_content,
@@ -467,7 +558,7 @@ class ChatService:
             set_completed_at=set_completed_at,
         )
         # Update the assistant message id
-        self.assistant_message_id = chat_message.id
+        self._assistant_message_id = chat_message.id
         return chat_message
 
     def create_user_message(
@@ -495,10 +586,10 @@ class ChatService:
             Exception: If the creation fails.
         """
         chat_message = create_message(
-            user_id=self.user_id,
-            company_id=self.company_id,
-            chat_id=self.chat_id,
-            assistant_id=self.assistant_id,
+            user_id=self._user_id,
+            company_id=self._company_id,
+            chat_id=self._chat_id,
+            assistant_id=self._assistant_id,
             role=ChatMessageRole.USER,
             content=content,
             original_content=original_content,
@@ -507,7 +598,7 @@ class ChatService:
             set_completed_at=set_completed_at,
         )
         # Update the user message id
-        self.user_message_id = chat_message.id
+        self._user_message_id = chat_message.id
         return chat_message
 
     async def create_user_message_async(
@@ -536,10 +627,10 @@ class ChatService:
         """
 
         chat_message = await create_message_async(
-            user_id=self.user_id,
-            company_id=self.company_id,
-            chat_id=self.chat_id,
-            assistant_id=self.assistant_id,
+            user_id=self._user_id,
+            company_id=self._company_id,
+            chat_id=self._chat_id,
+            assistant_id=self._assistant_id,
             role=ChatMessageRole.USER,
             content=content,
             original_content=original_content,
@@ -548,7 +639,7 @@ class ChatService:
             set_completed_at=set_completed_at,
         )
         # Update the user message id
-        self.user_message_id = chat_message.id
+        self._user_message_id = chat_message.id
         return chat_message
 
     def create_message_assessment(
@@ -580,8 +671,8 @@ class ChatService:
             Exception: If the creation fails
         """
         return create_message_assessment(
-            user_id=self.user_id,
-            company_id=self.company_id,
+            user_id=self._user_id,
+            company_id=self._company_id,
             assistant_message_id=assistant_message_id,
             status=status,
             type=type,
@@ -620,8 +711,8 @@ class ChatService:
             Exception: If the creation fails
         """
         return await create_message_assessment_async(
-            user_id=self.user_id,
-            company_id=self.company_id,
+            user_id=self._user_id,
+            company_id=self._company_id,
             assistant_message_id=assistant_message_id,
             status=status,
             type=type,
@@ -658,8 +749,8 @@ class ChatService:
             Exception: If the modification fails
         """
         return modify_message_assessment(
-            user_id=self.user_id,
-            company_id=self.company_id,
+            user_id=self._user_id,
+            company_id=self._company_id,
             assistant_message_id=assistant_message_id,
             status=status,
             type=type,
@@ -695,8 +786,8 @@ class ChatService:
             Exception: If the modification fails
         """
         return await modify_message_assessment_async(
-            user_id=self.user_id,
-            company_id=self.company_id,
+            user_id=self._user_id,
+            company_id=self._company_id,
             assistant_message_id=assistant_message_id,
             status=status,
             type=type,
@@ -729,12 +820,12 @@ class ChatService:
             assistant_id,
         ] = validate_required_values(
             [
-                self.company_id,
-                self.user_id,
-                self.assistant_message_id,
-                self.user_message_id,
-                self.chat_id,
-                self.assistant_id,
+                self._company_id,
+                self._user_id,
+                self._assistant_message_id,
+                self._user_message_id,
+                self._chat_id,
+                self._assistant_id,
             ]
         )
 
@@ -781,12 +872,12 @@ class ChatService:
             assistant_id,
         ] = validate_required_values(
             [
-                self.company_id,
-                self.user_id,
-                self.assistant_message_id,
-                self.user_message_id,
-                self.chat_id,
-                self.assistant_id,
+                self._company_id,
+                self._user_id,
+                self._assistant_message_id,
+                self._user_message_id,
+                self._chat_id,
+                self._assistant_id,
             ]
         )
 
