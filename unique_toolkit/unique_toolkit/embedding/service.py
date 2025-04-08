@@ -44,7 +44,7 @@ class EmbeddingService(BaseService):
             Event | BaseEvent | None: The event object.
         """
         return self._event
-    
+
     @property
     @deprecated(
         "The company_id property is deprecated and will be removed in a future version."
@@ -57,7 +57,7 @@ class EmbeddingService(BaseService):
             str | None: The company identifier.
         """
         return self._company_id
-    
+
     @property
     @deprecated(
         "The user_id property is deprecated and will be removed in a future version."

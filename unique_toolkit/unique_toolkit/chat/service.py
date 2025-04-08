@@ -89,7 +89,7 @@ class ChatService:
             Event | BaseEvent | None: The event object.
         """
         return self._event
-    
+
     @property
     @deprecated(
         "The company_id property is deprecated and will be removed in a future version."
@@ -102,7 +102,7 @@ class ChatService:
             str | None: The company identifier.
         """
         return self._company_id
-    
+
     @property
     @deprecated(
         "The user_id property is deprecated and will be removed in a future version."
@@ -115,7 +115,7 @@ class ChatService:
             str | None: The user identifier.
         """
         return self._user_id
-    
+
     @property
     @deprecated(
         "The assistant_message_id property is deprecated and will be removed in a future version."
@@ -128,7 +128,7 @@ class ChatService:
             str | None: The assistant message identifier.
         """
         return self._assistant_message_id
-    
+
     @property
     @deprecated(
         "The user_message_id property is deprecated and will be removed in a future version."
@@ -141,7 +141,7 @@ class ChatService:
             str | None: The user message identifier.
         """
         return self._user_message_id
-    
+
     @property
     @deprecated(
         "The chat_id property is deprecated and will be removed in a future version."
@@ -154,7 +154,7 @@ class ChatService:
             str | None: The chat identifier.
         """
         return self._chat_id
-    
+
     @property
     @deprecated(
         "The assistant_id property is deprecated and will be removed in a future version."
@@ -167,7 +167,7 @@ class ChatService:
             str | None: The assistant identifier.
         """
         return self._assistant_id
-    
+
     @property
     @deprecated(
         "The user_message_text property is deprecated and will be removed in a future version."
