@@ -58,6 +58,19 @@ class EmbeddingService(BaseService):
         """
         return self._company_id
 
+    @company_id.setter
+    @deprecated(
+        "The company_id setter is deprecated and will be removed in a future version."
+    )
+    def company_id(self, value: str | None) -> None:
+        """
+        Set the company identifier (deprecated).
+
+        Args:
+            value (str | None): The company identifier.
+        """
+        self._company_id = value
+
     @property
     @deprecated(
         "The user_id property is deprecated and will be removed in a future version."
@@ -70,6 +83,19 @@ class EmbeddingService(BaseService):
             str | None: The user identifier.
         """
         return self._user_id
+
+    @user_id.setter
+    @deprecated(
+        "The user_id setter is deprecated and will be removed in a future version."
+    )
+    def user_id(self, value: str | None) -> None:
+        """
+        Set the user identifier (deprecated).
+
+        Args:
+            value (str | None): The user identifier.
+        """
+        self._user_id = value
 
     def embed_texts(
         self,

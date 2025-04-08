@@ -89,6 +89,19 @@ class ContentService:
         """
         return self._company_id
 
+    @company_id.setter
+    @deprecated(
+        "The company_id setter is deprecated and will be removed in a future version."
+    )
+    def company_id(self, value: str | None) -> None:
+        """
+        Set the company identifier (deprecated).
+
+        Args:
+            value (str | None): The company identifier.
+        """
+        self._company_id = value
+
     @property
     @deprecated(
         "The user_id property is deprecated and will be removed in a future version."
@@ -101,6 +114,19 @@ class ContentService:
             str | None: The user identifier.
         """
         return self._user_id
+
+    @user_id.setter
+    @deprecated(
+        "The user_id setter is deprecated and will be removed in a future version."
+    )
+    def user_id(self, value: str | None) -> None:
+        """
+        Set the user identifier (deprecated).
+
+        Args:
+            value (str | None): The user identifier.
+        """
+        self._user_id = value
 
     @property
     @deprecated(
@@ -115,6 +141,19 @@ class ContentService:
         """
         return self._chat_id
 
+    @chat_id.setter
+    @deprecated(
+        "The chat_id setter is deprecated and will be removed in a future version."
+    )
+    def chat_id(self, value: str | None) -> None:
+        """
+        Set the chat identifier (deprecated).
+
+        Args:
+            value (str | None): The chat identifier.
+        """
+        self._chat_id = value
+
     @property
     @deprecated(
         "The metadata_filter property is deprecated and will be removed in a future version."
@@ -127,6 +166,19 @@ class ContentService:
             dict | None: The metadata filter.
         """
         return self._metadata_filter
+
+    @metadata_filter.setter
+    @deprecated(
+        "The metadata_filter setter is deprecated and will be removed in a future version."
+    )
+    def metadata_filter(self, value: dict | None) -> None:
+        """
+        Set the metadata filter (deprecated).
+
+        Args:
+            value (dict | None): The metadata filter.
+        """
+        self._metadata_filter = value
 
     def search_content_chunks(
         self,

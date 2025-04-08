@@ -75,6 +75,19 @@ class ShortTermMemoryService:
         """
         return self._company_id
 
+    @company_id.setter
+    @deprecated(
+        "The company_id setter is deprecated and will be removed in a future version."
+    )
+    def company_id(self, value: str | None) -> None:
+        """
+        Set the company identifier (deprecated).
+
+        Args:
+            value (str | None): The company identifier.
+        """
+        self._company_id = value
+
     @property
     @deprecated(
         "The user_id property is deprecated and will be removed in a future version."
@@ -87,6 +100,19 @@ class ShortTermMemoryService:
             str | None: The user identifier.
         """
         return self._user_id
+
+    @user_id.setter
+    @deprecated(
+        "The user_id setter is deprecated and will be removed in a future version."
+    )
+    def user_id(self, value: str | None) -> None:
+        """
+        Set the user identifier (deprecated).
+
+        Args:
+            value (str | None): The user identifier.
+        """
+        self._user_id = value
 
     @property
     @deprecated(
@@ -101,6 +127,19 @@ class ShortTermMemoryService:
         """
         return self._chat_id
 
+    @chat_id.setter
+    @deprecated(
+        "The chat_id setter is deprecated and will be removed in a future version."
+    )
+    def chat_id(self, value: str | None) -> None:
+        """
+        Set the chat identifier (deprecated).
+
+        Args:
+            value (str | None): The chat identifier.
+        """
+        self._chat_id = value
+
     @property
     @deprecated(
         "The message_id property is deprecated and will be removed in a future version."
@@ -113,6 +152,19 @@ class ShortTermMemoryService:
             str | None: The message identifier.
         """
         return self._message_id
+
+    @message_id.setter
+    @deprecated(
+        "The message_id setter is deprecated and will be removed in a future version."
+    )
+    def message_id(self, value: str | None) -> None:
+        """
+        Set the message identifier (deprecated).
+
+        Args:
+            value (str | None): The message identifier.
+        """
+        self._message_id = value
 
     @classmethod
     @deprecated("Instantiate class directly from event")

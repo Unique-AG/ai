@@ -103,6 +103,19 @@ class ChatService:
         """
         return self._company_id
 
+    @company_id.setter
+    @deprecated(
+        "The company_id setter is deprecated and will be removed in a future version."
+    )
+    def company_id(self, value: str | None) -> None:
+        """
+        Set the company identifier (deprecated).
+
+        Args:
+            value (str | None): The company identifier.
+        """
+        self._company_id = value
+
     @property
     @deprecated(
         "The user_id property is deprecated and will be removed in a future version."
@@ -115,6 +128,19 @@ class ChatService:
             str | None: The user identifier.
         """
         return self._user_id
+
+    @user_id.setter
+    @deprecated(
+        "The user_id setter is deprecated and will be removed in a future version."
+    )
+    def user_id(self, value: str | None) -> None:
+        """
+        Set the user identifier (deprecated).
+
+        Args:
+            value (str | None): The user identifier.
+        """
+        self._user_id = value
 
     @property
     @deprecated(
@@ -129,6 +155,19 @@ class ChatService:
         """
         return self._assistant_message_id
 
+    @assistant_message_id.setter
+    @deprecated(
+        "The assistant_message_id setter is deprecated and will be removed in a future version."
+    )
+    def assistant_message_id(self, value: str | None) -> None:
+        """
+        Set the assistant message identifier (deprecated).
+
+        Args:
+            value (str | None): The assistant message identifier.
+        """
+        self._assistant_message_id = value
+
     @property
     @deprecated(
         "The user_message_id property is deprecated and will be removed in a future version."
@@ -141,6 +180,19 @@ class ChatService:
             str | None: The user message identifier.
         """
         return self._user_message_id
+
+    @user_message_id.setter
+    @deprecated(
+        "The user_message_id setter is deprecated and will be removed in a future version."
+    )
+    def user_message_id(self, value: str | None) -> None:
+        """
+        Set the user message identifier (deprecated).
+
+        Args:
+            value (str | None): The user message identifier.
+        """
+        self._user_message_id = value
 
     @property
     @deprecated(
@@ -155,6 +207,19 @@ class ChatService:
         """
         return self._chat_id
 
+    @chat_id.setter
+    @deprecated(
+        "The chat_id setter is deprecated and will be removed in a future version."
+    )
+    def chat_id(self, value: str | None) -> None:
+        """
+        Set the chat identifier (deprecated).
+
+        Args:
+            value (str | None): The chat identifier.
+        """
+        self._chat_id = value
+
     @property
     @deprecated(
         "The assistant_id property is deprecated and will be removed in a future version."
@@ -168,6 +233,19 @@ class ChatService:
         """
         return self._assistant_id
 
+    @assistant_id.setter
+    @deprecated(
+        "The assistant_id setter is deprecated and will be removed in a future version."
+    )
+    def assistant_id(self, value: str | None) -> None:
+        """
+        Set the assistant identifier (deprecated).
+
+        Args:
+            value (str | None): The assistant identifier.
+        """
+        self._assistant_id = value
+
     @property
     @deprecated(
         "The user_message_text property is deprecated and will be removed in a future version."
@@ -180,6 +258,19 @@ class ChatService:
             str | None: The user message text.
         """
         return self._user_message_text
+
+    @user_message_text.setter
+    @deprecated(
+        "The user_message_text setter is deprecated and will be removed in a future version."
+    )
+    def user_message_text(self, value: str | None) -> None:
+        """
+        Set the user message text (deprecated).
+
+        Args:
+            value (str | None): The user message text.
+        """
+        self._user_message_text = value
 
     async def update_debug_info_async(self, debug_info: dict):
         """

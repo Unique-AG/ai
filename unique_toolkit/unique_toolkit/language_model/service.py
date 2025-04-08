@@ -83,6 +83,19 @@ class LanguageModelService:
         """
         return self._company_id
 
+    @company_id.setter
+    @deprecated(
+        "The company_id setter is deprecated and will be removed in a future version."
+    )
+    def company_id(self, value: str | None) -> None:
+        """
+        Set the company identifier (deprecated).
+
+        Args:
+            value (str | None): The company identifier.
+        """
+        self._company_id = value
+
     @property
     @deprecated(
         "The user_id property is deprecated and will be removed in a future version."
@@ -95,6 +108,19 @@ class LanguageModelService:
             str | None: The user identifier.
         """
         return self._user_id
+
+    @user_id.setter
+    @deprecated(
+        "The user_id setter is deprecated and will be removed in a future version."
+    )
+    def user_id(self, value: str | None) -> None:
+        """
+        Set the user identifier (deprecated).
+
+        Args:
+            value (str | None): The user identifier.
+        """
+        self._user_id = value
 
     @property
     @deprecated(
@@ -109,6 +135,19 @@ class LanguageModelService:
         """
         return self._chat_id
 
+    @chat_id.setter
+    @deprecated(
+        "The chat_id setter is deprecated and will be removed in a future version."
+    )
+    def chat_id(self, value: str | None) -> None:
+        """
+        Set the chat identifier (deprecated).
+
+        Args:
+            value (str | None): The chat identifier.
+        """
+        self._chat_id = value
+
     @property
     @deprecated(
         "The assistant_id property is deprecated and will be removed in a future version."
@@ -121,6 +160,19 @@ class LanguageModelService:
             str | None: The assistant identifier.
         """
         return self._assistant_id
+
+    @assistant_id.setter
+    @deprecated(
+        "The assistant_id setter is deprecated and will be removed in a future version."
+    )
+    def assistant_id(self, value: str | None) -> None:
+        """
+        Set the assistant identifier (deprecated).
+
+        Args:
+            value (str | None): The assistant identifier.
+        """
+        self._assistant_id = value
 
     def complete(
         self,
