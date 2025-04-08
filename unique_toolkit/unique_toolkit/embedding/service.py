@@ -25,12 +25,12 @@ class EmbeddingService(BaseService):
     ):
         self._event = event
         if event:
-            self.company_id = event.company_id
-            self.user_id = event.user_id
+            self._company_id = event.company_id
+            self._user_id = event.user_id
         else:
             [company_id, user_id] = validate_required_values([company_id, user_id])
-            self.company_id = company_id
-            self.user_id = user_id
+            self._company_id = company_id
+            self._user_id = user_id
 
     @property
     @deprecated(
@@ -44,6 +44,32 @@ class EmbeddingService(BaseService):
             Event | BaseEvent | None: The event object.
         """
         return self._event
+    
+    @property
+    @deprecated(
+        "The company_id property is deprecated and will be removed in a future version."
+    )
+    def company_id(self) -> str | None:
+        """
+        Get the company identifier (deprecated).
+
+        Returns:
+            str | None: The company identifier.
+        """
+        return self._company_id
+    
+    @property
+    @deprecated(
+        "The user_id property is deprecated and will be removed in a future version."
+    )
+    def user_id(self) -> str | None:
+        """
+        Get the user identifier (deprecated).
+
+        Returns:
+            str | None: The user identifier.
+        """
+        return self._user_id
 
     def embed_texts(
         self,
@@ -64,8 +90,8 @@ class EmbeddingService(BaseService):
             Exception: If an error occurs.
         """
         return embed_texts(
-            user_id=self.user_id,
-            company_id=self.company_id,
+            user_id=self._user_id,
+            company_id=self._company_id,
             texts=texts,
             timeout=timeout,
         )
@@ -89,8 +115,8 @@ class EmbeddingService(BaseService):
             Exception: If an error occurs.
         """
         return await embed_texts_async(
-            user_id=self.user_id,
-            company_id=self.company_id,
+            user_id=self._user_id,
+            company_id=self._company_id,
             texts=texts,
             timeout=timeout,
         )
