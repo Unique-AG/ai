@@ -34,20 +34,20 @@ class ShortTermMemoryService:
     ):
         self._event = event
         if event:
-            self.company_id = event.company_id
-            self.user_id = event.user_id
+            self._company_id = event.company_id
+            self._user_id = event.user_id
             if isinstance(event, (ChatEvent, Event)):
-                self.chat_id = event.payload.chat_id
-                self.message_id = event.payload.user_message.id
+                self._chat_id = event.payload.chat_id
+                self._message_id = event.payload.user_message.id
         else:
             [company_id, user_id] = validate_required_values([company_id, user_id])
             assert (
                 chat_id or message_id
             ), "Either chat_id or message_id must be provided"
-            self.company_id = company_id
-            self.user_id = user_id
-            self.chat_id = chat_id
-            self.message_id = message_id
+            self._company_id = company_id
+            self._user_id = user_id
+            self._chat_id = chat_id
+            self._message_id = message_id
 
     @property
     @deprecated(
@@ -61,6 +61,110 @@ class ShortTermMemoryService:
             Event | BaseEvent | None: The event object.
         """
         return self._event
+
+    @property
+    @deprecated(
+        "The company_id property is deprecated and will be removed in a future version."
+    )
+    def company_id(self) -> str | None:
+        """
+        Get the company identifier (deprecated).
+
+        Returns:
+            str | None: The company identifier.
+        """
+        return self._company_id
+
+    @company_id.setter
+    @deprecated(
+        "The company_id setter is deprecated and will be removed in a future version."
+    )
+    def company_id(self, value: str | None) -> None:
+        """
+        Set the company identifier (deprecated).
+
+        Args:
+            value (str | None): The company identifier.
+        """
+        self._company_id = value
+
+    @property
+    @deprecated(
+        "The user_id property is deprecated and will be removed in a future version."
+    )
+    def user_id(self) -> str | None:
+        """
+        Get the user identifier (deprecated).
+
+        Returns:
+            str | None: The user identifier.
+        """
+        return self._user_id
+
+    @user_id.setter
+    @deprecated(
+        "The user_id setter is deprecated and will be removed in a future version."
+    )
+    def user_id(self, value: str | None) -> None:
+        """
+        Set the user identifier (deprecated).
+
+        Args:
+            value (str | None): The user identifier.
+        """
+        self._user_id = value
+
+    @property
+    @deprecated(
+        "The chat_id property is deprecated and will be removed in a future version."
+    )
+    def chat_id(self) -> str | None:
+        """
+        Get the chat identifier (deprecated).
+
+        Returns:
+            str | None: The chat identifier.
+        """
+        return self._chat_id
+
+    @chat_id.setter
+    @deprecated(
+        "The chat_id setter is deprecated and will be removed in a future version."
+    )
+    def chat_id(self, value: str | None) -> None:
+        """
+        Set the chat identifier (deprecated).
+
+        Args:
+            value (str | None): The chat identifier.
+        """
+        self._chat_id = value
+
+    @property
+    @deprecated(
+        "The message_id property is deprecated and will be removed in a future version."
+    )
+    def message_id(self) -> str | None:
+        """
+        Get the message identifier (deprecated).
+
+        Returns:
+            str | None: The message identifier.
+        """
+        return self._message_id
+
+    @message_id.setter
+    @deprecated(
+        "The message_id setter is deprecated and will be removed in a future version."
+    )
+    def message_id(self, value: str | None) -> None:
+        """
+        Set the message identifier (deprecated).
+
+        Args:
+            value (str | None): The message identifier.
+        """
+        self._message_id = value
 
     @classmethod
     @deprecated("Instantiate class directly from event")
@@ -87,11 +191,11 @@ class ShortTermMemoryService:
         """
 
         return await find_latest_memory_async(
-            user_id=self.user_id,
-            company_id=self.company_id,
+            user_id=self._user_id,
+            company_id=self._company_id,
             key=key,
-            chat_id=self.chat_id,
-            message_id=self.message_id,
+            chat_id=self._chat_id,
+            message_id=self._message_id,
         )
 
     def find_latest_memory(self, key: str) -> ShortTermMemory:
@@ -109,11 +213,11 @@ class ShortTermMemoryService:
         """
 
         return find_latest_memory(
-            user_id=self.user_id,
-            company_id=self.company_id,
+            user_id=self._user_id,
+            company_id=self._company_id,
             key=key,
-            chat_id=self.chat_id,
-            message_id=self.message_id,
+            chat_id=self._chat_id,
+            message_id=self._message_id,
         )
 
     async def create_memory_async(self, key: str, value: str | dict):
@@ -132,12 +236,12 @@ class ShortTermMemoryService:
         """
 
         return await create_memory_async(
-            user_id=self.user_id,
-            company_id=self.company_id,
+            user_id=self._user_id,
+            company_id=self._company_id,
             key=key,
             value=value,
-            chat_id=self.chat_id,
-            message_id=self.message_id,
+            chat_id=self._chat_id,
+            message_id=self._message_id,
         )
 
     def create_memory(self, key: str, value: str | dict):
@@ -155,31 +259,31 @@ class ShortTermMemoryService:
         """
 
         return create_memory(
-            user_id=self.user_id,
-            company_id=self.company_id,
+            user_id=self._user_id,
+            company_id=self._company_id,
             key=key,
             value=value,
-            chat_id=self.chat_id,
-            message_id=self.message_id,
+            chat_id=self._chat_id,
+            message_id=self._message_id,
         )
 
     @deprecated("Use create_memory_async instead")
     async def set(self, key: str, value: str | dict):
         return await create_memory_async(
-            user_id=self.user_id,
-            company_id=self.company_id,
+            user_id=self._user_id,
+            company_id=self._company_id,
             key=key,
             value=value,
-            chat_id=self.chat_id,
-            message_id=self.message_id,
+            chat_id=self._chat_id,
+            message_id=self._message_id,
         )
 
     @deprecated("Use find_latest_memory_async instead")
     async def get(self, key: str) -> ShortTermMemory:
         return await find_latest_memory_async(
-            user_id=self.user_id,
-            company_id=self.company_id,
+            user_id=self._user_id,
+            company_id=self._company_id,
             key=key,
-            chat_id=self.chat_id,
-            message_id=self.message_id,
+            chat_id=self._chat_id,
+            message_id=self._message_id,
         )
