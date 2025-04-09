@@ -17,9 +17,8 @@ class LanguageModelName(StrEnum):
     AZURE_GPT_4o_2024_0513 = "AZURE_GPT_4o_2024_0513"
     AZURE_GPT_4o_2024_0806 = "AZURE_GPT_4o_2024_0806"
     AZURE_GPT_4o_MINI_2024_0718 = "AZURE_GPT_4o_MINI_2024_0718"
-    AZURE_o1_PREVIEW_2024_0912 = "AZURE_o1_PREVIEW_2024_0912"
-    AZURE_o1_2024_1217 = "AZURE_o1_2024_1217"
     AZURE_o1_MINI_2024_0912 = "AZURE_o1_MINI_2024_0912"
+    AZURE_o1_2024_1217 = "AZURE_o1_2024_1217"
     AZURE_o3_MINI_2025_0131 = "AZURE_o3_MINI_2025_0131"
     AZURE_GPT_45_PREVIEW_2025_0227 = "AZURE_GPT_45_PREVIEW_2025_0227"
 
@@ -218,6 +217,25 @@ class LanguageModelInfo(BaseModel):
                     info_cutoff_at=date(2023, 10, 1),
                     published_at=date(2024, 7, 18),
                 )
+            case LanguageModelName.AZURE_o1_MINI_2024_0912:
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.AZURE,
+                    version="2024-09-12",
+                    encoder_name=EncoderName.O200K_BASE,
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=128_000, token_limit_output=65_536
+                    ),
+                    info_cutoff_at=date(2023, 10, 1),
+                    published_at=date(2024, 9, 12),
+                )
             case LanguageModelName.AZURE_o1_2024_1217:
                 return cls(
                     name=model_name,
@@ -236,28 +254,6 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2023, 10, 1),
                     published_at=date(2024, 12, 17),
-                )
-            case (
-                LanguageModelName.AZURE_o1_MINI_2024_0912
-                | LanguageModelName.AZURE_o1_PREVIEW_2024_0912
-            ):
-                return cls(
-                    name=model_name,
-                    capabilities=[
-                        ModelCapabilities.STRUCTURED_OUTPUT,
-                        ModelCapabilities.FUNCTION_CALLING,
-                        ModelCapabilities.STREAMING,
-                        ModelCapabilities.VISION,
-                        ModelCapabilities.REASONING,
-                    ],
-                    provider=LanguageModelProvider.AZURE,
-                    version="2024-09-12",
-                    encoder_name=EncoderName.O200K_BASE,
-                    token_limits=LanguageModelTokenLimits(
-                        token_limit_input=128_000, token_limit_output=65_536
-                    ),
-                    info_cutoff_at=date(2023, 10, 1),
-                    published_at=date(2024, 9, 12),
                 )
             case LanguageModelName.AZURE_o3_MINI_2025_0131:
                 return cls(
