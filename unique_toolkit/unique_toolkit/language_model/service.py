@@ -20,6 +20,7 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
     LanguageModelResponse,
     LanguageModelTool,
+    LanguageModelToolDescription,
 )
 
 logger = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
@@ -45,17 +46,17 @@ class LanguageModelService:
         assistant_id: str | None = None,
     ):
         self._event = event
-        self.company_id = company_id
-        self.user_id = user_id
-        self.chat_id = chat_id
-        self.assistant_id = assistant_id
+        self._company_id = company_id
+        self._user_id = user_id
+        self._chat_id = chat_id
+        self._assistant_id = assistant_id
 
         if event:
-            self.company_id = event.company_id
-            self.user_id = event.user_id
+            self._company_id = event.company_id
+            self._user_id = event.user_id
             if isinstance(event, (ChatEvent, Event)):
-                self.chat_id = event.payload.chat_id
-                self.assistant_id = event.payload.assistant_id
+                self._chat_id = event.payload.chat_id
+                self._assistant_id = event.payload.assistant_id
 
     @property
     @deprecated(
@@ -69,6 +70,58 @@ class LanguageModelService:
             Event | BaseEvent | None: The event object.
         """
         return self._event
+    
+    @property
+    @deprecated(
+        "The company_id property is deprecated and will be removed in a future version."
+    )
+    def company_id(self) -> str | None:
+        """
+        Get the company identifier (deprecated).
+
+        Returns:
+            str | None: The company identifier.
+        """
+        return self._company_id
+    
+    @property
+    @deprecated(
+        "The user_id property is deprecated and will be removed in a future version."
+    )
+    def user_id(self) -> str | None:
+        """
+        Get the user identifier (deprecated).
+
+        Returns:
+            str | None: The user identifier.
+        """
+        return self._user_id
+    
+    @property
+    @deprecated(
+        "The chat_id property is deprecated and will be removed in a future version."
+    )
+    def chat_id(self) -> str | None:
+        """
+        Get the chat identifier (deprecated).
+
+        Returns:
+            str | None: The chat identifier.
+        """
+        return self._chat_id
+    
+    @property
+    @deprecated(
+        "The assistant_id property is deprecated and will be removed in a future version."
+    )
+    def assistant_id(self) -> str | None:
+        """
+        Get the assistant identifier (deprecated).
+
+        Returns:
+            str | None: The assistant identifier.
+        """
+        return self._assistant_id
 
     def complete(
         self,
@@ -76,7 +129,7 @@ class LanguageModelService:
         model_name: LanguageModelName | str,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
-        tools: Optional[list[LanguageModelTool]] = None,
+        tools: Optional[list[LanguageModelTool | LanguageModelToolDescription]] = None,
         structured_output_model: Optional[Type[BaseModel]] = None,
         structured_output_enforce_schema: bool = False,
         other_options: Optional[dict] = None,
@@ -84,7 +137,7 @@ class LanguageModelService:
         """
         Calls the completion endpoint synchronously without streaming the response.
         """
-        [company_id] = validate_required_values([self.company_id])
+        [company_id] = validate_required_values([self._company_id])
 
         return complete(
             company_id=company_id,
@@ -104,7 +157,7 @@ class LanguageModelService:
         model_name: LanguageModelName | str,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
-        tools: Optional[list[LanguageModelTool]] = None,
+        tools: Optional[list[LanguageModelTool | LanguageModelToolDescription]] = None,
         structured_output_model: Optional[Type[BaseModel]] = None,
         structured_output_enforce_schema: bool = False,
         other_options: Optional[dict] = None,
@@ -112,7 +165,7 @@ class LanguageModelService:
         """
         Calls the completion endpoint asynchronously without streaming the response.
         """
-        [company_id] = validate_required_values([self.company_id])
+        [company_id] = validate_required_values([self._company_id])
 
         return await complete_async(
             company_id=company_id,
@@ -135,7 +188,7 @@ class LanguageModelService:
         model_name: LanguageModelName | str,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
-        tools: Optional[list[LanguageModelTool]] = None,
+        tools: Optional[list[LanguageModelTool | LanguageModelToolDescription]] = None,
         structured_output_model: Optional[Type[BaseModel]] = None,
         structured_output_enforce_schema: bool = False,
         other_options: Optional[dict] = None,
