@@ -50,18 +50,18 @@ class ContentService:
         chat_id: str | None = None,
     ):
         self._event = event  # Changed to protected attribute
-        self.metadata_filter = None
+        self._metadata_filter = None
         if event:
-            self.company_id = event.company_id
-            self.user_id = event.user_id
+            self._company_id = event.company_id
+            self._user_id = event.user_id
             if isinstance(event, (ChatEvent, Event)):
-                self.metadata_filter = event.payload.metadata_filter
-                self.chat_id = event.payload.chat_id
+                self._metadata_filter = event.payload.metadata_filter
+                self._chat_id = event.payload.chat_id
         else:
             [company_id, user_id] = validate_required_values([company_id, user_id])
-            self.company_id = company_id
-            self.user_id = user_id
-            self.chat_id = chat_id
+            self._company_id = company_id
+            self._user_id = user_id
+            self._chat_id = chat_id
 
     @property
     @deprecated(
@@ -75,6 +75,110 @@ class ContentService:
             Event | BaseEvent | None: The event object.
         """
         return self._event
+
+    @property
+    @deprecated(
+        "The company_id property is deprecated and will be removed in a future version."
+    )
+    def company_id(self) -> str | None:
+        """
+        Get the company identifier (deprecated).
+
+        Returns:
+            str | None: The company identifier.
+        """
+        return self._company_id
+
+    @company_id.setter
+    @deprecated(
+        "The company_id setter is deprecated and will be removed in a future version."
+    )
+    def company_id(self, value: str | None) -> None:
+        """
+        Set the company identifier (deprecated).
+
+        Args:
+            value (str | None): The company identifier.
+        """
+        self._company_id = value
+
+    @property
+    @deprecated(
+        "The user_id property is deprecated and will be removed in a future version."
+    )
+    def user_id(self) -> str | None:
+        """
+        Get the user identifier (deprecated).
+
+        Returns:
+            str | None: The user identifier.
+        """
+        return self._user_id
+
+    @user_id.setter
+    @deprecated(
+        "The user_id setter is deprecated and will be removed in a future version."
+    )
+    def user_id(self, value: str | None) -> None:
+        """
+        Set the user identifier (deprecated).
+
+        Args:
+            value (str | None): The user identifier.
+        """
+        self._user_id = value
+
+    @property
+    @deprecated(
+        "The chat_id property is deprecated and will be removed in a future version."
+    )
+    def chat_id(self) -> str | None:
+        """
+        Get the chat identifier (deprecated).
+
+        Returns:
+            str | None: The chat identifier.
+        """
+        return self._chat_id
+
+    @chat_id.setter
+    @deprecated(
+        "The chat_id setter is deprecated and will be removed in a future version."
+    )
+    def chat_id(self, value: str | None) -> None:
+        """
+        Set the chat identifier (deprecated).
+
+        Args:
+            value (str | None): The chat identifier.
+        """
+        self._chat_id = value
+
+    @property
+    @deprecated(
+        "The metadata_filter property is deprecated and will be removed in a future version."
+    )
+    def metadata_filter(self) -> dict | None:
+        """
+        Get the metadata filter (deprecated).
+
+        Returns:
+            dict | None: The metadata filter.
+        """
+        return self._metadata_filter
+
+    @metadata_filter.setter
+    @deprecated(
+        "The metadata_filter setter is deprecated and will be removed in a future version."
+    )
+    def metadata_filter(self, value: dict | None) -> None:
+        """
+        Set the metadata filter (deprecated).
+
+        Args:
+            value (dict | None): The metadata filter.
+        """
+        self._metadata_filter = value
 
     def search_content_chunks(
         self,
@@ -112,17 +216,17 @@ class ContentService:
         """
 
         if metadata_filter is None:
-            metadata_filter = self.metadata_filter
+            metadata_filter = self._metadata_filter
 
-        chat_id = chat_id or self.chat_id  # type: ignore
+        chat_id = chat_id or self._chat_id  # type: ignore
 
         if chat_only and not chat_id:
             raise ValueError("Please provide chat_id when limiting with chat_only")
 
         try:
             searches = search_content_chunks(
-                user_id=self.user_id,
-                company_id=self.company_id,
+                user_id=self._user_id,
+                company_id=self._company_id,
                 chat_id=chat_id,
                 search_string=search_string,
                 search_type=search_type,
@@ -174,17 +278,17 @@ class ContentService:
             Exception: If there's an error during the search operation.
         """
         if metadata_filter is None:
-            metadata_filter = self.metadata_filter
+            metadata_filter = self._metadata_filter
 
-        chat_id = chat_id or self.chat_id  # type: ignore
+        chat_id = chat_id or self._chat_id  # type: ignore
 
         if chat_only and not chat_id:
             raise ValueError("Please provide chat_id when limiting with chat_only.")
 
         try:
             searches = await search_content_chunks_async(
-                user_id=self.user_id,
-                company_id=self.company_id,
+                user_id=self._user_id,
+                company_id=self._company_id,
                 chat_id=chat_id,
                 search_string=search_string,
                 search_type=search_type,
@@ -216,11 +320,11 @@ class ContentService:
         Returns:
             list[Content]: The search results.
         """
-        chat_id = chat_id or self.chat_id  # type: ignore
+        chat_id = chat_id or self._chat_id  # type: ignore
 
         return search_contents(
-            user_id=self.user_id,
-            company_id=self.company_id,
+            user_id=self._user_id,
+            company_id=self._company_id,
             chat_id=chat_id,
             where=where,
         )
@@ -239,11 +343,11 @@ class ContentService:
         Returns:
             list[Content]: The search results.
         """
-        chat_id = chat_id or self.chat_id  # type: ignore
+        chat_id = chat_id or self._chat_id  # type: ignore
 
         return await search_contents_async(
-            user_id=self.user_id,
-            company_id=self.company_id,
+            user_id=self._user_id,
+            company_id=self._company_id,
             chat_id=chat_id,
             where=where,
         )
@@ -278,8 +382,8 @@ class ContentService:
         """
 
         return upload_content_from_bytes(
-            user_id=self.user_id,
-            company_id=self.company_id,
+            user_id=self._user_id,
+            company_id=self._company_id,
             content=content,
             content_name=content_name,
             mime_type=mime_type,
@@ -313,8 +417,8 @@ class ContentService:
         """
 
         return upload_content(
-            user_id=self.user_id,
-            company_id=self.company_id,
+            user_id=self._user_id,
+            company_id=self._company_id,
             path_to_content=path_to_content,
             content_name=content_name,
             mime_type=mime_type,
@@ -339,11 +443,11 @@ class ContentService:
             requests.Response: The response object containing the downloaded content.
 
         """
-        chat_id = chat_id or self.chat_id  # type: ignore
+        chat_id = chat_id or self._chat_id  # type: ignore
 
         return request_content_by_id(
-            user_id=self.user_id,
-            company_id=self.company_id,
+            user_id=self._user_id,
+            company_id=self._company_id,
             content_id=content_id,
             chat_id=chat_id,
         )
@@ -371,11 +475,11 @@ class ContentService:
             Exception: If the download fails or the filename cannot be determined.
         """
 
-        chat_id = chat_id or self.chat_id  # type: ignore
+        chat_id = chat_id or self._chat_id  # type: ignore
 
         return download_content_to_file_by_id(
-            user_id=self.user_id,
-            company_id=self.company_id,
+            user_id=self._user_id,
+            company_id=self._company_id,
             content_id=content_id,
             chat_id=chat_id,
             filename=filename,
@@ -406,11 +510,11 @@ class ContentService:
             Exception: If the download fails.
         """
 
-        chat_id = chat_id or self.chat_id  # type: ignore
+        chat_id = chat_id or self._chat_id  # type: ignore
 
         return download_content(
-            user_id=self.user_id,
-            company_id=self.company_id,
+            user_id=self._user_id,
+            company_id=self._company_id,
             content_id=content_id,
             content_name=content_name,
             chat_id=chat_id,
@@ -435,10 +539,10 @@ class ContentService:
         Raises:
             Exception: If the download fails.
         """
-        chat_id = chat_id or self.chat_id  # type: ignore
+        chat_id = chat_id or self._chat_id  # type: ignore
         return download_content_to_bytes(
-            user_id=self.user_id,
-            company_id=self.company_id,
+            user_id=self._user_id,
+            company_id=self._company_id,
             content_id=content_id,
             chat_id=chat_id,
         )

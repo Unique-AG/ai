@@ -237,7 +237,7 @@ class TestContentServiceUnit:
     def test_error_handling_incommensurate_use_of_chat_id_and_chat_only_sync(self):
         with pytest.raises(ValueError):
             # This should raise an exception due to invalid search type
-            self.service.chat_id = None
+            self.service._chat_id = None
             self.service.search_content_chunks(
                 search_string="test",
                 search_type=ContentSearchType.COMBINED,
@@ -250,7 +250,7 @@ class TestContentServiceUnit:
     async def test_error_handling_incommensurate_use_of_chat_id_and_chat_only_async(
         self,
     ):
-        self.service.chat_id = None
+        self.service._chat_id = None
         with pytest.raises(ValueError):
             # This should raise an exception due to invalid search type
             await self.service.search_content_chunks_async(
