@@ -2,7 +2,7 @@ from enum import StrEnum
 from typing import Any, Optional
 
 from humps import camelize
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from typing_extensions import deprecated
 
 # set config to convert camelCase to snake_case
@@ -98,6 +98,10 @@ class ChatEventPayload(BaseModel):
     text: Optional[str] = None
     additional_parameters: Optional[ChatEventAdditionalParameters] = None
     user_metadata: Optional[dict[str, Any]] = None
+    tool_choices: Optional[list[str]] = Field(
+        default=[],
+        description="A list containing the tool names the user has chosen to be activated.",
+    )
     tool_parameters: Optional[dict[str, Any]] = None
     metadata_filter: Optional[dict[str, Any]] = None
 
