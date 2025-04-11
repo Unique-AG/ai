@@ -6,4 +6,5 @@ OBJECT_CLASSES = {
     # api resources
     unique_sdk.Message.OBJECT_NAME: unique_sdk.Message,
     unique_sdk.ChatCompletion.OBJECT_NAME: unique_sdk.ChatCompletion,
+    unique_sdk.Span.OBJECT_NAME: unique_sdk.Span,
 }
