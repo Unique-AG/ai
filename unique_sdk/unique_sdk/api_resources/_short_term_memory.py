@@ -20,7 +20,6 @@ class ShortTermMemory(APIResource["ShortTermMemory"]):
         chatId: Optional[str]
         messageId: NotRequired[Optional[str]]
 
-    id: str
     memoryName: str
     chatId: Optional[str]
     messageId: Optional[str]
