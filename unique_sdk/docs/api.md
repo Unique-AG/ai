@@ -9,6 +9,8 @@
 - [Content](api/content.md) - Working with the content
 - [ShortTermMemory](api/short_term_memory.md) - Working with the short term memory
 - [Embeddings](api/embeddings.md) - Working with the embeddings
+- [Acronyms](api/acronyms.md) - Working with the acronyms
+- [MessageAssessments](api/message_assessments.md) - Working with the message assessments
 
 ## utils
 

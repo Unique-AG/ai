@@ -40,6 +40,11 @@ tiktoken = "^0.9.0"
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
+[tool.poetry.scripts]
+docs-build = "scripts.docs:build_docs"
+docs-serve = "scripts.docs:serve_docs"
+docs-clean = "scripts.docs:clean_docs"
+
 [tool.ruff]
 target-version = "py311"
 
