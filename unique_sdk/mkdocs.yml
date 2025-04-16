@@ -1,0 +1,54 @@
+site_name: Unique SDK
+site_description: Documentation for the Unique SDK
+site_author: Unique Team
+
+theme:
+  name: material
+  highlithjs: true
+  jljs_languages:
+    - python
+
+nav:
+  - Home: index.md
+  - Getting Started: getting_started.md
+  - Tutorials: tutorials.md
+  - How to?: how_to_guide.md
+  - API Reference: api.md
+  - Readme: readme.md
+  - Changelog: CHANGELOG.md
+
+markdown_extensions:
+  - admonition
+  - codehilite
+  - footnotes
+  - meta
+  - toc:
+      permalink: true
+  - pymdownx.arithmatex
+  - pymdownx.betterem
+  - pymdownx.caret
+  - pymdownx.critic
+  - pymdownx.details
+  - pymdownx.emoji
+  - pymdownx.inlinehilite
+  - pymdownx.magiclink
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.superfences
+  - pymdownx.tabbed
+  - pymdownx.tasklist
+  - pymdownx.tilde
+
+docs_dir: docs
+site_dir: site
+
+plugins:
+  - search
+  - include-markdown 
+  - callouts
+  - mkdocstrings:
+      default_handler: python
+      options:
+        show_signature_annotations: true
+        show_type_annotations: true
+        show_source: true
