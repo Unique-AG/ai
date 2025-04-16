@@ -16,6 +16,7 @@ class LanguageModelName(StrEnum):
     AZURE_GPT_4_TURBO_2024_0409 = "AZURE_GPT_4_TURBO_2024_0409"
     AZURE_GPT_4o_2024_0513 = "AZURE_GPT_4o_2024_0513"
     AZURE_GPT_4o_2024_0806 = "AZURE_GPT_4o_2024_0806"
+    AZURE_GPT_4o_2024_1120 = "AZURE_GPT_4o_2024_1120"
     AZURE_GPT_4o_MINI_2024_0718 = "AZURE_GPT_4o_MINI_2024_0718"
     AZURE_o1_MINI_2024_0912 = "AZURE_o1_MINI_2024_0912"
     AZURE_o1_2024_1217 = "AZURE_o1_2024_1217"
@@ -197,6 +198,25 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2023, 10, 1),
                     published_at=date(2024, 8, 6),
+                )
+            case LanguageModelName.AZURE_GPT_4o_2024_1120:
+                return cls(
+                    name=model_name,
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.PARALLEL_FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                    ],
+                    provider=LanguageModelProvider.AZURE,
+                    version="2024-11-20",
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=128_000, token_limit_output=16_384
+                    ),
+                    info_cutoff_at=date(2023, 10, 1),
+                    published_at=date(2024, 11, 20),
                 )
             case LanguageModelName.AZURE_GPT_4o_MINI_2024_0718:
                 return cls(

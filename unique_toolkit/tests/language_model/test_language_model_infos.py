@@ -13,19 +13,26 @@ from unique_toolkit.language_model.schemas import LanguageModelTokenLimits
 class TestLanguageModelInfos:
     def test_can_list_all_defined_models(self):
         models = LanguageModel.list_models()
-        assert len(models) == 11
+        expected_models = [
+            LanguageModelName.AZURE_GPT_35_TURBO_0125,
+            LanguageModelName.AZURE_GPT_4_0613,
+            LanguageModelName.AZURE_GPT_4_32K_0613,
+            LanguageModelName.AZURE_GPT_4_TURBO_2024_0409,
+            LanguageModelName.AZURE_GPT_4o_2024_0513,
+            LanguageModelName.AZURE_GPT_4o_2024_0806,
+            LanguageModelName.AZURE_GPT_4o_2024_1120,
+            LanguageModelName.AZURE_GPT_4o_MINI_2024_0718,
+            LanguageModelName.AZURE_o1_MINI_2024_0912,
+            LanguageModelName.AZURE_o1_2024_1217,
+            LanguageModelName.AZURE_o3_MINI_2025_0131,
+            LanguageModelName.AZURE_GPT_45_PREVIEW_2025_0227,
+        ]
+        assert len(models) == len(expected_models)
         assert all(isinstance(model, LanguageModelInfo) for model in models)
         assert all(model.name for model in models)
-
         model_names = [model.name for model in models]
-        assert LanguageModelName.AZURE_GPT_4_0613 in model_names
-        assert LanguageModelName.AZURE_GPT_4_TURBO_2024_0409 in model_names
-        assert LanguageModelName.AZURE_GPT_4_32K_0613 in model_names
-        assert LanguageModelName.AZURE_GPT_4_0613 in model_names
-        assert LanguageModelName.AZURE_GPT_35_TURBO_0125 in model_names
-        assert LanguageModelName.AZURE_GPT_4o_2024_0513 in model_names
-        assert LanguageModelName.AZURE_GPT_4o_2024_0806 in model_names
-        assert LanguageModelName.AZURE_GPT_4o_MINI_2024_0718 in model_names
+        for model_name in expected_models:
+            assert model_name in model_names
 
     def test_get_custom_language_model(self):
         model = LanguageModel("My Custom Model")
