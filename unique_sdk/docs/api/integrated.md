@@ -7,4 +7,5 @@
         show_root_full_path: false
         show_source: true
         show_signature_annotations: true
-        show_type_annotations: true 
+        extra:
+            show_type_annotations: true 

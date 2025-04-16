@@ -1,6 +1,6 @@
-# Short Term Memory
+# Acronyms
 
-::: unique_sdk.ShortTermMemory
+::: unique_sdk.Acronyms
     show_root_toc_entry: true
     options:
         show_root_heading: false
