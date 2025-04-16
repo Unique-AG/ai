@@ -16,6 +16,14 @@ source venv/bin/activate
 pip install unique_sdk
 ```
 
+## Requirements
+
+- Python >=3.11 (Other Python versions 3.6+ might work but are not tested)
+- requests (peer dependency. Other HTTP request libraries might be supported in the future)
+- Unique App-ID & API Key
+
+Please contact your customer success manager at Unique for your personal developer App-ID & API Key.
+
 ## Usage
 
 ```python
