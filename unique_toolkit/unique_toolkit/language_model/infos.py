@@ -327,8 +327,8 @@ class LanguageModelInfo(BaseModel):
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=1_047_576, token_limit_output=32_768
                     ),
-                    info_cutoff_at=date(2023, 10, 1),
-                    published_at=date(2025, 2, 27),
+                    info_cutoff_at=date(2024, 5, 31),
+                    published_at=date(2025, 4, 14),
                 )
             case _:
                 if isinstance(model_name, LanguageModelName):
