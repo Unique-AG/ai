@@ -44,7 +44,7 @@ def search():
         search = unique_sdk.Search.create(
             user_id,
             company_id,
-            chatId=payload["chatId"],
+            chatId=payload.get("chatId"),
             searchString=payload["searchString"],
             searchType=payload["searchType"],
         )

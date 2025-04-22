@@ -529,6 +529,7 @@ These are the options are available for `searchType`:
 `scopeIds` Specifies a collection of scope IDs to confine the search.
 `language` Optional. The language specification for full text search.
 `reranker` Optional. The reranker service to be used for re-ranking the search results.
+`chatId` Optional. If not provided, the search will not be scoped to a specific chat.
 
 ```python
 search = unique_sdk.Search.create(
