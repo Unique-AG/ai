@@ -45,17 +45,17 @@ class LanguageModelService:
         assistant_id: str | None = None,
     ):
         self._event = event
-        self.company_id = company_id
-        self.user_id = user_id
-        self.chat_id = chat_id
-        self.assistant_id = assistant_id
+        self._company_id = company_id
+        self._user_id = user_id
+        self._chat_id = chat_id
+        self._assistant_id = assistant_id
 
         if event:
-            self.company_id = event.company_id
-            self.user_id = event.user_id
+            self._company_id = event.company_id
+            self._user_id = event.user_id
             if isinstance(event, (ChatEvent, Event)):
-                self.chat_id = event.payload.chat_id
-                self.assistant_id = event.payload.assistant_id
+                self._chat_id = event.payload.chat_id
+                self._assistant_id = event.payload.assistant_id
 
     @property
     @deprecated(
@@ -69,6 +69,110 @@ class LanguageModelService:
             Event | BaseEvent | None: The event object.
         """
         return self._event
+
+    @property
+    @deprecated(
+        "The company_id property is deprecated and will be removed in a future version."
+    )
+    def company_id(self) -> str | None:
+        """
+        Get the company identifier (deprecated).
+
+        Returns:
+            str | None: The company identifier.
+        """
+        return self._company_id
+
+    @company_id.setter
+    @deprecated(
+        "The company_id setter is deprecated and will be removed in a future version."
+    )
+    def company_id(self, value: str | None) -> None:
+        """
+        Set the company identifier (deprecated).
+
+        Args:
+            value (str | None): The company identifier.
+        """
+        self._company_id = value
+
+    @property
+    @deprecated(
+        "The user_id property is deprecated and will be removed in a future version."
+    )
+    def user_id(self) -> str | None:
+        """
+        Get the user identifier (deprecated).
+
+        Returns:
+            str | None: The user identifier.
+        """
+        return self._user_id
+
+    @user_id.setter
+    @deprecated(
+        "The user_id setter is deprecated and will be removed in a future version."
+    )
+    def user_id(self, value: str | None) -> None:
+        """
+        Set the user identifier (deprecated).
+
+        Args:
+            value (str | None): The user identifier.
+        """
+        self._user_id = value
+
+    @property
+    @deprecated(
+        "The chat_id property is deprecated and will be removed in a future version."
+    )
+    def chat_id(self) -> str | None:
+        """
+        Get the chat identifier (deprecated).
+
+        Returns:
+            str | None: The chat identifier.
+        """
+        return self._chat_id
+
+    @chat_id.setter
+    @deprecated(
+        "The chat_id setter is deprecated and will be removed in a future version."
+    )
+    def chat_id(self, value: str | None) -> None:
+        """
+        Set the chat identifier (deprecated).
+
+        Args:
+            value (str | None): The chat identifier.
+        """
+        self._chat_id = value
+
+    @property
+    @deprecated(
+        "The assistant_id property is deprecated and will be removed in a future version."
+    )
+    def assistant_id(self) -> str | None:
+        """
+        Get the assistant identifier (deprecated).
+
+        Returns:
+            str | None: The assistant identifier.
+        """
+        return self._assistant_id
+
+    @assistant_id.setter
+    @deprecated(
+        "The assistant_id setter is deprecated and will be removed in a future version."
+    )
+    def assistant_id(self, value: str | None) -> None:
+        """
+        Set the assistant identifier (deprecated).
+
+        Args:
+            value (str | None): The assistant identifier.
+        """
+        self._assistant_id = value
 
     def complete(
         self,
@@ -84,7 +188,7 @@ class LanguageModelService:
         """
         Calls the completion endpoint synchronously without streaming the response.
         """
-        [company_id] = validate_required_values([self.company_id])
+        [company_id] = validate_required_values([self._company_id])
 
         return complete(
             company_id=company_id,
@@ -112,7 +216,7 @@ class LanguageModelService:
         """
         Calls the completion endpoint asynchronously without streaming the response.
         """
-        [company_id] = validate_required_values([self.company_id])
+        [company_id] = validate_required_values([self._company_id])
 
         return await complete_async(
             company_id=company_id,
