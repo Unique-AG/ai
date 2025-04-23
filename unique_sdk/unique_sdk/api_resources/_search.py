@@ -8,9 +8,9 @@ class Search(APIResource["Search"]):
     OBJECT_NAME: ClassVar[Literal["search.search"]] = "search.search"
 
     class CreateParams(RequestOptions):
-        chatId: str
         searchString: str
         searchType: Literal["VECTOR", "COMBINED"]
+        chatId: NotRequired[Optional[str]]
         language: NotRequired[Optional[str]]
         reranker: NotRequired[Optional[dict[str, Any]]]
         scopeIds: NotRequired[Optional[list[str]]]
