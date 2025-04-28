@@ -97,7 +97,6 @@ class LanguageModelInfo(BaseModel):
                     name=model_name,
                     provider=LanguageModelProvider.AZURE,
                     capabilities=[
-                        ModelCapabilities.STRUCTURED_OUTPUT,
                         ModelCapabilities.FUNCTION_CALLING,
                         ModelCapabilities.PARALLEL_FUNCTION_CALLING,
                         ModelCapabilities.REPRODUCIBLE_OUTPUT,
@@ -150,7 +149,6 @@ class LanguageModelInfo(BaseModel):
                     capabilities=[
                         ModelCapabilities.FUNCTION_CALLING,
                         ModelCapabilities.PARALLEL_FUNCTION_CALLING,
-                        ModelCapabilities.STRUCTURED_OUTPUT,
                         ModelCapabilities.VISION,
                         ModelCapabilities.STREAMING,
                     ],
@@ -167,7 +165,6 @@ class LanguageModelInfo(BaseModel):
                     name=model_name,
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
-                        ModelCapabilities.STRUCTURED_OUTPUT,
                         ModelCapabilities.FUNCTION_CALLING,
                         ModelCapabilities.PARALLEL_FUNCTION_CALLING,
                         ModelCapabilities.STREAMING,
@@ -223,7 +220,6 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     capabilities=[
-                        ModelCapabilities.STRUCTURED_OUTPUT,
                         ModelCapabilities.FUNCTION_CALLING,
                         ModelCapabilities.PARALLEL_FUNCTION_CALLING,
                         ModelCapabilities.STREAMING,
