@@ -85,6 +85,7 @@ from unique_sdk.api_resources._acronyms import Acronyms as Acronyms
 from unique_sdk.api_resources._message_assessment import (
     MessageAssessment as MessageAssessment,
 )
+from unique_sdk.api_resources._tracing import Span as Span
 
 # Unique QL
 
