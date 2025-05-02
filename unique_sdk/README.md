@@ -529,6 +529,7 @@ These are the options are available for `searchType`:
 `scopeIds` Specifies a collection of scope IDs to confine the search.
 `language` Optional. The language specification for full text search.
 `reranker` Optional. The reranker service to be used for re-ranking the search results.
+`chatId` Optional, adds the documents uploaded in this chat to the scope of searched documents.
 
 ```python
 search = unique_sdk.Search.create(
