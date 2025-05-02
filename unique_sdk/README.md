@@ -529,7 +529,6 @@ These are the options are available for `searchType`:
 `scopeIds` Specifies a collection of scope IDs to confine the search.
 `language` Optional. The language specification for full text search.
 `reranker` Optional. The reranker service to be used for re-ranking the search results.
-`chatId` Optional, adds the documents uploaded in this chat to the scope of searched documents.
 
 ```python
 search = unique_sdk.Search.create(
@@ -701,7 +700,7 @@ A metadata filter such as the one designed above can be used in a `Search.create
 
 ### Chat History
 
-#### `unique_sdk.util.chat_history.load_history`
+#### `unique_sdk.utils.chat_history.load_history`
 
 A helper function that makes sure the chat history is fully loaded and cut to the size of the token window that it fits into the next round of chat interactions.
 
@@ -719,7 +718,7 @@ history = unique_sdk.utils.chat_history.load_history(
 )
 ```
 
-#### `unique_sdk.util.chat_history.convert_chat_history_to_injectable_string`
+#### `unique_sdk.utils.chat_history.convert_chat_history_to_injectable_string`
 
 convert history into a string that can be injected into a prompt. it als returns the token length of the converted history.
 
@@ -733,7 +732,7 @@ chat_history-string, chat_context_token_length = unique_sdk.utils.chat_history.c
 
 Interacting with the knowledge-base.
 
-#### `unique_sdk.util.file_io.download_content`
+#### `unique_sdk.utils.file_io.download_content`
 
 download files and save them into a folder in `/tmp`
 
@@ -749,7 +748,7 @@ pdfFile = download_content(
 }
 ```
 
-#### `unique_sdk.util.file_io.upload_file`
+#### `unique_sdk.utils.file_io.upload_file`
 
 Allows for uploading files that then get ingested in a scope or a chat.
 
@@ -759,15 +758,15 @@ createdContent = upload_file(
     userId=userId,
     path_to_file="/tmp/hello.pdf",
     displayed_filename="hello.pdf",
-    mimeType="application/pdf",
-    uploadScope="scope_stcj2osgbl722m22jayidx0n",
+    mime_type="application/pdf",
+    scope_or_unique_path="scope_stcj2osgbl722m22jayidx0n",
     chat_id=None,
 )
 ```
 
 ### Sources
 
-#### `unique_sdk.util.sources.merge_sources`
+#### `unique_sdk.utils.sources.merge_sources`
 
 Merges multiple search results based on their 'id', removing redundant document and info markers.
 
@@ -796,15 +795,15 @@ search = unique_sdk.Search.create(
     chatOnly=False,
 )
 
-searchContext = unique_sdk.util.token.pick_search_results_for_token_window(
+searchContext = unique_sdk.utils.token.pick_search_results_for_token_window(
         search["data"], config["maxTokens"] - historyLength
     )
 
-searchContext = unique_sdk.util.sources.merge_sources(search)
+searchContext = unique_sdk.utils.sources.merge_sources(search)
 
 ```
 
-#### `unique_sdk.util.sources.sort_sources`
+#### `unique_sdk.utils.sources.sort_sources`
 
 Sort sources by order of appearance in documents
 
@@ -821,14 +820,14 @@ search = unique_sdk.Search.create(
     chatOnly=False,
 )
 
-searchContext = unique_sdk.util.token.pick_search_results_for_token_window(
+searchContext = unique_sdk.utils.token.pick_search_results_for_token_window(
         search["data"], config["maxTokens"] - historyLength
     )
 
-searchContext = unique_sdk.util.sources.sort_sources(search)
+searchContext = unique_sdk.utils.sources.sort_sources(search)
 ```
 
-#### `unique_sdk.util.sources.post_process_sources`
+#### `unique_sdk.utils.sources.post_process_sources`
 
 Post-processes the provided text by converting source references into superscript numerals (required
 format by backend to display sources in the chat window)
@@ -855,7 +854,7 @@ text_with_sup = post_process_sources(text)
 
 ### Token
 
-#### unique_sdk.util.token.pick_search_results_for_token_window
+#### unique_sdk.utils.token.pick_search_results_for_token_window
 
 Selects and returns a list of search results that fit within a specified token limit.
 
@@ -884,12 +883,12 @@ search = unique_sdk.Search.create(
     chatOnly=False,
 )
 
-searchContext = unique_sdk.util.token.pick_search_results_for_token_window(
+searchContext = unique_sdk.utils.token.pick_search_results_for_token_window(
         search["data"], config["maxTokens"] - historyLength
     )
 ```
 
-#### unique_sdk.util.token.count_tokens
+#### unique_sdk.utils.token.count_tokens
 
 Counts the number of tokens in the provided text.
 
@@ -906,7 +905,7 @@ Returns:
 
 ```python
 hello = "hello you!"
-searchContext = unique_sdk.util.token.count_tokens(hello)
+searchContext = unique_sdk.utils.token.count_tokens(hello)
 ```
 
 ## Error Handling
