@@ -27,6 +27,8 @@ class TestLanguageModelInfos:
             LanguageModelName.AZURE_o3_MINI_2025_0131,
             LanguageModelName.AZURE_GPT_45_PREVIEW_2025_0227,
             LanguageModelName.AZURE_GPT_41_2025_0414,
+            LanguageModelName.AZURE_o3_2025_0416,
+            LanguageModelName.AZURE_o4_MINI_2025_0416,
         ]
         assert len(models) == len(expected_models)
         assert all(isinstance(model, LanguageModelInfo) for model in models)
