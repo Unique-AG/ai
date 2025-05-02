@@ -81,9 +81,9 @@ unique_sdk.app_id = "app_..."
 
 # list messages for a single chat
 messages = unique_sdk.Message.list(
-    user_id=user_id,
-    company_id=company_id,
-    chatId=chat_id,
+   user_id=user_id,
+   company_id=company_id,
+   chatId=chat_id,
 )
 
 print(messages.data[0].text)
@@ -125,30 +125,30 @@ endpoint_secret = "YOUR_ENDPOINT_SECRET"
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
-    event = None
-    payload = request.data
+   event = None
+   payload = request.data
 
-    sig_header = request.headers.get("X-Unique-Signature")
-    timestamp = request.headers.get("X-Unique-Created-At")
+   sig_header = request.headers.get("X-Unique-Signature")
+   timestamp = request.headers.get("X-Unique-Created-At")
 
-    if not sig_header or not timestamp:
-        print("⚠️  Webhook signature or timestamp headers missing.")
-        return jsonify(success=False), HTTPStatus.BAD_REQUEST
+   if not sig_header or not timestamp:
+      print("⚠️  Webhook signature or timestamp headers missing.")
+      return jsonify(success=False), HTTPStatus.BAD_REQUEST
 
-    try:
-        event = unique_sdk.Webhook.construct_event(
-            payload, sig_header, timestamp, endpoint_secret
-        )
-    except unique_sdk.SignatureVerificationError as e:
-        print("⚠️  Webhook signature verification failed. " + str(e))
-        return jsonify(success=False), HTTPStatus.BAD_REQUEST
+   try:
+      event = unique_sdk.Webhook.construct_event(
+         payload, sig_header, timestamp, endpoint_secret
+      )
+   except unique_sdk.SignatureVerificationError as e:
+      print("⚠️  Webhook signature verification failed. " + str(e))
+      return jsonify(success=False), HTTPStatus.BAD_REQUEST
 ```
 
 The `construct_event` method will compare the signature and raise a `unique_sdk.SignatureVerificationError` if the signature does not match. It will also raise this error if the `createdAt` timestamp is outside of a default tolerance of 5 minutes. Adjust the `tolerance` by passing a fifth parameter to the method (tolerance in seconds), e.g.:
 
 ```python
 event = unique_sdk.Webhook.construct_event(
-    payload, sig_header, timestamp, endpoint_secret, 0
+   payload, sig_header, timestamp, endpoint_secret, 0
 )
 ```
 
@@ -158,17 +158,17 @@ event = unique_sdk.Webhook.construct_event(
 
 ```json
 {
-  "id": "evt_...", // see header
-  "version": "1.0.0", // see header
-  "event": "unique.chat.user-message.created", // The name of the event
-  "createdAt": "1705960141", // see header
-  "userId": "...", // see header
-  "companyId": "...", // see header
-  "payload": {
-    "chatId": "chat_...", // The id of the chat
-    "assistantId": "assistant_...", // The id of the selected assistant
-    "text": "Hello, how can I help you?" // The user message
-  }
+   "id": "evt_...", // see header
+   "version": "1.0.0", // see header
+   "event": "unique.chat.user-message.created", // The name of the event
+   "createdAt": "1705960141", // see header
+   "userId": "...", // see header
+   "companyId": "...", // see header
+   "payload": {
+      "chatId": "chat_...", // The id of the chat
+      "assistantId": "assistant_...", // The id of the selected assistant
+      "text": "Hello, how can I help you?" // The user message
+   }
 }
 ```
 
@@ -180,28 +180,28 @@ This trigger can be used in combination with assistants marked as `external`. Th
 
 ```json
 {
-  "id": "evt_...",
-  "version": "1.0.0",
-  "event": "unique.chat.external-module.chosen",
-  "createdAt": "1705960141", // Unix timestamp (seconds)
-  "userId": "...",
-  "companyId": "...",
-  "payload": {
-    "name": "example-sdk", // The name of the module selected by the module chooser
-    "description": "Example SDK", // The description of the module
-    "configuration": {}, // Module configuration in JSON format
-    "chatid": "chat_...", // The chat ID
-    "assistantId:": "assistant_...", // The assistant ID
-    "userMessage": {
-      "id": "msg_...",
-      "text": "Hello World!", // The user message leading to the module selection
-      "createdAt": "2024-01-01T00:00:00.000Z" // ISO 8601
-    },
-    "assistantMessage": {
-      "id": "msg_...",
-      "createdAt": "2024-01-01T00:00:00.000Z" // ISO 8601
-    }
-  }
+   "id": "evt_...",
+   "version": "1.0.0",
+   "event": "unique.chat.external-module.chosen",
+   "createdAt": "1705960141", // Unix timestamp (seconds)
+   "userId": "...",
+   "companyId": "...",
+   "payload": {
+      "name": "example-sdk", // The name of the module selected by the module chooser
+      "description": "Example SDK", // The description of the module
+      "configuration": {}, // Module configuration in JSON format
+      "chatid": "chat_...", // The chat ID
+      "assistantId:": "assistant_...", // The assistant ID
+      "userMessage": {
+         "id": "msg_...",
+         "text": "Hello World!", // The user message leading to the module selection
+         "createdAt": "2024-01-01T00:00:00.000Z" // ISO 8601
+      },
+      "assistantMessage": {
+         "id": "msg_...",
+         "createdAt": "2024-01-01T00:00:00.000Z" // ISO 8601
+      }
+   }
 }
 ```
 
@@ -213,11 +213,11 @@ Unique's UI will create an empty `assistantMessage` below the user message and u
 
 ```python
 unique_sdk.Message.modify(
-    user_id=user_id,
-    company_id=company_id,
-    id=assistant_message_id,
-    chatId=chat_id,
-    text="Here is your answer.",
+   user_id=user_id,
+   company_id=company_id,
+   id=assistant_message_id,
+   chatId=chat_id,
+   text="Here is your answer.",
 )
 ```
 
@@ -247,23 +247,23 @@ Here an example of retrieving all files that contain the number 42 in the `title
 
 ```python
 unique_sdk.Content.search(
-    user_id=userId,
-    company_id=companyId,
-    where={
-        "OR": [
-            {
-                "title": {
-                    "contains": "42",
-                },
+   user_id=userId,
+   company_id=companyId,
+   where={
+      "OR": [
+         {
+            "title": {
+               "contains": "42",
             },
-            {
-                "key": {
-                    "contains": "42",
-                },
+         },
+         {
+            "key": {
+               "contains": "42",
             },
-        ],
-    },
-    chatId=chatId,
+         },
+      ],
+   },
+   chatId=chatId,
 )
 ```
 
@@ -276,61 +276,61 @@ Typical usage is the following. That creates a Content and uploads a file
 ```python
 
 createdContent = upload_file(
-    userId,
-    companyId,
-    "/path/to/file.pdf",
-    "test.pdf",
-    "application/pdf",
-    "scope_stcj2osgbl722m22jayidx0n",
+   userId,
+   companyId,
+   "/path/to/file.pdf",
+   "test.pdf",
+   "application/pdf",
+   "scope_stcj2osgbl722m22jayidx0n",
 )
 
 def upload_file(
-    userId,
-    companyId,
-    path_to_file,
-    displayed_filename,
-    mimeType,
-    scope_or_unique_path,
+        userId,
+        companyId,
+        path_to_file,
+        displayed_filename,
+        mimeType,
+        scope_or_unique_path,
 ):
-    size = os.path.getsize(path_to_file)
-    createdContent = unique_sdk.Content.upsert(
-        user_id=userId,
-        company_id=companyId,
-        input={
-            "key": displayed_filename,
-            "title": displayed_filename,
-            "mimeType": mimeType,
-        },
-        scopeId=scope_or_unique_path,
-    )
+   size = os.path.getsize(path_to_file)
+   createdContent = unique_sdk.Content.upsert(
+      user_id=userId,
+      company_id=companyId,
+      input={
+         "key": displayed_filename,
+         "title": displayed_filename,
+         "mimeType": mimeType,
+      },
+      scopeId=scope_or_unique_path,
+   )
 
-    uploadUrl = createdContent.writeUrl
+   uploadUrl = createdContent.writeUrl
 
-    # upload to azure blob storage SAS url uploadUrl the pdf file translatedFile make sure it is treated as a application/pdf
-    with open(path_to_file, "rb") as file:
-        requests.put(
-            uploadUrl,
-            data=file,
-            headers={
-                "X-Ms-Blob-Content-Type": mimeType,
-                "X-Ms-Blob-Type": "BlockBlob",
-            },
-        )
+   # upload to azure blob storage SAS url uploadUrl the pdf file translatedFile make sure it is treated as a application/pdf
+   with open(path_to_file, "rb") as file:
+      requests.put(
+         uploadUrl,
+         data=file,
+         headers={
+            "X-Ms-Blob-Content-Type": mimeType,
+            "X-Ms-Blob-Type": "BlockBlob",
+         },
+      )
 
-    unique_sdk.Content.upsert(
-        user_id=userId,
-        company_id=companyId,
-        input={
-            "key": displayed_filename,
-            "title": displayed_filename,
-            "mimeType": mimeType,
-            "byteSize": size,
-        },
-        scopeId=scope_or_unique_path,
-        readUrl=createdContent.readUrl,
-    )
+   unique_sdk.Content.upsert(
+      user_id=userId,
+      company_id=companyId,
+      input={
+         "key": displayed_filename,
+         "title": displayed_filename,
+         "mimeType": mimeType,
+         "byteSize": size,
+      },
+      scopeId=scope_or_unique_path,
+      readUrl=createdContent.readUrl,
+   )
 
-    return createdContent
+   return createdContent
 
 ```
 
@@ -342,9 +342,9 @@ Retrieve a list of messages for a provided `chatId`.
 
 ```python
 messages = unique_sdk.Message.list(
-    user_id=user_id,
-    company_id=company_id,
-    chatId=chat_id,
+   user_id=user_id,
+   company_id=company_id,
+   chatId=chat_id,
 )
 ```
 
@@ -354,10 +354,10 @@ Get a single chat message.
 
 ```python
 message = unique_sdk.Message.retrieve(
-    user_id=user_id,
-    company_id=company_id,
-    id=message_id,
-    chatId=chat_id,
+   user_id=user_id,
+   company_id=company_id,
+   id=message_id,
+   chatId=chat_id,
 )
 ```
 
@@ -367,12 +367,12 @@ Create a new message in a chat.
 
 ```python
 message = unique_sdk.Message.create(
-    user_id=user_id,
-    company_id=company_id,
-    chatId=chat_id,
-    assistantId=assistant_id,
-    text="Hello.",
-    role="ASSISTANT",
+   user_id=user_id,
+   company_id=company_id,
+   chatId=chat_id,
+   assistantId=assistant_id,
+   text="Hello.",
+   role="ASSISTANT",
 )
 ```
 
@@ -384,11 +384,11 @@ Modify an existing chat message.
 
 ```python
 message = unique_sdk.Message.modify(
-    user_id=user_id,
-    company_id=company_id,
-    id=message_id,
-    chatId=chat_id,
-    text="Updated message text"
+   user_id=user_id,
+   company_id=company_id,
+   id=message_id,
+   chatId=chat_id,
+   text="Updated message text"
 )
 ```
 
@@ -398,10 +398,10 @@ Delete a chat message.
 
 ```python
 message = unique_sdk.Message.delete(
-    message_id,
-    user_id=user_id,
-    company_id=company_id,
-    chatId=chat_id,
+   message_id,
+   user_id=user_id,
+   company_id=company_id,
+   chatId=chat_id,
 )
 ```
 
@@ -425,40 +425,40 @@ Hello this information is from <sub>0</sub>
 
 ```python
 unique_sdk.Integrated.chat_stream_completion(
-    user_id=userId,
-    company_id=companyId,
-    assistantMessageId=assistantMessageId,
-    userMessageId=userMessageId,
-    messages=[
-        {
-            "role": "system",
-            "content": "be friendly and helpful"
-        },
-        {
-            "role": "user",
-            "content": "hello"
-        }
-    ],
-    chatId=chatId,
+   user_id=userId,
+   company_id=companyId,
+   assistantMessageId=assistantMessageId,
+   userMessageId=userMessageId,
+   messages=[
+      {
+         "role": "system",
+         "content": "be friendly and helpful"
+      },
+      {
+         "role": "user",
+         "content": "hello"
+      }
+   ],
+   chatId=chatId,
 
-    searchContext=  [
-        {
-            "id": "ref_qavsg0dcl5cbfwm1fvgogrvo",
-            "chunkId": "0",
-            "key": "some reference.pdf : 8,9,10,11",
-            "sequenceNumber": 1,
-            "url": "unique://content/cont_p8n339trfsf99oc9f36rn4wf"
-        }
-    ],  # optional
-    debugInfo={
-        "hello": "test"
-    }, # optional
-    startText= "I want to tell you about: ", # optional
-    model= "AZURE_GPT_4_32K_0613", # optional
-    timeout=8000,  # optional in ms
-    options={
-                "temperature": 0.5
-            } # optional
+   searchContext=  [
+      {
+         "id": "ref_qavsg0dcl5cbfwm1fvgogrvo",
+         "chunkId": "0",
+         "key": "some reference.pdf : 8,9,10,11",
+         "sequenceNumber": 1,
+         "url": "unique://content/cont_p8n339trfsf99oc9f36rn4wf"
+      }
+   ],  # optional
+   debugInfo={
+      "hello": "test"
+   }, # optional
+   startText= "I want to tell you about: ", # optional
+   model= "AZURE_GPT_4_32K_0613", # optional
+   timeout=8000,  # optional in ms
+   options={
+      "temperature": 0.5
+   } # optional
 )
 ```
 
@@ -472,15 +472,15 @@ Send a prompt to an AI model supported by Unique FinanceGPT and receive a result
 
 ```python
 chat_completion = unique_sdk.ChatCompletion.create(
-    company_id=company_id,
-    model="AZURE_GPT_35_TURBO",
-    messages=[
-        {"role": "system", "content": "You are a helpful assistant."},
-        {"role": "user", "content": "Hello!"},
-    ],
-    options={
-            "temperature": 0.5
-        } # optional
+   company_id=company_id,
+   model="AZURE_GPT_35_TURBO",
+   messages=[
+      {"role": "system", "content": "You are a helpful assistant."},
+      {"role": "user", "content": "Hello!"},
+   ],
+   options={
+      "temperature": 0.5
+   } # optional
 )
 ```
 
@@ -492,9 +492,9 @@ Sends an array of `text` to the AI model for embedding. And retrieve a vector of
 
 ```python
 result = unique_sdk.Embeddings.create(
-    user_id=user_id,
-    company_id=company_id,
-    texts=["hello", "hello"],
+   user_id=user_id,
+   company_id=company_id,
+   texts=["hello", "hello"],
 )
 print(result.embeddings[0][0])
 ```
@@ -507,8 +507,8 @@ Fetches the acronyms defined on the company. Often used to replace in user promp
 
 ```python
 result = unique_sdk.Acronyms.get(
-    user_id=user_id,
-    company_id=company_id,
+   user_id=user_id,
+   company_id=company_id,
 )
 print(result)
 ```
@@ -529,7 +529,6 @@ These are the options are available for `searchType`:
 `scopeIds` Specifies a collection of scope IDs to confine the search.
 `language` Optional. The language specification for full text search.
 `reranker` Optional. The reranker service to be used for re-ranking the search results.
-`chatId` Optional, adds the documents uploaded in this chat to the scope of searched documents.
 
 ```python
 search = unique_sdk.Search.create(
@@ -624,7 +623,7 @@ assessment = unique_sdk.MessageAssessment.create(
 )
 ```
 
-#### `unique_sdk.MessageAssessment.modify` 
+#### `unique_sdk.MessageAssessment.modify`
 
 Modify an existing message assessment.
 
@@ -701,7 +700,7 @@ A metadata filter such as the one designed above can be used in a `Search.create
 
 ### Chat History
 
-#### `unique_sdk.util.chat_history.load_history`
+#### `unique_sdk.utils.chat_history.load_history`
 
 A helper function that makes sure the chat history is fully loaded and cut to the size of the token window that it fits into the next round of chat interactions.
 
@@ -719,7 +718,7 @@ history = unique_sdk.utils.chat_history.load_history(
 )
 ```
 
-#### `unique_sdk.util.chat_history.convert_chat_history_to_injectable_string`
+#### `unique_sdk.utils.chat_history.convert_chat_history_to_injectable_string`
 
 convert history into a string that can be injected into a prompt. it als returns the token length of the converted history.
 
@@ -733,7 +732,7 @@ chat_history-string, chat_context_token_length = unique_sdk.utils.chat_history.c
 
 Interacting with the knowledge-base.
 
-#### `unique_sdk.util.file_io.download_content`
+#### `unique_sdk.utils.file_io.download_content`
 
 download files and save them into a folder in `/tmp`
 
@@ -749,7 +748,7 @@ pdfFile = download_content(
 }
 ```
 
-#### `unique_sdk.util.file_io.upload_file`
+#### `unique_sdk.utils.file_io.upload_file`
 
 Allows for uploading files that then get ingested in a scope or a chat.
 
@@ -759,15 +758,15 @@ createdContent = upload_file(
     userId=userId,
     path_to_file="/tmp/hello.pdf",
     displayed_filename="hello.pdf",
-    mimeType="application/pdf",
-    uploadScope="scope_stcj2osgbl722m22jayidx0n",
+    mime_type="application/pdf",
+    scope_or_unique_path="scope_stcj2osgbl722m22jayidx0n",
     chat_id=None,
 )
 ```
 
 ### Sources
 
-#### `unique_sdk.util.sources.merge_sources`
+#### `unique_sdk.utils.sources.merge_sources`
 
 Merges multiple search results based on their 'id', removing redundant document and info markers.
 
@@ -796,15 +795,15 @@ search = unique_sdk.Search.create(
     chatOnly=False,
 )
 
-searchContext = unique_sdk.util.token.pick_search_results_for_token_window(
+searchContext = unique_sdk.utils.token.pick_search_results_for_token_window(
         search["data"], config["maxTokens"] - historyLength
     )
 
-searchContext = unique_sdk.util.sources.merge_sources(search)
+searchContext = unique_sdk.utils.sources.merge_sources(search)
 
 ```
 
-#### `unique_sdk.util.sources.sort_sources`
+#### `unique_sdk.utils.sources.sort_sources`
 
 Sort sources by order of appearance in documents
 
@@ -821,14 +820,14 @@ search = unique_sdk.Search.create(
     chatOnly=False,
 )
 
-searchContext = unique_sdk.util.token.pick_search_results_for_token_window(
+searchContext = unique_sdk.utils.token.pick_search_results_for_token_window(
         search["data"], config["maxTokens"] - historyLength
     )
 
-searchContext = unique_sdk.util.sources.sort_sources(search)
+searchContext = unique_sdk.utils.sources.sort_sources(search)
 ```
 
-#### `unique_sdk.util.sources.post_process_sources`
+#### `unique_sdk.utils.sources.post_process_sources`
 
 Post-processes the provided text by converting source references into superscript numerals (required
 format by backend to display sources in the chat window)
@@ -855,7 +854,7 @@ text_with_sup = post_process_sources(text)
 
 ### Token
 
-#### unique_sdk.util.token.pick_search_results_for_token_window
+#### unique_sdk.utils.token.pick_search_results_for_token_window
 
 Selects and returns a list of search results that fit within a specified token limit.
 
@@ -884,12 +883,12 @@ search = unique_sdk.Search.create(
     chatOnly=False,
 )
 
-searchContext = unique_sdk.util.token.pick_search_results_for_token_window(
+searchContext = unique_sdk.utils.token.pick_search_results_for_token_window(
         search["data"], config["maxTokens"] - historyLength
     )
 ```
 
-#### unique_sdk.util.token.count_tokens
+#### unique_sdk.utils.token.count_tokens
 
 Counts the number of tokens in the provided text.
 
@@ -906,7 +905,7 @@ Returns:
 
 ```python
 hello = "hello you!"
-searchContext = unique_sdk.util.token.count_tokens(hello)
+searchContext = unique_sdk.utils.token.count_tokens(hello)
 ```
 
 ## Error Handling
