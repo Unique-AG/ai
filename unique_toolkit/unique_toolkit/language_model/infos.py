@@ -301,7 +301,6 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.STREAMING,
                         ModelCapabilities.REASONING,
                         ModelCapabilities.VISION,
-
                     ],
                     provider=LanguageModelProvider.AZURE,
                     version="2025-04-16",
@@ -321,7 +320,6 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.STREAMING,
                         ModelCapabilities.REASONING,
                         ModelCapabilities.VISION,
-
                     ],
                     provider=LanguageModelProvider.AZURE,
                     version="2025-04-16",
