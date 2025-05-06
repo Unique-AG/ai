@@ -25,8 +25,8 @@ class LanguageModelName(StrEnum):
     AZURE_GPT_41_2025_0414 = "AZURE_GPT_41_2025_0414"
     AZURE_o3_2025_0416 = "AZURE_o3_2025_0416"
     AZURE_o4_MINI_2025_0416 = "AZURE_o4_MINI_2025_0416"
-    LITELLM_ANTHROPIC_CLAUDE_3_7_SONNET = "litellm:anthropic-claude-3-7-sonnet"
-    LITELLM_ANTHROPIC_CLAUDE_3_7_SONNET_THINKING = (
+    ANTHROPIC_CLAUDE_3_7_SONNET = "litellm:anthropic-claude-3-7-sonnet"
+    ANTHROPIC_CLAUDE_3_7_SONNET_THINKING = (
         "litellm:anthropic-claude-3-7-sonnet-thinking"
     )
     LITELLM_GEMINI_2_0_FLASH = "litellm:gemini-2-0-flash"
@@ -374,7 +374,7 @@ class LanguageModelInfo(BaseModel):
                     info_cutoff_at=date(2024, 5, 31),
                     published_at=date(2025, 4, 14),
                 )
-            case LanguageModelName.LITELLM_ANTHROPIC_CLAUDE_3_7_SONNET:
+            case LanguageModelName.ANTHROPIC_CLAUDE_3_7_SONNET:
                 return cls(
                     name=model_name,
                     capabilities=[
@@ -391,7 +391,7 @@ class LanguageModelInfo(BaseModel):
                     info_cutoff_at=date(2024, 10, 31),
                     published_at=date(2025, 2, 24),
                 )
-            case LanguageModelName.LITELLM_ANTHROPIC_CLAUDE_3_7_SONNET_THINKING:
+            case LanguageModelName.ANTHROPIC_CLAUDE_3_7_SONNET_THINKING:
                 return cls(
                     name=model_name,
                     capabilities=[
@@ -409,7 +409,7 @@ class LanguageModelInfo(BaseModel):
                     info_cutoff_at=date(2024, 10, 31),
                     published_at=date(2025, 2, 24),
                 )
-            case LanguageModelName.LITELLM_GEMINI_2_0_FLASH:
+            case LanguageModelName.GEMINI_2_0_FLASH:
                 return cls(
                     name=model_name,
                     capabilities=[
