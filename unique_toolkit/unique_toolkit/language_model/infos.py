@@ -23,6 +23,8 @@ class LanguageModelName(StrEnum):
     AZURE_o3_MINI_2025_0131 = "AZURE_o3_MINI_2025_0131"
     AZURE_GPT_45_PREVIEW_2025_0227 = "AZURE_GPT_45_PREVIEW_2025_0227"
     AZURE_GPT_41_2025_0414 = "AZURE_GPT_41_2025_0414"
+    AZURE_o3_2025_0416 = "AZURE_o3_2025_0416"
+    AZURE_o4_MINI_2025_0416 = "AZURE_o4_MINI_2025_0416"
 
 
 class EncoderName(StrEnum):
@@ -289,6 +291,44 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2023, 10, 1),
                     published_at=date(2025, 1, 31),
+                )
+            case LanguageModelName.AZURE_o3_2025_0416:
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.VISION,
+                    ],
+                    provider=LanguageModelProvider.AZURE,
+                    version="2025-04-16",
+                    encoder_name=EncoderName.O200K_BASE,
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=200_000, token_limit_output=100_000
+                    ),
+                    info_cutoff_at=date(2024, 5, 31),
+                    published_at=date(2025, 4, 16),
+                )
+            case LanguageModelName.AZURE_o4_MINI_2025_0416:
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.VISION,
+                    ],
+                    provider=LanguageModelProvider.AZURE,
+                    version="2025-04-16",
+                    encoder_name=EncoderName.O200K_BASE,
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=200_000, token_limit_output=100_000
+                    ),
+                    info_cutoff_at=date(2024, 5, 31),
+                    published_at=date(2025, 4, 16),
                 )
             case LanguageModelName.AZURE_GPT_45_PREVIEW_2025_0227:
                 return cls(

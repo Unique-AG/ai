@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.12] - 2025-05-02
+- add `AZURE_o3_2025_0416` and `AZURE_o4_MINI_2025_0416` as part of the models
+
 ## [0.7.11] - 2025-04-28
 - Removing `STRUCTURED_OUTPUT` capability from `AZURE_GPT_35_TURBO_0125`, `AZURE_GPT_4_TURBO_2024_0409` and `AZURE_GPT_4o_2024_0513`
 
