@@ -428,6 +428,24 @@ class LanguageModelInfo(BaseModel):
                     info_cutoff_at=date(2024, 8, 1),
                     published_at=date(2025, 2, 1),
                 )
+            case LanguageModelName.GEMINI_2_5_FLASH_PREVIEW_0417:
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    version="gemini-2-5-flash-preview-04-17",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO:Replace with LLM tokenizer
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=1_048_576, token_limit_output=65_536
+                    ),
+                    info_cutoff_at=date(2025, 1, day=1),
+                    published_at=date(2025, 3, 1),
+                )
             case LanguageModelName.LITELLM_GEMINI_2_5_FLASH_PREVIEW_0417:
                 return cls(
                     name=model_name,
