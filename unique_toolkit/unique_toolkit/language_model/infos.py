@@ -26,7 +26,9 @@ class LanguageModelName(StrEnum):
     AZURE_o3_2025_0416 = "AZURE_o3_2025_0416"
     AZURE_o4_MINI_2025_0416 = "AZURE_o4_MINI_2025_0416"
     LITELLM_ANTHROPIC_CLAUDE_3_7_SONNET = "litellm:anthropic-claude-3-7-sonnet"
-    LITELLM_ANTHROPIC_CLAUDE_3_7_SONNET_THINKING = "litellm:anthropic-claude-3-7-sonnet-thinking"
+    LITELLM_ANTHROPIC_CLAUDE_3_7_SONNET_THINKING = (
+        "litellm:anthropic-claude-3-7-sonnet-thinking"
+    )
     LITELLM_GEMINI_2_0_FLASH = "litellm:gemini-2-0-flash"
     LITELLM_GEMINI_2_5_FLASH_PREVIEW_0417 = "litellm:gemini-2-5-flash-preview-04-17"
     LITELLM_GEMINI_2_5_PRO_EXP_0325 = "litellm:gemini-2-5-pro-exp-03-25"
