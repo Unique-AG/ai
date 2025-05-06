@@ -282,6 +282,11 @@ createdContent = upload_file(
     "test.pdf",
     "application/pdf",
     "scope_stcj2osgbl722m22jayidx0n",
+    ingestionConfig={
+        "chunkMaxTokens": 1000,
+        "chunkStrategy": "default",
+        "uniqueIngestionMode": "standard",
+    },
 )
 
 def upload_file(
@@ -291,6 +296,7 @@ def upload_file(
     displayed_filename,
     mimeType,
     scope_or_unique_path,
+    ingestion_config=None,
 ):
     size = os.path.getsize(path_to_file)
     createdContent = unique_sdk.Content.upsert(
@@ -300,6 +306,7 @@ def upload_file(
             "key": displayed_filename,
             "title": displayed_filename,
             "mimeType": mimeType,
+            "ingestionConfig": ingestionConfig,
         },
         scopeId=scope_or_unique_path,
     )
@@ -325,6 +332,7 @@ def upload_file(
             "title": displayed_filename,
             "mimeType": mimeType,
             "byteSize": size,
+            "ingestionConfig": ingestionConfig,
         },
         scopeId=scope_or_unique_path,
         readUrl=createdContent.readUrl,

@@ -128,6 +128,11 @@ class TestContentServiceIntegration:
             temp_file.write(b"Test content for integration")
             temp_file_path = temp_file.name
 
+        ingestion_config = {
+            "chunkStrategy": "default",
+            "uniqueIngestionMode": "standard",
+        }
+
         try:
             # Test upload_content
             uploaded_content = self.service.upload_content(
@@ -135,6 +140,7 @@ class TestContentServiceIntegration:
                 content_name="integration_test.txt",
                 mime_type="text/plain",
                 scope_id=test_scope_id,
+                ingestion_config=ingestion_config,
             )
 
             assert uploaded_content is not None

@@ -65,8 +65,28 @@ class Content(APIResource["Content"]):
         where: "Content.ContentWhereInput"
         chatId: NotRequired[str]
 
-    class IngestionConfig(TypedDict):
+    class CustomApiOptions(TypedDict):
+        apiIdentifier: str
+        apiPayload: Optional[str]
+        customisationType: str
+
+    class VttConfig(TypedDict, total=False):
+        languageModel: Optional[str]
+
+    class IngestionConfig(TypedDict, total=False):
+        chunkMaxTokens: Optional[int]
+        chunkMaxTokensOnePager: Optional[int]
+        chunkMinTokens: Optional[int]
+        chunkStrategy: Optional[str]
+        customApiOptions: Optional[List["Content.CustomApiOptions"]]
+        documentMinTokens: Optional[int]
+        excelReadMode: Optional[str]
+        jpgReadMode: Optional[str]
+        pdfReadMode: Optional[str]
+        pptReadMode: Optional[str]
         uniqueIngestionMode: str
+        vttConfig: Optional["Content.VttConfig"]
+        wordReadMode: Optional[str]
 
     class Input(TypedDict):
         key: str
