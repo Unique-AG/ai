@@ -384,7 +384,7 @@ class LanguageModelInfo(BaseModel):
                     ],
                     provider=LanguageModelProvider.LITELLM,
                     version="claude-3-7-sonnet",
-                    encoder_name=EncoderName.O200K_BASE, # TODO: Update encoder with litellm
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=200_000, token_limit_output=128_000
                     ),
@@ -402,7 +402,7 @@ class LanguageModelInfo(BaseModel):
                     ],
                     provider=LanguageModelProvider.LITELLM,
                     version="claude-3-7-sonnet-thinking",
-                    encoder_name=EncoderName.O200K_BASE, # TODO: Update encoder with litellm
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=200_000, token_limit_output=128_000
                     ),
@@ -421,7 +421,7 @@ class LanguageModelInfo(BaseModel):
                     ],
                     provider=LanguageModelProvider.LITELLM,
                     version="gemini-2-0-flash",
-                    encoder_name=EncoderName.O200K_BASE, # TODO: Update encoder with litellm
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=1_048_576, token_limit_output=8_192
                     ),
@@ -459,7 +459,7 @@ class LanguageModelInfo(BaseModel):
                     ],
                     provider=LanguageModelProvider.LITELLM,
                     version="gemini-2-5-pro-exp-0325",
-                    encoder_name=EncoderName.O200K_BASE, # TODO: Update encoder with litellm
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=1_048_576, token_limit_output=65_536
                     ),
