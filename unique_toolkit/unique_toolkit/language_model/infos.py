@@ -29,9 +29,9 @@ class LanguageModelName(StrEnum):
     ANTHROPIC_CLAUDE_3_7_SONNET_THINKING = (
         "litellm:anthropic-claude-3-7-sonnet-thinking"
     )
-    LITELLM_GEMINI_2_0_FLASH = "litellm:gemini-2-0-flash"
-    LITELLM_GEMINI_2_5_FLASH_PREVIEW_0417 = "litellm:gemini-2-5-flash-preview-04-17"
-    LITELLM_GEMINI_2_5_PRO_EXP_0325 = "litellm:gemini-2-5-pro-exp-03-25"
+    GEMINI_2_0_FLASH = "litellm:gemini-2-0-flash"
+    GEMINI_2_5_FLASH_PREVIEW_0417 = "litellm:gemini-2-5-flash-preview-04-17"
+    GEMINI_2_5_PRO_EXP_0325 = "litellm:gemini-2-5-pro-exp-03-25"
 
 
 class EncoderName(StrEnum):
@@ -436,6 +436,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.STREAMING,
                         ModelCapabilities.VISION,
                         ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.REASONING,
                     ],
                     provider=LanguageModelProvider.LITELLM,
                     version="gemini-2-5-flash-preview-04-17",
@@ -444,28 +445,9 @@ class LanguageModelInfo(BaseModel):
                         token_limit_input=1_048_576, token_limit_output=65_536
                     ),
                     info_cutoff_at=date(2025, 1, day=1),
-                    published_at=date(2025, 3, 1),
+                    published_at=date(2025, 4, 1),
                 )
-            case LanguageModelName.LITELLM_GEMINI_2_5_FLASH_PREVIEW_0417:
-                return cls(
-                    name=model_name,
-                    capabilities=[
-                        ModelCapabilities.FUNCTION_CALLING,
-                        ModelCapabilities.STREAMING,
-                        ModelCapabilities.VISION,
-                        ModelCapabilities.STRUCTURED_OUTPUT,
-                        ModelCapabilities.REASONING,
-                    ],
-                    provider=LanguageModelProvider.LITELLM,
-                    version="gemini-2-5-flash-preview-04-17",
-                    encoder_name=EncoderName.O200K_BASE, # TODO: Update encoder with litellm
-                    token_limits=LanguageModelTokenLimits(
-                        token_limit_input=1_048_576, token_limit_output=65_536
-                    ),
-                    info_cutoff_at=date(2025, 1, day=1),
-                    published_at=date(2025, 3, 1),
-                )
-            case LanguageModelName.LITELLM_GEMINI_2_5_PRO_EXP_0325:
+            case LanguageModelName.GEMINI_2_5_PRO_EXP_0325:
                 return cls(
                     name=model_name,
                     capabilities=[

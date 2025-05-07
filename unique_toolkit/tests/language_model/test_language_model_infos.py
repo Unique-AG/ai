@@ -32,6 +32,7 @@ class TestLanguageModelInfos:
             LanguageModelName.ANTHROPIC_CLAUDE_3_7_SONNET,
             LanguageModelName.ANTHROPIC_CLAUDE_3_7_SONNET_THINKING,
             LanguageModelName.GEMINI_2_0_FLASH,
+            LanguageModelName.GEMINI_2_5_FLASH_PREVIEW_0417,
             LanguageModelName.GEMINI_2_5_PRO_EXP_0325,
         ]
         assert len(models) == len(expected_models)
