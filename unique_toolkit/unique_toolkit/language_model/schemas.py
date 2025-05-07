@@ -11,6 +11,7 @@ from pydantic import (
     Field,
     PrivateAttr,
     RootModel,
+    field_serializer,
     field_validator,
     model_serializer,
     model_validator,
@@ -265,6 +266,9 @@ class LanguageModelTokenLimits(BaseModel):
         )
 
 
+@deprecated(
+    "Deprecated as `LanguageModelTool` is deprecated in favor of `LanguageModelToolDescription`"
+)
 class LanguageModelToolParameterProperty(BaseModel):
     type: str
     description: str
@@ -272,12 +276,18 @@ class LanguageModelToolParameterProperty(BaseModel):
     items: Optional[Self] = None
 
 
+@deprecated(
+    "Deprecated as `LanguageModelTool` is deprecated in favor of `LanguageModelToolDescription`"
+)
 class LanguageModelToolParameters(BaseModel):
     type: str = "object"
     properties: dict[str, LanguageModelToolParameterProperty]
     required: list[str]
 
 
+@deprecated(
+    "Deprecated as `LanguageModelTool` use `LanguageModelToolDescription` instead"
+)
 class LanguageModelTool(BaseModel):
     name: str = Field(
         ...,
@@ -286,8 +296,34 @@ class LanguageModelTool(BaseModel):
     )
     description: str
     parameters: (
-        LanguageModelToolParameters | dict
+        LanguageModelToolParameters | dict[str, Any]
     )  # dict represents json schema dumped from pydantic
     returns: LanguageModelToolParameterProperty | LanguageModelToolParameters | None = (
         None
     )
+
+
+class LanguageModelToolDescription(BaseModel):
+    name: str = Field(
+        ...,
+        pattern=r"^[a-zA-Z1-9_-]+$",
+        description="Name must adhere to the pattern ^[a-zA-Z1-9_-]+$",
+    )
+    description: str = Field(
+        ...,
+        description="Description of what the tool is doing the tool",
+    )
+    parameters: type[BaseModel] = Field(
+        ...,
+        description="Pydantic model for the tool parameters",
+    )
+
+    # TODO: This should be default `True` but if this is the case the parameter_model needs to include additional properties
+    strict: bool = Field(
+        default=False,
+        description="Setting strict to true will ensure function calls reliably adhere to the function schema, instead of being best effort. If set to True the `parameter_model` set `model_config = {'extra':'forbid'}` must be set for on all BaseModels.",
+    )
+
+    @field_serializer("parameters")
+    def serialize_parameters(self, parameters: type[BaseModel]):
+        return parameters.model_json_schema()

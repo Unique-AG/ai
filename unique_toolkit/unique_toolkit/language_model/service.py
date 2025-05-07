@@ -20,6 +20,7 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
     LanguageModelResponse,
     LanguageModelTool,
+    LanguageModelToolDescription,
 )
 
 logger = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
@@ -69,6 +70,58 @@ class LanguageModelService:
             Event | BaseEvent | None: The event object.
         """
         return self._event
+    
+    @property
+    @deprecated(
+        "The company_id property is deprecated and will be removed in a future version."
+    )
+    def company_id(self) -> str | None:
+        """
+        Get the company identifier (deprecated).
+
+        Returns:
+            str | None: The company identifier.
+        """
+        return self._company_id
+    
+    @property
+    @deprecated(
+        "The user_id property is deprecated and will be removed in a future version."
+    )
+    def user_id(self) -> str | None:
+        """
+        Get the user identifier (deprecated).
+
+        Returns:
+            str | None: The user identifier.
+        """
+        return self._user_id
+    
+    @property
+    @deprecated(
+        "The chat_id property is deprecated and will be removed in a future version."
+    )
+    def chat_id(self) -> str | None:
+        """
+        Get the chat identifier (deprecated).
+
+        Returns:
+            str | None: The chat identifier.
+        """
+        return self._chat_id
+    
+    @property
+    @deprecated(
+        "The assistant_id property is deprecated and will be removed in a future version."
+    )
+    def assistant_id(self) -> str | None:
+        """
+        Get the assistant identifier (deprecated).
+
+        Returns:
+            str | None: The assistant identifier.
+        """
+        return self._assistant_id
 
     @property
     @deprecated(
@@ -180,7 +233,7 @@ class LanguageModelService:
         model_name: LanguageModelName | str,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
-        tools: Optional[list[LanguageModelTool]] = None,
+        tools: Optional[list[LanguageModelTool | LanguageModelToolDescription]] = None,
         structured_output_model: Optional[Type[BaseModel]] = None,
         structured_output_enforce_schema: bool = False,
         other_options: Optional[dict] = None,
@@ -208,7 +261,7 @@ class LanguageModelService:
         model_name: LanguageModelName | str,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
-        tools: Optional[list[LanguageModelTool]] = None,
+        tools: Optional[list[LanguageModelTool | LanguageModelToolDescription]] = None,
         structured_output_model: Optional[Type[BaseModel]] = None,
         structured_output_enforce_schema: bool = False,
         other_options: Optional[dict] = None,
@@ -239,7 +292,7 @@ class LanguageModelService:
         model_name: LanguageModelName | str,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
-        tools: Optional[list[LanguageModelTool]] = None,
+        tools: Optional[list[LanguageModelTool | LanguageModelToolDescription]] = None,
         structured_output_model: Optional[Type[BaseModel]] = None,
         structured_output_enforce_schema: bool = False,
         other_options: Optional[dict] = None,
