@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.13] - 2025-05-07
+- Adding litellm models `litellm:anthropic-claude-3-7-sonnet`, `litellm:anthropic-claude-3-7-sonnet-thinking`, `litellm:gemini-2-0-flash`, `gemini-2-5-flash-preview-04-17` , `litellm:gemini-2-5-pro-exp-03-25`
+
 ## [0.7.12] - 2025-05-02
 - add `AZURE_o3_2025_0416` and `AZURE_o4_MINI_2025_0416` as part of the models
 
