@@ -213,6 +213,7 @@ def upload_content_from_bytes(
     scope_id: str | None = None,
     chat_id: str | None = None,
     skip_ingestion: bool = False,
+    ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
 ):
     """
     Uploads content to the knowledge base.
@@ -241,6 +242,7 @@ def upload_content_from_bytes(
             scope_id=scope_id,
             chat_id=chat_id,
             skip_ingestion=skip_ingestion,
+            ingestion_config=ingestion_config,
         )
     except Exception as e:
         logger.error(f"Error while uploading content: {e}")
@@ -256,6 +258,7 @@ def upload_content(
     scope_id: str | None = None,
     chat_id: str | None = None,
     skip_ingestion: bool = False,
+    ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
 ):
     """
     Uploads content to the knowledge base.
@@ -284,6 +287,7 @@ def upload_content(
             scope_id=scope_id,
             chat_id=chat_id,
             skip_ingestion=skip_ingestion,
+            ingestion_config=ingestion_config,
         )
     except Exception as e:
         logger.error(f"Error while uploading content: {e}")
@@ -299,6 +303,7 @@ def _trigger_upload_content(
     scope_id: str | None = None,
     chat_id: str | None = None,
     skip_ingestion: bool = False,
+    ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
 ):
     """
     Uploads content to the knowledge base.
@@ -368,15 +373,19 @@ def _trigger_upload_content(
         logger.error(error_msg)
         raise ValueError(error_msg)
 
+    if ingestion_config is None:
+        ingestion_config = {}
+
+    if skip_ingestion:
+        ingestion_config["uniqueIngestionMode"] = "SKIP_INGESTION"
+
     input_dict = {
         "key": content_name,
         "title": content_name,
         "mimeType": mime_type,
         "byteSize": byte_size,
+        "ingestionConfig": ingestion_config,
     }
-
-    if skip_ingestion:
-        input_dict["ingestionConfig"] = {"uniqueIngestionMode": "SKIP_INGESTION"}
 
     if chat_id:
         _upsert_content(

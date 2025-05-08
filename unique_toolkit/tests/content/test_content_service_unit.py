@@ -278,6 +278,11 @@ class TestContentServiceUnit:
                 temp_file.write(b"Test content")
                 temp_content_path = temp_file.name
 
+            ingestion_config = {
+                "chunkStrategy": "default",
+                "uniqueIngestionMode": "standard",
+            }
+
             mock_upsert.side_effect = [
                 {
                     "id": "test_content_id",
@@ -296,6 +301,7 @@ class TestContentServiceUnit:
                     "byteSize": 100,
                     "writeUrl": "http://test-write-url.com",
                     "readUrl": "http://test-read-url.com",
+                    "ingestionConfig": ingestion_config,
                 },
             ]
 
@@ -304,6 +310,7 @@ class TestContentServiceUnit:
                 content_name="test.txt",
                 mime_type="text/plain",
                 scope_id="test_scope",
+                ingestion_config=ingestion_config,
             )
 
             assert isinstance(result, Content)
@@ -338,6 +345,11 @@ class TestContentServiceUnit:
             # Create a temporary file for testing
             content = b"Test content"
 
+            ingestion_config = {
+                "chunkStrategy": "default",
+                "uniqueIngestionMode": "standard",
+            }
+
             mock_upsert.side_effect = [
                 {
                     "id": "test_content_id",
@@ -356,6 +368,7 @@ class TestContentServiceUnit:
                     "byteSize": 100,
                     "writeUrl": "http://test-write-url.com",
                     "readUrl": "http://test-read-url.com",
+                    "ingestionConfig": ingestion_config,
                 },
             ]
 
@@ -364,6 +377,7 @@ class TestContentServiceUnit:
                 content_name="test.txt",
                 mime_type="text/plain",
                 scope_id="test_scope",
+                ingestion_config=ingestion_config,
             )
 
             assert isinstance(result, Content)
@@ -407,8 +421,16 @@ class TestContentServiceUnit:
                     "byteSize": temp_file_size,
                     "writeUrl": "http://test-write-url.com",
                     "readUrl": "http://test-read-url.com",
+                    "ingestionConfig": {
+                        "chunkStrategy": "default",
+                        "uniqueIngestionMode": "SKIP_INGESTION",
+                    },
                 },
             ]
+
+            ingestion_config = {
+                "chunkStrategy": "default",
+            }
 
             result = self.service.upload_content(
                 path_to_content=temp_content_path,
@@ -416,6 +438,7 @@ class TestContentServiceUnit:
                 mime_type="text/plain",
                 scope_id="test_scope",
                 skip_ingestion=True,
+                ingestion_config=ingestion_config,
             )
 
             assert isinstance(result, Content)
@@ -453,7 +476,10 @@ class TestContentServiceUnit:
                 "title": "test.txt",
                 "mimeType": "text/plain",
                 "byteSize": temp_file_size,
-                "ingestionConfig": {"uniqueIngestionMode": "SKIP_INGESTION"},
+                "ingestionConfig": {
+                    "chunkStrategy": "default",
+                    "uniqueIngestionMode": "SKIP_INGESTION",
+                },
             }
             assert second_upsert_call[1]["fileUrl"] == "http://test-read-url.com"
             assert second_upsert_call[1]["scopeId"] == "test_scope"

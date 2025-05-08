@@ -1,10 +1,12 @@
 import os
 import tempfile
 from pathlib import Path
+from typing import Optional
 
 import requests
 
 import unique_sdk
+from unique_sdk.api_resources._content import Content
 
 
 # download readUrl a random directory in /tmp
@@ -38,19 +40,21 @@ def upload_file(
     mime_type,
     scope_or_unique_path=None,
     chat_id=None,
+    ingestion_config: Optional[Content.IngestionConfig] = None,
 ):
     # check that chatid or scope_or_unique_path is provided
     if not chat_id and not scope_or_unique_path:
         raise ValueError("chat_id or scope_or_unique_path must be provided")
 
     size = os.path.getsize(path_to_file)
-    createdContent = unique_sdk.Content.upsert(
+    createdContent = Content.upsert(
         user_id=userId,
         company_id=companyId,
         input={
             "key": displayed_filename,
             "title": displayed_filename,
             "mimeType": mime_type,
+            "ingestionConfig": ingestion_config,  # Pass ingestionConfig here
         },
         scopeId=scope_or_unique_path,
         chatId=chat_id,
@@ -78,6 +82,7 @@ def upload_file(
                 "title": displayed_filename,
                 "mimeType": mime_type,
                 "byteSize": size,
+                "ingestionConfig": ingestion_config,
             },
             fileUrl=createdContent.readUrl,
             chatId=chat_id,
@@ -91,6 +96,7 @@ def upload_file(
                 "title": displayed_filename,
                 "mimeType": mime_type,
                 "byteSize": size,
+                "ingestionConfig": ingestion_config,
             },
             fileUrl=createdContent.readUrl,
             scopeId=scope_or_unique_path,

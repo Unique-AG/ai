@@ -152,6 +152,11 @@ def test_upload_content(mock_upsert, mock_put, mock_sdk, sample_content_data, tm
     test_file = tmp_path / "test.txt"
     test_file.write_text("test content")
 
+    ingestion_config = {
+        "chunkStrategy": "default",
+        "uniqueIngestionMode": "standard",
+    }
+
     # Execute
     result = upload_content(
         user_id="user123",
@@ -160,12 +165,15 @@ def test_upload_content(mock_upsert, mock_put, mock_sdk, sample_content_data, tm
         content_name="test.txt",
         mime_type="text/plain",
         scope_id="scope123",
+        ingestion_config=ingestion_config,
     )
 
     # Assert
     assert isinstance(result, Content)
     mock_upsert.assert_called()
     mock_put.assert_called_once()
+    call_kwargs = mock_upsert.call_args[1]
+    assert call_kwargs["input_data"]["ingestionConfig"] == ingestion_config
 
 
 @patch("unique_toolkit.content.functions.requests.put")
@@ -175,6 +183,11 @@ def test_upload_content_from_bytes(mock_upsert, mock_put, sample_content_data):
     mock_upsert.return_value = sample_content_data
     content = b"test content"
 
+    ingestion_config = {
+        "chunkStrategy": "default",
+        "uniqueIngestionMode": "standard",
+    }
+
     # Execute
     result = upload_content_from_bytes(
         user_id="user123",
@@ -183,10 +196,13 @@ def test_upload_content_from_bytes(mock_upsert, mock_put, sample_content_data):
         content_name="test.txt",
         mime_type="text/plain",
         scope_id="scope123",
+        ingestion_config=ingestion_config,
     )
 
     # Assert
     assert isinstance(result, Content)
+    call_kwargs = mock_upsert.call_args[1]
+    assert call_kwargs["input_data"]["ingestionConfig"] == ingestion_config
 
 
 @patch("unique_toolkit.content.functions.requests.get")
@@ -446,6 +462,12 @@ def test_upload_content_missing_write_url(mock_sdk, tmp_path):
         "updatedAt": "2024-01-01T00:00:00Z",
     }
 
+    ingestion_config = {
+        "chunkMaxTokens": 1000,
+        "chunkStrategy": "default",
+        "uniqueIngestionMode": "standard",
+    }
+
     # Execute & Assert
     with pytest.raises(ValueError) as exc_info:
         upload_content(
@@ -455,5 +477,6 @@ def test_upload_content_missing_write_url(mock_sdk, tmp_path):
             content_name="test.txt",
             mime_type="text/plain",
             scope_id="scope123",
+            ingestion_config=ingestion_config,
         )
     assert "Write url for uploaded content is missing" in str(exc_info.value)
