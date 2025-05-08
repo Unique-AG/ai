@@ -5,8 +5,8 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.9.26] - 2025-05-06
-- Add the possibility to add the ingestionConfig when creating or updating a Content.
+## [0.9.26] - 2025-05-08
+- Add the possibility to specify ingestionConfig when creating or updating a Content.
 
 ## [0.9.25] - 2025-05-02
 - Fixed typos in `README.md`, including incorrect `sdk.utils` imports and code example errors.

@@ -23,6 +23,15 @@ class LanguageModelName(StrEnum):
     AZURE_o3_MINI_2025_0131 = "AZURE_o3_MINI_2025_0131"
     AZURE_GPT_45_PREVIEW_2025_0227 = "AZURE_GPT_45_PREVIEW_2025_0227"
     AZURE_GPT_41_2025_0414 = "AZURE_GPT_41_2025_0414"
+    AZURE_o3_2025_0416 = "AZURE_o3_2025_0416"
+    AZURE_o4_MINI_2025_0416 = "AZURE_o4_MINI_2025_0416"
+    ANTHROPIC_CLAUDE_3_7_SONNET = "litellm:anthropic-claude-3-7-sonnet"
+    ANTHROPIC_CLAUDE_3_7_SONNET_THINKING = (
+        "litellm:anthropic-claude-3-7-sonnet-thinking"
+    )
+    GEMINI_2_0_FLASH = "litellm:gemini-2-0-flash"
+    GEMINI_2_5_FLASH_PREVIEW_0417 = "litellm:gemini-2-5-flash-preview-04-17"
+    GEMINI_2_5_PRO_EXP_0325 = "litellm:gemini-2-5-pro-exp-03-25"
 
 
 class EncoderName(StrEnum):
@@ -57,6 +66,7 @@ def get_encoder_name(model_name: LanguageModelName) -> EncoderName:
 class LanguageModelProvider(StrEnum):
     AZURE = "AZURE"
     CUSTOM = "CUSTOM"
+    LITELLM = "LITELLM"
 
 
 class ModelCapabilities(StrEnum):
@@ -290,6 +300,44 @@ class LanguageModelInfo(BaseModel):
                     info_cutoff_at=date(2023, 10, 1),
                     published_at=date(2025, 1, 31),
                 )
+            case LanguageModelName.AZURE_o3_2025_0416:
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.VISION,
+                    ],
+                    provider=LanguageModelProvider.AZURE,
+                    version="2025-04-16",
+                    encoder_name=EncoderName.O200K_BASE,
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=200_000, token_limit_output=100_000
+                    ),
+                    info_cutoff_at=date(2024, 5, 31),
+                    published_at=date(2025, 4, 16),
+                )
+            case LanguageModelName.AZURE_o4_MINI_2025_0416:
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.VISION,
+                    ],
+                    provider=LanguageModelProvider.AZURE,
+                    version="2025-04-16",
+                    encoder_name=EncoderName.O200K_BASE,
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=200_000, token_limit_output=100_000
+                    ),
+                    info_cutoff_at=date(2024, 5, 31),
+                    published_at=date(2025, 4, 16),
+                )
             case LanguageModelName.AZURE_GPT_45_PREVIEW_2025_0227:
                 return cls(
                     name=model_name,
@@ -325,6 +373,98 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2024, 5, 31),
                     published_at=date(2025, 4, 14),
+                )
+            case LanguageModelName.ANTHROPIC_CLAUDE_3_7_SONNET:
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    version="claude-3-7-sonnet",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=200_000, token_limit_output=128_000
+                    ),
+                    info_cutoff_at=date(2024, 10, 31),
+                    published_at=date(2025, 2, 24),
+                )
+            case LanguageModelName.ANTHROPIC_CLAUDE_3_7_SONNET_THINKING:
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    version="claude-3-7-sonnet-thinking",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=200_000, token_limit_output=128_000
+                    ),
+                    info_cutoff_at=date(2024, 10, 31),
+                    published_at=date(2025, 2, 24),
+                )
+            case LanguageModelName.GEMINI_2_0_FLASH:
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    version="gemini-2-0-flash",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=1_048_576, token_limit_output=8_192
+                    ),
+                    info_cutoff_at=date(2024, 8, 1),
+                    published_at=date(2025, 2, 1),
+                )
+            case LanguageModelName.GEMINI_2_5_FLASH_PREVIEW_0417:
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    version="gemini-2-5-flash-preview-04-17",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO:Replace with LLM tokenizer
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=1_048_576, token_limit_output=65_536
+                    ),
+                    info_cutoff_at=date(2025, 1, day=1),
+                    published_at=date(2025, 4, 1),
+                )
+            case LanguageModelName.GEMINI_2_5_PRO_EXP_0325:
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    version="gemini-2-5-pro-exp-0325",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=1_048_576, token_limit_output=65_536
+                    ),
+                    info_cutoff_at=date(2025, 1, day=1),
+                    published_at=date(2025, 3, 1),
                 )
             case _:
                 if isinstance(model_name, LanguageModelName):
