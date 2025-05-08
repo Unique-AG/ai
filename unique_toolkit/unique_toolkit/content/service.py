@@ -1,6 +1,7 @@
 import logging
 from pathlib import Path
 
+import unique_sdk
 from requests import Response
 from typing_extensions import deprecated
 
@@ -365,6 +366,7 @@ class ContentService:
         scope_id: str | None = None,
         chat_id: str | None = None,
         skip_ingestion: bool = False,
+        ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
     ) -> Content:
         """
         Uploads content to the knowledge base.
@@ -390,6 +392,7 @@ class ContentService:
             scope_id=scope_id,
             chat_id=chat_id,
             skip_ingestion=skip_ingestion,
+            ingestion_config=ingestion_config,
         )
 
     def upload_content(
@@ -400,6 +403,7 @@ class ContentService:
         scope_id: str | None = None,
         chat_id: str | None = None,
         skip_ingestion: bool = False,
+        ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
     ):
         """
         Uploads content to the knowledge base.
@@ -425,6 +429,7 @@ class ContentService:
             scope_id=scope_id,
             chat_id=chat_id,
             skip_ingestion=skip_ingestion,
+            ingestion_config=ingestion_config,
         )
 
     def request_content_by_id(
