@@ -20,6 +20,7 @@ from unique_toolkit.evaluators.schemas import (
     EvaluationMetricName,
     EvaluationMetricResult,
 )
+from unique_toolkit.language_model import LanguageModelName
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
     LanguageModelSystemMessage,
@@ -43,8 +44,9 @@ async def check_hallucination_async(
     config: EvaluationMetricConfig,
     logger: logging.Logger = logger,
 ) -> EvaluationMetricResult | None:
-    """
-    Analyzes the level of hallucination in the generated output by comparing it with the provided input
+    """Analyze the level of hallucination in the generated output.
+
+    by comparing it with the provided input
     and the contexts or history. The analysis classifies the hallucination level as:
     - low
     - medium
@@ -72,16 +74,23 @@ async def check_hallucination_async(
 
     Raises:
         EvaluatorException: If the context texts are empty, required fields are missing, or an error occurs during the evaluation.
+
     """
-    model_name = config.language_model.name
-    logger.info(f"Analyzing level of hallucination with {model_name}.")
+    model_group_name = (
+        config.language_model.name.value
+        if isinstance(config.language_model.name, LanguageModelName)
+        else config.language_model.name
+    )
+    logger.info(f"Analyzing level of hallucination with {model_group_name}.")
 
     input.validate_required_fields(hallucination_required_input_fields)
 
     try:
         msgs = _get_msgs(input, config, logger)
         result = await LanguageModelService.complete_async_util(
-            company_id=company_id, messages=msgs, model_name=model_name
+            company_id=company_id,
+            messages=msgs,
+            model_name=model_group_name,
         )
         result_content = result.choices[0].message.content
         if not result_content:
@@ -104,71 +113,72 @@ async def check_hallucination_async(
 
 
 def _get_msgs(
-    input: EvaluationMetricInput,
+    evaluation_metric_input: EvaluationMetricInput,
     config: EvaluationMetricConfig,
     logger: logging.Logger,
 ):
-    """
-    Composes the messages for hallucination analysis based on the provided input and configuration.
+    """Composes the messages for hallucination analysis based on the provided evaluation_metric_input and configuration.
 
     This method decides how to compose the messages based on the availability of context texts and history
-    message texts in the `input`
+    message texts in the `evaluation_metric_input`
 
     Args:
-        input (EvaluationMetricInput): The input data that includes context texts and history message texts
+        evaluation_metric_input (EvaluationMetricevaluation_metric_input): The evaluation_metric_input data that includes context texts and history message texts
                                       for the analysis.
         config (EvaluationMetricConfig): The configuration settings for composing messages.
         logger (Optional[logging.Logger], optional): The logger used for logging debug information.
                                                      Defaults to the logger for the current module.
 
     Returns:
-        The composed messages as per the provided input and configuration. The exact type and structure
+        The composed messages as per the provided evaluation_metric_input and configuration. The exact type and structure
         depend on the implementation of the `compose_msgs` and `compose_msgs_default` methods.
 
     """
-    if input.context_texts or input.history_messages:
+    if (
+        evaluation_metric_input.context_texts
+        or evaluation_metric_input.history_messages
+    ):
         logger.debug("Using context / history for hallucination evaluation.")
-        return _compose_msgs(input, config)
-    else:
-        logger.debug("No contexts and history provided for hallucination evaluation.")
-        return _compose_msgs_default(input, config)
+        return _compose_msgs(evaluation_metric_input, config)
+    logger.debug("No contexts and history provided for hallucination evaluation.")
+    return _compose_msgs_default(evaluation_metric_input, config)
 
 
 def _compose_msgs(
-    input: EvaluationMetricInput,
+    evaluation_metric_input: EvaluationMetricInput,
     config: EvaluationMetricConfig,
 ):
-    """
-    Composes the hallucination analysis messages.
-    """
+    """Composes the hallucination analysis messages."""
     system_msg_content = _get_system_prompt_with_contexts(config)
     system_msg = LanguageModelSystemMessage(content=system_msg_content)
 
     user_msg_templ = Template(_get_user_prompt_with_contexts(config))
     user_msg_content = user_msg_templ.substitute(
-        input_text=input.input_text,
-        contexts_text=input.get_joined_context_texts(tag_name="reference"),
-        history_messages_text=input.get_joined_history_texts(tag_name="conversation"),
-        output_text=input.output_text,
+        evaluation_metric_input_text=evaluation_metric_input.evaluation_metric_input_text,
+        contexts_text=evaluation_metric_input.get_joined_context_texts(
+            tag_name="reference",
+        ),
+        history_messages_text=evaluation_metric_input.get_joined_history_texts(
+            tag_name="conversation",
+        ),
+        output_text=evaluation_metric_input.output_text,
     )
     user_msg = LanguageModelUserMessage(content=user_msg_content)
     return LanguageModelMessages([system_msg, user_msg])
 
 
 def _compose_msgs_default(
-    input: EvaluationMetricInput,
+    evaluation_metric_input: EvaluationMetricInput,
     config: EvaluationMetricConfig,
 ):
-    """
-    Composes the hallucination analysis prompt without messages.
-    """
+    """Composes the hallucination analysis prompt without messages."""
     system_msg_content = _get_system_prompt_default(config)
     system_msg = LanguageModelSystemMessage(content=system_msg_content)
 
     user_msg_templ = Template(_get_user_prompt_default(config))
     user_msg_content = user_msg_templ.substitute(
-        input_text=input.input_text,
-        output_text=input.output_text,
+        evaluation_metric_input_text=evaluation_metric_input.evaluation_metric_input_text,
+        output_text=evaluation_metric_input.output_text,
     )
     user_msg = LanguageModelUserMessage(content=user_msg_content)
     return LanguageModelMessages([system_msg, user_msg])

@@ -22,6 +22,7 @@ from unique_toolkit.evaluators.schemas import (
     EvaluationMetricName,
     EvaluationMetricResult,
 )
+from unique_toolkit.language_model import LanguageModelName
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
     LanguageModelSystemMessage,
@@ -34,12 +35,12 @@ logger = logging.getLogger(__name__)
 
 async def check_context_relevancy_async(
     company_id: str,
-    input: EvaluationMetricInput,
+    evaluation_metric_input: EvaluationMetricInput,
     config: EvaluationMetricConfig,
     logger: logging.Logger = logger,
 ) -> EvaluationMetricResult | None:
-    """
-    Analyzes the relevancy of the context provided for the given input and output.
+    """Analyzes the relevancy of the context provided for the given evaluation_metric_input and output.
+
     The analysis classifies the context relevancy level as:
     - low
     - medium
@@ -47,14 +48,14 @@ async def check_context_relevancy_async(
 
     This method performs the following steps:
     1. Logs the start of the analysis using the provided `logger`.
-    2. Validates the required fields in the `input` data.
+    2. Validates the required fields in the `evaluation_metric_input` data.
     3. Retrieves the messages using the `_get_msgs` method.
     4. Calls `LanguageModelService.complete_async_util` to get a completion result.
     5. Parses and returns the evaluation metric result based on the content of the completion result.
 
     Args:
         company_id (str): The company ID for the analysis.
-        input (EvaluationMetricInput): The input data used for evaluation, including the generated output and reference information.
+        evaluation_metric_input (EvaluationMetricevaluation_metric_input): The evaluation_metric_input data used for evaluation, including the generated output and reference information.
         config (EvaluationMetricConfig): Configuration settings for the evaluation.
         logger (Optional[logging.Logger], optional): The logger used for logging information and errors. Defaults to the logger for the current module.
 
@@ -63,13 +64,23 @@ async def check_context_relevancy_async(
 
     Raises:
         EvaluatorException: If required fields are missing or an error occurs during the evaluation.
+
     """
-    model_name = config.language_model.name
-    logger.info(f"Analyzing context relevancy with {model_name}.")
+    model_group_name = (
+        config.language_model.name.value
+        if isinstance(config.language_model.name, LanguageModelName)
+        else config.language_model.name
+    )
+    logger.info(f"Analyzing context relevancy with {model_group_name}.")
 
-    input.validate_required_fields(context_relevancy_required_input_fields)
+    evaluation_metric_input.validate_required_fields(
+        context_relevancy_required_input_fields,
+    )
 
-    if input.context_texts and len(input.context_texts) == 0:
+    if (
+        evaluation_metric_input.context_texts
+        and len(evaluation_metric_input.context_texts) == 0
+    ):
         error_message = "No context texts provided."
         raise EvaluatorException(
             user_message=error_message,
@@ -77,11 +88,11 @@ async def check_context_relevancy_async(
         )
 
     try:
-        msgs = _get_msgs(input, config)
+        msgs = _get_msgs(evaluation_metric_input, config)
         result = await LanguageModelService.complete_async_util(
             company_id=company_id,
             messages=msgs,
-            model_name=model_name,
+            model_name=model_group_name,
         )
         result_content = result.choices[0].message.content
         if not result_content:
@@ -104,25 +115,28 @@ async def check_context_relevancy_async(
 
 
 def _get_msgs(
-    input: EvaluationMetricInput,
+    evaluation_metric_input: EvaluationMetricInput,
     config: EvaluationMetricConfig,
-):
-    """
-    Composes the messages for context relevancy analysis based on the provided input and configuration.
+) -> LanguageModelMessages:
+    """Composes the messages for context relevancy analysis.
+
+    The messages are based on the provided evaluation_metric_input and configuration.
 
     Args:
-        input (EvaluationMetricInput): The input data that includes context texts for the analysis.
+        evaluation_metric_input (EvaluationMetricevaluation_metric_input): The evaluation_metric_input data that includes context texts for the analysis.
         config (EvaluationMetricConfig): The configuration settings for composing messages.
 
     Returns:
-        LanguageModelMessages: The composed messages as per the provided input and configuration.
+        LanguageModelMessages: The composed messages as per the provided evaluation_metric_input and configuration.
+
     """
     system_msg_content = _get_system_prompt(config)
     system_msg = LanguageModelSystemMessage(content=system_msg_content)
 
     user_msg_templ = Template(_get_user_prompt(config))
     user_msg_content = user_msg_templ.substitute(
-        input_text=input.input_text, contexts_text=input.get_joined_context_texts()
+        evaluation_metric_input_text=evaluation_metric_input.evaluation_metric_input_text,
+        contexts_text=evaluation_metric_input.get_joined_context_texts(),
     )
     user_msg = LanguageModelUserMessage(content=user_msg_content)
     return LanguageModelMessages([system_msg, user_msg])

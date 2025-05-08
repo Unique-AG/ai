@@ -10,7 +10,7 @@ from unique_toolkit.evaluators.schemas import (
     EvaluationMetricName,
 )
 from unique_toolkit.language_model.infos import (
-    LanguageModel,
+    LanguageModelInfo,
     LanguageModelName,
 )
 
@@ -23,7 +23,7 @@ USER_MSG_DEFAULT_KEY = "userPromptDefault"
 hallucination_metric_default_config = EvaluationMetricConfig(
     enabled=False,
     name=EvaluationMetricName.HALLUCINATION,
-    language_model=LanguageModel(LanguageModelName.AZURE_GPT_4_0613),
+    language_model=LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_4_0613),
     score_to_emoji={"LOW": "🟢", "MEDIUM": "🟡", "HIGH": "🔴"},
     custom_prompts={
         SYSTEM_MSG_KEY: HALLUCINATION_METRIC_SYSTEM_MSG,

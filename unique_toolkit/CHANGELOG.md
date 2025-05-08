@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.14] - 2025-05-08
+- Fix bug not selecting the correct llm
+- Add LMI type for flexible init of LanguageModelInfo
+- Replace LanguageModel with LanguageModelInfo in hallucination check 
+
 ## [0.7.13] - 2025-05-07
 - Adding litellm models `litellm:anthropic-claude-3-7-sonnet`, `litellm:anthropic-claude-3-7-sonnet-thinking`, `litellm:gemini-2-0-flash`, `gemini-2-5-flash-preview-04-17` , `litellm:gemini-2-5-pro-exp-03-25`
 

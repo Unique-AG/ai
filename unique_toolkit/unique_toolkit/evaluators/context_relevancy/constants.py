@@ -7,7 +7,7 @@ from unique_toolkit.evaluators.schemas import (
     EvaluationMetricInputFieldName,
     EvaluationMetricName,
 )
-from unique_toolkit.language_model.infos import LanguageModel
+from unique_toolkit.language_model.infos import LanguageModelInfo
 from unique_toolkit.language_model.service import LanguageModelName
 
 SYSTEM_MSG_KEY = "systemPrompt"
@@ -23,7 +23,9 @@ context_relevancy_required_input_fields = [
 default_config = EvaluationMetricConfig(
     enabled=False,
     name=EvaluationMetricName.CONTEXT_RELEVANCY,
-    language_model=LanguageModel(LanguageModelName.AZURE_GPT_35_TURBO_0125),
+    language_model=LanguageModelInfo.from_name(
+        LanguageModelName.AZURE_GPT_35_TURBO_0125
+    ),
     score_to_emoji={"LOW": "🟢", "MEDIUM": "🟡", "HIGH": "🔴"},
     custom_prompts={
         SYSTEM_MSG_KEY: CONTEXT_RELEVANCY_METRIC_SYSTEM_MSG,
