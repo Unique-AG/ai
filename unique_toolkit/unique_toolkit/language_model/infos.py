@@ -492,8 +492,10 @@ class LanguageModelInfo(BaseModel):
 
 @deprecated(
     """
-Use `LanguageModelInfo` instead of `LanguageModel`
-"""
+Use `LanguageModelInfo` instead of `LanguageModel`.
+
+`LanguageModel` will be deprecated on 31.12.2025
+""",
 )
 class LanguageModel:
     _info: ClassVar[LanguageModelInfo]
@@ -503,8 +505,8 @@ class LanguageModel:
 
     @property
     def info(self) -> LanguageModelInfo:
-        """
-        Returns all infos about the model:
+        """Return all infos about the model.
+
         - name
         - version
         - provider

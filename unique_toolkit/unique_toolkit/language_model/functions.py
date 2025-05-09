@@ -1,5 +1,5 @@
 import logging
-from typing import Type, cast
+from typing import cast
 
 import unique_sdk
 from pydantic import BaseModel
@@ -29,11 +29,10 @@ def complete(
     timeout: int = DEFAULT_COMPLETE_TIMEOUT,
     tools: list[LanguageModelTool] | None = None,
     other_options: dict | None = None,
-    structured_output_model: Type[BaseModel] | None = None,
+    structured_output_model: type[BaseModel] | None = None,
     structured_output_enforce_schema: bool = False,
 ) -> LanguageModelResponse:
-    """
-    Calls the completion endpoint synchronously without streaming the response.
+    """Call the completion endpoint synchronously without streaming the response.
 
     Args:
         company_id (str): The company ID associated with the request.
@@ -46,6 +45,7 @@ def complete(
 
     Returns:
         LanguageModelResponse: The response object containing the completed result.
+
     """
     options, model, messages_dict, _ = _prepare_completion_params_util(
         messages=messages,
@@ -62,7 +62,7 @@ def complete(
             company_id=company_id,
             model=model,
             messages=cast(
-                list[unique_sdk.Integrated.ChatCompletionRequestMessage],
+                "list[unique_sdk.Integrated.ChatCompletionRequestMessage]",
                 messages_dict,
             ),
             timeout=timeout,
@@ -82,11 +82,10 @@ async def complete_async(
     timeout: int = DEFAULT_COMPLETE_TIMEOUT,
     tools: list[LanguageModelTool] | None = None,
     other_options: dict | None = None,
-    structured_output_model: Type[BaseModel] | None = None,
+    structured_output_model: type[BaseModel] | None = None,
     structured_output_enforce_schema: bool = False,
 ) -> LanguageModelResponse:
-    """
-    Calls the completion endpoint asynchronously without streaming the response.
+    """Call the completion endpoint asynchronously without streaming the response.
 
     This method sends a request to the completion endpoint using the provided messages, model name,
     temperature, timeout, and optional tools. It returns a `LanguageModelResponse` object containing
@@ -105,7 +104,9 @@ async def complete_async(
         LanguageModelResponse: The response object containing the completed result.
 
     Raises:
-        Exception: If an error occurs during the request, an exception is raised and logged.
+        Exception: If an error occurs during the request, an exception is raised
+        and logged.
+
     """
     options, model, messages_dict, _ = _prepare_completion_params_util(
         messages=messages,
@@ -122,7 +123,7 @@ async def complete_async(
             company_id=company_id,
             model=model,
             messages=cast(
-                list[unique_sdk.Integrated.ChatCompletionRequestMessage],
+                "list[unique_sdk.Integrated.ChatCompletionRequestMessage]",
                 messages_dict,
             ),
             timeout=timeout,
@@ -130,7 +131,7 @@ async def complete_async(
         )
         return LanguageModelResponse(**response)
     except Exception as e:
-        logger.error(f"Error completing: {e}")  # type: ignore
+        logger.exception(f"Error completing: {e}")
         raise e
 
 
@@ -163,14 +164,14 @@ def _to_search_context(chunks: list[ContentChunk]) -> dict | None:
             endPage=chunk.end_page,
             order=chunk.order,
             object=chunk.object,
-        )  # type: ignore
+        )
         for chunk in chunks
     ]
 
 
 def _add_response_format_to_options(
     options: dict,
-    structured_output_model: Type[BaseModel],
+    structured_output_model: type[BaseModel],
     structured_output_enforce_schema: bool = False,
 ) -> dict:
     options["responseFormat"] = {
@@ -191,11 +192,10 @@ def _prepare_completion_params_util(
     tools: list[LanguageModelTool] | None = None,
     other_options: dict | None = None,
     content_chunks: list[ContentChunk] | None = None,
-    structured_output_model: Type[BaseModel] | None = None,
+    structured_output_model: type[BaseModel] | None = None,
     structured_output_enforce_schema: bool = False,
 ) -> tuple[dict, str, dict, dict | None]:
-    """
-    Prepares common parameters for completion requests.
+    """Prepare common parameters for completion requests.
 
     Returns:
         tuple containing:
@@ -203,18 +203,22 @@ def _prepare_completion_params_util(
         - model (str): Resolved model name
         - messages_dict (dict): Processed messages
         - search_context (dict | None): Processed content chunks if provided
-    """
 
+    """
     options = _add_tools_to_options({}, tools)
     if structured_output_model:
         options = _add_response_format_to_options(
-            options, structured_output_model, structured_output_enforce_schema
+            options,
+            structured_output_model,
+            structured_output_enforce_schema,
         )
     options["temperature"] = temperature
     if other_options:
         options.update(other_options)
 
-    model = model_name.name if isinstance(model_name, LanguageModelName) else model_name
+    model = (
+        model_name.value if isinstance(model_name, LanguageModelName) else model_name
+    )
 
     # Different methods need different message dump parameters
     messages_dict = messages.model_dump(
