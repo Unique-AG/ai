@@ -123,7 +123,7 @@ def _get_msgs(
     message texts in the `evaluation_metric_input`
 
     Args:
-        evaluation_metric_input (EvaluationMetricevaluation_metric_input): The evaluation_metric_input data that includes context texts and history message texts
+        evaluation_metric_input (EvaluationMetricInput): The evaluation_metric_input data that includes context texts and history message texts
                                       for the analysis.
         config (EvaluationMetricConfig): The configuration settings for composing messages.
         logger (Optional[logging.Logger], optional): The logger used for logging debug information.

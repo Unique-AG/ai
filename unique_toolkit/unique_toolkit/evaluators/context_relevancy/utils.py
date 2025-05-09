@@ -55,7 +55,7 @@ async def check_context_relevancy_async(
 
     Args:
         company_id (str): The company ID for the analysis.
-        evaluation_metric_input (EvaluationMetricevaluation_metric_input): The evaluation_metric_input data used for evaluation, including the generated output and reference information.
+        evaluation_metric_input (EvaluationMetricInput): The evaluation_metric_input data used for evaluation, including the generated output and reference information.
         config (EvaluationMetricConfig): Configuration settings for the evaluation.
         logger (Optional[logging.Logger], optional): The logger used for logging information and errors. Defaults to the logger for the current module.
 
@@ -123,7 +123,7 @@ def _get_msgs(
     The messages are based on the provided evaluation_metric_input and configuration.
 
     Args:
-        evaluation_metric_input (EvaluationMetricevaluation_metric_input): The evaluation_metric_input data that includes context texts for the analysis.
+        evaluation_metric_input (EvaluationMetricInput): The evaluation_metric_input data that includes context texts for the analysis.
         config (EvaluationMetricConfig): The configuration settings for composing messages.
 
     Returns:
