@@ -128,6 +128,11 @@ class TestContentServiceIntegration:
             temp_file.write(b"Test content for integration")
             temp_file_path = temp_file.name
 
+        ingestion_config = {
+            "chunkStrategy": "default",
+            "uniqueIngestionMode": "standard",
+        }
+
         try:
             # Test upload_content
             uploaded_content = self.service.upload_content(
@@ -135,6 +140,7 @@ class TestContentServiceIntegration:
                 content_name="integration_test.txt",
                 mime_type="text/plain",
                 scope_id=test_scope_id,
+                ingestion_config=ingestion_config,
             )
 
             assert uploaded_content is not None
@@ -210,6 +216,12 @@ class TestContentServiceIntegration:
             temp_file.write(b"Test content for ingestion")
             temp_file_path = temp_file.name
         assert 1 == 0
+
+        ingestion_config = {
+            "chunkStrategy": "default",
+            "uniqueIngestionMode": "standard",
+        }
+
         try:
             # Test upload_content with skip_ingestion
             uploaded_content = self.service.upload_content(
@@ -218,6 +230,7 @@ class TestContentServiceIntegration:
                 mime_type="text/plain",
                 scope_id=test_scope_id,
                 skip_ingestion=True,
+                ingestion_config=ingestion_config,
             )
 
             assert uploaded_content is not None
@@ -249,6 +262,48 @@ class TestContentServiceIntegration:
             )
             assert len(content) == 1
             assert len(content[0].chunks) == 0
+
+        finally:
+            # Clean up
+            os.unlink(temp_file_path)
+            if "downloaded_path" in locals():
+                downloaded_path.unlink()
+                downloaded_path.parent.rmdir()
+
+    def test_upload_without_ingestion_config(self):
+        # Create a temporary file for testing
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as temp_file:
+            temp_file.write(b"Test content without ingestion config")
+            temp_file_path = temp_file.name
+
+        try:
+            # Test upload_content without providing ingestion_config
+            uploaded_content = self.service.upload_content(
+                path_to_content=temp_file_path,
+                content_name="no_ingestion_config_test.txt",
+                mime_type="text/plain",
+                scope_id=test_scope_id,
+            )
+
+            # Assertions
+            assert uploaded_content is not None
+            assert uploaded_content.id is not None
+            assert uploaded_content.key == "no_ingestion_config_test.txt"
+
+            # Test download_content
+            downloaded_path = self.service.download_content(
+                content_id=uploaded_content.id,
+                content_name="no_ingestion_config_test.txt",
+                chat_id=None,
+            )
+
+            assert isinstance(downloaded_path, Path)
+            assert downloaded_path.exists()
+            assert downloaded_path.name == "no_ingestion_config_test.txt"
+
+            with open(downloaded_path, "rb") as f:
+                content = f.read()
+                assert content == b"Test content without ingestion config"
 
         finally:
             # Clean up
