@@ -214,6 +214,7 @@ def upload_content_from_bytes(
     chat_id: str | None = None,
     skip_ingestion: bool = False,
     ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
+    metadata: dict | None = None,
 ):
     """
     Uploads content to the knowledge base.
@@ -227,6 +228,8 @@ def upload_content_from_bytes(
         scope_id (str | None): The scope ID. Defaults to None.
         chat_id (str | None): The chat ID. Defaults to None.
         skip_ingestion (bool): Whether to skip ingestion. Defaults to False.
+        ingestion_config (unique_sdk.Content.IngestionConfig | None): The ingestion configuration. Defaults to None.
+        metadata (dict | None): The metadata for the content. Defaults to None.
 
     Returns:
         Content: The uploaded content.
@@ -243,6 +246,7 @@ def upload_content_from_bytes(
             chat_id=chat_id,
             skip_ingestion=skip_ingestion,
             ingestion_config=ingestion_config,
+            metadata=metadata,
         )
     except Exception as e:
         logger.error(f"Error while uploading content: {e}")
@@ -259,6 +263,7 @@ def upload_content(
     chat_id: str | None = None,
     skip_ingestion: bool = False,
     ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
+    metadata: dict | None = None,
 ):
     """
     Uploads content to the knowledge base.
@@ -272,6 +277,8 @@ def upload_content(
         scope_id (str | None): The scope ID. Defaults to None.
         chat_id (str | None): The chat ID. Defaults to None.
         skip_ingestion (bool): Whether to skip ingestion. Defaults to False.
+        ingestion_config (unique_sdk.Content.IngestionConfig | None): The ingestion configuration. Defaults to None.
+        metadata (dict | None): The metadata for the content. Defaults to None.
 
     Returns:
         Content: The uploaded content.
@@ -288,6 +295,7 @@ def upload_content(
             chat_id=chat_id,
             skip_ingestion=skip_ingestion,
             ingestion_config=ingestion_config,
+            metadata=metadata,
         )
     except Exception as e:
         logger.error(f"Error while uploading content: {e}")
@@ -304,6 +312,7 @@ def _trigger_upload_content(
     chat_id: str | None = None,
     skip_ingestion: bool = False,
     ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
+    metadata: dict | None = None,
 ):
     """
     Uploads content to the knowledge base.
@@ -317,6 +326,8 @@ def _trigger_upload_content(
         scope_id (str | None): The scope ID. Defaults to None.
         chat_id (str | None): The chat ID. Defaults to None.
         skip_ingestion (bool): Whether to skip ingestion. Defaults to False.
+        ingestion_config (unique_sdk.Content.IngestionConfig | None): The ingestion configuration. Defaults to None.
+        metadata (dict | None): The metadata for the content. Defaults to None.
 
     Returns:
         Content: The uploaded content.
@@ -385,6 +396,7 @@ def _trigger_upload_content(
         "mimeType": mime_type,
         "byteSize": byte_size,
         "ingestionConfig": ingestion_config,
+        "metadata": metadata,
     }
 
     if chat_id:

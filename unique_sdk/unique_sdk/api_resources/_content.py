@@ -96,6 +96,7 @@ class Content(APIResource["Content"]):
         ownerId: str
         byteSize: Optional[int]
         ingestionConfig: "Content.IngestionConfig"
+        metadata: Optional[Dict[str, str]]
 
     class UpsertParams(RequestOptions):
         input: "Content.Input"

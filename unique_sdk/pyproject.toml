@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_sdk"
-version = "0.9.26"
+version = "0.9.27"
 description = ""
 authors = [
     "Martin Fadler <martin.fadler@unique.ch>",
@@ -16,6 +16,8 @@ classifiers = [
 [tool.poetry.dependencies]
 python = "^3.11"
 typing-extensions = "^4.9.0"
+python-dotenv = "^1.1.0"
+requests = "^2.32.3"
 
 
 [tool.poetry.group.dev.dependencies]
