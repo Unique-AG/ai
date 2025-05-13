@@ -1,0 +1,29 @@
+[tool.poetry]
+name = "tutorials"
+version = "0.0.1"
+description = ""
+authors = ["Cedric Klinkert <cedric@unique.ai>"]
+readme = "README.md"
+packages = [
+    { include = "utilities_examples" },
+    { include = "sdk_examples" },
+    { include = "toolkit_examples" },
+]
+
+
+[tool.poetry.dependencies]
+python = "^3.11"
+python-dotenv = "^1.0.1"
+unique-sdk = "^0.9.4"
+unique-toolkit = "^0.6.8"
+pydantic-settings = "^2.8.1"
+aiolimiter = "^1.2.1"
+dotenv = "^0.9.9"
+httpx = "^0.28.1"
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.2.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
