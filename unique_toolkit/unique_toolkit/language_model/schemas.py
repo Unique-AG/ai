@@ -1,7 +1,7 @@
 import json
 import math
 from enum import StrEnum
-from typing import Any, Optional, Self
+from typing import Any, Self
 from uuid import uuid4
 
 from humps import camelize
@@ -27,6 +27,8 @@ model_config = ConfigDict(
 )
 
 
+# Equivalent to
+# from openai.types.chat.chat_completion_role import ChatCompletionRole
 class LanguageModelMessageRole(StrEnum):
     USER = "user"
     SYSTEM = "system"
@@ -34,12 +36,32 @@ class LanguageModelMessageRole(StrEnum):
     TOOL = "tool"
 
 
+# This is tailored to the unique backend
+class LanguageModelStreamResponseMessage(BaseModel):
+    model_config = model_config
+
+    id: str
+    previous_message_id: (
+        str | None
+    )  # Stream response can return a null previous_message_id if an assisstant message is manually added
+    role: LanguageModelMessageRole
+    text: str
+    original_text: str | None = None
+    references: list[dict[str, list | dict | str | int | float | bool]] = []  # type: ignore
+
+    # TODO make sdk return role in lowercase
+    # Currently needed as sdk returns role in uppercase
+    @field_validator("role", mode="before")
+    def set_role(cls, value: str):
+        return value.lower()
+
+
 class LanguageModelFunction(BaseModel):
     model_config = model_config
 
     id: str | None = None
     name: str
-    arguments: Optional[dict[str, Any] | str] = None  # type: ignore
+    arguments: dict[str, Any] | str | None = None  # type: ignore
 
     @field_validator("arguments", mode="before")
     def set_arguments(cls, value):
@@ -62,6 +84,14 @@ class LanguageModelFunction(BaseModel):
         return seralization
 
 
+# This is tailored to the unique backend
+class LanguageModelStreamResponse(BaseModel):
+    model_config = model_config
+
+    message: LanguageModelStreamResponseMessage
+    tool_calls: list[LanguageModelFunction] | None = None
+
+
 class LanguageModelFunctionCall(BaseModel):
     model_config = model_config
 
@@ -69,6 +99,8 @@ class LanguageModelFunctionCall(BaseModel):
     type: str | None = None
     function: LanguageModelFunction
 
+    # TODO: Circular reference of types
+    @deprecated("Use LanguageModelAssistantMessage.from_functions instead.")
     @staticmethod
     def create_assistant_message_from_tool_calls(
         tool_calls: list[LanguageModelFunction],
@@ -93,8 +125,7 @@ class LanguageModelMessage(BaseModel):
     content: str | list[dict] | None = None
 
     def __str__(self):
-        if not self.content:
-            message = ""
+        message = ""
         if isinstance(self.content, str):
             message = self.content
         elif isinstance(self.content, list):
@@ -103,12 +134,18 @@ class LanguageModelMessage(BaseModel):
         return format_message(self.role.capitalize(), message=message, num_tabs=1)
 
 
+# Equivalent to
+# from openai.types.chat.chat_completion_system_message_param import ChatCompletionSystemMessageParam
 class LanguageModelSystemMessage(LanguageModelMessage):
     role: LanguageModelMessageRole = LanguageModelMessageRole.SYSTEM
 
     @field_validator("role", mode="before")
     def set_role(cls, value):
         return LanguageModelMessageRole.SYSTEM
+
+
+# Equivalent to
+# from openai.types.chat.chat_completion_user_message_param import ChatCompletionUserMessageParam
 
 
 class LanguageModelUserMessage(LanguageModelMessage):
@@ -119,6 +156,8 @@ class LanguageModelUserMessage(LanguageModelMessage):
         return LanguageModelMessageRole.USER
 
 
+# Equivalent to
+# from openai.types.chat.chat_completion_assistant_message_param import ChatCompletionAssistantMessageParam
 class LanguageModelAssistantMessage(LanguageModelMessage):
     role: LanguageModelMessageRole = LanguageModelMessageRole.ASSISTANT
     parsed: dict | None = None
@@ -128,6 +167,47 @@ class LanguageModelAssistantMessage(LanguageModelMessage):
     @field_validator("role", mode="before")
     def set_role(cls, value):
         return LanguageModelMessageRole.ASSISTANT
+
+    @classmethod
+    def from_functions(
+        cls,
+        tool_calls: list[LanguageModelFunction],
+    ):
+        return cls(
+            content="",
+            tool_calls=[
+                LanguageModelFunctionCall(
+                    id=tool_call.id,
+                    type="function",
+                    function=tool_call,
+                )
+                for tool_call in tool_calls
+            ],
+        )
+
+    @classmethod
+    def from_stream_response(cls, response: LanguageModelStreamResponse):
+        tool_calls = [
+            LanguageModelFunctionCall(
+                id=None,
+                type=None,
+                function=f,
+            )
+            for f in response.tool_calls or []
+        ]
+
+        tool_calls = tool_calls if len(tool_calls) > 0 else None
+
+        return cls(
+            content=response.message.text,
+            parsed=None,
+            refusal=None,
+            tool_calls=tool_calls,
+        )
+
+
+# Equivalent to
+# from openai.types.chat.chat_completion_tool_message_param import ChatCompletionToolMessageParam
 
 
 class LanguageModelToolMessage(LanguageModelMessage):
@@ -145,6 +225,11 @@ class LanguageModelToolMessage(LanguageModelMessage):
     @field_validator("role", mode="before")
     def set_role(cls, value):
         return LanguageModelMessageRole.TOOL
+
+
+# Equivalent implementation for list of
+# from openai.types.chat.chat_completion_tool_message_param import ChatCompletionToolMessageParam
+# with the addition of the builder
 
 
 class LanguageModelMessages(RootModel):
@@ -174,6 +259,11 @@ class LanguageModelMessages(RootModel):
         return builder
 
 
+# This seems similar to
+# from openai.types.completion_choice import CompletionChoice
+# but is missing multiple attributes and uses message instead of text
+
+
 class LanguageModelCompletionChoice(BaseModel):
     model_config = model_config
 
@@ -182,38 +272,26 @@ class LanguageModelCompletionChoice(BaseModel):
     finish_reason: str
 
 
+# This seems similar to
+# from openai.types.completion import Completion
+# but is missing multiple attributes
 class LanguageModelResponse(BaseModel):
     model_config = model_config
 
     choices: list[LanguageModelCompletionChoice]
 
+    @classmethod
+    def from_stream_response(cls, response: LanguageModelStreamResponse):
+        choice = LanguageModelCompletionChoice(
+            index=0,
+            message=LanguageModelAssistantMessage.from_stream_response(response),
+            finish_reason="",
+        )
 
-class LanguageModelStreamResponseMessage(BaseModel):
-    model_config = model_config
-
-    id: str
-    previous_message_id: (
-        str | None
-    )  # Stream response can return a null previous_message_id if an assisstant message is manually added
-    role: LanguageModelMessageRole
-    text: str
-    original_text: str | None = None
-    references: list[dict[str, list | dict | str | int | float | bool]] = []  # type: ignore
-
-    # TODO make sdk return role in lowercase
-    # Currently needed as sdk returns role in uppercase
-    @field_validator("role", mode="before")
-    def set_role(cls, value: str):
-        return value.lower()
+        return cls(choices=[choice])
 
 
-class LanguageModelStreamResponse(BaseModel):
-    model_config = model_config
-
-    message: LanguageModelStreamResponseMessage
-    tool_calls: Optional[list[LanguageModelFunction]] = None
-
-
+# This is tailored for unique and only used in language model info
 class LanguageModelTokenLimits(BaseModel):
     token_limit_input: int
     token_limit_output: int
@@ -255,29 +333,35 @@ class LanguageModelTokenLimits(BaseModel):
 
                 data["token_limit_input"] = math.floor(fraction_input * token_limit)
                 data["token_limit_output"] = math.floor(
-                    (1 - fraction_input) * token_limit
+                    (1 - fraction_input) * token_limit,
                 )
                 data["_fraction_adaptpable"] = True
             return data
 
         raise ValueError(
-            'Either "token_limit_input" and "token_limit_output" must be provided together, or "token_limit" must be provided.'
+            'Either "token_limit_input" and "token_limit_output" must be provided together, or "token_limit" must be provided.',
         )
 
 
+# This is more restrictive than what openai allows
 class LanguageModelToolParameterProperty(BaseModel):
     type: str
     description: str
-    enum: Optional[list[Any]] = None
-    items: Optional[Self] = None
+    enum: list[Any] | None = None
+    items: Self | None = None
 
 
+# Looks most like
+# from openai.types.shared.function_parameters import FunctionParameters
 class LanguageModelToolParameters(BaseModel):
     type: str = "object"
     properties: dict[str, LanguageModelToolParameterProperty]
     required: list[str]
 
 
+# Looks most like
+# from openai.types.shared_params.function_definition import FunctionDefinition
+# but returns parameter is not known
 class LanguageModelTool(BaseModel):
     name: str = Field(
         ...,
