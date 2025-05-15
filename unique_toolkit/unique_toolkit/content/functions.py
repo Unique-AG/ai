@@ -15,7 +15,11 @@ from unique_toolkit.content.schemas import (
     ContentRerankerConfig,
     ContentSearchType,
 )
-from unique_toolkit.content.utils import map_contents, map_to_content_chunks
+from unique_toolkit.content.utils import (
+    map_contents,
+    map_paginated_content,
+    map_to_content_chunks,
+)
 
 logger = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
 
@@ -194,14 +198,14 @@ def search_contents_by_rule(
 ):
     """Searches content by rule in the knowledge base."""
     try:
-        contents = unique_sdk.Content.rule_search(
+        paginated_content = unique_sdk.Content.rule_search(
             user_id=user_id,
             company_id=company_id,
             rule=rule,
             skip=skip,
             take=take,
         )
-        return contents
+        return map_paginated_content(paginated_content)
     except Exception as e:
         logger.error(f"Error while searching contents by rule: {e}")
         raise e
@@ -216,14 +220,14 @@ async def search_contents_by_rule_async(
 ):
     """Asynchronously searches content by rule in the knowledge base."""
     try:
-        contents = await unique_sdk.Content.rule_search_async(
+        paginated_content = await unique_sdk.Content.rule_search_async(
             user_id=user_id,
             company_id=company_id,
             rule=rule,
             skip=skip,
             take=take,
         )
-        return contents
+        return map_paginated_content(paginated_content)
     except Exception as e:
         logger.error(f"Error while searching contents by rule async: {e}")
         raise e

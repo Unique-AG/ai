@@ -56,6 +56,11 @@ class Content(BaseModel):
     updated_at: datetime | None = None
 
 
+class PaginatedContent(BaseModel):
+    nodes: list[Content]
+    total_count: int
+
+
 class ContentReference(BaseModel):
     model_config = model_config
     id: str

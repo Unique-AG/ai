@@ -623,10 +623,9 @@ class TestContentServiceUnit:
 
             result = self.service.search_contents_by_rule(rule=rule, skip=0, take=10)
 
-            assert len(result) == 2
-            assert result["nodes"][0]["id"] == "1"
-            assert result["nodes"][0]["key"] == "test_key"
-            assert result["totalCount"] == 1
+            assert result.nodes[0].id == "1"
+            assert result.nodes[0].key == "test_key"
+            assert result.total_count == 1
 
             mock_rule_search.assert_called_once_with(
                 user_id="test_user",
@@ -673,10 +672,9 @@ class TestContentServiceUnit:
             result = await self.service.search_contents_by_rule_async(
                 rule=rule, skip=0, take=10
             )
-            assert len(result) == 2
-            assert result["nodes"][0]["id"] == "1"
-            assert result["nodes"][0]["key"] == "test_key"
-            assert result["totalCount"] == 1
+            assert result.nodes[0].id == "1"
+            assert result.nodes[0].key == "test_key"
+            assert result.total_count == 1
 
             mock_rule_search_async.assert_called_once_with(
                 user_id="test_user",
