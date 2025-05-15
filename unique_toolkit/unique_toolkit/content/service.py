@@ -76,6 +76,58 @@ class ContentService:
             Event | BaseEvent | None: The event object.
         """
         return self._event
+    
+    @property
+    @deprecated(
+        "The company_id property is deprecated and will be removed in a future version."
+    )
+    def company_id(self) -> str | None:
+        """
+        Get the company identifier (deprecated).
+
+        Returns:
+            str | None: The company identifier.
+        """
+        return self._company_id
+    
+    @property
+    @deprecated(
+        "The user_id property is deprecated and will be removed in a future version."
+    )
+    def user_id(self) -> str | None:
+        """
+        Get the user identifier (deprecated).
+
+        Returns:
+            str | None: The user identifier.
+        """
+        return self._user_id
+    
+    @property
+    @deprecated(
+        "The chat_id property is deprecated and will be removed in a future version."
+    )
+    def chat_id(self) -> str | None:
+        """
+        Get the chat identifier (deprecated).
+
+        Returns:
+            str | None: The chat identifier.
+        """
+        return self._chat_id
+    
+    @property
+    @deprecated(
+        "The metadata_filter property is deprecated and will be removed in a future version."
+    )
+    def metadata_filter(self) -> dict | None:
+        """
+        Get the metadata filter (deprecated).
+
+        Returns:
+            dict | None: The metadata filter.
+        """
+        return self._metadata_filter
 
     @property
     @deprecated(

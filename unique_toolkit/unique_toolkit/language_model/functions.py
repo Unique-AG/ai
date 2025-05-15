@@ -16,6 +16,7 @@ from .schemas import (
     LanguageModelMessages,
     LanguageModelResponse,
     LanguageModelTool,
+    LanguageModelToolDescription,
 )
 
 logger = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
@@ -27,7 +28,7 @@ def complete(
     model_name: LanguageModelName | str,
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
     timeout: int = DEFAULT_COMPLETE_TIMEOUT,
-    tools: list[LanguageModelTool] | None = None,
+    tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
     other_options: dict | None = None,
     structured_output_model: type[BaseModel] | None = None,
     structured_output_enforce_schema: bool = False,
@@ -40,7 +41,7 @@ def complete(
         model_name (LanguageModelName | str): The model name to use for the completion.
         temperature (float): The temperature setting for the completion. Defaults to 0.
         timeout (int): The timeout value in milliseconds. Defaults to 240_000.
-        tools (Optional[list[LanguageModelTool]]): Optional list of tools to include.
+        tools (Optional[list[LanguageModelTool | LanguageModelToolDescription ]]): Optional list of tools to include.
         other_options (Optional[dict]): Additional options to use. Defaults to None.
 
     Returns:
@@ -80,7 +81,7 @@ async def complete_async(
     model_name: LanguageModelName | str,
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
     timeout: int = DEFAULT_COMPLETE_TIMEOUT,
-    tools: list[LanguageModelTool] | None = None,
+    tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
     other_options: dict | None = None,
     structured_output_model: type[BaseModel] | None = None,
     structured_output_enforce_schema: bool = False,
@@ -97,7 +98,7 @@ async def complete_async(
         model_name (LanguageModelName | str): The model name to use for the completion.
         temperature (float): The temperature setting for the completion. Defaults to 0.
         timeout (int): The timeout value in milliseconds for the request. Defaults to 240_000.
-        tools (Optional[list[LanguageModelTool]]): Optional list of tools to include in the request.
+        tools (Optional[list[LanguageModelTool | LanguageModelToolDescription ]]): Optional list of tools to include in the request.
         other_options (Optional[dict]): The other options to use. Defaults to None.
 
     Returns:
@@ -137,7 +138,7 @@ async def complete_async(
 
 def _add_tools_to_options(
     options: dict,
-    tools: list[LanguageModelTool] | None,
+    tools: list[LanguageModelTool | LanguageModelToolDescription] | None,
 ) -> dict:
     if tools:
         options["tools"] = [
@@ -189,7 +190,7 @@ def _prepare_completion_params_util(
     messages: LanguageModelMessages,
     model_name: LanguageModelName | str,
     temperature: float,
-    tools: list[LanguageModelTool] | None = None,
+    tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
     other_options: dict | None = None,
     content_chunks: list[ContentChunk] | None = None,
     structured_output_model: type[BaseModel] | None = None,
@@ -206,6 +207,7 @@ def _prepare_completion_params_util(
 
     """
     options = _add_tools_to_options({}, tools)
+
     if structured_output_model:
         options = _add_response_format_to_options(
             options,
