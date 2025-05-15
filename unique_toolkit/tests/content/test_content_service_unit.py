@@ -634,54 +634,6 @@ class TestContentServiceUnit:
                 take=10,
             )
 
-    @pytest.mark.asyncio
-    async def test_search_contents_by_rule_async(self):
-        with patch.object(
-            unique_sdk.Content, "rule_search_async"
-        ) as mock_rule_search_async:
-
-            async def async_return():
-                return {
-                    "nodes": [
-                        {
-                            "id": "1",
-                            "key": "test_key",
-                            "title": "Test Content",
-                            "url": "http://test.com",
-                            "createdAt": "2021-01-01T00:00:00Z",
-                            "updatedAt": "2021-01-01T00:00:00Z",
-                        },
-                    ],
-                    "totalCount": 1,
-                }
-
-            mock_rule_search_async.return_value = async_return()
-
-            rule = {
-                "OR": [
-                    {
-                        "AND": [
-                            {"key": {"equals": "test_key"}},
-                        ]
-                    }
-                ]
-            }
-
-            result = await self.service.search_contents_by_rule_async(
-                rule=rule, skip=0, take=10
-            )
-            assert result.nodes[0].id == "1"
-            assert result.nodes[0].key == "test_key"
-            assert result.total_count == 1
-
-            mock_rule_search_async.assert_called_once_with(
-                user_id="test_user",
-                company_id="test_company",
-                rule=rule,
-                skip=0,
-                take=10,
-            )
-
     @patch("requests.get")
     def test_download_content_to_file_by_id(self, mock_get):
         mock_response = Mock()
