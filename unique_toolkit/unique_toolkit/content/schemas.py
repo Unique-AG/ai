@@ -54,7 +54,7 @@ class Content(BaseModel):
     read_url: str | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
-    metadata: dict | None = None
+    metadata: dict[str, any] | None = None
     ingestion_config: dict | None = None
 
 
