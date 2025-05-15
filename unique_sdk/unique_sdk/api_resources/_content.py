@@ -117,6 +117,10 @@ class Content(APIResource["Content"]):
         endPage: Optional[int]
         order: Optional[int]
 
+    class PaginatedContents(TypedDict):
+        nodes: List["Content"]
+        totalCount: int
+
     id: str
     key: str
     url: Optional[str]
@@ -167,9 +171,9 @@ class Content(APIResource["Content"]):
         user_id: str,
         company_id: str,
         **params: Unpack["Content.RuleSearchParams"],
-    ) -> List["Content"]:
+    ) -> PaginatedContents:
         return cast(
-            List["Content"],
+            Content.PaginatedContents,
             cls._static_request(
                 "post",
                 "/content/rule-search",
@@ -185,9 +189,9 @@ class Content(APIResource["Content"]):
         user_id: str,
         company_id: str,
         **params: Unpack["Content.RuleSearchParams"],
-    ) -> List["Content"]:
+    ) -> PaginatedContents:
         return cast(
-            List["Content"],
+            Content.PaginatedContents,
             await cls._static_request_async(
                 "post",
                 "/content/rule-search",

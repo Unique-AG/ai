@@ -281,7 +281,7 @@ Allows you to search contents based on a `rule`. The rule should be defined in t
                         "path": [
                             "folderIdPath"
                         ],
-                        "value": "uniquepathid://scope_vf207ibgznc4bkdcx120zm5d"
+                        "value": "uniquepathid://test_id"
                     },
                     {
                         "operator": "contains",
@@ -316,7 +316,7 @@ searched_content = unique_sdk.Content.rule_search(
                         "path": [
                             "folderIdPath"
                         ],
-                        "value": "uniquepathid://scope_vf207ibgznc4bkdcx120zm5d"
+                        "value": "uniquepathid://test_id"
                     },
                     {
                         "operator": "contains",

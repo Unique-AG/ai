@@ -1,3 +1,4 @@
+import asyncio
 import os
 import shutil
 import tempfile
@@ -622,11 +623,10 @@ class TestContentServiceUnit:
 
             result = self.service.search_contents_by_rule(rule=rule, skip=0, take=10)
 
-            assert isinstance(result, list)
-            assert len(result) == 1
-            assert result.nodes[0].id == "1"
-            assert result.nodes[0].key == "test_key"
-            assert result.totalCount == 1
+            assert len(result) == 2
+            assert result["nodes"][0]["id"] == "1"
+            assert result["nodes"][0]["key"] == "test_key"
+            assert result["totalCount"] == 1
 
             mock_rule_search.assert_called_once_with(
                 user_id="test_user",
@@ -641,26 +641,30 @@ class TestContentServiceUnit:
         with patch.object(
             unique_sdk.Content, "rule_search_async"
         ) as mock_rule_search_async:
-            mock_rule_search_async.return_value = {
-                "nodes": [
-                    {
-                        "id": "1",
-                        "key": "test_key",
-                        "title": "Test Content",
-                        "url": "http://test.com",
-                        "createdAt": "2021-01-01T00:00:00Z",
-                        "updatedAt": "2021-01-01T00:00:00Z",
-                    },
-                ],
-                "totalCount": 1,
-            }
+            # Create an asyncio.Future for asyn result
+            future = asyncio.Future()
+            future.set_result(
+                {
+                    "nodes": [
+                        {
+                            "id": "1",
+                            "key": "test_key",
+                            "title": "Test Content",
+                            "url": "http://test.com",
+                            "createdAt": "2021-01-01T00:00:00Z",
+                            "updatedAt": "2021-01-01T00:00:00Z",
+                        },
+                    ],
+                    "totalCount": 1,
+                }
+            )
+            mock_rule_search_async.return_value = future
 
             rule = {
                 "OR": [
                     {
                         "AND": [
                             {"key": {"equals": "test_key"}},
-                            {"ownerId": {"equals": "test_owner"}},
                         ]
                     }
                 ]
@@ -669,13 +673,10 @@ class TestContentServiceUnit:
             result = await self.service.search_contents_by_rule_async(
                 rule=rule, skip=0, take=10
             )
-            print(result)
-
-            assert isinstance(result, list)
-            assert len(result) == 1
-            assert result.nodes[0].id == "1"
-            assert result.nodes[0].key == "test_key"
-            assert result.totalCount == 1
+            assert len(result) == 2
+            assert result["nodes"][0]["id"] == "1"
+            assert result["nodes"][0]["key"] == "test_key"
+            assert result["totalCount"] == 1
 
             mock_rule_search_async.assert_called_once_with(
                 user_id="test_user",
