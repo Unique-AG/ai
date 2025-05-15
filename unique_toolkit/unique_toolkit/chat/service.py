@@ -1212,7 +1212,7 @@ class ChatService:
             other_options=other_options,
         )
 
-    def complete_async(
+    async def complete_async(
         self,
         messages: LanguageModelMessages,
         model_name: LanguageModelName | str,
