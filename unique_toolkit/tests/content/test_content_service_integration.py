@@ -312,6 +312,36 @@ class TestContentServiceIntegration:
                 downloaded_path.unlink()
                 downloaded_path.parent.rmdir()
 
+    def test_upload_with_metadata(self):
+        # Create a temporary file for testing
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as temp_file:
+            temp_file.write(b"Test content with metadata")
+            temp_file_path = temp_file.name
+
+        metadata = {
+            "folderIdPath": "uniquepathid://scope_id",
+            "customKey": "customValue",
+        }
+
+        try:
+            # Test upload_content with metadata
+            uploaded_content = self.service.upload_content(
+                path_to_content=temp_file_path,
+                content_name="metadata_test.txt",
+                mime_type="text/plain",
+                scope_id=test_scope_id,
+                metadata=metadata,
+            )
+
+            assert uploaded_content is not None
+            assert uploaded_content.id is not None
+            assert uploaded_content.key == "metadata_test.txt"
+            assert uploaded_content.metadata == metadata  # Assert metadata is included
+
+        finally:
+            # Clean up
+            os.unlink(temp_file_path)
+
     def test_download_content_with_specified_dir_path(self):
         # Create a temporary file for testing
         with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as temp_file:

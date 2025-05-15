@@ -342,6 +342,36 @@ def test_upload_content_error_handling(mock_sdk, tmp_path):
         )
 
 
+@patch("unique_toolkit.content.functions.requests.put")
+@patch("unique_toolkit.content.functions._upsert_content")
+def test_upload_content_with_metadata(
+    mock_upsert, mock_put, mock_sdk, sample_content_data, tmp_path
+):
+    # Setup
+    mock_upsert.return_value = sample_content_data
+    content = b"test content"
+
+    metadata = {
+        "key": "value",
+    }
+
+    # Execute
+    result = upload_content_from_bytes(
+        user_id="user123",
+        company_id="company123",
+        content=content,
+        content_name="test.txt",
+        mime_type="text/plain",
+        scope_id="scope123",
+        metadata=metadata,
+    )
+
+    # Assert
+    assert isinstance(result, Content)
+    call_kwargs = mock_upsert.call_args[1]
+    assert call_kwargs["input_data"]["metadata"] == metadata
+
+
 def test_request_content_by_id(mock_sdk):
     # Setup
     with patch("unique_toolkit.content.functions.requests.get") as mock_get:

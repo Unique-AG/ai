@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_sdk"
-version = "0.9.26"
+version = "0.9.27"
 description = ""
 authors = [
     "Martin Fadler <martin.fadler@unique.ch>",
@@ -16,6 +16,7 @@ classifiers = [
 [tool.poetry.dependencies]
 python = "^3.11"
 typing-extensions = "^4.9.0"
+requests = "^2.32.3"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -25,6 +26,7 @@ tox = "^4.11.4"
 pyright = "^1.1.341"
 pytest-cov = "^4.1.0"
 pytest-asyncio = "^0.24.0"
+python-dotenv = "^1.1.0"
 
 [build-system]
 requires = ["poetry-core"]
