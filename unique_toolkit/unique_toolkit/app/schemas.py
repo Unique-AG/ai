@@ -109,31 +109,26 @@ class ChatEventPayload(BaseModel):
 @deprecated("""Use `ChatEventPayload` instead.
             This class will be removed in the next major version.""")
 class EventPayload(ChatEventPayload):
-    user_message: EventUserMessage
-    assistant_message: EventAssistantMessage
-    additional_parameters: Optional[EventAdditionalParameters] = None
+    pass
+    # user_message: EventUserMessage
+    # assistant_message: EventAssistantMessage
+    # additional_parameters: Optional[EventAdditionalParameters] = None
+
+
+class ChatEvent(BaseEvent):
+    model_config = model_config
+
+    payload: ChatEventPayload
+    created_at: Optional[int] = None
+    version: Optional[str] = None
 
 
 @deprecated(
     """Use the more specific `ChatEvent` instead that has the same properties. \
 This class will be removed in the next major version."""
 )
-class Event(BaseModel):
-    model_config = model_config
-
-    id: str
-    event: EventName
-    user_id: str
-    company_id: str
-    payload: EventPayload
-    created_at: Optional[int] = None
-    version: Optional[str] = None
-
-
-class ChatEvent(BaseEvent):
-    model_config = model_config
-
-    event: EventName
-    payload: ChatEventPayload
-    created_at: Optional[int] = None
-    version: Optional[str] = None
+class Event(ChatEvent):
+    pass
+    # The below should only affect type hints
+    # event: EventName T
+    # payload: EventPayload
