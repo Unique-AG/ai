@@ -11,6 +11,8 @@ from unique_toolkit.content.functions import (
     search_content_chunks_async,
     search_contents,
     search_contents_async,
+    search_contents_by_rule,
+    search_contents_by_rule_async,
     upload_content,
     upload_content_from_bytes,
 )
@@ -442,6 +444,60 @@ async def test_search_contents_async_error(mock_sdk):
         )
     assert isinstance(exc_info.value, Exception)
     assert str(exc_info.value) == "SDK error"
+
+
+def test_search_contents_by_rule(mock_sdk, sample_content_data):
+    # Setup
+    mock_sdk.Content.rule_search.return_value = [sample_content_data]
+
+    # Execute
+    result = search_contents_by_rule(
+        user_id="user123",
+        company_id="company123",
+        rule={"key": {"equals": "test_key"}},
+        skip=0,
+        take=10,
+    )
+
+    # Assert
+    assert isinstance(result, list)
+    assert all(isinstance(content, Content) for content in result)
+    mock_sdk.Content.rule_search.assert_called_once_with(
+        user_id="user123",
+        company_id="company123",
+        rule={"key": {"equals": "test_key"}},
+        skip=0,
+        take=10,
+    )
+
+
+@pytest.mark.asyncio
+async def test_search_contents_by_rule_async(mock_sdk, sample_content_data):
+    # Setup
+    async def async_return():
+        return [sample_content_data]
+
+    mock_sdk.Content.rule_search_async.return_value = async_return()
+
+    # Execute
+    result = await search_contents_by_rule_async(
+        user_id="user123",
+        company_id="company123",
+        rule={"key": {"equals": "test_key"}},
+        skip=0,
+        take=10,
+    )
+
+    # Assert
+    assert isinstance(result, list)
+    assert all(isinstance(content, Content) for content in result)
+    mock_sdk.Content.rule_search_async.assert_called_once_with(
+        user_id="user123",
+        company_id="company123",
+        rule={"key": {"equals": "test_key"}},
+        skip=0,
+        take=10,
+    )
 
 
 def test_upload_content_missing_write_url(mock_sdk, tmp_path):

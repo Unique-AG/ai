@@ -18,6 +18,8 @@ from unique_toolkit.content.functions import (
     search_content_chunks_async,
     search_contents,
     search_contents_async,
+    search_contents_by_rule,
+    search_contents_by_rule_async,
     upload_content,
     upload_content_from_bytes,
 )
@@ -357,6 +359,58 @@ class ContentService:
         where = {"ownerId": {"equals": chat_id}}
 
         return self.search_contents(where, chat_id=chat_id)
+
+    def search_contents_by_rule(
+        self,
+        rule: dict,
+        take: int | None = None,
+        skip: int | None = None,
+    ):
+        """
+        Performs a search in the knowledge base by filter
+        This function loads content of the files from the knowledge base which match the rule.
+
+        Args:
+            rule (dict): The search criteria - rule defined in the UniqueQL language.
+            take (int): The number of results to return.
+            skip (int): The number of results to skip.
+
+        Returns:
+            list[Content]: The search results.
+        """
+        return search_contents_by_rule(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            rule=rule,
+            take=take,
+            skip=skip,
+        )
+
+    async def search_contents_by_rule_async(
+        self,
+        rule: dict,
+        take: int | None = None,
+        skip: int | None = None,
+    ):
+        """
+        Performs an asynchronous search in the knowledge base by filter
+        This function loads content of the files from the knowledge base which match the rule.
+
+        Args:
+            rule (dict): The search criteria - rule defined in the UniqueQL language.
+            take (int): The number of results to return.
+            skip (int): The number of results to skip.
+
+        Returns:
+            list[Content]: The search results.
+        """
+        return await search_contents_by_rule_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            rule=rule,
+            take=take,
+            skip=skip,
+        )
 
     def upload_content_from_bytes(
         self,

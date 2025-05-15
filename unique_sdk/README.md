@@ -267,6 +267,73 @@ unique_sdk.Content.search(
 )
 ```
 
+#### `unique_sdk.Content.ruleSearch`
+
+Allows you to search contents based on a `rule`. The rule should be defined in the UniqueQL language. Find out more about it in the UniqueQL section. An example of a rule defined with UniqueQL is the following:
+
+```python
+    rule: {
+        "or": [
+            {
+                "and": [
+                    {
+                        "operator": "contains",
+                        "path": [
+                            "folderIdPath"
+                        ],
+                        "value": "uniquepathid://scope_vf207ibgznc4bkdcx120zm5d"
+                    },
+                    {
+                        "operator": "contains",
+                        "path": [
+                            "testtttt"
+                        ],
+                        "value": "superrrr"
+                    }
+                ]
+            }
+        ]
+    },
+```
+
+Pagination is also enabled for this functionality, and the default number of returned results is 50 with no entries skipped. Use the following paramteres to get the desired page:`
+
+- `skip`
+- `take`
+
+Here is an example of retrieving all contents that contain the number the value `uniquepathid://scope_vf207ibgznc4bkdcx120zm5d` in the `folderIdPath` metadata and the value `User` for the `partcipantsGroup` metadata.
+
+```python
+searched_content = unique_sdk.Content.rule_search(
+    user_id=user_id,
+    company_id=company_id,
+    rule={
+        "or": [
+            {
+                "and": [
+                    {
+                        "operator": "contains",
+                        "path": [
+                            "folderIdPath"
+                        ],
+                        "value": "uniquepathid://scope_vf207ibgznc4bkdcx120zm5d"
+                    },
+                    {
+                        "operator": "contains",
+                        "path": [
+                            "partcipantsGroup"
+                        ],
+                        "value": "User"
+                    }
+                ]
+            }
+        ]
+    },
+    skip=0,
+    take=3,
+)
+```
+
 #### `unique_sdk.Content.upsert`
 
 Enables upload of a new Content into the Knowledge base of unique into a specific scope with `scopeId` or a specific `chatId`. One of the two must be set.

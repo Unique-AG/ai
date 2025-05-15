@@ -65,6 +65,11 @@ class Content(APIResource["Content"]):
         where: "Content.ContentWhereInput"
         chatId: NotRequired[str]
 
+    class RuleSearchParams(TypedDict):
+        rule: dict
+        skip: Optional[int]
+        take: Optional[int]
+
     class CustomApiOptions(TypedDict):
         apiIdentifier: str
         apiPayload: Optional[str]
@@ -150,6 +155,42 @@ class Content(APIResource["Content"]):
             await cls._static_request_async(
                 "post",
                 "/content/search",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    def rule_search(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Content.RuleSearchParams"],
+    ) -> List["Content"]:
+        return cast(
+            List["Content"],
+            cls._static_request(
+                "post",
+                "/content/rule-search",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    async def rule_search_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Content.RuleSearchParams"],
+    ) -> List["Content"]:
+        return cast(
+            List["Content"],
+            await cls._static_request_async(
+                "post",
+                "/content/rule-search",
                 user_id,
                 company_id,
                 params=params,
