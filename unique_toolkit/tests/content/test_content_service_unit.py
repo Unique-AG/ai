@@ -1,4 +1,3 @@
-import asyncio
 import os
 import shutil
 import tempfile
@@ -640,10 +639,9 @@ class TestContentServiceUnit:
         with patch.object(
             unique_sdk.Content, "rule_search_async"
         ) as mock_rule_search_async:
-            # Create an asyncio.Future for asyn result
-            future = asyncio.Future()
-            future.set_result(
-                {
+
+            async def async_return():
+                return {
                     "nodes": [
                         {
                             "id": "1",
@@ -656,8 +654,8 @@ class TestContentServiceUnit:
                     ],
                     "totalCount": 1,
                 }
-            )
-            mock_rule_search_async.return_value = future
+
+            mock_rule_search_async.return_value = async_return()
 
             rule = {
                 "OR": [
