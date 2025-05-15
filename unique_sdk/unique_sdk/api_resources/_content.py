@@ -67,8 +67,8 @@ class Content(APIResource["Content"]):
 
     class RuleSearchParams(TypedDict):
         rule: dict
-        skip: Optional[int]
-        take: Optional[int]
+        skip: int | None
+        take: int | None
 
     class CustomApiOptions(TypedDict):
         apiIdentifier: str
