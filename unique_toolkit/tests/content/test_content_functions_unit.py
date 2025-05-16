@@ -11,8 +11,6 @@ from unique_toolkit.content.functions import (
     search_content_chunks_async,
     search_contents,
     search_contents_async,
-    search_contents_by_rule,
-    search_contents_by_rule_async,
     upload_content,
     upload_content_from_bytes,
 )
@@ -21,7 +19,6 @@ from unique_toolkit.content.schemas import (
     ContentChunk,
     ContentRerankerConfig,
     ContentSearchType,
-    PaginatedContent,
 )
 
 
@@ -56,23 +53,6 @@ def sample_content_data():
         "chunks": [],
         "createdAt": "2024-01-01T00:00:00Z",
         "updatedAt": "2024-01-01T00:00:00Z",
-    }
-
-
-@pytest.fixture
-def sample_content_search_data():
-    return {
-        "nodes": [
-            {
-                "id": "1",
-                "key": "test_key",
-                "title": "Test Content",
-                "url": "http://test.com",
-                "createdAt": "2021-01-01T00:00:00Z",
-                "updatedAt": "2021-01-01T00:00:00Z",
-            },
-        ],
-        "totalCount": 1,
     }
 
 
@@ -462,60 +442,6 @@ async def test_search_contents_async_error(mock_sdk):
         )
     assert isinstance(exc_info.value, Exception)
     assert str(exc_info.value) == "SDK error"
-
-
-def test_search_contents_by_rule(mock_sdk, sample_content_search_data):
-    # Setup
-    mock_sdk.Content.rule_search.return_value = sample_content_search_data
-
-    # Execute
-    result = search_contents_by_rule(
-        user_id="user123",
-        company_id="company123",
-        rule={"key": {"equals": "test_key"}},
-        skip=0,
-        take=10,
-    )
-
-    # Assert
-    assert isinstance(result, PaginatedContent)
-    assert all(isinstance(content, Content) for content in result.nodes)
-    mock_sdk.Content.rule_search.assert_called_once_with(
-        user_id="user123",
-        company_id="company123",
-        rule={"key": {"equals": "test_key"}},
-        skip=0,
-        take=10,
-    )
-
-
-@pytest.mark.asyncio
-async def test_search_contents_by_rule_async(mock_sdk, sample_content_search_data):
-    # Setup
-    async def async_return():
-        return sample_content_search_data
-
-    mock_sdk.Content.rule_search_async.return_value = async_return()
-
-    # Execute
-    result = await search_contents_by_rule_async(
-        user_id="user123",
-        company_id="company123",
-        rule={"key": {"equals": "test_key"}},
-        skip=0,
-        take=10,
-    )
-
-    # Assert
-    assert isinstance(result, PaginatedContent)
-    assert all(isinstance(content, Content) for content in result.nodes)
-    mock_sdk.Content.rule_search_async.assert_called_once_with(
-        user_id="user123",
-        company_id="company123",
-        rule={"key": {"equals": "test_key"}},
-        skip=0,
-        take=10,
-    )
 
 
 def test_upload_content_missing_write_url(mock_sdk, tmp_path):

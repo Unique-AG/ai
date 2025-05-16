@@ -6,7 +6,6 @@ import unique_sdk
 from unique_toolkit.content.schemas import (
     Content,
     ContentChunk,
-    PaginatedContent,
 )
 
 
@@ -207,18 +206,9 @@ def map_content(content: dict):
         key=content["key"],
         title=content["title"],
         url=content["url"],
-        chunks=[map_content_chunk(chunk) for chunk in content.get("chunks", [])],
+        chunks=[map_content_chunk(chunk) for chunk in content["chunks"]],
         created_at=content["createdAt"],
         updated_at=content["updatedAt"],
-    )
-
-
-def map_paginated_content(content_search: dict):
-    print(type(content_search))
-    print(content_search)
-    return PaginatedContent(
-        total_count=content_search["totalCount"],
-        nodes=[map_content(content) for content in content_search["nodes"]],
     )
 
 

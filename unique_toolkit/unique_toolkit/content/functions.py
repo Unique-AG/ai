@@ -15,11 +15,7 @@ from unique_toolkit.content.schemas import (
     ContentRerankerConfig,
     ContentSearchType,
 )
-from unique_toolkit.content.utils import (
-    map_contents,
-    map_paginated_content,
-    map_to_content_chunks,
-)
+from unique_toolkit.content.utils import map_contents, map_to_content_chunks
 
 logger = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
 
@@ -138,7 +134,7 @@ def search_contents(
     where: dict,
 ):
     """
-    Performs search for content files in the knowledge base by filter.
+    Performs an asynchronous search for content files in the knowledge base by filter.
 
     Args:
         user_id (str): The user ID.
@@ -186,50 +182,6 @@ async def search_contents_async(
         return map_contents(contents)
     except Exception as e:
         logger.error(f"Error while searching contents: {e}")
-        raise e
-
-
-def search_contents_by_rule(
-    user_id: str,
-    company_id: str,
-    rule: dict,
-    skip: int = 0,
-    take: int = 50,
-):
-    """Searches content by rule in the knowledge base."""
-    try:
-        paginated_content = unique_sdk.Content.rule_search(
-            user_id=user_id,
-            company_id=company_id,
-            rule=rule,
-            skip=skip,
-            take=take,
-        )
-        return map_paginated_content(paginated_content)
-    except Exception as e:
-        logger.error(f"Error while searching contents by rule: {e}")
-        raise e
-
-
-async def search_contents_by_rule_async(
-    user_id: str,
-    company_id: str,
-    rule: dict,
-    skip: int = 0,
-    take: int = 50,
-):
-    """Asynchronously searches content by rule in the knowledge base."""
-    try:
-        paginated_content = await unique_sdk.Content.rule_search_async(
-            user_id=user_id,
-            company_id=company_id,
-            rule=rule,
-            skip=skip,
-            take=take,
-        )
-        return map_paginated_content(paginated_content)
-    except Exception as e:
-        logger.error(f"Error while searching contents by rule async: {e}")
         raise e
 
 

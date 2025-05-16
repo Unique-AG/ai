@@ -270,55 +270,6 @@ class TestContentServiceIntegration:
                 downloaded_path.unlink()
                 downloaded_path.parent.rmdir()
 
-    def test_search_contents_by_rule(self):
-        rule = {
-            "OR": [
-                {
-                    "AND": [
-                        {"key": {"equals": "test_key"}},
-                        {"ownerId": {"equals": "test_owner"}},
-                    ]
-                }
-            ]
-        }
-
-        result = self.service.search_contents_by_rule(
-            rule=rule,
-            skip=0,
-            take=10,
-        )
-
-        assert isinstance(result, list)
-        assert all(isinstance(content, Content) for content in result)
-        if len(result) > 0:
-            assert all(hasattr(content, "id") for content in result)
-            assert all(hasattr(content, "key") for content in result)
-
-    @pytest.mark.asyncio
-    async def test_search_contents_by_rule_async(self):
-        rule = {
-            "OR": [
-                {
-                    "AND": [
-                        {"key": {"equals": "test_key"}},
-                        {"ownerId": {"equals": "test_owner"}},
-                    ]
-                }
-            ]
-        }
-
-        result = await self.service.search_contents_by_rule_async(
-            rule=rule,
-            skip=0,
-            take=10,
-        )
-
-        assert isinstance(result, list)
-        assert all(isinstance(content, Content) for content in result)
-        if len(result) > 0:
-            assert all(hasattr(content, "id") for content in result)
-            assert all(hasattr(content, "key") for content in result)
-
     def test_upload_without_ingestion_config(self):
         # Create a temporary file for testing
         with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as temp_file:
