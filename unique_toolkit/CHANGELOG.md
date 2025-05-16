@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.17] - 2025-05-16
+- Change inheritance hierarchy of events for easier deprecation
+
 ## [0.7.16] - 2025-05-16
 - Add classmethods to create LanguageModelAssistatnMessage from functions and stream response
 - Add completion like method to chat
