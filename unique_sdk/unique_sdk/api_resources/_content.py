@@ -65,6 +65,11 @@ class Content(APIResource["Content"]):
         where: "Content.ContentWhereInput"
         chatId: NotRequired[str]
 
+    class RuleSearchParams(TypedDict):
+        rule: dict
+        skip: int | None
+        take: int | None
+
     class CustomApiOptions(TypedDict):
         apiIdentifier: str
         apiPayload: Optional[str]
@@ -112,6 +117,10 @@ class Content(APIResource["Content"]):
         endPage: Optional[int]
         order: Optional[int]
 
+    class PaginatedContents(TypedDict):
+        nodes: List["Content"]
+        totalCount: int
+
     id: str
     key: str
     url: Optional[str]
@@ -150,6 +159,42 @@ class Content(APIResource["Content"]):
             await cls._static_request_async(
                 "post",
                 "/content/search",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    def rule_search(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Content.RuleSearchParams"],
+    ) -> PaginatedContents:
+        return cast(
+            Content.PaginatedContents,
+            cls._static_request(
+                "post",
+                "/content/rule-search",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    async def rule_search_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Content.RuleSearchParams"],
+    ) -> PaginatedContents:
+        return cast(
+            Content.PaginatedContents,
+            await cls._static_request_async(
+                "post",
+                "/content/rule-search",
                 user_id,
                 company_id,
                 params=params,
