@@ -17,6 +17,10 @@ class MessagesBuilder:
     def __init__(self):
         self.messages: list[LanguageModelMessage] = []
 
+    def append(self, message: LanguageModelMessage) -> Self:
+        self.messages.append(message)
+        return self
+
     def message_append(self, role: LanguageModelMessageRole, content: str):
         message = LanguageModelMessage(role=role, content=content)
         self.messages.append(message)
