@@ -282,6 +282,9 @@ class TestContentServiceUnit:
                 "chunkStrategy": "default",
                 "uniqueIngestionMode": "standard",
             }
+            metadata = {
+                "folderIdPath": "uniquepathid://scope_id",
+            }
 
             mock_upsert.side_effect = [
                 {
@@ -302,6 +305,9 @@ class TestContentServiceUnit:
                     "writeUrl": "http://test-write-url.com",
                     "readUrl": "http://test-read-url.com",
                     "ingestionConfig": ingestion_config,
+                    "metadata": {
+                        "folderIdPath": "uniquepathid://scope_id",
+                    },
                 },
             ]
 
@@ -311,6 +317,7 @@ class TestContentServiceUnit:
                 mime_type="text/plain",
                 scope_id="test_scope",
                 ingestion_config=ingestion_config,
+                metadata=metadata,
             )
 
             assert isinstance(result, Content)
@@ -350,6 +357,10 @@ class TestContentServiceUnit:
                 "uniqueIngestionMode": "standard",
             }
 
+            metadata = {
+                "folderIdPath": "uniquepathid://scope_id",
+            }
+
             mock_upsert.side_effect = [
                 {
                     "id": "test_content_id",
@@ -369,6 +380,9 @@ class TestContentServiceUnit:
                     "writeUrl": "http://test-write-url.com",
                     "readUrl": "http://test-read-url.com",
                     "ingestionConfig": ingestion_config,
+                    "metadata": {
+                        "folderIdPath": "uniquepathid://scope_id",
+                    },
                 },
             ]
 
@@ -378,6 +392,7 @@ class TestContentServiceUnit:
                 mime_type="text/plain",
                 scope_id="test_scope",
                 ingestion_config=ingestion_config,
+                metadata=metadata,
             )
 
             assert isinstance(result, Content)
@@ -480,6 +495,7 @@ class TestContentServiceUnit:
                     "chunkStrategy": "default",
                     "uniqueIngestionMode": "SKIP_INGESTION",
                 },
+                "metadata": None,
             }
             assert second_upsert_call[1]["fileUrl"] == "http://test-read-url.com"
             assert second_upsert_call[1]["scopeId"] == "test_scope"

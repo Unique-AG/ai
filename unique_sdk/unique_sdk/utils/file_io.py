@@ -41,6 +41,7 @@ def upload_file(
     scope_or_unique_path=None,
     chat_id=None,
     ingestion_config: Optional[Content.IngestionConfig] = None,
+    metadata: dict[str, any] | None = None,
 ):
     # check that chatid or scope_or_unique_path is provided
     if not chat_id and not scope_or_unique_path:
@@ -54,7 +55,8 @@ def upload_file(
             "key": displayed_filename,
             "title": displayed_filename,
             "mimeType": mime_type,
-            "ingestionConfig": ingestion_config,  # Pass ingestionConfig here
+            "ingestionConfig": ingestion_config,
+            "metadata": metadata,
         },
         scopeId=scope_or_unique_path,
         chatId=chat_id,
@@ -83,6 +85,7 @@ def upload_file(
                 "mimeType": mime_type,
                 "byteSize": size,
                 "ingestionConfig": ingestion_config,
+                "metadata": metadata,
             },
             fileUrl=createdContent.readUrl,
             chatId=chat_id,
@@ -97,6 +100,7 @@ def upload_file(
                 "mimeType": mime_type,
                 "byteSize": size,
                 "ingestionConfig": ingestion_config,
+                "metadata": metadata,
             },
             fileUrl=createdContent.readUrl,
             scopeId=scope_or_unique_path,

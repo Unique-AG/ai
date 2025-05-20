@@ -287,6 +287,9 @@ createdContent = upload_file(
         "chunkStrategy": "default",
         "uniqueIngestionMode": "standard",
     },
+    metadata={
+        "folderIdPath": "uniquepathid://scope_id"
+    }
 )
 
 def upload_file(
@@ -297,6 +300,7 @@ def upload_file(
     mimeType,
     scope_or_unique_path,
     ingestion_config=None,
+    metadata=None,
 ):
     size = os.path.getsize(path_to_file)
     createdContent = unique_sdk.Content.upsert(
@@ -307,6 +311,7 @@ def upload_file(
             "title": displayed_filename,
             "mimeType": mimeType,
             "ingestionConfig": ingestionConfig,
+            "metadata": metadata,
         },
         scopeId=scope_or_unique_path,
     )
@@ -333,6 +338,7 @@ def upload_file(
             "mimeType": mimeType,
             "byteSize": size,
             "ingestionConfig": ingestionConfig,
+            "metadata": metadata,
         },
         scopeId=scope_or_unique_path,
         readUrl=createdContent.readUrl,
