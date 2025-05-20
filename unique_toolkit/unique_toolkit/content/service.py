@@ -367,6 +367,7 @@ class ContentService:
         chat_id: str | None = None,
         skip_ingestion: bool = False,
         ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
+        metadata: dict | None = None,
     ) -> Content:
         """
         Uploads content to the knowledge base.
@@ -378,6 +379,8 @@ class ContentService:
             scope_id (str | None): The scope ID. Defaults to None.
             chat_id (str | None): The chat ID. Defaults to None.
             skip_ingestion (bool): Whether to skip ingestion. Defaults to False.
+            ingestion_config (unique_sdk.Content.IngestionConfig | None): The ingestion configuration. Defaults to None.
+            metadata (dict | None): The metadata to associate with the content. Defaults to None.
 
         Returns:
             Content: The uploaded content.
@@ -393,6 +396,7 @@ class ContentService:
             chat_id=chat_id,
             skip_ingestion=skip_ingestion,
             ingestion_config=ingestion_config,
+            metadata=metadata,
         )
 
     def upload_content(
@@ -404,6 +408,7 @@ class ContentService:
         chat_id: str | None = None,
         skip_ingestion: bool = False,
         ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
+        metadata: dict[str, any] | None = None,
     ):
         """
         Uploads content to the knowledge base.
@@ -415,6 +420,8 @@ class ContentService:
             scope_id (str | None): The scope ID. Defaults to None.
             chat_id (str | None): The chat ID. Defaults to None.
             skip_ingestion (bool): Whether to skip ingestion. Defaults to False.
+            ingestion_config (unique_sdk.Content.IngestionConfig | None): The ingestion configuration. Defaults to None.
+            metadata (dict[str, any] | None): The metadata to associate with the content. Defaults to None.
 
         Returns:
             Content: The uploaded content.
@@ -430,6 +437,7 @@ class ContentService:
             chat_id=chat_id,
             skip_ingestion=skip_ingestion,
             ingestion_config=ingestion_config,
+            metadata=metadata,
         )
 
     def request_content_by_id(
