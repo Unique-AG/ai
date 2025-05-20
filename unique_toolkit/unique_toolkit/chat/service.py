@@ -41,6 +41,7 @@ from unique_toolkit.language_model.infos import (
 )
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
+    LanguageModelResponse,
     LanguageModelStreamResponse,
     LanguageModelTool,
 )
@@ -81,7 +82,7 @@ class ChatService:
     @deprecated(
         "The event property is deprecated and will be removed in a future version."
     )
-    def event(self) -> Event | ChatEvent | None:
+    def event(self) -> Event | ChatEvent:
         """
         Get the event object (deprecated).
 
@@ -279,14 +280,30 @@ class ChatService:
         Args:
             debug_info (dict): The new debug information.
         """
-
+        [
+            company_id,
+            user_id,
+            assistant_message_id,
+            user_message_id,
+            chat_id,
+            user_message_text,
+        ] = validate_required_values(
+            [
+                self._company_id,
+                self._user_id,
+                self._assistant_message_id,
+                self._user_message_id,
+                self._chat_id,
+                self._user_message_text,
+            ]
+        )
         return await modify_message_async(
-            user_id=self._user_id,
-            company_id=self._company_id,
-            assistant_message_id=self._assistant_message_id,
-            chat_id=self._chat_id,
-            user_message_id=self._user_message_id,
-            user_message_text=self._user_message_text,
+            user_id=user_id,
+            company_id=company_id,
+            assistant_message_id=assistant_message_id,
+            chat_id=chat_id,
+            user_message_id=user_message_id,
+            user_message_text=user_message_text,
             assistant=False,
             debug_info=debug_info,
         )
@@ -298,14 +315,31 @@ class ChatService:
         Args:
             debug_info (dict): The new debug information.
         """
+        [
+            company_id,
+            user_id,
+            assistant_message_id,
+            user_message_id,
+            chat_id,
+            user_message_text,
+        ] = validate_required_values(
+            [
+                self._company_id,
+                self._user_id,
+                self._assistant_message_id,
+                self._user_message_id,
+                self._chat_id,
+                self._user_message_text,
+            ]
+        )
 
         return modify_message(
-            user_id=self._user_id,
-            company_id=self._company_id,
-            assistant_message_id=self._assistant_message_id,
-            chat_id=self._chat_id,
-            user_message_id=self._user_message_id,
-            user_message_text=self._user_message_text,
+            user_id=user_id,
+            company_id=company_id,
+            assistant_message_id=assistant_message_id,
+            chat_id=chat_id,
+            user_message_id=user_message_id,
+            user_message_text=user_message_text,
             assistant=False,
             debug_info=debug_info,
         )
@@ -334,13 +368,31 @@ class ChatService:
         Raises:
             Exception: If the modification fails.
         """
+        [
+            company_id,
+            user_id,
+            assistant_message_id,
+            user_message_id,
+            chat_id,
+            user_message_text,
+        ] = validate_required_values(
+            [
+                self._company_id,
+                self._user_id,
+                self._assistant_message_id,
+                self._user_message_id,
+                self._chat_id,
+                self._user_message_text,
+            ]
+        )
+
         return modify_message(
-            user_id=self._user_id,
-            company_id=self._company_id,
-            assistant_message_id=self._assistant_message_id,
-            chat_id=self._chat_id,
-            user_message_id=self._user_message_id,
-            user_message_text=self._user_message_text,
+            user_id=user_id,
+            company_id=company_id,
+            assistant_message_id=assistant_message_id,
+            chat_id=chat_id,
+            user_message_id=user_message_id,
+            user_message_text=user_message_text,
             assistant=False,
             content=content,
             references=references,
@@ -373,13 +425,32 @@ class ChatService:
         Raises:
             Exception: If the modification fails.
         """
+
+        [
+            company_id,
+            user_id,
+            assistant_message_id,
+            user_message_id,
+            chat_id,
+            user_message_text,
+        ] = validate_required_values(
+            [
+                self._company_id,
+                self._user_id,
+                self._assistant_message_id,
+                self._user_message_id,
+                self._chat_id,
+                self._user_message_text,
+            ]
+        )
+
         return await modify_message_async(
-            user_id=self._user_id,
-            company_id=self._company_id,
-            assistant_message_id=self._assistant_message_id,
-            chat_id=self._chat_id,
-            user_message_id=self._user_message_id,
-            user_message_text=self._user_message_text,
+            user_id=user_id,
+            company_id=company_id,
+            assistant_message_id=assistant_message_id,
+            chat_id=chat_id,
+            user_message_id=user_message_id,
+            user_message_text=user_message_text,
             assistant=False,
             content=content,
             references=references,
@@ -414,13 +485,31 @@ class ChatService:
         Raises:
             Exception: If the modification fails.
         """
+        [
+            company_id,
+            user_id,
+            assistant_message_id,
+            user_message_id,
+            chat_id,
+            user_message_text,
+        ] = validate_required_values(
+            [
+                self._company_id,
+                self._user_id,
+                self._assistant_message_id,
+                self._user_message_id,
+                self._chat_id,
+                self._user_message_text,
+            ]
+        )
+
         return modify_message(
-            user_id=self._user_id,
-            company_id=self._company_id,
-            assistant_message_id=self._assistant_message_id,
-            chat_id=self._chat_id,
-            user_message_id=self._user_message_id,
-            user_message_text=self._user_message_text,
+            user_id=user_id,
+            company_id=company_id,
+            assistant_message_id=assistant_message_id,
+            chat_id=chat_id,
+            user_message_id=user_message_id,
+            user_message_text=user_message_text,
             assistant=True,
             content=content,
             original_content=original_content,
@@ -456,14 +545,30 @@ class ChatService:
         Raises:
             Exception: If the modification fails.
         """
-
+        [
+            company_id,
+            user_id,
+            assistant_message_id,
+            user_message_id,
+            chat_id,
+            user_message_text,
+        ] = validate_required_values(
+            [
+                self._company_id,
+                self._user_id,
+                self._assistant_message_id,
+                self._user_message_id,
+                self._chat_id,
+                self._user_message_text,
+            ]
+        )
         return await modify_message_async(
-            user_id=self._user_id,
-            company_id=self._company_id,
-            assistant_message_id=self._assistant_message_id,
-            chat_id=self._chat_id,
-            user_message_id=self._user_message_id,
-            user_message_text=self._user_message_text,
+            user_id=user_id,
+            company_id=company_id,
+            assistant_message_id=assistant_message_id,
+            chat_id=chat_id,
+            user_message_id=user_message_id,
+            user_message_text=user_message_text,
             assistant=True,
             content=content,
             original_content=original_content,
@@ -595,11 +700,25 @@ class ChatService:
         Raises:
             Exception: If the creation fails.
         """
+        [
+            company_id,
+            user_id,
+            assistant_id,
+            chat_id,
+        ] = validate_required_values(
+            [
+                self._company_id,
+                self._user_id,
+                self._assistant_id,
+                self._chat_id,
+            ]
+        )
+
         chat_message = create_message(
-            user_id=self._user_id,
-            company_id=self._company_id,
-            chat_id=self._chat_id,
-            assistant_id=self._assistant_id,
+            user_id=user_id,
+            company_id=company_id,
+            chat_id=chat_id,
+            assistant_id=assistant_id,
             role=ChatMessageRole.ASSISTANT,
             content=content,
             original_content=original_content,
@@ -635,12 +754,24 @@ class ChatService:
         Raises:
             Exception: If the creation fails.
         """
-
+        [
+            company_id,
+            user_id,
+            assistant_id,
+            chat_id,
+        ] = validate_required_values(
+            [
+                self._company_id,
+                self._user_id,
+                self._assistant_id,
+                self._chat_id,
+            ]
+        )
         chat_message = await create_message_async(
-            user_id=self._user_id,
-            company_id=self._company_id,
-            chat_id=self._chat_id,
-            assistant_id=self._assistant_id,
+            user_id=user_id,
+            company_id=company_id,
+            chat_id=chat_id,
+            assistant_id=assistant_id,
             role=ChatMessageRole.ASSISTANT,
             content=content,
             original_content=original_content,
@@ -676,11 +807,24 @@ class ChatService:
         Raises:
             Exception: If the creation fails.
         """
+        [
+            company_id,
+            user_id,
+            assistant_id,
+            chat_id,
+        ] = validate_required_values(
+            [
+                self._company_id,
+                self._user_id,
+                self._assistant_id,
+                self._chat_id,
+            ]
+        )
         chat_message = create_message(
-            user_id=self._user_id,
-            company_id=self._company_id,
-            chat_id=self._chat_id,
-            assistant_id=self._assistant_id,
+            user_id=user_id,
+            company_id=company_id,
+            chat_id=chat_id,
+            assistant_id=assistant_id,
             role=ChatMessageRole.USER,
             content=content,
             original_content=original_content,
@@ -716,12 +860,24 @@ class ChatService:
         Raises:
             Exception: If the creation fails.
         """
-
+        [
+            company_id,
+            user_id,
+            assistant_id,
+            chat_id,
+        ] = validate_required_values(
+            [
+                self._company_id,
+                self._user_id,
+                self._assistant_id,
+                self._chat_id,
+            ]
+        )
         chat_message = await create_message_async(
-            user_id=self._user_id,
-            company_id=self._company_id,
-            chat_id=self._chat_id,
-            assistant_id=self._assistant_id,
+            user_id=user_id,
+            company_id=company_id,
+            chat_id=chat_id,
+            assistant_id=assistant_id,
             role=ChatMessageRole.USER,
             content=content,
             original_content=original_content,
@@ -761,9 +917,19 @@ class ChatService:
         Raises:
             Exception: If the creation fails
         """
+        [
+            company_id,
+            user_id,
+        ] = validate_required_values(
+            [
+                self._company_id,
+                self._user_id,
+            ]
+        )
+
         return create_message_assessment(
-            user_id=self._user_id,
-            company_id=self._company_id,
+            user_id=user_id,
+            company_id=company_id,
             assistant_message_id=assistant_message_id,
             status=status,
             type=type,
@@ -801,9 +967,19 @@ class ChatService:
         Raises:
             Exception: If the creation fails
         """
+        [
+            company_id,
+            user_id,
+        ] = validate_required_values(
+            [
+                self._company_id,
+                self._user_id,
+            ]
+        )
+
         return await create_message_assessment_async(
-            user_id=self._user_id,
-            company_id=self._company_id,
+            user_id=user_id,
+            company_id=company_id,
             assistant_message_id=assistant_message_id,
             status=status,
             type=type,
@@ -839,9 +1015,19 @@ class ChatService:
         Raises:
             Exception: If the modification fails
         """
+        [
+            company_id,
+            user_id,
+        ] = validate_required_values(
+            [
+                self._company_id,
+                self._user_id,
+            ]
+        )
+
         return modify_message_assessment(
-            user_id=self._user_id,
-            company_id=self._company_id,
+            user_id=user_id,
+            company_id=company_id,
             assistant_message_id=assistant_message_id,
             status=status,
             type=type,
@@ -876,9 +1062,19 @@ class ChatService:
         Raises:
             Exception: If the modification fails
         """
+        [
+            company_id,
+            user_id,
+        ] = validate_required_values(
+            [
+                self._company_id,
+                self._user_id,
+            ]
+        )
+
         return await modify_message_assessment_async(
-            user_id=self._user_id,
-            company_id=self._company_id,
+            user_id=user_id,
+            company_id=company_id,
             assistant_message_id=assistant_message_id,
             status=status,
             type=type,
@@ -938,6 +1134,32 @@ class ChatService:
             other_options=other_options,
         )
 
+    def complete(
+        self,
+        messages: LanguageModelMessages,
+        model_name: LanguageModelName | str,
+        content_chunks: list[ContentChunk] = [],
+        debug_info: dict = {},
+        temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
+        timeout: int = DEFAULT_COMPLETE_TIMEOUT,
+        tools: Optional[list[LanguageModelTool]] = None,
+        start_text: Optional[str] = None,
+        other_options: Optional[dict] = None,
+    ) -> LanguageModelResponse:
+        response = self.stream_complete(
+            messages=messages,
+            model_name=model_name,
+            content_chunks=content_chunks,
+            debug_info=debug_info,
+            temperature=temperature,
+            timeout=timeout,
+            tools=tools,
+            start_text=start_text,
+            other_options=other_options,
+        )
+
+        return LanguageModelResponse.from_stream_response(response)
+
     async def stream_complete_async(
         self,
         messages: LanguageModelMessages,
@@ -989,3 +1211,29 @@ class ChatService:
             start_text=start_text,
             other_options=other_options,
         )
+
+    async def complete_async(
+        self,
+        messages: LanguageModelMessages,
+        model_name: LanguageModelName | str,
+        content_chunks: list[ContentChunk] = [],
+        debug_info: dict = {},
+        temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
+        timeout: int = DEFAULT_COMPLETE_TIMEOUT,
+        tools: Optional[list[LanguageModelTool]] = None,
+        start_text: Optional[str] = None,
+        other_options: Optional[dict] = None,
+    ) -> LanguageModelResponse:
+        response = self.stream_complete_async(
+            messages=messages,
+            model_name=model_name,
+            content_chunks=content_chunks,
+            debug_info=debug_info,
+            temperature=temperature,
+            timeout=timeout,
+            tools=tools,
+            start_text=start_text,
+            other_options=other_options,
+        )
+
+        return LanguageModelResponse.from_stream_response(await response)
