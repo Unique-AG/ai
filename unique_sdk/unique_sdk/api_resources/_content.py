@@ -65,6 +65,16 @@ class Content(APIResource["Content"]):
         where: "Content.ContentWhereInput"
         chatId: NotRequired[str]
 
+    class ContentInfoParams(TypedDict):
+        """
+        Parameters for the content info endpoint.
+        This is used to retrieve information about content based on various filters.
+        """
+
+        metadataFilter: dict
+        skip: int | None
+        take: int | None
+
     class CustomApiOptions(TypedDict):
         apiIdentifier: str
         apiPayload: Optional[str]
@@ -113,6 +123,30 @@ class Content(APIResource["Content"]):
         endPage: Optional[int]
         order: Optional[int]
 
+    class ContentInfo(TypedDict):
+        """
+        Partial representation of the content containing only the base information.
+        This is used for the content info endpoint.
+        """
+
+        id: str
+        key: str
+        url: str | None
+        title: str | None
+        metadata: Dict[str, Any] | None
+        mimeType: str
+        byteSize: int
+        ownerId: str
+        createdAt: str
+        updatedAt: str
+        expiresAt: str | None
+        deletedAt: str | None
+        expiredAt: str | None
+
+    class PaginatedContentInfo(TypedDict):
+        contentInfo: List["Content.ContentInfo"]
+        totalCount: int
+
     id: str
     key: str
     url: Optional[str]
@@ -151,6 +185,42 @@ class Content(APIResource["Content"]):
             await cls._static_request_async(
                 "post",
                 "/content/search",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    def get_info(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Content.ContentInfoParams"],
+    ) -> PaginatedContentInfo:
+        return cast(
+            Content.PaginatedContentInfo,
+            cls._static_request(
+                "post",
+                "/content/info",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    async def get_info_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Content.ContentInfoParams"],
+    ) -> PaginatedContentInfo:
+        return cast(
+            Content.PaginatedContentInfo,
+            await cls._static_request_async(
+                "post",
+                "/content/info",
                 user_id,
                 company_id,
                 params=params,

@@ -267,6 +267,73 @@ unique_sdk.Content.search(
 )
 ```
 
+#### `unique_sdk.Content.get_info`
+
+Allows you to get content info. To filter the results you can define a metadata filter in UniqueQL language. Find out more about it in the UniqueQL section. An example of a metadata filter defined with UniqueQL is the following:
+
+```python
+    metadataFilter: {
+        "or": [
+            {
+                "and": [
+                    {
+                        "operator": "contains",
+                        "path": [
+                            "folderIdPath"
+                        ],
+                        "value": "uniquepathid://test_id"
+                    },
+                    {
+                        "operator": "contains",
+                        "path": [
+                            "title"
+                        ],
+                        "value": "ai"
+                    }
+                ]
+            }
+        ]
+    },
+```
+
+Pagination is also enabled for this functionality, and the default number of returned results is 50 with no entries skipped. Use the following paramteres to get the desired page:`
+
+- `skip`
+- `take`
+
+Here is an example of retrieving the first 3 content infos that contain the value `uniquepathid://scope_abcdibgznc4bkdcx120zm5d` in the `folderIdPath` metadata and the value `ai` for the `tile` metadata.
+
+```python
+content_info_result = unique_sdk.Content.get_info(
+    user_id=user_id,
+    company_id=company_id,
+    metadataFilter={
+        "or": [
+            {
+                "and": [
+                    {
+                        "operator": "contains",
+                        "path": [
+                            "folderIdPath"
+                        ],
+                        "value": "uniquepathid://scope_abcdibgznc4bkdcx120zm5d"
+                    },
+                    {
+                        "operator": "contains",
+                        "path": [
+                            "title"
+                        ],
+                        "value": "ai"
+                    }
+                ]
+            }
+        ]
+    },
+    skip=0,
+    take=3,
+)
+```
+
 #### `unique_sdk.Content.upsert`
 
 Enables upload of a new Content into the Knowledge base of unique into a specific scope with `scopeId` or a specific `chatId`. One of the two must be set.

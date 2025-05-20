@@ -14,8 +14,8 @@ packages = [
 [tool.poetry.dependencies]
 python = "^3.11"
 python-dotenv = "^1.0.1"
-unique-sdk = "^0.9.4"
-unique-toolkit = "^0.6.8"
+unique-sdk = "0.9.28"
+unique-toolkit = "0.7.16"
 pydantic-settings = "^2.8.1"
 aiolimiter = "^1.2.1"
 dotenv = "^0.9.9"
@@ -23,6 +23,8 @@ httpx = "^0.28.1"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.2.1"
+unique-sdk = {path = "../../unique_sdk"}
+unique-toolkit = {path = "../../unique_toolkit"}
 
 [build-system]
 requires = ["poetry-core"]
