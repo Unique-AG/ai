@@ -85,7 +85,9 @@ from unique_sdk.api_resources._acronyms import Acronyms as Acronyms
 from unique_sdk.api_resources._message_assessment import (
     MessageAssessment as MessageAssessment,
 )
-
+from unique_sdk.api_resources._folder import (
+    Folder as Folder,
+)
 # Unique QL
 
 from unique_sdk._unique_ql import UQLOperator as UQLOperator
