@@ -267,12 +267,12 @@ unique_sdk.Content.search(
 )
 ```
 
-#### `unique_sdk.Content.ruleSearch`
+#### `unique_sdk.Content.get_info`
 
-Allows you to search contents based on a `rule`. The rule should be defined in the UniqueQL language. Find out more about it in the UniqueQL section. An example of a rule defined with UniqueQL is the following:
+Allows you to get content info. To filter the results you can define a metadata filter in UniqueQL language. Find out more about it in the UniqueQL section. An example of a metadata filter defined with UniqueQL is the following:
 
 ```python
-    rule: {
+    metadataFilter: {
         "or": [
             {
                 "and": [
@@ -301,13 +301,13 @@ Pagination is also enabled for this functionality, and the default number of ret
 - `skip`
 - `take`
 
-Here is an example of retrieving all contents that contain the number the value `uniquepathid://scope_vf207ibgznc4bkdcx120zm5d` in the `folderIdPath` metadata and the value `User` for the `partcipantsGroup` metadata.
+Here is an example of retrieving the first 3 content infos that contain the value `uniquepathid://scope_abcdibgznc4bkdcx120zm5d` in the `folderIdPath` metadata and the value `User` for the `partcipantsGroup` metadata.
 
 ```python
-searched_content = unique_sdk.Content.rule_search(
+content_info_result = unique_sdk.Content.info(
     user_id=user_id,
     company_id=company_id,
-    rule={
+    metadataFilter={
         "or": [
             {
                 "and": [
@@ -316,7 +316,7 @@ searched_content = unique_sdk.Content.rule_search(
                         "path": [
                             "folderIdPath"
                         ],
-                        "value": "uniquepathid://test_id"
+                        "value": "uniquepathid://scope_abcdibgznc4bkdcx120zm5d"
                     },
                     {
                         "operator": "contains",

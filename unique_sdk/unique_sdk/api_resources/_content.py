@@ -65,8 +65,13 @@ class Content(APIResource["Content"]):
         where: "Content.ContentWhereInput"
         chatId: NotRequired[str]
 
-    class RuleSearchParams(TypedDict):
-        rule: dict
+    class ContentInfoParams(TypedDict):
+        """
+        Parameters for the content info endpoint.
+        This is used to retrieve information about content based on various filters.
+        """
+
+        metadataFilter: dict
         skip: int | None
         take: int | None
 
@@ -117,8 +122,28 @@ class Content(APIResource["Content"]):
         endPage: Optional[int]
         order: Optional[int]
 
-    class PaginatedContents(TypedDict):
-        nodes: List["Content"]
+    class ContentInfo(TypedDict):
+        """
+        Partial representation of the content containing only the base information.
+        This is used for the content info endpoint.
+        """
+
+        id: str
+        key: str
+        url: str | None
+        title: str | None
+        metadata: Dict[str, Any] | None
+        mimeType: str
+        byteSize: int
+        ownerId: str
+        createdAt: str
+        updatedAt: str
+        expiresAt: str | None
+        deletedAt: str | None
+        expiredAt: str | None
+
+    class PaginatedContentInfo(TypedDict):
+        contentInfo: List["Content.ContentInfo"]
         totalCount: int
 
     id: str
@@ -166,17 +191,17 @@ class Content(APIResource["Content"]):
         )
 
     @classmethod
-    def rule_search(
+    def get_info(
         cls,
         user_id: str,
         company_id: str,
-        **params: Unpack["Content.RuleSearchParams"],
-    ) -> PaginatedContents:
+        **params: Unpack["Content.ContentInfoParams"],
+    ) -> PaginatedContentInfo:
         return cast(
-            Content.PaginatedContents,
+            Content.PaginatedContentInfo,
             cls._static_request(
                 "post",
-                "/content/rule-search",
+                "/content/info",
                 user_id,
                 company_id,
                 params=params,
@@ -184,17 +209,17 @@ class Content(APIResource["Content"]):
         )
 
     @classmethod
-    async def rule_search_async(
+    async def get_info_async(
         cls,
         user_id: str,
         company_id: str,
-        **params: Unpack["Content.RuleSearchParams"],
-    ) -> PaginatedContents:
+        **params: Unpack["Content.ContentInfoParams"],
+    ) -> PaginatedContentInfo:
         return cast(
-            Content.PaginatedContents,
+            Content.PaginatedContentInfo,
             await cls._static_request_async(
                 "post",
-                "/content/rule-search",
+                "/content/info",
                 user_id,
                 company_id,
                 params=params,
