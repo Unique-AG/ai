@@ -760,7 +760,7 @@ python-dotenv = "^1.0.1"
 regex = "^2024.5.15"
 tiktoken = "^0.7.0"
 typing-extensions = "^4.9.0"
-unique-sdk = "^0.9.27"
+unique-sdk = "^0.9.28"
 
 [package.source]
 type = "directory"
