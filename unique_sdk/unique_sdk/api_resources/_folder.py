@@ -22,7 +22,7 @@ class Folder(APIResource["Folder"]):
 
     @classmethod
     def create_paths(
-            cls, user_id: str, company_id: str, **params: Unpack["Folder.CreateParams"]
+        cls, user_id: str, company_id: str, **params: Unpack["Folder.CreateParams"]
     ) -> "Folder.CreateFolderStructureResponse":
         return cast(
             "Folder",
@@ -37,7 +37,7 @@ class Folder(APIResource["Folder"]):
 
     @classmethod
     async def create_paths_async(
-            cls, user_id: str, company_id: str, **params: Unpack["Folder.CreateParams"]
+        cls, user_id: str, company_id: str, **params: Unpack["Folder.CreateParams"]
     ) -> "Folder.CreateFolderStructureResponse":
         return cast(
             "Folder",

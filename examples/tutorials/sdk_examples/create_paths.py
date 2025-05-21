@@ -12,20 +12,21 @@ from dotenv import load_dotenv
 logging.basicConfig(level=logging.INFO)
 logger = getLogger(__name__)
 
+
 def main():
     """
     Example of creating folders based on specified paths.
     This example demonstrates how to create folders using the `Folder.create` method.
     The method takes parameters such as user_id, company_id, and a list of folder paths to be created.
     The create method returns a dictionary containing a key createdFolders, which holds a list of CreatedFolder objects. Each CreatedFolder object includes the following attributes:
-    
+
     id: A string representing the unique identifier of the folder.
     object: A string indicating the type of the object (e.g., "folder").
     name: A string representing the name of the folder.
     parentId: An optional string representing the ID of the parent folder, if any.
     """
     import unique_sdk
-    
+
     # Load environment variables
     load_dotenv(Path(__file__).parent / ".." / ".env")
 
@@ -45,6 +46,7 @@ def main():
     created_folders = unique_sdk.Folder.create_paths(**params)
 
     logger.info(f"created folders {created_folders}")
+
 
 if __name__ == "__main__":
     main()
