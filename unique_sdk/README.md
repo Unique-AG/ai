@@ -12,6 +12,7 @@ The Unique Python SDK provides access to the public API of Unique FinanceGPT. It
 4. [Webhook Triggers](#webhook-triggers)
 5. [Available API Resources](#available-api-resources)
    - [Content](#content)
+   - [Folder] (#folder)
    - [Message](#message)
    - [Chat Completion](#chat-completion)
    - [Embeddings](#embeddings)
@@ -417,6 +418,42 @@ def upload_file(
 
 ```
 
+### Folder
+
+#### `unique_sdk.Folder.create_paths`
+
+Create each folder in the provided list of paths if it does not already exist.
+
+```python
+unique_sdk.Folder.create_paths(
+   user_id=user_id,
+   company_id=company_id,
+   paths=["/unique/path1", "/unique/path2"],
+)
+```
+
+#### `unique_sdk.Folder.update_ingestion_config`
+
+Allows you to update the ingestion config of a folder and whether to apply to the subscopes or not: `
+
+- `ingestionConfig`
+- `applyToSubScopes`
+
+Example of updating the ingestion config of a folder and its subfolders.
+
+```python
+unique_sdk.Folder.update_ingestion_config(
+    user_id=user_id,
+    company_id=company_id,
+    scope_id=scope_id,
+    ingestionConfig={
+        "chunkStrategy": "default",
+        "uniqueIngestionMode": "standard",
+    },
+    applyToSubScopes=True
+)
+```
+
 ### Message
 
 #### `unique_sdk.Message.list`
@@ -723,20 +760,6 @@ assessment = unique_sdk.MessageAssessment.modify(
     type="HALLUCINATION"
 )
 ```
-### Folder
-
-#### `unique_sdk.Folder.create_paths`
-
-Create each folder in the provided list of paths if it does not already exist.
-
-```python
-unique_sdk.Folder.create_paths(
-   user_id=user_id,
-   company_id=company_id,
-   paths=["/unique/path1", "/unique/path2"],
-)
-```
-
 
 ## UniqueQL
 

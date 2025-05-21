@@ -80,15 +80,13 @@ from unique_sdk.api_resources._search_string import SearchString as SearchString
 from unique_sdk.api_resources._short_term_memory import (
     ShortTermMemory as ShortTermMemory,
 )
+from unique_sdk.api_resources._folder import Folder as Folder
 from unique_sdk.api_resources._embedding import Embeddings as Embeddings
 from unique_sdk.api_resources._acronyms import Acronyms as Acronyms
 from unique_sdk.api_resources._message_assessment import (
     MessageAssessment as MessageAssessment,
 )
-from unique_sdk.api_resources._folder import (
-    Folder as Folder,
-)
-# Unique QL
 
+# Unique QL
 from unique_sdk._unique_ql import UQLOperator as UQLOperator
 from unique_sdk._unique_ql import UQLCombinator as UQLCombinator
