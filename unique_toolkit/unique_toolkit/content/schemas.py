@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import StrEnum
-from typing import Optional
+from typing import Any, Optional
 
 from humps import camelize
 from pydantic import BaseModel, ConfigDict, Field
@@ -54,7 +54,7 @@ class Content(BaseModel):
     read_url: str | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
-    metadata: dict[str, any] | None = None
+    metadata: dict[str, Any] | None = None
     ingestion_config: dict | None = None
 
 
