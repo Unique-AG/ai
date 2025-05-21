@@ -1,5 +1,4 @@
-from typing import ClassVar, List, Literal, Unpack, cast
-from typing import List, Optional, TypedDict
+from typing import ClassVar, Literal, Optional, TypedDict, Unpack, List, cast
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
@@ -8,13 +7,12 @@ from unique_sdk._request_options import RequestOptions
 class Folder(APIResource["Folder"]):
     OBJECT_NAME: ClassVar[Literal["folder"]] = "folder"
     RESOURCE_URL = "/folder"
-    
+
     class CreatedFolder(TypedDict):
         id: str
         object: str
         name: str
         parentId: Optional[str]
-
 
     class CreateFolderStructureResponse(TypedDict):
         createdFolders: List["Folder.CreatedFolder"]
@@ -24,7 +22,7 @@ class Folder(APIResource["Folder"]):
 
     @classmethod
     def create_paths(
-        cls, user_id: str, company_id: str, **params: Unpack["Folder.CreateParams"]
+            cls, user_id: str, company_id: str, **params: Unpack["Folder.CreateParams"]
     ) -> "Folder.CreateFolderStructureResponse":
         return cast(
             "Folder",
@@ -39,7 +37,7 @@ class Folder(APIResource["Folder"]):
 
     @classmethod
     async def create_paths_async(
-        cls, user_id: str, company_id: str, **params: Unpack["Folder.CreateParams"]
+            cls, user_id: str, company_id: str, **params: Unpack["Folder.CreateParams"]
     ) -> "Folder.CreateFolderStructureResponse":
         return cast(
             "Folder",
