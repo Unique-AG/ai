@@ -433,7 +433,7 @@ unique_sdk.Folder.update_properties(
     company_id=company_id,
     scope_id=scope_id,
     ingestionConfig={
-        "chunkStrategy": "cucucu",
+        "chunkStrategy": "default",
         "uniqueIngestionMode": "standard",
     },
     applyToSubScopes=True
