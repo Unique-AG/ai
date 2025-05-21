@@ -1,4 +1,4 @@
-from typing import ClassVar, Literal, Optional, TypedDict, Unpack, List, cast
+from typing import ClassVar, List, Literal, Optional, TypedDict, Unpack, cast
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
