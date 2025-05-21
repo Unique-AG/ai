@@ -13,6 +13,7 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelResponse,
     LanguageModelSystemMessage,
     LanguageModelTool,
+    LanguageModelToolDescription,
     LanguageModelToolMessage,
     LanguageModelToolParameterProperty,
     LanguageModelToolParameters,
@@ -381,3 +382,51 @@ def test_language_model_tool_parameters_dump_from_pydantic():
     assert tool.parameters.properties["param2"].type == "integer"
     assert tool.parameters.properties["param2"].description == "A parameter"
     assert tool.parameters.required == ["param", "param2"]
+
+
+def test_language_model_tool_description():
+    from pydantic import BaseModel, Field
+
+    # Define the parameter model
+    class WeatherParameters(BaseModel):
+        location: str = Field(description="City and country e.g. Bogotá, Colombia")
+        units: str | None = Field(
+            description="Units the temperature will be returned in.",
+            enum=["celsius", "fahrenheit"],
+        )
+
+        model_config = {"extra": "forbid"}
+
+    tool = LanguageModelToolDescription(
+        name="get_weather",
+        description="Retrieves current weather for the given location.",
+        parameters=WeatherParameters,
+        strict=True,
+    )
+
+    expected_dump = {
+        "name": "get_weather",
+        "description": "Retrieves current weather for the given location.",
+        "parameters": {
+            "additionalProperties": False,
+            "properties": {
+                "location": {
+                    "description": "City and country e.g. Bogotá, Colombia",
+                    "title": "Location",
+                    "type": "string",
+                },
+                "units": {
+                    "anyOf": [{"type": "string"}, {"type": "null"}],
+                    "description": "Units the temperature will be returned in.",
+                    "enum": ["celsius", "fahrenheit"],
+                    "title": "Units",
+                },
+            },
+            "required": ["location", "units"],
+            "title": "WeatherParameters",
+            "type": "object",
+        },
+        "strict": True,
+    }
+
+    assert tool.model_dump() == expected_dump

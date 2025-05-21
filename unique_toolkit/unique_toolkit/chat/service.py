@@ -44,6 +44,7 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelResponse,
     LanguageModelStreamResponse,
     LanguageModelTool,
+    LanguageModelToolDescription,
 )
 
 from .functions import (
@@ -1091,7 +1092,7 @@ class ChatService:
         debug_info: dict = {},
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
-        tools: Optional[list[LanguageModelTool]] = None,
+        tools: Optional[list[LanguageModelTool | LanguageModelToolDescription]] = None,
         start_text: Optional[str] = None,
         other_options: Optional[dict] = None,
     ) -> LanguageModelStreamResponse:
@@ -1168,7 +1169,7 @@ class ChatService:
         debug_info: dict = {},
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
-        tools: Optional[list[LanguageModelTool]] = None,
+        tools: Optional[list[LanguageModelTool | LanguageModelToolDescription]] = None,
         start_text: Optional[str] = None,
         other_options: Optional[dict] = None,
     ) -> LanguageModelStreamResponse:
