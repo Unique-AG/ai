@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Deprecate `LanguageModelTool` and associated models in favor of `LanguageModelToolDescription`
 
 ## [0.7.19] - 2025-05-20
+- Extend the update the `ChatMessage` object to include the `Reference` object introduced in the public api
+
+## [0.7.19] - 2025-05-20
 - Extend the `MessageBuilder` to allow for appending any `LanguageModelMessage`
 
 ## [0.7.18] - 2025-05-20
