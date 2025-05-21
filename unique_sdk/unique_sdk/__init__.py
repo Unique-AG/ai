@@ -88,6 +88,5 @@ from unique_sdk.api_resources._message_assessment import (
 )
 
 # Unique QL
-
 from unique_sdk._unique_ql import UQLOperator as UQLOperator
 from unique_sdk._unique_ql import UQLCombinator as UQLCombinator
