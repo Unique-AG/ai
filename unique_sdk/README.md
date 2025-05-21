@@ -12,6 +12,7 @@ The Unique Python SDK provides access to the public API of Unique FinanceGPT. It
 4. [Webhook Triggers](#webhook-triggers)
 5. [Available API Resources](#available-api-resources)
    - [Content](#content)
+   - [Folder] (#folder)
    - [Message](#message)
    - [Chat Completion](#chat-completion)
    - [Embeddings](#embeddings)
@@ -413,6 +414,30 @@ def upload_file(
 
     return createdContent
 
+```
+
+### Folder
+
+#### `unique_sdk.Folder.update_properties`
+
+Allows you to update the properties of a folder and whether to apply to the subscopes or not: `
+
+- `ingestionConfig`
+- `applyToSubScopes`
+
+Example of updating the properties of a folder and its subfolders.
+
+```python
+unique_sdk.Folder.update_properties(
+    user_id=user_id,
+    company_id=company_id,
+    scope_id=scope_id,
+    ingestionConfig={
+        "chunkStrategy": "cucucu",
+        "uniqueIngestionMode": "standard",
+    },
+    applyToSubScopes=True
+)
 ```
 
 ### Message
