@@ -1754,7 +1754,7 @@ typing-extensions = ">=4.12.0"
 
 [[package]]
 name = "unique-sdk"
-version = "0.9.30"
+version = "0.9.31"
 description = ""
 optional = false
 python-versions = "^3.11"
@@ -1824,4 +1824,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.11"
-content-hash = "4bde373a7cc6856fd55448b01063cae6f84dc4c3338ccc5a0232eb2c7ee6a035"
+content-hash = "3f88deaf493e75a3e8d5714467b0016773bcecdd24100a0b5b4c72b1f99e2956"

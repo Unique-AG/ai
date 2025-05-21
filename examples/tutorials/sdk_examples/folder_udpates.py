@@ -38,7 +38,7 @@ def main():
             company_id=company_id,
             scope_id=scope_id,
             ingestionConfig={
-                "chunkMaxTokens": 1898980,
+                "chunkMaxTokens": 1000,
                 "chunkStrategy": "default",
                 "uniqueIngestionMode": "standard",
             },
@@ -47,6 +47,44 @@ def main():
         logger.info(f"Folder ingestion config updated successfully: {folder}")
     except Exception as e:
         logger.error(f"Failed to update folder ingestion config: {e}")
+
+    # Example: Add access to a folder
+    try:
+        folder = unique_sdk.Folder.add_access(
+            user_id=user_id,
+            company_id=company_id,
+            scope_id=scope_id,
+            scopeAccesses=[
+                {
+                    "entityId": "group_id",
+                    "type": "WRITE",
+                    "entityType": "GROUP",
+                }
+            ],
+            applyToSubScopes=True,
+        )
+        logger.info(f"Access added successfully: {folder}")
+    except Exception as e:
+        logger.error(f"Failed to add access: {e}")
+
+    # Example: Remove access from a folder
+    try:
+        folder = unique_sdk.Folder.remove_access(
+            user_id=user_id,
+            company_id=company_id,
+            scope_id=scope_id,
+            scopeAccesses=[
+                {
+                    "entityId": "group_id",
+                    "type": "WRITE",
+                    "entityType": "GROUP",
+                }
+            ],
+            applyToSubScopes=True,
+        )
+        logger.info(f"Access removed successfully: {folder}")
+    except Exception as e:
+        logger.error(f"Failed to remove access: {e}")
 
 
 if __name__ == "__main__":

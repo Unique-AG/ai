@@ -9,7 +9,7 @@ class Folder(APIResource["Folder"]):
     OBJECT_NAME: ClassVar[Literal["folder"]] = "folder"
     RESOURCE_URL = "/folder"
 
-    class ScopeAccess:
+    class ScopeAccess(TypedDict):
         """
         Represents the access level of a scope.
         """
@@ -91,6 +91,22 @@ class Folder(APIResource["Folder"]):
         ingestionConfig: "Folder.IngestionConfig"
         applyToSubScopes: bool
 
+    class AddAccessParams(TypedDict):
+        """
+        Parameters for adding access to a folder.
+        """
+
+        scopeAccesses: List["Folder.ScopeAccess"]
+        applyToSubScopes: bool
+
+    class RemoveAccessParams(TypedDict):
+        """
+        Parameters for removing access from a folder.
+        """
+
+        scopeAccesses: List["Folder.ScopeAccess"]
+        applyToSubScopes: bool
+
     @classmethod
     def create_paths(
         cls, user_id: str, company_id: str, **params: Unpack["Folder.CreateParams"]
@@ -159,6 +175,94 @@ class Folder(APIResource["Folder"]):
             await cls._static_request_async(
                 "patch",
                 f"/folder/{scope_id}/ingestion-config",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    def add_access(
+        cls,
+        user_id: str,
+        company_id: str,
+        scope_id: str,
+        **params: Unpack["Folder.AddAccessParams"],
+    ) -> "Folder":
+        """
+        Add access to a folder.
+        """
+        return cast(
+            "Folder",
+            cls._static_request(
+                "patch",
+                f"/folder/{scope_id}/access",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    async def add_access_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        scope_id: str,
+        **params: Unpack["Folder.AddAccessParams"],
+    ) -> "Folder":
+        """
+        Async add access to a folder.
+        """
+        return cast(
+            "Folder",
+            await cls._static_request_async(
+                "patch",
+                f"/folder/{scope_id}/access",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    def remove_access(
+        cls,
+        user_id: str,
+        company_id: str,
+        scope_id: str,
+        **params: Unpack["Folder.RemoveAccessParams"],
+    ) -> dict:
+        """
+        Remove access from a folder.
+        """
+        return cast(
+            dict,
+            cls._static_request(
+                "patch",
+                f"/folder/{scope_id}/remove-access",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    async def remove_access_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        scope_id: str,
+        **params: Unpack["Folder.RemoveAccessParams"],
+    ) -> "Folder":
+        """
+        Async remove access from a folder.
+        """
+        return cast(
+            "Folder",
+            await cls._static_request_async(
+                "patch",
+                f"/folder/{scope_id}/remove-access",
                 user_id,
                 company_id,
                 params=params,
