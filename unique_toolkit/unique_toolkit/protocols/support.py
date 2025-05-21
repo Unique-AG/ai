@@ -5,6 +5,7 @@ from unique_toolkit.language_model import (
     LanguageModelName,
     LanguageModelResponse,
     LanguageModelTool,
+    LanguageModelToolDescription,
 )
 from unique_toolkit.language_model.constants import (
     DEFAULT_COMPLETE_TEMPERATURE,
@@ -23,6 +24,6 @@ class SupportsComplete(Protocol):
         model_name: LanguageModelName | str,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
-        tools: list[LanguageModelTool] | None = None,
+        tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
         **kwargs,
     ) -> LanguageModelResponse: ...

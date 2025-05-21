@@ -27,6 +27,7 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
     LanguageModelStreamResponse,
     LanguageModelTool,
+    LanguageModelToolDescription,
 )
 
 logger = logging.getLogger(__name__)
@@ -685,7 +686,7 @@ def stream_complete_to_chat(
     debug_info: dict = {},
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
     timeout: int = DEFAULT_COMPLETE_TIMEOUT,
-    tools: list[LanguageModelTool] | None = None,
+    tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
     start_text: str | None = None,
     other_options: dict | None = None,
 ) -> LanguageModelStreamResponse:
@@ -705,7 +706,7 @@ def stream_complete_to_chat(
         debug_info (dict): Debug information.
         temperature (float): Temperature setting.
         timeout (int): Timeout in milliseconds.
-        tools (Optional[list[LanguageModelTool]]): Optional tools.
+        tools (Optional[list[LanguageModelTool | LanguageModelToolDescription ]]): Optional tools.
         start_text (Optional[str]): Starting text.
         other_options (Optional[dict]): Additional options.
 
@@ -759,7 +760,7 @@ async def stream_complete_to_chat_async(
     debug_info: dict = {},
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
     timeout: int = DEFAULT_COMPLETE_TIMEOUT,
-    tools: list[LanguageModelTool] | None = None,
+    tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
     start_text: str | None = None,
     other_options: dict | None = None,
 ) -> LanguageModelStreamResponse:

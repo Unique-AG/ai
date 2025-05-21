@@ -44,6 +44,9 @@ from .schemas import (
     LanguageModelTool as LanguageModelTool,
 )
 from .schemas import (
+    LanguageModelToolDescription as LanguageModelToolDescription,
+)
+from .schemas import (
     LanguageModelToolMessage as LanguageModelToolMessage,
 )
 from .schemas import (
