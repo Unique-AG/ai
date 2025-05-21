@@ -71,30 +71,30 @@ class Folder(APIResource["Folder"]):
     scopeAccess: List[ScopeAccess]
     children: List[Children]
 
-    class UpdatePropertiesParams(TypedDict):
+    class UpdateIngestionConfigParams(TypedDict):
         """
-        Parameters for updating folder properties.
+        Parameters for updating folder ingestion config.
         """
 
         ingestionConfig: "Folder.IngestionConfig"
         applyToSubScopes: bool
 
     @classmethod
-    def update_properties(
+    def update_ingestion_config(
         cls,
         user_id: str,
         company_id: str,
         scope_id: str,
-        **params: Unpack["Folder.UpdatePropertiesParams"],
+        **params: Unpack["Folder.UpdateIngestionConfigParams"],
     ) -> "Folder":
         """
-        Update the properties of a folder.
+        Update the ingestion config of a folder.
         """
         return cast(
             "Folder",
             cls._static_request(
                 "patch",
-                f"/folder/{scope_id}/properties",
+                f"/folder/{scope_id}/ingestion-config",
                 user_id,
                 company_id,
                 params=params,
@@ -102,21 +102,21 @@ class Folder(APIResource["Folder"]):
         )
 
     @classmethod
-    async def update_properties_async(
+    async def update_ingestion_config_async(
         cls,
         user_id: str,
         company_id: str,
         scope_id: str,
-        **params: Unpack["Folder.UpdatePropertiesParams"],
+        **params: Unpack["Folder.UpdateIngestionConfigParams"],
     ) -> "Folder":
         """
-        Async update the properties of a folder.
+        Async update the ingestion config of a folder.
         """
         return cast(
             "Folder",
             await cls._static_request_async(
                 "patch",
-                f"/folder/{scope_id}/properties",
+                f"/folder/{scope_id}/ingestion-config",
                 user_id,
                 company_id,
                 params=params,

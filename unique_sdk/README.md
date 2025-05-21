@@ -418,17 +418,17 @@ def upload_file(
 
 ### Folder
 
-#### `unique_sdk.Folder.update_properties`
+#### `unique_sdk.Folder.update_ingestion_config`
 
-Allows you to update the properties of a folder and whether to apply to the subscopes or not: `
+Allows you to update the ingestion config of a folder and whether to apply to the subscopes or not: `
 
 - `ingestionConfig`
 - `applyToSubScopes`
 
-Example of updating the properties of a folder and its subfolders.
+Example of updating the ingestion config of a folder and its subfolders.
 
 ```python
-unique_sdk.Folder.update_properties(
+unique_sdk.Folder.update_ingestion_config(
     user_id=user_id,
     company_id=company_id,
     scope_id=scope_id,
