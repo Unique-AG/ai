@@ -12,7 +12,7 @@ The Unique Python SDK provides access to the public API of Unique FinanceGPT. It
 4. [Webhook Triggers](#webhook-triggers)
 5. [Available API Resources](#available-api-resources)
    - [Content](#content)
-   - [Folder] (#folder)
+   - [Folder](#folder)
    - [Message](#message)
    - [Chat Completion](#chat-completion)
    - [Embeddings](#embeddings)
@@ -420,7 +420,7 @@ def upload_file(
 
 #### `unique_sdk.Folder.update_properties`
 
-Allows you to update the properties of a folder and whether to apply to the subscopes or not: `
+Allows you to update the properties of a folder and apply to the subfolders or not: `
 
 - `ingestionConfig`
 - `applyToSubScopes`
@@ -437,6 +437,56 @@ unique_sdk.Folder.update_properties(
         "uniqueIngestionMode": "standard",
     },
     applyToSubScopes=True
+)
+```
+
+#### `unique_sdk.Folder.add_access`
+
+Allows you to add access to a folder and apply to the subfolders or not: `
+
+- `scopeAccesses`
+- `applyToSubScopes`
+
+Example of adding access to a folder and its subfolders.
+
+```python
+unique_sdk.Folder.add_access(
+    user_id=user_id,
+    company_id=company_id,
+    scope_id=scope_id,
+    scopeAccesses=[
+        {
+            "entityId": "group_id",
+            "type": "WRITE",
+            "entityType": "GROUP",
+        }
+    ],
+    applyToSubScopes=True,
+)
+```
+
+#### `unique_sdk.Folder.remove_access`
+
+Allows you to delete access from a folder and apply to the subfolders or not: `
+
+- `scopeAccesses`
+- `applyToSubScopes`
+
+Example of deleting the access from a folder and its subfolders.
+
+```python
+unique_sdk.Folder.remove_access(
+    user_id=user_id,
+    company_id=company_id,
+    scope_id=scope_id,
+    scopeAccesses=[
+        {
+            "entityId": "group_id",
+            "type": "WRITE",
+            "entityType": "GROUP",
+        }
+    ],
+    applyToSubScopes=True,
 )
 ```
 
