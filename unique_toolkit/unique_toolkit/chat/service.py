@@ -1143,7 +1143,7 @@ class ChatService:
         debug_info: dict = {},
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
-        tools: Optional[list[LanguageModelTool]] = None,
+        tools: Optional[list[LanguageModelTool | LanguageModelToolDescription]] = None,
         start_text: Optional[str] = None,
         other_options: Optional[dict] = None,
     ) -> LanguageModelResponse:
@@ -1221,7 +1221,7 @@ class ChatService:
         debug_info: dict = {},
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
-        tools: Optional[list[LanguageModelTool]] = None,
+        tools: Optional[list[LanguageModelTool | LanguageModelToolDescription]] = None,
         start_text: Optional[str] = None,
         other_options: Optional[dict] = None,
     ) -> LanguageModelResponse:
