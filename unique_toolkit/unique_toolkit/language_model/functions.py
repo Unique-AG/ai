@@ -79,6 +79,7 @@ def complete(
 
 
 # TODO: Unused arguments could be removed and **kwargs added
+# TODO: Implement a protocol for this and add to language model service
 def complete_to_chat(
     company_id: str,
     user_id: str,
