@@ -16,7 +16,7 @@ logger = getLogger(__name__)
 
 def main():
     """
-    Example of updating folder properties to a folder and subfolders.
+    Example of updating folder ingestion config to a folder and subfolders.
     """
     import unique_sdk
 
@@ -31,9 +31,9 @@ def main():
     user_id = os.getenv("USER_ID")
     scope_id = os.getenv("SCOPE_ID")
 
-    # Example: Update folder properties to folder and subfolders
+    # Example: Update folder ingestion config to folder and subfolders
     try:
-        folder = unique_sdk.Folder.update_properties(
+        folder = unique_sdk.Folder.update_ingestion_config(
             user_id=user_id,
             company_id=company_id,
             scope_id=scope_id,
@@ -44,9 +44,9 @@ def main():
             },
             applyToSubScopes=True,
         )
-        logger.info(f"Folder properties updated successfully: {folder}")
+        logger.info(f"Folder ingestion config updated successfully: {folder}")
     except Exception as e:
-        logger.error(f"Failed to update folder properties: {e}")
+        logger.error(f"Failed to update folder ingestion config: {e}")
 
     # Example: Add access to a folder
     try:
@@ -56,7 +56,7 @@ def main():
             scope_id=scope_id,
             scopeAccesses=[
                 {
-                    "entityId": "group_cf52uw12dx0kfyghuf9052t5",
+                    "entityId": "group_id",
                     "type": "WRITE",
                     "entityType": "GROUP",
                 }
@@ -75,7 +75,7 @@ def main():
             scope_id=scope_id,
             scopeAccesses=[
                 {
-                    "entityId": "group_cf52uw12dx0kfyghuf9052t5",
+                    "entityId": "group_id",
                     "type": "WRITE",
                     "entityType": "GROUP",
                 }
