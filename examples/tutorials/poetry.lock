@@ -726,7 +726,7 @@ typing-extensions = ">=4.12.0"
 
 [[package]]
 name = "unique-sdk"
-version = "0.9.28"
+version = "0.9.29"
 description = ""
 optional = false
 python-versions = "^3.11"
@@ -744,7 +744,7 @@ url = "../../unique_sdk"
 
 [[package]]
 name = "unique-toolkit"
-version = "0.7.18"
+version = "0.7.19"
 description = ""
 optional = false
 python-versions = "^3.11"
@@ -787,4 +787,4 @@ zstd = ["zstandard (>=0.18.0)"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.11"
-content-hash = "0beea2b4b9a005c880d0d61568682210ec2a1e1822e372c80ac63ec4203f603c"
+content-hash = "f364f37c0a14180547a7cea8e6659f5861ab90dbe1e474a4090b14ed1fe131ac"
