@@ -13,8 +13,11 @@ from .constants import (
 )
 from .infos import LanguageModelName
 from .schemas import (
+    LanguageModelMessageRole,
     LanguageModelMessages,
     LanguageModelResponse,
+    LanguageModelStreamResponse,
+    LanguageModelStreamResponseMessage,
     LanguageModelTool,
     LanguageModelToolDescription,
 )
@@ -72,6 +75,110 @@ def complete(
         return LanguageModelResponse(**response)
     except Exception as e:
         logger.error(f"Error completing: {e}")
+        raise e
+
+
+# TODO: Unused arguments could be removed and **kwargs added
+def complete_to_chat(
+    company_id: str,
+    user_id: str,
+    assistant_message_id: str,
+    user_message_id: str,
+    chat_id: str,
+    assistant_id: str,
+    messages: LanguageModelMessages,
+    model_name: LanguageModelName | str,
+    content_chunks: list[ContentChunk] = [],
+    debug_info: dict = {},
+    temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
+    timeout: int = DEFAULT_COMPLETE_TIMEOUT,
+    tools: list[LanguageModelTool] | None = None,
+    start_text: str | None = None,
+    other_options: dict | None = None,
+) -> LanguageModelStreamResponse:
+    """
+    Streams a completion synchronously.
+
+    Args:
+        company_id (str): The company ID associated with the request.
+        user_id (str): The user ID for the request.
+        assistant_message_id (str): The assistant message ID.
+        user_message_id (str): The user message ID.
+        chat_id (str): The chat ID.
+        assistant_id (str): The assistant ID.
+        messages (LanguageModelMessages): The messages to complete.
+        model_name (LanguageModelName | str): The model name.
+        content_chunks (list[ContentChunk]): Content chunks for context.
+        debug_info (dict): Debug information.
+        temperature (float): Temperature setting.
+        timeout (int): Timeout in milliseconds.
+        tools (Optional[list[LanguageModelTool]]): Optional tools.
+        start_text (Optional[str]): Starting text.
+        other_options (Optional[dict]): Additional options.
+
+    Returns:
+        LanguageModelStreamResponse: The streaming response object.
+    """
+    options, model, messages_dict, search_context = _prepare_completion_params_util(
+        messages=messages,
+        model_name=model_name,
+        temperature=temperature,
+        tools=tools,
+        other_options=other_options,
+        content_chunks=content_chunks,
+    )
+
+    try:
+        response = unique_sdk.ChatCompletion.create(
+            company_id=company_id,
+            model=model,
+            messages=cast(
+                "list[unique_sdk.Integrated.ChatCompletionRequestMessage]",
+                messages_dict,
+            ),
+            timeout=timeout,
+            options=options,  # type: ignore
+        )
+        resp = LanguageModelResponse(**response)
+
+        ##########################################################################################
+        # TODO: Implementation of search content to references, processing original_text -> text
+        choices = resp.choices[0]
+
+        # Add start_text here?
+        original_text = (
+            choices.message.content
+            if isinstance(choices.message.content, str)
+            else None
+        )
+        id = ""
+        previous_message_id = None
+
+        # How to move from origina_text -> text and how to get the refs?
+        text = original_text
+        references = []
+        ##########################################################################################
+
+        # Define
+        function_list = (
+            [f.function for f in choices.message.tool_calls or []]
+            if len(choices.message.tool_calls or []) > 0
+            else None
+        )
+
+        return LanguageModelStreamResponse(
+            tool_calls=function_list,
+            message=LanguageModelStreamResponseMessage(
+                id=id,
+                previous_message_id=previous_message_id,
+                role=LanguageModelMessageRole.ASSISTANT,
+                text=text or "",
+                original_text=original_text,
+                references=references,
+            ),
+        )
+    except Exception as e:
+        logger.error(f"Error streaming completion: {e}")
         raise e
 
 
@@ -151,7 +258,7 @@ def _add_tools_to_options(
     return options
 
 
-def _to_search_context(chunks: list[ContentChunk]) -> dict | None:
+def _to_search_context(chunks: list[ContentChunk]):
     if not chunks:
         return None
     return [

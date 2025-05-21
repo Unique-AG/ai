@@ -37,6 +37,15 @@ class ToolCall(BaseModel):
     function: Function
 
 
+class Reference(BaseModel):
+    model_config = model_config
+    name: str
+    url: str | None = None
+    sequence_number: int
+    source_id: str
+    source: str
+
+
 class ChatMessage(BaseModel):
     # This model should strictly meets https://github.com/Unique-AG/monorepo/blob/master/node/apps/node-chat/src/public-api/2023-12-06/dtos/message/public-message.dto.ts
     model_config = model_config
@@ -54,6 +63,7 @@ class ChatMessage(BaseModel):
     created_at: datetime | None = None
     completed_at: datetime | None = None
     updated_at: datetime | None = None
+    references: list[Reference] | None = None
 
     # TODO make sdk return role consistently in lowercase
     # Currently needed as sdk returns role in uppercase

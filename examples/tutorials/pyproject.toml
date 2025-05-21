@@ -25,6 +25,7 @@ httpx = "^0.28.1"
 ruff = "^0.2.1"
 unique-sdk = {path = "../../unique_sdk"}
 unique-toolkit = {path = "../../unique_toolkit"}
+ipykernel = "^6.29.5"
 
 [build-system]
 requires = ["poetry-core"]
