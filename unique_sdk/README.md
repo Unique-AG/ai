@@ -20,6 +20,7 @@ The Unique Python SDK provides access to the public API of Unique FinanceGPT. It
    - [Search String](#search-string)
    - [Short Term Memory](#short-term-memory)
    - [Message Assessment](#message-assessment)
+   - [Folder](#folder)
 6. [UniqueQL](#uniqueql)
    - [Query Structure](#uniqueql-query-structure)
    - [Metadata Filtering](#metadata-filtering)
@@ -228,6 +229,7 @@ unique_sdk.Message.modify(
 - [Chat Completion](#chat-completion)
 - [Search](#search)
 - [Search String](#search-string)
+- [Folder](#folder)
 
 Most of the API services provide an asynchronous version of the method. The async methods are suffixed with `_async`.
 
@@ -721,6 +723,20 @@ assessment = unique_sdk.MessageAssessment.modify(
     type="HALLUCINATION"
 )
 ```
+### Folder
+
+#### `unique_sdk.Folder.create_paths`
+
+Create each folder in the provided list of paths if it does not already exist.
+
+```python
+unique_sdk.Folder.create_paths(
+   user_id=user_id,
+   company_id=company_id,
+   paths=["/unique/path1", "/unique/path2"],
+)
+```
+
 
 ## UniqueQL
 
