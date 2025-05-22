@@ -1,6 +1,7 @@
 from typing import Any, ClassVar, Dict, Literal, NotRequired, Optional, Unpack, cast
 
 from unique_sdk._api_resource import APIResource
+from unique_sdk._list_object import ListObject
 from unique_sdk._request_options import RequestOptions
 
 
@@ -36,9 +37,9 @@ class Search(APIResource["Search"]):
     @classmethod
     def create(
         cls, user_id: str, company_id: str, **params: Unpack["Search.CreateParams"]
-    ) -> list["Search"]:
+    ) -> ListObject["Search"]:
         return cast(
-            list["Search"],
+            ListObject["Search"],
             cls._static_request(
                 "post",
                 "/search/search",
@@ -51,9 +52,9 @@ class Search(APIResource["Search"]):
     @classmethod
     async def create_async(
         cls, user_id: str, company_id: str, **params: Unpack["Search.CreateParams"]
-    ) -> list["Search"]:
+    ) -> ListObject["Search"]:
         return cast(
-            list["Search"],
+            ListObject["Search"],
             await cls._static_request_async(
                 "post",
                 "/search/search",

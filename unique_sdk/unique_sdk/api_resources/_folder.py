@@ -15,9 +15,7 @@ class Folder(APIResource["Folder"]):
         """
 
         class ScopeAccessType(Enum):
-            """
-            Enum for scope access levels.
-            """
+            """Enum for scope access levels."""
 
             READ = "READ"
             WRITE = "WRITE"
@@ -112,7 +110,7 @@ class Folder(APIResource["Folder"]):
         cls, user_id: str, company_id: str, **params: Unpack["Folder.CreateParams"]
     ) -> "Folder.CreateFolderStructureResponse":
         return cast(
-            "Folder",
+            "Folder.CreateFolderStructureResponse",
             cls._static_request(
                 "post",
                 cls.RESOURCE_URL,
@@ -127,7 +125,7 @@ class Folder(APIResource["Folder"]):
         cls, user_id: str, company_id: str, **params: Unpack["Folder.CreateParams"]
     ) -> "Folder.CreateFolderStructureResponse":
         return cast(
-            "Folder",
+            "Folder.CreateFolderStructureResponse",
             await cls._static_request_async(
                 "post",
                 cls.RESOURCE_URL,

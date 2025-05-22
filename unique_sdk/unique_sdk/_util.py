@@ -194,6 +194,9 @@ class class_method_variant(object):
         return _wrapper
 
 
+F = TypeVar("F", bound=Callable[..., Any])
+
+
 def retry_on_error(
     error_messages: List[str],
     max_retries: int = 3,
@@ -202,9 +205,9 @@ def retry_on_error(
     error_class=APIError,
     should_retry_5xx=False,
 ):
-    def decorator(func: Callable) -> Callable:
+    def decorator(func: F) -> F:
         @wraps(func)
-        async def async_wrapper(*args, **kwargs) -> Any:
+        async def async_wrapper(*args, **kwargs):
             attempts = 0
             while attempts < max_retries:
                 try:
@@ -236,7 +239,8 @@ def retry_on_error(
                     jitter = random.uniform(0, 0.1 * delay)
                     await asyncio.sleep(delay + jitter)
 
-        def sync_wrapper(*args, **kwargs) -> Any:
+        @wraps(func)
+        def sync_wrapper(*args, **kwargs):
             attempts = 0
             while attempts < max_retries:
                 try:
@@ -270,7 +274,7 @@ def retry_on_error(
 
         # Return the appropriate wrapper based on whether the function is async
         if asyncio.iscoroutinefunction(func):
-            return async_wrapper
-        return sync_wrapper
+            return cast(F, async_wrapper)
+        return cast(F, sync_wrapper)
 
     return decorator
