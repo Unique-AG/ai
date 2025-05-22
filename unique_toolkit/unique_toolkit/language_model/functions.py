@@ -222,10 +222,9 @@ def _prepare_completion_params_util(
         model_name.value if isinstance(model_name, LanguageModelName) else model_name
     )
 
-    # Different methods need different message dump parameters
     messages_dict = messages.model_dump(
         exclude_none=True,
-        by_alias=content_chunks is not None,  # Use by_alias for streaming methods
+        by_alias=True,
     )
 
     search_context = (
