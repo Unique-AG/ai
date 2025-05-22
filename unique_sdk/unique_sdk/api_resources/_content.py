@@ -4,6 +4,7 @@ from typing import Any, ClassVar, Dict, List, Literal, Optional, TypedDict, cast
 from typing_extensions import NotRequired, Unpack
 
 from unique_sdk._api_resource import APIResource
+from unique_sdk._list_object import ListObject
 from unique_sdk._request_options import RequestOptions
 
 
@@ -106,7 +107,7 @@ class Content(APIResource["Content"]):
         ownerId: str
         byteSize: Optional[int]
         ingestionConfig: "Content.IngestionConfig"
-        metadata: dict[str, any] | None = None
+        metadata: dict[str, Any] | None
 
     class UpsertParams(RequestOptions):
         input: "Content.Input"
@@ -161,9 +162,9 @@ class Content(APIResource["Content"]):
         user_id: str,
         company_id: str,
         **params: Unpack["Content.SearchParams"],
-    ) -> List["Content"]:
+    ) -> ListObject["Content"]:
         return cast(
-            List["Content"],
+            ListObject["Content"],
             cls._static_request(
                 "post",
                 "/content/search",
@@ -179,9 +180,9 @@ class Content(APIResource["Content"]):
         user_id: str,
         company_id: str,
         **params: Unpack["Content.SearchParams"],
-    ) -> List["Content"]:
+    ) -> ListObject["Content"]:
         return cast(
-            List["Content"],
+            ListObject["Content"],
             await cls._static_request_async(
                 "post",
                 "/content/search",

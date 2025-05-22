@@ -186,7 +186,7 @@ class APIResource(UniqueObject, Generic[T]):
         user_id: Optional[str] = None,
         company_id: Optional[str] = None,
         params=None,
-    ):
+    ) -> UniqueObject:
         params = None if params is None else params.copy()
 
         requestor = APIRequestor(user_id=user_id, company_id=company_id)
@@ -205,7 +205,7 @@ class APIResource(UniqueObject, Generic[T]):
         user_id: Optional[str] = None,
         company_id: Optional[str] = None,
         params=None,
-    ):
+    ) -> UniqueObject:
         params = None if params is None else params.copy()
 
         requestor = APIRequestor(user_id=user_id, company_id=company_id)
