@@ -14,18 +14,18 @@ packages = [
 [tool.poetry.dependencies]
 python = "^3.11"
 python-dotenv = "^1.0.1"
-unique-sdk = "0.9.31"
-unique-toolkit = "0.7.19"
+unique-sdk = {path = "../../unique_sdk"}
+unique-toolkit = {path = "../../unique_toolkit"}
+
+
 pydantic-settings = "^2.8.1"
 aiolimiter = "^1.2.1"
 dotenv = "^0.9.9"
 httpx = "^0.28.1"
+ipykernel = "^6.29.5"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.2.1"
-unique-sdk = {path = "../../unique_sdk"}
-unique-toolkit = {path = "../../unique_toolkit"}
-
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
