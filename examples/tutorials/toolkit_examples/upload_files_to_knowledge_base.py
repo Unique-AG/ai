@@ -1,7 +1,7 @@
 # %%
 from pathlib import Path
 
-from utilities_examples.init_sdk import init_from_env_file, unique_sdk
+from utilities_examples.init_sdk import init_from_env_file
 
 from unique_toolkit.content.functions import (
     ContentSearchType,
@@ -9,14 +9,16 @@ from unique_toolkit.content.functions import (
     upload_content,
 )
 
+# Init sdk, company_id, user_id are necessary for auth
 company_id, user_id = init_from_env_file(Path(__file__).parent / ".." / ".env")
-print(company_id, user_id)
-print(unique_sdk.api_base)
 
-
+# Scope to upload to
 scope_id = "scope_mgjzlrijadpk5q0plx242dv3"
 
+# Files to upload to the knowledgebase
 filenames = ["upsert_text.txt", "upsert_json.json", "upsert_markdown.md"]
+
+# Note that a json can be uploaded as plain text
 mimetypes = ["text/plain", "text/plain", "text/markdown"]
 
 for filename, mimetype in zip(filenames, mimetypes):
@@ -43,7 +45,19 @@ for filename, mimetype in zip(filenames, mimetypes):
 
 # %%
 
-## Search chunks with metadata filter
+# Search chunks with metadata filter
+
+# The metadata_filter is a powerful tool to filter across the knowledge base. It can be defined
+# directly here in python. Additionally it can be defined in the space configuration of the frontend
+# and shipped with the event to the python webhook via the event. This allows to create flexible knowledge
+# on each space.
+
+# More on the metadata_filter and smart rules
+# https://unique-ch.atlassian.net/wiki/spaces/PUB/pages/844333081/Smart+Rules+and+Dynamic+Parameters
+
+# More on the unique query language and the metadata filter can be found here
+# https://unique-ch.atlassian.net/wiki/spaces/PUB/pages/488079474/Extended+Search+with+UniqueQL+on+Metadata
+
 
 metadata_filter = {
     "operator": "contains",
@@ -62,8 +76,5 @@ chunks = search_content_chunks(
     limit=10,
     metadata_filter=metadata_filter,
 )
-# %%
 print(len(chunks))
-
 chunks[0].metadata
-# %%
