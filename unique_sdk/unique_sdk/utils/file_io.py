@@ -1,7 +1,7 @@
 import os
 import tempfile
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import requests
 
@@ -41,7 +41,7 @@ def upload_file(
     scope_or_unique_path=None,
     chat_id=None,
     ingestion_config: Optional[Content.IngestionConfig] = None,
-    metadata: dict[str, any] | None = None,
+    metadata: dict[str, Any] | None = None,
 ):
     # check that chatid or scope_or_unique_path is provided
     if not chat_id and not scope_or_unique_path:

@@ -1,5 +1,6 @@
 import logging
 from pathlib import Path
+from typing import Any
 
 import unique_sdk
 from requests import Response
@@ -408,7 +409,7 @@ class ContentService:
         chat_id: str | None = None,
         skip_ingestion: bool = False,
         ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
-        metadata: dict[str, any] | None = None,
+        metadata: dict[str, Any] | None = None,
     ):
         """
         Uploads content to the knowledge base.
