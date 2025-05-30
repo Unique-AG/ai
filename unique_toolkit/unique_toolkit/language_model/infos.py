@@ -29,8 +29,11 @@ class LanguageModelName(StrEnum):
     ANTHROPIC_CLAUDE_3_7_SONNET_THINKING = (
         "litellm:anthropic-claude-3-7-sonnet-thinking"
     )
+    ANTHROPIC_CLAUDE_SONNET_4 = "litellm:anthropic-claude-sonnet-4"
+    ANTHROPIC_CLAUDE_OPUS_4 = "litellm:anthropic-claude-opus-4"
     GEMINI_2_0_FLASH = "litellm:gemini-2-0-flash"
     GEMINI_2_5_FLASH_PREVIEW_0417 = "litellm:gemini-2-5-flash-preview-04-17"
+    GEMINI_2_5_FLASH_PREVIEW_0520 = "litellm:gemini-2-5-flash-preview-05-20"
     GEMINI_2_5_PRO_EXP_0325 = "litellm:gemini-2-5-pro-exp-03-25"
 
 
@@ -410,6 +413,42 @@ class LanguageModelInfo(BaseModel):
                     info_cutoff_at=date(2024, 10, 31),
                     published_at=date(2025, 2, 24),
                 )
+            case LanguageModelName.ANTHROPIC_CLAUDE_SONNET_4:
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    version="claude-sonnet-4",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=200_000, token_limit_output=64_000
+                    ),
+                    info_cutoff_at=date(2025, 3, 1),
+                    published_at=date(2025, 5, 1),
+                )
+            case LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4:
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    version="claude-opus-4",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=200_000, token_limit_output=32_000
+                    ),
+                    info_cutoff_at=date(2025, 3, 1),
+                    published_at=date(2025, 5, 1),
+                )
             case LanguageModelName.GEMINI_2_0_FLASH:
                 return cls(
                     name=model_name,
@@ -441,6 +480,25 @@ class LanguageModelInfo(BaseModel):
                     ],
                     provider=LanguageModelProvider.LITELLM,
                     version="gemini-2-5-flash-preview-04-17",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO:Replace with LLM tokenizer
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=1_048_576, token_limit_output=65_536
+                    ),
+                    info_cutoff_at=date(2025, 1, day=1),
+                    published_at=date(2025, 4, 1),
+                )
+            case LanguageModelName.GEMINI_2_5_FLASH_PREVIEW_0520:
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    version="gemini-2-5-flash-preview-05-20",
                     encoder_name=EncoderName.O200K_BASE,  # TODO:Replace with LLM tokenizer
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=1_048_576, token_limit_output=65_536
