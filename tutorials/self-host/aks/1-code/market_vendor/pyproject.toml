@@ -1,0 +1,39 @@
+# ============================================================================
+# MOCK FILE - SDK DEPLOYMENT EXAMPLE
+# ============================================================================
+# This is a mock Python project configuration for demonstration purposes only.
+# It shows how an SDK assistant project might be structured with Poetry.
+# This file is NOT production-ready and should be adapted to your specific
+# project requirements and dependencies.
+# ============================================================================
+
+[tool.poetry]
+name = "market-vendor"
+version = "0.1.0"
+description = ""
+authors = []
+readme = "README.md"
+packages = [{ include = "market_vendor"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+flask = "^3.0.2"
+python-dotenv = "^1.0.1"
+requests = "^2.31.0"
+unique-sdk = "^0.9.4"
+gunicorn = "^23.0.0"
+unique-toolkit = "^0.6.8"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "8.3.5"
+pytest-cov = "6.1.1"
+ruff = "^0.2.1"
+sseclient = "0.0.27"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+package-mode = false
+
+[tool.poetry.scripts]
+start = "market_vendor:app.run"

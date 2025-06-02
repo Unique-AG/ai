@@ -1,0 +1,59 @@
+# ============================================================================
+# MOCK FILE - SDK DEPLOYMENT EXAMPLE
+# ============================================================================
+# This is a mock Docker build template for demonstration purposes only.
+# It shows how SDK assistants might be containerized and published.
+# This file is NOT production-ready and should be adapted to your specific
+# build pipeline and registry requirements.
+# ============================================================================
+
+name: "[template] Build standardized docker image"
+
+on: …
+
+env: …
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout_minutes }}
+    outputs:
+      repository: ${{ env.REGISTRY }}/${{ inputs.image }}
+      tag: ${{ steps.meta.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/login@v2 # Example: Azure - adapt for your cloud provider
+        with:
+          creds: |
+            {
+              …
+            }
+
+      - run: |
+          az acr login --name ${{ env.REGISTRY }}  # Example: Azure CLI - adapt for your registry
+
+      - uses: docker/setup-qemu-action@v3
+        with:
+          platforms: ${{ inputs.platforms }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ inputs.image }}
+          tags: ${{ inputs.tags }}
+
+      - uses: docker/build-push-action@v5
+        with:
+          build-args: |
+            ${{ inputs.build_args }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ inputs.image }}:${{ inputs.cacheTag }}
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ inputs.image }}:${{ inputs.cacheTag }},mode=max
+          context: ${{ inputs.context }}
+          file: ${{ inputs.dockerfile_path }}
+          labels: ${{ inputs.labels }}
+          platforms: ${{ inputs.platforms }}
+          push: ${{ inputs.push }}
+          tags: ${{ steps.meta.outputs.tags }}

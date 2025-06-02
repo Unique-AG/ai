@@ -1,0 +1,19 @@
+# ============================================================================
+# MOCK FILE - SDK DEPLOYMENT EXAMPLE
+# ============================================================================
+# This is a mock deployment values file for demonstration purposes only.
+# It shows how SDK assistant deployment values might be configured.
+# This file is NOT production-ready and should be adapted to your specific
+# deployment requirements.
+# ============================================================================
+
+env:
+  MODULE: market_vendor
+  APP_ENTRY: app
+  APP_NAME: fruits
+resources:
+  limits:
+    memory: 250Mi
+  requests:
+    cpu: 100m
+    memory: 250Mi

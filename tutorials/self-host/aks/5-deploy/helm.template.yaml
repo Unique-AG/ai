@@ -1,0 +1,122 @@
+# ============================================================================
+# MOCK FILE - SDK DEPLOYMENT EXAMPLE
+# ============================================================================
+# This is a mock file for demonstration purposes only. It shows how a Helm
+# deployment template might be structured for SDK assistant deployment.
+# This file is NOT production-ready and should be adapted to your specific
+# infrastructure and requirements.
+# ============================================================================
+
+name: "[helm] command"
+
+on:
+  workflow_call:
+    inputs:
+      file_name:
+        description: The path of the file to operate on from root.
+        required: true
+        type: string
+      release_name:
+        description: The name of the release (assistant) to operate on.
+        required: true
+        type: string
+      action:
+        description: "Helm action to perform: template, diff, sync or apply."
+        default: template
+        type: string
+      env_vars:
+        description: List of environment variables to set up, given in env=value format.
+        required: false
+        type: string
+      set_image_tag:
+        description: Image tag to set as image.tag
+        required: true
+        type: string
+      set_image_repository:
+        description: Image repository to set as image.repository
+        required: true
+        type: string
+      target_environment:
+        description: dev|staging|prod, the different cloud environments
+        default: dev
+        type: string
+      target_subscription_id:
+        description: The matching subscription/project id for the different cloud environments
+        default: 00000000-0000-0000-0000-000000000000
+        type: string
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  CLOUD_TENANT_ID: ${{ vars.CLOUD_TENANT_ID }}
+  CLOUD_SUBSCRIPTION_ID: ${{ vars.CLOUD_SUBSCRIPTION_ID }}
+  CONTAINER_REGISTRY_NAME: acr-sdk-registry
+  ENVIRONMENT: ${{ vars.ENVIRONMENT }}
+  ZITADEL_PAT: ${{ secrets.ZITADEL_PAT }}
+
+jobs:
+  command:
+    runs-on:
+      group: unique-${{ inputs.target_environment }}
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set environment variables
+        run: |
+          printf "%s=%s\n" SDK_IMAGE_TAG ${{ inputs.set_image_tag }} >> $GITHUB_ENV
+          printf "%s=%s\n" SDK_IMAGE_REPOSITORY ${{ inputs.set_image_repository }} >> $GITHUB_ENV
+
+      - name: Cloud Provider Login
+        uses: azure/login@v2 # Example: Azure - adapt for your cloud provider
+        with:
+          creds: |
+            {
+              …
+            }
+
+      - name: Set up kubelogin
+        uses: azure/use-kubelogin@v1 # Example: Azure - adapt for your cloud provider
+        with:
+          kubelogin-version: v0.1.4
+
+      #! Todo: this should be dynamic and adapted to your cloud provider
+      - name: Set Kubernetes context
+        uses: azure/aks-set-context@v3 # Example: Azure - adapt for your cloud provider
+        with:
+          subscription: ${{ inputs.target_subscription_id }}
+          resource-group: "rg-core-sdk-${{ inputs.target_environment }}"
+          cluster-name: "cluster-sdk-${{ inputs.target_environment }}"
+          admin: "false"
+          use-kubelogin: "true"
+
+      - name: Setup Helm
+        uses: mamezou-tech/setup-helmfile@v2.0.0
+        with:
+          helm-diff-plugin-version: v3.9.10
+          helm-version: v3.15.4
+          helmfile-version: v0.161.0
+          kubectl-version: "1.29.0"
+
+      - name: Helm Template
+        if: inputs.action == 'template'
+        #! Do not add --debug, it will print secrets!
+        run: |
+          helmfile -f ${{ inputs.file_name }} -l name=${{ inputs.release_name }} template
+
+      - name: Helm Diff
+        if: inputs.action == 'diff'
+        #! Do not add --debug, it will print secrets!
+        run: |
+          helmfile -f ${{ inputs.file_name }} -l name=${{ inputs.release_name }} diff
+
+      - name: Helm Apply/Sync
+        if: inputs.action == 'apply' || inputs.action == 'sync'
+        #! Do not add --debug, it will print secrets!
+        run: helmfile -f ${{ inputs.file_name }} -l name=${{ inputs.release_name }} apply

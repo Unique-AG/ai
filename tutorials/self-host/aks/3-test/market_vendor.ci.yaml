@@ -1,0 +1,91 @@
+# ============================================================================
+# MOCK FILE - SDK DEPLOYMENT EXAMPLE
+# ============================================================================
+# This is a mock file for demonstration purposes only. It shows how a
+# continuous integration configuration might be structured for SDK assistants.
+# This file is NOT production-ready and should be adapted to your specific
+# CI/CD pipeline and testing requirements.
+# ============================================================================
+
+# Mock file
+# Parts omitted for brevity
+name: "[ci] Market Vendor"
+
+concurrency: …
+
+on: …
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12.9"
+
+      - name: Install Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+
+      - name: Configure Poetry
+        run: |
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: poetry install
+
+      - name: Run Ruff
+        run: poetry run ruff check --no-cache 1-code/market_vendor/ && poetry run ruff format --no-cache --check 1-code/market_vendor/
+
+  test:
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12.9"
+
+      - name: Install Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+
+      - name: Install test dependencies
+        working-directory: 1-code/market_vendor
+        run: |
+          poetry install
+
+      - name: Run tests with coverage
+        working-directory: 1-code/market_vendor
+        run: |
+          poetry run pytest tests/ --cov=. --cov-report=term --cov-fail-under=0
+
+  dockerize:
+    name: Test build the docker image
+    uses: ./.github/workflows/dockerize.template.yaml # --> 5-deploy/dockerize.template.yaml
+    secrets: inherit
+    with:
+      context: 1-code/market_vendor
+      dockerfile_path: ./Dockerfile
+      image: market_vendor
+      push: false
+
+  helm:
+    uses: ./.github/workflows/helm.template.yaml # --> 5-deploy/helm.template.yaml
+    needs: dockerize
+    with:
+      file_name: ./5-deploy/dev.helmfile.yaml
+      release_name: market-vendor
+      action: diff
+      set_image_tag: ${{ needs.dockerize.outputs.tag }}
+      set_image_repository: ${{ needs.dockerize.outputs.repository }}
+      target_environment: prod
+      target_subscription_id: 00000000-0000-0000-0000-000000000000
+    secrets: inherit

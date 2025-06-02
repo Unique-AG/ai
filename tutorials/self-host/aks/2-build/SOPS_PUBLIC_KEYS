@@ -1,0 +1,9 @@
+# ============================================================================
+# MOCK FILE - SDK DEPLOYMENT EXAMPLE
+# ============================================================================
+# This is a mock SOPS public keys file for demonstration purposes only.
+# This file is NOT production-ready and should be replaced with your actual
+# SOPS configuration and keys.
+# ============================================================================
+
+DEV_SOPS_AGE_KEY_1="age12……"

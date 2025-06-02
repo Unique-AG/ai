@@ -1,0 +1,42 @@
+# ============================================================================
+# MOCK FILE - SDK DEPLOYMENT EXAMPLE
+# ============================================================================
+# This is a mock file for demonstration purposes only. It shows how a
+# continuous deployment configuration might be structured for SDK assistants.
+# This file is NOT production-ready and should be adapted to your specific
+# CI/CD pipeline and requirements.
+# ============================================================================
+
+name: "[cd][dev] Market Vendor"
+
+on:
+  workflow_dispatch:
+  # push:
+  #   branches:
+  #     - main
+  #   paths:
+  #     - 1-code/market_vendor/**
+  #     - .github/workflows/market_vendor.dev.cd.yaml
+
+jobs:
+  dockerize:
+    name: Publish the docker image
+    uses: ./.github/workflows/dockerize.template.yaml
+    secrets: inherit
+    with:
+      context: 1-code/market_vendor
+      dockerfile_path: ./Dockerfile
+      image: market_vendor
+
+  helm:
+    uses: ./.github/workflows/helm.template.yaml
+    needs: dockerize
+    with:
+      file_name: ./5-deploy/dev.helmfile.yaml
+      release_name: market-vendor
+      action: apply
+      set_image_tag: ${{ needs.dockerize.outputs.tag }}
+      set_image_repository: ${{ needs.dockerize.outputs.repository }}
+      target_environment: dev
+      target_subscription_id: 00000000-0000-0000-0000-000000000000
+    secrets: inherit
