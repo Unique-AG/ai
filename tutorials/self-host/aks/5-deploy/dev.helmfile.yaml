@@ -1,0 +1,23 @@
+# ============================================================================
+# MOCK FILE - SDK DEPLOYMENT EXAMPLE
+# ============================================================================
+# This is a mock Helmfile configuration for demonstration purposes only.
+# It shows how SDK assistants might be deployed using Helm. This file is NOT
+# production-ready and should be adapted to your specific deployment requirements.
+# ============================================================================
+
+releases:
+  - name: market-vendor
+    chart: oci://ghcr.io/unique-ag/helm-charts/backend-service
+    version: 3.1.1
+    namespace: sdk
+    createNamespace: false
+    wait: false
+    set:
+      - name: image.tag
+        value: { { requiredEnv "SDK_IMAGE_TAG" } }
+      - name: image.repository
+        value: { { requiredEnv "SDK_IMAGE_REPOSITORY" } }
+    values:
+      - ./dev.values.yaml
+      - ../1-code/market_vendor/deployment-values/_all.yaml

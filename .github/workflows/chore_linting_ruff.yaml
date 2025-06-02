@@ -1,7 +1,9 @@
 name: "[chore] Ruff Linting"
 
-on: 
+on:
   pull_request:
+    paths:
+      - "!tutorials/**" # exclude tutorials
 
 env:
   RUFF_VERSION: 0.5.0
@@ -14,7 +16,7 @@ jobs:
       - uses: chartboost/ruff-action@v1
         with:
           version: ${{ env.RUFF_VERSION }}
-          changed-files: 'true'
+          changed-files: "true"
 
   format:
     runs-on: ubuntu-latest
@@ -23,8 +25,8 @@ jobs:
       - uses: chartboost/ruff-action@v1
         with:
           version: ${{ env.RUFF_VERSION }}
-          changed-files: 'true'
-          args: 'format --check'
+          changed-files: "true"
+          args: "format --check"
 
   sort-imports:
     runs-on: ubuntu-latest
@@ -33,11 +35,10 @@ jobs:
       - uses: chartboost/ruff-action@v1
         with:
           version: ${{ env.RUFF_VERSION }}
-          changed-files: 'true'
-          args: 'check --select I'
+          changed-files: "true"
+          args: "check --select I"
       - uses: chartboost/ruff-action@v1
         with:
           version: ${{ env.RUFF_VERSION }}
-          changed-files: 'true'
-          args: 'format --check'
-          
+          changed-files: "true"
+          args: "format --check"

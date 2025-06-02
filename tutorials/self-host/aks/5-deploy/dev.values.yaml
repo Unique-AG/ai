@@ -1,0 +1,31 @@
+# ============================================================================
+# MOCK FILE - SDK DEPLOYMENT EXAMPLE
+# ============================================================================
+# This is a mock Helm values file for demonstration purposes only.
+# It shows how SDK assistant deployment values might be configured.
+# This file is NOT production-ready and should be adapted to your specific
+# deployment and security requirements.
+# ============================================================================
+
+env:
+  DECRYPTED_ENV_FILE_ABSOLUTE: /tmp/.env
+  ENCRYPTED_ENV_FILE: .dev.env.enc
+envVars:
+  - name: SOPS_AGE_KEY
+    valueFrom:
+      secretKeyRef:
+        key: SOPS_AGE_KEY_1
+        name: sdk-deploy-age-key-secret
+replicaCount: 1
+resources:
+  limits:
+    memory: 1Gi
+  requests:
+    cpu: 500m
+    memory: 1Gi
+volumeMounts:
+  - mountPath: /tmp
+    name: tmp-dir
+volumes:
+  - emptyDir: {}
+    name: tmp-dir
