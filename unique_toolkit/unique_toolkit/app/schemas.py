@@ -108,7 +108,7 @@ class ChatEventPayload(BaseModel):
     metadata_filter: Optional[dict[str, Any]] = None
     raw_scope_rules: UniqueQL | None = Field(
         default=None,
-        description="A list of rules that determine the scope of the event.",
+        description="Raw UniqueQL rule that can be compiled to a metadata filter.",
     )
 
     @field_validator("raw_scope_rules", mode="before")
