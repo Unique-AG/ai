@@ -97,15 +97,23 @@ class ChatEventPayload(BaseModel):
     assistant_id: str
     user_message: ChatEventUserMessage
     assistant_message: ChatEventAssistantMessage
-    text: Optional[str] = None
-    additional_parameters: Optional[ChatEventAdditionalParameters] = None
-    user_metadata: Optional[dict[str, Any]] = None
-    tool_choices: Optional[list[str]] = Field(
+    text: str | None = None
+    additional_parameters: ChatEventAdditionalParameters | None = None
+    user_metadata: dict[str, Any] | None = Field(
+        default_factory=dict,
+    )
+    tool_choices: list[str] | None = Field(
         default=[],
         description="A list containing the tool names the user has chosen to be activated.",
     )
-    tool_parameters: Optional[dict[str, Any]] = None
-    metadata_filter: Optional[dict[str, Any]] = None
+    tool_parameters: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Parameters extracted from module selection function calling the tool.",
+    )
+    metadata_filter: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Metadata filter compiled after module selection function calling and scope rules.",
+    )
     raw_scope_rules: UniqueQL | None = Field(
         default=None,
         description="Raw UniqueQL rule that can be compiled to a metadata filter.",
