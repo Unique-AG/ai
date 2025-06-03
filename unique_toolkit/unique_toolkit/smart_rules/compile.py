@@ -6,8 +6,6 @@ from typing import Any, Dict, List, Self, Union
 from pydantic import AliasChoices, BaseModel, Field
 from pydantic.config import ConfigDict
 
-SmartRuleVariables = Dict[str, Dict[str, Union[str, int, bool]]]
-
 
 class Operator(str, Enum):
     EQUALS = "EQUALS"
@@ -30,10 +28,18 @@ class Operator(str, Enum):
 class BaseStatement(BaseModel):
     model_config: ConfigDict = {"serialize_by_alias": True}
 
-    def with_variables(self, variables: SmartRuleVariables) -> Self:
-        return self._fill_in_variables(variables)
+    def with_variables(
+        self,
+        user_metadata: Dict[str, Union[str, int, bool]],
+        tool_parameters: Dict[str, Union[str, int, bool]],
+    ) -> Self:
+        return self._fill_in_variables(user_metadata, tool_parameters)
 
-    def _fill_in_variables(self, variables: SmartRuleVariables) -> Self:
+    def _fill_in_variables(
+        self,
+        user_metadata: Dict[str, Union[str, int, bool]],
+        tool_parameters: Dict[str, Union[str, int, bool]],
+    ) -> Self:
         return self.model_copy()
 
 
@@ -42,9 +48,13 @@ class Statement(BaseStatement):
     value: Any
     path: List[str] = Field(default_factory=list)
 
-    def _fill_in_variables(self, variables: SmartRuleVariables) -> Self:
+    def _fill_in_variables(
+        self,
+        user_metadata: Dict[str, Union[str, int, bool]],
+        tool_parameters: Dict[str, Union[str, int, bool]],
+    ) -> Self:
         new_stmt = self.model_copy()
-        new_stmt.value = eval_operator(self, variables)
+        new_stmt.value = eval_operator(self, user_metadata, tool_parameters)
         return new_stmt
 
 
@@ -53,10 +63,15 @@ class AndStatement(BaseStatement):
         alias="and", validation_alias=AliasChoices("and", "and_list")
     )
 
-    def _fill_in_variables(self, variables: SmartRuleVariables) -> Self:
+    def _fill_in_variables(
+        self,
+        user_metadata: Dict[str, Union[str, int, bool]],
+        tool_parameters: Dict[str, Union[str, int, bool]],
+    ) -> Self:
         new_stmt = self.model_copy()
         new_stmt.and_list = [
-            sub_query._fill_in_variables(variables) for sub_query in self.and_list
+            sub_query._fill_in_variables(user_metadata, tool_parameters)
+            for sub_query in self.and_list
         ]
         return new_stmt
 
@@ -66,10 +81,15 @@ class OrStatement(BaseStatement):
         alias="or", validation_alias=AliasChoices("or", "or_list")
     )
 
-    def _fill_in_variables(self, variables: SmartRuleVariables) -> Self:
+    def _fill_in_variables(
+        self,
+        user_metadata: Dict[str, Union[str, int, bool]],
+        tool_parameters: Dict[str, Union[str, int, bool]],
+    ) -> Self:
         new_stmt = self.model_copy()
         new_stmt.or_list = [
-            sub_query._fill_in_variables(variables) for sub_query in self.or_list
+            sub_query._fill_in_variables(user_metadata, tool_parameters)
+            for sub_query in self.or_list
         ]
         return new_stmt
 
@@ -87,7 +107,11 @@ def is_array_of_strings(value: Any) -> bool:
     return isinstance(value, list) and all(isinstance(item, str) for item in value)
 
 
-def eval_operator(query: Statement, variables: SmartRuleVariables) -> Any:
+def eval_operator(
+    query: Statement,
+    user_metadata: Dict[str, Union[str, int, bool]],
+    tool_parameters: Dict[str, Union[str, int, bool]],
+) -> Any:
     if query.operator in [
         Operator.EQUALS,
         Operator.NOT_EQUALS,
@@ -98,42 +122,62 @@ def eval_operator(query: Statement, variables: SmartRuleVariables) -> Any:
         Operator.CONTAINS,
         Operator.NOT_CONTAINS,
     ]:
-        return binary_operator(query.value, variables)
+        return binary_operator(query.value, user_metadata, tool_parameters)
     elif query.operator in [Operator.IS_NULL, Operator.IS_NOT_NULL]:
-        return null_operator(query.value, variables)
+        return null_operator(query.value, user_metadata, tool_parameters)
     elif query.operator in [Operator.IS_EMPTY, Operator.IS_NOT_EMPTY]:
-        return empty_operator(query.operator, variables)
+        return empty_operator(query.operator, user_metadata, tool_parameters)
     elif query.operator == Operator.NESTED:
-        return eval_nested_operator(query.value, variables)
+        return eval_nested_operator(query.value, user_metadata, tool_parameters)
     elif query.operator in [Operator.IN, Operator.NOT_IN]:
-        return array_operator(query.value, variables)
+        return array_operator(query.value, user_metadata, tool_parameters)
     else:
         raise ValueError(f"Operator {query.operator} not supported")
 
 
 def eval_nested_operator(
-    value: Union[AndStatement, OrStatement], variables: SmartRuleVariables
+    value: Union[AndStatement, OrStatement],
+    user_metadata: Dict[str, Union[str, int, bool]],
+    tool_parameters: Dict[str, Union[str, int, bool]],
 ) -> Union[AndStatement, OrStatement]:
     if not isinstance(value, (AndStatement, OrStatement)):
         raise ValueError("Nested operator must be an AndStatement or OrStatement")
-    return value._fill_in_variables(variables)
+    return value._fill_in_variables(user_metadata, tool_parameters)
 
 
-def binary_operator(value: Any, variables: SmartRuleVariables) -> Any:
-    return replace_variables(value, variables)
+def binary_operator(
+    value: Any,
+    user_metadata: Dict[str, Union[str, int, bool]],
+    tool_parameters: Dict[str, Union[str, int, bool]],
+) -> Any:
+    return replace_variables(value, user_metadata, tool_parameters)
 
 
-def array_operator(value: Any, variables: SmartRuleVariables) -> Any:
+def array_operator(
+    value: Any,
+    user_metadata: Dict[str, Union[str, int, bool]],
+    tool_parameters: Dict[str, Union[str, int, bool]],
+) -> Any:
     if is_array_of_strings(value):
-        return [replace_variables(item, variables) for item in value]
+        return [
+            replace_variables(item, user_metadata, tool_parameters) for item in value
+        ]
     return value
 
 
-def null_operator(value: Any, variables: SmartRuleVariables) -> Any:
+def null_operator(
+    value: Any,
+    user_metadata: Dict[str, Union[str, int, bool]],
+    tool_parameters: Dict[str, Union[str, int, bool]],
+) -> Any:
     return value  # do nothing for now. No variables to replace
 
 
-def empty_operator(operator: Operator, variables: SmartRuleVariables) -> Any:
+def empty_operator(
+    operator: Operator,
+    user_metadata: Dict[str, Union[str, int, bool]],
+    tool_parameters: Dict[str, Union[str, int, bool]],
+) -> Any:
     """Handle IS_EMPTY and IS_NOT_EMPTY operators."""
     if operator == Operator.IS_EMPTY:
         return ""
@@ -167,10 +211,14 @@ def calculate_later_date(input_str: str) -> str:
     )
 
 
-def replace_variables(value: Any, variables: SmartRuleVariables) -> Any:
+def replace_variables(
+    value: Any,
+    user_metadata: Dict[str, Union[str, int, bool]],
+    tool_parameters: Dict[str, Union[str, int, bool]],
+) -> Any:
     if isinstance(value, str):
         if "||" in value:
-            return get_fallback_values(value, variables)
+            return get_fallback_values(value, user_metadata, tool_parameters)
         elif value == "<T>":
             return calculate_current_date()
         elif "<T-" in value:
@@ -178,8 +226,8 @@ def replace_variables(value: Any, variables: SmartRuleVariables) -> Any:
         elif "<T+" in value:
             return calculate_later_date(value)
 
-        value = replace_tool_parameters_patterns(value, variables)
-        value = replace_user_metadata_patterns(value, variables)
+        value = replace_tool_parameters_patterns(value, tool_parameters)
+        value = replace_user_metadata_patterns(value, user_metadata)
 
         if value == "":
             return value
@@ -192,26 +240,34 @@ def replace_variables(value: Any, variables: SmartRuleVariables) -> Any:
     return value
 
 
-def replace_tool_parameters_patterns(value: str, variables: SmartRuleVariables) -> str:
+def replace_tool_parameters_patterns(
+    value: str, tool_parameters: Dict[str, Union[str, int, bool]]
+) -> str:
     def replace_match(match):
         param_name = match.group(1)
-        return str(variables["tool_parameters"].get(param_name, ""))
+        return str(tool_parameters.get(param_name, ""))
 
     return re.sub(r"<toolParameters\.(\w+)>", replace_match, value)
 
 
-def replace_user_metadata_patterns(value: str, variables: SmartRuleVariables) -> str:
+def replace_user_metadata_patterns(
+    value: str, user_metadata: Dict[str, Union[str, int, bool]]
+) -> str:
     def replace_match(match):
         param_name = match.group(1)
-        return str(variables["user_metadata"].get(param_name, ""))
+        return str(user_metadata.get(param_name, ""))
 
     return re.sub(r"<userMetadata\.(\w+)>", replace_match, value)
 
 
-def get_fallback_values(value: str, variables: SmartRuleVariables) -> Any:
+def get_fallback_values(
+    value: str,
+    user_metadata: Dict[str, Union[str, int, bool]],
+    tool_parameters: Dict[str, Union[str, int, bool]],
+) -> Any:
     values = value.split("||")
     for val in values:
-        data = replace_variables(val, variables)
+        data = replace_variables(val, user_metadata, tool_parameters)
         if data != "":
             return data
     return values

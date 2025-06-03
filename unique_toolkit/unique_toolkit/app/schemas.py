@@ -106,12 +106,12 @@ class ChatEventPayload(BaseModel):
     )
     tool_parameters: Optional[dict[str, Any]] = None
     metadata_filter: Optional[dict[str, Any]] = None
-    scope_rules: UniqueQL | None = Field(
+    raw_scope_rules: UniqueQL | None = Field(
         default=None,
         description="A list of rules that determine the scope of the event.",
     )
 
-    @field_validator("scope_rules", mode="before")
+    @field_validator("raw_scope_rules", mode="before")
     def validate_scope_rules(cls, value: dict[str, Any]) -> UniqueQL:
         return parse_uniqueql(value)
 
