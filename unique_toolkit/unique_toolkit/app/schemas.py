@@ -2,8 +2,10 @@ from enum import StrEnum
 from typing import Any, Optional
 
 from humps import camelize
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing_extensions import deprecated
+
+from unique_toolkit.smart_rules.compile import UniqueQL, parse_uniqueql
 
 # set config to convert camelCase to snake_case
 model_config = ConfigDict(
@@ -104,6 +106,14 @@ class ChatEventPayload(BaseModel):
     )
     tool_parameters: Optional[dict[str, Any]] = None
     metadata_filter: Optional[dict[str, Any]] = None
+    scope_rules: UniqueQL | None = Field(
+        default=None,
+        description="A list of rules that determine the scope of the event.",
+    )
+
+    @field_validator("scope_rules", mode="before")
+    def validate_scope_rules(cls, value: dict[str, Any]) -> UniqueQL:
+        return parse_uniqueql(value)
 
 
 @deprecated("""Use `ChatEventPayload` instead.

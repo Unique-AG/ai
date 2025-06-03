@@ -1,0 +1,234 @@
+import re
+from datetime import datetime, timedelta, timezone
+from enum import Enum
+from typing import Any, Dict, List, Self, Union
+
+from pydantic import AliasChoices, BaseModel, Field
+from pydantic.config import ConfigDict
+
+SmartRuleVariables = Dict[str, Dict[str, Union[str, int, bool]]]
+
+
+class Operator(str, Enum):
+    EQUALS = "EQUALS"
+    NOT_EQUALS = "NOT_EQUALS"
+    GREATER_THAN = "GREATER_THAN"
+    GREATER_THAN_OR_EQUAL = "GREATER_THAN_OR_EQUAL"
+    LESS_THAN = "LESS_THAN"
+    LESS_THAN_OR_EQUAL = "LESS_THAN_OR_EQUAL"
+    CONTAINS = "CONTAINS"
+    NOT_CONTAINS = "NOT_CONTAINS"
+    IS_NULL = "IS_NULL"
+    IS_NOT_NULL = "IS_NOT_NULL"
+    IS_EMPTY = "IS_EMPTY"
+    IS_NOT_EMPTY = "IS_NOT_EMPTY"
+    NESTED = "NESTED"
+    IN = "IN"
+    NOT_IN = "NOT_IN"
+
+
+class BaseStatement(BaseModel):
+    model_config: ConfigDict = {"serialize_by_alias": True}
+
+    def with_variables(self, variables: SmartRuleVariables) -> Self:
+        return self._fill_in_variables(variables)
+
+    def _fill_in_variables(self, variables: SmartRuleVariables) -> Self:
+        return self.model_copy()
+
+
+class Statement(BaseStatement):
+    operator: Operator
+    value: Any
+    path: List[str] = Field(default_factory=list)
+
+    def _fill_in_variables(self, variables: SmartRuleVariables) -> Self:
+        new_stmt = self.model_copy()
+        new_stmt.value = eval_operator(self, variables)
+        return new_stmt
+
+
+class AndStatement(BaseStatement):
+    and_list: List[Union["Statement", "AndStatement", "OrStatement"]] = Field(
+        alias="and", validation_alias=AliasChoices("and", "and_list")
+    )
+
+    def _fill_in_variables(self, variables: SmartRuleVariables) -> Self:
+        new_stmt = self.model_copy()
+        new_stmt.and_list = [
+            sub_query._fill_in_variables(variables) for sub_query in self.and_list
+        ]
+        return new_stmt
+
+
+class OrStatement(BaseStatement):
+    or_list: List[Union["Statement", "AndStatement", "OrStatement"]] = Field(
+        alias="or", validation_alias=AliasChoices("or", "or_list")
+    )
+
+    def _fill_in_variables(self, variables: SmartRuleVariables) -> Self:
+        new_stmt = self.model_copy()
+        new_stmt.or_list = [
+            sub_query._fill_in_variables(variables) for sub_query in self.or_list
+        ]
+        return new_stmt
+
+
+# Update the forward references
+Statement.model_rebuild()
+AndStatement.model_rebuild()
+OrStatement.model_rebuild()
+
+
+UniqueQL = Union[Statement, AndStatement, OrStatement]
+
+
+def is_array_of_strings(value: Any) -> bool:
+    return isinstance(value, list) and all(isinstance(item, str) for item in value)
+
+
+def eval_operator(query: Statement, variables: SmartRuleVariables) -> Any:
+    if query.operator in [
+        Operator.EQUALS,
+        Operator.NOT_EQUALS,
+        Operator.GREATER_THAN,
+        Operator.GREATER_THAN_OR_EQUAL,
+        Operator.LESS_THAN,
+        Operator.LESS_THAN_OR_EQUAL,
+        Operator.CONTAINS,
+        Operator.NOT_CONTAINS,
+    ]:
+        return binary_operator(query.value, variables)
+    elif query.operator in [Operator.IS_NULL, Operator.IS_NOT_NULL]:
+        return null_operator(query.value, variables)
+    elif query.operator in [Operator.IS_EMPTY, Operator.IS_NOT_EMPTY]:
+        return empty_operator(query.operator, variables)
+    elif query.operator == Operator.NESTED:
+        return eval_nested_operator(query.value, variables)
+    elif query.operator in [Operator.IN, Operator.NOT_IN]:
+        return array_operator(query.value, variables)
+    else:
+        raise ValueError(f"Operator {query.operator} not supported")
+
+
+def eval_nested_operator(
+    value: Union[AndStatement, OrStatement], variables: SmartRuleVariables
+) -> Union[AndStatement, OrStatement]:
+    if not isinstance(value, (AndStatement, OrStatement)):
+        raise ValueError("Nested operator must be an AndStatement or OrStatement")
+    return value._fill_in_variables(variables)
+
+
+def binary_operator(value: Any, variables: SmartRuleVariables) -> Any:
+    return replace_variables(value, variables)
+
+
+def array_operator(value: Any, variables: SmartRuleVariables) -> Any:
+    if is_array_of_strings(value):
+        return [replace_variables(item, variables) for item in value]
+    return value
+
+
+def null_operator(value: Any, variables: SmartRuleVariables) -> Any:
+    return value  # do nothing for now. No variables to replace
+
+
+def empty_operator(operator: Operator, variables: SmartRuleVariables) -> Any:
+    """Handle IS_EMPTY and IS_NOT_EMPTY operators."""
+    if operator == Operator.IS_EMPTY:
+        return ""
+    elif operator == Operator.IS_NOT_EMPTY:
+        return "not_empty"
+    return None
+
+
+def calculate_current_date() -> str:
+    """Calculate current date in UTC with seconds precision."""
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def calculate_earlier_date(input_str: str) -> str:
+    match = re.search(r"<T-(\d+)>", input_str)
+    if not match:
+        return calculate_current_date()  # Return current date if no match
+    days = int(match.group(1))
+    return (datetime.now(timezone.utc) - timedelta(days=days)).isoformat(
+        timespec="seconds"
+    )
+
+
+def calculate_later_date(input_str: str) -> str:
+    match = re.search(r"<T\+(\d+)>", input_str)  # Note: escaped + in regex
+    if not match:
+        return calculate_current_date()  # Return current date if no match
+    days = int(match.group(1))
+    return (datetime.now(timezone.utc) + timedelta(days=days)).isoformat(
+        timespec="seconds"
+    )
+
+
+def replace_variables(value: Any, variables: SmartRuleVariables) -> Any:
+    if isinstance(value, str):
+        if "||" in value:
+            return get_fallback_values(value, variables)
+        elif value == "<T>":
+            return calculate_current_date()
+        elif "<T-" in value:
+            return calculate_earlier_date(value)
+        elif "<T+" in value:
+            return calculate_later_date(value)
+
+        value = replace_tool_parameters_patterns(value, variables)
+        value = replace_user_metadata_patterns(value, variables)
+
+        if value == "":
+            return value
+        try:
+            return int(value)
+        except ValueError:
+            if value.lower() in ["true", "false"]:
+                return value.lower() == "true"
+            return value
+    return value
+
+
+def replace_tool_parameters_patterns(value: str, variables: SmartRuleVariables) -> str:
+    def replace_match(match):
+        param_name = match.group(1)
+        return str(variables["tool_parameters"].get(param_name, ""))
+
+    return re.sub(r"<toolParameters\.(\w+)>", replace_match, value)
+
+
+def replace_user_metadata_patterns(value: str, variables: SmartRuleVariables) -> str:
+    def replace_match(match):
+        param_name = match.group(1)
+        return str(variables["user_metadata"].get(param_name, ""))
+
+    return re.sub(r"<userMetadata\.(\w+)>", replace_match, value)
+
+
+def get_fallback_values(value: str, variables: SmartRuleVariables) -> Any:
+    values = value.split("||")
+    for val in values:
+        data = replace_variables(val, variables)
+        if data != "":
+            return data
+    return values
+
+
+# Example usage:
+def parse_uniqueql(json_data: Dict[str, Any]) -> UniqueQL:
+    if "operator" in json_data:
+        json_data["operator"] = json_data["operator"].upper()
+        return Statement.parse_obj(json_data)
+    elif "or" in json_data:
+        return OrStatement.model_validate(
+            {"or": [parse_uniqueql(item) for item in json_data["or"]]}
+        )
+    elif "and" in json_data:
+        return AndStatement.model_validate(
+            {"and": [parse_uniqueql(item) for item in json_data["and"]]}
+        )
+    else:
+        raise ValueError("Invalid UniqueQL format")
