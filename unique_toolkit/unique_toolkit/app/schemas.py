@@ -103,7 +103,7 @@ class ChatEventPayload(BaseModel):
         default_factory=dict,
     )
     tool_choices: list[str] | None = Field(
-        default=[],
+        default_factory=list,
         description="A list containing the tool names the user has chosen to be activated.",
     )
     tool_parameters: dict[str, Any] = Field(
