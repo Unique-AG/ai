@@ -1,3 +1,5 @@
+from typing import Any
+
 from unique_toolkit.app import (
     ChatEvent,
     ChatEventAssistantMessage,
@@ -13,8 +15,9 @@ def get_event_obj(
     chat_id: str,
     assistant_id: str,
     user_message_id: str = "user_message_id",
-    metadata_filter: dict | None = None,
+    metadata_filter: dict[str, Any] | None = None,
 ):
+    metadata_filter = metadata_filter or {}
     return ChatEvent(
         id="some-id",
         event=EventName.EXTERNAL_MODULE_CHOSEN,
