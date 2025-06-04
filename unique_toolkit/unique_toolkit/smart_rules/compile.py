@@ -45,7 +45,7 @@ class BaseStatement(BaseModel):
 
 class Statement(BaseStatement):
     operator: Operator
-    value: Any
+    value: str | int | bool | list[str] | "AndStatement" | "OrStatement"
     path: List[str] = Field(default_factory=list)
 
     def _fill_in_variables(
