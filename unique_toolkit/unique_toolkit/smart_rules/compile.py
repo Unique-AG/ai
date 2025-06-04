@@ -45,7 +45,7 @@ class BaseStatement(BaseModel):
 
 class Statement(BaseStatement):
     operator: Operator
-    value: str | int | bool | list[str] | "AndStatement" | "OrStatement"
+    value: Union[str, int, bool, list[str], "AndStatement", "OrStatement"]
     path: List[str] = Field(default_factory=list)
 
     def _fill_in_variables(
@@ -136,7 +136,7 @@ def eval_operator(
 
 
 def eval_nested_operator(
-    value: Union[AndStatement, OrStatement],
+    value: Any,
     user_metadata: Dict[str, Union[str, int, bool]],
     tool_parameters: Dict[str, Union[str, int, bool]],
 ) -> Union[AndStatement, OrStatement]:
