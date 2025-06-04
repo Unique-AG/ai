@@ -1,0 +1,58 @@
+{
+    "folders": [
+        {
+            "name": "unique_toolkit",
+            "path": "unique_toolkit"
+        },
+        {
+            "name": "unique_sdk",
+            "path": "unique_sdk"
+        }
+    ],
+    "settings": {
+        "python.analysis.extraPaths": [
+            "${workspaceFolder}/unique_toolkit",
+            "${workspaceFolder}/unique_sdk"
+        ],
+        "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+        "python.testing.pytestEnabled": true,
+        "python.testing.unittestEnabled": false,
+        "python.testing.nosetestsEnabled": false,
+        "[python]": {
+            "editor.formatOnSave": true,
+            "editor.defaultFormatter": "ms-python.python"
+        }
+    },
+    "launch": {
+        "configurations": [
+            {
+                "name": "unique_toolkit: pytest",
+                "type": "python",
+                "request": "launch",
+                "module": "pytest",
+                "cwd": "${workspaceFolder}/unique_toolkit",
+                "python": "${workspaceFolder}/unique_toolkit/.venv/bin/python",
+                "args": [
+                    "tests",
+                    "-v"
+                ]
+            },
+            {
+                "name": "unique_sdk: pytest",
+                "type": "python",
+                "request": "launch",
+                "module": "pytest",
+                "cwd": "${workspaceFolder}/unique_sdk",
+                "python": "${workspaceFolder}/unique_sdk/.venv/bin/python",
+                "args": [
+                    "tests",
+                    "-v"
+                ]
+            }
+        ]
+    },
+    "testExplorer": {
+        "onReload": "retire",
+        "onStart": "reset"
+    }
+}
