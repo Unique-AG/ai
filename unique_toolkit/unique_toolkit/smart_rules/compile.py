@@ -8,21 +8,21 @@ from pydantic.config import ConfigDict
 
 
 class Operator(str, Enum):
-    EQUALS = "EQUALS"
-    NOT_EQUALS = "NOT_EQUALS"
-    GREATER_THAN = "GREATER_THAN"
-    GREATER_THAN_OR_EQUAL = "GREATER_THAN_OR_EQUAL"
-    LESS_THAN = "LESS_THAN"
-    LESS_THAN_OR_EQUAL = "LESS_THAN_OR_EQUAL"
-    CONTAINS = "CONTAINS"
-    NOT_CONTAINS = "NOT_CONTAINS"
-    IS_NULL = "IS_NULL"
-    IS_NOT_NULL = "IS_NOT_NULL"
-    IS_EMPTY = "IS_EMPTY"
-    IS_NOT_EMPTY = "IS_NOT_EMPTY"
-    NESTED = "NESTED"
-    IN = "IN"
-    NOT_IN = "NOT_IN"
+    EQUALS = "equals"
+    NOT_EQUALS = "notEquals"
+    GREATER_THAN = "greaterThan"
+    GREATER_THAN_OR_EQUAL = "greaterThanOrEqual"
+    LESS_THAN = "lessThan"
+    LESS_THAN_OR_EQUAL = "lessThanOrEqual"
+    IN = "in"
+    NOT_IN = "notIn"
+    CONTAINS = "contains"
+    NOT_CONTAINS = "notContains"
+    IS_NULL = "isNull"
+    IS_NOT_NULL = "isNotNull"
+    IS_EMPTY = "isEmpty"
+    IS_NOT_EMPTY = "isNotEmpty"
+    NESTED = "nested"
 
 
 class BaseStatement(BaseModel):
@@ -34,6 +34,18 @@ class BaseStatement(BaseModel):
         tool_parameters: Dict[str, Union[str, int, bool]],
     ) -> Self:
         return self._fill_in_variables(user_metadata, tool_parameters)
+
+    def is_compiled(self) -> bool:
+        # Serialize the object to json string
+        json_str = self.model_dump_json()
+        # Check if the json string has <T> or <T+> or <T-> or <toolParameters or <userMetadata
+        return (
+            "<T>" in json_str
+            or "<T+" in json_str
+            or "<T-" in json_str
+            or "<toolParameters" in json_str
+            or "<userMetadata" in json_str
+        )
 
     def _fill_in_variables(
         self,
@@ -276,8 +288,7 @@ def get_fallback_values(
 # Example usage:
 def parse_uniqueql(json_data: Dict[str, Any]) -> UniqueQL:
     if "operator" in json_data:
-        json_data["operator"] = json_data["operator"].upper()
-        return Statement.parse_obj(json_data)
+        return Statement.model_validate(json_data)
     elif "or" in json_data:
         return OrStatement.model_validate(
             {"or": [parse_uniqueql(item) for item in json_data["or"]]}

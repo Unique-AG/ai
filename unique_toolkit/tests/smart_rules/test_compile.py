@@ -8,6 +8,7 @@ from unique_toolkit.smart_rules.compile import (
     Operator,
     OrStatement,
     Statement,
+    parse_uniqueql,
 )
 
 
@@ -476,3 +477,208 @@ def test_immutable_complex_statements():
     # Verify the original complex statement is unchanged
     assert base_complex.and_list[0].value == "<userMetadata.name>"
     assert base_complex.and_list[1].value == "<userMetadata.score>"
+
+
+def test_parse_uniqueql_simple_statement():
+    """Test parsing a simple statement."""
+    json_data = {"operator": "equals", "value": "test", "path": ["name"]}
+    result = parse_uniqueql(json_data)
+    assert isinstance(result, Statement)
+    assert result.operator == Operator.EQUALS
+    assert result.value == "test"
+    assert result.path == ["name"]
+
+
+def test_parse_uniqueql_and_statement():
+    """Test parsing an AND statement."""
+    json_data = {
+        "and": [
+            {"operator": "equals", "value": "test1", "path": ["name"]},
+            {"operator": "greaterThan", "value": "100", "path": ["score"]},
+        ]
+    }
+    result = parse_uniqueql(json_data)
+    assert isinstance(result, AndStatement)
+    assert len(result.and_list) == 2
+    assert isinstance(result.and_list[0], Statement)
+    assert isinstance(result.and_list[1], Statement)
+    assert result.and_list[0].operator == Operator.EQUALS
+    assert result.and_list[1].operator == Operator.GREATER_THAN
+
+
+def test_parse_uniqueql_or_statement():
+    """Test parsing an OR statement."""
+    json_data = {
+        "or": [
+            {"operator": "equals", "value": "test1", "path": ["name"]},
+            {"operator": "equals", "value": "test2", "path": ["name"]},
+        ]
+    }
+    result = parse_uniqueql(json_data)
+    assert isinstance(result, OrStatement)
+    assert len(result.or_list) == 2
+    assert isinstance(result.or_list[0], Statement)
+    assert isinstance(result.or_list[1], Statement)
+    assert result.or_list[0].operator == Operator.EQUALS
+    assert result.or_list[1].operator == Operator.EQUALS
+
+
+def test_parse_uniqueql_nested_statement():
+    """Test parsing a nested statement with AND and OR."""
+    json_data = {
+        "and": [
+            {"operator": "equals", "value": "test1", "path": ["name"]},
+            {
+                "or": [
+                    {"operator": "greaterThan", "value": "100", "path": ["score"]},
+                    {"operator": "lessThan", "value": "50", "path": ["score"]},
+                ]
+            },
+        ]
+    }
+    result = parse_uniqueql(json_data)
+    assert isinstance(result, AndStatement)
+    assert len(result.and_list) == 2
+    assert isinstance(result.and_list[0], Statement)
+    assert isinstance(result.and_list[1], OrStatement)
+    assert result.and_list[0].operator == Operator.EQUALS
+    assert len(result.and_list[1].or_list) == 2
+    assert result.and_list[1].or_list[0].operator == Operator.GREATER_THAN
+    assert result.and_list[1].or_list[1].operator == Operator.LESS_THAN
+
+
+def test_parse_uniqueql_invalid_format():
+    """Test parsing an invalid format raises ValueError."""
+    json_data = {"invalid": "format"}
+    with pytest.raises(ValueError, match="Invalid UniqueQL format"):
+        parse_uniqueql(json_data)
+
+
+def test_is_compiled_simple_statement():
+    """Test is_compiled with a simple statement."""
+    # Uncompiled statement with variables
+    uncompiled = Statement(
+        operator=Operator.EQUALS, value="<userMetadata.name>", path=["name"]
+    )
+    assert uncompiled.is_compiled() is True
+
+    # Compiled statement with concrete values
+    compiled = Statement(operator=Operator.EQUALS, value="John", path=["name"])
+    assert compiled.is_compiled() is False
+
+
+def test_is_compiled_date_variables():
+    """Test is_compiled with date-related variables."""
+    # Test current date variable
+    current_date = Statement(operator=Operator.EQUALS, value="<T>", path=["date"])
+    assert current_date.is_compiled() is True
+
+    # Test future date variable
+    future_date = Statement(operator=Operator.EQUALS, value="<T+7>", path=["date"])
+    assert future_date.is_compiled() is True
+
+    # Test past date variable
+    past_date = Statement(operator=Operator.EQUALS, value="<T-7>", path=["date"])
+    assert past_date.is_compiled() is True
+
+
+def test_is_compiled_fallback_values():
+    """Test is_compiled with fallback values."""
+    # Test fallback values with variables
+    fallback = Statement(
+        operator=Operator.EQUALS,
+        value="<userMetadata.missing>||<toolParameters.missing>||default",
+        path=["name"],
+    )
+    assert fallback.is_compiled() is True
+
+    # Test fallback values with concrete values
+    concrete_fallback = Statement(
+        operator=Operator.EQUALS, value="value1||value2||value3", path=["name"]
+    )
+    assert concrete_fallback.is_compiled() is False
+
+
+def test_is_compiled_nested_statements():
+    """Test is_compiled with nested statements."""
+    # Test nested AND statement with variables
+    nested_and = AndStatement(
+        and_list=[
+            Statement(
+                operator=Operator.EQUALS, value="<userMetadata.name>", path=["name"]
+            ),
+            Statement(
+                operator=Operator.EQUALS,
+                value="<toolParameters.category>",
+                path=["category"],
+            ),
+        ]
+    )
+    assert nested_and.is_compiled() is True
+
+    # Test nested OR statement with variables
+    nested_or = OrStatement(
+        or_list=[
+            Statement(
+                operator=Operator.EQUALS, value="<userMetadata.name>", path=["name"]
+            ),
+            Statement(
+                operator=Operator.EQUALS,
+                value="<toolParameters.category>",
+                path=["category"],
+            ),
+        ]
+    )
+    assert nested_or.is_compiled() is True
+
+    # Test nested statements with concrete values
+    concrete_nested = AndStatement(
+        and_list=[
+            Statement(operator=Operator.EQUALS, value="John", path=["name"]),
+            Statement(operator=Operator.EQUALS, value="premium", path=["category"]),
+        ]
+    )
+    assert concrete_nested.is_compiled() is False
+
+
+def test_is_compiled_complex_nested():
+    """Test is_compiled with complex nested statements."""
+    # Create a complex nested structure with mixed compiled and uncompiled values
+    complex_nested = AndStatement(
+        and_list=[
+            OrStatement(
+                or_list=[
+                    Statement(
+                        operator=Operator.EQUALS,
+                        value="<userMetadata.name>",  # compiled
+                        path=["name"],
+                    ),
+                    Statement(
+                        operator=Operator.EQUALS,
+                        value="John",  # uncompiled
+                        path=["name"],
+                    ),
+                ]
+            ),
+            Statement(
+                operator=Operator.EQUALS,
+                value="<toolParameters.category>",  # compiled
+                path=["category"],
+            ),
+        ]
+    )
+    assert complex_nested.is_compiled() is True
+
+    # Test with all concrete values
+    concrete_complex = AndStatement(
+        and_list=[
+            OrStatement(
+                or_list=[
+                    Statement(operator=Operator.EQUALS, value="John", path=["name"]),
+                    Statement(operator=Operator.EQUALS, value="Jane", path=["name"]),
+                ]
+            ),
+            Statement(operator=Operator.EQUALS, value="premium", path=["category"]),
+        ]
+    )
+    assert concrete_complex.is_compiled() is False
