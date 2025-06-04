@@ -682,3 +682,64 @@ def test_is_compiled_complex_nested():
         ]
     )
     assert concrete_complex.is_compiled() is False
+
+
+def test_round_trip_json_conversion():
+    """Test round-trip conversion between JSON and objects."""
+    # Original JSON with nested structure
+    original_json = {
+        "and": [
+            {"operator": "equals", "value": "<userMetadata.name>", "path": ["name"]},
+            {
+                "or": [
+                    {
+                        "operator": "greaterThan",
+                        "value": "<userMetadata.score>",
+                        "path": ["score"],
+                    },
+                    {
+                        "operator": "lessThan",
+                        "value": "<toolParameters.threshold>",
+                        "path": ["score"],
+                    },
+                ]
+            },
+        ]
+    }
+
+    # Parse JSON into object
+    parsed_obj = parse_uniqueql(original_json)
+    assert isinstance(parsed_obj, AndStatement)
+    assert len(parsed_obj.and_list) == 2
+    assert isinstance(parsed_obj.and_list[0], Statement)
+    assert isinstance(parsed_obj.and_list[1], OrStatement)
+
+    # Convert object back to JSON
+    result_json = parsed_obj.model_dump()
+
+    # Verify the structure is equivalent
+    assert "and" in result_json
+    assert len(result_json["and"]) == 2
+
+    # Check first statement
+    first_stmt = result_json["and"][0]
+    assert first_stmt["operator"] == "equals"
+    assert first_stmt["value"] == "<userMetadata.name>"
+    assert first_stmt["path"] == ["name"]
+
+    # Check nested OR statement
+    nested_or = result_json["and"][1]
+    assert "or" in nested_or
+    assert len(nested_or["or"]) == 2
+
+    # Check first OR condition
+    first_or = nested_or["or"][0]
+    assert first_or["operator"] == "greaterThan"
+    assert first_or["value"] == "<userMetadata.score>"
+    assert first_or["path"] == ["score"]
+
+    # Check second OR condition
+    second_or = nested_or["or"][1]
+    assert second_or["operator"] == "lessThan"
+    assert second_or["value"] == "<toolParameters.threshold>"
+    assert second_or["path"] == ["score"]
