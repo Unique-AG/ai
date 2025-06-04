@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.7.26] - 2025-06-05
 - Add `scope_rules` to `ChatEventPayload`
-- Added `UniqueQL` compiler
+- Added `UniqueQL` compiler and pydantic classes for `UniqueQL`. Note this is functionally equivalent but not identical to `UQLOperator` or `UQLCombinator` in `unique_sdk`.
 
 ## [0.7.25] - 2025-06-05
 - Adding models `AZURE_GPT_41_MINI_2025_0414`, `AZURE_GPT_41_NANO_2025_0414`
