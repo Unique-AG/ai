@@ -20,7 +20,7 @@ requests = "^2.32.3"
 
 
 [tool.poetry.group.dev.dependencies]
-ruff = "0.4.10"
+ruff = "0.11.7"
 pytest = "^8.0"
 tox = "^4.11.4"
 pyright = "^1.1.341"
