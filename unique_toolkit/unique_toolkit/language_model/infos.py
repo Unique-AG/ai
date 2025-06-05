@@ -23,6 +23,8 @@ class LanguageModelName(StrEnum):
     AZURE_o3_MINI_2025_0131 = "AZURE_o3_MINI_2025_0131"
     AZURE_GPT_45_PREVIEW_2025_0227 = "AZURE_GPT_45_PREVIEW_2025_0227"
     AZURE_GPT_41_2025_0414 = "AZURE_GPT_41_2025_0414"
+    AZURE_GPT_41_MINI_2025_0414 = "AZURE_GPT_41_MINI_2025_0414"
+    AZURE_GPT_41_NANO_2025_0414 = "AZURE_GPT_41_NANO_2025_0414"
     AZURE_o3_2025_0416 = "AZURE_o3_2025_0416"
     AZURE_o4_MINI_2025_0416 = "AZURE_o4_MINI_2025_0416"
     ANTHROPIC_CLAUDE_3_7_SONNET = "litellm:anthropic-claude-3-7-sonnet"
@@ -361,6 +363,42 @@ class LanguageModelInfo(BaseModel):
                     published_at=date(2025, 2, 27),
                 )
             case LanguageModelName.AZURE_GPT_41_2025_0414:
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                    ],
+                    provider=LanguageModelProvider.AZURE,
+                    version="2025-04-14",
+                    encoder_name=EncoderName.O200K_BASE,
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=1_047_576, token_limit_output=32_768
+                    ),
+                    info_cutoff_at=date(2024, 5, 31),
+                    published_at=date(2025, 4, 14),
+                )
+            case LanguageModelName.AZURE_GPT_41_MINI_2025_0414:
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                    ],
+                    provider=LanguageModelProvider.AZURE,
+                    version="2025-04-14",
+                    encoder_name=EncoderName.O200K_BASE,
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=1_047_576, token_limit_output=32_768
+                    ),
+                    info_cutoff_at=date(2024, 5, 31),
+                    published_at=date(2025, 4, 14),
+                )
+            case LanguageModelName.AZURE_GPT_41_NANO_2025_0414:
                 return cls(
                     name=model_name,
                     capabilities=[
