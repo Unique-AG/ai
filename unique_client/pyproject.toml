@@ -1,26 +1,26 @@
 [tool.poetry]
-name = "unique_sdk"
+name = "unique-python-client"
 version = "0.9.31"
 description = ""
 authors = [
-    "Martin Fadler <martin.fadler@unique.ch>",
-    "Konstantin Krauss <konstantin@unique.ch>",
-    "Andreas Hauri <andreas@unique.ch>",
+    "cedric klinkert <cedric.klinkert@unique.ai>",
 ]
 readme = ["README.md", "CHANGELOG.md"]
 license = "MIT"
 classifiers = [
     "Programming Language :: Python :: 3.11"
 ]
+packages = [{include = "unique_client", from = "unique_client"}]
 
 [tool.poetry.dependencies]
 python = "^3.11"
 typing-extensions = "^4.9.0"
 requests = "^2.32.3"
+pydantic = "^2.10.6"
 
 
 [tool.poetry.group.dev.dependencies]
-ruff = "0.4.10"
+ruff = "0.5.3"
 pytest = "^8.0"
 tox = "^4.11.4"
 pyright = "^1.1.341"
@@ -28,6 +28,7 @@ pytest-cov = "^4.1.0"
 pytest-asyncio = "^0.24.0"
 python-dotenv = "^1.1.0"
 openapi-python-generator = "^1.2.0"
+ipykernel = "^6.29.5"
 
 [build-system]
 requires = ["poetry-core"]
