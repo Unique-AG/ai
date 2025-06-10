@@ -422,7 +422,7 @@ class ContentService:
             chat_id (str | None): The chat ID. Defaults to None.
             skip_ingestion (bool): Whether to skip ingestion. Defaults to False.
             ingestion_config (unique_sdk.Content.IngestionConfig | None): The ingestion configuration. Defaults to None.
-            metadata (dict[str, any] | None): The metadata to associate with the content. Defaults to None.
+            metadata (dict[str, Any] | None): The metadata to associate with the content. Defaults to None.
 
         Returns:
             Content: The uploaded content.
