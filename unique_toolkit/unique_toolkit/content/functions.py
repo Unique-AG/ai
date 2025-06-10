@@ -3,6 +3,7 @@ import os
 import re
 import tempfile
 from pathlib import Path
+from typing import Any
 
 import requests
 import unique_sdk
@@ -214,7 +215,7 @@ def upload_content_from_bytes(
     chat_id: str | None = None,
     skip_ingestion: bool = False,
     ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
-    metadata: dict[str, any] | None = None,
+    metadata: dict[str, Any] | None = None,
 ):
     """
     Uploads content to the knowledge base.
@@ -229,7 +230,7 @@ def upload_content_from_bytes(
         chat_id (str | None): The chat ID. Defaults to None.
         skip_ingestion (bool): Whether to skip ingestion. Defaults to False.
         ingestion_config (unique_sdk.Content.IngestionConfig | None): The ingestion configuration. Defaults to None.
-        metadata ( dict[str, any] | None): The metadata for the content. Defaults to None.
+        metadata ( dict[str, Any] | None): The metadata for the content. Defaults to None.
 
     Returns:
         Content: The uploaded content.
@@ -263,7 +264,7 @@ def upload_content(
     chat_id: str | None = None,
     skip_ingestion: bool = False,
     ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
-    metadata: dict[str, any] | None = None,
+    metadata: dict[str, Any] | None = None,
 ):
     """
     Uploads content to the knowledge base.
@@ -278,7 +279,7 @@ def upload_content(
         chat_id (str | None): The chat ID. Defaults to None.
         skip_ingestion (bool): Whether to skip ingestion. Defaults to False.
         ingestion_config (unique_sdk.Content.IngestionConfig | None): The ingestion configuration. Defaults to None.
-        metadata ( dict[str, any] | None): The metadata for the content. Defaults to None.
+        metadata ( dict[str, Any] | None): The metadata for the content. Defaults to None.
 
     Returns:
         Content: The uploaded content.
@@ -312,7 +313,7 @@ def _trigger_upload_content(
     chat_id: str | None = None,
     skip_ingestion: bool = False,
     ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
-    metadata: dict[str, any] | None = None,
+    metadata: dict[str, Any] | None = None,
 ):
     """
     Uploads content to the knowledge base.
@@ -327,7 +328,7 @@ def _trigger_upload_content(
         chat_id (str | None): The chat ID. Defaults to None.
         skip_ingestion (bool): Whether to skip ingestion. Defaults to False.
         ingestion_config (unique_sdk.Content.IngestionConfig | None): The ingestion configuration. Defaults to None.
-        metadata (dict[str, any] | None): The metadata for the content. Defaults to None.
+        metadata (dict[str, Any] | None): The metadata for the content. Defaults to None.
 
     Returns:
         Content: The uploaded content.
