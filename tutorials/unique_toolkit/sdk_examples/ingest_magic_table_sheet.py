@@ -15,14 +15,14 @@ logger = getLogger(__name__)
 
 def main():
     """
-     This example demonstrates how to use the `ingest_magic_table_sheets` method to process a magic table sheet.
-     The response contains a mapping of row IDs to their corresponding content IDs with the following properties:
-    
-     rowIdsToContentIds:  
-         A list of objects, each containing:
-             rowId: The ID of the row from the magic table sheet.
-             contentId: The ID of the created content associated with the row.
-     """
+    This example demonstrates how to use the `ingest_magic_table_sheets` method to process a magic table sheet.
+    The response contains a mapping of row IDs to their corresponding content IDs with the following properties:
+
+    rowIdsToContentIds:
+        A list of objects, each containing:
+            rowId: The ID of the row from the magic table sheet.
+            contentId: The ID of the created content associated with the row.
+    """
     import unique_sdk
 
     # Load environment variables
@@ -44,7 +44,11 @@ def main():
                 "rowId": "2",
                 "columns": [
                     {"columnId": "0", "columnName": "Section", "content": "Other"},
-                    {"columnId": "1", "columnName": "Question", "content": "What do you know?"},
+                    {
+                        "columnId": "1",
+                        "columnName": "Question",
+                        "content": "What do you know?",
+                    },
                     {
                         "columnId": "2",
                         "columnName": "Knowledge Base Answer",
