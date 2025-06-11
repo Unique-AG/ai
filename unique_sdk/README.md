@@ -418,6 +418,40 @@ def upload_file(
 
 ```
 
+#### `unique_sdk.Content.ingest_magic_table_sheets`
+
+Allows you to ingest a magic table sheet, each row is processed and converted into a content.
+```python
+    params = {
+      "user_id": user_id,
+      "company_id": company_id,
+      "data": [
+         {
+            "rowId": "2",
+            "columns": [
+               {"columnId": "0", "columnName": "Section", "content": "Other"},
+               {"columnId": "1", "columnName": "Question", "content": "What do you know?"},
+               {
+                  "columnId": "2",
+                  "columnName": "Knowledge Base Answer",
+                  "content": "Lorem Ipsum is simply dummy texktop publishing software.",
+               },
+            ],
+         },
+      ],
+      "ingestionConfiguration": {
+         "columnIdsInMetadata": ["1", "2"],
+         "columnIdsInChunkText": ["1", "2"],
+      },
+      "metadata": {
+         "libraryName": "foo",
+      },
+      "scopeId": scope_id,
+   }
+
+    unique_sdk.Content.ingest_magic_table_sheets(**params)
+```
+
 ### Folder
 
 #### `unique_sdk.Folder.create_paths`

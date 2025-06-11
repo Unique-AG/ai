@@ -155,6 +155,32 @@ class Content(APIResource["Content"]):
     chunks: List[Chunk]
     metadata: Optional[Dict[str, Any]]
 
+    class MagicTableSheetTableColumn(TypedDict):
+        columnId: str
+        columnName: str
+        content: str
+
+    class MagicTableSheetTable(TypedDict):
+        rowId: str
+        columns: List["Content.MagicTableSheetTableColumn"]
+    
+    class MagicTableSheetIngestionConfiguration(TypedDict):
+        columnIdsInMetadata: List[str]
+        columnIdsInChunkText: List[str]
+    
+    class MagicTableSheetIngestParams(TypedDict):
+        data: List["Content.MagicTableSheetTable"]
+        ingestionConfiguration: "Content.MagicTableSheetIngestionConfiguration"
+        metadata: Dict[str, Optional[str]]
+        scopeId: str
+
+    class MagicTableSheetRowIdToContentId(TypedDict):
+        rowId: str
+        contentId: str
+
+    class MagicTableSheetResponse(TypedDict):
+        rowIdsToContentIds: List["Content.MagicTableSheetRowIdToContentId"]
+
     @classmethod
     def search(
         cls,
@@ -265,6 +291,42 @@ class Content(APIResource["Content"]):
                 "/content/upsert",
                 user_id,
                 company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    def ingest_magic_table_sheets(
+            cls, 
+            user_id: str, 
+            company_id: str, 
+            **params: Unpack["Content.MagicTableSheetIngestParams"]
+    ) -> "Content.MagicTableSheetResponse":
+        return cast(
+            Content.MagicTableSheetResponse,
+            cls._static_request(
+                "post",
+                "/content/magic-table-sheets",
+                user_id,
+                company_id=company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    async def ingest_magic_table_sheets_async(
+            cls, 
+            user_id: str, 
+            company_id: str, 
+            **params: Unpack["Content.MagicTableSheetIngestParams"]
+    ) -> "Content.MagicTableSheetResponse":
+        return cast(
+            Content.MagicTableSheetResponse,
+            await cls._static_request_async(
+                "post",
+                "/content/magic-table-sheets",
+                user_id,
+                company_id=company_id,
                 params=params,
             ),
         )

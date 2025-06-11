@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.32] - 2025-06-11
+- Add function to ingest table magic sheets.
+
 ## [0.9.31] - 2025-05-21
 - Add function to update folder access (add or remove).
 
