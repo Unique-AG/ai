@@ -2,8 +2,10 @@ from enum import StrEnum
 from typing import Any, Optional
 
 from humps import camelize
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing_extensions import deprecated
+
+from unique_toolkit.smart_rules.compile import UniqueQL, parse_uniqueql
 
 # set config to convert camelCase to snake_case
 model_config = ConfigDict(
@@ -95,15 +97,31 @@ class ChatEventPayload(BaseModel):
     assistant_id: str
     user_message: ChatEventUserMessage
     assistant_message: ChatEventAssistantMessage
-    text: Optional[str] = None
-    additional_parameters: Optional[ChatEventAdditionalParameters] = None
-    user_metadata: Optional[dict[str, Any]] = None
-    tool_choices: Optional[list[str]] = Field(
-        default=[],
+    text: str | None = None
+    additional_parameters: ChatEventAdditionalParameters | None = None
+    user_metadata: dict[str, Any] | None = Field(
+        default_factory=dict,
+    )
+    tool_choices: list[str] = Field(
+        default_factory=list,
         description="A list containing the tool names the user has chosen to be activated.",
     )
-    tool_parameters: Optional[dict[str, Any]] = None
-    metadata_filter: Optional[dict[str, Any]] = None
+    tool_parameters: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Parameters extracted from module selection function calling the tool.",
+    )
+    metadata_filter: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Metadata filter compiled after module selection function calling and scope rules.",
+    )
+    raw_scope_rules: UniqueQL | None = Field(
+        default=None,
+        description="Raw UniqueQL rule that can be compiled to a metadata filter.",
+    )
+
+    @field_validator("raw_scope_rules", mode="before")
+    def validate_scope_rules(cls, value: dict[str, Any]) -> UniqueQL:
+        return parse_uniqueql(value)
 
 
 @deprecated("""Use `ChatEventPayload` instead.

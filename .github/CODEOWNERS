@@ -4,7 +4,3 @@
 #
 
 * @Unique-AG/data-science @Unique-AG/Solutions-Engineering
-
-# Code permissions
-# ! These must appear last as they must be the most specific and enforced
-.github/ @Unique-AG/Solutions-Engineering
