@@ -1,22 +1,31 @@
+import copy
 import logging
-from typing import cast
+from typing import Any, cast
 
 import unique_sdk
 from pydantic import BaseModel
 
+from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.evaluators import DOMAIN_NAME
+from unique_toolkit.language_model import (
+    LanguageModelMessageRole,
+    LanguageModelMessages,
+    LanguageModelResponse,
+    LanguageModelStreamResponse,
+    LanguageModelStreamResponseMessage,
+    LanguageModelTool,
+    LanguageModelToolDescription,
+)
+from unique_toolkit.language_model.infos import LanguageModelName
+from unique_toolkit.language_model.reference import (
+    PotentialReference,
+    add_references_to_message,
+)
 
 from .constants import (
     DEFAULT_COMPLETE_TEMPERATURE,
     DEFAULT_COMPLETE_TIMEOUT,
-)
-from .infos import LanguageModelName
-from .schemas import (
-    LanguageModelMessages,
-    LanguageModelResponse,
-    LanguageModelTool,
-    LanguageModelToolDescription,
 )
 
 logger = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
@@ -232,3 +241,122 @@ def _prepare_completion_params_util(
     )
 
     return options, model, messages_dict, search_context
+
+
+def unique_stream_complete_with_references(
+    company_id: str,
+    messages: LanguageModelMessages,
+    model_name: LanguageModelName | str,
+    content_chunks: list[ContentChunk],
+    temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
+    timeout: int = DEFAULT_COMPLETE_TIMEOUT,
+    other_options: dict[str, Any] | None = None,
+    tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
+    structured_output_model: type[BaseModel] | None = None,
+    structured_output_enforce_schema: bool = False,
+    start_text: str | None = None,
+) -> LanguageModelStreamResponse:
+    # Use toolkit language model functions for chat completion
+    response = complete(
+        company_id=company_id,
+        model_name=model_name,
+        messages=messages,
+        temperature=temperature,
+        timeout=timeout,
+        tools=tools,
+        other_options=other_options,
+        structured_output_model=structured_output_model,
+        structured_output_enforce_schema=structured_output_enforce_schema,
+    )
+
+    return _create_language_model_stream_response_with_references(
+        response=response, content_chunks=content_chunks, start_text=start_text
+    )
+
+
+async def unique_stream_complete_with_references_async(
+    company_id: str,
+    messages: LanguageModelMessages,
+    model_name: LanguageModelName | str,
+    content_chunks: list[ContentChunk],
+    temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
+    timeout: int = DEFAULT_COMPLETE_TIMEOUT,
+    other_options: dict[str, Any] | None = None,
+    tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
+    structured_output_model: type[BaseModel] | None = None,
+    structured_output_enforce_schema: bool = False,
+    start_text: str | None = None,
+) -> LanguageModelStreamResponse:
+    # Use toolkit language model functions for chat completion
+    response = await complete_async(
+        company_id=company_id,
+        model_name=model_name,
+        messages=messages,
+        temperature=temperature,
+        timeout=timeout,
+        tools=tools,
+        other_options=other_options,
+        structured_output_model=structured_output_model,
+        structured_output_enforce_schema=structured_output_enforce_schema,
+    )
+
+    return _create_language_model_stream_response_with_references(
+        response=response, content_chunks=content_chunks, start_text=start_text
+    )
+
+
+def _create_language_model_stream_response_with_references(
+    response: LanguageModelResponse,
+    content_chunks: list[ContentChunk],
+    start_text: str | None = None,
+):
+    content = response.choices[0].message.content
+
+    if content is None:
+        raise ValueError("Content is None, which is not supported")
+    elif isinstance(content, list):
+        raise ValueError("Content is a list, which is not supported")
+    else:
+        content = start_text or "" + str(content)
+
+    from datetime import datetime, timezone
+
+    message = ChatMessage(
+        id="msg_unknown",
+        text=copy.deepcopy(content),
+        role=ChatMessageRole.ASSISTANT,
+        created_at=datetime.now(timezone.utc),
+        chat_id="chat_unknown",
+    )
+
+    search_context = [
+        PotentialReference(
+            id=source.id,
+            chunk_id=source.id,
+            title=source.title,
+            key=source.key or "",
+            url=source.url,
+        )
+        for source in content_chunks
+    ]
+
+    message, __ = add_references_to_message(
+        message=message,
+        search_context=search_context,
+    )
+
+    stream_response_message = LanguageModelStreamResponseMessage(
+        id="stream_unknown",
+        previous_message_id=None,
+        role=LanguageModelMessageRole.ASSISTANT,
+        text=message.content or "",
+        original_text=content,
+        references=[u.model_dump() for u in message.references or []],
+    )
+
+    stream_response = LanguageModelStreamResponse(
+        message=stream_response_message,
+        tool_calls=None,
+    )
+
+    return stream_response
