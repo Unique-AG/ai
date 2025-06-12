@@ -48,8 +48,8 @@ from unique_toolkit.language_model.schemas import (
 )
 
 from .functions import (
-    stream_complete_to_chat,
-    stream_complete_to_chat_async,
+    unique_stream_complete_with_references,
+    unique_stream_complete_with_references_async,
 )
 
 logger = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
@@ -1084,7 +1084,32 @@ class ChatService:
             label=label,
         )
 
+    @deprecated("Use unique_stream_complete_with_references instead")
     def stream_complete(
+        self,
+        messages: LanguageModelMessages,
+        model_name: LanguageModelName | str,
+        content_chunks: list[ContentChunk] = [],
+        debug_info: dict = {},
+        temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
+        timeout: int = DEFAULT_COMPLETE_TIMEOUT,
+        tools: Optional[list[LanguageModelTool | LanguageModelToolDescription]] = None,
+        start_text: Optional[str] = None,
+        other_options: Optional[dict] = None,
+    ) -> LanguageModelStreamResponse:
+        return self.unique_stream_complete_with_references(
+            messages=messages,
+            model_name=model_name,
+            content_chunks=content_chunks,
+            debug_info=debug_info,
+            temperature=temperature,
+            timeout=timeout,
+            tools=tools,
+            start_text=start_text,
+            other_options=other_options,
+        )
+
+    def unique_stream_complete_with_references(
         self,
         messages: LanguageModelMessages,
         model_name: LanguageModelName | str,
@@ -1117,7 +1142,7 @@ class ChatService:
             ]
         )
 
-        return stream_complete_to_chat(
+        return unique_stream_complete_with_references(
             company_id=company_id,
             user_id=user_id,
             assistant_message_id=assistant_message_id,
@@ -1161,6 +1186,7 @@ class ChatService:
 
         return LanguageModelResponse.from_stream_response(response)
 
+    @deprecated("use unique_stream_complete_with_references_async instead.")
     async def stream_complete_async(
         self,
         messages: LanguageModelMessages,
@@ -1176,7 +1202,30 @@ class ChatService:
         """
         Streams a completion in the chat session asynchronously.
         """
+        return await self.unique_stream_complete_with_references_async(
+            messages=messages,
+            model_name=model_name,
+            content_chunks=content_chunks,
+            debug_info=debug_info,
+            temperature=temperature,
+            timeout=timeout,
+            tools=tools,
+            start_text=start_text,
+            other_options=other_options,
+        )
 
+    async def unique_stream_complete_with_references_async(
+        self,
+        messages: LanguageModelMessages,
+        model_name: LanguageModelName | str,
+        content_chunks: list[ContentChunk] = [],
+        debug_info: dict = {},
+        temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
+        timeout: int = DEFAULT_COMPLETE_TIMEOUT,
+        tools: Optional[list[LanguageModelTool | LanguageModelToolDescription]] = None,
+        start_text: Optional[str] = None,
+        other_options: Optional[dict] = None,
+    ) -> LanguageModelStreamResponse:
         [
             company_id,
             user_id,
@@ -1195,7 +1244,7 @@ class ChatService:
             ]
         )
 
-        return await stream_complete_to_chat_async(
+        return await unique_stream_complete_with_references_async(
             company_id=company_id,
             user_id=user_id,
             assistant_message_id=assistant_message_id,
