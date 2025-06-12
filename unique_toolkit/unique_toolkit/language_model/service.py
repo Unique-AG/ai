@@ -1,11 +1,12 @@
 import logging
-from typing import Optional, Type
+from typing import Any, Optional, Type
 
 from pydantic import BaseModel
 from typing_extensions import deprecated
 
 from unique_toolkit._common.validate_required_values import validate_required_values
 from unique_toolkit.app.schemas import BaseEvent, ChatEvent, Event
+from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.language_model.constants import (
     DEFAULT_COMPLETE_TEMPERATURE,
     DEFAULT_COMPLETE_TIMEOUT,
@@ -14,11 +15,14 @@ from unique_toolkit.language_model.constants import (
 from unique_toolkit.language_model.functions import (
     complete,
     complete_async,
+    unique_stream_complete_with_references,
+    unique_stream_complete_with_references_async,
 )
 from unique_toolkit.language_model.infos import LanguageModelName
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
     LanguageModelResponse,
+    LanguageModelStreamResponse,
     LanguageModelTool,
     LanguageModelToolDescription,
 )
@@ -259,4 +263,62 @@ class LanguageModelService:
             other_options=other_options,
             structured_output_model=structured_output_model,
             structured_output_enforce_schema=structured_output_enforce_schema,
+        )
+
+    def unique_stream_complete_with_references(
+        self,
+        messages: LanguageModelMessages,
+        model_name: LanguageModelName | str,
+        content_chunks: list[ContentChunk],
+        temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
+        timeout: int = DEFAULT_COMPLETE_TIMEOUT,
+        other_options: dict[str, Any] | None = None,
+        tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
+        structured_output_model: type[BaseModel] | None = None,
+        structured_output_enforce_schema: bool = False,
+        start_text: str | None = None,
+    ) -> LanguageModelStreamResponse:
+        [company_id] = validate_required_values([self._company_id])
+
+        return unique_stream_complete_with_references(
+            company_id=company_id,
+            messages=messages,
+            model_name=model_name,
+            content_chunks=content_chunks,
+            temperature=temperature,
+            timeout=timeout,
+            other_options=other_options,
+            tools=tools,
+            structured_output_model=structured_output_model,
+            structured_output_enforce_schema=structured_output_enforce_schema,
+            start_text=start_text,
+        )
+
+    async def unique_stream_complete_with_references_async(
+        self,
+        messages: LanguageModelMessages,
+        model_name: LanguageModelName | str,
+        content_chunks: list[ContentChunk],
+        temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
+        timeout: int = DEFAULT_COMPLETE_TIMEOUT,
+        other_options: dict[str, Any] | None = None,
+        tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
+        structured_output_model: type[BaseModel] | None = None,
+        structured_output_enforce_schema: bool = False,
+        start_text: str | None = None,
+    ) -> LanguageModelStreamResponse:
+        [company_id] = validate_required_values([self._company_id])
+
+        return await unique_stream_complete_with_references_async(
+            company_id=company_id,
+            messages=messages,
+            model_name=model_name,
+            content_chunks=content_chunks,
+            temperature=temperature,
+            timeout=timeout,
+            other_options=other_options,
+            tools=tools,
+            structured_output_model=structured_output_model,
+            structured_output_enforce_schema=structured_output_enforce_schema,
+            start_text=start_text,
         )

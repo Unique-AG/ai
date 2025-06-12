@@ -3,6 +3,7 @@ import re
 from typing import Any, Dict, List, cast
 
 import unique_sdk
+from typing_extensions import deprecated
 from unique_sdk._list_object import ListObject
 
 from unique_toolkit._common import _time_utils
@@ -673,7 +674,44 @@ async def modify_message_assessment_async(
         raise e
 
 
+@deprecated("Use unique_stream_complete_with_references instead")
 def stream_complete_to_chat(
+    company_id: str,
+    user_id: str,
+    assistant_message_id: str,
+    user_message_id: str,
+    chat_id: str,
+    assistant_id: str,
+    messages: LanguageModelMessages,
+    model_name: LanguageModelName | str,
+    content_chunks: list[ContentChunk] = [],
+    debug_info: dict = {},
+    temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
+    timeout: int = DEFAULT_COMPLETE_TIMEOUT,
+    tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
+    start_text: str | None = None,
+    other_options: dict | None = None,
+) -> LanguageModelStreamResponse:
+    return unique_stream_complete_with_references(
+        company_id=company_id,
+        user_id=user_id,
+        assistant_message_id=assistant_message_id,
+        user_message_id=user_message_id,
+        chat_id=chat_id,
+        assistant_id=assistant_id,
+        messages=messages,
+        model_name=model_name,
+        content_chunks=content_chunks,
+        debug_info=debug_info,
+        temperature=temperature,
+        timeout=timeout,
+        tools=tools,
+        start_text=start_text,
+        other_options=other_options,
+    )
+
+
+def unique_stream_complete_with_references(
     company_id: str,
     user_id: str,
     assistant_message_id: str,
@@ -747,7 +785,44 @@ def stream_complete_to_chat(
         raise e
 
 
+@deprecated("Use unique_stream_complete_with_references_async instead")
 async def stream_complete_to_chat_async(
+    company_id: str,
+    user_id: str,
+    assistant_message_id: str,
+    user_message_id: str,
+    chat_id: str,
+    assistant_id: str,
+    messages: LanguageModelMessages,
+    model_name: LanguageModelName | str,
+    content_chunks: list[ContentChunk] = [],
+    debug_info: dict = {},
+    temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
+    timeout: int = DEFAULT_COMPLETE_TIMEOUT,
+    tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
+    start_text: str | None = None,
+    other_options: dict | None = None,
+) -> LanguageModelStreamResponse:
+    return await unique_stream_complete_with_references_async(
+        company_id=company_id,
+        user_id=user_id,
+        assistant_message_id=assistant_message_id,
+        user_message_id=user_message_id,
+        chat_id=chat_id,
+        assistant_id=assistant_id,
+        messages=messages,
+        model_name=model_name,
+        content_chunks=content_chunks,
+        debug_info=debug_info,
+        temperature=temperature,
+        timeout=timeout,
+        tools=tools,
+        start_text=start_text,
+        other_options=other_options,
+    )
+
+
+async def unique_stream_complete_with_references_async(
     company_id: str,
     user_id: str,
     assistant_message_id: str,
