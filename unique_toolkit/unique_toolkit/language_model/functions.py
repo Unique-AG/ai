@@ -1,5 +1,6 @@
 import copy
 import logging
+from datetime import datetime, timezone
 from typing import Any, cast
 
 import unique_sdk
@@ -45,6 +46,7 @@ def complete(
     """Call the completion endpoint synchronously without streaming the response.
 
     Args:
+    ----
         company_id (str): The company ID associated with the request.
         messages (LanguageModelMessages): The messages to complete.
         model_name (LanguageModelName | str): The model name to use for the completion.
@@ -54,6 +56,7 @@ def complete(
         other_options (Optional[dict]): Additional options to use. Defaults to None.
 
     Returns:
+    -------
         LanguageModelResponse: The response object containing the completed result.
 
     """
@@ -102,6 +105,7 @@ async def complete_async(
     the completed result.
 
     Args:
+    ----
         company_id (str): The company ID associated with the request.
         messages (LanguageModelMessages): The messages to complete.
         model_name (LanguageModelName | str): The model name to use for the completion.
@@ -111,9 +115,11 @@ async def complete_async(
         other_options (Optional[dict]): The other options to use. Defaults to None.
 
     Returns:
+    -------
         LanguageModelResponse: The response object containing the completed result.
 
     Raises:
+    ------
         Exception: If an error occurs during the request, an exception is raised
         and logged.
 
@@ -207,7 +213,8 @@ def _prepare_completion_params_util(
 ) -> tuple[dict, str, dict, dict | None]:
     """Prepare common parameters for completion requests.
 
-    Returns:
+    Returns
+    -------
         tuple containing:
         - options (dict): Combined options including tools and temperature
         - model (str): Resolved model name
@@ -270,7 +277,9 @@ def unique_stream_complete_with_references(
     )
 
     return _create_language_model_stream_response_with_references(
-        response=response, content_chunks=content_chunks, start_text=start_text
+        response=response,
+        content_chunks=content_chunks,
+        start_text=start_text,
     )
 
 
@@ -301,7 +310,9 @@ async def unique_stream_complete_with_references_async(
     )
 
     return _create_language_model_stream_response_with_references(
-        response=response, content_chunks=content_chunks, start_text=start_text
+        response=response,
+        content_chunks=content_chunks,
+        start_text=start_text,
     )
 
 
@@ -318,8 +329,6 @@ def _create_language_model_stream_response_with_references(
         raise ValueError("Content is a list, which is not supported")
     else:
         content = start_text or "" + str(content)
-
-    from datetime import datetime, timezone
 
     message = ChatMessage(
         id="msg_unknown",
@@ -354,9 +363,10 @@ def _create_language_model_stream_response_with_references(
         references=[u.model_dump() for u in message.references or []],
     )
 
-    stream_response = LanguageModelStreamResponse(
-        message=stream_response_message,
-        tool_calls=None,
-    )
+    tool_calls = [r.function for r in response.choices[0].message.tool_calls or []]
+    tool_calls = tool_calls if len(tool_calls) > 0 else None
 
-    return stream_response
+    return LanguageModelStreamResponse(
+        message=stream_response_message,
+        tool_calls=tool_calls,
+    )

@@ -1,5 +1,4 @@
 import re
-from typing import List, Optional, Tuple
 
 from pydantic import BaseModel
 
@@ -7,24 +6,24 @@ from unique_toolkit.chat.schemas import ChatMessage, Reference
 
 
 class NodeReference(Reference):
-    original_index: List[int] = []
+    original_index: list[int] = []
     message_id: str | None = None
 
 
 class PotentialReference(BaseModel):
     id: str
-    chunk_id: Optional[str] = None
-    title: Optional[str] = None
+    chunk_id: str | None = None
+    title: str | None = None
     key: str
-    url: Optional[str] = None
-    internally_stored_at: Optional[str] = None
+    url: str | None = None
+    internally_stored_at: str | None = None
 
 
 def add_references_to_message(
     message: ChatMessage,
-    search_context: List[PotentialReference],
-    model: Optional[str] = None,
-) -> Tuple[ChatMessage, bool]:
+    search_context: list[PotentialReference],
+    model: str | None = None,
+) -> tuple[ChatMessage, bool]:
     """Add references to a message and return the updated message with change status.
 
     Returns:
@@ -49,10 +48,10 @@ def add_references_to_message(
 
 def _add_references(
     text: str,
-    search_context: List[PotentialReference],
+    search_context: list[PotentialReference],
     message_id: str,
-    model: Optional[str] = None,
-) -> Tuple[str, List[NodeReference]]:
+    model: str | None = None,
+) -> tuple[str, list[NodeReference]]:
     """Add references to text and return the processed text with reference status.
 
     Returns:
@@ -170,11 +169,11 @@ def _get_max_sub_count_in_text(text: str) -> int:
 
 def _find_references(
     text: str,
-    search_context: List[PotentialReference],
+    search_context: list[PotentialReference],
     message_id: str,
-) -> List[NodeReference]:
+) -> list[NodeReference]:
     """Find references in text based on search context."""
-    references: List[NodeReference] = []
+    references: list[NodeReference] = []
     sequence_number = 1 + _get_max_sub_count_in_text(text)
 
     # Find all numbers in brackets to ensure we get references in order of occurrence
@@ -224,13 +223,13 @@ def _find_references(
     return references
 
 
-def _extract_numbers_in_brackets(text: str) -> List[int]:
+def _extract_numbers_in_brackets(text: str) -> list[int]:
     """Extract numbers from [X] format in text."""
     matches = re.findall(r"\[(\d+)\]", text)
     return [int(match) for match in matches]
 
 
-def _add_footnotes_to_text(text: str, references: List[NodeReference]) -> str:
+def _add_footnotes_to_text(text: str, references: list[NodeReference]) -> str:
     """Replace bracket references with superscript footnotes."""
     for reference in references:
         for original_index in reference.original_index:
