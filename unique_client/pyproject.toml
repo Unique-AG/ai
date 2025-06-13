@@ -17,6 +17,9 @@ python = "^3.11"
 typing-extensions = "^4.9.0"
 requests = "^2.32.3"
 pydantic = "^2.10.6"
+jsonref = "^1.1.0"
+datamodel-code-generator = "^0.31.0"
+openapi3-parser = "^1.1.21"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -29,6 +32,7 @@ pytest-asyncio = "^0.24.0"
 python-dotenv = "^1.1.0"
 openapi-python-generator = "^1.2.0"
 ipykernel = "^6.29.5"
+openapi-python-client = "^0.25.0"
 
 [build-system]
 requires = ["poetry-core"]
