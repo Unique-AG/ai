@@ -14,6 +14,7 @@ from unique_toolkit.language_model import (
 
 company_id, _ = init_from_env_file(Path(__file__).parent / ".." / ".env")
 
+print(company_id)
 # %%
 
 ## Simple chat completion
