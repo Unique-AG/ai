@@ -454,6 +454,30 @@ Allows you to ingest a magic table sheet, each row is processed and converted in
 
 ### Folder
 
+#### `unique_sdk.Folder.get`
+
+Get a folder by scope id or by path.
+
+By scope id:
+
+```python
+unique_sdk.Folder.get(
+   user_id=user_id,
+   company_id=company_id,
+   scopeId=scopeId,
+)
+```
+
+By path:
+
+```python
+unique_sdk.Folder.get(
+   user_id=user_id,
+   company_id=company_id,
+   folderPath=folderPath,
+)
+```
+
 #### `unique_sdk.Folder.create_paths`
 
 Create each folder in the provided list of paths if it does not already exist.

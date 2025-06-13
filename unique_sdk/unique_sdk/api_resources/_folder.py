@@ -78,6 +78,14 @@ class Folder(APIResource["Folder"]):
     class CreateParams(RequestOptions):
         paths: List[str]
 
+    class FolderResult(TypedDict):
+        """
+        Represents the information of a folder.
+        """
+
+        id: str
+        name: str
+
     id: str
     name: str
     scopeAccess: List[ScopeAccess]
@@ -106,6 +114,50 @@ class Folder(APIResource["Folder"]):
 
         scopeAccesses: List["Folder.ScopeAccess"]
         applyToSubScopes: bool
+
+    class GetParams(RequestOptions):
+        """
+        Parameters for getting a folder by its ID or path.
+        """
+
+        scopeId: str | None = None
+        folderPath: str | None = None
+
+    @classmethod
+    def get(
+        cls, user_id: str, company_id: str, **params: Unpack["Folder.GetParams"]
+    ) -> "Folder.FolderResult":
+        """
+        Get a folder by its ID or path.
+        """
+        return cast(
+            "Folder.FolderResult",
+            cls._static_request(
+                "get",
+                cls.RESOURCE_URL,
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    async def get_async(
+        cls, user_id: str, company_id: str, **params: Unpack["Folder.GetParams"]
+    ) -> "Folder.FolderResult":
+        """
+        Async get a folder by its ID or path.
+        """
+        return cast(
+            "Folder.FolderResult",
+            await cls._static_request_async(
+                "post",
+                cls.RESOURCE_URL,
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
 
     @classmethod
     def create_paths(
