@@ -76,3 +76,5 @@ if tool_calls:
     for tool_call in tool_calls:
         print(f"Tool name: {tool_call.function.name}")
         print(f"Tool args: {tool_call.function.arguments}")
+
+# %%
