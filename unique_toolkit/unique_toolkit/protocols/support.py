@@ -1,4 +1,4 @@
-from typing import Any, Protocol
+from typing import Any, Awaitable, Protocol
 
 from unique_toolkit.content import ContentChunk
 from unique_toolkit.language_model import (
@@ -27,7 +27,6 @@ class SupportsComplete(Protocol):
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
         tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
-        **kwargs,
     ) -> LanguageModelResponse: ...
 
     async def complete_async(
@@ -37,31 +36,28 @@ class SupportsComplete(Protocol):
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
         tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
-        **kwargs,
-    ) -> LanguageModelResponse: ...
+    ) -> Awaitable[LanguageModelResponse]: ...
 
 
 class SupportCompleteWithReferences(Protocol):
     def complete_with_references(
         self,
-        company_id: str,
         messages: LanguageModelMessages,
         model_name: LanguageModelName | str,
         content_chunks: list[ContentChunk] | None = None,
-        tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
+        debug_info: dict[str, Any] = {},
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
-        **kwargs: dict[str, Any],
+        tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
     ) -> LanguageModelStreamResponse: ...
 
     def complete_with_references_async(
         self,
-        company_id: str,
         messages: LanguageModelMessages,
         model_name: LanguageModelName | str,
         content_chunks: list[ContentChunk] | None = None,
-        tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
+        debug_info: dict[str, Any] = {},
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
-        **kwargs: dict[str, Any],
-    ) -> LanguageModelStreamResponse: ...
+        tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
+    ) -> Awaitable[LanguageModelStreamResponse]: ...

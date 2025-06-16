@@ -270,13 +270,12 @@ class LanguageModelService:
         messages: LanguageModelMessages,
         model_name: LanguageModelName | str,
         content_chunks: list[ContentChunk] | None = None,
+        debug_info: dict = {},
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
-        other_options: dict[str, Any] | None = None,
         tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
-        structured_output_model: type[BaseModel] | None = None,
-        structured_output_enforce_schema: bool = False,
         start_text: str | None = None,
+        other_options: dict[str, Any] | None = None,
     ) -> LanguageModelStreamResponse:
         [company_id] = validate_required_values([self._company_id])
 
@@ -289,8 +288,6 @@ class LanguageModelService:
             timeout=timeout,
             other_options=other_options,
             tools=tools,
-            structured_output_model=structured_output_model,
-            structured_output_enforce_schema=structured_output_enforce_schema,
             start_text=start_text,
         )
 
@@ -299,13 +296,12 @@ class LanguageModelService:
         messages: LanguageModelMessages,
         model_name: LanguageModelName | str,
         content_chunks: list[ContentChunk] | None = None,
+        debug_info: dict = {},
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
-        other_options: dict[str, Any] | None = None,
         tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
-        structured_output_model: type[BaseModel] | None = None,
-        structured_output_enforce_schema: bool = False,
         start_text: str | None = None,
+        other_options: dict[str, Any] | None = None,
     ) -> LanguageModelStreamResponse:
         [company_id] = validate_required_values([self._company_id])
 
@@ -318,7 +314,5 @@ class LanguageModelService:
             timeout=timeout,
             other_options=other_options,
             tools=tools,
-            structured_output_model=structured_output_model,
-            structured_output_enforce_schema=structured_output_enforce_schema,
             start_text=start_text,
         )

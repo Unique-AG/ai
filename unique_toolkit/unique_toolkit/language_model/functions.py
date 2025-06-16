@@ -255,13 +255,12 @@ def complete_with_references(
     messages: LanguageModelMessages,
     model_name: LanguageModelName | str,
     content_chunks: list[ContentChunk] | None = None,
+    debug_dict: dict = {},
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
     timeout: int = DEFAULT_COMPLETE_TIMEOUT,
-    other_options: dict[str, Any] | None = None,
     tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
-    structured_output_model: type[BaseModel] | None = None,
-    structured_output_enforce_schema: bool = False,
     start_text: str | None = None,
+    other_options: dict[str, Any] | None = None,
 ) -> LanguageModelStreamResponse:
     # Use toolkit language model functions for chat completion
     response = complete(
@@ -272,8 +271,6 @@ def complete_with_references(
         timeout=timeout,
         tools=tools,
         other_options=other_options,
-        structured_output_model=structured_output_model,
-        structured_output_enforce_schema=structured_output_enforce_schema,
     )
 
     return _create_language_model_stream_response_with_references(
@@ -288,13 +285,12 @@ async def complete_with_references_async(
     messages: LanguageModelMessages,
     model_name: LanguageModelName | str,
     content_chunks: list[ContentChunk] | None = None,
+    debug_dict: dict = {},
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
     timeout: int = DEFAULT_COMPLETE_TIMEOUT,
-    other_options: dict[str, Any] | None = None,
     tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
-    structured_output_model: type[BaseModel] | None = None,
-    structured_output_enforce_schema: bool = False,
     start_text: str | None = None,
+    other_options: dict[str, Any] | None = None,
 ) -> LanguageModelStreamResponse:
     # Use toolkit language model functions for chat completion
     response = await complete_async(
@@ -305,8 +301,6 @@ async def complete_with_references_async(
         timeout=timeout,
         tools=tools,
         other_options=other_options,
-        structured_output_model=structured_output_model,
-        structured_output_enforce_schema=structured_output_enforce_schema,
     )
 
     return _create_language_model_stream_response_with_references(
