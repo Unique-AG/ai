@@ -674,7 +674,7 @@ async def modify_message_assessment_async(
         raise e
 
 
-@deprecated("Use unique_stream_complete_with_references instead")
+@deprecated("Use stream_complete_with_references instead")
 def stream_complete_to_chat(
     company_id: str,
     user_id: str,
@@ -684,7 +684,7 @@ def stream_complete_to_chat(
     assistant_id: str,
     messages: LanguageModelMessages,
     model_name: LanguageModelName | str,
-    content_chunks: list[ContentChunk] = [],
+    content_chunks: list[ContentChunk] | None = None,
     debug_info: dict = {},
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
     timeout: int = DEFAULT_COMPLETE_TIMEOUT,
@@ -692,7 +692,7 @@ def stream_complete_to_chat(
     start_text: str | None = None,
     other_options: dict | None = None,
 ) -> LanguageModelStreamResponse:
-    return unique_stream_complete_with_references(
+    return stream_complete_with_references(
         company_id=company_id,
         user_id=user_id,
         assistant_message_id=assistant_message_id,
@@ -711,7 +711,7 @@ def stream_complete_to_chat(
     )
 
 
-def unique_stream_complete_with_references(
+def stream_complete_with_references(
     company_id: str,
     user_id: str,
     assistant_message_id: str,
@@ -720,7 +720,7 @@ def unique_stream_complete_with_references(
     assistant_id: str,
     messages: LanguageModelMessages,
     model_name: LanguageModelName | str,
-    content_chunks: list[ContentChunk] = [],
+    content_chunks: list[ContentChunk] | None = None,
     debug_info: dict = {},
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
     timeout: int = DEFAULT_COMPLETE_TIMEOUT,
@@ -757,7 +757,7 @@ def unique_stream_complete_with_references(
         temperature=temperature,
         tools=tools,
         other_options=other_options,
-        content_chunks=content_chunks,
+        content_chunks=content_chunks or [],
     )
 
     try:
@@ -785,7 +785,7 @@ def unique_stream_complete_with_references(
         raise e
 
 
-@deprecated("Use unique_stream_complete_with_references_async instead")
+@deprecated("Use stream_complete_with_references_async instead")
 async def stream_complete_to_chat_async(
     company_id: str,
     user_id: str,
@@ -795,7 +795,7 @@ async def stream_complete_to_chat_async(
     assistant_id: str,
     messages: LanguageModelMessages,
     model_name: LanguageModelName | str,
-    content_chunks: list[ContentChunk] = [],
+    content_chunks: list[ContentChunk] | None = None,
     debug_info: dict = {},
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
     timeout: int = DEFAULT_COMPLETE_TIMEOUT,
@@ -803,7 +803,7 @@ async def stream_complete_to_chat_async(
     start_text: str | None = None,
     other_options: dict | None = None,
 ) -> LanguageModelStreamResponse:
-    return await unique_stream_complete_with_references_async(
+    return await stream_complete_with_references_async(
         company_id=company_id,
         user_id=user_id,
         assistant_message_id=assistant_message_id,
@@ -822,7 +822,7 @@ async def stream_complete_to_chat_async(
     )
 
 
-async def unique_stream_complete_with_references_async(
+async def stream_complete_with_references_async(
     company_id: str,
     user_id: str,
     assistant_message_id: str,
@@ -831,7 +831,7 @@ async def unique_stream_complete_with_references_async(
     assistant_id: str,
     messages: LanguageModelMessages,
     model_name: LanguageModelName | str,
-    content_chunks: list[ContentChunk] = [],
+    content_chunks: list[ContentChunk] | None = None,
     debug_info: dict = {},
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
     timeout: int = DEFAULT_COMPLETE_TIMEOUT,
@@ -853,7 +853,7 @@ async def unique_stream_complete_with_references_async(
         temperature=temperature,
         tools=tools,
         other_options=other_options,
-        content_chunks=content_chunks,
+        content_chunks=content_chunks or [],
     )
 
     try:

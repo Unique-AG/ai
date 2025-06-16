@@ -41,25 +41,25 @@ class SupportsComplete(Protocol):
     ) -> LanguageModelResponse: ...
 
 
-class SupportUniqueStreamCompleteWithReferences(Protocol):
-    def unique_stream_complete_with_references(
+class SupportCompleteWithReferences(Protocol):
+    def complete_with_references(
         self,
         company_id: str,
         messages: LanguageModelMessages,
         model_name: LanguageModelName | str,
-        content_chunks: list[ContentChunk],
+        content_chunks: list[ContentChunk] | None = None,
         tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
         **kwargs: dict[str, Any],
     ) -> LanguageModelStreamResponse: ...
 
-    def unique_stream_complete_with_references_async(
+    def complete_with_references_async(
         self,
         company_id: str,
         messages: LanguageModelMessages,
         model_name: LanguageModelName | str,
-        content_chunks: list[ContentChunk],
+        content_chunks: list[ContentChunk] | None = None,
         tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,

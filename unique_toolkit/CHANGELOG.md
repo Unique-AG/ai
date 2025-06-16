@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.7.27] - 2025-06-16
+- Introduce a protocol for `complete_with_references` to enable testable services
+- Rename/Create functions `stream_complete` in chat service and llm service accordingly
+
+
 ## [0.7.26] - 2025-06-05
 - Add `scope_rules` to `ChatEventPayload`
 - Added `UniqueQL` compiler and pydantic classes for `UniqueQL`. Note this is functionally equivalent but not identical to `UQLOperator` or `UQLCombinator` in `unique_sdk`.

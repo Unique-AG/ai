@@ -250,11 +250,11 @@ def _prepare_completion_params_util(
     return options, model, messages_dict, search_context
 
 
-def unique_stream_complete_with_references(
+def complete_with_references(
     company_id: str,
     messages: LanguageModelMessages,
     model_name: LanguageModelName | str,
-    content_chunks: list[ContentChunk],
+    content_chunks: list[ContentChunk] | None = None,
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
     timeout: int = DEFAULT_COMPLETE_TIMEOUT,
     other_options: dict[str, Any] | None = None,
@@ -283,11 +283,11 @@ def unique_stream_complete_with_references(
     )
 
 
-async def unique_stream_complete_with_references_async(
+async def complete_with_references_async(
     company_id: str,
     messages: LanguageModelMessages,
     model_name: LanguageModelName | str,
-    content_chunks: list[ContentChunk],
+    content_chunks: list[ContentChunk] | None = None,
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
     timeout: int = DEFAULT_COMPLETE_TIMEOUT,
     other_options: dict[str, Any] | None = None,
@@ -318,10 +318,11 @@ async def unique_stream_complete_with_references_async(
 
 def _create_language_model_stream_response_with_references(
     response: LanguageModelResponse,
-    content_chunks: list[ContentChunk],
+    content_chunks: list[ContentChunk] | None = None,
     start_text: str | None = None,
 ):
     content = response.choices[0].message.content
+    content_chunks = content_chunks or []
 
     if content is None:
         raise ValueError("Content is None, which is not supported")

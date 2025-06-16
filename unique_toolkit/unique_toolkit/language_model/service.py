@@ -15,8 +15,8 @@ from unique_toolkit.language_model.constants import (
 from unique_toolkit.language_model.functions import (
     complete,
     complete_async,
-    unique_stream_complete_with_references,
-    unique_stream_complete_with_references_async,
+    complete_with_references,
+    complete_with_references_async,
 )
 from unique_toolkit.language_model.infos import LanguageModelName
 from unique_toolkit.language_model.schemas import (
@@ -265,11 +265,11 @@ class LanguageModelService:
             structured_output_enforce_schema=structured_output_enforce_schema,
         )
 
-    def unique_stream_complete_with_references(
+    def complete_with_references(
         self,
         messages: LanguageModelMessages,
         model_name: LanguageModelName | str,
-        content_chunks: list[ContentChunk],
+        content_chunks: list[ContentChunk] | None = None,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
         other_options: dict[str, Any] | None = None,
@@ -280,7 +280,7 @@ class LanguageModelService:
     ) -> LanguageModelStreamResponse:
         [company_id] = validate_required_values([self._company_id])
 
-        return unique_stream_complete_with_references(
+        return complete_with_references(
             company_id=company_id,
             messages=messages,
             model_name=model_name,
@@ -294,11 +294,11 @@ class LanguageModelService:
             start_text=start_text,
         )
 
-    async def unique_stream_complete_with_references_async(
+    async def complete_with_references_async(
         self,
         messages: LanguageModelMessages,
         model_name: LanguageModelName | str,
-        content_chunks: list[ContentChunk],
+        content_chunks: list[ContentChunk] | None = None,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
         other_options: dict[str, Any] | None = None,
@@ -309,7 +309,7 @@ class LanguageModelService:
     ) -> LanguageModelStreamResponse:
         [company_id] = validate_required_values([self._company_id])
 
-        return await unique_stream_complete_with_references_async(
+        return await complete_with_references_async(
             company_id=company_id,
             messages=messages,
             model_name=model_name,
