@@ -474,7 +474,7 @@ By path:
 unique_sdk.Folder.get(
    user_id=user_id,
    company_id=company_id,
-   folderPath="Company/Atlas/Due Dilligence/Arch,
+   folderPath="/Company/Atlas/Due Dilligence/Arch,
 )
 ```
 
