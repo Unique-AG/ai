@@ -78,13 +78,18 @@ class Folder(APIResource["Folder"]):
     class CreateParams(RequestOptions):
         paths: List[str]
 
-    class FolderResult(TypedDict):
+    class FolderInfo(TypedDict):
         """
         Represents the information of a folder.
         """
 
         id: str
         name: str
+        ingestionConfig: "Folder.IngestionConfig"
+        createdAt: str | None
+        updatedAt: str | None
+        parentId: str | None
+        externalId: str | None
 
     id: str
     name: str
@@ -126,15 +131,15 @@ class Folder(APIResource["Folder"]):
     @classmethod
     def get(
         cls, user_id: str, company_id: str, **params: Unpack["Folder.GetParams"]
-    ) -> "Folder.FolderResult":
+    ) -> "Folder.FolderInfo":
         """
         Get a folder by its ID or path.
         """
         return cast(
-            "Folder.FolderResult",
+            "Folder.FolderInfo",
             cls._static_request(
-                "get",
-                cls.RESOURCE_URL,
+                "post",
+                "/folder/info",
                 user_id,
                 company_id,
                 params=params,
@@ -144,15 +149,15 @@ class Folder(APIResource["Folder"]):
     @classmethod
     async def get_async(
         cls, user_id: str, company_id: str, **params: Unpack["Folder.GetParams"]
-    ) -> "Folder.FolderResult":
+    ) -> "Folder.FolderInfo":
         """
         Async get a folder by its ID or path.
         """
         return cast(
-            "Folder.FolderResult",
+            "Folder.FolderInfo",
             await cls._static_request_async(
                 "post",
-                cls.RESOURCE_URL,
+                "/folder/info",
                 user_id,
                 company_id,
                 params=params,
