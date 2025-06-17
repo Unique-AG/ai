@@ -1,9 +1,11 @@
-from typing import Protocol
+from typing import Any, Awaitable, Protocol
 
+from unique_toolkit.content import ContentChunk
 from unique_toolkit.language_model import (
     LanguageModelMessages,
     LanguageModelName,
     LanguageModelResponse,
+    LanguageModelStreamResponse,
     LanguageModelTool,
     LanguageModelToolDescription,
 )
@@ -25,5 +27,37 @@ class SupportsComplete(Protocol):
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
         tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
-        **kwargs,
     ) -> LanguageModelResponse: ...
+
+    async def complete_async(
+        self,
+        messages: LanguageModelMessages,
+        model_name: LanguageModelName | str,
+        temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
+        timeout: int = DEFAULT_COMPLETE_TIMEOUT,
+        tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
+    ) -> Awaitable[LanguageModelResponse]: ...
+
+
+class SupportCompleteWithReferences(Protocol):
+    def complete_with_references(
+        self,
+        messages: LanguageModelMessages,
+        model_name: LanguageModelName | str,
+        content_chunks: list[ContentChunk] | None = None,
+        debug_info: dict[str, Any] = {},
+        temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
+        timeout: int = DEFAULT_COMPLETE_TIMEOUT,
+        tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
+    ) -> LanguageModelStreamResponse: ...
+
+    def complete_with_references_async(
+        self,
+        messages: LanguageModelMessages,
+        model_name: LanguageModelName | str,
+        content_chunks: list[ContentChunk] | None = None,
+        debug_info: dict[str, Any] = {},
+        temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
+        timeout: int = DEFAULT_COMPLETE_TIMEOUT,
+        tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
+    ) -> Awaitable[LanguageModelStreamResponse]: ...
