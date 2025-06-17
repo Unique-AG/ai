@@ -98,6 +98,8 @@ class Folder(APIResource["Folder"]):
         Parameters for adding access to a folder.
         """
 
+        scopeId: str | None
+        folderPath: str | None
         scopeAccesses: List["Folder.ScopeAccess"]
         applyToSubScopes: bool
 
@@ -106,6 +108,8 @@ class Folder(APIResource["Folder"]):
         Parameters for removing access from a folder.
         """
 
+        scopeId: str | None
+        folderPath: str | None
         scopeAccesses: List["Folder.ScopeAccess"]
         applyToSubScopes: bool
 
@@ -186,7 +190,6 @@ class Folder(APIResource["Folder"]):
         cls,
         user_id: str,
         company_id: str,
-        scope_id: str,
         **params: Unpack["Folder.AddAccessParams"],
     ) -> "Folder":
         """
@@ -196,7 +199,7 @@ class Folder(APIResource["Folder"]):
             "Folder",
             cls._static_request(
                 "patch",
-                f"/folder/{scope_id}/access",
+                "/folder/add-access",
                 user_id,
                 company_id,
                 params=params,
@@ -208,7 +211,6 @@ class Folder(APIResource["Folder"]):
         cls,
         user_id: str,
         company_id: str,
-        scope_id: str,
         **params: Unpack["Folder.AddAccessParams"],
     ) -> "Folder":
         """
@@ -218,7 +220,7 @@ class Folder(APIResource["Folder"]):
             "Folder",
             await cls._static_request_async(
                 "patch",
-                f"/folder/{scope_id}/access",
+                "/folder/add-access",
                 user_id,
                 company_id,
                 params=params,
@@ -230,7 +232,6 @@ class Folder(APIResource["Folder"]):
         cls,
         user_id: str,
         company_id: str,
-        scope_id: str,
         **params: Unpack["Folder.RemoveAccessParams"],
     ) -> dict:
         """
@@ -240,7 +241,7 @@ class Folder(APIResource["Folder"]):
             dict,
             cls._static_request(
                 "patch",
-                f"/folder/{scope_id}/remove-access",
+                "/folder/remove-access",
                 user_id,
                 company_id,
                 params=params,
@@ -252,7 +253,6 @@ class Folder(APIResource["Folder"]):
         cls,
         user_id: str,
         company_id: str,
-        scope_id: str,
         **params: Unpack["Folder.RemoveAccessParams"],
     ) -> "Folder":
         """
@@ -262,7 +262,7 @@ class Folder(APIResource["Folder"]):
             "Folder",
             await cls._static_request_async(
                 "patch",
-                f"/folder/{scope_id}/remove-access",
+                "/folder/remove-access",
                 user_id,
                 company_id,
                 params=params,
