@@ -120,8 +120,9 @@ class ChatEventPayload(BaseModel):
         default_factory=dict,
         description="Parameters extracted from module selection function calling the tool.",
     )
-    metadata_filter: dict[str, Any] = Field(
-        default_factory=dict,
+    # Default is None as empty dict triggers error in `backend-ingestion`
+    metadata_filter: dict[str, Any] | None = Field(
+        default=None,
         description="Metadata filter compiled after module selection function calling and scope rules.",
     )
     raw_scope_rules: UniqueQL | None = Field(
