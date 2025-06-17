@@ -468,18 +468,35 @@ unique_sdk.Folder.create_paths(
 
 #### `unique_sdk.Folder.update_ingestion_config`
 
-Allows you to update the ingestion config of a folder and whether to apply to the subscopes or not: `
+Allows you to update the ingestion config of a folder and choose whether to apply to the subscopes or not: `
 
 - `ingestionConfig`
 - `applyToSubScopes`
 
-Example of updating the ingestion config of a folder and its subfolders.
+The updating can be done by referencing the folder by id or by path. If none of them are provided. the API will return an error. If both of them are provided, the scope id will take precedence.
+
+Example of updating the ingestion config of a folder and its subfolders using the id.
 
 ```python
 unique_sdk.Folder.update_ingestion_config(
     user_id=user_id,
     company_id=company_id,
-    scope_id=scope_id,
+    scopeId="scope_qbnkde820dbmuw2900,
+    ingestionConfig={
+        "chunkStrategy": "default",
+        "uniqueIngestionMode": "standard",
+    },
+    applyToSubScopes=True
+)
+```
+
+Example of updating the ingestion config of a folder and its subfolders using the path.
+
+```python
+unique_sdk.Folder.update_ingestion_config(
+    user_id=user_id,
+    company_id=company_id,
+    folderPath="/Company/folder1/folder2",
     ingestionConfig={
         "chunkStrategy": "default",
         "uniqueIngestionMode": "standard",

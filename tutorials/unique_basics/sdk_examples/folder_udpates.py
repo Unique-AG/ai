@@ -30,13 +30,14 @@ def main():
     company_id = os.getenv("COMPANY_ID")
     user_id = os.getenv("USER_ID")
     scope_id = os.getenv("SCOPE_ID")
+    folder_path = os.getenv("FOLDER_PATH")
 
-    # Example: Update folder ingestion config to folder and subfolders
+    # Example: Update folder ingestion config to folder and subfolders based on the path
     try:
         folder = unique_sdk.Folder.update_ingestion_config(
             user_id=user_id,
             company_id=company_id,
-            scope_id=scope_id,
+            folderPath=folder_path,
             ingestionConfig={
                 "chunkMaxTokens": 1000,
                 "chunkStrategy": "default",
