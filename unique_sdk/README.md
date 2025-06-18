@@ -461,7 +461,7 @@ Get a folder by scope id or by path.
 By scope id:
 
 ```python
-unique_sdk.Folder.get(
+unique_sdk.Folder.get_info(
    user_id=user_id,
    company_id=company_id,
    scopeId="scope_w78wfn114va9o22s13r03yq",
@@ -471,7 +471,7 @@ unique_sdk.Folder.get(
 By path:
 
 ```python
-unique_sdk.Folder.get(
+unique_sdk.Folder.get_info(
    user_id=user_id,
    company_id=company_id,
    folderPath="/Company/Atlas/Due Dilligence/Arch,

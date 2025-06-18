@@ -129,7 +129,7 @@ class Folder(APIResource["Folder"]):
         folderPath: str | None = None
 
     @classmethod
-    def get(
+    def get_info(
         cls, user_id: str, company_id: str, **params: Unpack["Folder.GetParams"]
     ) -> "Folder.FolderInfo":
         """
@@ -138,7 +138,7 @@ class Folder(APIResource["Folder"]):
         return cast(
             "Folder.FolderInfo",
             cls._static_request(
-                "post",
+                "get",
                 "/folder/info",
                 user_id,
                 company_id,
@@ -147,7 +147,7 @@ class Folder(APIResource["Folder"]):
         )
 
     @classmethod
-    async def get_async(
+    async def get_info_async(
         cls, user_id: str, company_id: str, **params: Unpack["Folder.GetParams"]
     ) -> "Folder.FolderInfo":
         """
@@ -156,7 +156,7 @@ class Folder(APIResource["Folder"]):
         return cast(
             "Folder.FolderInfo",
             await cls._static_request_async(
-                "post",
+                "get",
                 "/folder/info",
                 user_id,
                 company_id,
