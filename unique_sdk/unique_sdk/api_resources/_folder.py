@@ -78,6 +78,19 @@ class Folder(APIResource["Folder"]):
     class CreateParams(RequestOptions):
         paths: List[str]
 
+    class FolderInfo(TypedDict):
+        """
+        Represents the information of a folder.
+        """
+
+        id: str
+        name: str
+        ingestionConfig: "Folder.IngestionConfig"
+        createdAt: str | None
+        updatedAt: str | None
+        parentId: str | None
+        externalId: str | None
+
     id: str
     name: str
     scopeAccess: List[ScopeAccess]
@@ -112,6 +125,50 @@ class Folder(APIResource["Folder"]):
         folderPath: str | None
         scopeAccesses: List["Folder.ScopeAccess"]
         applyToSubScopes: bool
+
+    class GetParams(RequestOptions):
+        """
+        Parameters for getting a folder by its ID or path.
+        """
+
+        scopeId: str | None = None
+        folderPath: str | None = None
+
+    @classmethod
+    def get_info(
+        cls, user_id: str, company_id: str, **params: Unpack["Folder.GetParams"]
+    ) -> "Folder.FolderInfo":
+        """
+        Get a folder by its ID or path.
+        """
+        return cast(
+            "Folder.FolderInfo",
+            cls._static_request(
+                "get",
+                "/folder/info",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    async def get_info_async(
+        cls, user_id: str, company_id: str, **params: Unpack["Folder.GetParams"]
+    ) -> "Folder.FolderInfo":
+        """
+        Async get a folder by its ID or path.
+        """
+        return cast(
+            "Folder.FolderInfo",
+            await cls._static_request_async(
+                "get",
+                "/folder/info",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
 
     @classmethod
     def create_paths(
