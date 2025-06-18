@@ -1,22 +1,32 @@
+import copy
 import logging
-from typing import cast
+from datetime import datetime, timezone
+from typing import Any, cast
 
 import unique_sdk
 from pydantic import BaseModel
 
+from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.evaluators import DOMAIN_NAME
+from unique_toolkit.language_model import (
+    LanguageModelMessageRole,
+    LanguageModelMessages,
+    LanguageModelResponse,
+    LanguageModelStreamResponse,
+    LanguageModelStreamResponseMessage,
+    LanguageModelTool,
+    LanguageModelToolDescription,
+)
+from unique_toolkit.language_model.infos import LanguageModelName
+from unique_toolkit.language_model.reference import (
+    PotentialReference,
+    add_references_to_message,
+)
 
 from .constants import (
     DEFAULT_COMPLETE_TEMPERATURE,
     DEFAULT_COMPLETE_TIMEOUT,
-)
-from .infos import LanguageModelName
-from .schemas import (
-    LanguageModelMessages,
-    LanguageModelResponse,
-    LanguageModelTool,
-    LanguageModelToolDescription,
 )
 
 logger = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
@@ -36,6 +46,7 @@ def complete(
     """Call the completion endpoint synchronously without streaming the response.
 
     Args:
+    ----
         company_id (str): The company ID associated with the request.
         messages (LanguageModelMessages): The messages to complete.
         model_name (LanguageModelName | str): The model name to use for the completion.
@@ -45,6 +56,7 @@ def complete(
         other_options (Optional[dict]): Additional options to use. Defaults to None.
 
     Returns:
+    -------
         LanguageModelResponse: The response object containing the completed result.
 
     """
@@ -93,6 +105,7 @@ async def complete_async(
     the completed result.
 
     Args:
+    ----
         company_id (str): The company ID associated with the request.
         messages (LanguageModelMessages): The messages to complete.
         model_name (LanguageModelName | str): The model name to use for the completion.
@@ -102,9 +115,11 @@ async def complete_async(
         other_options (Optional[dict]): The other options to use. Defaults to None.
 
     Returns:
+    -------
         LanguageModelResponse: The response object containing the completed result.
 
     Raises:
+    ------
         Exception: If an error occurs during the request, an exception is raised
         and logged.
 
@@ -198,7 +213,8 @@ def _prepare_completion_params_util(
 ) -> tuple[dict, str, dict, dict | None]:
     """Prepare common parameters for completion requests.
 
-    Returns:
+    Returns
+    -------
         tuple containing:
         - options (dict): Combined options including tools and temperature
         - model (str): Resolved model name
@@ -232,3 +248,120 @@ def _prepare_completion_params_util(
     )
 
     return options, model, messages_dict, search_context
+
+
+def complete_with_references(
+    company_id: str,
+    messages: LanguageModelMessages,
+    model_name: LanguageModelName | str,
+    content_chunks: list[ContentChunk] | None = None,
+    debug_dict: dict = {},
+    temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
+    timeout: int = DEFAULT_COMPLETE_TIMEOUT,
+    tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
+    start_text: str | None = None,
+    other_options: dict[str, Any] | None = None,
+) -> LanguageModelStreamResponse:
+    # Use toolkit language model functions for chat completion
+    response = complete(
+        company_id=company_id,
+        model_name=model_name,
+        messages=messages,
+        temperature=temperature,
+        timeout=timeout,
+        tools=tools,
+        other_options=other_options,
+    )
+
+    return _create_language_model_stream_response_with_references(
+        response=response,
+        content_chunks=content_chunks,
+        start_text=start_text,
+    )
+
+
+async def complete_with_references_async(
+    company_id: str,
+    messages: LanguageModelMessages,
+    model_name: LanguageModelName | str,
+    content_chunks: list[ContentChunk] | None = None,
+    debug_dict: dict = {},
+    temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
+    timeout: int = DEFAULT_COMPLETE_TIMEOUT,
+    tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
+    start_text: str | None = None,
+    other_options: dict[str, Any] | None = None,
+) -> LanguageModelStreamResponse:
+    # Use toolkit language model functions for chat completion
+    response = await complete_async(
+        company_id=company_id,
+        model_name=model_name,
+        messages=messages,
+        temperature=temperature,
+        timeout=timeout,
+        tools=tools,
+        other_options=other_options,
+    )
+
+    return _create_language_model_stream_response_with_references(
+        response=response,
+        content_chunks=content_chunks,
+        start_text=start_text,
+    )
+
+
+def _create_language_model_stream_response_with_references(
+    response: LanguageModelResponse,
+    content_chunks: list[ContentChunk] | None = None,
+    start_text: str | None = None,
+):
+    content = response.choices[0].message.content
+    content_chunks = content_chunks or []
+
+    if content is None:
+        raise ValueError("Content is None, which is not supported")
+    elif isinstance(content, list):
+        raise ValueError("Content is a list, which is not supported")
+    else:
+        content = start_text or "" + str(content)
+
+    message = ChatMessage(
+        id="msg_unknown",
+        text=copy.deepcopy(content),
+        role=ChatMessageRole.ASSISTANT,
+        created_at=datetime.now(timezone.utc),
+        chat_id="chat_unknown",
+    )
+
+    search_context = [
+        PotentialReference(
+            id=source.id,
+            chunk_id=source.id,
+            title=source.title,
+            key=source.key or "",
+            url=source.url,
+        )
+        for source in content_chunks
+    ]
+
+    message, __ = add_references_to_message(
+        message=message,
+        search_context=search_context,
+    )
+
+    stream_response_message = LanguageModelStreamResponseMessage(
+        id="stream_unknown",
+        previous_message_id=None,
+        role=LanguageModelMessageRole.ASSISTANT,
+        text=message.content or "",
+        original_text=content,
+        references=[u.model_dump() for u in message.references or []],
+    )
+
+    tool_calls = [r.function for r in response.choices[0].message.tool_calls or []]
+    tool_calls = tool_calls if len(tool_calls) > 0 else None
+
+    return LanguageModelStreamResponse(
+        message=stream_response_message,
+        tool_calls=tool_calls,
+    )

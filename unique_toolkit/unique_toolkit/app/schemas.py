@@ -1,4 +1,6 @@
+import json
 from enum import StrEnum
+from pathlib import Path
 from typing import Any, Optional
 
 from humps import camelize
@@ -26,6 +28,14 @@ class BaseEvent(BaseModel):
     event: str
     user_id: str
     company_id: str
+
+    @classmethod
+    def from_json_file(cls, file_path: Path) -> "BaseEvent":
+        if not file_path.exists():
+            raise FileNotFoundError(f"File not found: {file_path}")
+        with file_path.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+        return cls.model_validate(data)
 
 
 ###
@@ -110,8 +120,9 @@ class ChatEventPayload(BaseModel):
         default_factory=dict,
         description="Parameters extracted from module selection function calling the tool.",
     )
-    metadata_filter: dict[str, Any] = Field(
-        default_factory=dict,
+    # Default is None as empty dict triggers error in `backend-ingestion`
+    metadata_filter: dict[str, Any] | None = Field(
+        default=None,
         description="Metadata filter compiled after module selection function calling and scope rules.",
     )
     raw_scope_rules: UniqueQL | None = Field(
@@ -140,6 +151,14 @@ class ChatEvent(BaseEvent):
     created_at: Optional[int] = None
     version: Optional[str] = None
 
+    @classmethod
+    def from_json_file(cls, file_path: Path) -> "ChatEvent":
+        if not file_path.exists():
+            raise FileNotFoundError(f"File not found: {file_path}")
+        with file_path.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+        return cls.model_validate(data)
+
 
 @deprecated(
     """Use the more specific `ChatEvent` instead that has the same properties. \
@@ -150,3 +169,11 @@ class Event(ChatEvent):
     # The below should only affect type hints
     # event: EventName T
     # payload: EventPayload
+
+    @classmethod
+    def from_json_file(cls, file_path: Path) -> "Event":
+        if not file_path.exists():
+            raise FileNotFoundError(f"File not found: {file_path}")
+        with file_path.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+        return cls.model_validate(data)
