@@ -26,7 +26,7 @@ class Operator(str, Enum):
 
 
 class BaseStatement(BaseModel):
-    model_config: ConfigDict = {"serialize_by_alias": True}
+    model_config = ConfigDict(serialize_by_alias=True)
 
     def with_variables(
         self,
