@@ -25,12 +25,12 @@ class EmbeddingService(BaseService):
     ):
         self._event = event
         if event:
-            self._company_id = event.company_id
-            self._user_id = event.user_id
+            self._company_id: str = event.company_id
+            self._user_id: str = event.user_id
         else:
             [company_id, user_id] = validate_required_values([company_id, user_id])
-            self._company_id = company_id
-            self._user_id = user_id
+            self._company_id: str = company_id
+            self._user_id: str = user_id
 
     @property
     @deprecated(
@@ -62,7 +62,7 @@ class EmbeddingService(BaseService):
     @deprecated(
         "The company_id setter is deprecated and will be removed in a future version."
     )
-    def company_id(self, value: str | None) -> None:
+    def company_id(self, value: str) -> None:
         """
         Set the company identifier (deprecated).
 
@@ -88,7 +88,7 @@ class EmbeddingService(BaseService):
     @deprecated(
         "The user_id setter is deprecated and will be removed in a future version."
     )
-    def user_id(self, value: str | None) -> None:
+    def user_id(self, value: str) -> None:
         """
         Set the user identifier (deprecated).
 
