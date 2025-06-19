@@ -44,7 +44,7 @@ class Reference(BaseModel):
     sequence_number: int
     source_id: str
     source: str
-    original_Index: list[int]
+    original_index: list[int] = []
 
 
 class ChatMessage(BaseModel):

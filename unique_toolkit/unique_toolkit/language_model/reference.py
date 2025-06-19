@@ -6,8 +6,9 @@ from unique_toolkit.chat.schemas import ChatMessage, Reference
 
 
 class NodeReference(Reference):
-    original_index: list[int] = []
     message_id: str | None = None
+    created_by: str | None = None
+    company_id: str | None = None
 
 
 class PotentialReference(BaseModel):
