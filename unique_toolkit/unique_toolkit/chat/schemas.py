@@ -44,7 +44,10 @@ class Reference(BaseModel):
     sequence_number: int
     source_id: str
     source: str
-    original_index: list[int] = []
+    original_index: list[int] = Field(
+        default=[],
+        description="List of indices in the ChatMessage original_content this reference refers to. This is usually the id in the functionCallResponse. List type due to implementation in node-chat",
+    )
 
 
 class ChatMessage(BaseModel):
