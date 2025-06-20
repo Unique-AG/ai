@@ -497,7 +497,7 @@ Allows you to update the ingestion config of a folder and choose whether to appl
 - `ingestionConfig`
 - `applyToSubScopes`
 
-The updating can be done by referencing the folder by id or by path. If none of them are provided. the API will return an error. If both of them are provided, the scope id will take precedence.
+The update can be done by referencing the folder by id or by path. If none of them are provided. the API will return an error. If both of them are provided, the scope id will take precedence.
 
 Example of updating the ingestion config of a folder and its subfolders using the id.
 
@@ -536,13 +536,33 @@ Allows you to add access to a folder and apply to the subfolders or not: `
 - `scopeAccesses`
 - `applyToSubScopes`
 
-Example of adding access to a folder and its subfolders.
+The update can be done by referencing the folder by id or by path. If none of them are provided. the API will return an error. If both of them are provided, the scope id will take precedence.
+
+Example of adding access to a folder and its subfolders using the id.
 
 ```python
 unique_sdk.Folder.add_access(
     user_id=user_id,
     company_id=company_id,
-    scope_id=scope_id,
+    scopeId="scope_231e4kjn4foffww34",
+    scopeAccesses=[
+        {
+            "entityId": "group_id",
+            "type": "WRITE",
+            "entityType": "GROUP",
+        }
+    ],
+    applyToSubScopes=True,
+)
+```
+
+Example of adding access to a folder and its subfolders using the folder path.
+
+```python
+unique_sdk.Folder.add_access(
+    user_id=user_id,
+    company_id=company_id,
+    folderPath="/Company/folder1/folder2"
     scopeAccesses=[
         {
             "entityId": "group_id",
@@ -561,13 +581,35 @@ Allows you to delete access from a folder and apply to the subfolders or not: `
 - `scopeAccesses`
 - `applyToSubScopes`
 
-Example of deleting the access from a folder and its subfolders.
+The update can be done by referencing the folder by id or by path. If none of them are provided. the API will return an error. If both of them are provided, the scope id will take precedence.
+
+
+Example of deleting the access from a folder and its subfolders using the id.
 
 ```python
 unique_sdk.Folder.remove_access(
     user_id=user_id,
     company_id=company_id,
-    scope_id=scope_id,
+    scopeId="scope_dwekjnf3330woioppm,
+    scopeAccesses=[
+        {
+            "entityId": "group_id",
+            "type": "WRITE",
+            "entityType": "GROUP",
+        }
+    ],
+    applyToSubScopes=True,
+)
+```
+
+
+Example of deleting the access from a folder and its subfolders using the path.
+
+```python
+unique_sdk.Folder.remove_access(
+    user_id=user_id,
+    company_id=company_id,
+    folderPath="/Company/folder1/folder2"
     scopeAccesses=[
         {
             "entityId": "group_id",
