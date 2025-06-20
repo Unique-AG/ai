@@ -1,7 +1,7 @@
 import re
 
-from unique_toolkit.chat.schemas import ChatMessage, Reference
-from unique_toolkit.content.schemas import ContentChunk
+from unique_toolkit.chat.schemas import ChatMessage
+from unique_toolkit.content.schemas import ContentChunk, ContentReference
 
 
 def add_references_to_message(
@@ -36,7 +36,7 @@ def _add_references(
     search_context: list[ContentChunk],
     message_id: str,
     model: str | None = None,
-) -> tuple[str, list[Reference]]:
+) -> tuple[str, list[ContentReference]]:
     """Add references to text and return the processed text with reference status.
 
     Returns:
@@ -156,9 +156,9 @@ def _find_references(
     text: str,
     search_context: list[ContentChunk],
     message_id: str,
-) -> list[Reference]:
+) -> list[ContentReference]:
     """Find references in text based on search context."""
-    references: list[Reference] = []
+    references: list[ContentReference] = []
     sequence_number = 1 + _get_max_sub_count_in_text(text)
 
     # Find all numbers in brackets to ensure we get references in order of occurrence
@@ -191,7 +191,7 @@ def _find_references(
         )
 
         references.append(
-            Reference(
+            ContentReference(
                 name=reference_name,
                 url=url,
                 sequence_number=sequence_number,
@@ -201,6 +201,7 @@ def _find_references(
                 else search.id,
                 source="node-ingestion-chunks",
                 message_id=message_id,
+                id=search.id,
             )
         )
         sequence_number += 1
@@ -214,7 +215,7 @@ def _extract_numbers_in_brackets(text: str) -> list[int]:
     return [int(match) for match in matches]
 
 
-def _add_footnotes_to_text(text: str, references: list[Reference]) -> str:
+def _add_footnotes_to_text(text: str, references: list[ContentReference]) -> str:
     """Replace bracket references with superscript footnotes."""
     for reference in references:
         for original_index in reference.original_index:
