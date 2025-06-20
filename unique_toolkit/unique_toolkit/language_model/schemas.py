@@ -18,7 +18,7 @@ from pydantic import (
 )
 from typing_extensions import deprecated
 
-from unique_toolkit.language_model.reference import NodeReference
+from unique_toolkit.chat.schemas import Reference
 from unique_toolkit.language_model.utils import format_message
 
 # set config to convert camelCase to snake_case
@@ -49,7 +49,7 @@ class LanguageModelStreamResponseMessage(BaseModel):
     role: LanguageModelMessageRole
     text: str
     original_text: str | None = None
-    references: list[NodeReference] = []
+    references: list[Reference] = []
 
     # TODO make sdk return role in lowercase
     # Currently needed as sdk returns role in uppercase

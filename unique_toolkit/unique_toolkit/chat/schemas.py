@@ -10,6 +10,8 @@ from pydantic import (
     model_validator,
 )
 
+from unique_toolkit.content.schemas import BaseReference
+
 # set config to convert camelCase to snake_case
 model_config = ConfigDict(
     alias_generator=camelize, populate_by_name=True, arbitrary_types_allowed=True
@@ -37,17 +39,10 @@ class ToolCall(BaseModel):
     function: Function
 
 
-class Reference(BaseModel):
+class Reference(BaseReference):
     model_config = model_config
-    name: str
     url: str | None = None
-    sequence_number: int
-    source_id: str
-    source: str
-    original_index: list[int] = Field(
-        default=[],
-        description="List of indices in the ChatMessage original_content this reference refers to. This is usually the id in the functionCallResponse. List type due to implementation in node-chat",
-    )
+    message_id: str | None = None
 
 
 class ChatMessage(BaseModel):

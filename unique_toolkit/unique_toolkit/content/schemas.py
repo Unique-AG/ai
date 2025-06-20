@@ -58,14 +58,20 @@ class Content(BaseModel):
     ingestion_config: dict | None = None
 
 
-class ContentReference(BaseModel):
+class BaseReference(BaseModel):
     model_config = model_config
-    id: str
-    message_id: str
     name: str
     sequence_number: int
     source: str
     source_id: str
+    original_index: list[int] = Field(
+        default=[],
+        description="List of indices in the ChatMessage original_content this reference refers to. This is usually the id in the functionCallResponse. List type due to implementation in node-chat",
+    )
+
+
+class ContentReference(BaseReference):
+    message_id: str
     url: str
 
 
