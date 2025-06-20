@@ -50,10 +50,8 @@ class LanguageModelService:
         assistant_id: str | None = None,
     ):
         self._event = event
-        self._company_id = company_id
-        self._user_id = user_id
-        self._chat_id = chat_id
-        self._assistant_id = assistant_id
+        self._chat_id: str | None = chat_id
+        self._assistant_id: str | None = assistant_id
 
         if event:
             self._company_id = event.company_id
@@ -61,6 +59,10 @@ class LanguageModelService:
             if isinstance(event, (ChatEvent, Event)):
                 self._chat_id = event.payload.chat_id
                 self._assistant_id = event.payload.assistant_id
+        else:
+            [company_id, user_id] = validate_required_values([company_id, user_id])
+            self._company_id: str = company_id
+            self._user_id: str = user_id
 
     @property
     @deprecated(
@@ -92,7 +94,7 @@ class LanguageModelService:
     @deprecated(
         "The company_id setter is deprecated and will be removed in a future version."
     )
-    def company_id(self, value: str | None) -> None:
+    def company_id(self, value: str) -> None:
         """
         Set the company identifier (deprecated).
 
@@ -118,7 +120,7 @@ class LanguageModelService:
     @deprecated(
         "The user_id setter is deprecated and will be removed in a future version."
     )
-    def user_id(self, value: str | None) -> None:
+    def user_id(self, value: str) -> None:
         """
         Set the user identifier (deprecated).
 
@@ -193,10 +195,9 @@ class LanguageModelService:
         """
         Calls the completion endpoint synchronously without streaming the response.
         """
-        [company_id] = validate_required_values([self._company_id])
 
         return complete(
-            company_id=company_id,
+            company_id=self._company_id,
             messages=messages,
             model_name=model_name,
             temperature=temperature,
@@ -221,10 +222,9 @@ class LanguageModelService:
         """
         Calls the completion endpoint asynchronously without streaming the response.
         """
-        [company_id] = validate_required_values([self._company_id])
 
         return await complete_async(
-            company_id=company_id,
+            company_id=self._company_id,
             messages=messages,
             model_name=model_name,
             temperature=temperature,
@@ -277,10 +277,8 @@ class LanguageModelService:
         start_text: str | None = None,
         other_options: dict[str, Any] | None = None,
     ) -> LanguageModelStreamResponse:
-        [company_id] = validate_required_values([self._company_id])
-
         return complete_with_references(
-            company_id=company_id,
+            company_id=self._company_id,
             messages=messages,
             model_name=model_name,
             content_chunks=content_chunks,
@@ -303,10 +301,8 @@ class LanguageModelService:
         start_text: str | None = None,
         other_options: dict[str, Any] | None = None,
     ) -> LanguageModelStreamResponse:
-        [company_id] = validate_required_values([self._company_id])
-
         return await complete_with_references_async(
-            company_id=company_id,
+            company_id=self._company_id,
             messages=messages,
             model_name=model_name,
             content_chunks=content_chunks,

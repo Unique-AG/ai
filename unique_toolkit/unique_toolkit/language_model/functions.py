@@ -7,7 +7,7 @@ import unique_sdk
 from pydantic import BaseModel
 
 from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
-from unique_toolkit.content.schemas import ContentChunk
+from unique_toolkit.content.schemas import ContentChunk, ContentReference
 from unique_toolkit.evaluators import DOMAIN_NAME
 from unique_toolkit.language_model import (
     LanguageModelMessageRole,
@@ -20,7 +20,6 @@ from unique_toolkit.language_model import (
 )
 from unique_toolkit.language_model.infos import LanguageModelName
 from unique_toolkit.language_model.reference import (
-    PotentialReference,
     add_references_to_message,
 )
 
@@ -333,20 +332,9 @@ def _create_language_model_stream_response_with_references(
         chat_id="chat_unknown",
     )
 
-    search_context = [
-        PotentialReference(
-            id=source.id,
-            chunk_id=source.id,
-            title=source.title,
-            key=source.key or "",
-            url=source.url,
-        )
-        for source in content_chunks
-    ]
-
     message, __ = add_references_to_message(
         message=message,
-        search_context=search_context,
+        search_context=content_chunks,
     )
 
     stream_response_message = LanguageModelStreamResponseMessage(
@@ -355,7 +343,9 @@ def _create_language_model_stream_response_with_references(
         role=LanguageModelMessageRole.ASSISTANT,
         text=message.content or "",
         original_text=content,
-        references=[u.model_dump() for u in message.references or []],
+        references=[
+            ContentReference(**u.model_dump()) for u in message.references or []
+        ],
     )
 
     tool_calls = [r.function for r in response.choices[0].message.tool_calls or []]

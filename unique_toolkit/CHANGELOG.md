@@ -5,13 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.31] - 2025-06-19
+- Add typings to references in payload from `LanguageModelStreamResponseMessage` 
+- Add `original_index` to the base reference to reflect updated api
+
+## [0.7.30] - 2025-06-20
+- Adding litellm models `litellm:gemini-2-5-flash`, `gemini-2-5-flash-lite-preview-06-17`, `litellm:gemini-2-5-pro`, `litellm:gemini-2-5-pro-preview-06-05`
+
+## [0.7.29] - 2025-06-19
+- Fix typehintin in services
+- Error on invalid initialization
+
 ## [0.7.28] - 2025-06-17
 - Revert default factory change on `ChatEventPayload` for attribute `metadata_filter` due to error in `backend-ingestion` on empty dict
 
 ## [0.7.27] - 2025-06-16
 - Introduce a protocol for `complete_with_references` to enable testable services
 - Rename/Create functions `stream_complete` in chat service and llm service accordingly
-
 
 ## [0.7.26] - 2025-06-05
 - Add `scope_rules` to `ChatEventPayload`
