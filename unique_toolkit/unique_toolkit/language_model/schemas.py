@@ -18,6 +18,7 @@ from pydantic import (
 )
 from typing_extensions import deprecated
 
+from unique_toolkit.content.schemas import ContentReference
 from unique_toolkit.language_model.utils import format_message
 
 # set config to convert camelCase to snake_case
@@ -48,7 +49,7 @@ class LanguageModelStreamResponseMessage(BaseModel):
     role: LanguageModelMessageRole
     text: str
     original_text: str | None = None
-    references: list[dict[str, list | dict | str | int | float | bool]] = []  # type: ignore
+    references: list[ContentReference] = []
 
     # TODO make sdk return role in lowercase
     # Currently needed as sdk returns role in uppercase

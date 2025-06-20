@@ -60,13 +60,23 @@ class Content(BaseModel):
 
 class ContentReference(BaseModel):
     model_config = model_config
-    id: str
-    message_id: str
+    id: str = Field(
+        default="",
+        description="The id of the content reference. Can be empty on the ChatMessage Object",
+    )
+    message_id: str = Field(
+        default="",
+        description="The id of the message that this reference belongs to. Can be empty on the ChatMessage Object",
+    )
     name: str
     sequence_number: int
     source: str
     source_id: str
     url: str
+    original_index: list[int] = Field(
+        default=[],
+        description="List of indices in the ChatMessage original_content this reference refers to. This is usually the id in the functionCallResponse. List type due to implementation in node-chat",
+    )
 
 
 class ContentSearchType(StrEnum):

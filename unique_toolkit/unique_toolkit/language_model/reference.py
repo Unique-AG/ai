@@ -1,27 +1,12 @@
 import re
 
-from pydantic import BaseModel
-
-from unique_toolkit.chat.schemas import ChatMessage, Reference
-
-
-class NodeReference(Reference):
-    original_index: list[int] = []
-    message_id: str | None = None
-
-
-class PotentialReference(BaseModel):
-    id: str
-    chunk_id: str | None = None
-    title: str | None = None
-    key: str
-    url: str | None = None
-    internally_stored_at: str | None = None
+from unique_toolkit.chat.schemas import ChatMessage
+from unique_toolkit.content.schemas import ContentChunk, ContentReference
 
 
 def add_references_to_message(
     message: ChatMessage,
-    search_context: list[PotentialReference],
+    search_context: list[ContentChunk],
     model: str | None = None,
 ) -> tuple[ChatMessage, bool]:
     """Add references to a message and return the updated message with change status.
@@ -41,21 +26,21 @@ def add_references_to_message(
     )
     message.content = _postprocess_message(text)
 
-    message.references = [Reference(**ref.model_dump()) for ref in ref_found]
+    message.references = ref_found
     references_changed = len(ref_found) > 0
     return message, references_changed
 
 
 def _add_references(
     text: str,
-    search_context: list[PotentialReference],
+    search_context: list[ContentChunk],
     message_id: str,
     model: str | None = None,
-) -> tuple[str, list[NodeReference]]:
+) -> tuple[str, list[ContentReference]]:
     """Add references to text and return the processed text with reference status.
 
     Returns:
-        Tuple[str, bool]: (processed_text, ref_found)
+        Tuple[str, list[Reference]]: (processed_text, ref_found)
     """
     references = _find_references(
         text=text,
@@ -169,11 +154,11 @@ def _get_max_sub_count_in_text(text: str) -> int:
 
 def _find_references(
     text: str,
-    search_context: list[PotentialReference],
+    search_context: list[ContentChunk],
     message_id: str,
-) -> list[NodeReference]:
+) -> list[ContentReference]:
     """Find references in text based on search context."""
-    references: list[NodeReference] = []
+    references: list[ContentReference] = []
     sequence_number = 1 + _get_max_sub_count_in_text(text)
 
     # Find all numbers in brackets to ensure we get references in order of occurrence
@@ -190,7 +175,7 @@ def _find_references(
             continue
 
         # Don't put the reference twice
-        reference_name = search.title or search.key
+        reference_name = search.title or search.key or f"Content {search.id}"
         found_reference = next(
             (r for r in references if r.name == reference_name), None
         )
@@ -206,7 +191,7 @@ def _find_references(
         )
 
         references.append(
-            NodeReference(
+            ContentReference(
                 name=reference_name,
                 url=url,
                 sequence_number=sequence_number,
@@ -216,6 +201,7 @@ def _find_references(
                 else search.id,
                 source="node-ingestion-chunks",
                 message_id=message_id,
+                id=search.id,
             )
         )
         sequence_number += 1
@@ -229,7 +215,7 @@ def _extract_numbers_in_brackets(text: str) -> list[int]:
     return [int(match) for match in matches]
 
 
-def _add_footnotes_to_text(text: str, references: list[NodeReference]) -> str:
+def _add_footnotes_to_text(text: str, references: list[ContentReference]) -> str:
     """Replace bracket references with superscript footnotes."""
     for reference in references:
         for original_index in reference.original_index:
