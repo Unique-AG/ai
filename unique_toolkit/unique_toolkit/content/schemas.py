@@ -71,6 +71,7 @@ class BaseReference(BaseModel):
 
 
 class ContentReference(BaseReference):
+    id: str
     message_id: str
     url: str
 
