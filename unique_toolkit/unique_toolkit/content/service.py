@@ -54,16 +54,16 @@ class ContentService:
         self._event = event  # Changed to protected attribute
         self._metadata_filter = None
         if event:
-            self._company_id = event.company_id
-            self._user_id = event.user_id
+            self._company_id: str = event.company_id
+            self._user_id: str = event.user_id
             if isinstance(event, (ChatEvent, Event)):
                 self._metadata_filter = event.payload.metadata_filter
-                self._chat_id = event.payload.chat_id
+                self._chat_id: str | None = event.payload.chat_id
         else:
             [company_id, user_id] = validate_required_values([company_id, user_id])
-            self._company_id = company_id
-            self._user_id = user_id
-            self._chat_id = chat_id
+            self._company_id: str = company_id
+            self._user_id: str = user_id
+            self._chat_id: str | None = chat_id
 
     @property
     @deprecated(
@@ -95,7 +95,7 @@ class ContentService:
     @deprecated(
         "The company_id setter is deprecated and will be removed in a future version."
     )
-    def company_id(self, value: str | None) -> None:
+    def company_id(self, value: str) -> None:
         """
         Set the company identifier (deprecated).
 
@@ -121,7 +121,7 @@ class ContentService:
     @deprecated(
         "The user_id setter is deprecated and will be removed in a future version."
     )
-    def user_id(self, value: str | None) -> None:
+    def user_id(self, value: str) -> None:
         """
         Set the user identifier (deprecated).
 

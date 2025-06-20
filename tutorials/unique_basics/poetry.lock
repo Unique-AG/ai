@@ -1496,7 +1496,7 @@ url = "../../unique_sdk"
 
 [[package]]
 name = "unique-toolkit"
-version = "0.7.28"
+version = "0.7.29"
 description = ""
 optional = false
 python-versions = "^3.11"

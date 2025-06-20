@@ -131,8 +131,9 @@ class ChatEventPayload(BaseModel):
     )
 
     @field_validator("raw_scope_rules", mode="before")
-    def validate_scope_rules(cls, value: dict[str, Any]) -> UniqueQL:
-        return parse_uniqueql(value)
+    def validate_scope_rules(cls, value: dict[str, Any] | None) -> UniqueQL | None:
+        if value:
+            return parse_uniqueql(value)
 
 
 @deprecated("""Use `ChatEventPayload` instead.

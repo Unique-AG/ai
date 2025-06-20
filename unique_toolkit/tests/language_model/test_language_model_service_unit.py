@@ -86,13 +86,9 @@ class TestLanguageModelServiceUnit:
         assert service.assistant_id is None
 
     def test_init_with_no_params(self):
-        """Test initialization with no parameters"""
-        service = LanguageModelService()
-
-        assert service.company_id is None
-        assert service.user_id is None
-        assert service.chat_id is None
-        assert service.assistant_id is None
+        """Test initialization with no parameters should raise ValueError"""
+        with pytest.raises(ValueError):
+            LanguageModelService()
 
     @patch("unique_toolkit.language_model.service.complete")
     def test_complete(self, mock_complete):
