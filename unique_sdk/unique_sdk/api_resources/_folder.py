@@ -101,6 +101,8 @@ class Folder(APIResource["Folder"]):
         Parameters for updating folder ingestion config.
         """
 
+        scopeId: str | None
+        folderPath: str | None
         ingestionConfig: "Folder.IngestionConfig"
         applyToSubScopes: bool
 
@@ -199,7 +201,6 @@ class Folder(APIResource["Folder"]):
         cls,
         user_id: str,
         company_id: str,
-        scope_id: str,
         **params: Unpack["Folder.UpdateIngestionConfigParams"],
     ) -> "Folder":
         """
@@ -209,7 +210,7 @@ class Folder(APIResource["Folder"]):
             "Folder",
             cls._static_request(
                 "patch",
-                f"/folder/{scope_id}/ingestion-config",
+                "/folder/ingestion-config",
                 user_id,
                 company_id,
                 params=params,
@@ -221,7 +222,6 @@ class Folder(APIResource["Folder"]):
         cls,
         user_id: str,
         company_id: str,
-        scope_id: str,
         **params: Unpack["Folder.UpdateIngestionConfigParams"],
     ) -> "Folder":
         """
@@ -231,7 +231,7 @@ class Folder(APIResource["Folder"]):
             "Folder",
             await cls._static_request_async(
                 "patch",
-                f"/folder/{scope_id}/ingestion-config",
+                "/folder/ingestion-config",
                 user_id,
                 company_id,
                 params=params,
