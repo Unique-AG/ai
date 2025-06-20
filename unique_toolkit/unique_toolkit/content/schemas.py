@@ -60,8 +60,14 @@ class Content(BaseModel):
 
 class ContentReference(BaseModel):
     model_config = model_config
-    id: str
-    message_id: str
+    id: str = Field(
+        default="",
+        description="The id of the content reference. Can be empty on the ChatMessage Object",
+    )
+    message_id: str = Field(
+        default="",
+        description="The id of the message that this reference belongs to. Can be empty on the ChatMessage Object",
+    )
     name: str
     sequence_number: int
     source: str
