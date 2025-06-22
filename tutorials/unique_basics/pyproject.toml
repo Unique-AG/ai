@@ -26,6 +26,7 @@ ipykernel = "^6.29.5"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.5.3"
+sseclient = "^0.0.27"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
