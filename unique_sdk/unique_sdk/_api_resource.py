@@ -192,7 +192,7 @@ class APIResource(UniqueObject, Generic[T]):
         requestor = APIRequestor(user_id=user_id, company_id=company_id)
 
         response = requestor.request(method_, url_, params)
-        return convert_to_unique_object(response, user_id, company_id, params)
+        return convert_to_unique_object(response, user_id, company_id, params, klass_=cls)
 
     # The `method_` and `url_` arguments are suffixed with an underscore to
     # avoid conflicting with actual request parameters in `params`.
@@ -211,4 +211,4 @@ class APIResource(UniqueObject, Generic[T]):
         requestor = APIRequestor(user_id=user_id, company_id=company_id)
 
         response = await requestor.request_async(method_, url_, params)
-        return convert_to_unique_object(response, user_id, company_id, params)
+        return convert_to_unique_object(response, user_id, company_id, params, klass_=cls)
