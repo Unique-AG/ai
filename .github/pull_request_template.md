@@ -17,8 +17,6 @@ _Add screenshots, GIFs, or demo links to illustrate your changes._
 
 Explain what has been tested and how.
 
-- [ ] Unit tests AI Repo
-
 _For Unique employees please refer to additional guidelines by reaching out to the data science team_
 
 ## ⛙ Merging workflow process
@@ -27,4 +25,4 @@ Once you have finished developing your feature and done **all** the testing list
 1. Open PR against `Unique-AG/ai`
 2. Get review and fix any requested changes
 3. Merge PR
-4. Run action **immediatly** to publish to PyPI
+4. Run action **immediatly** to publish to PyPO
