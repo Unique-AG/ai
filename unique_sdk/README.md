@@ -760,6 +760,7 @@ Send a prompt to an AI model supported by Unique FinanceGPT and receive a result
 ```python
 chat_completion = unique_sdk.ChatCompletion.create(
     company_id=company_id,
+    user_id=user_id
     model="AZURE_GPT_35_TURBO",
     messages=[
         {"role": "system", "content": "You are a helpful assistant."},

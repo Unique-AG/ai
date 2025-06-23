@@ -52,7 +52,10 @@ class ChatCompletion(APIResource["ChatCompletion"]):
 
     @classmethod
     def create(
-        cls, company_id: str, **params: Unpack["ChatCompletion.CreateParams"]
+        cls,
+        company_id: str,
+        user_id: str | None = None,
+        **params: Unpack["ChatCompletion.CreateParams"],
     ) -> "ChatCompletion":
         return cast(
             "ChatCompletion",
@@ -60,13 +63,17 @@ class ChatCompletion(APIResource["ChatCompletion"]):
                 "post",
                 cls.class_url(),
                 company_id=company_id,
+                user_id=user_id,
                 params=params,
             ),
         )
 
     @classmethod
     async def create_async(
-        cls, company_id: str, **params: Unpack["ChatCompletion.CreateParams"]
+        cls,
+        company_id: str,
+        user_id: str | None = None,
+        **params: Unpack["ChatCompletion.CreateParams"],
     ) -> "ChatCompletion":
         return cast(
             "ChatCompletion",
@@ -74,6 +81,7 @@ class ChatCompletion(APIResource["ChatCompletion"]):
                 "post",
                 cls.class_url(),
                 company_id=company_id,
+                user_id=user_id,
                 params=params,
             ),
         )
