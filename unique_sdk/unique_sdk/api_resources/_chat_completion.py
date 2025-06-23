@@ -54,7 +54,7 @@ class ChatCompletion(APIResource["ChatCompletion"]):
     def create(
         cls,
         company_id: str,
-        user_id: Optional[str] = None,
+        user_id: str | None = None,
         **params: Unpack["ChatCompletion.CreateParams"],
     ) -> "ChatCompletion":
         return cast(
@@ -72,7 +72,7 @@ class ChatCompletion(APIResource["ChatCompletion"]):
     async def create_async(
         cls,
         company_id: str,
-        user_id: Optional[str] = None,
+        user_id: str | None = None,
         **params: Unpack["ChatCompletion.CreateParams"],
     ) -> "ChatCompletion":
         return cast(
