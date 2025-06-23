@@ -19,10 +19,11 @@ Explain what has been tested and how.
 
 _For Unique employees please refer to additional guidelines by reaching out to the data science team_
 
-## ⛙ Merging workflow process
+## ⛙ Merging workflow
 Once you have finished developing your feature and done **all** the testing listed above you can perform the process below
 
-1. Open PR against `Unique-AG/ai`
-2. Get review and fix any requested changes
-3. Merge PR
-4. Run action **immediatly** to publish to PyPO
+1. Ensure you bumped the version of impacted libraries
+2. Open PR against `Unique-AG/ai`
+3. Get review and fix any requested changes
+4. Merge PR
+5. Run action **immediately** to publish to PyPI
