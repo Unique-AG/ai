@@ -1,5 +1,5 @@
 ## 🚀 Summary
-Refs: _link or id of jira ticket_
+Refs: _link to or id of ticket_
 
 Briefly describe the changes introduced in this PR.
 
