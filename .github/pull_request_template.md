@@ -27,4 +27,4 @@ Once you have finished developing your feature and done **all** the testing list
 1. Open PR against `Unique-AG/ai`
 2. Get review and fix any requested changes
 3. Merge PR
-4. Run action to publish 
+4. Run action **immediatly** to publish to PyPI
