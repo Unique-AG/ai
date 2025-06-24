@@ -1206,4 +1206,3 @@ An example Flask app demonstrating the usage of each API resource and how to int
 ## Credits
 
 This is a _fork_ / inspired-by the fantastic Stripe Python SDK (https://github.com/stripe/stripe-python).
-# Test change
