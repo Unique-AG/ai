@@ -1,4 +1,4 @@
-name: "[chore] Enforce Changelog and Version Bump"
+name: "[chore] Unique Toolkit -Enforce Changelog and Version Bump"
 
 env:
   PACKAGE: unique_toolkit

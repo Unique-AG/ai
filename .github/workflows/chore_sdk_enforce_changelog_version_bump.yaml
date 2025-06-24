@@ -1,4 +1,4 @@
-name: "[chore] Enforce Changelog and Version Bump"
+name: "[chore] Unique SDK - Enforce Changelog and Version Bump"
 
 env:
   PACKAGE: unique_sdk
