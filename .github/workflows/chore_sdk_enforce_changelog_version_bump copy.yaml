@@ -1,10 +1,12 @@
 name: "[chore] Enforce Changelog and Version Bump"
 
+env:
+  PACKAGE: unique_sdk
+
 on: 
   pull_request:
     paths:
       - 'unique_sdk/**'
-      - 'unique_toolkit/**'
 
 jobs:
   validate-changes:
@@ -14,26 +16,6 @@ jobs:
       uses: actions/checkout@v4
       with:
         fetch-depth: 0  # Fetch full history for proper diff comparison
-
-    - name: Determine which package was changed
-      run: |
-        # Get the merge base between the PR and target branch
-        git fetch origin ${{ github.base_ref }}
-        MERGE_BASE=$(git merge-base HEAD origin/${{ github.base_ref }})
-        
-        # Get changed files
-        CHANGED_FILES=$(git diff --name-only $MERGE_BASE..HEAD)
-        echo "Changed files:"
-        echo "$CHANGED_FILES"
-        
-        # Determine which package was changed (workflow only runs for these paths)
-        if echo "$CHANGED_FILES" | grep -q "^unique_sdk/"; then
-          echo "PACKAGE=unique_sdk" >> $GITHUB_ENV
-          echo "📦 Detected changes in unique_sdk"
-        elif echo "$CHANGED_FILES" | grep -q "^unique_toolkit/"; then
-          echo "PACKAGE=unique_toolkit" >> $GITHUB_ENV
-          echo "📦 Detected changes in unique_toolkit"
-        fi
 
     - name: Validate CHANGELOG.md and version bump
       run: |
