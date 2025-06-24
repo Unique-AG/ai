@@ -34,7 +34,11 @@ jobs:
 
     - name: Check CHANGELOG.md is updated
       run: |
-        if ! git diff --name-only origin/${{ github.base_ref }}...${{ github.head_ref }} | grep -q "^${{ env.PACKAGE }}/CHANGELOG.md$"; then
+        # Get the merge base between the PR and target branch
+        git fetch origin ${{ github.base_ref }}
+        MERGE_BASE=$(git merge-base HEAD origin/${{ github.base_ref }})
+        
+        if ! git diff --name-only $MERGE_BASE..HEAD | grep -q "^${{ env.PACKAGE }}/CHANGELOG.md$"; then
           echo "❌ Error: ${{ env.PACKAGE }}/CHANGELOG.md must be updated in this PR"
           echo "Please add an entry to the changelog describing your changes."
           exit 1
@@ -44,15 +48,19 @@ jobs:
 
     - name: Check pyproject.toml version is updated
       run: |
+        # Get the merge base between the PR and target branch
+        git fetch origin ${{ github.base_ref }}
+        MERGE_BASE=$(git merge-base HEAD origin/${{ github.base_ref }})
+        
         # Check if pyproject.toml exists and has been modified
-        if ! git diff --name-only origin/${{ github.base_ref }}...${{ github.head_ref }} | grep -q "^${{ env.PACKAGE }}/pyproject.toml$"; then
+        if ! git diff --name-only $MERGE_BASE..HEAD | grep -q "^${{ env.PACKAGE }}/pyproject.toml$"; then
           echo "❌ Error: ${{ env.PACKAGE }}/pyproject.toml must be updated in this PR"
           echo "Please update the version in pyproject.toml to reflect your changes."
           exit 1
         fi
         
         # Extract version from base branch
-        BASE_VERSION=$(git show origin/${{ github.base_ref }}:${{ env.PACKAGE }}/pyproject.toml | grep -E '^version\s*=' | sed -E 's/version\s*=\s*"([^"]+)"/\1/')
+        BASE_VERSION=$(git show $MERGE_BASE:${{ env.PACKAGE }}/pyproject.toml | grep -E '^version\s*=' | sed -E 's/version\s*=\s*"([^"]+)"/\1/')
         
         # Extract version from current branch
         CURRENT_VERSION=$(grep -E '^version\s*=' ${{ env.PACKAGE }}/pyproject.toml | sed -E 's/version\s*=\s*"([^"]+)"/\1/')
