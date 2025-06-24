@@ -243,6 +243,43 @@ class LanguageModelMessages(RootModel):
         | LanguageModelUserMessage
     ]
 
+    @model_validator(mode="before")
+    def convert_dict_messages(cls, data):
+        """Convert list of dictionaries to appropriate message objects based on role."""
+        # Handle case where data is already wrapped in root
+        if isinstance(data, dict) and "root" in data:
+            messages_list = data["root"]
+        elif isinstance(data, list):
+            messages_list = data
+        else:
+            # If it's not a list or dict with root, return as-is
+            return data
+
+        # Convert the messages list
+        converted_messages = []
+        for item in messages_list:
+            if isinstance(item, dict):
+                role = item.get("role", "").lower()
+
+                # Map dictionary to appropriate message class based on role
+                if role == "system":
+                    converted_messages.append(LanguageModelSystemMessage(**item))
+                elif role == "user":
+                    converted_messages.append(LanguageModelUserMessage(**item))
+                elif role == "assistant":
+                    converted_messages.append(LanguageModelAssistantMessage(**item))
+                elif role == "tool":
+                    converted_messages.append(LanguageModelToolMessage(**item))
+                else:
+                    # Fallback to base LanguageModelMessage
+                    converted_messages.append(LanguageModelMessage(**item))
+            else:
+                # If it's already a message object, keep it as is
+                converted_messages.append(item)
+
+        # For RootModel, return the data that should go into root
+        return converted_messages
+
     def __str__(self):
         return "\n\n".join([str(message) for message in self.root])
 

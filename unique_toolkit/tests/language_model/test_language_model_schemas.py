@@ -430,3 +430,174 @@ def test_language_model_tool_description():
     }
 
     assert tool.model_dump() == expected_dump
+
+
+class TestLanguageModelMessagesModelValidator:
+    """Test the model_validator in LanguageModelMessages class."""
+
+    def test_convert_dict_messages_from_list(self):
+        """Test converting a list of dictionaries to appropriate message objects."""
+        messages_data = [
+            {"role": "system", "content": "You are a helpful assistant"},
+            {"role": "user", "content": "Hello there"},
+            {
+                "role": "assistant",
+                "content": "Hi! How can I help?",
+                "tool_calls": [
+                    {
+                        "id": "5257cdaf28954d8c93b19adecdfb300c",
+                        "type": "function",
+                        "function": {
+                            "id": "b0387459714f4767bba14cdaa9a7e62a",
+                            "name": "WebSearch",
+                            "arguments": '{"query": "latest news on Deloitte June 2025", "language": "English"}',
+                        },
+                    }
+                ],
+            },
+            {
+                "role": "tool",
+                "name": "WebSearch",
+                "tool_call_id": "5257cdaf28954d8c93b19adecdfb300c",
+                "content": "Search results here",
+            },
+        ]
+
+        messages = LanguageModelMessages(messages_data)  # type: ignore
+
+        assert len(messages.root) == 4
+        assert isinstance(messages.root[0], LanguageModelSystemMessage)
+        assert isinstance(messages.root[1], LanguageModelUserMessage)
+        assert isinstance(messages.root[2], LanguageModelAssistantMessage)
+        assert isinstance(messages.root[3], LanguageModelToolMessage)
+
+        assert messages.root[0].content == "You are a helpful assistant"
+        assert messages.root[1].content == "Hello there"
+        assert messages.root[2].content == "Hi! How can I help?"
+        assert messages.root[3].content == "Search results here"
+        assert messages.root[3].name == "WebSearch"
+        assert messages.root[3].tool_call_id == "5257cdaf28954d8c93b19adecdfb300c"
+
+    def test_convert_dict_messages_from_root_dict(self):
+        """Test converting data wrapped in root key (RootModel format)."""
+        messages_data = {
+            "root": [
+                {"role": "system", "content": "System message"},
+                {"role": "user", "content": "User message"},
+            ]
+        }
+
+        messages = LanguageModelMessages(messages_data)  # type: ignore
+
+        assert len(messages.root) == 2
+        assert isinstance(messages.root[0], LanguageModelSystemMessage)
+        assert isinstance(messages.root[1], LanguageModelUserMessage)
+        assert messages.root[0].content == "System message"
+        assert messages.root[1].content == "User message"
+
+    def test_preserve_existing_message_objects(self):
+        """Test that existing message objects are preserved without conversion."""
+        system_msg = LanguageModelSystemMessage(content="Existing system message")
+        user_msg = LanguageModelUserMessage(content="Existing user message")
+
+        messages_data = [system_msg, user_msg]
+        messages = LanguageModelMessages(messages_data)
+
+        assert len(messages.root) == 2
+        assert messages.root[0] is system_msg  # Same object reference
+        assert messages.root[1] is user_msg  # Same object reference
+        assert isinstance(messages.root[0], LanguageModelSystemMessage)
+        assert isinstance(messages.root[1], LanguageModelUserMessage)
+
+    def test_mixed_dict_and_objects(self):
+        """Test handling a mix of dictionaries and existing message objects."""
+        existing_system = LanguageModelSystemMessage(content="Existing system")
+
+        messages_data = [
+            existing_system,
+            {"role": "user", "content": "New user message"},
+            {"role": "assistant", "content": "New assistant message"},
+        ]
+
+        messages = LanguageModelMessages(messages_data)  # type: ignore
+
+        assert len(messages.root) == 3
+        assert messages.root[0] is existing_system  # Preserved object
+        assert isinstance(messages.root[1], LanguageModelUserMessage)  # Converted
+        assert isinstance(messages.root[2], LanguageModelAssistantMessage)  # Converted
+
+        assert messages.root[0].content == "Existing system"
+        assert messages.root[1].content == "New user message"
+        assert messages.root[2].content == "New assistant message"
+
+    def test_case_insensitive_role_mapping(self):
+        """Test that role mapping works with different case variations."""
+        messages_data = [
+            {"role": "SYSTEM", "content": "System message"},
+            {"role": "User", "content": "User message"},
+            {"role": "ASSISTANT", "content": "Assistant message"},
+            {
+                "role": "Tool",
+                "content": "Tool message",
+                "name": "tool1",
+                "tool_call_id": "call_1",
+            },
+        ]
+
+        messages = LanguageModelMessages(messages_data)  # type: ignore
+
+        assert isinstance(messages.root[0], LanguageModelSystemMessage)
+        assert isinstance(messages.root[1], LanguageModelUserMessage)
+        assert isinstance(messages.root[2], LanguageModelAssistantMessage)
+        assert isinstance(messages.root[3], LanguageModelToolMessage)
+
+    def test_fallback_to_base_message_for_unknown_role(self):
+        """Test that unknown roles fallback to base LanguageModelMessage."""
+        # Note: This test demonstrates that unknown roles will fail validation
+        # because LanguageModelMessageRole enum only accepts specific values
+        messages_data = [
+            {"role": "unknown", "content": "Unknown role message"},
+            {"role": "custom", "content": "Custom role message"},
+        ]
+
+        # This should raise a ValidationError because the enum doesn't accept unknown roles
+        with pytest.raises(ValidationError):
+            LanguageModelMessages(messages_data)  # type: ignore
+
+    def test_empty_role_handling(self):
+        """Test handling of messages with empty or missing role."""
+        # Note: Empty roles will fail validation because they don't match the enum
+        messages_data = [
+            {"role": "", "content": "Empty role message"},
+            {"content": "No role message"},
+        ]
+
+        # This should raise a ValidationError because empty string is not a valid enum value
+        with pytest.raises(ValidationError):
+            LanguageModelMessages(messages_data)  # type: ignore
+
+    def test_return_data_as_is_for_non_list_non_dict(self):
+        """Test that non-list, non-dict data is returned as-is."""
+        # Note: RootModel expects a list, so non-list data will fail validation
+        test_data = "not a list or dict"
+
+        # This should raise a ValidationError because RootModel expects a list
+        with pytest.raises(ValidationError):
+            LanguageModelMessages(test_data)  # type: ignore
+
+    def test_empty_messages_list(self):
+        """Test handling of empty messages list."""
+        messages_data = []
+        messages = LanguageModelMessages(messages_data)
+
+        assert len(messages.root) == 0
+        assert isinstance(messages.root, list)
+
+    def test_single_message_conversion(self):
+        """Test conversion of a single message."""
+        messages_data = [{"role": "system", "content": "Single message"}]
+        messages = LanguageModelMessages(messages_data)  # type: ignore
+
+        assert len(messages.root) == 1
+        assert isinstance(messages.root[0], LanguageModelSystemMessage)
+        assert messages.root[0].content == "Single message"
