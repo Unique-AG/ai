@@ -463,7 +463,7 @@ class TestLanguageModelMessagesModelValidator:
             },
         ]
 
-        messages = LanguageModelMessages(messages_data)  # type: ignore
+        messages = LanguageModelMessages.load_messages_to_root(messages_data)
 
         assert len(messages.root) == 4
         assert isinstance(messages.root[0], LanguageModelSystemMessage)

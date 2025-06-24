@@ -243,7 +243,8 @@ class LanguageModelMessages(RootModel):
         | LanguageModelUserMessage
     ]
 
-    def load_messages_to_root(self, data: list[dict] | dict) -> None:
+    @classmethod
+    def load_messages_to_root(cls, data: list[dict] | dict) -> Self:
         """Convert list of dictionaries to appropriate message objects based on role."""
         # Handle case where data is already wrapped in root
         if isinstance(data, dict) and "root" in data:
@@ -274,7 +275,7 @@ class LanguageModelMessages(RootModel):
             else:
                 # If it's already a message object, keep it as is
                 converted_messages.append(item)
-        self.root = converted_messages
+        return cls(root=converted_messages)
 
     def __str__(self):
         return "\n\n".join([str(message) for message in self.root])
