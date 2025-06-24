@@ -487,7 +487,7 @@ class TestLanguageModelMessagesModelValidator:
             ]
         }
 
-        messages = LanguageModelMessages(messages_data)  # type: ignore
+        messages = LanguageModelMessages.load_messages_to_root(messages_data)
 
         assert len(messages.root) == 2
         assert isinstance(messages.root[0], LanguageModelSystemMessage)
@@ -501,7 +501,7 @@ class TestLanguageModelMessagesModelValidator:
         user_msg = LanguageModelUserMessage(content="Existing user message")
 
         messages_data = [system_msg, user_msg]
-        messages = LanguageModelMessages(messages_data)
+        messages = LanguageModelMessages.load_messages_to_root(messages_data)
 
         assert len(messages.root) == 2
         assert messages.root[0] is system_msg  # Same object reference
@@ -519,7 +519,7 @@ class TestLanguageModelMessagesModelValidator:
             {"role": "assistant", "content": "New assistant message"},
         ]
 
-        messages = LanguageModelMessages(messages_data)  # type: ignore
+        messages = LanguageModelMessages.load_messages_to_root(messages_data)
 
         assert len(messages.root) == 3
         assert messages.root[0] is existing_system  # Preserved object
@@ -544,7 +544,7 @@ class TestLanguageModelMessagesModelValidator:
             },
         ]
 
-        messages = LanguageModelMessages(messages_data)  # type: ignore
+        messages = LanguageModelMessages.load_messages_to_root(messages_data)
 
         assert isinstance(messages.root[0], LanguageModelSystemMessage)
         assert isinstance(messages.root[1], LanguageModelUserMessage)
@@ -562,7 +562,7 @@ class TestLanguageModelMessagesModelValidator:
 
         # This should raise a ValidationError because the enum doesn't accept unknown roles
         with pytest.raises(ValidationError):
-            LanguageModelMessages(messages_data)  # type: ignore
+            LanguageModelMessages.load_messages_to_root(messages_data)  # type: ignore
 
     def test_empty_role_handling(self):
         """Test handling of messages with empty or missing role."""
@@ -574,7 +574,7 @@ class TestLanguageModelMessagesModelValidator:
 
         # This should raise a ValidationError because empty string is not a valid enum value
         with pytest.raises(ValidationError):
-            LanguageModelMessages(messages_data)  # type: ignore
+            LanguageModelMessages.load_messages_to_root(messages_data)  # type: ignore
 
     def test_return_data_as_is_for_non_list_non_dict(self):
         """Test that non-list, non-dict data is returned as-is."""
@@ -582,13 +582,13 @@ class TestLanguageModelMessagesModelValidator:
         test_data = "not a list or dict"
 
         # This should raise a ValidationError because RootModel expects a list
-        with pytest.raises(ValidationError):
-            LanguageModelMessages(test_data)  # type: ignore
+        with pytest.raises(ValueError):
+            LanguageModelMessages.load_messages_to_root(test_data)  # type: ignore
 
     def test_empty_messages_list(self):
         """Test handling of empty messages list."""
         messages_data = []
-        messages = LanguageModelMessages(messages_data)
+        messages = LanguageModelMessages.load_messages_to_root(messages_data)
 
         assert len(messages.root) == 0
         assert isinstance(messages.root, list)
@@ -596,7 +596,7 @@ class TestLanguageModelMessagesModelValidator:
     def test_single_message_conversion(self):
         """Test conversion of a single message."""
         messages_data = [{"role": "system", "content": "Single message"}]
-        messages = LanguageModelMessages(messages_data)  # type: ignore
+        messages = LanguageModelMessages.load_messages_to_root(messages_data)  # type: ignore
 
         assert len(messages.root) == 1
         assert isinstance(messages.root[0], LanguageModelSystemMessage)
