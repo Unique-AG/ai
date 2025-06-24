@@ -3,6 +3,11 @@ name: "[unique_toolkit 📦] Publish to PyPI"
 on:
   workflow_dispatch:
   push:
+    # Both conditions must be met (AND logic):
+    # 1. Push must be to main branch
+    # 2. Push must include changes to unique_toolkit/** files
+    paths:
+      - 'unique_toolkit/**'
     branches:
       - main
 
