@@ -119,7 +119,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.9.0] - 2024-07-29
 - Added the possibility to make async requests to the unique APIs using either aiohttp or httpx as client
-## [Unreleased] - 2025-06-24
-- Added workflow validation for CHANGELOG.md and pyproject.toml version updates
-- Test change to trigger workflow
-
