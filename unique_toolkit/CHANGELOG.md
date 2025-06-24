@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.32] - 2025-06-24
+- Create `classmethod` for `LanguageModelMessages` to load raw messages to root
+
 ## [0.7.31] - 2025-06-19
 - Add typings to references in payload from `LanguageModelStreamResponseMessage` 
 - Add `original_index` to the base reference to reflect updated api
