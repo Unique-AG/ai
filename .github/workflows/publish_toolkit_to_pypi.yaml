@@ -2,6 +2,9 @@ name: "[unique_toolkit 📦] Publish to PyPI"
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
 
 env:
   PACKAGE_NAME: unique_toolkit
