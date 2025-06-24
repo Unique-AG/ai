@@ -22,7 +22,7 @@ _For Unique employees please refer to additional guidelines by reaching out to t
 ## ⛙ Merging workflow
 Once you have finished developing your feature and done **all** the testing listed above you can perform the process below
 
-1. Ensure you bumped the version of impacted libraries
+1. Ensure you bumped the version of `unique-sdk` and `unique-toolkit` if changed. (Done in `pyproject.toml`)
 2. Open PR against `Unique-AG/ai`
 3. Get review and fix any requested changes
 4. Merge PR
