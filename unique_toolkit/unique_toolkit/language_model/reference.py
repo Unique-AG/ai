@@ -51,9 +51,9 @@ def _add_references(
     # Only reference a source once, even if it is mentioned multiple times in the text.
     with_footnotes = _add_footnotes_to_text(text=text, references=references)
 
-    # Gemini 2.5 flash model has tendency to add multiple references for the same fact
+    # Gemini 2.5 models have tendency to add multiple references for the same fact
     # This is a workaround to limit the number of references to 5
-    if model and model.startswith("litellm:gemini-2-5-flash"):
+    if model and model.startswith("litellm:gemini-2-5"):
         reduced_text = _limit_consecutive_source_references(with_footnotes)
 
         # Get the references that remain after reduction
@@ -92,8 +92,11 @@ def _preprocess_message(text: str) -> str:
     # Replace XML format '[<source XX>]', '[<sourceXX>]' and '[\<sourceXX>]' with [XX]
     text = re.sub(r"\[(\\)?<source[\s]?(\d+)>\]", r"[\2]", text)
 
-    # Replace format '[source XX]' and '[sourceXX]' with [XX]
-    text = re.sub(r"\[source[\s]?(\d+)\]", r"[\1]", text)
+    # Replace format 'source XX', 'source_X' and 'sourceXX' references with XX, where XX is a number
+    text = re.sub(r"source[\s_]?(\d+)", r"[\1]", text)
+
+    # Replace 'source_number="X"' with X, where X is a number
+    text = re.sub(r"source_number=\"(\d+)\"", r"[\1]", text)
 
     # Make all references non-bold
     text = re.sub(r"\[\*\*(\d+)\*\*\]", r"[\1]", text)
@@ -107,13 +110,19 @@ def _preprocess_message(text: str) -> str:
     # Replace '[<[XX]>]' and '[\<[XX]>]' with [XX]
     text = re.sub(r"\[(\\)?\[?<\[(\d+)\]?\]>\]", r"[\2]", text)
 
-    # Replace '[[A], [B], ...]' or '[[A], B, C, ...]' with [A][B][C]...
+    # Replace '[source: X, Y, Z]' with [X][Y][Z], where X,Y,Z are numbers
+    def replace_source_colon(match):
+        numbers = re.findall(r"\d+", match.group(0))
+        return "".join(f"[{n}]" for n in numbers)
+    text = re.sub(r"\[source:\s*([\d,\s]+)\]", replace_source_colon, text)
+
+    # Replace '[[A], [B], ...]', '[[A], B, C, ...]', and '[X, Y, Z]' with [A][B][C]... where A,B,C are numbers
     def replace_combined_brackets(match):
         numbers = re.findall(r"\d+", match.group(0))
         return "".join(f"[{n}]" for n in numbers)
 
     text = re.sub(
-        r"\[\[(\d+)\](?:,\s*(?:\[)?\d+(?:\])?)*\]", replace_combined_brackets, text
+        r"(?:\[\[(\d+)\](?:,\s*(?:\[)?\d+(?:\])?)*\]|\[([\d,\s]+)\])", replace_combined_brackets, text
     )
 
     return text
