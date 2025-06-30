@@ -190,9 +190,11 @@ def count_tokens(text: str, encoding_model="cl100k_base") -> int:
     return len(encoding.encode(text))
 
 
-def map_content_chunk(content_chunk: dict):
+def map_content_chunk(content_id: str, content_key: str, content_chunk: dict):
     return ContentChunk(
-        id=content_chunk["id"],
+        id=content_id,
+        key=content_key,
+        chunk_id=content_chunk["id"],
         text=content_chunk["text"],
         start_page=content_chunk["startPage"],
         end_page=content_chunk["endPage"],
@@ -206,7 +208,10 @@ def map_content(content: dict):
         key=content["key"],
         title=content["title"],
         url=content["url"],
-        chunks=[map_content_chunk(chunk) for chunk in content["chunks"]],
+        chunks=[
+            map_content_chunk(content["id"], content["key"], chunk)
+            for chunk in content["chunks"]
+        ],
         created_at=content["createdAt"],
         updated_at=content["updatedAt"],
     )
