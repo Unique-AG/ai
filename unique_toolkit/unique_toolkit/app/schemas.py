@@ -39,9 +39,8 @@ class BaseEvent(BaseModel):
 
 
 ###
-# MCP Tool schemas
+# MCP schemas
 ###
-
 
 class McpTool(BaseModel):
     model_config = model_config
@@ -59,10 +58,24 @@ class McpTool(BaseModel):
         default=None,
         description="An icon name from the Lucide icon set for the tool. This is a Unique specific field.",
     )
+    system_prompt: Optional[str] = Field(
+        default=None,
+        description="An optional system prompt for the tool. This is a Unique specific field.",
+    )
     is_connected: bool = Field(
         description="Whether the tool is connected to the MCP server. This is a Unique specific field.",
     )
 
+class McpServer(BaseModel):
+    model_config = model_config
+
+    id: str
+    name: str
+    system_prompt: Optional[str] = Field(
+        default=None,
+        description="An optional system prompt for the MCP server.",
+    )
+    tools: list[McpTool]
 
 ###
 # ChatEvent schemas
@@ -159,9 +172,9 @@ class ChatEventPayload(BaseModel):
         default=None,
         description="Raw UniqueQL rule that can be compiled to a metadata filter.",
     )
-    mcp_tools: list[McpTool] = Field(
+    mcp_servers: list[McpServer] = Field(
         default_factory=list,
-        description="A list of MCP tools available for the chat session.",
+        description="A list of MCP servers with tools available for the chat session.",
     )
 
     @field_validator("raw_scope_rules", mode="before")
