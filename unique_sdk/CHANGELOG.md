@@ -5,8 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.38] - 2025-06-30
+- Add support for reasoning API with streaming.
+
 ## [0.9.37] - 2025-06-25
-- Add support for reasnoning API (non-streaming).
+- Add support for reasoning API (non-streaming).
 
 ## [0.9.36] - 2025-06-23
 - Allow passing a user id when creating chat completions. This is optional and it does not impact the current behaviour.

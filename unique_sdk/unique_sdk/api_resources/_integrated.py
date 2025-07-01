@@ -52,6 +52,25 @@ class Integrated(APIResource["Integrated"]):
         startText: NotRequired["str"]
         debugInfo: NotRequired[Dict[str, Any]]
 
+    class CreateStreamResponseParams(TypedDict):
+        debugInfo: NotRequired[Dict[str, Any]]
+        input: Any
+        model: Literal[
+            "AZURE_o4_MINI_2025_0416",
+            "AZURE_o3_2025_0416",
+        ]
+        searchContext: NotRequired[List["Integrated.SearchResult"]]
+
+    class Responses(TypedDict):
+        id: str
+        outputText: str
+        model: Literal[
+            "AZURE_o4_MINI_2025_0416",
+            "AZURE_o3_2025_0416",
+        ]
+        output: List[Any]  # define ResponsesOutputItem type
+        reasoning: None | Any = None  # define Reasoning type
+
     @classmethod
     def chat_stream_completion(
         cls,
@@ -94,6 +113,52 @@ class Integrated(APIResource["Integrated"]):
             await cls._static_request_async(
                 "post",
                 url,
+                user_id,
+                company_id,
+                params,
+            ),
+        )
+
+    @classmethod
+    def responses_stream(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Integrated.CreateStreamResponseParams"],
+    ) -> "Integrated.Responses":
+        """
+        Executes a call to the language model and streams to the chat in real-time.
+        It automatically inserts references that are mentioned by the model.
+        In the form of [sourceX]. The reference documents must be given as a list in searchContext.
+        """
+        return cast(
+            "Integrated.Responses",
+            cls._static_request(
+                "post",
+                "/integrated/chat/stream-responses",
+                user_id,
+                company_id,
+                params,
+            ),
+        )
+
+    @classmethod
+    async def responses_stream_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Integrated.CreateStreamResponseParams"],
+    ) -> "Integrated.Responses":
+        """
+        Executes a call to the language model and streams to the chat in real-time.
+        It automatically inserts references that are mentioned by the model.
+        In the form of [sourceX]. The reference documents must be given as a list in searchContext.
+        """
+        return cast(
+            "Integrated.Responses",
+            cls._static_request(
+                "post",
+                "/integrated/chat/stream-responses",
                 user_id,
                 company_id,
                 params,
