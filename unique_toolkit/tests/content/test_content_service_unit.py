@@ -114,7 +114,8 @@ class TestContentServiceUnit:
             assert result[0].id == "1"
             assert result[0].key == "test_key"
             assert len(result[0].chunks) == 1
-            assert result[0].chunks[0].id == "chunk1"
+            assert result[0].chunks[0].id == "1"
+            assert result[0].chunks[0].chunk_id == "chunk1"
 
             mock_search.assert_called_once_with(
                 user_id="test_user",
@@ -215,7 +216,8 @@ class TestContentServiceUnit:
             assert result[0].id == "1"
             assert result[0].key == "test_key"
             assert len(result[0].chunks) == 1
-            assert result[0].chunks[0].id == "chunk1"
+            assert result[0].chunks[0].id == "1"
+            assert result[0].chunks[0].chunk_id == "chunk1"
 
             mock_search.assert_called_once_with(
                 user_id="test_user",
