@@ -62,6 +62,10 @@ class McpTool(BaseModel):
         default=None,
         description="An optional system prompt for the tool. This is a Unique specific field.",
     )
+    user_prompt: Optional[str] = Field(
+        default=None,
+        description="An optional user prompt for the tool. This is a Unique specific field.",
+    )
     is_connected: bool = Field(
         description="Whether the tool is connected to the MCP server. This is a Unique specific field.",
     )
@@ -74,6 +78,10 @@ class McpServer(BaseModel):
     system_prompt: Optional[str] = Field(
         default=None,
         description="An optional system prompt for the MCP server.",
+    )
+    user_prompt: Optional[str] = Field(
+        default=None,
+        description="An optional user prompt for the MCP server.",
     )
     tools: list[McpTool]
 
