@@ -1,10 +1,13 @@
 from typing import (
     Any,
     ClassVar,
+    Dict,
     List,
     Literal,
     NotRequired,
+    Optional,
     TypedDict,
+    Union,
     Unpack,
     cast,
 )
@@ -16,6 +19,47 @@ from unique_sdk._request_options import RequestOptions
 class Assistants(APIResource["Assistants"]):
     OBJECT_NAME: ClassVar[Literal["openai.assistant"]] = "openai.assistant"
 
+    class CodeInterpreterTool(TypedDict):
+        type: Literal["code_interpreter"]
+
+    class FileSearchRankingOptions(TypedDict, total=False):
+        # Add ranking option fields as needed
+        pass
+
+    class FileSearchToolOverrides(TypedDict, total=False):
+        max_num_results: int | None = None
+        ranking_options: Optional["Assistants.FileSearchRankingOptions"]
+
+    class FunctionToolFunction(TypedDict, total=False):
+        name: str
+        description: str | None = None
+        parameters: Optional[Dict[str, Any]]
+        strict: bool | None
+
+    class FileSearchTool(TypedDict, total=False):
+        type: Literal["file_search"]
+        file_search: Optional["Assistants.FileSearchToolOverrides"]
+
+    class FunctionTool(TypedDict):
+        type: Literal["function"]
+        function: "Assistants.FunctionToolFunction"
+
+    ToolDefinition = Union[
+        CodeInterpreterTool,
+        FileSearchTool,
+        FunctionTool,
+    ]
+
+    class CodeInterpreterResources(TypedDict, total=False):
+        file_ids: List[str]
+
+    class FileSearchResources(TypedDict, total=False):
+        vector_store_ids: List[str]
+
+    class ToolResources(TypedDict, total=False):
+        code_interpreter: Optional["Assistants.CodeInterpreterResources"]
+        file_search: Optional["Assistants.FileSearchResources"]
+
     class CreateParams(RequestOptions):
         name: str
         instructions: str
@@ -25,6 +69,14 @@ class Assistants(APIResource["Assistants"]):
                 "AZURE_o3_2025_0416",
             ]
         ]
+        tools: list["Assistants.ToolDefinition"]
+        file_ids: list[str]
+        metadata: dict | None = None
+        description: str | None = None
+        temperature: float | None = None
+        top_p: float | None = None
+        max_tokens: int | None = None
+        tool_resources: Optional["Assistants.ToolResources"]
 
     class CreateThreadParams(RequestOptions):
         messages: List[Any]
