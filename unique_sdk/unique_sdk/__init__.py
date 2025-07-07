@@ -69,6 +69,9 @@ from unique_sdk._webhook import (
 from unique_sdk.api_resources._chat_completion import (
     ChatCompletion as ChatCompletion,
 )
+from unique_sdk.api_resources._assistants import (
+    Assistants as Assistants,
+)
 
 # API resources
 from unique_sdk.api_resources._event import Event as Event
