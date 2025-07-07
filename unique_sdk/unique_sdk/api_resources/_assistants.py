@@ -70,7 +70,6 @@ class Assistants(APIResource["Assistants"]):
             ]
         ]
         tools: list["Assistants.ToolDefinition"]
-        file_ids: list[str]
         metadata: dict | None = None
         description: str | None = None
         temperature: float | None = None
