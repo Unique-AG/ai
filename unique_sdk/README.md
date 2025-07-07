@@ -785,7 +785,7 @@ responses = unique_sdk.Responses.create(
     user_id=user_id,
     input="Tell me about the curious case of neural text degeneration",
     model="AZURE_o4_MINI_2025_0416",
-    reasoning={
+    reasoning={                      # optional
         "effort": "medium",          # effort level: low | medium | high
         "summary": "detailed"        # summary type: auto | concise | detailed
     }
