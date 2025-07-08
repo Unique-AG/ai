@@ -36,6 +36,11 @@ async def main():
             name="Math Tutor",
             model="AZURE_o1_2024_1217",
             instructions="You are a personal math tutor. When asked a question, write and run Python code to solve it. If the question is not related to math, politely decline to answer.",
+            tools=[
+                {
+                    "type": "code_interpreter",
+                }
+            ],
         )
 
         thread = await unique_sdk.Assistants.create_thread_async(

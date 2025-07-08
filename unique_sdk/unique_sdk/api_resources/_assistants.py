@@ -83,8 +83,31 @@ class Assistants(APIResource["Assistants"]):
         file_id: str
         tools: List["Assistants.AttachmentTool"]
 
+    class TextContentPart(TypedDict):
+        type: Literal["text"]
+        text: str
+
+    class ImageFileContentPart(TypedDict):
+        type: Literal["image_file"]
+        image_file: dict  # {"file_id": str}
+
+    class ImageUrlContentPart(TypedDict):
+        type: Literal["image_url"]
+        image_url: dict  # {"url": str, "detail": Optional[str]}
+
+    Content = Union[
+        str,
+        List[
+            Union[
+                "Assistants.TextContentPart",
+                "Assistants.ImageFileContentPart",
+                "Assistants.ImageUrlContentPart",
+            ]
+        ],
+    ]
+
     class CreateMessageParams(RequestOptions):
-        content: Any
+        content: "Assistants.Content"
         role: Literal["user", "assistant"]
         attachments: List["Assistants.Attachment"] | None = None
         metadata: dict | None = None
@@ -100,7 +123,7 @@ class Assistants(APIResource["Assistants"]):
 
     class Message(TypedDict):
         id: str
-        content: Any
+        content: "Assistants.Content"
         role: Literal["user", "assistant"]
         thread_id: str
         run_id: str | None = None
