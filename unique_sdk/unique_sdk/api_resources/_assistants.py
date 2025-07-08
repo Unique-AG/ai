@@ -21,21 +21,21 @@ class Assistants(APIResource["Assistants"]):
     class CodeInterpreterTool(TypedDict):
         type: Literal["code_interpreter"]
 
-    class FileSearchRankingOptions(TypedDict, total=False):
+    class FileSearchRankingOptions(TypedDict):
         # Add ranking option fields as needed
         pass
 
-    class FileSearchToolOverrides(TypedDict, total=False):
+    class FileSearchToolOverrides(TypedDict):
         max_num_results: int | None = None
         ranking_options: Optional["Assistants.FileSearchRankingOptions"] = None
 
-    class FunctionToolFunction(TypedDict, total=False):
+    class FunctionToolFunction(TypedDict):
         name: str
         description: str | None = None
         parameters: Optional[Dict[str, Any]] = None
         strict: bool | None
 
-    class FileSearchTool(TypedDict, total=False):
+    class FileSearchTool(TypedDict):
         type: Literal["file_search"]
         file_search: Optional["Assistants.FileSearchToolOverrides"] = None
 
@@ -49,13 +49,13 @@ class Assistants(APIResource["Assistants"]):
         FunctionTool,
     ]
 
-    class CodeInterpreterResources(TypedDict, total=False):
+    class CodeInterpreterResources(TypedDict):
         file_ids: List[str]
 
-    class FileSearchResources(TypedDict, total=False):
+    class FileSearchResources(TypedDict):
         vector_store_ids: List[str]
 
-    class ToolResources(TypedDict, total=False):
+    class ToolResources(TypedDict):
         code_interpreter: Optional["Assistants.CodeInterpreterResources"] = None
         file_search: Optional["Assistants.FileSearchResources"] = None
 
@@ -79,7 +79,7 @@ class Assistants(APIResource["Assistants"]):
 
     AttachmentTool = Union[CodeInterpreterToolAttachement, FileSearchToolAttachement]
 
-    class Attachment(TypedDict, total=False):
+    class Attachment(TypedDict):
         file_id: str
         tools: List["Assistants.AttachmentTool"]
 
@@ -103,9 +103,11 @@ class Assistants(APIResource["Assistants"]):
         content: Any
         role: Literal["user", "assistant"]
         thread_id: str
+        run_id: str | None = None
         assistant_id: str
         attachments: List["Assistants.Attachment"] | None = None
         status: Literal["in_progress", "incomplete", "completed"]
+        metadata: dict | None = None
 
     class CreateRunParams(RequestOptions):
         assistant_id: str
@@ -125,6 +127,11 @@ class Assistants(APIResource["Assistants"]):
         ToolChoiceObject,
     ]
 
+    class Usage(TypedDict):
+        completion_tokens: int
+        prompt_tokens: int
+        total_tokens: int
+
     class Run(TypedDict):
         id: str
         assistant_id: str
@@ -134,6 +141,14 @@ class Assistants(APIResource["Assistants"]):
         tools: List["Assistants.ToolDefinition"]
         tool_resources: Optional["Assistants.ToolResources"] = None
         tool_choice: Optional["Assistants.ToolChoice"] = None
+        usage: Optional["Assistants.Usage"] = None
+
+    class ListMessagesParams(RequestOptions):
+        after: str | None = None
+        before: str | None = None
+        limit: int | None = None
+        order: Literal["asc", "desc"] = "asc"
+        run_id: str | None = None
 
     id: str
     description: str | None = None
@@ -288,6 +303,80 @@ class Assistants(APIResource["Assistants"]):
             await cls._static_request_async(
                 "post",
                 f"/openai/threads/{thread_id}/runs",
+                company_id=company_id,
+                user_id=user_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    def retrieve_run(
+        cls,
+        company_id: str,
+        user_id: str,
+        thread_id: str,
+        run_id: str,
+    ) -> "Assistants.Run":
+        return cast(
+            Assistants.Run,
+            cls._static_request(
+                "get",
+                f"/openai/threads/{thread_id}/runs/{run_id}",
+                company_id=company_id,
+                user_id=user_id,
+            ),
+        )
+
+    @classmethod
+    async def retrieve_run_async(
+        cls,
+        company_id: str,
+        user_id: str,
+        thread_id: str,
+        run_id: str,
+    ) -> "Assistants.Run":
+        return cast(
+            Assistants.Run,
+            await cls._static_request_async(
+                "get",
+                f"/openai/threads/{thread_id}/runs/{run_id}",
+                company_id=company_id,
+                user_id=user_id,
+            ),
+        )
+
+    @classmethod
+    def list_messages(
+        cls,
+        company_id: str,
+        user_id: str,
+        thread_id: str,
+        **params: Unpack["Assistants.ListMessagesParams"],
+    ) -> List["Assistants.Message"]:
+        return cast(
+            List[Assistants.Message],
+            cls._static_request(
+                "get",
+                f"/openai/threads/{thread_id}/messages",
+                company_id=company_id,
+                user_id=user_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    async def list_messages_async(
+        cls,
+        company_id: str,
+        user_id: str,
+        thread_id: str,
+        **params: Unpack["Assistants.ListMessagesParams"],
+    ) -> List["Assistants.Message"]:
+        return cast(
+            List[Assistants.Message],
+            await cls._static_request_async(
+                "get",
+                f"/openai/threads/{thread_id}/messages",
                 company_id=company_id,
                 user_id=user_id,
                 params=params,
