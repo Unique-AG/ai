@@ -22,8 +22,7 @@ class Assistants(APIResource["Assistants"]):
         type: Literal["code_interpreter"]
 
     class FileSearchRankingOptions(TypedDict):
-        # Add ranking option fields as needed
-        pass
+        score_threshold: float
 
     class FileSearchToolOverrides(TypedDict):
         max_num_results: int | None = None
@@ -68,7 +67,6 @@ class Assistants(APIResource["Assistants"]):
         description: str | None = None
         temperature: float | None = None
         top_p: float | None = None
-        max_tokens: int | None = None
         tool_resources: Optional["Assistants.ToolResources"] = None
 
     class CodeInterpreterToolAttachement(TypedDict):
@@ -119,6 +117,7 @@ class Assistants(APIResource["Assistants"]):
 
     class Thread(TypedDict):
         id: str
+        metadata: dict | None = None
         tool_resources: Optional["Assistants.ToolResources"] = None
 
     class Message(TypedDict):

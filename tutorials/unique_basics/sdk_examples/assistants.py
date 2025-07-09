@@ -34,7 +34,7 @@ async def main():
             company_id=company_id,
             user_id=user_id,
             name="Math Tutor",
-            model="AZURE_o1_2024_1217",
+            model="AZURE_GPT_4o_2024_0806",
             instructions="You are a personal math tutor. When asked a question, write and run Python code to solve it. If the question is not related to math, politely decline to answer.",
             tools=[
                 {
@@ -59,7 +59,7 @@ async def main():
         run = await unique_sdk.Assistants.create_run_async(
             company_id=company_id,
             user_id=user_id,
-            model="AZURE_o1_2024_1217",
+            model="AZURE_GPT_4o_2024_0806",
             thread_id=thread.id,
             assistant_id=assistant.id,
         )
