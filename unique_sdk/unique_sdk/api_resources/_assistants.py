@@ -24,11 +24,11 @@ class Assistants(APIResource["Assistants"]):
     class FileSearchRankingOptions(TypedDict):
         score_threshold: float
 
-    class FileSearchToolOverrides(TypedDict):
+    class FileSearch(TypedDict):
         max_num_results: int | None = None
         ranking_options: Optional["Assistants.FileSearchRankingOptions"] = None
 
-    class FunctionToolFunction(TypedDict):
+    class FunctionDefinition(TypedDict):
         name: str
         description: str | None = None
         parameters: Optional[Dict[str, Any]] = None
@@ -36,11 +36,11 @@ class Assistants(APIResource["Assistants"]):
 
     class FileSearchTool(TypedDict):
         type: Literal["file_search"]
-        file_search: Optional["Assistants.FileSearchToolOverrides"] = None
+        file_search: Optional["Assistants.FileSearch"] = None
 
     class FunctionTool(TypedDict):
         type: Literal["function"]
-        function: "Assistants.FunctionToolFunction"
+        function: "Assistants.FunctionDefinition"
 
     ToolDefinition = Union[
         CodeInterpreterTool,
@@ -49,10 +49,10 @@ class Assistants(APIResource["Assistants"]):
     ]
 
     class CodeInterpreterResources(TypedDict):
-        file_ids: List[str]
+        file_ids: List[str] | None = None
 
     class FileSearchResources(TypedDict):
-        vector_store_ids: List[str]
+        vector_store_ids: List[str] | None = None
 
     class ToolResources(TypedDict):
         code_interpreter: Optional["Assistants.CodeInterpreterResources"] = None
@@ -78,34 +78,86 @@ class Assistants(APIResource["Assistants"]):
     AttachmentTool = Union[CodeInterpreterToolAttachement, FileSearchToolAttachement]
 
     class Attachment(TypedDict):
-        file_id: str
-        tools: List["Assistants.AttachmentTool"]
+        file_id: str | None = None
+        tools: List["Assistants.AttachmentTool"] | None = None
 
-    class TextContentPart(TypedDict):
+    class File(TypedDict):
+        file_id: str
+
+    class FileCitationAnnotation(TypedDict):
+        end_index: int
+        file_citation: "Assistants.File"
+        start_index: int
+        text: str
+        type: Literal["file_citation"]
+
+    class FilePathAnnotation(TypedDict):
+        end_index: int
+        file_path: "Assistants.File"
+        start_index: int
+        text: str
+        type: Literal["file_path"]
+
+    Annotation = Union[FileCitationAnnotation, FilePathAnnotation]
+
+    class Text(TypedDict):
+        type: Literal["text"]
+        annotation: Optional[List["Assistants.Annotation"]] = None
+
+    class TextContentBlock(TypedDict):
+        type: Literal["text"]
+        text: "Assistants.Text"
+
+    class ImageFile(TypedDict):
+        file_id: str
+        detail: Literal["high", "auto", "low"] | None = None
+
+    class ImageFileContentBlock(TypedDict):
+        type: Literal["image_file"]
+        image_file: "Assistants.ImageFile"
+
+    class ImageURL(TypedDict):
+        url: str
+        detail: Literal["high", "auto", "low"] | None = None
+
+    class ImageURLContentBlock(TypedDict):
+        type: Literal["image_url"]
+        image_url: "Assistants.ImageURL"
+
+    class RefusalContentBlock(TypedDict):
+        type: Literal["refusal"]
+        refusal: str
+
+    class TextContentBlockParam(TypedDict):
         type: Literal["text"]
         text: str
 
-    class ImageFileContentPart(TypedDict):
-        type: Literal["image_file"]
-        image_file: dict  # {"file_id": str}
+    MessageContentTypeParam = Union[
+        "Assistants.TextContentBlockParam",
+        "Assistants.ImageFileContentBlock",
+        "Assistants.ImageURLContentBlock",
+    ]
 
-    class ImageUrlContentPart(TypedDict):
-        type: Literal["image_url"]
-        image_url: dict  # {"url": str, "detail": Optional[str]}
-
-    Content = Union[
+    MessageContent = Union[
         str,
         List[
             Union[
-                "Assistants.TextContentPart",
-                "Assistants.ImageFileContentPart",
-                "Assistants.ImageUrlContentPart",
+                "Assistants.TextContentBlock",
+                "Assistants.ImageFileContentBlock",
+                "Assistants.ImageURLContentBlock",
+                "Assistants.RefusalContentBlock",
             ]
         ],
     ]
 
+    MessageContentPartParam = Union[
+        "Assistants.ImageFileContentBlock",
+        "Assistants.ImageURLContentBlock",
+        "Assistants.TextContentBlockParam",
+    ]
+
     class CreateMessageParams(RequestOptions):
-        content: "Assistants.Content"
+        content: str | List["Assistants.MessageContentPartParam"]
         role: Literal["user", "assistant"]
         attachments: List["Assistants.Attachment"] | None = None
         metadata: dict | None = None
@@ -122,11 +174,11 @@ class Assistants(APIResource["Assistants"]):
 
     class Message(TypedDict):
         id: str
-        content: "Assistants.Content"
+        content: "Assistants.MessageContent"
         role: Literal["user", "assistant"]
         thread_id: str
         run_id: str | None = None
-        assistant_id: str
+        assistant_id: str | None = None
         attachments: List["Assistants.Attachment"] | None = None
         status: Literal["in_progress", "incomplete", "completed"]
         metadata: dict | None = None
@@ -149,6 +201,17 @@ class Assistants(APIResource["Assistants"]):
         ToolChoiceObject,
     ]
 
+    class AssistantToolChoiceFunction(TypedDict):
+        name: str
+
+    class AssistantToolChoice(TypedDict):
+        type: Literal["function", "file_search", "code_interpreter"]
+        function: Optional["Assistants.AssistantToolChoiceFunction"] = None
+
+    AssistantToolChoiceOption = Union[
+        Literal["none", "auto", "required"], AssistantToolChoice
+    ]
+
     class Usage(TypedDict):
         completion_tokens: int
         prompt_tokens: int
@@ -162,7 +225,7 @@ class Assistants(APIResource["Assistants"]):
         model: str
         tools: List["Assistants.ToolDefinition"]
         tool_resources: Optional["Assistants.ToolResources"] = None
-        tool_choice: Optional["Assistants.ToolChoice"] = None
+        tool_choice: Optional["Assistants.AssistantToolChoiceOption"] = None
         usage: Optional["Assistants.Usage"] = None
 
     class ListMessagesParams(RequestOptions):
