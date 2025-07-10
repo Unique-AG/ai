@@ -65,6 +65,7 @@ def main():
             "libraryName": "foo",
         },
         "scopeId": scope_id,
+        "sheetName": "Sheet1",
     }
 
     created_folders = unique_sdk.Content.ingest_magic_table_sheets(**params)

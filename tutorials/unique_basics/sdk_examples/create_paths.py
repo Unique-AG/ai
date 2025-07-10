@@ -31,21 +31,52 @@ def main():
     load_dotenv(Path(__file__).parent / ".." / ".env")
 
     # Set up SDK configuration
-    unique_sdk.api_key = os.getenv("API_KEY")
-    unique_sdk.app_id = os.getenv("APP_ID")
-    unique_sdk.api_base = os.getenv("API_BASE")
-    company_id = os.getenv("COMPANY_ID")
-    user_id = os.getenv("USER_ID")
+    unique_sdk.api_key = "ukey_ph_0d_gNdjf6I5us3_p8Zz_qHp8Fj0UE7Fvq7I-KZOY"
 
-    params = {
-        "user_id": user_id,
-        "company_id": company_id,
-        "paths": ["/unique/path1", "/unique/path2"],
-    }
+    # os.getenv("API_KEY")
+    unique_sdk.app_id = "app_yxpvfu0mzt4qkta56r9zv248" # os.getenv("APP_ID")
+    # unique_sdk.api_base = os.getenv("API_BASE")
+    company_id = "237521044380848186" # os.getenv("COMPANY_ID")
+    user_id = "327965239901425761" #os.getenv("USER_ID")
+    print('##############')
+    print(os.getenv("API_KEY"))
 
-    created_folders = unique_sdk.Folder.create_paths(**params)
+    print("API_KEY:", os.getenv("API_KEY"))
+    print("APP_ID:", os.getenv("APP_ID"))
+    print("API_BASE:", os.getenv("API_BASE"))
+    print("COMPANY_ID:", os.getenv("COMPANY_ID"))
+    print("USER_ID:", os.getenv("USER_ID"))
 
-    logger.info(f"created folders {created_folders}")
+    # params = {
+    #     "user_id": user_id,
+    #     "company_id": company_id,
+    #     "paths": ["/unique/path1", "/unique/path2"],
+    # }
+
+    # params = {
+    #     "prompt": "Summarize the following text.",
+    #     "chatId": "assistant_v09biqwriqkhqykv41m0nkzo",
+    #     "messages": [
+    #         {"role": "user", "content": "What is the weather today?"}
+    #     ],
+    #     "languageModel": "AZURE_GPT_4_0613"
+    # }
+    # 
+    # unique_sdk.SearchString.create(user_id=user_id, company_id=company_id, **params)
+
+
+    unique_sdk.api_base = "https://gateway.oleole.unique.app/public/chat"
+    
+
+    unique_sdk.Folder.create_paths(
+        user_id=user_id,
+        company_id=company_id,
+        paths=[f"/stress_test/path{i}" for i in range(3001, 3500)],
+    )
+
+    # created_folders = unique_sdk.Folder.create_paths(**params)
+
+    # logger.info(f"created folders {created_folders}")
 
 
 if __name__ == "__main__":
