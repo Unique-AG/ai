@@ -447,6 +447,7 @@ Allows you to ingest a magic table sheet, each row is processed and converted in
          "libraryName": "foo",
       },
       "scopeId": scope_id,
+      "sheetName": "Sheet1",
    }
 
     unique_sdk.Content.ingest_magic_table_sheets(**params)
