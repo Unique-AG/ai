@@ -40,7 +40,7 @@ def upload_file(
     mime_type,
     scope_or_unique_path=None,
     chat_id=None,
-    ingestion_config: Optional[Content.IngestionConfig] = None,
+    ingestion_config: Optional[Content.IngestionConfig] = {},
     metadata: dict[str, Any] | None = None,
 ):
     # check that chatid or scope_or_unique_path is provided
