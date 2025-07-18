@@ -63,7 +63,7 @@ messages = (
 
 response = llm_functions.complete(
     company_id=company_id,
-    model_name=LanguageModelName.AZURE_GPT_4o_2024_0806,  # Make sure this is deployed in your environment
+    model_name=LanguageModelName.AZURE_GPT_4o_2024_0806,
     messages=messages,
     tools=[weather_tool],
 )
