@@ -21,7 +21,6 @@ The Unique Python SDK provides access to the public API of Unique FinanceGPT. It
    - [Short Term Memory](#short-term-memory)
    - [Message Assessment](#message-assessment)
    - [Folder](#folder)
-   - [Space](#space)
 6. [UniqueQL](#uniqueql)
    - [Query Structure](#uniqueql-query-structure)
    - [Metadata Filtering](#metadata-filtering)
@@ -236,7 +235,6 @@ unique_sdk.Message.modify(
 - [Short Term Memory](#short-term-memory)
 - [Message Assessment](#message-assessment)
 - [Folder](#folder)
-- [Space](#space)
 
 Most of the API services provide an asynchronous version of the method. The async methods are suffixed with `_async`.
 
@@ -936,48 +934,6 @@ unique_sdk.Folder.remove_access(
 )
 ```
 
-### Space
-
-#### `unique_sdk.Space.create_message`
-
-Create a message in a space chat.
-
-```python
-unique_sdk.Space.create_message(
-    user_id=user_id,
-    company_id=company_id,
-    assistantId=assistant_id,
-    chatId=chat_id, # Optional - if no chat id is specified, a new chat will be created
-    text="Tell me a short story.",
-    toolChoices=["WebSearch"],
-    scopeRules={
-        "or": [
-            {
-                "operator": "in",
-                "path": [
-                    "contentId"
-                ],
-                "value": [
-                    "cont_u888z7cnugfdjq7pks"
-                ]
-            }
-        ]
-    },
-)
-```
-
-#### `unique_sdk.Space.get_latest_message`
-
-Get the last message from a space chat.
-
-```python
-unique_sdk.Space.get_latest_message(
-    user_id=user_id,
-    company_id=company_id,
-    chat_id=chat_id,
-)
-```
-
 ## UniqueQL
 
 [UniqueQL](https://unique-ch.atlassian.net/wiki/x/coAXHQ) is an advanced query language designed to enhance search capabilities within various search modes such as Vector, Full-Text Search (FTS), and Combined. This query language enables users to perform detailed searches by filtering through metadata attributes like filenames, URLs, dates, and more. UniqueQL is versatile and can be translated into different query formats for various database systems, including PostgreSQL and Qdrant.
@@ -1250,15 +1206,18 @@ searchContext = unique_sdk.utils.token.count_tokens(hello)
 
 #### `unique_sdk.utils.chat_in_space.send_message_and_wait_for_completion`
 
-A helper function that sends a prompt asynchronously and polls for completion. (until stoppedStreamingAt is not None)
+The following script enables you to chat within a space using an assistant. You must provide an `assistantId` (e.g., `assistant_hjcdga64bkcjnhu4`) and the message `text` to initiate the conversation. You can send the message in an existing chat by specifying a `chat_id`, or omit the `chat_id` to automatically create a new chat session. Check the optional parameteres list for more configs.
 
-- `assistant_id`: The assistant ID.
-- `text`: The prompt text.
-- `tool_choices`: The tool choices for the message.
-- `scope_rules`: The scope rules for the message.
-- `chat_id`: The chat id where to create the message. This is optional - if no chat id is provided, a new chat is created.
-- `poll_interval`: Seconds between polls.
-- `max_wait`: Maximum seconds to wait for completion.
+The script sends a prompt asynchronously and continuously polls for completion, which is determined when the `stoppedStreamingAt` field of the message becomes non-null.
+
+**Optional parameters:**
+- `tool_choices`: A list of tool names to be used for the message (e.g., `["WebSearch"]`). If not provided, no tools will be used.
+- `scope_rules`: A dictionary specifying scope rules for the message, allowing you to restrict the context or data sources available to the assistant.
+- `chat_id`: The ID of the chat where the message should be sent. If omitted, a new chat will be created.
+- `poll_interval`: The number of seconds to wait between polling attempts (default: `1` second).
+- `max_wait`: The maximum number of seconds to wait for the message to complete (default: `60` seconds).
+
+The script ensures you can flexibly interact with spaces in new or ongoing chats, with fine-grained control over tools, context, and polling behavior.
 
 ```python
 latest_message = unique_sdk.utils.send_message_and_wait_for_completion(
