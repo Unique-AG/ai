@@ -112,7 +112,7 @@ class RequestsClient(HTTPClient):
                     method,
                     url,
                     headers=headers,
-                    data=json.dumps(post_data),
+                    data=json.dumps(post_data) if post_data is not None else None,
                     timeout=self._timeout,
                     verify=verify,
                     **kwargs,
@@ -174,7 +174,11 @@ class HTTPXClient(HTTPClient):
             kwargs["timeout"] = self._timeout
         return [
             (method, url),
-            {"headers": headers, "data": json.dumps(post_data) or {}, **kwargs},
+            {
+                "headers": headers,
+                "data": json.dumps(post_data) if post_data is not None else None,
+                **kwargs,
+            },
         ]
 
     def request(
