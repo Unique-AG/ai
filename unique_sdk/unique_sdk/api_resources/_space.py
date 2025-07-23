@@ -142,3 +142,37 @@ class Space(APIResource["Space"]):
                 company_id,
             ),
         )
+
+    @classmethod
+    def delete_chat(
+        cls,
+        user_id: str,
+        company_id: str,
+        chat_id: str,
+    ) -> None:
+        """
+        Delete a chat in a space.
+        """
+        cls._static_request(
+            "delete",
+            f"/space/{chat_id}",
+            user_id,
+            company_id,
+        )
+
+    @classmethod
+    async def delete_chat_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        chat_id: str,
+    ) -> None:
+        """
+        Async delete a chat in a space.
+        """
+        await cls._static_request_async(
+            "delete",
+            f"/space/{chat_id}",
+            user_id,
+            company_id,
+        )

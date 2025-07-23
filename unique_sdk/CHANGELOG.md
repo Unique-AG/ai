@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.41] - 2025-07-23
+- Allow deletion of a space chat.
+
 ## [0.9.40] - 2025-07-22
 - Fixed bug where get requests send body with the request. This is not allowed by WAF policies.
 
