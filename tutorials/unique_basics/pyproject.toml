@@ -23,6 +23,7 @@ aiolimiter = "^1.2.1"
 dotenv = "^0.9.9"
 httpx = "^0.28.1"
 ipykernel = "^6.29.5"
+openai = "^1.97.0"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.5.3"

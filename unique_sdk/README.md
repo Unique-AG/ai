@@ -12,7 +12,6 @@ The Unique Python SDK provides access to the public API of Unique FinanceGPT. It
 4. [Webhook Triggers](#webhook-triggers)
 5. [Available API Resources](#available-api-resources)
    - [Content](#content)
-   - [Folder](#folder)
    - [Message](#message)
    - [Chat Completion](#chat-completion)
    - [Responses](#responses)
@@ -31,6 +30,7 @@ The Unique Python SDK provides access to the public API of Unique FinanceGPT. It
    - [File Io](#file-io)
    - [Sources](#sources)
    - [token](#token)
+   - [Chat In Space](#chat-in-space)
 8. [Error Handling](#error-handling)
 9. [Examples](#examples)
 
@@ -229,8 +229,12 @@ unique_sdk.Message.modify(
 - [Content](#content)
 - [Message](#message)
 - [Chat Completion](#chat-completion)
+- [Embeddings](#embeddings)
+- [Acronyms](#acronyms)
 - [Search](#search)
 - [Search String](#search-string)
+- [Short Term Memory](#short-term-memory)
+- [Message Assessment](#message-assessment)
 - [Folder](#folder)
 
 Most of the API services provide an asynchronous version of the method. The async methods are suffixed with `_async`.
@@ -448,178 +452,10 @@ Allows you to ingest a magic table sheet, each row is processed and converted in
          "libraryName": "foo",
       },
       "scopeId": scope_id,
+      "sheetName": "Sheet1",
    }
 
     unique_sdk.Content.ingest_magic_table_sheets(**params)
-```
-
-### Folder
-
-#### `unique_sdk.Folder.get`
-
-Get a folder by scope id or by path.
-
-By scope id:
-
-```python
-unique_sdk.Folder.get_info(
-   user_id=user_id,
-   company_id=company_id,
-   scopeId="scope_w78wfn114va9o22s13r03yq",
-)
-```
-
-By path:
-
-```python
-unique_sdk.Folder.get_info(
-   user_id=user_id,
-   company_id=company_id,
-   folderPath="/Company/Atlas/Due Dilligence/Arch,
-)
-```
-
-#### `unique_sdk.Folder.create_paths`
-
-Create each folder in the provided list of paths if it does not already exist.
-
-```python
-unique_sdk.Folder.create_paths(
-   user_id=user_id,
-   company_id=company_id,
-   paths=["/unique/path1", "/unique/path2"],
-)
-```
-
-#### `unique_sdk.Folder.update_ingestion_config`
-
-Allows you to update the ingestion config of a folder and choose whether to apply to the subscopes or not: `
-
-- `ingestionConfig`
-- `applyToSubScopes`
-
-The update can be done by referencing the folder by id or by path. If none of them are provided. the API will return an error. If both of them are provided, the scope id will take precedence.
-
-Example of updating the ingestion config of a folder and its subfolders using the id.
-
-```python
-unique_sdk.Folder.update_ingestion_config(
-    user_id=user_id,
-    company_id=company_id,
-    scopeId="scope_qbnkde820dbmuw2900,
-    ingestionConfig={
-        "chunkStrategy": "default",
-        "uniqueIngestionMode": "standard",
-    },
-    applyToSubScopes=True
-)
-```
-
-Example of updating the ingestion config of a folder and its subfolders using the path.
-
-```python
-unique_sdk.Folder.update_ingestion_config(
-    user_id=user_id,
-    company_id=company_id,
-    folderPath="/Company/folder1/folder2",
-    ingestionConfig={
-        "chunkStrategy": "default",
-        "uniqueIngestionMode": "standard",
-    },
-    applyToSubScopes=True
-)
-```
-
-#### `unique_sdk.Folder.add_access`
-
-Allows you to add access to a folder and apply to the subfolders or not: `
-
-- `scopeAccesses`
-- `applyToSubScopes`
-
-The update can be done by referencing the folder by id or by path. If none of them are provided. the API will return an error. If both of them are provided, the scope id will take precedence.
-
-Example of adding access to a folder and its subfolders using the id.
-
-```python
-unique_sdk.Folder.add_access(
-    user_id=user_id,
-    company_id=company_id,
-    scopeId="scope_231e4kjn4foffww34",
-    scopeAccesses=[
-        {
-            "entityId": "group_id",
-            "type": "WRITE",
-            "entityType": "GROUP",
-        }
-    ],
-    applyToSubScopes=True,
-)
-```
-
-Example of adding access to a folder and its subfolders using the folder path.
-
-```python
-unique_sdk.Folder.add_access(
-    user_id=user_id,
-    company_id=company_id,
-    folderPath="/Company/folder1/folder2"
-    scopeAccesses=[
-        {
-            "entityId": "group_id",
-            "type": "WRITE",
-            "entityType": "GROUP",
-        }
-    ],
-    applyToSubScopes=True,
-)
-```
-
-#### `unique_sdk.Folder.remove_access`
-
-Allows you to delete access from a folder and apply to the subfolders or not: `
-
-- `scopeAccesses`
-- `applyToSubScopes`
-
-The update can be done by referencing the folder by id or by path. If none of them are provided. the API will return an error. If both of them are provided, the scope id will take precedence.
-
-
-Example of deleting the access from a folder and its subfolders using the id.
-
-```python
-unique_sdk.Folder.remove_access(
-    user_id=user_id,
-    company_id=company_id,
-    scopeId="scope_dwekjnf3330woioppm,
-    scopeAccesses=[
-        {
-            "entityId": "group_id",
-            "type": "WRITE",
-            "entityType": "GROUP",
-        }
-    ],
-    applyToSubScopes=True,
-)
-```
-
-
-Example of deleting the access from a folder and its subfolders using the path.
-
-```python
-unique_sdk.Folder.remove_access(
-    user_id=user_id,
-    company_id=company_id,
-    folderPath="/Company/folder1/folder2"
-    scopeAccesses=[
-        {
-            "entityId": "group_id",
-            "type": "WRITE",
-            "entityType": "GROUP",
-        }
-    ],
-    applyToSubScopes=True,
-)
 ```
 
 ### Message
@@ -982,6 +818,175 @@ assessment = unique_sdk.MessageAssessment.modify(
 )
 ```
 
+### Folder
+
+#### `unique_sdk.Folder.get`
+
+Get a folder by scope id or by path.
+
+By scope id:
+
+```python
+unique_sdk.Folder.get_info(
+   user_id=user_id,
+   company_id=company_id,
+   scopeId="scope_w78wfn114va9o22s13r03yq",
+)
+```
+
+By path:
+
+```python
+unique_sdk.Folder.get_info(
+   user_id=user_id,
+   company_id=company_id,
+   folderPath="/Company/Atlas/Due Dilligence/Arch,
+)
+```
+
+#### `unique_sdk.Folder.create_paths`
+
+Create each folder in the provided list of paths if it does not already exist.
+
+```python
+unique_sdk.Folder.create_paths(
+   user_id=user_id,
+   company_id=company_id,
+   paths=["/unique/path1", "/unique/path2"],
+)
+```
+
+#### `unique_sdk.Folder.update_ingestion_config`
+
+Allows you to update the ingestion config of a folder and choose whether to apply to the subscopes or not: `
+
+- `ingestionConfig`
+- `applyToSubScopes`
+
+The update can be done by referencing the folder by id or by path. If none of them are provided. the API will return an error. If both of them are provided, the scope id will take precedence.
+
+Example of updating the ingestion config of a folder and its subfolders using the id.
+
+```python
+unique_sdk.Folder.update_ingestion_config(
+    user_id=user_id,
+    company_id=company_id,
+    scopeId="scope_qbnkde820dbmuw2900,
+    ingestionConfig={
+        "chunkStrategy": "default",
+        "uniqueIngestionMode": "standard",
+    },
+    applyToSubScopes=True
+)
+```
+
+Example of updating the ingestion config of a folder and its subfolders using the path.
+
+```python
+unique_sdk.Folder.update_ingestion_config(
+    user_id=user_id,
+    company_id=company_id,
+    folderPath="/Company/folder1/folder2",
+    ingestionConfig={
+        "chunkStrategy": "default",
+        "uniqueIngestionMode": "standard",
+    },
+    applyToSubScopes=True
+)
+```
+
+#### `unique_sdk.Folder.add_access`
+
+Allows you to add access to a folder and apply to the subfolders or not: `
+
+- `scopeAccesses`
+- `applyToSubScopes`
+
+The update can be done by referencing the folder by id or by path. If none of them are provided. the API will return an error. If both of them are provided, the scope id will take precedence.
+
+Example of adding access to a folder and its subfolders using the id.
+
+```python
+unique_sdk.Folder.add_access(
+    user_id=user_id,
+    company_id=company_id,
+    scopeId="scope_231e4kjn4foffww34",
+    scopeAccesses=[
+        {
+            "entityId": "group_id",
+            "type": "WRITE",
+            "entityType": "GROUP",
+        }
+    ],
+    applyToSubScopes=True,
+)
+```
+
+Example of adding access to a folder and its subfolders using the folder path.
+
+```python
+unique_sdk.Folder.add_access(
+    user_id=user_id,
+    company_id=company_id,
+    folderPath="/Company/folder1/folder2"
+    scopeAccesses=[
+        {
+            "entityId": "group_id",
+            "type": "WRITE",
+            "entityType": "GROUP",
+        }
+    ],
+    applyToSubScopes=True,
+)
+```
+
+#### `unique_sdk.Folder.remove_access`
+
+Allows you to delete access from a folder and apply to the subfolders or not: `
+
+- `scopeAccesses`
+- `applyToSubScopes`
+
+The update can be done by referencing the folder by id or by path. If none of them are provided. the API will return an error. If both of them are provided, the scope id will take precedence.
+
+
+Example of deleting the access from a folder and its subfolders using the id.
+
+```python
+unique_sdk.Folder.remove_access(
+    user_id=user_id,
+    company_id=company_id,
+    scopeId="scope_dwekjnf3330woioppm,
+    scopeAccesses=[
+        {
+            "entityId": "group_id",
+            "type": "WRITE",
+            "entityType": "GROUP",
+        }
+    ],
+    applyToSubScopes=True,
+)
+```
+
+
+Example of deleting the access from a folder and its subfolders using the path.
+
+```python
+unique_sdk.Folder.remove_access(
+    user_id=user_id,
+    company_id=company_id,
+    folderPath="/Company/folder1/folder2"
+    scopeAccesses=[
+        {
+            "entityId": "group_id",
+            "type": "WRITE",
+            "entityType": "GROUP",
+        }
+    ],
+    applyToSubScopes=True,
+)
+```
+
 ## UniqueQL
 
 [UniqueQL](https://unique-ch.atlassian.net/wiki/x/coAXHQ) is an advanced query language designed to enhance search capabilities within various search modes such as Vector, Full-Text Search (FTS), and Combined. This query language enables users to perform detailed searches by filtering through metadata attributes like filenames, URLs, dates, and more. UniqueQL is versatile and can be translated into different query formats for various database systems, including PostgreSQL and Qdrant.
@@ -1087,7 +1092,7 @@ pdfFile = download_content(
     content_id="cont_12412",
     filename="hello.pdf",
     chat_id=None # If specified, it downloads it from the chat
-}
+)
 ```
 
 #### `unique_sdk.utils.file_io.upload_file`
@@ -1248,6 +1253,47 @@ Returns:
 ```python
 hello = "hello you!"
 searchContext = unique_sdk.utils.token.count_tokens(hello)
+```
+
+### Chat In Space
+
+#### `unique_sdk.utils.chat_in_space.send_message_and_wait_for_completion`
+
+The following script enables you to chat within a space using an assistant. You must provide an `assistantId` (e.g., `assistant_hjcdga64bkcjnhu4`) and the message `text` to initiate the conversation. You can send the message in an existing chat by specifying a `chat_id`, or omit the `chat_id` to automatically create a new chat session. Check the optional parameteres list for more configs.
+
+The script sends a prompt asynchronously and continuously polls for completion, which is determined when the `stoppedStreamingAt` field of the message becomes non-null.
+
+**Optional parameters:**
+- `tool_choices`: A list of tool names to be used for the message (e.g., `["WebSearch"]`). If not provided, no tools will be used.
+- `scope_rules`: A dictionary specifying scope rules for the message, allowing you to restrict the context or data sources available to the assistant.
+- `chat_id`: The ID of the chat where the message should be sent. If omitted, a new chat will be created.
+- `poll_interval`: The number of seconds to wait between polling attempts (default: `1` second).
+- `max_wait`: The maximum number of seconds to wait for the message to complete (default: `60` seconds).
+
+The script ensures you can flexibly interact with spaces in new or ongoing chats, with fine-grained control over tools, context, and polling behavior.
+
+```python
+latest_message = unique_sdk.utils.send_message_and_wait_for_completion(
+        user_id=user_id,
+        company_id=company_id,
+        assistant_id=assistant_id,
+        text="Tell me a short story.",
+        chat_id=chat_id, # Optional - if no chat id is specified, a new chat will be created
+        tool_choices=["WebSearch"],
+        scope_rules={
+            "or": [
+                {
+                    "operator": "in",
+                    "path": [
+                        "contentId"
+                    ],
+                    "value": [
+                        "cont_u888z7cazxxm4lugfdjq7pks"
+                    ]
+                }
+            ]
+        },
+    )
 ```
 
 ## Error Handling

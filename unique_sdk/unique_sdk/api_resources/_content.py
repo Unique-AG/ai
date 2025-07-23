@@ -173,6 +173,7 @@ class Content(APIResource["Content"]):
         ingestionConfiguration: "Content.MagicTableSheetIngestionConfiguration"
         metadata: Dict[str, Optional[str]]
         scopeId: str
+        sheetName: str
 
     class MagicTableSheetRowIdToContentId(TypedDict):
         rowId: str
