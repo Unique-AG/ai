@@ -14,7 +14,6 @@ The Unique Python SDK provides access to the public API of Unique FinanceGPT. It
    - [Content](#content)
    - [Message](#message)
    - [Chat Completion](#chat-completion)
-   - [Responses](#responses)
    - [Embeddings](#embeddings)
    - [Acronyms](#acronyms)
    - [Search](#search)
@@ -639,25 +638,6 @@ chat_completion = unique_sdk.ChatCompletion.create(
     options={
             "temperature": 0.5
         } # optional
-)
-```
-
-### Responses
-
-#### `unique_sdk.Responses.create`
-
-Send a prompt to an AI model supported by Unique FinanceGPT and receive a result. The `input` attribute should be a string and the reasoning attributes accepts the values as detailed below.
-
-```python
-responses = unique_sdk.Responses.create(
-    company_id=company_id,
-    user_id=user_id,
-    input="Tell me about the curious case of neural text degeneration",
-    model="AZURE_o4_MINI_2025_0416",
-    reasoning={
-        "effort": "medium",          # effort level: low | medium | high
-        "summary": "detailed"        # summary type: auto | concise | detailed
-    }
 )
 ```
 

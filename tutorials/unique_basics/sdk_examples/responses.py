@@ -1,6 +1,6 @@
 """Responses API
 
-The following tutorial shows how to use Responses API.
+The following tutorial shows how to use Responses API to stream in a chat.
 """
 
 import logging
@@ -16,7 +16,7 @@ logger = getLogger(__name__)
 
 def main():
     """
-    Example of using the Responses API.
+    Example of using the Responses API to stream in a chat.
     """
     import unique_sdk
 
