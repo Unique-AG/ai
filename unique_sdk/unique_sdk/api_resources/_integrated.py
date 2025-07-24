@@ -52,24 +52,46 @@ class Integrated(APIResource["Integrated"]):
         startText: NotRequired["str"]
         debugInfo: NotRequired[Dict[str, Any]]
 
+    # For further details about the responses parameters, see the OpenAI API documentation.
     class CreateStreamResponseParams(TypedDict):
-        debugInfo: NotRequired[Dict[str, Any]]
+        debugInfo: Optional[Dict[str, Any]] = None
         input: Any
-        model: Literal[
-            "AZURE_o4_MINI_2025_0416",
-            "AZURE_o3_2025_0416",
-        ]
-        searchContext: NotRequired[List["Integrated.SearchResult"]]
+        model: str
+        searchContext: Optional[List["Integrated.SearchResult"]] = None
+        chatId: str
+        assistantMessageId: str
+        userMessageId: str
+        startText: str | None = None
+        include: Optional[
+            list[
+                Literal[
+                    "computer_call_output.output.image_url",
+                    "file_search_call.results",
+                    "message.input_image.image_url",
+                    "reasoning.encrypted_content",
+                ]
+            ]
+        ] = None
+        instructions: str | None = None
+        max_output_tokens: int | None = None
+        metadata: Optional[Dict[str, str]] = None
+        parallel_tool_calls: float | None = None
+        temperature: float | None = None
+        text: Any
+        tool_choice: Any
+        tools: Any
+        top_p: float | None = None
+        reasoning: Any
 
-    class Responses(TypedDict):
+    class ToolCall(TypedDict):
         id: str
-        outputText: str
-        model: Literal[
-            "AZURE_o4_MINI_2025_0416",
-            "AZURE_o3_2025_0416",
-        ]
-        output: List[Any]  # define ResponsesOutputItem type
-        reasoning: None | Any = None  # define Reasoning type
+        name: str | None = None
+        arguments: str | None = None
+
+    class ResponsesStreamResult(TypedDict):
+        id: str
+        message: Message
+        toolCalls: List["Integrated.ToolCall"]
 
     @classmethod
     def chat_stream_completion(
@@ -125,7 +147,7 @@ class Integrated(APIResource["Integrated"]):
         user_id: str,
         company_id: str,
         **params: Unpack["Integrated.CreateStreamResponseParams"],
-    ) -> "Integrated.Responses":
+    ) -> "Integrated.ResponsesStreamResult":
         """
         Executes a call to the language model and streams to the chat in real-time.
         It automatically inserts references that are mentioned by the model.
@@ -148,7 +170,7 @@ class Integrated(APIResource["Integrated"]):
         user_id: str,
         company_id: str,
         **params: Unpack["Integrated.CreateStreamResponseParams"],
-    ) -> "Integrated.Responses":
+    ) -> "Integrated.ResponsesStreamResult":
         """
         Executes a call to the language model and streams to the chat in real-time.
         It automatically inserts references that are mentioned by the model.
