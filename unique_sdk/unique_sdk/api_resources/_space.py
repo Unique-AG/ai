@@ -155,7 +155,7 @@ class Space(APIResource["Space"]):
         """
         cls._static_request(
             "delete",
-            f"/space/{chat_id}",
+            f"/space/chat/{chat_id}",
             user_id,
             company_id,
         )
@@ -172,7 +172,7 @@ class Space(APIResource["Space"]):
         """
         await cls._static_request_async(
             "delete",
-            f"/space/{chat_id}",
+            f"/space/chat/{chat_id}",
             user_id,
             company_id,
         )
