@@ -1,5 +1,7 @@
 import os
+
 import unique_sdk
+
 
 def get_env(var_name, default=None, strict=False):
     """Get the environment variable.

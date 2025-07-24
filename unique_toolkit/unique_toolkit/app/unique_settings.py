@@ -1,10 +1,8 @@
-# %%
-
 from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 config_dict = SettingsConfigDict(
-    env_file=Path(__file__).parent.parent / ".env",
     env_file_encoding="utf-8",
     extra="ignore",
 )

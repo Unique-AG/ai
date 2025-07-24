@@ -1,13 +1,15 @@
-from unique_toolkit.app.unique_settings import UniqueSettings
-from sseclient import SSEClient
 from logging import getLogger
 
+from sseclient import SSEClient
 
+from unique_toolkit.app.unique_settings import UniqueSettings
 
 LOGGER = getLogger(__name__)
 
+
 def get_sse_client(
-    unique_settings: UniqueSettings, subscriptions: list[str]
+    unique_settings: UniqueSettings,
+    subscriptions: list[str],
 ) -> SSEClient:
     url = f"{unique_settings.app.base_url}/public/event-socket/events/stream?subscriptions={','.join(subscriptions)}"
     headers = {
@@ -18,4 +20,3 @@ def get_sse_client(
     LOGGER.info(f"SSEheaders: {headers}")
     LOGGER.info(f"SSE Url: {url}")
     return SSEClient(url=url, headers=headers)
-
