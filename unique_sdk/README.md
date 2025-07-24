@@ -21,6 +21,7 @@ The Unique Python SDK provides access to the public API of Unique FinanceGPT. It
    - [Short Term Memory](#short-term-memory)
    - [Message Assessment](#message-assessment)
    - [Folder](#folder)
+   - [Space](#space)
 6. [UniqueQL](#uniqueql)
    - [Query Structure](#uniqueql-query-structure)
    - [Metadata Filtering](#metadata-filtering)
@@ -235,6 +236,7 @@ unique_sdk.Message.modify(
 - [Short Term Memory](#short-term-memory)
 - [Message Assessment](#message-assessment)
 - [Folder](#folder)
+- [Space](#space)
 
 Most of the API services provide an asynchronous version of the method. The async methods are suffixed with `_async`.
 
@@ -931,6 +933,20 @@ unique_sdk.Folder.remove_access(
         }
     ],
     applyToSubScopes=True,
+)
+```
+
+### Space
+
+#### `unique_sdk.Space.delete_chat`
+
+Delete a space chat by id. If the chat does not exist, the function will return an error.
+
+```python
+unique_sdk.Space.delete_chat(
+    user_id=user_id,
+    company_id=company_id,
+    chat_id="chat_dejfhe729br398",
 )
 ```
 
