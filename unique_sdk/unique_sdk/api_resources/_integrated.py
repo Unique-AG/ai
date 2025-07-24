@@ -52,6 +52,47 @@ class Integrated(APIResource["Integrated"]):
         startText: NotRequired["str"]
         debugInfo: NotRequired[Dict[str, Any]]
 
+    # For further details about the responses parameters, see the OpenAI API documentation.
+    class CreateStreamResponseParams(TypedDict):
+        debugInfo: Optional[Dict[str, Any]] = None
+        input: Any
+        model: str
+        searchContext: Optional[List["Integrated.SearchResult"]] = None
+        chatId: str
+        assistantMessageId: str
+        userMessageId: str
+        startText: str | None = None
+        include: Optional[
+            list[
+                Literal[
+                    "computer_call_output.output.image_url",
+                    "file_search_call.results",
+                    "message.input_image.image_url",
+                    "reasoning.encrypted_content",
+                ]
+            ]
+        ] = None
+        instructions: str | None = None
+        max_output_tokens: int | None = None
+        metadata: Optional[Dict[str, str]] = None
+        parallel_tool_calls: float | None = None
+        temperature: float | None = None
+        text: Any
+        tool_choice: Any
+        tools: Any
+        top_p: float | None = None
+        reasoning: Any
+
+    class ToolCall(TypedDict):
+        id: str
+        name: str | None = None
+        arguments: str | None = None
+
+    class ResponsesStreamResult(TypedDict):
+        id: str
+        message: Message
+        toolCalls: List["Integrated.ToolCall"]
+
     @classmethod
     def chat_stream_completion(
         cls,
@@ -94,6 +135,52 @@ class Integrated(APIResource["Integrated"]):
             await cls._static_request_async(
                 "post",
                 url,
+                user_id,
+                company_id,
+                params,
+            ),
+        )
+
+    @classmethod
+    def responses_stream(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Integrated.CreateStreamResponseParams"],
+    ) -> "Integrated.ResponsesStreamResult":
+        """
+        Executes a call to the language model and streams to the chat in real-time.
+        It automatically inserts references that are mentioned by the model.
+        In the form of [sourceX]. The reference documents must be given as a list in searchContext.
+        """
+        return cast(
+            "Integrated.Responses",
+            cls._static_request(
+                "post",
+                "/integrated/chat/stream-responses",
+                user_id,
+                company_id,
+                params,
+            ),
+        )
+
+    @classmethod
+    async def responses_stream_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Integrated.CreateStreamResponseParams"],
+    ) -> "Integrated.ResponsesStreamResult":
+        """
+        Executes a call to the language model and streams to the chat in real-time.
+        It automatically inserts references that are mentioned by the model.
+        In the form of [sourceX]. The reference documents must be given as a list in searchContext.
+        """
+        return cast(
+            "Integrated.Responses",
+            cls._static_request(
+                "post",
+                "/integrated/chat/stream-responses",
                 user_id,
                 company_id,
                 params,
