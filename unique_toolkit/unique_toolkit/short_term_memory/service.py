@@ -41,9 +41,9 @@ class ShortTermMemoryService:
                 self._message_id = event.payload.user_message.id
         else:
             [company_id, user_id] = validate_required_values([company_id, user_id])
-            assert chat_id or message_id, (
-                "Either chat_id or message_id must be provided"
-            )
+
+            if not (chat_id or message_id):
+                raise ValueError("Chat_id or message_id must be provided")
 
             self._company_id: str = company_id
             self._user_id: str = user_id

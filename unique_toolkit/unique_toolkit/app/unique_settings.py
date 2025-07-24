@@ -26,6 +26,3 @@ class UniqueAuth(BaseSettings):
 class UniqueSettings:
     app: UniqueApp = UniqueApp()
     auth: UniqueAuth = UniqueAuth()
-
-
-# %%
