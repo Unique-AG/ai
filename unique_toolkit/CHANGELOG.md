@@ -5,9 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.7.36] - 2025-07-24
-- Add utilities for SSE client and secrets
-- Helper function to convert unique history to langchain history
+## [0.7.36] - 2025-07-25
+- Fix issues with settings
+- Add testing to unique settings
 
 ## [0.7.35] - 2025-07-23
 - Bump version of SDK to have access to the latest features and fixes
