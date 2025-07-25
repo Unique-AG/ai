@@ -17,6 +17,4 @@ def get_sse_client(
         "x-app-id": unique_settings.app.id,
         "x-company-id": unique_settings.auth.company_id,
     }
-    LOGGER.info(f"SSEheaders: {headers}")
-    LOGGER.info(f"SSE Url: {url}")
     return SSEClient(url=url, headers=headers)

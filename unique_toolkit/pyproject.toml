@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_toolkit"
-version = "0.7.36"
+version = "0.7.37"
 description = ""
 authors = [
     "Martin Fadler <martin.fadler@unique.ch>",
@@ -22,6 +22,7 @@ regex = "^2024.5.15"
 tiktoken = "^0.7.0"
 unique-sdk = "^0.9.40"
 pydantic-settings = "^2.10.1"
+sseclient = "^0.0.27"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "0.11.7"
