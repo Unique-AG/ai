@@ -88,6 +88,21 @@ class Tool(ABC, Generic[ConfigType]):
 
     def example_use_cases(self) -> List[str]:
         return []
+    
+    def is_exclusive(self) -> bool:
+        return self.settings.is_exclusive
+    
+    def is_enabled(self) -> bool:
+        return self.settings.is_enabled
+    
+    def display_name(self) -> str:
+        return self.settings.display_name
+    
+    def icon(self) -> str:
+        return self.settings.icon
+    
+    def tool_selection_policy(self) -> ToolSelectionPolicy:
+        return self.settings.selection_policy
 
 
 
