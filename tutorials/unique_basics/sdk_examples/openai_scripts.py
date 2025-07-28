@@ -51,8 +51,6 @@ def get_client_and_headers():
         "x-model": model,
         "Authorization": f"Bearer {api_key}",
     }
-    print(api_base)
-    print(extra_headers)
     return client, extra_headers, model
 
 

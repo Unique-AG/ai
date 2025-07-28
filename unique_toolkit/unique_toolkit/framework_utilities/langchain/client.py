@@ -13,8 +13,7 @@ class LangchainNotInstalledError(ImportError):
 
     def __init__(self):
         super().__init__(
-            "langchain-openai package is not installed. Install it with 'poetry install --with langchain' "
-            "or 'pip install langchain-openai'"
+            "langchain-openai package is not installed. Install it with 'poetry install --with langchain'."
         )
 
 

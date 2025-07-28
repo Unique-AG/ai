@@ -1,9 +1,12 @@
+# This tutorial shows how to get access to the open ai client through the unique
+# plattform and how to use the assistant endpoint
+
 # %%
 from pathlib import Path
 
 from unique_toolkit.framework_utilities.openai.client import get_openai_client
 
-env_file = Path(__file__).parent.parent / ".env"
+env_file = Path(__file__).parent.parent.parent / ".env"
 client = get_openai_client(env_file=env_file)
 model = "AZURE_GPT_4o_2024_0806"
 

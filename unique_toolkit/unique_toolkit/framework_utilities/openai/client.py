@@ -13,8 +13,7 @@ class OpenAINotInstalledError(ImportError):
 
     def __init__(self):
         super().__init__(
-            "OpenAI package is not installed. Install it with 'poetry install --with openai' "
-            "or 'pip install openai'"
+            "OpenAI package is not installed. Install it with 'poetry install --with openai'."
         )
 
 

@@ -1,4 +1,8 @@
+# This tutorial shows how to get access to the open ai client through the unique
+# plattform and how to use the chat completions endpoint
+
 # %%
+# Setup
 from pathlib import Path
 
 from openai.types.chat.chat_completion_tool_param import ChatCompletionToolParam
@@ -10,7 +14,7 @@ from unique_toolkit.framework_utilities.openai.message_builder import (
     OpenAIMessageBuilder,
 )
 
-env_file = Path(__file__).parent.parent / ".env"
+env_file = Path(__file__).parent.parent.parent / ".env"
 
 client = get_openai_client(env_file=env_file)
 model = "AZURE_GPT_4o_2024_0806"
@@ -23,8 +27,7 @@ messages = (
 ).messages
 
 # %%
-# Completion
-# Make a request to the wildcard endpoint
+# Simple Completion
 
 response = client.chat.completions.create(
     messages=messages,
@@ -35,7 +38,6 @@ for stuff in response:
     print(stuff)
 
 # %%
-
 # Structured Output
 
 
@@ -53,8 +55,6 @@ completion = client.beta.chat.completions.parse(
 completion.choices[0].message.content
 
 # %%
-
-
 ## Function calling
 weather_tool_description = ChatCompletionToolParam(
     function=FunctionDefinition(
@@ -85,8 +85,6 @@ completion = client.chat.completions.create(
 )
 
 # %%
-
-
 # Developer Message and logprops
 completion = client.chat.completions.create(
     model=model,
@@ -102,6 +100,7 @@ print(completion.choices[0].message.content)
 
 
 # %%
+# Using Logprobs
 completion = client.chat.completions.create(
     model=model,
     messages=[
@@ -112,5 +111,3 @@ completion = client.chat.completions.create(
 )
 
 print(completion.choices[0].message.content)
-
-# %%
