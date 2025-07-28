@@ -25,19 +25,22 @@ logger = logging.getLogger(__name__)
 
 def get_client_and_headers():
     # Set up SDK configuration
-    api_key = os.getenv("API_KEY")
-    app_id = os.getenv("APP_ID")
-    # The API base URL should point to your Unique API proxy and should look like:
-    # {your_base_url}/openai-proxy/
-    # For example: https://gateway.us.unique.app/public/openai-proxy/
-    api_base = os.getenv("API_BASE", "http://localhost:8092/public/openai-proxy/")
+    model = "AZURE_o3_2025_0416"
+
+    ## The API base URL should point to your Unique API proxy and should look like:
+    ## {your_base_url}/openai-proxy/
+    ## For example: https://gateway.us.unique.app/public/openai-proxy/
+    api_base = os.getenv("API_BASE", "http://localhost:8092/public/")
+
     company_id = os.getenv("COMPANY_ID")
     user_id = os.getenv("USER_ID")
     model = os.getenv("MODEL")
+    app_id = os.getenv("APP_ID")
+    api_key = os.getenv("API_KEY")
 
     client = OpenAI(
         api_key="dummy",  # Using a dummy key since we're using custom auth
-        base_url=api_base,
+        base_url=api_base + "/openai-proxy/",
     )
 
     extra_headers = {
@@ -48,6 +51,8 @@ def get_client_and_headers():
         "x-model": model,
         "Authorization": f"Bearer {api_key}",
     }
+    print(api_base)
+    print(extra_headers)
     return client, extra_headers, model
 
 
@@ -126,6 +131,7 @@ def run_assistants():
 def run_responses():
     client, extra_headers, model = get_client_and_headers()
     logger.info("Running responses flow...")
+    logger.info(extra_headers)
     try:
         response = client.responses.create(
             extra_headers=extra_headers,
@@ -139,6 +145,9 @@ def run_responses():
 
 
 def main():
+    from dotenv import load_dotenv
+
+    load_dotenv("./.env")
     if len(sys.argv) < 2:
         logger.error("Please provide a flow to run: chat, assistant, or response")
         sys.exit(1)

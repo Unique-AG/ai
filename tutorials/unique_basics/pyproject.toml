@@ -14,8 +14,7 @@ packages = [
 [tool.poetry.dependencies]
 python = "^3.11"
 python-dotenv = "^1.0.1"
-unique-sdk = {path = "../../unique_sdk"}
-unique-toolkit = {path = "../../unique_toolkit"}
+unique-toolkit = "^0.7.38"
 
 
 pydantic-settings = "^2.8.1"
@@ -24,6 +23,8 @@ dotenv = "^0.9.9"
 httpx = "^0.28.1"
 ipykernel = "^6.29.5"
 openai = "^1.97.0"
+langchain = "^0.3.26"
+langchain-openai = "^0.3.28"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.5.3"
