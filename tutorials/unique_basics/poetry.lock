@@ -2150,24 +2150,29 @@ name = "unique-toolkit"
 version = "0.7.38"
 description = ""
 optional = false
-python-versions = "<4.0,>=3.11"
+python-versions = "^3.11"
 groups = ["main"]
-files = [
-    {file = "unique_toolkit-0.7.38-py3-none-any.whl", hash = "sha256:e0becce137eb019284f08bdb1aa0b8421d1a87e5bf41146e3865ab599ef0d5b8"},
-    {file = "unique_toolkit-0.7.38.tar.gz", hash = "sha256:a54f1adef214debf91c6e1ccf79b0d9e20e4e080d84b5c1f2d65562456b989c4"},
-]
+files = []
+develop = false
 
 [package.dependencies]
-numpy = ">=1.26.4,<2.0.0"
-pydantic = ">=2.8.2,<3.0.0"
-pydantic-settings = ">=2.10.1,<3.0.0"
-pyhumps = ">=3.8.0,<4.0.0"
-python-dotenv = ">=1.0.1,<2.0.0"
-regex = ">=2024.5.15,<2025.0.0"
-sseclient = ">=0.0.27,<0.0.28"
-tiktoken = ">=0.7.0,<0.8.0"
-typing-extensions = ">=4.9.0,<5.0.0"
-unique-sdk = ">=0.9.40,<0.10.0"
+numpy = "^1.26.4"
+pydantic = "^2.8.2"
+pydantic-settings = "^2.10.1"
+pyhumps = "^3.8.0"
+python-dotenv = "^1.0.1"
+regex = "^2024.5.15"
+sseclient = "^0.0.27"
+tiktoken = "^0.7.0"
+typing-extensions = "^4.9.0"
+unique-sdk = "^0.9.40"
+
+[package.source]
+type = "git"
+url = "https://github.com/Unique-AG/ai/"
+reference = "84702ff7ab207814156b7b7185fb93dc0443fc47"
+resolved_reference = "84702ff7ab207814156b7b7185fb93dc0443fc47"
+subdirectory = "unique_toolkit"
 
 [[package]]
 name = "urllib3"
@@ -2315,4 +2320,4 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.11"
-content-hash = "0e9633142272c1ad5c0f44aa9f843f008023636c7b7bae26b79b2b1cda8aeda4"
+content-hash = "963e0687677b5e299c83a1b353b6b3ef7e03225742faf9ad53dd2667de6711e3"

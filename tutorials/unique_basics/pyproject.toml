@@ -14,8 +14,8 @@ packages = [
 [tool.poetry.dependencies]
 python = "^3.11"
 python-dotenv = "^1.0.1"
-unique-toolkit = "^0.7.38"
-
+unique-toolkit = "^0.7.39"
+#unique-toolkit = {git = "https://github.com/Unique-AG/ai/", rev = "84702ff7ab207814156b7b7185fb93dc0443fc47", subdirectory="unique_toolkit"} 
 
 pydantic-settings = "^2.8.1"
 aiolimiter = "^1.2.1"
