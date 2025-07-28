@@ -1,5 +1,14 @@
 from enum import Enum
-from typing import ClassVar, List, Literal, Optional, TypedDict, Unpack, cast
+from typing import (
+    ClassVar,
+    List,
+    Literal,
+    NotRequired,
+    Optional,
+    TypedDict,
+    Unpack,
+    cast,
+)
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
@@ -139,9 +148,9 @@ class Folder(APIResource["Folder"]):
         Parameters for getting multiple paginated folders by their parent Id.
         """
 
-        parentId: str | None = None
-        take: int | None = None
-        skip: int | None = None
+        parentId: NotRequired[str]
+        take: NotRequired[int]
+        skip: NotRequired[int]
 
     @classmethod
     def get_info(

@@ -72,8 +72,8 @@ class Content(APIResource["Content"]):
         """
 
         metadataFilter: dict
-        skip: int | None
-        take: int | None
+        skip: NotRequired[int]
+        take: NotRequired[int]
 
     class CustomApiOptions(TypedDict):
         apiIdentifier: str
