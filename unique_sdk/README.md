@@ -767,7 +767,7 @@ assessment = unique_sdk.MessageAssessment.modify(
 
 ### Folder
 
-#### `unique_sdk.Folder.get`
+#### `unique_sdk.Folder.get_info`
 
 Get a folder by scope id or by path.
 
@@ -788,6 +788,20 @@ unique_sdk.Folder.get_info(
    user_id=user_id,
    company_id=company_id,
    folderPath="/Company/Atlas/Due Dilligence/Arch,
+)
+```
+
+#### `unique_sdl.Folder.get_infos`
+
+Get paginated folders info based on parentId. If the parentId is not defined, the root folders will be returned.
+
+```python
+unique_sdk.Folder.get_infos(
+    user_id=user_id,
+    company_id=company_id,
+    take=10,                                    #optional
+    skip=5,                                     #optional
+    parentId="scope_s18seqpnltf35niydg77xgyp"   #optional
 )
 ```
 
