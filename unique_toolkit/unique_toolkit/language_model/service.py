@@ -6,6 +6,7 @@ from typing_extensions import deprecated
 
 from unique_toolkit._common.validate_required_values import validate_required_values
 from unique_toolkit.app.schemas import BaseEvent, ChatEvent, Event
+from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.language_model.constants import (
     DEFAULT_COMPLETE_TEMPERATURE,
@@ -88,6 +89,16 @@ class LanguageModelService:
         Initialize the LanguageModelService with an event.
         """
         return cls(company_id=event.company_id, user_id=event.user_id)
+
+    @classmethod
+    def from_settings(cls, settings: UniqueSettings):
+        """
+        Initialize the LanguageModelService with a settings object.
+        """
+        return cls(
+            company_id=settings.auth.company_id.get_secret_value(),
+            user_id=settings.auth.user_id.get_secret_value(),
+        )
 
     @property
     @deprecated(

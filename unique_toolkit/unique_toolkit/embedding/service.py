@@ -5,6 +5,7 @@ from typing_extensions import deprecated
 from unique_toolkit._common._base_service import BaseService
 from unique_toolkit._common.validate_required_values import validate_required_values
 from unique_toolkit.app.schemas import BaseEvent, Event
+from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.embedding.constants import DEFAULT_TIMEOUT
 from unique_toolkit.embedding.functions import embed_texts, embed_texts_async
 from unique_toolkit.embedding.schemas import Embeddings
@@ -53,6 +54,16 @@ class EmbeddingService(BaseService):
         Initialize the EmbeddingService with an event.
         """
         return cls(company_id=event.company_id, user_id=event.user_id)
+
+    @classmethod
+    def from_settings(cls, settings: UniqueSettings):
+        """
+        Initialize the EmbeddingService with a settings object.
+        """
+        return cls(
+            company_id=settings.auth.company_id.get_secret_value(),
+            user_id=settings.auth.user_id.get_secret_value(),
+        )
 
     @property
     @deprecated(
