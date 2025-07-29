@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Any, overload
 
 import unique_sdk
 from requests import Response
@@ -35,13 +35,29 @@ logger = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
 class ContentService:
     """
     Provides methods for searching, downloading and uploading content in the knowledge base.
+    """
 
-    Attributes:
-        event: BaseEvent | Event, this can be None ONLY if company_id and user_id are provided.
-        company_id (str): The company ID.
-        user_id (str): The user ID.
-        chat_id (str): The chat ID. Defaults to None
-        metadata_filter (dict | None): is only initialised from an Event(Deprecated) or ChatEvent.
+    @deprecated(
+        "Use __init__ with company_id, user_id and chat_id instead or use the classmethod `from_event`"
+    )
+    @overload
+    def __init__(self, event: Event | ChatEvent | BaseEvent): ...
+
+    """
+        Initialize the ContentService with an event (deprecated)
+    """
+
+    @overload
+    def __init__(
+        self,
+        *,
+        company_id: str,
+        user_id: str,
+        metadata_filter: dict | None = None,
+    ): ...
+
+    """
+        Initialize the ContentService with a company_id, user_id and chat_id and metadata_filter.
     """
 
     def __init__(
@@ -50,7 +66,12 @@ class ContentService:
         company_id: str | None = None,
         user_id: str | None = None,
         chat_id: str | None = None,
+        metadata_filter: dict | None = None,
     ):
+        """
+        Initialize the ContentService with a company_id, user_id and chat_id.
+        """
+
         self._event = event  # Changed to protected attribute
         self._metadata_filter = None
         if event:
@@ -64,6 +85,27 @@ class ContentService:
             self._company_id: str = company_id
             self._user_id: str = user_id
             self._chat_id: str | None = chat_id
+            self._metadata_filter = metadata_filter
+
+    @classmethod
+    def from_event(cls, event: Event | ChatEvent | BaseEvent):
+        """
+        Initialize the ContentService with an event.
+        """
+
+        if isinstance(event, (ChatEvent | Event)):
+            chat_id = event.payload.chat_id
+            metadata_filter = event.payload.metadata_filter
+        else:
+            chat_id = None
+            metadata_filter = None
+
+        return cls(
+            company_id=event.company_id,
+            user_id=event.user_id,
+            chat_id=chat_id,
+            metadata_filter=metadata_filter,
+        )
 
     @property
     @deprecated(
