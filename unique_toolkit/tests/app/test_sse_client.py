@@ -4,7 +4,12 @@ import pytest
 from pydantic import SecretStr
 
 from unique_toolkit.app.sse_client import get_sse_client
-from unique_toolkit.app.unique_settings import UniqueApp, UniqueAuth, UniqueSettings
+from unique_toolkit.app.unique_settings import (
+    UniqueApi,
+    UniqueApp,
+    UniqueAuth,
+    UniqueSettings,
+)
 
 
 @pytest.fixture
@@ -22,7 +27,12 @@ def unique_settings():
         user_id=SecretStr("test-user-id"),
     )
 
-    return UniqueSettings(auth=auth, app=app)
+    api = UniqueApi(
+        base_url="https://api.example.com",
+        version="2023-12-06",
+    )
+
+    return UniqueSettings(auth=auth, app=app, api=api)
 
 
 @patch("unique_toolkit.app.sse_client.SSEClient")

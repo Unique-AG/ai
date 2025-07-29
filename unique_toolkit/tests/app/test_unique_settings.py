@@ -3,7 +3,12 @@ from pathlib import Path
 import pytest
 from pydantic import SecretStr
 
-from unique_toolkit.app.unique_settings import UniqueApp, UniqueAuth, UniqueSettings
+from unique_toolkit.app.unique_settings import (
+    UniqueApi,
+    UniqueApp,
+    UniqueAuth,
+    UniqueSettings,
+)
 
 
 @pytest.fixture
@@ -24,8 +29,18 @@ def valid_app():
     )
 
 
-def test_direct_initialization(valid_auth: UniqueAuth, valid_app: UniqueApp):
-    settings = UniqueSettings(auth=valid_auth, app=valid_app)
+@pytest.fixture
+def valid_api():
+    return UniqueApi(
+        base_url="https://api.example.com",
+        version="2023-12-06",
+    )
+
+
+def test_direct_initialization(
+    valid_auth: UniqueAuth, valid_app: UniqueApp, valid_api: UniqueApi
+):
+    settings = UniqueSettings(auth=valid_auth, app=valid_app, api=valid_api)
 
     assert settings.auth == valid_auth
     assert settings.app == valid_app
@@ -64,9 +79,10 @@ UNIQUE_AUTH_COMPANY_ID=file-company
 UNIQUE_AUTH_USER_ID=file-user
 UNIQUE_APP_ID=file-id
 UNIQUE_APP_KEY=file-key
-UNIQUE_APP_BASE_URL=https://api.file-example.com
 UNIQUE_APP_ENDPOINT=/v1/file-endpoint
 UNIQUE_APP_ENDPOINT_SECRET=file-endpoint-secret
+UNIQUE_API_BASE_URL=https://api.file-example.com
+UNIQUE_API_VERSION=2023-12-06
 """
     env_file.write_text(env_content)
 
@@ -75,7 +91,8 @@ UNIQUE_APP_ENDPOINT_SECRET=file-endpoint-secret
     assert settings.auth.company_id.get_secret_value() == "file-company"
     assert settings.auth.user_id.get_secret_value() == "file-user"
     assert settings.app.id.get_secret_value() == "file-id"
-    assert settings.app.base_url == "https://api.file-example.com"
+    assert settings.api.base_url == "https://api.file-example.com"
+    assert settings.api.version == "2023-12-06"
 
 
 def test_missing_required_env_vars(monkeypatch):

@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Optional, Type
+from typing import Any, Optional, Type, overload
 
 from pydantic import BaseModel
 from typing_extensions import deprecated
@@ -33,36 +33,61 @@ logger = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
 class LanguageModelService:
     """
     Provides methods to interact with the Language Model by generating responses.
+    """
 
-    Args:
-        company_id (str | None, optional): The company identifier. Defaults to None.
-        user_id (str | None, optional): The user identifier. Defaults to None.
-        chat_id (str | None, optional): The chat identifier. Defaults to None.
-        assistant_id (str | None, optional): The assistant identifier. Defaults to None.
+    @deprecated(
+        "Use __init__ with company_id and user_id instead or use the classmethod `from_event`"
+    )
+    @overload
+    def __init__(self, event: Event | ChatEvent | BaseEvent): ...
+
+    """
+        Initialize the LanguageModelService with an event (deprecated)
+    """
+
+    @overload
+    def __init__(self, *, company_id: str, user_id: str): ...
+
+    """
+        Initialize the LanguageModelService with a company_id and user_id.
     """
 
     def __init__(
         self,
-        event: Event | BaseEvent | None = None,
+        event: Event | ChatEvent | BaseEvent | None = None,
         company_id: str | None = None,
         user_id: str | None = None,
-        chat_id: str | None = None,
-        assistant_id: str | None = None,
+        **kwargs: dict[str, Any],  # only here for backward compatibility
     ):
-        self._event = event
-        self._chat_id: str | None = chat_id
-        self._assistant_id: str | None = assistant_id
-
-        if event:
+        if isinstance(event, (ChatEvent, Event)):
+            self._event = event
+            self._chat_id: str | None = event.payload.chat_id
+            self._assistant_id: str | None = event.payload.assistant_id
             self._company_id = event.company_id
             self._user_id = event.user_id
             if isinstance(event, (ChatEvent, Event)):
                 self._chat_id = event.payload.chat_id
                 self._assistant_id = event.payload.assistant_id
+        elif isinstance(event, BaseEvent):
+            self._event = event
+            self._company_id = event.company_id
+            self._user_id = event.user_id
+            self._chat_id: str | None = None
+            self._assistant_id: str | None = None
         else:
             [company_id, user_id] = validate_required_values([company_id, user_id])
+            self._event = None
             self._company_id: str = company_id
             self._user_id: str = user_id
+            self._chat_id: str | None = None
+            self._assistant_id: str | None = None
+
+    @classmethod
+    def from_event(cls, event: Event | BaseEvent):
+        """
+        Initialize the LanguageModelService with an event.
+        """
+        return cls(company_id=event.company_id, user_id=event.user_id)
 
     @property
     @deprecated(
