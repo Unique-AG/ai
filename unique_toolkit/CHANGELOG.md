@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.39] - 2025-07-28
+- Implement utitilites to work with openai client
+- Implement utitilites to work with langchain llm 
+
 ## [0.7.38] - 2025-07-25
 - Fix issues with secret strings in settings
 
