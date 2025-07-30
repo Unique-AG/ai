@@ -6,6 +6,7 @@ from sseclient import Event as SSEEvent
 from sseclient import SSEClient
 
 from unique_toolkit.app import BaseEvent, ChatEvent, EventName
+from unique_toolkit.app.init_sdk import init_unique_sdk
 from unique_toolkit.app.unique_settings import UniqueSettings
 
 LOGGER = getLogger(__name__)
@@ -100,6 +101,7 @@ def run_demo_with_sse_client(
         event_type: The type of event to use for the SSE client
     """
     subscription = event_type.value
+    init_unique_sdk(unique_settings=unique_settings)
     sse_client = get_sse_client(unique_settings, [subscription])
     for event in sse_client:
         execute_event_handler(handler, event, event_type)
