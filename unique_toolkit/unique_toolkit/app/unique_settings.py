@@ -10,7 +10,7 @@ logger = getLogger(__name__)
 class BaseSettingsWithWarnings(BaseSettings):
     def __init__(self, **values):
         super().__init__(**values)
-        for field_name, model_field in BaseSettingsWithWarnings.model_fields.items():
+        for field_name, model_field in self.model_fields.items():
             if (
                 field_name not in values
                 and getattr(self, field_name) == model_field.default

@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 import pytest
@@ -95,15 +96,23 @@ UNIQUE_API_VERSION=2023-12-06
     assert settings.api.version == "2023-12-06"
 
 
-def test_missing_required_env_vars(monkeypatch):
-    # Clear relevant environment variables
-    for key in ["UNIQUE_AUTH_COMPANY_ID", "UNIQUE_AUTH_USER_ID"]:
-        monkeypatch.delenv(key, raising=False)
-
-    with pytest.raises(ValueError):
-        UniqueSettings.from_env()
-
-
 def test_invalid_env_file_path():
     with pytest.raises(FileNotFoundError):
         UniqueSettings.from_env(env_file=Path("/nonexistent/.env"))
+
+
+def test_default_values_reported(caplog):
+    with caplog.at_level(logging.WARNING):
+        UniqueApp()
+        UniqueApi()
+        UniqueAuth()
+
+    assert "Using default value for 'id':" in caplog.text
+    assert "Using default value for 'key':" in caplog.text
+    assert "Using default value for 'base_url':" in caplog.text
+    assert "Using default value for 'endpoint':" in caplog.text
+    assert "Using default value for 'endpoint_secret':" in caplog.text
+    assert "Using default value for 'base_url':" in caplog.text
+    assert "Using default value for 'version':" in caplog.text
+    assert "Using default value for 'company_id':" in caplog.text
+    assert "Using default value for 'user_id':" in caplog.text
