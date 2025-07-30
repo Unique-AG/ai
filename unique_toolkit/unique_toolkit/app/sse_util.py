@@ -81,13 +81,24 @@ def run_demo_with_sse_client(
     subscription = event_type.value
     init_unique_sdk(unique_settings=unique_settings)
 
-    for sse_event in get_sse_client(unique_settings, [subscription]):
-        event = load_and_filter_event(sse_event, event_type)
+    # Check once if handler is async - don't call asyncio.run() repeatedly
+    is_async_handler = asyncio.iscoroutinefunction(handler)
 
-        if event is None:
-            continue
+    # If async handler, run everything in one event loop
+    if is_async_handler:
 
-        if asyncio.iscoroutinefunction(handler):
-            asyncio.run(handler(event))
-        else:
-            handler(event)
+        async def async_main():
+            for sse_event in get_sse_client(unique_settings, [subscription]):
+                event = load_and_filter_event(sse_event, event_type)
+                if event is not None:
+                    result = handler(event)
+                    if asyncio.iscoroutine(result):
+                        await result
+
+        asyncio.run(async_main())
+    else:
+        # For sync handlers, use the simple approach
+        for sse_event in get_sse_client(unique_settings, [subscription]):
+            event = load_and_filter_event(sse_event, event_type)
+            if event is not None:
+                handler(event)
