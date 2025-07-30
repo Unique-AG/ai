@@ -21,6 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remove `GEMINI_2_5_FLASH_PREVIEW_0417` model
 
 ## [0.7.39] - 2025-07-28
+- Implement overloads for services for clearer dev experience
+- Proper typing for SSE event handling
+- Enhanced unique settings. Expose usage of default values in logs
+- SDK Initialization from unique settings
+
+## [0.7.39] - 2025-07-28
 - Implement utitilites to work with openai client
 - Implement utitilites to work with langchain llm 
 
