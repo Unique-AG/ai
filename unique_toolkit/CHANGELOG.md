@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+## [0.8.2] - 2025-08-05
+- Implement overloads for services for clearer dev experience
+- Proper typing for SSE event handling
+- Enhanced unique settings. Expose usage of default values in logs
+- SDK Initialization from unique settings
+- Add utilities for to run llm/agent flows for devs
+
 ## [0.8.1] - 2025-08-05
 - Bump SDK version to support the latest features.
 
@@ -19,12 +27,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.7.40] - 2025-07-30
 - Remove `GEMINI_2_5_FLASH_PREVIEW_0417` model
-
-## [0.7.39] - 2025-07-28
-- Implement overloads for services for clearer dev experience
-- Proper typing for SSE event handling
-- Enhanced unique settings. Expose usage of default values in logs
-- SDK Initialization from unique settings
 
 ## [0.7.39] - 2025-07-28
 - Implement utitilites to work with openai client

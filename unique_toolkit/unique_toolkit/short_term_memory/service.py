@@ -70,6 +70,18 @@ class ShortTermMemoryService:
             self._chat_id: str | None = chat_id
             self._message_id: str | None = message_id
 
+    @classmethod
+    def from_event(cls, event: ChatEvent):
+        """
+        Initialize the ShortTermMemoryService with a chat event.
+        """
+        return cls(
+            company_id=event.company_id,
+            user_id=event.user_id,
+            chat_id=event.payload.chat_id,
+            message_id=event.payload.user_message.id,
+        )
+
     @property
     @deprecated(
         "The event property is deprecated and will be removed in a future version."

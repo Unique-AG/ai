@@ -43,12 +43,12 @@ def init_unique_sdk(
     if unique_settings:
         unique_sdk.api_key = unique_settings.app.key.get_secret_value()
         unique_sdk.app_id = unique_settings.app.id.get_secret_value()
-        unique_sdk.api_base = unique_settings.api.base_url
+        unique_sdk.api_base = unique_settings.api.sdk_url()
     elif env_file:
         unique_settings = UniqueSettings.from_env(env_file=env_file)
         unique_sdk.api_key = unique_settings.app.key.get_secret_value()
         unique_sdk.app_id = unique_settings.app.id.get_secret_value()
-        unique_sdk.api_base = unique_settings.api.base_url
+        unique_sdk.api_base = unique_settings.api.sdk_url()
 
 
 @deprecated("Use init_unique_sdk instead")

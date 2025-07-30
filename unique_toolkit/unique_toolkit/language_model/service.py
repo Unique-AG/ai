@@ -83,7 +83,7 @@ class LanguageModelService:
             self._assistant_id: str | None = None
 
     @classmethod
-    def from_event(cls, event: Event | BaseEvent):
+    def from_event(cls, event: BaseEvent):
         """
         Initialize the LanguageModelService with an event.
         """
