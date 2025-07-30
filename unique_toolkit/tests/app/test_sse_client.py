@@ -35,7 +35,7 @@ def unique_settings():
     return UniqueSettings(auth=auth, app=app, api=api)
 
 
-@patch("unique_toolkit.app.sse_client.SSEClient")
+@patch("unique_toolkit.app.sse_util.SSEClient")
 def test_get_sse_client_configuration(mock_sse_client, unique_settings):
     # Test data
     subscriptions = ["event1", "event2"]

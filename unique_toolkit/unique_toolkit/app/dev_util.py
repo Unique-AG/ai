@@ -1,10 +1,12 @@
 import asyncio
 import json
+from enum import StrEnum
 from pathlib import Path
 from typing import Awaitable, Callable, Literal, overload
 
 from unique_toolkit.app import BaseEvent, ChatEvent, EventName
 from unique_toolkit.app.init_sdk import init_unique_sdk
+from unique_toolkit.app.sse_util import run_demo_with_sse_client
 from unique_toolkit.app.unique_settings import UniqueSettings
 
 
@@ -63,3 +65,46 @@ def run_demo_with_with_saved_event(
         asyncio.run(handler(event))
     else:
         handler(event)
+
+
+class DevMode(StrEnum):
+    SSE = "sse"
+    FILE = "file"
+
+
+def run_dev(
+    process_event: Callable[[ChatEvent | BaseEvent], Awaitable[None] | None],
+    event_type: EventName,
+    unique_settings: UniqueSettings,
+    mode: DevMode = DevMode.SSE,
+    file_path: Path | None = None,
+) -> None:
+    """
+    Run a demo with an SSE client or a saved event.
+
+    Args:
+        process_event: The function to process the event
+        event_type: The type of event to process
+        unique_settings: The unique settings to use for the SSE client
+        mode: The mode to run the demo in
+        file_path: The path to the file to load the event from
+
+    Note: process event input must match with event_type.
+    """
+    match mode:
+        case DevMode.SSE:
+            run_demo_with_sse_client(
+                unique_settings=unique_settings,
+                handler=process_event,
+                event_type=event_type,
+            )
+        case DevMode.FILE:
+            if file_path is None:
+                raise ValueError("file_path is required when mode is FILE")
+
+            run_demo_with_with_saved_event(
+                unique_settings=unique_settings,
+                handler=process_event,
+                event_type=event_type,
+                file_path=file_path,
+            )
