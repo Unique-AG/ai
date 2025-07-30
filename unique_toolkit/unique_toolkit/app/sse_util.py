@@ -50,7 +50,11 @@ def load_and_filter_event(
     event: SSEEvent,
     event_type: EventName,
 ) -> ChatEvent | BaseEvent | None:
-    event = json.loads(event.data)
+    try:
+        event = json.loads(event.data)
+    except Exception as e:
+        LOGGER.error(f"Could not parse event data as JSON: {e}")
+        return None
 
     match event_type:
         case EventName.EXTERNAL_MODULE_CHOSEN:
@@ -81,7 +85,7 @@ def run_demo_with_sse_client(
         event = load_and_filter_event(sse_event, event_type)
 
         if event is None:
-            raise TypeError("Could not convert SSE event to ChatEvent")
+            continue
 
         if asyncio.iscoroutinefunction(handler):
             asyncio.run(handler(event))
