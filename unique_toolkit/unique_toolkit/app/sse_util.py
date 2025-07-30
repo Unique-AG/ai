@@ -17,13 +17,12 @@ def get_sse_client(
     unique_settings: UniqueSettings,
     subscriptions: list[str],
 ) -> SSEClient:
-    url = f"{unique_settings.api.base_url}/public/event-socket/events/stream?subscriptions={','.join(subscriptions)}"
     headers = {
         "Authorization": f"Bearer {unique_settings.app.key.get_secret_value()}",
         "x-app-id": unique_settings.app.id.get_secret_value(),
         "x-company-id": unique_settings.auth.company_id.get_secret_value(),
     }
-    return SSEClient(url=url, headers=headers)
+    return SSEClient(url=unique_settings.api.sse_url(subscriptions), headers=headers)
 
 
 @overload

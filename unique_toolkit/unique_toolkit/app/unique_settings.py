@@ -1,5 +1,6 @@
 from logging import getLogger
 from pathlib import Path
+from urllib.parse import urlparse, urlunparse
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -24,7 +25,7 @@ class UniqueApp(BaseSettingsWithWarnings):
     id: SecretStr = Field(default=SecretStr("dummy_id"))
     key: SecretStr = Field(default=SecretStr("dummy_key"))
     base_url: str = Field(
-        default="http://localhost:8092/public",
+        default="http://localhost:8092/",
         deprecated="Use UniqueApi.base_url instead",
     )
     endpoint: str = Field(default="dummy")
@@ -39,7 +40,7 @@ class UniqueApp(BaseSettingsWithWarnings):
 
 
 class UniqueApi(BaseSettingsWithWarnings):
-    base_url: str = Field(default="http://localhost:8092/public")
+    base_url: str = Field(default="http://localhost:8092/")
     version: str = Field(default="2023-12-06")
 
     model_config = SettingsConfigDict(
@@ -48,6 +49,22 @@ class UniqueApi(BaseSettingsWithWarnings):
         case_sensitive=False,
         extra="ignore",
     )
+
+    def sse_url(self, subscriptions: list[str]) -> str:
+        parsed = urlparse(self.base_url)
+        return urlunparse(
+            parsed._replace(
+                path="/public/event-socket/events/stream",
+                query=f"subscriptions={','.join(subscriptions)}",
+                fragment=None,
+            )
+        )
+
+    def sdk_url(self) -> str:
+        parsed = urlparse(self.base_url)
+        return urlunparse(
+            parsed._replace(path="/public/chat", query=None, fragment=None)
+        )
 
 
 class UniqueAuth(BaseSettingsWithWarnings):
