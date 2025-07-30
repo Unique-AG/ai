@@ -18,6 +18,7 @@ model_config = ConfigDict(
 
 
 class EventName(StrEnum):
+    BASE_EVENT = "unique.base.event"
     EXTERNAL_MODULE_CHOSEN = "unique.chat.external-module.chosen"
 
 
