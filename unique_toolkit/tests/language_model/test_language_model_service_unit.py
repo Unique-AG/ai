@@ -61,14 +61,12 @@ class TestLanguageModelServiceUnit:
         service = LanguageModelService(
             company_id="direct_company",
             user_id="direct_user",
-            chat_id="direct_chat",
-            assistant_id="direct_assistant",
         )
 
         assert service.company_id == "direct_company"
         assert service.user_id == "direct_user"
-        assert service.chat_id == "direct_chat"
-        assert service.assistant_id == "direct_assistant"
+        assert service.chat_id is None
+        assert service.assistant_id is None
 
     def test_init_with_base_event(self):
         """Test initialization with BaseEvent"""
