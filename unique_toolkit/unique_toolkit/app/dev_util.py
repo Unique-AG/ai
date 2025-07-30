@@ -1,6 +1,7 @@
+import asyncio
 import json
 from pathlib import Path
-from typing import Callable, Literal, overload
+from typing import Awaitable, Callable, Literal, overload
 
 from unique_toolkit.app import BaseEvent, ChatEvent, EventName
 from unique_toolkit.app.init_sdk import init_unique_sdk
@@ -38,7 +39,7 @@ def load_event(file_path: Path, event_type: EventName) -> ChatEvent | BaseEvent 
 
 def run_demo_with_with_saved_event(
     unique_settings: UniqueSettings,
-    handler: Callable[[ChatEvent | BaseEvent], None],
+    handler: Callable[[ChatEvent | BaseEvent], Awaitable[None] | None],
     event_type: EventName,
     file_path: Path,
 ) -> None:
@@ -58,4 +59,7 @@ def run_demo_with_with_saved_event(
     if event is None:
         raise ValueError(f"Event not found in {file_path}")
 
-    handler(event)
+    if asyncio.iscoroutinefunction(handler):
+        asyncio.run(handler(event))
+    else:
+        handler(event)

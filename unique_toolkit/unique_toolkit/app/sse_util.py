@@ -1,6 +1,7 @@
+import asyncio
 import json
 from logging import getLogger
-from typing import Callable, Literal, overload
+from typing import Awaitable, Callable, Literal, overload
 
 from sseclient import Event as SSEEvent
 from sseclient import SSEClient
@@ -61,47 +62,29 @@ def load_and_filter_event(
     return None
 
 
-def execute_event_handler(
-    handler: Callable[[ChatEvent | BaseEvent], None],
-    sse_event: SSEEvent,
-    event_type: EventName,
-) -> None:
-    """
-    Execute a handler function that expects an Event.
-    The event type is determined by the event_type parameter
-    and must match to the event expected by the handler.
-
-    Args:
-        handler: A callable that takes ChatEvent as its parameter
-        sse_event: The SSE event to convert and pass to the handler
-        event_type: The type of event expected by the handler
-    Raises:
-        TypeError: If the event cannot be converted to the expected type
-    """
-    event = load_and_filter_event(sse_event, event_type)
-
-    if event is None:
-        raise TypeError("Could not convert SSE event to ChatEvent")
-    handler(event)
-
-
 def run_demo_with_sse_client(
     unique_settings: UniqueSettings,
-    handler: Callable[[ChatEvent | BaseEvent], None],
+    handler: Callable[[ChatEvent | BaseEvent], Awaitable[None] | None],
     event_type: EventName,
 ) -> None:
     """
-    Run a demo with an SSE client.
-
-    Note: event_type is the type of event that the handler expects.
+    Run a demo with an SSE client using sync handler.
 
     Args:
         unique_settings: The unique settings to use for the SSE client
-        handler: The handler to use for the SSE client
+        handler: The sync handler to use for the SSE client
         event_type: The type of event to use for the SSE client
     """
     subscription = event_type.value
     init_unique_sdk(unique_settings=unique_settings)
-    sse_client = get_sse_client(unique_settings, [subscription])
-    for event in sse_client:
-        execute_event_handler(handler, event, event_type)
+
+    for sse_event in get_sse_client(unique_settings, [subscription]):
+        event = load_and_filter_event(sse_event, event_type)
+
+        if event is None:
+            raise TypeError("Could not convert SSE event to ChatEvent")
+
+        if asyncio.iscoroutinefunction(handler):
+            asyncio.run(handler(event))
+        else:
+            handler(event)
