@@ -64,8 +64,8 @@ class ToolCallResponse(BaseModel):
     debug_info: dict = {}
 
 
-class ToolPrompts(BaseModel):
-    system_prompt_base_instructions: str = Field(
+class ToolPromptInstructions(BaseModel):
+    system_prompt: str = Field(
         default="",
         description=("Helps the LLM understand how to use the tool. "
                      "This is injected into the system prompt."
@@ -73,7 +73,7 @@ class ToolPrompts(BaseModel):
                      "instructions while others work better with system prompt instructions."),
     )
 
-    user_prompt_base_instructions: str = Field(
+    user_prompt: str = Field(
         default="",
         description=("Helps the LLM understand how to use the tool. "
                      "This is injected into the user prompt. " 
@@ -81,13 +81,13 @@ class ToolPrompts(BaseModel):
                      "instructions while others work better with system prompt instructions.")
     )
 
-    system_prompt_tool_chosen_instructions: str = Field(
+    system_prompt_tool_chosen: str = Field(
         default="",
         description=("Once the tool is chosen, this is injected into the system prompt"
                      " to help the LLM understand how work with the tools results."),
     )
 
-    user_prompt_tool_chosen_instructions: str = Field(
+    user_prompt_tool_chosen: str = Field(
         default="",
         description=("Once the tool is chosen, this is injected into the user prompt " 
                      "to help the LLM understand how to work with the tools results."),
@@ -101,12 +101,12 @@ class Tool(ABC, Generic[ConfigType]):
         raise NotImplementedError
     
     
-    def get_prompts(self) -> ToolPrompts:
-        return ToolPrompts(
-            system_prompt_base_instructions="",
-            user_prompt_base_instructions="",
-            system_prompt_tool_chosen_instructions="",
-            user_prompt_tool_chosen_instructions="",
+    def get_prompt_instructions(self) -> ToolPromptInstructions:
+        return ToolPromptInstructions(
+            system_prompt="",
+            user_prompt="",
+            system_prompt_tool_chosen="",
+            user_prompt_tool_chosen="",
         )
 
 

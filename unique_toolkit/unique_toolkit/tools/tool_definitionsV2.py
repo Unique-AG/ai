@@ -8,7 +8,7 @@ from unique_toolkit.language_model import LanguageModelFunction
 from pydantic import BaseModel, Field, model_validator, root_validator
 
 from unique_toolkit.unique_toolkit.app.schemas import ChatEvent
-from unique_toolkit.unique_toolkit.tools.tool_definitions import BaseToolConfig, Tool, ToolCallResponse, ToolPrompts, ToolSettings
+from unique_toolkit.unique_toolkit.tools.tool_definitions import BaseToolConfig, Tool, ToolCallResponse, ToolPromptInstructions, ToolSettings
 from unique_toolkit.unique_toolkit.tools.tool_progress_reporter import ToolProgressReporter
 
 
@@ -24,8 +24,8 @@ class BaseToolConfigV2(BaseToolConfig):
             description="The tool parameters configuration must be set by subclasses",
         )
 
-    class PromptsConfig(BaseModel):
-        system_prompt_base_instructions: str = Field(
+    class PromptInstructionsConfig(BaseModel):
+        system_prompt: str = Field(
         default="",
         description=("Helps the LLM understand how to use the tool. "
                      "This is injected into the system prompt."
@@ -33,7 +33,7 @@ class BaseToolConfigV2(BaseToolConfig):
                      "instructions while others work better with system prompt instructions."),
         )
 
-        user_prompt_base_instructions: str = Field(
+        user_prompt: str = Field(
             default="",
             description=("Helps the LLM understand how to use the tool. "
                         "This is injected into the user prompt. " 
@@ -41,13 +41,13 @@ class BaseToolConfigV2(BaseToolConfig):
                         "instructions while others work better with system prompt instructions.")
         )
 
-        system_prompt_tool_chosen_instructions: str = Field(
+        system_prompt_tool_chosen: str = Field(
             default="",
             description=("Once the tool is chosen, this is injected into the system prompt"
                         " to help the LLM understand how work with the tools results."),
         )
 
-        user_prompt_tool_chosen_instructions: str = Field(
+        user_prompt_tool_chosen: str = Field(
             default="",
             description=("Once the tool is chosen, this is injected into the user prompt " 
                         "to help the LLM understand how to work with the tools results."),
@@ -58,8 +58,8 @@ class BaseToolConfigV2(BaseToolConfig):
         description="Configuration for the tool, including description and parameters",
     )
 
-    prompts: PromptsConfig = Field(
-        default_factory=PromptsConfig,
+    prompts: PromptInstructionsConfig = Field(
+        default_factory=PromptInstructionsConfig,
         description="Configuration for prompts related to the tool",
     )
 
@@ -76,19 +76,19 @@ class BaseToolConfigV2(BaseToolConfig):
             raise ValueError(
                 f"Subclass {cls.__class__.__name__} must define a default value for 'tool_parameters_config'."
             )
-        if cls.prompts.system_prompt_base_instructions == "":
+        if cls.prompts.system_prompt == "":
             raise ValueError(
                 f"Subclass {cls.__class__.__name__} must define a default value for 'system_prompt_base_instructions'."
             )
-        if cls.prompts.user_prompt_base_instructions == "":
+        if cls.prompts.user_prompt == "":
             raise ValueError(
                 f"Subclass {cls.__class__.__name__} must define a default value for 'user_prompt_base_instructions'."
             )
-        if cls.prompts.system_prompt_tool_chosen_instructions == "":
+        if cls.prompts.system_prompt_tool_chosen == "":
             raise ValueError(
                 f"Subclass {cls.__class__.__name__} must define a default value for 'system_prompt_tool_chosen_instructions'."
             )
-        if cls.prompts.user_prompt_tool_chosen_instructions == "":
+        if cls.prompts.user_prompt_tool_chosen == "":
             raise ValueError(
                 f"Subclass {cls.__class__.__name__} must define a default value for 'user_prompt_tool_chosen_instructions'."
             )
@@ -109,12 +109,12 @@ class ToolV2(Tool[ConfigTypeV2]):
             parameters=self.settings.configuration.tool_call.parameters,
         )
 
-    def get_prompts(self) -> ToolPrompts:
-        return ToolPrompts(
-            system_prompt_base_instructions=self.settings.configuration.prompts.system_prompt_base_instructions,
-            user_prompt_base_instructions=self.settings.configuration.prompts.user_prompt_base_instructions,
-            system_prompt_tool_chosen_instructions=self.settings.configuration.prompts.system_prompt_tool_chosen_instructions,
-            user_prompt_tool_chosen_instructions=self.settings.configuration.prompts.user_prompt_tool_chosen_instructions
+    def get_prompt_instructions(self) -> ToolPromptInstructions:
+        return ToolPromptInstructions(
+            system_prompt=self.settings.configuration.prompts.system_prompt,
+            user_prompt=self.settings.configuration.prompts.user_prompt,
+            system_prompt_tool_chosen=self.settings.configuration.prompts.system_prompt_tool_chosen,
+            user_prompt_tool_chosen=self.settings.configuration.prompts.user_prompt_tool_chosen
         )
 
 
