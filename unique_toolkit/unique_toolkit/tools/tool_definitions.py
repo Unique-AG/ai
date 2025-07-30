@@ -59,9 +59,39 @@ class ToolSettings(Generic[ConfigType]):
 
 
 class ToolCallResponse(BaseModel):
-  id: str
-  name: str
-  debug_info: dict = {}
+    id: str
+    name: str
+    debug_info: dict = {}
+
+
+class ToolPrompts(BaseModel):
+    system_prompt_base_instructions: str = Field(
+        default="",
+        description=("Helps the LLM understand how to use the tool. "
+                     "This is injected into the system prompt."
+                     "This might not be needed for every tool but some of the work better with user prompt "
+                     "instructions while others work better with system prompt instructions."),
+    )
+
+    user_prompt_base_instructions: str = Field(
+        default="",
+        description=("Helps the LLM understand how to use the tool. "
+                     "This is injected into the user prompt. " 
+                     "This might not be needed for every tool but some of the work better with user prompt "
+                     "instructions while others work better with system prompt instructions.")
+    )
+
+    system_prompt_tool_chosen_instructions: str = Field(
+        default="",
+        description=("Once the tool is chosen, this is injected into the system prompt"
+                     " to help the LLM understand how work with the tools results."),
+    )
+
+    user_prompt_tool_chosen_instructions: str = Field(
+        default="",
+        description=("Once the tool is chosen, this is injected into the user prompt " 
+                     "to help the LLM understand how to work with the tools results."),
+    )
 
 
 class Tool(ABC, Generic[ConfigType]):
@@ -69,26 +99,17 @@ class Tool(ABC, Generic[ConfigType]):
 
     def tool_description(self) -> LanguageModelToolDescription:
         raise NotImplementedError
-
-    def tool_description_for_system_prompt(self) -> str:
-         raise NotImplementedError
-
     
-    def tool_format_information_for_system_prompt(self) -> str:
-         raise NotImplementedError
-
-    def tool_format_reminder_for_user_prompt(self) -> str:
-        """A short reminder for the user prompt for formatting rules for the tool.
-        You can use this if the LLM fails to follow the formatting rules.
-        """
-        raise NotImplementedError
     
-    def result_handling_instructions(self) -> str:
-        return ""
+    def get_prompts(self) -> ToolPrompts:
+        return ToolPrompts(
+            system_prompt_base_instructions="",
+            user_prompt_base_instructions="",
+            system_prompt_tool_chosen_instructions="",
+            user_prompt_tool_chosen_instructions="",
+        )
 
-    def example_use_cases(self) -> List[str]:
-        return []
-    
+
     def is_exclusive(self) -> bool:
         return self.settings.is_exclusive
     
@@ -103,7 +124,6 @@ class Tool(ABC, Generic[ConfigType]):
     
     def tool_selection_policy(self) -> ToolSelectionPolicy:
         return self.settings.selection_policy
-
 
 
     @abstractmethod

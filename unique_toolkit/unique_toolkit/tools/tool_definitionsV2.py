@@ -8,7 +8,7 @@ from unique_toolkit.language_model import LanguageModelFunction
 from pydantic import BaseModel, Field, model_validator, root_validator
 
 from unique_toolkit.unique_toolkit.app.schemas import ChatEvent
-from unique_toolkit.unique_toolkit.tools.tool_definitions import BaseToolConfig, Tool, ToolCallResponse, ToolSettings
+from unique_toolkit.unique_toolkit.tools.tool_definitions import BaseToolConfig, Tool, ToolCallResponse, ToolPrompts, ToolSettings
 from unique_toolkit.unique_toolkit.tools.tool_progress_reporter import ToolProgressReporter
 
 
@@ -25,25 +25,32 @@ class BaseToolConfigV2(BaseToolConfig):
         )
 
     class PromptsConfig(BaseModel):
-        description_for_system_prompt: str = Field(
-            default="",
-            description="The description of the tool for the system prompt. ",
+        system_prompt_base_instructions: str = Field(
+        default="",
+        description=("Helps the LLM understand how to use the tool. "
+                     "This is injected into the system prompt."
+                     "This might not be needed for every tool but some of the work better with user prompt "
+                     "instructions while others work better with system prompt instructions."),
         )
-        format_information_for_system_prompt: str = Field(
+
+        user_prompt_base_instructions: str = Field(
             default="",
-            description="The format information for the system prompt.",
+            description=("Helps the LLM understand how to use the tool. "
+                        "This is injected into the user prompt. " 
+                        "This might not be needed for every tool but some of the work better with user prompt "
+                        "instructions while others work better with system prompt instructions.")
         )
-        format_reminder_for_user_prompt: str = Field(
+
+        system_prompt_tool_chosen_instructions: str = Field(
             default="",
-            description="A short reminder for the user prompt for formatting rules for the tool.",
+            description=("Once the tool is chosen, this is injected into the system prompt"
+                        " to help the LLM understand how work with the tools results."),
         )
-        result_handling_instructions: str = Field(
+
+        user_prompt_tool_chosen_instructions: str = Field(
             default="",
-            description="Instructions for the LLM on how to handle the result of the tool call.",
-        )
-        example_use_cases: List[str] = Field(
-            default=[],
-            description="Example use cases for the tool, to help the LLM understand how to use it.",
+            description=("Once the tool is chosen, this is injected into the user prompt " 
+                        "to help the LLM understand how to work with the tools results."),
         )
 
     tool_call: ToolCallConfig = Field(
@@ -69,25 +76,21 @@ class BaseToolConfigV2(BaseToolConfig):
             raise ValueError(
                 f"Subclass {cls.__class__.__name__} must define a default value for 'tool_parameters_config'."
             )
-        if cls.prompts.description_for_system_prompt == "":
+        if cls.prompts.system_prompt_base_instructions == "":
             raise ValueError(
-                f"Subclass {cls.__class__.__name__} must define a default value for 'description_for_system'."
+                f"Subclass {cls.__class__.__name__} must define a default value for 'system_prompt_base_instructions'."
             )
-        if cls.prompts.format_information_for_system_prompt == "":
+        if cls.prompts.user_prompt_base_instructions == "":
             raise ValueError(
-                f"Subclass {cls.__class__.__name__} must define a default value for 'format_information_for_system_prompt'."
+                f"Subclass {cls.__class__.__name__} must define a default value for 'user_prompt_base_instructions'."
             )
-        if cls.prompts.format_reminder_for_user_prompt == "":
+        if cls.prompts.system_prompt_tool_chosen_instructions == "":
             raise ValueError(
-                f"Subclass {cls.__class__.__name__} must define a default value for 'format_reminder_for_user_prompt'."
+                f"Subclass {cls.__class__.__name__} must define a default value for 'system_prompt_tool_chosen_instructions'."
             )
-        if cls.prompts.result_handling_instructions == "":
+        if cls.prompts.user_prompt_tool_chosen_instructions == "":
             raise ValueError(
-                f"Subclass {cls.__class__.__name__} must define a default value for 'result_handling_instructions'."
-            )
-        if not cls.prompts.example_use_cases:
-            raise ValueError(
-                f"Subclass {cls.__class__.__name__} must define a default value for 'example_use_cases'."
+                f"Subclass {cls.__class__.__name__} must define a default value for 'user_prompt_tool_chosen_instructions'."
             )
         return cls
     
@@ -106,29 +109,13 @@ class ToolV2(Tool[ConfigTypeV2]):
             parameters=self.settings.configuration.tool_call.parameters,
         )
 
-    def tool_description_for_system_prompt(self) -> str:
-        return self.settings.configuration.prompts.description_for_system_prompt
-
-    
-    def tool_format_information_for_system_prompt(self) -> str:
-        return self.settings.configuration.prompts.format_information_for_system_prompt
-
-    def tool_format_reminder_for_user_prompt(self) -> str:
-        """A short reminder for the user prompt for formatting rules for the tool.
-        You can use this if the LLM fails to follow the formatting rules.
-        """
-        return self.settings.configuration.prompts.format_reminder_for_user_prompt
-    
-    def result_handling_instructions(self) -> str:
-        """Instructions for the LLM on how to handle the result of the tool call.
-        This is used to ensure that the LLM understands how to process the tool's output.
-        """
-        return self.settings.configuration.prompts.result_handling_instructions
-
-    def example_use_cases(self) -> List[str]:
-        """Example use cases for the tool, to help the LLM understand how to use it."""
-        return self.settings.configuration.prompts.example_use_cases
-
+    def get_prompts(self) -> ToolPrompts:
+        return ToolPrompts(
+            system_prompt_base_instructions=self.settings.configuration.prompts.system_prompt_base_instructions,
+            user_prompt_base_instructions=self.settings.configuration.prompts.user_prompt_base_instructions,
+            system_prompt_tool_chosen_instructions=self.settings.configuration.prompts.system_prompt_tool_chosen_instructions,
+            user_prompt_tool_chosen_instructions=self.settings.configuration.prompts.user_prompt_tool_chosen_instructions
+        )
 
 
     @abstractmethod
