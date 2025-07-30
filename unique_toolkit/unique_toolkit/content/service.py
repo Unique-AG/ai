@@ -53,6 +53,7 @@ class ContentService:
         *,
         company_id: str,
         user_id: str,
+        chat_id: str | None,
         metadata_filter: dict | None = None,
     ): ...
 
@@ -92,13 +93,12 @@ class ContentService:
         """
         Initialize the ContentService with an event.
         """
+        chat_id = None
+        metadata_filter = None
 
         if isinstance(event, (ChatEvent | Event)):
             chat_id = event.payload.chat_id
             metadata_filter = event.payload.metadata_filter
-        else:
-            chat_id = None
-            metadata_filter = None
 
         return cls(
             company_id=event.company_id,
