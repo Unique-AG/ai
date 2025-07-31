@@ -1212,7 +1212,7 @@ The script sends a prompt asynchronously and continuously polls for completion, 
 
 **Optional parameters:**
 - `tool_choices`: A list of tool names to be used for the message (e.g., `["WebSearch"]`). If not provided, no tools will be used. The tools supported right now are `WebSearch` and `InternalSearch`.
-- `scope_rules`: A dictionary specifying scope rules for the message, allowing you to restrict the context or data sources available to the assistant.
+- `scope_rules`: A filter to specify the scope rules for the message, allowing you to restrict the context or data sources available to the assistant. The filter is written in UniqueQL language. Find out more about the language in the UniqueQL section.
 - `chat_id`: The ID of the chat where the message should be sent. If omitted, a new chat will be created.
 - `poll_interval`: The number of seconds to wait between polling attempts (default: `1` second).
 - `max_wait`: The maximum number of seconds to wait for the message to complete (default: `60` seconds).
@@ -1237,6 +1237,13 @@ latest_message = await unique_sdk.utils.chat_in_space.send_message_and_wait_for_
                     "value": [
                         "cont_u888z7cazxxm4lugfdjq7pks"
                     ]
+                },
+                {
+                    "operator": "contains",
+                    "path": [
+                        "folderIdPath"
+                    ],
+                    "value": "uniquepathid://scope_btfo28b3eeelwh5obwgea71bl/scope_fn56ta67knd6w4medgq3028fx"
                 }
             ]
         },
