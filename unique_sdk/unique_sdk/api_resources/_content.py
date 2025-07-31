@@ -72,8 +72,8 @@ class Content(APIResource["Content"]):
         """
 
         metadataFilter: dict
-        skip: int | None
-        take: int | None
+        skip: NotRequired[int]
+        take: NotRequired[int]
 
     class CustomApiOptions(TypedDict):
         apiIdentifier: str
@@ -144,7 +144,7 @@ class Content(APIResource["Content"]):
         expiredAt: str | None
 
     class PaginatedContentInfo(TypedDict):
-        contentInfo: List["Content.ContentInfo"]
+        contentInfos: List["Content.ContentInfo"]
         totalCount: int
 
     id: str
@@ -163,11 +163,11 @@ class Content(APIResource["Content"]):
     class MagicTableSheetTable(TypedDict):
         rowId: str
         columns: List["Content.MagicTableSheetTableColumn"]
-    
+
     class MagicTableSheetIngestionConfiguration(TypedDict):
         columnIdsInMetadata: List[str]
         columnIdsInChunkText: List[str]
-    
+
     class MagicTableSheetIngestParams(TypedDict):
         data: List["Content.MagicTableSheetTable"]
         ingestionConfiguration: "Content.MagicTableSheetIngestionConfiguration"
@@ -229,7 +229,7 @@ class Content(APIResource["Content"]):
             Content.PaginatedContentInfo,
             cls._static_request(
                 "post",
-                "/content/info",
+                "/content/infos",
                 user_id,
                 company_id,
                 params=params,
@@ -247,7 +247,43 @@ class Content(APIResource["Content"]):
             Content.PaginatedContentInfo,
             await cls._static_request_async(
                 "post",
-                "/content/info",
+                "/content/infos",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    def get_infos(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Content.ContentInfoParams"],
+    ) -> "Content.PaginatedContentInfo":
+        return cast(
+            Content.PaginatedContentInfo,
+            cls._static_request(
+                "post",
+                "/content/infos",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    async def get_infos_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Content.ContentInfoParams"],
+    ) -> "Content.PaginatedContentInfo":
+        return cast(
+            Content.PaginatedContentInfo,
+            await cls._static_request_async(
+                "post",
+                "/content/infos",
                 user_id,
                 company_id,
                 params=params,
@@ -298,10 +334,10 @@ class Content(APIResource["Content"]):
 
     @classmethod
     def ingest_magic_table_sheets(
-            cls, 
-            user_id: str, 
-            company_id: str, 
-            **params: Unpack["Content.MagicTableSheetIngestParams"]
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Content.MagicTableSheetIngestParams"],
     ) -> "Content.MagicTableSheetResponse":
         return cast(
             Content.MagicTableSheetResponse,
@@ -316,10 +352,10 @@ class Content(APIResource["Content"]):
 
     @classmethod
     async def ingest_magic_table_sheets_async(
-            cls, 
-            user_id: str, 
-            company_id: str, 
-            **params: Unpack["Content.MagicTableSheetIngestParams"]
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Content.MagicTableSheetIngestParams"],
     ) -> "Content.MagicTableSheetResponse":
         return cast(
             Content.MagicTableSheetResponse,
