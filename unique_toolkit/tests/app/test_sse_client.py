@@ -3,7 +3,7 @@ from unittest.mock import patch
 import pytest
 from pydantic import SecretStr
 
-from unique_toolkit.app.sse_util import get_sse_client
+from unique_toolkit.app.dev_util import get_sse_client
 from unique_toolkit.app.unique_settings import (
     UniqueApi,
     UniqueApp,
