@@ -66,6 +66,12 @@ class UniqueApi(BaseSettingsWithWarnings):
             parsed._replace(path="/public/chat", query=None, fragment=None)
         )
 
+    def openai_proxy_url(self) -> str:
+        parsed = urlparse(self.base_url)
+        return urlunparse(
+            parsed._replace(path="/public/openai-proxy/", query=None, fragment=None)
+        )
+
 
 class UniqueAuth(BaseSettingsWithWarnings):
     company_id: SecretStr = Field(default=SecretStr("dummy_company_id"))

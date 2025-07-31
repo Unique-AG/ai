@@ -1,6 +1,5 @@
 import importlib.util
 import logging
-from pathlib import Path
 
 from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.framework_utilities.utils import get_default_headers
@@ -23,11 +22,13 @@ else:
     raise LangchainNotInstalledError()
 
 
-def get_client(env_file: Path | None = None) -> ChatOpenAI:
+def get_client(
+    unique_settings: UniqueSettings, model: str = "AZURE_GPT_4o_2024_0806"
+) -> ChatOpenAI:
     """Get a Langchain ChatOpenAI client instance.
 
     Args:
-        env_file: Optional path to environment file
+        unique_settings: UniqueSettings instance
 
     Returns:
         ChatOpenAI client instance
@@ -35,11 +36,10 @@ def get_client(env_file: Path | None = None) -> ChatOpenAI:
     Raises:
         LangchainNotInstalledError: If langchain-openai package is not installed
     """
-    settings = UniqueSettings.from_env(env_file=env_file)
 
     return ChatOpenAI(
-        base_url=settings.app.base_url + "/openai-proxy/",
-        default_headers=get_default_headers(settings.app, settings.auth),
-        model="AZURE_GPT_4o_2024_0806",
-        api_key=settings.app.key,
+        base_url=unique_settings.api.openai_proxy_url(),
+        default_headers=get_default_headers(unique_settings.app, unique_settings.auth),
+        model=model,
+        api_key=unique_settings.app.key,
     )

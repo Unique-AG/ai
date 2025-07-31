@@ -9,14 +9,15 @@ from openai.types.chat.chat_completion_tool_param import ChatCompletionToolParam
 from openai.types.shared_params.function_definition import FunctionDefinition
 from pydantic import BaseModel
 
+from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.framework_utilities.openai.client import get_openai_client
 from unique_toolkit.framework_utilities.openai.message_builder import (
     OpenAIMessageBuilder,
 )
 
 env_file = Path(__file__).parent.parent.parent / ".env"
-
-client = get_openai_client(env_file=env_file)
+unique_settings = UniqueSettings.from_env(env_file=env_file)
+client = get_openai_client(unique_settings)
 model = "AZURE_GPT_4o_2024_0806"
 
 
@@ -111,3 +112,5 @@ completion = client.chat.completions.create(
 )
 
 print(completion.choices[0].message.content)
+
+# %%

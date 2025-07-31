@@ -7,7 +7,7 @@ from typing import Awaitable, Callable, Literal, overload
 from sseclient import Event as SSEEvent
 from sseclient import SSEClient
 
-from unique_toolkit.app import BaseEvent, ChatEvent, EventName
+from unique_toolkit.app import ChatEvent, EventName
 from unique_toolkit.app.init_sdk import init_unique_sdk
 from unique_toolkit.app.unique_settings import UniqueSettings
 
@@ -37,13 +37,13 @@ def load_and_filter_event(
 def load_and_filter_event(
     event: SSEEvent,
     event_type: EventName,
-) -> ChatEvent | BaseEvent | None: ...
+) -> ChatEvent | None: ...
 
 
 def load_and_filter_event(
     event: SSEEvent,
     event_type: EventName,
-) -> ChatEvent | BaseEvent | None:
+) -> ChatEvent | None:
     try:
         event = json.loads(event.data)
     except Exception as e:
@@ -53,15 +53,13 @@ def load_and_filter_event(
     match event_type:
         case EventName.EXTERNAL_MODULE_CHOSEN:
             return ChatEvent.model_validate(event)
-        case EventName.BASE_EVENT:
-            return BaseEvent.model_validate(event)
 
     return None
 
 
 def run_demo_with_sse_client(
     unique_settings: UniqueSettings,
-    handler: Callable[[ChatEvent | BaseEvent], Awaitable[None] | None],
+    handler: Callable[[ChatEvent], Awaitable[None] | None],
     event_type: EventName,
 ) -> None:
     """
@@ -109,7 +107,7 @@ def load_event(file_path: Path, event_type: EventName) -> ChatEvent | None:
 
 def run_demo_with_with_saved_event(
     unique_settings: UniqueSettings,
-    handler: Callable[[ChatEvent | BaseEvent], Awaitable[None] | None],
+    handler: Callable[[ChatEvent], Awaitable[None] | None],
     event_type: EventName,
     file_path: Path,
 ) -> None:
