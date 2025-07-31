@@ -116,7 +116,7 @@ class ChatEventPayload(BaseModel):
         default_factory=list,
         description="A list containing the tool names the user has chosen to be activated.",
     )
-    tool_disabled: list[str] = Field(
+    disabled_tools: list[str] = Field(
         default_factory=list,
         description="A list containing the tool names of tools that are disabled at the company level",
     )
