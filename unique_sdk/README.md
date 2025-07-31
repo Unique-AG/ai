@@ -1211,7 +1211,7 @@ The following script enables you to chat within a space using an assistant. You 
 The script sends a prompt asynchronously and continuously polls for completion, which is determined when the `stoppedStreamingAt` field of the message becomes non-null.
 
 **Optional parameters:**
-- `tool_choices`: A list of tool names to be used for the message (e.g., `["WebSearch"]`). If not provided, no tools will be used.
+- `tool_choices`: A list of tool names to be used for the message (e.g., `["WebSearch"]`). If not provided, no tools will be used. The tools supported right now are `WebSearch` and `InternalSearch`.
 - `scope_rules`: A dictionary specifying scope rules for the message, allowing you to restrict the context or data sources available to the assistant.
 - `chat_id`: The ID of the chat where the message should be sent. If omitted, a new chat will be created.
 - `poll_interval`: The number of seconds to wait between polling attempts (default: `1` second).
@@ -1225,7 +1225,7 @@ latest_message = await unique_sdk.utils.chat_in_space.send_message_and_wait_for_
         company_id=company_id,
         assistant_id=assistant_id,
         text="Tell me a short story.",
-        chat_id=chat_id, # Optional - if no chat id is specified, a new chat will be created
+        chat_id=chat_id,                # Optional - if no chat id is specified, a new chat will be created
         tool_choices=["WebSearch"],
         scope_rules={
             "or": [
