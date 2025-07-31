@@ -19,6 +19,15 @@ model_config = ConfigDict(
 
 class EventName(StrEnum):
     EXTERNAL_MODULE_CHOSEN = "unique.chat.external-module.chosen"
+    USER_MESSAGE_CREATED = "unique.chat.user-message.created"
+    INGESTION_CONTENT_UPLOADED = "unique.ingestion.content.uploaded"
+    INGESTION_CONTENT_FINISHED = "unique.ingestion.content.finished"
+    MAGIC_TABLE_IMPORT_COLUMNS = "unique.magic-table.import-columns"
+    MAGIC_TABLE_ADD_META_DATA = "unique.magic-table.add-meta-data"
+    MAGIC_TABLE_ADD_DOCUMENT = "unique.magic-table.add-document"
+    MAGIC_TABLE_DELETE_ROW = "unique.magic-table.delete-row"
+    MAGIC_TABLE_DELETE_COLUMN = "unique.magic-table.delete-column"
+    MAGIC_TABLE_UPDATE_CELL = "unique.magic-table.update-cell"
 
 
 class BaseEvent(BaseModel):

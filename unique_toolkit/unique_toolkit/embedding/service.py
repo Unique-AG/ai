@@ -1,3 +1,5 @@
+from typing import overload
+
 from typing_extensions import deprecated
 
 from unique_toolkit._common._base_service import BaseService
@@ -11,10 +13,23 @@ from unique_toolkit.embedding.schemas import Embeddings
 class EmbeddingService(BaseService):
     """
     Provides methods to interact with the Embedding service.
+    """
 
-    Attributes:
-        company_id (str | None): The company ID.
-        user_id (str | None): The user ID.
+    @deprecated(
+        "Use __init__ with company_id and user_id instead or use the classmethod `from_event`"
+    )
+    @overload
+    def __init__(self, event: Event | BaseEvent): ...
+
+    """
+        Initialize the EmbeddingService with an event (deprecated)
+    """
+
+    @overload
+    def __init__(self, *, company_id: str, user_id: str): ...
+
+    """
+        Initialize the EmbeddingService with a company_id and user_id.
     """
 
     def __init__(
@@ -31,6 +46,13 @@ class EmbeddingService(BaseService):
             [company_id, user_id] = validate_required_values([company_id, user_id])
             self._company_id: str = company_id
             self._user_id: str = user_id
+
+    @classmethod
+    def from_event(cls, event: Event | BaseEvent):
+        """
+        Initialize the EmbeddingService with an event.
+        """
+        return cls(company_id=event.company_id, user_id=event.user_id)
 
     @property
     @deprecated(

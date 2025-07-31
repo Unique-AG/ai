@@ -40,6 +40,6 @@ def get_openai_client(env_file: Path | None = None) -> OpenAI:
 
     return OpenAI(
         api_key=settings.app.key.get_secret_value(),
-        base_url=settings.app.base_url + "/openai-proxy/",
+        base_url=settings.api.base_url + "/openai-proxy/",
         default_headers=default_headers,
     )
