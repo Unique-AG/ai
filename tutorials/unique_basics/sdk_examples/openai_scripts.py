@@ -40,7 +40,7 @@ def get_client_and_headers():
 
     client = OpenAI(
         api_key="dummy",  # Using a dummy key since we're using custom auth
-        base_url=api_base + "/openai-proxy/",
+        base_url=api_base + "openai-proxy/",
     )
 
     extra_headers = {
