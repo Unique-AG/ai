@@ -83,7 +83,7 @@ class McpServer(BaseModel):
         default=None,
         description="An optional user prompt for the MCP server.",
     )
-    tools: list[McpTool]
+    tools: list[McpTool] = []
 
 ###
 # ChatEvent schemas
