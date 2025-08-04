@@ -67,6 +67,13 @@ class Space(APIResource["Space"]):
         assessment: Optional[List["Space.Reference"]]
         messageAssessment: Optional[List["Space.Assessment"]]
 
+    class DeleteChatResponse(TypedDict):
+        """
+        Response for deleting a chat in a space.
+        """
+
+        chat_id: str
+
     @classmethod
     def create_message(
         cls,
@@ -149,15 +156,18 @@ class Space(APIResource["Space"]):
         user_id: str,
         company_id: str,
         chat_id: str,
-    ) -> None:
+    ) -> "Space.DeleteChatResponse":
         """
         Delete a chat in a space.
         """
-        cls._static_request(
-            "delete",
-            f"/space/chat/{chat_id}",
-            user_id,
-            company_id,
+        return cast(
+            "Space.DeleteChatResponse",
+            cls._static_request(
+                "delete",
+                f"/space/chat/{chat_id}",
+                user_id,
+                company_id,
+            ),
         )
 
     @classmethod
@@ -166,13 +176,16 @@ class Space(APIResource["Space"]):
         user_id: str,
         company_id: str,
         chat_id: str,
-    ) -> None:
+    ) -> "Space.DeleteChatResponse":
         """
         Async delete a chat in a space.
         """
-        await cls._static_request_async(
-            "delete",
-            f"/space/chat/{chat_id}",
-            user_id,
-            company_id,
+        return cast(
+            "Space.DeleteChatResponse",
+            await cls._static_request_async(
+                "delete",
+                f"/space/chat/{chat_id}",
+                user_id,
+                company_id,
+            ),
         )
