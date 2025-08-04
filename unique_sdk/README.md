@@ -1008,6 +1008,12 @@ A metadata filter such as the one designed above can be used in a `Search.create
 
 ## Utils
 
+- [Chat History](#chat-history)
+- [File Io](#file-io)
+- [Sources](#sources)
+- [token](#token)
+- [Chat In Space](#chat-in-space)
+
 ### Chat History
 
 #### `unique_sdk.utils.chat_history.load_history`
@@ -1237,33 +1243,64 @@ The script ensures you can flexibly interact with spaces in new or ongoing chats
 
 ```python
 latest_message = await unique_sdk.utils.chat_in_space.send_message_and_wait_for_completion(
-        user_id=user_id,
-        company_id=company_id,
-        assistant_id=assistant_id,
-        text="Tell me a short story.",
-        chat_id=chat_id,                # Optional - if no chat id is specified, a new chat will be created
-        tool_choices=["WebSearch"],
-        scope_rules={
-            "or": [
-                {
-                    "operator": "in",
-                    "path": [
-                        "contentId"
-                    ],
-                    "value": [
-                        "cont_u888z7cazxxm4lugfdjq7pks"
-                    ]
-                },
-                {
-                    "operator": "contains",
-                    "path": [
-                        "folderIdPath"
-                    ],
-                    "value": "uniquepathid://scope_btfo28b3eeelwh5obwgea71bl/scope_fn56ta67knd6w4medgq3028fx"
-                }
-            ]
-        },
-    )
+    user_id=user_id,
+    company_id=company_id,
+    assistant_id=assistant_id,
+    text="Tell me a short story.",
+    chat_id=chat_id,                # Optional - if no chat id is specified, a new chat will be created
+    tool_choices=["WebSearch"],
+    scope_rules={
+        "or": [
+            {
+                "operator": "in",
+                "path": [
+                    "contentId"
+                ],
+                "value": [
+                    "cont_u888z7cazxxm4lugfdjq7pks"
+                ]
+            },
+            {
+                "operator": "contains",
+                "path": [
+                    "folderIdPath"
+                ],
+                "value": "uniquepathid://scope_btfo28b3eeelwh5obwgea71bl/scope_fn56ta67knd6w4medgq3028fx"
+            }
+        ]
+    },
+)
+```
+
+#### `unique_sdk.utils.chat_in_space.chat_against_file`
+
+The following script enables you to chat against a file.
+
+You must provide the following parameters:
+- `assistantId`: The assistant to be used for the chat.
+- `path_to_file`: The local path of the file to be uploaded.
+- `displayed_filename`: The name of the file to be displayed.
+- `mime_type`: The mime type of the ifle to be uploaded.
+- `text`: The text to be sent to the chat for chatting against the file.
+
+The script creates a chat and uploads the file to it. It then keeps polling the `ingestionState` field of the message, waiting for it to reach `FINISHED`, signaling the upload is complete. Once the file uploads successfully, the script sends the text, continues polling for completion, and finally retrieves the response message.
+
+**Optional parameters:**
+- `poll_interval`: The number of seconds to wait between polling attempts (default: `1` second).
+- `max_wait`: The maximum number of seconds to wait for the message to complete (default: `60` seconds).
+
+Example of chatting against a PDF. (The usage can be extended to any supported file type)
+
+```python
+latest_message = await unique_sdk.utils.chat_in_space.chat_against_file(
+    user_id=user_id,
+    company_id=company_id,
+    assistant_id="assistant_hjcdga64bkcjnhu4",
+    path_to_file="/files/hello.pdf",
+    displayed_filename="hello.pdf"
+    mime_type="application/pdf"
+    text="Give me a bullet point summary of the file.",
+)
 ```
 
 ## Error Handling
