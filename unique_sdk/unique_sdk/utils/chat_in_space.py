@@ -65,7 +65,7 @@ async def chat_against_file(
     max_wait: float = 60.0,
 ) -> "Space.Message":
     """
-    Chat with a PDF file by uploading it and waiting for analysis.
+    Chat against a file by uploading it, sending a message and waiting for a reply.
     Args:
 
         user_id: The user ID.
