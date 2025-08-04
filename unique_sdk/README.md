@@ -940,9 +940,9 @@ unique_sdk.Folder.remove_access(
 
 #### `unique_sdk.Agent.run`
 
-Function to modify a call to a standart agent before it is executed. The function takes as parameteres:
+Function to modify a call to a standard agent before it is executed. The function takes as parameteres:
 - `moduleType` can be either `internal` (modules developed by Unique), or `external` (custom modules developed by users)
-- `payload` should respect the structure of the module events. See below an example of how to run an agent and how the payload should look like. 
+- `payload` should respect the structure of the module events. See below an example of how the payload should look like. 
 
 ```python
 unique_sdk.Agent.run(
