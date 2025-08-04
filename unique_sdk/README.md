@@ -891,7 +891,7 @@ unique_sdk.Folder.add_access(
 
 #### `unique_sdk.Folder.remove_access`
 
-Allows you to delete access from a folder and apply to the subfolders or not: `
+Allows you to delete access from a folder and apply to the subfolders or not:
 
 - `scopeAccesses`
 - `applyToSubScopes`
@@ -1227,8 +1227,8 @@ The following script enables you to chat within a space using an assistant. You 
 The script sends a prompt asynchronously and continuously polls for completion, which is determined when the `stoppedStreamingAt` field of the message becomes non-null.
 
 **Optional parameters:**
-- `tool_choices`: A list of tool names to be used for the message (e.g., `["WebSearch"]`). If not provided, no tools will be used.
-- `scope_rules`: A dictionary specifying scope rules for the message, allowing you to restrict the context or data sources available to the assistant.
+- `tool_choices`: A list of tool names to be used for the message (e.g., `["WebSearch"]`). If not provided, no tools will be used. The tools supported right now are `WebSearch` and `InternalSearch`.
+- `scope_rules`: A filter to specify the scope rules for the message, allowing you to restrict the context or data sources available to the assistant. The filter is written in UniqueQL language. Find out more about the language in the UniqueQL section.
 - `chat_id`: The ID of the chat where the message should be sent. If omitted, a new chat will be created.
 - `poll_interval`: The number of seconds to wait between polling attempts (default: `1` second).
 - `max_wait`: The maximum number of seconds to wait for the message to complete (default: `60` seconds).
@@ -1236,12 +1236,12 @@ The script sends a prompt asynchronously and continuously polls for completion, 
 The script ensures you can flexibly interact with spaces in new or ongoing chats, with fine-grained control over tools, context, and polling behavior.
 
 ```python
-latest_message = unique_sdk.utils.send_message_and_wait_for_completion(
+latest_message = await unique_sdk.utils.chat_in_space.send_message_and_wait_for_completion(
         user_id=user_id,
         company_id=company_id,
         assistant_id=assistant_id,
         text="Tell me a short story.",
-        chat_id=chat_id, # Optional - if no chat id is specified, a new chat will be created
+        chat_id=chat_id,                # Optional - if no chat id is specified, a new chat will be created
         tool_choices=["WebSearch"],
         scope_rules={
             "or": [
@@ -1253,6 +1253,13 @@ latest_message = unique_sdk.utils.send_message_and_wait_for_completion(
                     "value": [
                         "cont_u888z7cazxxm4lugfdjq7pks"
                     ]
+                },
+                {
+                    "operator": "contains",
+                    "path": [
+                        "folderIdPath"
+                    ],
+                    "value": "uniquepathid://scope_btfo28b3eeelwh5obwgea71bl/scope_fn56ta67knd6w4medgq3028fx"
                 }
             ]
         },

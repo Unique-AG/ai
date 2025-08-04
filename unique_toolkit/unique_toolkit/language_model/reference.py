@@ -114,6 +114,7 @@ def _preprocess_message(text: str) -> str:
     def replace_source_colon(match):
         numbers = re.findall(r"\d+", match.group(0))
         return "".join(f"[{n}]" for n in numbers)
+
     text = re.sub(r"\[source:\s*([\d,\s]+)\]", replace_source_colon, text)
 
     # Replace '[[A], [B], ...]', '[[A], B, C, ...]', and '[X, Y, Z]' with [A][B][C]... where A,B,C are numbers
@@ -122,7 +123,9 @@ def _preprocess_message(text: str) -> str:
         return "".join(f"[{n}]" for n in numbers)
 
     text = re.sub(
-        r"(?:\[\[(\d+)\](?:,\s*(?:\[)?\d+(?:\])?)*\]|\[([\d,\s]+)\])", replace_combined_brackets, text
+        r"(?:\[\[(\d+)\](?:,\s*(?:\[)?\d+(?:\])?)*\]|\[([\d,\s]+)\])",
+        replace_combined_brackets,
+        text,
     )
 
     return text
