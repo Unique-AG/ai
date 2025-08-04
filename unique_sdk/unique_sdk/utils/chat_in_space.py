@@ -53,31 +53,6 @@ async def send_message_and_wait_for_completion(
     raise TimeoutError("Timed out waiting for prompt completion.")
 
 
-def wait_for_ingestion_finished(
-    user_id: str,
-    company_id: str,
-    content_id: str,
-    chat_id: str,
-    poll_interval: float = 1.0,
-    max_wait: float = 60.0,
-):
-    """
-    Waits until the content ingestionState is FINISHED.
-    """
-    max_attempts = int(max_wait // poll_interval)
-    for _ in range(max_attempts):
-        searched_content = Content.search(
-            user_id=user_id,
-            company_id=company_id,
-            where={"id": {"equals": content_id}},
-            chatId=chat_id,
-        )
-        if searched_content and searched_content[0].get("ingestionState") == "FINISHED":
-            return
-        asyncio.sleep(poll_interval)
-    raise TimeoutError("Timed out waiting for file ingestion to finish.")
-
-
 async def chat_against_file(
     user_id: str,
     company_id: str,
@@ -106,49 +81,87 @@ async def chat_against_file(
     Returns:
         The final message response.
     """
+    chat_id = None
 
-    poll_interval = 1.0
-    response = await send_message_and_wait_for_completion(
-        user_id=user_id,
-        company_id=company_id,
-        assistant_id=assistant_id,
-        text="I'm going to upload a file for analysis.",
-    )
-    chat_id = response.get("chatId")
+    try:
+        response = await send_message_and_wait_for_completion(
+            user_id=user_id,
+            company_id=company_id,
+            assistant_id=assistant_id,
+            text="I'm going to upload a file for analysis.",
+        )
+        chat_id = response.get("chatId")
 
-    upload_response = upload_file(
-        userId=user_id,
-        companyId=company_id,
-        path_to_file=path_to_file,
-        displayed_filename=displayed_filename,
-        mime_type=mime_type,
-        chat_id=chat_id,
-    )
-    content_id = upload_response.get("id")
+        upload_response = upload_file(
+            userId=user_id,
+            companyId=company_id,
+            path_to_file=path_to_file,
+            displayed_filename=displayed_filename,
+            mime_type=mime_type,
+            chat_id=chat_id,
+        )
+        content_id = upload_response.get("id")
 
-    await wait_for_ingestion_finished(
-        user_id=user_id,
-        company_id=company_id,
-        content_id=content_id,
-        chat_id=chat_id,
-        poll_interval=poll_interval,
-        max_wait=max_wait,
-    )
+        await wait_for_ingestion_completion(
+            user_id=user_id,
+            company_id=company_id,
+            content_id=content_id,
+            chat_id=chat_id,
+            poll_interval=poll_interval,
+            max_wait=max_wait,
+        )
 
-    final_response = await send_message_and_wait_for_completion(
-        user_id=user_id,
-        company_id=company_id,
-        assistant_id=assistant_id,
-        text=text,
-        chat_id=chat_id,
-        poll_interval=poll_interval,
-        max_wait=max_wait,
-    )
+        final_response = await send_message_and_wait_for_completion(
+            user_id=user_id,
+            company_id=company_id,
+            assistant_id=assistant_id,
+            text=text,
+            chat_id=chat_id,
+            poll_interval=poll_interval,
+            max_wait=max_wait,
+        )
 
-    Space.delete_chat(
-        user_id=user_id,
-        company_id=company_id,
-        chat_id=chat_id,
-    )
+        return final_response
 
-    return final_response
+    except Exception as err:
+        print(f"Error during chat against file: {err}")
+        raise
+    finally:
+        if chat_id:
+            Space.delete_chat(
+                user_id=user_id,
+                company_id=company_id,
+                chat_id=chat_id,
+            )
+
+
+async def wait_for_ingestion_completion(
+    user_id: str,
+    company_id: str,
+    content_id: str,
+    chat_id: str,
+    poll_interval: float = 1.0,
+    max_wait: float = 60.0,
+):
+    """
+    Waits until the content ingestionState is FINISHED or the maximum wait time is reached and throws if case of failed status.
+    """
+    max_attempts = int(max_wait // poll_interval)
+    for _ in range(max_attempts):
+        searched_content = Content.search(
+            user_id=user_id,
+            company_id=company_id,
+            where={"id": {"equals": content_id}},
+            chatId=chat_id,
+            includeFailedContent=True,
+        )
+        if searched_content:
+            ingestion_state = searched_content[0].get("ingestionState")
+            if ingestion_state == "FINISHED":
+                return
+            if isinstance(ingestion_state, str) and ingestion_state.startswith(
+                "FAILED"
+            ):
+                raise RuntimeError(f"Ingestion failed with state: {ingestion_state}")
+        await asyncio.sleep(poll_interval)
+    raise TimeoutError("Timed out waiting for file ingestion to finish.")
