@@ -236,6 +236,7 @@ class ContentService:
         chat_only: bool | None = None,
         metadata_filter: dict | None = None,
         content_ids: list[str] | None = None,
+        score_threshold: float | None = None,
     ) -> list[ContentChunk]:
         """
         Performs a synchronous search for content chunks in the knowledge base.
@@ -251,6 +252,7 @@ class ContentService:
             chat_only (bool | None, optional): Whether to search only in the current chat. Defaults to None.
             metadata_filter (dict | None, optional): UniqueQL metadata filter. If unspecified/None, it tries to use the metadata filter from the event. Defaults to None.
             content_ids (list[str] | None, optional): The content IDs to search within. Defaults to None.
+            score_threshold (float | None, optional): Sets the minimum similarity score for search results to be considered. Defaults to 0.
 
         Returns:
             list[ContentChunk]: The search results.
@@ -281,6 +283,7 @@ class ContentService:
                 chat_only=chat_only,
                 metadata_filter=metadata_filter,
                 content_ids=content_ids,
+                score_threshold=score_threshold,
             )
             return searches
         except Exception as e:
@@ -299,6 +302,7 @@ class ContentService:
         chat_only: bool | None = None,
         metadata_filter: dict | None = None,
         content_ids: list[str] | None = None,
+        score_threshold: float | None = None,
     ):
         """
         Performs an asynchronous search for content chunks in the knowledge base.
@@ -314,6 +318,7 @@ class ContentService:
             chat_only (bool | None, optional): Whether to search only in the current chat. Defaults to None.
             metadata_filter (dict | None, optional): UniqueQL metadata filter. If unspecified/None, it tries to use the metadata filter from the event. Defaults to None.
             content_ids (list[str] | None, optional): The content IDs to search within. Defaults to None.
+            score_threshold (float | None, optional): Sets the minimum similarity score for search results to be considered. Defaults to 0.
 
         Returns:
             list[ContentChunk]: The search results.
@@ -343,6 +348,7 @@ class ContentService:
                 chat_only=chat_only,
                 metadata_filter=metadata_filter,
                 content_ids=content_ids,
+                score_threshold=score_threshold,
             )
             return searches
         except Exception as e:
