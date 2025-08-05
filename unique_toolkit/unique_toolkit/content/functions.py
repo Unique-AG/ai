@@ -34,6 +34,7 @@ def search_content_chunks(
     chat_only: bool | None = None,
     metadata_filter: dict | None = None,
     content_ids: list[str] | None = None,
+    score_threshold: float | None = 0,
 ) -> list[ContentChunk]:
     """
     Performs a synchronous search for content chunks in the knowledge base.
@@ -48,6 +49,7 @@ def search_content_chunks(
         chat_only (bool | None): Whether to search only in the current chat. Defaults to None.
         metadata_filter (dict | None): UniqueQL metadata filter. If unspecified/None, it tries to use the metadata filter from the event. Defaults to None.
         content_ids (list[str] | None): The content IDs to search. Defaults to None.
+        score_threshold (float | None): The minimum score threshold for results. Defaults to 0.
     Returns:
         list[ContentChunk]: The search results.
     """
@@ -73,6 +75,7 @@ def search_content_chunks(
             chatOnly=chat_only,
             metaDataFilter=metadata_filter,
             contentIds=content_ids,
+            scoreThreshold=score_threshold,
         )
         return map_to_content_chunks(searches)
     except Exception as e:
@@ -93,6 +96,7 @@ async def search_content_chunks_async(
     chat_only: bool | None = None,
     metadata_filter: dict | None = None,
     content_ids: list[str] | None = None,
+    score_threshold: float | None = 0,
 ):
     """
     Performs an asynchronous search for content chunks in the knowledge base.
@@ -121,6 +125,7 @@ async def search_content_chunks_async(
             chatOnly=chat_only,
             metaDataFilter=metadata_filter,
             contentIds=content_ids,
+            scoreThreshold=score_threshold,
         )
         return map_to_content_chunks(searches)
     except Exception as e:
