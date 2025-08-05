@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.3] - 2025-08-05
+- Expose threshold field for search.
+
+## [0.8.2] - 2025-08-05
+- Implement overloads for services for clearer dev experience
+- Proper typing for SSE event handling
+- Enhanced unique settings. Expose usage of default values in logs
+- SDK Initialization from unique settings
+- Add utilities for to run llm/agent flows for devs
+
+## [0.8.1] - 2025-08-05
+- Bump SDK version to support the latest features.
+
+## [0.8.0] - 2025-08-04
+- Add MCP support
+
 ## [0.7.42] - 2025-08-01
 - Added tool definitions
 

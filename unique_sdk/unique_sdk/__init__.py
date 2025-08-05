@@ -88,6 +88,7 @@ from unique_sdk.api_resources._message_assessment import (
 )
 from unique_sdk.api_resources._space import Space as Space
 from unique_sdk.api_resources._agent import Agent as Agent
+from unique_sdk.api_resources._mcp import MCP as MCP
 
 # Unique QL
 from unique_sdk._unique_ql import UQLOperator as UQLOperator

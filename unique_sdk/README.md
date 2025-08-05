@@ -22,6 +22,7 @@ The Unique Python SDK provides access to the public API of Unique FinanceGPT. It
    - [Message Assessment](#message-assessment)
    - [Folder](#folder)
    - [Agent](#agent)
+   - [Space](#space)
 6. [UniqueQL](#uniqueql)
    - [Query Structure](#uniqueql-query-structure)
    - [Metadata Filtering](#metadata-filtering)
@@ -237,6 +238,7 @@ unique_sdk.Message.modify(
 - [Message Assessment](#message-assessment)
 - [Folder](#folder)
 - [Agent](#agent)
+- [Space](#space)
 
 Most of the API services provide an asynchronous version of the method. The async methods are suffixed with `_async`.
 
@@ -589,6 +591,39 @@ unique_sdk.Integrated.chat_stream_completion(
 
 **Warning:** Currently, the deletion of a chat message does not automatically sync with the user UI. Users must refresh the chat page to view the updated state. This issue will be addressed in a future update of our API.
 
+
+#### `unique_sdk.Integrated.responses_stream`
+
+Streams the answer to the chat frontend using the Responses API. Given the messages.
+
+if the stream creates [source0] it is referenced with the references from the search context.
+
+E.g.
+
+```
+Hello this information is from [source1]
+```
+
+adds the reference at index 1 and then changes the text to:
+
+```
+Hello this information is from <sub>0</sub>
+```
+
+```python
+unique_sdk.Integrated.responses_stream(
+    user_id=userId,
+    company_id=companyId,
+    model="AZURE_o3_2025_0416",
+    assistantMessageId=assistantMessageId,
+    userMessageId=userMessageId,
+    input="Tell me about the curious case of neural text degeneration",
+    chatId=chatId,
+)
+```
+
+**Warning:** Currently, the deletion of a chat message does not automatically sync with the user UI. Users must refresh the chat page to view the updated state. This issue will be addressed in a future update of our API.
+
 ### Chat Completion
 
 #### `unique_sdk.ChatCompletion.create`
@@ -656,6 +691,7 @@ These are the options are available for `searchType`:
 `language` Optional. The language specification for full text search.
 `reranker` Optional. The reranker service to be used for re-ranking the search results.
 `chatId` Optional, adds the documents uploaded in this chat to the scope of searched documents.
+`scoreThreshold` Optional, sets the minimum similarity score for search results to be considered. Using 0 is recommended.
 
 ```python
 search = unique_sdk.Search.create(
@@ -670,6 +706,7 @@ search = unique_sdk.Search.create(
     reranker={"deploymentName": "my_deployment"},
     limit=20,
     page=1
+    scoreThreshold=0
 )
 ```
 
@@ -977,6 +1014,20 @@ unique_sdk.Agent.run(
 )
 ```
 
+### Space
+
+#### `unique_sdk.Space.delete_chat`
+
+Delete a space chat by id. If the chat does not exist, the function will return an error.
+
+```python
+unique_sdk.Space.delete_chat(
+    user_id=user_id,
+    company_id=company_id,
+    chat_id="chat_dejfhe729br398",
+)
+```
+
 ## UniqueQL
 
 [UniqueQL](https://unique-ch.atlassian.net/wiki/x/coAXHQ) is an advanced query language designed to enhance search capabilities within various search modes such as Vector, Full-Text Search (FTS), and Combined. This query language enables users to perform detailed searches by filtering through metadata attributes like filenames, URLs, dates, and more. UniqueQL is versatile and can be translated into different query formats for various database systems, including PostgreSQL and Qdrant.
@@ -1034,6 +1085,12 @@ A metadata filter such as the one designed above can be used in a `Search.create
 ```
 
 ## Utils
+
+- [Chat History](#chat-history)
+- [File Io](#file-io)
+- [Sources](#sources)
+- [token](#token)
+- [Chat In Space](#chat-in-space)
 
 ### Chat History
 
@@ -1264,33 +1321,64 @@ The script ensures you can flexibly interact with spaces in new or ongoing chats
 
 ```python
 latest_message = await unique_sdk.utils.chat_in_space.send_message_and_wait_for_completion(
-        user_id=user_id,
-        company_id=company_id,
-        assistant_id=assistant_id,
-        text="Tell me a short story.",
-        chat_id=chat_id,                # Optional - if no chat id is specified, a new chat will be created
-        tool_choices=["WebSearch"],
-        scope_rules={
-            "or": [
-                {
-                    "operator": "in",
-                    "path": [
-                        "contentId"
-                    ],
-                    "value": [
-                        "cont_u888z7cazxxm4lugfdjq7pks"
-                    ]
-                },
-                {
-                    "operator": "contains",
-                    "path": [
-                        "folderIdPath"
-                    ],
-                    "value": "uniquepathid://scope_btfo28b3eeelwh5obwgea71bl/scope_fn56ta67knd6w4medgq3028fx"
-                }
-            ]
-        },
-    )
+    user_id=user_id,
+    company_id=company_id,
+    assistant_id=assistant_id,
+    text="Tell me a short story.",
+    chat_id=chat_id,                # Optional - if no chat id is specified, a new chat will be created
+    tool_choices=["WebSearch"],
+    scope_rules={
+        "or": [
+            {
+                "operator": "in",
+                "path": [
+                    "contentId"
+                ],
+                "value": [
+                    "cont_u888z7cazxxm4lugfdjq7pks"
+                ]
+            },
+            {
+                "operator": "contains",
+                "path": [
+                    "folderIdPath"
+                ],
+                "value": "uniquepathid://scope_btfo28b3eeelwh5obwgea71bl/scope_fn56ta67knd6w4medgq3028fx"
+            }
+        ]
+    },
+)
+```
+
+#### `unique_sdk.utils.chat_in_space.chat_against_file`
+
+The following script enables you to chat against a file.
+
+You must provide the following parameters:
+- `assistantId`: The assistant to be used for the chat.
+- `path_to_file`: The local path of the file to be uploaded.
+- `displayed_filename`: The name of the file to be displayed.
+- `mime_type`: The mime type of the ifle to be uploaded.
+- `text`: The text to be sent to the chat for chatting against the file.
+
+The script creates a chat and uploads the file to it. It then keeps polling the `ingestionState` field of the message, waiting for it to reach `FINISHED`, signaling the upload is complete. Once the file uploads successfully, the script sends the text, continues polling for completion, and finally retrieves the response message.
+
+**Optional parameters:**
+- `poll_interval`: The number of seconds to wait between polling attempts (default: `1` second).
+- `max_wait`: The maximum number of seconds to wait for the message to complete (default: `60` seconds).
+
+Example of chatting against a PDF. (The usage can be extended to any supported file type)
+
+```python
+latest_message = await unique_sdk.utils.chat_in_space.chat_against_file(
+    user_id=user_id,
+    company_id=company_id,
+    assistant_id="assistant_hjcdga64bkcjnhu4",
+    path_to_file="/files/hello.pdf",
+    displayed_filename="hello.pdf"
+    mime_type="application/pdf"
+    text="Give me a bullet point summary of the file.",
+)
 ```
 
 ## Error Handling
