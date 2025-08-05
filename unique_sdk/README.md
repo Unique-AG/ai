@@ -589,6 +589,39 @@ unique_sdk.Integrated.chat_stream_completion(
 
 **Warning:** Currently, the deletion of a chat message does not automatically sync with the user UI. Users must refresh the chat page to view the updated state. This issue will be addressed in a future update of our API.
 
+
+#### `unique_sdk.Integrated.responses_stream`
+
+Streams the answer to the chat frontend using the Responses API. Given the messages.
+
+if the stream creates [source0] it is referenced with the references from the search context.
+
+E.g.
+
+```
+Hello this information is from [source1]
+```
+
+adds the reference at index 1 and then changes the text to:
+
+```
+Hello this information is from <sub>0</sub>
+```
+
+```python
+unique_sdk.Integrated.responses_stream(
+    user_id=userId,
+    company_id=companyId,
+    model="AZURE_o3_2025_0416",
+    assistantMessageId=assistantMessageId,
+    userMessageId=userMessageId,
+    input="Tell me about the curious case of neural text degeneration",
+    chatId=chatId,
+)
+```
+
+**Warning:** Currently, the deletion of a chat message does not automatically sync with the user UI. Users must refresh the chat page to view the updated state. This issue will be addressed in a future update of our API.
+
 ### Chat Completion
 
 #### `unique_sdk.ChatCompletion.create`
