@@ -21,6 +21,7 @@ The Unique Python SDK provides access to the public API of Unique FinanceGPT. It
    - [Short Term Memory](#short-term-memory)
    - [Message Assessment](#message-assessment)
    - [Folder](#folder)
+   - [Agent](#agent)
    - [Space](#space)
 6. [UniqueQL](#uniqueql)
    - [Query Structure](#uniqueql-query-structure)
@@ -236,6 +237,7 @@ unique_sdk.Message.modify(
 - [Short Term Memory](#short-term-memory)
 - [Message Assessment](#message-assessment)
 - [Folder](#folder)
+- [Agent](#agent)
 - [Space](#space)
 
 Most of the API services provide an asynchronous version of the method. The async methods are suffixed with `_async`.
@@ -968,6 +970,47 @@ unique_sdk.Folder.remove_access(
         }
     ],
     applyToSubScopes=True,
+)
+```
+
+### Agent
+
+#### `unique_sdk.Agent.run`
+
+Function to modify a call to a standard agent before it is executed. The function takes as parameteres:
+- `moduleType` can be either `internal` (modules developed by Unique), or `external` (custom modules developed by users)
+- `payload` should respect the structure of the module events. See below an example of how the payload should look like. 
+
+```python
+unique_sdk.Agent.run(
+    user_id=user_id,
+    company_id=company_id,
+    moduleType="internal",   # can be internal/external
+    payload={
+        "name": "UniqueAi", # name of the module
+        "description": "Description",
+        "configuration": {},
+        "chatId": "chat_tyt92cerr4te3muncujv",
+        "assistantId": "assistant_y1dfdgrgrsdcmsplg",
+        "userMessage": {
+            "id": "msg_xud0ygzegsfrrgfiwry3trn3",
+            "text": "Tell me a short story",
+            "createdAt": "2025-07-31T09:52:43.167Z",
+            "originalText": "tell me a short story",
+            "language": "English"
+        },
+        "assistantMessage": {
+            "id": "msg_eeobprfrertreuu07491",
+            "createdAt": "2025-07-31T09:52:43.167Z"
+        },
+        "assistant": { "name": "Unique AI" },
+        "toolParameters": {
+            # define toolParameters as needed
+        },
+        "userMetadata": {
+            # define userMetadata as needed
+        }
+    }
 )
 ```
 

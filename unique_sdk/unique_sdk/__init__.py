@@ -87,6 +87,7 @@ from unique_sdk.api_resources._message_assessment import (
     MessageAssessment as MessageAssessment,
 )
 from unique_sdk.api_resources._space import Space as Space
+from unique_sdk.api_resources._agent import Agent as Agent
 from unique_sdk.api_resources._mcp import MCP as MCP
 
 # Unique QL
