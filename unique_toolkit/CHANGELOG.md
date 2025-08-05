@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.1] - 2025-08-05
+- Bump SDK version to support the latest features.
+
+## [0.8.0] - 2025-08-04
+- Add MCP support
+
+## [0.7.42] - 2025-08-01
+- Added tool definitions
+
+## [0.7.41] - 2025-07-31
+- Add new chat event attribute indicating tools disabled on a company level
+
+## [0.7.40] - 2025-07-30
+- Remove `GEMINI_2_5_FLASH_PREVIEW_0417` model
+
+## [0.7.39] - 2025-07-28
+- Implement utitilites to work with openai client
+- Implement utitilites to work with langchain llm 
+
+## [0.7.38] - 2025-07-25
+- Fix issues with secret strings in settings
+
+## [0.7.36] - 2025-07-25
+- Fix issues with settings
+- Add testing to unique settings
+
 ## [0.7.35] - 2025-07-23
 - Bump version of SDK to have access to the latest features and fixes
 

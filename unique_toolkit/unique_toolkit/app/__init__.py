@@ -41,5 +41,11 @@ from .schemas import (
 from .verification import (
     verify_signature_and_construct_event as verify_signature_and_construct_event,
 )
+from .schemas import (
+    McpServer as McpServer,
+)
+from .schemas import (
+    McpTool as McpTool,
+)
 
 DOMAIN_NAME = "app"

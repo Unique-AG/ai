@@ -64,6 +64,7 @@ class Content(APIResource["Content"]):
     class SearchParams(RequestOptions):
         where: "Content.ContentWhereInput"
         chatId: NotRequired[str]
+        includeFailedContent: NotRequired[bool]
 
     class ContentInfoParams(TypedDict):
         """
@@ -163,11 +164,11 @@ class Content(APIResource["Content"]):
     class MagicTableSheetTable(TypedDict):
         rowId: str
         columns: List["Content.MagicTableSheetTableColumn"]
-    
+
     class MagicTableSheetIngestionConfiguration(TypedDict):
         columnIdsInMetadata: List[str]
         columnIdsInChunkText: List[str]
-    
+
     class MagicTableSheetIngestParams(TypedDict):
         data: List["Content.MagicTableSheetTable"]
         ingestionConfiguration: "Content.MagicTableSheetIngestionConfiguration"
@@ -298,10 +299,10 @@ class Content(APIResource["Content"]):
 
     @classmethod
     def ingest_magic_table_sheets(
-            cls, 
-            user_id: str, 
-            company_id: str, 
-            **params: Unpack["Content.MagicTableSheetIngestParams"]
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Content.MagicTableSheetIngestParams"],
     ) -> "Content.MagicTableSheetResponse":
         return cast(
             Content.MagicTableSheetResponse,
@@ -316,10 +317,10 @@ class Content(APIResource["Content"]):
 
     @classmethod
     async def ingest_magic_table_sheets_async(
-            cls, 
-            user_id: str, 
-            company_id: str, 
-            **params: Unpack["Content.MagicTableSheetIngestParams"]
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Content.MagicTableSheetIngestParams"],
     ) -> "Content.MagicTableSheetResponse":
         return cast(
             Content.MagicTableSheetResponse,

@@ -21,6 +21,7 @@ The Unique Python SDK provides access to the public API of Unique FinanceGPT. It
    - [Short Term Memory](#short-term-memory)
    - [Message Assessment](#message-assessment)
    - [Folder](#folder)
+   - [Space](#space)
 6. [UniqueQL](#uniqueql)
    - [Query Structure](#uniqueql-query-structure)
    - [Metadata Filtering](#metadata-filtering)
@@ -235,6 +236,7 @@ unique_sdk.Message.modify(
 - [Short Term Memory](#short-term-memory)
 - [Message Assessment](#message-assessment)
 - [Folder](#folder)
+- [Space](#space)
 
 Most of the API services provide an asynchronous version of the method. The async methods are suffixed with `_async`.
 
@@ -687,6 +689,7 @@ These are the options are available for `searchType`:
 `language` Optional. The language specification for full text search.
 `reranker` Optional. The reranker service to be used for re-ranking the search results.
 `chatId` Optional, adds the documents uploaded in this chat to the scope of searched documents.
+`scoreThreshold` Optional, sets the minimum similarity score for search results to be considered. Using 0 is recommended.
 
 ```python
 search = unique_sdk.Search.create(
@@ -701,6 +704,7 @@ search = unique_sdk.Search.create(
     reranker={"deploymentName": "my_deployment"},
     limit=20,
     page=1
+    scoreThreshold=0
 )
 ```
 
@@ -922,7 +926,7 @@ unique_sdk.Folder.add_access(
 
 #### `unique_sdk.Folder.remove_access`
 
-Allows you to delete access from a folder and apply to the subfolders or not: `
+Allows you to delete access from a folder and apply to the subfolders or not:
 
 - `scopeAccesses`
 - `applyToSubScopes`
@@ -964,6 +968,20 @@ unique_sdk.Folder.remove_access(
         }
     ],
     applyToSubScopes=True,
+)
+```
+
+### Space
+
+#### `unique_sdk.Space.delete_chat`
+
+Delete a space chat by id. If the chat does not exist, the function will return an error.
+
+```python
+unique_sdk.Space.delete_chat(
+    user_id=user_id,
+    company_id=company_id,
+    chat_id="chat_dejfhe729br398",
 )
 ```
 
@@ -1024,6 +1042,12 @@ A metadata filter such as the one designed above can be used in a `Search.create
 ```
 
 ## Utils
+
+- [Chat History](#chat-history)
+- [File Io](#file-io)
+- [Sources](#sources)
+- [token](#token)
+- [Chat In Space](#chat-in-space)
 
 ### Chat History
 
@@ -1244,8 +1268,8 @@ The following script enables you to chat within a space using an assistant. You 
 The script sends a prompt asynchronously and continuously polls for completion, which is determined when the `stoppedStreamingAt` field of the message becomes non-null.
 
 **Optional parameters:**
-- `tool_choices`: A list of tool names to be used for the message (e.g., `["WebSearch"]`). If not provided, no tools will be used.
-- `scope_rules`: A dictionary specifying scope rules for the message, allowing you to restrict the context or data sources available to the assistant.
+- `tool_choices`: A list of tool names to be used for the message (e.g., `["WebSearch"]`). If not provided, no tools will be used. The tools supported right now are `WebSearch` and `InternalSearch`.
+- `scope_rules`: A filter to specify the scope rules for the message, allowing you to restrict the context or data sources available to the assistant. The filter is written in UniqueQL language. Find out more about the language in the UniqueQL section.
 - `chat_id`: The ID of the chat where the message should be sent. If omitted, a new chat will be created.
 - `poll_interval`: The number of seconds to wait between polling attempts (default: `1` second).
 - `max_wait`: The maximum number of seconds to wait for the message to complete (default: `60` seconds).
@@ -1253,27 +1277,65 @@ The script sends a prompt asynchronously and continuously polls for completion, 
 The script ensures you can flexibly interact with spaces in new or ongoing chats, with fine-grained control over tools, context, and polling behavior.
 
 ```python
-latest_message = unique_sdk.utils.send_message_and_wait_for_completion(
-        user_id=user_id,
-        company_id=company_id,
-        assistant_id=assistant_id,
-        text="Tell me a short story.",
-        chat_id=chat_id, # Optional - if no chat id is specified, a new chat will be created
-        tool_choices=["WebSearch"],
-        scope_rules={
-            "or": [
-                {
-                    "operator": "in",
-                    "path": [
-                        "contentId"
-                    ],
-                    "value": [
-                        "cont_u888z7cazxxm4lugfdjq7pks"
-                    ]
-                }
-            ]
-        },
-    )
+latest_message = await unique_sdk.utils.chat_in_space.send_message_and_wait_for_completion(
+    user_id=user_id,
+    company_id=company_id,
+    assistant_id=assistant_id,
+    text="Tell me a short story.",
+    chat_id=chat_id,                # Optional - if no chat id is specified, a new chat will be created
+    tool_choices=["WebSearch"],
+    scope_rules={
+        "or": [
+            {
+                "operator": "in",
+                "path": [
+                    "contentId"
+                ],
+                "value": [
+                    "cont_u888z7cazxxm4lugfdjq7pks"
+                ]
+            },
+            {
+                "operator": "contains",
+                "path": [
+                    "folderIdPath"
+                ],
+                "value": "uniquepathid://scope_btfo28b3eeelwh5obwgea71bl/scope_fn56ta67knd6w4medgq3028fx"
+            }
+        ]
+    },
+)
+```
+
+#### `unique_sdk.utils.chat_in_space.chat_against_file`
+
+The following script enables you to chat against a file.
+
+You must provide the following parameters:
+- `assistantId`: The assistant to be used for the chat.
+- `path_to_file`: The local path of the file to be uploaded.
+- `displayed_filename`: The name of the file to be displayed.
+- `mime_type`: The mime type of the ifle to be uploaded.
+- `text`: The text to be sent to the chat for chatting against the file.
+
+The script creates a chat and uploads the file to it. It then keeps polling the `ingestionState` field of the message, waiting for it to reach `FINISHED`, signaling the upload is complete. Once the file uploads successfully, the script sends the text, continues polling for completion, and finally retrieves the response message.
+
+**Optional parameters:**
+- `poll_interval`: The number of seconds to wait between polling attempts (default: `1` second).
+- `max_wait`: The maximum number of seconds to wait for the message to complete (default: `60` seconds).
+
+Example of chatting against a PDF. (The usage can be extended to any supported file type)
+
+```python
+latest_message = await unique_sdk.utils.chat_in_space.chat_against_file(
+    user_id=user_id,
+    company_id=company_id,
+    assistant_id="assistant_hjcdga64bkcjnhu4",
+    path_to_file="/files/hello.pdf",
+    displayed_filename="hello.pdf"
+    mime_type="application/pdf"
+    text="Give me a bullet point summary of the file.",
+)
 ```
 
 ## Error Handling
