@@ -34,7 +34,7 @@ def search_content_chunks(
     chat_only: bool | None = None,
     metadata_filter: dict | None = None,
     content_ids: list[str] | None = None,
-    score_threshold: float | None = 0,
+    score_threshold: float | None = None,
 ) -> list[ContentChunk]:
     """
     Performs a synchronous search for content chunks in the knowledge base.
@@ -96,7 +96,7 @@ async def search_content_chunks_async(
     chat_only: bool | None = None,
     metadata_filter: dict | None = None,
     content_ids: list[str] | None = None,
-    score_threshold: float | None = 0,
+    score_threshold: float | None = None,
 ):
     """
     Performs an asynchronous search for content chunks in the knowledge base.
