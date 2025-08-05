@@ -656,7 +656,7 @@ These are the options are available for `searchType`:
 `language` Optional. The language specification for full text search.
 `reranker` Optional. The reranker service to be used for re-ranking the search results.
 `chatId` Optional, adds the documents uploaded in this chat to the scope of searched documents.
-`scoreThreshold` Optional, sets the minimum similarity score for search results to be considered.
+`scoreThreshold` Optional, sets the minimum similarity score for search results to be considered. Using 0 is recommended.
 
 ```python
 search = unique_sdk.Search.create(
@@ -671,7 +671,7 @@ search = unique_sdk.Search.create(
     reranker={"deploymentName": "my_deployment"},
     limit=20,
     page=1
-    scoreThreshold=0.5
+    scoreThreshold=0
 )
 ```
 
