@@ -148,6 +148,13 @@ class Content(APIResource["Content"]):
         contentInfo: List["Content.ContentInfo"]
         totalCount: int
 
+    class DeleteParams(RequestOptions):
+        id: str
+        chatId: Optional[str]
+
+    class DeleteResponse(TypedDict):
+        id: str
+
     id: str
     key: str
     url: Optional[str]
@@ -329,6 +336,48 @@ class Content(APIResource["Content"]):
                 "/content/magic-table-sheets",
                 user_id,
                 company_id=company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    def delete(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Content.DeleteParams"],
+    ) -> "Content.DeleteResponse":
+        """
+        DeletesContent
+        """
+        return cast(
+            "Content.DeleteResponse",
+            cls._static_request(
+                "delete",
+                f"/content/{params['id']}",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    async def delete_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Content.DeleteParams"],
+    ) -> "Content.DeleteResponse":
+        """
+        DeletesContent async
+        """
+        return cast(
+            "Content.DeleteResponse",
+            await cls._static_request_async(
+                "delete",
+                f"/content/{params['id']}",
+                user_id,
+                company_id,
                 params=params,
             ),
         )

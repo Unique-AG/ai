@@ -459,6 +459,24 @@ Allows you to ingest a magic table sheet, each row is processed and converted in
     unique_sdk.Content.ingest_magic_table_sheets(**params)
 ```
 
+#### `unique_sdk.Content.search`
+
+Allows you to delete a content by its id. If the content is part of a chat, the `chatId` also needs do be set,
+
+- `id` the id of the content to be deleted
+- `chatId` optional, the chatId of the chat where the content is. Only needed if the content is part of a chat
+
+Here is an example of deleting a content from a chat.
+
+```python
+unique_sdk.Content.delete(
+    user_id=user_id,
+    company_id=company_id,
+    id="cont_ok2343q5owbce80w78hudawu5",
+    chatId="chat_v3xfa7liv876h89vuiibus1"
+)
+```
+
 ### Message
 
 #### `unique_sdk.Message.list`
