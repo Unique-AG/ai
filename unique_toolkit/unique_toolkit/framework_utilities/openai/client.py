@@ -1,6 +1,5 @@
 import importlib.util
 import logging
-from pathlib import Path
 
 from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.framework_utilities.utils import get_default_headers
@@ -23,7 +22,7 @@ else:
     raise OpenAINotInstalledError()
 
 
-def get_openai_client(env_file: Path | None = None) -> OpenAI:
+def get_openai_client(unique_settings: UniqueSettings) -> OpenAI:
     """Get an OpenAI client instance.
 
     Args:
@@ -35,11 +34,10 @@ def get_openai_client(env_file: Path | None = None) -> OpenAI:
     Raises:
         OpenAINotInstalledError: If OpenAI package is not installed
     """
-    settings = UniqueSettings.from_env(env_file=env_file)
-    default_headers = get_default_headers(settings.app, settings.auth)
+    default_headers = get_default_headers(unique_settings.app, unique_settings.auth)
 
     return OpenAI(
-        api_key=settings.app.key.get_secret_value(),
-        base_url=settings.app.base_url + "/openai-proxy/",
+        api_key=unique_settings.app.key.get_secret_value(),
+        base_url=unique_settings.api.openai_proxy_url(),
         default_headers=default_headers,
     )
