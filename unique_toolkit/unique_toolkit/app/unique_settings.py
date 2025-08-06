@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Self, TypeVar
 from urllib.parse import urlparse, urlunparse
 
-from pydantic import Field, SecretStr, model_validator
+from pydantic import AliasChoices, Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = getLogger(__name__)
@@ -23,8 +23,18 @@ def warn_about_defaults(instance: T) -> T:
 
 
 class UniqueApp(BaseSettings):
-    id: SecretStr = Field(default=SecretStr("dummy_id"))
-    key: SecretStr = Field(default=SecretStr("dummy_key"))
+    id: SecretStr = Field(
+        default=SecretStr("dummy_id"),
+        validation_alias=AliasChoices(
+            "unique_app_id", "app_id", "UNIQUE_APP_ID", "APP_ID"
+        ),
+    )
+    key: SecretStr = Field(
+        default=SecretStr("dummy_key"),
+        validation_alias=AliasChoices(
+            "unique_app_key", "key", "UNIQUE_APP_KEY", "KEY", "API_KEY", "api_key"
+        ),
+    )
     base_url: str = Field(
         default="http://localhost:8092/",
         deprecated="Use UniqueApi.base_url instead",
@@ -48,8 +58,16 @@ class UniqueApi(BaseSettings):
     base_url: str = Field(
         default="http://localhost:8092/",
         description="The base URL of the Unique API. Ask your admin to provide you with the correct URL.",
+        validation_alias=AliasChoices(
+            "unique_api_base_url", "base_url", "UNIQUE_API_BASE_URL", "BASE_URL"
+        ),
     )
-    version: str = Field(default="2023-12-06")
+    version: str = Field(
+        default="2023-12-06",
+        validation_alias=AliasChoices(
+            "unique_api_version", "version", "UNIQUE_API_VERSION", "VERSION"
+        ),
+    )
 
     model_config = SettingsConfigDict(
         env_prefix="unique_api_",
@@ -88,8 +106,21 @@ class UniqueApi(BaseSettings):
 
 
 class UniqueAuth(BaseSettings):
-    company_id: SecretStr = Field(default=SecretStr("dummy_company_id"))
-    user_id: SecretStr = Field(default=SecretStr("dummy_user_id"))
+    company_id: SecretStr = Field(
+        default=SecretStr("dummy_company_id"),
+        validation_alias=AliasChoices(
+            "unique_auth_company_id",
+            "company_id",
+            "UNIQUE_AUTH_COMPANY_ID",
+            "COMPANY_ID",
+        ),
+    )
+    user_id: SecretStr = Field(
+        default=SecretStr("dummy_user_id"),
+        validation_alias=AliasChoices(
+            "unique_auth_user_id", "user_id", "UNIQUE_AUTH_USER_ID", "USER_ID"
+        ),
+    )
 
     model_config = SettingsConfigDict(
         env_prefix="unique_auth_",
@@ -128,7 +159,7 @@ class UniqueSettings:
 
         # Initialize settings with environment file if provided
         env_file_str = str(env_file) if env_file else None
-        auth = UniqueAuth(_env_file=env_file_str)
-        app = UniqueApp(_env_file=env_file_str)
-        api = UniqueApi(_env_file=env_file_str)
+        auth = UniqueAuth(_env_file=env_file_str)  # type: ignore[call-arg]
+        app = UniqueApp(_env_file=env_file_str)  # type: ignore[call-arg]
+        api = UniqueApi(_env_file=env_file_str)  # type: ignore[call-arg]
         return cls(auth=auth, app=app, api=api)
