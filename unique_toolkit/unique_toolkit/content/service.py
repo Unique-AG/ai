@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Any, overload
 
 import unique_sdk
 from requests import Response
@@ -35,13 +35,30 @@ logger = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
 class ContentService:
     """
     Provides methods for searching, downloading and uploading content in the knowledge base.
+    """
 
-    Attributes:
-        event: BaseEvent | Event, this can be None ONLY if company_id and user_id are provided.
-        company_id (str): The company ID.
-        user_id (str): The user ID.
-        chat_id (str): The chat ID. Defaults to None
-        metadata_filter (dict | None): is only initialised from an Event(Deprecated) or ChatEvent.
+    @deprecated(
+        "Use __init__ with company_id, user_id and chat_id instead or use the classmethod `from_event`"
+    )
+    @overload
+    def __init__(self, event: Event | ChatEvent | BaseEvent): ...
+
+    """
+        Initialize the ContentService with an event (deprecated)
+    """
+
+    @overload
+    def __init__(
+        self,
+        *,
+        company_id: str,
+        user_id: str,
+        chat_id: str | None,
+        metadata_filter: dict | None = None,
+    ): ...
+
+    """
+        Initialize the ContentService with a company_id, user_id and chat_id and metadata_filter.
     """
 
     def __init__(
@@ -50,7 +67,12 @@ class ContentService:
         company_id: str | None = None,
         user_id: str | None = None,
         chat_id: str | None = None,
+        metadata_filter: dict | None = None,
     ):
+        """
+        Initialize the ContentService with a company_id, user_id and chat_id.
+        """
+
         self._event = event  # Changed to protected attribute
         self._metadata_filter = None
         if event:
@@ -64,6 +86,26 @@ class ContentService:
             self._company_id: str = company_id
             self._user_id: str = user_id
             self._chat_id: str | None = chat_id
+            self._metadata_filter = metadata_filter
+
+    @classmethod
+    def from_event(cls, event: Event | ChatEvent | BaseEvent):
+        """
+        Initialize the ContentService with an event.
+        """
+        chat_id = None
+        metadata_filter = None
+
+        if isinstance(event, (ChatEvent | Event)):
+            chat_id = event.payload.chat_id
+            metadata_filter = event.payload.metadata_filter
+
+        return cls(
+            company_id=event.company_id,
+            user_id=event.user_id,
+            chat_id=chat_id,
+            metadata_filter=metadata_filter,
+        )
 
     @property
     @deprecated(
@@ -194,6 +236,7 @@ class ContentService:
         chat_only: bool | None = None,
         metadata_filter: dict | None = None,
         content_ids: list[str] | None = None,
+        score_threshold: float | None = None,
     ) -> list[ContentChunk]:
         """
         Performs a synchronous search for content chunks in the knowledge base.
@@ -209,6 +252,7 @@ class ContentService:
             chat_only (bool | None, optional): Whether to search only in the current chat. Defaults to None.
             metadata_filter (dict | None, optional): UniqueQL metadata filter. If unspecified/None, it tries to use the metadata filter from the event. Defaults to None.
             content_ids (list[str] | None, optional): The content IDs to search within. Defaults to None.
+            score_threshold (float | None, optional): Sets the minimum similarity score for search results to be considered. Defaults to 0.
 
         Returns:
             list[ContentChunk]: The search results.
@@ -239,6 +283,7 @@ class ContentService:
                 chat_only=chat_only,
                 metadata_filter=metadata_filter,
                 content_ids=content_ids,
+                score_threshold=score_threshold,
             )
             return searches
         except Exception as e:
@@ -257,6 +302,7 @@ class ContentService:
         chat_only: bool | None = None,
         metadata_filter: dict | None = None,
         content_ids: list[str] | None = None,
+        score_threshold: float | None = None,
     ):
         """
         Performs an asynchronous search for content chunks in the knowledge base.
@@ -272,6 +318,7 @@ class ContentService:
             chat_only (bool | None, optional): Whether to search only in the current chat. Defaults to None.
             metadata_filter (dict | None, optional): UniqueQL metadata filter. If unspecified/None, it tries to use the metadata filter from the event. Defaults to None.
             content_ids (list[str] | None, optional): The content IDs to search within. Defaults to None.
+            score_threshold (float | None, optional): Sets the minimum similarity score for search results to be considered. Defaults to 0.
 
         Returns:
             list[ContentChunk]: The search results.
@@ -301,6 +348,7 @@ class ContentService:
                 chat_only=chat_only,
                 metadata_filter=metadata_filter,
                 content_ids=content_ids,
+                score_threshold=score_threshold,
             )
             return searches
         except Exception as e:

@@ -19,6 +19,15 @@ model_config = ConfigDict(
 
 class EventName(StrEnum):
     EXTERNAL_MODULE_CHOSEN = "unique.chat.external-module.chosen"
+    USER_MESSAGE_CREATED = "unique.chat.user-message.created"
+    INGESTION_CONTENT_UPLOADED = "unique.ingestion.content.uploaded"
+    INGESTION_CONTENT_FINISHED = "unique.ingestion.content.finished"
+    MAGIC_TABLE_IMPORT_COLUMNS = "unique.magic-table.import-columns"
+    MAGIC_TABLE_ADD_META_DATA = "unique.magic-table.add-meta-data"
+    MAGIC_TABLE_ADD_DOCUMENT = "unique.magic-table.add-document"
+    MAGIC_TABLE_DELETE_ROW = "unique.magic-table.delete-row"
+    MAGIC_TABLE_DELETE_COLUMN = "unique.magic-table.delete-column"
+    MAGIC_TABLE_UPDATE_CELL = "unique.magic-table.update-cell"
 
 
 class BaseEvent(BaseModel):
@@ -37,6 +46,53 @@ class BaseEvent(BaseModel):
             data = json.load(f)
         return cls.model_validate(data)
 
+
+###
+# MCP schemas
+###
+
+class McpTool(BaseModel):
+    model_config = model_config
+
+    name: str
+    description: Optional[str] = None
+    input_schema: dict[str, Any]
+    output_schema: Optional[dict[str, Any]] = None
+    annotations: Optional[dict[str, Any]] = None
+    title: Optional[str] = Field(
+        default=None,
+        description="The display title for a tool. This is a Unique specific field.",
+    )
+    icon: Optional[str] = Field(
+        default=None,
+        description="An icon name from the Lucide icon set for the tool. This is a Unique specific field.",
+    )
+    system_prompt: Optional[str] = Field(
+        default=None,
+        description="An optional system prompt for the tool. This is a Unique specific field.",
+    )
+    user_prompt: Optional[str] = Field(
+        default=None,
+        description="An optional user prompt for the tool. This is a Unique specific field.",
+    )
+    is_connected: bool = Field(
+        description="Whether the tool is connected to the MCP server. This is a Unique specific field.",
+    )
+
+class McpServer(BaseModel):
+    model_config = model_config
+
+    id: str
+    name: str
+    system_prompt: Optional[str] = Field(
+        default=None,
+        description="An optional system prompt for the MCP server.",
+    )
+    user_prompt: Optional[str] = Field(
+        default=None,
+        description="An optional user prompt for the MCP server.",
+    )
+    tools: list[McpTool] = []
 
 ###
 # ChatEvent schemas
@@ -132,6 +188,10 @@ class ChatEventPayload(BaseModel):
     raw_scope_rules: UniqueQL | None = Field(
         default=None,
         description="Raw UniqueQL rule that can be compiled to a metadata filter.",
+    )
+    mcp_servers: list[McpServer] = Field(
+        default_factory=list,
+        description="A list of MCP servers with tools available for the chat session.",
     )
 
     @field_validator("raw_scope_rules", mode="before")

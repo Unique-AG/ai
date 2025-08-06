@@ -5,8 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.9.43] - 2025-08-04
+## [0.10.5] - 2025-08-06
 - Get paginated files and folders info.
+
+## [0.10.4] - 2025-08-05
+- Add support for reasoning API with streaming within a chat.
+
+## [0.10.3] - 2025-08-05
+- Expose scoreThreshold param for search.
+
+## [0.10.2] - 2025-08-05
+- Add script to chat against file.
+
+## [0.10.1] - 2025-08-05
+- Allow deletion of a space chat.
+
+## [0.10.0] - 2025-08-04
+- Add MCP support
 
 ## [0.9.42] - 2025-07-31
 - Fix wrong chat in space example.

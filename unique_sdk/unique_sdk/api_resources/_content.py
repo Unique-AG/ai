@@ -64,6 +64,7 @@ class Content(APIResource["Content"]):
     class SearchParams(RequestOptions):
         where: "Content.ContentWhereInput"
         chatId: NotRequired[str]
+        includeFailedContent: NotRequired[bool]
 
     class ContentInfoParams(TypedDict):
         """
