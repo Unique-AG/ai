@@ -278,7 +278,7 @@ unique_sdk.Content.search(
 
 #### `unique_sdk.Content.get_info`
 
-Allows you to get content info. To filter the results you can define a metadata filter in UniqueQL language. Find out more about it in the UniqueQL section. An example of a metadata filter defined with UniqueQL is the following:
+[Deprecated, use `unique_sdk.Content.get_infos` instead.] Allows you to get content info. To filter the results you can define a metadata filter in UniqueQL language. Find out more about it in the UniqueQL section. An example of a metadata filter defined with UniqueQL is the following:
 
 ```python
     metadataFilter: {
@@ -310,7 +310,7 @@ Pagination is also enabled for this functionality, and the default number of ret
 - `skip`
 - `take`
 
-Here is an example of retrieving the first 3 content infos that contain the value `uniquepathid://scope_abcdibgznc4bkdcx120zm5d` in the `folderIdPath` metadata and the value `ai` for the `tile` metadata.
+Here is an example of retrieving the first 3 content infos that contain the value `uniquepathid://scope_abcdibgznc4bkdcx120zm5d` in the `folderIdPath` metadata and the value `ai` for the `title` metadata.
 
 ```python
 content_info_result = unique_sdk.Content.get_info(
@@ -340,6 +340,85 @@ content_info_result = unique_sdk.Content.get_info(
     },
     skip=0,
     take=3,
+)
+```
+
+#### `unique_sdk.Content.get_infos`
+
+Allows you to get content infos. To filter the results you can define a either metadata filter in UniqueQL language or specify a parentId. If both are defined, the function will throw an error.
+
+I f you want to learn more about UniqueQL, you can find out more about it in the [UniqueQL](#uniqueql) section. An example of a metadata filter defined with UniqueQL is the following:
+
+```python
+    metadataFilter: {
+        "or": [
+            {
+                "and": [
+                    {
+                        "operator": "contains",
+                        "path": [
+                            "folderIdPath"
+                        ],
+                        "value": "uniquepathid://test_id"
+                    },
+                    {
+                        "operator": "contains",
+                        "path": [
+                            "title"
+                        ],
+                        "value": "ai"
+                    }
+                ]
+            }
+        ]
+    },
+```
+
+Pagination is also enabled for this functionality, and the default number of returned results is 50 with no entries skipped. Use the following paramteres to get the desired page:`
+
+- `skip`
+- `take`
+
+Here is an example of retrieving the first 3 content infos that contain the value `uniquepathid://scope_abcdibgznc4bkdcx120zm5d` in the `folderIdPath` metadata and the value `ai` for the `title` metadata.
+
+```python
+content_info_result = unique_sdk.Content.get_infos(
+    user_id=user_id,
+    company_id=company_id,
+    metadataFilter={
+        "or": [
+            {
+                "and": [
+                    {
+                        "operator": "contains",
+                        "path": [
+                            "folderIdPath"
+                        ],
+                        "value": "uniquepathid://scope_abcdibgznc4bkdcx120zm5d"
+                    },
+                    {
+                        "operator": "contains",
+                        "path": [
+                            "title"
+                        ],
+                        "value": "ai"
+                    }
+                ]
+            }
+        ]
+    },
+    skip=0,
+    take=3,
+)
+```
+
+Here is an example of retrieving the contents based on a parentId.
+
+```python
+content_info_result = unique_sdk.Content.get_infos(
+    user_id=user_id,
+    company_id=company_id,
+    parentId="scope_ahefgj389srjbfejkkk98u"
 )
 ```
 
@@ -804,7 +883,7 @@ assessment = unique_sdk.MessageAssessment.modify(
 
 ### Folder
 
-#### `unique_sdk.Folder.get`
+#### `unique_sdk.Folder.get_info`
 
 Get a folder by scope id or by path.
 
@@ -825,6 +904,20 @@ unique_sdk.Folder.get_info(
    user_id=user_id,
    company_id=company_id,
    folderPath="/Company/Atlas/Due Dilligence/Arch,
+)
+```
+
+#### `unique_sdl.Folder.get_infos`
+
+Get paginated folders info based on parentId. If the parentId is not defined, the root folders will be returned.
+
+```python
+unique_sdk.Folder.get_infos(
+    user_id=user_id,
+    company_id=company_id,
+    take=10,                                    #optional
+    skip=5,                                     #optional
+    parentId="scope_s18seqpnltf35niydg77xgyp"   #optional
 )
 ```
 
