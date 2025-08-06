@@ -107,7 +107,6 @@ class Space(APIResource["Space"]):
         Async send a message in a space.
         """
         params["toolChoices"] = params.get("toolChoices") or []
-        print("params", params)
         return cast(
             "Space.Message",
             await cls._static_request_async(
