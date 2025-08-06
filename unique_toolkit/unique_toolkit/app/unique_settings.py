@@ -13,12 +13,18 @@ T = TypeVar("T", bound=BaseSettings)
 
 def warn_about_defaults(instance: T) -> T:
     """Log warnings for fields that are using default values."""
-    for field_name, model_field in instance.model_fields.items():
+    for field_name, model_field in instance.__class__.model_fields.items():
         field_value = getattr(instance, field_name)
-        if field_value == model_field.default:
-            logger.warning(
-                f"Using default value for '{field_name}': {model_field.default}"
-            )
+        default_value = model_field.default
+
+        # Handle SecretStr comparison by comparing the secret values
+        if isinstance(field_value, SecretStr) and isinstance(default_value, SecretStr):
+            if field_value.get_secret_value() == default_value.get_secret_value():
+                logger.warning(
+                    f"Using default value for '{field_name}': {default_value.get_secret_value()}"
+                )
+        elif field_value == default_value:
+            logger.warning(f"Using default value for '{field_name}': {default_value}")
     return instance
 
 
