@@ -84,6 +84,7 @@ class Space(APIResource["Space"]):
         """
         Send a message in a space.
         """
+        params["toolChoices"] = params.get("toolChoices") or []
         return cast(
             "Space.Message",
             cls._static_request(
@@ -105,6 +106,7 @@ class Space(APIResource["Space"]):
         """
         Async send a message in a space.
         """
+        params["toolChoices"] = params.get("toolChoices") or []
         return cast(
             "Space.Message",
             await cls._static_request_async(
