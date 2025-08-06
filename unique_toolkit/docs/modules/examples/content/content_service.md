@@ -30,8 +30,6 @@ content_chunks = content_service.search_content_chunks(
 <!--
 ```{.python file=examples/generated/content_event_driven.py}
 # %%
-<<import_all_services>>
-<<instantiate_all_services_from_event>>
 ```
 -->
 

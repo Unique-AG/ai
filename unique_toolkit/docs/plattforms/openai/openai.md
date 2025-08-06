@@ -140,7 +140,5 @@ print(completion.choices[0].message.content)
 <<openai_chat_completion_structured_output>>
 <<openai_chat_completion_function_calling>>
 <<openai_chat_completion_developer_message>>
-
-
 ```
 -->
