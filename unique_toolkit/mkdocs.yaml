@@ -16,7 +16,6 @@ nav:
     - ./plattforms/openai/openai.md
   - API Reference: api.md
   - Readme: readme.md
-  - Changelog: CHANGELOG.md
 
 markdown_extensions:
   - admonition

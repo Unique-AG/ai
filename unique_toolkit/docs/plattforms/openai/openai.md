@@ -34,8 +34,8 @@ avoids as long list of imports and helps with typing.
 ```{.python #openai_chat_completion_messages}
 messages = (
     OpenAIMessageBuilder()
-    .append_function_message(content="You are a helpful assistant")
-    .append_user_message(content="How is the weather in New York")
+    .system_message_append(content="You are a helpful assistant")
+    .user_message_append(content="How is the weather in New York")
 ).messages
 ```
 
@@ -140,7 +140,5 @@ print(completion.choices[0].message.content)
 <<openai_chat_completion_structured_output>>
 <<openai_chat_completion_function_calling>>
 <<openai_chat_completion_developer_message>>
-
-
 ```
 -->
