@@ -57,15 +57,6 @@ logger = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
 class ChatService:
     """
     Provides all functionalities to manage the chat session.
-
-    Attributes:
-        company_id (str | None): The company ID.
-        user_id (str | None): The user ID.
-        assistant_message_id (str | None): The assistant message ID.
-        user_message_id (str | None): The user message ID.
-        chat_id (str | None): The chat ID.
-        assistant_id (str | None): The assistant ID.
-        user_message_text (str | None): The user message text.
     """
 
     def __init__(self, event: ChatEvent | Event):
@@ -88,6 +79,7 @@ class ChatService:
 
         Returns:
             Event | BaseEvent | None: The event object.
+
         """
         return self._event
 
@@ -101,6 +93,7 @@ class ChatService:
 
         Returns:
             str | None: The company identifier.
+
         """
         return self._company_id
 

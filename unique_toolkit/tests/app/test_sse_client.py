@@ -3,8 +3,13 @@ from unittest.mock import patch
 import pytest
 from pydantic import SecretStr
 
-from unique_toolkit.app.sse_client import get_sse_client
-from unique_toolkit.app.unique_settings import UniqueApp, UniqueAuth, UniqueSettings
+from unique_toolkit.app.dev_util import get_sse_client
+from unique_toolkit.app.unique_settings import (
+    UniqueApi,
+    UniqueApp,
+    UniqueAuth,
+    UniqueSettings,
+)
 
 
 @pytest.fixture
@@ -22,10 +27,15 @@ def unique_settings():
         user_id=SecretStr("test-user-id"),
     )
 
-    return UniqueSettings(auth=auth, app=app)
+    api = UniqueApi(
+        base_url="https://api.example.com",
+        version="2023-12-06",
+    )
+
+    return UniqueSettings(auth=auth, app=app, api=api)
 
 
-@patch("unique_toolkit.app.sse_client.SSEClient")
+@patch("unique_toolkit.app.dev_util.SSEClient")
 def test_get_sse_client_configuration(mock_sse_client, unique_settings):
     # Test data
     subscriptions = ["event1", "event2"]
@@ -34,6 +44,8 @@ def test_get_sse_client_configuration(mock_sse_client, unique_settings):
         "Authorization": "Bearer test-api-key",
         "x-app-id": "test-app-id",
         "x-company-id": "test-company-id",
+        "x-user-id": "test-user-id",
+        "x-api-version": "2023-12-06",
     }
 
     # Call the function

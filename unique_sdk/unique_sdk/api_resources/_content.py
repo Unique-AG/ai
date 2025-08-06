@@ -73,8 +73,8 @@ class Content(APIResource["Content"]):
         """
 
         metadataFilter: dict
-        skip: int | None
-        take: int | None
+        skip: NotRequired[int]
+        take: NotRequired[int]
 
     class CustomApiOptions(TypedDict):
         apiIdentifier: str
@@ -145,7 +145,7 @@ class Content(APIResource["Content"]):
         expiredAt: str | None
 
     class PaginatedContentInfo(TypedDict):
-        contentInfo: List["Content.ContentInfo"]
+        contentInfos: List["Content.ContentInfo"]
         totalCount: int
 
     class DeleteParams(RequestOptions):
@@ -237,7 +237,7 @@ class Content(APIResource["Content"]):
             Content.PaginatedContentInfo,
             cls._static_request(
                 "post",
-                "/content/info",
+                "/content/infos",
                 user_id,
                 company_id,
                 params=params,
@@ -255,7 +255,43 @@ class Content(APIResource["Content"]):
             Content.PaginatedContentInfo,
             await cls._static_request_async(
                 "post",
-                "/content/info",
+                "/content/infos",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    def get_infos(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Content.ContentInfoParams"],
+    ) -> "Content.PaginatedContentInfo":
+        return cast(
+            Content.PaginatedContentInfo,
+            cls._static_request(
+                "post",
+                "/content/infos",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    async def get_infos_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Content.ContentInfoParams"],
+    ) -> "Content.PaginatedContentInfo":
+        return cast(
+            Content.PaginatedContentInfo,
+            await cls._static_request_async(
+                "post",
+                "/content/infos",
                 user_id,
                 company_id,
                 params=params,

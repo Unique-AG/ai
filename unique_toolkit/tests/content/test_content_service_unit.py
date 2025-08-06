@@ -82,6 +82,7 @@ class TestContentServiceUnit:
                     "value": "test_key",
                 },
                 contentIds=None,
+                scoreThreshold=None,
             )
 
     def test_search_contents(self):
@@ -183,6 +184,7 @@ class TestContentServiceUnit:
                     "value": "test_key",
                 },
                 contentIds=None,
+                scoreThreshold=None,
             )
 
     @pytest.mark.asyncio

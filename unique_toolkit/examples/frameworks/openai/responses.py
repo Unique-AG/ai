@@ -4,10 +4,12 @@
 # Setup
 from pathlib import Path
 
+from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.framework_utilities.openai.client import get_openai_client
 
 env_file = Path(__file__).parent.parent.parent / ".env"
-client = get_openai_client(env_file=env_file)
+unique_settings = UniqueSettings.from_env(env_file=env_file)
+client = get_openai_client(unique_settings)
 model = "AZURE_o3_2025_0416"
 
 # %%

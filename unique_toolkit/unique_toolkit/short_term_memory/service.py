@@ -1,3 +1,5 @@
+from typing import overload
+
 from typing_extensions import deprecated
 
 from unique_toolkit._common.validate_required_values import validate_required_values
@@ -16,17 +18,35 @@ from .schemas import ShortTermMemory
 class ShortTermMemoryService:
     """
     Provides methods to manage short term memory.
+    """
 
-    Attributes:
-        user_id (str | None): The user ID.
-        company_id (str | None): The company ID.
-        chat_id (str | None): The chat ID.
-        message_id (str | None): The message ID.
+    @deprecated(
+        "Use __init__ with company_id and user_id instead or use the classmethod `from_event`"
+    )
+    @overload
+    def __init__(self, event: Event | ChatEvent | BaseEvent): ...
+
+    """
+        Initialize the ShortTermMemoryService with an event (deprecated)
+    """
+
+    @overload
+    def __init__(
+        self,
+        *,
+        company_id: str,
+        user_id: str,
+        chat_id: str | None,
+        message_id: str | None,
+    ): ...
+
+    """
+        Initialize the ShortTermMemoryService with a company_id, user_id, chat_id and message_id.
     """
 
     def __init__(
         self,
-        event: Event | BaseEvent | None = None,
+        event: Event | ChatEvent | BaseEvent | None = None,
         user_id: str | None = None,
         company_id: str | None = None,
         chat_id: str | None = None,
@@ -49,6 +69,18 @@ class ShortTermMemoryService:
             self._user_id: str = user_id
             self._chat_id: str | None = chat_id
             self._message_id: str | None = message_id
+
+    @classmethod
+    def from_event(cls, event: ChatEvent):
+        """
+        Initialize the ShortTermMemoryService with a chat event.
+        """
+        return cls(
+            company_id=event.company_id,
+            user_id=event.user_id,
+            chat_id=event.payload.chat_id,
+            message_id=event.payload.user_message.id,
+        )
 
     @property
     @deprecated(
