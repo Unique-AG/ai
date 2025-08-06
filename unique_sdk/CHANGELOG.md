@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.7] - 2025-08-06
+- Fix bug when new space endpoint returns error.
+
+## [0.10.6] - 2025-08-06
+- Add function to delete a content.
+
 ## [0.10.5] - 2025-08-06
 - Get paginated files and folders info.
 
