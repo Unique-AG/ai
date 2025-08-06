@@ -310,7 +310,7 @@ Pagination is also enabled for this functionality, and the default number of ret
 - `skip`
 - `take`
 
-Here is an example of retrieving the first 3 content infos that contain the value `uniquepathid://scope_abcdibgznc4bkdcx120zm5d` in the `folderIdPath` metadata and the value `ai` for the `tile` metadata.
+Here is an example of retrieving the first 3 content infos that contain the value `uniquepathid://scope_abcdibgznc4bkdcx120zm5d` in the `folderIdPath` metadata and the value `ai` for the `title` metadata.
 
 ```python
 content_info_result = unique_sdk.Content.get_info(
@@ -379,7 +379,7 @@ Pagination is also enabled for this functionality, and the default number of ret
 - `skip`
 - `take`
 
-Here is an example of retrieving the first 3 content infos that contain the value `uniquepathid://scope_abcdibgznc4bkdcx120zm5d` in the `folderIdPath` metadata and the value `ai` for the `tile` metadata.
+Here is an example of retrieving the first 3 content infos that contain the value `uniquepathid://scope_abcdibgznc4bkdcx120zm5d` in the `folderIdPath` metadata and the value `ai` for the `title` metadata.
 
 ```python
 content_info_result = unique_sdk.Content.get_infos(
