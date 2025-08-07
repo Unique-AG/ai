@@ -149,8 +149,9 @@ class Content(APIResource["Content"]):
         totalCount: int
 
     class DeleteParams(RequestOptions):
-        id: str
-        chatId: Optional[str]
+        contentId: str | None = None
+        filePath: str | None = None
+        chatId: str | None = None
 
     class DeleteResponse(TypedDict):
         id: str
@@ -384,13 +385,13 @@ class Content(APIResource["Content"]):
         **params: Unpack["Content.DeleteParams"],
     ) -> "Content.DeleteResponse":
         """
-        DeletesContent
+        Deletes a content by its id or file path.
         """
         return cast(
             "Content.DeleteResponse",
             cls._static_request(
                 "delete",
-                f"/content/{params['id']}",
+                "/content",
                 user_id,
                 company_id,
                 params=params,
@@ -405,13 +406,13 @@ class Content(APIResource["Content"]):
         **params: Unpack["Content.DeleteParams"],
     ) -> "Content.DeleteResponse":
         """
-        DeletesContent async
+        Async deletes a content by its id or file path.
         """
         return cast(
             "Content.DeleteResponse",
             await cls._static_request_async(
                 "delete",
-                f"/content/{params['id']}",
+                "/content",
                 user_id,
                 company_id,
                 params=params,
