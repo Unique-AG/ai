@@ -106,9 +106,11 @@ class UniqueApi(BaseSettings):
 
     def openai_proxy_url(self) -> str:
         parsed = urlparse(self.base_url)
-        return urlunparse(
-            parsed._replace(path="/public/openai-proxy/", query=None, fragment=None)
-        )
+        path = "/public/chat/openai-proxy/"
+        if parsed.hostname and "qa.unique" in parsed.hostname:
+            path = "/public/chat-gen2/openai-proxy/"
+
+        return urlunparse(parsed._replace(path=path, query=None, fragment=None))
 
 
 class UniqueAuth(BaseSettings):
