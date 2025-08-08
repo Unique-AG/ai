@@ -24,9 +24,14 @@ def find_topic(title: str | None) -> str:
     return ""
 
 
-def find_date(title: str | None) -> str:
+def internal_to_iso_date(date: str) -> str:
+    dt = datetime.strptime(date, "%Y-%m-%d %H:%M:%S.%f")
+    return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def find_date(title: str | None, default_date: str) -> str:
     if not title:
-        return ""
+        return default_date
 
     # Check for standard date format YYYY-MM-DD
     date_match = re.search(r"(\d{4}-\d{2}-\d{2})", title)
@@ -48,4 +53,4 @@ def find_date(title: str | None) -> str:
         except ValueError:
             return ""
 
-    return ""
+    return default_date
