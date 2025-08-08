@@ -1064,6 +1064,30 @@ unique_sdk.Folder.remove_access(
 )
 ```
 
+#### `unique_sdk.Folder.delete`
+
+The function removes a specified folder (identified by its path or scope ID) along with all its subfolders and files. It returns four ID lists: one for files successfully deleted, one for folders successfully deleted, one for files that failed to delete, and one for folders that failed to delete.
+
+By scope id:
+
+```python
+unique_sdk.Folder.delete(
+   user_id=user_id,
+   company_id=company_id,
+   scopeId="scope_w78wfn114va9o22s13r03yq",
+)
+```
+
+By path:
+
+```python
+unique_sdk.Folder.delete(
+   user_id=user_id,
+   company_id=company_id,
+   folderPath="/Company/Atlas/Due Dilligence/Arch,
+)
+```
+
 ### Space
 
 #### `unique_sdk.Space.delete_chat`

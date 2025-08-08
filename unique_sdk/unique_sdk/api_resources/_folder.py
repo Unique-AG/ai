@@ -152,6 +152,24 @@ class Folder(APIResource["Folder"]):
         take: NotRequired[int]
         skip: NotRequired[int]
 
+    class DeleteParams(RequestOptions):
+        """
+        Parameters for deleting a folder.
+        """
+
+        scopeId: str | None = None
+        folderPath: str | None = None
+
+    class DeleteResponse(TypedDict):
+        """
+        Response for deleting a folder.
+        """
+
+        deletedFolderIds: List[str]
+        deletedFileIds: List[str]
+        failedFolderIds: List[str]
+        failedFileIds: List[str]
+
     @classmethod
     def get_info(
         cls, user_id: str, company_id: str, **params: Unpack["Folder.GetParams"]
@@ -376,6 +394,46 @@ class Folder(APIResource["Folder"]):
                 "/folder/remove-access",
                 user_id,
                 company_id,
+                params=params,
+            ),
+        )
+
+    def delete(
+        self,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Folder.DeleteParams"],
+    ) -> "Folder.DeleteResponse":
+        """
+        Delete a folder by its ID or path.
+        """
+        return cast(
+            "Folder.DeleteResponse",
+            self._request(
+                "delete",
+                self.RESOURCE_URL,
+                user_id,
+                company_id=company_id,
+                params=params,
+            ),
+        )
+
+    async def delete_async(
+        self,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Folder.DeleteParams"],
+    ) -> "Folder.DeleteResponse":
+        """
+        Async delete a folder by its ID or path.
+        """
+        return cast(
+            "Folder.DeleteResponse",
+            await self._request_async(
+                "delete",
+                self.RESOURCE_URL,
+                user_id,
+                company_id=company_id,
                 params=params,
             ),
         )
