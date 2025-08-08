@@ -2,7 +2,7 @@ import asyncio
 
 from dotenv import load_dotenv
 from src.clients.content import ContentClient
-from src.utilities import find_date, find_topic
+from src.utilities import find_topic, get_date_from_filename
 
 load_dotenv()
 
@@ -41,7 +41,7 @@ async def process_update_tasks_with_limit(content_client, contents, limit):
             existing_metadata = content.get("metadata", {})
             title = content.get("key", "")
             extracted_metadata = {
-                "date": find_date(title, ""),
+                "date": get_date_from_filename(title) or "",
                 "topic": find_topic(title),
             }
             new_metadata = {**existing_metadata, **extracted_metadata}

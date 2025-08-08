@@ -2,7 +2,7 @@ import asyncio
 
 from dotenv import load_dotenv
 from src.clients.content import ContentClient
-from src.utilities import find_date, internal_to_iso_date
+from src.utilities import get_date_from_filename, internal_to_iso_date
 
 load_dotenv()
 
@@ -39,9 +39,11 @@ async def process_update_tasks_with_limit(content_client, contents, limit):
             print(f"Processing content ID: {content_id}")
 
             existing_metadata = content.get("metadata", {})
-            title = content.get("key", "")
+            title = content.get("key", "") or content.get("title", "")
             default_date = internal_to_iso_date(content.get("createdAt"))
-            extracted_metadata = {"validAsOf": find_date(title, default_date)}
+            extracted_metadata = {
+                "validAsOf": get_date_from_filename(title) or default_date
+            }
             new_metadata = {**existing_metadata, **extracted_metadata}
 
             print(f"Updating metadata for {content_id}: {extracted_metadata}")
