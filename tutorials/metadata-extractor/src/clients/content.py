@@ -17,6 +17,7 @@ class ContentClient:
             key
             appliedIngestionConfig
             metadata
+            createdAt
             chunks {
                 text
             }
