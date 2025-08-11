@@ -8,6 +8,7 @@ from typing import (
     TypedDict,
     Unpack,
     cast,
+    overload,
 )
 
 from unique_sdk._api_resource import APIResource
@@ -376,6 +377,80 @@ class Folder(APIResource["Folder"]):
                 "/folder/remove-access",
                 user_id,
                 company_id,
+                params=params,
+            ),
+        )
+
+    @overload
+    def rename(
+        cls,
+        user_id: str,
+        company_id: str,
+        scopeId: str,
+    ) -> "Folder.FolderInfo": ...
+
+    @overload
+    def rename(
+        cls,
+        user_id: str,
+        company_id: str,
+        folderPath: str,
+    ) -> "Folder.FolderInfo": ...
+
+    @classmethod
+    def rename(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params,
+    ) -> "Folder.FolderInfo":
+        """
+        Rename a folder given its id or path and the new name.
+        """
+        return cast(
+            "Folder.FolderInfo",
+            cls._static_request(
+                "patch",
+                f"{cls.RESOURCE_URL}/rename",
+                user_id,
+                company_id=company_id,
+                params=params,
+            ),
+        )
+
+    @overload
+    async def rename_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        scopeId: str,
+    ) -> "Folder.FolderInfo": ...
+
+    @overload
+    async def rename_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        folderPath: str,
+    ) -> "Folder.FolderInfo": ...
+
+    @classmethod
+    async def rename_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params,
+    ) -> "Folder.FolderInfo":
+        """
+        Async rename a folder given its id or path and the new name.
+        """
+        return cast(
+            "Folder.FolderInfo",
+            await cls._static_request_async(
+                "patch",
+                f"{cls.RESOURCE_URL}/rename",
+                user_id,
+                company_id=company_id,
                 params=params,
             ),
         )

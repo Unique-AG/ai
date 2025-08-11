@@ -907,7 +907,7 @@ unique_sdk.Folder.get_info(
 )
 ```
 
-#### `unique_sdl.Folder.get_infos`
+#### `unique_sdk.Folder.get_infos`
 
 Get paginated folders info based on parentId. If the parentId is not defined, the root folders will be returned.
 
@@ -918,6 +918,32 @@ unique_sdk.Folder.get_infos(
     take=10,                                    #optional
     skip=5,                                     #optional
     parentId="scope_s18seqpnltf35niydg77xgyp"   #optional
+)
+```
+
+#### `unique_sdk.Folder.rename`
+
+Rename a folder given its path or `scopeId` and a new name.
+
+By `scopeId`:
+
+```python
+unique_sdk.Folder.rename(
+    user_id=user_id,
+    company_id=company_id,
+    scopeId="scope_s18seqpnltf35niydg77xgyp",
+    newName="New Folder Name"
+)
+```
+
+By `folderPath`:
+
+```python
+unique_sdk.Folder.rename(
+    user_id=user_id,
+    company_id=company_id,
+    folderPath="/Company/Atlas/Due Dilligence/Arch",
+    newName="New Folder Name"
 )
 ```
 
