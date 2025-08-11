@@ -45,9 +45,7 @@ class AgentChunksHandler:
     def latest_referenced_chunks(self) -> list[ContentChunk]:
         if not self._references:
             return []
-        return self._get_referenced_chunks_from_references(
-            self._references[-1]
-        )
+        return self._get_referenced_chunks_from_references(self._references[-1])
 
     def _get_referenced_chunks_from_references(
         self,

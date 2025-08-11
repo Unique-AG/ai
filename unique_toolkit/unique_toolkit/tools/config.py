@@ -1,5 +1,5 @@
 from enum import StrEnum
-import humps 
+import humps
 from typing import Any
 from pydantic.fields import ComputedFieldInfo, FieldInfo
 from pydantic.alias_generators import to_camel

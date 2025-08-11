@@ -1,9 +1,10 @@
 import pytest
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.tools.utils.source_handling.schema import SourceFormatConfig
-from unique_toolkit.tools.utils.source_handling.source_formatting import _format_page_range, format_chunk
-
-
+from unique_toolkit.tools.utils.source_handling.source_formatting import (
+    _format_page_range,
+    format_chunk,
+)
 
 
 @pytest.fixture
@@ -59,21 +60,15 @@ def json_style_config():
 
 def test_format_page_range():
     # Test same start and end page
-    chunk = ContentChunk(
-        id="1", order=1, text="test", start_page=1, end_page=1
-    )
+    chunk = ContentChunk(id="1", order=1, text="test", start_page=1, end_page=1)
     assert _format_page_range(chunk) == "1"
 
     # Test page range
-    chunk = ContentChunk(
-        id="1", order=1, text="test", start_page=1, end_page=3
-    )
+    chunk = ContentChunk(id="1", order=1, text="test", start_page=1, end_page=3)
     assert _format_page_range(chunk) == "1 - 3"
 
     # Test invalid pages
-    chunk = ContentChunk(
-        id="1", order=1, text="test", start_page=0, end_page=0
-    )
+    chunk = ContentChunk(id="1", order=1, text="test", start_page=0, end_page=0)
     assert _format_page_range(chunk) == ""
 
 
@@ -101,7 +96,7 @@ def test_metadata_handling(xml_style_config_with_metadata):
             "key": "metadata-key",
             "mimeType": "text/plain",
             "date": "12.03.2025",
-        }, # type: ignore
+        },  # type: ignore
     )
 
     formatted = format_chunk(1, chunk, xml_style_config_with_metadata)
@@ -117,7 +112,7 @@ def test_metadata_handling(xml_style_config_with_metadata):
             "key": "metadata-key",
             "mimeType": "text/plain",
             "unrelated_key": "Some value",
-        }, # type: ignore
+        },  # type: ignore
     )
 
     formatted = format_chunk(1, chunk, xml_style_config_with_metadata)
@@ -129,7 +124,7 @@ def test_metadata_handling(xml_style_config_with_metadata):
         id="1",
         order=1,
         text="<|document|>Doc1<|/document|>\nContent text",
-        metadata={"key": "metadata-key", "mimeType": "text/plain"}, # type: ignore
+        metadata={"key": "metadata-key", "mimeType": "text/plain"},  # type: ignore
     )
 
     formatted = format_chunk(1, chunk, xml_style_config_with_metadata)
@@ -199,9 +194,7 @@ def test_special_characters_handling(json_style_config):
     assert formatted == expected
 
 
-def test_empty_sections(
-    xml_style_config_without_page_number, json_style_config
-):
+def test_empty_sections(xml_style_config_without_page_number, json_style_config):
     chunk = ContentChunk(
         id="1",
         order=1,
@@ -211,13 +204,8 @@ def test_empty_sections(
     )
 
     # Test XML style
-    xml_formatted = format_chunk(
-        1, chunk, xml_style_config_without_page_number
-    )
-    assert (
-        xml_formatted
-        == "<source1>Just plain text without any sections</source1>"
-    )
+    xml_formatted = format_chunk(1, chunk, xml_style_config_without_page_number)
+    assert xml_formatted == "<source1>Just plain text without any sections</source1>"
 
     # Test JSON style
     json_formatted = format_chunk(1, chunk, json_style_config)

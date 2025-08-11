@@ -27,7 +27,6 @@ from unique_toolkit.tools.tool_progress_reporter import ToolProgressReporter
 ConfigType = TypeVar("ConfigType", bound=BaseToolConfig)
 
 
-
 class Tool(ABC, Generic[ConfigType]):
     name: str
     settings: ToolBuildConfig
@@ -35,19 +34,19 @@ class Tool(ABC, Generic[ConfigType]):
     def display_name(self) -> str:
         """The display name of the tool."""
         return self.settings.display_name
-    
+
     def icon(self) -> str:
         """The icon of the tool."""
         return self.settings.icon
-    
+
     def selection_policy(self) -> ToolSelectionPolicy:
         """The selection policy of the tool."""
         return self.settings.selection_policy
-    
+
     def is_exclusive(self) -> bool:
         """Whether the tool is exclusive or not."""
         return self.settings.is_exclusive
-    
+
     def is_enabled(self) -> bool:
         """Whether the tool is enabled or not."""
         return self.settings.is_enabled
@@ -55,11 +54,11 @@ class Tool(ABC, Generic[ConfigType]):
     @abstractmethod
     def tool_description(self) -> LanguageModelToolDescription:
         raise NotImplementedError
-    
+
     def tool_description_as_json(self) -> dict[str, Any]:
         parameters = self.tool_description().parameters
         if not isinstance(parameters, dict):
-           return parameters.model_json_schema()
+            return parameters.model_json_schema()
         else:
             return cast("dict[str, Any]", parameters)
 
@@ -76,7 +75,7 @@ class Tool(ABC, Generic[ConfigType]):
         You can use this if the LLM fails to follow the formatting rules.
         """
         return ""
-    
+
     @deprecated("Do not use as is bound to loop agent only")
     @abstractmethod
     def get_tool_call_result_for_loop_history(
@@ -99,7 +98,6 @@ class Tool(ABC, Generic[ConfigType]):
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
         raise NotImplementedError
 
-
     @deprecated(
         "Do not use as the evaluation checks should not be determined by\n"
         "the tool. The decision on what check should be done is up to the\n"
@@ -112,7 +110,6 @@ class Tool(ABC, Generic[ConfigType]):
     ) -> list[EvaluationMetricName]:
         raise NotImplementedError
 
-    
     def get_tool_prompts(self) -> ToolPrompts:
         return ToolPrompts(
             name=self.name,
@@ -121,8 +118,7 @@ class Tool(ABC, Generic[ConfigType]):
             tool_format_information_for_system_prompt=self.tool_format_information_for_system_prompt(),
             input_model=self.tool_description_as_json(),
         )
-        
-    
+
     # Properties that we should soon deprecate
 
     @property
@@ -145,20 +141,17 @@ class Tool(ABC, Generic[ConfigType]):
     def tool_progress_reporter(self) -> ToolProgressReporter | None:
         return self._tool_progress_reporter
 
-
-    
-
     def __init__(
         self,
         config: ConfigType,
         event: ChatEvent,
         tool_progress_reporter: ToolProgressReporter | None = None,
     ):
-        self.settings =  ToolBuildConfig(
-                            name=self.name,
-                            configuration=config,  # type: ignore
-                            # the ToolBuildConfig has a wrong type in it to be fixed later.
-                        )
+        self.settings = ToolBuildConfig(
+            name=self.name,
+            configuration=config,  # type: ignore
+            # the ToolBuildConfig has a wrong type in it to be fixed later.
+        )
 
         self.config = config
         module_name = "default overwrite for module name"

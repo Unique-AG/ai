@@ -53,6 +53,6 @@ class TestEmbeddingServiceIntegration:
         result1 = self.service.embed_texts([text])
         result2 = self.service.embed_texts([text])
 
-        assert (
-            result1.embeddings == result2.embeddings
-        ), "Embeddings should be consistent for the same text"
+        assert result1.embeddings == result2.embeddings, (
+            "Embeddings should be consistent for the same text"
+        )

@@ -98,9 +98,7 @@ class SafeTaskExecutor:
             if isinstance(e, self._ignored_exceptions):
                 raise e
             if self._log_exceptions:
-                logger.error(
-                    f"Error in {f.__name__}: {e}", exc_info=self._log_exc_info
-                )
+                logger.error(f"Error in {f.__name__}: {e}", exc_info=self._log_exc_info)
             return Result(False, exception=e)
 
     async def execute_async(
@@ -112,15 +110,11 @@ class SafeTaskExecutor:
             if isinstance(e, self._ignored_exceptions):
                 raise e
             if self._log_exceptions:
-                logger.error(
-                    f"Error in {f.__name__}: {e}", exc_info=self._log_exc_info
-                )
+                logger.error(f"Error in {f.__name__}: {e}", exc_info=self._log_exc_info)
             return Result(False, exception=e)
 
 
-def safe_execute(
-    f: Callable[P, R], *args: P.args, **kwargs: P.kwargs
-) -> Result[R]:
+def safe_execute(f: Callable[P, R], *args: P.args, **kwargs: P.kwargs) -> Result[R]:
     """
     Execute a function call "safely": exceptions are caught and logged,
     and the function result is returned as a `Result` object.
@@ -223,9 +217,7 @@ def failsafe(
         )
 
         @functools.wraps(func)
-        def sync_wrapper(
-            *args: P.args, **kwargs: P.kwargs
-        ) -> R | FailureReturnType:
+        def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> R | FailureReturnType:
             result = executor.execute(func, *args, **kwargs)
             return result.unpack(default=cast(R, failure_return_value))
 

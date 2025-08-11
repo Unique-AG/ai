@@ -51,6 +51,7 @@ class BaseEvent(BaseModel):
 # MCP schemas
 ###
 
+
 class McpTool(BaseModel):
     model_config = model_config
 
@@ -79,6 +80,7 @@ class McpTool(BaseModel):
         description="Whether the tool is connected to the MCP server. This is a Unique specific field.",
     )
 
+
 class McpServer(BaseModel):
     model_config = model_config
 
@@ -93,6 +95,7 @@ class McpServer(BaseModel):
         description="An optional user prompt for the MCP server.",
     )
     tools: list[McpTool] = []
+
 
 ###
 # ChatEvent schemas

@@ -4,9 +4,14 @@ import pytest
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.schemas import ContentReference
 from unique_toolkit.language_model.schemas import LanguageModelFunction
-from unique_toolkit.tools.tool_progress_reporter import DUMMY_REFERENCE_PLACEHOLDER, ProgressState, ToolExecutionStatus, ToolProgressReporter, ToolWithToolProgressReporter, track_tool_progress
-
-
+from unique_toolkit.tools.tool_progress_reporter import (
+    DUMMY_REFERENCE_PLACEHOLDER,
+    ProgressState,
+    ToolExecutionStatus,
+    ToolProgressReporter,
+    ToolWithToolProgressReporter,
+    track_tool_progress,
+)
 
 
 @pytest.fixture
@@ -26,9 +31,7 @@ def tool_call():
 
 class TestToolProgressReporter:
     @pytest.mark.asyncio
-    async def test_notify_from_tool_call(
-        self, tool_progress_reporter, tool_call
-    ):
+    async def test_notify_from_tool_call(self, tool_progress_reporter, tool_call):
         # Arrange
         name = "Test Tool"
         message = "Processing..."
@@ -66,12 +69,12 @@ class TestToolProgressReporter:
 
     def test_replace_placeholders(self, tool_progress_reporter):
         # Arrange
-        message = f"Test{DUMMY_REFERENCE_PLACEHOLDER}message{DUMMY_REFERENCE_PLACEHOLDER}"
+        message = (
+            f"Test{DUMMY_REFERENCE_PLACEHOLDER}message{DUMMY_REFERENCE_PLACEHOLDER}"
+        )
 
         # Act
-        result = tool_progress_reporter._replace_placeholders(
-            message, start_number=1
-        )
+        result = tool_progress_reporter._replace_placeholders(message, start_number=1)
 
         # Assert
         assert result == "Test<sup>1</sup>message<sup>2</sup>"
@@ -167,9 +170,7 @@ class TestToolProgressDecorator:
             }
 
     @pytest.mark.asyncio
-    async def test_decorator_success_flow(
-        self, tool_progress_reporter, tool_call
-    ):
+    async def test_decorator_success_flow(self, tool_progress_reporter, tool_call):
         # Arrange
         tool = self.DummyTool(tool_progress_reporter)
 
@@ -183,9 +184,7 @@ class TestToolProgressDecorator:
         assert status.message == "Completed"
 
     @pytest.mark.asyncio
-    async def test_decorator_error_flow(
-        self, tool_progress_reporter, tool_call
-    ):
+    async def test_decorator_error_flow(self, tool_progress_reporter, tool_call):
         # Arrange
         class ErrorTool(ToolWithToolProgressReporter):
             def __init__(self, tool_progress_reporter):

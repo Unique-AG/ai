@@ -15,9 +15,7 @@ class ToolCallResponse(BaseModel):
     id: str
     name: str
     debug_info: Optional[dict] = None  # TODO: Make the default {}
-    content_chunks: Optional[list[ContentChunk]] = (
-        None  # TODO: Make the default []
-    )
+    content_chunks: Optional[list[ContentChunk]] = None  # TODO: Make the default []
     reasoning_result: Optional[dict] = None  # TODO: Make the default {}
     error_message: str = ""
 
@@ -103,7 +101,7 @@ class Source(BaseModel):
             if m:
                 out[key] = m.group(1).strip()
 
-        return out if out else v # type: ignore
+        return out if out else v  # type: ignore
 
     # Compression + Base64 for url to hide it from the LLM
     @field_serializer("url")
@@ -129,6 +127,7 @@ class Source(BaseModel):
                 # If decoding/decompression fails, assume it's plain text
                 return value
         return str(value)
+
 
 class ToolPrompts(BaseModel):
     name: str

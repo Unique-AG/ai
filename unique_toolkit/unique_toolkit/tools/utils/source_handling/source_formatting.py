@@ -5,7 +5,6 @@ from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.tools.utils.source_handling.schema import SourceFormatConfig
 
 
-
 def _format_page_range(chunk: ContentChunk) -> str:
     """Format page range string from chunk metadata."""
     if not (
@@ -44,9 +43,7 @@ def _parse_chunk(
     return result
 
 
-def format_chunk(
-    index: int, chunk: ContentChunk, config: SourceFormatConfig
-) -> str:
+def format_chunk(index: int, chunk: ContentChunk, config: SourceFormatConfig) -> str:
     """
     This function formats a content chunk based on a given configuration template and its sections. Each chunk in the database includes a document section, an optional info section, and a text section, with the text section being the primary content. Typically, chunks are added to sources in search modules without any changes. However, certain scenarios necessitate extra formatting, such as incorporating page numbers or other metadata. This function enables the custom formatting of chunks when they are appended as sources.
 
@@ -157,18 +154,14 @@ def format_chunk(
     # Process each section
     for section, template in sections.items():
         if parsed.get(section):
-            formatted_sections[section] = template.format(
-                parsed.get(section, "")
-            )
+            formatted_sections[section] = template.format(parsed.get(section, ""))
         else:
             formatted_sections[section] = ""
 
     # Add the text section
     formatted_sections["text"] = parsed["text"]
 
-    return Template(source_template).substitute(
-        index=index, **formatted_sections
-    )
+    return Template(source_template).substitute(index=index, **formatted_sections)
 
 
 def _process_metadata(
@@ -198,9 +191,7 @@ def _process_metadata(
         return parsed
 
     # Ensure metadata is a dictionary
-    metadata_dict = (
-        dict(chunk.metadata) if hasattr(chunk.metadata, "__iter__") else {}
-    )
+    metadata_dict = dict(chunk.metadata) if hasattr(chunk.metadata, "__iter__") else {}
 
     # Define keys that should not be treated as metadata keys
     excluded_keys = {"document", "info"}

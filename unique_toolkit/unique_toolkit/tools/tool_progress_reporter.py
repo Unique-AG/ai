@@ -88,28 +88,21 @@ class ToolProgressReporter:
             references=references,
         )
         self.requires_new_assistant_message = (
-            self.requires_new_assistant_message
-            or requires_new_assistant_message
+            self.requires_new_assistant_message or requires_new_assistant_message
         )
         await self.publish()
 
     async def publish(self):
         messages = []
         all_references = []
-        for item in sorted(
-            self.tool_statuses.values(), key=lambda x: x.timestamp
-        ):
+        for item in sorted(self.tool_statuses.values(), key=lambda x: x.timestamp):
             references = item.references
             start_number = len(all_references) + 1
             message = self._replace_placeholders(item.message, start_number)
-            references = self._correct_reference_sequence(
-                references, start_number
-            )
+            references = self._correct_reference_sequence(references, start_number)
             all_references.extend(references)
 
-            messages.append(
-                f"{ARROW}**{item.name} {item.state.value}**: {message}"
-            )
+            messages.append(f"{ARROW}**{item.name} {item.state.value}**: {message}")
 
         await self.chat_service.modify_assistant_message_async(
             content=self._progress_start_text + "\n\n" + "\n\n".join(messages),
