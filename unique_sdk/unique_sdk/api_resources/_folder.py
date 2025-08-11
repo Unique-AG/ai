@@ -8,6 +8,7 @@ from typing import (
     TypedDict,
     Unpack,
     cast,
+    overload,
 )
 
 from unique_sdk._api_resource import APIResource
@@ -151,14 +152,6 @@ class Folder(APIResource["Folder"]):
         parentId: NotRequired[str]
         take: NotRequired[int]
         skip: NotRequired[int]
-
-    class DeleteParams(RequestOptions):
-        """
-        Parameters for deleting a folder.
-        """
-
-        scopeId: str | None = None
-        folderPath: str | None = None
 
     class DeleteResponse(TypedDict):
         """
@@ -396,12 +389,28 @@ class Folder(APIResource["Folder"]):
             ),
         )
 
+    @overload
+    def delete(
+        cls,
+        user_id: str,
+        company_id: str,
+        scopeId: str,
+    ) -> "Folder.DeleteResponse": ...
+
+    @overload
+    def delete(
+        cls,
+        user_id: str,
+        company_id: str,
+        folderPath: str,
+    ) -> "Folder.DeleteResponse": ...
+
     @classmethod
     def delete(
         cls,
         user_id: str,
         company_id: str,
-        **params: Unpack["Folder.DeleteParams"],
+        **params,
     ) -> "Folder.DeleteResponse":
         """
         Delete a folder by its ID or path.
@@ -417,12 +426,28 @@ class Folder(APIResource["Folder"]):
             ),
         )
 
+    @overload
+    async def delete_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        scopeId: str,
+    ) -> "Folder.DeleteResponse": ...
+
+    @overload
+    async def delete_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        folderPath: str,
+    ) -> "Folder.DeleteResponse": ...
+
     @classmethod
     async def delete_async(
         cls,
         user_id: str,
         company_id: str,
-        **params: Unpack["Folder.DeleteParams"],
+        **params,
     ) -> "Folder.DeleteResponse":
         """
         Async delete a folder by its ID or path.
