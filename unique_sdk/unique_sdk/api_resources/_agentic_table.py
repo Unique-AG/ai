@@ -1,6 +1,5 @@
 from enum import StrEnum
 from typing import (
-    ClassVar,
     Literal,
     NotRequired,
     TypedDict,
@@ -95,8 +94,6 @@ class AgenticTable(APIResource["AgenticTable"]):
     """
     This object represents the magic table route. It is used to run complex APIs on the Unique platform
     """
-
-    OBJECT_NAME: ClassVar[Literal["magicTable"]] = "magicTable"
 
     class SetCell(RequestOptions):
         tableId: str
