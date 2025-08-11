@@ -7,15 +7,15 @@ from typing import Literal, Optional
 # Konstantin Krauss<konstantin@unique.ch>
 from unique_sdk._api_version import _ApiVersion
 
-api_key: Optional[str] = None
-app_id: Optional[str] = None
+api_key: str | None = None
+app_id: str | None = None
 api_base: str = "https://gateway.unique.app/public/chat-gen2"
 api_version: str = _ApiVersion.CURRENT
 api_verify_mode: bool = True
 default_http_client: Optional["HTTPClient"] = None
 
 # Set to either 'debug' or 'info', controls console logging
-log: Optional[Literal["debug", "info"]] = None
+log: Literal["debug", "info"] | None = None
 
 # Webhooks
 from unique_sdk._api_requestor import APIRequestor as APIRequestor
