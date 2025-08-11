@@ -165,10 +165,8 @@ class Folder(APIResource["Folder"]):
         Response for deleting a folder.
         """
 
-        deletedFolderIds: List[str]
-        deletedFileIds: List[str]
-        failedFolderIds: List[str]
-        failedFileIds: List[str]
+        successScopeIds: List[str]
+        failedScopeIds: List[str]
 
     @classmethod
     def get_info(
@@ -398,8 +396,9 @@ class Folder(APIResource["Folder"]):
             ),
         )
 
+    @classmethod
     def delete(
-        self,
+        cls,
         user_id: str,
         company_id: str,
         **params: Unpack["Folder.DeleteParams"],
@@ -409,17 +408,18 @@ class Folder(APIResource["Folder"]):
         """
         return cast(
             "Folder.DeleteResponse",
-            self._request(
+            cls._static_request(
                 "delete",
-                self.RESOURCE_URL,
+                cls.RESOURCE_URL,
                 user_id,
                 company_id=company_id,
                 params=params,
             ),
         )
 
+    @classmethod
     async def delete_async(
-        self,
+        cls,
         user_id: str,
         company_id: str,
         **params: Unpack["Folder.DeleteParams"],
@@ -429,9 +429,9 @@ class Folder(APIResource["Folder"]):
         """
         return cast(
             "Folder.DeleteResponse",
-            await self._request_async(
+            await cls._static_request_async(
                 "delete",
-                self.RESOURCE_URL,
+                cls.RESOURCE_URL,
                 user_id,
                 company_id=company_id,
                 params=params,
