@@ -1,8 +1,11 @@
 from typing import Callable
 
-from unique_toolkit.tools.config import ToolBuildConfig
+from typing import TYPE_CHECKING
 from unique_toolkit.tools.schemas import BaseToolConfig
 from unique_toolkit.tools.tool import Tool
+
+if TYPE_CHECKING:
+    from unique_toolkit.tools.config import ToolBuildConfig
 
 
 class ToolFactory:
@@ -25,7 +28,7 @@ class ToolFactory:
 
     @classmethod
     def build_tool_with_settings(
-        cls, tool_name: str, settings: ToolBuildConfig, *args, **kwargs
+        cls, tool_name: str, settings: "ToolBuildConfig", *args, **kwargs
     ) -> Tool[BaseToolConfig]:
         tool = cls.tool_map[tool_name](*args, **kwargs)
         tool.settings = settings

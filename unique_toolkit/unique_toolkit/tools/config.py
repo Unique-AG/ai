@@ -11,8 +11,10 @@ from pydantic import (
     model_validator,
 )
 
-from unique_toolkit.tools.factory import ToolFactory
-from unique_toolkit.tools.schemas import BaseToolConfig
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from unique_toolkit.tools.schemas import BaseToolConfig
 
 
 def field_title_generator(
@@ -61,7 +63,7 @@ class ToolBuildConfig(BaseModel):
     """Main tool configuration"""
 
     name: str
-    configuration: BaseToolConfig
+    configuration: "BaseToolConfig"
     display_name: str = ""
     icon: ToolIcon = ToolIcon.BOOK
     selection_policy: ToolSelectionPolicy = Field(
@@ -86,12 +88,17 @@ class ToolBuildConfig(BaseModel):
 
         configuration = value.get("configuration", {})
         if isinstance(configuration, dict):
+            # Local import to avoid circular import at module import time
+            from unique_toolkit.tools.factory import ToolFactory
+
             config = ToolFactory.build_tool_config(
                 value["name"],
                 **configuration,
             )
         else:
             # Check that the type of config matches the tool name
+            from unique_toolkit.tools.factory import ToolFactory
+
             assert isinstance(
                 configuration,
                 ToolFactory.tool_config_map[value["name"]],  # type: ignore
