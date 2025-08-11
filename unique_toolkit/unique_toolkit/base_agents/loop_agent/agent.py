@@ -5,13 +5,10 @@ import logging
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.service import ContentService
-from unique_toolkit.language_model import (
-    LanguageModelToolMessage,
-)
+
 from unique_toolkit.language_model.schemas import (
     LanguageModelAssistantMessage,
     LanguageModelFunction,
-    LanguageModelFunctionCall,
     LanguageModelMessage,
     LanguageModelMessageRole,
     LanguageModelMessages,
@@ -21,6 +18,7 @@ from unique_toolkit.language_model.schemas import (
 from unique_toolkit.language_model.service import LanguageModelService
 from unique_toolkit.unique_toolkit.base_agents.loop_agent.config import LoopAgentConfig
 from unique_toolkit.unique_toolkit.base_agents.loop_agent.helpers import get_history 
+from unique_toolkit.unique_toolkit.base_agents.loop_agent.history_manager.history_manager import HistoryManager, HistoryManagerConfig
 from unique_toolkit.unique_toolkit.base_agents.loop_agent.schemas import  DebugInfoManager
 from unique_toolkit.unique_toolkit.base_agents.loop_agent.thinking_manager import ThinkingManager, ThinkingManagerConfig
 from unique_toolkit.unique_toolkit.evaluators.schemas import EvaluationMetricName
@@ -78,17 +76,20 @@ class LoopAgent(ABC):
             tool_progress_reporter=self.tool_progress_reporter,
         )
 
-        self._tools_used_in_loop: list[str] = []
-        self._tool_evaluation_check_list: list[EvaluationMetricName] = []
-        self.tool_call_result_history: list[ToolCallResponse] = []
+        history_manager_config = HistoryManagerConfig(
+            full_sources_serialize_dump=False # this used to come from the tools but makes no sense, as it should alway be the same for all of them
+        )
 
-        self._loop_history: list[LanguageModelMessage] = []
+        self.history_manager = HistoryManager(
+            logger,
+            history_manager_config,
+        )
+
+        self._tool_evaluation_check_list: list[EvaluationMetricName] = []
+
         self._start_text = ""
 
-        self._loop_response: LanguageModelStreamResponse | None = None
         self.current_iteration_index = 0
-
-        
 
         # Post init
         self._optional_initialization_step()
@@ -114,7 +115,7 @@ class LoopAgent(ABC):
         self.logger.info("Start LoopAgent...")
 
         self.history = await self._obtain_chat_history_as_llm_messages()
-        if not self._loop_history:
+        if self.history_manager.has_no_loop_messages():
             self.chat_service.modify_assistant_message(
                 content="Starting agentic loop..."
             )
@@ -189,14 +190,19 @@ class LoopAgent(ABC):
 
     async def _process_plan(self, loop_response: LanguageModelStreamResponse) -> bool:
 
-        self.logger.info("Processing the plan response.")
+        self.logger.info("Processing the plan, executing the tools and checking for loop exit conditions once all is done.")
 
-        if self.handle_empty_model_response(loop_response):
+        is_model_response_empty = self.handle_empty_model_response(loop_response)
+        are_no_tools_called = len(loop_response.tool_calls or []) == 0
+
+        if is_model_response_empty:
+            self.logger.debug("the was an empty model response. This is bizarre. we exit the loop")
             return True
-        elif len(loop_response.tool_calls or []) == 0:
-            self.logger.debug("No tool calls.")
+        elif are_no_tools_called:
+            self.logger.debug("No tool calls. we might exit the loop")
             return await self._handle_no_tool_calls(loop_response)
         else:
+            self.logger.debug("cool were called we process them and do not exit the loop")
             await self._handle_tool_calls(loop_response)
             return False
 
@@ -302,11 +308,12 @@ class LoopAgent(ABC):
         """
 
         # Append function call to history
-        self._append_tool_calls_to_history(tool_calls)
+        self.history_manager._append_tool_calls_to_history(tool_calls)
 
+        # Execute tool calls
         tool_call_responses = await self.tool_manager.execute_selected_tools(tool_calls)
 
-        # Process results with error handling and logging
+        # Process results with error handling
         self._handle_tool_call_results(tool_call_responses)
 
 
@@ -316,11 +323,9 @@ class LoopAgent(ABC):
         self.logger.debug("Handling tool call results")
         self.reference_manager.extract_referenceable_chunks(tool_call_results)
         self.debug_info_manager.extract_tool_debug_info(tool_call_results)
-
+        self.history_manager.add_tool_call_results(tool_call_results)
 
         for tool_response in tool_call_results:
-            # Append tool call result to tool call result history
-            self.tool_call_result_history.append(tool_response)
 
             # Process tool result
             tool_instance = self.tool_manager.get_tool_by_name(tool_response.name)
@@ -330,25 +335,10 @@ class LoopAgent(ABC):
                     self._update_evaluation_checks(
                         tool_instance, tool_response
                     )
-
-                    # Append tool call result to history
-                    self._append_tool_call_result_to_history(
-                        tool_instance, tool_response
-                    )
-                else:
-                    self._loop_history.append(
-                        LanguageModelToolMessage(
-                            name=tool_response.name,
-                            tool_call_id=tool_response.id,
-                            content=f"Tool call {tool_response.name} failed with error: {tool_response.error_message}",
-                        )
-                    )
             else:
                 self.logger.error(
                     f"Tool instance not found for tool call: {tool_response.name}"
                 )
-
-
 
 
     def _update_evaluation_checks(
@@ -373,46 +363,7 @@ class LoopAgent(ABC):
                 self._tool_evaluation_check_list.append(check)
 
 
-    def _append_tool_calls_to_history(
-        self, tool_calls: list[LanguageModelFunction] | None
-    ) -> None:
-        """
-        Append tool calls to the loop history.
-        """
-        self.logger.info("Appending tool calls to history")
-        if tool_calls is None:
-            self.logger.error("tool_calls is None.")
-            return
-        self._loop_history.append(
-            LanguageModelFunctionCall.create_assistant_message_from_tool_calls(
-                tool_calls=tool_calls
-            )
-        )
-        for tool_call in tool_calls:
-            self._tools_used_in_loop.append(tool_call.name)
 
-    def _append_tool_call_result_to_history(
-        self,
-        tool_instance: Tool,
-        tool_response: ToolCallResponse,
-    ) -> None:
-        """
-        Append the tool call result to the history. The way to include the tool result depends on the tool.
-
-        Args:
-            tool_instance (Tool): Tool instance
-            tool_response (ToolCallResponse): Tool call response
-        """
-        self.logger.debug(
-            f"Appending tool call result to history: {tool_instance.name}"
-        )
-        tool_call_result_for_history = (
-            tool_instance.get_tool_call_result_for_loop_history(
-                tool_response=tool_response,
-                agent_chunks_handler=self.agent_chunks_handler,
-            )
-        )
-        self._loop_history.append(tool_call_result_for_history)
 
     def get_complete_conversation_history_after_streaming_no_tool_calls(
         self,
@@ -435,6 +386,7 @@ class LoopAgent(ABC):
         current_user_msg = LanguageModelUserMessage(
             content=self.event.payload.user_message.text
         )
+        
         if not any(
             msg.role == LanguageModelMessageRole.USER
             and msg.content == current_user_msg.content
@@ -444,8 +396,7 @@ class LoopAgent(ABC):
 
         # Add final assistant response - this should be available when this method is called
         if (
-            hasattr(self, "loop_response")
-            and loop_response
+            loop_response
             and loop_response.message.text
         ):
             complete_history.append(
@@ -477,7 +428,7 @@ class LoopAgent(ABC):
         # ToDo: Once references on existing assistant messages can be deleted, we will switch from creating a new assistant message to modifying the existing one (with previous references deleted)
         ###
         await self.chat_service.create_assistant_message_async(content="")
-        self._loop_history.append(
+        self.history_manager.add_assistant_message(
             LanguageModelAssistantMessage(
                 content=loop_response.message.original_text
             )

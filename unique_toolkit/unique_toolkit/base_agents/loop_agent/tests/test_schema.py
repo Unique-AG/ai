@@ -1,6 +1,7 @@
 import pytest
 from unique_toolkit.content.schemas import ContentChunk, ContentReference
-from unique_toolkit.unique_toolkit.base_agents.loop_agent.schemas import AgentChunksHandler
+from unique_toolkit.unique_toolkit.tools.agent_chunks_handler import AgentChunksHandler
+
 
 
 
