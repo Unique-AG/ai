@@ -1,5 +1,15 @@
 from enum import Enum
-from typing import Any, ClassVar, Dict, List, Literal, Optional, TypedDict, cast
+from typing import (
+    Any,
+    ClassVar,
+    Dict,
+    List,
+    Literal,
+    Optional,
+    TypedDict,
+    cast,
+    overload,
+)
 
 from typing_extensions import NotRequired, Unpack
 
@@ -147,6 +157,9 @@ class Content(APIResource["Content"]):
     class PaginatedContentInfo(TypedDict):
         contentInfos: List["Content.ContentInfo"]
         totalCount: int
+
+    class DeleteResponse(TypedDict):
+        id: str
 
     id: str
     key: str
@@ -365,6 +378,82 @@ class Content(APIResource["Content"]):
                 "/content/magic-table-sheets",
                 user_id,
                 company_id=company_id,
+                params=params,
+            ),
+        )
+
+    @overload
+    def delete(
+        cls,
+        user_id: str,
+        company_id: str,
+        contentId: str,
+        chatId: Optional[str],
+    ) -> "Content.DeleteResponse": ...
+
+    @overload
+    def delete(
+        cls,
+        user_id: str,
+        company_id: str,
+        filePath: str,
+    ) -> "Content.DeleteResponse": ...
+
+    @classmethod
+    def delete(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params,
+    ) -> "Content.DeleteResponse":
+        """
+        Deletes a content by its id or file path.
+        """
+        return cast(
+            "Content.DeleteResponse",
+            cls._static_request(
+                "delete",
+                "/content",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @overload
+    async def delete_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        contentId: str,
+        chatId: Optional[str],
+    ) -> "Content.DeleteResponse": ...
+
+    @overload
+    async def delete_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        filePath: str,
+    ) -> "Content.DeleteResponse": ...
+
+    @classmethod
+    async def delete_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params,
+    ) -> "Content.DeleteResponse":
+        """
+        Async deletes a content by its id or file path.
+        """
+        return cast(
+            "Content.DeleteResponse",
+            await cls._static_request_async(
+                "delete",
+                "/content",
+                user_id,
+                company_id,
                 params=params,
             ),
         )
