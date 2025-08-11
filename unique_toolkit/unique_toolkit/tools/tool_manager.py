@@ -4,7 +4,6 @@ from pydantic import BaseModel, Field
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
-    LanguageModelStreamResponse,
     LanguageModelToolDescription,
 )
 from unique_toolkit.tools.config import ToolBuildConfig
@@ -40,6 +39,25 @@ class ToolManagerConfig(BaseModel):
 
 
 class ToolManager:
+    """
+    Manages the tools available to the agent and executes tool calls.
+
+    This class is responsible for:
+    - Initializing tools based on the provided configuration and runtime events.
+    - Filtering tools based on availability, exclusivity, and user-defined constraints.
+    - Managing the lifecycle of tools, including retrieval, execution, and logging.
+    - Executing tool calls in parallel when possible to optimize performance.
+    - Enforcing limits on the number of tool calls and handling duplicate requests.
+
+    Key Features:
+    - Dynamic Tool Initialization: Tools are dynamically selected and initialized 
+      based on runtime events and user preferences.
+    - Parallel Execution: Supports asynchronous execution of tools for efficiency.
+    - Error Handling: Provides detailed error messages and logs for failed tool calls.
+    - Scalability: Designed to handle a large number of tools and tool calls efficiently.
+
+    Only the ToolManager is allowed to interact with the tools directly.
+    """
     def __init__(
         self,
         logger: Logger,
