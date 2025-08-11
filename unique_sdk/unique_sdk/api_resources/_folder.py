@@ -8,6 +8,7 @@ from typing import (
     TypedDict,
     Unpack,
     cast,
+    overload,
 )
 
 from unique_sdk._api_resource import APIResource
@@ -151,6 +152,14 @@ class Folder(APIResource["Folder"]):
         parentId: NotRequired[str]
         take: NotRequired[int]
         skip: NotRequired[int]
+
+    class DeleteResponse(TypedDict):
+        """
+        Response for deleting a folder.
+        """
+
+        successScopeIds: List[str]
+        failedScopeIds: List[str]
 
     @classmethod
     def get_info(
@@ -376,6 +385,80 @@ class Folder(APIResource["Folder"]):
                 "/folder/remove-access",
                 user_id,
                 company_id,
+                params=params,
+            ),
+        )
+
+    @overload
+    def delete(
+        cls,
+        user_id: str,
+        company_id: str,
+        scopeId: str,
+    ) -> "Folder.DeleteResponse": ...
+
+    @overload
+    def delete(
+        cls,
+        user_id: str,
+        company_id: str,
+        folderPath: str,
+    ) -> "Folder.DeleteResponse": ...
+
+    @classmethod
+    def delete(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params,
+    ) -> "Folder.DeleteResponse":
+        """
+        Delete a folder by its ID or path.
+        """
+        return cast(
+            "Folder.DeleteResponse",
+            cls._static_request(
+                "delete",
+                cls.RESOURCE_URL,
+                user_id,
+                company_id=company_id,
+                params=params,
+            ),
+        )
+
+    @overload
+    async def delete_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        scopeId: str,
+    ) -> "Folder.DeleteResponse": ...
+
+    @overload
+    async def delete_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        folderPath: str,
+    ) -> "Folder.DeleteResponse": ...
+
+    @classmethod
+    async def delete_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params,
+    ) -> "Folder.DeleteResponse":
+        """
+        Async delete a folder by its ID or path.
+        """
+        return cast(
+            "Folder.DeleteResponse",
+            await cls._static_request_async(
+                "delete",
+                cls.RESOURCE_URL,
+                user_id,
+                company_id=company_id,
                 params=params,
             ),
         )

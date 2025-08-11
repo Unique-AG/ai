@@ -1064,6 +1064,31 @@ unique_sdk.Folder.remove_access(
 )
 ```
 
+#### `unique_sdk.Folder.delete`
+
+Given a `scopeId` or `folderPath`, the function recursively deletes the folder, its subfolders and its contents, behaving exactly like the `rm -rf`. In case a subfolder has no write access, that folder is considered as failed to delete and the function continues with the other subfolders. At the end, the function returns a list of `failedScopeIds` and `successScopeIds`.
+
+Examples:
+Deleting by scope id:
+
+```python
+unique_sdk.Folder.delete(
+   user_id=user_id,
+   company_id=company_id,
+   scopeId="scope_w78wfn114va9o22s13r03yq",
+)
+```
+
+Deleting by path:
+
+```python
+unique_sdk.Folder.delete(
+   user_id=user_id,
+   company_id=company_id,
+   folderPath="/Company/Atlas/Due Dilligence/Arch,
+)
+```
+
 ### Space
 
 #### `unique_sdk.Space.delete_chat`
