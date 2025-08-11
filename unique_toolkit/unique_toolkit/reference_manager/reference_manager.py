@@ -67,6 +67,6 @@ class ReferenceManager:
         referenced_chunks: list[ContentChunk] = []
         for ref in references:
             for chunk in self._chunks:
-                if ref.source_id == str(chunk.id) + "_" + str(chunk.chunk_id):
+                if ref.source_id == f"{chunk.id}-{chunk.chunk_id}":
                     referenced_chunks.append(chunk)
         return referenced_chunks
