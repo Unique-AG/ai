@@ -85,6 +85,21 @@ class LanguageModelFunction(BaseModel):
             seralization["arguments"] = json.dumps(self.arguments)
         return seralization
 
+    def equals(self, other: Self) -> bool:
+        """
+        Compare two tool calls based on name and arguments.
+        """
+        if not isinstance(other, LanguageModelFunction):
+            return False
+
+        if self.name != other.name:
+            return False
+
+        if self.arguments != other.arguments:
+            return False
+        
+        return True
+
 
 # This is tailored to the unique backend
 class LanguageModelStreamResponse(BaseModel):

@@ -24,3 +24,5 @@ class EvaluationMetricConfig(BaseModel):
     )
     custom_prompts: dict[str, str] = {}
     score_to_emoji: dict[str, str] = {}
+    score_to_label: dict[str, str] = {}
+    score_to_title: dict[str, str] = {}
