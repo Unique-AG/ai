@@ -1,4 +1,4 @@
-from unique_toolkit.unique_toolkit.content.schemas import ContentChunk, ContentReference
+from unique_toolkit.content.schemas import ContentChunk, ContentReference
 
 
 class AgentChunksHandler:

@@ -1,8 +1,8 @@
 from typing import Callable
 
-from unique_toolkit.unique_toolkit.tools.config import ToolBuildConfig
-from unique_toolkit.unique_toolkit.tools.schemas import BaseToolConfig
-from unique_toolkit.unique_toolkit.tools.tool import Tool
+from unique_toolkit.tools.config import ToolBuildConfig
+from unique_toolkit.tools.schemas import BaseToolConfig
+from unique_toolkit.tools.tool import Tool
 
 
 

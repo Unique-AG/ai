@@ -2,7 +2,7 @@ import re
 from string import Template
 
 from unique_toolkit.content.schemas import ContentChunk
-from unique_toolkit.unique_toolkit.tools.utils.source_handling.schema import SourceFormatConfig
+from unique_toolkit.tools.utils.source_handling.schema import SourceFormatConfig
 
 
 

@@ -1,7 +1,7 @@
 import pytest
 from unique_toolkit.content.schemas import ContentChunk
-from unique_toolkit.unique_toolkit.tools.utils.source_handling.schema import SourceFormatConfig
-from unique_toolkit.unique_toolkit.tools.utils.source_handling.source_formatting import _format_page_range, format_chunk
+from unique_toolkit.tools.utils.source_handling.schema import SourceFormatConfig
+from unique_toolkit.tools.utils.source_handling.source_formatting import _format_page_range, format_chunk
 
 
 

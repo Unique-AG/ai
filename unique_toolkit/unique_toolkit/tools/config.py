@@ -11,8 +11,8 @@ from pydantic import (
     model_validator,
 )
 
-from unique_toolkit.unique_toolkit.tools.factory import ToolFactory
-from unique_toolkit.unique_toolkit.tools.schemas import BaseToolConfig
+from unique_toolkit.tools.factory import ToolFactory
+from unique_toolkit.tools.schemas import BaseToolConfig
 
 
 def field_title_generator(

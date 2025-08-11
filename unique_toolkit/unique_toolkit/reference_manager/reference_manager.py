@@ -1,5 +1,5 @@
-from unique_toolkit.unique_toolkit.content.schemas import ContentChunk, ContentReference
-from unique_toolkit.unique_toolkit.tools.schemas import ToolCallResponse
+from unique_toolkit.content.schemas import ContentChunk, ContentReference
+from unique_toolkit.tools.schemas import ToolCallResponse
 
 
 class tool_chunks: 

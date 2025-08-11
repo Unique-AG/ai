@@ -4,7 +4,7 @@ import pytest
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.schemas import ContentReference
 from unique_toolkit.language_model.schemas import LanguageModelFunction
-from unique_toolkit.unique_toolkit.tools.tool_progress_reporter import DUMMY_REFERENCE_PLACEHOLDER, ProgressState, ToolExecutionStatus, ToolProgressReporter, ToolWithToolProgressReporter, track_tool_progress
+from unique_toolkit.tools.tool_progress_reporter import DUMMY_REFERENCE_PLACEHOLDER, ProgressState, ToolExecutionStatus, ToolProgressReporter, ToolWithToolProgressReporter, track_tool_progress
 
 
 
