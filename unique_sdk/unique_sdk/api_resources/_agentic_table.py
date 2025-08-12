@@ -23,21 +23,21 @@ class LogDetail(TypedDict, total=False):
     messageId: str | None
 
 
-class LogEntry(TypedDict, total=False):
+class LogEntry(TypedDict):
     text: str
     createdAt: str
     actorType: Literal["USER", "SYSTEM", "ASSISTANT", "TOOL"]
-    messageId: str | None
+    messageId: NotRequired[str]
     details: NotRequired[list[LogDetail]]
 
 
-class AgenticTableCell(TypedDict, total=False):
+class AgenticTableCell(TypedDict):
     sheetId: str
     rowOrder: int
     columnOrder: int
     rowLocked: bool
     text: str
-    logEntries: list[LogEntry] | None
+    logEntries: NotRequired[list[LogEntry]]
 
 
 class ColumnMetadataUpdateStatus(TypedDict, total=False):
@@ -100,7 +100,7 @@ class AgenticTable(APIResource["AgenticTable"]):
         rowOrder: int
         columnOrder: int
         text: str
-        logEntries: list[LogEntry] | None
+        logEntries: NotRequired[list[LogEntry]]
 
     class GetCell(RequestOptions):
         tableId: str
@@ -142,12 +142,8 @@ class AgenticTable(APIResource["AgenticTable"]):
         status: bool
         message: str
 
-    class SheetState(RequestOptions):
-        sheetId: str | None
-        name: str | None
-        state: AgenticTableSheetState
-
     class SetColumnMetadata(RequestOptions):
+        tableId: str
         columnOrder: int
         columnWidth: NotRequired[int]
         filter: NotRequired[FilterTypes]
@@ -155,6 +151,7 @@ class AgenticTable(APIResource["AgenticTable"]):
         editable: NotRequired[bool]
 
     class GetSheetData(RequestOptions):
+        tableId: str
         includeCells: NotRequired[bool]
         includeLogHistory: NotRequired[bool]
         includeRowCount: NotRequired[bool]
@@ -163,6 +160,7 @@ class AgenticTable(APIResource["AgenticTable"]):
         endRow: NotRequired[int]
 
     class SetCellMetadata(RequestOptions):
+        tableId: str
         rowOrder: int
         columnOrder: int
         selected: NotRequired[bool]
@@ -170,6 +168,7 @@ class AgenticTable(APIResource["AgenticTable"]):
         agreementStatus: NotRequired[AgreementStatus]
 
     class BulkUpdateStatus(RequestOptions):
+        tableId: str
         rowOrders: list[int]
         status: RowVerificationStatus
 
@@ -271,10 +270,9 @@ class AgenticTable(APIResource["AgenticTable"]):
         cls,
         user_id: str,
         company_id: str,
-        tableId: str,
         **params: Unpack["AgenticTable.SetColumnMetadata"],
     ) -> ColumnMetadataUpdateStatus:
-        url = f"/magic-table/{tableId}/column/metadata"
+        url = f"/magic-table/{params['tableId']}/column/metadata"
         response = cls._static_request("post", url, user_id, company_id, params)
         return cast(
             ColumnMetadataUpdateStatus,
@@ -286,10 +284,9 @@ class AgenticTable(APIResource["AgenticTable"]):
         cls,
         user_id: str,
         company_id: str,
-        table_id: str,
         **params: Unpack["AgenticTable.GetSheetData"],
     ) -> AgenticTableSheet:
-        url = f"/magic-table/{table_id}"
+        url = f"/magic-table/{params['tableId']}"
         return cast(
             AgenticTableSheet,
             cls._static_request("get", url, user_id, company_id, params),
@@ -302,7 +299,7 @@ class AgenticTable(APIResource["AgenticTable"]):
         sheet = await cls.get_sheet_data(
             user_id=user_id,
             company_id=company_id,
-            table_id=tableId,
+            tableId=tableId,
             includeCells=False,
         )
         return sheet["state"]
@@ -312,10 +309,9 @@ class AgenticTable(APIResource["AgenticTable"]):
         cls,
         user_id: str,
         company_id: str,
-        table_id: str,
         **params: Unpack["AgenticTable.SetCellMetadata"],
     ) -> ColumnMetadataUpdateStatus:
-        url = f"/magic-table/{table_id}/cell/metadata"
+        url = f"/magic-table/{params['tableId']}/cell/metadata"
         return cast(
             "ColumnMetadataUpdateStatus",
             cls._static_request("post", url, user_id, company_id, params),
@@ -354,10 +350,9 @@ class AgenticTable(APIResource["AgenticTable"]):
         cls,
         user_id: str,
         company_id: str,
-        tableId: str,
         **params: Unpack["AgenticTable.BulkUpdateStatus"],
     ) -> ColumnMetadataUpdateStatus:
-        url = f"/magic-table/{tableId}/rows/bulk-update-status"
+        url = f"/magic-table/{params['tableId']}/rows/bulk-update-status"
         return cast(
             "ColumnMetadataUpdateStatus",
             cls._static_request(
