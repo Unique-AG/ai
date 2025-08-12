@@ -170,7 +170,7 @@ class LanguageModelInfo(BaseModel):
                     name=model_name,
                     provider=LanguageModelProvider.AZURE,
                     version="2025-08-07",
-                    encoder_name=EncoderName.CL100K_BASE,
+                    encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
                         ModelCapabilities.FUNCTION_CALLING,
                         ModelCapabilities.STREAMING,
@@ -190,7 +190,7 @@ class LanguageModelInfo(BaseModel):
                     name=model_name,
                     provider=LanguageModelProvider.AZURE,
                     version="2025-08-07",
-                    encoder_name=EncoderName.CL100K_BASE,
+                    encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
                         ModelCapabilities.FUNCTION_CALLING,
                         ModelCapabilities.STREAMING,
@@ -208,7 +208,7 @@ class LanguageModelInfo(BaseModel):
                     name=model_name,
                     provider=LanguageModelProvider.AZURE,
                     version="2025-08-07",
-                    encoder_name=EncoderName.CL100K_BASE,
+                    encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
                         ModelCapabilities.FUNCTION_CALLING,
                         ModelCapabilities.STREAMING,
@@ -226,7 +226,7 @@ class LanguageModelInfo(BaseModel):
                     name=model_name,
                     provider=LanguageModelProvider.AZURE,
                     version="2025-08-07",
-                    encoder_name=EncoderName.CL100K_BASE, 
+                    encoder_name=EncoderName.O200K_BASE, 
                     token_limits=LanguageModelTokenLimits(token_limit_input=128000, token_limit_output=16384),
                     info_cutoff_at=date(2024, 10, 24),
                     published_at=date(2025, 8, 7),
