@@ -67,6 +67,10 @@ def get_encoder_name(model_name: LanguageModelName) -> EncoderName:
             | LMN.AZURE_GPT_4o_2024_0806
             | LMN.AZURE_GPT_4o_MINI_2024_0718
             | LMN.AZURE_GPT_4o_2024_1120
+            | LMN.AZURE_GPT_5_2025_0807
+            | LMN.AZURE_GPT_5_MINI_2025_0807
+            | LMN.AZURE_GPT_5_NANO_2025_0807
+            | LMN.AZURE_GPT_5_CHAT_2025_0807
         ):
             return EncoderName.O200K_BASE
         case _:
