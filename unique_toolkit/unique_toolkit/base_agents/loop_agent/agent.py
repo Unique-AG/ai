@@ -10,14 +10,11 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelAssistantMessage,
     LanguageModelFunction,
     LanguageModelMessage,
-    LanguageModelMessageRole,
     LanguageModelMessages,
     LanguageModelStreamResponse,
-    LanguageModelUserMessage,
 )
 from unique_toolkit.language_model.service import LanguageModelService
 from unique_toolkit.base_agents.loop_agent.config import LoopAgentConfig
-from unique_toolkit.base_agents.loop_agent.helpers import get_history
 from unique_toolkit.base_agents.loop_agent.history_manager.history_manager import (
     HistoryManager,
     HistoryManagerConfig,
