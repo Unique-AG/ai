@@ -1064,6 +1064,45 @@ unique_sdk.Folder.remove_access(
 )
 ```
 
+#### `unique_sdk.Folder.move`
+
+Move a folder specified by its `scopeId` or path to a new parent folder specified by its `scopeId` or path. If the new parent folder is the root folder, this should be explicitly specific by setting `newParentId` to `None`.
+
+Examples:
+
+Move a folder specified by its `scopeId` to a new parent folder specified by its path.
+
+```python
+unique_sdk.Folder.move(
+    user_id=user_id,
+    company_id=company_id,
+    scopeId="scope_dwekjnf3330woioppm",
+    newParentFolderPath="/Company/folder1/folder2"
+)
+```
+
+Move a folder specified by its path to a new parent folder specified by its `scopeId`.
+
+```python
+unique_sdk.Folder.move(
+    user_id=user_id,
+    company_id=company_id,
+    folderPath="/Company/folder1",
+    newParentId="scope_dweekjrfhirtuhgroppm"
+)
+```
+
+Move a folder specified by its path to the root folder.
+
+```python
+unique_sdk.Folder.move(
+    user_id=user_id,
+    company_id=company_id,
+    folderPath="/Company/folder1",
+    newParentId=None
+)
+```
+
 ### Space
 
 #### `unique_sdk.Space.delete_chat`
