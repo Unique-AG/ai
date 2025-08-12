@@ -273,6 +273,8 @@ class AgenticTable(APIResource["AgenticTable"]):
         **params: Unpack["AgenticTable.SetColumnMetadata"],
     ) -> ColumnMetadataUpdateStatus:
         url = f"/magic-table/{params['tableId']}/column/metadata"
+        # Remove tableId from params
+        params.pop("tableId")
         response = cls._static_request("post", url, user_id, company_id, params)
         return cast(
             ColumnMetadataUpdateStatus,
