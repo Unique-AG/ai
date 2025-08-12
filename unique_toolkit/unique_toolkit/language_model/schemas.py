@@ -101,6 +101,24 @@ class LanguageModelFunction(BaseModel):
         return True
 
 
+    def __eq__(self, other:Self) -> bool:
+        """
+        Compare two tool calls based on name and arguments.
+        """
+        if not isinstance(other, LanguageModelFunction):
+            return False
+
+        if self.id != other.id:
+            return False
+
+        if self.name != other.name:
+            return False
+
+        if self.arguments != other.arguments:
+            return False
+        
+        return True
+
 # This is tailored to the unique backend
 class LanguageModelStreamResponse(BaseModel):
     model_config = model_config

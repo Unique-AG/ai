@@ -231,7 +231,7 @@ class ToolManager:
         unique_tool_calls = []
 
         for call in tool_calls:
-            if all(not call.equals(other_call) for other_call in unique_tool_calls):
+            if all(not call == other_call for other_call in unique_tool_calls):
                 unique_tool_calls.append(call)
 
         if len(tool_calls) != len(unique_tool_calls):
