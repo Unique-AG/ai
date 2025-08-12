@@ -31,13 +31,13 @@ class LogEntry(TypedDict):
     details: NotRequired[list[LogDetail]]
 
 
-class AgenticTableCell(TypedDict):
+class AgenticTableCell(TypedDict, total=False):
     sheetId: str
     rowOrder: int
     columnOrder: int
     rowLocked: bool
     text: str
-    logEntries: NotRequired[list[LogEntry]]
+    logEntries: list[LogEntry]
 
 
 class ColumnMetadataUpdateStatus(TypedDict, total=False):
