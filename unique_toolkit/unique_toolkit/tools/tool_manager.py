@@ -50,7 +50,7 @@ class ToolManager:
     - Enforcing limits on the number of tool calls and handling duplicate requests.
 
     Key Features:
-    - Dynamic Tool Initialization: Tools are dynamically selected and initialized 
+    - Dynamic Tool Initialization: Tools are dynamically selected and initialized
       based on runtime events and user preferences.
     - Parallel Execution: Supports asynchronous execution of tools for efficiency.
     - Error Handling: Provides detailed error messages and logs for failed tool calls.
@@ -58,6 +58,7 @@ class ToolManager:
 
     Only the ToolManager is allowed to interact with the tools directly.
     """
+
     def __init__(
         self,
         logger: Logger,
@@ -65,65 +66,65 @@ class ToolManager:
         event: ChatEvent,
         tool_progress_reporter: ToolProgressReporter,
     ):
-        self.logger = logger
-        self.config = config
-        self.event = event
-        self.tool_progress_reporter = tool_progress_reporter
-        self.tools = []
-        self.__init__tools()
+        self._logger = logger
+        self._config  = config
+        self._tool_progress_reporter = tool_progress_reporter
+        self._tools = []
+        self._tool_choices = event.payload.tool_choices
+        self._disabled_tools = event.payload.disabled_tools
+        self._init__tools(event)
 
-    def __init__tools(self) -> None:
-        tool_choices = self.event.payload.tool_choices
-        tool_configs = self.config.tools
-        self.logger.info("Initializing tool definitions...")
-        self.logger.info(f"Tool choices: {tool_choices}")
-        self.logger.info(f"Tool configs: {tool_configs}")
+    def _init__tools(self,  event: ChatEvent) -> None:
+        tool_choices = self._tool_choices
+        tool_configs = self._config .tools
+        self._logger.info("Initializing tool definitions...")
+        self._logger.info(f"Tool choices: {tool_choices}")
+        self._logger.info(f"Tool configs: {tool_configs}")
 
         self.available_tools = [
             ToolFactory.build_tool_with_settings(
                 t.name,
                 t,
                 t.configuration,
-                self.event,
-                tool_progress_reporter=self.tool_progress_reporter,
+                event,
+                tool_progress_reporter=self._tool_progress_reporter,
             )
             for t in tool_configs
         ]
 
         for t in self.available_tools:
             if t.is_exclusive():
-                self.tools = [t]
+                self._tools = [t]
                 return
             if not t.is_enabled():
                 continue
-            if t.name in self.event.payload.disabled_tools:
+            if t.name in self._disabled_tools:
                 continue
             if len(tool_choices) > 0 and t.name not in tool_choices:
                 continue
 
-            self.tools.append(t)
+            self._tools.append(t)
 
     def log_loaded_tools(self):
-        self.logger.info(f"Loaded tools: {[tool.name for tool in self.tools]}")
+        self._logger.info(f"Loaded tools: {[tool.name for tool in self._tools]}")
 
     def get_tools(self) -> list[Tool]:
-        return self.tools
+        return self._tools
 
     def get_tool_by_name(self, name: str) -> Tool | None:
-        for tool in self.tools:
+        for tool in self._tools:
             if tool.name == name:
                 return tool
         return None
 
     def get_forced_tools(self) -> list[ForcedToolOption]:
-        tool_choices = self.event.payload.tool_choices
-        return [ForcedToolOption(t.name) for t in self.tools if t.name in tool_choices]
+        return [ForcedToolOption(t.name) for t in self._tools if t.name in self._tool_choices]
 
     def get_tool_definitions(self) -> list[LanguageModelToolDescription]:
-        return [tool.tool_description() for tool in self.tools]
+        return [tool.tool_description() for tool in self._tools]
 
     def get_tool_prompts(self) -> list[ToolPrompts]:
-        return [tool.get_tool_prompts() for tool in self.tools]
+        return [tool.get_tool_prompts() for tool in self._tools]
 
     async def execute_selected_tools(
         self,
@@ -136,17 +137,17 @@ class ToolManager:
         )
         num_tool_calls = len(tool_calls)
 
-        if num_tool_calls > self.config.max_tool_calls:
-            self.logger.warning(
+        if num_tool_calls > self._config .max_tool_calls:
+            self._logger.warning(
                 (
                     "Number of tool calls %s exceeds the allowed maximum of %s."
                     "The tool calls will be reduced to the first %s."
                 ),
                 num_tool_calls,
-                self.config.max_tool_calls,
-                self.config.max_tool_calls,
+                self._config .max_tool_calls,
+                self._config .max_tool_calls,
             )
-            tool_calls = tool_calls[: self.config.max_tool_calls]
+            tool_calls = tool_calls[: self._config .max_tool_calls]
 
         tool_call_responses = await self._execute_parallelized(tool_calls=tool_calls)
         return tool_call_responses
@@ -155,10 +156,10 @@ class ToolManager:
         self,
         tool_calls: list[LanguageModelFunction],
     ) -> list[ToolCallResponse]:
-        self.logger.info("Execute tool calls")
+        self._logger.info("Execute tool calls")
 
         task_executor = SafeTaskExecutor(
-            logger=self.logger,
+            logger=self._logger,
         )
 
         # Create tasks for each tool call
@@ -184,7 +185,7 @@ class ToolManager:
     async def execute_tool_call(
         self, tool_call: LanguageModelFunction
     ) -> ToolCallResponse:
-        self.logger.info(f"Processing tool call: {tool_call.name}")
+        self._logger.info(f"Processing tool call: {tool_call.name}")
 
         tool_instance = self.get_tool_by_name(tool_call.name)
 
@@ -234,8 +235,8 @@ class ToolManager:
                 unique_tool_calls.append(call)
 
         if len(tool_calls) != len(unique_tool_calls):
-            self.logger = getLogger(__name__)
-            self.logger.warning(
+            self._logger = getLogger(__name__)
+            self._logger.warning(
                 f"Filtered out {len(tool_calls) - len(unique_tool_calls)} duplicate tool calls."
             )
         return unique_tool_calls
