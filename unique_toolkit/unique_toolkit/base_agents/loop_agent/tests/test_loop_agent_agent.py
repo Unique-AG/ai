@@ -18,18 +18,21 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelStreamResponseMessage,
     LanguageModelToolMessage,
 )
-from unique_toolkit.unique_toolkit.base_agents.loop_agent.agent import LoopAgent
-from unique_toolkit.unique_toolkit.base_agents.loop_agent.config import LoopAgentConfig, LoopConfiguration
-from unique_toolkit.unique_toolkit.tools.schemas import ToolCallResponse
-from unique_toolkit.unique_toolkit.tools.tool import Tool
-
-
+from unique_toolkit.base_agents.loop_agent.agent import LoopAgent
+from unique_toolkit.base_agents.loop_agent.config import (
+    LoopAgentConfig,
+    LoopConfiguration,
+)
+from unique_toolkit.tools.schemas import ToolCallResponse
+from unique_toolkit.tools.tool import Tool
 
 
 @pytest.fixture
 def mock_config():
     config = MagicMock(spec=LoopAgentConfig)
-    config.language_model = LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_4o_2024_1120)
+    config.language_model = LanguageModelInfo.from_name(
+        LanguageModelName.AZURE_GPT_4o_2024_1120
+    )
     config.temperature = 0.0
     config.percent_of_max_tokens_for_history = 0.2
     config.max_history_tokens = 3000
@@ -73,8 +76,6 @@ def mock_stream_response_no_tool_calls():
         references=[],
     )
     return response
-
-
 
 
 @pytest.fixture
@@ -272,20 +273,14 @@ async def test_process_tool_calls(loop_agent):
         LanguageModelFunction(
             id="id_1", name="Internal", arguments={"query": "Test query"}
         ),
-        LanguageModelFunction(
-            id="id_2", name="Web", arguments={"query": "Test query"}
-        ),
+        LanguageModelFunction(id="id_2", name="Web", arguments={"query": "Test query"}),
     ]
 
     await loop_agent._process_tool_calls(tool_calls)
 
-    loop_agent._append_tool_calls_to_history.assert_called_once_with(
-        tool_calls
-    )
+    loop_agent._append_tool_calls_to_history.assert_called_once_with(tool_calls)
     calls = [call(tool_call=tool_call) for tool_call in tool_calls]
-    loop_agent._process_single_tool_call.assert_has_awaits(
-        calls, any_order=True
-    )
+    loop_agent._process_single_tool_call.assert_has_awaits(calls, any_order=True)
 
 
 def test_append_tool_calls_to_history(loop_agent):
@@ -293,9 +288,7 @@ def test_append_tool_calls_to_history(loop_agent):
         LanguageModelFunction(
             id="id_1", name="Internal", arguments={"query": "Test query"}
         ),
-        LanguageModelFunction(
-            id="id_2", name="Web", arguments={"query": "Test query"}
-        ),
+        LanguageModelFunction(id="id_2", name="Web", arguments={"query": "Test query"}),
     ]
     tool_calls[0].id = "id_1"
     tool_calls[1].id = "id_2"
@@ -339,18 +332,14 @@ async def test_process_single_tool_call(loop_agent, mock_content_chunk_list):
 
     await loop_agent._process_single_tool_call(tool_call)
 
-    loop_agent._get_tool_instance_by_name.assert_called_once_with(
-        tool_call.name
-    )
+    loop_agent._get_tool_instance_by_name.assert_called_once_with(tool_call.name)
     mock_tool_instance.run.assert_called_with(tool_call=tool_call)
 
 
 @patch("_common.agents.loop_agent.agent.LoopAgent._update_debug_info")
 @patch("_common.agents.loop_agent.agent.LoopAgent._update_evaluation_checks")
 @patch("_common.agents.loop_agent.agent.LoopAgent._manage_tool_chunks")
-@patch(
-    "_common.agents.loop_agent.agent.LoopAgent._append_tool_call_result_to_history"
-)
+@patch("_common.agents.loop_agent.agent.LoopAgent._append_tool_call_result_to_history")
 def test_handle_no_tool_call_results_with_valid_responses(
     mock_update_debug_info,
     mock_update_evaluation_checks,
@@ -390,9 +379,7 @@ def test_handle_no_tool_call_results_with_valid_responses(
 @patch("_common.agents.loop_agent.agent.LoopAgent._update_debug_info")
 @patch("_common.agents.loop_agent.agent.LoopAgent._update_evaluation_checks")
 @patch("_common.agents.loop_agent.agent.LoopAgent._manage_tool_chunks")
-@patch(
-    "_common.agents.loop_agent.agent.LoopAgent._append_tool_call_result_to_history"
-)
+@patch("_common.agents.loop_agent.agent.LoopAgent._append_tool_call_result_to_history")
 def test_handle_no_tool_call_results_with_none_responses(
     mock_update_debug_info,
     mock_update_evaluation_checks,
@@ -416,9 +403,7 @@ def test_handle_no_tool_call_results_with_none_responses(
 @patch("_common.agents.loop_agent.agent.LoopAgent._update_debug_info")
 @patch("_common.agents.loop_agent.agent.LoopAgent._update_evaluation_checks")
 @patch("_common.agents.loop_agent.agent.LoopAgent._manage_tool_chunks")
-@patch(
-    "_common.agents.loop_agent.agent.LoopAgent._append_tool_call_result_to_history"
-)
+@patch("_common.agents.loop_agent.agent.LoopAgent._append_tool_call_result_to_history")
 def test_handle_no_tool_call_results_with_valid_and_none_responses(
     mock_update_debug_info,
     mock_update_evaluation_checks,
@@ -452,9 +437,7 @@ def test_handle_no_tool_call_results_with_valid_and_none_responses(
 
 
 def test_update_debug_info(loop_agent):
-    tool_response = ToolCallResponse(
-        id="1", name="test", debug_info={"test": "data"}
-    )
+    tool_response = ToolCallResponse(id="1", name="test", debug_info={"test": "data"})
 
     loop_agent._update_debug_info(tool_response)
     loop_agent.agent_debug_info.tool.assert_called_once_with({"test": "data"})
@@ -464,9 +447,7 @@ def test_update_evaluation_checks_with_valid_tool(loop_agent):
     tool_response = ToolCallResponse(id="1", name="valid_tool")
 
     mock_tool_instance = AsyncMock(spec=Tool)
-    mock_tool_instance.get_evaluation_checks_based_on_tool_response = (
-        MagicMock()
-    )
+    mock_tool_instance.get_evaluation_checks_based_on_tool_response = MagicMock()
     mock_tool_instance.get_evaluation_checks_based_on_tool_response.return_value = [
         "check1",
         "check2",
@@ -545,9 +526,7 @@ async def test_process_single_tool_call_no_tool_instance(loop_agent):
     await loop_agent._process_single_tool_call(tool_call)
 
     # Assert _get_tool_instance_by_name was called with the correct tool name
-    loop_agent._get_tool_instance_by_name.assert_called_once_with(
-        tool_call.name
-    )
+    loop_agent._get_tool_instance_by_name.assert_called_once_with(tool_call.name)
 
     # # Assert that no further processing was done since tool_instance is None
     assert loop_agent._tool_evaluation_check_list == []
@@ -574,9 +553,7 @@ def test_append_tool_call_result(loop_agent, mock_content_chunk_list):
         )
     )
 
-    loop_agent._append_tool_call_result_to_history(
-        mock_tool_instance, tool_response
-    )
+    loop_agent._append_tool_call_result_to_history(mock_tool_instance, tool_response)
 
     assert len(loop_agent._loop_history) == 1
     assert loop_agent._loop_history[0].content == "sources in correct format"
@@ -593,16 +570,11 @@ async def test_update_thinking_steps_tool_call(
 ):
     # Setup
     loop_agent.loop_response = mock_stream_response_no_tool_calls
-    mock_stream_response_no_tool_calls.message.original_text = (
-        "Test thinking step"
-    )
+    mock_stream_response_no_tool_calls.message.original_text = "Test thinking step"
 
     # Test first thinking step
     loop_agent._update_thinking_steps_tool_call()
-    assert (
-        loop_agent.thinking_steps
-        == "\n<i><b>Step 1:</b>\nTest thinking step</i>\n"
-    )
+    assert loop_agent.thinking_steps == "\n<i><b>Step 1:</b>\nTest thinking step</i>\n"
     assert loop_agent.thinking_step_number == 2
     assert loop_agent.start_text.startswith("<details open>")
 
@@ -621,19 +593,14 @@ async def test_close_thinking_steps_in_output(
     # Setup
     loop_agent.thinking_steps = "Test thinking steps"
     loop_agent.loop_response = mock_stream_response_no_tool_calls
-    loop_agent.loop_response.message.text = (
-        "<details open>Test content</details>"
-    )
+    loop_agent.loop_response.message.text = "<details open>Test content</details>"
     loop_agent.chat_service = AsyncMock()
 
     # Test
     loop_agent._close_thinking_steps_in_output()
 
     # Verify
-    assert (
-        loop_agent.loop_response.message.text
-        == "<details>Test content</details>"
-    )
+    assert loop_agent.loop_response.message.text == "<details>Test content</details>"
     loop_agent.chat_service.modify_assistant_message.assert_called_once_with(
         content="<details>Test content</details>"
     )

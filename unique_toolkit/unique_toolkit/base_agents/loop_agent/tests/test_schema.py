@@ -1,9 +1,6 @@
 import pytest
 from unique_toolkit.content.schemas import ContentChunk, ContentReference
-from unique_toolkit.unique_toolkit.tools.agent_chunks_handler import AgentChunksHandler
-
-
-
+from unique_toolkit.tools.agent_chunks_handler import AgentChunksHandler
 
 
 def create_content_chunk(
@@ -76,18 +73,14 @@ class TestAgentChunksHandler:
                 "url": "test",
             },
         ]
-        references = [
-            ContentReference(**reference) for reference in references
-        ]
+        references = [ContentReference(**reference) for reference in references]
 
         handler.add_references(references)
 
         assert len(handler.all_references) == 1
 
         # Test referenced chunks
-        referenced_chunks: list[ContentChunk] = (
-            handler.latest_referenced_chunks
-        )
+        referenced_chunks: list[ContentChunk] = handler.latest_referenced_chunks
         assert len(referenced_chunks) == 2
         assert referenced_chunks[0].id == "1"
         assert referenced_chunks[1].id == "2"

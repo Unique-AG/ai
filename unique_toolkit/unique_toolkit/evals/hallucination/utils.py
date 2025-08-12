@@ -74,9 +74,7 @@ async def check_hallucination(
     Raises:
         EvaluatorException: If the context texts are empty, required fields are missing, or an error occurs during the evaluation.
     """
-    module_name = (
-        getattr(g, "module_name", "NO_CONTEXT") if has_app_context() else ""
-    )
+    module_name = getattr(g, "module_name", "NO_CONTEXT") if has_app_context() else ""
     logger = logging.getLogger(f"{module_name}.{__name__}")
 
     model_name = config.language_model.name
@@ -136,9 +134,7 @@ def _get_msgs(
         logger.debug("Using context / history for hallucination evaluation.")
         return _compose_msgs(input, config)
     else:
-        logger.debug(
-            "No contexts and history provided for hallucination evaluation."
-        )
+        logger.debug("No contexts and history provided for hallucination evaluation.")
         return _compose_msgs_default(input, config)
 
 
@@ -156,9 +152,7 @@ def _compose_msgs(
     user_msg_content = user_msg_templ.substitute(
         input_text=input.input_text,
         contexts_text=input.get_joined_context_texts(tag_name="reference"),
-        history_messages_text=input.get_joined_history_texts(
-            tag_name="conversation"
-        ),
+        history_messages_text=input.get_joined_history_texts(tag_name="conversation"),
         output_text=input.output_text,
     )
     user_msg = LanguageModelUserMessage(content=user_msg_content)

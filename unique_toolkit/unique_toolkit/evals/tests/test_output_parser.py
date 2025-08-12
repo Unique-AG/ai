@@ -18,9 +18,7 @@ from _common.evaluators.schemas import (
 def test_parse_eval_metric_result_success():
     # Test successful parsing with all fields
     result = '{"value": "high", "reason": "Test reason"}'
-    parsed = parse_eval_metric_result(
-        result, EvaluationMetricName.CONTEXT_RELEVANCY
-    )
+    parsed = parse_eval_metric_result(result, EvaluationMetricName.CONTEXT_RELEVANCY)
 
     assert isinstance(parsed, EvaluationMetricResult)
     assert parsed.name == EvaluationMetricName.CONTEXT_RELEVANCY
@@ -32,9 +30,7 @@ def test_parse_eval_metric_result_success():
 def test_parse_eval_metric_result_missing_fields():
     # Test parsing with missing fields (should use default "None")
     result = '{"value": "high"}'
-    parsed = parse_eval_metric_result(
-        result, EvaluationMetricName.CONTEXT_RELEVANCY
-    )
+    parsed = parse_eval_metric_result(result, EvaluationMetricName.CONTEXT_RELEVANCY)
 
     assert isinstance(parsed, EvaluationMetricResult)
     assert parsed.name == EvaluationMetricName.CONTEXT_RELEVANCY
@@ -47,9 +43,7 @@ def test_parse_eval_metric_result_invalid_json():
     # Test parsing with invalid JSON
     result = "invalid json"
     with pytest.raises(EvaluatorException) as exc_info:
-        parse_eval_metric_result(
-            result, EvaluationMetricName.CONTEXT_RELEVANCY
-        )
+        parse_eval_metric_result(result, EvaluationMetricName.CONTEXT_RELEVANCY)
 
     assert "Error occurred during parsing the evaluation metric result" in str(
         exc_info.value
@@ -58,9 +52,7 @@ def test_parse_eval_metric_result_invalid_json():
 
 def test_parse_eval_metric_result_structured_output_basic():
     # Test basic structured output without fact list
-    result = EvaluationSchemaStructuredOutput(
-        value="high", reason="Test reason"
-    )
+    result = EvaluationSchemaStructuredOutput(value="high", reason="Test reason")
     parsed = parse_eval_metric_result_structured_output(
         result, EvaluationMetricName.CONTEXT_RELEVANCY
     )

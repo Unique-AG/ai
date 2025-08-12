@@ -12,17 +12,18 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
 )
 from unique_toolkit.language_model.service import LanguageModelResponse
-
-from _common.evaluators.config import EvaluationMetricConfig
-from _common.evaluators.context_relevancy.schema import (
+from unique_toolkit.evals.config import EvaluationMetricConfig
+from unique_toolkit.evals.context_relevancy.prompts import (
+    CONTEXT_RELEVANCY_METRIC_SYSTEM_MSG,
+)
+from unique_toolkit.evals.context_relevancy.schema import (
     EvaluationSchemaStructuredOutput,
 )
-from _common.evaluators.context_relevancy.service import (
-    CONTEXT_RELEVANCY_METRIC_SYSTEM_MSG,
+from unique_toolkit.evals.context_relevancy.service import (
     ContextRelevancyEvaluator,
 )
-from _common.evaluators.exception import EvaluatorException
-from _common.evaluators.schemas import (
+from unique_toolkit.evals.exception import EvaluatorException
+from unique_toolkit.evals.schemas import (
     EvaluationMetricInput,
     EvaluationMetricName,
     EvaluationMetricResult,
@@ -58,9 +59,7 @@ def basic_config():
 
 @pytest.fixture
 def structured_config(basic_config):
-    model_info = LanguageModelInfo.from_name(
-        LanguageModelName.AZURE_GPT_4o_2024_0806
-    )
+    model_info = LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_4o_2024_0806)
     return EvaluationMetricConfig(
         enabled=True,
         name=EvaluationMetricName.CONTEXT_RELEVANCY,
@@ -125,9 +124,7 @@ async def test_analyze_regular_output(evaluator, sample_input, basic_config):
 
 
 @pytest.mark.asyncio
-async def test_analyze_structured_output(
-    evaluator, sample_input, structured_config
-):
+async def test_analyze_structured_output(evaluator, sample_input, structured_config):
     mock_result = LanguageModelResponse(
         choices=[
             LanguageModelCompletionChoice(
@@ -250,7 +247,6 @@ async def test_analyze_unknown_error(evaluator, sample_input, basic_config):
     ):
         with pytest.raises(EvaluatorException) as exc_info:
             await evaluator.analyze(sample_input, basic_config)
-        assert (
-            "Unknown error occurred during context relevancy metric analysis"
-            in str(exc_info.value)
+        assert "Unknown error occurred during context relevancy metric analysis" in str(
+            exc_info.value
         )

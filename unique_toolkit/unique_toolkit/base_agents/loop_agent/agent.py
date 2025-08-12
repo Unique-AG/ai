@@ -1,6 +1,6 @@
-
 from abc import ABC, abstractmethod
 import logging
+from warnings import deprecated
 
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.chat.service import ChatService
@@ -16,23 +16,37 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelUserMessage,
 )
 from unique_toolkit.language_model.service import LanguageModelService
-from unique_toolkit.unique_toolkit.base_agents.loop_agent.config import LoopAgentConfig
-from unique_toolkit.unique_toolkit.base_agents.loop_agent.helpers import get_history 
-from unique_toolkit.unique_toolkit.base_agents.loop_agent.history_manager.history_manager import HistoryManager, HistoryManagerConfig
-from unique_toolkit.unique_toolkit.base_agents.loop_agent.schemas import  DebugInfoManager
-from unique_toolkit.unique_toolkit.base_agents.loop_agent.thinking_manager import ThinkingManager, ThinkingManagerConfig
-from unique_toolkit.unique_toolkit.evaluators.schemas import EvaluationMetricName
-from unique_toolkit.unique_toolkit.reference_manager.reference_manager import ReferenceManager
-from unique_toolkit.unique_toolkit.tools.agent_chunks_handler import AgentChunksHandler
-from unique_toolkit.unique_toolkit.tools.schemas import ToolCallResponse
-from unique_toolkit.unique_toolkit.tools.tool import Tool
-from unique_toolkit.unique_toolkit.tools.tool_manager import ToolManager, ToolManagerConfig
-from unique_toolkit.unique_toolkit.tools.tool_progress_reporter import ToolProgressReporter
-
-
+from unique_toolkit.base_agents.loop_agent.config import LoopAgentConfig
+from unique_toolkit.base_agents.loop_agent.helpers import get_history
+from unique_toolkit.base_agents.loop_agent.history_manager.history_manager import (
+    HistoryManager,
+    HistoryManagerConfig,
+)
+from unique_toolkit.base_agents.loop_agent.schemas import (
+    DebugInfoManager,
+)
+from unique_toolkit.base_agents.loop_agent.thinking_manager import (
+    ThinkingManager,
+    ThinkingManagerConfig,
+)
+from unique_toolkit.evaluators.schemas import EvaluationMetricName
+from unique_toolkit.reference_manager.reference_manager import (
+    ReferenceManager,
+)
+from unique_toolkit.tools.agent_chunks_handler import AgentChunksHandler
+from unique_toolkit.tools.schemas import ToolCallResponse
+from unique_toolkit.tools.tool import Tool
+from unique_toolkit.tools.tool_manager import (
+    ToolManager,
+    ToolManagerConfig,
+)
+from unique_toolkit.tools.tool_progress_reporter import (
+    ToolProgressReporter,
+)
 
 
 logger = logging.getLogger(__name__)
+
 
 class LoopAgent(ABC):
     def __init__(
@@ -41,32 +55,35 @@ class LoopAgent(ABC):
         config: LoopAgentConfig,
         agent_chunks_handler: AgentChunksHandler,
     ):
-        self.agent_chunks_handler = agent_chunks_handler # deprecated, use reference_manager instead
+        self.agent_chunks_handler = (
+            agent_chunks_handler  # deprecated, use reference_manager instead
+        )
         self.logger = logger
         self.event = event
         self.config = config
         self.chat_service = ChatService(event)
         self.content_service = ContentService.from_event(event)
         self.llm_service = LanguageModelService.from_event(event)
-            
-        self.debug_info_manager = DebugInfoManager()
-        self.reference_manager = ReferenceManager()
+
         self.tool_progress_reporter = ToolProgressReporter(
             chat_service=self.chat_service
         )
 
+        self.debug_info_manager = DebugInfoManager()
+        self.reference_manager = ReferenceManager()
+
         thinkingManagerConfig = ThinkingManagerConfig()
 
-        self.thinking_manager= ThinkingManager(
+        self.thinking_manager = ThinkingManager(
             logger=self.logger,
-            config = thinkingManagerConfig,
+            config=thinkingManagerConfig,
             tool_progress_reporter=self.tool_progress_reporter,
-            chat_service=self.chat_service
+            chat_service=self.chat_service,
         )
 
         toolConfig = ToolManagerConfig(
-            tools = config.tools, 
-            max_tool_calls=self.config.loop_configuration.max_tool_calls_per_iteration
+            tools=config.tools,
+            max_tool_calls=self.config.loop_configuration.max_tool_calls_per_iteration,
         )
 
         self.tool_manager = ToolManager(
@@ -77,11 +94,12 @@ class LoopAgent(ABC):
         )
 
         history_manager_config = HistoryManagerConfig(
-            full_sources_serialize_dump=False # this used to come from the tools but makes no sense, as it should alway be the same for all of them
+            full_sources_serialize_dump=False  # this used to come from the tools but makes no sense, as it should alway be the same for all of them
         )
 
         self.history_manager = HistoryManager(
             logger,
+            event,
             history_manager_config,
         )
 
@@ -93,7 +111,6 @@ class LoopAgent(ABC):
 
         # Post init
         self._optional_initialization_step()
-
 
     @property
     def start_text(self) -> str:
@@ -114,7 +131,6 @@ class LoopAgent(ABC):
         """
         self.logger.info("Start LoopAgent...")
 
-        self.history = await self._obtain_chat_history_as_llm_messages()
         if self.history_manager.has_no_loop_messages():
             self.chat_service.modify_assistant_message(
                 content="Starting agentic loop..."
@@ -131,7 +147,7 @@ class LoopAgent(ABC):
 
             # Update tool progress reporter
             self.thinking_manager.update_tool_progress_reporter(loop_response)
-            
+
             # Execute the plan
             exit_loop = await self._process_plan(loop_response)
             self.logger.info("Done with _process_plan")
@@ -148,8 +164,12 @@ class LoopAgent(ABC):
                 )
                 break
 
-            self.start_text = self.thinking_manager.update_start_text(self.start_text,loop_response)
-            await self._create_new_assistant_message_if_loop_response_contains_content(loop_response)
+            self.start_text = self.thinking_manager.update_start_text(
+                self.start_text, loop_response
+            )
+            await self._create_new_assistant_message_if_loop_response_contains_content(
+                loop_response
+            )
 
         await self.chat_service.modify_assistant_message_async(
             set_completed_at=True,
@@ -186,41 +206,39 @@ class LoopAgent(ABC):
 
     # @track(name="stream_complete_async_run")
     async def _stream_complete_async_wrapper(self, *args, **kwargs):
-        return await self.chat_service.stream_complete_async(*args, **kwargs)
+        return await self.chat_service.complete_with_references_async(*args, **kwargs)
 
     async def _process_plan(self, loop_response: LanguageModelStreamResponse) -> bool:
-
-        self.logger.info("Processing the plan, executing the tools and checking for loop exit conditions once all is done.")
+        self.logger.info(
+            "Processing the plan, executing the tools and checking for loop exit conditions once all is done."
+        )
 
         is_model_response_empty = self.handle_empty_model_response(loop_response)
         are_no_tools_called = len(loop_response.tool_calls or []) == 0
 
         if is_model_response_empty:
-            self.logger.debug("the was an empty model response. This is bizarre. we exit the loop")
+            self.logger.debug(
+                "the was an empty model response. This is bizarre. we exit the loop"
+            )
             return True
         elif are_no_tools_called:
             self.logger.debug("No tool calls. we might exit the loop")
             return await self._handle_no_tool_calls(loop_response)
         else:
-            self.logger.debug("cool were called we process them and do not exit the loop")
+            self.logger.debug(
+                "cool were called we process them and do not exit the loop"
+            )
             await self._handle_tool_calls(loop_response)
             return False
-
-
 
     def handle_empty_model_response(
         self,
         language_model_response: LanguageModelStreamResponse,
     ) -> bool:
-        if (
-            language_model_response.message.original_text
-            or language_model_response.tool_calls
-        ):
+        if not language_model_response.is_empty():
             return False
-        
-        self.logger.debug(
-            "Stream response contains no text and no tool calls."
-        )
+
+        self.logger.debug("Stream response contains no text and no tool calls.")
 
         message = (
             "⚠️ **The language model was unable to produce an output.**\n"
@@ -231,7 +249,6 @@ class LoopAgent(ABC):
         )
         self.chat_service.modify_assistant_message(content=message)
         return True
-
 
     ##############################
     # Abstract methods
@@ -248,7 +265,9 @@ class LoopAgent(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def _handle_no_tool_calls(self,loop_response: LanguageModelStreamResponse) -> bool:
+    async def _handle_no_tool_calls(
+        self, loop_response: LanguageModelStreamResponse
+    ) -> bool:
         """Handle the case where no tool calls are returned.
 
         The function will return True if the loop should exit, False otherwise.
@@ -260,42 +279,18 @@ class LoopAgent(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def _handle_tool_calls(self,loop_response: LanguageModelStreamResponse) -> None:
+    async def _handle_tool_calls(
+        self, loop_response: LanguageModelStreamResponse
+    ) -> None:
         """Handle the case where tool calls are returned."""
         raise NotImplementedError()
 
     ##############################
     # Optional methods to override
     ##############################
-    async def _obtain_chat_history_as_llm_messages(
-        self,
-    ) -> list[LanguageModelMessage]:
-        return await get_history(
-            chat_service=self.chat_service,
-            content_service=self.content_service,
-            max_history_tokens=self.config.token_limits.max_history_tokens,
-            postprocessing_step=self._history_postprocessing_step,
-        )
-
-    def _optional_initialization_step(self) -> None:
-        """Additional initialization step for the agent."""
-        return
-
-    def _history_postprocessing_step(
-        self,
-        history: list[LanguageModelMessage],
-    ) -> list[LanguageModelMessage]:
-        """Postprocess the history before performing token reduction."""
-        return history
-
-    ##############################
-    # Tool processing
-    ##############################
-
 
     async def _process_tool_calls(
-        self,
-        tool_calls: list[LanguageModelFunction],
+        self, tool_calls: list[LanguageModelFunction], ay
     ) -> None:
         self.logger.info("Processing tool calls")
         """
@@ -316,7 +311,6 @@ class LoopAgent(ABC):
         # Process results with error handling
         self._handle_tool_call_results(tool_call_responses)
 
-
     def _handle_tool_call_results(
         self, tool_call_results: list[ToolCallResponse]
     ) -> None:
@@ -326,20 +320,16 @@ class LoopAgent(ABC):
         self.history_manager.add_tool_call_results(tool_call_results)
 
         for tool_response in tool_call_results:
-
             # Process tool result
             tool_instance = self.tool_manager.get_tool_by_name(tool_response.name)
             if tool_instance:
                 if tool_response.successful:
                     # Update evaluation checks
-                    self._update_evaluation_checks(
-                        tool_instance, tool_response
-                    )
+                    self._update_evaluation_checks(tool_instance, tool_response)
             else:
                 self.logger.error(
                     f"Tool instance not found for tool call: {tool_response.name}"
                 )
-
 
     def _update_evaluation_checks(
         self, tool_instance: Tool, tool_response: ToolCallResponse
@@ -352,10 +342,8 @@ class LoopAgent(ABC):
             tool_response (ToolCallResponse): Tool response
         """
         self.logger.debug("Updating evaluation checks")
-        evaluation_checks = (
-            tool_instance.get_evaluation_checks_based_on_tool_response(
-                tool_response=tool_response
-            )
+        evaluation_checks = tool_instance.get_evaluation_checks_based_on_tool_response(
+            tool_response=tool_response
         )
 
         for check in evaluation_checks:
@@ -363,11 +351,34 @@ class LoopAgent(ABC):
                 self._tool_evaluation_check_list.append(check)
 
 
+    async def _create_new_assistant_message_if_loop_response_contains_content(
+        self, loop_response: LanguageModelStreamResponse
+    ) -> None:
+        if self.thinking_manager.thinking_is_displayed():
+            return
+        if not loop_response.message.text:
+            return
+        if loop_response.message.text == "":
+            return
+
+        ###
+        # ToDo: Once references on existing assistant messages can be deleted, we will switch from creating a new assistant message to modifying the existing one (with previous references deleted)
+        ###
+        await self.chat_service.create_assistant_message_async(content="")
+        self.history_manager.add_assistant_message(
+            LanguageModelAssistantMessage(content=loop_response.message.original_text)
+        )
+
+    ###############################
+    # deprecated methods
+    ###############################
 
 
-    def get_complete_conversation_history_after_streaming_no_tool_calls(
-        self,
-        loop_response: LanguageModelStreamResponse
+    @deprecated(
+        "This method is deprecated and will be removed in the future, useself.history_manager in the future."
+    )
+    async def get_complete_conversation_history_after_streaming_no_tool_calls(
+        self
     ) -> list[LanguageModelMessage]:
         """
         Get the complete conversation history including the current user message and the final
@@ -380,56 +391,31 @@ class LoopAgent(ABC):
             list[LanguageModelMessage]: The complete conversation history with the current
             user message and final assistant response appended.
         """
-        complete_history = self.history.copy()
-
-        # Add current user message if not already in history
-        current_user_msg = LanguageModelUserMessage(
-            content=self.event.payload.user_message.text
+        return await self.history_manager.get_history(
+            self._history_postprocessing_step
         )
-        
-        if not any(
-            msg.role == LanguageModelMessageRole.USER
-            and msg.content == current_user_msg.content
-            for msg in complete_history
-        ):
-            complete_history.append(current_user_msg)
 
-        # Add final assistant response - this should be available when this method is called
-        if (
-            loop_response
-            and loop_response.message.text
-        ):
-            complete_history.append(
-                LanguageModelAssistantMessage(
-                    content=loop_response.message.text
-                )
-            )
-        else:
-            self.logger.warning(
-                "Called get_complete_conversation_history_after_streaming_no_tool_calls but no loop_response.message.text is available"
-            )
-
-        return complete_history
-
-   
-
-    async def _create_new_assistant_message_if_loop_response_contains_content(
+    @deprecated(
+        "use the history_manager to obtain the history",
+    )
+    async def _obtain_chat_history_as_llm_messages(
         self,
-        loop_response: LanguageModelStreamResponse
-    ) -> None:
-        if self.thinking_manager.thinking_is_displayed(): 
-           return
-        if not loop_response.message.text:
-          return
-        if loop_response.message.text =="" :
-            return
+    ) -> list[LanguageModelMessage]:
+        return await self.history_manager.get_history(self._history_postprocessing_step)
 
-        ###
-        # ToDo: Once references on existing assistant messages can be deleted, we will switch from creating a new assistant message to modifying the existing one (with previous references deleted)
-        ###
-        await self.chat_service.create_assistant_message_async(content="")
-        self.history_manager.add_assistant_message(
-            LanguageModelAssistantMessage(
-                content=loop_response.message.original_text
-            )
-        )
+    @deprecated(
+        "This method is deprecated and will be removed in the future, use constructor instead with super.",
+    )
+    def _optional_initialization_step(self) -> None:
+        """Additional initialization step for the agent."""
+        return
+
+    @deprecated(
+        "This method is deprecated and will be removed in the future, use _history_postprocessing_step instead with super.",
+    )
+    def _history_postprocessing_step(
+        self,
+        history: list[LanguageModelMessage],
+    ) -> list[LanguageModelMessage]:
+        """Postprocess the history before performing token reduction."""
+        return history

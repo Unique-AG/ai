@@ -69,9 +69,7 @@ class ContextRelevancyEvaluator:
         self.chat_service = ChatService(event)
         self.language_model_service = LanguageModelService(event)
         module_name = (
-            getattr(g, "module_name", "NO_CONTEXT")
-            if has_app_context()
-            else ""
+            getattr(g, "module_name", "NO_CONTEXT") if has_app_context() else ""
         )
         self.logger = logging.getLogger(f"{module_name}.{__name__}")
 
@@ -123,7 +121,9 @@ class ContextRelevancyEvaluator:
             return await self._handle_regular_output(input, config)
 
         except Exception as e:
-            error_message = "Unknown error occurred during context relevancy metric analysis"
+            error_message = (
+                "Unknown error occurred during context relevancy metric analysis"
+            )
             raise EvaluatorException(
                 error_message=f"{error_message}: {e}",
                 user_message=error_message,
@@ -137,9 +137,7 @@ class ContextRelevancyEvaluator:
         structured_output_schema: type[BaseModel],
     ) -> EvaluationMetricResult:
         """Handle the structured output case for context relevancy evaluation."""
-        self.logger.info(
-            "Using structured output for context relevancy evaluation."
-        )
+        self.logger.info("Using structured output for context relevancy evaluation.")
         msgs = self._compose_msgs(input, config, enable_structured_output=True)
         result = await self.language_model_service.complete_async(
             messages=msgs,
@@ -171,9 +169,7 @@ class ContextRelevancyEvaluator:
         config: EvaluationMetricConfig,
     ) -> EvaluationMetricResult:
         """Handle the regular output case for context relevancy evaluation."""
-        msgs = self._compose_msgs(
-            input, config, enable_structured_output=False
-        )
+        msgs = self._compose_msgs(input, config, enable_structured_output=False)
         result = await self.language_model_service.complete_async(
             messages=msgs,
             model_name=config.language_model.name,
@@ -182,9 +178,7 @@ class ContextRelevancyEvaluator:
 
         result_content = result.choices[0].message.content
         if not result_content or not isinstance(result_content, str):
-            error_message = (
-                "Context relevancy evaluation did not return a result."
-            )
+            error_message = "Context relevancy evaluation did not return a result."
             raise EvaluatorException(
                 error_message=error_message,
                 user_message=error_message,
@@ -203,9 +197,7 @@ class ContextRelevancyEvaluator:
         """
         Composes the messages for the relevancy metric.
         """
-        system_msg_content = self._get_system_prompt(
-            config, enable_structured_output
-        )
+        system_msg_content = self._get_system_prompt(config, enable_structured_output)
         system_msg = Prompt(system_msg_content).to_system_msg()
 
         user_msg = Prompt(

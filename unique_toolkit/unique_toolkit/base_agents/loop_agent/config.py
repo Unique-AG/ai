@@ -2,16 +2,23 @@ from typing import Annotated, Any
 
 from pydantic import BaseModel, Field, model_validator
 
-from unique_toolkit.unique_toolkit._common.validators import LMI, ClipInt
-from unique_toolkit.unique_toolkit.language_model.infos import LanguageModelInfo, LanguageModelName
-from unique_toolkit.unique_toolkit.tools.config import ToolBuildConfig, get_configuration_dict
-
+from unique_toolkit._common.validators import LMI, ClipInt
+from unique_toolkit.language_model.infos import (
+    LanguageModelInfo,
+    LanguageModelName,
+)
+from unique_toolkit.tools.config import (
+    ToolBuildConfig,
+    get_configuration_dict,
+)
 
 
 class LoopAgentTokenLimitsConfig(BaseModel):
     model_config = get_configuration_dict()
 
-    language_model: LMI = LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_4o_2024_1120)
+    language_model: LMI = LanguageModelInfo.from_name(
+        LanguageModelName.AZURE_GPT_4o_2024_1120
+    )
 
     percent_of_max_tokens_for_history: float = Field(
         default=0.2,
@@ -48,7 +55,9 @@ class LoopAgentConfig(BaseModel):
     ##############################
 
     # Spaces 2.0
-    language_model: LMI = LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_4o_2024_1120)
+    language_model: LMI = LanguageModelInfo.from_name(
+        LanguageModelName.AZURE_GPT_4o_2024_1120
+    )
 
     temperature: float = 0.0
     additional_llm_options: dict[str, Any] = Field(
@@ -68,7 +77,7 @@ class LoopAgentConfig(BaseModel):
     ##############################
     ### Token Limit Configurations
     ##############################
-    token_limits: LoopAgentTokenLimitsConfig = Field(default=None) # type: ignore
+    token_limits: LoopAgentTokenLimitsConfig = Field(default=None)  # type: ignore
 
     ##############################
     ### Tool Configurations

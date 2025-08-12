@@ -14,8 +14,7 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelMessageRole,
     LanguageModelStreamResponse,
 )
-from unique_toolkit.unique_toolkit.evaluators.schemas import EvaluationMetricResult
-
+from unique_toolkit.evaluators.schemas import EvaluationMetricResult
 
 
 class EvaluationCheckResultsPostprocessed(BaseModel):
@@ -85,9 +84,7 @@ def merge_history_and_uploads(
     history: list[ChatMessage], uploads: list[Content]
 ) -> list[LanguageModelMessage]:
     # Assert that all content have a created_at
-    content_with_created_at = [
-        content for content in uploads if content.created_at
-    ]
+    content_with_created_at = [content for content in uploads if content.created_at]
     sorted_history = sorted(
         history + content_with_created_at,
         key=lambda x: x.created_at or datetime.min,
@@ -121,4 +118,3 @@ def limit_to_token_window(
         selected_messages.append(msg)
         token_count += msg_token_count
     return selected_messages[::-1]
-

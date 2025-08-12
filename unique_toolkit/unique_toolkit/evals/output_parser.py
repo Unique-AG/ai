@@ -1,10 +1,9 @@
 from unique_toolkit.language_model.utils import convert_string_to_json
-
-from _common.evaluators.context_relevancy.schema import (
+from unique_toolkit.evals.context_relevancy.schema import (
     EvaluationSchemaStructuredOutput,
 )
-from _common.evaluators.exception import EvaluatorException
-from _common.evaluators.schemas import (
+from unique_toolkit.evals.exception import EvaluatorException
+from unique_toolkit.evals.schemas import (
     EvaluationMetricName,
     EvaluationMetricResult,
 )
@@ -21,9 +20,7 @@ def parse_eval_metric_result(
     try:
         parsed_result = convert_string_to_json(result)
     except Exception as e:
-        error_message = (
-            "Error occurred during parsing the evaluation metric result"
-        )
+        error_message = "Error occurred during parsing the evaluation metric result"
         raise EvaluatorException(
             user_message=f"{error_message}.",
             error_message=f"{error_message}: {str(e)}",

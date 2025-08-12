@@ -8,9 +8,10 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelMessage,
     LanguageModelToolMessage,
 )
-from unique_toolkit.unique_toolkit.tools.schemas import Source
-from unique_toolkit.unique_toolkit.tools.utils.source_handling.schema import SourceFormatConfig
-
+from unique_toolkit.tools.schemas import Source
+from unique_toolkit.tools.utils.source_handling.schema import (
+    SourceFormatConfig,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -23,16 +24,11 @@ def convert_tool_interactions_to_content_messages(
     copy_loop_history = deepcopy(loop_history)
 
     for message in copy_loop_history:
-        if (
-            isinstance(message, LanguageModelAssistantMessage)
-            and message.tool_calls
-        ):
+        if isinstance(message, LanguageModelAssistantMessage) and message.tool_calls:
             new_loop_history.append(_convert_tool_call_to_content(message))
 
         elif isinstance(message, LanguageModelToolMessage):
-            new_loop_history.append(
-                _convert_tool_call_response_to_content(message)
-            )
+            new_loop_history.append(_convert_tool_call_response_to_content(message))
         else:
             new_loop_history.append(message)
 
@@ -120,7 +116,6 @@ def transform_chunks_to_string(
             for i, chunk in enumerate(content_chunks)
         ]
     return json.dumps(sources)
-   
 
 
 def load_sources_from_string(

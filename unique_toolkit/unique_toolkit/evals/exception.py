@@ -1,4 +1,4 @@
-from _common.utils.exception import CommonException
+from unique_toolkit._common.exception import CommonException
 
 
 class EvaluatorException(CommonException):

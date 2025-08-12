@@ -3,8 +3,10 @@ from unique_toolkit.language_model.infos import (
     LanguageModelInfo,
     LanguageModelName,
 )
-from unique_toolkit.unique_toolkit.base_agents.loop_agent.config import LoopAgentConfig, LoopAgentTokenLimitsConfig
-
+from unique_toolkit.base_agents.loop_agent.config import (
+    LoopAgentConfig,
+    LoopAgentTokenLimitsConfig,
+)
 
 
 LANGUAGE_MODELS = []
@@ -47,4 +49,3 @@ def test_get_unknown_tool_raises_error(language_model):
     config = LoopAgentConfig(language_model=language_model)
     with pytest.raises(ValueError):
         config.get_tool_config("UNKNOWN_TOOL")  # type: ignore
-

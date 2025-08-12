@@ -12,14 +12,28 @@ from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.language_model.service import (
     LanguageModelService,
 )
-from unique_toolkit.unique_toolkit.base_agents.loop_agent.services.evaluation.config import EvaluationConfig
-from unique_toolkit.unique_toolkit.base_agents.loop_agent.services.evaluation.output_messages import get_eval_result_msg
-from unique_toolkit.unique_toolkit.base_agents.loop_agent.services.evaluation.user_info_message import HALLUCINATION_CHECK_FAILED_TEMPLATE, HALLUCINATION_CHECK_PASSED_TEMPLATE
-from unique_toolkit.unique_toolkit.evaluators.config import EvaluationMetricConfig
-from unique_toolkit.unique_toolkit.evaluators.hallucination.utils import check_hallucination
-from unique_toolkit.unique_toolkit.evaluators.schemas import EvaluationMetricInput, EvaluationMetricName, EvaluationMetricResult
-from unique_toolkit.unique_toolkit.tools.utils.execution.execution import SafeTaskExecutor
-
+from unique_toolkit.base_agents.loop_agent.services.evaluation.config import (
+    EvaluationConfig,
+)
+from unique_toolkit.base_agents.loop_agent.services.evaluation.output_messages import (
+    get_eval_result_msg,
+)
+from unique_toolkit.base_agents.loop_agent.services.evaluation.user_info_message import (
+    HALLUCINATION_CHECK_FAILED_TEMPLATE,
+    HALLUCINATION_CHECK_PASSED_TEMPLATE,
+)
+from unique_toolkit.evaluators.config import EvaluationMetricConfig
+from unique_toolkit.evaluators.hallucination.utils import (
+    check_hallucination,
+)
+from unique_toolkit.evaluators.schemas import (
+    EvaluationMetricInput,
+    EvaluationMetricName,
+    EvaluationMetricResult,
+)
+from unique_toolkit.tools.utils.execution.execution import (
+    SafeTaskExecutor,
+)
 
 
 FOLDER_NAME = Path(__file__).parent.name
@@ -73,9 +87,7 @@ class EvaluationService:
         )
 
         if not result.success:
-            await self._inform_user_error(
-                assistant_message_id=assistant_message_id
-            )
+            await self._inform_user_error(assistant_message_id=assistant_message_id)
 
         return result.unpack(default=[])
 

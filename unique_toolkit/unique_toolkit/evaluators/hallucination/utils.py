@@ -74,7 +74,7 @@ async def check_hallucination(
     Raises:
         EvaluatorException: If the context texts are empty, required fields are missing, or an error occurs during the evaluation.
     """
-    
+
     logger = logger
 
     model_name = config.language_model.name

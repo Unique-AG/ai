@@ -63,9 +63,7 @@ def validate_and_init_language_model_info(
     return v
 
 
-def ClipInt(
-    *, min_value: int, max_value: int
-) -> tuple[BeforeValidator, FieldInfo]:
+def ClipInt(*, min_value: int, max_value: int) -> tuple[BeforeValidator, FieldInfo]:
     def _validator(value: Any, info: ValidationInfo) -> Any:
         if not isinstance(value, int):
             value = int(value)

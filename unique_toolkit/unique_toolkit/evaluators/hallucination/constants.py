@@ -16,7 +16,7 @@ from unique_toolkit.language_model.infos import (
     LanguageModelInfo,
     LanguageModelName,
 )
-from unique_toolkit.unique_toolkit._common.validators import LMI
+from unique_toolkit._common.validators import LMI
 
 SYSTEM_MSG_KEY = "systemPrompt"
 USER_MSG_KEY = "userPrompt"
@@ -48,7 +48,7 @@ hallucination_required_input_fields = [
 class HallucinationConfig(EvaluationMetricConfig):
     enabled: bool = False
     name: EvaluationMetricName = EvaluationMetricName.HALLUCINATION
-    language_model: LMI =  LanguageModelInfo.from_name(
+    language_model: LMI = LanguageModelInfo.from_name(
         LanguageModelName.AZURE_GPT_4o_2024_1120,
     )
     additional_llm_options: dict[str, Any] = Field(

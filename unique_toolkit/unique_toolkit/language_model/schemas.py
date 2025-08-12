@@ -97,7 +97,7 @@ class LanguageModelFunction(BaseModel):
 
         if self.arguments != other.arguments:
             return False
-        
+
         return True
 
 
@@ -107,6 +107,16 @@ class LanguageModelStreamResponse(BaseModel):
 
     message: LanguageModelStreamResponseMessage
     tool_calls: list[LanguageModelFunction] | None = None
+
+    def is_empty(self) -> bool:
+        """
+        Check if the stream response is empty.
+        An empty stream response has no text and no tool calls.
+        """
+        return (
+            not self.message.original_text
+            and not self.tool_calls
+        )
 
 
 class LanguageModelFunctionCall(BaseModel):

@@ -3,8 +3,8 @@ from typing import Any
 from humps import camelize
 from pydantic import BaseModel, ConfigDict, Field
 
-from _common.utils.validators import LMI, get_LMI_default_field
-from default_language_model import DEFAULT_GPT_35_TURBO
+from unique_toolkit._common.validators import LMI
+
 
 from .schemas import (
     EvaluationMetricName,

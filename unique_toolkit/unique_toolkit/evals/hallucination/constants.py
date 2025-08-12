@@ -2,19 +2,19 @@ from typing import Any
 
 from pydantic import Field
 
-from _common.evaluators.config import EvaluationMetricConfig
-from _common.evaluators.hallucination.prompts import (
+from unique_toolkit._common.validators import LMI
+from unique_toolkit.evals.config import EvaluationMetricConfig
+from unique_toolkit.evals.hallucination.prompts import (
     HALLUCINATION_METRIC_SYSTEM_MSG,
     HALLUCINATION_METRIC_SYSTEM_MSG_DEFAULT,
     HALLUCINATION_METRIC_USER_MSG,
     HALLUCINATION_METRIC_USER_MSG_DEFAULT,
 )
-from _common.evaluators.schemas import (
+from unique_toolkit.evals.schemas import (
     EvaluationMetricInputFieldName,
     EvaluationMetricName,
 )
-from _common.utils.validators import LMI, get_LMI_default_field
-from default_language_model import DEFAULT_GPT_4o
+
 
 SYSTEM_MSG_KEY = "systemPrompt"
 USER_MSG_KEY = "userPrompt"
