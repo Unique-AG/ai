@@ -1,7 +1,6 @@
 import logging
 from string import Template
 
-from quart import g, has_app_context
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
@@ -10,19 +9,11 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelUserMessage,
 )
 from unique_toolkit.language_model.service import LanguageModelService
+from unique_toolkit.evals.config import EvaluationMetricConfig
+from unique_toolkit.evals.exception import EvaluatorException
+from unique_toolkit.evals.output_parser import parse_eval_metric_result
+from unique_toolkit.evals.schemas import EvaluationMetricInput, EvaluationMetricName, EvaluationMetricResult
 
-from _common.evaluators.config import (
-    EvaluationMetricConfig,
-)
-from _common.evaluators.exception import EvaluatorException
-from _common.evaluators.output_parser import (
-    parse_eval_metric_result,
-)
-from _common.evaluators.schemas import (
-    EvaluationMetricInput,
-    EvaluationMetricName,
-    EvaluationMetricResult,
-)
 
 from .constants import (
     SYSTEM_MSG_DEFAULT_KEY,
@@ -74,8 +65,8 @@ async def check_hallucination(
     Raises:
         EvaluatorException: If the context texts are empty, required fields are missing, or an error occurs during the evaluation.
     """
-    module_name = getattr(g, "module_name", "NO_CONTEXT") if has_app_context() else ""
-    logger = logging.getLogger(f"{module_name}.{__name__}")
+   
+    logger = logging.getLogger(f"check_hallucination.{__name__}")
 
     model_name = config.language_model.name
     logger.info(f"Analyzing level of hallucination with {model_name}.")
@@ -95,7 +86,7 @@ async def check_hallucination(
                 user_message=error_message,
             )
         return parse_eval_metric_result(
-            result_content,
+            result_content, # type: ignore
             EvaluationMetricName.HALLUCINATION,
         )
     except Exception as e:
@@ -134,7 +125,9 @@ def _get_msgs(
         logger.debug("Using context / history for hallucination evaluation.")
         return _compose_msgs(input, config)
     else:
-        logger.debug("No contexts and history provided for hallucination evaluation.")
+        logger.debug(
+            "No contexts and history provided for hallucination evaluation."
+        )
         return _compose_msgs_default(input, config)
 
 
@@ -152,7 +145,9 @@ def _compose_msgs(
     user_msg_content = user_msg_templ.substitute(
         input_text=input.input_text,
         contexts_text=input.get_joined_context_texts(tag_name="reference"),
-        history_messages_text=input.get_joined_history_texts(tag_name="conversation"),
+        history_messages_text=input.get_joined_history_texts(
+            tag_name="conversation"
+        ),
         output_text=input.output_text,
     )
     user_msg = LanguageModelUserMessage(content=user_msg_content)

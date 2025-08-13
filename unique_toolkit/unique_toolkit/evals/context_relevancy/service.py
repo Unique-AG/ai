@@ -1,11 +1,11 @@
 import logging
 
 from pydantic import BaseModel, ValidationError
-from quart import g, has_app_context
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.language_model.infos import (
     LanguageModelInfo,
+    LanguageModelName,
     ModelCapabilities,
 )
 from unique_toolkit.language_model.prompt import Prompt
@@ -15,25 +15,13 @@ from unique_toolkit.language_model.schemas import (
 from unique_toolkit.language_model.service import (
     LanguageModelService,
 )
+from unique_toolkit.evals.config import EvaluationMetricConfig
+from unique_toolkit.evals.context_relevancy.schema import EvaluationSchemaStructuredOutput
+from unique_toolkit.evals.exception import EvaluatorException
+from unique_toolkit.evals.output_parser import parse_eval_metric_result, parse_eval_metric_result_structured_output
+from unique_toolkit.evals.schemas import EvaluationMetricInput, EvaluationMetricInputFieldName, EvaluationMetricName, EvaluationMetricResult
 
-from _common.evaluators.config import (
-    EvaluationMetricConfig,
-)
-from _common.evaluators.context_relevancy.schema import (
-    EvaluationSchemaStructuredOutput,
-)
-from _common.evaluators.exception import EvaluatorException
-from _common.evaluators.output_parser import (
-    parse_eval_metric_result,
-    parse_eval_metric_result_structured_output,
-)
-from _common.evaluators.schemas import (
-    EvaluationMetricInput,
-    EvaluationMetricInputFieldName,
-    EvaluationMetricName,
-    EvaluationMetricResult,
-)
-from default_language_model import DEFAULT_GPT_35_TURBO
+
 
 from .prompts import (
     CONTEXT_RELEVANCY_METRIC_SYSTEM_MSG,
@@ -48,7 +36,7 @@ USER_MSG_KEY = "userPrompt"
 default_config = EvaluationMetricConfig(
     enabled=False,
     name=EvaluationMetricName.CONTEXT_RELEVANCY,
-    language_model=LanguageModelInfo.from_name(DEFAULT_GPT_35_TURBO),
+    language_model=LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_4o_2024_1120),
     custom_prompts={
         SYSTEM_MSG_KEY: CONTEXT_RELEVANCY_METRIC_SYSTEM_MSG,
         USER_MSG_KEY: CONTEXT_RELEVANCY_METRIC_USER_MSG,
@@ -68,10 +56,7 @@ class ContextRelevancyEvaluator:
     ):
         self.chat_service = ChatService(event)
         self.language_model_service = LanguageModelService(event)
-        module_name = (
-            getattr(g, "module_name", "NO_CONTEXT") if has_app_context() else ""
-        )
-        self.logger = logging.getLogger(f"{module_name}.{__name__}")
+        self.logger = logging.getLogger(f"ContextRelevancyEvaluator.{__name__}")
 
     async def analyze(
         self,
@@ -99,7 +84,7 @@ class ContextRelevancyEvaluator:
 
         input.validate_required_fields(relevancy_required_input_fields)
 
-        if len(input.context_texts) == 0:
+        if len(input.context_texts) == 0: # type: ignore
             error_message = "No context texts provided."
             raise EvaluatorException(
                 user_message=error_message,
@@ -121,9 +106,7 @@ class ContextRelevancyEvaluator:
             return await self._handle_regular_output(input, config)
 
         except Exception as e:
-            error_message = (
-                "Unknown error occurred during context relevancy metric analysis"
-            )
+            error_message = "Unknown error occurred during context relevancy metric analysis"
             raise EvaluatorException(
                 error_message=f"{error_message}: {e}",
                 user_message=error_message,
@@ -137,7 +120,9 @@ class ContextRelevancyEvaluator:
         structured_output_schema: type[BaseModel],
     ) -> EvaluationMetricResult:
         """Handle the structured output case for context relevancy evaluation."""
-        self.logger.info("Using structured output for context relevancy evaluation.")
+        self.logger.info(
+            "Using structured output for context relevancy evaluation."
+        )
         msgs = self._compose_msgs(input, config, enable_structured_output=True)
         result = await self.language_model_service.complete_async(
             messages=msgs,
@@ -169,7 +154,9 @@ class ContextRelevancyEvaluator:
         config: EvaluationMetricConfig,
     ) -> EvaluationMetricResult:
         """Handle the regular output case for context relevancy evaluation."""
-        msgs = self._compose_msgs(input, config, enable_structured_output=False)
+        msgs = self._compose_msgs(
+            input, config, enable_structured_output=False
+        )
         result = await self.language_model_service.complete_async(
             messages=msgs,
             model_name=config.language_model.name,
@@ -178,7 +165,9 @@ class ContextRelevancyEvaluator:
 
         result_content = result.choices[0].message.content
         if not result_content or not isinstance(result_content, str):
-            error_message = "Context relevancy evaluation did not return a result."
+            error_message = (
+                "Context relevancy evaluation did not return a result."
+            )
             raise EvaluatorException(
                 error_message=error_message,
                 user_message=error_message,
@@ -197,7 +186,9 @@ class ContextRelevancyEvaluator:
         """
         Composes the messages for the relevancy metric.
         """
-        system_msg_content = self._get_system_prompt(config, enable_structured_output)
+        system_msg_content = self._get_system_prompt(
+            config, enable_structured_output
+        )
         system_msg = Prompt(system_msg_content).to_system_msg()
 
         user_msg = Prompt(

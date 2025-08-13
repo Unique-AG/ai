@@ -4,6 +4,7 @@ from humps import camelize
 from pydantic import BaseModel, ConfigDict, Field
 
 from unique_toolkit._common.validators import LMI
+from unique_toolkit.language_model.infos import LanguageModelInfo, LanguageModelName
 
 
 from .schemas import (
@@ -23,7 +24,9 @@ class EvaluationMetricConfig(BaseModel):
 
     enabled: bool = False
     name: EvaluationMetricName
-    language_model: LMI = get_LMI_default_field(DEFAULT_GPT_35_TURBO)
+    language_model: LMI = LanguageModelInfo.from_name(
+        LanguageModelName.AZURE_GPT_35_TURBO_0125,
+    )
     additional_llm_options: dict[str, Any] = Field(
         default={},
         description="Additional options to pass to the language model.",
