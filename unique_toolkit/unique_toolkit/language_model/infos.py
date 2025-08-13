@@ -14,6 +14,10 @@ class LanguageModelName(StrEnum):
     AZURE_GPT_4_0613 = "AZURE_GPT_4_0613"
     AZURE_GPT_4_32K_0613 = "AZURE_GPT_4_32K_0613"
     AZURE_GPT_4_TURBO_2024_0409 = "AZURE_GPT_4_TURBO_2024_0409"
+    AZURE_GPT_5_2025_0807 = "AZURE_GPT_5_2025_0807"
+    AZURE_GPT_5_MINI_2025_0807 = "AZURE_GPT_5_MINI_2025_0807"
+    AZURE_GPT_5_NANO_2025_0807 = "AZURE_GPT_5_NANO_2025_0807"
+    AZURE_GPT_5_CHAT_2025_0807 = "AZURE_GPT_5_CHAT_2025_0807"
     AZURE_GPT_4o_2024_0513 = "AZURE_GPT_4o_2024_0513"
     AZURE_GPT_4o_2024_0806 = "AZURE_GPT_4o_2024_0806"
     AZURE_GPT_4o_2024_1120 = "AZURE_GPT_4o_2024_1120"
@@ -63,6 +67,10 @@ def get_encoder_name(model_name: LanguageModelName) -> EncoderName:
             | LMN.AZURE_GPT_4o_2024_0806
             | LMN.AZURE_GPT_4o_MINI_2024_0718
             | LMN.AZURE_GPT_4o_2024_1120
+            | LMN.AZURE_GPT_5_2025_0807
+            | LMN.AZURE_GPT_5_MINI_2025_0807
+            | LMN.AZURE_GPT_5_NANO_2025_0807
+            | LMN.AZURE_GPT_5_CHAT_2025_0807
         ):
             return EncoderName.O200K_BASE
         case _:
@@ -160,6 +168,74 @@ class LanguageModelInfo(BaseModel):
                     published_at=date(2023, 6, 13),
                     deprecated_at=date(2024, 10, 1),
                     retirement_at=date(2025, 6, 6),
+                )
+            case LanguageModelName.AZURE_GPT_5_2025_0807:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.AZURE,
+                    version="2025-08-07",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.PARALLEL_FUNCTION_CALLING,
+                    ],
+                    token_limits=LanguageModelTokenLimits(token_limit_input=272000, token_limit_output=128000),
+                    info_cutoff_at=date(2024, 10, 24),
+                    published_at=date(2025, 8, 7),
+                    deprecated_at=date(2026, 8, 7),
+                    retirement_at=date(2026, 8, 7),
+                )
+            case LanguageModelName.AZURE_GPT_5_MINI_2025_0807:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.AZURE,
+                    version="2025-08-07",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                    ],
+                    token_limits=LanguageModelTokenLimits(token_limit_input=272000, token_limit_output=128000),
+                    info_cutoff_at=date(2024, 6, 24),
+                    published_at=date(2025, 8, 7),
+                    deprecated_at=date(2026, 8, 7),
+                    retirement_at=date(2026, 8, 7),
+                )
+            case LanguageModelName.AZURE_GPT_5_NANO_2025_0807:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.AZURE,
+                    version="2025-08-07",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                    ],
+                    token_limits=LanguageModelTokenLimits(token_limit_input=272000, token_limit_output=128000),
+                    info_cutoff_at=date(2024, 5, 31),
+                    published_at=date(2025, 8, 7),
+                    deprecated_at=date(2026, 8, 7),
+                    retirement_at=date(2026, 8, 7),
+                )
+            case LanguageModelName.AZURE_GPT_5_CHAT_2025_0807:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.AZURE,
+                    version="2025-08-07",
+                    encoder_name=EncoderName.O200K_BASE, 
+                    token_limits=LanguageModelTokenLimits(token_limit_input=128000, token_limit_output=16384),
+                    info_cutoff_at=date(2024, 10, 24),
+                    published_at=date(2025, 8, 7),
+                    deprecated_at=date(2026, 8, 7),
+                    retirement_at=date(2026, 8, 7),
                 )
             case LanguageModelName.AZURE_GPT_4_TURBO_2024_0409:
                 return cls(

@@ -42,6 +42,10 @@ class TestLanguageModelInfos:
             LanguageModelName.GEMINI_2_5_PRO,
             LanguageModelName.GEMINI_2_5_PRO_EXP_0325,
             LanguageModelName.GEMINI_2_5_PRO_PREVIEW_0605,
+            LanguageModelName.AZURE_GPT_5_2025_0807,
+            LanguageModelName.AZURE_GPT_5_MINI_2025_0807,
+            LanguageModelName.AZURE_GPT_5_NANO_2025_0807,
+            LanguageModelName.AZURE_GPT_5_CHAT_2025_0807,
         ]
         assert len(models) == len(expected_models)
         assert all(isinstance(model, LanguageModelInfo) for model in models)
