@@ -24,7 +24,7 @@ from unique_toolkit.language_model.constants import (
 )
 from unique_toolkit.language_model.functions import (
     ChatCompletionMessageParam,
-    _prepare_all_completions_paramts_util,
+    _prepare_all_completions_params_util,
 )
 from unique_toolkit.language_model.infos import LanguageModelName
 from unique_toolkit.language_model.schemas import (
@@ -762,7 +762,7 @@ def stream_complete_with_references(
 
     """
     options, model, messages_dict, search_context = (
-        _prepare_all_completions_paramts_util(
+        _prepare_all_completions_params_util(
             messages=messages,
             model_name=model_name,
             temperature=temperature,
@@ -857,7 +857,7 @@ async def stream_complete_with_references_async(
 
     """
     options, model, messages_dict, search_context = (
-        _prepare_all_completions_paramts_util(
+        _prepare_all_completions_params_util(
             messages=messages,
             model_name=model_name,
             temperature=temperature,

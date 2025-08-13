@@ -34,7 +34,7 @@ logger = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
 
 def complete(
     company_id: str,
-    messages: LanguageModelMessages | ChatCompletionMessageParam,
+    messages: LanguageModelMessages | list[ChatCompletionMessageParam],
     model_name: LanguageModelName | str,
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
     timeout: int = DEFAULT_COMPLETE_TIMEOUT,
@@ -60,7 +60,7 @@ def complete(
         LanguageModelResponse: The response object containing the completed result.
 
     """
-    options, model, messages_dict, _ = _prepare_all_completions_paramts_util(
+    options, model, messages_dict, _ = _prepare_all_completions_params_util(
         messages=messages,
         model_name=model_name,
         temperature=temperature,
@@ -124,7 +124,7 @@ async def complete_async(
         and logged.
 
     """
-    options, model, messages_dict, _ = _prepare_all_completions_paramts_util(
+    options, model, messages_dict, _ = _prepare_all_completions_params_util(
         messages=messages,
         model_name=model_name,
         temperature=temperature,
@@ -293,7 +293,7 @@ def _prepare_openai_completion_params_util(
     return options, model, search_context
 
 
-def _prepare_all_completions_paramts_util(
+def _prepare_all_completions_params_util(
     messages: LanguageModelMessages | list[ChatCompletionMessageParam],
     model_name: LanguageModelName | str,
     temperature: float,
