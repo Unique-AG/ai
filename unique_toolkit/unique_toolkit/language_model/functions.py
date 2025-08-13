@@ -1,9 +1,11 @@
 import copy
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, cast
 
+import humps
 import unique_sdk
+from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
 from pydantic import BaseModel
 
 from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
@@ -33,7 +35,7 @@ logger = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
 
 def complete(
     company_id: str,
-    messages: LanguageModelMessages,
+    messages: LanguageModelMessages | list[ChatCompletionMessageParam],
     model_name: LanguageModelName | str,
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
     timeout: int = DEFAULT_COMPLETE_TIMEOUT,
@@ -59,7 +61,7 @@ def complete(
         LanguageModelResponse: The response object containing the completed result.
 
     """
-    options, model, messages_dict, _ = _prepare_completion_params_util(
+    options, model, messages_dict, _ = _prepare_all_completions_params_util(
         messages=messages,
         model_name=model_name,
         temperature=temperature,
@@ -88,7 +90,7 @@ def complete(
 
 async def complete_async(
     company_id: str,
-    messages: LanguageModelMessages,
+    messages: LanguageModelMessages | list[ChatCompletionMessageParam],
     model_name: LanguageModelName | str,
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
     timeout: int = DEFAULT_COMPLETE_TIMEOUT,
@@ -123,7 +125,7 @@ async def complete_async(
         and logged.
 
     """
-    options, model, messages_dict, _ = _prepare_completion_params_util(
+    options, model, messages_dict, _ = _prepare_all_completions_params_util(
         messages=messages,
         model_name=model_name,
         temperature=temperature,
@@ -249,6 +251,104 @@ def _prepare_completion_params_util(
     return options, model, messages_dict, search_context
 
 
+def _prepare_openai_completion_params_util(
+    model_name: LanguageModelName | str,
+    temperature: float,
+    tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
+    other_options: dict | None = None,
+    content_chunks: list[ContentChunk] | None = None,
+    structured_output_model: type[BaseModel] | None = None,
+    structured_output_enforce_schema: bool = False,
+) -> tuple[dict, str, dict | None]:
+    """Prepare common parameters for completion requests.
+
+    Returns
+    -------
+        tuple containing:
+        - options (dict): Combined options including tools and temperature
+        - model (str): Resolved model name
+        - messages_dict (dict): Processed messages
+        - search_context (dict | None): Processed content chunks if provided
+
+    """
+    options = _add_tools_to_options({}, tools)
+
+    if structured_output_model:
+        options = _add_response_format_to_options(
+            options,
+            structured_output_model,
+            structured_output_enforce_schema,
+        )
+    options["temperature"] = temperature
+    if other_options:
+        options.update(other_options)
+
+    model = (
+        model_name.value if isinstance(model_name, LanguageModelName) else model_name
+    )
+
+    search_context = (
+        _to_search_context(content_chunks) if content_chunks is not None else None
+    )
+
+    return options, model, search_context
+
+
+def __camelize_keys(data):
+    """Recursively camelize dictionary keys using humps."""
+    if isinstance(data, dict):
+        return {humps.camelize(k): __camelize_keys(v) for k, v in data.items()}
+    if isinstance(data, list):
+        return [__camelize_keys(item) for item in data]
+    return data
+
+
+def _prepare_all_completions_params_util(
+    messages: LanguageModelMessages | list[ChatCompletionMessageParam],
+    model_name: LanguageModelName | str,
+    temperature: float,
+    tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
+    other_options: dict | None = None,
+    content_chunks: list[ContentChunk] | None = None,
+    structured_output_model: type[BaseModel] | None = None,
+    structured_output_enforce_schema: bool = False,
+) -> tuple[
+    dict,
+    str,
+    list[unique_sdk.Integrated.ChatCompletionRequestMessage],
+    dict | None,
+]:
+    if isinstance(messages, LanguageModelMessages):
+        options, model, messages_dict, search_context = _prepare_completion_params_util(
+            messages=messages,
+            model_name=model_name,
+            temperature=temperature,
+            tools=tools,
+            content_chunks=content_chunks,
+            other_options=other_options,
+            structured_output_model=structured_output_model,
+            structured_output_enforce_schema=structured_output_enforce_schema,
+        )
+    else:
+        options, model, search_context = _prepare_openai_completion_params_util(
+            model_name=model_name,
+            temperature=temperature,
+            tools=tools,
+            content_chunks=content_chunks,
+            other_options=other_options,
+            structured_output_model=structured_output_model,
+            structured_output_enforce_schema=structured_output_enforce_schema,
+        )
+        messages_dict = __camelize_keys(messages.copy())
+
+    integrated_messages = cast(
+        "list[unique_sdk.Integrated.ChatCompletionRequestMessage]",
+        messages_dict,
+    )
+
+    return options, model, integrated_messages, search_context
+
+
 def complete_with_references(
     company_id: str,
     messages: LanguageModelMessages,
@@ -284,7 +384,7 @@ async def complete_with_references_async(
     messages: LanguageModelMessages,
     model_name: LanguageModelName | str,
     content_chunks: list[ContentChunk] | None = None,
-    debug_dict: dict = {},
+    debug_dict: dict | None = None,
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
     timeout: int = DEFAULT_COMPLETE_TIMEOUT,
     tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
@@ -319,16 +419,15 @@ def _create_language_model_stream_response_with_references(
 
     if content is None:
         raise ValueError("Content is None, which is not supported")
-    elif isinstance(content, list):
+    if isinstance(content, list):
         raise ValueError("Content is a list, which is not supported")
-    else:
-        content = start_text or "" + str(content)
+    content = start_text or "" + str(content)
 
     message = ChatMessage(
         id="msg_unknown",
         text=copy.deepcopy(content),
         role=ChatMessageRole.ASSISTANT,
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
         chat_id="chat_unknown",
     )
 
