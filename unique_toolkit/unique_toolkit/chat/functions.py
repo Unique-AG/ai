@@ -879,7 +879,7 @@ async def stream_complete_with_references_async(
             model=model,
             timeout=timeout,
             assistantId=assistant_id,
-            debugInfo=debug_info or [],
+            debugInfo=debug_info or {},
             options=options,  # type: ignore
             startText=start_text,
         )
