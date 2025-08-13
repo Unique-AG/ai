@@ -3,6 +3,7 @@ import logging
 from datetime import UTC, datetime
 from typing import Any, cast
 
+import humps
 import unique_sdk
 from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
 from pydantic import BaseModel
@@ -89,7 +90,7 @@ def complete(
 
 async def complete_async(
     company_id: str,
-    messages: LanguageModelMessages | ChatCompletionMessageParam,
+    messages: LanguageModelMessages | list[ChatCompletionMessageParam],
     model_name: LanguageModelName | str,
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
     timeout: int = DEFAULT_COMPLETE_TIMEOUT,
@@ -293,6 +294,15 @@ def _prepare_openai_completion_params_util(
     return options, model, search_context
 
 
+def __camelize_keys(data):
+    """Recursively camelize dictionary keys using humps."""
+    if isinstance(data, dict):
+        return {humps.camelize(k): __camelize_keys(v) for k, v in data.items()}
+    if isinstance(data, list):
+        return [__camelize_keys(item) for item in data]
+    return data
+
+
 def _prepare_all_completions_params_util(
     messages: LanguageModelMessages | list[ChatCompletionMessageParam],
     model_name: LanguageModelName | str,
@@ -303,7 +313,10 @@ def _prepare_all_completions_params_util(
     structured_output_model: type[BaseModel] | None = None,
     structured_output_enforce_schema: bool = False,
 ) -> tuple[
-    dict, str, list[unique_sdk.Integrated.ChatCompletionRequestMessage], dict | None
+    dict,
+    str,
+    list[unique_sdk.Integrated.ChatCompletionRequestMessage],
+    dict | None,
 ]:
     if isinstance(messages, LanguageModelMessages):
         options, model, messages_dict, search_context = _prepare_completion_params_util(
@@ -326,7 +339,7 @@ def _prepare_all_completions_params_util(
             structured_output_model=structured_output_model,
             structured_output_enforce_schema=structured_output_enforce_schema,
         )
-        messages_dict = messages.copy()
+        messages_dict = __camelize_keys(messages.copy())
 
     integrated_messages = cast(
         "list[unique_sdk.Integrated.ChatCompletionRequestMessage]",

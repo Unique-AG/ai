@@ -58,7 +58,6 @@ class OpenAIMessageBuilder:
             ChatCompletionSystemMessageParam(
                 content=content,
                 role="system",
-                name=name,
             ),
         )
         return self
@@ -72,7 +71,6 @@ class OpenAIMessageBuilder:
             ChatCompletionUserMessageParam(
                 content=content,
                 role="user",
-                name=name,
             ),
         )
         return self
@@ -90,7 +88,6 @@ class OpenAIMessageBuilder:
             ChatCompletionAssistantMessageParam(
                 content=content,
                 role="assistant",
-                name=name,
                 audio=audio,
                 function_call=function_call,
                 refusal=refusal,
@@ -108,7 +105,6 @@ class OpenAIMessageBuilder:
             ChatCompletionDeveloperMessageParam(
                 content=content,
                 role="developer",
-                name=name,
             ),
         )
         return self
