@@ -1,6 +1,6 @@
 import logging
 import re
-from typing import Any, Dict, List, cast
+from typing import Any
 
 import unique_sdk
 from typing_extensions import deprecated
@@ -22,7 +22,10 @@ from unique_toolkit.language_model.constants import (
     DEFAULT_COMPLETE_TEMPERATURE,
     DEFAULT_COMPLETE_TIMEOUT,
 )
-from unique_toolkit.language_model.functions import _prepare_completion_params_util
+from unique_toolkit.language_model.functions import (
+    ChatCompletionMessageParam,
+    _prepare_all_completions_paramts_util,
+)
 from unique_toolkit.language_model.infos import LanguageModelName
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
@@ -49,8 +52,7 @@ def modify_message(
     message_id: str | None = None,
     set_completed_at: bool = False,
 ) -> ChatMessage:
-    """
-    Modifies a chat message synchronously.
+    """Modifies a chat message synchronously.
 
     Args:
         user_id (str): The user ID.
@@ -72,6 +74,7 @@ def modify_message(
 
     Raises:
         Exception: If the modification fails.
+
     """
     try:
         params = _construct_message_modify_params(
@@ -111,8 +114,7 @@ async def modify_message_async(
     message_id: str | None = None,
     set_completed_at: bool = False,
 ) -> ChatMessage:
-    """
-    Modifies a chat message asynchronously.
+    """Modifies a chat message asynchronously.
 
     Args:
         user_id (str): The user ID.
@@ -134,6 +136,7 @@ async def modify_message_async(
 
     Raises:
         Exception: If the modification fails.
+
     """
     try:
         params = _construct_message_modify_params(
@@ -158,7 +161,7 @@ async def modify_message_async(
         raise e
 
 
-def map_references(references: List[ContentReference]) -> List[Dict[str, Any]]:
+def map_references(references: list[ContentReference]) -> list[dict[str, Any]]:
     return [
         {
             "name": ref.name,
@@ -185,7 +188,7 @@ def _construct_message_modify_params(
     debug_info: dict | None = None,
     message_id: str | None = None,
     set_completed_at: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     completed_at_datetime = None
 
     if message_id:
@@ -228,8 +231,7 @@ def create_message(
     debug_info: dict | None = None,
     set_completed_at: bool | None = False,
 ):
-    """
-    Creates a message in the chat session synchronously.
+    """Creates a message in the chat session synchronously.
 
     Args:
         user_id (str): The user ID.
@@ -248,6 +250,7 @@ def create_message(
 
     Raises:
         Exception: If the creation fails.
+
     """
     if original_content is None:
         original_content = content
@@ -285,8 +288,7 @@ async def create_message_async(
     debug_info: dict | None = None,
     set_completed_at: bool | None = False,
 ):
-    """
-    Creates a message in the chat session synchronously.
+    """Creates a message in the chat session synchronously.
 
     Args:
         user_id (str): The user ID.
@@ -305,6 +307,7 @@ async def create_message_async(
 
     Raises:
         Exception: If the creation fails.
+
     """
     if original_content is None:
         original_content = content
@@ -341,7 +344,7 @@ def _construct_message_create_params(
     references: list[ContentReference] | None = None,
     debug_info: dict | None = None,
     set_completed_at: bool | None = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     if original_content is None:
         original_content = content
 
@@ -354,7 +357,7 @@ def _construct_message_create_params(
         "text": content,
         "originalText": original_content,
         "references": map_references(references) if references else [],
-        "debugInfo": debug_info,
+        "debugInfo": debug_info or {},
         "completedAt": _time_utils.get_datetime_now() if set_completed_at else None,
     }
 
@@ -363,7 +366,7 @@ def get_selection_from_history(
     full_history: list[ChatMessage],
     max_tokens: int,
     max_messages=DEFAULT_MAX_MESSAGES,
-) -> List[ChatMessage]:
+) -> list[ChatMessage]:
     messages = full_history[-max_messages:]
     filtered_messages = [m for m in messages if m.content]
     mapped_messages = []
@@ -383,14 +386,14 @@ def get_selection_from_history(
     )
 
 
-def map_to_chat_messages(messages: list[dict]) -> List[ChatMessage]:
+def map_to_chat_messages(messages: list[dict]) -> list[ChatMessage]:
     return [ChatMessage(**msg) for msg in messages]
 
 
 def pick_messages_in_reverse_for_token_window(
     messages: list[ChatMessage],
     limit: int,
-) -> List[ChatMessage]:
+) -> list[ChatMessage]:
     if len(messages) < 1 or limit < 1:
         return []
 
@@ -398,7 +401,7 @@ def pick_messages_in_reverse_for_token_window(
     token_count = count_tokens(messages[last_index].content or "")
     while token_count > limit:
         logger.debug(
-            f"Limit too low for the initial message. Last message TokenCount {token_count} available tokens {limit} - cutting message in half until it fits"
+            f"Limit too low for the initial message. Last message TokenCount {token_count} available tokens {limit} - cutting message in half until it fits",
         )
         content = messages[last_index].content or ""
         messages[last_index].content = content[: len(content) // 2] + "..."
@@ -406,7 +409,7 @@ def pick_messages_in_reverse_for_token_window(
 
     while token_count <= limit and last_index > 0:
         token_count = count_tokens(
-            "".join([msg.content or "" for msg in messages[:last_index]])
+            "".join([msg.content or "" for msg in messages[:last_index]]),
         )
         if token_count <= limit:
             last_index -= 1
@@ -416,7 +419,9 @@ def pick_messages_in_reverse_for_token_window(
 
 
 def list_messages(
-    event_user_id, event_company_id, chat_id: str
+    event_user_id: str,
+    event_company_id: str,
+    chat_id: str,
 ) -> ListObject[unique_sdk.Message]:
     try:
         messages = unique_sdk.Message.list(
@@ -431,7 +436,9 @@ def list_messages(
 
 
 async def list_messages_async(
-    event_user_id: str, event_company_id: str, chat_id: str
+    event_user_id: str,
+    event_company_id: str,
+    chat_id: str,
 ) -> ListObject[unique_sdk.Message]:
     try:
         messages = await unique_sdk.Message.list_async(
@@ -446,8 +453,10 @@ async def list_messages_async(
 
 
 def get_full_history(
-    event_user_id, event_company_id, event_payload_chat_id
-) -> List[ChatMessage]:
+    event_user_id: str,
+    event_company_id: str,
+    event_payload_chat_id: str,
+) -> list[ChatMessage]:
     messages = list_messages(event_user_id, event_company_id, event_payload_chat_id)
     messages = filter_valid_messages(messages)
 
@@ -455,10 +464,14 @@ def get_full_history(
 
 
 async def get_full_history_async(
-    event_user_id, event_company_id, event_payload_chat_id
-) -> List[ChatMessage]:
+    event_user_id: str,
+    event_company_id: str,
+    event_payload_chat_id: str,
+) -> list[ChatMessage]:
     messages = await list_messages_async(
-        event_user_id, event_company_id, event_payload_chat_id
+        event_user_id,
+        event_company_id,
+        event_payload_chat_id,
     )
     messages = filter_valid_messages(messages)
 
@@ -467,19 +480,16 @@ async def get_full_history_async(
 
 def filter_valid_messages(
     messages: ListObject[unique_sdk.Message],
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     SYSTEM_MESSAGE_PREFIX = "[SYSTEM] "
 
     # Remove the last two messages
     messages = messages["data"][:-2]  # type: ignore
     filtered_messages = []
     for message in messages:
-        if message["text"] is None:
+        if message["text"] is None or SYSTEM_MESSAGE_PREFIX in message["text"]:
             continue
-        elif SYSTEM_MESSAGE_PREFIX in message["text"]:
-            continue
-        else:
-            filtered_messages.append(message)
+        filtered_messages.append(message)
 
     return filtered_messages
 
@@ -495,8 +505,7 @@ def create_message_assessment(
     label: ChatMessageAssessmentLabel | None = None,
     is_visible: bool = True,
 ) -> ChatMessageAssessment:
-    """
-    Creates a message assessment for an assistant message synchronously.
+    """Creates a message assessment for an assistant message synchronously.
 
     Args:
         user_id (str): The user ID.
@@ -514,6 +523,7 @@ def create_message_assessment(
 
     Raises:
         Exception: If the creation fails
+
     """
     try:
         assessment = unique_sdk.MessageAssessment.create(
@@ -544,8 +554,7 @@ async def create_message_assessment_async(
     label: ChatMessageAssessmentLabel | None = None,
     is_visible: bool = True,
 ) -> ChatMessageAssessment:
-    """
-    Creates a message assessment for an assistant message asynchronously.
+    """Creates a message assessment for an assistant message asynchronously.
 
     Args:
         user_id (str): The user ID.
@@ -563,6 +572,7 @@ async def create_message_assessment_async(
 
     Raises:
         Exception: If the creation fails
+
     """
     try:
         assessment = await unique_sdk.MessageAssessment.create_async(
@@ -592,8 +602,7 @@ def modify_message_assessment(
     explanation: str | None = None,
     label: ChatMessageAssessmentLabel | None = None,
 ) -> ChatMessageAssessment:
-    """
-    Modifies a message assessment for an assistant message synchronously.
+    """Modifies a message assessment for an assistant message synchronously.
 
     Args:
         user_id (str): The user ID.
@@ -610,6 +619,7 @@ def modify_message_assessment(
 
     Raises:
         Exception: If the modification fails
+
     """
     try:
         assessment = unique_sdk.MessageAssessment.modify(
@@ -638,8 +648,7 @@ async def modify_message_assessment_async(
     explanation: str | None = None,
     label: ChatMessageAssessmentLabel | None = None,
 ) -> ChatMessageAssessment:
-    """
-    Modifies a message assessment for an assistant message asynchronously.
+    """Modifies a message assessment for an assistant message asynchronously.
 
     Args:
         user_id (str): The user ID.
@@ -656,6 +665,7 @@ async def modify_message_assessment_async(
 
     Raises:
         Exception: If the modification fails
+
     """
     try:
         assessment = await unique_sdk.MessageAssessment.modify_async(
@@ -682,7 +692,7 @@ def stream_complete_to_chat(
     user_message_id: str,
     chat_id: str,
     assistant_id: str,
-    messages: LanguageModelMessages,
+    messages: LanguageModelMessages | list[ChatCompletionMessageParam],
     model_name: LanguageModelName | str,
     content_chunks: list[ContentChunk] | None = None,
     debug_info: dict = {},
@@ -718,18 +728,17 @@ def stream_complete_with_references(
     user_message_id: str,
     chat_id: str,
     assistant_id: str,
-    messages: LanguageModelMessages,
+    messages: LanguageModelMessages | list[ChatCompletionMessageParam],
     model_name: LanguageModelName | str,
     content_chunks: list[ContentChunk] | None = None,
-    debug_info: dict = {},
+    debug_info: dict | None = None,
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
     timeout: int = DEFAULT_COMPLETE_TIMEOUT,
     tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
     start_text: str | None = None,
     other_options: dict | None = None,
 ) -> LanguageModelStreamResponse:
-    """
-    Streams a completion synchronously.
+    """Streams a completion synchronously.
 
     Args:
         company_id (str): The company ID associated with the request.
@@ -750,14 +759,17 @@ def stream_complete_with_references(
 
     Returns:
         LanguageModelStreamResponse: The streaming response object.
+
     """
-    options, model, messages_dict, search_context = _prepare_completion_params_util(
-        messages=messages,
-        model_name=model_name,
-        temperature=temperature,
-        tools=tools,
-        other_options=other_options,
-        content_chunks=content_chunks or [],
+    options, model, messages_dict, search_context = (
+        _prepare_all_completions_paramts_util(
+            messages=messages,
+            model_name=model_name,
+            temperature=temperature,
+            tools=tools,
+            other_options=other_options,
+            content_chunks=content_chunks or [],
+        )
     )
 
     try:
@@ -766,16 +778,13 @@ def stream_complete_with_references(
             company_id=company_id,
             assistantMessageId=assistant_message_id,
             userMessageId=user_message_id,
-            messages=cast(
-                list[unique_sdk.Integrated.ChatCompletionRequestMessage],
-                messages_dict,
-            ),
+            messages=messages_dict,
             chatId=chat_id,
             searchContext=search_context,
             model=model,
             timeout=timeout,
             assistantId=assistant_id,
-            debugInfo=debug_info,
+            debugInfo=debug_info or [],
             options=options,  # type: ignore
             startText=start_text,
         )
@@ -793,7 +802,7 @@ async def stream_complete_to_chat_async(
     user_message_id: str,
     chat_id: str,
     assistant_id: str,
-    messages: LanguageModelMessages,
+    messages: LanguageModelMessages | list[ChatCompletionMessageParam],
     model_name: LanguageModelName | str,
     content_chunks: list[ContentChunk] | None = None,
     debug_info: dict = {},
@@ -829,31 +838,33 @@ async def stream_complete_with_references_async(
     user_message_id: str,
     chat_id: str,
     assistant_id: str,
-    messages: LanguageModelMessages,
+    messages: LanguageModelMessages | list[ChatCompletionMessageParam],
     model_name: LanguageModelName | str,
     content_chunks: list[ContentChunk] | None = None,
-    debug_info: dict = {},
+    debug_info: dict | None = None,
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
     timeout: int = DEFAULT_COMPLETE_TIMEOUT,
     tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
     start_text: str | None = None,
     other_options: dict | None = None,
 ) -> LanguageModelStreamResponse:
-    """
-    Streams a completion asynchronously.
+    """Streams a completion asynchronously.
 
     Args: [same as stream_complete]
 
     Returns:
         LanguageModelStreamResponse: The streaming response object.
+
     """
-    options, model, messages_dict, search_context = _prepare_completion_params_util(
-        messages=messages,
-        model_name=model_name,
-        temperature=temperature,
-        tools=tools,
-        other_options=other_options,
-        content_chunks=content_chunks or [],
+    options, model, messages_dict, search_context = (
+        _prepare_all_completions_paramts_util(
+            messages=messages,
+            model_name=model_name,
+            temperature=temperature,
+            tools=tools,
+            other_options=other_options,
+            content_chunks=content_chunks or [],
+        )
     )
 
     try:
@@ -862,16 +873,13 @@ async def stream_complete_with_references_async(
             company_id=company_id,
             assistantMessageId=assistant_message_id,
             userMessageId=user_message_id,
-            messages=cast(
-                list[unique_sdk.Integrated.ChatCompletionRequestMessage],
-                messages_dict,
-            ),
+            messages=messages_dict,
             chatId=chat_id,
             searchContext=search_context,
             model=model,
             timeout=timeout,
             assistantId=assistant_id,
-            debugInfo=debug_info,
+            debugInfo=debug_info or [],
             options=options,  # type: ignore
             startText=start_text,
         )

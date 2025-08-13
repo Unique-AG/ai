@@ -1,6 +1,6 @@
 import logging
-from typing import Optional
 
+from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
 from typing_extensions import deprecated
 
 from unique_toolkit.app.schemas import ChatEvent, Event
@@ -55,9 +55,7 @@ logger = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
 
 
 class ChatService:
-    """
-    Provides all functionalities to manage the chat session.
-    """
+    """Provides all functionalities to manage the chat session."""
 
     def __init__(self, event: ChatEvent | Event):
         self._event = event
@@ -71,11 +69,10 @@ class ChatService:
 
     @property
     @deprecated(
-        "The event property is deprecated and will be removed in a future version."
+        "The event property is deprecated and will be removed in a future version.",
     )
     def event(self) -> Event | ChatEvent:
-        """
-        Get the event object (deprecated).
+        """Get the event object (deprecated).
 
         Returns:
             Event | BaseEvent | None: The event object.
@@ -85,11 +82,10 @@ class ChatService:
 
     @property
     @deprecated(
-        "The company_id property is deprecated and will be removed in a future version."
+        "The company_id property is deprecated and will be removed in a future version.",
     )
     def company_id(self) -> str:
-        """
-        Get the company identifier (deprecated).
+        """Get the company identifier (deprecated).
 
         Returns:
             str | None: The company identifier.
@@ -99,179 +95,179 @@ class ChatService:
 
     @company_id.setter
     @deprecated(
-        "The company_id setter is deprecated and will be removed in a future version."
+        "The company_id setter is deprecated and will be removed in a future version.",
     )
     def company_id(self, value: str) -> None:
-        """
-        Set the company identifier (deprecated).
+        """Set the company identifier (deprecated).
 
         Args:
             value (str | None): The company identifier.
+
         """
         self._company_id = value
 
     @property
     @deprecated(
-        "The user_id property is deprecated and will be removed in a future version."
+        "The user_id property is deprecated and will be removed in a future version.",
     )
     def user_id(self) -> str:
-        """
-        Get the user identifier (deprecated).
+        """Get the user identifier (deprecated).
 
         Returns:
             str | None: The user identifier.
+
         """
         return self._user_id
 
     @user_id.setter
     @deprecated(
-        "The user_id setter is deprecated and will be removed in a future version."
+        "The user_id setter is deprecated and will be removed in a future version.",
     )
     def user_id(self, value: str) -> None:
-        """
-        Set the user identifier (deprecated).
+        """Set the user identifier (deprecated).
 
         Args:
             value (str | None): The user identifier.
+
         """
         self._user_id = value
 
     @property
     @deprecated(
-        "The assistant_message_id property is deprecated and will be removed in a future version."
+        "The assistant_message_id property is deprecated and will be removed in a future version.",
     )
     def assistant_message_id(self) -> str:
-        """
-        Get the assistant message identifier (deprecated).
+        """Get the assistant message identifier (deprecated).
 
         Returns:
             str | None: The assistant message identifier.
+
         """
         return self._assistant_message_id
 
     @assistant_message_id.setter
     @deprecated(
-        "The assistant_message_id setter is deprecated and will be removed in a future version."
+        "The assistant_message_id setter is deprecated and will be removed in a future version.",
     )
     def assistant_message_id(self, value: str) -> None:
-        """
-        Set the assistant message identifier (deprecated).
+        """Set the assistant message identifier (deprecated).
 
         Args:
             value (str | None): The assistant message identifier.
+
         """
         self._assistant_message_id = value
 
     @property
     @deprecated(
-        "The user_message_id property is deprecated and will be removed in a future version."
+        "The user_message_id property is deprecated and will be removed in a future version.",
     )
     def user_message_id(self) -> str:
-        """
-        Get the user message identifier (deprecated).
+        """Get the user message identifier (deprecated).
 
         Returns:
             str | None: The user message identifier.
+
         """
         return self._user_message_id
 
     @user_message_id.setter
     @deprecated(
-        "The user_message_id setter is deprecated and will be removed in a future version."
+        "The user_message_id setter is deprecated and will be removed in a future version.",
     )
     def user_message_id(self, value: str) -> None:
-        """
-        Set the user message identifier (deprecated).
+        """Set the user message identifier (deprecated).
 
         Args:
             value (str | None): The user message identifier.
+
         """
         self._user_message_id = value
 
     @property
     @deprecated(
-        "The chat_id property is deprecated and will be removed in a future version."
+        "The chat_id property is deprecated and will be removed in a future version.",
     )
     def chat_id(self) -> str:
-        """
-        Get the chat identifier (deprecated).
+        """Get the chat identifier (deprecated).
 
         Returns:
             str | None: The chat identifier.
+
         """
         return self._chat_id
 
     @chat_id.setter
     @deprecated(
-        "The chat_id setter is deprecated and will be removed in a future version."
+        "The chat_id setter is deprecated and will be removed in a future version.",
     )
     def chat_id(self, value: str) -> None:
-        """
-        Set the chat identifier (deprecated).
+        """Set the chat identifier (deprecated).
 
         Args:
             value (str | None): The chat identifier.
+
         """
         self._chat_id = value
 
     @property
     @deprecated(
-        "The assistant_id property is deprecated and will be removed in a future version."
+        "The assistant_id property is deprecated and will be removed in a future version.",
     )
     def assistant_id(self) -> str:
-        """
-        Get the assistant identifier (deprecated).
+        """Get the assistant identifier (deprecated).
 
         Returns:
             str | None: The assistant identifier.
+
         """
         return self._assistant_id
 
     @assistant_id.setter
     @deprecated(
-        "The assistant_id setter is deprecated and will be removed in a future version."
+        "The assistant_id setter is deprecated and will be removed in a future version.",
     )
     def assistant_id(self, value: str) -> None:
-        """
-        Set the assistant identifier (deprecated).
+        """Set the assistant identifier (deprecated).
 
         Args:
             value (str | None): The assistant identifier.
+
         """
         self._assistant_id = value
 
     @property
     @deprecated(
-        "The user_message_text property is deprecated and will be removed in a future version."
+        "The user_message_text property is deprecated and will be removed in a future version.",
     )
     def user_message_text(self) -> str:
-        """
-        Get the user message text (deprecated).
+        """Get the user message text (deprecated).
 
         Returns:
             str | None: The user message text.
+
         """
         return self._user_message_text
 
     @user_message_text.setter
     @deprecated(
-        "The user_message_text setter is deprecated and will be removed in a future version."
+        "The user_message_text setter is deprecated and will be removed in a future version.",
     )
     def user_message_text(self, value: str) -> None:
-        """
-        Set the user message text (deprecated).
+        """Set the user message text (deprecated).
 
         Args:
             value (str | None): The user message text.
+
         """
         self._user_message_text = value
 
     async def update_debug_info_async(self, debug_info: dict):
-        """
-        Updates the debug information for the chat session.
+        """Updates the debug information for the chat session.
 
         Args:
             debug_info (dict): The new debug information.
+
         """
         return await modify_message_async(
             user_id=self._user_id,
@@ -284,14 +280,32 @@ class ChatService:
             debug_info=debug_info,
         )
 
+    @deprecated("Use `replace_debug_info`")
     def update_debug_info(self, debug_info: dict):
-        """
-        Updates the debug information for the chat session.
+        """Updates the debug information for the chat session.
 
         Args:
             debug_info (dict): The new debug information.
-        """
 
+        """
+        return modify_message(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            assistant_message_id=self._assistant_message_id,
+            chat_id=self._chat_id,
+            user_message_id=self._user_message_id,
+            user_message_text=self._user_message_text,
+            assistant=False,
+            debug_info=debug_info,
+        )
+
+    def replace_debug_info(self, debug_info: dict):
+        """Replace the debug information in the last user message
+
+        Args:
+            debug_info (dict): The new debug information.
+
+        """
         return modify_message(
             user_id=self._user_id,
             company_id=self._company_id,
@@ -306,13 +320,12 @@ class ChatService:
     def modify_user_message(
         self,
         content: str,
-        references: list[ContentReference] = [],
-        debug_info: dict = {},
+        references: list[ContentReference] | None = None,
+        debug_info: dict | None = None,
         message_id: str | None = None,
         set_completed_at: bool | None = False,
     ) -> ChatMessage:
-        """
-        Modifies a user message in the chat session synchronously.
+        """Modifies a user message in the chat session synchronously.
 
         Args:
             content (str): The new content for the message.
@@ -326,8 +339,8 @@ class ChatService:
 
         Raises:
             Exception: If the modification fails.
-        """
 
+        """
         return modify_message(
             user_id=self._user_id,
             company_id=self._company_id,
@@ -351,8 +364,7 @@ class ChatService:
         message_id: str | None = None,
         set_completed_at: bool | None = False,
     ) -> ChatMessage:
-        """
-        Modifies a message in the chat session asynchronously.
+        """Modifies a message in the chat session asynchronously.
 
         Args:
             content (str): The new content for the message.
@@ -366,8 +378,8 @@ class ChatService:
 
         Raises:
             Exception: If the modification fails.
-        """
 
+        """
         return await modify_message_async(
             user_id=self._user_id,
             company_id=self._company_id,
@@ -387,13 +399,12 @@ class ChatService:
         self,
         content: str | None = None,
         original_content: str | None = None,
-        references: list[ContentReference] = [],
-        debug_info: dict = {},
+        references: list[ContentReference] | None = None,
+        debug_info: dict | None = None,
         message_id: str | None = None,
-        set_completed_at: bool | None = False,
+        set_completed_at: bool = False,
     ) -> ChatMessage:
-        """
-        Modifies a message in the chat session synchronously.
+        """Modifies a message in the chat session synchronously.
 
         Args:
             content (str, optional): The new content for the message.
@@ -408,8 +419,8 @@ class ChatService:
 
         Raises:
             Exception: If the modification fails.
-        """
 
+        """
         return modify_message(
             user_id=self._user_id,
             company_id=self._company_id,
@@ -430,13 +441,12 @@ class ChatService:
         self,
         content: str | None = None,
         original_content: str | None = None,
-        references: list[ContentReference] = [],
-        debug_info: dict = {},
+        references: list[ContentReference] | None = None,
+        debug_info: dict | None = None,
         message_id: str | None = None,
         set_completed_at: bool | None = False,
     ) -> ChatMessage:
-        """
-        Modifies a message in the chat session asynchronously.
+        """Modifies a message in the chat session asynchronously.
 
         Args:
             content (str, optional): The new content for the message.
@@ -451,8 +461,8 @@ class ChatService:
 
         Raises:
             Exception: If the modification fails.
-        """
 
+        """
         return await modify_message_async(
             user_id=self._user_id,
             company_id=self._company_id,
@@ -470,14 +480,14 @@ class ChatService:
         )
 
     def get_full_history(self) -> list[ChatMessage]:
-        """
-        Loads the full chat history for the chat session synchronously.
+        """Loads the full chat history for the chat session synchronously.
 
         Returns:
             list[ChatMessage]: The full chat history.
 
         Raises:
             Exception: If the loading fails.
+
         """
         return get_full_history(
             event_user_id=self._user_id,
@@ -486,14 +496,14 @@ class ChatService:
         )
 
     async def get_full_history_async(self) -> list[ChatMessage]:
-        """
-        Loads the full chat history for the chat session asynchronously.
+        """Loads the full chat history for the chat session asynchronously.
 
         Returns:
             list[ChatMessage]: The full chat history.
 
         Raises:
             Exception: If the loading fails.
+
         """
         return await get_full_history_async(
             event_user_id=self._user_id,
@@ -507,8 +517,7 @@ class ChatService:
         percent_of_max_tokens: float = DEFAULT_PERCENT_OF_MAX_TOKENS,
         max_messages: int = DEFAULT_MAX_MESSAGES,
     ) -> tuple[list[ChatMessage], list[ChatMessage]]:
-        """
-        Loads the chat history for the chat session synchronously.
+        """Loads the chat history for the chat session synchronously.
 
         Args:
             token_limit (int): The maximum number of tokens to load.
@@ -520,6 +529,7 @@ class ChatService:
 
         Raises:
             Exception: If the loading fails.
+
         """
         full_history = get_full_history(
             event_user_id=self._user_id,
@@ -540,8 +550,7 @@ class ChatService:
         percent_of_max_tokens: float = DEFAULT_PERCENT_OF_MAX_TOKENS,
         max_messages: int = DEFAULT_MAX_MESSAGES,
     ) -> tuple[list[ChatMessage], list[ChatMessage]]:
-        """
-        Loads the chat history for the chat session asynchronously.
+        """Loads the chat history for the chat session asynchronously.
 
         Args:
             token_limit (int): The maximum number of tokens to load.
@@ -553,6 +562,7 @@ class ChatService:
 
         Raises:
             Exception: If the loading fails.
+
         """
         full_history = await get_full_history_async(
             event_user_id=self._user_id,
@@ -571,12 +581,11 @@ class ChatService:
         self,
         content: str,
         original_content: str | None = None,
-        references: list[ContentReference] = [],
-        debug_info: dict = {},
+        references: list[ContentReference] | None = None,
+        debug_info: dict | None = None,
         set_completed_at: bool | None = False,
     ) -> ChatMessage:
-        """
-        Creates a message in the chat session synchronously.
+        """Creates a message in the chat session synchronously.
 
         Args:
             content (str): The content for the message.
@@ -590,8 +599,8 @@ class ChatService:
 
         Raises:
             Exception: If the creation fails.
-        """
 
+        """
         chat_message = create_message(
             user_id=self._user_id,
             company_id=self._company_id,
@@ -612,12 +621,11 @@ class ChatService:
         self,
         content: str,
         original_content: str | None = None,
-        references: list[ContentReference] = [],
-        debug_info: dict = {},
+        references: list[ContentReference] | None = None,
+        debug_info: dict | None = None,
         set_completed_at: bool | None = False,
     ) -> ChatMessage:
-        """
-        Creates a message in the chat session asynchronously.
+        """Creates a message in the chat session asynchronously.
 
         Args:
             content (str): The content for the message.
@@ -631,8 +639,8 @@ class ChatService:
 
         Raises:
             Exception: If the creation fails.
-        """
 
+        """
         chat_message = await create_message_async(
             user_id=self._user_id,
             company_id=self._company_id,
@@ -649,16 +657,16 @@ class ChatService:
         self._assistant_message_id = chat_message.id or "unknown"
         return chat_message
 
+    @deprecated("Not working at the moment.")
     def create_user_message(
         self,
         content: str,
         original_content: str | None = None,
-        references: list[ContentReference] = [],
-        debug_info: dict = {},
+        references: list[ContentReference] | None = None,
+        debug_info: dict | None = None,
         set_completed_at: bool | None = False,
     ) -> ChatMessage:
-        """
-        Creates a user message in the chat session synchronously.
+        """Creates a user message in the chat session synchronously.
 
         Args:
             content (str): The content for the message.
@@ -672,8 +680,8 @@ class ChatService:
 
         Raises:
             Exception: If the creation fails.
-        """
 
+        """
         chat_message = create_message(
             user_id=self._user_id,
             company_id=self._company_id,
@@ -694,12 +702,11 @@ class ChatService:
         self,
         content: str,
         original_content: str | None = None,
-        references: list[ContentReference] = [],
-        debug_info: dict = {},
+        references: list[ContentReference] | None = None,
+        debug_info: dict | None = None,
         set_completed_at: bool | None = False,
     ) -> ChatMessage:
-        """
-        Creates a user message in the chat session asynchronously.
+        """Creates a user message in the chat session asynchronously.
 
         Args:
             content (str): The content for the message.
@@ -713,8 +720,8 @@ class ChatService:
 
         Raises:
             Exception: If the creation fails.
-        """
 
+        """
         chat_message = await create_message_async(
             user_id=self._user_id,
             company_id=self._company_id,
@@ -741,8 +748,7 @@ class ChatService:
         label: ChatMessageAssessmentLabel | None = None,
         is_visible: bool = True,
     ) -> ChatMessageAssessment:
-        """
-        Creates a message assessment for an assistant message synchronously.
+        """Creates a message assessment for an assistant message synchronously.
 
         Args:
             assistant_message_id (str): The ID of the assistant message to assess
@@ -758,8 +764,8 @@ class ChatService:
 
         Raises:
             Exception: If the creation fails
-        """
 
+        """
         return create_message_assessment(
             user_id=self._user_id,
             company_id=self._company_id,
@@ -782,8 +788,7 @@ class ChatService:
         label: ChatMessageAssessmentLabel | None = None,
         is_visible: bool = True,
     ) -> ChatMessageAssessment:
-        """
-        Creates a message assessment for an assistant message asynchronously.
+        """Creates a message assessment for an assistant message asynchronously.
 
         Args:
             assistant_message_id (str): The ID of the assistant message to assess
@@ -799,8 +804,8 @@ class ChatService:
 
         Raises:
             Exception: If the creation fails
-        """
 
+        """
         return await create_message_assessment_async(
             user_id=self._user_id,
             company_id=self._company_id,
@@ -822,8 +827,7 @@ class ChatService:
         explanation: str | None = None,
         label: ChatMessageAssessmentLabel | None = None,
     ) -> ChatMessageAssessment:
-        """
-        Modifies a message assessment for an assistant message synchronously.
+        """Modifies a message assessment for an assistant message synchronously.
 
         Args:
             assistant_message_id (str): The ID of the assistant message to assess
@@ -838,8 +842,8 @@ class ChatService:
 
         Raises:
             Exception: If the modification fails
-        """
 
+        """
         return modify_message_assessment(
             user_id=self._user_id,
             company_id=self._company_id,
@@ -860,8 +864,7 @@ class ChatService:
         explanation: str | None = None,
         label: ChatMessageAssessmentLabel | None = None,
     ) -> ChatMessageAssessment:
-        """
-        Modifies a message assessment for an assistant message asynchronously.
+        """Modifies a message assessment for an assistant message asynchronously.
 
         Args:
             assistant_message_id (str): The ID of the assistant message to assess
@@ -876,6 +879,7 @@ class ChatService:
 
         Raises:
             Exception: If the modification fails
+
         """
         return await modify_message_assessment_async(
             user_id=self._user_id,
@@ -891,15 +895,15 @@ class ChatService:
     @deprecated("Use complete_with_references instead")
     def stream_complete(
         self,
-        messages: LanguageModelMessages,
+        messages: LanguageModelMessages | list[ChatCompletionMessageParam],
         model_name: LanguageModelName | str,
         content_chunks: list[ContentChunk] | None = None,
         debug_info: dict = {},
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
-        tools: Optional[list[LanguageModelTool | LanguageModelToolDescription]] = None,
-        start_text: Optional[str] = None,
-        other_options: Optional[dict] = None,
+        tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
+        start_text: str | None = None,
+        other_options: dict | None = None,
     ) -> LanguageModelStreamResponse:
         return self.complete_with_references(
             messages=messages,
@@ -915,20 +919,17 @@ class ChatService:
 
     def complete_with_references(
         self,
-        messages: LanguageModelMessages,
+        messages: LanguageModelMessages | list[ChatCompletionMessageParam],
         model_name: LanguageModelName | str,
         content_chunks: list[ContentChunk] | None = None,
-        debug_info: dict = {},
+        debug_info: dict | None = None,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
-        tools: Optional[list[LanguageModelTool | LanguageModelToolDescription]] = None,
-        start_text: Optional[str] = None,
-        other_options: Optional[dict] = None,
+        tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
+        start_text: str | None = None,
+        other_options: dict | None = None,
     ) -> LanguageModelStreamResponse:
-        """
-        Streams a completion in the chat session synchronously.
-        """
-
+        """Streams a completion in the chat session synchronously."""
         return stream_complete_with_references(
             company_id=self._company_id,
             user_id=self._user_id,
@@ -949,15 +950,15 @@ class ChatService:
 
     def complete(
         self,
-        messages: LanguageModelMessages,
+        messages: LanguageModelMessages | list[ChatCompletionMessageParam],
         model_name: LanguageModelName | str,
         content_chunks: list[ContentChunk] | None = None,
-        debug_info: dict = {},
+        debug_info: dict | None = None,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
-        tools: Optional[list[LanguageModelTool | LanguageModelToolDescription]] = None,
-        start_text: Optional[str] = None,
-        other_options: Optional[dict] = None,
+        tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
+        start_text: str | None = None,
+        other_options: dict | None = None,
     ) -> LanguageModelResponse:
         response = self.complete_with_references(
             messages=messages,
@@ -976,15 +977,15 @@ class ChatService:
     @deprecated("use complete_with_references_async instead.")
     async def stream_complete_async(
         self,
-        messages: LanguageModelMessages,
+        messages: LanguageModelMessages | list[ChatCompletionMessageParam],
         model_name: LanguageModelName | str,
         content_chunks: list[ContentChunk] | None = None,
-        debug_info: dict = {},
+        debug_info: dict | None = None,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
-        tools: Optional[list[LanguageModelTool | LanguageModelToolDescription]] = None,
-        start_text: Optional[str] = None,
-        other_options: Optional[dict] = None,
+        tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
+        start_text: str | None = None,
+        other_options: dict | None = None,
     ) -> LanguageModelStreamResponse:
         """Stream a completion in the chat session asynchronously."""
         return await self.complete_with_references_async(
@@ -1001,15 +1002,15 @@ class ChatService:
 
     async def complete_with_references_async(
         self,
-        messages: LanguageModelMessages,
+        messages: LanguageModelMessages | list[ChatCompletionMessageParam],
         model_name: LanguageModelName | str,
         content_chunks: list[ContentChunk] | None = None,
-        debug_info: dict = {},
+        debug_info: dict | None = None,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
-        tools: Optional[list[LanguageModelTool | LanguageModelToolDescription]] = None,
-        start_text: Optional[str] = None,
-        other_options: Optional[dict] = None,
+        tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
+        start_text: str | None = None,
+        other_options: dict | None = None,
     ) -> LanguageModelStreamResponse:
         return await stream_complete_with_references_async(
             company_id=self._company_id,
@@ -1031,15 +1032,15 @@ class ChatService:
 
     async def complete_async(
         self,
-        messages: LanguageModelMessages,
+        messages: LanguageModelMessages | list[ChatCompletionMessageParam],
         model_name: LanguageModelName | str,
         content_chunks: list[ContentChunk] | None,
-        debug_info: dict = {},
+        debug_info: dict | None = None,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
-        tools: Optional[list[LanguageModelTool | LanguageModelToolDescription]] = None,
-        start_text: Optional[str] = None,
-        other_options: Optional[dict] = None,
+        tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
+        start_text: str | None = None,
+        other_options: dict | None = None,
     ) -> LanguageModelResponse:
         response = self.complete_with_references_async(
             messages=messages,

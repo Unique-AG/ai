@@ -2,8 +2,10 @@ from collections.abc import Iterable
 from typing import Self
 
 from openai.types.chat.chat_completion_assistant_message_param import (
+    Audio,
     ChatCompletionAssistantMessageParam,
     ContentArrayOfContentPart,
+    FunctionCall,
 )
 from openai.types.chat.chat_completion_content_part_param import (
     ChatCompletionContentPartParam,
@@ -18,6 +20,9 @@ from openai.types.chat.chat_completion_function_message_param import (
     ChatCompletionFunctionMessageParam,
 )
 from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
+from openai.types.chat.chat_completion_message_tool_call_param import (
+    ChatCompletionMessageToolCallParam,
+)
 from openai.types.chat.chat_completion_system_message_param import (
     ChatCompletionSystemMessageParam,
 )
@@ -44,10 +49,10 @@ class OpenAIMessageBuilder:
         builder._messages = messages.copy()
         return builder
 
-    def append_system_message(
+    def system_message_append(
         self,
         content: str | Iterable[ChatCompletionContentPartTextParam],
-        name: str = "user",
+        name: str = "system",
     ) -> Self:
         self._messages.append(
             ChatCompletionSystemMessageParam(
@@ -58,7 +63,7 @@ class OpenAIMessageBuilder:
         )
         return self
 
-    def append_user_message(
+    def user_message_append(
         self,
         content: str | Iterable[ChatCompletionContentPartParam],
         name: str = "user",
@@ -72,21 +77,29 @@ class OpenAIMessageBuilder:
         )
         return self
 
-    def append_assistant_message(
+    def assistant_message_append(
         self,
-        content: str | Iterable[ContentArrayOfContentPart],
+        content: str | Iterable[ContentArrayOfContentPart] | None = None,
         name: str = "assistant",
+        audio: Audio | None = None,
+        function_call: FunctionCall | None = None,
+        refusal: str | None = None,
+        tool_calls: Iterable[ChatCompletionMessageToolCallParam] | None = None,
     ) -> Self:
         self._messages.append(
             ChatCompletionAssistantMessageParam(
                 content=content,
                 role="assistant",
                 name=name,
+                audio=audio,
+                function_call=function_call,
+                refusal=refusal,
+                tool_calls=tool_calls or [],
             ),
         )
         return self
 
-    def append_developper_message(
+    def developper_message_append(
         self,
         content: str | Iterable[ChatCompletionContentPartTextParam],
         name: str = "developer",
@@ -100,7 +113,7 @@ class OpenAIMessageBuilder:
         )
         return self
 
-    def append_function_message(
+    def function_message_append(
         self,
         content: str | None,
         name: str = "function",
@@ -114,7 +127,7 @@ class OpenAIMessageBuilder:
         )
         return self
 
-    def append_tool_message(
+    def tool_message_append(
         self,
         content: str | Iterable[ChatCompletionContentPartTextParam],
         tool_call_id: str,
