@@ -2,6 +2,16 @@ from datetime import datetime
 from enum import StrEnum
 
 from humps import camelize
+from openai.types.chat import (
+    ChatCompletionAssistantMessageParam,
+    ChatCompletionUserMessageParam,
+)
+from openai.types.chat.chat_completion_message_function_tool_call_param import (
+    ChatCompletionMessageFunctionToolCallParam,
+)
+from openai.types.chat.chat_completion_message_function_tool_call_param import (
+    Function as OpenAIFunction,
+)
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -14,14 +24,16 @@ from unique_toolkit.content.schemas import ContentReference
 
 # set config to convert camelCase to snake_case
 model_config = ConfigDict(
-    alias_generator=camelize, populate_by_name=True, arbitrary_types_allowed=True
+    alias_generator=camelize,
+    populate_by_name=True,
+    arbitrary_types_allowed=True,
 )
 
 
 class ChatMessageRole(StrEnum):
     USER = "user"
     ASSISTANT = "assistant"
-    TOOL = "tool"
+    TOOL = "tool"  # TODO: @unique-fabian Why does the tool role exist here
 
 
 class Function(BaseModel):
@@ -30,6 +42,12 @@ class Function(BaseModel):
     name: str
     arguments: str
 
+    def to_openai(self) -> OpenAIFunction:
+        return OpenAIFunction(
+            arguments=self.arguments,
+            name=self.name,
+        )
+
 
 class ToolCall(BaseModel):
     model_config = model_config
@@ -37,6 +55,13 @@ class ToolCall(BaseModel):
     id: str
     type: str
     function: Function
+
+    def to_openai_param(self) -> ChatCompletionMessageFunctionToolCallParam:
+        return ChatCompletionMessageFunctionToolCallParam(
+            id=self.id,
+            function=self.function.to_openai(),
+            type="function",
+        )
 
 
 class ChatMessage(BaseModel):
@@ -70,6 +95,27 @@ class ChatMessage(BaseModel):
         if self.role == ChatMessageRole.TOOL and not self.tool_call_id:
             raise ValueError("tool_call_ids is required when role is 'tool'")
         return self
+
+    def to_openai_param(self):
+        match self.role:
+            case ChatMessageRole.USER:
+                return ChatCompletionUserMessageParam(
+                    role="user",
+                    content=self.content or "",
+                )
+
+            case ChatMessageRole.ASSISTANT:
+                return ChatCompletionAssistantMessageParam(
+                    role="assistant",
+                    audio=None,
+                    content=self.content or "",
+                    function_call=None,
+                    refusal=None,
+                    tool_calls=[t.to_openai_param() for t in self.tool_calls or []],
+                )
+
+            case ChatMessageRole.TOOL:
+                raise NotImplementedError
 
 
 class ChatMessageAssessmentStatus(StrEnum):
