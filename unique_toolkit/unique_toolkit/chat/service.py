@@ -67,6 +67,13 @@ class ChatService:
         self._assistant_id: str = event.payload.assistant_id
         self._user_message_text: str = event.payload.user_message.text
 
+        last_chat_messages = self.get_full_history()[-1]
+
+        if last_chat_messages.id != self._assistant_message_id:
+            logger.warning(
+                "The last chat message id does not match the assistant message id"
+            )
+
     @property
     @deprecated(
         "The event property is deprecated and will be removed in a future version.",
@@ -329,9 +336,9 @@ class ChatService:
 
         Args:
             content (str): The new content for the message.
-            references (list[ContentReference]): list of ContentReference objects. Defaults to [].
-            debug_info (dict[str, Any]]]): Debug information. Defaults to {}.
-            message_id (str, optional): The message ID. Defaults to None, then the ChatState user message id is used.
+            references (list[ContentReference]): list of ContentReference objects.
+            debug_info (dict[str, Any]]]): Debug information.
+            message_id (str, optional): The message ID, if not specified the last user message is edited.
             set_completed_at (Optional[bool]): Whether to set the completedAt field with the current date time. Defaults to False.
 
         Returns:

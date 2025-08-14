@@ -26,14 +26,13 @@ from unique_toolkit.content.schemas import ContentReference
 model_config = ConfigDict(
     alias_generator=camelize,
     populate_by_name=True,
-    arbitrary_types_allowed=True,
 )
 
 
 class ChatMessageRole(StrEnum):
     USER = "user"
     ASSISTANT = "assistant"
-    TOOL = "tool"  # TODO: @unique-fabian Why does the tool role exist here
+    TOOL = "tool"  # TODO: Unused according @unique-fabian. To be removed in separate PR
 
 
 class Function(BaseModel):
@@ -65,6 +64,7 @@ class ToolCall(BaseModel):
 
 
 class ChatMessage(BaseModel):
+    # TODO: The below seems not to be True anymore @irina-unique. To be checked in separate PR
     # This model should strictly meets https://github.com/Unique-AG/monorepo/blob/master/node/apps/node-chat/src/public-api/2023-12-06/dtos/message/public-message.dto.ts
     model_config = model_config
 
