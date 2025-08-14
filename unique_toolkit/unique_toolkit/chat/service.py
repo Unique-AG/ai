@@ -67,13 +67,6 @@ class ChatService:
         self._assistant_id: str = event.payload.assistant_id
         self._user_message_text: str = event.payload.user_message.text
 
-        last_chat_messages = self.get_full_history()[-1]
-
-        if last_chat_messages.id != self._assistant_message_id:
-            logger.warning(
-                "The last chat message id does not match the assistant message id"
-            )
-
     @property
     @deprecated(
         "The event property is deprecated and will be removed in a future version.",
