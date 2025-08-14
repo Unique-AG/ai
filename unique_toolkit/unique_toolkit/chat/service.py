@@ -329,9 +329,9 @@ class ChatService:
 
         Args:
             content (str): The new content for the message.
-            references (list[ContentReference]): list of ContentReference objects. Defaults to [].
-            debug_info (dict[str, Any]]]): Debug information. Defaults to {}.
-            message_id (str, optional): The message ID. Defaults to None, then the ChatState user message id is used.
+            references (list[ContentReference]): list of ContentReference objects.
+            debug_info (dict[str, Any]]]): Debug information.
+            message_id (str, optional): The message ID, if not specified the last user message is edited.
             set_completed_at (Optional[bool]): Whether to set the completedAt field with the current date time. Defaults to False.
 
         Returns:

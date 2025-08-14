@@ -5,6 +5,11 @@ from typing import Any, Self
 from uuid import uuid4
 
 from humps import camelize
+from openai.types.chat import ChatCompletionAssistantMessageParam
+from openai.types.chat.chat_completion_message_function_tool_call_param import (
+    ChatCompletionMessageFunctionToolCallParam,
+    Function,
+)
 from openai.types.chat.chat_completion_tool_param import ChatCompletionToolParam
 from openai.types.shared_params.function_definition import FunctionDefinition
 from pydantic import (
@@ -88,9 +93,7 @@ class LanguageModelFunction(BaseModel):
         return seralization
 
     def __eq__(self, other: Self) -> bool:
-        """
-        Compare two tool calls based on name and arguments.
-        """
+        """Compare two tool calls based on name and arguments."""
         if not isinstance(other, LanguageModelFunction):
             return False
 
@@ -105,6 +108,19 @@ class LanguageModelFunction(BaseModel):
 
         return True
 
+    def to_openai_param(self) -> ChatCompletionMessageFunctionToolCallParam:
+        arguments = ""
+        if isinstance(self.arguments, dict):
+            arguments = json.dumps(self.arguments)
+        elif isinstance(self.arguments, str):
+            arguments = self.arguments
+
+        return ChatCompletionMessageFunctionToolCallParam(
+            type="function",
+            id=self.id or "unknown_id",
+            function=Function(name=self.name, arguments=arguments),
+        )
+
 
 # This is tailored to the unique backend
 class LanguageModelStreamResponse(BaseModel):
@@ -112,6 +128,16 @@ class LanguageModelStreamResponse(BaseModel):
 
     message: LanguageModelStreamResponseMessage
     tool_calls: list[LanguageModelFunction] | None = None
+
+    def to_openai_param(self) -> ChatCompletionAssistantMessageParam:
+        return ChatCompletionAssistantMessageParam(
+            role="assistant",
+            audio=None,
+            content=self.message.text,
+            function_call=None,
+            refusal=None,
+            tool_calls=[t.to_openai_param() for t in self.tool_calls or []],
+        )
 
 
 class LanguageModelFunctionCall(BaseModel):
@@ -126,7 +152,7 @@ class LanguageModelFunctionCall(BaseModel):
     @staticmethod
     def create_assistant_message_from_tool_calls(
         tool_calls: list[LanguageModelFunction],
-    ):
+    ) -> "LanguageModelAssistantMessage":
         assistant_message = LanguageModelAssistantMessage(
             content="",
             tool_calls=[
