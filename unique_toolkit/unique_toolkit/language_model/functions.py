@@ -20,7 +20,11 @@ from unique_toolkit.language_model import (
     LanguageModelTool,
     LanguageModelToolDescription,
 )
-from unique_toolkit.language_model.infos import LanguageModelInfo, LanguageModelName
+from unique_toolkit.language_model.infos import (
+    LanguageModelInfo,
+    LanguageModelName,
+    TemperatureBounds,
+)
 from unique_toolkit.language_model.reference import (
     add_references_to_message,
 )
@@ -303,6 +307,24 @@ def __camelize_keys(data):
     return data
 
 
+def _clamp_temperature(temperature: float, temperature_bounds: TemperatureBounds) -> float:
+    if temperature_bounds.min_temperature is not None:
+        temperature = max(temperature_bounds.min_temperature, temperature)
+    if temperature_bounds.max_temperature is not None:
+        temperature = min(temperature_bounds.max_temperature, temperature)
+    return round(temperature, 2)
+
+
+def _prepare_other_options(
+    other_options: dict | None,
+    default_options: dict,
+) -> dict:
+    options = default_options
+    if other_options is not None:
+        options.update(other_options)
+    return options
+
+
 def _prepare_all_completions_params_util(
     messages: LanguageModelMessages | list[ChatCompletionMessageParam],
     model_name: LanguageModelName | str,
@@ -318,17 +340,10 @@ def _prepare_all_completions_params_util(
     list[unique_sdk.Integrated.ChatCompletionRequestMessage],
     dict | None,
 ]:
+    model_info = None
     if isinstance(model_name, LanguageModelName):
         model_info = LanguageModelInfo.from_name(model_name)
-        if model_info.min_temperature is not None:
-            temperature = max(model_info.min_temperature, temperature)
-        if model_info.max_temperature is not None:
-            temperature = min(model_info.max_temperature, temperature)
-
-        options = model_info.default_options
-        if other_options is not None:
-            options.update(other_options)
-        other_options = options
+        other_options = _prepare_other_options(other_options, model_info.default_options)
 
     if isinstance(messages, LanguageModelMessages):
         options, model, messages_dict, search_context = _prepare_completion_params_util(
@@ -352,6 +367,9 @@ def _prepare_all_completions_params_util(
             structured_output_enforce_schema=structured_output_enforce_schema,
         )
         messages_dict = __camelize_keys(messages.copy())
+
+    if model_info is not None and "temperature" in options:
+        options["temperature"] = _clamp_temperature(temperature, model_info.temperature_bounds)
 
     integrated_messages = cast(
         "list[unique_sdk.Integrated.ChatCompletionRequestMessage]",

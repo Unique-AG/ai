@@ -95,6 +95,9 @@ class ModelCapabilities(StrEnum):
     STREAMING = "streaming"
     REASONING = "reasoning"
 
+class TemperatureBounds(BaseModel):
+    min_temperature: float | None = None
+    max_temperature: float | None = None
 
 class LanguageModelInfo(BaseModel):
     name: LanguageModelName | str
@@ -116,8 +119,7 @@ class LanguageModelInfo(BaseModel):
     deprecated_at: date | SkipJsonSchema[None] = None
     retirement_text: str | SkipJsonSchema[None] = None
 
-    min_temperature: float | None = None
-    max_temperature: float | None = None
+    temperature_bounds: TemperatureBounds = TemperatureBounds()
 
     default_options: dict[str, Any] = {}
 
@@ -193,8 +195,7 @@ class LanguageModelInfo(BaseModel):
                     published_at=date(2025, 8, 7),
                     deprecated_at=date(2026, 8, 7),
                     retirement_at=date(2026, 8, 7),
-                    min_temperature=1.0,
-                    max_temperature=1.0,
+                    temperature_bounds=TemperatureBounds(min_temperature=1.0, max_temperature=1.0),
                     default_options={
                         "reasoning_effort": "minimal",
                     },
@@ -216,8 +217,7 @@ class LanguageModelInfo(BaseModel):
                     published_at=date(2025, 8, 7),
                     deprecated_at=date(2026, 8, 7),
                     retirement_at=date(2026, 8, 7),
-                    min_temperature=1.0,
-                    max_temperature=1.0,
+                    temperature_bounds=TemperatureBounds(min_temperature=1.0, max_temperature=1.0),
                     default_options={
                         "reasoning_effort": "minimal",
                     },
@@ -239,8 +239,7 @@ class LanguageModelInfo(BaseModel):
                     published_at=date(2025, 8, 7),
                     deprecated_at=date(2026, 8, 7),
                     retirement_at=date(2026, 8, 7),
-                    min_temperature=1.0,
-                    max_temperature=1.0,
+                    temperature_bounds=TemperatureBounds(min_temperature=1.0, max_temperature=1.0),
                     default_options={
                         "reasoning_effort": "minimal",
                     },
@@ -367,8 +366,7 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2023, 10, 1),
                     published_at=date(2024, 9, 12),
-                    min_temperature=1.0,
-                    max_temperature=1.0,
+                    temperature_bounds=TemperatureBounds(min_temperature=1.0, max_temperature=1.0),
                 )
             case LanguageModelName.AZURE_o1_2024_1217:
                 return cls(
@@ -388,8 +386,7 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2023, 10, 1),
                     published_at=date(2024, 12, 17),
-                    min_temperature=1.0,
-                    max_temperature=1.0,
+                    temperature_bounds=TemperatureBounds(min_temperature=1.0, max_temperature=1.0),
                 )
             case LanguageModelName.AZURE_o3_MINI_2025_0131:
                 return cls(
@@ -408,8 +405,7 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2023, 10, 1),
                     published_at=date(2025, 1, 31),
-                    min_temperature=1.0,
-                    max_temperature=1.0,
+                    temperature_bounds=TemperatureBounds(min_temperature=1.0, max_temperature=1.0),
                 )
             case LanguageModelName.AZURE_o3_2025_0416:
                 return cls(
@@ -429,8 +425,7 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2024, 5, 31),
                     published_at=date(2025, 4, 16),
-                    min_temperature=1.0,
-                    max_temperature=1.0,
+                    temperature_bounds=TemperatureBounds(min_temperature=1.0, max_temperature=1.0),
                 )
             case LanguageModelName.AZURE_o4_MINI_2025_0416:
                 return cls(
@@ -450,8 +445,7 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2024, 5, 31),
                     published_at=date(2025, 4, 16),
-                    min_temperature=1.0,
-                    max_temperature=1.0,
+                    temperature_bounds=TemperatureBounds(min_temperature=1.0, max_temperature=1.0),
                 )
             case LanguageModelName.AZURE_GPT_45_PREVIEW_2025_0227:
                 return cls(
