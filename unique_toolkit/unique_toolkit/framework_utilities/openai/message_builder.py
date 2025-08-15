@@ -49,6 +49,9 @@ class OpenAIMessageBuilder:
         builder._messages = messages.copy()
         return builder
 
+    def append(self, message: ChatCompletionMessageParam):
+        self._messages.append(message)
+
     def system_message_append(
         self,
         content: str | Iterable[ChatCompletionContentPartTextParam],

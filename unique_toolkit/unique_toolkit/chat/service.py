@@ -402,9 +402,9 @@ class ChatService:
         references: list[ContentReference] | None = None,
         debug_info: dict | None = None,
         message_id: str | None = None,
-        set_completed_at: bool = False,
+        set_completed_at: bool | None = None,
     ) -> ChatMessage:
-        """Modifies a message in the chat session synchronously.
+        """Modifies a message in the chat session synchronously if parameter is not specified the corresponding field will remain as is.
 
         Args:
             content (str, optional): The new content for the message.

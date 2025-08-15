@@ -4,6 +4,7 @@ from enum import StrEnum
 from humps import camelize
 from openai.types.chat import (
     ChatCompletionAssistantMessageParam,
+    ChatCompletionMessageParam,
     ChatCompletionUserMessageParam,
 )
 from openai.types.chat.chat_completion_message_function_tool_call_param import (
@@ -96,7 +97,7 @@ class ChatMessage(BaseModel):
             raise ValueError("tool_call_ids is required when role is 'tool'")
         return self
 
-    def to_openai_param(self):
+    def to_openai_param(self) -> ChatCompletionMessageParam:
         match self.role:
             case ChatMessageRole.USER:
                 return ChatCompletionUserMessageParam(
@@ -105,14 +106,25 @@ class ChatMessage(BaseModel):
                 )
 
             case ChatMessageRole.ASSISTANT:
-                return ChatCompletionAssistantMessageParam(
-                    role="assistant",
-                    audio=None,
-                    content=self.content or "",
-                    function_call=None,
-                    refusal=None,
-                    tool_calls=[t.to_openai_param() for t in self.tool_calls or []],
-                )
+                if self.tool_calls:
+                    assistant_message = ChatCompletionAssistantMessageParam(
+                        role="assistant",
+                        audio=None,
+                        content=self.content or "",
+                        function_call=None,
+                        refusal=None,
+                        tool_calls=[t.to_openai_param() for t in self.tool_calls],
+                    )
+                else:
+                    assistant_message = ChatCompletionAssistantMessageParam(
+                        role="assistant",
+                        audio=None,
+                        content=self.content or "",
+                        function_call=None,
+                        refusal=None,
+                    )
+
+                return assistant_message
 
             case ChatMessageRole.TOOL:
                 raise NotImplementedError
