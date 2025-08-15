@@ -12,7 +12,11 @@ from unique_toolkit.language_model.service import LanguageModelService
 from unique_toolkit.evals.config import EvaluationMetricConfig
 from unique_toolkit.evals.exception import EvaluatorException
 from unique_toolkit.evals.output_parser import parse_eval_metric_result
-from unique_toolkit.evals.schemas import EvaluationMetricInput, EvaluationMetricName, EvaluationMetricResult
+from unique_toolkit.evals.schemas import (
+    EvaluationMetricInput,
+    EvaluationMetricName,
+    EvaluationMetricResult,
+)
 
 
 from .constants import (
@@ -65,7 +69,7 @@ async def check_hallucination(
     Raises:
         EvaluatorException: If the context texts are empty, required fields are missing, or an error occurs during the evaluation.
     """
-   
+
     logger = logging.getLogger(f"check_hallucination.{__name__}")
 
     model_name = config.language_model.name
@@ -86,7 +90,7 @@ async def check_hallucination(
                 user_message=error_message,
             )
         return parse_eval_metric_result(
-            result_content, # type: ignore
+            result_content,  # type: ignore
             EvaluationMetricName.HALLUCINATION,
         )
     except Exception as e:
@@ -125,9 +129,7 @@ def _get_msgs(
         logger.debug("Using context / history for hallucination evaluation.")
         return _compose_msgs(input, config)
     else:
-        logger.debug(
-            "No contexts and history provided for hallucination evaluation."
-        )
+        logger.debug("No contexts and history provided for hallucination evaluation.")
         return _compose_msgs_default(input, config)
 
 
@@ -145,9 +147,7 @@ def _compose_msgs(
     user_msg_content = user_msg_templ.substitute(
         input_text=input.input_text,
         contexts_text=input.get_joined_context_texts(tag_name="reference"),
-        history_messages_text=input.get_joined_history_texts(
-            tag_name="conversation"
-        ),
+        history_messages_text=input.get_joined_history_texts(tag_name="conversation"),
         output_text=input.output_text,
     )
     user_msg = LanguageModelUserMessage(content=user_msg_content)

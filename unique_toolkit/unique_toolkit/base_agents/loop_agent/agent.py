@@ -40,10 +40,16 @@ from unique_toolkit.tools.tool_manager import (
 from unique_toolkit.tools.tool_progress_reporter import (
     ToolProgressReporter,
 )
-from unique_toolkit.unique_toolkit.base_agents.loop_agent.helpers import EMPTY_MESSAGE_WARNING
+from unique_toolkit.unique_toolkit.base_agents.loop_agent.helpers import (
+    EMPTY_MESSAGE_WARNING,
+)
 from unique_toolkit.unique_toolkit.evals.evaluation_manager import EvaluationManager
-from unique_toolkit.unique_toolkit.evals.hallucination.constants import HallucinationConfig
-from unique_toolkit.unique_toolkit.evals.hallucination.hallucination_evaluation import HallucinationEvaluation
+from unique_toolkit.unique_toolkit.evals.hallucination.constants import (
+    HallucinationConfig,
+)
+from unique_toolkit.unique_toolkit.evals.hallucination.hallucination_evaluation import (
+    HallucinationEvaluation,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -69,8 +75,6 @@ class LoopAgent(ABC):
         self._tool_progress_reporter = ToolProgressReporter(
             chat_service=self._chat_service
         )
-
-
 
         self._debug_info_manager = DebugInfoManager()
         self._reference_manager = ReferenceManager()
@@ -114,10 +118,8 @@ class LoopAgent(ABC):
 
         self._evaluation_manager.add_evaluation(
             HallucinationEvaluation(
-                    HallucinationConfig(),
-                    event,
-                    self._reference_manager
-                )
+                HallucinationConfig(), event, self._reference_manager
+            )
         )
 
         self._tool_evaluation_check_list: list[EvaluationMetricName] = []
@@ -161,7 +163,7 @@ class LoopAgent(ABC):
             # Plan execution
             loop_response = await self._plan_or_execute()
             self._logger.info("Done with _plan_or_execute")
-            
+
             self._reference_manager.add_references(loop_response.message.references)
             self._logger.info("Done with adding references")
 
@@ -210,7 +212,7 @@ class LoopAgent(ABC):
             temperature=self._config.temperature,
             other_options=self._config.additional_llm_options,
         )
-        
+
         return stream_response
 
     # @track(name="stream_complete_async_run")
@@ -226,17 +228,17 @@ class LoopAgent(ABC):
             self._logger.debug("Empty model response, exiting loop.")
             self._chat_service.modify_assistant_message(content=EMPTY_MESSAGE_WARNING)
             return True
-        
 
         are_no_tools_called = len(loop_response.tool_calls or []) == 0
         if are_no_tools_called:
             self._logger.debug("No tool calls. we might exit the loop")
             return await self._handle_no_tool_calls(loop_response)
         else:
-            self._logger.debug("Tools were called we process them and do not exit the loop")
+            self._logger.debug(
+                "Tools were called we process them and do not exit the loop"
+            )
             await self._handle_tool_calls(loop_response)
             return False
-
 
     ##############################
     # Abstract methods
@@ -258,17 +260,16 @@ class LoopAgent(ABC):
     ) -> bool:
         """Handle the case where no tool calls are returned."""
         selected_evaluation_names = self._tool_manager.get_evaluation_check_list()
-        evaluation_results = await self._evaluation_manager.run_evaluations(selected_evaluation_names,loop_response)
-        
+        evaluation_results = await self._evaluation_manager.run_evaluations(
+            selected_evaluation_names, loop_response
+        )
+
         if not all(result.is_positive for result in evaluation_results):
-            self._logger.warning("we should add here the retry counter add an instruction and retry the loop for now we just exit the loop") #TODO: add retry counter and instruction
-            
-            
+            self._logger.warning(
+                "we should add here the retry counter add an instruction and retry the loop for now we just exit the loop"
+            )  # TODO: add retry counter and instruction
+
         return True
-
-
-
-       
 
     @abstractmethod
     async def _handle_tool_calls(
@@ -276,13 +277,15 @@ class LoopAgent(ABC):
     ) -> None:
         """Handle the case where tool calls are returned."""
         self._logger.info("Processing tool calls")
-    
+
         tool_calls = loop_response.tool_calls or []
         # Append function call to history
         self._history_manager._append_tool_calls_to_history(tool_calls)
 
         # Execute tool calls
-        tool_call_responses = await self._tool_manager.execute_selected_tools(tool_calls)
+        tool_call_responses = await self._tool_manager.execute_selected_tools(
+            tool_calls
+        )
 
         # Process results with error handling
         self._reference_manager.extract_referenceable_chunks(tool_call_responses)
@@ -299,8 +302,7 @@ class LoopAgent(ABC):
     async def _process_tool_calls(
         self, tool_calls: list[LanguageModelFunction], ay
     ) -> None:
-       pass
-
+        pass
 
     async def _create_new_assistant_message_if_loop_response_contains_content(
         self, loop_response: LanguageModelStreamResponse
@@ -324,12 +326,11 @@ class LoopAgent(ABC):
     # deprecated methods
     ###############################
 
-
     @deprecated(
         "This method is deprecated and will be removed in the future, useself.history_manager in the future."
     )
     async def get_complete_conversation_history_after_streaming_no_tool_calls(
-        self
+        self,
     ) -> list[LanguageModelMessage]:
         """
         Get the complete conversation history including the current user message and the final
@@ -352,7 +353,9 @@ class LoopAgent(ABC):
     async def _obtain_chat_history_as_llm_messages(
         self,
     ) -> list[LanguageModelMessage]:
-        return await self._history_manager.get_history(self._history_postprocessing_step)
+        return await self._history_manager.get_history(
+            self._history_postprocessing_step
+        )
 
     @deprecated(
         "This method is deprecated and will be removed in the future, use constructor instead with super.",

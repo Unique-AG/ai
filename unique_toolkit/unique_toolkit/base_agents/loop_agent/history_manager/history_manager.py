@@ -202,9 +202,6 @@ class HistoryManager:
         #         "Called get_complete_conversation_history_after_streaming_no_tool_calls but no loop_response.message.text is available"
         #     )
 
-        
-
-
         return limited_history
 
     def _merge_history_and_uploads(

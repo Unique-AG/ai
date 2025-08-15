@@ -4,9 +4,11 @@ from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
 from unique_toolkit.chat import ChatMessage
 from unique_toolkit.evals.exception import EvaluatorException
-from unique_toolkit.chat.schemas import ChatMessageAssessmentLabel, ChatMessageAssessmentStatus, ChatMessageAssessmentType
-
-
+from unique_toolkit.chat.schemas import (
+    ChatMessageAssessmentLabel,
+    ChatMessageAssessmentStatus,
+    ChatMessageAssessmentType,
+)
 
 
 class EvaluationMetricName(StrEnum):
@@ -51,9 +53,7 @@ class EvaluationMetricInput(BaseModel):
     def get_history_message_texts(self):
         if not self.history_messages:
             return []
-        return [
-            self.get_history_message_text(msg) for msg in self.history_messages
-        ]
+        return [self.get_history_message_text(msg) for msg in self.history_messages]
 
     def get_joined_history_texts(self, tag_name: str = "conversation") -> str:
         """

@@ -100,8 +100,7 @@ class LanguageModelFunction(BaseModel):
 
         return True
 
-
-    def __eq__(self, other:Self) -> bool:
+    def __eq__(self, other: Self) -> bool:
         """
         Compare two tool calls based on name and arguments.
         """
@@ -116,8 +115,9 @@ class LanguageModelFunction(BaseModel):
 
         if self.arguments != other.arguments:
             return False
-        
+
         return True
+
 
 # This is tailored to the unique backend
 class LanguageModelStreamResponse(BaseModel):
@@ -131,10 +131,7 @@ class LanguageModelStreamResponse(BaseModel):
         Check if the stream response is empty.
         An empty stream response has no text and no tool calls.
         """
-        return (
-            not self.message.original_text
-            and not self.tool_calls
-        )
+        return not self.message.original_text and not self.tool_calls
 
 
 class LanguageModelFunctionCall(BaseModel):

@@ -68,7 +68,7 @@ class ToolManager:
         tool_progress_reporter: ToolProgressReporter,
     ):
         self._logger = logger
-        self._config  = config
+        self._config = config
         self._tool_progress_reporter = tool_progress_reporter
         self._tools = []
         self._tool_choices = event.payload.tool_choices
@@ -77,9 +77,9 @@ class ToolManager:
         self._tool_evaluation_check_list: set[EvaluationMetricName] = set()
         self._init__tools(event)
 
-    def _init__tools(self,  event: ChatEvent) -> None:
+    def _init__tools(self, event: ChatEvent) -> None:
         tool_choices = self._tool_choices
-        tool_configs = self._config .tools
+        tool_configs = self._config.tools
         self._logger.info("Initializing tool definitions...")
         self._logger.info(f"Tool choices: {tool_choices}")
         self._logger.info(f"Tool configs: {tool_configs}")
@@ -124,7 +124,11 @@ class ToolManager:
         return None
 
     def get_forced_tools(self) -> list[ForcedToolOption]:
-        return [ForcedToolOption(t.name) for t in self._tools if t.name in self._tool_choices]
+        return [
+            ForcedToolOption(t.name)
+            for t in self._tools
+            if t.name in self._tool_choices
+        ]
 
     def get_tool_definitions(self) -> list[LanguageModelToolDescription]:
         return [tool.tool_description() for tool in self._tools]
@@ -143,17 +147,17 @@ class ToolManager:
         )
         num_tool_calls = len(tool_calls)
 
-        if num_tool_calls > self._config .max_tool_calls:
+        if num_tool_calls > self._config.max_tool_calls:
             self._logger.warning(
                 (
                     "Number of tool calls %s exceeds the allowed maximum of %s."
                     "The tool calls will be reduced to the first %s."
                 ),
                 num_tool_calls,
-                self._config .max_tool_calls,
-                self._config .max_tool_calls,
+                self._config.max_tool_calls,
+                self._config.max_tool_calls,
             )
-            tool_calls = tool_calls[: self._config .max_tool_calls]
+            tool_calls = tool_calls[: self._config.max_tool_calls]
 
         tool_call_responses = await self._execute_parallelized(tool_calls)
         return tool_call_responses
@@ -203,7 +207,6 @@ class ToolManager:
             evaluation_checks = tool_instance.evaluation_check_list()
             self._tool_evaluation_check_list.update(evaluation_checks)
 
-
             return tool_response
 
         return ToolCallResponse(
@@ -250,6 +253,3 @@ class ToolManager:
                 f"Filtered out {len(tool_calls) - len(unique_tool_calls)} duplicate tool calls."
             )
         return unique_tool_calls
-
-
-    
