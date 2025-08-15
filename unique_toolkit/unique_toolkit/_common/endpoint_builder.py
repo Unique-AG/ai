@@ -13,7 +13,8 @@ from typing import (
     TypeVar,
 )
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from pydantic.json_schema import SkipJsonSchema
 
 # Type variables
 ResponseType = TypeVar("ResponseType", bound=BaseModel)
@@ -40,11 +41,28 @@ class EndpointClassProtocol(Protocol, Generic[PathParamsSpec, RequestBodySpec]):
 
 
 # Model for any client to implement
-class Client(Protocol):
+class EndpointClient(Protocol):
     def request(
         self,
         endpoint: EndpointClassProtocol,
+        method: str,
+        headers: dict[str, str],
+        payload: dict[str, Any],
     ) -> dict[str, Any]: ...
+
+
+class EndpointClientConfig(BaseModel):
+    url_template: Template
+    path_params_model: SkipJsonSchema[type[BaseModel]] | dict[str, Any] = Field(
+        default_factory=dict, description="A json schema for the path parameters"
+    )
+    payload_model: SkipJsonSchema[type[BaseModel]] | dict[str, Any] = Field(
+        default_factory=dict, description="A json schema for the request body"
+    )
+    response_model: SkipJsonSchema[type[BaseModel]] | dict[str, Any] = Field(
+        default_factory=dict, description="A json schema for the response"
+    )
+    dump_options: dict[str, Any] | None = None
 
 
 def build_endpoint_class(

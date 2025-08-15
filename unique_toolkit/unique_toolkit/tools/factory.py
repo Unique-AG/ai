@@ -1,7 +1,9 @@
 from typing import TYPE_CHECKING, Callable
 
+from unique_toolkit.app.dev_util import ChatEvent
 from unique_toolkit.tools.schemas import BaseToolConfig
 from unique_toolkit.tools.tool import Tool
+from unique_toolkit.tools.tool_progress_reporter import ToolProgressReporter
 
 if TYPE_CHECKING:
     from unique_toolkit.tools.config import ToolBuildConfig
@@ -30,6 +32,21 @@ class ToolFactory:
         cls, tool_name: str, settings: "ToolBuildConfig", *args, **kwargs
     ) -> Tool[BaseToolConfig]:
         tool = cls.tool_map[tool_name](*args, **kwargs)
+        tool.settings = settings
+        return tool
+
+    @classmethod
+    def build_tool_from_tool_build_config(
+        cls,
+        settings: "ToolBuildConfig",
+        event: ChatEvent,
+        tool_progress_reporter: ToolProgressReporter | None = None,
+    ) -> Tool[BaseToolConfig]:
+        tool = cls.tool_map[settings.name](
+            config=settings.configuration,
+            event=event,
+            tool_progress_reporter=tool_progress_reporter,
+        )
         tool.settings = settings
         return tool
 

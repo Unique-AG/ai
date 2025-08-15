@@ -24,7 +24,6 @@ ConfigType = TypeVar("ConfigType", bound=BaseToolConfig)
 
 class Tool(ABC, Generic[ConfigType]):
     name: str
-    settings: ToolBuildConfig
 
     def display_name(self) -> str:
         """The display name of the tool."""
@@ -46,9 +45,9 @@ class Tool(ABC, Generic[ConfigType]):
         """Whether the tool is enabled or not."""
         return self.settings.is_enabled
 
-    @abstractmethod
-    def tool_description(self) -> LanguageModelToolDescription:
-        raise NotImplementedError
+    def needs_human_approval(self) -> bool:
+        """Whether the tool needs human approval to be executed or not."""
+        return self.settings.needs_human_approval
 
     def tool_description_as_json(self) -> dict[str, Any]:
         parameters = self.tool_description().parameters
@@ -56,6 +55,10 @@ class Tool(ABC, Generic[ConfigType]):
             return parameters.model_json_schema()
         else:
             return cast("dict[str, Any]", parameters)
+
+    @abstractmethod
+    def tool_description(self) -> LanguageModelToolDescription:
+        raise NotImplementedError
 
     @abstractmethod
     def tool_description_for_system_prompt(self) -> str:
@@ -144,8 +147,9 @@ class Tool(ABC, Generic[ConfigType]):
     ):
         self.settings = ToolBuildConfig(
             name=self.name,
-            configuration=config,  # type: ignore
-            # the ToolBuildConfig has a wrong type in it to be fixed later.
+            configuration=config,
+            # The ToolBuildConfig has a wrong type in it to be fixed later.
+            # @andrea: Are you sure? I think it's correct.
         )
 
         self.config = config
