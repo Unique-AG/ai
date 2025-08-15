@@ -370,7 +370,11 @@ def _prepare_all_completions_params_util(
         )
         messages_dict = __camelize_keys(messages.copy())
 
-    if model_info is not None and "temperature" in options:
+    if (
+        model_info is not None
+        and model_info.temperature_bounds is not None
+        and "temperature" in options
+    ):
         options["temperature"] = _clamp_temperature(
             temperature, model_info.temperature_bounds
         )
