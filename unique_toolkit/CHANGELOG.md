@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.23] - 2025-08-15
+- Reduce input token limits for ANTHROPIC_CLAUDE_3_7_SONNET_THINKING and ANTHROPIC_CLAUDE_3_7_SONNET from 200_000 to 180_000 
+
 ## [0.7.22] - 2025-05-22
 - `messages` are now always serialized by alias. This affects `LanguageModelService.complete` and `LanguageModelService.complete_async`.
 
