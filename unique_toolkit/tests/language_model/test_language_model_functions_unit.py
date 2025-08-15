@@ -6,12 +6,13 @@ import unique_sdk
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.language_model.functions import (
     _add_tools_to_options,
+    _clamp_temperature,
     _prepare_completion_params_util,
     _to_search_context,
     complete,
     complete_async,
 )
-from unique_toolkit.language_model.infos import LanguageModelName
+from unique_toolkit.language_model.infos import LanguageModelName, TemperatureBounds
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
     LanguageModelTool,
@@ -163,3 +164,33 @@ async def test_complete_async_basic(mock_create):
 
     assert result.choices[0].message.content == "Test response"
     mock_create.assert_called_once()
+
+
+
+def test_clamp_temperature_bounds_clamping():
+    """Test temperature clamping when bounds enforce limits."""
+    # Test with both min and max bounds
+    bounds = TemperatureBounds(min_temperature=0.1, max_temperature=0.8)
+
+    # Test clamping below minimum
+    assert _clamp_temperature(0.05, bounds) == 0.1
+    assert _clamp_temperature(-0.5, bounds) == 0.1
+
+    # Test clamping above maximum
+    assert _clamp_temperature(0.9, bounds) == 0.8
+    assert _clamp_temperature(2.0, bounds) == 0.8
+
+    # Test values within bounds (should be unchanged, just rounded)
+    assert _clamp_temperature(0.5, bounds) == 0.5
+    assert _clamp_temperature(0.555, bounds) == 0.56
+
+    # Test exact boundary values
+    assert _clamp_temperature(0.1, bounds) == 0.1
+    assert _clamp_temperature(0.8, bounds) == 0.8
+
+    bounds = TemperatureBounds(min_temperature=0.0, max_temperature=1.0)
+    assert _clamp_temperature(0.12345, bounds) == 0.12
+    assert _clamp_temperature(0.996, bounds) == 1.0
+    assert _clamp_temperature(0.999, bounds) == 1.0
+    assert _clamp_temperature(0.9999999999999999, bounds) == 1.0
+    assert _clamp_temperature(0.0000000000000001, bounds) == 0.0
