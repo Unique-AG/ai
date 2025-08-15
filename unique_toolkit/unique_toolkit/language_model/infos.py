@@ -507,7 +507,9 @@ class LanguageModelInfo(BaseModel):
                     version="claude-3-7-sonnet",
                     encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
                     token_limits=LanguageModelTokenLimits(
-                        token_limit_input=200_000, token_limit_output=128_000
+                        # Input limit is 200_000, we leave 20_000 tokens as buffer due to tokenizer mismatch
+                        token_limit_input=180_000,
+                        token_limit_output=128_000,
                     ),
                     info_cutoff_at=date(2024, 10, 31),
                     published_at=date(2025, 2, 24),
@@ -525,7 +527,9 @@ class LanguageModelInfo(BaseModel):
                     version="claude-3-7-sonnet-thinking",
                     encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
                     token_limits=LanguageModelTokenLimits(
-                        token_limit_input=200_000, token_limit_output=128_000
+                        # Input limit is 200_000, we leave 20_000 tokens as buffer due to tokenizer mismatch
+                        token_limit_input=180_000,
+                        token_limit_output=128_000,
                     ),
                     info_cutoff_at=date(2024, 10, 31),
                     published_at=date(2025, 2, 24),
@@ -543,7 +547,9 @@ class LanguageModelInfo(BaseModel):
                     version="claude-sonnet-4",
                     encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
                     token_limits=LanguageModelTokenLimits(
-                        token_limit_input=200_000, token_limit_output=64_000
+                        # Input limit is 200_000, we leave 20_000 tokens as buffer due to tokenizer mismatch
+                        token_limit_input=180_000,
+                        token_limit_output=64_000,
                     ),
                     info_cutoff_at=date(2025, 3, 1),
                     published_at=date(2025, 5, 1),
@@ -561,7 +567,9 @@ class LanguageModelInfo(BaseModel):
                     version="claude-opus-4",
                     encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
                     token_limits=LanguageModelTokenLimits(
-                        token_limit_input=200_000, token_limit_output=32_000
+                        # Input limit is 200_000, we leave 20_000 tokens as buffer due to tokenizer mismatch
+                        token_limit_input=180_000,
+                        token_limit_output=32_000,
                     ),
                     info_cutoff_at=date(2025, 3, 1),
                     published_at=date(2025, 5, 1),
