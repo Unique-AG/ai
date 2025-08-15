@@ -139,12 +139,12 @@ async def wait_for_ingestion_completion(
     user_id: str,
     company_id: str,
     content_id: str,
-    chat_id: str,
+    chat_id: str = None,
     poll_interval: float = 1.0,
     max_wait: float = 60.0,
 ):
     """
-    Waits until the content ingestionState is FINISHED or the maximum wait time is reached and throws if case of failed status.
+    Polls until the content ingestion is finished or the maximum wait time is reached and throws in case ingestion fails. The function assumes that the content exists.
     """
     max_attempts = int(max_wait // poll_interval)
     for _ in range(max_attempts):
@@ -158,7 +158,7 @@ async def wait_for_ingestion_completion(
         if searched_content:
             ingestion_state = searched_content[0].get("ingestionState")
             if ingestion_state == "FINISHED":
-                return
+                return ingestion_state
             if isinstance(ingestion_state, str) and ingestion_state.startswith(
                 "FAILED"
             ):
