@@ -307,7 +307,9 @@ def __camelize_keys(data):
     return data
 
 
-def _clamp_temperature(temperature: float, temperature_bounds: TemperatureBounds) -> float:
+def _clamp_temperature(
+    temperature: float, temperature_bounds: TemperatureBounds
+) -> float:
     if temperature_bounds.min_temperature is not None:
         temperature = max(temperature_bounds.min_temperature, temperature)
     if temperature_bounds.max_temperature is not None:
@@ -343,7 +345,9 @@ def _prepare_all_completions_params_util(
     model_info = None
     if isinstance(model_name, LanguageModelName):
         model_info = LanguageModelInfo.from_name(model_name)
-        other_options = _prepare_other_options(other_options, model_info.default_options)
+        other_options = _prepare_other_options(
+            other_options, model_info.default_options
+        )
 
     if isinstance(messages, LanguageModelMessages):
         options, model, messages_dict, search_context = _prepare_completion_params_util(
@@ -369,7 +373,9 @@ def _prepare_all_completions_params_util(
         messages_dict = __camelize_keys(messages.copy())
 
     if model_info is not None and "temperature" in options:
-        options["temperature"] = _clamp_temperature(temperature, model_info.temperature_bounds)
+        options["temperature"] = _clamp_temperature(
+            temperature, model_info.temperature_bounds
+        )
 
     integrated_messages = cast(
         "list[unique_sdk.Integrated.ChatCompletionRequestMessage]",
