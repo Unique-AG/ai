@@ -17,8 +17,6 @@ from unique_toolkit.unique_toolkit.chat.schemas import (
 )
 from unique_toolkit.unique_toolkit.chat.service import ChatService
 from unique_toolkit.unique_toolkit.language_model.schemas import (
-    LanguageModelAssistantMessage,
-    LanguageModelMessage,
     LanguageModelStreamResponse,
 )
 
