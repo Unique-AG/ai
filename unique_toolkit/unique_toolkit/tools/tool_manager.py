@@ -12,6 +12,7 @@ from unique_toolkit.tools.schemas import ToolCallResponse, ToolPrompts
 from unique_toolkit.tools.tool import Tool
 from unique_toolkit.tools.tool_progress_reporter import ToolProgressReporter
 from unique_toolkit.tools.utils.execution.execution import Result, SafeTaskExecutor
+from unique_toolkit.unique_toolkit.evals.schemas import EvaluationMetricName
 
 
 class ForcedToolOption:
@@ -72,6 +73,8 @@ class ToolManager:
         self._tools = []
         self._tool_choices = event.payload.tool_choices
         self._disabled_tools = event.payload.disabled_tools
+        # this needs to be a set of strings to avoid duplicates
+        self._tool_evaluation_check_list: set[EvaluationMetricName] = set()
         self._init__tools(event)
 
     def _init__tools(self,  event: ChatEvent) -> None:
@@ -104,6 +107,9 @@ class ToolManager:
                 continue
 
             self._tools.append(t)
+
+    def get_evaluation_check_list(self) -> list[EvaluationMetricName]:
+        return list(self._tool_evaluation_check_list)
 
     def log_loaded_tools(self):
         self._logger.info(f"Loaded tools: {[tool.name for tool in self._tools]}")
@@ -149,7 +155,7 @@ class ToolManager:
             )
             tool_calls = tool_calls[: self._config .max_tool_calls]
 
-        tool_call_responses = await self._execute_parallelized(tool_calls=tool_calls)
+        tool_call_responses = await self._execute_parallelized(tool_calls)
         return tool_call_responses
 
     async def _execute_parallelized(
@@ -194,6 +200,10 @@ class ToolManager:
             tool_response: ToolCallResponse = await tool_instance.run(
                 tool_call=tool_call
             )
+            evaluation_checks = tool_instance.evaluation_check_list()
+            self._tool_evaluation_check_list.update(evaluation_checks)
+
+
             return tool_response
 
         return ToolCallResponse(
@@ -240,3 +250,6 @@ class ToolManager:
                 f"Filtered out {len(tool_calls) - len(unique_tool_calls)} duplicate tool calls."
             )
         return unique_tool_calls
+
+
+    

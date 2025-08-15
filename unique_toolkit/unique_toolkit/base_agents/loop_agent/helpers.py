@@ -17,6 +17,14 @@ from unique_toolkit.language_model.schemas import (
 from unique_toolkit.evaluators.schemas import EvaluationMetricResult
 
 
+EMPTY_MESSAGE_WARNING = (
+            "⚠️ **The language model was unable to produce an output.**\n"
+            "It did not generate any content or perform a tool call in response to your request. "
+            "This is a limitation of the language model itself.\n\n"
+            "**Please try adapting or simplifying your prompt.** "
+            "Rewording your input can often help the model respond successfully."
+        )
+
 class EvaluationCheckResultsPostprocessed(BaseModel):
     history: list[LanguageModelMessage] = []
     passed: bool = True

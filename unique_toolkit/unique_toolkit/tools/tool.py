@@ -18,7 +18,7 @@ from unique_toolkit.language_model.schemas import (
 from unique_toolkit.language_model.service import LanguageModelService
 
 
-from unique_toolkit.evaluators.schemas import EvaluationMetricName
+from unique_toolkit.evals.schemas import EvaluationMetricName
 from unique_toolkit.tools.agent_chunks_handler import AgentChunksHandler
 from unique_toolkit.tools.config import ToolBuildConfig, ToolSelectionPolicy
 from unique_toolkit.tools.schemas import BaseToolConfig, ToolCallResponse, ToolPrompts

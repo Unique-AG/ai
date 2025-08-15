@@ -4,6 +4,7 @@ from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
 from unique_toolkit.chat import ChatMessage
 from unique_toolkit.evals.exception import EvaluatorException
+from unique_toolkit.chat.schemas import ChatMessageAssessmentLabel, ChatMessageAssessmentStatus, ChatMessageAssessmentType
 
 
 
@@ -89,3 +90,11 @@ class EvaluationMetricResult(BaseModel):
     user_info: Optional[str] = None
     error: Exception | None = None
     fact_list: list[str] = Field(default_factory=list[str])
+
+
+class EvaluationAssessmentMessage(BaseModel):
+    status: ChatMessageAssessmentStatus
+    explanation: str
+    title: str
+    label: ChatMessageAssessmentLabel
+    type: ChatMessageAssessmentType
