@@ -310,10 +310,8 @@ def __camelize_keys(data):
 def _clamp_temperature(
     temperature: float, temperature_bounds: TemperatureBounds
 ) -> float:
-    if temperature_bounds.min_temperature is not None:
-        temperature = max(temperature_bounds.min_temperature, temperature)
-    if temperature_bounds.max_temperature is not None:
-        temperature = min(temperature_bounds.max_temperature, temperature)
+    temperature = max(temperature_bounds.min_temperature, temperature)
+    temperature = min(temperature_bounds.max_temperature, temperature)
     return round(temperature, 2)
 
 

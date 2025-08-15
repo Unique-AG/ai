@@ -97,8 +97,8 @@ class ModelCapabilities(StrEnum):
 
 
 class TemperatureBounds(BaseModel):
-    min_temperature: float | None = None
-    max_temperature: float | None = None
+    min_temperature: float
+    max_temperature: float
 
 
 class LanguageModelInfo(BaseModel):
@@ -121,7 +121,7 @@ class LanguageModelInfo(BaseModel):
     deprecated_at: date | SkipJsonSchema[None] = None
     retirement_text: str | SkipJsonSchema[None] = None
 
-    temperature_bounds: TemperatureBounds = TemperatureBounds()
+    temperature_bounds: TemperatureBounds | None = None
 
     default_options: dict[str, Any] = {}
 
