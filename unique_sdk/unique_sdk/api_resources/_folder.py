@@ -143,6 +143,17 @@ class Folder(APIResource["Folder"]):
         scopeId: str | None = None
         folderPath: str | None = None
 
+    class UpdateParams(RequestOptions):
+        """
+        Parameters for updating a folder.
+        """
+
+        scopeId: NotRequired[str]
+        folderPath: NotRequired[str]
+        parentFolderPath: NotRequired[str]
+        parentId: NotRequired[str]
+        name: NotRequired[str]
+
     class GetInfosParams(RequestOptions):
         """
         Parameters for getting multiple paginated folders by their parent Id.
@@ -376,6 +387,78 @@ class Folder(APIResource["Folder"]):
                 "/folder/remove-access",
                 user_id,
                 company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    def update(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Folder.UpdateParams"],
+    ) -> "Folder.FolderInfo":
+        """
+        Update a folder given its id or path. Can update the name or the parent folder by specifying its id or path.
+        """
+
+        # if folder is specified by path, get its id
+        if params.get("folderPath"):
+            folder_info = cls.get_info(
+                user_id, company_id, folderPath=params["folderPath"]
+            )
+            params["folderId"] = folder_info.id
+
+        # if parent folder is specified by path, get its id
+        if params.get("parentFolderPath"):
+            parent_folder_info = cls.get_info(
+                user_id, company_id, folderPath=params["parentFolderPath"]
+            )
+            params["parentId"] = parent_folder_info.id
+
+        return cast(
+            "Folder.FolderInfo",
+            cls._static_request(
+                "patch",
+                f"{cls.RESOURCE_URL}/{params.get('folderId')}",
+                user_id,
+                company_id=company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    async def update_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Folder.UpdateParams"],
+    ) -> "Folder.FolderInfo":
+        """
+        Async update a folder given its id or path. Can update the name or the parent folder by specifying its id or path.
+        """
+
+        # if folder is specified by path, get its id
+        if params.get("folderPath"):
+            folder_info = cls.get_info(
+                user_id, company_id, folderPath=params["folderPath"]
+            )
+            params["folderId"] = folder_info.id
+
+        # if parent folder is specified by path, get its id
+        if params.get("parentFolderPath"):
+            parent_folder_info = cls.get_info(
+                user_id, company_id, folderPath=params["parentFolderPath"]
+            )
+            params["parentId"] = parent_folder_info.id
+
+        return cast(
+            "Folder.FolderInfo",
+            await cls._static_request_async(
+                "patch",
+                f"{cls.RESOURCE_URL}/{params.get('folderId')}",
+                user_id,
+                company_id=company_id,
                 params=params,
             ),
         )
