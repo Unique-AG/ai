@@ -50,6 +50,7 @@ from unique_toolkit.unique_toolkit.evals.hallucination.constants import (
 from unique_toolkit.unique_toolkit.evals.hallucination.hallucination_evaluation import (
     HallucinationEvaluation,
 )
+from unique_toolkit.unique_toolkit.postprocessor.postprocessor_manager import PostprocessorManager
 
 
 logger = logging.getLogger(__name__)
@@ -121,6 +122,14 @@ class LoopAgent(ABC):
                 HallucinationConfig(), event, self._reference_manager
             )
         )
+        
+
+        self._postprocessor_manager = PostprocessorManager(
+            logger=self._logger,
+            chat_service=self._chat_service,
+        )
+
+
 
         self._tool_evaluation_check_list: list[EvaluationMetricName] = []
 
@@ -268,6 +277,9 @@ class LoopAgent(ABC):
             self._logger.warning(
                 "we should add here the retry counter add an instruction and retry the loop for now we just exit the loop"
             )  # TODO: add retry counter and instruction
+
+
+        await self._postprocessor_manager.run_postprocessors(loop_response)
 
         return True
 
