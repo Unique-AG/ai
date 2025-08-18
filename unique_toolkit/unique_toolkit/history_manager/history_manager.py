@@ -27,25 +27,6 @@ from unique_toolkit.history_manager.utils import transform_chunks_to_string
 
 
 class HistoryManagerConfig(BaseModel):
-    """
-    Manages the history of tool calls and conversation loops.
-
-    This class is responsible for:
-    - Storing and maintaining the history of tool call results and conversation messages.
-    - Merging uploaded content with the conversation history for a unified view.
-    - Limiting the history to fit within a configurable token window for efficient processing.
-    - Providing methods to retrieve, manipulate, and append to the conversation history.
-    - Handling post-processing steps to clean or modify the history as needed.
-
-    Key Features:
-    - Tool Call History: Tracks the results of tool calls and appends them to the conversation history.
-    - Loop History: Maintains a record of conversation loops, including assistant and user messages.
-    - History Merging: Combines uploaded files and chat messages into a cohesive history.
-    - Token Window Management: Ensures the history stays within a specified token limit for optimal performance.
-    - Post-Processing Support: Allows for custom transformations or cleanup of the conversation history.
-
-    The HistoryManager serves as the backbone for managing and retrieving conversation history in a structured and efficient manner.
-    """
 
     class ExperimentalFeatures(BaseModel):
         def __init__(self, full_sources_serialize_dump: bool = False):
@@ -77,6 +58,25 @@ class HistoryManagerConfig(BaseModel):
 
 
 class HistoryManager:
+    """
+    Manages the history of tool calls and conversation loops.
+
+    This class is responsible for:
+    - Storing and maintaining the history of tool call results and conversation messages.
+    - Merging uploaded content with the conversation history for a unified view.
+    - Limiting the history to fit within a configurable token window for efficient processing.
+    - Providing methods to retrieve, manipulate, and append to the conversation history.
+    - Handling post-processing steps to clean or modify the history as needed.
+
+    Key Features:
+    - Tool Call History: Tracks the results of tool calls and appends them to the conversation history.
+    - Loop History: Maintains a record of conversation loops, including assistant and user messages.
+    - History Merging: Combines uploaded files and chat messages into a cohesive history.
+    - Token Window Management: Ensures the history stays within a specified token limit for optimal performance.
+    - Post-Processing Support: Allows for custom transformations or cleanup of the conversation history.
+
+    The HistoryManager serves as the backbone for managing and retrieving conversation history in a structured and efficient manner.
+    """
     _tool_call_result_history: list[ToolCallResponse] = []
     _loop_history: list[LanguageModelMessage] = []
     _source_enumerator = 0
@@ -87,11 +87,10 @@ class HistoryManager:
         event: ChatEvent,
         config: HistoryManagerConfig,
     ):
-        self.config = config
-        self.logger = logger
-        self.event = event
-        self.chat_service = ChatService(event)
-        self.content_service = ContentService.from_event(event)
+        self._config = config
+        self._logger = logger
+        self._chat_service = ChatService(event)
+        self._content_service = ContentService.from_event(event)
 
     def has_no_loop_messages(self) -> bool:
         return len(self._loop_history) == 0
@@ -122,7 +121,7 @@ class HistoryManager:
         self,
         tool_response: ToolCallResponse,
     ) -> LanguageModelMessage:
-        self.logger.debug(
+        self._logger.debug(
             f"Appending tool call result to history: {tool_response.name}"
         )
 
@@ -135,7 +134,7 @@ class HistoryManager:
             content_chunks,
             self._source_enumerator,
             None,  # Use None for SourceFormatConfig
-            self.config.experimental_features.full_sources_serialize_dump,
+            self._config.experimental_features.full_sources_serialize_dump,
         )
 
         self._source_enumerator += len(
@@ -173,11 +172,11 @@ class HistoryManager:
             list[LanguageModelMessage]: The history
         """
         # Get uploaded files
-        uploaded_files = self.content_service.search_content_on_chat(
-            chat_id=self.chat_service.chat_id
+        uploaded_files = self._content_service.search_content_on_chat(
+            chat_id=self._chat_service.chat_id
         )
         # Get all message history
-        full_history = await self.chat_service.get_full_history_async()
+        full_history = await self._chat_service.get_full_history_async()
 
         merged_history = self._merge_history_and_uploads(full_history, uploaded_files)
 
@@ -185,7 +184,7 @@ class HistoryManager:
             merged_history = postprocessing_step(merged_history)
 
         limited_history = self._limit_to_token_window(
-            merged_history, self.config.max_history_tokens
+            merged_history, self._config.max_history_tokens
         )
 
         # Add current user message if not already in history
@@ -264,7 +263,7 @@ class HistoryManager:
             if isinstance(message.content, str):
                 message.content = await remove_from_text(message.content)
             else:
-                self.logger.warning(
+                self._logger.warning(
                     f"Skipping message with unsupported content type: {type(message.content)}"
                 )
         return messages

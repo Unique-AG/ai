@@ -20,25 +20,7 @@ from unique_toolkit.language_model.schemas import (
 
 
 class Evaluation(ABC):
-    """
-    Manages the evaluation metrics and executes evaluation calls.
-
-    This class is responsible for:
-    - Storing and managing evaluation instances, identified by their unique names.
-    - Executing selected evaluations asynchronously and processing their results.
-    - Tracking the overall success or failure of evaluations.
-    - Integrating with external services like logging and chat systems to display evaluation statuses and results.
-    - Handling errors gracefully, including missing evaluations or failed executions.
-
-    Key Features:
-    - Evaluation Storage: Maintains a dictionary of evaluation instances for quick retrieval.
-    - Asynchronous Execution: Supports concurrent execution of multiple evaluations for efficiency.
-    - Result Processing: Tracks evaluation outcomes and updates the internal state based on results.
-    - Chat Integration: Updates the chat interface with evaluation statuses and detailed assessments.
-    - Error Handling: Provides robust error messages and fallback mechanisms for missing or failed evaluations.
-
-    The EvaluationManager serves as the central hub for managing and executing evaluations.
-    """
+   
 
     def __init__(self, name: EvaluationMetricName):
         self.name = name
@@ -65,6 +47,25 @@ class Evaluation(ABC):
 
 
 class EvaluationManager:
+    """
+    Manages the evaluation metrics and executes evaluation calls.
+
+    This class is responsible for:
+    - Storing and managing evaluation instances, identified by their unique names.
+    - Executing selected evaluations asynchronously and processing their results.
+    - Tracking the overall success or failure of evaluations.
+    - Integrating with external services like logging and chat systems to display evaluation statuses and results.
+    - Handling errors gracefully, including missing evaluations or failed executions.
+
+    Key Features:
+    - Evaluation Storage: Maintains a dictionary of evaluation instances for quick retrieval.
+    - Asynchronous Execution: Supports concurrent execution of multiple evaluations for efficiency.
+    - Result Processing: Tracks evaluation outcomes and updates the internal state based on results.
+    - Chat Integration: Updates the chat interface with evaluation statuses and detailed assessments.
+    - Error Handling: Provides robust error messages and fallback mechanisms for missing or failed evaluations.
+
+    The EvaluationManager serves as the central hub for managing and executing evaluations.
+    """
     # a hashmap to hold evaluations by their names
     _evaluations: dict[EvaluationMetricName, Evaluation] = {}
     _evaluation_passed: bool = True

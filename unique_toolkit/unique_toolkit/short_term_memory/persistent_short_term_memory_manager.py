@@ -56,13 +56,13 @@ class PersistentShortMemoryManager(Generic[TSchema]):
         short_term_memory_schema: Type[TSchema],
         short_term_memory_name: str | None = None,
     ) -> None:
-        self.short_term_memory_name = (
+        self._short_term_memory_name = (
             short_term_memory_name
             if short_term_memory_name
             else _default_short_term_memory_name(short_term_memory_schema)
         )
-        self.short_term_memory_schema = short_term_memory_schema
-        self.short_term_memory_service = short_term_memory_service
+        self._short_term_memory_schema = short_term_memory_schema
+        self._short_term_memory_service = short_term_memory_service
 
         self._executor = SafeTaskExecutor(
             log_exceptions=False,
@@ -70,18 +70,18 @@ class PersistentShortMemoryManager(Generic[TSchema]):
 
     def _log_not_found(self) -> None:
         logger.warning(
-            f"No short term memory found for chat {self.short_term_memory_service.chat_id} and key {self.short_term_memory_name}"
+            f"No short term memory found for chat {self._short_term_memory_service.chat_id} and key {self._short_term_memory_name}"
         )
 
     def _log_found(self) -> None:
         logger.debug(
-            f"Short term memory found for chat {self.short_term_memory_service.chat_id} and key {self.short_term_memory_name}"
+            f"Short term memory found for chat {self._short_term_memory_service.chat_id} and key {self._short_term_memory_name}"
         )
 
     def _find_latest_memory_sync(self) -> ShortTermMemory | None:
         result = self._executor.execute(
-            self.short_term_memory_service.find_latest_memory,
-            self.short_term_memory_name,
+            self._short_term_memory_service.find_latest_memory,
+            self._short_term_memory_name,
         )
 
         self._log_not_found() if not result.success else self._log_found()
@@ -90,8 +90,8 @@ class PersistentShortMemoryManager(Generic[TSchema]):
 
     async def _find_latest_memory_async(self) -> ShortTermMemory | None:
         result = await self._executor.execute_async(
-            self.short_term_memory_service.find_latest_memory_async,
-            self.short_term_memory_name,
+            self._short_term_memory_service.find_latest_memory_async,
+            self._short_term_memory_name,
         )
 
         self._log_not_found() if not result.success else self._log_found()
@@ -102,10 +102,10 @@ class PersistentShortMemoryManager(Generic[TSchema]):
         json_data = short_term_memory.model_dump_json()
         compressed_data = _compress_data_zlib_base64(json_data)
         logger.info(
-            f"Saving memory with {len(compressed_data)} characters compressed from {len(json_data)} characters for memory {self.short_term_memory_name}"
+            f"Saving memory with {len(compressed_data)} characters compressed from {len(json_data)} characters for memory {self._short_term_memory_name}"
         )
-        self.short_term_memory_service.create_memory(
-            key=self.short_term_memory_name,
+        self._short_term_memory_service.create_memory(
+            key=self._short_term_memory_name,
             value=compressed_data,
         )
 
@@ -113,10 +113,10 @@ class PersistentShortMemoryManager(Generic[TSchema]):
         json_data = short_term_memory.model_dump_json()
         compressed_data = _compress_data_zlib_base64(json_data)
         logger.info(
-            f"Saving memory with {len(compressed_data)} characters compressed from {len(json_data)} characters for memory {self.short_term_memory_name}"
+            f"Saving memory with {len(compressed_data)} characters compressed from {len(json_data)} characters for memory {self._short_term_memory_name}"
         )
-        await self.short_term_memory_service.create_memory_async(
-            key=self.short_term_memory_name,
+        await self._short_term_memory_service.create_memory_async(
+            key=self._short_term_memory_name,
             value=compressed_data,
         )
 
@@ -126,9 +126,9 @@ class PersistentShortMemoryManager(Generic[TSchema]):
         if memory is not None and memory.data is not None:
             if isinstance(memory.data, str):
                 data = _decompress_data_zlib_base64(memory.data)
-                return self.short_term_memory_schema.model_validate_json(data)
+                return self._short_term_memory_schema.model_validate_json(data)
             elif isinstance(memory.data, dict):
-                return self.short_term_memory_schema.model_validate(memory.data)
+                return self._short_term_memory_schema.model_validate(memory.data)
         return None
 
     def load_sync(self) -> TSchema | None:
