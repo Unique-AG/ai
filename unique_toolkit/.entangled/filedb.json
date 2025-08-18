@@ -1,0 +1,203 @@
+{
+  "files": [
+    {
+      "deps": [
+        "docs/application_types/event_driven_applications.md",
+        "docs/plattforms/openai/openai.md",
+        "docs/modules/examples/chat/chat_service.md"
+      ],
+      "hexdigest": "2544dc19cfdac925e23c8308b50b5105d39717250f51029b9d6c0c3b88343d93",
+      "modified": "2025-08-25T07:50:51.783936",
+      "path": "docs/.python_files/minimal_chat_app.py",
+      "size": 2450
+    },
+    {
+      "deps": [
+        "docs/application_types/event_driven_applications.md",
+        "docs/plattforms/openai/openai.md",
+        "docs/modules/examples/chat/chat_service.md"
+      ],
+      "hexdigest": "c416d8a1693c89bfa5f32300b7401d3659328b0471c5a47e3a8e24d6aa4cbf13",
+      "modified": "2025-08-25T07:50:51.813551",
+      "path": "docs/.python_files/minimal_chat_edit_debug_information.py",
+      "size": 2955
+    },
+    {
+      "deps": [
+        "docs/application_types/event_driven_applications.md",
+        "docs/plattforms/openai/openai.md",
+        "docs/modules/examples/chat/chat_service.md"
+      ],
+      "hexdigest": "c07cb1bbba9924de9cbf288bbca5239c485e9ee2fb26dc8b38000c42382c6739",
+      "modified": "2025-08-25T07:50:51.764685",
+      "path": "docs/.python_files/minimal_chat_with_manual_message_create.py",
+      "size": 2133
+    },
+    {
+      "deps": [
+        "docs/application_types/event_driven_applications.md",
+        "docs/plattforms/openai/openai.md",
+        "docs/modules/examples/chat/chat_service.md"
+      ],
+      "hexdigest": "4362364aca039da12f26a97eec72914dd1fd72c247072c3bf425b605f5f3822a",
+      "modified": "2025-08-25T07:50:51.826894",
+      "path": "docs/.python_files/minimal_chat_with_manual_message_create_and_modification.py",
+      "size": 2413
+    },
+    {
+      "deps": [
+        "docs/application_types/event_driven_applications.md",
+        "docs/plattforms/openai/openai.md",
+        "docs/modules/examples/chat/chat_service.md"
+      ],
+      "hexdigest": "8cae7ebced663bef5fa213e23da99e1a56faf721c61d737a630b10f68a94db50",
+      "modified": "2025-08-25T07:50:51.798216",
+      "path": "docs/.python_files/minimal_chat_with_manual_message_create_free_user_input.py",
+      "size": 2559
+    },
+    {
+      "deps": [
+        "docs/application_types/event_driven_applications.md",
+        "docs/plattforms/openai/openai.md",
+        "docs/modules/examples/chat/chat_service.md"
+      ],
+      "hexdigest": "d95d78885046cbc861ca53294af47282cff784d1c2e1ba339ecb7ae20b89aa0e",
+      "modified": "2025-08-25T07:50:51.829504",
+      "path": "docs/.python_files/minimal_chat_with_message_assessment.py",
+      "size": 3402
+    },
+    {
+      "deps": [
+        "docs/modules/examples/chat/chat_service.md",
+        "docs/plattforms/openai/openai.md"
+      ],
+      "hexdigest": "253e817894303d782ad96685a017f82365ed2d14d769db82cb4564f7edb9af3d",
+      "modified": "2025-08-25T07:50:51.809783",
+      "path": "docs/.python_files/openai_completions.py",
+      "size": 3539
+    },
+    {
+      "deps": null,
+      "hexdigest": "4287e05df01bf8ded9a4e436da31e07800eb6774b080252e70b3d45c6417956d",
+      "modified": "2025-08-25T07:55:47.420452",
+      "path": "docs/api.md",
+      "size": 708
+    },
+    {
+      "deps": null,
+      "hexdigest": "8b9a52e4dd35bbed4d5e2ee719ab7894d1beae01428b10c2b84f97daa7113bc3",
+      "modified": "2025-08-24T21:09:09.868716",
+      "path": "docs/application_types/event_driven_applications.md",
+      "size": 2675
+    },
+    {
+      "deps": null,
+      "hexdigest": "fbcf81fa8b85ce8d536985a779a6c3f292e60acc3f78dd5516579bff9110bb1a",
+      "modified": "2025-08-24T21:19:11.333311",
+      "path": "docs/application_types/standalone_application.md",
+      "size": 286
+    },
+    {
+      "deps": null,
+      "hexdigest": "cc7004f5065761c715f8cfbdfd7cc567998f077bff0a94e943d7be45b145f2f4",
+      "modified": "2025-08-25T07:44:21.768208",
+      "path": "docs/getting_started.md",
+      "size": 3327
+    },
+    {
+      "deps": null,
+      "hexdigest": "0c3f967ca6f706c6303e07517cdcff2a1e84209a023a6fd26c7bc6992eb0ac62",
+      "modified": "2025-08-24T21:09:09.878531",
+      "path": "docs/index.md",
+      "size": 294
+    },
+    {
+      "deps": null,
+      "hexdigest": "58269fdce2e9e890a59325c78e24d6ba9a60dd6f22cc0110ce92beecb055b6e2",
+      "modified": "2025-08-24T21:09:09.878728",
+      "path": "docs/modules/chat.md",
+      "size": 100
+    },
+    {
+      "deps": null,
+      "hexdigest": "63565f03916d52b011b6b5f16db82268fb84d6214a9d2c20b11f2df06ee31345",
+      "modified": "2025-08-24T21:09:09.878957",
+      "path": "docs/modules/content.md",
+      "size": 46
+    },
+    {
+      "deps": null,
+      "hexdigest": "92f56afcb8d0702d3827cf1174a4767c148fcc8c2e7a8352e0a5f83491574bd9",
+      "modified": "2025-08-24T21:09:09.879111",
+      "path": "docs/modules/embedding.md",
+      "size": 36
+    },
+    {
+      "deps": null,
+      "hexdigest": "0149513df4f234ffd132f414b81e1dec7cc47df63c3ea9c59c7ca63c8fff314d",
+      "modified": "2025-08-24T21:09:09.881587",
+      "path": "docs/modules/examples/chat/chat_service.md",
+      "size": 7703
+    },
+    {
+      "deps": null,
+      "hexdigest": "b5598c00563e5e8b139052d26319cbb109c8ae6da5db5dd58a0cce98d2b08ca7",
+      "modified": "2025-08-24T21:19:28.470523",
+      "path": "docs/modules/examples/content/content_service.md",
+      "size": 1253
+    },
+    {
+      "deps": null,
+      "hexdigest": "6ee5805b400b98cd5e79ddae6713c36cccc4a563d9776242d63fef559418f3a7",
+      "modified": "2025-08-25T07:56:27.641391",
+      "path": "docs/modules/language_model.md",
+      "size": 53
+    },
+    {
+      "deps": null,
+      "hexdigest": "0d1ab2f342773bf7b1da6ea21a3884ebcac1892dc855038a759d4954ac8eb56f",
+      "modified": "2025-08-25T08:02:37.515185",
+      "path": "docs/modules/openai.md",
+      "size": 64
+    },
+    {
+      "deps": null,
+      "hexdigest": "dd3f1f83150c1867b6f12b92b1a8238df5409a300dbcb4664290aa193597ecf0",
+      "modified": "2025-08-24T21:09:09.883176",
+      "path": "docs/modules/short_term_memory.md",
+      "size": 57
+    },
+    {
+      "deps": null,
+      "hexdigest": "56c5a32bb7db8bb7f9700079f453d3e082a36c6f9ff11a201976f82e7caf8939",
+      "modified": "2025-08-25T07:50:33.919910",
+      "path": "docs/plattforms/openai/openai.md",
+      "size": 5739
+    },
+    {
+      "deps": null,
+      "hexdigest": "1beca67aaa2bb0907b1d23820f31560a20cf283fb671ebdccd8e2fd3e412efad",
+      "modified": "2025-08-24T21:09:09.885451",
+      "path": "docs/readme.md",
+      "size": 41
+    },
+    {
+      "deps": null,
+      "hexdigest": "209969c33db177dbe4962d5c8d1503fd8680bd11d7596fd83f62457f4edab7be",
+      "modified": "2025-08-24T21:09:09.889251",
+      "path": "docs/tutorials.md",
+      "size": 144
+    }
+  ],
+  "source": [],
+  "target": [
+    "docs/.python_files/minimal_chat_app.py",
+    "docs/.python_files/minimal_chat_edit_debug_information.py",
+    "docs/.python_files/minimal_chat_with_manual_message_create.py",
+    "docs/.python_files/minimal_chat_with_manual_message_create_and_modification.py",
+    "docs/.python_files/minimal_chat_with_manual_message_create_free_user_input.py",
+    "docs/.python_files/minimal_chat_with_message_assessment.py",
+    "docs/.python_files/openai_completions.py"
+  ],
+  "version": "2.1.13"
+}

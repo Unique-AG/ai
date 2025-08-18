@@ -226,6 +226,17 @@ class ChatEvent(BaseEvent):
         with file_path.open("r", encoding="utf-8") as f:
             data = json.load(f)
         return cls.model_validate(data)
+    
+    def get_initial_debug_info(self) -> dict[str, Any]:
+        """Get the debug information for the chat event"""
+
+        # TODO: Make sure this coincides with what is shown in the first user message
+        return {
+            "user_metadata": self.payload.user_metadata,
+            "tool_parameters": self.payload.tool_parameters,
+            "chosen_module": self.payload.name,
+            "assistant": {"id": self.payload.assistant_id},
+        }
 
 
 @deprecated(

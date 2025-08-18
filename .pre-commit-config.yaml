@@ -6,8 +6,11 @@ repos:
     # Run the linter.
     - id: ruff
       args: [ --fix ]
+      exclude: ^unique_toolkit/docs/\.python_files/.*|^unique_toolkit/docs/examples_from_docs/.*
     # Sort imports
     - id: ruff
       args: ["check", "--select", "I", "--fix"]
+      exclude: ^unique_toolkit/docs/\.python_files/.*|^unique_toolkit/docs/examples_from_docs/.*
     # Run the formatter.
     - id: ruff-format
+      exclude: ^unique_toolkit/docs/\.python_files/.*|^unique_toolkit/docs/examples_from_docs/.*

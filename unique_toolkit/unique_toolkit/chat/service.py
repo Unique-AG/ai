@@ -479,6 +479,10 @@ class ChatService:
             set_completed_at=set_completed_at or False,
         )
 
+    def free_user_input(self) -> None:
+        """Unblocks the next user input"""
+        self.modify_assistant_message(set_completed_at=True)
+
     def get_full_history(self) -> list[ChatMessage]:
         """Loads the full chat history for the chat session synchronously.
 
