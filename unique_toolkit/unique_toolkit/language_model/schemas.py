@@ -5,13 +5,6 @@ from typing import Any, Self
 from uuid import uuid4
 
 from humps import camelize
-from openai.types.chat import ChatCompletionAssistantMessageParam
-from openai.types.chat.chat_completion_message_function_tool_call_param import (
-    ChatCompletionMessageFunctionToolCallParam,
-    Function,
-)
-from openai.types.chat.chat_completion_tool_param import ChatCompletionToolParam
-from openai.types.shared_params.function_definition import FunctionDefinition
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -92,8 +85,25 @@ class LanguageModelFunction(BaseModel):
             seralization["arguments"] = json.dumps(self.arguments)
         return seralization
 
+    def equals(self, other: Self) -> bool:
+        """
+        Compare two tool calls based on name and arguments.
+        """
+        if not isinstance(other, LanguageModelFunction):
+            return False
+
+        if self.name != other.name:
+            return False
+
+        if self.arguments != other.arguments:
+            return False
+
+        return True
+
     def __eq__(self, other: Self) -> bool:
-        """Compare two tool calls based on name and arguments."""
+        """
+        Compare two tool calls based on name and arguments.
+        """
         if not isinstance(other, LanguageModelFunction):
             return False
 
@@ -108,19 +118,6 @@ class LanguageModelFunction(BaseModel):
 
         return True
 
-    def to_openai_param(self) -> ChatCompletionMessageFunctionToolCallParam:
-        arguments = ""
-        if isinstance(self.arguments, dict):
-            arguments = json.dumps(self.arguments)
-        elif isinstance(self.arguments, str):
-            arguments = self.arguments
-
-        return ChatCompletionMessageFunctionToolCallParam(
-            type="function",
-            id=self.id or "unknown_id",
-            function=Function(name=self.name, arguments=arguments),
-        )
-
 
 # This is tailored to the unique backend
 class LanguageModelStreamResponse(BaseModel):
@@ -129,15 +126,12 @@ class LanguageModelStreamResponse(BaseModel):
     message: LanguageModelStreamResponseMessage
     tool_calls: list[LanguageModelFunction] | None = None
 
-    def to_openai_param(self) -> ChatCompletionAssistantMessageParam:
-        return ChatCompletionAssistantMessageParam(
-            role="assistant",
-            audio=None,
-            content=self.message.text,
-            function_call=None,
-            refusal=None,
-            tool_calls=[t.to_openai_param() for t in self.tool_calls or []],
-        )
+    def is_empty(self) -> bool:
+        """
+        Check if the stream response is empty.
+        An empty stream response has no text and no tool calls.
+        """
+        return not self.message.original_text and not self.tool_calls
 
 
 class LanguageModelFunctionCall(BaseModel):
@@ -152,7 +146,7 @@ class LanguageModelFunctionCall(BaseModel):
     @staticmethod
     def create_assistant_message_from_tool_calls(
         tool_calls: list[LanguageModelFunction],
-    ) -> "LanguageModelAssistantMessage":
+    ):
         assistant_message = LanguageModelAssistantMessage(
             content="",
             tool_calls=[
@@ -183,6 +177,7 @@ class LanguageModelMessage(BaseModel):
 
 
 # Equivalent to
+# from openai.types.chat.chat_completion_system_message_param import ChatCompletionSystemMessageParam
 class LanguageModelSystemMessage(LanguageModelMessage):
     role: LanguageModelMessageRole = LanguageModelMessageRole.SYSTEM
 
@@ -428,7 +423,7 @@ class LanguageModelTokenLimits(BaseModel):
 
 
 @deprecated(
-    "Deprecated as `LanguageModelTool` is deprecated in favor of `LanguageModelToolDescription`",
+    "Deprecated as `LanguageModelTool` is deprecated in favor of `LanguageModelToolDescription`"
 )
 class LanguageModelToolParameterProperty(BaseModel):
     type: str
@@ -440,7 +435,7 @@ class LanguageModelToolParameterProperty(BaseModel):
 # Looks most like
 # from openai.types.shared.function_parameters import FunctionParameters
 @deprecated(
-    "Deprecated as `LanguageModelTool` is deprecated in favor of `LanguageModelToolDescription`",
+    "Deprecated as `LanguageModelTool` is deprecated in favor of `LanguageModelToolDescription`"
 )
 class LanguageModelToolParameters(BaseModel):
     type: str = "object"
@@ -452,7 +447,7 @@ class LanguageModelToolParameters(BaseModel):
 # from openai.types.shared_params.function_definition import FunctionDefinition
 # but returns parameter is not known
 @deprecated(
-    "Deprecated as `LanguageModelTool` use `LanguageModelToolDescription` instead",
+    "Deprecated as `LanguageModelTool` use `LanguageModelToolDescription` instead"
 )
 class LanguageModelTool(BaseModel):
     name: str = Field(
@@ -493,14 +488,3 @@ class LanguageModelToolDescription(BaseModel):
     @field_serializer("parameters")
     def serialize_parameters(self, parameters: type[BaseModel]):
         return parameters.model_json_schema()
-
-    def to_openai(self) -> ChatCompletionToolParam:
-        return ChatCompletionToolParam(
-            function=FunctionDefinition(
-                name=self.name,
-                description=self.description,
-                parameters=self.parameters.model_json_schema(),
-                strict=self.strict,
-            ),
-            type="function",
-        )
