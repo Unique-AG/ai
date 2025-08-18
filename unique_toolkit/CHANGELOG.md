@@ -5,11 +5,6 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.8.13] - 2025-08-18
-- Fix wrong name of references in `Space.Message`. 
-- Fix wrong name of assessment in `Space.Message`.
-- Remove default values for `text`, `originalText` and `debugInfo` in `Space.Message` as these don't have an effect.
-
 ## [0.8.12] - 2025-08-18
 - Fix no tool call respoonse in ChatMessage -> Open Ai messages translation
 - Add simple append method to OpenAIMessageBuilder
