@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
+    LanguageModelTool,
     LanguageModelToolDescription,
 )
 from unique_toolkit.tools.config import ToolBuildConfig
@@ -130,7 +131,7 @@ class ToolManager:
             if t.name in self._tool_choices
         ]
 
-    def get_tool_definitions(self) -> list[LanguageModelToolDescription]:
+    def get_tool_definitions(self) -> list[LanguageModelTool | LanguageModelToolDescription]:
         return [tool.tool_description() for tool in self._tools]
 
     def get_tool_prompts(self) -> list[ToolPrompts]:

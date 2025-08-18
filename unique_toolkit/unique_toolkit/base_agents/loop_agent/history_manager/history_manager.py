@@ -1,6 +1,6 @@
 from datetime import datetime
 from logging import Logger
-from typing import Callable
+from typing import Awaitable, Callable
 
 from pydantic import BaseModel, Field
 from unique_sdk.unique_sdk.utils.token import count_tokens
@@ -241,3 +241,15 @@ class HistoryManager:
             selected_messages.append(msg)
             token_count += msg_token_count
         return selected_messages[::-1]
+
+
+    async def remove_post_processing_manipulations(
+        self, remove_from_text: Callable[[str], Awaitable[str]]
+    ) -> list[LanguageModelMessage]:
+        messages = await self.get_history()
+        for message in messages:
+            if isinstance(message.content, str):
+                message.content = await remove_from_text(message.content)
+            else:
+                self.logger.warning(f"Skipping message with unsupported content type: {type(message.content)}")
+        return messages

@@ -100,11 +100,10 @@ class PostprocessorManager:
 
     async def remove_from_text(
         self,
-        history: list[LanguageModelMessage],
-    ) -> None:
-   
-        for message in history:
-            for postprocessor in self._postprocessors:
-                message.content = await postprocessor.remove_from_text(message.content)
+        text:str,
+    ) -> str:
+        for postprocessor in self._postprocessors:
+            text = await postprocessor.remove_from_text(text)
+        return text
 
         

@@ -61,7 +61,7 @@ class LoopAgent(ABC):
         self,
         event: ChatEvent,
         config: LoopAgentConfig,
-        agent_chunks_handler: AgentChunksHandler,
+        agent_chunks_handler: AgentChunksHandler | None = None,
     ):
         self.agent_chunks_handler = (
             agent_chunks_handler  # deprecated, use reference_manager instead
@@ -208,7 +208,7 @@ class LoopAgent(ABC):
 
     async def _plan_or_execute(self) -> LanguageModelStreamResponse:
         self._logger.info("Planning or executing the loop.")
-        messages = self._compose_message_plan_execution()
+        messages = await self._compose_message_plan_execution()
 
         self._logger.info("Done composing message plan execution.")
         stream_response = await self._stream_complete_async_wrapper(
@@ -242,18 +242,18 @@ class LoopAgent(ABC):
         if are_no_tools_called:
             self._logger.debug("No tool calls. we might exit the loop")
             return await self._handle_no_tool_calls(loop_response)
-        else:
-            self._logger.debug(
-                "Tools were called we process them and do not exit the loop"
-            )
-            await self._handle_tool_calls(loop_response)
-            return False
+       
+        self._logger.debug(
+            "Tools were called we process them and do not exit the loop"
+        )
+        await self._handle_tool_calls(loop_response)
+        return False
 
     ##############################
     # Abstract methods
     ##############################
     @abstractmethod
-    def _compose_message_plan_execution(self) -> LanguageModelMessages:
+    async def _compose_message_plan_execution(self) -> LanguageModelMessages:
         """Composes the message for the plan execution.
 
         The function will return the messages to be sent to the language model.
@@ -273,13 +273,13 @@ class LoopAgent(ABC):
             selected_evaluation_names, loop_response
         )
 
+        await self._postprocessor_manager.run_postprocessors(loop_response)
+
         if not all(result.is_positive for result in evaluation_results):
             self._logger.warning(
                 "we should add here the retry counter add an instruction and retry the loop for now we just exit the loop"
             )  # TODO: add retry counter and instruction
 
-
-        await self._postprocessor_manager.run_postprocessors(loop_response)
 
         return True
 
@@ -291,6 +291,7 @@ class LoopAgent(ABC):
         self._logger.info("Processing tool calls")
 
         tool_calls = loop_response.tool_calls or []
+        
         # Append function call to history
         self._history_manager._append_tool_calls_to_history(tool_calls)
 
