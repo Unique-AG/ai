@@ -64,7 +64,7 @@ class Space(APIResource["Space"]):
         createdAt: str | None
         updatedAt: str | None
         stoppedStreamingAt: str | None
-        assessment: Optional[List["Space.Reference"]]
+        references: Optional[List["Space.Reference"]]
         messageAssessment: Optional[List["Space.Assessment"]]
 
     class DeleteChatResponse(TypedDict):
