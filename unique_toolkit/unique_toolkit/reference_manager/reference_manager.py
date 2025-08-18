@@ -9,6 +9,25 @@ class tool_chunks:
 
 
 class ReferenceManager:
+    """
+    Manages content chunks and references extracted from tool responses.
+
+    This class is responsible for:
+    - Extracting and storing referenceable content chunks from tool responses.
+    - Managing a collection of content chunks and their associated references.
+    - Providing methods to retrieve, replace, and manipulate chunks and references.
+    - Supporting the retrieval of the latest references and their corresponding chunks.
+
+    Key Features:
+    - Chunk Extraction: Extracts content chunks from tool responses and organizes them for reference.
+    - Reference Management: Tracks references to content chunks and allows for easy retrieval.
+    - Latest Reference Access: Provides methods to fetch the most recent references and their associated chunks.
+    - Flexible Chunk Replacement: Allows for replacing the current set of chunks with a new list.
+    - Reference-to-Chunk Mapping: Matches references to their corresponding chunks based on source IDs.
+
+    The ReferenceManager serves as a utility for managing and linking content chunks with references, enabling efficient content tracking and retrieval.
+    """
+
     def __init__(self):
         self._tool_chunks: dict[str, tool_chunks] = {}
         self._chunks: list[ContentChunk] = []

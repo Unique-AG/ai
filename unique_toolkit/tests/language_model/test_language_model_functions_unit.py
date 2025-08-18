@@ -166,7 +166,6 @@ async def test_complete_async_basic(mock_create):
     mock_create.assert_called_once()
 
 
-
 def test_clamp_temperature_bounds_clamping():
     """Test temperature clamping when bounds enforce limits."""
     # Test with both min and max bounds

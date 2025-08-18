@@ -134,5 +134,4 @@ class ToolPrompts(BaseModel):
     display_name: str
     tool_description: str
     tool_format_information_for_system_prompt: str
-    tool_format_information_for_system_prompt: str
     input_model: dict[str, Any]
