@@ -17,6 +17,7 @@ from unique_toolkit.chat.functions import (
     get_full_history,
     get_full_history_async,
     get_selection_from_history,
+    integrated_stream_complete,
     modify_message,
     modify_message_assessment,
     modify_message_assessment_async,
@@ -29,6 +30,7 @@ from unique_toolkit.chat.schemas import (
     ChatMessageAssessmentStatus,
     ChatMessageAssessmentType,
     ChatMessageRole,
+    ChatStreamResponse,
 )
 from unique_toolkit.content.schemas import ContentChunk, ContentReference
 from unique_toolkit.language_model.constants import (
@@ -892,6 +894,8 @@ class ChatService:
             label=label,
         )
 
+    ## Streaming
+
     @deprecated("Use complete_with_references instead")
     def stream_complete(
         self,
@@ -1055,3 +1059,35 @@ class ChatService:
         )
 
         return LanguageModelResponse.from_stream_response(await response)
+
+    # Integrated Streaming
+    def integrated_stream_complete(
+        self,
+        messages: LanguageModelMessages | list[ChatCompletionMessageParam],
+        model_name: LanguageModelName | str,
+        content_chunks: list[ContentChunk] | None = None,
+        debug_info: dict | None = None,
+        temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
+        timeout: int = DEFAULT_COMPLETE_TIMEOUT,
+        tools: list[LanguageModelToolDescription] | None = None,
+        start_text: str | None = None,
+        other_options: dict | None = None,
+    ) -> ChatStreamResponse:
+        """Streams a completion in the chat session synchronously."""
+        return integrated_stream_complete(
+            company_id=self._company_id,
+            user_id=self._user_id,
+            assistant_message_id=self._assistant_message_id,
+            user_message_id=self._user_message_id,
+            chat_id=self._chat_id,
+            assistant_id=self._assistant_id,
+            messages=messages,
+            model_name=model_name,
+            content_chunks=content_chunks,
+            debug_info=debug_info,
+            temperature=temperature,
+            timeout=timeout,
+            tools=tools,
+            start_text=start_text,
+            other_options=other_options,
+        )

@@ -130,6 +130,23 @@ class ChatMessage(BaseModel):
                 raise NotImplementedError
 
 
+class ChatStreamResponse(BaseModel):
+    model_config = model_config
+
+    message: ChatMessage
+    tool_calls: list[ToolCall] | None = None
+
+    def to_openai_param(self) -> ChatCompletionAssistantMessageParam:
+        return ChatCompletionAssistantMessageParam(
+            role="assistant",
+            audio=None,
+            content=self.message.content,
+            function_call=None,
+            refusal=None,
+            tool_calls=[t.to_openai_param() for t in self.tool_calls or []],
+        )
+
+
 class ChatMessageAssessmentStatus(StrEnum):
     PENDING = "PENDING"
     DONE = "DONE"
