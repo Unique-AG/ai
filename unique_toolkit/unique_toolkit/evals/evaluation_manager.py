@@ -39,6 +39,7 @@ class Evaluation(ABC):
 
     The EvaluationManager serves as the central hub for managing and executing evaluations.
     """
+
     def __init__(self, name: EvaluationMetricName):
         self.name = name
 

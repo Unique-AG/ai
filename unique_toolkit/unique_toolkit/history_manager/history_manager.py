@@ -46,6 +46,7 @@ class HistoryManagerConfig(BaseModel):
 
     The HistoryManager serves as the backbone for managing and retrieving conversation history in a structured and efficient manner.
     """
+
     class ExperimentalFeatures(BaseModel):
         def __init__(self, full_sources_serialize_dump: bool = False):
             self.full_sources_serialize_dump = full_sources_serialize_dump
@@ -255,7 +256,6 @@ class HistoryManager:
             token_count += msg_token_count
         return selected_messages[::-1]
 
-
     async def remove_post_processing_manipulations(
         self, remove_from_text: Callable[[str], Awaitable[str]]
     ) -> list[LanguageModelMessage]:
@@ -264,5 +264,7 @@ class HistoryManager:
             if isinstance(message.content, str):
                 message.content = await remove_from_text(message.content)
             else:
-                self.logger.warning(f"Skipping message with unsupported content type: {type(message.content)}")
+                self.logger.warning(
+                    f"Skipping message with unsupported content type: {type(message.content)}"
+                )
         return messages

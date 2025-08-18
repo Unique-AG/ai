@@ -9,7 +9,6 @@ from unique_toolkit.short_term_memory.service import ShortTermMemoryService
 from unique_toolkit.tools.utils.execution.execution import SafeTaskExecutor
 
 
-
 TSchema = TypeVar("TSchema", bound=BaseModel)
 
 
@@ -111,9 +110,7 @@ class PersistentShortMemoryManager(Generic[TSchema]):
                 data = _decompress_data_zlib_base64(memory.data)
                 return self.short_term_memory_schema.model_validate_json(data)
             elif isinstance(memory.data, dict):
-                return self.short_term_memory_schema.model_validate(
-                    memory.data
-                )
+                return self.short_term_memory_schema.model_validate(memory.data)
         return None
 
     def load_sync(self) -> TSchema | None:

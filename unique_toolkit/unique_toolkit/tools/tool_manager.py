@@ -131,7 +131,9 @@ class ToolManager:
             if t.name in self._tool_choices
         ]
 
-    def get_tool_definitions(self) -> list[LanguageModelTool | LanguageModelToolDescription]:
+    def get_tool_definitions(
+        self,
+    ) -> list[LanguageModelTool | LanguageModelToolDescription]:
         return [tool.tool_description() for tool in self._tools]
 
     def get_tool_prompts(self) -> list[ToolPrompts]:

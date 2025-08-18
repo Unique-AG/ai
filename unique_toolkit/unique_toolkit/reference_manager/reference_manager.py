@@ -27,6 +27,7 @@ class ReferenceManager:
 
     The ReferenceManager serves as a utility for managing and linking content chunks with references, enabling efficient content tracking and retrieval.
     """
+
     def __init__(self):
         self._tool_chunks: dict[str, tool_chunks] = {}
         self._chunks: list[ContentChunk] = []
