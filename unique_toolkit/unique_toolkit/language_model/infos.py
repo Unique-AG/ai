@@ -44,10 +44,10 @@ class LanguageModelName(StrEnum):
     GEMINI_2_5_PRO = "litellm:gemini-2-5-pro"
     GEMINI_2_5_PRO_EXP_0325 = "litellm:gemini-2-5-pro-exp-03-25"
     GEMINI_2_5_PRO_PREVIEW_0605 = "litellm:gemini-2-5-pro-preview-06-05"
-    LITELLM_GPT_5 = "litellm:openai-gpt-5"
-    LITELLM_GPT_5_MINI = "litellm:openai-gpt-5-mini"
-    LITELLM_GPT_5_NANO = "litellm:openai-gpt-5-nano"
-    LITELLM_GPT_5_CHAT = "litellm:openai-gpt-5-chat"
+    LITELLM_OPENAI_GPT_5 = "litellm:openai-gpt-5"
+    LITELLM_OPENAI_GPT_5_MINI = "litellm:openai-gpt-5-mini"
+    LITELLM_OPENAI_GPT_5_NANO = "litellm:openai-gpt-5-nano"
+    LITELLM_OPENAI_GPT_5_CHAT = "litellm:openai-gpt-5-chat"
 
 
 class EncoderName(StrEnum):
@@ -75,10 +75,10 @@ def get_encoder_name(model_name: LanguageModelName) -> EncoderName:
             | LMN.AZURE_GPT_5_MINI_2025_0807
             | LMN.AZURE_GPT_5_NANO_2025_0807
             | LMN.AZURE_GPT_5_CHAT_2025_0807
-            | LMN.LITELLM_GPT_5
-            | LMN.LITELLM_GPT_5_MINI
-            | LMN.LITELLM_GPT_5_NANO
-            | LMN.LITELLM_GPT_5_CHAT
+            | LMN.LITELLM_OPENAI_GPT_5
+            | LMN.LITELLM_OPENAI_GPT_5_MINI
+            | LMN.LITELLM_OPENAI_GPT_5_NANO
+            | LMN.LITELLM_OPENAI_GPT_5_CHAT
         ):
             return EncoderName.O200K_BASE
         case _:
@@ -773,7 +773,7 @@ class LanguageModelInfo(BaseModel):
                     info_cutoff_at=date(2025, 1, day=1),
                     published_at=date(2025, 6, 5),
                 )
-            case LanguageModelName.LITELLM_GPT_5:
+            case LanguageModelName.LITELLM_OPENAI_GPT_5:
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.LITELLM,
@@ -801,7 +801,7 @@ class LanguageModelInfo(BaseModel):
                         "reasoning_effort": "minimal",
                     },
                 )
-            case LanguageModelName.LITELLM_GPT_5_MINI:
+            case LanguageModelName.LITELLM_OPENAI_GPT_5_MINI:
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.LITELLM,
@@ -829,7 +829,7 @@ class LanguageModelInfo(BaseModel):
                         "reasoning_effort": "minimal",
                     },
                 )
-            case LanguageModelName.LITELLM_GPT_5_NANO:
+            case LanguageModelName.LITELLM_OPENAI_GPT_5_NANO:
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.LITELLM,
@@ -857,7 +857,7 @@ class LanguageModelInfo(BaseModel):
                         "reasoning_effort": "minimal",
                     },
                 )
-            case LanguageModelName.LITELLM_GPT_5_CHAT:
+            case LanguageModelName.LITELLM_OPENAI_GPT_5_CHAT:
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.LITELLM,
