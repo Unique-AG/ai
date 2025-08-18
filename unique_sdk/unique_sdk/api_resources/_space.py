@@ -56,10 +56,10 @@ class Space(APIResource["Space"]):
 
         id: str
         chatId: str
-        text: str | None = None
-        originalText: str | None = None
+        text: str | None
+        originalText: str | None
         role: Literal["system", "user", "assistant"]
-        debugInfo: Optional[Dict[str, Any]] = None
+        debugInfo: Optional[Dict[str, Any]]
         completedAt: str | None
         createdAt: str | None
         updatedAt: str | None
