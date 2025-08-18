@@ -6,7 +6,7 @@ from typing import Generic, Type, TypeVar
 from pydantic import BaseModel
 from unique_toolkit.short_term_memory.schemas import ShortTermMemory
 from unique_toolkit.short_term_memory.service import ShortTermMemoryService
-from unique_toolkit.unique_toolkit.tools.utils.execution.execution import SafeTaskExecutor
+from unique_toolkit.tools.utils.execution.execution import SafeTaskExecutor
 
 
 

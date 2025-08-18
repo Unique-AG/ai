@@ -2,9 +2,9 @@ from abc import ABC
 import asyncio
 from logging import Logger
 
-from unique_toolkit.unique_toolkit.chat.service import ChatService
-from unique_toolkit.unique_toolkit.language_model.schemas import LanguageModelMessage, LanguageModelStreamResponse
-from unique_toolkit.unique_toolkit.tools.utils.execution.execution import Result, SafeTaskExecutor
+from unique_toolkit.chat.service import ChatService
+from unique_toolkit.language_model.schemas import LanguageModelMessage, LanguageModelStreamResponse
+from unique_toolkit.tools.utils.execution.execution import Result, SafeTaskExecutor
 
 
 class Postprocessor(ABC):
@@ -29,6 +29,24 @@ class Postprocessor(ABC):
 
 
 class PostprocessorManager:
+    """
+    Manages and executes postprocessors for modifying and refining responses.
+
+    This class is responsible for:
+    - Storing and managing a collection of postprocessor instances.
+    - Executing postprocessors asynchronously to refine loop responses.
+    - Applying modifications to assistant messages based on postprocessor results.
+    - Providing utility methods for text manipulation using postprocessors.
+
+    Key Features:
+    - Postprocessor Management: Allows adding and retrieving postprocessor instances.
+    - Asynchronous Execution: Runs all postprocessors concurrently for efficiency.
+    - Response Modification: Applies postprocessing changes to assistant messages when necessary.
+    - Text Cleanup: Supports removing specific patterns or content from text using postprocessors.
+    - Error Handling: Logs warnings for any postprocessors that fail during execution.
+
+    The PostprocessorManager serves as a centralized system for managing and applying postprocessing logic to enhance response quality and consistency.
+    """
 
     _postprocessors: list[Postprocessor] = []
 

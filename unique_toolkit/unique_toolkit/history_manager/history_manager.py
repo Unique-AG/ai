@@ -3,14 +3,10 @@ from logging import Logger
 from typing import Awaitable, Callable
 
 from pydantic import BaseModel, Field
-from unique_sdk.unique_sdk.utils.token import count_tokens
+
 from unique_toolkit.app.schemas import ChatEvent
-from unique_toolkit.base_agents.loop_agent.helpers import (
-    limit_to_token_window,
-)
-from unique_toolkit.base_agents.loop_agent.history_manager.utils import (
-    transform_chunks_to_string,
-)
+
+
 from unique_toolkit.chat.schemas import ChatMessage
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.schemas import Content
@@ -24,15 +20,32 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelToolMessage,
     LanguageModelUserMessage,
 )
-from unique_toolkit.reference_manager.reference_manager import (
-    ReferenceManager,
-)
+
 from unique_toolkit.tools.schemas import ToolCallResponse
-from unique_toolkit.tools.tool import Tool
-from unique_toolkit.tools.tool_manager import ToolManager
+from unique_toolkit.content.utils import count_tokens
+from unique_toolkit.history_manager.utils import transform_chunks_to_string
 
 
 class HistoryManagerConfig(BaseModel):
+    """
+    Manages the history of tool calls and conversation loops.
+
+    This class is responsible for:
+    - Storing and maintaining the history of tool call results and conversation messages.
+    - Merging uploaded content with the conversation history for a unified view.
+    - Limiting the history to fit within a configurable token window for efficient processing.
+    - Providing methods to retrieve, manipulate, and append to the conversation history.
+    - Handling post-processing steps to clean or modify the history as needed.
+
+    Key Features:
+    - Tool Call History: Tracks the results of tool calls and appends them to the conversation history.
+    - Loop History: Maintains a record of conversation loops, including assistant and user messages.
+    - History Merging: Combines uploaded files and chat messages into a cohesive history.
+    - Token Window Management: Ensures the history stays within a specified token limit for optimal performance.
+    - Post-Processing Support: Allows for custom transformations or cleanup of the conversation history.
+
+    The HistoryManager serves as the backbone for managing and retrieving conversation history in a structured and efficient manner.
+    """
     class ExperimentalFeatures(BaseModel):
         def __init__(self, full_sources_serialize_dump: bool = False):
             self.full_sources_serialize_dump = full_sources_serialize_dump
