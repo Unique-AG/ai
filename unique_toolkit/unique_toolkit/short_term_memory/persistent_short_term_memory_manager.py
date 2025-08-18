@@ -32,6 +32,24 @@ def _decompress_data_zlib_base64(compressed_data: str) -> str:
 
 
 class PersistentShortMemoryManager(Generic[TSchema]):
+    """
+    Manages the storage, retrieval, and processing of short-term memory in a persistent manner.
+
+    This class is responsible for:
+    - Saving and loading short-term memory data, both synchronously and asynchronously.
+    - Compressing and decompressing memory data for efficient storage.
+    - Validating and processing memory data using a predefined schema.
+    - Logging the status of memory operations, such as whether memory was found or saved.
+
+    Key Features:
+    - Persistent Storage: Integrates with a short-term memory service to store and retrieve memory data.
+    - Compression Support: Compresses memory data before saving and decompresses it upon retrieval.
+    - Schema Validation: Ensures memory data adheres to a specified schema for consistency.
+    - Synchronous and Asynchronous Operations: Supports both sync and async methods for flexibility.
+    - Logging and Debugging: Provides detailed logs for memory operations, including success and failure cases.
+
+    The PersistentShortMemoryManager is designed to handle short-term memory efficiently, ensuring data integrity and optimized storage.
+    """
     def __init__(
         self,
         short_term_memory_service: ShortTermMemoryService,
