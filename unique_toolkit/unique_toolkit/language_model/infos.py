@@ -44,6 +44,10 @@ class LanguageModelName(StrEnum):
     GEMINI_2_5_PRO = "litellm:gemini-2-5-pro"
     GEMINI_2_5_PRO_EXP_0325 = "litellm:gemini-2-5-pro-exp-03-25"
     GEMINI_2_5_PRO_PREVIEW_0605 = "litellm:gemini-2-5-pro-preview-06-05"
+    LITELLM_GPT_5 = "litellm:openai-gpt-5"
+    LITELLM_GPT_5_MINI = "litellm:openai-gpt-5-mini"
+    LITELLM_GPT_5_NANO = "litellm:openai-gpt-5-nano"
+    LITELLM_GPT_5_CHAT = "litellm:openai-gpt-5-chat"
 
 
 class EncoderName(StrEnum):
@@ -71,6 +75,10 @@ def get_encoder_name(model_name: LanguageModelName) -> EncoderName:
             | LMN.AZURE_GPT_5_MINI_2025_0807
             | LMN.AZURE_GPT_5_NANO_2025_0807
             | LMN.AZURE_GPT_5_CHAT_2025_0807
+            | LMN.LITELLM_GPT_5
+            | LMN.LITELLM_GPT_5_MINI
+            | LMN.LITELLM_GPT_5_NANO
+            | LMN.LITELLM_GPT_5_CHAT
         ):
             return EncoderName.O200K_BASE
         case _:
@@ -215,8 +223,10 @@ class LanguageModelInfo(BaseModel):
                     capabilities=[
                         ModelCapabilities.FUNCTION_CALLING,
                         ModelCapabilities.STREAMING,
+                        ModelCapabilities.REASONING,
                         ModelCapabilities.VISION,
                         ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.PARALLEL_FUNCTION_CALLING,
                     ],
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=272000, token_limit_output=128000
@@ -241,8 +251,10 @@ class LanguageModelInfo(BaseModel):
                     capabilities=[
                         ModelCapabilities.FUNCTION_CALLING,
                         ModelCapabilities.STREAMING,
+                        ModelCapabilities.REASONING,
                         ModelCapabilities.VISION,
                         ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.PARALLEL_FUNCTION_CALLING,
                     ],
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=272000, token_limit_output=128000
@@ -264,6 +276,10 @@ class LanguageModelInfo(BaseModel):
                     provider=LanguageModelProvider.AZURE,
                     version="2025-08-07",
                     encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                    ],
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=128000, token_limit_output=16384
                     ),
@@ -757,6 +773,109 @@ class LanguageModelInfo(BaseModel):
                     info_cutoff_at=date(2025, 1, day=1),
                     published_at=date(2025, 6, 5),
                 )
+            case LanguageModelName.LITELLM_GPT_5:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    version="gpt-5",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.PARALLEL_FUNCTION_CALLING,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=272000, token_limit_output=128000
+                    ),
+                    info_cutoff_at=date(2024, 10, 24),
+                    published_at=date(2025, 8, 7),
+                    deprecated_at=date(2026, 8, 7),
+                    retirement_at=date(2026, 8, 7),
+                    temperature_bounds=TemperatureBounds(
+                        min_temperature=1.0, max_temperature=1.0
+                    ),
+                    default_options={
+                        "reasoning_effort": "minimal",
+                    },
+                )
+            case LanguageModelName.LITELLM_GPT_5_MINI:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    version="gpt-5-mini",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.PARALLEL_FUNCTION_CALLING,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=272000, token_limit_output=128000
+                    ),
+                    info_cutoff_at=date(2024, 6, 24),
+                    published_at=date(2025, 8, 7),
+                    deprecated_at=date(2026, 8, 7),
+                    retirement_at=date(2026, 8, 7),
+                    temperature_bounds=TemperatureBounds(
+                        min_temperature=1.0, max_temperature=1.0
+                    ),
+                    default_options={
+                        "reasoning_effort": "minimal",
+                    },
+                )
+            case LanguageModelName.LITELLM_GPT_5_NANO:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    version="gpt-5-nano",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.PARALLEL_FUNCTION_CALLING,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=272000, token_limit_output=128000
+                    ),
+                    info_cutoff_at=date(2024, 5, 31),
+                    published_at=date(2025, 8, 7),
+                    deprecated_at=date(2026, 8, 7),
+                    retirement_at=date(2026, 8, 7),
+                    temperature_bounds=TemperatureBounds(
+                        min_temperature=1.0, max_temperature=1.0
+                    ),
+                    default_options={
+                        "reasoning_effort": "minimal",
+                    },
+                )
+            case LanguageModelName.LITELLM_GPT_5_CHAT:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    version="gpt-5-chat",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=128000, token_limit_output=16384
+                    ),
+                    info_cutoff_at=date(2024, 10, 24),
+                    published_at=date(2025, 8, 7),
+                    deprecated_at=date(2026, 8, 7),
+                    retirement_at=date(2026, 8, 7),
+                )
+            
             case _:
                 if isinstance(model_name, LanguageModelName):
                     raise ValueError(
