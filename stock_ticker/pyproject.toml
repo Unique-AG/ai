@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "unique_toolkit"
+name = "unique_stock_ticker"
 version = "0.0.1"
 description = ""
 authors = [
