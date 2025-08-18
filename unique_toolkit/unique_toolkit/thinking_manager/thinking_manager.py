@@ -18,6 +18,24 @@ class ThinkingManagerConfig(BaseModel):
 
 
 class ThinkingManager:
+    """
+    Manages the display and tracking of thinking steps during response generation.
+
+    This class is responsible for:
+    - Tracking and formatting thinking steps as part of the response process.
+    - Updating the tool progress reporter with the latest thinking step information.
+    - Managing the display of thinking steps in the assistant's response.
+    - Closing and finalizing the thinking steps section when the process is complete.
+
+    Key Features:
+    - Thinking Step Tracking: Maintains a sequential log of thinking steps with step numbers.
+    - Configurable Display: Supports enabling or disabling the display of thinking steps based on configuration.
+    - Integration with Tool Progress: Updates the tool progress reporter to reflect the current thinking state.
+    - Dynamic Response Updates: Modifies the assistant's response to include or finalize thinking steps.
+    - Flexible Formatting: Formats thinking steps in a structured and user-friendly HTML-like format.
+
+    The ThinkingManager enhances transparency and user understanding by providing a clear view of the assistant's reasoning process.
+    """
     def __init__(
         self,
         logger: Logger,
