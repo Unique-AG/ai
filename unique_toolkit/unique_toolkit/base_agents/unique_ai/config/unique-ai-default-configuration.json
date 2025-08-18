@@ -1,0 +1,292 @@
+{
+    "languageModel": "AZURE_GPT_4o_2024_1120",
+    "temperature": 0.0,
+    "additionalLlmOptions": {},
+    "maxLoopIterations": 8,
+    "tokenLimits": {
+        "languageModel": "AZURE_GPT_4o_2024_1120",
+        "percentOfMaxTokensForHistory": 0.2
+    },
+    "tools": [
+        {
+            "name": "InternalSearch",
+            "configuration": {
+                "searchType": "COMBINED",
+                "maxTokensForSources": 30000,
+                "scopeIds": null,
+                "scopeToChatOnUpload": false,
+                "chunkedSources": true,
+                "rerankerConfig": null,
+                "searchLanguage": "english",
+                "limit": 50,
+                "chunkRelevancySortConfig": {
+                    "enabled": false,
+                    "relevancyLevelsToConsider": [
+                        "high",
+                        "medium"
+                    ],
+                    "relevancyLevelOrder": {
+                        "high": 0,
+                        "medium": 1,
+                        "low": 2
+                    },
+                    "languageModel": "AZURE_GPT_4o_MINI_2024_0718",
+                    "fallbackLanguageModel": "AZURE_GPT_35_TURBO_0125",
+                    "additionalLlmOptions": {},
+                    "structuredOutputConfig": {
+                        "enabled": false,
+                        "extract_fact_list": false,
+                        "reason_description": "A brief explanation justifying your evaluation decision.",
+                        "value_description": "Assessment of how relevant the facts are to the query. Must be one of: ['low', 'medium', 'high'].",
+                        "fact_description": "A fact is an information that is directly answers the user's query. Make sure to emphasize the important information from the fact with bold text.",
+                        "fact_list_description": "A list of relevant facts extracted from the source that supports or answers the user's query."
+                    },
+                    "maxTasks": null
+                },
+                "chatOnly": false,
+                "toolDescription": "Search in the company knowledge base for information on policies, procedures, benefits, groups, financial information or specific people. This should be your go-to tool if no other tools are applicable.",
+                "paramDescriptionSearchString": "An expanded term that is optimized for vector and full text search based on the users query it must be in english",
+                "paramDescriptionLanguage": "The language that the user was the query in",
+                "toolDescriptionForSystemPrompt": "You can use the InternalSearch tool to access internal company documentations, including information on policies, procedures, benefits, groups, financial details, and specific individuals. If this tool can help answer your question, feel free to use it to search the internal knowledge base for more information. If possible always try to get information from the internal knowledge base with the InternalSearch tool before using other tools.",
+                "toolFormatInformationForSystemPrompt": "",
+                "evaluationCheckList": [
+                    "hallucination"
+                ],
+                "experimentalFeatures": {
+                    "fullSourcesSerializeDump": false
+                },
+                "sourceFormatConfig": {
+                    "sourceTemplate": "<source${index}>${document}${info}${text}</source${index}>",
+                    "sections": {
+                        "document": "<|document|>{}<|/document|>\n",
+                        "info": "<|info|>{}<|/info|>\n"
+                    }
+                }
+            },
+            "displayName": "Document Search",
+            "icon": "IconBook",
+            "selectionPolicy": "ByUser",
+            "isExclusive": false,
+            "isEnabled": true
+        },
+        {
+            "name": "WebSearch",
+            "configuration": {
+                "languageModel": "AZURE_GPT_4o_2024_1120",
+                "limitTokenSources": 30000,
+                "searchEngineConfig": {
+                    "searchEngineName": "Bing",
+                    "fetchSize": 15,
+                    "urlPatternBlacklist": [
+                        ".*\\.pdf$"
+                    ],
+                    "bannedDomains": [],
+                    "customSearchConfig": {
+                        "id": null,
+                        "boostedSearchDomains": [],
+                        "searchCountryCode": null,
+                        "searchMarket": null
+                    }
+                },
+                "crawlerConfig": {
+                    "crawlerType": "BasicCrawler",
+                    "semaphoreCount": 10,
+                    "timeout": 5.0,
+                    "cleaningStrategyConfig": {
+                        "markdownCleaningTimeout": 5.0,
+                        "removeNestedImagesAndLinks": true,
+                        "removeSimpleImagesAndLinks": true,
+                        "removeMultipleLinebreaks": true,
+                        "removeRepeatingPatterns": false
+                    }
+                },
+                "contentAdapterConfig": {
+                    "chunkSize": 1000,
+                    "chunkingMaxWorkers": 10,
+                    "contentProcessingStrategyConfig": {
+                        "strategy": "truncate",
+                        "truncateToMaxTokens": 5000
+                    }
+                },
+                "chunkRelevancySortConfig": {
+                    "enabled": false,
+                    "relevancyLevelsToConsider": [
+                        "high",
+                        "medium"
+                    ],
+                    "relevancyLevelOrder": {
+                        "high": 0,
+                        "medium": 1,
+                        "low": 2
+                    },
+                    "languageModel": "AZURE_GPT_4o_MINI_2024_0718",
+                    "fallbackLanguageModel": "AZURE_GPT_35_TURBO_0125",
+                    "additionalLlmOptions": {},
+                    "structuredOutputConfig": {
+                        "enabled": false,
+                        "extract_fact_list": false,
+                        "reason_description": "A brief explanation justifying your evaluation decision.",
+                        "value_description": "Assessment of how relevant the facts are to the query. Must be one of: ['low', 'medium', 'high'].",
+                        "fact_description": "A fact is an information that is directly answers the user's query. Make sure to emphasize the important information from the fact with bold text.",
+                        "fact_list_description": "A list of relevant facts extracted from the source that supports or answers the user's query."
+                    },
+                    "maxTasks": null
+                },
+                "evaluationCheckList": [
+                    "hallucination"
+                ],
+                "queryRefinementConfig": {
+                    "enabled": true,
+                    "systemPrompt": "You're task consist of a query for a search engine.\n\n** Refine the query Guidelines **\n- The query should be a string that does not exceed 6 key words.\n- Never include temporal information in the refined query. There is a separate field for this purpose.\n- You may add the additional advanced syntax when relevant to refine the results:\n- Use quotes `\"...\"` for exact words (avoid doing it for phrases as it will dramatically reduce the number of results).\n- Use `-word` to exclude terms.\n- Use `site:domain.com` to restrict to a site.\n- Use `intitle:`, `inurl:` to target title/URL.\n- Use `OR` for alternatives, `*` as a wildcard.\n- Use `..` for number ranges (e.g., 2010..2020).\n- Use `AROUND(N)` to find terms close together.\n- Use `define:word` for definitions.\n- Combine operators for powerful filtering.\n\n** IMPORTANT **\n- You should not use any date restriction in the refined query."
+                },
+                "toolParametersConfig": {
+                    "queryDescription": "The search query to issue to the web.",
+                    "dateRestrictDescription": "Restricts results to a recent time window. Format: `[period][number]` — `d`=days, `w`=weeks, `m`=months, `y`=years.  \nExamples: `d1` (24h), `w1` (1 week), `m3` (3 months), `y1` (1 year).  \nOmit for no date filter. Avoid adding date terms in the main query."
+                },
+                "toolDescription": "Issues a query to a search engine and displays the results from the web. If user provide a specific link, you should include it in the query (not only the domain).",
+                "toolDescriptionForSystemPrompt": "Use the `WebSearch` tool to access up-to-date information from the web or when responding to the user requires information about their location. Some examples of when to use the `WebSearch` tool include:\n- Local Information: Use the `WebSearch` tool to respond to questions that require information about the user's location, such as the weather, local businesses, or events.\n- Freshness: If up-to-date information on a topic could potentially change or enhance the answer, call the `WebSearch` tool any time you would otherwise refuse to answer a question because your knowledge might be out of date.\n- Niche Information: If the answer would benefit from detailed information not widely known or understood (which might be found on the internet), such as details about a small neighborhood, a less well-known company, or arcane regulations, use web sources directly rather than relying on the distilled knowledge from pretraining.\n- Accuracy: If the cost of a small mistake or outdated information is high (e.g., using an outdated version of a software library or not knowing the date of the next game for a sports team), then use the `WebSearch` tool.",
+                "toolFormatInformationForSystemPrompt": "",
+                "experimentalFeatures": {
+                    "fullSourcesSerializeDump": false
+                }
+            },
+            "displayName": "Web Search",
+            "icon": "IconBook",
+            "selectionPolicy": "ByUser",
+            "isExclusive": false,
+            "isEnabled": true
+        },
+        {
+            "name": "ReadContent",
+            "configuration": {
+                "fullSourcesSerializeDump": false,
+                "evaluationCheckList": [
+                    "hallucination"
+                ],
+                "languageModelToolCallDescription": "Never Select this tool! This tool cannot be choosen directly, we will force it to be called when the user uploads content to make it available"
+            },
+            "displayName": "",
+            "icon": "IconBook",
+            "selectionPolicy": "ByUser",
+            "isExclusive": false,
+            "isEnabled": true
+        }
+    ],
+    "thinkingStepsDisplay": false,
+    "projectName": "Unique AI",
+    "customInstructions": "",
+    "systemMessageToolSelectionCitationAppendix": "**Reference Guidelines**\nWhenever you use information from retrieved information,\nyou must adhere to strict reference guidelines.\nYou must strictly reference each fact used with the `source_number`\nof the corresponding passage, in the following format:\n'[source<source_number>]'.\n\nExample:\n- The stock price of Apple Inc. is $150 [source0] and the company's revenue increased by 10% [source1].\n- Moreover, the company's market capitalization is $2 trillion [source2][source3].\n- Our internal documents tell us to invest[source4] (Internal)\n\nA fact is preferably referenced by ONLY ONE source, e.g [sourceX],\n which should be the most relevant source for the fact.\nFollow these guidelines closely and be sure to use the proper `source_number` when referencing facts.\nMake sure that your reference follow the format [sourceX] and that the source number is correct.\nSource is written in singular form and the number is written in digits.\n",
+    "systemMessageMultiSourceToolRetrieved": "Create two sections in your answer one based on the the retrieved sources from InternalSearch and one for WebSearch\ne.g.\n# Web Search Findings\n...\n# Internal Search Findings\n...\n",
+    "systemMessageResponseStyle": "### 1. Use Markdown for Structure\n- Use headings (`##`) and subheadings (`###`) to organize content.\n- Include **smileys or relevant emojis** in headings to create a friendly and inviting tone (e.g., `## 📌 Summary`, `### 🚀 How it Works`).\n\n### 2. Text Styling\n- Use **bold** to highlight important actions or terms.\n- Use *italics* for emphasis or side remarks.\n- Use `inline code` for technical terms, file names, commands, or values.\n- Break up long paragraphs for readability—**aim for visual clarity**.\n\n### 3. Lists & Steps\n- Use bullet points for lists.\n- Use numbered steps for instructions or sequences.\n- Avoid walls of text.\n\n### 4. Tables & Visual Aids\n- Present structured data using tables when applicable.\n- Include diagrams or charts if supported and relevant.\n\n### 5. Code\n- Encapsulate code with ``` for multiline code snippets.\n- Encapsulate code with ` for in text code snippets.\n",
+    "systemPromptTemplate": "{# Comments and todo's\n    - Use language model info to inform the system about capabilities and limitations\n#}\n\n{# System Prompt Section #}\n# System \n\nYou are Unique AI a system bases on large language models created by UniqueAI  \n\n**Knowledge cutoff**: {{ model_info.info_cutoff_at | default('unknown') }}  \n**Current date**: {{ date_string }}\n\n\nOver the course of the conversation, you adapt to the user's tone and preference.\nTry to match the user's vibe, tone, and generally how they are speaking. You want the conversation to feel natural.\nYou engage in authentic conversation by responding to the information provided, asking relevant questions, and showing genuine curiosity.\nIf natural, continue the conversation with casual conversation.\n\n{# Tools Section #}\n{% if tool_descriptions and tool_descriptions|length > 0 %}\n# Tools\n\nYou can use the following tools to fullfill the tasks given by the user and to answer his questions. \nBe mindful of using them each of them requires time and the user will have to wait.\n\n{% for tool_description in tool_descriptions -%}\n{# The tool name and description should always be available#}\n# {{ tool_description.display_name }}\n{{ tool_description.tool_description}} \n\n{# Include example use cases if available #}\n{% if tool_description.example_use_cases and tool_description.example_use_cases|length > 0 %}\n## Use cases for the {{ tool_description.display_name }} are\n{% for case in tool_description.example_use_cases -%}\n- {{ case }}\n{% endfor %}\n{% endif %}\n\n{# Include formatting guidelines if result handling instructions are available #}\n{% if tool_description.result_handling_instructions and tool_description.result_handling_instructions|length > 0 %}\n## Formatting guidelines for output of  {{ tool_description.display_name }}\n{{ tool_description.result_handling_instructions }}\n{% endif %}\n{% endfor %}\n{% endif %}\n\n{# Answer Style Section #}\n{% if response_style and response_style|length > 0 %}\n# Answer Style\n{{ response_style }}\n{% endif %}\n\n{# Custom instructions#}\n{% if custom_instructions and custom_instructions|length > 0 %}\n# SYSTEM INSTRUCTIONS CONTEXT\nYou are operating in the context of a wider project called {{ project_name | default('Unique AI')}}. \nThis project uses custom instructions, capabilities and data to optimize Unique AI\nfor a more narrow set of tasks.\n\nHere are instructions from the user outlining how you should respond:\n\n{{ custom_instructions }}\n{% endif %}\n",
+    "userMessagePromptTemplate": "{# Comments for the user message template\n    - This template is used to format the user message for the LLM\n    - Variables available:\n    - query: The original user query\n    - model_info: Information about the language model being used\n    - date_string: The current date in formatted string\n#}{{ query }}",
+    "followUpQuestionsConfig": {
+        "languageModel": "AZURE_GPT_4o_2024_1120",
+        "userPrompt": "You can find below the conversation history between the user and the assistant.\n\n<conversation-history>\n{% for message in conversation_history %}\n{{message.role}}: {{message.content}}\n{% endfor %}\n</conversation-history>\n\nYou can find below some additional context that might be interesting to generate follow-up questions from:\n\n{% if additional_context %}\n<additional-context>\n{{additional_context}}\n</additional-context>\n{% endif %}\n\n{% if language %}\nGenerate the follow-up questions in {{language}} language.\nRemember that you should not repeat questions that you have seen in the conversation history.\n{% endif %}",
+        "systemPrompt": "Your a helpful assistant that generates follow-up questions based on the conversation history and potentially more context. \nThe assistant is designed to respond to the user's question in a conversational manner.\nYour task is to generate follow-up questions that are likely to be asked by the user after the assistant's response.\n\nA follow-up question can be one of the following categories (not necessarily mutually exclusive):\n- Seeking clarification on the last answer from the assistant\n- Gathering additional interesting information\n- Asking for more details about the assistant's response\n\n{% if examples | length > 0 %}\nHere is some examples of follow-up questions:\n{% for example in examples %}\nExample {{loop.index}}:\n- Category: {{example.category}}\n- Question: {{example.question}}\n{% endfor %}\n{% endif %}\n\nYour task is to generate follow-up {{number_of_questions}} questions that are likely to be asked by the user after the assistant's response.\n\nYou should avoid repeating questions that you have seen in the conversation history.\nYou should take the examples as inspiration, but not copy them exactly or paraphrase them.\n\nYou should strictly follow the output schema provided below:\n{{output_schema}}",
+        "suggestionsFormat": "{%if questions|length > 0%}\n<follow-up-question>\n<hr>\n<strong><em>&nbsp;&nbsp;Suggested follow-up questions:</em></strong>\n<br>\n<br>\n{%for question in questions%}\n[{{question.question}}](https://prompt={{question.encoded_uri}})\n{%endfor%}\n</follow-up-question>\n{%endif%}",
+        "examples": [
+            {
+                "category": "clarification",
+                "question": "Can you clarify the meaning of 'implied volatility'?"
+            },
+            {
+                "category": "elaboration",
+                "question": "Can you explain more about how compound interest works over time?"
+            },
+            {
+                "category": "comparison",
+                "question": "How does compound interest compare to simple interest?"
+            },
+            {
+                "category": "implication",
+                "question": "If the Fed raises interest rates again, what does that mean for mortgage rates?"
+            },
+            {
+                "category": "summary",
+                "question": "Can you summarize the main points of a good retirement investment strategy?"
+            },
+            {
+                "category": "continuation",
+                "question": "What should I do after setting up my emergency fund?"
+            },
+            {
+                "category": "other",
+                "question": "Do you know any podcasts that cover personal finance topics?"
+            }
+        ],
+        "numberOfQuestions": 2,
+        "adaptToLanguage": true
+    },
+    "evaluationConfig": {
+        "maxReviewSteps": 0,
+        "hallucinationConfig": {
+            "enabled": false,
+            "name": "hallucination",
+            "languageModel": "AZURE_GPT_4o_2024_1120",
+            "additionalLlmOptions": {},
+            "customPrompts": {
+                "systemPrompt": "\nYou will receive a question, references, a conversation between a user and an agent, and an output. \nThe output is the answer to the question. \nYour task is to evaluate if the output is fully supported by the information provided in the references and conversation, and provide explanations on your judgement in 2 sentences.\n\nUse the following entailment scale to generate a score:\n[low] - All information in output is supported by the references/conversation, or extractions from the references/conversation.\n[medium] - The output is supported by the references/conversation to some extent, but there is at least some information in the output that is not discussed in the references/conversation. For example, if an instruction asks about two concepts and the references/conversation only discusses either of them, it should be considered a [medium] hallucination level.\n[high] - The output contains information that is not part of the references/conversation, is unrelated to the references/conversation, or contradicts the references/conversation.\n\nMake sure to not use any external information/knowledge to judge whether the output is true or not. Only check whether the output is supported by the references/conversation, and not whether the output is correct or not. Also do not evaluate if the references/conversation contain further information that is not part of the output but could be relevant to the question. If the output mentions a plot or chart, ignore this information in your evaluation.\n\nYour answer must be in JSON format:\n{\n \"reason\": Your explanation of your judgement of the evaluation,\n \"value\": decision, must be one of the following: [\"high\", \"medium\", \"low\"]\n}                                                  \n",
+                "userPrompt": "\nHere is the data:\n\nInput:\n'''\n$input_text\n'''\n\nReferences:\n'''\n$contexts_text\n'''\n\nConversation:\n'''\n$history_messages_text\n'''\n\nOutput:\n'''\n$output_text\n'''\n\nAnswer as JSON:\n",
+                "systemPromptDefault": "\nYou will receive a question and an output. \nThe output is the answer to the question. \nThe situation is that no references could be found to answer the question. Your task is to evaluate if the output contains any information to answer the question,\nand provide a short explanations of your reasoning in 2 sentences. Also mention in your explanation that no references were provided to answer the question.\n\nUse the following entailment scale to generate a score:\n[low] - The output does not contain any information to answer the question.\n[medium] - The output contains some information to answer the question, but does not answer the question entirely. \n[high] - The output answers the question.\n\nIt is not considered an answer when the output relates to the questions subject. Make sure to not use any external information/knowledge to judge whether the output is true or not. Only check that the output does not answer the question, and not whether the output is correct or not.\nYour answer must be in JSON format:\n{\n \"reason\": Your explanation of your reasoning of the evaluation,\n \"value\": decision, must be one of the following: [\"low\", \"medium\", \"high\"]\n}\n",
+                "userPromptDefault": "                                                  \nHere is the data:\n\nInput:\n'''\n$input_text\n'''\n\nOutput:\n'''\n$output_text\n'''\n\nAnswer as JSON:\n"
+            },
+            "scoreToLabel": {
+                "LOW": "GREEN",
+                "MEDIUM": "YELLOW",
+                "HIGH": "RED"
+            },
+            "scoreToTitle": {
+                "LOW": "No Hallucination Detected",
+                "MEDIUM": "Hallucination Warning",
+                "HIGH": "High Hallucination"
+            }
+        }
+    },
+    "stockTickerConfig": {
+        "dataRetrievalConfig": {
+            "startDate": "2025-01-01",
+            "period": "PT30M"
+        },
+        "detectionConfig": {
+            "languageModel": "AZURE_GPT_4o_MINI_2024_0718",
+            "additionalLlmOptions": {},
+            "memoryConfig": {
+                "maxChatInteractions": 3
+            }
+        },
+        "plottingConfig": {
+            "name": "plotly",
+            "width": 850,
+            "height": 500,
+            "scale": 4.0,
+            "numXticks": 10,
+            "metricsNumCols": 3,
+            "scopeId": "<SCOPE_ID_PLACEHOLDER>",
+            "filenamePrefix": "stock_ticker_history",
+            "imageFormat": "jpeg",
+            "template": "plotly_dark",
+            "metricToDisplayName": {
+                "Open": "Open",
+                "High": "High",
+                "Close": "Close",
+                "Market Cap": "Market Cap",
+                "Price Earnings Ratio": "P/E Ratio",
+                "Volume": "Volume",
+                "Year High": "Year High",
+                "Year Low": "Year Low",
+                "Dividend Yield": "Dividend Yield",
+                "Volatility 30 Days": "Volatility 30 Days"
+            }
+        },
+        "enabled": false
+    },
+    "referenceManagerConfig": null,
+    "forceChecksOnStreamResponseReferences": [
+        "hallucination"
+    ],
+    "uploadedContentConfig": {
+        "approximateMaxTokensForUploadedContentStuffContextWindow": 80000,
+        "userContextWindowLimitWarning": "The uploaded content cannot is too large to fit into the model. UniqueAI will search for relevant sections in the material and combine it with knowledge base content"
+    }
+}
