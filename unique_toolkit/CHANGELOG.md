@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Thinking Manager
 - Updated tool manager
 
+## [0.8.13] - 2025-08-18
+- Fix no tool call respoonse in ChatMessage -> Open Ai messages translation
+- Add simple append method to OpenAIMessageBuilder
+
 ## [0.8.11] - 2025-08-15
 - Fix no tool call respoonse in ChatMessage -> Open Ai messages translation
 - Add simple append method to OpenAIMessageBuilder
