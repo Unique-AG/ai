@@ -20,6 +20,13 @@ from unique_toolkit.language_model.schemas import (
 
 
 class Evaluation(ABC):
+    """
+    Abstract base class for evaluation metrics.
+    
+    typical use cases include:
+    - Hallucination checking
+    - compliance checking
+    """
    
 
     def __init__(self, name: EvaluationMetricName):

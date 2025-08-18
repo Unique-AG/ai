@@ -48,14 +48,6 @@ class HistoryManagerConfig(BaseModel):
         description="The maximum number of tokens to keep in the history.",
     )
 
-    def __init__(
-        self, full_sources_serialize_dump: bool = False, max_history_tokens: int = 8000
-    ):
-        self.experimental_features = HistoryManagerConfig.ExperimentalFeatures(
-            full_sources_serialize_dump=full_sources_serialize_dump
-        )
-        self.max_history_tokens = max_history_tokens
-
 
 class HistoryManager:
     """
