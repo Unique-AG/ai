@@ -54,16 +54,16 @@ class HistoryManagerConfig(BaseModel):
     class UploadedContentConfig(BaseModel):
         model_config = get_configuration_dict()
 
-        approximate_max_tokens_for_uploaded_content_stuff_context_window: int = Field(
-            default=80_000,
-            description="The approximate maximum number of tokens for uploaded content to be used in the context window before going to internal search"
-            "Could trigger a too large message if not correctly combined with other tools and percent_for_history",
-        )
-
         user_context_window_limit_warning: str = Field(
             default="The uploaded content is too large to fit into the ai model. "
             "Unique AI will search for relevant sections in the material and if needed combine the data with knowledge base content",
             description="Message to show when using the Internal Search instead of upload and chat tool due to context window limit. Jinja template.",
+        )
+        percent_for_uploaded_content: float = Field(
+            default=0.6,
+            ge=0.0,
+            lt=1.0,
+            description="The fraction of the max input tokens that will be reserved for the uploaded content.",
         )
 
     class ExperimentalFeatures(BaseModel):

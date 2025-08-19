@@ -59,7 +59,7 @@ class ReferenceManager:
 
     
     def replace_chunks_of_tool(self, tool_call_id: str,chunks: list[ContentChunk]) -> None:
-        if tool_call_id not in self._tool_chunks:
+        if tool_call_id in self._tool_chunks:
             self._tool_chunks[tool_call_id].chunks = chunks
 
 
