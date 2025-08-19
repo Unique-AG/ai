@@ -1,9 +1,10 @@
 from datetime import datetime
 from logging import Logger
-from typing import Awaitable, Callable
+from typing import Annotated, Awaitable, Callable
 
 from pydantic import BaseModel, Field
 
+import tiktoken
 from unique_toolkit.app.schemas import ChatEvent
 
 
@@ -17,16 +18,53 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelMessage,
     LanguageModelMessageRole,
+    LanguageModelSystemMessage,
     LanguageModelToolMessage,
     LanguageModelUserMessage,
 )
 
 from unique_toolkit.tools.schemas import ToolCallResponse
-from unique_toolkit.content.utils import count_tokens
 from unique_toolkit.history_manager.utils import transform_chunks_to_string
 
+from _common.validators import LMI
+from history_manager.loop_token_reducer import TokenReducer
+from reference_manager.reference_manager import ReferenceManager
+from tools.config import get_configuration_dict
+
+DeactivatedNone = Annotated[
+    None,
+    Field(title="Deactivated", description="None"),
+]
 
 class HistoryManagerConfig(BaseModel):
+
+    class InputTokenDistributionConfig(BaseModel):
+        model_config = get_configuration_dict(frozen=True)
+
+        percent_for_history: float = Field(
+            default=0.6,
+            ge=0.0,
+            lt=1.0,
+            description="The fraction of the max input tokens that will be reserved for the history.",
+        )
+
+        def max_history_tokens(self, max_input_token: int) -> int:
+            return int(self.percent_for_history * max_input_token)
+    
+    class UploadedContentConfig(BaseModel):
+        model_config = get_configuration_dict()
+
+        approximate_max_tokens_for_uploaded_content_stuff_context_window: int = Field(
+            default=80_000,
+            description="The approximate maximum number of tokens for uploaded content to be used in the context window before going to internal search"
+            "Could trigger a too large message if not correctly combined with other tools and percent_for_history",
+        )
+
+        user_context_window_limit_warning: str = Field(
+            default="The uploaded content is too large to fit into the ai model. "
+            "Unique AI will search for relevant sections in the material and if needed combine the data with knowledge base content",
+            description="Message to show when using the Internal Search instead of upload and chat tool due to context window limit. Jinja template.",
+        )
 
     class ExperimentalFeatures(BaseModel):
         def __init__(self, full_sources_serialize_dump: bool = False):
@@ -46,6 +84,20 @@ class HistoryManagerConfig(BaseModel):
         default=8000,
         ge=0,
         description="The maximum number of tokens to keep in the history.",
+    )
+
+    uploaded_content_config: (
+        Annotated[
+            UploadedContentConfig,
+            Field(title="Active"),
+        ]
+        | DeactivatedNone
+    ) = UploadedContentConfig()
+
+
+    input_token_distribution: InputTokenDistributionConfig = Field(
+        default=InputTokenDistributionConfig(),
+        description="Configuration for the input token distribution.",
     )
 
 
@@ -78,11 +130,20 @@ class HistoryManager:
         logger: Logger,
         event: ChatEvent,
         config: HistoryManagerConfig,
+        language_model: LMI,
+        reference_manager: ReferenceManager,
     ):
         self._config = config
         self._logger = logger
-        self._chat_service = ChatService(event)
-        self._content_service = ContentService.from_event(event)
+        self._language_model = language_model
+        self._token_reducer = TokenReducer(
+            logger=self._logger,
+            event=event,
+            config=self._config,
+            language_model=self._language_model,
+            reference_manager=reference_manager,
+        )
+
 
     def has_no_loop_messages(self) -> bool:
         return len(self._loop_history) == 0
@@ -150,112 +211,25 @@ class HistoryManager:
     def add_assistant_message(self, message: LanguageModelAssistantMessage) -> None:
         self._loop_history.append(message)
 
-    async def get_history(
+        
+    async def get_history_for_model_call(
         self,
-        postprocessing_step: Callable[
-            [list[LanguageModelMessage]], list[LanguageModelMessage]
-        ]
-        | None = None,
-    ) -> list[LanguageModelMessage]:
-        """
-        Get the history of the conversation. The function will retrieve a subset of the full history based on the configuration.
-
-        Returns:
-            list[LanguageModelMessage]: The history
-        """
-        # Get uploaded files
-        uploaded_files = self._content_service.search_content_on_chat(
-            chat_id=self._chat_service.chat_id
+        original_user_message: str,
+        rendered_user_message_string: str,
+        rendered_system_message_string: str,
+        remove_from_text: Callable[[str], Awaitable[str]]
+    ) -> list[
+        LanguageModelMessage
+        | LanguageModelToolMessage
+        | LanguageModelAssistantMessage
+        | LanguageModelSystemMessage
+        | LanguageModelUserMessage
+    ]:
+        messages = await self._token_reducer.get_history_for_model_call(
+            original_user_message=original_user_message,
+            rendered_user_message_string=rendered_user_message_string,
+            rendered_system_message_string=rendered_system_message_string,
+            loop_history=self._loop_history,
+            remove_from_text=remove_from_text,
         )
-        # Get all message history
-        full_history = await self._chat_service.get_full_history_async()
-
-        merged_history = self._merge_history_and_uploads(full_history, uploaded_files)
-
-        if postprocessing_step is not None:
-            merged_history = postprocessing_step(merged_history)
-
-        limited_history = self._limit_to_token_window(
-            merged_history, self._config.max_history_tokens
-        )
-
-        # Add current user message if not already in history
-        # we grab it fresh from the db so it must contain all the messages this code is not needed anymore below currently it's left in for explainability
-        # current_user_msg = LanguageModelUserMessage(
-        #     content=self.event.payload.user_message.text
-        # )
-        # if not any(
-        #     msg.role == LanguageModelMessageRole.USER
-        #     and msg.content == current_user_msg.content
-        #     for msg in complete_history
-        # ):
-        #     complete_history.append(current_user_msg)
-
-        # # Add final assistant response - this should be available when this method is called
-        # if (
-        #     hasattr(self, "loop_response")
-        #     and self.loop_response
-        #     and self.loop_response.message.text
-        # ):
-        #     complete_history.append(
-        #         LanguageModelAssistantMessage(
-        #             content=self.loop_response.message.text
-        #         )
-        #     )
-        # else:
-        #     self.logger.warning(
-        #         "Called get_complete_conversation_history_after_streaming_no_tool_calls but no loop_response.message.text is available"
-        #     )
-
-        return limited_history
-
-    def _merge_history_and_uploads(
-        self, history: list[ChatMessage], uploads: list[Content]
-    ) -> list[LanguageModelMessage]:
-        # Assert that all content have a created_at
-        content_with_created_at = [content for content in uploads if content.created_at]
-        sorted_history = sorted(
-            history + content_with_created_at,
-            key=lambda x: x.created_at or datetime.min,
-        )
-
-        msg_builder = MessagesBuilder()
-        for msg in sorted_history:
-            if isinstance(msg, Content):
-                msg_builder.user_message_append(
-                    f"Uploaded file: {msg.key}, ContentId: {msg.id}"
-                )
-            else:
-                msg_builder.messages.append(
-                    LanguageModelMessage(
-                        role=LanguageModelMessageRole(msg.role),
-                        content=msg.content,
-                    )
-                )
-        return msg_builder.messages
-
-    def _limit_to_token_window(
-        self, messages: list[LanguageModelMessage], token_limit: int
-    ) -> list[LanguageModelMessage]:
-        selected_messages = []
-        token_count = 0
-        for msg in messages[::-1]:
-            msg_token_count = count_tokens(str(msg.content))
-            if token_count + msg_token_count > token_limit:
-                break
-            selected_messages.append(msg)
-            token_count += msg_token_count
-        return selected_messages[::-1]
-
-    async def remove_post_processing_manipulations(
-        self, remove_from_text: Callable[[str], Awaitable[str]]
-    ) -> list[LanguageModelMessage]:
-        messages = await self.get_history()
-        for message in messages:
-            if isinstance(message.content, str):
-                message.content = await remove_from_text(message.content)
-            else:
-                self._logger.warning(
-                    f"Skipping message with unsupported content type: {type(message.content)}"
-                )
-        return messages
+        return messages.root
