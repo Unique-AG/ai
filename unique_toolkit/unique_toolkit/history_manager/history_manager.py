@@ -27,7 +27,7 @@ from unique_toolkit.tools.schemas import ToolCallResponse
 from unique_toolkit.history_manager.utils import transform_chunks_to_string
 
 from _common.validators import LMI
-from history_manager.loop_token_reducer import TokenReducer
+from history_manager.loop_token_reducer import LoopTokenReducer
 from reference_manager.reference_manager import ReferenceManager
 from tools.config import get_configuration_dict
 
@@ -136,7 +136,7 @@ class HistoryManager:
         self._config = config
         self._logger = logger
         self._language_model = language_model
-        self._token_reducer = TokenReducer(
+        self._token_reducer = LoopTokenReducer(
             logger=self._logger,
             event=event,
             config=self._config,

@@ -27,7 +27,7 @@ class SourceReductionResult(BaseModel):
         arbitrary_types_allowed = True
 
 
-class TokenReducer():
+class LoopTokenReducer():
     
     def __init__(
         self,
