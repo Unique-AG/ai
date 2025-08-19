@@ -5,10 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.8.13] - 2025-08-19
+## [0.8.14] - 2025-08-19
 - Including GPT-5 series deployed via LiteLLM into language model info
 
-## [0.8.12] - 2025-08-18
+## [0.8.13] - 2025-08-18
 - Adding initial versions of
   - Evaluation Manager
   - History Manager
@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Thinking Manager
 - Updated tool manager
 
-## [0.8.13] - 2025-08-18
+## [0.8.12] - 2025-08-18
 - Fix no tool call respoonse in ChatMessage -> Open Ai messages translation
 - Add simple append method to OpenAIMessageBuilder
 
