@@ -1,7 +1,10 @@
 from abc import ABC, abstractmethod
+from datetime import datetime
 import logging
+from warnings import deprecated
 
 
+import jinja2
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.service import ContentService
@@ -12,6 +15,7 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelMessage,
     LanguageModelMessages,
     LanguageModelStreamResponse,
+    LanguageModelSystemMessage,
 )
 from unique_toolkit.language_model.service import LanguageModelService
 from unique_toolkit.base_agents.loop_agent.config import LoopAgentConfig
@@ -48,6 +52,14 @@ from postprocessor.postprocessor_manager import PostprocessorManager
 
 logger = logging.getLogger(__name__)
 
+
+EMPTY_MESSAGE_WARNING = (
+            "⚠️ **The language model was unable to produce an output.**\n"
+            "It did not generate any content or perform a tool call in response to your request. "
+            "This is a limitation of the language model itself.\n\n"
+            "**Please try adapting or simplifying your prompt.** "
+            "Rewording your input can often help the model respond successfully."
+        )
 
 class LoopAgent(ABC):
     def __init__(
@@ -133,8 +145,6 @@ class LoopAgent(ABC):
 
         self.current_iteration_index = 0
 
-        # Post init
-        self._optional_initialization_step()
 
     @property
     def start_text(self) -> str:
@@ -207,22 +217,69 @@ class LoopAgent(ABC):
         messages = await self._compose_message_plan_execution()
 
         self._logger.info("Done composing message plan execution.")
-        stream_response = await self._stream_complete_async_wrapper(
-            messages=messages,
-            model_name=self._config.language_model.name,
-            tools=self._tool_manager.get_tool_definitions(),
-            content_chunks=self._reference_manager.get_chunks(),
-            start_text=self.start_text,
-            debug_info=self._debug_info_manager.get(),
-            temperature=self._config.temperature,
-            other_options=self._config.additional_llm_options,
-        )
+
+        # Forces tool calls only in first iteration
+        if (
+            len(self._tool_manager.get_forced_tools()) > 0
+            and self.current_iteration_index == 0
+        ):
+            responses = [
+                await self._chat_service.complete_with_references_async(
+                    messages=messages,
+                    model_name=self._config.language_model.name,
+                    tools=self._tool_manager.get_tool_definitions(),
+                    content_chunks=self._reference_manager.get_chunks(),
+                    start_text=self.start_text,
+                    debug_info=self._debug_info_manager.get(),
+                    temperature=self._config.agent.experimental.temperature,
+                    other_options=self._config.agent.experimental.additional_llm_options
+                    | {"toolChoice": opt},
+                )
+                for opt in self._tool_manager.get_forced_tools()
+            ]
+
+            # Merge responses and refs:
+            tool_calls = []
+            references = []
+            for r in responses:
+                if r.tool_calls:
+                    tool_calls.extend(r.tool_calls)
+                references.extend(r.message.references)
+
+            stream_response = responses[0]
+            stream_response.tool_calls = (
+                tool_calls if len(tool_calls) > 0 else None
+            )
+            stream_response.message.references = references
+        elif (
+            self.current_iteration_index
+            == self._config.agent.max_loop_iterations - 1
+        ):
+            # No tool calls in last iteration
+            stream_response = await self._chat_service.complete_with_references_async(
+                messages=messages,
+                model_name=self._config.language_model.name,
+                content_chunks=self._reference_manager.get_chunks(),
+                start_text=self.start_text,
+                debug_info=self._debug_info_manager.get(),
+                temperature=self._config.agent.experimental.temperature,
+                other_options=self._config.agent.experimental.additional_llm_options,
+            )
+
+        else:
+            stream_response = await self._chat_service.complete_with_references_async(
+                messages=messages,
+                model_name=self._config.language_model.name,
+                tools=self._tool_manager.get_tool_definitions(),
+                content_chunks=self._reference_manager.get_chunks(),
+                start_text=self.start_text,
+                debug_info=self._debug_info_manager.get(),
+                temperature=self._config.agent.experimental.temperature,
+                other_options=self._config.agent.experimental.additional_llm_options,
+            )
 
         return stream_response
 
-    # @track(name="stream_complete_async_run")
-    async def _stream_complete_async_wrapper(self, *args, **kwargs):
-        return await self._chat_service.complete_with_references_async(*args, **kwargs)
 
     async def _process_plan(self, loop_response: LanguageModelStreamResponse) -> bool:
         self._logger.info(
@@ -234,30 +291,78 @@ class LoopAgent(ABC):
             self._chat_service.modify_assistant_message(content=EMPTY_MESSAGE_WARNING)
             return True
 
-        are_no_tools_called = len(loop_response.tool_calls or []) == 0
-        if are_no_tools_called:
-            self._logger.debug("No tool calls. we might exit the loop")
-            return await self._handle_no_tool_calls(loop_response)
-       
-        self._logger.debug(
-            "Tools were called we process them and do not exit the loop"
-        )
-        await self._handle_tool_calls(loop_response)
-        return False
+        call_tools = len(loop_response.tool_calls or []) > 0
+        if call_tools:
+            self._logger.debug("Tools were called we process them and do not exit the loop")
+            await self._handle_tool_calls(loop_response)
+            return False
+        
+        self._logger.debug("No tool calls. we might exit the loop")    
+    
+        return await self._handle_no_tool_calls(loop_response)
 
     ##############################
     # Abstract methods
     ##############################
-    @abstractmethod
+
     async def _compose_message_plan_execution(self) -> LanguageModelMessages:
-        """Composes the message for the plan execution.
+        
+        original_user_message = self._event.payload.user_message.text
+        rendered_user_message_string = await self._render_user_prompt()
+        rendered_system_message_string = await self._render_system_prompt()
 
-        The function will return the messages to be sent to the language model.
+        o = await self._history_manager.get_history_for_model_call(
+            original_user_message,
+            rendered_user_message_string,
+            rendered_system_message_string,
+            self._postprocessor_manager.remove_from_text,
+        )
+        return o
 
-        Returns:
-            LanguageModelMessages: The messages to be sent to the language model
-        """
-        raise NotImplementedError()
+
+    async def _render_user_prompt(self) -> str:
+        user_message_template = jinja2.Template(
+            self._config.agent.prompt_config.user_message_prompt_template
+        )
+
+        query = self._event.payload.user_message.text
+        user_msg = user_message_template.render(
+            query=query,
+        )
+        return user_msg
+
+
+    async def _render_system_prompt(
+        self,
+    ) -> str:
+        # TODO: Collect tool information here and adapt to system prompt
+        tool_descriptions = self._tool_manager.get_tool_prompts()
+
+        used_tools = [m.name for m in self._tool_manager.get_tools()]
+
+
+        system_prompt_template = jinja2.Template(
+            self._config.agent.prompt_config.system_prompt_template
+        )
+
+        date_string = datetime.now().strftime("%A %B %d, %Y")
+
+        system_message = system_prompt_template.render(
+            model_info=self._config.agent.space.language_model.model_dump(
+                mode="json"
+            ),
+            date_string=date_string,
+            tool_descriptions=tool_descriptions,
+            used_tools=used_tools,
+            project_name=self._config.agent.space.project_name,
+            custom_instructions=self._config.agent.space.custom_instructions,
+            max_tools_per_iteration=self._config.loop_configuration.max_tool_calls_per_iteration,
+            max_loop_iterations=self._config.max_loop_iterations,
+            current_iteration=self.current_iteration_index + 1,
+            mcp_server_system_prompts=[],
+        )
+        return system_message
+
 
     @abstractmethod
     async def _handle_no_tool_calls(
@@ -301,17 +406,6 @@ class LoopAgent(ABC):
         self._debug_info_manager.extract_tool_debug_info(tool_call_responses)
         self._history_manager.add_tool_call_results(tool_call_responses)
 
-    ##############################
-    # Optional methods to override
-    ##############################
-
-    @deprecated(
-        "This method is deprecated and will be removed in the future, use _create_new_assistant_message_if_loop_response_contains_content instead."
-    )
-    async def _process_tool_calls(
-        self, tool_calls: list[LanguageModelFunction], ay
-    ) -> None:
-        pass
 
     async def _create_new_assistant_message_if_loop_response_contains_content(
         self, loop_response: LanguageModelStreamResponse
@@ -330,55 +424,3 @@ class LoopAgent(ABC):
         self._history_manager.add_assistant_message(
             LanguageModelAssistantMessage(content=loop_response.message.original_text)
         )
-
-    ###############################
-    # deprecated methods
-    ###############################
-
-    @deprecated(
-        "This method is deprecated and will be removed in the future, useself.history_manager in the future."
-    )
-    async def get_complete_conversation_history_after_streaming_no_tool_calls(
-        self,
-    ) -> list[LanguageModelMessage]:
-        """
-        Get the complete conversation history including the current user message and the final
-        assistant response after streaming has completed with no tool calls.
-
-        This method should only be called after streaming is complete and when no tool calls
-        were made in the final iteration.
-
-        Returns:
-            list[LanguageModelMessage]: The complete conversation history with the current
-            user message and final assistant response appended.
-        """
-        return await self._history_manager.get_history(
-            self._history_postprocessing_step
-        )
-
-    @deprecated(
-        "use the history_manager to obtain the history",
-    )
-    async def _obtain_chat_history_as_llm_messages(
-        self,
-    ) -> list[LanguageModelMessage]:
-        return await self._history_manager.get_history(
-            self._history_postprocessing_step
-        )
-
-    @deprecated(
-        "This method is deprecated and will be removed in the future, use constructor instead with super.",
-    )
-    def _optional_initialization_step(self) -> None:
-        """Additional initialization step for the agent."""
-        return
-
-    @deprecated(
-        "This method is deprecated and will be removed in the future, use _history_postprocessing_step instead with super.",
-    )
-    def _history_postprocessing_step(
-        self,
-        history: list[LanguageModelMessage],
-    ) -> list[LanguageModelMessage]:
-        """Postprocess the history before performing token reduction."""
-        return history
