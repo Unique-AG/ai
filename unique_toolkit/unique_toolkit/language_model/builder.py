@@ -1,4 +1,4 @@
-from typing_extensions import Self
+from typing import Any, Self
 
 from unique_toolkit.language_model import (
     LanguageModelAssistantMessage,
@@ -39,23 +39,33 @@ class MessagesBuilder:
         return self  # Return self to allow method chaining
 
     def image_message_append(
-        self, content: str, images: list[str], role=LanguageModelMessageRole.USER
+        self,
+        content: str,
+        images: list[str],
+        role: LanguageModelMessageRole = LanguageModelMessageRole.USER,
     ) -> Self:
+        final_content: list[dict[str, Any]] = [{"type": "text", "text": content}]
+        final_content.extend(
+            [
+                {
+                    "type": "image_url",
+                    "imageUrl": {"url": image},
+                }
+                for image in images
+            ],
+        )
+
         message = LanguageModelMessage(
             role=role,
-            content=[
-                {"type": "text", "text": content},
-                *[
-                    {"type": "image_url", "imageUrl": {"url": image}}
-                    for image in images
-                ],
-            ],
+            content=final_content,
         )
         self.messages.append(message)
         return self
 
     def assistant_message_append(
-        self, content: str, tool_calls: list[LanguageModelFunction] | None = None
+        self,
+        content: str,
+        tool_calls: list[LanguageModelFunction] | None = None,
     ) -> Self:
         """Appends an assistant message to the messages list."""
         message = LanguageModelAssistantMessage(content=content)
@@ -74,7 +84,9 @@ class MessagesBuilder:
     def tool_message_append(self, name: str, tool_call_id: str, content: str) -> Self:
         """Appends a tool message to the messages list."""
         message = LanguageModelToolMessage(
-            name=name, tool_call_id=tool_call_id, content=content
+            name=name,
+            tool_call_id=tool_call_id,
+            content=content,
         )
         self.messages.append(message)
         return self

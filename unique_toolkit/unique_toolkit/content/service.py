@@ -8,6 +8,7 @@ from typing_extensions import deprecated
 
 from unique_toolkit._common.validate_required_values import validate_required_values
 from unique_toolkit.app.schemas import BaseEvent, ChatEvent, Event
+from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.content import DOMAIN_NAME
 from unique_toolkit.content.constants import DEFAULT_SEARCH_LANGUAGE
 from unique_toolkit.content.functions import (
@@ -53,7 +54,7 @@ class ContentService:
         *,
         company_id: str,
         user_id: str,
-        chat_id: str | None,
+        chat_id: str | None = None,
         metadata_filter: dict | None = None,
     ): ...
 
@@ -104,6 +105,19 @@ class ContentService:
             company_id=event.company_id,
             user_id=event.user_id,
             chat_id=chat_id,
+            metadata_filter=metadata_filter,
+        )
+
+    @classmethod
+    def from_settings(
+        cls, settings: UniqueSettings, metadata_filter: dict | None = None
+    ):
+        """
+        Initialize the ContentService with a settings object.
+        """
+        return cls(
+            company_id=settings.auth.company_id.get_secret_value(),
+            user_id=settings.auth.user_id.get_secret_value(),
             metadata_filter=metadata_filter,
         )
 

@@ -38,14 +38,14 @@ from .schemas import (
 from .schemas import (
     EventUserMessage as EventUserMessage,
 )
-from .verification import (
-    verify_signature_and_construct_event as verify_signature_and_construct_event,
-)
 from .schemas import (
     McpServer as McpServer,
 )
 from .schemas import (
     McpTool as McpTool,
+)
+from .verification import (
+    verify_signature_and_construct_event as verify_signature_and_construct_event,
 )
 
 DOMAIN_NAME = "app"

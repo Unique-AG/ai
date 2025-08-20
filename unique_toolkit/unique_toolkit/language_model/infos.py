@@ -1,6 +1,6 @@
 from datetime import date
 from enum import StrEnum
-from typing import ClassVar, Optional, Self
+from typing import Any, ClassVar, Optional, Self
 
 from pydantic import BaseModel
 from pydantic.json_schema import SkipJsonSchema
@@ -14,6 +14,10 @@ class LanguageModelName(StrEnum):
     AZURE_GPT_4_0613 = "AZURE_GPT_4_0613"
     AZURE_GPT_4_32K_0613 = "AZURE_GPT_4_32K_0613"
     AZURE_GPT_4_TURBO_2024_0409 = "AZURE_GPT_4_TURBO_2024_0409"
+    AZURE_GPT_5_2025_0807 = "AZURE_GPT_5_2025_0807"
+    AZURE_GPT_5_MINI_2025_0807 = "AZURE_GPT_5_MINI_2025_0807"
+    AZURE_GPT_5_NANO_2025_0807 = "AZURE_GPT_5_NANO_2025_0807"
+    AZURE_GPT_5_CHAT_2025_0807 = "AZURE_GPT_5_CHAT_2025_0807"
     AZURE_GPT_4o_2024_0513 = "AZURE_GPT_4o_2024_0513"
     AZURE_GPT_4o_2024_0806 = "AZURE_GPT_4o_2024_0806"
     AZURE_GPT_4o_2024_1120 = "AZURE_GPT_4o_2024_1120"
@@ -40,6 +44,10 @@ class LanguageModelName(StrEnum):
     GEMINI_2_5_PRO = "litellm:gemini-2-5-pro"
     GEMINI_2_5_PRO_EXP_0325 = "litellm:gemini-2-5-pro-exp-03-25"
     GEMINI_2_5_PRO_PREVIEW_0605 = "litellm:gemini-2-5-pro-preview-06-05"
+    LITELLM_OPENAI_GPT_5 = "litellm:openai-gpt-5"
+    LITELLM_OPENAI_GPT_5_MINI = "litellm:openai-gpt-5-mini"
+    LITELLM_OPENAI_GPT_5_NANO = "litellm:openai-gpt-5-nano"
+    LITELLM_OPENAI_GPT_5_CHAT = "litellm:openai-gpt-5-chat"
 
 
 class EncoderName(StrEnum):
@@ -63,6 +71,14 @@ def get_encoder_name(model_name: LanguageModelName) -> EncoderName:
             | LMN.AZURE_GPT_4o_2024_0806
             | LMN.AZURE_GPT_4o_MINI_2024_0718
             | LMN.AZURE_GPT_4o_2024_1120
+            | LMN.AZURE_GPT_5_2025_0807
+            | LMN.AZURE_GPT_5_MINI_2025_0807
+            | LMN.AZURE_GPT_5_NANO_2025_0807
+            | LMN.AZURE_GPT_5_CHAT_2025_0807
+            | LMN.LITELLM_OPENAI_GPT_5
+            | LMN.LITELLM_OPENAI_GPT_5_MINI
+            | LMN.LITELLM_OPENAI_GPT_5_NANO
+            | LMN.LITELLM_OPENAI_GPT_5_CHAT
         ):
             return EncoderName.O200K_BASE
         case _:
@@ -88,6 +104,11 @@ class ModelCapabilities(StrEnum):
     REASONING = "reasoning"
 
 
+class TemperatureBounds(BaseModel):
+    min_temperature: float
+    max_temperature: float
+
+
 class LanguageModelInfo(BaseModel):
     name: LanguageModelName | str
     version: str
@@ -107,6 +128,10 @@ class LanguageModelInfo(BaseModel):
 
     deprecated_at: date | SkipJsonSchema[None] = None
     retirement_text: str | SkipJsonSchema[None] = None
+
+    temperature_bounds: TemperatureBounds | None = None
+
+    default_options: dict[str, Any] = {}
 
     @classmethod
     def from_name(cls, model_name: LanguageModelName) -> Self:
@@ -160,6 +185,108 @@ class LanguageModelInfo(BaseModel):
                     published_at=date(2023, 6, 13),
                     deprecated_at=date(2024, 10, 1),
                     retirement_at=date(2025, 6, 6),
+                )
+            case LanguageModelName.AZURE_GPT_5_2025_0807:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.AZURE,
+                    version="2025-08-07",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.PARALLEL_FUNCTION_CALLING,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=272000, token_limit_output=128000
+                    ),
+                    info_cutoff_at=date(2024, 10, 24),
+                    published_at=date(2025, 8, 7),
+                    deprecated_at=date(2026, 8, 7),
+                    retirement_at=date(2026, 8, 7),
+                    temperature_bounds=TemperatureBounds(
+                        min_temperature=1.0, max_temperature=1.0
+                    ),
+                    default_options={
+                        "reasoning_effort": "minimal",
+                    },
+                )
+            case LanguageModelName.AZURE_GPT_5_MINI_2025_0807:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.AZURE,
+                    version="2025-08-07",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.PARALLEL_FUNCTION_CALLING,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=272000, token_limit_output=128000
+                    ),
+                    info_cutoff_at=date(2024, 6, 24),
+                    published_at=date(2025, 8, 7),
+                    deprecated_at=date(2026, 8, 7),
+                    retirement_at=date(2026, 8, 7),
+                    temperature_bounds=TemperatureBounds(
+                        min_temperature=1.0, max_temperature=1.0
+                    ),
+                    default_options={
+                        "reasoning_effort": "minimal",
+                    },
+                )
+            case LanguageModelName.AZURE_GPT_5_NANO_2025_0807:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.AZURE,
+                    version="2025-08-07",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.PARALLEL_FUNCTION_CALLING,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=272000, token_limit_output=128000
+                    ),
+                    info_cutoff_at=date(2024, 5, 31),
+                    published_at=date(2025, 8, 7),
+                    deprecated_at=date(2026, 8, 7),
+                    retirement_at=date(2026, 8, 7),
+                    temperature_bounds=TemperatureBounds(
+                        min_temperature=1.0, max_temperature=1.0
+                    ),
+                    default_options={
+                        "reasoning_effort": "minimal",
+                    },
+                )
+            case LanguageModelName.AZURE_GPT_5_CHAT_2025_0807:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.AZURE,
+                    version="2025-08-07",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=128000, token_limit_output=16384
+                    ),
+                    info_cutoff_at=date(2024, 10, 24),
+                    published_at=date(2025, 8, 7),
+                    deprecated_at=date(2026, 8, 7),
+                    retirement_at=date(2026, 8, 7),
                 )
             case LanguageModelName.AZURE_GPT_4_TURBO_2024_0409:
                 return cls(
@@ -271,6 +398,9 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2023, 10, 1),
                     published_at=date(2024, 9, 12),
+                    temperature_bounds=TemperatureBounds(
+                        min_temperature=1.0, max_temperature=1.0
+                    ),
                 )
             case LanguageModelName.AZURE_o1_2024_1217:
                 return cls(
@@ -290,6 +420,9 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2023, 10, 1),
                     published_at=date(2024, 12, 17),
+                    temperature_bounds=TemperatureBounds(
+                        min_temperature=1.0, max_temperature=1.0
+                    ),
                 )
             case LanguageModelName.AZURE_o3_MINI_2025_0131:
                 return cls(
@@ -308,6 +441,9 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2023, 10, 1),
                     published_at=date(2025, 1, 31),
+                    temperature_bounds=TemperatureBounds(
+                        min_temperature=1.0, max_temperature=1.0
+                    ),
                 )
             case LanguageModelName.AZURE_o3_2025_0416:
                 return cls(
@@ -327,6 +463,9 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2024, 5, 31),
                     published_at=date(2025, 4, 16),
+                    temperature_bounds=TemperatureBounds(
+                        min_temperature=1.0, max_temperature=1.0
+                    ),
                 )
             case LanguageModelName.AZURE_o4_MINI_2025_0416:
                 return cls(
@@ -346,6 +485,9 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2024, 5, 31),
                     published_at=date(2025, 4, 16),
+                    temperature_bounds=TemperatureBounds(
+                        min_temperature=1.0, max_temperature=1.0
+                    ),
                 )
             case LanguageModelName.AZURE_GPT_45_PREVIEW_2025_0227:
                 return cls(
@@ -431,7 +573,9 @@ class LanguageModelInfo(BaseModel):
                     version="claude-3-7-sonnet",
                     encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
                     token_limits=LanguageModelTokenLimits(
-                        token_limit_input=200_000, token_limit_output=128_000
+                        # Input limit is 200_000, we leave 20_000 tokens as buffer due to tokenizer mismatch
+                        token_limit_input=180_000,
+                        token_limit_output=128_000,
                     ),
                     info_cutoff_at=date(2024, 10, 31),
                     published_at=date(2025, 2, 24),
@@ -449,7 +593,9 @@ class LanguageModelInfo(BaseModel):
                     version="claude-3-7-sonnet-thinking",
                     encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
                     token_limits=LanguageModelTokenLimits(
-                        token_limit_input=200_000, token_limit_output=128_000
+                        # Input limit is 200_000, we leave 20_000 tokens as buffer due to tokenizer mismatch
+                        token_limit_input=180_000,
+                        token_limit_output=128_000,
                     ),
                     info_cutoff_at=date(2024, 10, 31),
                     published_at=date(2025, 2, 24),
@@ -467,7 +613,9 @@ class LanguageModelInfo(BaseModel):
                     version="claude-sonnet-4",
                     encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
                     token_limits=LanguageModelTokenLimits(
-                        token_limit_input=200_000, token_limit_output=64_000
+                        # Input limit is 200_000, we leave 20_000 tokens as buffer due to tokenizer mismatch
+                        token_limit_input=180_000,
+                        token_limit_output=64_000,
                     ),
                     info_cutoff_at=date(2025, 3, 1),
                     published_at=date(2025, 5, 1),
@@ -485,7 +633,9 @@ class LanguageModelInfo(BaseModel):
                     version="claude-opus-4",
                     encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
                     token_limits=LanguageModelTokenLimits(
-                        token_limit_input=200_000, token_limit_output=32_000
+                        # Input limit is 200_000, we leave 20_000 tokens as buffer due to tokenizer mismatch
+                        token_limit_input=180_000,
+                        token_limit_output=32_000,
                     ),
                     info_cutoff_at=date(2025, 3, 1),
                     published_at=date(2025, 5, 1),
@@ -623,6 +773,109 @@ class LanguageModelInfo(BaseModel):
                     info_cutoff_at=date(2025, 1, day=1),
                     published_at=date(2025, 6, 5),
                 )
+            case LanguageModelName.LITELLM_OPENAI_GPT_5:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    version="gpt-5",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.PARALLEL_FUNCTION_CALLING,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=272000, token_limit_output=128000
+                    ),
+                    info_cutoff_at=date(2024, 10, 24),
+                    published_at=date(2025, 8, 7),
+                    deprecated_at=date(2026, 8, 7),
+                    retirement_at=date(2026, 8, 7),
+                    temperature_bounds=TemperatureBounds(
+                        min_temperature=1.0, max_temperature=1.0
+                    ),
+                    default_options={
+                        "reasoning_effort": "minimal",
+                    },
+                )
+            case LanguageModelName.LITELLM_OPENAI_GPT_5_MINI:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    version="gpt-5-mini",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.PARALLEL_FUNCTION_CALLING,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=272000, token_limit_output=128000
+                    ),
+                    info_cutoff_at=date(2024, 6, 24),
+                    published_at=date(2025, 8, 7),
+                    deprecated_at=date(2026, 8, 7),
+                    retirement_at=date(2026, 8, 7),
+                    temperature_bounds=TemperatureBounds(
+                        min_temperature=1.0, max_temperature=1.0
+                    ),
+                    default_options={
+                        "reasoning_effort": "minimal",
+                    },
+                )
+            case LanguageModelName.LITELLM_OPENAI_GPT_5_NANO:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    version="gpt-5-nano",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.PARALLEL_FUNCTION_CALLING,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=272000, token_limit_output=128000
+                    ),
+                    info_cutoff_at=date(2024, 5, 31),
+                    published_at=date(2025, 8, 7),
+                    deprecated_at=date(2026, 8, 7),
+                    retirement_at=date(2026, 8, 7),
+                    temperature_bounds=TemperatureBounds(
+                        min_temperature=1.0, max_temperature=1.0
+                    ),
+                    default_options={
+                        "reasoning_effort": "minimal",
+                    },
+                )
+            case LanguageModelName.LITELLM_OPENAI_GPT_5_CHAT:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    version="gpt-5-chat",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=128000, token_limit_output=16384
+                    ),
+                    info_cutoff_at=date(2024, 10, 24),
+                    published_at=date(2025, 8, 7),
+                    deprecated_at=date(2026, 8, 7),
+                    retirement_at=date(2026, 8, 7),
+                )
+            
             case _:
                 if isinstance(model_name, LanguageModelName):
                     raise ValueError(

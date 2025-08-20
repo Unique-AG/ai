@@ -1431,6 +1431,30 @@ latest_message = await unique_sdk.utils.chat_in_space.chat_against_file(
 )
 ```
 
+#### `unique_sdk.utils.chat_in_space.wait_for_ingestion_completion`
+
+The following script enables you to wait for the ingestion of a file. This should be used carefully as it continuously polls for the status. In case of bigger files, adjust the `poll_interval` and `max_waits`.
+
+You must provide the following parameter:
+- `content_id`: The id of the content to check.
+
+The script polls until the content ingestion is finished or the maximum wait time is reached and throws in case ingestion fails. The function assumes that the content exists.
+
+**Optional parameters:**
+- `chat_id`: In case the content is uploaded to a chat, the `chat_id` must be provided.
+- `poll_interval`: The number of seconds to wait between polling attempts (default: `1` second).
+- `max_wait`: The maximum number of seconds to wait for the message to complete (default: `60` seconds).
+
+Example of waiting for the ingestion of a file in the Knowledge Base.
+
+```python
+await unique_sdk.utils.chat_in_space.wait_for_ingestion_completion(
+    user_id=user_id,
+    company_id=company_id,
+    content_id="cont_ddlezvag4kzxudfr24lrjc5mx",
+)
+```
+
 ## Error Handling
 
 ## Examples

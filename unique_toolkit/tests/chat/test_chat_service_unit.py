@@ -971,7 +971,7 @@ class TestChatServiceUnit:
             messages=messages,
             model_name=model_name,
             content_chunks=content_chunks,
-            debug_info={},
+            debug_info=None,
             temperature=0.0,
             timeout=240000,
             tools=None,

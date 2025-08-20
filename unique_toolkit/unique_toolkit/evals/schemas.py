@@ -50,7 +50,7 @@ class EvaluationMetricInput(BaseModel):
     def get_history_message_text(self, chat_message: ChatMessage):
         return f"{chat_message.role.value}: {chat_message.content}"
 
-    def get_history_message_texts(self):
+    def get_history_message_texts(self) -> list[str]:
         if not self.history_messages:
             return []
         return [self.get_history_message_text(msg) for msg in self.history_messages]
