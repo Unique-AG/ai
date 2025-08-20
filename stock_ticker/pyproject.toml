@@ -19,6 +19,9 @@ pydantic-settings = "^2.10.1"
 python-dotenv = "^1.0.1"
 unique-sdk = "^0.10.0"
 unique-toolkit = "^0.8.12"
+plotly = "^6.3.0"
+numerize = "^0.12"
+pytest = "^8.4.1"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -26,6 +29,9 @@ python = "^3.11"
 typing-extensions = "^4.9.0"
 pydantic = "^2.8.2"
 pydantic-settings = "^2.10.1"
+plotly = "^6.3.0"
+numerize = "^0.12"
+pytest = "^8.4.1"
 unique-sdk = { path = "../unique_sdk" }
 unique-toolkit = { path = "../unique_toolkit" }
 
