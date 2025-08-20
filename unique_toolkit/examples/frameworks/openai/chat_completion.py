@@ -23,8 +23,8 @@ model = "AZURE_GPT_4o_2024_0806"
 
 messages = (
     OpenAIMessageBuilder()
-    .append_function_message(content="You are a helpful assistant")
-    .append_user_message(content="How is the weather in New York")
+    .system_message_append(content="You are a helpful assistant")
+    .user_message_append(content="How is the weather in New York")
 ).messages
 
 # %%

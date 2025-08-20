@@ -5,6 +5,53 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.15] - 2025-08-19
+- Added history loading from database for History Manager
+
+## [0.8.14] - 2025-08-19
+- Including GPT-5 series deployed via LiteLLM into language model info
+
+## [0.8.13] - 2025-08-18
+- Adding initial versions of
+  - Evaluation Manager
+  - History Manager
+  - Postprocessor Manager
+  - Thinking Manager
+- Updated tool manager
+
+## [0.8.12] - 2025-08-18
+- Fix no tool call respoonse in ChatMessage -> Open Ai messages translation
+- Add simple append method to OpenAIMessageBuilder
+
+## [0.8.11] - 2025-08-15
+- Fix no tool call respoonse in ChatMessage -> Open Ai messages translation
+- Add simple append method to OpenAIMessageBuilder
+
+## [0.8.10] - 2025-08-15
+- Add min and max temperature to `LanguageModelInfo`: temperature will be clamped to the min and max temperature
+- Add default options to `LanguageModelInfo`: These are used by default
+
+## [0.8.9] - 2025-08-15
+- Reduce input token limits for `ANTHROPIC_CLAUDE_3_7_SONNET_THINKING`, `ANTHROPIC_CLAUDE_3_7_SONNET`, `ANTHROPIC_CLAUDE_OPUS_4` and `ANTHROPIC_CLAUDE_SONNET_4` to 180_000 from 200_000
+
+## [0.8.8] - 2025-08-11
+- Make chat service openai stream response openai compatible 
+- Make `ChatMessage` openai compatible
+
+## [0.8.7] - 2025-08-11
+- Make chat service openai compatible
+- Fix some bugs
+- Make OpenAIMessageBuilder more congruent to MessageBuilder
+
+## [0.8.6] - 2025-08-11
+- Add GPT-5, GPT-5_MINI, GPT-5_NANO, GPT-5_CHAT to supported models list
+
+## [0.8.5] - 2025-08-06
+- Refactored tools to be in the tool-kit
+
+## [0.8.4] - 2025-08-06
+- Make unique settings compatible with legacy environment variables
+
 ## [0.8.3] - 2025-08-05
 - Expose threshold field for search.
 

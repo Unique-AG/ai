@@ -37,7 +37,7 @@ def get_openai_client(unique_settings: UniqueSettings) -> OpenAI:
     default_headers = get_default_headers(unique_settings.app, unique_settings.auth)
 
     return OpenAI(
-        api_key=unique_settings.app.key.get_secret_value(),
+        api_key="dummy_key",
         base_url=unique_settings.api.openai_proxy_url(),
         default_headers=default_headers,
     )

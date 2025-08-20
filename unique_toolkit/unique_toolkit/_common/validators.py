@@ -1,12 +1,18 @@
-from typing import Annotated
+import logging
+from typing import Annotated, Any
 
-from pydantic import BeforeValidator, PlainSerializer
+from pydantic import BeforeValidator, Field, PlainSerializer, ValidationInfo
 
 from unique_toolkit.language_model import LanguageModelName
 from unique_toolkit.language_model.infos import (
     LanguageModelInfo,
     LanguageModelProvider,
 )
+
+from pydantic.fields import FieldInfo
+
+
+logger = logging.getLogger(__name__)
 
 # TODO @klcd: Inform on deprecation of str as input
 LMI = Annotated[
@@ -55,3 +61,32 @@ def validate_and_init_language_model_info(
         )
 
     return v
+
+
+def ClipInt(*, min_value: int, max_value: int) -> tuple[BeforeValidator, FieldInfo]:
+    def _validator(value: Any, info: ValidationInfo) -> Any:
+        if not isinstance(value, int):
+            value = int(value)
+
+        field_name = info.field_name
+        if value < min_value:
+            logger.warning(
+                "Field %s is below the allowed minimum of %s. It will be set to %s.",
+                field_name,
+                min_value,
+                min_value,
+            )
+            return min_value
+
+        if value > max_value:
+            logger.warning(
+                "Field %s is above the allowed maximum of %s. It will be set to %s.",
+                field_name,
+                max_value,
+                max_value,
+            )
+            return max_value
+
+        return value
+
+    return (BeforeValidator(_validator), Field(ge=min_value, le=max_value))
