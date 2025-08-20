@@ -18,6 +18,7 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelMessage,
     LanguageModelMessageRole,
+    LanguageModelMessages,
     LanguageModelSystemMessage,
     LanguageModelToolMessage,
     LanguageModelUserMessage,
@@ -218,13 +219,7 @@ class HistoryManager:
         rendered_user_message_string: str,
         rendered_system_message_string: str,
         remove_from_text: Callable[[str], Awaitable[str]]
-    ) -> list[
-        LanguageModelMessage
-        | LanguageModelToolMessage
-        | LanguageModelAssistantMessage
-        | LanguageModelSystemMessage
-        | LanguageModelUserMessage
-    ]:
+    ) -> LanguageModelMessages:
         messages = await self._token_reducer.get_history_for_model_call(
             original_user_message=original_user_message,
             rendered_user_message_string=rendered_user_message_string,
@@ -232,4 +227,4 @@ class HistoryManager:
             loop_history=self._loop_history,
             remove_from_text=remove_from_text,
         )
-        return messages.root
+        return messages
