@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel
 
 from unique_toolkit.chat import ChatMessage
 from unique_toolkit.evaluators.exception import EvaluatorException
@@ -77,12 +77,6 @@ class EvaluationMetricInput(BaseModel):
 
 
 class EvaluationMetricResult(BaseModel):
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-
     name: EvaluationMetricName
     value: str
     reason: str
-    is_positive: Optional[bool] = None
-    user_info: Optional[str] = None
-    error: Exception | None = None
-    fact_list: list[str] = Field(default_factory=list[str])
