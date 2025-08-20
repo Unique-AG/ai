@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 import logging
-from warnings import deprecated
+
 
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.chat.service import ChatService
@@ -15,10 +15,7 @@ from unique_toolkit.language_model.schemas import (
 )
 from unique_toolkit.language_model.service import LanguageModelService
 from unique_toolkit.base_agents.loop_agent.config import LoopAgentConfig
-from unique_toolkit.base_agents.loop_agent.history_manager.history_manager import (
-    HistoryManager,
-    HistoryManagerConfig,
-)
+
 from unique_toolkit.base_agents.loop_agent.schemas import (
     DebugInfoManager,
 )
@@ -40,17 +37,13 @@ from unique_toolkit.tools.tool_manager import (
 from unique_toolkit.tools.tool_progress_reporter import (
     ToolProgressReporter,
 )
-from unique_toolkit.unique_toolkit.base_agents.loop_agent.helpers import (
-    EMPTY_MESSAGE_WARNING,
-)
-from unique_toolkit.unique_toolkit.evals.evaluation_manager import EvaluationManager
-from unique_toolkit.unique_toolkit.evals.hallucination.constants import (
-    HallucinationConfig,
-)
-from unique_toolkit.unique_toolkit.evals.hallucination.hallucination_evaluation import (
-    HallucinationEvaluation,
-)
-from unique_toolkit.unique_toolkit.postprocessor.postprocessor_manager import PostprocessorManager
+
+from evals.evaluation_manager import EvaluationManager
+from evals.hallucination.constants import HallucinationConfig
+from evals.hallucination.hallucination_evaluation import HallucinationEvaluation
+from history_manager.history_manager import HistoryManager, HistoryManagerConfig
+from postprocessor.postprocessor_manager import PostprocessorManager
+
 
 
 logger = logging.getLogger(__name__)
@@ -102,13 +95,16 @@ class LoopAgent(ABC):
         )
 
         history_manager_config = HistoryManagerConfig(
-            full_sources_serialize_dump=False  # this used to come from the tools but makes no sense, as it should alway be the same for all of them
+            
         )
 
         self._history_manager = HistoryManager(
             logger,
             event,
             history_manager_config,
+            self._config.language_model,
+            self._reference_manager,
+            
         )
 
         self._evaluation_manager = EvaluationManager(
