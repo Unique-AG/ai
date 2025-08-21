@@ -8,7 +8,6 @@ from typing import (
     TypedDict,
     Unpack,
     cast,
-    overload,
 )
 
 from unique_sdk._api_resource import APIResource
@@ -135,6 +134,14 @@ class Folder(APIResource["Folder"]):
         folderPath: str | None
         scopeAccesses: List["Folder.ScopeAccess"]
         applyToSubScopes: bool
+
+    class DeleteFolderParams(TypedDict):
+        """
+        Parameters for deleting a folder.
+        """
+
+        scopeId: NotRequired[str]
+        folderPath: NotRequired[str]
 
     class GetParams(RequestOptions):
         """
@@ -389,76 +396,74 @@ class Folder(APIResource["Folder"]):
             ),
         )
 
-    @overload
-    def delete(
-        cls,
-        user_id: str,
-        company_id: str,
-        scopeId: str,
-    ) -> "Folder.DeleteResponse": ...
-
-    @overload
-    def delete(
-        cls,
-        user_id: str,
-        company_id: str,
-        folderPath: str,
-    ) -> "Folder.DeleteResponse": ...
-
     @classmethod
     def delete(
         cls,
         user_id: str,
         company_id: str,
-        **params,
+        **params: Unpack["Folder.DeleteFolderParams"],
     ) -> "Folder.DeleteResponse":
         """
         Delete a folder by its ID or path.
         """
+
+        cls._resolve_scope_id_from_folder_path(user_id, company_id, params)
         return cast(
             "Folder.DeleteResponse",
             cls._static_request(
                 "delete",
-                cls.RESOURCE_URL,
+                f"{cls.RESOURCE_URL}/{params.get('scopeId')}",
                 user_id,
                 company_id=company_id,
-                params=params,
             ),
         )
-
-    @overload
-    async def delete_async(
-        cls,
-        user_id: str,
-        company_id: str,
-        scopeId: str,
-    ) -> "Folder.DeleteResponse": ...
-
-    @overload
-    async def delete_async(
-        cls,
-        user_id: str,
-        company_id: str,
-        folderPath: str,
-    ) -> "Folder.DeleteResponse": ...
 
     @classmethod
     async def delete_async(
         cls,
         user_id: str,
         company_id: str,
-        **params,
+        **params: Unpack["Folder.DeleteFolderParams"],
     ) -> "Folder.DeleteResponse":
         """
         Async delete a folder by its ID or path.
         """
+        cls._resolve_scope_id_from_folder_path(user_id, company_id, params)
         return cast(
             "Folder.DeleteResponse",
             await cls._static_request_async(
                 "delete",
-                cls.RESOURCE_URL,
+                f"{cls.RESOURCE_URL}/{params.get('scopeId')}",
                 user_id,
                 company_id=company_id,
-                params=params,
             ),
         )
+
+    @classmethod
+    def _resolve_scope_id_from_folder_path(
+        cls,
+        user_id: str,
+        company_id: str,
+        params: dict,
+    ) -> None:
+        """
+        If scopeId is not provided but folderPath is, resolve the folderPath to scopeId.
+        Modifies params in-place.
+        """
+        scope_id = params.get("scopeId")
+        folder_path = params.get("folderPath")
+        print(f"Resolving scopeId from folderPath: {folder_path} and {scope_id}")
+        if not scope_id:
+            folder_info = cls.get_info(
+                user_id=user_id,
+                company_id=company_id,
+                folderPath=folder_path,
+            )
+            print(folder_info)
+            resolved_id = folder_info.get("id")
+            if not resolved_id:
+                raise ValueError(
+                    f"Could not resolve folder id from folderPath: {folder_path}"
+                )
+            params["scopeId"] = resolved_id
+            params.pop("folderPath", None)
