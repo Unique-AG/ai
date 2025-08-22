@@ -11,10 +11,12 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
 )
 from unique_toolkit.short_term_memory.service import ShortTermMemoryService
-from unique_toolkit.stock_ticker.detection.config import StockTickerDetectionConfig
-from unique_toolkit.stock_ticker.detection.memory import StockTickerMemoryManager
-from unique_toolkit.stock_ticker.detection.prompt import SYSTEM_MESSAGE_STOCK_TICKER_QUERY, USER_MESSAGE_STOCK_TICKER_QUERY
-from unique_toolkit.stock_ticker.detection.schema import StockTickerList, getStockTickersResponse
+
+from detection.config import StockTickerDetectionConfig
+from detection.memory import StockTickerMemoryManager
+from detection.prompt import SYSTEM_MESSAGE_STOCK_TICKER_QUERY, USER_MESSAGE_STOCK_TICKER_QUERY
+from detection.schema import StockTickerList, getStockTickersResponse
+
 
 
 

@@ -6,9 +6,9 @@ from unique_toolkit.language_model.builder import MessagesBuilder
 from unique_toolkit.language_model.schemas import LanguageModelMessage, LanguageModelMessages, LanguageModelStreamResponse
 from unique_toolkit.language_model.service import LanguageModelService
 from unique_toolkit.language_model.utils import convert_string_to_json
-from unique_follow_up_question.config import FollowUpQuestionsConfig
-from unique_follow_up_question.prompts.params import FollowUpQuestionResponseParams, FollowUpQuestionSystemPromptParams, FollowUpQuestionUserPromptParams
-from unique_follow_up_question.schema import FollowUpQuestionsOutput
+from unique_follow_up_questions.config import FollowUpQuestionsConfig
+from unique_follow_up_questions.prompts.params import FollowUpQuestionResponseParams, FollowUpQuestionSystemPromptParams, FollowUpQuestionUserPromptParams
+from unique_follow_up_questions.schema import FollowUpQuestionsOutput
 from unique_toolkit.postprocessor.postprocessor_manager import Postprocessor
 
 from unique_toolkit.history_manager.history_manager import HistoryManager
@@ -39,11 +39,11 @@ class StockTickerPostprocessor(Postprocessor):
     async def run(
         self, loop_response: LanguageModelStreamResponse
     ) -> None:
-
+        # data:LanguageModelMessages = await self._historyManager.get_history_for_model_call()
         self._text = await self._get_follow_up_question_suggestion(
             language=self._language,
             language_model_service=self._llm_service,
-            history=await self._historyManager.get_history(),
+            history=[], #TODO: History must get here!
         )
        
     def apply_postprocessing_to_response(self,loop_response: LanguageModelStreamResponse) -> bool:

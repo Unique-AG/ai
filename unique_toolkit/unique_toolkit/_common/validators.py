@@ -28,6 +28,13 @@ LMI = Annotated[
     ),
 ]
 
+def get_LMI_default_field(llm_name: LanguageModelName, **kwargs) -> Any:
+    return Field(
+        default=LanguageModelInfo.from_name(llm_name),
+        json_schema_extra={"default": llm_name},
+        **kwargs,
+    )
+
 
 def serialize_lmi(model: LanguageModelInfo) -> str | LanguageModelInfo:
     if model.provider == LanguageModelProvider.CUSTOM:

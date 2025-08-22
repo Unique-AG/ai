@@ -4,8 +4,9 @@ from pydantic import BaseModel, Field
 
 from unique_toolkit._common.validators import LMI
 from unique_toolkit.language_model.infos import LanguageModelInfo, LanguageModelName
-from unique_toolkit.stock_ticker.detection.memory import StockTickerMemoryConfig
 from unique_toolkit.tools.config import get_configuration_dict
+
+from unique_stock_ticker.detection.memory import StockTickerMemoryConfig
 
 
 

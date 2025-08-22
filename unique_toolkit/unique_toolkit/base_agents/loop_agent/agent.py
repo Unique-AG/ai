@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from datetime import datetime
 import logging
-from warnings import deprecated
+
 
 
 import jinja2
@@ -11,42 +11,27 @@ from unique_toolkit.content.service import ContentService
 
 from unique_toolkit.language_model.schemas import (
     LanguageModelAssistantMessage,
-    LanguageModelFunction,
-    LanguageModelMessage,
+   
     LanguageModelMessages,
     LanguageModelStreamResponse,
-    LanguageModelSystemMessage,
+
 )
 from unique_toolkit.language_model.service import LanguageModelService
 from unique_toolkit.base_agents.loop_agent.config import LoopAgentConfig
 
-from unique_toolkit.base_agents.loop_agent.schemas import (
+from unique_toolkit.debug_info_manager.debug_info_manager import (
     DebugInfoManager,
 )
-from unique_toolkit.base_agents.loop_agent.thinking_manager import (
-    ThinkingManager,
-    ThinkingManagerConfig,
-)
-from unique_toolkit.evaluators.schemas import EvaluationMetricName
+
 from unique_toolkit.reference_manager.reference_manager import (
     ReferenceManager,
 )
-from unique_toolkit.tools.agent_chunks_handler import AgentChunksHandler
-from unique_toolkit.tools.schemas import ToolCallResponse
-from unique_toolkit.tools.tool import Tool
 from unique_toolkit.tools.tool_manager import (
     ToolManager,
-    ToolManagerConfig,
-)
-from unique_toolkit.tools.tool_progress_reporter import (
-    ToolProgressReporter,
-)
 
-from evals.evaluation_manager import EvaluationManager
-from evals.hallucination.constants import HallucinationConfig
-from evals.hallucination.hallucination_evaluation import HallucinationEvaluation
-from history_manager.history_manager import HistoryManager, HistoryManagerConfig
-from postprocessor.postprocessor_manager import PostprocessorManager
+)
+from unique_toolkit.evals.evaluation_manager import EvaluationManager
+
 
 
 
@@ -62,97 +47,45 @@ EMPTY_MESSAGE_WARNING = (
         )
 
 class LoopAgent(ABC):
+    start_text = ""
+    current_iteration_index = 0
+
+
     def __init__(
         self,
         event: ChatEvent,
         config: LoopAgentConfig,
-        agent_chunks_handler: AgentChunksHandler | None = None,
+        chat_service: ChatService,
+        content_service: ContentService,
+        debug_info_manager: DebugInfoManager,
+        reference_manager: ReferenceManager,
+        thinking_manager: ThinkingManager,
+        tool_manager: ToolManager,
+        history_manager: HistoryManager,
+        evaluation_manager: EvaluationManager,
+        postprocessor_manager: PostprocessorManager,
+        mcp_servers: list[TCPServer]
+
     ):
-        self.agent_chunks_handler = (
-            agent_chunks_handler  # deprecated, use reference_manager instead
-        )
+       
         self._logger = logger
         self._event = event
         self._config = config
-        self._chat_service = ChatService(event)
-        self._content_service = ContentService.from_event(event)
-        self._llm_service = LanguageModelService.from_event(event)
+        self._chat_service = chat_service
+        self._content_service = content_service
+    
+      
+        self._debug_info_manager = debug_info_manager
+        self._reference_manager = reference_manager
+        self._thinking_manager = thinking_manager
+        self._tool_manager = tool_manager
 
-        self._tool_progress_reporter = ToolProgressReporter(
-            chat_service=self._chat_service
-        )
+        self._history_manager = history_manager
 
-        self._debug_info_manager = DebugInfoManager()
-        self._reference_manager = ReferenceManager()
+        self._evaluation_manager = evaluation_manager
+        self._postprocessor_manager = postprocessor_manager
 
-        thinkingManagerConfig = ThinkingManagerConfig()
-
-        self._thinking_manager = ThinkingManager(
-            logger=self._logger,
-            config=thinkingManagerConfig,
-            tool_progress_reporter=self._tool_progress_reporter,
-            chat_service=self._chat_service,
-        )
-
-        toolConfig = ToolManagerConfig(
-            tools=config.tools,
-            max_tool_calls=self._config.loop_configuration.max_tool_calls_per_iteration,
-        )
-
-        self._tool_manager = ToolManager(
-            logger=self._logger,
-            config=toolConfig,
-            event=self._event,
-            tool_progress_reporter=self._tool_progress_reporter,
-        )
-
-        history_manager_config = HistoryManagerConfig(
-            
-        )
-
-        self._history_manager = HistoryManager(
-            logger,
-            event,
-            history_manager_config,
-            self._config.language_model,
-            self._reference_manager,
-            
-        )
-
-        self._evaluation_manager = EvaluationManager(
-            logger=self._logger,
-            chat_service=self._chat_service,
-            assistant_message_id=event.payload.assistant_message.id,
-        )
-
-        self._evaluation_manager.add_evaluation(
-            HallucinationEvaluation(
-                HallucinationConfig(), event, self._reference_manager
-            )
-        )
-        
-
-        self._postprocessor_manager = PostprocessorManager(
-            logger=self._logger,
-            chat_service=self._chat_service,
-        )
-
-
-
-        self._tool_evaluation_check_list: list[EvaluationMetricName] = []
-
-        self._start_text = ""
-
-        self.current_iteration_index = 0
-
-
-    @property
-    def start_text(self) -> str:
-        return self._start_text
-
-    @start_text.setter
-    def start_text(self, value: str):
-        self._start_text = value
+    
 
     ##############################
     # Main loop
@@ -364,7 +297,7 @@ class LoopAgent(ABC):
         return system_message
 
 
-    @abstractmethod
+    
     async def _handle_no_tool_calls(
         self, loop_response: LanguageModelStreamResponse
     ) -> bool:
@@ -384,7 +317,7 @@ class LoopAgent(ABC):
 
         return True
 
-    @abstractmethod
+    
     async def _handle_tool_calls(
         self, loop_response: LanguageModelStreamResponse
     ) -> None:

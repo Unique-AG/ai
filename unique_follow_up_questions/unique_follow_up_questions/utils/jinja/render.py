@@ -1,7 +1,7 @@
 from jinja2 import Template
 from typing import Any
 
-from follow_up_questions.unique_follow_up_question.utils.jinja.schema import Jinja2PromptParams
+from unique_follow_up_questions.utils.jinja.schema import Jinja2PromptParams
 
 
 

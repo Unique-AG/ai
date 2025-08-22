@@ -5,16 +5,15 @@ from typing import Awaitable, Callable
 
 from pydantic import BaseModel
 import tiktoken
-from _common.token.token_counting import num_token_for_language_model_messages
-from _common.validators import LMI
-from app.schemas import ChatEvent
-from chat.service import ChatService
-from content.schemas import ContentChunk
-from content.service import ContentService
-from history_manager.history_construction_with_contents import FileContentSerialization, get_full_history_with_contents
-from history_manager.history_manager import HistoryManagerConfig
-from language_model.schemas import LanguageModelAssistantMessage, LanguageModelMessage, LanguageModelMessageRole, LanguageModelMessages, LanguageModelSystemMessage, LanguageModelToolMessage, LanguageModelUserMessage
-from reference_manager.reference_manager import ReferenceManager
+from unique_toolkit._common.token.token_counting import num_token_for_language_model_messages
+from unique_toolkit._common.validators import LMI
+from unique_toolkit.app.schemas import ChatEvent
+from unique_toolkit.chat.service import ChatService
+from unique_toolkit.content.schemas import ContentChunk
+from unique_toolkit.content.service import ContentService
+from unique_toolkit.history_manager.history_construction_with_contents import FileContentSerialization, get_full_history_with_contents
+from unique_toolkit.language_model.schemas import LanguageModelAssistantMessage, LanguageModelMessage, LanguageModelMessageRole, LanguageModelMessages, LanguageModelSystemMessage, LanguageModelToolMessage, LanguageModelUserMessage
+from unique_toolkit.reference_manager.reference_manager import ReferenceManager
 
 
 class SourceReductionResult(BaseModel):
@@ -33,11 +32,14 @@ class LoopTokenReducer():
         self,
         logger: Logger,
         event: ChatEvent,
-        config: HistoryManagerConfig,
+        max_history_tokens:int,
+        has_uploaded_content_config: bool,
         reference_manager: ReferenceManager,
         language_model: LMI
     ):
-        self._config = config
+        
+        self._max_history_tokens = max_history_tokens
+        self._has_uploaded_content_config = has_uploaded_content_config
         self._logger = logger
         self._reference_manager = reference_manager
         self._language_model = language_model
@@ -49,7 +51,7 @@ class LoopTokenReducer():
     
 
     def _get_encoder(self, language_model: LMI) -> tiktoken.Encoding:
-        name = language_model.name or "cl100k_base"
+        name = language_model.encoder_name or "cl100k_base"
         return tiktoken.get_encoding(name)
 
     async def get_history_for_model_call( self,
@@ -203,7 +205,7 @@ class LoopTokenReducer():
                 content_service=self._content_service,
                 file_content_serialization_type=(
                     FileContentSerialization.NONE
-                    if self._config.uploaded_content_config
+                    if self._has_uploaded_content_config
                     else FileContentSerialization.FILE_NAME
                 ),
             )
@@ -212,9 +214,7 @@ class LoopTokenReducer():
         
         limited_history_messages = self._limit_to_token_window(
             full_history.root,
-            self._config.input_token_distribution.max_history_tokens(
-                self._language_model.token_limits.token_limit_input,
-            )
+            self._max_history_tokens
         )
         
         
