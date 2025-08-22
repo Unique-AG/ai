@@ -14,7 +14,7 @@ from unique_toolkit.postprocessor.postprocessor_manager import Postprocessor
 from unique_toolkit.history_manager.history_manager import HistoryManager
 
 
-class StockTickerPostprocessor(Postprocessor):
+class FollowUpPostprocessor(Postprocessor):
     """
     Postprocessor for follow-up questions in the loop agent.
     This class handles the processing of follow-up questions based on the
