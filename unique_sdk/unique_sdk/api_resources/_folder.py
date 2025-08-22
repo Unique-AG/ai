@@ -160,6 +160,16 @@ class Folder(APIResource["Folder"]):
         take: NotRequired[int]
         skip: NotRequired[int]
 
+    class DeleteFolderResponse(TypedDict):
+        """
+        Response for deleting a folder.
+        """
+
+        id: str
+        name: str
+        path: str
+        failReason: NotRequired[str]
+
     class DeleteResponse(TypedDict):
         """
         Response for deleting a folder.
@@ -452,14 +462,12 @@ class Folder(APIResource["Folder"]):
         """
         scope_id = params.get("scopeId")
         folder_path = params.get("folderPath")
-        print(f"Resolving scopeId from folderPath: {folder_path} and {scope_id}")
         if not scope_id:
             folder_info = cls.get_info(
                 user_id=user_id,
                 company_id=company_id,
                 folderPath=folder_path,
             )
-            print(folder_info)
             resolved_id = folder_info.get("id")
             if not resolved_id:
                 raise ValueError(
