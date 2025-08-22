@@ -51,7 +51,7 @@ class MCPManager:
             )
         return wrapper
         
-    def get_all_mcp_tools(self, selected_by_user: list[str]) -> list[McpTool]:
+    def get_all_mcp_tools(self, selected_by_user: list[str]) -> list[MCPToolWrapper]:
         selected_tools = []
         for server in self._mcp_servers:
             if hasattr(server, "tools") and server.tools:

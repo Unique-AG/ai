@@ -14,6 +14,7 @@ from unique_toolkit.tools.tool import Tool
 from unique_toolkit.tools.tool_progress_reporter import ToolProgressReporter
 from unique_toolkit.tools.utils.execution.execution import Result, SafeTaskExecutor
 from unique_toolkit.evals.schemas import EvaluationMetricName
+from unique_toolkit.tools.mcp.manager import MCPManager
 
 
 class ForcedToolOption:
@@ -67,10 +68,12 @@ class ToolManager:
         config: ToolManagerConfig,
         event: ChatEvent,
         tool_progress_reporter: ToolProgressReporter,
+        mcp_manager: MCPManager,
     ):
         self._logger = logger
         self._config = config
         self._tool_progress_reporter = tool_progress_reporter
+        self._mcp_manager = mcp_manager
         self._tools = []
         self._tool_choices = event.payload.tool_choices
         self._disabled_tools = event.payload.disabled_tools
@@ -78,19 +81,11 @@ class ToolManager:
         self._tool_evaluation_check_list: set[EvaluationMetricName] = set()
         self._init__tools(event)
 
-        # self._mcp_servers = event.payload.mcp_servers
-        # 1 - tools selected by user
-        # Load MCP servers from the event
-        # For every mcp server/ tool, convert it to internal tool (add server_id, server_system_promp
-        # For every enriched server/tool, create MCP wrapper so it behves like internal tool
-        # 2 - no tools selected -> use everything
-        # For every mcp server/ tool, convert it to internal tool (add server_id, server_system_promp
-        # For every enriched server/tool, create MCP wrapper so it behves like internal tool
-
-
     def _init__tools(self, event: ChatEvent) -> None:
         tool_choices = self._tool_choices
         tool_configs = self._config.tools
+        mcp_tools = self._mcp_manager.get_all_mcp_tools(tool_choices)
+        tool_configs.extend([t.settings.configuration for t in mcp_tools])
         self._logger.info("Initializing tool definitions...")
         self._logger.info(f"Tool choices: {tool_choices}")
         self._logger.info(f"Tool configs: {tool_configs}")

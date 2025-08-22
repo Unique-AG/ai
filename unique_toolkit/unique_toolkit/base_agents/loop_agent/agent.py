@@ -99,18 +99,19 @@ class LoopAgent(ABC):
             tools=config.tools,
             max_tool_calls=self._config.loop_configuration.max_tool_calls_per_iteration,
         )
-
-        self._tool_manager = ToolManager(
-            logger=self._logger,
-            config=toolConfig,
-            event=self._event,
-            tool_progress_reporter=self._tool_progress_reporter,
-        )
         self._mcp_manager = MCPManager(
             mcp_servers=self._event.payload.mcp_servers,
             event=self._event,
             tool_progress_reporter=self._tool_progress_reporter,
         )
+        self._tool_manager = ToolManager(
+            logger=self._logger,
+            config=toolConfig,
+            event=self._event,
+            tool_progress_reporter=self._tool_progress_reporter,
+            mcp_manager=self._mcp_manager,
+        )
+
         history_manager_config = HistoryManagerConfig(
             
         )
