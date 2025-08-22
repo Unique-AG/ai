@@ -70,6 +70,16 @@ class ToolManager:
         self._tool_evaluation_check_list: set[EvaluationMetricName] = set()
         self._init__tools(event)
 
+        # self._mcp_servers = event.payload.mcp_servers
+        # 1 - tools selected by user
+        # Load MCP servers from the event
+        # For every mcp server/ tool, convert it to internal tool (add server_id, server_system_promp
+        # For every enriched server/tool, create MCP wrapper so it behves like internal tool
+        # 2 - no tools selected -> use everything
+        # For every mcp server/ tool, convert it to internal tool (add server_id, server_system_promp
+        # For every enriched server/tool, create MCP wrapper so it behves like internal tool
+
+
     def _init__tools(self, event: ChatEvent) -> None:
         tool_choices = self._tool_choices
         tool_configs = self._config.tools
