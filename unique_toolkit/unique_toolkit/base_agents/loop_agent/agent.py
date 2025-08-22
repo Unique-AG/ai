@@ -41,6 +41,7 @@ from unique_toolkit.tools.tool_manager import (
 from unique_toolkit.tools.tool_progress_reporter import (
     ToolProgressReporter,
 )
+from unique_toolkit.tools.mcp.manager import MCPManager
 
 from evals.evaluation_manager import EvaluationManager
 from evals.hallucination.constants import HallucinationConfig
@@ -105,7 +106,11 @@ class LoopAgent(ABC):
             event=self._event,
             tool_progress_reporter=self._tool_progress_reporter,
         )
-
+        self._mcp_manager = MCPManager(
+            mcp_servers=self._event.payload.mcp_servers,
+            event=self._event,
+            tool_progress_reporter=self._tool_progress_reporter,
+        )
         history_manager_config = HistoryManagerConfig(
             
         )

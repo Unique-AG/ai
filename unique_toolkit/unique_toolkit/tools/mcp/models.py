@@ -1,0 +1,36 @@
+from typing import Any, Dict, Optional, Protocol
+
+from pydantic import BaseModel
+
+from unique_toolkit.tools.config import BaseToolConfig
+
+
+class MCPTool(Protocol):
+    """Protocol defining the expected structure of an MCP tool."""
+
+    name: str
+    description: Optional[str]
+    input_schema: Dict[str, Any]
+    output_schema: Optional[Dict[str, Any]]
+    annotations: Optional[Dict[str, Any]]
+    title: Optional[str]
+    icon: Optional[str]
+    system_prompt: Optional[str]
+    user_prompt: Optional[str]
+    is_connected: bool
+
+
+class EnrichedMCPTool(MCPTool, Protocol):
+    """Protocol for MCP tools enriched with server information."""
+
+    server_id: str
+    server_name: str
+    server_system_prompt: Optional[str]
+    server_user_prompt: Optional[str]
+    mcp_source_id: str
+
+
+class MCPToolConfig(BaseToolConfig):
+    """Configuration for MCP tools"""
+
+    pass
