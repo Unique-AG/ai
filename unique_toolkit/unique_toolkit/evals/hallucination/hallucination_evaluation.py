@@ -1,24 +1,23 @@
 from typing import Any
 
-from unique_toolkit.unique_toolkit.app.schemas import ChatEvent
-from unique_toolkit.unique_toolkit.chat.schemas import (
+from unique_toolkit.app.schemas import ChatEvent
+from unique_toolkit.chat.schemas import (
     ChatMessageAssessmentLabel,
     ChatMessageAssessmentStatus,
     ChatMessageAssessmentType,
 )
-from unique_toolkit.unique_toolkit.evals.config import EvaluationMetricConfig
-from unique_toolkit.unique_toolkit.evals.evaluation_manager import Evaluation
-from unique_toolkit.unique_toolkit.evals.hallucination.utils import check_hallucination
-from unique_toolkit.unique_toolkit.evals.schemas import (
+from unique_toolkit.evals.evaluation_manager import Evaluation
+from unique_toolkit.evals.hallucination.utils import check_hallucination
+from unique_toolkit.evals.schemas import (
     EvaluationAssessmentMessage,
     EvaluationMetricInput,
     EvaluationMetricName,
     EvaluationMetricResult,
 )
-from unique_toolkit.unique_toolkit.evals.hallucination.constants import (
+from unique_toolkit.evals.hallucination.constants import (
     HallucinationConfig,
 )
-from unique_toolkit.unique_toolkit.reference_manager.reference_manager import (
+from unique_toolkit.reference_manager.reference_manager import (
     ReferenceManager,
 )
 

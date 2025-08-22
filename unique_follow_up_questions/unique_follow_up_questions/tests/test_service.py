@@ -8,14 +8,13 @@ from unique_toolkit.language_model import (
 )
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
-from _common.follow_up_question_v2.config import FollowUpQuestionsConfig
-from _common.follow_up_question_v2.schema import (
-    FollowUpCategory,
-    FollowUpQuestion,
-    FollowUpQuestionsOutput,
-)
-from _common.follow_up_question_v2.service import FollowUpQuestionService
-from default_language_model import DEFAULT_GPT_35_TURBO
+from config import FollowUpQuestionsConfig
+from schema import FollowUpCategory, FollowUpQuestion, FollowUpQuestionsOutput
+from unique_toolkit._common.default_language_model import DEFAULT_GPT_35_TURBO
+
+from service import FollowUpQuestionService
+
+
 
 
 @pytest.fixture

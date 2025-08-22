@@ -3,12 +3,14 @@ from logging import getLogger
 from pydantic import BaseModel, Field, field_validator
 from unique_toolkit.language_model.infos import LanguageModelInfo, ModelCapabilities
 from unique_toolkit._common.validators import LMI
-from follow_up_questions.unique_follow_up_question.prompts.params import FOLLOW_UP_QUESTION_SYSTEM_PROMPT_TEMPLATE, FOLLOW_UP_QUESTION_USER_PROMPT_TEMPLATE, SUGGESTION_FORMAT_TEMPLATE
+from unique_follow_up_questions.prompts.params import FOLLOW_UP_QUESTION_SYSTEM_PROMPT_TEMPLATE, FOLLOW_UP_QUESTION_USER_PROMPT_TEMPLATE, SUGGESTION_FORMAT_TEMPLATE
 
 from unique_toolkit.tools.config import get_configuration_dict
 
-from follow_up_questions.unique_follow_up_question.schema import FollowUpQuestion
+from unique_follow_up_questions.schema import FollowUpQuestion
 from unique_toolkit._common.default_language_model import DEFAULT_GPT_4o_STRUCTURED_OUTPUT
+
+from unique_follow_up_questions.utils.jinja.utils import validate_template_placeholders
 
 
 

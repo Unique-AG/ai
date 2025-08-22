@@ -1,16 +1,16 @@
-from unique_follow_up_question.config import FollowUpQuestionsConfig
+from unique_follow_up_questions.config import FollowUpQuestionsConfig
 import pytest
 from pydantic import ValidationError
 from unique_toolkit.language_model import LanguageModelName
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
+from unique_toolkit._common.default_language_model import DEFAULT_GPT_4o_STRUCTURED_OUTPUT
 
-from _common.follow_up_question_v2.schema import (
-    FollowUpCategory,
-    FollowUpQuestion,
-)
-from _common.utils.jinja.utils import validate_template_placeholders
-from default_language_model import DEFAULT_GPT_4o_STRUCTURED_OUTPUT
+from schema import FollowUpCategory, FollowUpQuestion
+from unique_follow_up_questions.utils.jinja.utils import validate_template_placeholders
+
+
+
 
 
 @pytest.fixture

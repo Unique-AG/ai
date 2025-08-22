@@ -1,10 +1,3 @@
-
-
-
-
-
-
-
 from unique_stock_ticker.clients.six.client import get_six_api_client
 from unique_stock_ticker.clients.six.schema.common.instrument import InstrumentType
 from unique_stock_ticker.config import StockTickerConfig

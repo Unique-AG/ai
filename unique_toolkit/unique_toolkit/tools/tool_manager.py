@@ -35,9 +35,6 @@ class ToolManagerConfig(BaseModel):
         description="Maximum number of tool calls that can be executed in one iteration.",
     )
 
-    def __init__(self, tools: list[ToolBuildConfig], max_tool_calls: int = 10):
-        self.tools = tools
-        self.max_tool_calls = max_tool_calls
 
 
 class ToolManager:

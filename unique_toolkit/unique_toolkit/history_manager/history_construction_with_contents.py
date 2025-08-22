@@ -9,10 +9,10 @@ import tiktoken
 
 from pydantic import RootModel
 
-from _common.token.token_counting import num_tokens_per_language_model_message
-from chat.service import ChatService
-from content.service import ContentService
-from language_model.schemas import LanguageModelMessages
+from unique_toolkit._common.token.token_counting import num_tokens_per_language_model_message
+from unique_toolkit.chat.service import ChatService
+from unique_toolkit.content.service import ContentService
+from unique_toolkit.language_model.schemas import LanguageModelMessages
 from unique_toolkit.app import ChatEventUserMessage
 from unique_toolkit.chat.schemas import ChatMessage
 from unique_toolkit.chat.schemas import ChatMessageRole as ChatRole
