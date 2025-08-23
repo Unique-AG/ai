@@ -13,7 +13,7 @@ on:
 
 env:
   PACKAGE_NAME: stock_ticker
-  PACKAGE_DIR: ./stock_ticker
+  PACKAGE_DIR: ./unique_stock_ticker
     
 jobs:
   build-and-publish:
