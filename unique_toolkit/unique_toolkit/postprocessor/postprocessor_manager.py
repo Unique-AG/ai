@@ -52,7 +52,7 @@ class PostprocessorManager:
     The PostprocessorManager serves as a centralized system for managing and applying postprocessing logic to enhance response quality and consistency.
     """
 
-    _postprocessors: list[Postprocessor] = []
+    
 
     def __init__(
         self,
@@ -61,6 +61,7 @@ class PostprocessorManager:
     ):
         self._logger = logger
         self._chat_service = chat_service
+        self._postprocessors: list[Postprocessor] = []
 
     def add_postprocessor(self, postprocessor: Postprocessor):
         self._postprocessors.append(postprocessor)

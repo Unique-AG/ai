@@ -74,8 +74,7 @@ class EvaluationManager:
     The EvaluationManager serves as the central hub for managing and executing evaluations.
     """
     # a hashmap to hold evaluations by their names
-    _evaluations: dict[EvaluationMetricName, Evaluation] = {}
-    _evaluation_passed: bool = True
+
 
     def __init__(
         self,
@@ -86,6 +85,8 @@ class EvaluationManager:
         self._logger = logger
         self._chat_service = chat_service
         self._assistant_message_id = assistant_message_id
+        self._evaluations: dict[EvaluationMetricName, Evaluation] = {}
+        self._evaluation_passed: bool = True
 
     def add_evaluation(self, evaluation: Evaluation):
         self._evaluations[evaluation.get_name()] = evaluation

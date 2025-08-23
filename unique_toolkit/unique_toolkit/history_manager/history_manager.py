@@ -109,9 +109,7 @@ class HistoryManager:
 
     The HistoryManager serves as the backbone for managing and retrieving conversation history in a structured and efficient manner.
     """
-    _tool_call_result_history: list[ToolCallResponse] = []
-    _loop_history: list[LanguageModelMessage] = []
-    _source_enumerator = 0
+
 
     def __init__(
         self,
@@ -132,6 +130,9 @@ class HistoryManager:
             language_model=self._language_model,
             reference_manager=reference_manager,
         )
+        self._tool_call_result_history: list[ToolCallResponse] = []
+        self._loop_history: list[LanguageModelMessage] = []
+        self._source_enumerator = 0
 
 
     def has_no_loop_messages(self) -> bool:
