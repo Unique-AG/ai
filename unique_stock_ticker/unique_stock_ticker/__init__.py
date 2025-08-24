@@ -25,11 +25,11 @@ from unique_stock_ticker.plot.backend import (
     PlottingBackendName,
     get_plotting_backend,
 )
-
 from unique_stock_ticker.plot.config import StockTickerDataRetrievalConfig
-from unique_stock_ticker.plot.retrieve_and_plot import find_and_plot_history_for_tickers
-from unique_stock_ticker.plot.retrieve_and_plot import find_history_for_tickers
-
+from unique_stock_ticker.plot.retrieve_and_plot import (
+    find_and_plot_history_for_tickers,
+    find_history_for_tickers,
+)
 
 __all__ = [
     "StockTickerDetectionConfig",

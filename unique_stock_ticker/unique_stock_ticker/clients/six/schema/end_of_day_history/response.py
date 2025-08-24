@@ -200,9 +200,7 @@ class EndOfDayHistoryListingsItem(BaseAPIModel):
     requested_scheme: ListingIdentifierScheme = Field(
         ..., description="The requested scheme used in the request"
     )
-    lookup_status: LookupStatus = Field(
-        ..., description="Status of the response"
-    )
+    lookup_status: LookupStatus = Field(..., description="Status of the response")
     lookup: EndOfDayHistoryLookup | None = None
     market_data: EndOfDayHistoryMarketData | None = None
 

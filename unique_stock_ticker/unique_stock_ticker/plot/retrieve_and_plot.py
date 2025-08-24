@@ -2,8 +2,16 @@ import asyncio
 import logging
 from datetime import date, timedelta
 
+from unique_toolkit.tools.utils.execution.execution import (
+    SafeTaskExecutor,
+    safe_execute_async,
+)
 
+from unique_stock_ticker.clients.six.client import SixApiClient
 from unique_stock_ticker.clients.six.schema.common.instrument import InstrumentType
+from unique_stock_ticker.clients.six.schema.common.listing import (
+    ListingIdentifierScheme,
+)
 from unique_stock_ticker.clients.six.schema.end_of_day_history.response import (
     EndOfDayHistoryItem,
 )
@@ -19,17 +27,24 @@ from unique_stock_ticker.clients.six.schema.intraday_history.summary.response im
 from unique_stock_ticker.clients.six.schema.intraday_snapshot.response import (
     IntradaySnapshotValues,
 )
-
 from unique_stock_ticker.plot.backend.base.base import PlottingBackend
-from unique_stock_ticker.plot.backend.base.schema import PriceHistoryItem, StockHistoryPlotPayload, StockInfo, StockMetric
+from unique_stock_ticker.plot.backend.base.schema import (
+    PriceHistoryItem,
+    StockHistoryPlotPayload,
+    StockInfo,
+    StockMetric,
+)
 from unique_stock_ticker.plot.entity import get_entity_info_for_listings
-from unique_stock_ticker.plot.history import get_pricing_history_for_listings_with_period, get_pricing_history_general, should_use_intraday_history_endpoint
-from unique_stock_ticker.plot.snapshot import extract_metrics_from_snapshot, get_snapshot_information_for_listings
+from unique_stock_ticker.plot.history import (
+    get_pricing_history_for_listings_with_period,
+    get_pricing_history_general,
+    should_use_intraday_history_endpoint,
+)
+from unique_stock_ticker.plot.snapshot import (
+    extract_metrics_from_snapshot,
+    get_snapshot_information_for_listings,
+)
 from unique_stock_ticker.plot.ticker import find_instrument_from_ticker
-from unique_stock_ticker.clients.six.client import SixApiClient
-from unique_stock_ticker.clients.six.schema.common.listing import ListingIdentifierScheme
-from unique_toolkit.tools.utils.execution.execution import SafeTaskExecutor, safe_execute_async
-
 
 logger = logging.getLogger(__name__)
 
@@ -114,9 +129,7 @@ async def _complete_missing_days_prices_with_intraday_endpoint(
         if len(history) > 0:
             max_retrieved_date = max(price.session_date for price in history)
             max_retrieved_date_per_ticker.append(max_retrieved_date)
-            start_date_for_request = min(
-                start_date_for_request, max_retrieved_date
-            )
+            start_date_for_request = min(start_date_for_request, max_retrieved_date)
         else:
             max_retrieved_date_per_ticker.append(None)
 
@@ -134,9 +147,7 @@ async def _complete_missing_days_prices_with_intraday_endpoint(
     )
 
     if not intraday_snapshot_values.success:
-        logger.error(
-            "Could not retrieve missing data using intraday history endpoint"
-        )
+        logger.error("Could not retrieve missing data using intraday history endpoint")
         return [None] * len(price_history)
 
     intraday_snapshot_values = intraday_snapshot_values.unpack()
@@ -161,9 +172,7 @@ async def _complete_missing_days_prices_with_intraday_endpoint(
         )
 
         if len(extra_values) == 0:
-            logger.info(
-                "No available extra data for instrument %s", ids[index]
-            )
+            logger.info("No available extra data for instrument %s", ids[index])
             added_datapoints.append(None)
             continue
 
@@ -228,17 +237,13 @@ async def _par_get_data_for_plots(
     entity_info = entity_info.result()
 
     if not use_intraday_history_endpoint:
-        extra_data = (
-            await _complete_missing_days_prices_with_intraday_endpoint(
-                client=client,
-                scheme=scheme,
-                ids=ids,
-                price_history=pricing_history,  # type: ignore
-            )
+        extra_data = await _complete_missing_days_prices_with_intraday_endpoint(
+            client=client,
+            scheme=scheme,
+            ids=ids,
+            price_history=pricing_history,  # type: ignore
         )
-        for history, extra_data_for_instrument in zip(
-            pricing_history, extra_data
-        ):
+        for history, extra_data_for_instrument in zip(pricing_history, extra_data):
             if history is None or extra_data_for_instrument is None:
                 continue
             history.extend(extra_data_for_instrument)  # type: ignore
@@ -252,9 +257,7 @@ async def _par_get_data_for_plots(
             entity_info[i],
         )
         if history is None or entity is None:
-            res.append(
-                None
-            )  # We fail here since frontend doesn't expect nulls
+            res.append(None)  # We fail here since frontend doesn't expect nulls
         else:
             res.append((history, snapshot, entity))
 
@@ -348,9 +351,7 @@ async def find_history_for_tickers(
                 for metric_name, (
                     metric_value,
                     metric_timestamp,
-                ) in extract_metrics_from_snapshot(
-                    snapshot_information
-                ).items()
+                ) in extract_metrics_from_snapshot(snapshot_information).items()
             ]
 
         payload.append(

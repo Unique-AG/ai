@@ -1,5 +1,3 @@
-from typing import Any
-
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.chat.schemas import (
     ChatMessageAssessmentLabel,
@@ -7,6 +5,9 @@ from unique_toolkit.chat.schemas import (
     ChatMessageAssessmentType,
 )
 from unique_toolkit.evals.evaluation_manager import Evaluation
+from unique_toolkit.evals.hallucination.constants import (
+    HallucinationConfig,
+)
 from unique_toolkit.evals.hallucination.utils import check_hallucination
 from unique_toolkit.evals.schemas import (
     EvaluationAssessmentMessage,
@@ -14,15 +15,11 @@ from unique_toolkit.evals.schemas import (
     EvaluationMetricName,
     EvaluationMetricResult,
 )
-from unique_toolkit.evals.hallucination.constants import (
-    HallucinationConfig,
+from unique_toolkit.language_model.schemas import (
+    LanguageModelStreamResponse,
 )
 from unique_toolkit.reference_manager.reference_manager import (
     ReferenceManager,
-)
-
-from unique_toolkit.language_model.schemas import (
-    LanguageModelStreamResponse,
 )
 
 

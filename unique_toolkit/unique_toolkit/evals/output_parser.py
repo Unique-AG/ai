@@ -1,4 +1,3 @@
-from unique_toolkit.language_model.utils import convert_string_to_json
 from unique_toolkit.evals.context_relevancy.schema import (
     EvaluationSchemaStructuredOutput,
 )
@@ -7,6 +6,7 @@ from unique_toolkit.evals.schemas import (
     EvaluationMetricName,
     EvaluationMetricResult,
 )
+from unique_toolkit.language_model.utils import convert_string_to_json
 
 
 def parse_eval_metric_result(

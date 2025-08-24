@@ -9,18 +9,13 @@ from unique_follow_up_questions.schema import FollowUpQuestion, FollowUpQuestion
 from unique_follow_up_questions.utils.jinja.helpers import get_parent_dir, load_template
 from unique_follow_up_questions.utils.jinja.schema import Jinja2PromptParams
 
-
-
-
 PARENT_DIR = get_parent_dir(__file__)
 
 FOLLOW_UP_QUESTION_SYSTEM_PROMPT_TEMPLATE = load_template(
     PARENT_DIR, "system_prompt.j2"
 )
 
-FOLLOW_UP_QUESTION_USER_PROMPT_TEMPLATE = load_template(
-    PARENT_DIR, "user_prompt.j2"
-)
+FOLLOW_UP_QUESTION_USER_PROMPT_TEMPLATE = load_template(PARENT_DIR, "user_prompt.j2")
 
 SUGGESTION_FORMAT_TEMPLATE = load_template(PARENT_DIR, "suggestions_format.j2")
 

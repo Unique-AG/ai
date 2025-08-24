@@ -1,11 +1,15 @@
 import pytest
 
-from unique_toolkit.evals.context_relevancy.schema import EvaluationSchemaStructuredOutput, Fact
+from unique_toolkit.evals.context_relevancy.schema import (
+    EvaluationSchemaStructuredOutput,
+    Fact,
+)
 from unique_toolkit.evals.exception import EvaluatorException
-from unique_toolkit.evals.output_parser import parse_eval_metric_result, parse_eval_metric_result_structured_output
+from unique_toolkit.evals.output_parser import (
+    parse_eval_metric_result,
+    parse_eval_metric_result_structured_output,
+)
 from unique_toolkit.evals.schemas import EvaluationMetricName, EvaluationMetricResult
-
-
 
 
 def test_parse_eval_metric_result_success():

@@ -51,17 +51,13 @@ class UniqueError(Exception):
 
 class UniqueErrorWithParamsCode(UniqueError):
     def __repr__(self):
-        return (
-            "%s(message=%r, params=%r, code=%r, http_status=%r, "
-            "request_id=%r)"
-            % (
-                self.__class__.__name__,
-                self._message,
-                self.params,  # type: ignore
-                self.code,
-                self.http_status,
-                self.request_id,
-            )
+        return "%s(message=%r, params=%r, code=%r, http_status=%r, request_id=%r)" % (
+            self.__class__.__name__,
+            self._message,
+            self.params,  # type: ignore
+            self.code,
+            self.http_status,
+            self.request_id,
         )
 
 

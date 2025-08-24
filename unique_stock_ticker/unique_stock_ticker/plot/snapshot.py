@@ -3,11 +3,14 @@ from logging import getLogger
 
 from unique_stock_ticker.clients.six.client import SixApiClient
 from unique_stock_ticker.clients.six.exception import raise_errors_from_api_response
-from unique_stock_ticker.clients.six.schema.common.listing import ListingIdentifierScheme
-from unique_stock_ticker.clients.six.schema.intraday_snapshot.response import IntradaySnapshotResponsePayload, IntradaySnapshotValues
+from unique_stock_ticker.clients.six.schema.common.listing import (
+    ListingIdentifierScheme,
+)
+from unique_stock_ticker.clients.six.schema.intraday_snapshot.response import (
+    IntradaySnapshotResponsePayload,
+    IntradaySnapshotValues,
+)
 from unique_stock_ticker.plot.backend.base.schema import MetricName
-
-
 
 
 def _check_response_data(
@@ -64,18 +67,13 @@ async def get_snapshot_information_for_listings(
 
     value_by_id = {}
     for listing in resp.data.listings:  # type: ignore
-        if (
-            listing.market_data is None
-            or listing.market_data.intraday_snapshot is None
-        ):
+        if listing.market_data is None or listing.market_data.intraday_snapshot is None:
             logger.warning(
                 "No snapshot information found for listing %s",
                 listing.requested_id,
             )
             continue
-        value_by_id[listing.requested_id] = (
-            listing.market_data.intraday_snapshot
-        )
+        value_by_id[listing.requested_id] = listing.market_data.intraday_snapshot
 
     ordered_res = []
     for id in ids:

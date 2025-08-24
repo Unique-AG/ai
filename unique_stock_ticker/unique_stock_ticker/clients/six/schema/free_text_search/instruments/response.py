@@ -58,12 +58,8 @@ class InstrumentMatchingDescription(StrEnum):
 
 
 class FreeTextInstrumentSearchIssuer(BaseAPIModel):
-    short_name: str | None = Field(
-        default=None, description="Legal entity short name."
-    )
-    long_name: str | None = Field(
-        default=None, description="Legal entity long name."
-    )
+    short_name: str | None = Field(default=None, description="Legal entity short name.")
+    long_name: str | None = Field(default=None, description="Legal entity long name.")
     lei: str | None = Field(
         default=None,
         description="The Legal Entity Identifier (LEI) is a 20-digit alphanumeric code to identify a legal entity. The structure is defined in ISO 17442.",
@@ -106,9 +102,7 @@ class FreeTextInstrumentSearchUnderlyingInstrument(
 
 
 class FreeTextInstrumentSearchHit(BaseAPIModel):
-    instrument_short_name: str = Field(
-        ..., description="Instrument short name."
-    )
+    instrument_short_name: str = Field(..., description="Instrument short name.")
     instrument_name_prefix: str = Field(
         ..., description="Prefix Instrument classification in textual form."
     )
@@ -205,9 +199,7 @@ class FreeTextInstrumentSearchHit(BaseAPIModel):
         default=None,
         description="Identification used by the exchange to identify the specification of a contract. In some markets also known as Product Code.",
     )
-    underlying_instrument: (
-        FreeTextInstrumentSearchUnderlyingInstrument | None
-    ) = None
+    underlying_instrument: FreeTextInstrumentSearchUnderlyingInstrument | None = None
     ultimate_underlying_instrument: (
         FreeTextInstrumentSearchUltimateUnderlyingInstrument | None
     ) = None

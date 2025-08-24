@@ -1,16 +1,15 @@
 from typing import Self
 
 from pydantic import BaseModel
-
+from unique_toolkit.short_term_memory.persistent_short_term_memory_manager import (
+    PersistentShortMemoryManager,
+)
 from unique_toolkit.short_term_memory.service import ShortTermMemoryService
-
-
+from unique_toolkit.tools.config import (
+    get_configuration_dict,
+)
 
 from unique_stock_ticker.detection.schema import StockTicker
-from unique_toolkit.tools.config import get_configuration_dict
-from unique_toolkit.short_term_memory.persistent_short_term_memory_manager import PersistentShortMemoryManager
-from unique_toolkit.tools.config import field_title_generator, model_title_generator
-
 
 
 class StockTickerMemorySchema(BaseModel):
@@ -50,18 +49,14 @@ class StockTickerMemoryManager:
         self._max_chat_interactions = config.max_chat_interactions
         self._memory_manager = memory_manager
 
-    def process_new_tickers(
-        self, tickers: list[StockTicker]
-    ) -> list[StockTicker]:
+    def process_new_tickers(self, tickers: list[StockTicker]) -> list[StockTicker]:
         """
         Process tickers and return the list of new tickers (those not in memory)
         """
 
         memory = self._memory_manager.load_sync() or StockTickerMemorySchema()
 
-        memory = memory.increment().remove_outdated(
-            self._max_chat_interactions
-        )
+        memory = memory.increment().remove_outdated(self._max_chat_interactions)
 
         new_tickers = []
 

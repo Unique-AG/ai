@@ -101,12 +101,8 @@ class SixApiClient:
             EntityBaseByListingResponsePayload,
         )
 
-    def request(
-        self, end_point: str, params: dict[str, Any]
-    ) -> dict[str, Any]:
-        complete_url = (
-            f"{self._url}{end_point}?{urllib.parse.urlencode(params)}"
-        )
+    def request(self, end_point: str, params: dict[str, Any]) -> dict[str, Any]:
+        complete_url = f"{self._url}{end_point}?{urllib.parse.urlencode(params)}"
         response = self._session.get(complete_url)
         response.raise_for_status()
         return response.json()

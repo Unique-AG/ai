@@ -50,9 +50,7 @@ def plot_stock_price_history_plotly(
     template: str = "plotly_white",
 ) -> go.Figure:
     if len(price_history) != len(session_dates):
-        raise ValueError(
-            "price_history and session_dates must be of the same length"
-        )
+        raise ValueError("price_history and session_dates must be of the same length")
 
     has_metrics = metrics is not None and len(metrics) > 0
 
@@ -72,9 +70,7 @@ def plot_stock_price_history_plotly(
     x_axis_tickvals = [
         d.strftime("%b %d %H:%M") for d in extracted_session_dates_for_ticks
     ]
-    x_axis_ticktexts = [
-        d.strftime("%b %d") for d in extracted_session_dates_for_ticks
-    ]
+    x_axis_ticktexts = [d.strftime("%b %d") for d in extracted_session_dates_for_ticks]
     x_axis_values = [d.strftime("%b %d %H:%M") for d in session_dates]
 
     net_change = price_history[-1] - price_history[0]

@@ -1,9 +1,9 @@
 from logging import Logger
+
 from pydantic import BaseModel, Field
 
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.language_model.schemas import (
-    LanguageModelAssistantMessage,
     LanguageModelStreamResponse,
 )
 from unique_toolkit.tools.tool_progress_reporter import (
@@ -36,6 +36,7 @@ class ThinkingManager:
 
     The ThinkingManager enhances transparency and user understanding by providing a clear view of the assistant's reasoning process.
     """
+
     def __init__(
         self,
         logger: Logger,

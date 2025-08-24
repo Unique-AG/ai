@@ -81,9 +81,7 @@ class IntradayHistorySummaryListingsItem(BaseAPIModel):
     requested_scheme: ListingIdentifierScheme = Field(
         ..., description="The requested scheme used in the request"
     )
-    lookup_status: LookupStatus = Field(
-        ..., description="Status of the response"
-    )
+    lookup_status: LookupStatus = Field(..., description="Status of the response")
     lookup: IntradayHistorySummaryLookup | None = None
     market_data: IntradayHistorySummaryMarketData | None = None
 

@@ -1,17 +1,24 @@
-
 import re
-from unique_toolkit.app.schemas import ChatEvent
 
+from unique_toolkit.app.schemas import ChatEvent
+from unique_toolkit.history_manager.history_manager import HistoryManager
 from unique_toolkit.language_model.builder import MessagesBuilder
-from unique_toolkit.language_model.schemas import LanguageModelMessage, LanguageModelMessages, LanguageModelStreamResponse
+from unique_toolkit.language_model.schemas import (
+    LanguageModelMessage,
+    LanguageModelMessages,
+    LanguageModelStreamResponse,
+)
 from unique_toolkit.language_model.service import LanguageModelService
 from unique_toolkit.language_model.utils import convert_string_to_json
-from unique_follow_up_questions.config import FollowUpQuestionsConfig
-from unique_follow_up_questions.prompts.params import FollowUpQuestionResponseParams, FollowUpQuestionSystemPromptParams, FollowUpQuestionUserPromptParams
-from unique_follow_up_questions.schema import FollowUpQuestionsOutput
 from unique_toolkit.postprocessor.postprocessor_manager import Postprocessor
 
-from unique_toolkit.history_manager.history_manager import HistoryManager
+from unique_follow_up_questions.config import FollowUpQuestionsConfig
+from unique_follow_up_questions.prompts.params import (
+    FollowUpQuestionResponseParams,
+    FollowUpQuestionSystemPromptParams,
+    FollowUpQuestionUserPromptParams,
+)
+from unique_follow_up_questions.schema import FollowUpQuestionsOutput
 
 
 class FollowUpPostprocessor(Postprocessor):
@@ -21,13 +28,14 @@ class FollowUpPostprocessor(Postprocessor):
     provided configuration and the results of the evaluation checks.
     """
 
-    def __init__(self, 
-                 logger,
-                 config: FollowUpQuestionsConfig,
-                 event: ChatEvent,
-                 historyManager: HistoryManager,
-                 llm_service: LanguageModelService
-                 ):
+    def __init__(
+        self,
+        logger,
+        config: FollowUpQuestionsConfig,
+        event: ChatEvent,
+        historyManager: HistoryManager,
+        llm_service: LanguageModelService,
+    ):
         super().__init__(name="FollowUpQuestionPostprocessor")
         self._logger = logger
         self._config = config
@@ -35,36 +43,31 @@ class FollowUpPostprocessor(Postprocessor):
         self._historyManager = historyManager
         self._llm_service = llm_service
 
-
-    async def run(
-        self, loop_response: LanguageModelStreamResponse
-    ) -> None:
+    async def run(self, loop_response: LanguageModelStreamResponse) -> None:
         # data:LanguageModelMessages = await self._historyManager.get_history_for_model_call()
         self._text = await self._get_follow_up_question_suggestion(
             language=self._language,
             language_model_service=self._llm_service,
-            history=[], #TODO: History must get here!
+            history=[],  # TODO: History must get here!
         )
-       
-    def apply_postprocessing_to_response(self,loop_response: LanguageModelStreamResponse) -> bool:
+
+    def apply_postprocessing_to_response(
+        self, loop_response: LanguageModelStreamResponse
+    ) -> bool:
         if not self._text or len(self._text) == 0:
             return False
 
         # Append the follow-up question suggestions to the loop response
         loop_response.message.text += "\n\n" + self._text
         return True
-    
-       
-    async def remove_from_text(
-        self, text: str
-    ) -> str:
+
+    async def remove_from_text(self, text: str) -> str:
         return re.sub(
-                    r"<follow-up-question>.*?</follow-up-question>",
-                    "",
-                    text,
-                    flags=re.DOTALL,
-                )
-    
+            r"<follow-up-question>.*?</follow-up-question>",
+            "",
+            text,
+            flags=re.DOTALL,
+        )
 
     async def _get_follow_up_question_suggestion(
         self,
@@ -91,7 +94,6 @@ class FollowUpPostprocessor(Postprocessor):
         4. Formats the questions according to configured template
         """
         self._logger.info("Start get_follow_up_question_suggestion")
-
 
         system_prompt = FollowUpQuestionSystemPromptParams(
             examples=self._config.examples,
@@ -155,9 +157,7 @@ class FollowUpPostprocessor(Postprocessor):
                 )
                 content = response.choices[0].message.content
                 if not isinstance(content, str):
-                    raise ValueError(
-                        "Language model response content must be a string"
-                    )
+                    raise ValueError("Language model response content must be a string")
                 parsed_content = convert_string_to_json(content)
 
             return FollowUpQuestionsOutput.model_validate(parsed_content)

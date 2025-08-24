@@ -1,33 +1,31 @@
-from abc import ABC
 import asyncio
-
-
-from unique_toolkit.tools.utils.execution.execution import Result, SafeTaskExecutor
+from abc import ABC
 from logging import Logger
-from unique_toolkit.evals.schemas import (
-    EvaluationAssessmentMessage,
-    EvaluationMetricName,
-    EvaluationMetricResult,
-)
+
 from unique_toolkit.chat.schemas import (
     ChatMessageAssessmentStatus,
     ChatMessageAssessmentType,
 )
 from unique_toolkit.chat.service import ChatService
+from unique_toolkit.evals.schemas import (
+    EvaluationAssessmentMessage,
+    EvaluationMetricName,
+    EvaluationMetricResult,
+)
 from unique_toolkit.language_model.schemas import (
     LanguageModelStreamResponse,
 )
+from unique_toolkit.tools.utils.execution.execution import Result, SafeTaskExecutor
 
 
 class Evaluation(ABC):
     """
     Abstract base class for evaluation metrics.
-    
+
     typical use cases include:
     - Hallucination checking
     - compliance checking
     """
-   
 
     def __init__(self, name: EvaluationMetricName):
         self.name = name
@@ -73,8 +71,8 @@ class EvaluationManager:
 
     The EvaluationManager serves as the central hub for managing and executing evaluations.
     """
-    # a hashmap to hold evaluations by their names
 
+    # a hashmap to hold evaluations by their names
 
     def __init__(
         self,

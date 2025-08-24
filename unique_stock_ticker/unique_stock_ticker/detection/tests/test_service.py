@@ -28,14 +28,14 @@ def mock_llm_service():
 def stock_ticker_config():
     # Adjust as necessary to create a real or dummy config
     return StockTickerDetectionConfig(
-        language_model=LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_35_TURBO_0125)
+        language_model=LanguageModelInfo.from_name(
+            LanguageModelName.AZURE_GPT_35_TURBO_0125
+        )
     )
 
 
 @pytest.fixture
-def stock_ticker_service(
-    mock_chat_service, mock_llm_service, stock_ticker_config
-):
+def stock_ticker_service(mock_chat_service, mock_llm_service, stock_ticker_config):
     return StockTickerService(
         language_model_service=mock_llm_service,
         config=stock_ticker_config,
@@ -140,9 +140,7 @@ async def test_get_stock_tickers_no_valid_response(
 
 
 @pytest.mark.asyncio
-async def test_get_stock_tickers_none_response(
-    stock_ticker_service, mock_llm_service
-):
+async def test_get_stock_tickers_none_response(stock_ticker_service, mock_llm_service):
     mock_llm_service.complete_async.return_value = AsyncMock(
         choices=[MagicMock(message=MagicMock(content=None))]
     )

@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from typing import Annotated, Any
-from jinja2 import Template
 
+from jinja2 import Template
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -9,10 +9,7 @@ from pydantic import (
     SerializerFunctionWrapHandler,
     WrapSerializer,
 )
-
 from unique_toolkit.tools.tool import Tool
-
-
 
 
 class Jinja2PromptParams(BaseModel):
@@ -40,9 +37,7 @@ class ToolPromptParams(Jinja2PromptParams):
         )
 
 
-def serialize_iso8601_date(
-    v: Any, handler: SerializerFunctionWrapHandler
-) -> str:
+def serialize_iso8601_date(v: Any, handler: SerializerFunctionWrapHandler) -> str:
     if isinstance(v, date):
         return v.isoformat()
     return handler(v)
@@ -56,9 +51,7 @@ ISO8601Date = Annotated[
 
 class AgentSystemPromptParams(Jinja2PromptParams):
     info_cutoff_at: ISO8601Date | None
-    current_date: ISO8601Date = Field(
-        default_factory=lambda: datetime.now().date()
-    )
+    current_date: ISO8601Date = Field(default_factory=lambda: datetime.now().date())
     tools: list[ToolPromptParams]
     used_tools: list[ToolPromptParams]
     add_citation_appendix: bool = True

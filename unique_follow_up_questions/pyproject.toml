@@ -35,6 +35,7 @@ jinja2 = "^3.1.6"
 pillow = "^10.4.0"
 unique-sdk = { path = "../unique_sdk" }
 unique-toolkit = { path = "../unique_toolkit" }
+ruff = "^0.12.10"
 
 
 [build-system]

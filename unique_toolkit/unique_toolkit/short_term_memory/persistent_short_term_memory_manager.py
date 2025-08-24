@@ -4,10 +4,10 @@ from logging import getLogger
 from typing import Generic, Type, TypeVar
 
 from pydantic import BaseModel
+
 from unique_toolkit.short_term_memory.schemas import ShortTermMemory
 from unique_toolkit.short_term_memory.service import ShortTermMemoryService
 from unique_toolkit.tools.utils.execution.execution import SafeTaskExecutor
-
 
 TSchema = TypeVar("TSchema", bound=BaseModel)
 
@@ -50,6 +50,7 @@ class PersistentShortMemoryManager(Generic[TSchema]):
 
     The PersistentShortMemoryManager is designed to handle short-term memory efficiently, ensuring data integrity and optimized storage.
     """
+
     def __init__(
         self,
         short_term_memory_service: ShortTermMemoryService,

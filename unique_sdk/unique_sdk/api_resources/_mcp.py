@@ -19,6 +19,7 @@ from unique_sdk._request_options import RequestOptions
 
 class CallToolTextResourceDto(TypedDict):
     """Text resource containing URI, optional MIME type, and text content."""
+
     uri: str
     mimeType: Optional[str]
     text: str
@@ -26,6 +27,7 @@ class CallToolTextResourceDto(TypedDict):
 
 class CallToolBlobResourceDto(TypedDict):
     """Blob resource containing URI, optional MIME type, and base64-encoded content."""
+
     uri: str
     mimeType: Optional[str]
     blob: str
@@ -33,16 +35,21 @@ class CallToolBlobResourceDto(TypedDict):
 
 class CallToolContentDto(TypedDict):
     """Content returned by an MCP tool call."""
+
     type: Literal["text", "image", "audio", "resource_link", "resource"]
-    
+
     # Optional fields for different content types
     text: NotRequired[Optional[str]]  # For type: "text"
     data: NotRequired[Optional[str]]  # Base64 data for type: "image" or "audio"
-    mimeType: NotRequired[Optional[str]]  # For type: "image", "audio", or "resource_link"
+    mimeType: NotRequired[
+        Optional[str]
+    ]  # For type: "image", "audio", or "resource_link"
     uri: NotRequired[Optional[str]]  # For type: "resource_link"
     name: NotRequired[Optional[str]]  # For type: "resource_link"
     description: NotRequired[Optional[str]]  # For type: "resource_link"
-    resource: NotRequired[Optional[Union[CallToolTextResourceDto, CallToolBlobResourceDto]]]  # For type: "resource"
+    resource: NotRequired[
+        Optional[Union[CallToolTextResourceDto, CallToolBlobResourceDto]]
+    ]  # For type: "resource"
 
 
 class MCP(APIResource["MCP"]):
@@ -50,6 +57,7 @@ class MCP(APIResource["MCP"]):
 
     class CallToolParams(RequestOptions):
         """Parameters for calling an MCP tool."""
+
         name: str
         arguments: Dict[str, Any]
 
@@ -68,12 +76,12 @@ class MCP(APIResource["MCP"]):
     ) -> "MCP":
         """
         Call an MCP tool with the specified name and arguments.
-        
+
         Args:
             user_id: The ID of the user making the request
             company_id: The ID of the company
             **params: Tool parameters including name and arguments
-            
+
         Returns:
             MCP: The response from the MCP tool call
         """
@@ -97,12 +105,12 @@ class MCP(APIResource["MCP"]):
     ) -> "MCP":
         """
         Asynchronously call an MCP tool with the specified name and arguments.
-        
+
         Args:
             user_id: The ID of the user making the request
             company_id: The ID of the company
             **params: Tool parameters including name and arguments
-            
+
         Returns:
             MCP: The response from the MCP tool call
         """
@@ -115,4 +123,4 @@ class MCP(APIResource["MCP"]):
                 company_id,
                 params=params,
             ),
-        ) 
+        )

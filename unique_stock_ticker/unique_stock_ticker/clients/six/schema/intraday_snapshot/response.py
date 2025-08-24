@@ -87,12 +87,8 @@ class IntradaySnapshotValues(BaseAPIModel):
     turnover_total: SixAPISnapshotValue | None = None
     net_change_last: SixAPISnapshotValue | None = None
     percentage_change_last: SixAPISnapshotValue | None = None
-    net_change_reported_price: SixAPISnapshotValueWithUnixTimestamp | None = (
-        None
-    )
-    percentage_change_reported_price: (
-        SixAPISnapshotValueWithUnixTimestamp | None
-    ) = None
+    net_change_reported_price: SixAPISnapshotValueWithUnixTimestamp | None = None
+    percentage_change_reported_price: SixAPISnapshotValueWithUnixTimestamp | None = None
     price_earnings_ratio_reported: SixAPISnapshotValue | None = None
     price_earnings_ratio_estimated: SixAPISnapshotValue | None = None
     delta: SixAPISnapshotValue | None = None
@@ -172,9 +168,7 @@ class IntradaySnapshotItem(BaseAPIModel):
     requested_scheme: ListingIdentifierScheme = Field(
         ..., description="The requested scheme used in the request"
     )
-    lookup_status: LookupStatus = Field(
-        ..., description="Status of the response"
-    )
+    lookup_status: LookupStatus = Field(..., description="Status of the response")
     lookup: IntradaySnapshotLookup | None = None
     market_data: IntradaySnapshotMarketData | None = None
 

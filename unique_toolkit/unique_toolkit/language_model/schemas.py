@@ -136,7 +136,6 @@ class LanguageModelStreamResponse(BaseModel):
         """
         return not self.message.original_text and not self.tool_calls
 
-
     def to_openai_param(self) -> ChatCompletionAssistantMessageParam:
         return ChatCompletionAssistantMessageParam(
             role="assistant",

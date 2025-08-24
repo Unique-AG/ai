@@ -78,9 +78,7 @@ class EntityBaseByListingItem(BaseAPIModel):
     requested_scheme: ListingIdentifierScheme = Field(
         ..., description="The requested scheme used in the request"
     )
-    lookup_status: LookupStatus = Field(
-        ..., description="Status of the response"
-    )
+    lookup_status: LookupStatus = Field(..., description="Status of the response")
     lookup: EntityBaseByListingLookup | None = None
     reference_data: EntityBaseByListingReferenceData | None = None
 

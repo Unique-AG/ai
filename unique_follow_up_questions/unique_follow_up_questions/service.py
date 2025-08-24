@@ -1,6 +1,13 @@
 import logging
 import re
 
+from config import FollowUpQuestionsConfig
+from prompts.params import (
+    FollowUpQuestionResponseParams,
+    FollowUpQuestionSystemPromptParams,
+    FollowUpQuestionUserPromptParams,
+)
+from schema import FollowUpQuestionsOutput
 from unique_toolkit.language_model import (
     LanguageModelMessage,
     convert_string_to_json,
@@ -8,13 +15,6 @@ from unique_toolkit.language_model import (
 from unique_toolkit.language_model.builder import MessagesBuilder
 from unique_toolkit.language_model.schemas import LanguageModelMessages
 from unique_toolkit.language_model.service import LanguageModelService
-
-from config import FollowUpQuestionsConfig
-from prompts.params import FollowUpQuestionResponseParams, FollowUpQuestionSystemPromptParams, FollowUpQuestionUserPromptParams
-from schema import FollowUpQuestionsOutput
-
-
-
 
 logger = logging.getLogger(__name__)
 
@@ -49,9 +49,7 @@ class FollowUpQuestionService:
         """
 
         for message in history:
-            if message.role == "assistant" and isinstance(
-                message.content, str
-            ):
+            if message.role == "assistant" and isinstance(message.content, str):
                 # Remove any suggested follow-up questions from the message content
                 message.content = re.sub(
                     r"<follow-up-question>.*?</follow-up-question>",
@@ -151,9 +149,7 @@ class FollowUpQuestionService:
                 )
                 content = response.choices[0].message.content
                 if not isinstance(content, str):
-                    raise ValueError(
-                        "Language model response content must be a string"
-                    )
+                    raise ValueError("Language model response content must be a string")
                 parsed_content = convert_string_to_json(content)
 
             return FollowUpQuestionsOutput.model_validate(parsed_content)

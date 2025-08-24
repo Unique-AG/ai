@@ -1,5 +1,5 @@
-from abc import ABC
 import asyncio
+from abc import ABC
 from logging import Logger
 
 from unique_toolkit.chat.service import ChatService
@@ -51,8 +51,6 @@ class PostprocessorManager:
 
     The PostprocessorManager serves as a centralized system for managing and applying postprocessing logic to enhance response quality and consistency.
     """
-
-    
 
     def __init__(
         self,

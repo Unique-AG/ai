@@ -14,11 +14,14 @@ from unique_toolkit.short_term_memory.service import ShortTermMemoryService
 
 from unique_stock_ticker.detection.config import StockTickerDetectionConfig
 from unique_stock_ticker.detection.memory import StockTickerMemoryManager
-from unique_stock_ticker.detection.prompt import SYSTEM_MESSAGE_STOCK_TICKER_QUERY, USER_MESSAGE_STOCK_TICKER_QUERY
-from unique_stock_ticker.detection.schema import StockTickerList, getStockTickersResponse
-
-
-
+from unique_stock_ticker.detection.prompt import (
+    SYSTEM_MESSAGE_STOCK_TICKER_QUERY,
+    USER_MESSAGE_STOCK_TICKER_QUERY,
+)
+from unique_stock_ticker.detection.schema import (
+    StockTickerList,
+    getStockTickersResponse,
+)
 
 FOLDER_NAME = Path(__file__).parent.name
 EXTERNAL_MODULE_NAME = humps.pascalize(FOLDER_NAME)
@@ -46,9 +49,7 @@ class StockTickerService:
         """
         logger.info("Start StockTickerService")
 
-        messages = await self._prepare_messages(
-            assistant_message, user_message
-        )
+        messages = await self._prepare_messages(assistant_message, user_message)
 
         response = await self.language_model_service.complete_async(
             model_name=self.config.language_model.name,
@@ -73,23 +74,17 @@ class StockTickerService:
                 [ticker_elem.ticker for ticker_elem in ticker_list],
             )
             if self._memory_manager is not None:
-                ticker_list = self._memory_manager.process_new_tickers(
-                    ticker_list
-                )
+                ticker_list = self._memory_manager.process_new_tickers(ticker_list)
                 logger.debug(
                     "Tickers left after memory processing: %s",
                     [ticker_elem.ticker for ticker_elem in ticker_list],
                 )
             return getStockTickersResponse(success=True, response=ticker_list)
         except Exception as e:
-            logger.error(
-                f"Error sanitizing response content: {e}", exc_info=True
-            )
+            logger.error(f"Error sanitizing response content: {e}", exc_info=True)
             return getStockTickersResponse(success=False)
 
-    async def append_stock_diagram_to_message(
-        self, message: str, diagram: str
-    ) -> str:
+    async def append_stock_diagram_to_message(self, message: str, diagram: str) -> str:
         """Append the diagram to the message"""
         return message + "\n\n" + diagram + "\n\n"
 
@@ -127,7 +122,7 @@ def get_stock_ticker_service(
         company_id=company_id,
         chat_id=chat_id,
         user_id=user_id,
-        message_id= None,
+        message_id=None,
     )
     memory_manager = StockTickerMemoryManager.from_short_term_memory_service(
         short_term_memory_service=short_term_memory_service,
