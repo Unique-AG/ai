@@ -65,24 +65,29 @@ class ToolCall(BaseModel):
 
 
 class ChatMessage(BaseModel):
-    # TODO: The below seems not to be True anymore @irina-unique. To be checked in separate PR
+    # TODO: The below seems not to be True anymore @irina-unique.
     # This model should strictly meets https://github.com/Unique-AG/monorepo/blob/master/node/apps/node-chat/src/public-api/2023-12-06/dtos/message/public-message.dto.ts
     model_config = model_config
 
     id: str | None = None
-    chat_id: str
     object: str | None = None
+
     content: str | None = Field(default=None, alias="text")
     original_content: str | None = Field(default=None, alias="originalText")
+    chat_id: str
     role: ChatMessageRole
     gpt_request: list[dict] | None = None
-    tool_calls: list[ToolCall] | None = None
-    tool_call_id: str | None = None
     debug_info: dict | None = {}
-    created_at: datetime | None = None
+
     completed_at: datetime | None = None
+    created_at: datetime | None = None
     updated_at: datetime | None = None
+
     references: list[ContentReference] | None = None
+
+    # TODO: @sheiksadique check if this was ever used. They are def not obtained by public-message.dto.ts
+    tool_calls: list[ToolCall] | None = Field(default=None, deprecated=True)
+    tool_call_id: str | None = Field(default=None, deprecated=True)
 
     # TODO make sdk return role consistently in lowercase
     # Currently needed as sdk returns role in uppercase
@@ -128,6 +133,23 @@ class ChatMessage(BaseModel):
 
             case ChatMessageRole.TOOL:
                 raise NotImplementedError
+
+
+class ChatStreamResponse(BaseModel):
+    model_config = model_config
+
+    message: ChatMessage
+    tool_calls: list[ToolCall] | None = None
+
+    def to_openai_param(self) -> ChatCompletionAssistantMessageParam:
+        return ChatCompletionAssistantMessageParam(
+            role="assistant",
+            audio=None,
+            content=self.message.content,
+            function_call=None,
+            refusal=None,
+            tool_calls=[t.to_openai_param() for t in self.tool_calls or []],
+        )
 
 
 class ChatMessageAssessmentStatus(StrEnum):
