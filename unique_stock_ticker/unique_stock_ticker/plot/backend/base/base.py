@@ -3,12 +3,11 @@ from enum import StrEnum
 from typing import Generic, TypeVar
 
 from pydantic import BaseModel
+from unique_toolkit.tools.config import get_configuration_dict
 
 from unique_stock_ticker.plot.backend.base.schema import (
     StockHistoryPlotPayload,
 )
-from unique_toolkit.tools.config import get_configuration_dict
-
 
 
 class PlottingBackendName(StrEnum):

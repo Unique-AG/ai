@@ -2,13 +2,6 @@ import logging
 from string import Template
 
 from unique_toolkit.content.schemas import ContentChunk
-from unique_toolkit.language_model.schemas import (
-    LanguageModelMessages,
-    LanguageModelStreamResponse,
-    LanguageModelSystemMessage,
-    LanguageModelUserMessage,
-)
-from unique_toolkit.language_model.service import LanguageModelService
 from unique_toolkit.evals.config import EvaluationMetricConfig
 from unique_toolkit.evals.exception import EvaluatorException
 from unique_toolkit.evals.output_parser import parse_eval_metric_result
@@ -17,7 +10,13 @@ from unique_toolkit.evals.schemas import (
     EvaluationMetricName,
     EvaluationMetricResult,
 )
-
+from unique_toolkit.language_model.schemas import (
+    LanguageModelMessages,
+    LanguageModelStreamResponse,
+    LanguageModelSystemMessage,
+    LanguageModelUserMessage,
+)
+from unique_toolkit.language_model.service import LanguageModelService
 
 from .constants import (
     SYSTEM_MSG_DEFAULT_KEY,

@@ -9,9 +9,7 @@ RequestConstructorSpec = ParamSpec("RequestConstructorSpec")
 
 
 class Client(Protocol):
-    def request(
-        self, endpoint: str, params: dict[str, Any]
-    ) -> dict[str, Any]: ...
+    def request(self, endpoint: str, params: dict[str, Any]) -> dict[str, Any]: ...
 
 
 def endpoint(

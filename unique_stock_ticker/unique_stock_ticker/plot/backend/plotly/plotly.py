@@ -14,10 +14,10 @@ from unique_stock_ticker.plot.backend.base import (
 from unique_stock_ticker.plot.backend.plotly.functions import (
     plot_stock_price_history_plotly,
 )
-from unique_stock_ticker.plot.backend.plotly.save import get_image_markdown_from_content_id, save_plots_to_content_service
-
-
-
+from unique_stock_ticker.plot.backend.plotly.save import (
+    get_image_markdown_from_content_id,
+    save_plots_to_content_service,
+)
 
 PlotlyTemplates = Literal[
     "ggplot2",
@@ -60,9 +60,7 @@ class PlotlyTickerPlotConfig(PlottingBackendConfig):
 
 
 class PlotlyPlottingBackend(PlottingBackend[PlotlyTickerPlotConfig]):
-    def __init__(
-        self, config: PlotlyTickerPlotConfig, content_service: ContentService
-    ):
+    def __init__(self, config: PlotlyTickerPlotConfig, content_service: ContentService):
         super().__init__(config)
         self.content_service = content_service
 
@@ -85,9 +83,7 @@ class PlotlyPlottingBackend(PlottingBackend[PlotlyTickerPlotConfig]):
         metrics = None
         if payload.metrics is not None:
             metrics = {
-                metric_to_display_name.get(
-                    metric.name, str(metric.name)
-                ): metric.value
+                metric_to_display_name.get(metric.name, str(metric.name)): metric.value
                 for metric in payload.metrics
             }
 

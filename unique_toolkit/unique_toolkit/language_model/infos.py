@@ -875,7 +875,7 @@ class LanguageModelInfo(BaseModel):
                     deprecated_at=date(2026, 8, 7),
                     retirement_at=date(2026, 8, 7),
                 )
-            
+
             case _:
                 if isinstance(model_name, LanguageModelName):
                     raise ValueError(

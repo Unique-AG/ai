@@ -3,8 +3,6 @@ import logging
 from typing import NamedTuple
 
 from pydantic import BaseModel, RootModel
-
-
 from settings import env_settings
 from unique_toolkit.tools.utils.execution.execution import failsafe
 
@@ -36,9 +34,7 @@ class SixApiSettings(BaseModel):
             return {}
 
         decoded_creds = base64.b64decode(self.creds).decode("utf-8")
-        parsed_creds = SixApiCredentialsParser.model_validate_json(
-            decoded_creds
-        ).root
+        parsed_creds = SixApiCredentialsParser.model_validate_json(decoded_creds).root
 
         outdated_format = False
         if isinstance(parsed_creds, list):
@@ -63,9 +59,7 @@ class SixApiSettings(BaseModel):
 
         return res
 
-    def creds_for_company(
-        self, company_id: str
-    ) -> CertificateCredentials | None:
+    def creds_for_company(self, company_id: str) -> CertificateCredentials | None:
         return self._loaded_creds.get(company_id, None)
 
 

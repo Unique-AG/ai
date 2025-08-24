@@ -1,6 +1,7 @@
-
-
-from unique_stock_ticker.clients.six.schema.common.base.response import BaseResponsePayload, ErrorDetail
+from unique_stock_ticker.clients.six.schema.common.base.response import (
+    BaseResponsePayload,
+    ErrorDetail,
+)
 
 
 def error_to_str(error: ErrorDetail) -> str:

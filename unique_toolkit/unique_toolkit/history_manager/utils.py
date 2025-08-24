@@ -13,7 +13,6 @@ from unique_toolkit.tools.utils.source_handling.schema import (
     SourceFormatConfig,
 )
 
-
 logger = logging.getLogger(__name__)
 
 

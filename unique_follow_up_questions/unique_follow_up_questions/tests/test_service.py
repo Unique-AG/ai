@@ -1,20 +1,16 @@
 from unittest.mock import MagicMock
 
 import pytest
+from config import FollowUpQuestionsConfig
+from schema import FollowUpCategory, FollowUpQuestion, FollowUpQuestionsOutput
+from service import FollowUpQuestionService
 from unique_toolkit import LanguageModelService
+from unique_toolkit._common.default_language_model import DEFAULT_GPT_35_TURBO
 from unique_toolkit.language_model import (
     LanguageModelMessage,
     LanguageModelMessageRole,
 )
 from unique_toolkit.language_model.infos import LanguageModelInfo
-
-from config import FollowUpQuestionsConfig
-from schema import FollowUpCategory, FollowUpQuestion, FollowUpQuestionsOutput
-from unique_toolkit._common.default_language_model import DEFAULT_GPT_35_TURBO
-
-from service import FollowUpQuestionService
-
-
 
 
 @pytest.fixture
@@ -95,10 +91,7 @@ def test_clean_history():
     # Assert
     assert len(cleaned_history) == 2
     assert cleaned_history[0].content == "User message"
-    assert (
-        cleaned_history[1].content
-        == "Assistant message with follow-up questions."
-    )
+    assert cleaned_history[1].content == "Assistant message with follow-up questions."
 
 
 @pytest.mark.asyncio
@@ -160,9 +153,7 @@ async def test_get_follow_up_question_suggestion_without_structured_output(
 ):
     # Arrange
     history = [
-        LanguageModelMessage(
-            role=LanguageModelMessageRole.USER, content="User message"
-        )
+        LanguageModelMessage(role=LanguageModelMessageRole.USER, content="User message")
     ]
     language = "en"
 
@@ -184,8 +175,7 @@ async def test_get_follow_up_question_suggestion_without_structured_output(
     language_model_service.complete.assert_called_once()
     call_args = language_model_service.complete.call_args[1]
     assert (
-        call_args["model_name"]
-        == config_without_structured_output.language_model.name
+        call_args["model_name"] == config_without_structured_output.language_model.name
     )
     assert "structured_output_model" not in call_args
 
@@ -196,9 +186,7 @@ async def test_get_follow_up_question_suggestion_error_handling(
 ):
     # Arrange
     history = [
-        LanguageModelMessage(
-            role=LanguageModelMessageRole.USER, content="User message"
-        )
+        LanguageModelMessage(role=LanguageModelMessageRole.USER, content="User message")
     ]
     language = "en"
 

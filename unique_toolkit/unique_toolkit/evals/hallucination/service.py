@@ -4,7 +4,6 @@ from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.evals.config import EvaluationMetricConfig
 from unique_toolkit.evals.schemas import EvaluationMetricInput, EvaluationMetricResult
 
-
 from .constants import hallucination_metric_default_config
 from .utils import check_hallucination
 

@@ -1,10 +1,11 @@
+from unique_toolkit.language_model.service import LanguageModelService
+
 from unique_stock_ticker.clients.six.client import get_six_api_client
 from unique_stock_ticker.clients.six.schema.common.instrument import InstrumentType
 from unique_stock_ticker.config import StockTickerConfig
 from unique_stock_ticker.detection.service import get_stock_ticker_service
 from unique_stock_ticker.plot.backend.utils import get_plotting_backend
 from unique_stock_ticker.plot.retrieve_and_plot import find_and_plot_history_for_tickers
-from unique_toolkit.language_model.service import LanguageModelService
 
 
 async def retrieve_tickers_and_plot_history(
@@ -23,7 +24,7 @@ async def retrieve_tickers_and_plot_history(
         company_id=company_id,
         user_id=user_id,
     )
-    
+
     stock_ticker_service = get_stock_ticker_service(
         config=stock_ticker_config.detection_config,
         company_id=company_id,

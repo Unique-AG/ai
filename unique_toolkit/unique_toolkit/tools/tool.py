@@ -1,24 +1,20 @@
 from abc import ABC, abstractmethod
-from enum import StrEnum
 from logging import getLogger
-from typing import Generic, TypeVar
-from typing import Any, cast
+from typing import Any, Generic, TypeVar, cast
 
-from pydantic import Field
 from typing_extensions import deprecated
+
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.chat.service import (
     ChatService,
 )
+from unique_toolkit.evals.schemas import EvaluationMetricName
 from unique_toolkit.language_model import LanguageModelToolDescription
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelMessage,
 )
 from unique_toolkit.language_model.service import LanguageModelService
-
-
-from unique_toolkit.evals.schemas import EvaluationMetricName
 from unique_toolkit.tools.config import ToolBuildConfig, ToolSelectionPolicy
 from unique_toolkit.tools.schemas import BaseToolConfig, ToolCallResponse, ToolPrompts
 from unique_toolkit.tools.tool_progress_reporter import ToolProgressReporter

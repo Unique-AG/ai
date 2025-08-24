@@ -1,4 +1,4 @@
-
+from unique_toolkit.content.service import ContentService
 
 from unique_stock_ticker.plot.backend.base import (
     PlottingBackend,
@@ -12,7 +12,6 @@ from unique_stock_ticker.plot.backend.plotly import (
     PlotlyPlottingBackend,
     PlotlyTickerPlotConfig,
 )
-from unique_toolkit.content.service import ContentService
 
 
 def get_plotting_backend(

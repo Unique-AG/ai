@@ -3,31 +3,27 @@ from typing import Annotated, Awaitable, Callable
 
 from pydantic import BaseModel, Field
 
+from unique_toolkit._common.validators import LMI
 from unique_toolkit.app.schemas import ChatEvent
-
-
-
+from unique_toolkit.history_manager.loop_token_reducer import LoopTokenReducer
+from unique_toolkit.history_manager.utils import transform_chunks_to_string
+from unique_toolkit.language_model.infos import LanguageModelInfo, LanguageModelName
 from unique_toolkit.language_model.schemas import (
     LanguageModelAssistantMessage,
     LanguageModelFunction,
-    LanguageModelMessage,   
+    LanguageModelMessage,
     LanguageModelMessages,
-    LanguageModelToolMessage
+    LanguageModelToolMessage,
 )
-
-from unique_toolkit.tools.schemas import ToolCallResponse
-from unique_toolkit.history_manager.utils import transform_chunks_to_string
-
-from unique_toolkit._common.validators import LMI
-from unique_toolkit.history_manager.loop_token_reducer import LoopTokenReducer
-from unique_toolkit.language_model.infos import LanguageModelInfo, LanguageModelName
 from unique_toolkit.reference_manager.reference_manager import ReferenceManager
 from unique_toolkit.tools.config import get_configuration_dict
+from unique_toolkit.tools.schemas import ToolCallResponse
 
 DeactivatedNone = Annotated[
     None,
     Field(title="Deactivated", description="None"),
 ]
+
 
 class UploadedContentConfig(BaseModel):
     model_config = get_configuration_dict()
@@ -44,8 +40,8 @@ class UploadedContentConfig(BaseModel):
         description="The fraction of the max input tokens that will be reserved for the uploaded content.",
     )
 
-class ExperimentalFeatures(BaseModel):
 
+class ExperimentalFeatures(BaseModel):
     full_sources_serialize_dump: bool = Field(
         default=False,
         description="If True, the sources will be serialized in full, otherwise only the content will be serialized.",
@@ -53,13 +49,10 @@ class ExperimentalFeatures(BaseModel):
 
 
 class HistoryManagerConfig(BaseModel):
-
-
     experimental_features: ExperimentalFeatures = Field(
         default=ExperimentalFeatures(),
         description="Experimental features for the history manager.",
     )
-
 
     percent_of_max_tokens_for_history: float = Field(
         default=0.2,
@@ -88,7 +81,6 @@ class HistoryManagerConfig(BaseModel):
     ) = UploadedContentConfig()
 
 
-
 class HistoryManager:
     """
     Manages the history of tool calls and conversation loops.
@@ -109,7 +101,6 @@ class HistoryManager:
 
     The HistoryManager serves as the backbone for managing and retrieving conversation history in a structured and efficient manner.
     """
-
 
     def __init__(
         self,
@@ -133,7 +124,6 @@ class HistoryManager:
         self._tool_call_result_history: list[ToolCallResponse] = []
         self._loop_history: list[LanguageModelMessage] = []
         self._source_enumerator = 0
-
 
     def has_no_loop_messages(self) -> bool:
         return len(self._loop_history) == 0
@@ -201,13 +191,12 @@ class HistoryManager:
     def add_assistant_message(self, message: LanguageModelAssistantMessage) -> None:
         self._loop_history.append(message)
 
-        
     async def get_history_for_model_call(
         self,
         original_user_message: str,
         rendered_user_message_string: str,
         rendered_system_message_string: str,
-        remove_from_text: Callable[[str], Awaitable[str]]
+        remove_from_text: Callable[[str], Awaitable[str]],
     ) -> LanguageModelMessages:
         self._logger.info("Getting history for model call -> ")
 

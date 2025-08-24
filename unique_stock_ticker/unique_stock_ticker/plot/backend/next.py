@@ -42,9 +42,7 @@ class NextPlottingBackend(PlottingBackend[NextTickerPlotConfig]):
         return re.sub(r"```financialChart[\s\S]*?```", "", text)
 
     @classmethod
-    def extract_data_from_text(
-        cls, text: str
-    ) -> list[StockHistoryPlotPayload]:
+    def extract_data_from_text(cls, text: str) -> list[StockHistoryPlotPayload]:
         res = []
         for match in re.findall(r"```financialChart([\s\S]*?)```", text):
             res.extend(StockHistoryPlotPayloadList.validate_json(match))

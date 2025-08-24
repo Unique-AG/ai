@@ -2,13 +2,14 @@ from enum import StrEnum
 from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
+
 from unique_toolkit.chat import ChatMessage
-from unique_toolkit.evals.exception import EvaluatorException
 from unique_toolkit.chat.schemas import (
     ChatMessageAssessmentLabel,
     ChatMessageAssessmentStatus,
     ChatMessageAssessmentType,
 )
+from unique_toolkit.evals.exception import EvaluatorException
 
 
 class EvaluationMetricName(StrEnum):

@@ -32,9 +32,7 @@ class FreeTextMarketsSearchHighlightsItem(BaseAPIModel):
 
 
 class FreeTextMarketsSearchHit(BaseAPIModel):
-    market_long_name: str | None = Field(
-        default=None, description="Market long name."
-    )
+    market_long_name: str | None = Field(default=None, description="Market long name.")
     market_short_name: str | None = Field(
         default=None, description="Market short name."
     )

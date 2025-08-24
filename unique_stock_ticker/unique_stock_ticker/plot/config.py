@@ -1,9 +1,7 @@
 from datetime import date, timedelta
 
 from pydantic import BaseModel, Field
-
 from unique_toolkit.tools.config import get_configuration_dict
-
 
 
 class StockTickerDataRetrievalConfig(BaseModel):

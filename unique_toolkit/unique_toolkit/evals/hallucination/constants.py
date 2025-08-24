@@ -16,7 +16,6 @@ from unique_toolkit.evals.schemas import (
 )
 from unique_toolkit.language_model.infos import LanguageModelInfo, LanguageModelName
 
-
 SYSTEM_MSG_KEY = "systemPrompt"
 USER_MSG_KEY = "userPrompt"
 SYSTEM_MSG_DEFAULT_KEY = "systemPromptDefault"

@@ -31,6 +31,7 @@ python-dotenv = "^1.0.1"
 pytest = "^8.4.1"
 unique-sdk = { path = "../../unique_sdk" }
 unique-toolkit = { path = "../../unique_toolkit" }
+ruff = "^0.12.10"
 
 
 [build-system]

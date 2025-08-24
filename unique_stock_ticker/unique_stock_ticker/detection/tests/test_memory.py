@@ -1,12 +1,16 @@
 from unittest.mock import MagicMock
 
 import pytest
+from unique_toolkit.short_term_memory.persistent_short_term_memory_manager import (
+    PersistentShortMemoryManager,
+)
 
-from unique_stock_ticker.detection.memory import StockTickerMemoryConfig, StockTickerMemoryManager, StockTickerMemorySchema
+from unique_stock_ticker.detection.memory import (
+    StockTickerMemoryConfig,
+    StockTickerMemoryManager,
+    StockTickerMemorySchema,
+)
 from unique_stock_ticker.detection.schema import StockTicker
-from unique_toolkit.short_term_memory.persistent_short_term_memory_manager import PersistentShortMemoryManager
-
-
 
 
 class TestStockTickerMemorySchema:
@@ -36,9 +40,7 @@ class TestStockTickerMemorySchema:
         schema = StockTickerMemorySchema(ticker_counter={"AAPL": 1})
         result = schema.add("MSFT", "GOOG")
 
-        assert result.ticker_counter["AAPL"] == 1, (
-            "Existing ticker should be unchanged"
-        )
+        assert result.ticker_counter["AAPL"] == 1, "Existing ticker should be unchanged"
         assert result.ticker_counter["MSFT"] == 0, (
             "New ticker should be initialized to 0"
         )
@@ -69,9 +71,7 @@ def ticker_manager(memory_manager):
 
 
 class TestStockTickerMemoryManager:
-    def test_process_new_tickers_empty_memory(
-        self, ticker_manager, memory_manager
-    ):
+    def test_process_new_tickers_empty_memory(self, ticker_manager, memory_manager):
         """Test processing tickers when memory is empty"""
         # Setup memory manager to return None (empty memory)
         memory_manager.load_sync.return_value = None
@@ -153,9 +153,7 @@ class TestStockTickerMemoryManager:
         assert saved_memory.ticker_counter["AAPL"] == 2  # Incremented
         assert saved_memory.ticker_counter["MSFT"] == 0  # New
 
-    def test_process_new_tickers_removes_outdated(
-        self, ticker_manager, memory_manager
-    ):
+    def test_process_new_tickers_removes_outdated(self, ticker_manager, memory_manager):
         """Test that outdated tickers are removed during processing"""
         # Setup memory with tickers at different counter values
         existing_memory = StockTickerMemorySchema(
@@ -226,9 +224,7 @@ class TestStockTickerMemoryManager:
         )
 
         # Setup memory with tickers at different counter values
-        existing_memory = StockTickerMemorySchema(
-            ticker_counter={"AAPL": 1, "GOOG": 2}
-        )
+        existing_memory = StockTickerMemorySchema(ticker_counter={"AAPL": 1, "GOOG": 2})
         memory_manager.load_sync.return_value = existing_memory
 
         # Process tickers
@@ -276,9 +272,7 @@ def test_increment_parametrized(initial_counter, expected_counter):
         ({"AAPL": 10, "MSFT": 20}, 5, {}),
     ],
 )
-def test_remove_outdated_parametrized(
-    initial_counter, max_counter, expected_counter
-):
+def test_remove_outdated_parametrized(initial_counter, max_counter, expected_counter):
     """Test remove_outdated with various initial states and max values"""
     schema = StockTickerMemorySchema(ticker_counter=initial_counter)
     schema.remove_outdated(max_counter)

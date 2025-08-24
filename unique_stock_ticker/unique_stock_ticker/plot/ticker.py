@@ -3,8 +3,11 @@ from logging import getLogger
 from unique_stock_ticker.clients.six.client import SixApiClient
 from unique_stock_ticker.clients.six.exception import raise_errors_from_api_response
 from unique_stock_ticker.clients.six.schema.common.instrument import InstrumentType
-from unique_stock_ticker.clients.six.schema.free_text_search.instruments.response import FreeTextInstrumentSearchHit, FreeTextInstrumentSearchMostLiquidMarket, InstrumentMatchingDescription
-
+from unique_stock_ticker.clients.six.schema.free_text_search.instruments.response import (
+    FreeTextInstrumentSearchHit,
+    FreeTextInstrumentSearchMostLiquidMarket,
+    InstrumentMatchingDescription,
+)
 
 logger = getLogger(__name__)
 
@@ -50,10 +53,7 @@ async def find_instrument_from_ticker(
         for instrument in resp.data.search.free_text_search.instruments
         if instrument.hit is not None
         and InstrumentMatchingDescription.TICKER
-        in [
-            highlight.matching_description
-            for highlight in instrument.highlights
-        ]
+        in [highlight.matching_description for highlight in instrument.highlights]
     ]
 
     if len(hits) == 0:

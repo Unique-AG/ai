@@ -1,17 +1,9 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.chat.service import LanguageModelName
-from unique_toolkit.language_model.infos import (
-    LanguageModelInfo,
-)
-from unique_toolkit.language_model.schemas import (
-    LanguageModelAssistantMessage,
-    LanguageModelCompletionChoice,
-    LanguageModelMessages,
-)
-from unique_toolkit.language_model.service import LanguageModelResponse
 from unique_toolkit.evals.config import EvaluationMetricConfig
 from unique_toolkit.evals.context_relevancy.prompts import (
     CONTEXT_RELEVANCY_METRIC_SYSTEM_MSG,
@@ -28,6 +20,15 @@ from unique_toolkit.evals.schemas import (
     EvaluationMetricName,
     EvaluationMetricResult,
 )
+from unique_toolkit.language_model.infos import (
+    LanguageModelInfo,
+)
+from unique_toolkit.language_model.schemas import (
+    LanguageModelAssistantMessage,
+    LanguageModelCompletionChoice,
+    LanguageModelMessages,
+)
+from unique_toolkit.language_model.service import LanguageModelResponse
 
 
 @pytest.fixture

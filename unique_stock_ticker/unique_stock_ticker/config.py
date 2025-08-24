@@ -9,17 +9,15 @@ from pydantic import (
     model_validator,
 )
 from typing_extensions import deprecated
+from unique_toolkit._common.validators import LMI
+from unique_toolkit.language_model.infos import LanguageModelInfo, LanguageModelName
+from unique_toolkit.tools.config import get_configuration_dict
 
 from unique_stock_ticker.detection.config import StockTickerDetectionConfig
 from unique_stock_ticker.detection.memory import StockTickerMemoryConfig
 from unique_stock_ticker.plot.backend.next import NextTickerPlotConfig
 from unique_stock_ticker.plot.backend.plotly.plotly import PlotlyTickerPlotConfig
 from unique_stock_ticker.plot.config import StockTickerDataRetrievalConfig
-from unique_toolkit._common.validators import LMI
-from unique_toolkit.language_model.infos import LanguageModelInfo, LanguageModelName
-
-from unique_toolkit.tools.config import get_configuration_dict
-
 
 logger = getLogger(__name__)
 
@@ -32,7 +30,7 @@ class StockTickerConfigOld(BaseModel):
         get_configuration_dict(),
         extra="forbid",
     )
-    language_model: LMI  = LanguageModelInfo.from_name(
+    language_model: LMI = LanguageModelInfo.from_name(
         LanguageModelName.AZURE_GPT_35_TURBO_0125,
     )
     additional_llm_options: dict[str, Any] = Field(

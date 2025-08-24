@@ -2,7 +2,9 @@ from datetime import date, timedelta
 from logging import getLogger
 
 from unique_stock_ticker.clients.six import SixApiClient, raise_errors_from_api_response
-from unique_stock_ticker.clients.six.schema.common.listing import ListingIdentifierScheme
+from unique_stock_ticker.clients.six.schema.common.listing import (
+    ListingIdentifierScheme,
+)
 from unique_stock_ticker.clients.six.schema.end_of_day_history import (
     EndOfDayHistoryResponsePayload,
 )
@@ -73,8 +75,7 @@ async def get_pricing_history_for_listings_with_period(
 
 
 def _check_response_data(
-    resp: EndOfDayHistoryResponsePayload
-    | IntradayHistorySummaryResponsePayload,
+    resp: EndOfDayHistoryResponsePayload | IntradayHistorySummaryResponsePayload,
 ) -> bool:
     return (
         resp.data is not None
@@ -139,8 +140,7 @@ def should_use_intraday_history_endpoint(
     days_from_now = (date.today() - start_date).days
     return (
         days_requested <= MAX_NUM_DAYS_REQUESTED_FOR_INTRADAY_HISTORY_ENDPOINT
-        and days_from_now
-        <= MAX_NUM_DAYS_FROM_NOW_FOR_INTRADAY_HISTORY_ENDPOINT
+        and days_from_now <= MAX_NUM_DAYS_FROM_NOW_FOR_INTRADAY_HISTORY_ENDPOINT
     )
 
 
@@ -158,16 +158,12 @@ async def get_pricing_history_general(
 ):
     logger.debug("Start date: %s, end date: %s", start_date, end_date)
     if use_intraday_history_endpoint:
-        logger.debug(
-            "Using intraday history endpoint to retrieve pricing history"
-        )
+        logger.debug("Using intraday history endpoint to retrieve pricing history")
         return await get_pricing_history_for_listings_with_period(
             client, scheme, ids, start_date, end_date, period
         )
     else:
-        logger.debug(
-            "Using end of day history endpoint to retrieve pricing history"
-        )
+        logger.debug("Using end of day history endpoint to retrieve pricing history")
         return await get_pricing_history_for_listings(
             client, scheme, ids, start_date, end_date
         )
