@@ -109,6 +109,7 @@ class Tool(ABC, Generic[ConfigType]):
             name=self.name,
             display_name=self.display_name(),
             tool_description=self.tool_description().description,
+            tool_system_prompt=self.tool_description_for_system_prompt(),
             tool_format_information_for_system_prompt=self.tool_format_information_for_system_prompt(),
             input_model=self.tool_description_as_json(),
         )
