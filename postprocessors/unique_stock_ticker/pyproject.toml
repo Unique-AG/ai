@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_stock_ticker"
-version = "0.0.4"
+version = "0.0.5"
 description = ""
 authors = [
     "Martin Fadler <martin.fadler@unique.ch>",
@@ -34,8 +34,8 @@ pydantic-settings = "^2.10.1"
 plotly = "^5.24.1"
 numerize = "^0.12"
 pytest = "^8.4.1"
-unique-sdk = { path = "../unique_sdk" }
-unique-toolkit = { path = "../unique_toolkit" }
+unique-sdk = { path = "../../unique_sdk" }
+unique-toolkit = { path = "../../unique_toolkit" }
 ruff = "^0.12.10"
 
 

@@ -5,15 +5,15 @@ on:
   push:
     # Both conditions must be met (AND logic):
     # 1. Push must be to main branch
-    # 2. Push must include changes to stock_ticker/** files
+    # 2. Push must include changes to postprocessors/stock_ticker/** files
     paths:
-      - 'stock_ticker/**'
+      - 'postprocessors/stock_ticker/**'
     branches:
       - main
 
 env:
   PACKAGE_NAME: stock_ticker
-  PACKAGE_DIR: ./unique_stock_ticker
+  PACKAGE_DIR: ./postprocessors/unique_stock_ticker
     
 jobs:
   build-and-publish:
