@@ -1,6 +1,8 @@
+from enum import StrEnum
 import logging
 from pathlib import Path
 from typing import Any, overload
+import mimetypes
 
 import unique_sdk
 from requests import Response
@@ -31,6 +33,29 @@ from unique_toolkit.content.schemas import (
 )
 
 logger = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
+
+
+class FileMimeType(StrEnum):
+    PDF = "application/pdf"
+    DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    DOC = "application/msword"
+    XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    XLS = "application/vnd.ms-excel"
+    PPTX = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+    CSV = "text/csv"
+    HTML = "text/html"
+    MD = "text/markdown"
+    TXT = "text/plain"
+
+
+class ImageMimeType(StrEnum):
+    JPEG = "image/jpeg"
+    PNG = "image/png"
+    GIF = "image/gif"
+    BMP = "image/bmp"
+    WEBP = "image/webp"
+    TIFF = "image/tiff"
+    SVG = "image/svg+xml"
 
 
 class ContentService:
@@ -622,3 +647,51 @@ class ContentService:
             content_id=content_id,
             chat_id=chat_id,
         )
+
+    def get_documents_uploaded_to_chat(self) -> list[Content]:
+        chat_contents = self.search_contents(
+            where={
+                "ownerId": {
+                    "equals": self._chat_id,
+                },
+            },
+        )
+
+        content: list[Content] = []
+        for c in chat_contents:
+            if self.is_file_content(c.key):
+                content.append(c)
+
+        return content
+
+    def get_images_uploaded_to_chat(self) -> list[Content]:
+        chat_contents = self.search_contents(
+            where={
+                "ownerId": {
+                    "equals": self._chat_id,
+                },
+            },
+        )
+
+        content: list[Content] = []
+        for c in chat_contents:
+            if self.is_image_content(c.key):
+                content.append(c)
+
+        return content
+
+    def is_file_content(self, filename: str) -> bool:
+        mimetype, _ = mimetypes.guess_type(filename)
+
+        if not mimetype:
+            return False
+
+        return mimetype in FileMimeType.__members__.values()
+
+    def is_image_content(self, filename: str) -> bool:
+        mimetype, _ = mimetypes.guess_type(filename)
+
+        if not mimetype:
+            return False
+
+        return mimetype in ImageMimeType.__members__.values()

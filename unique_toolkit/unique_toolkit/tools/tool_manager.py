@@ -18,13 +18,6 @@ from unique_toolkit.tools.tool_progress_reporter import ToolProgressReporter
 from unique_toolkit.tools.utils.execution.execution import Result, SafeTaskExecutor
 
 
-class ForcedToolOption:
-    type: str = "function"
-
-    def __init__(self, name: str):
-        self.name = name
-
-
 class ToolManagerConfig(BaseModel):
     tools: list[ToolBuildConfig] = Field(
         default=[],
@@ -122,12 +115,19 @@ class ToolManager:
                 return tool
         return None
 
-    def get_forced_tools(self) -> list[ForcedToolOption]:
+    def get_forced_tools(self) -> list[dict[str, Any]]:
         return [
-            ForcedToolOption(t.name)
+            self._convert_to_forced_tool(t.name)
             for t in self._tools
             if t.name in self._tool_choices
         ]
+
+    def add_forced_tool(self, name):
+        tool = self.get_tool_by_name(name)
+        if not tool:
+            raise ValueError(f"Tool {name} not found")
+        self._tools.append(tool)
+        self._tool_choices.append(tool.name)
 
     def get_tool_definitions(
         self,
@@ -254,3 +254,11 @@ class ToolManager:
                 f"Filtered out {len(tool_calls) - len(unique_tool_calls)} duplicate tool calls."
             )
         return unique_tool_calls
+
+    from typing import Any
+
+    def _convert_to_forced_tool(self, tool_name: str) -> dict[str, Any]:
+        return {
+            "type": "function",
+            "function": {"name": tool_name},
+        }
