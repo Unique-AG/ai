@@ -199,7 +199,9 @@ class ToolManager:
     ) -> ToolCallResponse:
         self._logger.info(f"Processing tool call: {tool_call.name}")
 
-        tool_instance = self.get_tool_by_name(tool_call.name) # we need to copy this as it will have problematic interference on multi calls.
+        tool_instance = self.get_tool_by_name(
+            tool_call.name
+        )  # we need to copy this as it will have problematic interference on multi calls.
 
         if tool_instance:
             # Execute the tool
