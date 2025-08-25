@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.8.20] - 2025-08-05
+- Bump SDK version to support the latest features.
+
 ## [0.8.19] - 2025-08-24
 - Enforce usage of ruff using pipeline
 
