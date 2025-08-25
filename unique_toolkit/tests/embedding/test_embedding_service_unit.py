@@ -2,8 +2,8 @@ from unittest.mock import patch
 
 import pytest
 import unique_sdk
+from test_obj_factory import get_event_obj
 
-from tests.test_obj_factory import get_event_obj
 from unique_toolkit.embedding.schemas import Embeddings
 from unique_toolkit.embedding.service import EmbeddingService
 

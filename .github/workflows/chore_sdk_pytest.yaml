@@ -1,35 +1,17 @@
 name: "[pytest] Unique SDK"
 
-env:
-  PACKAGE: unique_sdk
-
 on: 
   pull_request:
     paths:
       - 'unique_sdk/**'
-
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - '.github/workflows/chore_sdk_pytest.yaml'
+      - '.github/workflows/_reusable_test.yaml'
 
 jobs:
-  build-and-test:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Check out code
-      uses: actions/checkout@v4
-
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
-
-    - name: Install Poetry
-      run: |
-        POETRY_VERSION='1.8.3'
-        PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install poetry==$POETRY_VERSION
-
-    - name: Install dependencies
-      working-directory: ${{ env.PACKAGE }}
-      run: poetry install
-
-    - name: Run tests
-      working-directory: ${{ env.PACKAGE }}
-      run: poetry run pytest
+  test:
+    uses: ./.github/workflows/_reusable_test.yaml
+    with:
+      package_name: unique-sdk
+      package_directory: unique_sdk

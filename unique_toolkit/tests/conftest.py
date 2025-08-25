@@ -5,8 +5,8 @@ from pathlib import Path
 import pytest
 import unique_sdk
 from dotenv import load_dotenv
+from test_obj_factory import get_event_obj
 
-from tests.test_obj_factory import get_event_obj
 from unique_toolkit.chat.service import ChatService
 
 collect_ignore_glob = []
