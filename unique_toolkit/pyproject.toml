@@ -12,15 +12,12 @@ readme = "README.md"
 license = {text = "Proprietary"}
 requires-python = ">=3.11"
 dependencies = [
-    "typing-extensions>=4.9.0",
-    "pydantic>=2.8.2",
+    # Package-specific dependencies (common ones inherited from workspace)
     "pyhumps>=3.8.0",
     "numpy>=1.26.4",
-    "python-dotenv>=1.0.1",
     "regex>=2024.5.15",
     "tiktoken>=0.7.0",
     "unique-sdk>=0.10.0",
-    "pydantic-settings>=2.10.1",
     "sseclient>=0.0.27",
     "openai>=1.99.9",
 ]

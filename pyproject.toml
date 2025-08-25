@@ -3,7 +3,13 @@ name = "unique-ai-workspace"
 version = "0.1.0"
 description = "Unique AI monorepo workspace"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    # Common dependencies shared across workspace packages
+    "typing-extensions>=4.9.0",
+    "pydantic>=2.8.2", 
+    "pydantic-settings>=2.10.1",
+    "python-dotenv>=1.0.1",
+]
 
 [project.optional-dependencies]
 dev = [
@@ -11,7 +17,7 @@ dev = [
     "ruff>=0.12.10",
     
     # Testing
-    "pytest>=8.0",
+    "pytest>=8.4.1",
     "pytest-cov>=4.1.0",
     "pytest-asyncio>=0.24.0",
     "pytest-mock>=3.14.0",

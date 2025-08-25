@@ -12,11 +12,7 @@ readme = "README.md"
 license = {text = "Proprietary"}
 requires-python = ">=3.11"
 dependencies = [
-    "typing-extensions>=4.9.0",
-    "pydantic>=2.8.2",
-    "pydantic-settings>=2.10.1",
-    "python-dotenv>=1.0.1",
-    "pytest>=8.4.1",
+    # Package-specific dependencies (common ones inherited from workspace)
     "jinja2>=3.1.6",
     "pillow>=10.4.0",
     "unique-sdk>=0.10.0",

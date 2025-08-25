@@ -11,7 +11,7 @@ readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
 dependencies = [
-    "typing-extensions>=4.9.0",
+    # Package-specific dependencies (common ones inherited from workspace)
     "requests>=2.32.3",
 ]
 classifiers = [
