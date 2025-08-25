@@ -1,0 +1,7 @@
+from enum import StrEnum
+
+
+class PriceAdjustment(StrEnum):
+    UNADJUSTED = "UNADJUSTED"
+    ADJUSTED = "ADJUSTED"
+    ADJUSTED_AND_DIVIDEND_ADJUSTED = "ADJUSTED_AND_DIVIDEND_ADJUSTED"
