@@ -175,8 +175,8 @@ class Folder(APIResource["Folder"]):
         Response for deleting a folder.
         """
 
-        successScopeIds: List[str]
-        failedScopeIds: List[str]
+        successFolders: List["Folder.DeleteFolderResponse"]
+        failedFolders: List["Folder.DeleteFolderResponse"]
 
     @classmethod
     def get_info(
