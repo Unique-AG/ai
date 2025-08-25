@@ -5,8 +5,8 @@ on:
     paths:
       - "unique_toolkit/**"
       - "unique_sdk/**"
-      - "unique_follow_up_questions/**"
-      - "unique_stock_ticker/**"
+      - "postprocessors/unique_follow_up_questions/**"
+      - "postprocessors/unique_stock_ticker/**"
       - "tool_packages/unique_internal_search/**"
       - "tool_packages/unique_web_search/**"
       - ".github/workflows/chore_linting_ruff.yaml"
