@@ -6,8 +6,8 @@ from unittest.mock import ANY, Mock, patch
 
 import pytest
 import unique_sdk
+from test_obj_factory import get_event_obj
 
-from tests.test_obj_factory import get_event_obj
 from unique_toolkit.app.schemas import (
     BaseEvent,
     Event,

@@ -4,8 +4,8 @@ from unittest.mock import patch
 import pytest
 import unique_sdk
 from pydantic import BaseModel
+from test_obj_factory import get_event_obj
 
-from tests.test_obj_factory import get_event_obj
 from unique_toolkit.language_model.functions import (
     _add_response_format_to_options,
     _prepare_completion_params_util,
