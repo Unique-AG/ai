@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        package: [unique_toolkit, unique_sdk, unique_follow_up_questions, unique_stock_ticker, tool_packages/unique_internal_search, tool_packages/unique_web_search]
+        package: [unique_toolkit, unique_sdk, postprocessors/unique_follow_up_questions, postprocessors/unique_stock_ticker, tool_packages/unique_internal_search, tool_packages/unique_web_search]
     steps:
       - name: Check out code
         uses: actions/checkout@v4
