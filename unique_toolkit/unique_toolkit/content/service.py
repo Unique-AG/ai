@@ -1,8 +1,8 @@
-from enum import StrEnum
 import logging
+import mimetypes
+from enum import StrEnum
 from pathlib import Path
 from typing import Any, overload
-import mimetypes
 
 import unique_sdk
 from requests import Response
