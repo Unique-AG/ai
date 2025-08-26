@@ -50,10 +50,6 @@ class TestLanguageModelInfos:
             LanguageModelName.LITELLM_OPENAI_GPT_5_MINI,
             LanguageModelName.LITELLM_OPENAI_GPT_5_NANO,
             LanguageModelName.LITELLM_OPENAI_GPT_5_CHAT,
-            LanguageModelName.LITELLM_DEEPSEEK_R1,
-            LanguageModelName.LITELLM_DEEPSEEK_V3,
-            LanguageModelName.LITELLM_QWEN_3,
-            LanguageModelName.LITELLM_QWEN_3_THINKING,
         ]
         assert len(models) == len(expected_models)
         assert all(isinstance(model, LanguageModelInfo) for model in models)
