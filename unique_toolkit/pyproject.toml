@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_toolkit"
-version = "0.8.3"
+version = "0.8.20"
 description = ""
 authors = [
     "Martin Fadler <martin.fadler@unique.ch>",
@@ -23,12 +23,7 @@ tiktoken = "^0.7.0"
 unique-sdk = "^0.10.0"
 pydantic-settings = "^2.10.1"
 sseclient = "^0.0.27"
-
-[tool.poetry.group.openai]
-optional = true
-
-[tool.poetry.group.openai.dependencies]
-openai = "^1.97.0"
+openai = "^1.99.9"
 
 [tool.poetry.group.langchain]
 optional = true
@@ -39,7 +34,7 @@ langchain = "^0.3.27"
 langchain-openai = "^0.3.28"
 
 [tool.poetry.group.dev.dependencies]
-ruff = "0.11.7"
+ruff = "0.12.10"
 pytest = "^7.4.3"
 tox = "^4.11.4"
 pyright = "^1.1.341"

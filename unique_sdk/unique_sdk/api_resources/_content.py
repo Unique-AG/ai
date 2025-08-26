@@ -247,7 +247,7 @@ class Content(APIResource["Content"]):
             Content.PaginatedContentInfo,
             cls._static_request(
                 "post",
-                "/content/infos",
+                "/content/info",
                 user_id,
                 company_id,
                 params=params,
@@ -265,7 +265,7 @@ class Content(APIResource["Content"]):
             Content.PaginatedContentInfo,
             await cls._static_request_async(
                 "post",
-                "/content/infos",
+                "/content/info",
                 user_id,
                 company_id,
                 params=params,
@@ -318,6 +318,8 @@ class Content(APIResource["Content"]):
         """
         UpsertsContent
         """
+        if "input" in params:
+            params["input"]["metadata"] = params["input"].get("metadata") or {}
         return cast(
             "Content",
             cls._static_request(
@@ -339,6 +341,8 @@ class Content(APIResource["Content"]):
         """
         UpsertsContent
         """
+        if "input" in params:
+            params["input"]["metadata"] = params["input"].get("metadata") or {}
         return cast(
             "Content",
             await cls._static_request_async(

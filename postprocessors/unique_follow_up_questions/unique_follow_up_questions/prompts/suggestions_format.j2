@@ -1,0 +1,11 @@
+{%if questions|length > 0%}
+<follow-up-question>
+<hr>
+<strong><em>&nbsp;&nbsp;Suggested follow-up questions:</em></strong>
+<br>
+<br>
+{%for question in questions%}
+[{{question.question}}](https://prompt={{question.encoded_uri}})
+{%endfor%}
+</follow-up-question>
+{%endif%}

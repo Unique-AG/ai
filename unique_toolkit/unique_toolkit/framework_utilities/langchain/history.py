@@ -10,9 +10,9 @@ def unique_history_to_langchain_history(
     history = []
     for m in unique_history:
         if m.role == UniqueRole.ASSISTANT:
-            history.append(AIMessage(content=m.content))
+            history.append(AIMessage(content=m.content or ""))
         elif m.role == UniqueRole.USER:
-            history.append(HumanMessage(content=m.content))
+            history.append(HumanMessage(content=m.content or ""))
         else:
             raise Exception("Unknown message role.")
 

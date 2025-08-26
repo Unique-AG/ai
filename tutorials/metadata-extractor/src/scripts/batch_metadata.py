@@ -2,11 +2,12 @@ import asyncio
 
 from dotenv import load_dotenv
 from src.clients.content import ContentClient
-from src.utilities import find_date, find_topic
+from src.utilities import find_topic, get_date_from_filename
 
 load_dotenv()
 
 scope_ids = []
+max_concurrent_requests = 25
 
 
 async def run():
@@ -17,7 +18,6 @@ async def run():
         contents.extend(result["data"]["content"])
     print(f"Found {len(contents)} contents")
 
-    max_concurrent_requests = 25
     await process_update_tasks_with_limit(
         content_client, contents, max_concurrent_requests
     )
@@ -40,7 +40,10 @@ async def process_update_tasks_with_limit(content_client, contents, limit):
 
             existing_metadata = content.get("metadata", {})
             title = content.get("key", "")
-            extracted_metadata = {"date": find_date(title), "topic": find_topic(title)}
+            extracted_metadata = {
+                "date": get_date_from_filename(title) or "",
+                "topic": find_topic(title),
+            }
             new_metadata = {**existing_metadata, **extracted_metadata}
 
             print(f"Updating metadata for {content_id}: {extracted_metadata}")
