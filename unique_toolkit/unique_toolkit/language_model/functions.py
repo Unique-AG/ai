@@ -94,6 +94,7 @@ def complete(
 
 async def complete_async(
     company_id: str,
+    user_id: str,
     messages: LanguageModelMessages | list[ChatCompletionMessageParam],
     model_name: LanguageModelName | str,
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
@@ -142,6 +143,7 @@ async def complete_async(
     try:
         response = await unique_sdk.ChatCompletion.create_async(
             company_id=company_id,
+            user_id=user_id,
             model=model,
             messages=cast(
                 "list[unique_sdk.Integrated.ChatCompletionRequestMessage]",
