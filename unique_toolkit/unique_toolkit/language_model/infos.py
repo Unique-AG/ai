@@ -48,6 +48,10 @@ class LanguageModelName(StrEnum):
     LITELLM_OPENAI_GPT_5_MINI = "litellm:openai-gpt-5-mini"
     LITELLM_OPENAI_GPT_5_NANO = "litellm:openai-gpt-5-nano"
     LITELLM_OPENAI_GPT_5_CHAT = "litellm:openai-gpt-5-chat"
+    LITELLM_DEEPSEEK_R1 = "litellm:deepseek-r1"
+    LITELLM_DEEPSEEK_V3 = "litellm:deepseek-v3-1"
+    LITELLM_QWEN_3 = "litellm:qwen-3-235B-A22B"
+    LITELLM_QWEN_3_THINKING = "litellm:qwen-3-235B-A22B-thinking"
 
 
 class EncoderName(StrEnum):
@@ -874,6 +878,69 @@ class LanguageModelInfo(BaseModel):
                     published_at=date(2025, 8, 7),
                     deprecated_at=date(2026, 8, 7),
                     retirement_at=date(2026, 8, 7),
+                )
+            case LanguageModelName.LITELLM_DEEPSEEK_R1:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    version="deepseek-r1",
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.REASONING,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=64_000, token_limit_output=4_000
+                    ),
+                    published_at=date(2025, 1, 25),
+                )
+            case LanguageModelName.LITELLM_DEEPSEEK_V3:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    version="deepseek-v3-1",
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.REASONING,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=128_000, token_limit_output=4_000
+                    ),
+                    published_at=date(2025, 8, 1),
+                )
+            case LanguageModelName.LITELLM_QWEN_3:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    version="qwen-3",
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.REASONING,
+                    ],
+                    published_at=date(2025, 4, 29),
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=256_000, token_limit_output=32_768
+                    ),
+                )
+            case LanguageModelName.LITELLM_QWEN_3_THINKING:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    version="qwen-3-thinking",
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.REASONING,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=256_000, token_limit_output=32_768
+                    ),
+                    published_at=date(2025, 7, 25),
                 )
 
             case _:
