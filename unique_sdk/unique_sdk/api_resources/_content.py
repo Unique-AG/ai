@@ -230,7 +230,7 @@ class Content(APIResource["Content"]):
             Content.PaginatedContentInfo,
             cls._static_request(
                 "post",
-                "/content/infos",
+                "/content/info",
                 user_id,
                 company_id,
                 params=params,
@@ -248,7 +248,7 @@ class Content(APIResource["Content"]):
             Content.PaginatedContentInfo,
             await cls._static_request_async(
                 "post",
-                "/content/infos",
+                "/content/info",
                 user_id,
                 company_id,
                 params=params,
