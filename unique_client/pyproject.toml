@@ -20,6 +20,8 @@ pydantic = "^2.10.6"
 jsonref = "^1.1.0"
 datamodel-code-generator = "^0.31.0"
 openapi3-parser = "^1.1.21"
+openapi-pydantic = "^0.5.1"
+humps = "^0.2.2"
 
 
 [tool.poetry.group.dev.dependencies]
