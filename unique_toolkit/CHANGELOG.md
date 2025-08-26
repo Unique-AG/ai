@@ -12,7 +12,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.8.20] - 2025-08-24
 - Fixed forced-tool-calls
 
-
 ## [0.8.19] - 2025-08-24
 - Enforce usage of ruff using pipeline
 
