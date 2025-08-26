@@ -453,14 +453,15 @@ class Content(APIResource["Content"]):
             file_info = cls.get_info(
                 user_id=user_id,
                 company_id=company_id,
-                metadataFilter={"filePath": file_path},
-                skip=0,
-                take=1,
+                filePath=file_path,
             )
-            resolved_id = file_info.get("id")
+            resolved_id = (
+                file_info.get("contentInfo")[0].get("id")
+                if file_info.get("totalCount", 0) > 0
+                else None
+            )
+            print(f"Resolved contentId: {resolved_id} for filePath: {file_path}")
             if not resolved_id:
-                raise ValueError(
-                    f"Could not resolve file id from filePath: {file_path}"
-                )
+                raise ValueError(f"Could not find file with filePath: {file_path}")
             params["contentId"] = resolved_id
             params.pop("filePath", None)
