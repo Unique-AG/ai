@@ -922,6 +922,9 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.REASONING,
                     ],
                     published_at=date(2025, 4, 29),
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=256_000, token_limit_output=32_768
+                    )
                 )
             case LanguageModelName.LITELLM_QWEN_3_THINKING:
                 return cls(
