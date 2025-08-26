@@ -1,21 +1,21 @@
 import json
-import logging
 import unique_sdk
 from typing import Any, Dict
 from unique_toolkit.evals.schemas import EvaluationMetricName
-from unique_toolkit.tools.agent_chunks_handler import AgentChunksHandler
-from unique_toolkit.tools.schemas import LanguageModelMessage
-
+from unique_toolkit.language_model import LanguageModelMessage
 from unique_toolkit.tools.mcp.models import MCPToolConfig, EnrichedMCPTool
 from unique_toolkit.tools.schemas import ToolCallResponse
 from unique_toolkit.tools.tool import Tool
 from unique_toolkit.tools.tool_progress_reporter import ToolProgressReporter
-from unique_toolkit.tools.schemas import LanguageModelToolDescription, LanguageModelToolMessage, LanguageModelFunction
-from unique_toolkit.tools.schemas import ProgressState
-from unique_toolkit.tools.schemas import ChatEvent
+from unique_toolkit.tools.config import ToolBuildConfig, ToolIcon, ToolSelectionPolicy
+from unique_toolkit.language_model.schemas import (
+    LanguageModelToolDescription,
+    LanguageModelToolMessage,
+    LanguageModelFunction,
+)
+from unique_toolkit.tools.tool_progress_reporter import ProgressState
+from unique_toolkit.app.schemas import ChatEvent
 from pydantic import BaseModel, Field, create_model
-
-
 
 
 class MCPToolWrapper(Tool[MCPToolConfig]):
@@ -28,15 +28,15 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
         event: ChatEvent,
         tool_progress_reporter: ToolProgressReporter | None = None,
     ):
+        self.name = mcp_tool.name
         super().__init__(config, event, tool_progress_reporter)
         self.mcp_tool = mcp_tool
-        self.name = mcp_tool.name
         self._tool_description = mcp_tool.description or ""
         self._parameters_schema = mcp_tool.input_schema
 
         # Set the display name for user-facing messages
         # Priority: title > annotations.title > name
-        self._display_name = (
+        self.display_name = (
             getattr(mcp_tool, "title", None)
             or (getattr(mcp_tool, "annotations", {}) or {}).get("title")
             or mcp_tool.name
@@ -119,7 +119,6 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
     def get_tool_call_result_for_loop_history(
         self,
         tool_response: ToolCallResponse,
-        agent_chunks_handler: AgentChunksHandler,
     ) -> LanguageModelMessage:
         """Convert tool response to message for loop history"""
         # Convert the tool response to a message for the conversation history
@@ -201,9 +200,7 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
                 debug_info={
                     "mcp_tool": self.name,
                     "error": str(e),
-                    "original_arguments": getattr(
-                        tool_call, "arguments", None
-                    ),
+                    "original_arguments": getattr(tool_call, "arguments", None),
                 },
                 error_message=str(e),
             )
@@ -223,9 +220,7 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
 
         # Handle None or empty arguments
         if not raw_arguments:
-            self.logger.warning(
-                f"MCP tool {self.name} called with empty arguments"
-            )
+            self.logger.warning(f"MCP tool {self.name} called with empty arguments")
             return {}
 
         # Handle string arguments (JSON format)
@@ -248,9 +243,7 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
 
         # Handle dictionary arguments (already parsed)
         if isinstance(raw_arguments, dict):
-            self.logger.debug(
-                f"MCP tool {self.name}: arguments already in dict format"
-            )
+            self.logger.debug(f"MCP tool {self.name}: arguments already in dict format")
             return raw_arguments
 
         # Handle unexpected argument types
@@ -261,9 +254,7 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
             f"Unexpected arguments type for MCP tool {self.name}: {type(raw_arguments)}"
         )
 
-    async def _call_mcp_tool_via_sdk(
-        self, arguments: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def _call_mcp_tool_via_sdk(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """Call MCP tool via SDK to public API"""
         try:
             result = unique_sdk.MCP.call_tool(

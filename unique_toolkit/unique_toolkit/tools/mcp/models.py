@@ -2,7 +2,7 @@ from typing import Any, Dict, Optional, Protocol
 
 from pydantic import BaseModel
 
-from unique_toolkit.tools.config import BaseToolConfig
+from unique_toolkit.tools.schemas import BaseToolConfig
 
 
 class MCPTool(Protocol):
@@ -33,4 +33,8 @@ class EnrichedMCPTool(MCPTool, Protocol):
 class MCPToolConfig(BaseToolConfig):
     """Configuration for MCP tools"""
 
-    pass
+    server_id: str
+    server_name: str
+    server_system_prompt: Optional[str] = None
+    server_user_prompt: Optional[str] = None
+    mcp_source_id: str

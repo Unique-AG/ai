@@ -20,6 +20,7 @@ from unique_toolkit.tools.utils.execution.execution import Result, SafeTaskExecu
 from unique_toolkit.evals.schemas import EvaluationMetricName
 from unique_toolkit.tools.mcp.manager import MCPManager
 
+
 class ForcedToolOption:
     type: str = "function"
 
@@ -80,18 +81,15 @@ class ToolManager:
         self._mcp_manager = mcp_manager
         self._init__tools(event)
 
-
     def _init__tools(self, event: ChatEvent) -> None:
         tool_choices = self._tool_choices
         tool_configs = self._config.tools
         self._logger.info("Initializing tool definitions...")
         self._logger.info(f"Tool choices: {tool_choices}")
         self._logger.info(f"Tool configs: {tool_configs}")
-        mcp_tools = self._mcp_manager.get_all_mcp_tools(tool_choices)
 
-        tool_configs.extend([t.settings.configuration for t in mcp_tools])
-        
-        self.available_tools = [
+        # Build internal tools from configurations
+        internal_tools = [
             ToolFactory.build_tool_with_settings(
                 t.name,
                 t,
@@ -101,6 +99,11 @@ class ToolManager:
             )
             for t in tool_configs
         ]
+
+        # Get MCP tools (these are already properly instantiated)
+        mcp_tools = self._mcp_manager.get_all_mcp_tools(tool_choices)
+        # Combine both types of tools
+        self.available_tools = internal_tools + mcp_tools
 
         for t in self.available_tools:
             if t.is_exclusive():

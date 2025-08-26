@@ -13,7 +13,7 @@ from pydantic.alias_generators import to_camel
 from pydantic.fields import ComputedFieldInfo, FieldInfo
 
 if TYPE_CHECKING:
-    from unique_toolkit.tools.schemas import BaseToolConfig
+    pass
 
 
 def field_title_generator(
@@ -85,6 +85,18 @@ class ToolBuildConfig(BaseModel):
         if not isinstance(value, dict):
             return value
 
+        is_mcp_tool = value.get("mcp_source_id", "") != ""
+        mcp_configuration = value.get("configuration", {})
+        if (
+            isinstance(mcp_configuration, MCPToolConfig)
+            and mcp_configuration.mcp_source_id
+        ):
+            return value
+        if is_mcp_tool:
+            # For MCP tools, skip ToolFactory validation
+            # Configuration can remain as a dict
+            return value
+
         configuration = value.get("configuration", {})
         if isinstance(configuration, dict):
             # Local import to avoid circular import at module import time
@@ -105,3 +117,11 @@ class ToolBuildConfig(BaseModel):
             config = configuration
         value["configuration"] = config
         return value
+
+
+# Import BaseToolConfig after model definition to avoid circular imports
+from unique_toolkit.tools.schemas import BaseToolConfig
+from unique_toolkit.tools.mcp.models import MCPToolConfig
+
+# Update the forward references
+ToolBuildConfig.model_rebuild()
