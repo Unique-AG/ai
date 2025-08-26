@@ -421,6 +421,7 @@ def complete_with_references(
 
 async def complete_with_references_async(
     company_id: str,
+    user_id: str,
     messages: LanguageModelMessages,
     model_name: LanguageModelName | str,
     content_chunks: list[ContentChunk] | None = None,
@@ -434,6 +435,7 @@ async def complete_with_references_async(
     # Use toolkit language model functions for chat completion
     response = await complete_async(
         company_id=company_id,
+        user_id=user_id,
         model_name=model_name,
         messages=messages,
         temperature=temperature,
