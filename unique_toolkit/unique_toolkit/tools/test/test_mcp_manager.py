@@ -10,8 +10,6 @@ from unique_toolkit.chat.service import ChatService
 from unique_toolkit.tools.config import ToolBuildConfig, ToolIcon, ToolSelectionPolicy
 from unique_toolkit.tools.factory import ToolFactory
 from unique_toolkit.tools.mcp.manager import MCPManager
-from unique_toolkit.tools.mcp.models import MCPToolConfig, EnrichedMCPTool
-from unique_toolkit.tools.mcp.tool_wrapper import MCPToolWrapper
 from unique_toolkit.tools.schemas import BaseToolConfig
 from unique_toolkit.tools.tool import Tool
 from unique_toolkit.tools.tool_manager import ToolManager, ToolManagerConfig

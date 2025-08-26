@@ -282,35 +282,3 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
         except Exception as e:
             self.logger.error(f"SDK call failed for MCP tool {self.name}: {e}")
             raise
-
-
-def create_mcp_tool_wrappers(
-    mcp_tools: list[EnrichedMCPTool],
-    event: ChatEvent,
-    tool_progress_reporter: ToolProgressReporter,
-) -> list[Tool]:
-    """Create MCP tool wrappers that behave like internal tools"""
-    wrappers = []
-
-    for mcp_tool in mcp_tools:
-        try:
-            # Create a basic config for the MCP tool
-            config = MCPToolConfig()
-
-            # Create the wrapper
-            wrapper = MCPToolWrapper(
-                mcp_tool=mcp_tool,
-                config=config,
-                event=event,
-                tool_progress_reporter=tool_progress_reporter,
-            )
-
-            wrappers.append(wrapper)
-
-        except Exception as e:
-            # Log error but continue with other tools
-            logging.error(
-                f"Error creating MCP tool wrapper for {mcp_tool.name}: {e}"
-            )
-
-    return wrappers
