@@ -53,6 +53,7 @@ class LanguageModelName(StrEnum):
     LITELLM_QWEN_3 = "litellm:qwen-3"
     LITELLM_QWEN_3_THINKING = "litellm:qwen-3-thinking"
 
+
 class EncoderName(StrEnum):
     O200K_BASE = "o200k_base"
     CL100K_BASE = "cl100k_base"
@@ -902,7 +903,7 @@ class LanguageModelInfo(BaseModel):
                     capabilities=[
                         ModelCapabilities.FUNCTION_CALLING,
                         ModelCapabilities.STRUCTURED_OUTPUT,
-                    ]
+                    ],
                 )
             case LanguageModelName.LITELLM_QWEN_3:
                 return cls(
@@ -915,9 +916,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.STREAMING,
                         ModelCapabilities.REASONING,
                     ],
-                    token_limits=LanguageModelTokenLimits(
-                        token_limit_input=128_000
-                    ),
+                    token_limits=LanguageModelTokenLimits(token_limit_input=128_000),
                     published_at=date(2025, 4, 29),
                 )
             case LanguageModelName.LITELLM_QWEN_3_THINKING:
