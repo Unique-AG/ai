@@ -129,6 +129,13 @@ class LanguageModelStreamResponse(BaseModel):
     message: LanguageModelStreamResponseMessage
     tool_calls: list[LanguageModelFunction] | None = None
 
+    def is_empty(self) -> bool:
+        """
+        Check if the stream response is empty.
+        An empty stream response has no text and no tool calls.
+        """
+        return not self.message.original_text and not self.tool_calls
+
     def to_openai_param(self) -> ChatCompletionAssistantMessageParam:
         return ChatCompletionAssistantMessageParam(
             role="assistant",

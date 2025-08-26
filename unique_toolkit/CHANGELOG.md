@@ -5,6 +5,57 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+## [0.8.22] - 2025-08-25
+- Add DeepSeek-R1, DeepSeek-V3.1, Qwen3-235B-A22B and Qwen3-235B-A22B-Thinking-2507 to supported model list
+
+## [0.8.21] - 2025-08-26
+- Fixed old (not used) function "create_async" in language_model.functions : The function always returns "Unauthorized" --> Added "user_id" argument to fix this.
+
+## [0.8.20] - 2025-08-24
+- Fixed forced-tool-calls
+
+## [0.8.20] - 2025-08-05
+- Bump SDK version to support the latest features.
+
+## [0.8.19] - 2025-08-24
+- Enforce usage of ruff using pipeline
+
+## [0.8.18] - 2025-08-22
+- moved class variables into instance variables
+
+## [0.8.17] - 2025-08-22
+- fixed circular dependencies in tools
+
+## [0.8.16] - 2025-08-19
+- moved Hallucination evaluator into toolkit
+
+## [0.8.15] - 2025-08-19
+- Added history loading from database for History Manager
+
+## [0.8.14] - 2025-08-19
+- Including GPT-5 series deployed via LiteLLM into language model info
+
+## [0.8.13] - 2025-08-18
+- Adding initial versions of
+  - Evaluation Manager
+  - History Manager
+  - Postprocessor Manager
+  - Thinking Manager
+- Updated tool manager
+
+## [0.8.12] - 2025-08-18
+- Fix no tool call respoonse in ChatMessage -> Open Ai messages translation
+- Add simple append method to OpenAIMessageBuilder
+
+## [0.8.11] - 2025-08-15
+- Fix no tool call respoonse in ChatMessage -> Open Ai messages translation
+- Add simple append method to OpenAIMessageBuilder
+
+## [0.8.10] - 2025-08-15
+- Add min and max temperature to `LanguageModelInfo`: temperature will be clamped to the min and max temperature
+- Add default options to `LanguageModelInfo`: These are used by default
+
 ## [0.8.9] - 2025-08-15
 - Reduce input token limits for `ANTHROPIC_CLAUDE_3_7_SONNET_THINKING`, `ANTHROPIC_CLAUDE_3_7_SONNET`, `ANTHROPIC_CLAUDE_OPUS_4` and `ANTHROPIC_CLAUDE_SONNET_4` to 180_000 from 200_000
 

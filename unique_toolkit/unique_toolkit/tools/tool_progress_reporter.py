@@ -5,6 +5,7 @@ from functools import wraps
 from typing import Protocol
 
 from pydantic import BaseModel
+
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.schemas import ContentReference
 from unique_toolkit.language_model.schemas import (

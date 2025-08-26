@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_toolkit"
-version = "0.8.9"
+version = "0.8.22"
 description = ""
 authors = [
     "Martin Fadler <martin.fadler@unique.ch>",
@@ -34,7 +34,7 @@ langchain = "^0.3.27"
 langchain-openai = "^0.3.28"
 
 [tool.poetry.group.dev.dependencies]
-ruff = "0.11.7"
+ruff = "0.12.10"
 pytest = "^7.4.3"
 tox = "^4.11.4"
 pyright = "^1.1.341"

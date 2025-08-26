@@ -20,7 +20,11 @@ from unique_toolkit.language_model import (
     LanguageModelTool,
     LanguageModelToolDescription,
 )
-from unique_toolkit.language_model.infos import LanguageModelName
+from unique_toolkit.language_model.infos import (
+    LanguageModelInfo,
+    LanguageModelName,
+    TemperatureBounds,
+)
 from unique_toolkit.language_model.reference import (
     add_references_to_message,
 )
@@ -90,6 +94,7 @@ def complete(
 
 async def complete_async(
     company_id: str,
+    user_id: str,
     messages: LanguageModelMessages | list[ChatCompletionMessageParam],
     model_name: LanguageModelName | str,
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
@@ -138,6 +143,7 @@ async def complete_async(
     try:
         response = await unique_sdk.ChatCompletion.create_async(
             company_id=company_id,
+            user_id=user_id,
             model=model,
             messages=cast(
                 "list[unique_sdk.Integrated.ChatCompletionRequestMessage]",
@@ -303,6 +309,24 @@ def __camelize_keys(data):
     return data
 
 
+def _clamp_temperature(
+    temperature: float, temperature_bounds: TemperatureBounds
+) -> float:
+    temperature = max(temperature_bounds.min_temperature, temperature)
+    temperature = min(temperature_bounds.max_temperature, temperature)
+    return round(temperature, 2)
+
+
+def _prepare_other_options(
+    other_options: dict | None,
+    default_options: dict,
+) -> dict:
+    options = default_options
+    if other_options is not None:
+        options.update(other_options)
+    return options
+
+
 def _prepare_all_completions_params_util(
     messages: LanguageModelMessages | list[ChatCompletionMessageParam],
     model_name: LanguageModelName | str,
@@ -318,6 +342,13 @@ def _prepare_all_completions_params_util(
     list[unique_sdk.Integrated.ChatCompletionRequestMessage],
     dict | None,
 ]:
+    model_info = None
+    if isinstance(model_name, LanguageModelName):
+        model_info = LanguageModelInfo.from_name(model_name)
+        other_options = _prepare_other_options(
+            other_options, model_info.default_options
+        )
+
     if isinstance(messages, LanguageModelMessages):
         options, model, messages_dict, search_context = _prepare_completion_params_util(
             messages=messages,
@@ -340,6 +371,15 @@ def _prepare_all_completions_params_util(
             structured_output_enforce_schema=structured_output_enforce_schema,
         )
         messages_dict = __camelize_keys(messages.copy())
+
+    if (
+        model_info is not None
+        and model_info.temperature_bounds is not None
+        and "temperature" in options
+    ):
+        options["temperature"] = _clamp_temperature(
+            temperature, model_info.temperature_bounds
+        )
 
     integrated_messages = cast(
         "list[unique_sdk.Integrated.ChatCompletionRequestMessage]",
@@ -381,6 +421,7 @@ def complete_with_references(
 
 async def complete_with_references_async(
     company_id: str,
+    user_id: str,
     messages: LanguageModelMessages,
     model_name: LanguageModelName | str,
     content_chunks: list[ContentChunk] | None = None,
@@ -394,6 +435,7 @@ async def complete_with_references_async(
     # Use toolkit language model functions for chat completion
     response = await complete_async(
         company_id=company_id,
+        user_id=user_id,
         model_name=model_name,
         messages=messages,
         temperature=temperature,

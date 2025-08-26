@@ -1,6 +1,5 @@
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
-from typing import TYPE_CHECKING
 from unique_toolkit.tools.schemas import BaseToolConfig
 from unique_toolkit.tools.tool import Tool
 

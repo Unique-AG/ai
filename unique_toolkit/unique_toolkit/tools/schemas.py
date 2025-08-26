@@ -4,8 +4,8 @@ import re
 from typing import Any, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
-from unique_toolkit.content.schemas import ContentChunk
 
+from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.tools.config import get_configuration_dict
 from unique_toolkit.tools.utils.source_handling.schema import SourceFormatConfig
 
@@ -132,7 +132,7 @@ class Source(BaseModel):
 class ToolPrompts(BaseModel):
     name: str
     display_name: str
+    tool_system_prompt: str
     tool_description: str
-    tool_format_information_for_system_prompt: str
     tool_format_information_for_system_prompt: str
     input_model: dict[str, Any]

@@ -3,42 +3,42 @@ name: "[chore] Ruff Linting"
 on:
   pull_request:
     paths:
-      - "!tutorials/**" # exclude tutorials
-
-env:
-  RUFF_VERSION: 0.5.0
+      - "unique_toolkit/**"
+      - "unique_sdk/**"
+      - "postprocessors/unique_follow_up_questions/**"
+      - "postprocessors/unique_stock_ticker/**"
+      - "tool_packages/unique_internal_search/**"
+      - "tool_packages/unique_web_search/**"
+      - ".github/workflows/chore_linting_ruff.yaml"
 
 jobs:
-  lint:
+  ruff-lint-and-format:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package: [unique_toolkit, unique_sdk, postprocessors/unique_follow_up_questions, postprocessors/unique_stock_ticker, tool_packages/unique_internal_search, tool_packages/unique_web_search]
     steps:
-      - uses: actions/checkout@v4
-      - uses: chartboost/ruff-action@v1
-        with:
-          version: ${{ env.RUFF_VERSION }}
-          changed-files: "true"
+      - name: Check out code
+        uses: actions/checkout@v4
 
-  format:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: chartboost/ruff-action@v1
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          version: ${{ env.RUFF_VERSION }}
-          changed-files: "true"
-          args: "format --check"
+          python-version: '3.11'
 
-  sort-imports:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: chartboost/ruff-action@v1
-        with:
-          version: ${{ env.RUFF_VERSION }}
-          changed-files: "true"
-          args: "check --select I"
-      - uses: chartboost/ruff-action@v1
-        with:
-          version: ${{ env.RUFF_VERSION }}
-          changed-files: "true"
-          args: "format --check"
+      - name: Install Poetry
+        run: |
+          POETRY_VERSION='1.8.3'
+          PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install poetry==$POETRY_VERSION
+
+      - name: Install dependencies
+        working-directory: ${{ matrix.package }}
+        run: poetry install
+
+      - name: Run Ruff format check
+        working-directory: ${{ matrix.package }}
+        run: poetry run ruff format --check .
+
+      - name: Run Ruff lint check
+        working-directory: ${{ matrix.package }}
+        run: poetry run ruff check .

@@ -5,8 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.10.9] - 2025-08-13
+## [0.10.14] - 2025-08-26
 - Add function to update a folder.
+
+## [0.10.13] - 2025-08-24
+- Add functions to create, get and update a message eecution and create and update a message log.
+
+## [0.10.12] - 2025-08-24
+- Switch to using Content get info deprecated endpoint to make sure we support older release versions.
+
+## [0.10.11] - 2025-08-24
+- Enforce usage of ruff using pipeline
+
+## [0.10.10] - 2025-08-18
+- Fix wrong name of references in `Space.Message`. 
+- Fix wrong name of assessment in `Space.Message`.
+- Remove default values for `text`, `originalText` and `debugInfo` in `Space.Message` as these don't have an effect.
+
+## [0.10.9] - 2025-08-15
+- Add script to wait for content ingestion finished.
 
 ## [0.10.8] - 2025-08-13
 - Add support for Agentic Table.
