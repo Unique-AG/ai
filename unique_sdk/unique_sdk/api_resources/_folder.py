@@ -417,12 +417,14 @@ class Folder(APIResource["Folder"]):
         Delete a folder by its ID or path.
         """
 
-        cls._resolve_scope_id_from_folder_path(user_id, company_id, params)
+        scopeId = cls.resolve_scope_id(
+            user_id, company_id, params.get("scopeId"), params.get("folderPath")
+        )
         return cast(
             "Folder.DeleteResponse",
             cls._static_request(
                 "delete",
-                f"{cls.RESOURCE_URL}/{params.get('scopeId')}",
+                f"{cls.RESOURCE_URL}/{scopeId}",
                 user_id,
                 company_id=company_id,
             ),
@@ -438,31 +440,34 @@ class Folder(APIResource["Folder"]):
         """
         Async delete a folder by its ID or path.
         """
-        cls._resolve_scope_id_from_folder_path(user_id, company_id, params)
+        scopeId = cls.resolve_scope_id(
+            user_id, company_id, params.get("scopeId"), params.get("folderPath")
+        )
         return cast(
             "Folder.DeleteResponse",
             await cls._static_request_async(
                 "delete",
-                f"{cls.RESOURCE_URL}/{params.get('scopeId')}",
+                f"{cls.RESOURCE_URL}/{scopeId}",
                 user_id,
                 company_id=company_id,
             ),
         )
 
     @classmethod
-    def _resolve_scope_id_from_folder_path(
+    def resolve_scope_id(
         cls,
         user_id: str,
         company_id: str,
-        params: dict,
-    ) -> None:
+        scope_id: str | None = None,
+        folder_path: str | None = None,
+    ) -> str | None:
         """
-        If scopeId is not provided but folderPath is, resolve the folderPath to scopeId.
-        Modifies params in-place.
+        Returns the scopeId to use: if scope_id is provided, returns it;
+        if not, but folder_path is provided, resolves and returns the id for that folder path.
         """
-        scope_id = params.get("scopeId")
-        folder_path = params.get("folderPath")
-        if not scope_id:
+        if scope_id:
+            return scope_id
+        if folder_path:
             folder_info = cls.get_info(
                 user_id=user_id,
                 company_id=company_id,
@@ -471,7 +476,7 @@ class Folder(APIResource["Folder"]):
             resolved_id = folder_info.get("id")
             if not resolved_id:
                 raise ValueError(
-                    f"Could not resolve folder id from folderPath: {folder_path}"
+                    f"Could not find a folder with folderPath: {folder_path}"
                 )
-            params["scopeId"] = resolved_id
-            params.pop("folderPath", None)
+            return resolved_id
+        return None
