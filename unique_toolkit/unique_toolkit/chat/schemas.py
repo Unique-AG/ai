@@ -170,6 +170,22 @@ class MessageLogStatus(StrEnum):
     FAILED = "FAILED"
 
 
+class MessageExecutionStatus(StrEnum):
+    PENDING = "PENDING"
+    RUNNING = "RUNNING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+
+
+class MessageExecutionType(StrEnum):
+    DEEP_RESEARCH = "DEEP_RESEARCH"
+
+
+class MessageExecutionUpdateStatus(StrEnum):
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+
+
 class MessageLogUncitedReferences(BaseModel):
     model_config = model_config
     data: list[ContentReference]
@@ -200,5 +216,18 @@ class MessageLog(BaseModel):
     uncited_references: MessageLogUncitedReferences | None = None
     order: int
     references: list[ContentReference] | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+class MessageExecution(BaseModel):
+    model_config = model_config
+
+    message_execution_id: str | None = None
+    message_id: str | None = None
+    status: MessageExecutionStatus
+    type: MessageExecutionType = MessageExecutionType.DEEP_RESEARCH
+    seconds_remaining: int | None = None
+    percentage_completed: int | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None

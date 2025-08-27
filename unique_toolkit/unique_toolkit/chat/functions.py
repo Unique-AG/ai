@@ -15,6 +15,9 @@ from unique_toolkit.chat.schemas import (
     ChatMessageAssessmentStatus,
     ChatMessageAssessmentType,
     ChatMessageRole,
+    MessageExecution,
+    MessageExecutionType,
+    MessageExecutionUpdateStatus,
     MessageLog,
     MessageLogDetails,
     MessageLogStatus,
@@ -1095,4 +1098,232 @@ async def update_message_log_async(
         return MessageLog(**message_log)
     except Exception as e:
         logger.error(f"Failed to update message log: {e}")
+        raise e
+
+
+def create_message_execution(
+    user_id: str,
+    company_id: str,
+    message_id: str,
+    chat_id: str,
+    type: MessageExecutionType = MessageExecutionType.DEEP_RESEARCH,
+    seconds_remaining: int | None = None,
+    percentage_completed: int | None = None,
+) -> MessageExecution:
+    """Creates a message execution synchronously.
+
+    Args:
+        user_id (str): The user ID.
+        company_id (str): The company ID.
+        message_id (str): The ID of the message this execution belongs to.
+        chat_id (str): The chat ID.
+        type (MessageExecutionType): The type of execution. Defaults to DEEP_RESEARCH.
+        seconds_remaining (int | None): Estimated seconds remaining for completion.
+        percentage_completed (int | None): Percentage of completion (0-100).
+
+    Returns:
+        MessageExecution: The created message execution.
+
+    Raises:
+        Exception: If the creation fails.
+
+    """
+    try:
+        message_execution = unique_sdk.MessageExecution.create(
+            user_id=user_id,
+            company_id=company_id,
+            messageId=message_id,
+            chatId=chat_id,
+            type=type.value,
+            secondsRemaining=seconds_remaining,
+            percentageCompleted=percentage_completed,
+        )
+        return MessageExecution(**message_execution)
+    except Exception as e:
+        logger.error(f"Failed to create message execution: {e}")
+        raise e
+
+
+async def create_message_execution_async(
+    user_id: str,
+    company_id: str,
+    message_id: str,
+    chat_id: str,
+    type: MessageExecutionType = MessageExecutionType.DEEP_RESEARCH,
+    seconds_remaining: int | None = None,
+    percentage_completed: int | None = None,
+) -> MessageExecution:
+    """Creates a message execution asynchronously.
+
+    Args:
+        user_id (str): The user ID.
+        company_id (str): The company ID.
+        message_id (str): The ID of the message this execution belongs to.
+        chat_id (str): The chat ID.
+        type (MessageExecutionType): The type of execution. Defaults to DEEP_RESEARCH.
+        seconds_remaining (int | None): Estimated seconds remaining for completion.
+        percentage_completed (int | None): Percentage of completion (0-100).
+
+    Returns:
+        MessageExecution: The created message execution.
+
+    Raises:
+        Exception: If the creation fails.
+
+    """
+    try:
+        message_execution = await unique_sdk.MessageExecution.create_async(
+            user_id=user_id,
+            company_id=company_id,
+            messageId=message_id,
+            chatId=chat_id,
+            type=type.value,
+            secondsRemaining=seconds_remaining,
+            percentageCompleted=percentage_completed,
+        )
+        return MessageExecution(**message_execution)
+    except Exception as e:
+        logger.error(f"Failed to create message execution: {e}")
+        raise e
+
+
+def get_message_execution(
+    user_id: str,
+    company_id: str,
+    message_id: str,
+) -> MessageExecution:
+    """Gets a message execution by message ID synchronously.
+
+    Args:
+        user_id (str): The user ID.
+        company_id (str): The company ID.
+        message_id (str): The ID of the message to get execution for.
+
+    Returns:
+        MessageExecution: The message execution.
+
+    Raises:
+        Exception: If the retrieval fails.
+
+    """
+    try:
+        message_execution = unique_sdk.MessageExecution.get(
+            user_id=user_id,
+            company_id=company_id,
+            messageId=message_id,
+        )
+        return MessageExecution(**message_execution)
+    except Exception as e:
+        logger.error(f"Failed to get message execution: {e}")
+        raise e
+
+
+async def get_message_execution_async(
+    user_id: str,
+    company_id: str,
+    message_id: str,
+) -> MessageExecution:
+    """Gets a message execution by message ID asynchronously.
+
+    Args:
+        user_id (str): The user ID.
+        company_id (str): The company ID.
+        message_id (str): The ID of the message to get execution for.
+
+    Returns:
+        MessageExecution: The message execution.
+
+    Raises:
+        Exception: If the retrieval fails.
+
+    """
+    try:
+        message_execution = await unique_sdk.MessageExecution.get_async(
+            user_id=user_id,
+            company_id=company_id,
+            messageId=message_id,
+        )
+        return MessageExecution(**message_execution)
+    except Exception as e:
+        logger.error(f"Failed to get message execution: {e}")
+        raise e
+
+
+def update_message_execution(
+    user_id: str,
+    company_id: str,
+    message_id: str,
+    status: MessageExecutionUpdateStatus,
+    seconds_remaining: int | None = None,
+    percentage_completed: int | None = None,
+) -> MessageExecution:
+    """Updates a message execution synchronously.
+
+    Args:
+        user_id (str): The user ID.
+        company_id (str): The company ID.
+        message_id (str): The ID of the message to update execution for.
+        status (MessageExecutionUpdateStatus): The updated status (COMPLETED or FAILED).
+        seconds_remaining (int | None): Updated estimated seconds remaining.
+        percentage_completed (int | None): Updated percentage of completion (0-100).
+
+    Returns:
+        MessageExecution: The updated message execution.
+
+    Raises:
+        Exception: If the update fails.
+
+    """
+    try:
+        message_execution = unique_sdk.MessageExecution.update(
+            user_id=user_id,
+            company_id=company_id,
+            messageId=message_id,
+            status=status.value,
+            secondsRemaining=seconds_remaining,
+            percentageCompleted=percentage_completed,
+        )
+        return MessageExecution(**message_execution)
+    except Exception as e:
+        logger.error(f"Failed to update message execution: {e}")
+        raise e
+
+
+async def update_message_execution_async(
+    user_id: str,
+    company_id: str,
+    message_id: str,
+    status: MessageExecutionUpdateStatus,
+    seconds_remaining: int | None = None,
+    percentage_completed: int | None = None,
+) -> MessageExecution:
+    """Updates a message execution asynchronously.
+
+    Args:
+        user_id (str): The user ID.
+        company_id (str): The company ID.
+        message_id (str): The ID of the message to update execution for.
+        status (MessageExecutionUpdateStatus): The updated status (COMPLETED or FAILED).
+        seconds_remaining (int | None): Updated estimated seconds remaining.
+        percentage_completed (int | None): Updated percentage of completion (0-100).
+
+    Returns:
+        MessageExecution: The updated message execution.
+
+    Raises:
+        Exception: If the update fails.
+
+    """
+    try:
+        message_execution = await unique_sdk.MessageExecution.update_async(
+            user_id=user_id,
+            company_id=company_id,
+            messageId=message_id,
+            status=status.value,
+            secondsRemaining=seconds_remaining,
+            percentageCompleted=percentage_completed,
+        )
+        return MessageExecution(**message_execution)
+    except Exception as e:
+        logger.error(f"Failed to update message execution: {e}")
         raise e

@@ -14,15 +14,21 @@ from unique_toolkit.chat.functions import (
     create_message_assessment,
     create_message_assessment_async,
     create_message_async,
+    create_message_execution,
+    create_message_execution_async,
     create_message_log,
     create_message_log_async,
     get_full_history,
     get_full_history_async,
+    get_message_execution,
+    get_message_execution_async,
     get_selection_from_history,
     modify_message,
     modify_message_assessment,
     modify_message_assessment_async,
     modify_message_async,
+    update_message_execution,
+    update_message_execution_async,
     update_message_log,
     update_message_log_async,
 )
@@ -33,6 +39,9 @@ from unique_toolkit.chat.schemas import (
     ChatMessageAssessmentStatus,
     ChatMessageAssessmentType,
     ChatMessageRole,
+    MessageExecution,
+    MessageExecutionType,
+    MessageExecutionUpdateStatus,
     MessageLog,
     MessageLogDetails,
     MessageLogStatus,
@@ -1138,6 +1147,322 @@ class ChatService:
             details=details,
             uncited_references=uncited_references,
             references=references,
+        )
+
+    def create_message_execution(
+        self,
+        message_id: str,
+        type: MessageExecutionType = MessageExecutionType.DEEP_RESEARCH,
+        seconds_remaining: int | None = None,
+        percentage_completed: int | None = None,
+    ) -> MessageExecution:
+        """Creates a message execution for tracking long-running operations synchronously.
+
+        Args:
+            message_id (str): The ID of the message this execution belongs to
+            type (MessageExecutionType): The type of execution. Defaults to DEEP_RESEARCH.
+            seconds_remaining (int | None): Estimated seconds remaining for completion
+            percentage_completed (int | None): Percentage of completion (0-100)
+
+        Returns:
+            MessageExecution: The created message execution
+
+        Raises:
+            Exception: If the creation fails
+
+        """
+        return create_message_execution(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            message_id=message_id,
+            chat_id=self._chat_id,
+            type=type,
+            seconds_remaining=seconds_remaining,
+            percentage_completed=percentage_completed,
+        )
+
+    async def create_message_execution_async(
+        self,
+        message_id: str,
+        type: MessageExecutionType = MessageExecutionType.DEEP_RESEARCH,
+        seconds_remaining: int | None = None,
+        percentage_completed: int | None = None,
+    ) -> MessageExecution:
+        """Creates a message execution for tracking long-running operations asynchronously.
+
+        Args:
+            message_id (str): The ID of the message this execution belongs to
+            type (MessageExecutionType): The type of execution. Defaults to DEEP_RESEARCH.
+            seconds_remaining (int | None): Estimated seconds remaining for completion
+            percentage_completed (int | None): Percentage of completion (0-100)
+
+        Returns:
+            MessageExecution: The created message execution
+
+        Raises:
+            Exception: If the creation fails
+
+        """
+        return await create_message_execution_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            message_id=message_id,
+            chat_id=self._chat_id,
+            type=type,
+            seconds_remaining=seconds_remaining,
+            percentage_completed=percentage_completed,
+        )
+
+    def get_message_execution(
+        self,
+        message_id: str,
+    ) -> MessageExecution:
+        """Gets a message execution by message ID synchronously.
+
+        Args:
+            message_id (str): The ID of the message to get execution for
+
+        Returns:
+            MessageExecution: The message execution
+
+        Raises:
+            Exception: If the retrieval fails
+
+        """
+        return get_message_execution(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            message_id=message_id,
+        )
+
+    async def get_message_execution_async(
+        self,
+        message_id: str,
+    ) -> MessageExecution:
+        """Gets a message execution by message ID asynchronously.
+
+        Args:
+            message_id (str): The ID of the message to get execution for
+
+        Returns:
+            MessageExecution: The message execution
+
+        Raises:
+            Exception: If the retrieval fails
+
+        """
+        return await get_message_execution_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            message_id=message_id,
+        )
+
+    def update_message_execution(
+        self,
+        message_id: str,
+        status: MessageExecutionUpdateStatus,
+        seconds_remaining: int | None = None,
+        percentage_completed: int | None = None,
+    ) -> MessageExecution:
+        """Updates a message execution synchronously.
+
+        Args:
+            message_id (str): The ID of the message to update execution for
+            status (MessageExecutionUpdateStatus): The updated status (COMPLETED or FAILED)
+            seconds_remaining (int | None): Updated estimated seconds remaining
+            percentage_completed (int | None): Updated percentage of completion (0-100)
+
+        Returns:
+            MessageExecution: The updated message execution
+
+        Raises:
+            Exception: If the update fails
+
+        """
+        return update_message_execution(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            message_id=message_id,
+            status=status,
+            seconds_remaining=seconds_remaining,
+            percentage_completed=percentage_completed,
+        )
+
+    async def update_message_execution_async(
+        self,
+        message_id: str,
+        status: MessageExecutionUpdateStatus,
+        seconds_remaining: int | None = None,
+        percentage_completed: int | None = None,
+    ) -> MessageExecution:
+        """Updates a message execution asynchronously.
+
+        Args:
+            message_id (str): The ID of the message to update execution for
+            status (MessageExecutionUpdateStatus): The updated status (COMPLETED or FAILED)
+            seconds_remaining (int | None): Updated estimated seconds remaining
+            percentage_completed (int | None): Updated percentage of completion (0-100)
+
+        Returns:
+            MessageExecution: The updated message execution
+
+        Raises:
+            Exception: If the update fails
+
+        """
+        return await update_message_execution_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            message_id=message_id,
+            status=status,
+            seconds_remaining=seconds_remaining,
+            percentage_completed=percentage_completed,
+        )
+
+    def create_assistant_message_execution(
+        self,
+        type: MessageExecutionType = MessageExecutionType.DEEP_RESEARCH,
+        seconds_remaining: int | None = None,
+        percentage_completed: int | None = None,
+    ) -> MessageExecution:
+        """Creates a message execution for the current assistant message synchronously.
+
+        This is a convenience method that uses the current assistant message ID.
+
+        Args:
+            type (MessageExecutionType): The type of execution. Defaults to DEEP_RESEARCH.
+            seconds_remaining (int | None): Estimated seconds remaining for completion
+            percentage_completed (int | None): Percentage of completion (0-100)
+
+        Returns:
+            MessageExecution: The created message execution
+
+        Raises:
+            Exception: If the creation fails
+
+        """
+        return self.create_message_execution(
+            message_id=self._assistant_message_id,
+            type=type,
+            seconds_remaining=seconds_remaining,
+            percentage_completed=percentage_completed,
+        )
+
+    async def create_assistant_message_execution_async(
+        self,
+        type: MessageExecutionType = MessageExecutionType.DEEP_RESEARCH,
+        seconds_remaining: int | None = None,
+        percentage_completed: int | None = None,
+    ) -> MessageExecution:
+        """Creates a message execution for the current assistant message asynchronously.
+
+        This is a convenience method that uses the current assistant message ID.
+
+        Args:
+            type (MessageExecutionType): The type of execution. Defaults to DEEP_RESEARCH.
+            seconds_remaining (int | None): Estimated seconds remaining for completion
+            percentage_completed (int | None): Percentage of completion (0-100)
+
+        Returns:
+            MessageExecution: The created message execution
+
+        Raises:
+            Exception: If the creation fails
+
+        """
+        return await self.create_message_execution_async(
+            message_id=self._assistant_message_id,
+            type=type,
+            seconds_remaining=seconds_remaining,
+            percentage_completed=percentage_completed,
+        )
+
+    def get_assistant_message_execution(self) -> MessageExecution:
+        """Gets the message execution for the current assistant message synchronously.
+
+        This is a convenience method that uses the current assistant message ID.
+
+        Returns:
+            MessageExecution: The message execution
+
+        Raises:
+            Exception: If the retrieval fails
+
+        """
+        return self.get_message_execution(message_id=self._assistant_message_id)
+
+    async def get_assistant_message_execution_async(self) -> MessageExecution:
+        """Gets the message execution for the current assistant message asynchronously.
+
+        This is a convenience method that uses the current assistant message ID.
+
+        Returns:
+            MessageExecution: The message execution
+
+        Raises:
+            Exception: If the retrieval fails
+
+        """
+        return await self.get_message_execution_async(
+            message_id=self._assistant_message_id
+        )
+
+    def update_assistant_message_execution(
+        self,
+        status: MessageExecutionUpdateStatus,
+        seconds_remaining: int | None = None,
+        percentage_completed: int | None = None,
+    ) -> MessageExecution:
+        """Updates the message execution for the current assistant message synchronously.
+
+        This is a convenience method that uses the current assistant message ID.
+
+        Args:
+            status (MessageExecutionUpdateStatus): The updated status (COMPLETED or FAILED)
+            seconds_remaining (int | None): Updated estimated seconds remaining
+            percentage_completed (int | None): Updated percentage of completion (0-100)
+
+        Returns:
+            MessageExecution: The updated message execution
+
+        Raises:
+            Exception: If the update fails
+
+        """
+        return self.update_message_execution(
+            message_id=self._assistant_message_id,
+            status=status,
+            seconds_remaining=seconds_remaining,
+            percentage_completed=percentage_completed,
+        )
+
+    async def update_assistant_message_execution_async(
+        self,
+        status: MessageExecutionUpdateStatus,
+        seconds_remaining: int | None = None,
+        percentage_completed: int | None = None,
+    ) -> MessageExecution:
+        """Updates the message execution for the current assistant message asynchronously.
+
+        This is a convenience method that uses the current assistant message ID.
+
+        Args:
+            status (MessageExecutionUpdateStatus): The updated status (COMPLETED or FAILED)
+            seconds_remaining (int | None): Updated estimated seconds remaining
+            percentage_completed (int | None): Updated percentage of completion (0-100)
+
+        Returns:
+            MessageExecution: The updated message execution
+
+        Raises:
+            Exception: If the update fails
+
+        """
+        return await self.update_message_execution_async(
+            message_id=self._assistant_message_id,
+            status=status,
+            seconds_remaining=seconds_remaining,
+            percentage_completed=percentage_completed,
         )
 
     @deprecated("Use complete_with_references instead")
