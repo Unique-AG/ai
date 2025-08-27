@@ -169,6 +169,30 @@ async def modify_message_async(
 
 
 def map_references(references: list[ContentReference]) -> list[dict[str, Any]]:
+    """Maps ContentReference objects to dict format for Message API (legacy format).
+
+    This function maintains backward compatibility with the existing Message API
+    by excluding the originalIndex field.
+    """
+    return [
+        {
+            "name": ref.name,
+            "url": ref.url,
+            "sequenceNumber": ref.sequence_number,
+            "sourceId": ref.source_id,
+            "source": ref.source,
+        }
+        for ref in references
+    ]
+
+
+def map_references_with_original_index(
+    references: list[ContentReference],
+) -> list[dict[str, Any]]:
+    """Maps ContentReference objects to dict format for MessageLog API (complete format).
+
+    This function includes all fields including originalIndex for APIs that support it.
+    """
     return [
         {
             "name": ref.name,
@@ -940,7 +964,9 @@ def create_message_log(
             uncitedReferences=uncited_references.model_dump()
             if uncited_references
             else None,
-            references=map_references(references) if references else [],  # type: ignore
+            references=map_references_with_original_index(references)
+            if references
+            else [],  # type: ignore
         )
         return MessageLog(**message_log)
     except Exception as e:
@@ -991,7 +1017,9 @@ async def create_message_log_async(
             uncitedReferences=uncited_references.model_dump()
             if uncited_references
             else None,
-            references=map_references(references) if references else [],  # type: ignore
+            references=map_references_with_original_index(references)
+            if references
+            else [],  # type: ignore
         )
         return MessageLog(**message_log)
     except Exception as e:
@@ -1042,7 +1070,9 @@ def update_message_log(
             uncitedReferences=uncited_references.model_dump()
             if uncited_references
             else None,
-            references=map_references(references) if references else [],  # type: ignore
+            references=map_references_with_original_index(references)
+            if references
+            else [],  # type: ignore
         )
         return MessageLog(**message_log)
     except Exception as e:
@@ -1093,7 +1123,9 @@ async def update_message_log_async(
             uncitedReferences=uncited_references.model_dump()
             if uncited_references
             else None,
-            references=map_references(references) if references else [],  # type: ignore
+            references=map_references_with_original_index(references)
+            if references
+            else [],  # type: ignore
         )
         return MessageLog(**message_log)
     except Exception as e:
