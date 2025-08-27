@@ -142,6 +142,7 @@ class Folder(APIResource["Folder"]):
 
         scopeId: NotRequired[str]
         folderPath: NotRequired[str]
+        recursive: NotRequired[bool]
 
     class GetParams(RequestOptions):
         """
@@ -420,6 +421,9 @@ class Folder(APIResource["Folder"]):
         scopeId = cls.resolve_scope_id(
             user_id, company_id, params.get("scopeId"), params.get("folderPath")
         )
+        params.pop("scopeId", None)
+        params.pop("folderPath", None)
+
         return cast(
             "Folder.DeleteResponse",
             cls._static_request(
@@ -427,6 +431,7 @@ class Folder(APIResource["Folder"]):
                 f"{cls.RESOURCE_URL}/{scopeId}",
                 user_id,
                 company_id=company_id,
+                params=params,
             ),
         )
 
@@ -443,6 +448,9 @@ class Folder(APIResource["Folder"]):
         scopeId = cls.resolve_scope_id(
             user_id, company_id, params.get("scopeId"), params.get("folderPath")
         )
+        params.pop("scopeId", None)
+        params.pop("folderPath", None)
+
         return cast(
             "Folder.DeleteResponse",
             await cls._static_request_async(
@@ -450,6 +458,7 @@ class Folder(APIResource["Folder"]):
                 f"{cls.RESOURCE_URL}/{scopeId}",
                 user_id,
                 company_id=company_id,
+                params=params,
             ),
         )
 
