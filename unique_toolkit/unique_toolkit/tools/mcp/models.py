@@ -1,5 +1,4 @@
 from typing import Any, Dict, Optional
-from unique_toolkit.app.schemas import McpServer
 from unique_toolkit.tools.schemas import BaseToolConfig
 
 
