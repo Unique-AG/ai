@@ -196,6 +196,10 @@ class ChatEventPayload(BaseModel):
         default_factory=list,
         description="A list of MCP servers with tools available for the chat session.",
     )
+    message_execution_id: str | None = Field(
+        default=None,
+        description="The message execution id for triggering the chat event. Originates from the message execution service.",
+    )
 
     @field_validator("raw_scope_rules", mode="before")
     def validate_scope_rules(cls, value: dict[str, Any] | None) -> UniqueQL | None:
