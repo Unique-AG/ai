@@ -538,7 +538,7 @@ Allows you to ingest a magic table sheet, each row is processed and converted in
     unique_sdk.Content.ingest_magic_table_sheets(**params)
 ```
 
-#### `unique_sdk.Content.delete`
+#### `unique_sdk.Content.delete` (Compatible with release >.36)
 
 Allows you to delete a file by its `contentId` or by its `filePath`. When deleting by `id`, if the file is part of a chat, the `chatId` also needs do be set. If both `contentId` and `filePath` are provided, `filePath` is ignored.
 
@@ -563,7 +563,7 @@ Example of deleting a file by its path.
 unique_sdk.Content.delete(
     user_id=user_id,
     company_id=company_id,
-    filePath="/Company/finance/mec/january.xls",
+    filePath="/Company/finance/january.xls",
 )
 ```
 

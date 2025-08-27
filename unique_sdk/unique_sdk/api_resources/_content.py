@@ -395,18 +395,25 @@ class Content(APIResource["Content"]):
         cls,
         user_id: str,
         company_id: str,
-        **params,
+        **params: "Content.DeleteParams",
     ) -> "Content.DeleteResponse":
         """
         Deletes a content by its id or file path.
         """
+        content_id = cls.resolve_content_id_from_file_path(
+            user_id,
+            company_id,
+            params.get("contentId"),
+            params.get("filePath"),
+        )
+        params["contentId"] = content_id
+        params.pop("filePath", None)
 
-        cls._resolve_content_id_from_file_path(user_id, company_id, params)
         return cast(
             "Content.DeleteResponse",
             cls._static_request(
                 "delete",
-                f"/content/{params.get('contentId')}",
+                f"/content/{content_id}",
                 user_id,
                 company_id,
                 params=params,
@@ -418,18 +425,25 @@ class Content(APIResource["Content"]):
         cls,
         user_id: str,
         company_id: str,
-        **params,
+        **params: "Content.DeleteParams",
     ) -> "Content.DeleteResponse":
         """
         Async deletes a content by its id or file path.
         """
+        content_id = cls.resolve_content_id_from_file_path(
+            user_id,
+            company_id,
+            params.get("contentId"),
+            params.get("filePath"),
+        )
+        params["contentId"] = content_id
+        params.pop("filePath", None)
 
-        cls._resolve_content_id_from_file_path(user_id, company_id, params)
         return cast(
             "Content.DeleteResponse",
             await cls._static_request_async(
                 "delete",
-                f"/content/{params.get('contentId')}",
+                f"/content/{content_id}",
                 user_id,
                 company_id,
                 params=params,
@@ -437,19 +451,20 @@ class Content(APIResource["Content"]):
         )
 
     @classmethod
-    def _resolve_content_id_from_file_path(
+    def resolve_content_id_from_file_path(
         cls,
         user_id: str,
         company_id: str,
-        params: dict,
-    ) -> None:
+        content_id: str | None = None,
+        file_path: str | None = None,
+    ) -> str:
         """
-        If contentId is not provided but filePath is, resolve the filePath to contentId.
-        Modifies params in-place.
+        Returns the contentId to use: if content_id is provided, returns it;
+        if not, but file_path is provided, resolves and returns the id for that file path.
         """
-        content_id = params.get("contentId")
-        file_path = params.get("filePath")
-        if not content_id:
+        if content_id:
+            return content_id
+        if file_path:
             file_info = cls.get_info(
                 user_id=user_id,
                 company_id=company_id,
@@ -463,5 +478,5 @@ class Content(APIResource["Content"]):
             print(f"Resolved contentId: {resolved_id} for filePath: {file_path}")
             if not resolved_id:
                 raise ValueError(f"Could not find file with filePath: {file_path}")
-            params["contentId"] = resolved_id
-            params.pop("filePath", None)
+            return resolved_id
+        return None
