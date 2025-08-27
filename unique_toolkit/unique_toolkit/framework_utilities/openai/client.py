@@ -22,7 +22,7 @@ else:
     raise OpenAINotInstalledError()
 
 
-def get_openai_client(unique_settings: UniqueSettings) -> OpenAI:
+def get_openai_client(unique_settings: UniqueSettings | None = None) -> OpenAI:
     """Get an OpenAI client instance.
 
     Args:
@@ -34,6 +34,9 @@ def get_openai_client(unique_settings: UniqueSettings) -> OpenAI:
     Raises:
         OpenAINotInstalledError: If OpenAI package is not installed
     """
+    if unique_settings is None:
+        unique_settings = UniqueSettings.from_env_auto()
+
     default_headers = get_default_headers(unique_settings.app, unique_settings.auth)
 
     return OpenAI(
