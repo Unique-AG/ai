@@ -1,0 +1,71 @@
+site_name: Unique Toolkit
+site_description: Documentation for the Unique Toolkit
+site_author: Unique Team
+
+theme:
+  name: material
+  highlithjs: true
+  jljs_languages:
+    - python
+  features:
+    - content.code.copy
+    - content.code.select
+
+nav:
+  - Home: index.md
+  - Getting Started: getting_started.md
+  - Tutorials: 
+    - tutorials.md
+    - ./plattforms/openai/openai.md
+  - API Reference: api.md
+  - Readme: readme.md
+
+markdown_extensions:
+  - admonition
+  - codehilite
+  - footnotes
+  - meta
+  - toc:
+      permalink: true
+  - pymdownx.arithmatex
+  - pymdownx.betterem
+  - pymdownx.caret
+  - pymdownx.critic
+  - pymdownx.details
+  - pymdownx.emoji
+  - pymdownx.inlinehilite
+  - pymdownx.magiclink
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist
+  - pymdownx.tilde
+  - attr_list
+
+docs_dir: docs
+site_dir: site
+
+plugins:
+  - search
+  - entangled
+  - include-markdown 
+  - callouts
+  - codeinclude
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            docstring_section_style: table
+            show_root_heading: true
+            show_source: true
+            filters:
+              - "!.[company|user|assistant|chat|assistant_id|assistant_message_id|user_message_id]_id.*"
+              - "!.*_async.*"
+              - "!.*event.*"
+            extra:
+              show_signature_annotations: true
+              show_type_annotations: true
+              show_if_no_docstring: false
