@@ -103,7 +103,7 @@ class ToolManager:
         ]
 
         # Get MCP tools (these are already properly instantiated)
-        mcp_tools = self._mcp_manager.get_all_mcp_tools(tool_choices)
+        mcp_tools = self._mcp_manager.get_all_mcp_tools()
         # Combine both types of tools
         self.available_tools = internal_tools + mcp_tools
 
@@ -276,8 +276,6 @@ class ToolManager:
                 f"Filtered out {len(tool_calls) - len(unique_tool_calls)} duplicate tool calls."
             )
         return unique_tool_calls
-
-    from typing import Any
 
     def _convert_to_forced_tool(self, tool_name: str) -> dict[str, Any]:
         return {

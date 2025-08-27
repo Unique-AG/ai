@@ -1,9 +1,8 @@
-from typing import Any, Dict, Optional, Protocol
-
+from typing import Any, Dict, Optional
 from unique_toolkit.tools.schemas import BaseToolConfig
 
 
-class MCPTool(Protocol):
+class MCPTool:
     """Protocol defining the expected structure of an MCP tool."""
 
     name: str
@@ -16,16 +15,6 @@ class MCPTool(Protocol):
     system_prompt: Optional[str]
     user_prompt: Optional[str]
     is_connected: bool
-
-
-class EnrichedMCPTool(MCPTool, Protocol):
-    """Protocol for MCP tools enriched with server information."""
-
-    server_id: str
-    server_name: str
-    server_system_prompt: Optional[str]
-    server_user_prompt: Optional[str]
-    mcp_source_id: str
 
 
 class MCPToolConfig(BaseToolConfig):
