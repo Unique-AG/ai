@@ -143,6 +143,17 @@ class Folder(APIResource["Folder"]):
         scopeId: str | None = None
         folderPath: str | None = None
 
+    class UpdateParams(RequestOptions):
+        """
+        Parameters for updating a folder.
+        """
+
+        scopeId: NotRequired[str]
+        folderPath: NotRequired[str]
+        parentFolderPath: NotRequired[str]
+        parentId: NotRequired[str]
+        name: NotRequired[str]
+
     class GetInfosParams(RequestOptions):
         """
         Parameters for getting multiple paginated folders by their parent Id.
@@ -379,3 +390,109 @@ class Folder(APIResource["Folder"]):
                 params=params,
             ),
         )
+
+    @classmethod
+    def update(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Folder.UpdateParams"],
+    ) -> "Folder.FolderInfo":
+        """
+        Update a folder given its id or path. Can update the name or the parent folder by specifying its id or path.
+        """
+
+        scopeId = cls.resolve_scope_id(
+            user_id=user_id,
+            company_id=company_id,
+            scope_id=params.get("scopeId"),
+            folder_path=params.get("folderPath"),
+        )
+        parentId = cls.resolve_scope_id(
+            user_id=user_id,
+            company_id=company_id,
+            scope_id=params.get("parentId"),
+            folder_path=params.get("parentFolderPath"),
+        )
+        params.pop("folderPath", None)
+        params.pop("parentFolderPath", None)
+        if parentId:
+            params["parentId"] = parentId
+
+        return cast(
+            "Folder.FolderInfo",
+            cls._static_request(
+                "patch",
+                f"{cls.RESOURCE_URL}/{scopeId}",
+                user_id,
+                company_id=company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    async def update_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Folder.UpdateParams"],
+    ) -> "Folder.FolderInfo":
+        """
+        Async update a folder given its id or path. Can update the name or the parent folder by specifying its id or path.
+        """
+
+        scopeId = cls.resolve_scope_id(
+            user_id=user_id,
+            company_id=company_id,
+            scope_id=params.get("scopeId"),
+            folder_path=params.get("folderPath"),
+        )
+        parentId = cls.resolve_scope_id(
+            user_id=user_id,
+            company_id=company_id,
+            scope_id=params.get("parentId"),
+            folder_path=params.get("parentFolderPath"),
+        )
+        params.pop("folderPath", None)
+        params.pop("parentFolderPath", None)
+        if parentId:
+            params["parentId"] = parentId
+
+        return cast(
+            "Folder.FolderInfo",
+            await cls._static_request_async(
+                "patch",
+                f"{cls.RESOURCE_URL}/{scopeId}",
+                user_id,
+                company_id=company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    def resolve_scope_id(
+        cls,
+        user_id: str,
+        company_id: str,
+        scope_id: str | None = None,
+        folder_path: str | None = None,
+    ) -> str | None:
+        """
+        Returns the scopeId to use: if scope_id is provided, returns it;
+        if not, but folder_path is provided, resolves and returns the id for that folder path.
+        """
+        if scope_id:
+            return scope_id
+        if folder_path:
+            folder_info = cls.get_info(
+                user_id=user_id,
+                company_id=company_id,
+                folderPath=folder_path,
+            )
+            resolved_id = folder_info.get("id")
+            if not resolved_id:
+                raise ValueError(
+                    f"Could not find a folder with folderPath: {folder_path}"
+                )
+            return resolved_id
+        return None
