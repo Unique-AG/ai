@@ -1,6 +1,7 @@
 import logging
-from unique_toolkit.tools.mcp.models import MCPToolConfig, EnrichedMCPTool
+
 from unique_toolkit.app.schemas import ChatEvent, McpServer, McpTool
+from unique_toolkit.tools.mcp.models import EnrichedMCPTool, MCPToolConfig
 from unique_toolkit.tools.mcp.tool_wrapper import MCPToolWrapper
 from unique_toolkit.tools.tool_progress_reporter import ToolProgressReporter
 

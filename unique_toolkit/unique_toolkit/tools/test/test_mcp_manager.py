@@ -1,8 +1,9 @@
 import logging
 from typing import Any, Dict, Optional
-from unittest.mock import Mock, MagicMock
+from unittest.mock import MagicMock, Mock
 
 import pytest
+from pydantic import BaseModel
 
 from tests.test_obj_factory import get_event_obj
 from unique_toolkit.app.schemas import McpServer, McpTool
@@ -14,7 +15,6 @@ from unique_toolkit.tools.schemas import BaseToolConfig
 from unique_toolkit.tools.tool import Tool
 from unique_toolkit.tools.tool_manager import ToolManager, ToolManagerConfig
 from unique_toolkit.tools.tool_progress_reporter import ToolProgressReporter
-from pydantic import BaseModel
 
 
 class MockParameters(BaseModel):

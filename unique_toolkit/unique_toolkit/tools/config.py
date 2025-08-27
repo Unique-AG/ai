@@ -120,8 +120,8 @@ class ToolBuildConfig(BaseModel):
 
 
 # Import BaseToolConfig after model definition to avoid circular imports
-from unique_toolkit.tools.schemas import BaseToolConfig
 from unique_toolkit.tools.mcp.models import MCPToolConfig
+from unique_toolkit.tools.schemas import BaseToolConfig
 
 # Update the forward references
 ToolBuildConfig.model_rebuild()

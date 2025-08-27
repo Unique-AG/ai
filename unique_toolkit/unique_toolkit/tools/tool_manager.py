@@ -13,12 +13,11 @@ from unique_toolkit.language_model.schemas import (
 )
 from unique_toolkit.tools.config import ToolBuildConfig
 from unique_toolkit.tools.factory import ToolFactory
+from unique_toolkit.tools.mcp.manager import MCPManager
 from unique_toolkit.tools.schemas import ToolCallResponse, ToolPrompts
 from unique_toolkit.tools.tool import Tool
 from unique_toolkit.tools.tool_progress_reporter import ToolProgressReporter
 from unique_toolkit.tools.utils.execution.execution import Result, SafeTaskExecutor
-from unique_toolkit.evals.schemas import EvaluationMetricName
-from unique_toolkit.tools.mcp.manager import MCPManager
 
 
 class ForcedToolOption:

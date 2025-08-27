@@ -1,21 +1,25 @@
 import json
-import unique_sdk
 from typing import Any, Dict
+
+import unique_sdk
+from pydantic import BaseModel, Field, create_model
+
+from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.evals.schemas import EvaluationMetricName
 from unique_toolkit.language_model import LanguageModelMessage
-from unique_toolkit.tools.mcp.models import MCPToolConfig, EnrichedMCPTool
-from unique_toolkit.tools.schemas import ToolCallResponse
-from unique_toolkit.tools.tool import Tool
-from unique_toolkit.tools.tool_progress_reporter import ToolProgressReporter
-from unique_toolkit.tools.config import ToolBuildConfig, ToolIcon, ToolSelectionPolicy
 from unique_toolkit.language_model.schemas import (
+    LanguageModelFunction,
     LanguageModelToolDescription,
     LanguageModelToolMessage,
-    LanguageModelFunction,
 )
-from unique_toolkit.tools.tool_progress_reporter import ProgressState
-from unique_toolkit.app.schemas import ChatEvent
-from pydantic import BaseModel, Field, create_model
+from unique_toolkit.tools.config import ToolBuildConfig, ToolIcon, ToolSelectionPolicy
+from unique_toolkit.tools.mcp.models import EnrichedMCPTool, MCPToolConfig
+from unique_toolkit.tools.schemas import ToolCallResponse
+from unique_toolkit.tools.tool import Tool
+from unique_toolkit.tools.tool_progress_reporter import (
+    ProgressState,
+    ToolProgressReporter,
+)
 
 
 class MCPToolWrapper(Tool[MCPToolConfig]):
