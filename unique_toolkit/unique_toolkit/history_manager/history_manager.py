@@ -158,6 +158,14 @@ class HistoryManager:
             f"Appending tool call result to history: {tool_response.name}"
         )
 
+        if tool_response.content != "":
+             return LanguageModelToolMessage(
+                content=tool_response.content,
+                tool_call_id=tool_response.id,  # type: ignore
+                name=tool_response.name,
+            )
+            
+
         content_chunks = (
             tool_response.content_chunks or []
         )  # it can be that the tool response does not have content chunks

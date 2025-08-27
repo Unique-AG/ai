@@ -1,7 +1,10 @@
 import logging
 
-from unique_toolkit.app.schemas import ChatEvent, McpServer, McpTool
-from unique_toolkit.tools.mcp.models import EnrichedMCPTool, MCPToolConfig
+from unique_toolkit.tools.config import ToolBuildConfig, ToolIcon, ToolSelectionPolicy
+from unique_toolkit.app.schemas import ChatEvent, McpServer
+from unique_toolkit.tools.schemas import BaseToolConfig
+from unique_toolkit.tools.tool import Tool
+from unique_toolkit.tools.mcp.models import MCPToolConfig
 from unique_toolkit.tools.mcp.tool_wrapper import MCPToolWrapper
 from unique_toolkit.tools.tool_progress_reporter import ToolProgressReporter
 
@@ -23,60 +26,41 @@ class MCPManager:
     def get_mcp_server_by_id(self, id: str):
         return next((server for server in self._mcp_servers if server.id == id), None)
 
-    def _enrich_tool_with_mcp_info(
-        self, mcp_tool: McpTool, server: McpServer
-    ) -> EnrichedMCPTool:
-        enriched_tool = type("EnrichedMcpTool", (), {})()
 
-        # Copy all attributes from the original tool
-        for attr in dir(mcp_tool):
-            if not attr.startswith("_"):
-                setattr(enriched_tool, attr, getattr(mcp_tool, attr))
-
-        # Add server-specific attributes
-        enriched_tool.server_id = server.id
-        enriched_tool.server_name = server.name
-        enriched_tool.server_system_prompt = getattr(server, "system_prompt", None)
-        enriched_tool.server_user_prompt = getattr(server, "user_prompt", None)
-        enriched_tool.mcp_source_id = server.id
-
-        return enriched_tool
-
-    def create_mcp_tool_wrapper(
-        self, mcp_tool: EnrichedMCPTool, tool_progress_reporter: ToolProgressReporter
-    ) -> MCPToolWrapper:
-        """Create MCP tool wrapper that behave like internal tools"""
-        try:
-            config = MCPToolConfig(
-                server_id=mcp_tool.server_id,
-                server_name=mcp_tool.server_name,
-                server_system_prompt=mcp_tool.server_system_prompt,
-                server_user_prompt=mcp_tool.server_user_prompt,
-                mcp_source_id=mcp_tool.mcp_source_id,
-            )
-            wrapper = MCPToolWrapper(
-                mcp_tool=mcp_tool,
-                config=config,
-                event=self._event,
-                tool_progress_reporter=tool_progress_reporter,
-            )
-            return wrapper
-        except Exception as e:
-            import traceback
-
-            logging.error(f"Error creating MCP tool wrapper for {mcp_tool.name}: {e}")
-            logging.error(f"Full traceback: {traceback.format_exc()}")
-            return None
-
-    def get_all_mcp_tools(self, selected_by_user: list[str]) -> list[MCPToolWrapper]:
+    def get_all_mcp_tools(self) -> list[Tool[BaseToolConfig]]:
         selected_tools = []
         for server in self._mcp_servers:
-            if hasattr(server, "tools") and server.tools:
-                for tool in server.tools:
-                    enriched_tool = self._enrich_tool_with_mcp_info(tool, server)
-                    wrapper = self.create_mcp_tool_wrapper(
-                        enriched_tool, self._tool_progress_reporter
+            if not hasattr(server, "tools"):
+                continue
+            if not server.tools:
+                continue
+
+            for tool in server.tools:
+                try:
+                    config = MCPToolConfig(
+                            server_id=server.id,
+                            server_name=server.name,
+                            server_system_prompt=server.system_prompt,
+                            server_user_prompt=server.user_prompt,
+                            mcp_source_id=server.id,
+                        )
+                    wrapper = MCPToolWrapper(
+                        mcp_server=server,
+                        mcp_tool=tool,
+                        config=config,
+                        event=self._event,
+                        tool_progress_reporter=self._tool_progress_reporter,
                     )
-                    if wrapper is not None:
-                        selected_tools.append(wrapper)
+                    wrapper.settings = ToolBuildConfig( #TODO: this must be refactored to behave like the other tools.
+                        name=tool.name,
+                        configuration=config,
+                        display_name=tool.title or tool.name,
+                        is_exclusive=False,
+                        is_enabled=True,
+                        icon=ToolIcon.BOOK,
+                        selection_policy=ToolSelectionPolicy.BY_USER,
+                    )
+                    selected_tools.append(wrapper)
+                except Exception as e:
+                    logging.error(f"Error creating MCP tool wrapper for {tool.name}: {e}")
         return selected_tools
