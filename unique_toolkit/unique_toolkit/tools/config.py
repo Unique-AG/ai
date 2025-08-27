@@ -13,7 +13,9 @@ from pydantic.alias_generators import to_camel
 from pydantic.fields import ComputedFieldInfo, FieldInfo
 
 if TYPE_CHECKING:
-    pass
+    # Import BaseToolConfig after model definition to avoid circular imports
+    from unique_toolkit.tools.mcp.models import MCPToolConfig
+    from unique_toolkit.tools.schemas import BaseToolConfig
 
 
 def field_title_generator(

@@ -1,7 +1,5 @@
 from typing import Any, Dict, Optional, Protocol
 
-from pydantic import BaseModel
-
 from unique_toolkit.tools.schemas import BaseToolConfig
 
 
