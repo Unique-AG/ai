@@ -14,6 +14,8 @@ from unique_toolkit.chat.functions import (
     create_message_assessment,
     create_message_assessment_async,
     create_message_async,
+    create_message_log,
+    create_message_log_async,
     get_full_history,
     get_full_history_async,
     get_selection_from_history,
@@ -21,6 +23,8 @@ from unique_toolkit.chat.functions import (
     modify_message_assessment,
     modify_message_assessment_async,
     modify_message_async,
+    update_message_log,
+    update_message_log_async,
 )
 from unique_toolkit.chat.schemas import (
     ChatMessage,
@@ -29,6 +33,10 @@ from unique_toolkit.chat.schemas import (
     ChatMessageAssessmentStatus,
     ChatMessageAssessmentType,
     ChatMessageRole,
+    MessageLog,
+    MessageLogDetails,
+    MessageLogStatus,
+    MessageLogUncitedReferences,
 )
 from unique_toolkit.content.schemas import ContentChunk, ContentReference
 from unique_toolkit.language_model.constants import (
@@ -894,6 +902,242 @@ class ChatService:
             title=title,
             explanation=explanation,
             label=label,
+        )
+
+    def create_message_log(
+        self,
+        message_id: str,
+        text: str,
+        status: MessageLogStatus,
+        order: int,
+        details: MessageLogDetails | None = None,
+        uncited_references: MessageLogUncitedReferences | None = None,
+        references: list[ContentReference] | None = None,
+    ) -> MessageLog:
+        """Creates a message log for tracking execution steps synchronously.
+
+        Args:
+            message_id (str): The ID of the message this log belongs to
+            text (str): The log text content
+            status (MessageLogStatus): The status of this log entry
+            order (int): The order/sequence number of this log entry
+            details (MessageLogDetails | None): Additional details about this log entry
+            uncited_references (MessageLogUncitedReferences | None): References that are not cited
+            references (list[ContentReference] | None): List of references for this log
+
+        Returns:
+            MessageLog: The created message log
+
+        Raises:
+            Exception: If the creation fails
+
+        """
+        return create_message_log(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            message_id=message_id,
+            text=text,
+            status=status,
+            order=order,
+            details=details,
+            uncited_references=uncited_references,
+            references=references,
+        )
+
+    async def create_message_log_async(
+        self,
+        message_id: str,
+        text: str,
+        status: MessageLogStatus,
+        order: int,
+        details: MessageLogDetails | None = None,
+        uncited_references: MessageLogUncitedReferences | None = None,
+        references: list[ContentReference] | None = None,
+    ) -> MessageLog:
+        """Creates a message log for tracking execution steps asynchronously.
+
+        Args:
+            message_id (str): The ID of the message this log belongs to
+            text (str): The log text content
+            status (MessageLogStatus): The status of this log entry
+            order (int): The order/sequence number of this log entry
+            details (MessageLogDetails | None): Additional details about this log entry
+            uncited_references (MessageLogUncitedReferences | None): References that are not cited
+            references (list[ContentReference] | None): List of references for this log
+
+        Returns:
+            MessageLog: The created message log
+
+        Raises:
+            Exception: If the creation fails
+
+        """
+        return await create_message_log_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            message_id=message_id,
+            text=text,
+            status=status,
+            order=order,
+            details=details,
+            uncited_references=uncited_references,
+            references=references,
+        )
+
+    def update_message_log(
+        self,
+        message_log_id: str,
+        order: int,
+        text: str | None = None,
+        status: MessageLogStatus | None = None,
+        details: MessageLogDetails | None = None,
+        uncited_references: MessageLogUncitedReferences | None = None,
+        references: list[ContentReference] | None = None,
+    ) -> MessageLog:
+        """Updates a message log synchronously.
+
+        Args:
+            message_log_id (str): The ID of the message log to update
+            order (int): The order/sequence number (required)
+            text (str | None): The updated log text content
+            status (MessageLogStatus | None): The updated status
+            details (MessageLogDetails | None): Updated additional details
+            uncited_references (MessageLogUncitedReferences | None): Updated uncited references
+            references (list[ContentReference] | None): Updated list of references
+
+        Returns:
+            MessageLog: The updated message log
+
+        Raises:
+            Exception: If the update fails
+
+        """
+        return update_message_log(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            message_log_id=message_log_id,
+            order=order,
+            text=text,
+            status=status,
+            details=details,
+            uncited_references=uncited_references,
+            references=references,
+        )
+
+    async def update_message_log_async(
+        self,
+        message_log_id: str,
+        order: int,
+        text: str | None = None,
+        status: MessageLogStatus | None = None,
+        details: MessageLogDetails | None = None,
+        uncited_references: MessageLogUncitedReferences | None = None,
+        references: list[ContentReference] | None = None,
+    ) -> MessageLog:
+        """Updates a message log asynchronously.
+
+        Args:
+            message_log_id (str): The ID of the message log to update
+            order (int): The order/sequence number (required)
+            text (str | None): The updated log text content
+            status (MessageLogStatus | None): The updated status
+            details (MessageLogDetails | None): Updated additional details
+            uncited_references (MessageLogUncitedReferences | None): Updated uncited references
+            references (list[ContentReference] | None): Updated list of references
+
+        Returns:
+            MessageLog: The updated message log
+
+        Raises:
+            Exception: If the update fails
+
+        """
+        return await update_message_log_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            message_log_id=message_log_id,
+            order=order,
+            text=text,
+            status=status,
+            details=details,
+            uncited_references=uncited_references,
+            references=references,
+        )
+
+    def create_assistant_message_log(
+        self,
+        text: str,
+        status: MessageLogStatus,
+        order: int,
+        details: MessageLogDetails | None = None,
+        uncited_references: MessageLogUncitedReferences | None = None,
+        references: list[ContentReference] | None = None,
+    ) -> MessageLog:
+        """Creates a message log for the current assistant message synchronously.
+
+        This is a convenience method that uses the current assistant message ID.
+
+        Args:
+            text (str): The log text content
+            status (MessageLogStatus): The status of this log entry
+            order (int): The order/sequence number of this log entry
+            details (MessageLogDetails | None): Additional details about this log entry
+            uncited_references (MessageLogUncitedReferences | None): References that are not cited
+            references (list[ContentReference] | None): List of references for this log
+
+        Returns:
+            MessageLog: The created message log
+
+        Raises:
+            Exception: If the creation fails
+
+        """
+        return self.create_message_log(
+            message_id=self._assistant_message_id,
+            text=text,
+            status=status,
+            order=order,
+            details=details,
+            uncited_references=uncited_references,
+            references=references,
+        )
+
+    async def create_assistant_message_log_async(
+        self,
+        text: str,
+        status: MessageLogStatus,
+        order: int,
+        details: MessageLogDetails | None = None,
+        uncited_references: MessageLogUncitedReferences | None = None,
+        references: list[ContentReference] | None = None,
+    ) -> MessageLog:
+        """Creates a message log for the current assistant message asynchronously.
+
+        This is a convenience method that uses the current assistant message ID.
+
+        Args:
+            text (str): The log text content
+            status (MessageLogStatus): The status of this log entry
+            order (int): The order/sequence number of this log entry
+            details (MessageLogDetails | None): Additional details about this log entry
+            uncited_references (MessageLogUncitedReferences | None): References that are not cited
+            references (list[ContentReference] | None): List of references for this log
+
+        Returns:
+            MessageLog: The created message log
+
+        Raises:
+            Exception: If the creation fails
+
+        """
+        return await self.create_message_log_async(
+            message_id=self._assistant_message_id,
+            text=text,
+            status=status,
+            order=order,
+            details=details,
+            uncited_references=uncited_references,
+            references=references,
         )
 
     @deprecated("Use complete_with_references instead")

@@ -1,5 +1,6 @@
 from datetime import datetime
 from enum import StrEnum
+from typing import Literal
 
 from humps import camelize
 from openai.types.chat import (
@@ -159,5 +160,45 @@ class ChatMessageAssessment(BaseModel):
     explanation: str | None = None
     label: ChatMessageAssessmentLabel | None = None
     is_visible: bool
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+class MessageLogStatus(StrEnum):
+    RUNNING = "RUNNING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+
+
+class MessageLogUncitedReferences(BaseModel):
+    model_config = model_config
+    data: list[ContentReference]
+
+
+class MessageLogEvent(BaseModel):
+    model_config = model_config
+    type: Literal["WebSearch", "InternalSearch"]
+    text: str
+
+
+class MessageLogDetails(BaseModel):
+    model_config = model_config
+    data: list[MessageLogEvent] | None = None
+    status: str | None = Field(
+        default=None, description="Overarching status of the current message log"
+    )
+
+
+class MessageLog(BaseModel):
+    model_config = model_config
+
+    message_log_id: str | None = None
+    message_id: str | None = None
+    status: MessageLogStatus
+    text: str | None = None
+    details: MessageLogDetails | None = None
+    uncited_references: MessageLogUncitedReferences | None = None
+    order: int
+    references: list[ContentReference] | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None

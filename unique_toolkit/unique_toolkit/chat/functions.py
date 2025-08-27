@@ -15,6 +15,10 @@ from unique_toolkit.chat.schemas import (
     ChatMessageAssessmentStatus,
     ChatMessageAssessmentType,
     ChatMessageRole,
+    MessageLog,
+    MessageLogDetails,
+    MessageLogStatus,
+    MessageLogUncitedReferences,
 )
 from unique_toolkit.content.schemas import ContentChunk, ContentReference
 from unique_toolkit.content.utils import count_tokens
@@ -169,6 +173,7 @@ def map_references(references: list[ContentReference]) -> list[dict[str, Any]]:
             "sequenceNumber": ref.sequence_number,
             "sourceId": ref.source_id,
             "source": ref.source,
+            "originalIndex": ref.original_index,
         }
         for ref in references
     ]
@@ -886,4 +891,208 @@ async def stream_complete_with_references_async(
         return LanguageModelStreamResponse(**response)
     except Exception as e:
         logger.error(f"Error streaming completion: {e}")
+        raise e
+
+
+def create_message_log(
+    user_id: str,
+    company_id: str,
+    message_id: str,
+    text: str,
+    status: MessageLogStatus,
+    order: int,
+    details: MessageLogDetails | None = None,
+    uncited_references: MessageLogUncitedReferences | None = None,
+    references: list[ContentReference] | None = None,
+) -> MessageLog:
+    """Creates a message log synchronously.
+
+    Args:
+        user_id (str): The user ID.
+        company_id (str): The company ID.
+        message_id (str): The ID of the message this log belongs to.
+        text (str): The log text content.
+        status (MessageLogStatus): The status of this log entry.
+        order (int): The order/sequence number of this log entry.
+        details (MessageLogDetails | None): Additional details about this log entry.
+        uncited_references (MessageLogUncitedReferences | None): References that are not cited.
+        references (list[ContentReference] | None): List of references for this log.
+
+    Returns:
+        MessageLog: The created message log.
+
+    Raises:
+        Exception: If the creation fails.
+
+    """
+    try:
+        message_log = unique_sdk.MessageLog.create(
+            user_id=user_id,
+            company_id=company_id,
+            messageId=message_id,
+            text=text,
+            status=status.value,
+            order=order,
+            details=details.model_dump() if details else None,
+            uncitedReferences=uncited_references.model_dump()
+            if uncited_references
+            else None,
+            references=map_references(references) if references else [],  # type: ignore
+        )
+        return MessageLog(**message_log)
+    except Exception as e:
+        logger.error(f"Failed to create message log: {e}")
+        raise e
+
+
+async def create_message_log_async(
+    user_id: str,
+    company_id: str,
+    message_id: str,
+    text: str,
+    status: MessageLogStatus,
+    order: int,
+    details: MessageLogDetails | None = None,
+    uncited_references: MessageLogUncitedReferences | None = None,
+    references: list[ContentReference] | None = None,
+) -> MessageLog:
+    """Creates a message log asynchronously.
+
+    Args:
+        user_id (str): The user ID.
+        company_id (str): The company ID.
+        message_id (str): The ID of the message this log belongs to.
+        text (str): The log text content.
+        status (MessageLogStatus): The status of this log entry.
+        order (int): The order/sequence number of this log entry.
+        details (MessageLogDetails | None): Additional details about this log entry.
+        uncited_references (MessageLogUncitedReferences | None): References that are not cited.
+        references (list[ContentReference] | None): List of references for this log.
+
+    Returns:
+        MessageLog: The created message log.
+
+    Raises:
+        Exception: If the creation fails.
+
+    """
+    try:
+        message_log = await unique_sdk.MessageLog.create_async(
+            user_id=user_id,
+            company_id=company_id,
+            messageId=message_id,
+            text=text,
+            status=status.value,
+            order=order,
+            details=details.model_dump() if details else None,
+            uncitedReferences=uncited_references.model_dump()
+            if uncited_references
+            else None,
+            references=map_references(references) if references else [],  # type: ignore
+        )
+        return MessageLog(**message_log)
+    except Exception as e:
+        logger.error(f"Failed to create message log: {e}")
+        raise e
+
+
+def update_message_log(
+    user_id: str,
+    company_id: str,
+    message_log_id: str,
+    order: int,
+    text: str | None = None,
+    status: MessageLogStatus | None = None,
+    details: MessageLogDetails | None = None,
+    uncited_references: MessageLogUncitedReferences | None = None,
+    references: list[ContentReference] | None = None,
+) -> MessageLog:
+    """Updates a message log synchronously.
+
+    Args:
+        user_id (str): The user ID.
+        company_id (str): The company ID.
+        message_log_id (str): The ID of the message log to update.
+        order (int): The order/sequence number (required).
+        text (str | None): The updated log text content.
+        status (MessageLogStatus | None): The updated status.
+        details (MessageLogDetails | None): Updated additional details.
+        uncited_references (MessageLogUncitedReferences | None): Updated uncited references.
+        references (list[ContentReference] | None): Updated list of references.
+
+    Returns:
+        MessageLog: The updated message log.
+
+    Raises:
+        Exception: If the update fails.
+
+    """
+    try:
+        message_log = unique_sdk.MessageLog.update(
+            user_id=user_id,
+            company_id=company_id,
+            message_log_id=message_log_id,
+            text=text,
+            status=status.value if status else None,
+            order=order,
+            details=details.model_dump() if details else None,
+            uncitedReferences=uncited_references.model_dump()
+            if uncited_references
+            else None,
+            references=map_references(references) if references else [],  # type: ignore
+        )
+        return MessageLog(**message_log)
+    except Exception as e:
+        logger.error(f"Failed to update message log: {e}")
+        raise e
+
+
+async def update_message_log_async(
+    user_id: str,
+    company_id: str,
+    message_log_id: str,
+    order: int,
+    text: str | None = None,
+    status: MessageLogStatus | None = None,
+    details: MessageLogDetails | None = None,
+    uncited_references: MessageLogUncitedReferences | None = None,
+    references: list[ContentReference] | None = None,
+) -> MessageLog:
+    """Updates a message log asynchronously.
+
+    Args:
+        user_id (str): The user ID.
+        company_id (str): The company ID.
+        message_log_id (str): The ID of the message log to update.
+        order (int): The order/sequence number (required).
+        text (str | None): The updated log text content.
+        status (MessageLogStatus | None): The updated status.
+        details (MessageLogDetails | None): Updated additional details.
+        uncited_references (MessageLogUncitedReferences | None): Updated uncited references.
+        references (list[ContentReference] | None): Updated list of references.
+
+    Returns:
+        MessageLog: The updated message log.
+
+    Raises:
+        Exception: If the update fails.
+
+    """
+    try:
+        message_log = await unique_sdk.MessageLog.update_async(
+            user_id=user_id,
+            company_id=company_id,
+            message_log_id=message_log_id,
+            text=text,
+            status=status.value if status else None,
+            order=order,
+            details=details.model_dump() if details else None,
+            uncitedReferences=uncited_references.model_dump()
+            if uncited_references
+            else None,
+            references=map_references(references) if references else [],  # type: ignore
+        )
+        return MessageLog(**message_log)
+    except Exception as e:
+        logger.error(f"Failed to update message log: {e}")
         raise e
