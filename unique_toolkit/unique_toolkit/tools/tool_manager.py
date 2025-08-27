@@ -11,13 +11,16 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelTool,
     LanguageModelToolDescription,
 )
-from unique_toolkit.tools.config import ToolBuildConfig
+from unique_toolkit.tools.config import ToolBuildConfig, _rebuild_config_model
 from unique_toolkit.tools.factory import ToolFactory
 from unique_toolkit.tools.mcp.manager import MCPManager
 from unique_toolkit.tools.schemas import ToolCallResponse, ToolPrompts
 from unique_toolkit.tools.tool import Tool
 from unique_toolkit.tools.tool_progress_reporter import ToolProgressReporter
 from unique_toolkit.tools.utils.execution.execution import Result, SafeTaskExecutor
+
+# Rebuild the config model now that all imports are resolved
+_rebuild_config_model()
 
 
 class ForcedToolOption:

@@ -13,8 +13,6 @@ from pydantic.alias_generators import to_camel
 from pydantic.fields import ComputedFieldInfo, FieldInfo
 
 if TYPE_CHECKING:
-    # Import BaseToolConfig after model definition to avoid circular imports
-    from unique_toolkit.tools.mcp.models import MCPToolConfig
     from unique_toolkit.tools.schemas import BaseToolConfig
 
 
@@ -89,6 +87,10 @@ class ToolBuildConfig(BaseModel):
 
         is_mcp_tool = value.get("mcp_source_id", "") != ""
         mcp_configuration = value.get("configuration", {})
+
+        # Import at runtime to avoid circular imports
+        from unique_toolkit.tools.mcp.models import MCPToolConfig
+
         if (
             isinstance(mcp_configuration, MCPToolConfig)
             and mcp_configuration.mcp_source_id
@@ -121,9 +123,9 @@ class ToolBuildConfig(BaseModel):
         return value
 
 
-# Import BaseToolConfig after model definition to avoid circular imports
-from unique_toolkit.tools.mcp.models import MCPToolConfig
-from unique_toolkit.tools.schemas import BaseToolConfig
+def _rebuild_config_model():
+    """Rebuild the ToolBuildConfig model to resolve forward references."""
+    # Import here to avoid circular imports
+    from unique_toolkit.tools.schemas import BaseToolConfig  # noqa: F401
 
-# Update the forward references
-ToolBuildConfig.model_rebuild()
+    ToolBuildConfig.model_rebuild()
