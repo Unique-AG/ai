@@ -36,8 +36,6 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
         self._mcp_tool = mcp_tool
         self._mcp_server = mcp_server
 
-
-
     def tool_description(self) -> LanguageModelToolDescription:
         """Convert MCP tool schema to LanguageModelToolDescription"""
         # Create a Pydantic model from the MCP tool's input schema
@@ -89,7 +87,6 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
 
         return type_mapping.get(json_type, str)
 
-
     def tool_description_for_system_prompt(self) -> str:
         """Return tool description for system prompt"""
         # Not using jinja here to keep it simple and not import new packages.
@@ -103,17 +100,17 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
 
     def tool_description_for_user_prompt(self) -> str:
         return self._mcp_tool.user_prompt or ""
-    
+
     def tool_format_information_for_user_prompt(self) -> str:
         return ""
 
     def tool_format_information_for_system_prompt(self) -> str:
         """Return formatting information for system prompt"""
-        return "" # this is empty for now as it requires to add this to the MCP model of the backend.
+        return ""  # this is empty for now as it requires to add this to the MCP model of the backend.
 
     def evaluation_check_list(self) -> list[EvaluationMetricName]:
         """Return evaluation check list - empty for MCP tools for now"""
-        #TODO: this is empty for now as it requires a setting in the backend for choosing a suitable validator.
+        # TODO: this is empty for now as it requires a setting in the backend for choosing a suitable validator.
         return []
 
     def get_evaluation_checks_based_on_tool_response(
@@ -127,8 +124,7 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
         self,
         tool_response: ToolCallResponse,
     ) -> LanguageModelMessage:
-        
-       raise NotImplementedError("function is not supported")
+        raise NotImplementedError("function is not supported")
 
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
         """Execute the MCP tool using SDK to call public API"""
@@ -151,7 +147,7 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
             result = await self._call_mcp_tool_via_sdk(arguments)
 
             # Create successful response
-            tool_response = ToolCallResponse( # TODO: Why result here not applied directly to the body of the tool_response? like so how does it know the results in the history?
+            tool_response = ToolCallResponse(  # TODO: Why result here not applied directly to the body of the tool_response? like so how does it know the results in the history?
                 id=tool_call.id or "",
                 name=self.name,
                 debug_info={

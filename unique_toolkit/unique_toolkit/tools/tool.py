@@ -57,19 +57,17 @@ class Tool(ABC, Generic[ConfigType]):
         else:
             return cast("dict[str, Any]", parameters)
 
-    
     def tool_description_for_system_prompt(self) -> str:
         return ""
 
     def tool_format_information_for_system_prompt(self) -> str:
         return ""
-    
+
     def tool_description_for_user_prompt(self) -> str:
         return ""
-    
+
     def tool_format_information_for_user_prompt(self) -> str:
         return ""
-
 
     def tool_format_reminder_for_user_prompt(self) -> str:
         """A short reminder for the user prompt for formatting rules for the tool.

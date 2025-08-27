@@ -26,7 +26,6 @@ class MCPManager:
     def get_mcp_server_by_id(self, id: str):
         return next((server for server in self._mcp_servers if server.id == id), None)
 
-
     def get_all_mcp_tools(self) -> list[Tool[BaseToolConfig]]:
         selected_tools = []
         for server in self._mcp_servers:
@@ -38,12 +37,12 @@ class MCPManager:
             for tool in server.tools:
                 try:
                     config = MCPToolConfig(
-                            server_id=server.id,
-                            server_name=server.name,
-                            server_system_prompt=server.system_prompt,
-                            server_user_prompt=server.user_prompt,
-                            mcp_source_id=server.id,
-                        )
+                        server_id=server.id,
+                        server_name=server.name,
+                        server_system_prompt=server.system_prompt,
+                        server_user_prompt=server.user_prompt,
+                        mcp_source_id=server.id,
+                    )
                     wrapper = MCPToolWrapper(
                         mcp_server=server,
                         mcp_tool=tool,
@@ -51,7 +50,7 @@ class MCPManager:
                         event=self._event,
                         tool_progress_reporter=self._tool_progress_reporter,
                     )
-                    wrapper.settings = ToolBuildConfig( #TODO: this must be refactored to behave like the other tools.
+                    wrapper.settings = ToolBuildConfig(  # TODO: this must be refactored to behave like the other tools.
                         name=tool.name,
                         configuration=config,
                         display_name=tool.title or tool.name,
@@ -62,5 +61,7 @@ class MCPManager:
                     )
                     selected_tools.append(wrapper)
                 except Exception as e:
-                    logging.error(f"Error creating MCP tool wrapper for {tool.name}: {e}")
+                    logging.error(
+                        f"Error creating MCP tool wrapper for {tool.name}: {e}"
+                    )
         return selected_tools

@@ -277,7 +277,6 @@ class ToolManager:
             )
         return unique_tool_calls
 
-
     def _convert_to_forced_tool(self, tool_name: str) -> dict[str, Any]:
         return {
             "type": "function",

@@ -159,12 +159,11 @@ class HistoryManager:
         )
 
         if tool_response.content != "":
-             return LanguageModelToolMessage(
+            return LanguageModelToolMessage(
                 content=tool_response.content,
                 tool_call_id=tool_response.id,  # type: ignore
                 name=tool_response.name,
             )
-            
 
         content_chunks = (
             tool_response.content_chunks or []
