@@ -103,7 +103,9 @@ class UniqueApi(BaseSettings):
         parsed = urlparse(self.base_url)
 
         path = "/public/chat"
-        if parsed.hostname and "qa.unique" in parsed.hostname:
+        if parsed.hostname and (
+            "qa.unique" in parsed.hostname or ".unique" in parsed.hostname
+        ):
             path = "/public/chat-gen2"
         return urlunparse(parsed._replace(path=path, query=None, fragment=None))
 
