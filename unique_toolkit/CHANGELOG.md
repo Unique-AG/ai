@@ -5,8 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.8.24] - 2025-08-25
+## [0.8.26] - 2025-08-27
 - Optimized MCP manager
+
+## [0.8.25] - 2025-08-27
+- Load environment variables automatically from plattform dirs or environment
+- General Endpoint definition utility
+- Expose `LanguageModelToolDescription` and `LanguageModelName` directly
+- Get initial debug information from chat payload  
 
 ## [0.8.24] - 2025-08-25
 - Optimized hallucination manager

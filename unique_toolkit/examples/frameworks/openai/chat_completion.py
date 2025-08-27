@@ -3,7 +3,6 @@
 
 # %%
 # Setup
-from pathlib import Path
 
 from openai.types.chat.chat_completion_tool_param import ChatCompletionToolParam
 from openai.types.shared_params.function_definition import FunctionDefinition
@@ -15,8 +14,7 @@ from unique_toolkit.framework_utilities.openai.message_builder import (
     OpenAIMessageBuilder,
 )
 
-env_file = Path(__file__).parent.parent.parent / ".env"
-unique_settings = UniqueSettings.from_env(env_file=env_file)
+unique_settings = UniqueSettings.from_env_auto()
 client = get_openai_client(unique_settings)
 model = "AZURE_GPT_4o_2024_0806"
 
