@@ -3,7 +3,6 @@ This module provides a minimal framework for building endpoint classes such that
 the endpoints without having to know the details of the endpoints.
 """
 
-from collections.abc import Callable
 from string import Formatter, Template
 from typing import (
     Any,
@@ -13,8 +12,7 @@ from typing import (
     TypeVar,
 )
 
-from pydantic import BaseModel, Field
-from pydantic.json_schema import SkipJsonSchema
+from pydantic import BaseModel
 
 # Type variables
 ResponseType = TypeVar("ResponseType", bound=BaseModel)
@@ -28,51 +26,55 @@ RequestBodySpec = ParamSpec("RequestBodySpec")
 
 
 # Necessary for typing of make_endpoint_class
-class EndpointClassProtocol(Protocol, Generic[PathParamsSpec, RequestBodySpec]):
+class EndpointClassProtocol(
+    Protocol,
+    Generic[
+        PathParamsSpec, RequestBodySpec, PathParamsType, RequestBodyType, ResponseType
+    ],
+):
+    path_params_model: type[PathParamsType]
+    payload_model: type[RequestBodyType]
+    response_model: type[ResponseType]
+
     @staticmethod
     def create_url(
         *args: PathParamsSpec.args, **kwargs: PathParamsSpec.kwargs
     ) -> str: ...
 
     @staticmethod
+    def create_url_from_model(path_params: PathParamsType) -> str: ...
+
+    @staticmethod
     def create_payload(
         *args: RequestBodySpec.args, **kwargs: RequestBodySpec.kwargs
     ) -> dict[str, Any]: ...
 
+    @staticmethod
+    def create_payload_from_model(request_body: RequestBodyType) -> dict[str, Any]: ...
+
+    @staticmethod
+    def handle_response(response: dict[str, Any]) -> ResponseType: ...
+
+    @staticmethod
+    def request_method() -> str: ...
+
 
 # Model for any client to implement
-class EndpointClient(Protocol):
-    def request(
-        self,
-        endpoint: EndpointClassProtocol,
-        method: str,
-        headers: dict[str, str],
-        payload: dict[str, Any],
-    ) -> dict[str, Any]: ...
-
-
-class EndpointClientConfig(BaseModel):
-    url_template: Template
-    path_params_model: SkipJsonSchema[type[BaseModel]] | dict[str, Any] = Field(
-        default_factory=dict, description="A json schema for the path parameters"
-    )
-    payload_model: SkipJsonSchema[type[BaseModel]] | dict[str, Any] = Field(
-        default_factory=dict, description="A json schema for the request body"
-    )
-    response_model: SkipJsonSchema[type[BaseModel]] | dict[str, Any] = Field(
-        default_factory=dict, description="A json schema for the response"
-    )
-    dump_options: dict[str, Any] | None = None
 
 
 def build_endpoint_class(
     *,
+    method: str,
     url_template: Template,
-    path_params_model: Callable[PathParamsSpec, PathParamsType],
-    payload_model: Callable[RequestBodySpec, RequestBodyType],
-    response_model: type[ResponseType],
+    path_params_model_type: type[PathParamsType],
+    payload_model_type: type[RequestBodyType],
+    response_model_type: type[ResponseType],
     dump_options: dict | None = None,
-) -> type[EndpointClassProtocol[PathParamsSpec, RequestBodySpec]]:
+) -> type[
+    EndpointClassProtocol[
+        PathParamsSpec, RequestBodySpec, PathParamsType, RequestBodyType, ResponseType
+    ]
+]:
     """Generate a class with static methods for endpoint handling.
 
     Uses separate models for path parameters and request body for clean API design.
@@ -89,12 +91,16 @@ def build_endpoint_class(
         }
 
     class EndpointClass(EndpointClassProtocol):
+        path_params_model = path_params_model_type
+        payload_model = payload_model_type
+        response_model = response_model_type
+
         @staticmethod
         def create_url(
             *args: PathParamsSpec.args, **kwargs: PathParamsSpec.kwargs
         ) -> str:
             """Create URL from path parameters."""
-            path_model = path_params_model(*args, **kwargs)
+            path_model = EndpointClass.path_params_model(*args, **kwargs)
             path_dict = path_model.model_dump(**dump_options)
 
             # Extract expected path parameters from template
@@ -114,16 +120,28 @@ def build_endpoint_class(
             return url_template.substitute(**path_dict)
 
         @staticmethod
+        def create_url_from_model(path_params: PathParamsType) -> str:
+            return url_template.substitute(**path_params.model_dump(**dump_options))
+
+        @staticmethod
         def create_payload(
             *args: RequestBodySpec.args, **kwargs: RequestBodySpec.kwargs
         ) -> dict[str, Any]:
             """Create request body payload."""
-            request_model = payload_model(*args, **kwargs)
+            request_model = EndpointClass.payload_model(*args, **kwargs)
             return request_model.model_dump(**dump_options)
 
         @staticmethod
+        def create_payload_from_model(request_body: RequestBodyType) -> dict[str, Any]:
+            return request_body.model_dump(**dump_options)
+
+        @staticmethod
         def handle_response(response: dict[str, Any]) -> ResponseType:
-            return response_model.model_validate(response)
+            return EndpointClass.response_model.model_validate(response)
+
+        @staticmethod
+        def request_method() -> str:
+            return method
 
     return EndpointClass
 
@@ -149,9 +167,10 @@ if __name__ == "__main__":
     # Example usage of make_endpoint_class
     UserEndpoint = build_endpoint_class(
         url_template=Template("/users/${user_id}"),
-        path_params_model=GetUserPathParams,
-        payload_model=GetUserRequestBody,
-        response_model=UserResponse,
+        path_params_model_type=GetUserPathParams,
+        payload_model_type=GetUserRequestBody,
+        response_model_type=UserResponse,
+        method="GET",
     )
 
     # Create URL from path parameters
@@ -161,3 +180,12 @@ if __name__ == "__main__":
     # Create payload from request body parameters
     payload = UserEndpoint.create_payload(include_profile=True)
     print(f"Payload: {payload}")
+
+    # Create response from endpoint
+    response = UserEndpoint.handle_response(
+        {
+            "id": 123,
+            "name": "John Doe",
+        }
+    )
+    print(f"Response: {response}")
