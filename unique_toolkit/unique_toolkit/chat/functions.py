@@ -169,11 +169,6 @@ async def modify_message_async(
 
 
 def map_references(references: list[ContentReference]) -> list[dict[str, Any]]:
-    """Maps ContentReference objects to dict format for Message API (legacy format).
-
-    This function maintains backward compatibility with the existing Message API
-    by excluding the originalIndex field.
-    """
     return [
         {
             "name": ref.name,
