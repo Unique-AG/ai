@@ -15,6 +15,13 @@ from unique_toolkit.chat.schemas import (
     ChatMessageAssessmentStatus,
     ChatMessageAssessmentType,
     ChatMessageRole,
+    MessageExecution,
+    MessageExecutionType,
+    MessageExecutionUpdateStatus,
+    MessageLog,
+    MessageLogDetails,
+    MessageLogStatus,
+    MessageLogUncitedReferences,
 )
 from unique_toolkit.content.schemas import ContentChunk, ContentReference
 from unique_toolkit.content.utils import count_tokens
@@ -169,6 +176,26 @@ def map_references(references: list[ContentReference]) -> list[dict[str, Any]]:
             "sequenceNumber": ref.sequence_number,
             "sourceId": ref.source_id,
             "source": ref.source,
+        }
+        for ref in references
+    ]
+
+
+def map_references_with_original_index(
+    references: list[ContentReference],
+) -> list[dict[str, Any]]:
+    """Maps ContentReference objects to dict format for MessageLog API (complete format).
+
+    This function includes all fields including originalIndex for APIs that support it.
+    """
+    return [
+        {
+            "name": ref.name,
+            "url": ref.url,
+            "sequenceNumber": ref.sequence_number,
+            "sourceId": ref.source_id,
+            "source": ref.source,
+            "originalIndex": ref.original_index,
         }
         for ref in references
     ]
@@ -886,4 +913,444 @@ async def stream_complete_with_references_async(
         return LanguageModelStreamResponse(**response)
     except Exception as e:
         logger.error(f"Error streaming completion: {e}")
+        raise e
+
+
+def create_message_log(
+    user_id: str,
+    company_id: str,
+    message_id: str,
+    text: str,
+    status: MessageLogStatus,
+    order: int,
+    details: MessageLogDetails | None = None,
+    uncited_references: MessageLogUncitedReferences | None = None,
+    references: list[ContentReference] | None = None,
+) -> MessageLog:
+    """Creates a message log synchronously.
+
+    Args:
+        user_id (str): The user ID.
+        company_id (str): The company ID.
+        message_id (str): The ID of the message this log belongs to.
+        text (str): The log text content.
+        status (MessageLogStatus): The status of this log entry.
+        order (int): The order/sequence number of this log entry.
+        details (MessageLogDetails | None): Additional details about this log entry.
+        uncited_references (MessageLogUncitedReferences | None): References that are not cited.
+        references (list[ContentReference] | None): List of references for this log.
+
+    Returns:
+        MessageLog: The created message log.
+
+    Raises:
+        Exception: If the creation fails.
+
+    """
+    try:
+        message_log = unique_sdk.MessageLog.create(
+            user_id=user_id,
+            company_id=company_id,
+            messageId=message_id,
+            text=text,
+            status=status.value,
+            order=order,
+            details=details.model_dump() if details else None,
+            uncitedReferences=uncited_references.model_dump()
+            if uncited_references
+            else None,
+            references=map_references_with_original_index(references)
+            if references
+            else [],  # type: ignore
+        )
+        return MessageLog(**message_log)
+    except Exception as e:
+        logger.error(f"Failed to create message log: {e}")
+        raise e
+
+
+async def create_message_log_async(
+    user_id: str,
+    company_id: str,
+    message_id: str,
+    text: str,
+    status: MessageLogStatus,
+    order: int,
+    details: MessageLogDetails | None = None,
+    uncited_references: MessageLogUncitedReferences | None = None,
+    references: list[ContentReference] | None = None,
+) -> MessageLog:
+    """Creates a message log asynchronously.
+
+    Args:
+        user_id (str): The user ID.
+        company_id (str): The company ID.
+        message_id (str): The ID of the message this log belongs to.
+        text (str): The log text content.
+        status (MessageLogStatus): The status of this log entry.
+        order (int): The order/sequence number of this log entry.
+        details (MessageLogDetails | None): Additional details about this log entry.
+        uncited_references (MessageLogUncitedReferences | None): References that are not cited.
+        references (list[ContentReference] | None): List of references for this log.
+
+    Returns:
+        MessageLog: The created message log.
+
+    Raises:
+        Exception: If the creation fails.
+
+    """
+    try:
+        message_log = await unique_sdk.MessageLog.create_async(
+            user_id=user_id,
+            company_id=company_id,
+            messageId=message_id,
+            text=text,
+            status=status.value,
+            order=order,
+            details=details.model_dump() if details else None,
+            uncitedReferences=uncited_references.model_dump()
+            if uncited_references
+            else None,
+            references=map_references_with_original_index(references)
+            if references
+            else [],  # type: ignore
+        )
+        return MessageLog(**message_log)
+    except Exception as e:
+        logger.error(f"Failed to create message log: {e}")
+        raise e
+
+
+def update_message_log(
+    user_id: str,
+    company_id: str,
+    message_log_id: str,
+    order: int,
+    text: str | None = None,
+    status: MessageLogStatus | None = None,
+    details: MessageLogDetails | None = None,
+    uncited_references: MessageLogUncitedReferences | None = None,
+    references: list[ContentReference] | None = None,
+) -> MessageLog:
+    """Updates a message log synchronously.
+
+    Args:
+        user_id (str): The user ID.
+        company_id (str): The company ID.
+        message_log_id (str): The ID of the message log to update.
+        order (int): The order/sequence number (required).
+        text (str | None): The updated log text content.
+        status (MessageLogStatus | None): The updated status.
+        details (MessageLogDetails | None): Updated additional details.
+        uncited_references (MessageLogUncitedReferences | None): Updated uncited references.
+        references (list[ContentReference] | None): Updated list of references.
+
+    Returns:
+        MessageLog: The updated message log.
+
+    Raises:
+        Exception: If the update fails.
+
+    """
+    try:
+        message_log = unique_sdk.MessageLog.update(
+            user_id=user_id,
+            company_id=company_id,
+            message_log_id=message_log_id,
+            text=text,
+            status=status.value if status else None,
+            order=order,
+            details=details.model_dump() if details else None,
+            uncitedReferences=uncited_references.model_dump()
+            if uncited_references
+            else None,
+            references=map_references_with_original_index(references)
+            if references
+            else [],  # type: ignore
+        )
+        return MessageLog(**message_log)
+    except Exception as e:
+        logger.error(f"Failed to update message log: {e}")
+        raise e
+
+
+async def update_message_log_async(
+    user_id: str,
+    company_id: str,
+    message_log_id: str,
+    order: int,
+    text: str | None = None,
+    status: MessageLogStatus | None = None,
+    details: MessageLogDetails | None = None,
+    uncited_references: MessageLogUncitedReferences | None = None,
+    references: list[ContentReference] | None = None,
+) -> MessageLog:
+    """Updates a message log asynchronously.
+
+    Args:
+        user_id (str): The user ID.
+        company_id (str): The company ID.
+        message_log_id (str): The ID of the message log to update.
+        order (int): The order/sequence number (required).
+        text (str | None): The updated log text content.
+        status (MessageLogStatus | None): The updated status.
+        details (MessageLogDetails | None): Updated additional details.
+        uncited_references (MessageLogUncitedReferences | None): Updated uncited references.
+        references (list[ContentReference] | None): Updated list of references.
+
+    Returns:
+        MessageLog: The updated message log.
+
+    Raises:
+        Exception: If the update fails.
+
+    """
+    try:
+        message_log = await unique_sdk.MessageLog.update_async(
+            user_id=user_id,
+            company_id=company_id,
+            message_log_id=message_log_id,
+            text=text,
+            status=status.value if status else None,
+            order=order,
+            details=details.model_dump() if details else None,
+            uncitedReferences=uncited_references.model_dump()
+            if uncited_references
+            else None,
+            references=map_references_with_original_index(references)
+            if references
+            else [],  # type: ignore
+        )
+        return MessageLog(**message_log)
+    except Exception as e:
+        logger.error(f"Failed to update message log: {e}")
+        raise e
+
+
+def create_message_execution(
+    user_id: str,
+    company_id: str,
+    message_id: str,
+    chat_id: str,
+    type: MessageExecutionType = MessageExecutionType.DEEP_RESEARCH,
+    seconds_remaining: int | None = None,
+    percentage_completed: int | None = None,
+) -> MessageExecution:
+    """Creates a message execution synchronously.
+
+    Args:
+        user_id (str): The user ID.
+        company_id (str): The company ID.
+        message_id (str): The ID of the message this execution belongs to.
+        chat_id (str): The chat ID.
+        type (MessageExecutionType): The type of execution. Defaults to DEEP_RESEARCH.
+        seconds_remaining (int | None): Estimated seconds remaining for completion.
+        percentage_completed (int | None): Percentage of completion (0-100).
+
+    Returns:
+        MessageExecution: The created message execution.
+
+    Raises:
+        Exception: If the creation fails.
+
+    """
+    try:
+        message_execution = unique_sdk.MessageExecution.create(
+            user_id=user_id,
+            company_id=company_id,
+            messageId=message_id,
+            chatId=chat_id,
+            type=type.value,
+            secondsRemaining=seconds_remaining,
+            percentageCompleted=percentage_completed,
+        )
+        return MessageExecution(**message_execution)
+    except Exception as e:
+        logger.error(f"Failed to create message execution: {e}")
+        raise e
+
+
+async def create_message_execution_async(
+    user_id: str,
+    company_id: str,
+    message_id: str,
+    chat_id: str,
+    type: MessageExecutionType = MessageExecutionType.DEEP_RESEARCH,
+    seconds_remaining: int | None = None,
+    percentage_completed: int | None = None,
+) -> MessageExecution:
+    """Creates a message execution asynchronously.
+
+    Args:
+        user_id (str): The user ID.
+        company_id (str): The company ID.
+        message_id (str): The ID of the message this execution belongs to.
+        chat_id (str): The chat ID.
+        type (MessageExecutionType): The type of execution. Defaults to DEEP_RESEARCH.
+        seconds_remaining (int | None): Estimated seconds remaining for completion.
+        percentage_completed (int | None): Percentage of completion (0-100).
+
+    Returns:
+        MessageExecution: The created message execution.
+
+    Raises:
+        Exception: If the creation fails.
+
+    """
+    try:
+        message_execution = await unique_sdk.MessageExecution.create_async(
+            user_id=user_id,
+            company_id=company_id,
+            messageId=message_id,
+            chatId=chat_id,
+            type=type.value,
+            secondsRemaining=seconds_remaining,
+            percentageCompleted=percentage_completed,
+        )
+        return MessageExecution(**message_execution)
+    except Exception as e:
+        logger.error(f"Failed to create message execution: {e}")
+        raise e
+
+
+def get_message_execution(
+    user_id: str,
+    company_id: str,
+    message_id: str,
+) -> MessageExecution:
+    """Gets a message execution by message ID synchronously.
+
+    Args:
+        user_id (str): The user ID.
+        company_id (str): The company ID.
+        message_id (str): The ID of the message to get execution for.
+
+    Returns:
+        MessageExecution: The message execution.
+
+    Raises:
+        Exception: If the retrieval fails.
+
+    """
+    try:
+        message_execution = unique_sdk.MessageExecution.get(
+            user_id=user_id,
+            company_id=company_id,
+            messageId=message_id,
+        )
+        return MessageExecution(**message_execution)
+    except Exception as e:
+        logger.error(f"Failed to get message execution: {e}")
+        raise e
+
+
+async def get_message_execution_async(
+    user_id: str,
+    company_id: str,
+    message_id: str,
+) -> MessageExecution:
+    """Gets a message execution by message ID asynchronously.
+
+    Args:
+        user_id (str): The user ID.
+        company_id (str): The company ID.
+        message_id (str): The ID of the message to get execution for.
+
+    Returns:
+        MessageExecution: The message execution.
+
+    Raises:
+        Exception: If the retrieval fails.
+
+    """
+    try:
+        message_execution = await unique_sdk.MessageExecution.get_async(
+            user_id=user_id,
+            company_id=company_id,
+            messageId=message_id,
+        )
+        return MessageExecution(**message_execution)
+    except Exception as e:
+        logger.error(f"Failed to get message execution: {e}")
+        raise e
+
+
+def update_message_execution(
+    user_id: str,
+    company_id: str,
+    message_id: str,
+    status: MessageExecutionUpdateStatus,
+    seconds_remaining: int | None = None,
+    percentage_completed: int | None = None,
+) -> MessageExecution:
+    """Updates a message execution synchronously.
+
+    Args:
+        user_id (str): The user ID.
+        company_id (str): The company ID.
+        message_id (str): The ID of the message to update execution for.
+        status (MessageExecutionUpdateStatus): The updated status (COMPLETED or FAILED).
+        seconds_remaining (int | None): Updated estimated seconds remaining.
+        percentage_completed (int | None): Updated percentage of completion (0-100).
+
+    Returns:
+        MessageExecution: The updated message execution.
+
+    Raises:
+        Exception: If the update fails.
+
+    """
+    try:
+        message_execution = unique_sdk.MessageExecution.update(
+            user_id=user_id,
+            company_id=company_id,
+            messageId=message_id,
+            status=status.value,
+            secondsRemaining=seconds_remaining,
+            percentageCompleted=percentage_completed,
+        )
+        return MessageExecution(**message_execution)
+    except Exception as e:
+        logger.error(f"Failed to update message execution: {e}")
+        raise e
+
+
+async def update_message_execution_async(
+    user_id: str,
+    company_id: str,
+    message_id: str,
+    status: MessageExecutionUpdateStatus,
+    seconds_remaining: int | None = None,
+    percentage_completed: int | None = None,
+) -> MessageExecution:
+    """Updates a message execution asynchronously.
+
+    Args:
+        user_id (str): The user ID.
+        company_id (str): The company ID.
+        message_id (str): The ID of the message to update execution for.
+        status (MessageExecutionUpdateStatus): The updated status (COMPLETED or FAILED).
+        seconds_remaining (int | None): Updated estimated seconds remaining.
+        percentage_completed (int | None): Updated percentage of completion (0-100).
+
+    Returns:
+        MessageExecution: The updated message execution.
+
+    Raises:
+        Exception: If the update fails.
+
+    """
+    try:
+        message_execution = await unique_sdk.MessageExecution.update_async(
+            user_id=user_id,
+            company_id=company_id,
+            messageId=message_id,
+            status=status.value,
+            secondsRemaining=seconds_remaining,
+            percentageCompleted=percentage_completed,
+        )
+        return MessageExecution(**message_execution)
+    except Exception as e:
+        logger.error(f"Failed to update message execution: {e}")
         raise e
