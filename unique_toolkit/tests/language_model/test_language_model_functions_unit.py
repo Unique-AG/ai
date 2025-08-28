@@ -158,7 +158,6 @@ async def test_complete_async_basic(mock_create):
     messages = LanguageModelMessages([])
     result = await complete_async(
         company_id="test_company",
-        user_id="test_user",
         messages=messages,
         model_name=LanguageModelName.AZURE_GPT_4_0613,
     )

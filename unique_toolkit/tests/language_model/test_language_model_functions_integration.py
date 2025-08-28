@@ -172,7 +172,6 @@ class TestLanguageModelFunctionsIntegration:
         """Test asynchronous completion"""
         response = await complete_async(
             company_id=self.company_id,
-            user_id=self.user_id,
             messages=self.test_messages,
             model_name=self.model_name,
         )
@@ -193,7 +192,6 @@ class TestLanguageModelFunctionsIntegration:
 
         response = await complete_async(
             company_id=self.company_id,
-            user_id=self.user_id,
             messages=messages,
             model_name=LanguageModelName.AZURE_GPT_4_0613,
             tools=[weather_tool],

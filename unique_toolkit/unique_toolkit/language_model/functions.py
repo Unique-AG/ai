@@ -94,9 +94,9 @@ def complete(
 
 async def complete_async(
     company_id: str,
-    user_id: str,
     messages: LanguageModelMessages | list[ChatCompletionMessageParam],
     model_name: LanguageModelName | str,
+    user_id: str | None = None,
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
     timeout: int = DEFAULT_COMPLETE_TIMEOUT,
     tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
