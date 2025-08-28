@@ -1,33 +1,31 @@
-from abc import ABC
 import asyncio
-
-
-from unique_toolkit.tools.utils.execution.execution import Result, SafeTaskExecutor
+from abc import ABC
 from logging import Logger
-from unique_toolkit.evals.schemas import (
-    EvaluationAssessmentMessage,
-    EvaluationMetricName,
-    EvaluationMetricResult,
-)
+
 from unique_toolkit.chat.schemas import (
     ChatMessageAssessmentStatus,
     ChatMessageAssessmentType,
 )
 from unique_toolkit.chat.service import ChatService
+from unique_toolkit.evals.schemas import (
+    EvaluationAssessmentMessage,
+    EvaluationMetricName,
+    EvaluationMetricResult,
+)
 from unique_toolkit.language_model.schemas import (
     LanguageModelStreamResponse,
 )
+from unique_toolkit.tools.utils.execution.execution import Result, SafeTaskExecutor
 
 
 class Evaluation(ABC):
     """
     Abstract base class for evaluation metrics.
-    
+
     typical use cases include:
     - Hallucination checking
     - compliance checking
     """
-   
 
     def __init__(self, name: EvaluationMetricName):
         self.name = name
@@ -73,19 +71,18 @@ class EvaluationManager:
 
     The EvaluationManager serves as the central hub for managing and executing evaluations.
     """
+
     # a hashmap to hold evaluations by their names
-    _evaluations: dict[EvaluationMetricName, Evaluation] = {}
-    _evaluation_passed: bool = True
 
     def __init__(
         self,
         logger: Logger,
         chat_service: ChatService,
-        assistant_message_id: str,
     ):
         self._logger = logger
         self._chat_service = chat_service
-        self._assistant_message_id = assistant_message_id
+        self._evaluations: dict[EvaluationMetricName, Evaluation] = {}
+        self._evaluation_passed: bool = True
 
     def add_evaluation(self, evaluation: Evaluation):
         self._evaluations[evaluation.get_name()] = evaluation
@@ -97,6 +94,7 @@ class EvaluationManager:
         self,
         selected_evaluation_names: list[EvaluationMetricName],
         loop_response: LanguageModelStreamResponse,
+        assistant_message_id: str,
     ) -> list[EvaluationMetricResult]:
         task_executor = SafeTaskExecutor(
             logger=self._logger,
@@ -107,6 +105,7 @@ class EvaluationManager:
                 self.execute_evaluation_call,
                 loop_response=loop_response,
                 evaluation_name=evaluation_name,
+                assistant_message_id=assistant_message_id,
             )
             for evaluation_name in selected_evaluation_names
         ]
@@ -127,6 +126,7 @@ class EvaluationManager:
         self,
         evaluation_name: EvaluationMetricName,
         loop_response: LanguageModelStreamResponse,
+        assistant_message_id: str,
     ) -> EvaluationMetricResult:
         self._logger.info(f"Processing tool call: {evaluation_name}")
 
@@ -134,13 +134,15 @@ class EvaluationManager:
 
         if evaluation_instance:
             # Execute the evaluation
-            await self._create_assistant_message(evaluation_instance)
+            await self._create_assistant_message(
+                evaluation_instance, assistant_message_id
+            )
             evaluation_metric_result: EvaluationMetricResult = (
                 await evaluation_instance.run(loop_response)
             )
             # show results to the user
             await self._show_message_assessment(
-                evaluation_instance, evaluation_metric_result
+                evaluation_instance, evaluation_metric_result, assistant_message_id
             )
 
             return evaluation_metric_result
@@ -183,6 +185,7 @@ class EvaluationManager:
         self,
         evaluation_instance: Evaluation,
         evaluation_metric_result: EvaluationMetricResult,
+        assistant_message_id: str,
     ) -> None:
         evaluation_assessment_message = (
             await evaluation_instance.evaluation_metric_to_assessment(
@@ -190,7 +193,7 @@ class EvaluationManager:
             )
         )
         await self._chat_service.modify_message_assessment_async(
-            assistant_message_id=self._assistant_message_id,
+            assistant_message_id=assistant_message_id,
             status=evaluation_assessment_message.status,
             title=evaluation_assessment_message.title,
             explanation=evaluation_assessment_message.explanation,
@@ -198,9 +201,11 @@ class EvaluationManager:
             type=evaluation_assessment_message.type,
         )
 
-    async def _create_assistant_message(self, evaluation_instance: Evaluation):
+    async def _create_assistant_message(
+        self, evaluation_instance: Evaluation, assistant_message_id: str
+    ):
         await self._chat_service.create_message_assessment_async(
-            assistant_message_id=self._assistant_message_id,
+            assistant_message_id=assistant_message_id,
             status=ChatMessageAssessmentStatus.PENDING,
             type=evaluation_instance.get_assessment_type(),
         )

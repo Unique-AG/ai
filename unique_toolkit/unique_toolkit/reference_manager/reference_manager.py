@@ -49,7 +49,6 @@ class ReferenceManager:
 
     def get_tool_chunks(self) -> dict[str, tool_chunks]:
         return self._tool_chunks
-    
 
     def get_chunks_of_all_tools(self) -> list[list[ContentChunk]]:
         return [tool_chunks.chunks for tool_chunks in self._tool_chunks.values()]
@@ -57,11 +56,11 @@ class ReferenceManager:
     def get_chunks_of_tool(self, tool_call_id: str) -> list[ContentChunk]:
         return self._tool_chunks.get(tool_call_id, tool_chunks("", [])).chunks
 
-    
-    def replace_chunks_of_tool(self, tool_call_id: str,chunks: list[ContentChunk]) -> None:
+    def replace_chunks_of_tool(
+        self, tool_call_id: str, chunks: list[ContentChunk]
+    ) -> None:
         if tool_call_id in self._tool_chunks:
             self._tool_chunks[tool_call_id].chunks = chunks
-
 
     def replace(self, chunks: list[ContentChunk]):
         self._chunks = chunks

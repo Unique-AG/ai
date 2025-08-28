@@ -24,7 +24,7 @@ def sort_sources(searchContext) -> list[str]:
         sources.sort(key=lambda x: x.order)
         for i, s in enumerate(sources):
             s.text = re.sub(
-                r"<\|/document\|>", f' text part {s["order"]}<|/document|>', s["text"]
+                r"<\|/document\|>", f" text part {s['order']}<|/document|>", s["text"]
             )
             s.text = re.sub(r"<\|info\|>(.*?)<\|\/info\|>", "", s.text)
             pages_postfix = generate_pages_postfix([s])

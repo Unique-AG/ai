@@ -1,26 +1,24 @@
 import base64
 import mimetypes
-
 from datetime import datetime
 from enum import StrEnum
 
 import numpy as np
 import tiktoken
-
 from pydantic import RootModel
 
-from _common.token.token_counting import num_tokens_per_language_model_message
-from chat.service import ChatService
-from content.service import ContentService
-from language_model.schemas import LanguageModelMessages
+from unique_toolkit._common.token.token_counting import (
+    num_tokens_per_language_model_message,
+)
 from unique_toolkit.app import ChatEventUserMessage
 from unique_toolkit.chat.schemas import ChatMessage
 from unique_toolkit.chat.schemas import ChatMessageRole as ChatRole
+from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.schemas import Content
+from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model import LanguageModelMessageRole as LLMRole
 from unique_toolkit.language_model.infos import EncoderName
-
-
+from unique_toolkit.language_model.schemas import LanguageModelMessages
 
 # TODO: Test this once it moves into the unique toolkit
 
@@ -188,8 +186,7 @@ def file_content_serialization(
             return ""
         case FileContentSerialization.FILE_NAME:
             file_names = [
-                f"- Uploaded file: {f.key} at {f.created_at}"
-                for f in file_contents
+                f"- Uploaded file: {f.key} at {f.created_at}" for f in file_contents
             ]
             return "\n".join(
                 [
@@ -226,12 +223,8 @@ def get_full_history_with_contents(
             text = ""
 
         if len(c.contents) > 0:
-            file_contents = [
-                co for co in c.contents if is_file_content(co.key)
-            ]
-            image_contents = [
-                co for co in c.contents if is_image_content(co.key)
-            ]
+            file_contents = [co for co in c.contents if is_file_content(co.key)]
+            image_contents = [co for co in c.contents if is_image_content(co.key)]
 
             content = (
                 text
@@ -285,7 +278,6 @@ def get_full_history_as_llm_messages(
     return builder.build()
 
 
-
 def limit_to_token_window(
     messages: LanguageModelMessages,
     token_limit: int,
@@ -297,9 +289,7 @@ def limit_to_token_window(
         encode=encoder.encode,
     )
 
-    to_take: list[bool] = (
-        np.cumsum(token_per_message_reversed) < token_limit
-    ).tolist()
+    to_take: list[bool] = (np.cumsum(token_per_message_reversed) < token_limit).tolist()
     to_take.reverse()
 
     return LanguageModelMessages(

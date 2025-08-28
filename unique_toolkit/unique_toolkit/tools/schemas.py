@@ -4,8 +4,8 @@ import re
 from typing import Any, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
-from unique_toolkit.content.schemas import ContentChunk
 
+from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.tools.config import get_configuration_dict
 from unique_toolkit.tools.utils.source_handling.schema import SourceFormatConfig
 
@@ -14,6 +14,7 @@ from unique_toolkit.tools.utils.source_handling.schema import SourceFormatConfig
 class ToolCallResponse(BaseModel):
     id: str
     name: str
+    content: str = ""
     debug_info: Optional[dict] = None  # TODO: Make the default {}
     content_chunks: Optional[list[ContentChunk]] = None  # TODO: Make the default []
     reasoning_result: Optional[dict] = None  # TODO: Make the default {}
@@ -132,6 +133,9 @@ class Source(BaseModel):
 class ToolPrompts(BaseModel):
     name: str
     display_name: str
-    tool_description: str
+    tool_system_prompt: str
     tool_format_information_for_system_prompt: str
+    tool_user_prompt: str
+    tool_format_information_for_user_prompt: str
+    tool_description: str
     input_model: dict[str, Any]

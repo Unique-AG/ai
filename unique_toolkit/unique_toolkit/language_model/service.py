@@ -261,6 +261,7 @@ class LanguageModelService:
 
         return await complete_async(
             company_id=self._company_id,
+            user_id=self._user_id,
             messages=messages,
             model_name=model_name,
             temperature=temperature,
@@ -276,6 +277,7 @@ class LanguageModelService:
     async def complete_async_util(
         cls,
         company_id: str,
+        user_id: str,
         messages: LanguageModelMessages,
         model_name: LanguageModelName | str,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
@@ -291,6 +293,7 @@ class LanguageModelService:
 
         return await complete_async(
             company_id=company_id,
+            user_id=user_id,
             messages=messages,
             model_name=model_name,
             temperature=temperature,

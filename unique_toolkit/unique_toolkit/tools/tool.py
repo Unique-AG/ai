@@ -1,25 +1,20 @@
 from abc import ABC, abstractmethod
-from enum import StrEnum
 from logging import getLogger
-from typing import Generic, TypeVar
-from typing import Any, cast
+from typing import Any, Generic, TypeVar, cast
 
-from pydantic import Field
 from typing_extensions import deprecated
+
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.chat.service import (
     ChatService,
 )
+from unique_toolkit.evals.schemas import EvaluationMetricName
 from unique_toolkit.language_model import LanguageModelToolDescription
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelMessage,
 )
 from unique_toolkit.language_model.service import LanguageModelService
-
-
-from unique_toolkit.evals.schemas import EvaluationMetricName
-from unique_toolkit.tools.agent_chunks_handler import AgentChunksHandler
 from unique_toolkit.tools.config import ToolBuildConfig, ToolSelectionPolicy
 from unique_toolkit.tools.schemas import BaseToolConfig, ToolCallResponse, ToolPrompts
 from unique_toolkit.tools.tool_progress_reporter import ToolProgressReporter
@@ -62,13 +57,17 @@ class Tool(ABC, Generic[ConfigType]):
         else:
             return cast("dict[str, Any]", parameters)
 
-    @abstractmethod
     def tool_description_for_system_prompt(self) -> str:
-        raise NotImplementedError
+        return ""
 
-    @abstractmethod
     def tool_format_information_for_system_prompt(self) -> str:
-        raise NotImplementedError
+        return ""
+
+    def tool_description_for_user_prompt(self) -> str:
+        return ""
+
+    def tool_format_information_for_user_prompt(self) -> str:
+        return ""
 
     def tool_format_reminder_for_user_prompt(self) -> str:
         """A short reminder for the user prompt for formatting rules for the tool.
@@ -81,7 +80,6 @@ class Tool(ABC, Generic[ConfigType]):
     def get_tool_call_result_for_loop_history(
         self,
         tool_response: ToolCallResponse,
-        agent_chunks_handler: AgentChunksHandler,
     ) -> LanguageModelMessage:
         raise NotImplementedError
 
@@ -115,8 +113,11 @@ class Tool(ABC, Generic[ConfigType]):
             name=self.name,
             display_name=self.display_name(),
             tool_description=self.tool_description().description,
+            tool_system_prompt=self.tool_description_for_system_prompt(),
             tool_format_information_for_system_prompt=self.tool_format_information_for_system_prompt(),
             input_model=self.tool_description_as_json(),
+            tool_user_prompt=self.tool_description_for_user_prompt(),
+            tool_format_information_for_user_prompt=self.tool_format_information_for_user_prompt(),
         )
 
     # Properties that we should soon deprecate

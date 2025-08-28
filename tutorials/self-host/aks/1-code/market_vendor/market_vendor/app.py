@@ -12,6 +12,8 @@ import os
 
 from dotenv import load_dotenv
 from flask import Flask, request
+
+from market_vendor.utils import get_app_name
 from unique_toolkit.app import (
     Event,
     init_logging,
@@ -24,8 +26,6 @@ from unique_toolkit.language_model import (
     Prompt,
 )
 from unique_toolkit.language_model.infos import LanguageModelInfo
-
-from market_vendor.utils import get_app_name
 
 from .config import MarketVendorConfig
 

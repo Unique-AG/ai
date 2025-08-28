@@ -7,13 +7,13 @@ on:
     # 1. Push must be to main branch
     # 2. Push must include changes to follow_up_questions/** files
     paths:
-      - 'follow_up_questions/**'
+      - 'postprocessors/follow_up_questions/**'
     branches:
       - main
 
 env:
   PACKAGE_NAME: follow_up_questions
-  PACKAGE_DIR: ./follow_up_questions
+  PACKAGE_DIR: ./postprocessors/unique_follow_up_questions
     
 jobs:
   build-and-publish:
@@ -31,7 +31,7 @@ jobs:
 
     - name: Install Poetry
       run: |
-            POETRY_VERSION='1.8.3'
+            POETRY_VERSION='2.1.3'
             PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install poetry==$POETRY_VERSION
 
     - name: Install dependencies

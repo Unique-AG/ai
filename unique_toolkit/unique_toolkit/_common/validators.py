@@ -2,15 +2,13 @@ import logging
 from typing import Annotated, Any
 
 from pydantic import BeforeValidator, Field, PlainSerializer, ValidationInfo
+from pydantic.fields import FieldInfo
 
 from unique_toolkit.language_model import LanguageModelName
 from unique_toolkit.language_model.infos import (
     LanguageModelInfo,
     LanguageModelProvider,
 )
-
-from pydantic.fields import FieldInfo
-
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +25,14 @@ LMI = Annotated[
         return_type=str | LanguageModelInfo,
     ),
 ]
+
+
+def get_LMI_default_field(llm_name: LanguageModelName, **kwargs) -> Any:
+    return Field(
+        default=LanguageModelInfo.from_name(llm_name),
+        json_schema_extra={"default": llm_name},
+        **kwargs,
+    )
 
 
 def serialize_lmi(model: LanguageModelInfo) -> str | LanguageModelInfo:

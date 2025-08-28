@@ -1,90 +1,76 @@
-from datetime import datetime
 from logging import Logger
 from typing import Annotated, Awaitable, Callable
 
 from pydantic import BaseModel, Field
 
-import tiktoken
+from unique_toolkit._common.validators import LMI
 from unique_toolkit.app.schemas import ChatEvent
-
-
-from unique_toolkit.chat.schemas import ChatMessage
-from unique_toolkit.chat.service import ChatService
-from unique_toolkit.content.schemas import Content
-from unique_toolkit.content.service import ContentService
-from unique_toolkit.language_model.builder import MessagesBuilder
+from unique_toolkit.history_manager.loop_token_reducer import LoopTokenReducer
+from unique_toolkit.history_manager.utils import transform_chunks_to_string
+from unique_toolkit.language_model.infos import LanguageModelInfo, LanguageModelName
 from unique_toolkit.language_model.schemas import (
     LanguageModelAssistantMessage,
     LanguageModelFunction,
     LanguageModelMessage,
-    LanguageModelMessageRole,
-    LanguageModelSystemMessage,
+    LanguageModelMessages,
     LanguageModelToolMessage,
-    LanguageModelUserMessage,
 )
-
+from unique_toolkit.reference_manager.reference_manager import ReferenceManager
+from unique_toolkit.tools.config import get_configuration_dict
 from unique_toolkit.tools.schemas import ToolCallResponse
-from unique_toolkit.history_manager.utils import transform_chunks_to_string
-
-from _common.validators import LMI
-from history_manager.loop_token_reducer import LoopTokenReducer
-from reference_manager.reference_manager import ReferenceManager
-from tools.config import get_configuration_dict
 
 DeactivatedNone = Annotated[
     None,
     Field(title="Deactivated", description="None"),
 ]
 
+
+class UploadedContentConfig(BaseModel):
+    model_config = get_configuration_dict()
+
+    user_context_window_limit_warning: str = Field(
+        default="The uploaded content is too large to fit into the ai model. "
+        "Unique AI will search for relevant sections in the material and if needed combine the data with knowledge base content",
+        description="Message to show when using the Internal Search instead of upload and chat tool due to context window limit. Jinja template.",
+    )
+    percent_for_uploaded_content: float = Field(
+        default=0.6,
+        ge=0.0,
+        lt=1.0,
+        description="The fraction of the max input tokens that will be reserved for the uploaded content.",
+    )
+
+
+class ExperimentalFeatures(BaseModel):
+    full_sources_serialize_dump: bool = Field(
+        default=False,
+        description="If True, the sources will be serialized in full, otherwise only the content will be serialized.",
+    )
+
+
 class HistoryManagerConfig(BaseModel):
-
-    class InputTokenDistributionConfig(BaseModel):
-        model_config = get_configuration_dict(frozen=True)
-
-        percent_for_history: float = Field(
-            default=0.6,
-            ge=0.0,
-            lt=1.0,
-            description="The fraction of the max input tokens that will be reserved for the history.",
-        )
-
-        def max_history_tokens(self, max_input_token: int) -> int:
-            return int(self.percent_for_history * max_input_token)
-    
-    class UploadedContentConfig(BaseModel):
-        model_config = get_configuration_dict()
-
-        user_context_window_limit_warning: str = Field(
-            default="The uploaded content is too large to fit into the ai model. "
-            "Unique AI will search for relevant sections in the material and if needed combine the data with knowledge base content",
-            description="Message to show when using the Internal Search instead of upload and chat tool due to context window limit. Jinja template.",
-        )
-        percent_for_uploaded_content: float = Field(
-            default=0.6,
-            ge=0.0,
-            lt=1.0,
-            description="The fraction of the max input tokens that will be reserved for the uploaded content.",
-        )
-
-    class ExperimentalFeatures(BaseModel):
-        def __init__(self, full_sources_serialize_dump: bool = False):
-            self.full_sources_serialize_dump = full_sources_serialize_dump
-
-        full_sources_serialize_dump: bool = Field(
-            default=False,
-            description="If True, the sources will be serialized in full, otherwise only the content will be serialized.",
-        )
-
     experimental_features: ExperimentalFeatures = Field(
         default=ExperimentalFeatures(),
         description="Experimental features for the history manager.",
     )
 
-    max_history_tokens: int = Field(
-        default=8000,
-        ge=0,
-        description="The maximum number of tokens to keep in the history.",
+    percent_of_max_tokens_for_history: float = Field(
+        default=0.2,
+        ge=0.0,
+        lt=1.0,
+        description="The fraction of the max input tokens that will be reserved for the history.",
     )
+
+    language_model: LMI = LanguageModelInfo.from_name(
+        LanguageModelName.AZURE_GPT_4o_2024_1120
+    )
+
+    @property
+    def max_history_tokens(self) -> int:
+        return int(
+            self.language_model.token_limits.token_limit_input
+            * self.percent_of_max_tokens_for_history,
+        )
 
     uploaded_content_config: (
         Annotated[
@@ -93,12 +79,6 @@ class HistoryManagerConfig(BaseModel):
         ]
         | DeactivatedNone
     ) = UploadedContentConfig()
-
-
-    input_token_distribution: InputTokenDistributionConfig = Field(
-        default=InputTokenDistributionConfig(),
-        description="Configuration for the input token distribution.",
-    )
 
 
 class HistoryManager:
@@ -121,9 +101,6 @@ class HistoryManager:
 
     The HistoryManager serves as the backbone for managing and retrieving conversation history in a structured and efficient manner.
     """
-    _tool_call_result_history: list[ToolCallResponse] = []
-    _loop_history: list[LanguageModelMessage] = []
-    _source_enumerator = 0
 
     def __init__(
         self,
@@ -139,11 +116,14 @@ class HistoryManager:
         self._token_reducer = LoopTokenReducer(
             logger=self._logger,
             event=event,
-            config=self._config,
+            max_history_tokens=self._config.max_history_tokens,
+            has_uploaded_content_config=bool(self._config.uploaded_content_config),
             language_model=self._language_model,
             reference_manager=reference_manager,
         )
-
+        self._tool_call_result_history: list[ToolCallResponse] = []
+        self._loop_history: list[LanguageModelMessage] = []
+        self._source_enumerator = 0
 
     def has_no_loop_messages(self) -> bool:
         return len(self._loop_history) == 0
@@ -178,6 +158,13 @@ class HistoryManager:
             f"Appending tool call result to history: {tool_response.name}"
         )
 
+        if tool_response.content != "":
+            return LanguageModelToolMessage(
+                content=tool_response.content,
+                tool_call_id=tool_response.id,  # type: ignore
+                name=tool_response.name,
+            )
+
         content_chunks = (
             tool_response.content_chunks or []
         )  # it can be that the tool response does not have content chunks
@@ -211,20 +198,15 @@ class HistoryManager:
     def add_assistant_message(self, message: LanguageModelAssistantMessage) -> None:
         self._loop_history.append(message)
 
-        
     async def get_history_for_model_call(
         self,
         original_user_message: str,
         rendered_user_message_string: str,
         rendered_system_message_string: str,
-        remove_from_text: Callable[[str], Awaitable[str]]
-    ) -> list[
-        LanguageModelMessage
-        | LanguageModelToolMessage
-        | LanguageModelAssistantMessage
-        | LanguageModelSystemMessage
-        | LanguageModelUserMessage
-    ]:
+        remove_from_text: Callable[[str], Awaitable[str]],
+    ) -> LanguageModelMessages:
+        self._logger.info("Getting history for model call -> ")
+
         messages = await self._token_reducer.get_history_for_model_call(
             original_user_message=original_user_message,
             rendered_user_message_string=rendered_user_message_string,
@@ -232,4 +214,4 @@ class HistoryManager:
             loop_history=self._loop_history,
             remove_from_text=remove_from_text,
         )
-        return messages.root
+        return messages

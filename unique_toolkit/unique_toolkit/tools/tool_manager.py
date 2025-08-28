@@ -1,19 +1,26 @@
 import asyncio
 from logging import Logger, getLogger
+from typing import Any
+
 from pydantic import BaseModel, Field
+
 from unique_toolkit.app.schemas import ChatEvent
+from unique_toolkit.evals.schemas import EvaluationMetricName
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelTool,
     LanguageModelToolDescription,
 )
-from unique_toolkit.tools.config import ToolBuildConfig
+from unique_toolkit.tools.config import ToolBuildConfig, _rebuild_config_model
 from unique_toolkit.tools.factory import ToolFactory
+from unique_toolkit.tools.mcp.manager import MCPManager
 from unique_toolkit.tools.schemas import ToolCallResponse, ToolPrompts
 from unique_toolkit.tools.tool import Tool
 from unique_toolkit.tools.tool_progress_reporter import ToolProgressReporter
 from unique_toolkit.tools.utils.execution.execution import Result, SafeTaskExecutor
-from unique_toolkit.evals.schemas import EvaluationMetricName
+
+# Rebuild the config model now that all imports are resolved
+_rebuild_config_model()
 
 
 class ForcedToolOption:
@@ -34,10 +41,6 @@ class ToolManagerConfig(BaseModel):
         ge=1,
         description="Maximum number of tool calls that can be executed in one iteration.",
     )
-
-    def __init__(self, tools: list[ToolBuildConfig], max_tool_calls: int = 10):
-        self.tools = tools
-        self.max_tool_calls = max_tool_calls
 
 
 class ToolManager:
@@ -67,6 +70,7 @@ class ToolManager:
         config: ToolManagerConfig,
         event: ChatEvent,
         tool_progress_reporter: ToolProgressReporter,
+        mcp_manager: MCPManager,
     ):
         self._logger = logger
         self._config = config
@@ -76,6 +80,7 @@ class ToolManager:
         self._disabled_tools = event.payload.disabled_tools
         # this needs to be a set of strings to avoid duplicates
         self._tool_evaluation_check_list: set[EvaluationMetricName] = set()
+        self._mcp_manager = mcp_manager
         self._init__tools(event)
 
     def _init__tools(self, event: ChatEvent) -> None:
@@ -85,7 +90,8 @@ class ToolManager:
         self._logger.info(f"Tool choices: {tool_choices}")
         self._logger.info(f"Tool configs: {tool_configs}")
 
-        self.available_tools = [
+        # Build internal tools from configurations
+        internal_tools = [
             ToolFactory.build_tool_with_settings(
                 t.name,
                 t,
@@ -95,6 +101,11 @@ class ToolManager:
             )
             for t in tool_configs
         ]
+
+        # Get MCP tools (these are already properly instantiated)
+        mcp_tools = self._mcp_manager.get_all_mcp_tools()
+        # Combine both types of tools
+        self.available_tools = internal_tools + mcp_tools
 
         for t in self.available_tools:
             if t.is_exclusive():
@@ -124,12 +135,19 @@ class ToolManager:
                 return tool
         return None
 
-    def get_forced_tools(self) -> list[ForcedToolOption]:
+    def get_forced_tools(self) -> list[dict[str, Any]]:
         return [
-            ForcedToolOption(t.name)
+            self._convert_to_forced_tool(t.name)
             for t in self._tools
             if t.name in self._tool_choices
         ]
+
+    def add_forced_tool(self, name):
+        tool = self.get_tool_by_name(name)
+        if not tool:
+            raise ValueError(f"Tool {name} not found")
+        self._tools.append(tool)
+        self._tool_choices.append(tool.name)
 
     def get_tool_definitions(
         self,
@@ -200,7 +218,9 @@ class ToolManager:
     ) -> ToolCallResponse:
         self._logger.info(f"Processing tool call: {tool_call.name}")
 
-        tool_instance = self.get_tool_by_name(tool_call.name)
+        tool_instance = self.get_tool_by_name(
+            tool_call.name
+        )  # we need to copy this as it will have problematic interference on multi calls.
 
         if tool_instance:
             # Execute the tool
@@ -256,3 +276,9 @@ class ToolManager:
                 f"Filtered out {len(tool_calls) - len(unique_tool_calls)} duplicate tool calls."
             )
         return unique_tool_calls
+
+    def _convert_to_forced_tool(self, tool_name: str) -> dict[str, Any]:
+        return {
+            "type": "function",
+            "function": {"name": tool_name},
+        }

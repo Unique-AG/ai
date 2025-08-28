@@ -3,7 +3,6 @@ from pydantic import BaseModel
 
 from unique_toolkit.tools.config import get_configuration_dict
 
-
 SOURCE_TEMPLATE = "<source${index}>${document}${info}${text}</source${index}>"
 SECTIONS = {
     "document": "<|document|>{}<|/document|>\n",

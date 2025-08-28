@@ -1,8 +1,7 @@
 from enum import StrEnum
+from typing import TYPE_CHECKING, Any
+
 import humps
-from typing import Any
-from pydantic.fields import ComputedFieldInfo, FieldInfo
-from pydantic.alias_generators import to_camel
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -10,8 +9,8 @@ from pydantic import (
     ValidationInfo,
     model_validator,
 )
-
-from typing import TYPE_CHECKING
+from pydantic.alias_generators import to_camel
+from pydantic.fields import ComputedFieldInfo, FieldInfo
 
 if TYPE_CHECKING:
     from unique_toolkit.tools.schemas import BaseToolConfig
@@ -86,6 +85,22 @@ class ToolBuildConfig(BaseModel):
         if not isinstance(value, dict):
             return value
 
+        is_mcp_tool = value.get("mcp_source_id", "") != ""
+        mcp_configuration = value.get("configuration", {})
+
+        # Import at runtime to avoid circular imports
+        from unique_toolkit.tools.mcp.models import MCPToolConfig
+
+        if (
+            isinstance(mcp_configuration, MCPToolConfig)
+            and mcp_configuration.mcp_source_id
+        ):
+            return value
+        if is_mcp_tool:
+            # For MCP tools, skip ToolFactory validation
+            # Configuration can remain as a dict
+            return value
+
         configuration = value.get("configuration", {})
         if isinstance(configuration, dict):
             # Local import to avoid circular import at module import time
@@ -106,3 +121,11 @@ class ToolBuildConfig(BaseModel):
             config = configuration
         value["configuration"] = config
         return value
+
+
+def _rebuild_config_model():
+    """Rebuild the ToolBuildConfig model to resolve forward references."""
+    # Import here to avoid circular imports
+    from unique_toolkit.tools.schemas import BaseToolConfig  # noqa: F401
+
+    ToolBuildConfig.model_rebuild()

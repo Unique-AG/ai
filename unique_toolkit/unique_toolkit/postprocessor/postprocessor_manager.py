@@ -1,13 +1,12 @@
-from abc import ABC
 import asyncio
+from abc import ABC
 from logging import Logger
 
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.language_model.schemas import (
-    LanguageModelMessage,
     LanguageModelStreamResponse,
 )
-from unique_toolkit.tools.utils.execution.execution import Result, SafeTaskExecutor
+from unique_toolkit.tools.utils.execution.execution import SafeTaskExecutor
 
 
 class Postprocessor(ABC):
@@ -53,8 +52,6 @@ class PostprocessorManager:
     The PostprocessorManager serves as a centralized system for managing and applying postprocessing logic to enhance response quality and consistency.
     """
 
-    _postprocessors: list[Postprocessor] = []
-
     def __init__(
         self,
         logger: Logger,
@@ -62,6 +59,7 @@ class PostprocessorManager:
     ):
         self._logger = logger
         self._chat_service = chat_service
+        self._postprocessors: list[Postprocessor] = []
 
     def add_postprocessor(self, postprocessor: Postprocessor):
         self._postprocessors.append(postprocessor)

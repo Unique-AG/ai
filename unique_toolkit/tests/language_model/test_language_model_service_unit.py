@@ -121,6 +121,7 @@ class TestLanguageModelServiceUnit:
 
         mock_complete_async.assert_called_once_with(
             company_id="test_company",
+            user_id="test_user",
             messages=messages,
             model_name=model_name,
             temperature=0.0,

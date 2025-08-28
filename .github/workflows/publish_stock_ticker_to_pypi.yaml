@@ -5,15 +5,15 @@ on:
   push:
     # Both conditions must be met (AND logic):
     # 1. Push must be to main branch
-    # 2. Push must include changes to stock_ticker/** files
+    # 2. Push must include changes to postprocessors/stock_ticker/** files
     paths:
-      - 'stock_ticker/**'
+      - 'postprocessors/stock_ticker/**'
     branches:
       - main
 
 env:
   PACKAGE_NAME: stock_ticker
-  PACKAGE_DIR: ./stock_ticker
+  PACKAGE_DIR: ./postprocessors/unique_stock_ticker
     
 jobs:
   build-and-publish:
@@ -31,7 +31,7 @@ jobs:
 
     - name: Install Poetry
       run: |
-            POETRY_VERSION='1.8.3'
+            POETRY_VERSION='2.1.3'
             PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install poetry==$POETRY_VERSION
 
     - name: Install dependencies

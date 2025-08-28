@@ -1,0 +1,50 @@
+[tool.poetry]
+name = "unique_stock_ticker"
+version = "0.0.5"
+description = ""
+authors = [
+    "Martin Fadler <martin.fadler@unique.ch>",
+    "Sadique Sheik <sadique@unique.ch>",
+    "Fabian Schläpfer <fabian@unique.ch>",
+    "Pascal Hauri <pascal@unique.ch>",
+]
+readme = ["README.md", "CHANGELOG.md"]
+license = "Proprietary"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+typing-extensions = "^4.9.0"
+pydantic = "^2.8.2"
+pydantic-settings = "^2.10.1"
+python-dotenv = "^1.0.1"
+unique-sdk = "^0.10.0"
+unique-toolkit = "^0.8.18"
+plotly = "^5.24.1"
+numerize = "^0.12"
+pytest = "^8.4.1"
+cryptography = "^45.0.6"
+pyopenssl = "^25.1.0"
+
+
+[tool.poetry.group.dev.dependencies]
+python = "^3.11"
+typing-extensions = "^4.9.0"
+pydantic = "^2.8.2"
+pydantic-settings = "^2.10.1"
+plotly = "^5.24.1"
+numerize = "^0.12"
+pytest = "^8.4.1"
+unique-sdk = { path = "../../unique_sdk" }
+unique-toolkit = { path = "../../unique_toolkit" }
+ruff = "^0.12.10"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+target-version = "py311"
+
+[tool.ruff.lint]
+extend-select = ["I"]
