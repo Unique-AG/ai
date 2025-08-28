@@ -135,6 +135,15 @@ class Folder(APIResource["Folder"]):
         scopeAccesses: List["Folder.ScopeAccess"]
         applyToSubScopes: bool
 
+    class DeleteFolderParams(TypedDict):
+        """
+        Parameters for deleting a folder.
+        """
+
+        scopeId: NotRequired[str]
+        folderPath: NotRequired[str]
+        recursive: NotRequired[bool]
+
     class GetParams(RequestOptions):
         """
         Parameters for getting a folder by its Id or path.
@@ -151,6 +160,24 @@ class Folder(APIResource["Folder"]):
         parentId: NotRequired[str]
         take: NotRequired[int]
         skip: NotRequired[int]
+
+    class DeleteFolderResponse(TypedDict):
+        """
+        Response for deleting a folder.
+        """
+
+        id: str
+        name: str
+        path: str
+        failReason: NotRequired[str]
+
+    class DeleteResponse(TypedDict):
+        """
+        Response for deleting a folder.
+        """
+
+        successFolders: List["Folder.DeleteFolderResponse"]
+        failedFolders: List["Folder.DeleteFolderResponse"]
 
     @classmethod
     def get_info(
@@ -379,3 +406,86 @@ class Folder(APIResource["Folder"]):
                 params=params,
             ),
         )
+
+    @classmethod
+    def delete(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Folder.DeleteFolderParams"],
+    ) -> "Folder.DeleteResponse":
+        """
+        Delete a folder by its ID or path.
+        """
+
+        scopeId = cls.resolve_scope_id(
+            user_id, company_id, params.get("scopeId"), params.get("folderPath")
+        )
+        params.pop("scopeId", None)
+        params.pop("folderPath", None)
+
+        return cast(
+            "Folder.DeleteResponse",
+            cls._static_request(
+                "delete",
+                f"{cls.RESOURCE_URL}/{scopeId}",
+                user_id,
+                company_id=company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    async def delete_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Folder.DeleteFolderParams"],
+    ) -> "Folder.DeleteResponse":
+        """
+        Async delete a folder by its ID or path.
+        """
+        scopeId = cls.resolve_scope_id(
+            user_id, company_id, params.get("scopeId"), params.get("folderPath")
+        )
+        params.pop("scopeId", None)
+        params.pop("folderPath", None)
+
+        return cast(
+            "Folder.DeleteResponse",
+            await cls._static_request_async(
+                "delete",
+                f"{cls.RESOURCE_URL}/{scopeId}",
+                user_id,
+                company_id=company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    def resolve_scope_id(
+        cls,
+        user_id: str,
+        company_id: str,
+        scope_id: str | None = None,
+        folder_path: str | None = None,
+    ) -> str | None:
+        """
+        Returns the scopeId to use: if scope_id is provided, returns it;
+        if not, but folder_path is provided, resolves and returns the id for that folder path.
+        """
+        if scope_id:
+            return scope_id
+        if folder_path:
+            folder_info = cls.get_info(
+                user_id=user_id,
+                company_id=company_id,
+                folderPath=folder_path,
+            )
+            resolved_id = folder_info.get("id")
+            if not resolved_id:
+                raise ValueError(
+                    f"Could not find a folder with folderPath: {folder_path}"
+                )
+            return resolved_id
+        return None
