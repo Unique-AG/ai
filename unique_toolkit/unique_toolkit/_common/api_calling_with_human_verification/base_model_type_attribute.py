@@ -1,9 +1,15 @@
-# %%
+"""
+The following can be used to define a pydantic BaseModel that has has
+an attribute of type Pydantic BaseModel.
+
+This is useful for:
+- Tooldefinition for large language models (LLMs) with flexible parameters.
+- General Endpoint defintions from configuration
+"""
 
 import json
 from enum import StrEnum
-from pathlib import Path
-from typing import Annotated, Generic, TypeVar
+from typing import Annotated, TypeVar
 
 from jambo import SchemaConverter
 from jambo.types.json_schema_type import JSONSchema
@@ -12,7 +18,6 @@ from pydantic import (
     BeforeValidator,
     Field,
     create_model,
-    field_serializer,
 )
 
 
@@ -85,7 +90,8 @@ def convert_to_base_model_type(
     BeforeValidator that ensures the final type is always of type[BaseModel].
 
     If the input is already a BaseModel class, returns it as-is.
-    If the input is a dict (JSON schema), converts it to a BaseModel class using SchemaConverter.
+    If the input is a list of Parameter as defined above, converts it to a BaseModel class
+    If the input is a str (JSON schema), converts it to a BaseModel class using SchemaConverter from Jambo.
     """
     if isinstance(value, type) and issubclass(value, BaseModel):
         return value
@@ -101,18 +107,32 @@ def convert_to_base_model_type(
     raise ValueError(f"Invalid value: {value}")
 
 
+def base_model_to_parameter_list(model: type[BaseModel]) -> list[Parameter]:
+    parameter = []
+    for field_name, field_info in model.model_fields.items():
+        parameter.append(
+            Parameter(
+                type=ParameterType.from_python_type(field_info.annotation or str),
+                name=field_name,
+                description=field_info.description or "",
+                required=not field_info.default is not None,
+            )
+        )
+    return parameter
+
+
 # Create the annotated type that ensures BaseModel and generates clean JSON schema
 
 TModel = TypeVar("TModel", bound=BaseModel)
-ListOfParameters = Annotated[list[Parameter], Field(title="List of parameters")]
-JSONSchemaString = Annotated[str, Field(title="JSON Schema as string")]
-StandardModelType = Annotated[None, Field(title="Standard Model")]
+ListOfParameters = Annotated[list[Parameter], Field(title="List of Parameters")]
+JSONSchemaString = Annotated[str, Field(title="JSON Schema as String")]
+CodefinedModelType = Annotated[None, Field(title="Use Model from Code")]
 
 BaseModelType = Annotated[
     type[TModel],
     BeforeValidator(
         convert_to_base_model_type,
-        json_schema_input_type=ListOfParameters | JSONSchemaString | StandardModelType,
+        json_schema_input_type=ListOfParameters | JSONSchemaString | CodefinedModelType,
     ),
 ]
 
@@ -121,6 +141,9 @@ def make_branch_defaults_for(model: type[BaseModel], sample_params: list[Paramet
     """
     Returns a json_schema_extra mutator that injects defaults
     into both the 'string' and 'list[Parameter]' branches.
+
+    This is used to define default for the "oneOf"/"anyOf" validation
+    of the parameters attribute.
     """
 
     def _mutate(schema: dict) -> None:
@@ -139,63 +162,3 @@ def make_branch_defaults_for(model: type[BaseModel], sample_params: list[Paramet
                         entry["default"] = params_default
 
     return _mutate
-
-
-def to_parameter_list(model: type[BaseModel]) -> list[Parameter]:
-    parameter = []
-    for field_name, field_info in model.model_fields.items():
-        parameter.append(
-            Parameter(
-                type=ParameterType.from_python_type(field_info.annotation or str),
-                name=field_name,
-                description=field_info.description or "",
-                required=not field_info.default is not None,
-            )
-        )
-    return parameter
-
-
-# %%
-
-
-# Base Model for model using a pydantic model as attribute
-class LanguageModelToolDescription(BaseModel, Generic[TModel]):
-    parameters: BaseModelType[TModel] = Field(
-        ...,
-        description="Json Schema for the tool parameters. Must be valid JSON Schema and able to convert to a Pydantic model",
-    )
-
-    @field_serializer("parameters")
-    def serialize_parameters(self, parameters: type[BaseModel]):
-        return parameters.model_json_schema()
-
-
-# %%
-class StandardModel(BaseModel):
-    a: int = Field(..., description="Test")
-    b: str = Field(..., description="Test")
-
-
-example_parameters = to_parameter_list(StandardModel)
-
-
-class MyTool(LanguageModelToolDescription[StandardModel]):
-    parameters: BaseModelType[StandardModel] = Field(
-        default=StandardModel,
-        json_schema_extra=make_branch_defaults_for(StandardModel, example_parameters),
-    )
-
-
-# %%
-
-file = Path(__file__).parent / "test_file.json"
-with file.open("w") as f:
-    f.write(json.dumps(MyTool.model_json_schema(), indent=2))
-
-
-# %%
-
-t = MyTool()
-t.parameters(a=1, b="Test")
-t.model_dump()
-# %%
