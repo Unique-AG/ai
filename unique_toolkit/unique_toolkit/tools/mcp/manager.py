@@ -1,9 +1,5 @@
 import logging
 
-from unique_toolkit.tools.config import ToolBuildConfig, ToolIcon, ToolSelectionPolicy
-from unique_toolkit.app.schemas import ChatEvent, McpServer
-from unique_toolkit.tools.schemas import BaseToolConfig
-from unique_toolkit.tools.tool import Tool
 from unique_toolkit.app.schemas import ChatEvent, McpServer
 from unique_toolkit.tools.config import ToolBuildConfig, ToolIcon, ToolSelectionPolicy
 from unique_toolkit.tools.mcp.models import MCPToolConfig
