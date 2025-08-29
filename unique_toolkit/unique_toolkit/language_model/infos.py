@@ -903,13 +903,16 @@ class LanguageModelInfo(BaseModel):
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
                         ModelCapabilities.FUNCTION_CALLING,
-                        ModelCapabilities.PARALLEL_FUNCTION_CALLING,
                         ModelCapabilities.REASONING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
                     ],
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=128000, token_limit_output=32_768
                     ),
                     published_at=date(2024, 12, 5),
+                    temperature_bounds=TemperatureBounds(
+                        min_temperature=1.0, max_temperature=1.0
+                    ),
                 )
             case LanguageModelName.LITELLM_OPENAI_O3:
                 return cls(
@@ -920,11 +923,14 @@ class LanguageModelInfo(BaseModel):
                     capabilities=[
                         ModelCapabilities.FUNCTION_CALLING,
                         ModelCapabilities.STRUCTURED_OUTPUT,
-                        ModelCapabilities.VISION,
+                        ModelCapabilities.STREAMING,
                         ModelCapabilities.REASONING,
                     ],
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=200_000, token_limit_output=100_000
+                    ),
+                    temperature_bounds=TemperatureBounds(
+                        min_temperature=1.0, max_temperature=1.0
                     ),
                     published_at=date(2025, 4, 16),
                 )
@@ -938,6 +944,9 @@ class LanguageModelInfo(BaseModel):
                         token_limit_input=200_000, token_limit_output=100_000
                     ),
                     published_at=date(2025, 4, 16),
+                    capabilities=[
+                        ModelCapabilities.STREAMING
+                    ]
                 )
             case LanguageModelName.LITELLM_OPENAI_O3_PRO:
                 return cls(
@@ -948,6 +957,7 @@ class LanguageModelInfo(BaseModel):
                     capabilities=[
                         ModelCapabilities.FUNCTION_CALLING,
                         ModelCapabilities.REASONING,
+                        ModelCapabilities.STRUCTURED_OUTPUT
                     ],
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=200_000, token_limit_output=100_000
@@ -962,8 +972,8 @@ class LanguageModelInfo(BaseModel):
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
                         ModelCapabilities.FUNCTION_CALLING,
-                        ModelCapabilities.VISION,
-                        ModelCapabilities.REASONING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT
                     ],
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=200_000, token_limit_output=100_000
@@ -980,6 +990,9 @@ class LanguageModelInfo(BaseModel):
                         token_limit_input=200_000, token_limit_output=100_000
                     ),
                     published_at=date(2025, 4, 16),
+                    capabilities=[
+                        ModelCapabilities.STREAMING
+                    ]
                 )
             case LanguageModelName.LITELLM_OPENAI_GPT_4_1_MINI:
                 return cls(
@@ -992,6 +1005,11 @@ class LanguageModelInfo(BaseModel):
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=1_000_000, token_limit_output=32_768
                     ),
+                    capabilities=[
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                    ]
                 )
             case LanguageModelName.LITELLM_OPENAI_GPT_4_1_NANO:
                 return cls(
@@ -1004,6 +1022,11 @@ class LanguageModelInfo(BaseModel):
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=1_000_000, token_limit_output=32_768
                     ),
+                    capabilities=[
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                    ]
                 )
             case LanguageModelName.LITELLM_DEEPSEEK_R1:
                 return cls(
