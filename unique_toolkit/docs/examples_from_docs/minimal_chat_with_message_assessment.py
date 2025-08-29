@@ -1,10 +1,9 @@
+# %%
 from unique_toolkit import (
     ChatService,
 )
 from unique_toolkit.app.dev_util import get_event_generator
 from unique_toolkit.app.schemas import ChatEvent
-
-# %%
 from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.chat.schemas import (
     ChatMessageAssessmentLabel,

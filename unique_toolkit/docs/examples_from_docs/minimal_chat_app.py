@@ -1,11 +1,10 @@
+# %%
 from unique_toolkit import (
     ChatService,
     LanguageModelName,
 )
 from unique_toolkit.app.dev_util import get_event_generator
 from unique_toolkit.app.schemas import ChatEvent
-
-# %%
 from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.framework_utilities.openai.message_builder import (
     OpenAIMessageBuilder,

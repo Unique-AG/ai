@@ -1,3 +1,4 @@
+# %%
 from pathlib import Path
 
 from dotenv import dotenv_values
@@ -5,8 +6,6 @@ from dotenv import dotenv_values
 from unique_toolkit import (
     ContentService,
 )
-
-# %%
 
 content_service = ContentService.from_settings()
 demo_env_vars = dotenv_values(Path(__file__).parent / "demo.env")
