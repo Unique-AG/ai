@@ -117,6 +117,12 @@ class Content(APIResource["Content"]):
         storeInternally: bool
         fileUrl: Optional[str]
 
+    class UpdateParams(RequestOptions):
+        contentId: str | None = None
+        filePath: str | None = None
+        ownerId: str | None = None
+        title: str | None = None
+
     class Chunk(TypedDict):
         id: str
         text: str
@@ -372,3 +378,90 @@ class Content(APIResource["Content"]):
                 params=params,
             ),
         )
+
+    @classmethod
+    def update(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Content.UpdateParams"],
+    ) -> "Content.ContentInfo":
+        content_id = cls.resolve_content_id_from_file_path(
+            user_id,
+            company_id,
+            params.get("contentId"),
+            params.get("filePath"),
+        )
+        content_id = params.get("contentId")
+        params.pop("contentId", None)
+        params.pop("filePath", None)
+
+        return cast(
+            "Content.ContentInfo",
+            cls._static_request(
+                "patch",
+                f"/content/{content_id}",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    async def update_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Content.UpdateParams"],
+    ) -> "Content.ContentInfo":
+        content_id = cls.resolve_content_id_from_file_path(
+            user_id,
+            company_id,
+            params.get("contentId"),
+            params.get("filePath"),
+        )
+        content_id = params.get("contentId")
+        params.pop("contentId", None)
+        params.pop("filePath", None)
+
+        return cast(
+            "Content.ContentInfo",
+            await cls._static_request_async(
+                "patch",
+                f"/content/{content_id}",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    def resolve_content_id_from_file_path(
+        cls,
+        user_id: str,
+        company_id: str,
+        content_id: str | None = None,
+        file_path: str | None = None,
+    ) -> str:
+        """
+        Returns the contentId to use: if content_id is provided, returns it;
+        if not, but file_path is provided, resolves and returns the id for that file path.
+        """
+        if content_id:
+            return content_id
+        if file_path:
+            file_info = cls.get_info(
+                user_id=user_id,
+                company_id=company_id,
+                filePath=file_path,
+            )
+            resolved_id = (
+                file_info.get("contentInfo")[0].get("id")
+                if file_info.get("totalCount", 0) > 0
+                else None
+            )
+            print(f"Resolved contentId: {resolved_id} for filePath: {file_path}")
+            if not resolved_id:
+                raise ValueError(f"Could not find file with filePath: {file_path}")
+            return resolved_id
+        return None
