@@ -11,11 +11,13 @@ from unique_toolkit import (
 content_service = ContentService.from_settings()
 demo_env_vars = dotenv_values(Path(__file__).parent / "demo.env")
 scope_id = demo_env_vars.get("UNIQUE_SCOPE_ID") or "unknown"
-content_bytes = b"Your file content here"
-content = content_service.upload_content_from_bytes(
-    content=content_bytes,
-    content_name="document.txt",
+file_path = Path(__file__).parent / "test.txt"
+# Configure ingestion settings
+content = content_service.upload_content(
+    path_to_content=str(file_path),
+    content_name=Path(file_path).name,
     mime_type="text/plain",
     scope_id=scope_id,
-    metadata={"category": "documentation", "version": "1.0"},
+    skip_ingestion=False,  # Process the content for search
+    metadata={"department": "legal", "classification": "confidential"},
 )

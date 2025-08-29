@@ -1,4 +1,4 @@
-# ~/~ begin <<docs/modules/examples/content/content_service.md#content_service_upload_from_memory>>[init]
+# ~/~ begin <<docs/modules/examples/content/content_service.md#./docs/.python_files/content_service_upload_from_file.py>>[init]
 # ~/~ begin <<docs/modules/examples/content/content_service.md#content_service_setup>>[init]
 # ~/~ begin <<docs/setup/_common_imports.md#common_imports>>[init]
 from unique_toolkit.app.unique_settings import UniqueSettings
@@ -36,14 +36,16 @@ demo_env_vars = dotenv_values(Path(__file__).parent/"demo.env")
 # ~/~ begin <<docs/modules/examples/content/content_service.md#env_scope_id>>[init]
 scope_id = demo_env_vars.get("UNIQUE_SCOPE_ID") or "unknown"
 # ~/~ end
-# ~/~ begin <<docs/modules/examples/content/content_service.md#content_service_upload_bytes>>[init]
-content_bytes = b"Your file content here"
-content = content_service.upload_content_from_bytes(
-    content=content_bytes,
-    content_name="document.txt",
+file_path = Path(__file__).parent/"test.txt"
+# ~/~ begin <<docs/modules/examples/content/content_service.md#content_service_upload_from_file>>[init]
+# Configure ingestion settings
+content = content_service.upload_content(
+    path_to_content=str(file_path),
+    content_name=Path(file_path).name,
     mime_type="text/plain",
     scope_id=scope_id,
-    metadata={"category": "documentation", "version": "1.0"}
+    skip_ingestion=False,  # Process the content for search
+    metadata={"department": "legal", "classification": "confidential"}
 )
 # ~/~ end
 # ~/~ end

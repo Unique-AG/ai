@@ -5,84 +5,114 @@
         "docs/modules/examples/content/content_service.md",
         "docs/setup/_common_imports.md"
       ],
-      "hexdigest": "cefa8a41a611a993d9bd827166ed63e17d8ebc2fd32557c6264da34fac27dd71",
-      "modified": "2025-08-29T14:11:14.744406",
-      "path": "docs/.python_files/content_service_upload_from_memory.py",
-      "size": 2142
+      "hexdigest": "46bb64b0949372d7031a7465853a7609f157aebdf5d532ae4de11c5fd9b4b2f1",
+      "modified": "2025-08-29T17:15:15.860969",
+      "path": "docs/.python_files/content_service_download_to_file.py",
+      "size": 2691
     },
     {
       "deps": [
-        "docs/application_types/event_driven_applications.md",
+        "docs/modules/examples/content/content_service.md",
+        "docs/setup/_common_imports.md"
+      ],
+      "hexdigest": "00ae7f1e57383ef4273996f649de689355d3c238d593b574f11c26b1eb5da6c8",
+      "modified": "2025-08-29T17:15:15.866375",
+      "path": "docs/.python_files/content_service_download_to_memory.py",
+      "size": 2386
+    },
+    {
+      "deps": [
+        "docs/modules/examples/content/content_service.md",
+        "docs/setup/_common_imports.md"
+      ],
+      "hexdigest": "57cc8a3f7e7fd660a3b9fe5aed8cf6b065562fab431b7779faaf1438e1605696",
+      "modified": "2025-08-29T17:15:15.879994",
+      "path": "docs/.python_files/content_service_upload_from_file.py",
+      "size": 2495
+    },
+    {
+      "deps": [
+        "docs/modules/examples/content/content_service.md",
+        "docs/setup/_common_imports.md"
+      ],
+      "hexdigest": "6d0f7d0c41910591e83a78a09fd46a0616d67c479d7f5463054e147c0c3f776a",
+      "modified": "2025-08-29T17:15:15.864260",
+      "path": "docs/.python_files/content_service_upload_from_memory.py",
+      "size": 2361
+    },
+    {
+      "deps": [
         "docs/modules/examples/chat/chat_service.md",
+        "docs/application_types/event_driven_applications.md",
         "docs/setup/_common_imports.md"
       ],
       "hexdigest": "2495eba3037364d152d7a9d2f1bb3331aa2c9d315fdcd0b56f42494972869435",
-      "modified": "2025-08-29T14:11:14.735996",
+      "modified": "2025-08-29T17:15:15.878938",
       "path": "docs/.python_files/minimal_chat_app.py",
       "size": 2476
     },
     {
       "deps": [
-        "docs/application_types/event_driven_applications.md",
         "docs/modules/examples/chat/chat_service.md",
+        "docs/application_types/event_driven_applications.md",
         "docs/setup/_common_imports.md"
       ],
       "hexdigest": "3c13b982a959824ee6766bac4d768849895942be16a9ffa7f243865d8783f114",
-      "modified": "2025-08-29T14:11:14.737672",
+      "modified": "2025-08-29T17:15:15.858088",
       "path": "docs/.python_files/minimal_chat_edit_debug_information.py",
       "size": 2951
     },
     {
       "deps": [
-        "docs/application_types/event_driven_applications.md",
         "docs/modules/examples/chat/chat_service.md",
+        "docs/application_types/event_driven_applications.md",
         "docs/setup/_common_imports.md"
       ],
       "hexdigest": "bdcd5644535712fa0dd1abc7fca920c4a68e56e70f45fd168bb654ea53852733",
-      "modified": "2025-08-29T14:11:14.730186",
+      "modified": "2025-08-29T17:15:15.876494",
       "path": "docs/.python_files/minimal_chat_with_manual_message_create.py",
       "size": 2129
     },
     {
       "deps": [
-        "docs/application_types/event_driven_applications.md",
         "docs/modules/examples/chat/chat_service.md",
+        "docs/application_types/event_driven_applications.md",
         "docs/setup/_common_imports.md"
       ],
       "hexdigest": "d90e9c5b8d0ab1ce4b2428ece305fedb129e6c53d531b950c321e868dbfc3c54",
-      "modified": "2025-08-29T14:11:14.741854",
+      "modified": "2025-08-29T17:15:15.877684",
       "path": "docs/.python_files/minimal_chat_with_manual_message_create_and_modification.py",
       "size": 2409
     },
     {
       "deps": [
-        "docs/application_types/event_driven_applications.md",
         "docs/modules/examples/chat/chat_service.md",
+        "docs/application_types/event_driven_applications.md",
         "docs/setup/_common_imports.md"
       ],
       "hexdigest": "4e561ac057454cb8b4665e6923e8f2106954c1f8ccb5c45f37aab112e226ef7d",
-      "modified": "2025-08-29T14:11:14.740436",
+      "modified": "2025-08-29T17:15:15.862766",
       "path": "docs/.python_files/minimal_chat_with_manual_message_create_free_user_input.py",
       "size": 2555
     },
     {
       "deps": [
-        "docs/application_types/event_driven_applications.md",
         "docs/modules/examples/chat/chat_service.md",
+        "docs/application_types/event_driven_applications.md",
         "docs/setup/_common_imports.md"
       ],
       "hexdigest": "6f37546fd299546161972394dc4c686e422bef263f64d8fa588e564cb15c7f54",
-      "modified": "2025-08-29T14:11:14.732581",
+      "modified": "2025-08-29T17:15:15.873151",
       "path": "docs/.python_files/minimal_chat_with_message_assessment.py",
       "size": 4415
     },
     {
       "deps": [
-        "docs/plattforms/openai/openai.md",
-        "docs/setup/_common_imports.md"
+        "docs/setup/_common_imports.md",
+        "docs/plattforms/openai/openai.md"
       ],
       "hexdigest": "7f4403532de3bb9cb14d7e0469f375263c6900e5a5f9157666ec4d064b8e4253",
-      "modified": "2025-08-29T14:11:14.734220",
+      "modified": "2025-08-29T17:15:15.868455",
       "path": "docs/.python_files/openai_completions.py",
       "size": 3896
     },
@@ -92,7 +122,7 @@
         "docs/setup/_common_imports.md"
       ],
       "hexdigest": "57bc6058c1f0a9817b81c428195863c04f8946c2d7dd8bacae19a32ee4fb8ce2",
-      "modified": "2025-08-29T14:11:14.727709",
+      "modified": "2025-08-29T17:15:15.874937",
       "path": "docs/.python_files/sse_setup.py",
       "size": 1757
     },
@@ -102,125 +132,128 @@
         "docs/setup/_common_imports.md"
       ],
       "hexdigest": "23015aab9041ee7e0846ed68ecd9389b19e5605c1561c5a2659fded473cad936",
-      "modified": "2025-08-29T14:11:14.743312",
+      "modified": "2025-08-29T17:15:15.881399",
       "path": "docs/.python_files/standalone_setup.py",
       "size": 1755
     },
     {
       "deps": null,
       "hexdigest": "4287e05df01bf8ded9a4e436da31e07800eb6774b080252e70b3d45c6417956d",
-      "modified": "2025-08-29T12:57:52.367869",
+      "modified": "2025-08-29T16:16:19.995370",
       "path": "docs/api.md",
       "size": 708
     },
     {
       "deps": null,
       "hexdigest": "b2a29744553b0c57c442dcba004aa817a987c7ddeeed263ecf77a88ae1a9eab0",
-      "modified": "2025-08-29T13:23:06.006710",
+      "modified": "2025-08-29T16:16:19.996191",
       "path": "docs/application_types/event_driven_applications.md",
       "size": 3258
     },
     {
       "deps": null,
       "hexdigest": "4354c1408fd80434daff170bd3429e2b70eb7928531b7806202c3b30ddaa826c",
-      "modified": "2025-08-29T13:23:18.297719",
+      "modified": "2025-08-29T16:16:19.996810",
       "path": "docs/application_types/standalone_application.md",
       "size": 1489
     },
     {
       "deps": null,
       "hexdigest": "0c3f967ca6f706c6303e07517cdcff2a1e84209a023a6fd26c7bc6992eb0ac62",
-      "modified": "2025-08-29T12:57:52.377327",
+      "modified": "2025-08-29T16:16:20.007641",
       "path": "docs/index.md",
       "size": 294
     },
     {
       "deps": null,
       "hexdigest": "58269fdce2e9e890a59325c78e24d6ba9a60dd6f22cc0110ce92beecb055b6e2",
-      "modified": "2025-08-29T12:57:52.377580",
+      "modified": "2025-08-29T16:16:20.008452",
       "path": "docs/modules/chat.md",
       "size": 100
     },
     {
       "deps": null,
       "hexdigest": "63565f03916d52b011b6b5f16db82268fb84d6214a9d2c20b11f2df06ee31345",
-      "modified": "2025-08-29T12:57:52.377722",
+      "modified": "2025-08-29T16:16:20.008907",
       "path": "docs/modules/content.md",
       "size": 46
     },
     {
       "deps": null,
       "hexdigest": "92f56afcb8d0702d3827cf1174a4767c148fcc8c2e7a8352e0a5f83491574bd9",
-      "modified": "2025-08-29T12:57:52.377865",
+      "modified": "2025-08-29T16:16:20.009091",
       "path": "docs/modules/embedding.md",
       "size": 36
     },
     {
       "deps": null,
       "hexdigest": "f682e2cab1722b7e43ff7fe3150730f691a95f1c49bf938ddb5477e27ede1e49",
-      "modified": "2025-08-29T13:23:30.472259",
+      "modified": "2025-08-29T16:16:20.012382",
       "path": "docs/modules/examples/chat/chat_service.md",
       "size": 7383
     },
     {
       "deps": null,
-      "hexdigest": "dbe517ee170125bf714971461b937f6885f576972a2ac6c49dbbb8c63ffe2f14",
-      "modified": "2025-08-29T14:10:04.536906",
+      "hexdigest": "503b2b2ad7db3ff8ed562021745f316df66a132a2bc852528e34a2a04b19cd3b",
+      "modified": "2025-08-29T17:15:10.152750",
       "path": "docs/modules/examples/content/content_service.md",
-      "size": 15359
+      "size": 16078
     },
     {
       "deps": null,
       "hexdigest": "6ee5805b400b98cd5e79ddae6713c36cccc4a563d9776242d63fef559418f3a7",
-      "modified": "2025-08-29T12:57:52.381186",
+      "modified": "2025-08-29T16:16:20.016124",
       "path": "docs/modules/language_model.md",
       "size": 53
     },
     {
       "deps": null,
       "hexdigest": "0d1ab2f342773bf7b1da6ea21a3884ebcac1892dc855038a759d4954ac8eb56f",
-      "modified": "2025-08-29T12:57:52.381592",
+      "modified": "2025-08-29T16:16:20.016290",
       "path": "docs/modules/openai.md",
       "size": 64
     },
     {
       "deps": null,
       "hexdigest": "dd3f1f83150c1867b6f12b92b1a8238df5409a300dbcb4664290aa193597ecf0",
-      "modified": "2025-08-29T12:57:52.381803",
+      "modified": "2025-08-29T16:16:20.016442",
       "path": "docs/modules/short_term_memory.md",
       "size": 57
     },
     {
       "deps": null,
       "hexdigest": "6c80e8e6036581ad5eb52f2d95804a28da1036667a8d9438b88b90d5569e59c8",
-      "modified": "2025-08-29T13:29:24.734150",
+      "modified": "2025-08-29T16:16:20.018651",
       "path": "docs/plattforms/openai/openai.md",
       "size": 5509
     },
     {
       "deps": null,
       "hexdigest": "1beca67aaa2bb0907b1d23820f31560a20cf283fb671ebdccd8e2fd3e412efad",
-      "modified": "2025-08-29T12:57:52.383389",
+      "modified": "2025-08-29T16:16:20.018836",
       "path": "docs/readme.md",
       "size": 41
     },
     {
       "deps": null,
       "hexdigest": "451f2473968c14c7507080640d1033cfb31cf4a8444e8c64758366323de37ffc",
-      "modified": "2025-08-29T13:48:17.524401",
+      "modified": "2025-08-29T16:16:20.019385",
       "path": "docs/setup/_common_imports.md",
       "size": 1205
     },
     {
       "deps": null,
       "hexdigest": "cc7004f5065761c715f8cfbdfd7cc567998f077bff0a94e943d7be45b145f2f4",
-      "modified": "2025-08-29T12:57:52.526916",
+      "modified": "2025-08-29T16:16:20.023477",
       "path": "docs/setup/getting_started.md",
       "size": 3327
     }
   ],
   "source": [],
   "target": [
+    "docs/.python_files/content_service_download_to_file.py",
+    "docs/.python_files/content_service_download_to_memory.py",
+    "docs/.python_files/content_service_upload_from_file.py",
     "docs/.python_files/content_service_upload_from_memory.py",
     "docs/.python_files/minimal_chat_app.py",
     "docs/.python_files/minimal_chat_edit_debug_information.py",

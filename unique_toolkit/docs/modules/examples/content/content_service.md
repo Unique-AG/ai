@@ -19,20 +19,26 @@ It is encouraged to load contents to memory only in order to avoid information l
 Sometimes a file can only be read from disk with a specific library. In this case the best practice is to save it within a random directory under `/tmp`. Ideally under a random name as well. Furthermore, the file should be deleted at the end of the request.
 
 <!--
+```{.python #load_demo_variables}
+from dotenv import dotenv_values
+demo_env_vars = dotenv_values(Path(__file__).parent/"demo.env")
+
+```
 ```{.python #env_scope_id}
-scope_id = os.getenv("UNIQUE_SCOPE_ID")
+scope_id = demo_env_vars.get("UNIQUE_SCOPE_ID") or "unknown"
 ```
 ```{.python #env_scope_ids}
-scope_ids = os.getenv("UNIQUE_SCOPE_IDS", "").split(",") if os.getenv("UNIQUE_SCOPE_IDS") else None
+scope_ids = demo_env_vars.get("UNIQUE_SCOPE_IDS", "").split(",") if os.getenv("UNIQUE_SCOPE_IDS") else None
 ```
 ```{.python #env_content_id}
-content_id = os.getenv("UNIQUE_CONTENT_ID")
+content_id = demo_env_vars.get("UNIQUE_CONTENT_ID") or "unknown"
 ```
 ```{.python #env_content_ids}
-content_ids = os.getenv("UNIQUE_CONTENT_IDS", "").split(",") if os.getenv("UNIQUE_CONTENT_IDS") else None
+content_ids = demo_env_vars.get("UNIQUE_CONTENT_IDS", "").split(",") if os.getenv("UNIQUE_CONTENT_IDS") else None
 ```
 ```{.python #env_chat_id}
-chat_id = os.getenv("UNIQUE_CHAT_ID")
+chat_id = demo_env_vars.get("UNIQUE_CHAT_ID") or "unknown"
+
 ```
 -->
 
@@ -61,8 +67,9 @@ content = content_service.upload_content_from_bytes(
 ```
 
 <!--
-```{python #content_service_upload_from_memory file=./docs/.python_files/content_service_upload_from_memory.py }
+```{.python #content_service_upload_from_memory file=./docs/.python_files/content_service_upload_from_memory.py }
 <<content_service_setup>>
+<<load_demo_variables>>
 <<env_scope_id>>
 <<content_service_upload_bytes>>
 ```
@@ -72,24 +79,29 @@ content = content_service.upload_content_from_bytes(
 
 When you must upload from disk:
 
-```{.python #content_service_upload_file}
+```{.python #content_service_upload_from_file}
 # Configure ingestion settings
-ingestion_config = unique_sdk.Content.IngestionConfig(
-    chunk_size=chunk_size,
-    chunk_overlap=chunk_overlap,
-    extract_images=True
-)
-
 content = content_service.upload_content(
-    path_to_content=file_path,
+    path_to_content=str(file_path),
     content_name=Path(file_path).name,
-    mime_type="application/pdf",
+    mime_type="text/plain",
     scope_id=scope_id,
     skip_ingestion=False,  # Process the content for search
-    ingestion_config=ingestion_config,
     metadata={"department": "legal", "classification": "confidential"}
 )
 ```
+
+<!--
+```{.python file=./docs/.python_files/content_service_upload_from_file.py }
+<<content_service_setup>>
+<<load_demo_variables>>
+<<env_scope_id>>
+file_path = Path(__file__).parent/"test.txt"
+<<content_service_upload_from_file>>
+```
+-->
+
+
 
 ## Content Download
 
@@ -100,15 +112,27 @@ Prefer downloading to memory for security:
 ```{.python #content_service_download_bytes}
 # Download content as bytes
 content_bytes = content_service.download_content_to_bytes(
-    content_id=content_id,
-    chat_id=chat_id
+    content_id=content_id or "unknown",
 )
 
 # Process in memory
+text = ""
 with io.BytesIO(content_bytes) as file_like:
-    # Process the content without saving to disk
-    pass
+    text = file_like.read().decode("utf-8")
+
+print(text)
 ```
+
+<!--
+```{.python file=./docs/.python_files/content_service_download_to_memory.py }
+<<content_service_setup>>
+<<load_demo_variables>>
+<<env_content_id>>
+<<content_service_download_bytes>>
+```
+-->
+
+
 
 ### Download to Temporary File
 
@@ -116,9 +140,10 @@ When you need a file on disk, use secure temporary directories:
 
 ```{.python #content_service_download_file}
 # Download to secure temporary file
+
+filename = "my_testfile.txt"
 temp_file_path = content_service.download_content_to_file_by_id(
     content_id=content_id,
-    chat_id=chat_id,
     filename=filename,
     tmp_dir_path=tempfile.mkdtemp()  # Use secure temp directory
 )
@@ -126,8 +151,8 @@ temp_file_path = content_service.download_content_to_file_by_id(
 try:
     # Process the file
     with open(temp_file_path, 'rb') as file:
-        # Your file processing logic here
-        pass
+        text = file.read().decode("utf-8")
+        print(text) 
 finally:
     # Always clean up temporary files
     if temp_file_path.exists():
@@ -135,6 +160,17 @@ finally:
     # Clean up the temporary directory
     temp_file_path.parent.rmdir()
 ```
+
+<!--
+```{.python file=./docs/.python_files/content_service_download_to_file.py }
+<<content_service_setup>>
+<<load_demo_variables>>
+<<env_content_id>>
+<<content_service_download_file>>
+```
+-->
+
+
 
 ### Request Content Response
 

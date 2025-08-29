@@ -1,4 +1,4 @@
-# ~/~ begin <<docs/modules/examples/content/content_service.md#content_service_upload_from_memory>>[init]
+# ~/~ begin <<docs/modules/examples/content/content_service.md#./docs/.python_files/content_service_download_to_file.py>>[init]
 # ~/~ begin <<docs/modules/examples/content/content_service.md#content_service_setup>>[init]
 # ~/~ begin <<docs/setup/_common_imports.md#common_imports>>[init]
 from unique_toolkit.app.unique_settings import UniqueSettings
@@ -33,17 +33,29 @@ content_service = ContentService.from_settings()
 from dotenv import dotenv_values
 demo_env_vars = dotenv_values(Path(__file__).parent/"demo.env")
 # ~/~ end
-# ~/~ begin <<docs/modules/examples/content/content_service.md#env_scope_id>>[init]
-scope_id = demo_env_vars.get("UNIQUE_SCOPE_ID") or "unknown"
+# ~/~ begin <<docs/modules/examples/content/content_service.md#env_content_id>>[init]
+content_id = demo_env_vars.get("UNIQUE_CONTENT_ID") or "unknown"
 # ~/~ end
-# ~/~ begin <<docs/modules/examples/content/content_service.md#content_service_upload_bytes>>[init]
-content_bytes = b"Your file content here"
-content = content_service.upload_content_from_bytes(
-    content=content_bytes,
-    content_name="document.txt",
-    mime_type="text/plain",
-    scope_id=scope_id,
-    metadata={"category": "documentation", "version": "1.0"}
+# ~/~ begin <<docs/modules/examples/content/content_service.md#content_service_download_file>>[init]
+# Download to secure temporary file
+
+filename = "my_testfile.txt"
+temp_file_path = content_service.download_content_to_file_by_id(
+    content_id=content_id,
+    filename=filename,
+    tmp_dir_path=tempfile.mkdtemp()  # Use secure temp directory
 )
+
+try:
+    # Process the file
+    with open(temp_file_path, 'rb') as file:
+        text = file.read().decode("utf-8")
+        print(text) 
+finally:
+    # Always clean up temporary files
+    if temp_file_path.exists():
+        temp_file_path.unlink()
+    # Clean up the temporary directory
+    temp_file_path.parent.rmdir()
 # ~/~ end
 # ~/~ end
