@@ -54,6 +54,14 @@ class TestLanguageModelInfos:
             LanguageModelName.LITELLM_DEEPSEEK_V3,
             LanguageModelName.LITELLM_QWEN_3,
             LanguageModelName.LITELLM_QWEN_3_THINKING,
+            LanguageModelName.LITELLM_OPENAI_O1,
+            LanguageModelName.LITELLM_OPENAI_O3,
+            LanguageModelName.LITELLM_OPENAI_O3_DEEP_RESEARCH,
+            LanguageModelName.LITELLM_OPENAI_O3_PRO,
+            LanguageModelName.LITELLM_OPENAI_O4_MINI,
+            LanguageModelName.LITELLM_OPENAI_O4_MINI_DEEP_RESEARCH,
+            LanguageModelName.LITELLM_OPENAI_GPT_4_1_MINI,
+            LanguageModelName.LITELLM_OPENAI_GPT_4_1_NANO,
         ]
         assert len(models) == len(expected_models)
         assert all(isinstance(model, LanguageModelInfo) for model in models)

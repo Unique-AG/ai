@@ -1,7 +1,5 @@
-from unique_toolkit.tools.schemas import BaseToolConfig
-
 from unique_toolkit.tools.config import get_configuration_dict
-
+from unique_toolkit.tools.schemas import BaseToolConfig
 
 DEFAULT_PARAM_DESCRIPTION_SUB_AGENT_USER_MESSAGE = """
 This is the message that will be sent to the sub-agent.
