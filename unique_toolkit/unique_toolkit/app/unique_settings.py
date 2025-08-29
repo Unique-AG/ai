@@ -158,10 +158,19 @@ class EnvFileNotFoundError(FileNotFoundError):
 
 
 class UniqueSettings:
-    def __init__(self, auth: UniqueAuth, app: UniqueApp, api: UniqueApi):
+    def __init__(
+        self,
+        auth: UniqueAuth,
+        app: UniqueApp,
+        api: UniqueApi,
+        env_file: Path | None = None,
+    ):
         self.app = app
         self.auth = auth
         self.api = api
+        self._env_file: Path | None = (
+            env_file if (env_file and env_file.exists()) else None
+        )
 
     @classmethod
     def _find_env_file(cls, filename: str = "unique.env") -> Path:
@@ -226,7 +235,7 @@ class UniqueSettings:
         auth = UniqueAuth(_env_file=env_file_str)  # type: ignore[call-arg]
         app = UniqueApp(_env_file=env_file_str)  # type: ignore[call-arg]
         api = UniqueApi(_env_file=env_file_str)  # type: ignore[call-arg]
-        return cls(auth=auth, app=app, api=api)
+        return cls(auth=auth, app=app, api=api, env_file=env_file)
 
     @classmethod
     def from_env_auto(cls, filename: str = "unique.env") -> "UniqueSettings":
@@ -243,6 +252,7 @@ class UniqueSettings:
         """
         try:
             env_file = cls._find_env_file(filename)
+            logger.info(f"Environment file found at {env_file}")
             return cls.from_env(env_file=env_file)
         except EnvFileNotFoundError:
             logger.warning(

@@ -1,18 +1,18 @@
-# %%
-
 from pydantic import BaseModel, Field
 
-from unique_toolkit import LanguageModelName, LanguageModelToolDescription
-from unique_toolkit.app.unique_settings import UniqueSettings
+from unique_toolkit import (
+    LanguageModelName,
+    LanguageModelToolDescription,
+)
+
+# %%
 from unique_toolkit.framework_utilities.openai.client import get_openai_client
 from unique_toolkit.framework_utilities.openai.message_builder import (
     OpenAIMessageBuilder,
 )
 
-model_name = LanguageModelName.AZURE_GPT_4o_2024_1120
-settings = UniqueSettings.from_env_auto()
-client = get_openai_client(unique_settings=settings)
-
+model = LanguageModelName.AZURE_GPT_4o_2024_1120
+client = get_openai_client()
 
 messages = (
     OpenAIMessageBuilder()
@@ -22,7 +22,7 @@ messages = (
 # Simple Completion
 response = client.chat.completions.create(
     messages=messages,
-    model=model_name,
+    model=model,
 )
 for c in response:
     print(c)
@@ -35,7 +35,7 @@ class CalendarEvent(BaseModel):
 
 
 completion = client.beta.chat.completions.parse(
-    model=model_name,
+    model=model,
     messages=messages,
     response_format=CalendarEvent,
 )
@@ -63,7 +63,7 @@ messages = (
 ).messages
 
 completion = client.chat.completions.create(
-    model=model_name,
+    model=model,
     messages=messages,
     tools=[weather_tool_description_toolkit],
 )
@@ -77,7 +77,7 @@ messages = (
 ).messages
 
 completion = client.chat.completions.create(
-    model=model_name,
+    model=model,
     messages=messages,
 )
 print(completion.choices[0].message.content)

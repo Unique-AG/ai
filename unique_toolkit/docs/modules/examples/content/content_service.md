@@ -3,7 +3,7 @@
 The content service provides capabilities to interact with the the knowledge base.
 
 ```{.python #initialize_content_service_standalone}
-MISSING
+content_service = ContentService.from_settings()
 ```
 
 
@@ -19,55 +19,30 @@ It is encouraged to load contents to memory only in order to avoid information l
 Sometimes a file can only be read from disk with a specific library. In this case the best practice is to save it within a random directory under `/tmp`. Ideally under a random name as well. Furthermore, the file should be deleted at the end of the request.
 
 <!--
-```{.python #content_service_imports}
-import os
-import io
-import tempfile
-import requests
-from pathlib import Path
-from unique_toolkit.content.schemas import ContentSearchType, ContentRerankerConfig
-import unique_sdk
-```
--->
-
-<!--
-```{.python #content_service_config}
-# Load configuration from environment variables
+```{.python #env_scope_id}
 scope_id = os.getenv("UNIQUE_SCOPE_ID")
+```
+```{.python #env_scope_ids}
 scope_ids = os.getenv("UNIQUE_SCOPE_IDS", "").split(",") if os.getenv("UNIQUE_SCOPE_IDS") else None
+```
+```{.python #env_content_id}
 content_id = os.getenv("UNIQUE_CONTENT_ID")
+```
+```{.python #env_content_ids}
 content_ids = os.getenv("UNIQUE_CONTENT_IDS", "").split(",") if os.getenv("UNIQUE_CONTENT_IDS") else None
+```
+```{.python #env_chat_id}
 chat_id = os.getenv("UNIQUE_CHAT_ID")
-
-# Fixed configuration values
-file_path = "/path/to/document.pdf"
-filename = "secure-document.pdf"
-chunk_size = 1000
-chunk_overlap = 200
-reranker_model = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 ```
 -->
 
 <!--
 ```{.python #content_service_setup}
-<<content_service_imports>>
+<<common_imports>>
 <<initialize_content_service_standalone>>
-<<content_service_config>>
 ```
 -->
 
-<!--
-```{.python #content_service_search_content_chunks}
-from unique_toolkit.content.schemas import ContentSearchType
-
-```{.python #content_service_search_content_chunks}
-content_chunks = content_service.search_content_chunks(
-    search_string="Hello, world!",
-    search_type=ContentSearchType.VECTOR,
-    limit=10,
-)
-```
--->
 ## Content Upload
 
 ### Upload from Memory (Recommended)
@@ -79,12 +54,19 @@ content_bytes = b"Your file content here"
 content = content_service.upload_content_from_bytes(
     content=content_bytes,
     content_name="document.txt",
-    mime_type="application/pdf",
+    mime_type="text/plain",
     scope_id=scope_id,
-    chat_id=chat_id,
     metadata={"category": "documentation", "version": "1.0"}
 )
 ```
+
+<!--
+```{python #content_service_upload_from_memory file=./docs/.python_files/content_service_upload_from_memory.py }
+<<content_service_setup>>
+<<env_scope_id>>
+<<content_service_upload_bytes>>
+```
+-->
 
 ### Upload from File
 
@@ -195,10 +177,6 @@ for i, chunk in enumerate(content_chunks[:3]):
 ??? example "Full Examples (Click to expand)"
     
     <!--codeinclude-->
-    [Search Examples](../../../examples_from_docs/content_service_search_examples.py)
-    [Upload Examples](../../../examples_from_docs/content_service_upload_examples.py)
-    [Download Examples](../../../examples_from_docs/content_service_download_examples.py)
-    [Complete Demo](../../../examples_from_docs/content_service_complete_demo.py)
     <!--/codeinclude-->
 
 ### Combined Search (Hybrid)
@@ -476,40 +454,6 @@ if __name__ == "__main__":
     content_service_demo()
 ```
 
-<!--
-```{.python file=docs/.python_files/content_service_search_examples.py}
-<<content_service_setup>>
-<<content_service_vector_search>>
-<<content_service_combined_search>>
-<<content_service_advanced_search>>
-```
--->
-
-<!--
-```{.python file=docs/.python_files/content_service_upload_examples.py}
-<<content_service_setup>>
-<<content_service_upload_bytes>>
-<<content_service_upload_file>>
-```
--->
-
-<!--
-```{.python file=docs/.python_files/content_service_download_examples.py}
-<<content_service_setup>>
-<<content_service_download_bytes>>
-<<content_service_download_file>>
-<<content_service_request_content>>
-```
--->
-
-<!--
-```{.python file=docs/.python_files/content_service_complete_demo.py}
-<<content_service_setup>>
-<<content_service_rag_example>>
-<<content_service_pipeline_example>>
-<<content_service_complete_example>>
-```
--->
 
 ## Environment Variables Reference
 

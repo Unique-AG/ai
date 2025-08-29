@@ -32,17 +32,14 @@ from unique_toolkit.framework_utilities.openai.message_builder import (
 
 First we need to get an obtain the client from openai using the utitlity method `get_openai_client`. 
 
-```{.python #openai_chat_completion_client_imports}
-settings = UniqueSettings.from_env_auto()
-client = get_openai_client(unique_settings=settings)
+```{.python #get_openai_client}
+client = get_openai_client()
 ```
 
 ## Determining the Model to be use
 
 ```{.python #toolkit_language_model}
-from unique_toolkit import LanguageModelName
-
-model_name = LanguageModelName.AZURE_GPT_4o_2024_1120
+model = LanguageModelName.AZURE_GPT_4o_2024_1120
 ```
 
 
@@ -53,7 +50,6 @@ avoids as long list of imports and helps with typing.
 
 
 ```{.python #openai_chat_completion_messages}
-
 
 messages = (
     OpenAIMessageBuilder()
@@ -70,7 +66,7 @@ Now we are ready to create our first completion using the OpenAI client
 # Simple Completion
 response = client.chat.completions.create(
     messages=messages,
-    model=model_name,
+    model=model,
 )
 for c in response:
     print(c)
@@ -90,7 +86,7 @@ class CalendarEvent(BaseModel):
 
 
 completion = client.beta.chat.completions.parse(
-    model=model_name,
+    model=model,
     messages=messages,
     response_format=CalendarEvent,
 )
@@ -150,7 +146,7 @@ messages = (
 ).messages
 
 completion = client.chat.completions.create(
-    model=model_name,
+    model=model,
     messages=messages,
     tools=[weather_tool_description_toolkit],
 )
@@ -182,7 +178,7 @@ messages = (
 ).messages
 
 completion = client.chat.completions.create(
-    model=model_name,
+    model=model,
     messages=messages,
 )
 print(completion.choices[0].message.content)
@@ -191,11 +187,9 @@ print(completion.choices[0].message.content)
 
 <!--
 ```{.python file=docs/.python_files/openai_completions.py}
-<<common_library_imports>>
-<<default_language_model>>
-<<openai_type_imports>>
-<<openai_toolkit_imports>>
-<<openai_chat_completion_client_imports>>
+<<common_imports>>
+<<toolkit_language_model>>
+<<get_openai_client>>
 <<openai_chat_completion_messages>>
 <<openai_chat_completion_simple_completion>>
 <<openai_chat_completion_structured_output>>

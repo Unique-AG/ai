@@ -40,9 +40,7 @@ content_service = ContentService.from_settings(settings=settings)
 
 <!--
 ```{.python #standalone_setup file=docs/.python_files/standalone_setup.py}
-from unique_toolkit import ContentService
-from unique_toolkit.app.unique_settings import UniqueSettings
-<<openai_toolkit_imports>>
+<<common_imports>>
 
 <<unique_setup_settings_sdk_from_env_standalone>>
 <<unique_init_service_standalone>>

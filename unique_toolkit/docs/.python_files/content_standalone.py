@@ -2,17 +2,11 @@
 # %%
 # ~/~ begin <<docs/application_types/standalone_application.md#initialize_content_service_standalone>>[init]
 from pathlib import Path
-from unique_toolkit.app.init_sdk import init_unique_sdk
 from unique_toolkit import ContentService, LanguageModelService, EmbeddingService
-from unique_toolkit.app.unique_settings import UniqueSettings
-
-settings = UniqueSettings.from_env(env_file=Path("../.env"))
-
-init_unique_sdk(unique_settings=settings)
-
-content_service = ContentService.from_settings(settings=settings)
-llm_service = LanguageModelService.from_settings(settings=settings)
-embedding_service = EmbeddingService.from_settings(settings=settings)
+from unique_toolkit.content.schemas import ContentSearchType
+content_service = ContentService.from_settings()
+llm_service = LanguageModelService.from_settings()
+embedding_service = EmbeddingService.from_settings()
 
 # Your application logic here
 # ~/~ end

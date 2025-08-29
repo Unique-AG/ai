@@ -2,10 +2,8 @@
 # Chat Service
 
 <!--
-```{.python #default_language_model}
+```{.python #import_language_model_name}
 from unique_toolkit import LanguageModelName
-
-model_name = LanguageModelName.AZURE_GPT_4o_2024_1120
 ```
 -->
 
@@ -55,7 +53,7 @@ The most used functionality is to create an assistant message via a stream to th
 ```{.python #chat_service_complete_with_references}
 chat_service.complete_with_references(
         messages = messages,
-        model_name = model_name)
+        model_name = LanguageModelName.AZURE_GPT_4o_2024_1120)
 ```
 
 
@@ -231,7 +229,7 @@ which displays as
 
 <!--
 ```{.python file=docs/.python_files/minimal_chat_with_message_assessment.py}
-<<message_assessment_imports>>
+<<common_imports>>
 <<full_sse_setup>>
     <<chat_service_create_assistant_message>>
     <<chat_service_create_message_assessment>>

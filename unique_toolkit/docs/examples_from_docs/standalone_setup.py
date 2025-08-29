@@ -1,5 +1,8 @@
+from unique_toolkit import (
+    ContentService,
+)
+
 # %%
-from unique_toolkit import ContentService
 from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.framework_utilities.openai.client import get_openai_client
 

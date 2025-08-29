@@ -31,4 +31,5 @@ poetry run entangled tangle --force
 poetry run isort --float-to-top $path_to_examples 
 poetry run ruff format $path_to_examples 
 poetry run ruff check  $path_to_examples --fix --unsafe-fixes
+poetry run ruff check $path_to_examples --select F841 --fix --unsafe-fixes
 poetry run ruff format $path_to_examples 

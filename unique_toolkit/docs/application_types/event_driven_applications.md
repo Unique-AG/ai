@@ -53,11 +53,7 @@ content_service = ContentService.from_event(event)
 ```
 <!--
 ```{.python #full_sse_setup file=docs/.python_files/sse_setup.py}
-<<common_library_imports>>
-<<openai_toolkit_imports>>
-<<unique_settings_import>>
-<<unique_sse_setup_import>>
-<<unique_chat_service_import>>
+<<common_imports>>
 <<unique_setup_settings_sdk_from_env>>
 <<obtaining_sse_client_with_chat_event>>
 ```
