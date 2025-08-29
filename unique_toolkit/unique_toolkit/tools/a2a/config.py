@@ -11,7 +11,7 @@ This is the message that will be sent to the sub-agent.
 class SubAgentToolConfig(BaseToolConfig):
     model_config = get_configuration_dict()
 
-    name:str = "default_name"
+    name: str = "default_name"
     assistant_id: str = ""
     chat_id: str | None = None
     reuse_chat: bool = True

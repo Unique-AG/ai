@@ -1,5 +1,3 @@
-
-
 from logging import Logger
 
 from unique_toolkit.app.schemas import ChatEvent
@@ -12,7 +10,6 @@ from unique_toolkit.tools.tool import Tool
 
 
 class A2AManager:
-  
     def __init__(
         self,
         logger: Logger,
@@ -21,8 +18,9 @@ class A2AManager:
         self._logger = logger
         self._tool_progress_reporter = tool_progress_reporter
 
-
-    def get_all_sub_agents(self, tool_configs: list[ToolBuildConfig], event:ChatEvent) -> tuple[list[ToolBuildConfig], list[Tool[BaseToolConfig]]]:
+    def get_all_sub_agents(
+        self, tool_configs: list[ToolBuildConfig], event: ChatEvent
+    ) -> tuple[list[ToolBuildConfig], list[Tool[BaseToolConfig]]]:
         sub_agents = []
 
         for tool_config in tool_configs:
@@ -30,7 +28,9 @@ class A2AManager:
                 continue
 
             if not isinstance(tool_config.configuration, SubAgentToolConfig):
-                self._logger.error("tool_config.configuration must be of type SubAgentToolConfig")
+                self._logger.error(
+                    "tool_config.configuration must be of type SubAgentToolConfig"
+                )
                 continue
 
             sub_agent_tool_config: SubAgentToolConfig = tool_config.configuration
@@ -43,6 +43,8 @@ class A2AManager:
                 )
             )
 
-        filtered_tool_config = [tool_config for tool_config in tool_configs if tool_config.is_sub_agent]
+        filtered_tool_config = [
+            tool_config for tool_config in tool_configs if tool_config.is_sub_agent
+        ]
 
         return filtered_tool_config, sub_agents

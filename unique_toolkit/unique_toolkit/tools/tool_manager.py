@@ -3,7 +3,6 @@ from logging import Logger, getLogger
 from typing import Any
 
 
-
 from pydantic import BaseModel, Field
 from unique_toolkit.tools.a2a.manager import A2AManager
 
@@ -96,7 +95,9 @@ class ToolManager:
         self._logger.info(f"Tool choices: {tool_choices}")
         self._logger.info(f"Tool configs: {tool_configs}")
 
-        tool_configs, sub_agents =  self._a2a_manager.get_all_sub_agents(tool_configs,event)
+        tool_configs, sub_agents = self._a2a_manager.get_all_sub_agents(
+            tool_configs, event
+        )
 
         # Build internal tools from configurations
         internal_tools = [

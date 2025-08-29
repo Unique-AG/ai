@@ -1,6 +1,3 @@
-
-
-
 from pydantic import Field, create_model
 from unique_sdk.utils.chat_in_space import send_message_and_wait_for_completion
 from unique_toolkit.app import ChatEvent
@@ -23,7 +20,10 @@ from unique_toolkit.tools.a2a.schema import (
 )
 from unique_toolkit.tools.tool import Tool
 
-from unique_toolkit.tools.tool_progress_reporter import ProgressState, ToolProgressReporter
+from unique_toolkit.tools.tool_progress_reporter import (
+    ProgressState,
+    ToolProgressReporter,
+)
 
 
 class SubAgentTool(Tool[SubAgentToolConfig]):
@@ -40,13 +40,11 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
         self._company_id = event.company_id
         self.name = configuration.name
 
-        self._short_term_memory_manager = (
-            get_sub_agent_short_term_memory_manager(
-                company_id=self._company_id,
-                user_id=self._user_id,
-                chat_id=event.payload.chat_id,
-                assistant_id=self.config.assistant_id,
-            )
+        self._short_term_memory_manager = get_sub_agent_short_term_memory_manager(
+            company_id=self._company_id,
+            user_id=self._user_id,
+            chat_id=event.payload.chat_id,
+            assistant_id=self.config.assistant_id,
         )
 
     def tool_description(self) -> LanguageModelToolDescription:
@@ -54,9 +52,7 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
             "SubAgentToolInput",
             user_message=(
                 str,
-                Field(
-                    description=self.config.param_description_sub_agent_user_message
-                ),
+                Field(description=self.config.param_description_sub_agent_user_message),
             ),
         )
 
@@ -71,18 +67,15 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
 
     def tool_format_information_for_system_prompt(self) -> str:
         return self.config.tool_format_information_for_system_prompt
-    
 
     def tool_description_for_user_prompt(self) -> str:
         return self.config.tool_description_for_user_prompt
 
     def tool_format_information_for_user_prompt(self) -> str:
         return self.config.tool_format_information_for_user_prompt
-    
 
     def evaluation_check_list(self) -> list[EvaluationMetricName]:
         return []
-
 
     def get_evaluation_checks_based_on_tool_response(
         self,
@@ -159,4 +152,3 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
             name=tool_call.name,
             content=response["text"],
         )
-
