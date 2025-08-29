@@ -899,17 +899,20 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.LITELLM,
-                    version="o1",
+                    version="2024-12-17",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
-                        ModelCapabilities.FUNCTION_CALLING,
-                        ModelCapabilities.REASONING,
                         ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.REASONING,
                     ],
                     token_limits=LanguageModelTokenLimits(
-                        token_limit_input=128000, token_limit_output=32_768
+                        token_limit_input=200_000, token_limit_output=100_000
                     ),
-                    published_at=date(2024, 12, 5),
+                    info_cutoff_at=date(2023, 10, 1),
+                    published_at=date(2024, 12, 17),
                     temperature_bounds=TemperatureBounds(
                         min_temperature=1.0, max_temperature=1.0
                     ),
@@ -918,7 +921,7 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.LITELLM,
-                    version="o3",
+                    version="2025-04-16",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
                         ModelCapabilities.FUNCTION_CALLING,
@@ -933,100 +936,105 @@ class LanguageModelInfo(BaseModel):
                         min_temperature=1.0, max_temperature=1.0
                     ),
                     published_at=date(2025, 4, 16),
+                    info_cutoff_at=date(2024, 6, 1)
+                
                 )
             case LanguageModelName.LITELLM_OPENAI_O3_DEEP_RESEARCH:
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.LITELLM,
-                    version="o3-deep-research",
+                    version="2025-06-26",
                     encoder_name=EncoderName.O200K_BASE,
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=200_000, token_limit_output=100_000
                     ),
                     published_at=date(2025, 4, 16),
-                    capabilities=[
-                        ModelCapabilities.STREAMING
-                    ]
+                    capabilities=[ModelCapabilities.STREAMING],
+                    info_cutoff_at=date(2024, 6, 1)
                 )
             case LanguageModelName.LITELLM_OPENAI_O3_PRO:
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.LITELLM,
-                    version="o3-pro",
+                    version="2025-06-10",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
                         ModelCapabilities.FUNCTION_CALLING,
                         ModelCapabilities.REASONING,
-                        ModelCapabilities.STRUCTURED_OUTPUT
+                        ModelCapabilities.STRUCTURED_OUTPUT,
                     ],
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=200_000, token_limit_output=100_000
                     ),
                     published_at=date(2025, 6, 10),
+                    info_cutoff_at=date(2024, 6, 1)
                 )
             case LanguageModelName.LITELLM_OPENAI_O4_MINI:
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.LITELLM,
-                    version="o4-mini",
+                    version="2025-04-16",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
                         ModelCapabilities.FUNCTION_CALLING,
                         ModelCapabilities.STREAMING,
-                        ModelCapabilities.STRUCTURED_OUTPUT
+                        ModelCapabilities.STRUCTURED_OUTPUT,
                     ],
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=200_000, token_limit_output=100_000
                     ),
                     published_at=date(2025, 4, 16),
+                    info_cutoff_at=date(2024, 6, 1),
+                    temperature_bounds=TemperatureBounds(
+                        min_temperature=1.0, max_temperature=1.0
+                    ),
                 )
             case LanguageModelName.LITELLM_OPENAI_O4_MINI_DEEP_RESEARCH:
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.LITELLM,
-                    version="o4-mini-deep-research",
+                    version="2025-06-26",
                     encoder_name=EncoderName.O200K_BASE,
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=200_000, token_limit_output=100_000
                     ),
                     published_at=date(2025, 4, 16),
-                    capabilities=[
-                        ModelCapabilities.STREAMING
-                    ]
+                    capabilities=[ModelCapabilities.STREAMING],
+                    info_cutoff_at=date(2024, 6, 1)
                 )
             case LanguageModelName.LITELLM_OPENAI_GPT_4_1_MINI:
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.LITELLM,
-                    version="gpt-4-1-mini",
+                    version="2025-04-14",
                     encoder_name=EncoderName.O200K_BASE,
                     published_at=date(2025, 4, 14),
                     info_cutoff_at=date(2024, 6, 1),
                     token_limits=LanguageModelTokenLimits(
-                        token_limit_input=1_000_000, token_limit_output=32_768
+                        token_limit_input=1_047_576, token_limit_output=32_768
                     ),
                     capabilities=[
                         ModelCapabilities.STREAMING,
                         ModelCapabilities.FUNCTION_CALLING,
                         ModelCapabilities.STRUCTURED_OUTPUT,
-                    ]
+                    ],
                 )
             case LanguageModelName.LITELLM_OPENAI_GPT_4_1_NANO:
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.LITELLM,
-                    version="gpt-4-1-nano",
+                    version="2025-04-14",
                     encoder_name=EncoderName.O200K_BASE,
                     published_at=date(2025, 4, 14),
                     info_cutoff_at=date(2024, 6, 1),
                     token_limits=LanguageModelTokenLimits(
-                        token_limit_input=1_000_000, token_limit_output=32_768
+                        token_limit_input=1_047_576, token_limit_output=32_768
                     ),
                     capabilities=[
                         ModelCapabilities.STREAMING,
                         ModelCapabilities.FUNCTION_CALLING,
                         ModelCapabilities.STRUCTURED_OUTPUT,
-                    ]
+                    ],
                 )
             case LanguageModelName.LITELLM_DEEPSEEK_R1:
                 return cls(
