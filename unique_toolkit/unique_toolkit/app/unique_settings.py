@@ -2,7 +2,7 @@ import os
 from logging import getLogger
 from pathlib import Path
 from typing import Self, TypeVar
-from urllib.parse import urlparse, urlunparse
+from urllib.parse import ParseResult, urlparse, urlunparse
 
 import unique_sdk
 from platformdirs import user_config_dir
@@ -99,22 +99,28 @@ class UniqueApi(BaseSettings):
             )
         )
 
-    def sdk_url(self) -> str:
+    def base_path(self) -> tuple[ParseResult, str]:
         parsed = urlparse(self.base_url)
+        base_path = "/public/chat/"
 
-        path = "/public/chat"
         if parsed.hostname and (
-            "qa.unique" in parsed.hostname or ".unique" in parsed.hostname
+            "gateway.qa.unique" in parsed.hostname
+            or "gateway.unique" in parsed.hostname
         ):
-            path = "/public/chat-gen2"
-        return urlunparse(parsed._replace(path=path, query=None, fragment=None))
+            base_path = "/public/chat-gen2/"
+
+        if parsed.hostname and "localhost" in parsed.hostname:
+            base_path = "/public/"
+
+        return parsed, base_path
+
+    def sdk_url(self) -> str:
+        parsed, base_path = self.base_path()
+        return urlunparse(parsed._replace(path=base_path, query=None, fragment=None))
 
     def openai_proxy_url(self) -> str:
-        parsed = urlparse(self.base_url)
-        path = "/public/chat/openai-proxy/"
-        if parsed.hostname and "qa.unique" in parsed.hostname:
-            path = "/public/chat-gen2/openai-proxy/"
-
+        parsed, base_path = self.base_path()
+        path = base_path + "openai-proxy/"
         return urlunparse(parsed._replace(path=path, query=None, fragment=None))
 
 

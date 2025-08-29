@@ -277,9 +277,9 @@ class LanguageModelService:
     async def complete_async_util(
         cls,
         company_id: str,
-        user_id: str,
         messages: LanguageModelMessages,
         model_name: LanguageModelName | str,
+        user_id: str | None = None,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
         tools: Optional[list[LanguageModelTool | LanguageModelToolDescription]] = None,
