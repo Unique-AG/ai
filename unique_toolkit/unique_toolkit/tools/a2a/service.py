@@ -147,7 +147,7 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
         tool_response: ToolCallResponse,
     ) -> LanguageModelMessage:
         return ToolCallResponse(
-            id=tool_call.id,  # type: ignore
-            name=tool_call.name,
-            content=response["text"],
+            id=tool_response.id,
+            name=tool_response.name,
+            content=tool_response["content"],
         )
