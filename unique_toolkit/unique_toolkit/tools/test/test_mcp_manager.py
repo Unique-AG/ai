@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from tests.test_obj_factory import get_event_obj
 from unique_toolkit.app.schemas import McpServer, McpTool
 from unique_toolkit.chat.service import ChatService
+from unique_toolkit.tools.a2a.manager import A2AManager
 from unique_toolkit.tools.config import ToolBuildConfig, ToolIcon, ToolSelectionPolicy
 from unique_toolkit.tools.factory import ToolFactory
 from unique_toolkit.tools.mcp.manager import MCPManager
@@ -14,8 +15,6 @@ from unique_toolkit.tools.schemas import BaseToolConfig
 from unique_toolkit.tools.tool import Tool
 from unique_toolkit.tools.tool_manager import ToolManager, ToolManagerConfig
 from unique_toolkit.tools.tool_progress_reporter import ToolProgressReporter
-
-from unique_toolkit.tools.a2a.manager import A2AManager
 
 
 class MockParameters(BaseModel):

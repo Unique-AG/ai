@@ -2,10 +2,7 @@ import asyncio
 from logging import Logger, getLogger
 from typing import Any
 
-
 from pydantic import BaseModel, Field
-from unique_toolkit.tools.a2a.manager import A2AManager
-
 
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.evals.schemas import EvaluationMetricName
@@ -14,6 +11,7 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelTool,
     LanguageModelToolDescription,
 )
+from unique_toolkit.tools.a2a.manager import A2AManager
 from unique_toolkit.tools.config import ToolBuildConfig, _rebuild_config_model
 from unique_toolkit.tools.factory import ToolFactory
 from unique_toolkit.tools.mcp.manager import MCPManager
