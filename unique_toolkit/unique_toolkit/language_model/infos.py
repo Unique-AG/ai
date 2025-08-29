@@ -989,6 +989,9 @@ class LanguageModelInfo(BaseModel):
                     encoder_name=EncoderName.O200K_BASE,
                     published_at=date(2025, 4, 14),
                     info_cutoff_at=date(2024, 6, 1),
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=1_000_000, token_limit_output=32_768
+                    ),
                 )
             case LanguageModelName.LITELLM_OPENAI_GPT_4_1_NANO:
                 return cls(
@@ -998,6 +1001,9 @@ class LanguageModelInfo(BaseModel):
                     encoder_name=EncoderName.O200K_BASE,
                     published_at=date(2025, 4, 14),
                     info_cutoff_at=date(2024, 6, 1),
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=1_000_000, token_limit_output=32_768
+                    ),
                 )
             case LanguageModelName.LITELLM_DEEPSEEK_R1:
                 return cls(
