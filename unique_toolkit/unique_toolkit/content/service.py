@@ -135,11 +135,15 @@ class ContentService:
 
     @classmethod
     def from_settings(
-        cls, settings: UniqueSettings, metadata_filter: dict | None = None
+        cls, settings: UniqueSettings | None = None, metadata_filter: dict | None = None
     ):
         """
-        Initialize the ContentService with a settings object.
+        Initialize the ContentService with a settings object and metadata filter.
+        If the settings object is not provided, it will be initialized from the environment.
         """
+        if settings is None:
+            settings = UniqueSettings.from_env_auto_with_sdk_init()
+
         return cls(
             company_id=settings.auth.company_id.get_secret_value(),
             user_id=settings.auth.user_id.get_secret_value(),
