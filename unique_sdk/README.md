@@ -545,9 +545,9 @@ Allows you to update a file specified by its `contentId` or by its `filePath`.
 - `contentId` optional if `filePath` is provided, the id of the file to be updated
 - `filePath` optional if `contentId` is provided, the absolute path of the file to be updated
 
-Currently the following fields support updating:
-- `title` optional, new title for the file
-- `ownerId` optional, new folder for the file. The `ownerId` should be the id of a folder e.g.: `scope_dhjfieurfloakmdle`.
+Currently the updates are supported:
+- `title` optional, allows updating the title of the folder
+- `ownerId` optional, allows moving the file to a different folder. Represents the new folder for the file and it should be the id of a folder e.g.: `scope_dhjfieurfloakmdle`.
 
 
 Example of updating the title of a file specified by its path.
