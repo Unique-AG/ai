@@ -15,6 +15,8 @@ from unique_toolkit.tools.tool import Tool
 from unique_toolkit.tools.tool_manager import ToolManager, ToolManagerConfig
 from unique_toolkit.tools.tool_progress_reporter import ToolProgressReporter
 
+from unique_toolkit.tools.a2a.manager import A2AManager
+
 
 class MockParameters(BaseModel):
     pass
@@ -168,14 +170,22 @@ class TestMCPManager:
         return ToolManagerConfig(tools=internal_tools, max_tool_calls=10)
 
     @pytest.fixture
-    def tool_manager(self, tool_manager_config, mcp_manager, tool_progress_reporter):
+    def tool_manager(self, tool_manager_config, mcp_manager,tool_progress_reporter):
         """Create tool manager fixture"""
+
+        
+        a2a_manager = A2AManager(
+            logger=self.logger,
+            tool_progress_reporter=tool_progress_reporter,
+        )
+
         return ToolManager(
             logger=self.logger,
             config=tool_manager_config,
             event=self.event,
             tool_progress_reporter=tool_progress_reporter,
             mcp_manager=mcp_manager,
+            a2a_manager=a2a_manager
         )
 
     def test_tool_manager_initialization(self, tool_manager):
@@ -255,12 +265,20 @@ class TestMCPManager:
         """Test the _init__tools method behavior with different scenarios"""
 
         # Test 1: Normal initialization with both tool types
+
+        
+        a2a_manager = A2AManager(
+            logger=self.logger,
+            tool_progress_reporter=tool_progress_reporter,
+        )
+
         tool_manager = ToolManager(
             logger=self.logger,
             config=tool_manager_config,
             event=self.event,
             tool_progress_reporter=tool_progress_reporter,
             mcp_manager=mcp_manager,
+            a2a_manager=a2a_manager
         )
 
         # Verify both tools are loaded
@@ -285,12 +303,20 @@ class TestMCPManager:
         event_with_disabled.payload.tool_choices = ["internal_search", "mcp_test_tool"]
         event_with_disabled.payload.disabled_tools = ["internal_search"]
 
+        
+        
+        a2a_manager = A2AManager(
+            logger=self.logger,
+            tool_progress_reporter=tool_progress_reporter,
+        )
+
         tool_manager = ToolManager(
             logger=self.logger,
             config=tool_manager_config,
             event=event_with_disabled,
             tool_progress_reporter=tool_progress_reporter,
             mcp_manager=mcp_manager,
+            a2a_manager=a2a_manager,
         )
 
         # Should only have MCP tool, internal tool should be filtered out
@@ -315,12 +341,20 @@ class TestMCPManager:
         event_with_limited_choices.payload.tool_choices = ["internal_search"]
         event_with_limited_choices.payload.disabled_tools = []
 
+
+        
+        a2a_manager = A2AManager(
+            logger=self.logger,
+            tool_progress_reporter=tool_progress_reporter,
+        )
+
         tool_manager = ToolManager(
             logger=self.logger,
             config=tool_manager_config,
             event=event_with_limited_choices,
             tool_progress_reporter=tool_progress_reporter,
             mcp_manager=mcp_manager,
+            a2a_manager=a2a_manager,
         )
 
         # Should only have internal search tool
@@ -348,12 +382,20 @@ class TestMCPManager:
             tools=[exclusive_tool_config], max_tool_calls=10
         )
 
+        
+        
+        a2a_manager = A2AManager(
+            logger=self.logger,
+            tool_progress_reporter=tool_progress_reporter,
+        )
+
         tool_manager = ToolManager(
             logger=self.logger,
             config=config_with_exclusive,
             event=self.event,
             tool_progress_reporter=tool_progress_reporter,
             mcp_manager=mcp_manager,
+            a2a_manager=a2a_manager
         )
 
         # Should only have the exclusive tool, MCP tools should be ignored
@@ -383,12 +425,20 @@ class TestMCPManager:
             tools=[disabled_tool_config], max_tool_calls=10
         )
 
+
+        
+        a2a_manager = A2AManager(
+            logger=self.logger,
+            tool_progress_reporter=tool_progress_reporter,
+        )
+
         tool_manager = ToolManager(
             logger=self.logger,
             config=config_with_disabled,
             event=self.event,
             tool_progress_reporter=tool_progress_reporter,
             mcp_manager=mcp_manager,
+            a2a_manager=a2a_manager
         )
 
         # Should only have MCP tool, disabled internal tool should be filtered out
