@@ -936,8 +936,7 @@ class LanguageModelInfo(BaseModel):
                         min_temperature=1.0, max_temperature=1.0
                     ),
                     published_at=date(2025, 4, 16),
-                    info_cutoff_at=date(2024, 6, 1)
-                
+                    info_cutoff_at=date(2024, 6, 1),
                 )
             case LanguageModelName.LITELLM_OPENAI_O3_DEEP_RESEARCH:
                 return cls(
@@ -950,7 +949,7 @@ class LanguageModelInfo(BaseModel):
                     ),
                     published_at=date(2025, 4, 16),
                     capabilities=[ModelCapabilities.STREAMING],
-                    info_cutoff_at=date(2024, 6, 1)
+                    info_cutoff_at=date(2024, 6, 1),
                 )
             case LanguageModelName.LITELLM_OPENAI_O3_PRO:
                 return cls(
@@ -967,7 +966,7 @@ class LanguageModelInfo(BaseModel):
                         token_limit_input=200_000, token_limit_output=100_000
                     ),
                     published_at=date(2025, 6, 10),
-                    info_cutoff_at=date(2024, 6, 1)
+                    info_cutoff_at=date(2024, 6, 1),
                 )
             case LanguageModelName.LITELLM_OPENAI_O4_MINI:
                 return cls(
@@ -1000,7 +999,7 @@ class LanguageModelInfo(BaseModel):
                     ),
                     published_at=date(2025, 4, 16),
                     capabilities=[ModelCapabilities.STREAMING],
-                    info_cutoff_at=date(2024, 6, 1)
+                    info_cutoff_at=date(2024, 6, 1),
                 )
             case LanguageModelName.LITELLM_OPENAI_GPT_4_1_MINI:
                 return cls(
