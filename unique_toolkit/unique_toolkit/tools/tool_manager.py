@@ -2,7 +2,10 @@ import asyncio
 from logging import Logger, getLogger
 from typing import Any
 
+
 from pydantic import BaseModel, Field
+from unique_toolkit.tools.a2a.manager import A2AManager
+
 
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.evals.schemas import EvaluationMetricName
@@ -71,6 +74,7 @@ class ToolManager:
         event: ChatEvent,
         tool_progress_reporter: ToolProgressReporter,
         mcp_manager: MCPManager,
+        a2a_manager: A2AManager,
     ):
         self._logger = logger
         self._config = config
@@ -81,6 +85,7 @@ class ToolManager:
         # this needs to be a set of strings to avoid duplicates
         self._tool_evaluation_check_list: set[EvaluationMetricName] = set()
         self._mcp_manager = mcp_manager
+        self._a2a_manager = a2a_manager
         self._init__tools(event)
 
     def _init__tools(self, event: ChatEvent) -> None:
@@ -89,6 +94,10 @@ class ToolManager:
         self._logger.info("Initializing tool definitions...")
         self._logger.info(f"Tool choices: {tool_choices}")
         self._logger.info(f"Tool configs: {tool_configs}")
+
+        tool_configs, sub_agents = self._a2a_manager.get_all_sub_agents(
+            tool_configs, event
+        )
 
         # Build internal tools from configurations
         internal_tools = [
@@ -105,7 +114,7 @@ class ToolManager:
         # Get MCP tools (these are already properly instantiated)
         mcp_tools = self._mcp_manager.get_all_mcp_tools()
         # Combine both types of tools
-        self.available_tools = internal_tools + mcp_tools
+        self.available_tools = internal_tools + mcp_tools + sub_agents
 
         for t in self.available_tools:
             if t.is_exclusive():
