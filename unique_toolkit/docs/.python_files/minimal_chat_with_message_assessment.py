@@ -2,7 +2,7 @@
 # ~/~ begin <<docs/modules/examples/chat/chat_service.md#message_assessment_imports>>[init]
 from unique_toolkit.chat.schemas import ChatMessageAssessmentStatus, ChatMessageAssessmentType, ChatMessageAssessmentLabel
 # ~/~ end
-# ~/~ begin <<docs/modules/examples/chat/chat_service.md#full_sse_setup>>[init]
+# ~/~ begin <<docs/application_types/event_driven_applications.md#full_sse_setup>>[init]
 # ~/~ begin <<docs/plattforms/openai/openai.md#common_library_imports>>[init]
 from pathlib import Path
 from pydantic import BaseModel
@@ -27,11 +27,6 @@ from unique_toolkit import ChatService
 # ~/~ end
 # ~/~ begin <<docs/application_types/event_driven_applications.md#unique_setup_settings_sdk_from_env>>[init]
 settings = UniqueSettings.from_env_auto_with_sdk_init()
-# ~/~ end
-# ~/~ begin <<docs/modules/examples/chat/chat_service.md#default_language_model>>[init]
-from unique_toolkit import LanguageModelName
-
-model_name = LanguageModelName.AZURE_GPT_4o_2024_1120
 # ~/~ end
 # ~/~ begin <<docs/application_types/event_driven_applications.md#obtaining_sse_client_with_chat_event>>[init]
 for event in get_event_generator(unique_settings=settings, event_type=ChatEvent):

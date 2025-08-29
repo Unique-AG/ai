@@ -1,3 +1,6 @@
+
+# Chat Service
+
 <!--
 ```{.python #default_language_model}
 from unique_toolkit import LanguageModelName
@@ -17,21 +20,7 @@ messages = (
 ```
 -->
 
-<!--
-```{.python #full_sse_setup}
-<<common_library_imports>>
-<<openai_toolkit_imports>>
-<<unique_settings_import>>
-<<unique_sse_setup_import>>
-<<unique_chat_service_import>>
-<<unique_setup_settings_sdk_from_env>>
-<<default_language_model>>
-<<obtaining_sse_client_with_chat_event>>
-```
--->
 
-
-# Chat Service
 
 The chat service is responsible for all interactions with the Unique chat frontend as seen below
 
@@ -63,7 +52,7 @@ The `ChatService` is a stateful service and therefore should be freshly instanti
 The most used functionality is to create an assistant message via a stream to the frontend
 
 
-```{python #chat_service_complete_with_references}
+```{.python #chat_service_complete_with_references}
 chat_service.complete_with_references(
         messages = messages,
         model_name = model_name)

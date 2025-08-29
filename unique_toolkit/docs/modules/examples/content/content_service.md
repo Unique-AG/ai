@@ -2,6 +2,10 @@
 # Content Service
 The content service provides capabilities to interact with the the knowledge base.
 
+```{.python #initialize_content_service_standalone}
+MISSING
+```
+
 
 ## Up and Download contents from the knowledgebase
 
@@ -70,12 +74,11 @@ content_chunks = content_service.search_content_chunks(
 
 For security, prefer uploading from memory to avoid disk-based information leakage:
 
-```{.python #content_service_upload_bytes}
-# Upload content from bytes
+```{python #content_service_upload_bytes}
 content_bytes = b"Your file content here"
 content = content_service.upload_content_from_bytes(
     content=content_bytes,
-    content_name="document.pdf",
+    content_name="document.txt",
     mime_type="application/pdf",
     scope_id=scope_id,
     chat_id=chat_id,
@@ -366,7 +369,7 @@ def create_rag_prompt(user_query: str) -> str:
 def process_document():
     """Upload a document and search within it"""
     print(f"Processing document: {file_path}")
-    
+
     # 1. Upload document
     content = content_service.upload_content(
         path_to_content=file_path,
@@ -376,12 +379,12 @@ def process_document():
         metadata={"source": "user_upload", "processed": False}
     )
     print(f"Uploaded document with ID: {content.id}")
-    
+
     # 2. Wait for ingestion (in real apps, use webhooks or polling)
     print("Waiting for content ingestion...")
     import time
     time.sleep(3)  # Wait a bit longer for processing
-    
+
     # 3. Search within the uploaded document
     print("Searching for summary information...")
     chunks = content_service.search_content_chunks(
@@ -390,20 +393,20 @@ def process_document():
         limit=3,
         content_ids=[content.id]  # Only search in the uploaded document
     )
-    
+
     print(f"Found {len(chunks)} relevant chunks:")
     for i, chunk in enumerate(chunks):
         print(f"  {i+1}. {chunk.text[:150]}...")
-    
+
     return chunks
 ```
 
 ```{.python #content_service_complete_example}
 def content_service_demo():
     """Complete demonstration of ContentService functionality"""
-    
+
     print("=== ContentService Demo ===")
-    
+
     # 1. Upload a document first
     if file_path and scope_id:
         print(f"Uploading document: {file_path}")
@@ -415,12 +418,12 @@ def content_service_demo():
             metadata={"demo": True, "uploaded_by": "content_service_demo"}
         )
         print(f"Uploaded content ID: {content.id}")
-        
+
         # Wait a moment for ingestion (in real apps, use webhooks or polling)
         print("Waiting for content ingestion...")
         import time
         time.sleep(2)
-        
+
         # 2. Search within the uploaded document
         print(f"\nSearching within uploaded document...")
         search_results = content_service.search_content_chunks(
@@ -430,11 +433,11 @@ def content_service_demo():
             content_ids=[content.id]  # Search only in the uploaded document
         )
         print(f"Found {len(search_results)} chunks in uploaded document")
-        
+
         # Display some results
         for i, chunk in enumerate(search_results[:3]):
             print(f"  Chunk {i+1}: {chunk.text[:100]}...")
-        
+
         # 3. Download the uploaded content
         print(f"\nDownloading the uploaded content...")
         try:
@@ -445,7 +448,7 @@ def content_service_demo():
             print(f"Downloaded {len(content_bytes)} bytes")
         except Exception as e:
             print(f"Download failed: {e}")
-        
+
         # 4. RAG example with uploaded content
         user_query = "What are the main topics covered?"
         print(f"\nCreating RAG prompt for: '{user_query}'")
@@ -456,7 +459,7 @@ def content_service_demo():
             content_ids=[content.id],
             score_threshold=0.5
         )
-        
+
         if relevant_chunks:
             context = "\n\n".join([chunk.text for chunk in relevant_chunks])
             rag_prompt = f"Context: {context}\n\nQuestion: {user_query}\nAnswer:"
@@ -466,7 +469,7 @@ def content_service_demo():
     else:
         print("No file path or scope ID configured - skipping upload and search demo")
         print("Please set UNIQUE_UPLOAD_FILE_PATH and UNIQUE_SCOPE_ID environment variables")
-    
+
     print("=== Demo Complete ===")
 
 if __name__ == "__main__":

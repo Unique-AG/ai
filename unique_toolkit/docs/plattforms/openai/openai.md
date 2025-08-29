@@ -1,4 +1,4 @@
-# OpenAI
+# OpenAI Client
 
 This tutorial demonstrates using the OpenAI chat completions API via the `unique_toolkit` package.
 

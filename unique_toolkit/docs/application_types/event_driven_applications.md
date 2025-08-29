@@ -1,4 +1,4 @@
-# Event Driven Applications
+# Event Driven App
 
 A event driven application reacts to events obtained from the Unique plattfom. These event can be used to initialize services that in turn have effect on the chat, knowledge base or the magic table.
 
@@ -19,6 +19,7 @@ UNIQUE_APP_KEY=                 # The app key as obtained in the App secion of U
 ```
 
 For convenience we provide the `get_event_generator` functionality that hides the complexities of the SSE client such that it suffices to specify the type of event the application is looking for. At the moment only `ChatEvent` is available but other events will soon follow.
+
 
 <!--
 ```{.python #unique_settings_import}
@@ -50,6 +51,24 @@ chat_service = ChatService.from_event(event)
 content_service = ContentService.from_event(event)
 
 ```
+<!--
+```{.python #full_sse_setup file=docs/.python_files/sse_setup.py}
+<<common_library_imports>>
+<<openai_toolkit_imports>>
+<<unique_settings_import>>
+<<unique_sse_setup_import>>
+<<unique_chat_service_import>>
+<<unique_setup_settings_sdk_from_env>>
+<<obtaining_sse_client_with_chat_event>>
+```
+-->
+
+
+??? example "Full Examples (Click to expand)"
+    
+    <!--codeinclude-->
+    [Full SSE Setup](../examples_from_docs/sse_setup.py)
+    <!--/codeinclude-->
 
 
 
@@ -67,6 +86,7 @@ UNIQUE_APP_KEY=                 # The app key as obtained in the App secion of U
 UNIQUE_APP_ENDPOINT=            # The app endpoint where the container is reachable (**CHECK THIS**)
 UNIQUE_APP_ENDPOINT_SECRET=     # The app endpoint secret (**CHECK THIS**)
 ```
+
 
 
 Services can again be directly initialized from the events. 

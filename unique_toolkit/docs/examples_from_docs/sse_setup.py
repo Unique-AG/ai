@@ -9,6 +9,3 @@ from unique_toolkit.app.unique_settings import UniqueSettings
 settings = UniqueSettings.from_env_auto_with_sdk_init()
 for event in get_event_generator(unique_settings=settings, event_type=ChatEvent):
     chat_service = ChatService(event)
-    assistant_message = chat_service.create_assistant_message(
-        content="Hello from Unique",
-    )

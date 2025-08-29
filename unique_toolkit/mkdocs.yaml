@@ -13,9 +13,12 @@ theme:
 
 nav:
   - Home: index.md
-  - Getting Started: getting_started.md
+  - Environment Setup: ./setup/getting_started.md
   - Tutorials: 
-    - tutorials.md
+    - ./application_types/standalone_application.md
+    - ./application_types/event_driven_applications.md
+    - ./modules/examples/chat/chat_service.md
+    - ./modules/examples/content/content_service.md
     - ./plattforms/openai/openai.md
   - API Reference: api.md
   - Readme: readme.md

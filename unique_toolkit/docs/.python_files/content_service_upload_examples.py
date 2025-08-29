@@ -9,22 +9,8 @@ from pathlib import Path
 from unique_toolkit.content.schemas import ContentSearchType, ContentRerankerConfig
 import unique_sdk
 # ~/~ end
-# ~/~ begin <<docs/application_types/standalone_application.md#initialize_content_service_standalone>>[init]
-from pathlib import Path
-
-from unique_toolkit import ContentService, EmbeddingService, LanguageModelService
-from unique_toolkit.app.init_sdk import init_unique_sdk
-from unique_toolkit.app.unique_settings import UniqueSettings
-
-settings = UniqueSettings.from_env(env_file=Path("../.env"))
-
-init_unique_sdk(unique_settings=settings)
-
-content_service = ContentService.from_settings(settings=settings)
-llm_service = LanguageModelService.from_settings(settings=settings)
-embedding_service = EmbeddingService.from_settings(settings=settings)
-
-# Your application logic here
+# ~/~ begin <<docs/modules/examples/content/content_service.md#initialize_content_service_standalone>>[init]
+MISSING
 # ~/~ end
 # ~/~ begin <<docs/modules/examples/content/content_service.md#content_service_config>>[init]
 # Load configuration from environment variables
@@ -43,11 +29,10 @@ reranker_model = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 # ~/~ end
 # ~/~ end
 # ~/~ begin <<docs/modules/examples/content/content_service.md#content_service_upload_bytes>>[init]
-# Upload content from bytes
 content_bytes = b"Your file content here"
 content = content_service.upload_content_from_bytes(
     content=content_bytes,
-    content_name="document.pdf",
+    content_name="document.txt",
     mime_type="application/pdf",
     scope_id=scope_id,
     chat_id=chat_id,

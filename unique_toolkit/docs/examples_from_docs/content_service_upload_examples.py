@@ -4,19 +4,7 @@ from pathlib import Path
 
 import unique_sdk
 
-from unique_toolkit import ContentService, EmbeddingService, LanguageModelService
-from unique_toolkit.app.init_sdk import init_unique_sdk
-from unique_toolkit.app.unique_settings import UniqueSettings
-
-settings = UniqueSettings.from_env(env_file=Path("../.env"))
-
-init_unique_sdk(unique_settings=settings)
-
-content_service = ContentService.from_settings(settings=settings)
-llm_service = LanguageModelService.from_settings(settings=settings)
-embedding_service = EmbeddingService.from_settings(settings=settings)
-
-# Your application logic here
+MISSING
 # Load configuration from environment variables
 scope_id = os.getenv("UNIQUE_SCOPE_ID")
 scope_ids = (
@@ -38,11 +26,10 @@ filename = "secure-document.pdf"
 chunk_size = 1000
 chunk_overlap = 200
 reranker_model = "cross-encoder/ms-marco-MiniLM-L-6-v2"
-# Upload content from bytes
 content_bytes = b"Your file content here"
 content = content_service.upload_content_from_bytes(
     content=content_bytes,
-    content_name="document.pdf",
+    content_name="document.txt",
     mime_type="application/pdf",
     scope_id=scope_id,
     chat_id=chat_id,

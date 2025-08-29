@@ -1,4 +1,3 @@
-# ~/~ begin <<docs/modules/examples/chat/chat_service.md#docs/.python_files/minimal_chat_with_manual_message_create_and_modification.py>>[init]
 # ~/~ begin <<docs/application_types/event_driven_applications.md#full_sse_setup>>[init]
 # ~/~ begin <<docs/plattforms/openai/openai.md#common_library_imports>>[init]
 from pathlib import Path
@@ -29,16 +28,4 @@ settings = UniqueSettings.from_env_auto_with_sdk_init()
 for event in get_event_generator(unique_settings=settings, event_type=ChatEvent):
     chat_service = ChatService(event)
 # ~/~ end
-# ~/~ end
-    # ~/~ begin <<docs/modules/examples/chat/chat_service.md#chat_service_create_assistant_message>>[init]
-    assistant_message = chat_service.create_assistant_message(
-            content="Hello from Unique",
-        )
-    # ~/~ end
-    # ~/~ begin <<docs/modules/examples/chat/chat_service.md#chat_service_modify_assistant_message>>[init]
-    chat_service.modify_assistant_message(
-            content="Modified User Message",
-            message_id=assistant_message.id
-        )
-    # ~/~ end
 # ~/~ end

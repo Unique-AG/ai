@@ -3,21 +3,8 @@ import io
 # %%
 import os
 import tempfile
-from pathlib import Path
 
-from unique_toolkit import ContentService, EmbeddingService, LanguageModelService
-from unique_toolkit.app.init_sdk import init_unique_sdk
-from unique_toolkit.app.unique_settings import UniqueSettings
-
-settings = UniqueSettings.from_env(env_file=Path("../.env"))
-
-init_unique_sdk(unique_settings=settings)
-
-content_service = ContentService.from_settings(settings=settings)
-llm_service = LanguageModelService.from_settings(settings=settings)
-embedding_service = EmbeddingService.from_settings(settings=settings)
-
-# Your application logic here
+MISSING
 # Load configuration from environment variables
 scope_id = os.getenv("UNIQUE_SCOPE_ID")
 scope_ids = (
