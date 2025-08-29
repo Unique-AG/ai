@@ -72,6 +72,7 @@ class ToolBuildConfig(BaseModel):
         default=False,
         description="This tool must be chosen by the user and no other tools are used for this iteration.",
     )
+    is_sub_agent: bool = False
 
     is_enabled: bool = Field(default=True)
 
