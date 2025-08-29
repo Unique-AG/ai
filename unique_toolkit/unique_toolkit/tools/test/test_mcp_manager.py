@@ -163,6 +163,14 @@ class TestMCPManager:
             event=self.event,
             tool_progress_reporter=tool_progress_reporter,
         )
+    
+    @pytest.fixture
+    def a2a_manager(self,tool_progress_reporter):
+        """Create MCP manager fixture"""
+        return A2AManager(
+            logger=self.logger,
+            tool_progress_reporter=tool_progress_reporter,
+        )
 
     @pytest.fixture
     def tool_manager_config(self, internal_tools):
@@ -170,14 +178,9 @@ class TestMCPManager:
         return ToolManagerConfig(tools=internal_tools, max_tool_calls=10)
 
     @pytest.fixture
-    def tool_manager(self, tool_manager_config, mcp_manager,tool_progress_reporter):
+    def tool_manager(self, tool_manager_config, mcp_manager, a2a_manager,tool_progress_reporter):
         """Create tool manager fixture"""
 
-        
-        a2a_manager = A2AManager(
-            logger=self.logger,
-            tool_progress_reporter=tool_progress_reporter,
-        )
 
         return ToolManager(
             logger=self.logger,
@@ -191,6 +194,7 @@ class TestMCPManager:
     def test_tool_manager_initialization(self, tool_manager):
         """Test tool manager is initialized correctly"""
         assert tool_manager is not None
+
         assert (
             len(tool_manager.get_tools()) >= 2
         )  # Should have both internal and MCP tools

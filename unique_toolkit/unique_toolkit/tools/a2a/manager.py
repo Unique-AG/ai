@@ -44,7 +44,7 @@ class A2AManager:
             )
 
         filtered_tool_config = [
-            tool_config for tool_config in tool_configs if tool_config.is_sub_agent
+            tool_config for tool_config in tool_configs if not tool_config.is_sub_agent
         ]
 
         return filtered_tool_config, sub_agents
