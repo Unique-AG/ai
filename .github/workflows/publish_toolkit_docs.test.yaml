@@ -1,0 +1,42 @@
+name: "[docs] Build Unique Toolkit GitHub Pages"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - unique_toolkit/docs/**
+      - .github/workflows/publish_toolkit_docs.yaml
+      - unique_toolkit/mkdocs.yaml
+
+defaults:
+  run:
+    shell: bash
+    working-directory: unique_toolkit
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: latest
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+      - name: Install dependencies
+        run: |
+          poetry install --with dev
+      - name: Build documentation
+        run: |
+          poetry run mkdocs build
