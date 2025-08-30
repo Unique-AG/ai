@@ -1,9 +1,25 @@
 import logging
+from typing import overload
 
 from pydantic import BaseModel, ValidationError
+from typing_extensions import deprecated
+from unique_toolkit._common.validate_required_values import (
+    validate_required_values,
+)
+from unique_toolkit.app.schemas import BaseEvent, ChatEvent
+from unique_toolkit.language_model.infos import (
+    LanguageModelInfo,
+    ModelCapabilities,
+)
+from unique_toolkit.language_model.prompt import Prompt
+from unique_toolkit.language_model.schemas import (
+    LanguageModelMessages,
+)
+from unique_toolkit.language_model.service import (
+    LanguageModelService,
+)
 
-from unique_toolkit.app.schemas import ChatEvent
-from unique_toolkit.chat.service import ChatService
+from unique_toolkit._common.default_language_model import DEFAULT_GPT_35_TURBO
 from unique_toolkit.evals.config import EvaluationMetricConfig
 from unique_toolkit.evals.context_relevancy.schema import (
     EvaluationSchemaStructuredOutput,
@@ -19,18 +35,7 @@ from unique_toolkit.evals.schemas import (
     EvaluationMetricName,
     EvaluationMetricResult,
 )
-from unique_toolkit.language_model.infos import (
-    LanguageModelInfo,
-    LanguageModelName,
-    ModelCapabilities,
-)
-from unique_toolkit.language_model.prompt import Prompt
-from unique_toolkit.language_model.schemas import (
-    LanguageModelMessages,
-)
-from unique_toolkit.language_model.service import (
-    LanguageModelService,
-)
+
 
 from .prompts import (
     CONTEXT_RELEVANCY_METRIC_SYSTEM_MSG,
@@ -45,9 +50,7 @@ USER_MSG_KEY = "userPrompt"
 default_config = EvaluationMetricConfig(
     enabled=False,
     name=EvaluationMetricName.CONTEXT_RELEVANCY,
-    language_model=LanguageModelInfo.from_name(
-        LanguageModelName.AZURE_GPT_4o_2024_1120
-    ),
+    language_model=LanguageModelInfo.from_name(DEFAULT_GPT_35_TURBO),
     custom_prompts={
         SYSTEM_MSG_KEY: CONTEXT_RELEVANCY_METRIC_SYSTEM_MSG,
         USER_MSG_KEY: CONTEXT_RELEVANCY_METRIC_USER_MSG,
@@ -61,13 +64,42 @@ relevancy_required_input_fields = [
 
 
 class ContextRelevancyEvaluator:
+    @deprecated(
+        "Use __init__ with company_id and user_id instead or use the classmethod `from_event`"
+    )
+    @overload
+    def __init__(self, event: ChatEvent | BaseEvent):
+        """
+        Initialize the ContextRelevancyEvaluator with an event (deprecated)
+        """
+
+    @overload
+    def __init__(self, *, company_id: str, user_id: str):
+        """
+        Initialize the ContextRelevancyEvaluator with a company_id and user_id
+        """
+
     def __init__(
         self,
-        event: ChatEvent,
+        event: ChatEvent | BaseEvent | None = None,
+        company_id: str | None = None,
+        user_id: str | None = None,
     ):
-        self.chat_service = ChatService(event)
-        self.language_model_service = LanguageModelService(event)
-        self.logger = logging.getLogger(f"ContextRelevancyEvaluator.{__name__}")
+        if isinstance(event, (ChatEvent, BaseEvent)):
+            self.language_model_service = LanguageModelService.from_event(event)
+        else:
+            [company_id, user_id] = validate_required_values([company_id, user_id])
+            self.language_model_service = LanguageModelService(
+                company_id=company_id, user_id=user_id
+            )
+
+        # Setup the logger
+        module_name = "ContextRelevancyEvaluator"
+        self.logger = logging.getLogger(f"{module_name}.{__name__}")
+
+    @classmethod
+    def from_event(cls, event: ChatEvent | BaseEvent):
+        return cls(company_id=event.company_id, user_id=event.user_id)
 
     async def analyze(
         self,
@@ -95,6 +127,7 @@ class ContextRelevancyEvaluator:
 
         input.validate_required_fields(relevancy_required_input_fields)
 
+        # TODO: Was already there in monorepo
         if len(input.context_texts) == 0:  # type: ignore
             error_message = "No context texts provided."
             raise EvaluatorException(
