@@ -80,7 +80,7 @@ def get_event_generator(
 
 def get_event_stream(
     event_type: type[T] = BaseEvent,
-    settings_or_filename: UniqueSettings | str | None = None,
+    settings_config: UniqueSettings | str | None = None,
 ) -> Generator[T, None, None]:
     """
     Get an event stream from the SSE client.
@@ -90,12 +90,12 @@ def get_event_stream(
         settings_or_filename: The settings or filename to use to setup the Unique settings object
     """
 
-    if isinstance(settings_or_filename, str):
+    if isinstance(settings_config, str):
         unique_settings = UniqueSettings.from_env_auto_with_sdk_init(
-            filename=settings_or_filename
+            filename=settings_config
         )
-    elif isinstance(settings_or_filename, UniqueSettings):
-        unique_settings = settings_or_filename
+    elif isinstance(settings_config, UniqueSettings):
+        unique_settings = settings_config
     else:
         unique_settings = UniqueSettings.from_env_auto_with_sdk_init()
 
