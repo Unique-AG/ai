@@ -3,23 +3,12 @@ from typing import overload
 
 from pydantic import BaseModel, ValidationError
 from typing_extensions import deprecated
+
+from unique_toolkit._common.default_language_model import DEFAULT_GPT_35_TURBO
 from unique_toolkit._common.validate_required_values import (
     validate_required_values,
 )
 from unique_toolkit.app.schemas import BaseEvent, ChatEvent
-from unique_toolkit.language_model.infos import (
-    LanguageModelInfo,
-    ModelCapabilities,
-)
-from unique_toolkit.language_model.prompt import Prompt
-from unique_toolkit.language_model.schemas import (
-    LanguageModelMessages,
-)
-from unique_toolkit.language_model.service import (
-    LanguageModelService,
-)
-
-from unique_toolkit._common.default_language_model import DEFAULT_GPT_35_TURBO
 from unique_toolkit.evals.config import EvaluationMetricConfig
 from unique_toolkit.evals.context_relevancy.schema import (
     EvaluationSchemaStructuredOutput,
@@ -35,7 +24,17 @@ from unique_toolkit.evals.schemas import (
     EvaluationMetricName,
     EvaluationMetricResult,
 )
-
+from unique_toolkit.language_model.infos import (
+    LanguageModelInfo,
+    ModelCapabilities,
+)
+from unique_toolkit.language_model.prompt import Prompt
+from unique_toolkit.language_model.schemas import (
+    LanguageModelMessages,
+)
+from unique_toolkit.language_model.service import (
+    LanguageModelService,
+)
 
 from .prompts import (
     CONTEXT_RELEVANCY_METRIC_SYSTEM_MSG,

@@ -1,5 +1,6 @@
-from unique_toolkit.content.schemas import ContentChunk, ContentReference
 from typing_extensions import deprecated
+
+from unique_toolkit.content.schemas import ContentChunk, ContentReference
 
 
 @deprecated("do not use this its only used in old tools")

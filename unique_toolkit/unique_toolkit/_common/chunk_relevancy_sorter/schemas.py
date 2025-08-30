@@ -1,8 +1,8 @@
 from typing import Optional
 
 from pydantic import BaseModel
-from unique_toolkit.content.schemas import ContentChunk
 
+from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.evals.schemas import EvaluationMetricResult
 
 

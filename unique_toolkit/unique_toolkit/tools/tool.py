@@ -15,11 +15,10 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelMessage,
 )
 from unique_toolkit.language_model.service import LanguageModelService
+from unique_toolkit.tools.agent_chunks_hanlder import AgentChunksHandler
 from unique_toolkit.tools.config import ToolBuildConfig, ToolSelectionPolicy
 from unique_toolkit.tools.schemas import BaseToolConfig, ToolCallResponse, ToolPrompts
 from unique_toolkit.tools.tool_progress_reporter import ToolProgressReporter
-
-from unique_toolkit.tools.agent_chunks_hanlder import AgentChunksHandler
 
 ConfigType = TypeVar("ConfigType", bound=BaseToolConfig)
 

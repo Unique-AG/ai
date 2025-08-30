@@ -1,9 +1,6 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from unique_toolkit.app.schemas import ChatEvent
-from unique_toolkit.content.schemas import ContentChunk
-from unique_toolkit.language_model.infos import LanguageModelInfo
 
 from unique_toolkit._common.chunk_relevancy_sorter.config import (
     ChunkRelevancySortConfig,
@@ -16,13 +13,15 @@ from unique_toolkit._common.chunk_relevancy_sorter.schemas import (
     ChunkRelevancySorterResult,
 )
 from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
-
 from unique_toolkit._common.default_language_model import (
     DEFAULT_GPT_35_TURBO,
     DEFAULT_GPT_4o,
 )
+from unique_toolkit.app.schemas import ChatEvent
+from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.evals.context_relevancy.schema import StructuredOutputConfig
 from unique_toolkit.evals.schemas import EvaluationMetricName, EvaluationMetricResult
+from unique_toolkit.language_model.infos import LanguageModelInfo
 
 
 @pytest.fixture
