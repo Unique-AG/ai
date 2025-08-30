@@ -100,6 +100,20 @@ class LanguageModelService:
             user_id=settings.auth.user_id.get_secret_value(),
         )
 
+    @classmethod
+    def from_settings_filename(
+        cls,
+        settings_filename: str = "unique.env",
+    ):
+        """
+        Initialize the LanguageModelService with automatically from a settings file placed in the
+        common plattform folders or the folder that the executed file is placed.
+        """
+        settings = UniqueSettings.from_env_auto_with_sdk_init(
+            filename=settings_filename
+        )
+        return cls.from_settings(settings=settings)
+
     @property
     @deprecated(
         "The event property is deprecated and will be removed in a future version."

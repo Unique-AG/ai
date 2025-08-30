@@ -78,6 +78,30 @@ def get_event_generator(
             continue
 
 
+def get_event_stream(
+    event_type: type[T] = BaseEvent,
+    settings_config: UniqueSettings | str | None = None,
+) -> Generator[T, None, None]:
+    """
+    Get an event stream from the SSE client.
+
+    Args:
+        event_type: The type of event to get
+        settings_or_filename: The settings or filename to use to setup the Unique settings object
+    """
+
+    if isinstance(settings_config, str):
+        unique_settings = UniqueSettings.from_env_auto_with_sdk_init(
+            filename=settings_config
+        )
+    elif isinstance(settings_config, UniqueSettings):
+        unique_settings = settings_config
+    else:
+        unique_settings = UniqueSettings.from_env_auto_with_sdk_init()
+
+    return get_event_generator(unique_settings, event_type)
+
+
 def run_demo_with_sse_client(
     unique_settings: UniqueSettings,
     handler: Callable[[BaseEvent], Awaitable[None] | None],
