@@ -136,22 +136,33 @@ class ContentService:
     @classmethod
     def from_settings(
         cls,
-        settings: UniqueSettings | None = None,
+        settings: UniqueSettings,
         metadata_filter: dict | None = None,
-        env_filename: str = "unique.env",
     ):
         """
         Initialize the ContentService with a settings object and metadata filter.
-        If the settings object is not provided, it will be initialized from the environment.
         """
-        if settings is None:
-            settings = UniqueSettings.from_env_auto_with_sdk_init(filename=env_filename)
 
         return cls(
             company_id=settings.auth.company_id.get_secret_value(),
             user_id=settings.auth.user_id.get_secret_value(),
             metadata_filter=metadata_filter,
         )
+
+    @classmethod
+    def from_settings_filename(
+        cls,
+        settings_filename: str = "unique.env",
+        metadata_filter: dict | None = None,
+    ):
+        """
+        Initialize the ContentService with automatically from a settings file placed in the
+        common plattform folders or the folder that the executed file is placed and metadata filter.
+        """
+        settings = UniqueSettings.from_env_auto_with_sdk_init(
+            filename=settings_filename
+        )
+        return cls.from_settings(settings=settings, metadata_filter=metadata_filter)
 
     @property
     @deprecated(
