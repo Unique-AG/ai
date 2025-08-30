@@ -4,7 +4,6 @@ from typing import Any, Literal
 from httpx import AsyncClient
 from pydantic import BaseModel, Field, HttpUrl
 
-
 from unique_web_search.client_settings import get_jina_search_settings
 from unique_web_search.services.preprocessing.crawlers.base import (
     BaseCrawler,

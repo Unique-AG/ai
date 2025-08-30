@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 from enum import StrEnum
 from typing import Generic, TypeVar
 
-
 from pydantic import BaseModel
 from unique_toolkit.tools.config import get_configuration_dict
 

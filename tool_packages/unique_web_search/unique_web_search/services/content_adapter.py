@@ -4,14 +4,14 @@ import logging
 import pandas as pd
 from langchain.text_splitter import TokenTextSplitter
 from pydantic import BaseModel, Field
-from unique_toolkit.tools.config import get_configuration_dict
-from unique_toolkit.tools.utils.execution.execution import SafeTaskExecutor
 from unidecode import unidecode
 from unique_toolkit import LanguageModelService
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.embedding.service import EmbeddingService
 from unique_toolkit.language_model.infos import LanguageModelInfo
+from unique_toolkit.tools.config import get_configuration_dict
+from unique_toolkit.tools.utils.execution.execution import SafeTaskExecutor
 
 from unique_web_search.services.preprocessing.content_processing import (
     ProcessingStrategyType,
@@ -26,7 +26,6 @@ from unique_web_search.services.preprocessing.schema import (
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
-
 
 logger = logging.getLogger(__name__)
 

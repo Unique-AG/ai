@@ -3,6 +3,7 @@ from typing import Literal, Sequence, Union
 
 from pydantic import BaseModel, Field, ValidationError
 from tavily import AsyncTavilyClient
+from unique_toolkit.tools.config import get_configuration_dict
 
 from unique_web_search.services.search_engine.base import (
     BaseSearchEngineConfig,
@@ -12,10 +13,7 @@ from unique_web_search.services.search_engine.base import (
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
-
 from unique_web_search.settings import env_settings
-
-from unique_toolkit.tools.config import get_configuration_dict
 
 logger = logging.getLogger(f"PythonAssistantCoreBundle.{__name__}")
 

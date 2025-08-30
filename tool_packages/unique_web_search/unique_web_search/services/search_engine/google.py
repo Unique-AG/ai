@@ -4,7 +4,6 @@ from urllib.parse import urlparse
 
 from httpx import AsyncClient, Response
 
-
 from unique_web_search.client_settings import get_google_search_settings
 from unique_web_search.services.search_engine.base import (
     BaseSearchEngineConfig,

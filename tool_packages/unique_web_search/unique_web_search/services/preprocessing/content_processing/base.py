@@ -3,9 +3,7 @@ from logging import getLogger
 from typing import Generic, TypeVar
 
 from pydantic import BaseModel, Field
-
 from unique_toolkit.tools.config import get_configuration_dict
-
 
 logger = getLogger(__name__)
 

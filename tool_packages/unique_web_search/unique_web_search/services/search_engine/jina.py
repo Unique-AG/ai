@@ -4,7 +4,7 @@ from typing import Literal
 import httpx
 from httpx import Response, Timeout
 from pydantic import BaseModel, Field
-
+from unique_toolkit.tools.config import get_configuration_dict
 
 from unique_web_search.client_settings import get_jina_search_settings
 from unique_web_search.services.search_engine.base import (
@@ -15,9 +15,6 @@ from unique_web_search.services.search_engine.base import (
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
-
-from unique_toolkit.tools.config import get_configuration_dict
-
 
 logger = logging.getLogger(f"PythonAssistantCoreBundle.{__name__}")
 

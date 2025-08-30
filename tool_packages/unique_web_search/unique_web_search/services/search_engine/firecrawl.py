@@ -13,7 +13,6 @@ from unique_web_search.services.search_engine.base import (
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
-
 from unique_web_search.settings import env_settings
 
 logger = logging.getLogger(f"PythonAssistantCoreBundle.{__name__}")

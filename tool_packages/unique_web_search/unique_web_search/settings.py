@@ -3,9 +3,8 @@ import sys
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, field_validator
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
 
 # TODO: Clean this up from monorepo. Its mixing everything
 

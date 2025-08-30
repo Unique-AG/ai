@@ -3,7 +3,6 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, field_validator
 from pydantic.json_schema import SkipJsonSchema
-
 from unique_toolkit.history_manager.history_manager import DeactivatedNone
 from unique_toolkit.tools.config import get_configuration_dict
 

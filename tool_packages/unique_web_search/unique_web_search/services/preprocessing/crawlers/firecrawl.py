@@ -2,7 +2,6 @@ from typing import Literal
 
 from firecrawl import AsyncFirecrawl
 
-
 from unique_web_search.client_settings import (
     get_firecrawl_search_settings,
 )

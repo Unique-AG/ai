@@ -1,12 +1,12 @@
 from typing import Callable
 
 from pydantic import BaseModel, Field
+from unique_toolkit.tools.config import get_configuration_dict
 
 from unique_web_search.services.preprocessing.cleaning.patterns import (
     PATTERNS,
     get_cleaner,
 )
-from unique_toolkit.tools.config import get_configuration_dict
 
 
 class CleaningStrategyConfig(BaseModel):

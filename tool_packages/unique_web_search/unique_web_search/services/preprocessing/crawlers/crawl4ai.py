@@ -3,15 +3,13 @@ from enum import StrEnum
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
+from unique_toolkit.tools.config import get_configuration_dict
 
 from unique_web_search.services.preprocessing.crawlers.base import (
     BaseCrawler,
     BaseCrawlerConfig,
     CrawlerType,
 )
-
-from unique_toolkit.tools.config import get_configuration_dict
-
 
 logger = logging.getLogger(f"PythonAssistantCoreBundle.{__name__}")
 
