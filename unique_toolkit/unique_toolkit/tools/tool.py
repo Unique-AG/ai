@@ -15,6 +15,7 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelMessage,
 )
 from unique_toolkit.language_model.service import LanguageModelService
+from unique_toolkit.tools.agent_chunks_hanlder import AgentChunksHandler
 from unique_toolkit.tools.config import ToolBuildConfig, ToolSelectionPolicy
 from unique_toolkit.tools.schemas import BaseToolConfig, ToolCallResponse, ToolPrompts
 from unique_toolkit.tools.tool_progress_reporter import ToolProgressReporter
@@ -80,6 +81,7 @@ class Tool(ABC, Generic[ConfigType]):
     def get_tool_call_result_for_loop_history(
         self,
         tool_response: ToolCallResponse,
+        agent_chunks_handler: AgentChunksHandler,
     ) -> LanguageModelMessage:
         raise NotImplementedError
 
