@@ -34,7 +34,7 @@ from unique_web_search.services.search_engine.google import GoogleSearch
 from unique_web_search.services.search_engine.jina import JinaSearch
 from unique_web_search.services.search_engine.tavily import TavilySearch
 from unique_web_search.utils import _query_params_to_human_string
-
+from unique_toolkit.tools.factory import ToolFactory
 
 class RefinedQuery(StructuredOutputModel):
     """A refined query."""
@@ -431,3 +431,6 @@ class WebSearchTool(Tool[WebSearchConfig]):
             raise ValueError("Failed to parse insights from LLM response")
 
         return RefinedQuery.model_validate(parsed_response)
+
+
+ToolFactory.register_tool(WebSearchTool, WebSearchConfig)
