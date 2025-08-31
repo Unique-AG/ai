@@ -24,6 +24,7 @@ ConfigType = TypeVar("ConfigType", bound=BaseToolConfig)
 
 ToolBuildConfig.model_rebuild()
 
+
 class Tool(ABC, Generic[ConfigType]):
     name: str
     settings: ToolBuildConfig
@@ -153,7 +154,7 @@ class Tool(ABC, Generic[ConfigType]):
     ):
         self.settings = ToolBuildConfig(
             name=self.name,
-            configuration=config, 
+            configuration=config,
         )
 
         self.config = config
