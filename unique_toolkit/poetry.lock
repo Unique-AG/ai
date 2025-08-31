@@ -1316,7 +1316,7 @@ version = "4.3.8"
 description = "A small Python package for determining appropriate platform-specific dirs, e.g. a `user data dir`."
 optional = false
 python-versions = ">=3.9"
-groups = ["dev"]
+groups = ["main", "dev"]
 files = [
     {file = "platformdirs-4.3.8-py3-none-any.whl", hash = "sha256:ff7059bb7eb1179e2685604f4aaf157cfd9535242bd23742eadc3c13542139b4"},
     {file = "platformdirs-4.3.8.tar.gz", hash = "sha256:3d512d96e16bcb959a814c9f348431070822a6496326a4be0911c40b5a74c2bc"},
@@ -2465,7 +2465,7 @@ typing-extensions = ">=4.12.0"
 
 [[package]]
 name = "unique-sdk"
-version = "0.10.10"
+version = "0.10.13"
 description = ""
 optional = false
 python-versions = "^3.11"
@@ -2648,4 +2648,4 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.11"
-content-hash = "d448b110b37537add1330986601043e1ade4eb9e0b7b0f36eca4c7274d8a93a1"
+content-hash = "e0f0ba3cfb08389b089862d7e9a671717d9493373e88ecf6b2540a9a3f7976cf"

@@ -11,12 +11,24 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelTool,
     LanguageModelToolDescription,
 )
-from unique_toolkit.tools.config import ToolBuildConfig
+from unique_toolkit.tools.a2a.manager import A2AManager
+from unique_toolkit.tools.config import ToolBuildConfig, _rebuild_config_model
 from unique_toolkit.tools.factory import ToolFactory
+from unique_toolkit.tools.mcp.manager import MCPManager
 from unique_toolkit.tools.schemas import ToolCallResponse, ToolPrompts
 from unique_toolkit.tools.tool import Tool
 from unique_toolkit.tools.tool_progress_reporter import ToolProgressReporter
 from unique_toolkit.tools.utils.execution.execution import Result, SafeTaskExecutor
+
+# Rebuild the config model now that all imports are resolved
+_rebuild_config_model()
+
+
+class ForcedToolOption:
+    type: str = "function"
+
+    def __init__(self, name: str):
+        self.name = name
 
 
 class ToolManagerConfig(BaseModel):
@@ -59,6 +71,8 @@ class ToolManager:
         config: ToolManagerConfig,
         event: ChatEvent,
         tool_progress_reporter: ToolProgressReporter,
+        mcp_manager: MCPManager,
+        a2a_manager: A2AManager,
     ):
         self._logger = logger
         self._config = config
@@ -68,6 +82,8 @@ class ToolManager:
         self._disabled_tools = event.payload.disabled_tools
         # this needs to be a set of strings to avoid duplicates
         self._tool_evaluation_check_list: set[EvaluationMetricName] = set()
+        self._mcp_manager = mcp_manager
+        self._a2a_manager = a2a_manager
         self._init__tools(event)
 
     def _init__tools(self, event: ChatEvent) -> None:
@@ -77,7 +93,12 @@ class ToolManager:
         self._logger.info(f"Tool choices: {tool_choices}")
         self._logger.info(f"Tool configs: {tool_configs}")
 
-        self.available_tools = [
+        tool_configs, sub_agents = self._a2a_manager.get_all_sub_agents(
+            tool_configs, event
+        )
+
+        # Build internal tools from configurations
+        internal_tools = [
             ToolFactory.build_tool_with_settings(
                 t.name,
                 t,
@@ -87,6 +108,11 @@ class ToolManager:
             )
             for t in tool_configs
         ]
+
+        # Get MCP tools (these are already properly instantiated)
+        mcp_tools = self._mcp_manager.get_all_mcp_tools()
+        # Combine both types of tools
+        self.available_tools = internal_tools + mcp_tools + sub_agents
 
         for t in self.available_tools:
             if t.is_exclusive():
@@ -257,8 +283,6 @@ class ToolManager:
                 f"Filtered out {len(tool_calls) - len(unique_tool_calls)} duplicate tool calls."
             )
         return unique_tool_calls
-
-    from typing import Any
 
     def _convert_to_forced_tool(self, tool_name: str) -> dict[str, Any]:
         return {

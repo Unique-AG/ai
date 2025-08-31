@@ -261,6 +261,7 @@ class LanguageModelService:
 
         return await complete_async(
             company_id=self._company_id,
+            user_id=self._user_id,
             messages=messages,
             model_name=model_name,
             temperature=temperature,
@@ -278,6 +279,7 @@ class LanguageModelService:
         company_id: str,
         messages: LanguageModelMessages,
         model_name: LanguageModelName | str,
+        user_id: str | None = None,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
         tools: Optional[list[LanguageModelTool | LanguageModelToolDescription]] = None,
@@ -291,6 +293,7 @@ class LanguageModelService:
 
         return await complete_async(
             company_id=company_id,
+            user_id=user_id,
             messages=messages,
             model_name=model_name,
             temperature=temperature,

@@ -196,6 +196,10 @@ class ChatEventPayload(BaseModel):
         default_factory=list,
         description="A list of MCP servers with tools available for the chat session.",
     )
+    message_execution_id: str | None = Field(
+        default=None,
+        description="The message execution id for triggering the chat event. Originates from the message execution service.",
+    )
 
     @field_validator("raw_scope_rules", mode="before")
     def validate_scope_rules(cls, value: dict[str, Any] | None) -> UniqueQL | None:
@@ -226,6 +230,17 @@ class ChatEvent(BaseEvent):
         with file_path.open("r", encoding="utf-8") as f:
             data = json.load(f)
         return cls.model_validate(data)
+
+    def get_initial_debug_info(self) -> dict[str, Any]:
+        """Get the debug information for the chat event"""
+
+        # TODO: Make sure this coincides with what is shown in the first user message
+        return {
+            "user_metadata": self.payload.user_metadata,
+            "tool_parameters": self.payload.tool_parameters,
+            "chosen_module": self.payload.name,
+            "assistant": {"id": self.payload.assistant_id},
+        }
 
 
 @deprecated(

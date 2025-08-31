@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_toolkit"
-version = "0.8.20"
+version = "0.8.32"
 description = ""
 authors = [
     "Martin Fadler <martin.fadler@unique.ch>",
@@ -24,6 +24,7 @@ unique-sdk = "^0.10.0"
 pydantic-settings = "^2.10.1"
 sseclient = "^0.0.27"
 openai = "^1.99.9"
+platformdirs = "^4.0.0"
 
 [tool.poetry.group.langchain]
 optional = true

@@ -72,6 +72,7 @@ class ToolBuildConfig(BaseModel):
         default=False,
         description="This tool must be chosen by the user and no other tools are used for this iteration.",
     )
+    is_sub_agent: bool = False
 
     is_enabled: bool = Field(default=True)
 
@@ -83,6 +84,22 @@ class ToolBuildConfig(BaseModel):
     ) -> Any:
         """Check the given values for."""
         if not isinstance(value, dict):
+            return value
+
+        is_mcp_tool = value.get("mcp_source_id", "") != ""
+        mcp_configuration = value.get("configuration", {})
+
+        # Import at runtime to avoid circular imports
+        from unique_toolkit.tools.mcp.models import MCPToolConfig
+
+        if (
+            isinstance(mcp_configuration, MCPToolConfig)
+            and mcp_configuration.mcp_source_id
+        ):
+            return value
+        if is_mcp_tool:
+            # For MCP tools, skip ToolFactory validation
+            # Configuration can remain as a dict
             return value
 
         configuration = value.get("configuration", {})
@@ -105,3 +122,11 @@ class ToolBuildConfig(BaseModel):
             config = configuration
         value["configuration"] = config
         return value
+
+
+def _rebuild_config_model():
+    """Rebuild the ToolBuildConfig model to resolve forward references."""
+    # Import here to avoid circular imports
+    from unique_toolkit.tools.schemas import BaseToolConfig  # noqa: F401
+
+    ToolBuildConfig.model_rebuild()

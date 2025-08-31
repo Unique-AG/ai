@@ -5,6 +5,59 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+## [0.8.31] - 2025-08-30
+
+moved over general packages for `web_search`
+
+## [0.8.31] - 2025-08-29
+- Add various openai models to supported model list
+  - o1
+  - o3
+  - o3-deep-research
+  - o3-pro
+  - o4-mini
+  - o4-mini-deep-research
+  - gpt-4-1-mini
+  - gpt-4-1-nano
+
+## [0.8.30] - 2025-08-28
+- Added A2A manager
+
+## [0.8.29] - 2025-08-27
+- Include `MessageExecution` and `MessageLog` in toolkit 
+
+## [0.8.28] - 2025-08-28
+- Fix paths for `sdk_url` and `openai_proxy` for localhost
+
+## [0.8.27] - 2025-08-28
+- Fixed function "create_async" in language_model.functions : "user_id" argument should be optional.
+
+## [0.8.26] - 2025-08-27
+- Optimized MCP manager
+
+## [0.8.26] - 2025-08-27
+- Optimized MCP manager
+
+## [0.8.25] - 2025-08-27
+- Load environment variables automatically from plattform dirs or environment
+- General Endpoint definition utility
+- Expose `LanguageModelToolDescription` and `LanguageModelName` directly
+- Get initial debug information from chat payload  
+
+## [0.8.24] - 2025-08-25
+- Optimized hallucination manager
+
+## [0.8.23] - 2025-08-27
+- Add MCP manager that handles MCP related logic
+
+
+## [0.8.22] - 2025-08-25
+- Add DeepSeek-R1, DeepSeek-V3.1, Qwen3-235B-A22B and Qwen3-235B-A22B-Thinking-2507 to supported model list
+
+## [0.8.21] - 2025-08-26
+- Fixed old (not used) function "create_async" in language_model.functions : The function always returns "Unauthorized" --> Added "user_id" argument to fix this.
+
 ## [0.8.20] - 2025-08-24
 - Fixed forced-tool-calls
 

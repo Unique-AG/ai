@@ -15,6 +15,7 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelMessage,
 )
 from unique_toolkit.language_model.service import LanguageModelService
+from unique_toolkit.tools.agent_chunks_hanlder import AgentChunksHandler
 from unique_toolkit.tools.config import ToolBuildConfig, ToolSelectionPolicy
 from unique_toolkit.tools.schemas import BaseToolConfig, ToolCallResponse, ToolPrompts
 from unique_toolkit.tools.tool_progress_reporter import ToolProgressReporter
@@ -57,13 +58,17 @@ class Tool(ABC, Generic[ConfigType]):
         else:
             return cast("dict[str, Any]", parameters)
 
-    @abstractmethod
     def tool_description_for_system_prompt(self) -> str:
-        raise NotImplementedError
+        return ""
 
-    @abstractmethod
     def tool_format_information_for_system_prompt(self) -> str:
-        raise NotImplementedError
+        return ""
+
+    def tool_description_for_user_prompt(self) -> str:
+        return ""
+
+    def tool_format_information_for_user_prompt(self) -> str:
+        return ""
 
     def tool_format_reminder_for_user_prompt(self) -> str:
         """A short reminder for the user prompt for formatting rules for the tool.
@@ -76,6 +81,7 @@ class Tool(ABC, Generic[ConfigType]):
     def get_tool_call_result_for_loop_history(
         self,
         tool_response: ToolCallResponse,
+        agent_chunks_handler: AgentChunksHandler,
     ) -> LanguageModelMessage:
         raise NotImplementedError
 
@@ -112,6 +118,8 @@ class Tool(ABC, Generic[ConfigType]):
             tool_system_prompt=self.tool_description_for_system_prompt(),
             tool_format_information_for_system_prompt=self.tool_format_information_for_system_prompt(),
             input_model=self.tool_description_as_json(),
+            tool_user_prompt=self.tool_description_for_user_prompt(),
+            tool_format_information_for_user_prompt=self.tool_format_information_for_user_prompt(),
         )
 
     # Properties that we should soon deprecate
