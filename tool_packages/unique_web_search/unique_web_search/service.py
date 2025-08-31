@@ -21,6 +21,7 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelToolMessage,
 )
 from unique_toolkit.tools.agent_chunks_hanlder import AgentChunksHandler
+from unique_toolkit.tools.factory import ToolFactory
 from unique_toolkit.tools.schemas import ToolCallResponse
 from unique_toolkit.tools.tool import Tool
 from unique_toolkit.tools.tool_progress_reporter import ProgressState
@@ -431,3 +432,6 @@ class WebSearchTool(Tool[WebSearchConfig]):
             raise ValueError("Failed to parse insights from LLM response")
 
         return RefinedQuery.model_validate(parsed_response)
+
+
+ToolFactory.register_tool(WebSearchTool, WebSearchConfig)

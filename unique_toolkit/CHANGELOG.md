@@ -6,7 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-## [0.8.31] - 2025-08-30
+## [0.8.33] - 2025-08-31
+
+fixed tool for `web_search`
+
+## [0.8.32] - 2025-08-30
 
 moved over general packages for `web_search`
 
