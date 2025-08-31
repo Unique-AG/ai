@@ -84,6 +84,7 @@ class Content(APIResource["Content"]):
         metadataFilter: dict
         skip: NotRequired[int]
         take: NotRequired[int]
+        filePath: NotRequired[str]
 
     class CustomApiOptions(TypedDict):
         apiIdentifier: str
@@ -406,7 +407,7 @@ class Content(APIResource["Content"]):
             params.get("contentId"),
             params.get("filePath"),
         )
-        params["contentId"] = content_id
+        params.pop("contentId", None)
         params.pop("filePath", None)
 
         return cast(
@@ -436,7 +437,7 @@ class Content(APIResource["Content"]):
             params.get("contentId"),
             params.get("filePath"),
         )
-        params["contentId"] = content_id
+        params.pop("contentId", None)
         params.pop("filePath", None)
 
         return cast(
@@ -475,7 +476,6 @@ class Content(APIResource["Content"]):
                 if file_info.get("totalCount", 0) > 0
                 else None
             )
-            print(f"Resolved contentId: {resolved_id} for filePath: {file_path}")
             if not resolved_id:
                 raise ValueError(f"Could not find file with filePath: {file_path}")
             return resolved_id
