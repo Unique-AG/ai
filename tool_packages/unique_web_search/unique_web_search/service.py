@@ -21,6 +21,7 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelToolMessage,
 )
 from unique_toolkit.tools.agent_chunks_hanlder import AgentChunksHandler
+from unique_toolkit.tools.factory import ToolFactory
 from unique_toolkit.tools.schemas import ToolCallResponse
 from unique_toolkit.tools.tool import Tool
 from unique_toolkit.tools.tool_progress_reporter import ProgressState
@@ -34,7 +35,7 @@ from unique_web_search.services.search_engine.google import GoogleSearch
 from unique_web_search.services.search_engine.jina import JinaSearch
 from unique_web_search.services.search_engine.tavily import TavilySearch
 from unique_web_search.utils import _query_params_to_human_string
-from unique_toolkit.tools.factory import ToolFactory
+
 
 class RefinedQuery(StructuredOutputModel):
     """A refined query."""
