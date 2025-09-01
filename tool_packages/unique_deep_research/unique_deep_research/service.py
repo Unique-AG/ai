@@ -76,9 +76,16 @@ class ClarifyingQuestions(BaseModel):
 
 class DeepResearchTool(Tool[DeepResearchToolConfig]):
     """
-    This tool is intended as a forced only tool that and should not be visible to the model pr. default.
-    Additionally, it requires a handoff as it will write directly to the messsage log and output should not
-    be postprocessed.
+    Deep Research Tool for complex, multi-source research tasks.
+
+    This tool performs in-depth research by:
+    - Clarifying user intent through interactive questions when needed
+    - Generating comprehensive research briefs
+    - Conducting research using the configured engine
+    - Synthesizing information with proper citations
+
+    Note: This tool is designed for forced invocation and writes directly to the message log.
+    Output should not be post-processed as it includes formatted citations and references.
     """
 
     name = "DeepResearch"
@@ -149,7 +156,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         return evaluation_check_list
 
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
-        self.logger.info("Starting deep research tool run")
+        self.logger.info("Starting Deep Research tool run")
         # Pre research steps to clarify user intent if needed and put in the message queue
         if not self.is_message_execution():
             follow_up_questions = await self.clarify_user_request()

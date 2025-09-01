@@ -21,7 +21,7 @@ class OpenAIEngineConfig(BaseModel):
     """Configuration specific to OpenAI deep research engine."""
 
     research_model: LMI = Field(
-        description="The model to use for the deep research tool. Required to responses api compatible.",
+        description="The model to use for the deep research tool. Required to be responses API compatible.",
         default=LanguageModelInfo(
             name="litellm:o4-mini-deep-research-2025-06-26",
             provider=LanguageModelProvider.LITELLM,

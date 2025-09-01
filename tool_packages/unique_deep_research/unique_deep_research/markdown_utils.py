@@ -36,7 +36,6 @@ def extract_markdown_links(text: str) -> list[MarkdownLink]:
     links = []
 
     # Standard markdown links: [text](url)
-    # Using pattern similar to OptimizedPatterns.IMAGES_AND_LINKS but for extraction
     standard_link_pattern = r"\[([^\]]*)\]\(([^)]*)\)"
 
     for match in re.finditer(standard_link_pattern, text):
