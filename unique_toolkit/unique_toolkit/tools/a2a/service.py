@@ -2,7 +2,7 @@ from pydantic import Field, create_model
 from unique_sdk.utils.chat_in_space import send_message_and_wait_for_completion
 
 from unique_toolkit.app import ChatEvent
-from unique_toolkit.evaluators.schemas import EvaluationMetricName
+from unique_toolkit.evals.schemas import EvaluationMetricName
 from unique_toolkit.language_model import (
     LanguageModelFunction,
     LanguageModelMessage,
@@ -146,7 +146,7 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
         tool_response: ToolCallResponse,
     ) -> LanguageModelMessage:
         return ToolCallResponse(
-            id=tool_response.id,
+            id=tool_response.id,  # type: ignore
             name=tool_response.name,
-            content=tool_response["content"],
+            content=tool_response.content,
         )

@@ -47,7 +47,16 @@ pytest-mock = "^3.14.0"
 platformdirs = "^4.0.0"
 pillow = "^10.4.0"
 ipykernel = "^6.29.5"
-unique-sdk = { path = "../unique_sdk" }
+# unique-sdk = { path = "../unique_sdk" }
+mkdocs = "^1.6.1"
+mkdocs-material = "^9.6.11"
+mkdocs-include-markdown-plugin = "^7.1.5"
+mkdocs-callouts = "^1.16.0"
+mkdocstrings-python = "^1.16.10"
+entangled-cli = "^2.1.13"
+mkdocs-entangled-plugin = "^0.4.0"
+isort = "^6.0.1"
+mkdocs-codeinclude-plugin = "^0.2.1"
 
 [build-system]
 requires = ["poetry-core"]
@@ -55,6 +64,8 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.ruff]
 target-version = "py311"
+exclude = [".venv", "docs"]
+
 
 [tool.ruff.lint]
 extend-select = ["I"]
