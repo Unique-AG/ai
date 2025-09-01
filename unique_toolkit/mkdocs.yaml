@@ -46,13 +46,15 @@ theme:
 
 nav:
   - Home: index.md
-  - Environment Setup: ./setup/getting_started.md
-  - Tutorials: 
-    - ./application_types/standalone_application.md
-    - ./application_types/event_driven_applications.md
-    - ./modules/examples/chat/chat_service.md
-    - ./modules/examples/content/content_service.md
-    - ./plattforms/openai/openai.md
+  - Environment Setup: setup/getting_started.md
+  - Application Types:
+    - Standalone Application: application_types/standalone_application.md
+    - Event Driven Applications: application_types/event_driven_applications.md
+  - Modules:
+    - Chat Examples: modules/examples/chat/chat_service.md
+    - Content Examples: modules/examples/content/content_service.md
+  - Platforms:
+    - OpenAI: plattforms/openai/openai.md
   - API Reference: api.md
   - Readme: readme.md
 

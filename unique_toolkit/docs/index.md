@@ -4,5 +4,8 @@ Unique Toolkit enables python developers access to the unique platform through i
 
 # Table of Contents
 
-- [Getting Started](getting_started.md)
-- [Tutorials](tutorials.md)
+- [Getting Started](setup/getting_started.md)
+- [Application Types](application_types/)
+  - [Standalone Application](application_types/standalone_application.md)
+  - [Event Driven Applications](application_types/event_driven_applications.md)
+- [API Reference](api.md)

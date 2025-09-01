@@ -1,17 +1,11 @@
-# AI Monorepo Documentation
+# Unique Ag - Toolkit Documentation
 
-Welcome to the AI Monorepo documentation. This repository contains multiple AI-related packages and tools developed by the Unique team.
+Welcome to the Unique Ag Toolkit documentation. This repository contains multiple packages and tools developed by the Unique team.
 
 ## Available Packages
 
-### [Unique Toolkit](./unique_toolkit/)
+### [Unique Toolkit](../unique_toolkit/)
 The main toolkit for AI development, providing services for chat, content management, embeddings, and language model interactions.
-
-### Other Packages
-- **Unique SDK**: Core SDK for interacting with the Unique platform
-- **Unique Stock Ticker**: Stock ticker detection and analysis tools
-- **Unique Follow Up Questions**: Post-processing tools for generating follow-up questions
-- **Tool Packages**: Various specialized tools and utilities
 
 ## Getting Started
 
