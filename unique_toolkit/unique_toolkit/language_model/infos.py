@@ -1,9 +1,8 @@
 from datetime import date
 from enum import StrEnum
-from typing import Any, ClassVar, Optional, Self
+from typing import Annotated, Any, ClassVar, Optional, Self
 
-from pydantic import BaseModel
-from pydantic.json_schema import SkipJsonSchema
+from pydantic import BaseModel, Field
 from typing_extensions import deprecated
 
 from unique_toolkit.language_model.schemas import LanguageModelTokenLimits
@@ -130,7 +129,7 @@ class TemperatureBounds(BaseModel):
 
 
 class LanguageModelInfo(BaseModel):
-    name: LanguageModelName | str
+    name: LanguageModelName | Annotated[str, Field(title="Custom Model Name")]
     version: str
     provider: LanguageModelProvider
 
@@ -142,12 +141,12 @@ class LanguageModelInfo(BaseModel):
     )
     capabilities: list[ModelCapabilities] = [ModelCapabilities.STREAMING]
 
-    info_cutoff_at: date | SkipJsonSchema[None] = None
-    published_at: date | SkipJsonSchema[None] = None
-    retirement_at: date | SkipJsonSchema[None] = None
+    info_cutoff_at: date | Annotated[None, Field(title="Info Cutoff Unknown")] = None
+    published_at: date | Annotated[None, Field(title="Publishing Date Unknown")] = None
+    retirement_at: date = date(2225, 12, 31)
 
-    deprecated_at: date | SkipJsonSchema[None] = None
-    retirement_text: str | SkipJsonSchema[None] = None
+    deprecated_at: date = date(2225, 12, 31)
+    retirement_text: str = "This model is no longer supported."
 
     temperature_bounds: TemperatureBounds | None = None
 
