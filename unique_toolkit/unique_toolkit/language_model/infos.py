@@ -145,19 +145,29 @@ class LanguageModelInfo(BaseModel):
     token_limits: LanguageModelTokenLimits = LanguageModelTokenLimits(
         token_limit_input=7_000, token_limit_output=1_000
     )
+
     capabilities: list[ModelCapabilities] = [ModelCapabilities.STREAMING]
 
     info_cutoff_at: (
         Annotated[date, Field(title="Info Cutoff")]
         | Annotated[None, Field(title="Info Cutoff Unknown")]
     ) = None
+
     published_at: (
         Annotated[date, Field(title="Publishing Date")]
         | Annotated[None, Field(title="Publishing Date Unknown")]
     ) = None
-    retirement_at: date = date(2225, 12, 31)
 
-    deprecated_at: date = date(2225, 12, 31)
+    retirement_at: (
+        Annotated[date, Field(title="Retirement Date")]
+        | Annotated[None, Field(title="Retirement Date Unknown")]
+    ) = date(2225, 12, 31)
+
+    deprecated_at: (
+        Annotated[date, Field(title="Deprecated Date")]
+        | Annotated[None, Field(title="Deprecated Date Unknown")]
+    ) = date(2225, 12, 31)
+
     retirement_text: str = "This model is no longer supported."
 
     temperature_bounds: (
