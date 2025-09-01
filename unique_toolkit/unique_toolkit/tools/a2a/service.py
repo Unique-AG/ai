@@ -17,7 +17,6 @@ from unique_toolkit.tools.a2a.schema import (
     SubAgentToolInput,
 )
 from unique_toolkit.tools.schemas import ToolCallResponse
-from unique_toolkit.tools.schemas import ToolCallResponse
 from unique_toolkit.tools.tool import Tool
 from unique_toolkit.tools.tool_progress_reporter import (
     ProgressState,
