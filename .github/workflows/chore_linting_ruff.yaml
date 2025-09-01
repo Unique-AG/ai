@@ -9,6 +9,7 @@ on:
       - "postprocessors/unique_stock_ticker/**"
       - "tool_packages/unique_internal_search/**"
       - "tool_packages/unique_web_search/**"
+      - "tool_packages/unique_deep_research/**"
       - ".github/workflows/chore_linting_ruff.yaml"
 
 jobs:
