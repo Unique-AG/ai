@@ -1,5 +1,5 @@
-site_name: AI Monorepo
-site_description: Documentation for the AI Monorepo
+site_name: Unique AG - Toolkit Documentation
+site_description: Documentation for the public python toolkit to interact with the Unique platform
 site_author: Unique Team
 site_url: https://unique-ag.github.io/ai/
 repo_name: Unique-AG/ai
@@ -36,7 +36,7 @@ theme:
 
 nav:
   - Home: 'index.md'
-  - Unique Toolkit: '!include ./unique_toolkit/docs.subproject.mkdocs.yaml'
+  - Unique Toolkit: '!include ./unique_toolkit/mkdocs.yaml'
 
 plugins:
   - search
@@ -86,5 +86,5 @@ markdown_extensions:
   - pymdownx.tilde
   - attr_list
 
-docs_dir: unique_toolkit/docs
+docs_dir: docs
 site_dir: site
