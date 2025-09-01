@@ -1,7 +1,13 @@
 from enum import StrEnum
 
 from pydantic import BaseModel, Field
+from unique_toolkit._common.validators import LMI
 from unique_toolkit.evals.schemas import EvaluationMetricName
+from unique_toolkit.language_model.infos import (
+    LanguageModelInfo,
+    LanguageModelName,
+    LanguageModelProvider,
+)
 from unique_toolkit.tools.schemas import BaseToolConfig
 
 
@@ -14,9 +20,13 @@ class DeepResearchEngine(StrEnum):
 class OpenAIEngineConfig(BaseModel):
     """Configuration specific to OpenAI deep research engine."""
 
-    research_model: str = Field(
+    research_model: LMI = Field(
         description="The model to use for the deep research tool. Required to responses api compatible.",
-        default="litellm:o4-mini-deep-research-2025-06-26",
+        default=LanguageModelInfo(
+            name="litellm:o4-mini-deep-research-2025-06-26",
+            provider=LanguageModelProvider.LITELLM,
+            version="2025-06-26",
+        ),
     )
 
 
@@ -38,13 +48,13 @@ class DeepResearchToolConfig(BaseToolConfig):
         description="Configuration for the deep research engine",
         default_factory=EngineConfig,
     )
-    clarifying_model: str = Field(
+    clarifying_model: LMI = Field(
         description="The model to use for the clarifying agent.",
-        default="AZURE_GPT_41_2025_0414",
+        default=LanguageModelInfo.from_name(LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4),
     )
-    research_brief_model: str = Field(
+    research_brief_model: LMI = Field(
         description="The model to use for the research brief agent.",
-        default="litellm:anthropic/claude-sonnet-4-20250514",
+        default=LanguageModelInfo.from_name(LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4),
     )
     tool_call_description: str = Field(
         description="The description to use for the tool call in the language model",
