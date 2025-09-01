@@ -129,9 +129,11 @@ class TemperatureBounds(BaseModel):
 
 
 class LanguageModelInfo(BaseModel):
-    name: Annotated[str, Field(title="Custom Model Name")] | LanguageModelName
-    version: str
-    provider: LanguageModelProvider
+    name: Annotated[str, Field(title="Custom Model Name")] | LanguageModelName = Field(
+        title="Model Name", default=LanguageModelName.AZURE_GPT_4o_2024_1120
+    )
+    provider: LanguageModelProvider = LanguageModelProvider.AZURE
+    version: str = Field(title="Model Version", default="")
 
     encoder_name: EncoderName = EncoderName.CL100K_BASE
 
