@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_toolkit"
-version = "0.8.35"
+version = "0.8.36"
 description = ""
 authors = [
     "Martin Fadler <martin.fadler@unique.ch>",
@@ -20,11 +20,12 @@ numpy = "^1.26.4"
 python-dotenv = "^1.0.1"
 regex = "^2024.5.15"
 tiktoken = "^0.7.0"
-unique-sdk = "^0.10.0"
 pydantic-settings = "^2.10.1"
 sseclient = "^0.0.27"
 openai = "^1.99.9"
 platformdirs = "^4.0.0"
+pillow = "^10.4.0"
+unique-sdk = "^0.10.0"
 
 [tool.poetry.group.langchain]
 optional = true
@@ -43,8 +44,10 @@ pytest-cov = "^4.1.0"
 pre-commit = "^3.7.1"
 pytest-asyncio = "^0.23.8"
 pytest-mock = "^3.14.0"
-unique-sdk = { path = "../unique_sdk" }
+platformdirs = "^4.0.0"
+pillow = "^10.4.0"
 ipykernel = "^6.29.5"
+# unique-sdk = { path = "../unique_sdk" }
 mkdocs = "^1.6.1"
 mkdocs-material = "^9.6.11"
 mkdocs-include-markdown-plugin = "^7.1.5"
