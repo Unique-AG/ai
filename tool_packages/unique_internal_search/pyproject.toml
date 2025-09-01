@@ -20,7 +20,7 @@ python-dotenv = "^1.0.1"
 pytest = "^8.4.1"
 pillow = "^10.4.0"
 unique-sdk = "^0.10.0"
-unique-toolkit = "^0.8.32"
+unique-toolkit = "^0.8.36"
 
 
 [tool.poetry.group.dev.dependencies]
