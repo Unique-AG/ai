@@ -91,10 +91,15 @@ class LanguageModelService:
         return cls(company_id=event.company_id, user_id=event.user_id)
 
     @classmethod
-    def from_settings(cls, settings: UniqueSettings):
+    def from_settings(cls, settings: UniqueSettings | str | None = None):
         """
         Initialize the LanguageModelService with a settings object.
         """
+        if settings is None:
+            settings = UniqueSettings.from_env_auto_with_sdk_init()
+        elif isinstance(settings, str):
+            settings = UniqueSettings.from_env_auto_with_sdk_init(filename=settings)
+
         return cls(
             company_id=settings.auth.company_id.get_secret_value(),
             user_id=settings.auth.user_id.get_secret_value(),

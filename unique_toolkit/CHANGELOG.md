@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.8.34] - 2025-09-01
+- Automatic initializations of services and event generator
+
 ## [0.8.33] - 2025-08-31
 
 fixed tool for `web_search`
