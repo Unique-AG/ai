@@ -418,7 +418,7 @@ class Folder(APIResource["Folder"]):
         Delete a folder by its ID or path.
         """
 
-        scopeId = cls.resolve_scope_id(
+        scopeId = cls.resolve_scope_id_from_folder_path(
             user_id, company_id, params.get("scopeId"), params.get("folderPath")
         )
         params.pop("scopeId", None)
@@ -445,7 +445,7 @@ class Folder(APIResource["Folder"]):
         """
         Async delete a folder by its ID or path.
         """
-        scopeId = cls.resolve_scope_id(
+        scopeId = cls.resolve_scope_id_from_folder_path(
             user_id, company_id, params.get("scopeId"), params.get("folderPath")
         )
         params.pop("scopeId", None)
@@ -463,7 +463,7 @@ class Folder(APIResource["Folder"]):
         )
 
     @classmethod
-    def resolve_scope_id(
+    def resolve_scope_id_from_folder_path(
         cls,
         user_id: str,
         company_id: str,

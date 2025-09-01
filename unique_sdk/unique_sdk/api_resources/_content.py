@@ -12,6 +12,7 @@ from typing import (
 
 from typing_extensions import NotRequired, Unpack
 
+import unique_sdk
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
 
@@ -131,6 +132,7 @@ class Content(APIResource["Content"]):
         contentId: str | None = None
         filePath: str | None = None
         ownerId: str | None = None
+        parentFolderPath: str | None = None
         title: str | None = None
 
     class Chunk(TypedDict):
@@ -410,9 +412,16 @@ class Content(APIResource["Content"]):
             params.get("contentId"),
             params.get("filePath"),
         )
-        content_id = params.get("contentId")
+        owner_id = unique_sdk.Folder.resolve_scope_id_from_folder_path(
+            user_id,
+            company_id,
+            params.get("ownerId"),
+            params.get("parentFolderPath"),
+        )
         params.pop("contentId", None)
         params.pop("filePath", None)
+        params.pop("parentFolderPath", None)
+        params["ownerId"] = owner_id
 
         return cast(
             "Content.ContentInfo",
@@ -438,9 +447,16 @@ class Content(APIResource["Content"]):
             params.get("contentId"),
             params.get("filePath"),
         )
-        content_id = params.get("contentId")
+        owner_id = unique_sdk.Folder.resolve_scope_id_from_folder_path(
+            user_id,
+            company_id,
+            params.get("ownerId"),
+            params.get("parentFolderPath"),
+        )
         params.pop("contentId", None)
         params.pop("filePath", None)
+        params.pop("parentFolderPath", None)
+        params["ownerId"] = owner_id
 
         return cast(
             "Content.ContentInfo",
