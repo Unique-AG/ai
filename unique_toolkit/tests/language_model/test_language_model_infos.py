@@ -1,3 +1,5 @@
+from datetime import date
+
 import pytest
 
 from unique_toolkit.language_model.infos import (
@@ -82,9 +84,9 @@ class TestLanguageModelInfos:
         assert model.token_limit_input == 7_000
         assert model.token_limit_output == 1_000
         assert model.token_limit == 8_000
-        assert model.retirement_at is None
-        assert model.deprecated_at is None
-        assert model.retirement_text is None
+        assert model.retirement_at == date(2225, 12, 31)
+        assert model.deprecated_at == date(2225, 12, 31)
+        assert model.retirement_text == "This model is no longer supported."
 
     def test_get_language_model_returns_custom_model_for_string(self):
         name = "custom"
