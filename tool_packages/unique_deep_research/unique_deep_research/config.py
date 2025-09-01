@@ -8,7 +8,7 @@ from unique_toolkit.tools.schemas import BaseToolConfig
 class DeepResearchEngine(StrEnum):
     """Available deep research engines."""
 
-    OPENAI = "openai"
+    OPENAI = "OpenAI"
 
 
 class OpenAIEngineConfig(BaseModel):
@@ -20,14 +20,23 @@ class OpenAIEngineConfig(BaseModel):
     )
 
 
+class EngineConfig(BaseModel):
+    """Configuration for a deep research engine."""
+
+    OpenAI: OpenAIEngineConfig = Field(
+        description="Configuration for OpenAI engine",
+        default_factory=OpenAIEngineConfig,
+    )
+
+
 class DeepResearchToolConfig(BaseToolConfig):
     engine: DeepResearchEngine = Field(
         description="The deep research engine to use",
         default=DeepResearchEngine.OPENAI,
     )
-    openai_config: OpenAIEngineConfig = Field(
-        description="Configuration for OpenAI engine",
-        default_factory=OpenAIEngineConfig,
+    engine_config: EngineConfig = Field(
+        description="Configuration for the deep research engine",
+        default_factory=EngineConfig,
     )
     clarifying_model: str = Field(
         description="The model to use for the clarifying agent.",
