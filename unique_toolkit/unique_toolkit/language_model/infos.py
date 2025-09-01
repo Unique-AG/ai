@@ -129,7 +129,7 @@ class TemperatureBounds(BaseModel):
 
 
 class LanguageModelInfo(BaseModel):
-    name: LanguageModelName | Annotated[str, Field(title="Custom Model Name")]
+    name: Annotated[str, Field(title="Custom Model Name")] | LanguageModelName
     version: str
     provider: LanguageModelProvider
 
@@ -141,8 +141,14 @@ class LanguageModelInfo(BaseModel):
     )
     capabilities: list[ModelCapabilities] = [ModelCapabilities.STREAMING]
 
-    info_cutoff_at: date | Annotated[None, Field(title="Info Cutoff Unknown")] = None
-    published_at: date | Annotated[None, Field(title="Publishing Date Unknown")] = None
+    info_cutoff_at: (
+        Annotated[date, Field(title="Info Cutoff")]
+        | Annotated[None, Field(title="Info Cutoff Unknown")]
+    ) = None
+    published_at: (
+        Annotated[date, Field(title="Publishing Date")]
+        | Annotated[None, Field(title="Publishing Date Unknown")]
+    ) = None
     retirement_at: date = date(2225, 12, 31)
 
     deprecated_at: date = date(2225, 12, 31)
