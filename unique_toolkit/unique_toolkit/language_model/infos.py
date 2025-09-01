@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 from pydantic.json_schema import SkipJsonSchema
 from typing_extensions import deprecated
 
-from unique_toolkit._common.validators import get_configuration_dict
+from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 from unique_toolkit.language_model.schemas import LanguageModelTokenLimits
 
 
