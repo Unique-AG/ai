@@ -3,6 +3,7 @@ from enum import StrEnum
 from typing import Annotated, Any, ClassVar, Optional, Self
 
 from pydantic import BaseModel, Field
+from pydantic.json_schema import SkipJsonSchema
 from typing_extensions import deprecated
 
 from unique_toolkit.language_model.schemas import LanguageModelTokenLimits
@@ -129,9 +130,10 @@ class TemperatureBounds(BaseModel):
 
 
 class LanguageModelInfo(BaseModel):
-    name: Annotated[str, Field(title="Custom Model Name")] | LanguageModelName = Field(
-        title="Model Name", default=LanguageModelName.AZURE_GPT_4o_2024_1120
-    )
+    name: (
+        Annotated[str, Field(title="Custom Model Name")]
+        | SkipJsonSchema[LanguageModelName]
+    ) = Field(title="Model Name", default=LanguageModelName.AZURE_GPT_4o_2024_1120)
     provider: LanguageModelProvider = LanguageModelProvider.AZURE
     version: str = Field(title="Model Version", default="")
 
@@ -156,7 +158,9 @@ class LanguageModelInfo(BaseModel):
     deprecated_at: date = date(2225, 12, 31)
     retirement_text: str = "This model is no longer supported."
 
-    temperature_bounds: TemperatureBounds | None = None
+    temperature_bounds: (
+        TemperatureBounds | Annotated[None, Field(title="Temperature Bounds Unknown")]
+    ) = None
 
     default_options: dict[str, Any] = {}
 
