@@ -20,6 +20,6 @@ def cast_log_entry(log_entry: LogEntry) -> SDKLogEntry:
         text=log_entry.text,
         createdAt=log_entry.created_at,
         actorType=log_entry.actor_type.value.upper(),  # type: ignore
-        messageId=log_entry.message_id,
+        messageId=log_entry.message_id or "",
         details=details,
     )
