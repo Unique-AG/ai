@@ -7,7 +7,7 @@ from unique_toolkit import (
     ContentService,
 )
 
-content_service = ContentService.from_settings_filename()
+content_service = ContentService.from_settings()
 demo_env_vars = dotenv_values(Path(__file__).parent / "demo.env")
 scope_id = demo_env_vars.get("UNIQUE_SCOPE_ID") or "unknown"
 content_bytes = b"Your file content here"

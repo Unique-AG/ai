@@ -22,3 +22,5 @@ for event in get_event_generator(unique_settings=settings, event_type=ChatEvent)
     chat_service.complete_with_references(
         messages=messages, model_name=LanguageModelName.AZURE_GPT_4o_2024_1120
     )
+
+# %%

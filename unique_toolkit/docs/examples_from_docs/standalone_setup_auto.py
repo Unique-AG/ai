@@ -4,5 +4,5 @@ from unique_toolkit import (
 )
 from unique_toolkit.framework_utilities.openai.client import get_openai_client
 
-content_service = ContentService.from_settings_filename()
+content_service = ContentService.from_settings()
 client = get_openai_client()
