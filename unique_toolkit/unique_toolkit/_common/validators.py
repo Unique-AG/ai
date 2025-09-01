@@ -1,8 +1,9 @@
 import logging
 from typing import Annotated, Any
 
-from pydantic import BeforeValidator, Field, PlainSerializer, ValidationInfo
-from pydantic.fields import FieldInfo
+import humps
+from pydantic import BeforeValidator, ConfigDict, Field, PlainSerializer, ValidationInfo
+from pydantic.fields import ComputedFieldInfo, FieldInfo
 
 from unique_toolkit.language_model import LanguageModelName
 from unique_toolkit.language_model.infos import (
@@ -11,6 +12,29 @@ from unique_toolkit.language_model.infos import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def field_title_generator(
+    title: str,
+    info: FieldInfo | ComputedFieldInfo,
+) -> str:
+    return humps.decamelize(title).replace("_", " ").title()
+
+
+def model_title_generator(model: type) -> str:
+    return humps.decamelize(model.__name__).replace("_", " ").title()
+
+
+def get_configuration_dict(**kwargs) -> ConfigDict:
+    return ConfigDict(
+        # alias_generator=to_camel,
+        field_title_generator=field_title_generator,
+        model_title_generator=model_title_generator,
+        # populate_by_name=True,
+        # protected_namespaces=(),
+        **kwargs,
+    )
+
 
 # TODO @klcd: Inform on deprecation of str as input
 LMI = Annotated[
