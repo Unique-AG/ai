@@ -1,5 +1,14 @@
 from enum import Enum
-from typing import Any, ClassVar, Dict, List, Literal, Optional, TypedDict, cast
+from typing import (
+    Any,
+    ClassVar,
+    Dict,
+    List,
+    Literal,
+    Optional,
+    TypedDict,
+    cast,
+)
 
 from typing_extensions import NotRequired, Unpack
 
@@ -75,6 +84,7 @@ class Content(APIResource["Content"]):
         metadataFilter: dict
         skip: NotRequired[int]
         take: NotRequired[int]
+        filePath: NotRequired[str]
 
     class CustomApiOptions(TypedDict):
         apiIdentifier: str
@@ -153,6 +163,14 @@ class Content(APIResource["Content"]):
     class PaginatedContentInfo(TypedDict):
         contentInfos: List["Content.ContentInfo"]
         totalCount: int
+
+    class DeleteParams(RequestOptions):
+        contentId: NotRequired[str]
+        filePath: NotRequired[str]
+        chatId: NotRequired[str]
+
+    class DeleteResponse(TypedDict):
+        id: str
 
     id: str
     key: str
@@ -436,6 +454,66 @@ class Content(APIResource["Content"]):
         )
 
     @classmethod
+    def delete(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: "Content.DeleteParams",
+    ) -> "Content.DeleteResponse":
+        """
+        Deletes a content by its id or file path.
+        """
+        content_id = cls.resolve_content_id_from_file_path(
+            user_id,
+            company_id,
+            params.get("contentId"),
+            params.get("filePath"),
+        )
+        params.pop("contentId", None)
+        params.pop("filePath", None)
+
+        return cast(
+            "Content.DeleteResponse",
+            cls._static_request(
+                "delete",
+                f"/content/{content_id}",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    async def delete_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: "Content.DeleteParams",
+    ) -> "Content.DeleteResponse":
+        """
+        Async deletes a content by its id or file path.
+        """
+        content_id = cls.resolve_content_id_from_file_path(
+            user_id,
+            company_id,
+            params.get("contentId"),
+            params.get("filePath"),
+        )
+        params.pop("contentId", None)
+        params.pop("filePath", None)
+
+        return cast(
+            "Content.DeleteResponse",
+            await cls._static_request_async(
+                "delete",
+                f"/content/{content_id}",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
     def resolve_content_id_from_file_path(
         cls,
         user_id: str,
@@ -460,7 +538,6 @@ class Content(APIResource["Content"]):
                 if file_info.get("totalCount", 0) > 0
                 else None
             )
-            print(f"Resolved contentId: {resolved_id} for filePath: {file_path}")
             if not resolved_id:
                 raise ValueError(f"Could not find file with filePath: {file_path}")
             return resolved_id

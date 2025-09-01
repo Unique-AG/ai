@@ -25,9 +25,9 @@ class MessageLog(APIResource["MessageLog"]):
         text: str
         status: Literal["RUNNING", "COMPLETED", "FAILED"]
         order: int
-        details: dict | None
-        uncitedReferences: dict | None
-        references: list["MessageLog.Reference"] | None
+        details: dict | None = None
+        uncitedReferences: dict | None = None
+        references: list["MessageLog.Reference"] | None = None
 
     class UpdateMessageLogParams(RequestOptions):
         """
@@ -37,9 +37,9 @@ class MessageLog(APIResource["MessageLog"]):
         text: str | None
         status: Literal["RUNNING", "COMPLETED", "FAILED"] | None
         order: int
-        details: dict | None
-        uncitedReferences: dict | None
-        references: list["MessageLog.Reference"] | None
+        details: dict | None = None
+        uncitedReferences: dict | None = None
+        references: list["MessageLog.Reference"] | None = None
 
     messageLogId: str | None
     messageId: str | None

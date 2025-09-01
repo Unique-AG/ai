@@ -1,11 +1,8 @@
-from pydantic import BaseModel, ConfigDict, Field, create_model
+from pydantic import BaseModel, Field, create_model
 from pydantic.json_schema import SkipJsonSchema
 
+from unique_toolkit._common.utils.structured_output.schema import StructuredOutputModel
 from unique_toolkit.tools.config import get_configuration_dict
-
-
-class StructuredOutputModel(BaseModel):
-    model_config = ConfigDict(extra="forbid")
 
 
 class StructuredOutputConfig(BaseModel):

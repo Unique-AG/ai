@@ -1,5 +1,4 @@
 from unique_toolkit import ShortTermMemoryService
-
 from unique_toolkit.short_term_memory.persistent_short_term_memory_manager import (
     PersistentShortMemoryManager,
 )

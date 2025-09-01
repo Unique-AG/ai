@@ -15,11 +15,14 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelMessage,
 )
 from unique_toolkit.language_model.service import LanguageModelService
+from unique_toolkit.tools.agent_chunks_hanlder import AgentChunksHandler
 from unique_toolkit.tools.config import ToolBuildConfig, ToolSelectionPolicy
 from unique_toolkit.tools.schemas import BaseToolConfig, ToolCallResponse, ToolPrompts
 from unique_toolkit.tools.tool_progress_reporter import ToolProgressReporter
 
 ConfigType = TypeVar("ConfigType", bound=BaseToolConfig)
+
+ToolBuildConfig.model_rebuild()
 
 
 class Tool(ABC, Generic[ConfigType]):
@@ -80,6 +83,7 @@ class Tool(ABC, Generic[ConfigType]):
     def get_tool_call_result_for_loop_history(
         self,
         tool_response: ToolCallResponse,
+        agent_chunks_handler: AgentChunksHandler,
     ) -> LanguageModelMessage:
         raise NotImplementedError
 
@@ -150,8 +154,7 @@ class Tool(ABC, Generic[ConfigType]):
     ):
         self.settings = ToolBuildConfig(
             name=self.name,
-            configuration=config,  # type: ignore
-            # the ToolBuildConfig has a wrong type in it to be fixed later.
+            configuration=config,
         )
 
         self.config = config

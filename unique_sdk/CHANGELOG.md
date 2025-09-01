@@ -5,8 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.10.15] - 2025-08-29
+## [0.10.17] - 2025-09-01
 - Add function to update a file
+
+## [0.10.16] - 2025-08-31
+- Add function to delete a content.
+
+## [0.10.15] - 2025-08-28
+- Add default values for message log types
 
 ## [0.10.14] - 2025-08-28
 - Add function to delete folders and files recursively
