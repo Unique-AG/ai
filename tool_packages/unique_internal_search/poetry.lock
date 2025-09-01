@@ -1086,7 +1086,7 @@ url = "../../unique_sdk"
 
 [[package]]
 name = "unique-toolkit"
-version = "0.8.35"
+version = "0.8.36"
 description = ""
 optional = false
 python-versions = "^3.11"
@@ -1134,4 +1134,4 @@ zstd = ["zstandard (>=0.18.0)"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.11"
-content-hash = "ca5a2b735381361835ffd1a8c477e2d15834cf924652abfc39b63d708141a3ff"
+content-hash = "d5f071efab65e759f74cac29e2fabab0fcaccce7944b1a7aff6a67c9658331d6"
