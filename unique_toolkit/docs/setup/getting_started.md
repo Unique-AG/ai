@@ -1,4 +1,4 @@
-# Getting started
+# Environment Setup
 
 ## Installation
 
@@ -88,13 +88,3 @@ The `APP_ID` is immediately visible after creating an app and starts with `app_`
 An app endpoint is required in the production scenario when the app is running in a container. In this case the Unique plattform reaches the app via the registered endpoints.
 
 [WIP]
-
-
-
-
-## Your first application
-
-Typically we see  two types of applications being build with the Unique Plattform 
-
-1. [**Standalone Applications**](../application_types/standalone_application.md) leveraging the plattform to create artefacts
-2. [**Event based Applications**](../application_types/event_driven_applications.md): That use the plattform and report back to it.
