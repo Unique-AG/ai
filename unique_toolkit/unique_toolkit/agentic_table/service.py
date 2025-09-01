@@ -1,7 +1,5 @@
 import logging
-from typing import Optional
 
-from typing_extensions import deprecated
 from unique_sdk import (
     AgenticTable,
     AgenticTableSheetState,
@@ -24,13 +22,13 @@ from .schemas import (
 )
 
 
-class LockedMagicTableError(Exception):
+class LockedAgenticTableError(Exception):
     pass
 
 
-class MagicTableService:
+class AgenticTableService:
     """
-    Provides methods to interact with the Magic Table.
+    Provides methods to interact with the Agentic Table.
 
     Attributes:
         #event (ChatEvent): The ChatEvent object.
@@ -42,12 +40,12 @@ class MagicTableService:
         user_id: str,
         company_id: str,
         table_id: str,
-        event_id: Optional[str] = None,
+        event_id: str | None = None,
         logger: logging.Logger = logging.getLogger(__name__),
     ):
-        self.event_id = event_id
-        self.user_id = user_id
-        self.company_id = company_id
+        self._event_id = event_id
+        self._user_id = user_id
+        self._company_id = company_id
         self.table_id = table_id
         self.logger = logger
 
@@ -73,8 +71,8 @@ class MagicTableService:
             log_entries_new = [cast_log_entry(log_entry) for log_entry in log_entries]
         try:
             await AgenticTable.set_cell(
-                user_id=self.user_id,
-                company_id=self.company_id,
+                user_id=self._user_id,
+                company_id=self._company_id,
                 tableId=self.table_id,
                 rowOrder=row,
                 columnOrder=column,
@@ -97,8 +95,8 @@ class MagicTableService:
 
         """
         cell_data = await AgenticTable.get_cell(
-            user_id=self.user_id,
-            company_id=self.company_id,
+            user_id=self._user_id,
+            company_id=self._company_id,
             tableId=self.table_id,
             rowOrder=row,
             columnOrder=column,
@@ -118,8 +116,8 @@ class MagicTableService:
         for i in range(0, len(cells), batch_size):
             batch = cells[i : i + batch_size]
             await AgenticTable.set_multiple_cells(
-                user_id=self.user_id,
-                company_id=self.company_id,
+                user_id=self._user_id,
+                company_id=self._company_id,
                 tableId=self.table_id,
                 cells=[
                     SDKAgenticTableCell(
@@ -144,8 +142,8 @@ class MagicTableService:
             activity (str): The activity to set.
         """
         await AgenticTable.set_activity(
-            user_id=self.user_id,
-            company_id=self.company_id,
+            user_id=self._user_id,
+            company_id=self._company_id,
             tableId=self.table_id,
             activity=activity.value,
             status=status.value,
@@ -154,27 +152,27 @@ class MagicTableService:
 
     async def register_agent(self) -> None:
         state = await AgenticTable.get_sheet_state(
-            user_id=self.user_id,
-            company_id=self.company_id,
+            user_id=self._user_id,
+            company_id=self._company_id,
             tableId=self.table_id,
         )
         if state == AgenticTableSheetState.IDLE:
             await AgenticTable.update_sheet_state(
-                user_id=self.user_id,
-                company_id=self.company_id,
+                user_id=self._user_id,
+                company_id=self._company_id,
                 tableId=self.table_id,
                 state=AgenticTableSheetState.PROCESSING,
             )
             return
         # If the sheet is not idle, we cannot register the agent
-        raise LockedMagicTableError(
-            f"Magic Table is busy. Cannot register agent {self.event_id or self.table_id}."
+        raise LockedAgenticTableError(
+            f"Magic Table is busy. Cannot register agent {self._event_id or self.table_id}."
         )
 
     async def deregister_agent(self):
         await AgenticTable.update_sheet_state(
-            user_id=self.user_id,
-            company_id=self.company_id,
+            user_id=self._user_id,
+            company_id=self._company_id,
             tableId=self.table_id,
             state=AgenticTableSheetState.IDLE,
         )
@@ -187,18 +185,14 @@ class MagicTableService:
         name: str,
     ):
         await AgenticTable.set_artifact(
-            user_id=self.user_id,
-            company_id=self.company_id,
+            user_id=self._user_id,
+            company_id=self._company_id,
             tableId=self.table_id,
             artifactType=artifact_type.value,
             contentId=content_id,
             mimeType=mime_type,
             name=name,
         )
-
-    @deprecated("Use set_column_style instead.")
-    async def set_column_width(self, column: int, width: int):
-        await self.set_column_style(column=column, width=width)
 
     async def set_column_style(
         self,
@@ -232,8 +226,8 @@ class MagicTableService:
         if editable is not None:
             params["editable"] = editable
         status, message = await AgenticTable.set_column_metadata(
-            user_id=self.user_id,
-            company_id=self.company_id,
+            user_id=self._user_id,
+            company_id=self._company_id,
             tableId=self.table_id,
             columnOrder=column,
             **params,
@@ -244,8 +238,8 @@ class MagicTableService:
 
     async def get_num_rows(self) -> int:
         sheet_info = await AgenticTable.get_sheet_data(
-            user_id=self.user_id,
-            company_id=self.company_id,
+            user_id=self._user_id,
+            company_id=self._company_id,
             tableId=self.table_id,
             includeRowCount=True,
             includeCells=False,
@@ -258,8 +252,8 @@ class MagicTableService:
         start_row: int = 0,
         end_row: int | None = None,
         batch_size: int = 100,
-        includeLogHistory: bool = False,
-        includeCellMetaData: bool = False,
+        include_log_history: bool = False,
+        include_cell_meta_data: bool = False,
     ) -> MagicTableSheet:
         """
         Gets the sheet data from the Magic Table paginated by batch_size.
@@ -268,15 +262,16 @@ class MagicTableService:
             start_row (int): The start row (inclusive).
             end_row (int | None): The end row (not inclusive).
             batch_size (int): The batch size.
-            includeLogHistory (bool): Whether to include the log history.
+            include_log_history (bool): Whether to include the log history.
+            include_cell_meta_data (bool): Whether to include the cell meta data.
 
         Returns:
             MagicTableSheet: The sheet data.
         """
         # Find the total number of rows
         sheet_info = await AgenticTable.get_sheet_data(
-            user_id=self.user_id,
-            company_id=self.company_id,
+            user_id=self._user_id,
+            company_id=self._company_id,
             tableId=self.table_id,
             includeRowCount=True,
             includeCells=False,
@@ -296,13 +291,13 @@ class MagicTableService:
         for row in range(start_row, end_row, batch_size):
             endRow = min(row + batch_size, end_row)
             sheet_partial = await AgenticTable.get_sheet_data(
-                user_id=self.user_id,
-                company_id=self.company_id,
+                user_id=self._user_id,
+                company_id=self._company_id,
                 tableId=self.table_id,
                 includeCells=True,
-                includeLogHistory=includeLogHistory,
+                includeLogHistory=include_log_history,
                 includeRowCount=False,
-                includeCellMetaData=includeCellMetaData,
+                includeCellMetaData=include_cell_meta_data,
                 startRow=row,
                 endRow=endRow - 1,
             )
@@ -328,8 +323,8 @@ class MagicTableService:
         if agreement_status is not None:
             params["agreementStatus"] = agreement_status
         result = await AgenticTable.set_cell_metadata(
-            user_id=self.user_id,
-            company_id=self.company_id,
+            user_id=self._user_id,
+            company_id=self._company_id,
             tableId=self.table_id,
             rowOrder=row,
             columnOrder=column,
@@ -345,8 +340,8 @@ class MagicTableService:
         status: RowVerificationStatus,
     ):
         await AgenticTable.bulk_update_status(
-            user_id=self.user_id,
-            company_id=self.company_id,
+            user_id=self._user_id,
+            company_id=self._company_id,
             tableId=self.table_id,
             rowOrders=row_orders,
             status=status,
