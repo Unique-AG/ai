@@ -1,4 +1,4 @@
-name: "[docs] Build Unique Toolkit GitHub Pages"
+name: "[docs] Build AI Monorepo GitHub Pages"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -10,13 +10,11 @@ on:
       - main
     paths:
       - unique_toolkit/docs/**
-      - .github/workflows/publish_toolkit_docs.yaml
       - unique_toolkit/mkdocs.yaml
-
-defaults:
-  run:
-    shell: bash
-    working-directory: unique_toolkit
+      - unique_toolkit/docs.subproject.mkdocs.yaml
+      - mkdocs.yaml
+      - pyproject.toml
+      - .github/workflows/publish_toolkit_docs.test.yaml
 
 jobs:
   build:

@@ -1,0 +1,27 @@
+[tool.poetry]
+name = "ai-monorepo"
+version = "0.1.0"
+description = "AI Monorepo Documentation"
+authors = ["Unique Team"]
+readme = ["README.md"]
+license = "Proprietary"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.11"
+unique_toolkit = { path = "./unique_toolkit", develop = true }
+
+[tool.poetry.group.dev.dependencies]
+mkdocs = "^1.6.1"
+mkdocs-material = "^9.6.11"
+mkdocs-monorepo-plugin = "^1.1.2"
+mkdocs-include-markdown-plugin = "^7.1.5"
+mkdocs-callouts = "^1.16.0"
+mkdocstrings-python = "^1.16.10"
+entangled-cli = "^2.1.13"
+mkdocs-entangled-plugin = "^0.4.0"
+mkdocs-codeinclude-plugin = "^0.2.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
