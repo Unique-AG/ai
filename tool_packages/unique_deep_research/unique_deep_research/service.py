@@ -236,7 +236,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         """
         stream = self.client.responses.create(
             timeout=RESPONSES_API_TIMEOUT_SECONDS,
-            model=self.config.openai_config.research_model,
+            model=self.config.engine_config.OpenAI.research_model,
             input=[
                 {
                     "role": "developer",
