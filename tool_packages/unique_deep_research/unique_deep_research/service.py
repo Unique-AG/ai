@@ -34,6 +34,7 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelMessage,
     LanguageModelToolMessage,
 )
+from unique_toolkit.tools.factory import ToolFactory
 from unique_toolkit.tools.schemas import ToolCallResponse
 from unique_toolkit.tools.tool import Tool
 
@@ -526,3 +527,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             tool_call_id=tool_response.id,  # type: ignore
             name=tool_response.name,
         )
+
+
+# Register the tool with the ToolFactory
+ToolFactory.register_tool(DeepResearchTool, DeepResearchToolConfig)
