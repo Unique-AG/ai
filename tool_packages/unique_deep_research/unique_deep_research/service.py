@@ -100,7 +100,6 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         self.chat_id = event.payload.chat_id
         self.company_id = event.company_id
         self.user_id = event.user_id
-        self.history = self.chat_service.get_full_history()
 
         self.client = OpenAI(
             api_key=unique_sdk.api_key,
@@ -207,9 +206,10 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         """
         Get the history messages for the research brief.
         """
+        history = self.chat_service.get_full_history()
         history_messages = []
         # Take last user and assistant message pair (assuming it's the clarifying question and answer)
-        for msg in self.history[-2:]:
+        for msg in history[-2:]:
             if msg.role == "user" or msg.role == "assistant":
                 history_messages.append(
                     {
