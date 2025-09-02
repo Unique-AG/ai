@@ -12,7 +12,6 @@ from typing import (
 
 from typing_extensions import NotRequired, Unpack
 
-import unique_sdk
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
 
@@ -130,9 +129,7 @@ class Content(APIResource["Content"]):
 
     class UpdateParams(RequestOptions):
         contentId: str | None = None
-        filePath: str | None = None
         ownerId: str | None = None
-        parentFolderPath: str | None = None
         title: str | None = None
 
     class Chunk(TypedDict):
@@ -168,7 +165,6 @@ class Content(APIResource["Content"]):
 
     class DeleteParams(RequestOptions):
         contentId: NotRequired[str]
-        filePath: NotRequired[str]
         chatId: NotRequired[str]
 
     class DeleteResponse(TypedDict):
@@ -406,28 +402,11 @@ class Content(APIResource["Content"]):
         company_id: str,
         **params: Unpack["Content.UpdateParams"],
     ) -> "Content.ContentInfo":
-        content_id = cls.resolve_content_id_from_file_path(
-            user_id,
-            company_id,
-            params.get("contentId"),
-            params.get("filePath"),
-        )
-        owner_id = unique_sdk.Folder.resolve_scope_id_from_folder_path(
-            user_id,
-            company_id,
-            params.get("ownerId"),
-            params.get("parentFolderPath"),
-        )
-        params.pop("contentId", None)
-        params.pop("filePath", None)
-        params.pop("parentFolderPath", None)
-        params["ownerId"] = owner_id
-
         return cast(
             "Content.ContentInfo",
             cls._static_request(
                 "patch",
-                f"/content/{content_id}",
+                f"/content/{params.get('contentId')}",
                 user_id,
                 company_id,
                 params=params,
@@ -441,28 +420,11 @@ class Content(APIResource["Content"]):
         company_id: str,
         **params: Unpack["Content.UpdateParams"],
     ) -> "Content.ContentInfo":
-        content_id = cls.resolve_content_id_from_file_path(
-            user_id,
-            company_id,
-            params.get("contentId"),
-            params.get("filePath"),
-        )
-        owner_id = unique_sdk.Folder.resolve_scope_id_from_folder_path(
-            user_id,
-            company_id,
-            params.get("ownerId"),
-            params.get("parentFolderPath"),
-        )
-        params.pop("contentId", None)
-        params.pop("filePath", None)
-        params.pop("parentFolderPath", None)
-        params["ownerId"] = owner_id
-
         return cast(
             "Content.ContentInfo",
             await cls._static_request_async(
                 "patch",
-                f"/content/{content_id}",
+                f"/content/{params.get('contentId')}",
                 user_id,
                 company_id,
                 params=params,
@@ -479,20 +441,12 @@ class Content(APIResource["Content"]):
         """
         Deletes a content by its id or file path.
         """
-        content_id = cls.resolve_content_id_from_file_path(
-            user_id,
-            company_id,
-            params.get("contentId"),
-            params.get("filePath"),
-        )
-        params.pop("contentId", None)
-        params.pop("filePath", None)
 
         return cast(
             "Content.DeleteResponse",
             cls._static_request(
                 "delete",
-                f"/content/{content_id}",
+                f"/content/{params.get('contentId')}",
                 user_id,
                 company_id,
                 params=params,
@@ -509,20 +463,12 @@ class Content(APIResource["Content"]):
         """
         Async deletes a content by its id or file path.
         """
-        content_id = cls.resolve_content_id_from_file_path(
-            user_id,
-            company_id,
-            params.get("contentId"),
-            params.get("filePath"),
-        )
-        params.pop("contentId", None)
-        params.pop("filePath", None)
 
         return cast(
             "Content.DeleteResponse",
             await cls._static_request_async(
                 "delete",
-                f"/content/{content_id}",
+                f"/content/{params.get('contentId')}",
                 user_id,
                 company_id,
                 params=params,

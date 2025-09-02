@@ -540,31 +540,18 @@ Allows you to ingest a magic table sheet, each row is processed and converted in
 
 #### `unique_sdk.Content.update` (Compatible with release >.36)
 
-Allows you to update a file specified by its `contentId` or by its `filePath`.
+Allows you to update a file specified by its `contentId`.
 
-- `contentId` optional if `filePath` is provided, the id of the file to be updated
-- `filePath` optional if `contentId` is provided, the absolute path of the file to be updated
+- `contentId` the id of the file to be updated
 
 Currently, the following updates are supported:
 
 Title update:
 - `title` optional, allows updating the title of the folder
 
-Move the file to a different folder. this can be done by specifying either the `ownerId` or the `parentFolderPath`.
+Move the file to a different folder. this can be done by specifying either the `ownerId`.
 - `ownerId` optional, allows moving the file to a different folder. Represents the new folder for the file and it should be the id of a folder e.g.: `scope_dhjfieurfloakmdle`. 
-- `parentFolderPath` optional, allows moving the file to a different folder. Represents the path new folder for the file. 
 
-
-Example of updating the title of a file specified by its path.
-
-```python
-unique_sdk.Content.update(
-    user_id=user_id,
-    company_id=company_id,
-    filePath="/Company/finance/january.xls",
-    title="Revision Deck"
-)
-```
 
 Example of moving a file specified by its content id.
 
@@ -589,25 +576,12 @@ unique_sdk.Content.update(
 )
 ```
 
-Example of moving a file to a folder specified by its path.
-
-```python
-unique_sdk.Content.update(
-    user_id=user_id,
-    company_id=company_id,
-    contentId="cont_ok2343q5owbce80w78hudawu5",
-    ownerId="scope_e68yz5asho7glfh7c7d041el",
-    parentFolderPath="/Company/Revisions"
-)
-```
-
 #### `unique_sdk.Content.delete` (Compatible with release >.36)
 
-Allows you to delete a file by its `contentId` or by its `filePath`. When deleting by `id`, if the file is part of a chat, the `chatId` also needs do be set. If both `contentId` and `filePath` are provided, `filePath` is ignored.
+Allows you to delete a file by its `contentId`. If the file is part of a chat, the `chatId` also needs do be set.
 
-- `contentId` optional if `filePath` is provided, the id of the file to be deleted
+- `contentId` the id of the file to be deleted
 - `chatId` optional, the id of the chat where the file is. Only needed if the file is part of a chat
-- `filePath` optional if `contentId` is provided, the absolute path of the file to be deleted
 
 Example of deleting a file from a chat.
 
@@ -617,16 +591,6 @@ unique_sdk.Content.delete(
     company_id=company_id,
     contentId="cont_ok2343q5owbce80w78hudawu5",
     chatId="chat_v3xfa7liv876h89vuiibus1"
-)
-```
-
-Example of deleting a file by its path.
-
-```python
-unique_sdk.Content.delete(
-    user_id=user_id,
-    company_id=company_id,
-    filePath="/Company/finance/january.xls",
 )
 ```
 
