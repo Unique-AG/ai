@@ -45,7 +45,11 @@ class EndpointMethods(StrEnum):
 class EndpointClassProtocol(
     Protocol,
     Generic[
-        PathParamsType, PayloadType, ResponseType, PayloadParamSpec, PathParamsSpec
+        PathParamsSpec,
+        PathParamsType,
+        PayloadParamSpec,
+        PayloadType,
+        ResponseType,
     ],
 ):
     path_params_model: type[PathParamsType]
@@ -86,7 +90,11 @@ def build_endpoint_class(
     dump_options: dict | None = None,
 ) -> type[
     EndpointClassProtocol[
-        PathParamsType, PayloadType, ResponseType, PayloadParamSpec, PathParamsSpec
+        PathParamsSpec,
+        PathParamsType,
+        PayloadParamSpec,
+        PayloadType,
+        ResponseType,
     ]
 ]:
     """Generate a class with static methods for endpoint handling.
