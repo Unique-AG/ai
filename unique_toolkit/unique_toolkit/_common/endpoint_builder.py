@@ -21,7 +21,7 @@ PayloadParamSpec = ParamSpec("PayloadParamSpec")
 PathParamsSpec = ParamSpec("PathParamsSpec")
 
 # Type variables
-ResponseType = TypeVar("ResponseType", bound=BaseModel)
+ResponseType = TypeVar("ResponseType", bound=BaseModel, covariant=True)
 PathParamsType = TypeVar("PathParamsType", bound=BaseModel)
 PayloadType = TypeVar("PayloadType", bound=BaseModel)
 
