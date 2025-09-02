@@ -1,5 +1,5 @@
 from enum import StrEnum
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 import humps
 from pydantic import (
@@ -14,6 +14,9 @@ from pydantic.fields import ComputedFieldInfo, FieldInfo
 
 if TYPE_CHECKING:
     from unique_toolkit.tools.schemas import BaseToolConfig
+
+# Define a type variable for the configuration type
+ConfigType = TypeVar("ConfigType", bound="BaseToolConfig")
 
 
 def field_title_generator(
@@ -57,12 +60,12 @@ class ToolSelectionPolicy(StrEnum):
     BY_USER = "ByUser"
 
 
-class ToolBuildConfig(BaseModel):
+class _BaseToolBuildConfig(BaseModel):
+    """Base class containing common fields and validation logic for ToolBuildConfig."""
+
     model_config = get_configuration_dict()
-    """Main tool configuration"""
 
     name: str
-    configuration: "BaseToolConfig"
     display_name: str = ""
     icon: ToolIcon = ToolIcon.BOOK
     selection_policy: ToolSelectionPolicy = Field(
@@ -75,6 +78,11 @@ class ToolBuildConfig(BaseModel):
     is_sub_agent: bool = False
 
     is_enabled: bool = Field(default=True)
+
+    needs_human_approval: bool = Field(
+        default=False,
+        description="Whether the tool needs human approval to be executed or not.",
+    )
 
     @model_validator(mode="before")
     def initialize_config_based_on_tool_name(
@@ -122,6 +130,18 @@ class ToolBuildConfig(BaseModel):
             config = configuration
         value["configuration"] = config
         return value
+
+
+class ToolBuildConfig(_BaseToolBuildConfig):
+    """Main tool configuration - backward compatible version."""
+
+    configuration: "BaseToolConfig"
+
+
+class GenericToolBuildConfig(_BaseToolBuildConfig, Generic[ConfigType]):
+    """Generic version of ToolBuildConfig for type-safe subclassing."""
+
+    configuration: ConfigType
 
 
 def _rebuild_config_model():

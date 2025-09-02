@@ -27,7 +27,6 @@ ToolBuildConfig.model_rebuild()
 
 class Tool(ABC, Generic[ConfigType]):
     name: str
-    settings: ToolBuildConfig
 
     def display_name(self) -> str:
         """The display name of the tool."""
@@ -48,6 +47,10 @@ class Tool(ABC, Generic[ConfigType]):
     def is_enabled(self) -> bool:
         """Whether the tool is enabled or not."""
         return self.settings.is_enabled
+
+    def needs_human_approval(self) -> bool:
+        """Whether the tool needs human approval to be executed or not."""
+        return self.settings.needs_human_approval
 
     @abstractmethod
     def tool_description(self) -> LanguageModelToolDescription:
