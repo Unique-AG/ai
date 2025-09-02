@@ -60,6 +60,15 @@ def validate_and_init_language_model_info(
         if v in [name.value for name in LanguageModelName]:
             return LanguageModelInfo.from_name(LanguageModelName(v))
 
+        # Handle litellm: prefixed models that aren't in the enum
+        # These should have LITELLM provider, not CUSTOM
+        if v.startswith("litellm:"):
+            return LanguageModelInfo(
+                name=v,
+                version="2025-06-26",  # Use the correct version for this model
+                provider=LanguageModelProvider.LITELLM,
+            )
+
         return LanguageModelInfo(
             name=v,
             version="custom",
