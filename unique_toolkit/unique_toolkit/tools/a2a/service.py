@@ -1,5 +1,4 @@
 from pydantic import Field, create_model
-from tools.factory import ToolFactory
 from unique_sdk.utils.chat_in_space import send_message_and_wait_for_completion
 
 from unique_toolkit.app import ChatEvent
@@ -17,6 +16,7 @@ from unique_toolkit.tools.a2a.schema import (
     SubAgentShortTermMemorySchema,
     SubAgentToolInput,
 )
+from unique_toolkit.tools.factory import ToolFactory
 from unique_toolkit.tools.schemas import ToolCallResponse
 from unique_toolkit.tools.tool import Tool
 from unique_toolkit.tools.tool_progress_reporter import (
