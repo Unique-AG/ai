@@ -1,0 +1,57 @@
+DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT = (
+    "You can use the UploadedSearch tool to access and analyze documents uploaded by users during a chat. This tool is designed to handle a variety of document-related tasks, including summarization, explanation, and detailed information retrieval. "
+    "Use cases for the UploadedSearch tool include:\n"
+    "- Document Analysis: When a user uploads a document and asks for a summary, explanation, or specific details, this tool can extract and provide the requested information.\n"
+    "- Named Document Queries: If a user refers to a previously uploaded document by name (e.g., 'What does the Q2_Report.pdf say about revenue?'), this tool can locate and analyze the document to answer the query.\n"
+    "- Policy and Procedure Verification: Use the tool to find the most current company policies, procedures, or guidelines within uploaded documents.\n"
+    "- Project-Specific Information: Access project documents, reports, or meeting notes uploaded by users to provide precise details.\n"
+    "- Confidential and Proprietary Information: Ensure that sensitive topics requiring proprietary knowledge or confidential data are sourced securely from uploaded documents.\n\n"
+    "**Instruction Query Splitting**\n"
+    "You should split the user question into multiple search strings when the user's question needs to be decomposed / rewritten to find different facts. Perform an individual tool call for each search string. Avoid overly broad queries that may return unrelated results. Ensure the search string is specific and relevant to the uploaded document(s).\n\n"
+    "Examples:\n"
+    'User: "What does the Q2_Report.pdf say about revenue and expenses?" => search strings: ["Q2_Report.pdf revenue", "Q2_Report.pdf expenses"]\n'
+    'User: "Summarize the uploaded document." => search string: ["Summarize the uploaded document"]\n'
+    "**The currently uploaded documents are the following**\n\n"
+)
+
+DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT = (
+    "Whenever you use information retrieved with the UploadedSearch, you must adhere to strict reference guidelines. "
+    "You must strictly reference each fact used with the `source_number` of the corresponding passage, in the following format: '[source<source_number>]'.\n\n"
+    "Example:\n"
+    "- The revenue for Q2 was $5M , while expenses were $3M .\n"
+    "- The uploaded document highlights a 20% increase in productivity .\n\n"
+    "A fact is preferably referenced by ONLY ONE source, e.g [sourceX], which should be the most relevant source for the fact.\n"
+    "Follow these guidelines closely and be sure to use the proper `source_number` when referencing facts.\n"
+    "Make sure that your reference follow the format [sourceX] and that the source number is correct.\n"
+    "Source is written in singular form and the number is written in digits.\n\n"
+    "IT IS VERY IMPORTANT TO FOLLOW THESE GUIDELINES!!\n"
+    "NEVER CITE A source_number THAT YOU DON'T SEE IN THE TOOL CALL RESPONSE!!!\n"
+    "The source_number in old assistant messages are no longer valid.\n"
+    "EXAMPLE: If you see  and  in the assistant message, you can't use  again in the next assistant message, this has to be the number you find in the message with role 'tool'.\n"
+    "BE AWARE: All tool calls have been filtered to remove uncited sources. Tool calls return much more data than you see.\n\n"
+    "### Internal Document Answering Protocol for Uploaded Documents\n"
+    "When assisting users with uploaded documents, follow\n"
+    "this structured approach to ensure precise, well-grounded,\n"
+    "and context-aware responses:\n\n"
+    "#### 1. Locate and Prioritize Relevant Information\n"
+    "Focus on the **most relevant sections** of the uploaded document.\n"
+    "Prioritize documents that are:\n"
+    "- **Directly referenced by the user** (e.g., by name or context).\n"
+    "- **Recently uploaded** or actively discussed.\n\n"
+    "#### 2. Source Reliability Guidelines\n"
+    "- Prioritize information that is:\n"
+    "  - **Clearly stated in the document**.\n"
+    "  - **Part of finalized or approved sections**.\n"
+    "- Be cautious with:\n"
+    "  - Drafts or incomplete sections.\n"
+    "  - Ambiguous or conflicting information.\n\n"
+    "#### 3. Acknowledge Limitations\n"
+    "- If no relevant information is found, or the document is unclear, state this explicitly.\n"
+    "- Indicate where further clarification or investigation may be required."
+)
+
+DEFAULT_TOOL_DESCRIPTION = "Search within uploaded documents for information on policies, procedures, benefits, projects, or specific details. This tool is ideal for analyzing user-uploaded files and extracting relevant insights."
+DEFAULT_SEARCH_STRING_PARAM_DESCRIPTION = "An expanded term optimized for vector and full-text search based on the user’s query. It must be in English."
+DEFAULT_LANGUAGE_PARAM_DESCRIPTION = (
+    "The language in which the user’s query is written."
+)

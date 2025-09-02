@@ -16,6 +16,7 @@ from unique_toolkit.tools.a2a.schema import (
     SubAgentShortTermMemorySchema,
     SubAgentToolInput,
 )
+from unique_toolkit.tools.factory import ToolFactory
 from unique_toolkit.tools.schemas import ToolCallResponse
 from unique_toolkit.tools.tool import Tool
 from unique_toolkit.tools.tool_progress_reporter import (
@@ -150,3 +151,6 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
             name=tool_response.name,
             content=tool_response.content,
         )
+
+
+ToolFactory.register_tool(SubAgentTool, SubAgentToolConfig)
