@@ -9,7 +9,7 @@ This is useful for:
 
 import json
 from enum import StrEnum
-from typing import Annotated, TypeVar
+from typing import Annotated, Any, TypeVar, Union, get_args, get_origin
 
 from jambo import SchemaConverter
 from jambo.types.json_schema_type import JSONSchema
@@ -19,6 +19,39 @@ from pydantic import (
     Field,
     create_model,
 )
+
+
+def _get_actual_type(python_type: type) -> type | None | Any:
+    if get_origin(python_type) is not None:
+        origin = get_origin(python_type)
+        args = get_args(python_type)
+
+        if origin is Annotated:
+            # For Annotated types, the first argument is the actual type
+            if args:
+                actual_type = args[0]
+                # Recursively handle nested generic types (e.g., Annotated[Optional[str], ...])
+                if get_origin(actual_type) is not None:
+                    return _get_actual_type(actual_type)
+            else:
+                raise ValueError(f"Invalid Annotated type: {python_type}")
+        elif origin is Union:
+            # For Union types (including Optional), use the first non-None type
+            if args:
+                for arg in args:
+                    if arg is not type(None):  # Skip NoneType
+                        return _get_actual_type(arg)
+                raise ValueError(f"Union type contains only None: {python_type}")
+            else:
+                raise ValueError(f"Invalid Union type: {python_type}")
+        else:
+            # Other generic types, use the origin
+            actual_type = origin
+    else:
+        # Regular type
+        actual_type = python_type
+
+    return actual_type
 
 
 class ParameterType(StrEnum):
@@ -44,14 +77,21 @@ class ParameterType(StrEnum):
 
     @classmethod
     def from_python_type(cls, python_type: type) -> "ParameterType":
-        if issubclass(python_type, str):
-            return cls.STRING
-        if issubclass(python_type, int):
-            return cls.INTEGER
-        if issubclass(python_type, float):
-            return cls.NUMBER
-        if issubclass(python_type, bool):
+        type_to_check = _get_actual_type(python_type)
+
+        # Ensure we have a class before calling issubclass
+        if not isinstance(type_to_check, type):
+            raise ValueError(f"Invalid Python type: {python_type}")
+
+        # Check bool first since bool is a subclass of int in Python
+        if issubclass(type_to_check, bool):
             return cls.BOOLEAN
+        if issubclass(type_to_check, int):
+            return cls.INTEGER
+        if issubclass(type_to_check, float):
+            return cls.NUMBER
+        if issubclass(type_to_check, str):
+            return cls.STRING
         raise ValueError(f"Invalid Python type: {python_type}")
 
 
@@ -76,7 +116,7 @@ def create_pydantic_model_from_parameter_list(
             field = Field(default=None, description=parameter.description)
 
         fields[parameter.name] = (
-            parameter.type.to_python_type,
+            parameter.type.to_python_type(),
             field,
         )
 
@@ -115,7 +155,7 @@ def base_model_to_parameter_list(model: type[BaseModel]) -> list[Parameter]:
                 type=ParameterType.from_python_type(field_info.annotation or str),
                 name=field_name,
                 description=field_info.description or "",
-                required=not field_info.default is not None,
+                required=field_info.is_required(),
             )
         )
     return parameter
