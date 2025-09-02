@@ -1,9 +1,8 @@
 from pathlib import Path
 from typing import Any
 
-import unique_sdk
 from jinja2 import Environment, FileSystemLoader
-from openai import OpenAI, Stream
+from openai import Stream
 from openai.types.responses import ResponseFunctionWebSearch, ResponseReasoningItem
 from openai.types.responses.response_function_web_search import (
     ActionOpenPage,
@@ -19,6 +18,7 @@ from openai.types.responses.response_stream_event import ResponseStreamEvent
 from pydantic import BaseModel, ConfigDict, Field
 from typing_extensions import override
 from unique_toolkit.app.schemas import ChatEvent
+from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.chat.schemas import (
     MessageExecutionType,
     MessageLogDetails,
@@ -29,6 +29,7 @@ from unique_toolkit.chat.service import LanguageModelToolDescription
 from unique_toolkit.content.schemas import ContentReference
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.evals.schemas import EvaluationMetricName
+from unique_toolkit.framework_utilities.openai.client import get_openai_client
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelMessage,
@@ -101,18 +102,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         self.company_id = event.company_id
         self.user_id = event.user_id
 
-        self.client = OpenAI(
-            api_key=unique_sdk.api_key,
-            base_url=unique_sdk.api_base + "/openai-proxy",
-            timeout=RESPONSES_API_TIMEOUT_SECONDS,
-            default_headers={
-                "x-user-id": self.user_id,
-                "x-company-id": self.company_id,
-                "x-api-version": "2023-12-06",
-                "x-app-id": unique_sdk.app_id or "",
-                "Authorization": f"Bearer {unique_sdk.api_key}",
-            },
-        )
+        self.client = get_openai_client(UniqueSettings.from_env())
 
         self.search_service = ContentService(
             company_id=self.company_id, user_id=self.user_id
