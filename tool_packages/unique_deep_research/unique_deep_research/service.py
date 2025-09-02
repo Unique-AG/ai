@@ -243,7 +243,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         """
         stream = self.client.responses.create(
             timeout=RESPONSES_API_TIMEOUT_SECONDS,
-            model=self.config.engine_config.OpenAI.research_model,
+            model=self.config.engine_config.OpenAI.research_model.name,
             input=[
                 {
                     "role": "developer",
@@ -428,7 +428,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             *last_two_interactions,
         ]
         clarifying_response = self.client.chat.completions.parse(
-            model=self.config.clarifying_model,
+            model=self.config.clarifying_model.name,
             messages=messages,  # type: ignore
             response_format=ClarifyingQuestions,
         )
@@ -449,7 +449,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         ] + messages
 
         research_response = self.client.chat.completions.create(
-            model=self.config.research_brief_model,
+            model=self.config.research_brief_model.name,
             messages=chat_messages,
             temperature=0.1,
         )
