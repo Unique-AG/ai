@@ -1,29 +1,24 @@
-from unique_internal_search.service import InternalSearchTool
-from unique_internal_search.uploaded_search.config import UploadedSearchConfig
 from pydantic import Field, create_model
 from typing_extensions import override
 from unique_toolkit import ContentService
 from unique_toolkit.app.schemas import BaseEvent
 from unique_toolkit.chat.service import LanguageModelToolDescription
-from unique_toolkit.content.schemas import Content
+from unique_toolkit.evals.schemas import EvaluationMetricName
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelMessage,
-    LanguageModelToolMessage,
 )
+from unique_toolkit.tools.agent_chunks_hanlder import AgentChunksHandler
+from unique_toolkit.tools.factory import ToolFactory
 from unique_toolkit.tools.schemas import ToolCallResponse
 from unique_toolkit.tools.tool import Tool
 from unique_toolkit.tools.tool_progress_reporter import (
-    ToolProgressReporter,
     ProgressState,
+    ToolProgressReporter,
 )
 
-from unique_toolkit.evals.schemas import EvaluationMetricName
-
-from unique_toolkit.tools.agent_chunks_hanlder import AgentChunksHandler
-
-from unique_toolkit.tools.factory import ToolFactory
-
+from unique_internal_search.service import InternalSearchTool
+from unique_internal_search.uploaded_search.config import UploadedSearchConfig
 
 
 class UploadedSearchTool(Tool[UploadedSearchConfig]):
@@ -62,9 +57,7 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
             "InternalSearchToolInput",
             search_string=(
                 str,
-                Field(
-                    description=self._config.param_description_search_string
-                ),
+                Field(description=self._config.param_description_search_string),
             ),
             language=(
                 str,
@@ -79,20 +72,12 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
 
     def tool_description_for_system_prompt(self) -> str:
         documents = self._content_service.get_documents_uploaded_to_chat()
-        list_all_documents = "".join(
-            [f"- {doc.title or doc.key}" for doc in documents]
-        )
+        list_all_documents = "".join([f"- {doc.title or doc.key}" for doc in documents])
 
         print("whats my output do I have all I need?")
-        print(
-            self._config.tool_description_for_system_prompt
-            + list_all_documents
-        )
+        print(self._config.tool_description_for_system_prompt + list_all_documents)
 
-        return (
-            self._config.tool_description_for_system_prompt
-            + list_all_documents
-        )
+        return self._config.tool_description_for_system_prompt + list_all_documents
 
     def tool_format_information_for_system_prompt(self) -> str:
         return self._config.tool_format_information_for_system_prompt
@@ -109,9 +94,7 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
         search_string_data = ""
         if isinstance(tool_call.arguments, dict):
-            search_string_data = (
-                tool_call.arguments.get("search_string", "") or ""
-            )
+            search_string_data = tool_call.arguments.get("search_string", "") or ""
         tool_response = await self._internal_search_tool.run(tool_call)
         if self._tool_progress_reporter:
             await self._tool_progress_reporter.notify_from_tool_call(
@@ -128,10 +111,9 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
         tool_response: ToolCallResponse,
         agent_chunks_handler: AgentChunksHandler,
     ) -> LanguageModelMessage:
-        return (
-            self._internal_search_tool.get_tool_call_result_for_loop_history(
-                tool_response, agent_chunks_handler
-            )
+        return self._internal_search_tool.get_tool_call_result_for_loop_history(
+            tool_response, agent_chunks_handler
         )
+
 
 ToolFactory.register_tool(UploadedSearchTool, UploadedSearchConfig)

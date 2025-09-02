@@ -1,4 +1,5 @@
 from pydantic import Field, create_model
+from tools.factory import ToolFactory
 from unique_sdk.utils.chat_in_space import send_message_and_wait_for_completion
 
 from unique_toolkit.app import ChatEvent
@@ -22,8 +23,6 @@ from unique_toolkit.tools.tool_progress_reporter import (
     ProgressState,
     ToolProgressReporter,
 )
-
-from tools.factory import ToolFactory
 
 
 class SubAgentTool(Tool[SubAgentToolConfig]):
@@ -152,5 +151,6 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
             name=tool_response.name,
             content=tool_response.content,
         )
+
 
 ToolFactory.register_tool(SubAgentTool, SubAgentToolConfig)
