@@ -23,6 +23,8 @@ from unique_toolkit.tools.tool_progress_reporter import (
     ToolProgressReporter,
 )
 
+from tools.factory import ToolFactory
+
 
 class SubAgentTool(Tool[SubAgentToolConfig]):
     name: str = "SubAgentTool"
@@ -150,3 +152,5 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
             name=tool_response.name,
             content=tool_response.content,
         )
+
+ToolFactory.register_tool(SubAgentTool, SubAgentToolConfig)
