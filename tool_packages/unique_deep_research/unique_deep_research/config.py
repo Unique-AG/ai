@@ -6,7 +6,6 @@ from unique_toolkit.evals.schemas import EvaluationMetricName
 from unique_toolkit.language_model.infos import (
     LanguageModelInfo,
     LanguageModelName,
-    LanguageModelProvider,
 )
 from unique_toolkit.tools.schemas import BaseToolConfig
 
@@ -22,10 +21,8 @@ class OpenAIEngineConfig(BaseModel):
 
     research_model: LMI = Field(
         description="The model to use for the deep research tool. Required to be responses API compatible.",
-        default=LanguageModelInfo(
-            name="litellm:o4-mini-deep-research-2025-06-26",
-            provider=LanguageModelProvider.LITELLM,
-            version="2025-06-26",
+        default=LanguageModelInfo.from_name(
+            LanguageModelName.LITELLM_OPENAI_O4_MINI_DEEP_RESEARCH
         ),
     )
 
