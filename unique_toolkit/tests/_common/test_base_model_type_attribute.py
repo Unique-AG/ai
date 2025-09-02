@@ -40,36 +40,36 @@ class TestParameterType:
         """Test from_python_type with Annotated types."""
         # Test Annotated types with Field annotations
         assert (
-            ParameterType.from_python_type(Annotated[str, Field(description="test")])
+            ParameterType.from_python_type(Annotated[str, Field(description="test")])  # type: ignore
             == ParameterType.STRING
-        )
+        )  # type: ignore
         assert (
-            ParameterType.from_python_type(Annotated[int, Field(description="test")])
+            ParameterType.from_python_type(Annotated[int, Field(description="test")])  # type: ignore
             == ParameterType.INTEGER
         )
         assert (
-            ParameterType.from_python_type(Annotated[float, Field(description="test")])
+            ParameterType.from_python_type(Annotated[float, Field(description="test")])  # type: ignore
             == ParameterType.NUMBER
         )
         assert (
-            ParameterType.from_python_type(Annotated[bool, Field(description="test")])
+            ParameterType.from_python_type(Annotated[bool, Field(description="test")])  # type: ignore
             == ParameterType.BOOLEAN
         )
 
     def test_from_python_type_annotated_with_multiple_annotations(self):
         """Test Annotated types with multiple annotations."""
         annotated_str = Annotated[str, Field(description="test"), "extra_annotation"]
-        assert ParameterType.from_python_type(annotated_str) == ParameterType.STRING
+        assert ParameterType.from_python_type(annotated_str) == ParameterType.STRING  # type: ignore
 
     def test_from_python_type_optional_types(self):
         """Test from_python_type with Optional types."""
-        assert ParameterType.from_python_type(Optional[str]) == ParameterType.STRING
-        assert ParameterType.from_python_type(Optional[int]) == ParameterType.INTEGER
+        assert ParameterType.from_python_type(Optional[str]) == ParameterType.STRING  # type: ignore
+        assert ParameterType.from_python_type(Optional[int]) == ParameterType.INTEGER  # type: ignore
 
     def test_from_python_type_union_types(self):
         """Test from_python_type with Union types (should use first non-None type)."""
-        assert ParameterType.from_python_type(Union[str, int]) == ParameterType.STRING
-        assert ParameterType.from_python_type(Union[int, str]) == ParameterType.INTEGER
+        assert ParameterType.from_python_type(Union[str, int]) == ParameterType.STRING  # type: ignore
+        assert ParameterType.from_python_type(Union[int, str]) == ParameterType.INTEGER  # type: ignore
 
     def test_from_python_type_subclasses(self):
         """Test from_python_type with subclasses of basic types."""
@@ -100,7 +100,7 @@ class TestParameterType:
         """Test deeply nested Annotated types."""
         # Test Annotated[Optional[str], Field(...)]
         nested_type = Annotated[Optional[str], Field(description="optional string")]
-        assert ParameterType.from_python_type(nested_type) == ParameterType.STRING
+        assert ParameterType.from_python_type(nested_type) == ParameterType.STRING  # type: ignore
 
 
 class TestParameter:
@@ -154,8 +154,8 @@ class TestCreatePydanticModelFromParameterList:
 
         # Test that the model can be instantiated with required fields
         instance = model_class(name="John", age=30)
-        assert instance.name == "John"
-        assert instance.age == 30
+        assert instance.name == "John"  # type: ignore
+        assert instance.age == 30  # type: ignore
 
         # Test that missing required fields raise validation error
         with pytest.raises(Exception):  # Pydantic validation error
@@ -182,13 +182,13 @@ class TestCreatePydanticModelFromParameterList:
 
         # Test with optional field
         instance = model_class(name="John", nickname="Johnny")
-        assert instance.name == "John"
-        assert instance.nickname == "Johnny"
+        assert instance.name == "John"  # type: ignore
+        assert instance.nickname == "Johnny"  # type: ignore
 
         # Test without optional field
         instance = model_class(name="John")
-        assert instance.name == "John"
-        assert instance.nickname is None
+        assert instance.name == "John"  # type: ignore
+        assert instance.nickname is None  # type: ignore
 
     def test_create_model_all_types(self):
         """Test creating a model with all parameter types."""
@@ -227,10 +227,10 @@ class TestCreatePydanticModelFromParameterList:
             str_field="test", int_field=42, float_field=3.14, bool_field=True
         )
 
-        assert instance.str_field == "test"
-        assert instance.int_field == 42
-        assert instance.float_field == 3.14
-        assert instance.bool_field is True
+        assert instance.str_field == "test"  # type: ignore
+        assert instance.int_field == 42  # type: ignore
+        assert instance.float_field == 3.14  # type: ignore
+        assert instance.bool_field is True  # type: ignore
 
 
 class TestConvertToBaseModelType:
@@ -261,7 +261,7 @@ class TestConvertToBaseModelType:
 
         # Test that the resulting model works
         instance = result(name="test")
-        assert instance.name == "test"
+        assert instance.name == "test"  # type: ignore
 
     def test_convert_json_schema_string(self):
         """Test converting JSON schema string to BaseModel."""
@@ -440,7 +440,7 @@ class TestBaseModelTypeIntegration:
 
         # Test that the resulting model works
         instance = converted(name="test")
-        assert instance.name == "test"
+        assert instance.name == "test"  # type: ignore
 
     def test_round_trip_conversion(self):
         """Test converting a BaseModel to parameters and back."""
@@ -460,8 +460,8 @@ class TestBaseModelTypeIntegration:
         original_instance = OriginalModel(name="John", age=30)
         new_instance = new_model(name="John", age=30)
 
-        assert original_instance.name == new_instance.name
-        assert original_instance.age == new_instance.age
+        assert original_instance.name == new_instance.name  # type: ignore
+        assert original_instance.age == new_instance.age  # type: ignore
 
 
 class TestEdgeCases:
@@ -485,7 +485,7 @@ class TestEdgeCases:
 
         model_class = create_pydantic_model_from_parameter_list("TestModel", [param])
         instance = model_class(field_with_underscore="test")
-        assert instance.field_with_underscore == "test"
+        assert instance.field_with_underscore == "test"  # type: ignore
 
 
 class TestComplexScenarios:
@@ -555,15 +555,15 @@ class TestComplexScenarios:
 
         # Test with all fields
         user1 = UserModel(username="alice", age=25, verified=True)
-        assert user1.username == "alice"
-        assert user1.age == 25
-        assert user1.verified is True
+        assert user1.username == "alice"  # type: ignore
+        assert user1.age == 25  # type: ignore
+        assert user1.verified is True  # type: ignore
 
         # Test with only required fields
         user2 = UserModel(username="bob")
-        assert user2.username == "bob"
-        assert user2.age is None
-        assert user2.verified is None
+        assert user2.username == "bob"  # type: ignore
+        assert user2.age is None  # type: ignore
+        assert user2.verified is None  # type: ignore
 
 
 if __name__ == "__main__":
