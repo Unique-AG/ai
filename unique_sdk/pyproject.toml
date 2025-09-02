@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_sdk"
-version = "0.10.17"
+version = "0.10.18"
 description = ""
 authors = [
     "Martin Fadler <martin.fadler@unique.ch>",
