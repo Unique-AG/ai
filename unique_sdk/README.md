@@ -538,6 +538,69 @@ Allows you to ingest a magic table sheet, each row is processed and converted in
     unique_sdk.Content.ingest_magic_table_sheets(**params)
 ```
 
+#### `unique_sdk.Content.update` (Compatible with release >.36)
+
+Allows you to update a file specified by its `contentId` or by its `filePath`.
+
+- `contentId` optional if `filePath` is provided, the id of the file to be updated
+- `filePath` optional if `contentId` is provided, the absolute path of the file to be updated
+
+Currently, the following updates are supported:
+
+Title update:
+- `title` optional, allows updating the title of the folder
+
+Move the file to a different folder. this can be done by specifying either the `ownerId` or the `parentFolderPath`.
+- `ownerId` optional, allows moving the file to a different folder. Represents the new folder for the file and it should be the id of a folder e.g.: `scope_dhjfieurfloakmdle`. 
+- `parentFolderPath` optional, allows moving the file to a different folder. Represents the path new folder for the file. 
+
+
+Example of updating the title of a file specified by its path.
+
+```python
+unique_sdk.Content.update(
+    user_id=user_id,
+    company_id=company_id,
+    filePath="/Company/finance/january.xls",
+    title="Revision Deck"
+)
+```
+
+Example of moving a file specified by its content id.
+
+```python
+unique_sdk.Content.update(
+    user_id=user_id,
+    company_id=company_id,
+    contentId="cont_ok2343q5owbce80w78hudawu5",
+    ownerId="scope_e68yz5asho7glfh7c7d041el"
+)
+```
+
+Example of moving a file and updating its title.
+
+```python
+unique_sdk.Content.update(
+    user_id=user_id,
+    company_id=company_id,
+    contentId="cont_ok2343q5owbce80w78hudawu5",
+    ownerId="scope_e68yz5asho7glfh7c7d041el",
+    title="Revision Deck (1)"
+)
+```
+
+Example of moving a file to a folder specified by its path.
+
+```python
+unique_sdk.Content.update(
+    user_id=user_id,
+    company_id=company_id,
+    contentId="cont_ok2343q5owbce80w78hudawu5",
+    ownerId="scope_e68yz5asho7glfh7c7d041el",
+    parentFolderPath="/Company/Revisions"
+)
+```
+
 #### `unique_sdk.Content.delete` (Compatible with release >.36)
 
 Allows you to delete a file by its `contentId` or by its `filePath`. When deleting by `id`, if the file is part of a chat, the `chatId` also needs do be set. If both `contentId` and `filePath` are provided, `filePath` is ignored.
