@@ -1,7 +1,6 @@
-from typing import Any
+from typing import Annotated, Any
 
 from pydantic import BaseModel, Field
-from pydantic.json_schema import SkipJsonSchema
 
 from unique_toolkit._common.default_language_model import DEFAULT_GPT_35_TURBO
 from unique_toolkit._common.validators import LMI, get_LMI_default_field
@@ -39,7 +38,10 @@ class ChunkRelevancySortConfig(BaseModel):
         default_factory=StructuredOutputConfig,
         description="The configuration for the structured output.",
     )
-    max_tasks: int | SkipJsonSchema[None] = Field(
+    max_tasks: (
+        Annotated[int, Field(title="Limited")]
+        | Annotated[None, Field(title="Unlimited")]
+    ) = Field(
         default=1000,
         description="The maximum number of tasks to run in parallel.",
     )
