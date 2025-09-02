@@ -6,6 +6,10 @@ from typing_extensions import ParamSpec
 from unique_toolkit._common.endpoint_builder import (
     EndpointClassProtocol,
     EndpointMethods,
+    PathParamsSpec,
+    PathParamsType,
+    PayloadParamSpec,
+    PayloadType,
     ResponseType,
 )
 
@@ -27,7 +31,15 @@ class EndpointRequestorProtocol(Protocol, Generic[CombinedParamsSpec, ResponseTy
 
 
 def build_fake_requestor(
-    endpoint_type: type[EndpointClassProtocol],
+    endpoint_type: type[
+        EndpointClassProtocol[
+            PathParamsSpec,
+            PathParamsType,
+            PayloadParamSpec,
+            PayloadType,
+            ResponseType,
+        ]
+    ],
     combined_model: Callable[CombinedParamsSpec, CombinedParamsType],
     return_value: dict[str, Any],
 ) -> type[EndpointRequestorProtocol[CombinedParamsSpec, ResponseType]]:
@@ -41,13 +53,28 @@ def build_fake_requestor(
             *args: CombinedParamsSpec.args,
             **kwargs: CombinedParamsSpec.kwargs,
         ) -> ResponseType:
+            try:
+                combined_model(*args, **kwargs)
+            except Exception as e:
+                raise ValueError(
+                    f"Invalid parameters passed to combined model {combined_model.__name__}: {e}"
+                )
+
             return cls._endpoint.handle_response(return_value)
 
     return FakeRequestor
 
 
 def build_request_requestor(
-    endpoint_type: type[EndpointClassProtocol],
+    endpoint_type: type[
+        EndpointClassProtocol[
+            PathParamsSpec,
+            PathParamsType,
+            PayloadParamSpec,
+            PayloadType,
+            ResponseType,
+        ]
+    ],
     combined_model: Callable[CombinedParamsSpec, CombinedParamsType],
     return_value: dict[str, Any],
 ) -> type[EndpointRequestorProtocol]:
@@ -63,8 +90,10 @@ def build_request_requestor(
             *args: CombinedParamsSpec.args,
             **kwargs: CombinedParamsSpec.kwargs,
         ) -> ResponseType:
-            url = cls._endpoint.create_url_from_model(kwargs)
-            payload = cls._endpoint.create_payload_from_model(kwargs)
+            url = cls._endpoint.create_url_from_model(combined_model(*args, **kwargs))
+            payload = cls._endpoint.create_payload_from_model(
+                combined_model(*args, **kwargs)
+            )
 
             response = requests.request(
                 method=cls._endpoint.request_method(),
