@@ -68,7 +68,11 @@ class UniqueApi(BaseSettings):
         default="http://localhost:8092/",
         description="The base URL of the Unique API. Ask your admin to provide you with the correct URL.",
         validation_alias=AliasChoices(
-            "unique_api_base_url", "base_url", "UNIQUE_API_BASE_URL", "BASE_URL"
+            "unique_api_base_url",
+            "base_url",
+            "UNIQUE_API_BASE_URL",
+            "BASE_URL",
+            "API_BASE",
         ),
     )
     version: str = Field(
