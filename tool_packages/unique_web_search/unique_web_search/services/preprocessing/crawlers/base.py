@@ -22,7 +22,7 @@ T = TypeVar("T", bound=CrawlerType)
 class BaseCrawlerConfig(BaseModel, Generic[T]):
     model_config = get_configuration_dict()
     crawler_type: T
-    timeout: int = 60
+    timeout: int = 10
 
 
 CrawlerConfig = TypeVar(
