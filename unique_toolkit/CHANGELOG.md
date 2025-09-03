@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.46] - 2025-09-04
+- Bugfix for hostname identification inside Unique cluster in `unique_settings.py`
+
 ## [0.8.45] - 2025-09-04
 - Introduce handoff capability to tools. with the `takes_control()` function.
 
