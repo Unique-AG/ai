@@ -49,6 +49,14 @@ class Tool(ABC, Generic[ConfigType]):
         """Whether the tool is enabled or not."""
         return self.settings.is_enabled
 
+    def takes_control(self):
+        """
+        Some tools require to take control of the conversation with the user and do not want the orchestrator to intervene.
+        this function indicates whether the tool takes control or not. It yanks the control away from the orchestrator.
+        A typical use-case is deep-research. 
+        """
+        return False
+
     @abstractmethod
     def tool_description(self) -> LanguageModelToolDescription:
         raise NotImplementedError
@@ -77,6 +85,7 @@ class Tool(ABC, Generic[ConfigType]):
         You can use this if the LLM fails to follow the formatting rules.
         """
         return ""
+    
 
     @deprecated("Do not use as is bound to loop agent only")
     @abstractmethod

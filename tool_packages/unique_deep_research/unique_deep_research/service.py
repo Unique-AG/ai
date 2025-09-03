@@ -111,6 +111,17 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         self.env = Environment(loader=FileSystemLoader(str(template_dir)))
         self.execution_id = event.payload.message_execution_id
 
+
+    def takes_control(self) -> bool:
+        """
+        This tool requires taking control of the conversation from the orchestrator.
+        The DeepResearch tool performs complex, multi-step research tasks that involve
+        clarifying user intent, generating research briefs, and synthesizing information.
+        To ensure the research process is uninterrupted and properly managed, it needs
+        to take control of the conversation flow.
+        """
+        return True
+
     def is_message_execution(self) -> bool:
         """
         Check if the execution id is valid.
