@@ -19,7 +19,7 @@ pydantic-settings = "^2.10.1"
 python-dotenv = "^1.0.1"
 pytest = "^8.4.1"
 unique-sdk = "^0.10.16"
-unique-toolkit = "^0.8.44"
+unique-toolkit = "^0.8.45"
 jinja2 = "^3.1.2"
 openai = "^1.102.0"
 

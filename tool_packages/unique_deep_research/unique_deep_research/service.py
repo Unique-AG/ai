@@ -18,7 +18,6 @@ from openai.types.responses.response_stream_event import ResponseStreamEvent
 from pydantic import BaseModel, ConfigDict, Field
 from typing_extensions import override
 from unique_toolkit.app.schemas import ChatEvent
-from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.chat.schemas import (
     MessageExecutionType,
     MessageLogDetails,
@@ -102,7 +101,8 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         self.company_id = event.company_id
         self.user_id = event.user_id
 
-        self.client = get_openai_client(UniqueSettings.from_env())
+        self.client = get_openai_client()
+        self.logger.info(f"Using OpenAI client pointed to {self.client.base_url}")
 
         self.search_service = ContentService(
             company_id=self.company_id, user_id=self.user_id
@@ -159,6 +159,9 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         self.logger.info("Starting Deep Research tool run")
         # Pre research steps to clarify user intent if needed and put in the message queue
         if not self.is_message_execution():
+            self.logger.info(
+                "Not Deep Research message execution, clarifying user request"
+            )
             follow_up_questions = await self.clarify_user_request()
             if follow_up_questions.need_clarification:
                 await self.chat_service.modify_assistant_message_async(
@@ -169,6 +172,9 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                     name=self.name,
                     content=follow_up_questions.question,
                 )
+            self.logger.info(
+                "No clarification needed queuing Deep Research in message execution queue"
+            )
             # Put in the message queue and inform the user that we are starting the research
             await self.chat_service.modify_assistant_message_async(
                 content=follow_up_questions.verification,
@@ -182,6 +188,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                 name=self.name,
                 content=follow_up_questions.verification,
             )
+        self.logger.info("Deep Research message execution, running research")
 
         # Run research
         research_brief = self.generate_research_brief_from_dict(
@@ -233,6 +240,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         """
         match self.config.engine:
             case DeepResearchEngine.OPENAI:
+                self.logger.info("Running OpenAI research")
                 return await self.openai_research(research_brief)
             case _:
                 raise ValueError(f"Unsupported research engine: {self.config.engine}")
