@@ -1,3 +1,4 @@
+from enum import StrEnum
 from typing import Any, Callable, Generic, Protocol, TypeVar
 
 from pydantic import BaseModel
@@ -76,7 +77,6 @@ def build_request_requestor(
         ]
     ],
     combined_model: Callable[CombinedParamsSpec, CombinedParamsType],
-    return_value: dict[str, Any],
 ) -> type[EndpointRequestorProtocol]:
     import requests
 
@@ -104,6 +104,41 @@ def build_request_requestor(
             return cls._endpoint.handle_response(response.json())
 
     return RequestRequestor
+
+
+class RequestorType(StrEnum):
+    REQUESTS = "requests"
+    FAKE = "fake"
+
+
+def build_requestor(
+    requestor_type: RequestorType,
+    endpoint_type: type[
+        EndpointClassProtocol[
+            PathParamsSpec,
+            PathParamsType,
+            PayloadParamSpec,
+            PayloadType,
+            ResponseType,
+        ]
+    ],
+    combined_model: Callable[CombinedParamsSpec, CombinedParamsType],
+    return_value: dict[str, Any] | None = None,
+    **kwargs: Any,
+) -> type[EndpointRequestorProtocol]:
+    match requestor_type:
+        case RequestorType.REQUESTS:
+            return build_request_requestor(
+                endpoint_type=endpoint_type, combined_model=combined_model
+            )
+        case RequestorType.FAKE:
+            if return_value is None:
+                raise ValueError("return_value is required for fake requestor")
+            return build_fake_requestor(
+                endpoint_type=endpoint_type,
+                combined_model=combined_model,
+                return_value=return_value,
+            )
 
 
 if __name__ == "__main__":

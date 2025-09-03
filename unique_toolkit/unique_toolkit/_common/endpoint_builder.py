@@ -16,6 +16,8 @@ from typing import (
 
 from pydantic import BaseModel
 
+from unique_toolkit import LanguageModelToolDescription
+
 # Paramspecs
 PayloadParamSpec = ParamSpec("PayloadParamSpec")
 PathParamsSpec = ParamSpec("PathParamsSpec")
@@ -78,6 +80,11 @@ class EndpointClassProtocol(
     @staticmethod
     def request_method() -> EndpointMethods: ...
 
+    @staticmethod
+    def language_model_description(
+        name: str | None = None, description: str | None = None
+    ) -> LanguageModelToolDescription: ...
+
 
 # Model for any client to implement
 def build_endpoint_class(
@@ -88,6 +95,8 @@ def build_endpoint_class(
     payload_constructor: Callable[PayloadParamSpec, PayloadType],
     response_model_type: type[ResponseType],
     dump_options: dict | None = None,
+    endpoint_tool_name: str | None = None,
+    endpoint_tool_description: str | None = None,
 ) -> type[
     EndpointClassProtocol[
         PathParamsSpec,
@@ -172,6 +181,18 @@ def build_endpoint_class(
         @staticmethod
         def request_method() -> EndpointMethods:
             return method
+
+        @staticmethod
+        def language_model_description(
+            name: str = endpoint_tool_name or "Endpoint",
+            description: str = endpoint_tool_description
+            or f"Endpoint for {payload_model.__class__.__name__}",
+        ) -> LanguageModelToolDescription:
+            return LanguageModelToolDescription(
+                name=name,
+                description=description,
+                parameters=EndpointClass.payload_model,
+            )
 
     return EndpointClass
 
