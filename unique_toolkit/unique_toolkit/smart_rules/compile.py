@@ -1,7 +1,7 @@
 import re
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-from typing import Any, Dict, List, Self, Union
+from typing import Any, Dict, List, Mapping, Self, Union
 
 from pydantic import AliasChoices, BaseModel, Field
 from pydantic.config import ConfigDict
@@ -30,8 +30,8 @@ class BaseStatement(BaseModel):
 
     def with_variables(
         self,
-        user_metadata: Dict[str, Union[str, int, bool]],
-        tool_parameters: Dict[str, Union[str, int, bool]],
+        user_metadata: Mapping[str, Union[str, int, bool]],
+        tool_parameters: Mapping[str, Union[str, int, bool]],
     ) -> Self:
         return self._fill_in_variables(user_metadata, tool_parameters)
 
@@ -49,8 +49,8 @@ class BaseStatement(BaseModel):
 
     def _fill_in_variables(
         self,
-        user_metadata: Dict[str, Union[str, int, bool]],
-        tool_parameters: Dict[str, Union[str, int, bool]],
+        user_metadata: Mapping[str, Union[str, int, bool]],
+        tool_parameters: Mapping[str, Union[str, int, bool]],
     ) -> Self:
         return self.model_copy()
 
@@ -62,8 +62,8 @@ class Statement(BaseStatement):
 
     def _fill_in_variables(
         self,
-        user_metadata: Dict[str, Union[str, int, bool]],
-        tool_parameters: Dict[str, Union[str, int, bool]],
+        user_metadata: Mapping[str, Union[str, int, bool]],
+        tool_parameters: Mapping[str, Union[str, int, bool]],
     ) -> Self:
         new_stmt = self.model_copy()
         new_stmt.value = eval_operator(self, user_metadata, tool_parameters)
@@ -72,13 +72,13 @@ class Statement(BaseStatement):
 
 class AndStatement(BaseStatement):
     and_list: List[Union["Statement", "AndStatement", "OrStatement"]] = Field(
-        alias="and", validation_alias=AliasChoices("and", "and_list")
+        validation_alias=AliasChoices("and", "and_list"), serialization_alias="and"
     )
 
     def _fill_in_variables(
         self,
-        user_metadata: Dict[str, Union[str, int, bool]],
-        tool_parameters: Dict[str, Union[str, int, bool]],
+        user_metadata: Mapping[str, Union[str, int, bool]],
+        tool_parameters: Mapping[str, Union[str, int, bool]],
     ) -> Self:
         new_stmt = self.model_copy()
         new_stmt.and_list = [
@@ -90,13 +90,13 @@ class AndStatement(BaseStatement):
 
 class OrStatement(BaseStatement):
     or_list: List[Union["Statement", "AndStatement", "OrStatement"]] = Field(
-        alias="or", validation_alias=AliasChoices("or", "or_list")
+        validation_alias=AliasChoices("or", "or_list"), serialization_alias="or"
     )
 
     def _fill_in_variables(
         self,
-        user_metadata: Dict[str, Union[str, int, bool]],
-        tool_parameters: Dict[str, Union[str, int, bool]],
+        user_metadata: Mapping[str, Union[str, int, bool]],
+        tool_parameters: Mapping[str, Union[str, int, bool]],
     ) -> Self:
         new_stmt = self.model_copy()
         new_stmt.or_list = [
@@ -121,8 +121,8 @@ def is_array_of_strings(value: Any) -> bool:
 
 def eval_operator(
     query: Statement,
-    user_metadata: Dict[str, Union[str, int, bool]],
-    tool_parameters: Dict[str, Union[str, int, bool]],
+    user_metadata: Mapping[str, Union[str, int, bool]],
+    tool_parameters: Mapping[str, Union[str, int, bool]],
 ) -> Any:
     if query.operator in [
         Operator.EQUALS,
@@ -149,8 +149,8 @@ def eval_operator(
 
 def eval_nested_operator(
     value: Any,
-    user_metadata: Dict[str, Union[str, int, bool]],
-    tool_parameters: Dict[str, Union[str, int, bool]],
+    user_metadata: Mapping[str, Union[str, int, bool]],
+    tool_parameters: Mapping[str, Union[str, int, bool]],
 ) -> Union[AndStatement, OrStatement]:
     if not isinstance(value, (AndStatement, OrStatement)):
         raise ValueError("Nested operator must be an AndStatement or OrStatement")
@@ -159,16 +159,16 @@ def eval_nested_operator(
 
 def binary_operator(
     value: Any,
-    user_metadata: Dict[str, Union[str, int, bool]],
-    tool_parameters: Dict[str, Union[str, int, bool]],
+    user_metadata: Mapping[str, Union[str, int, bool]],
+    tool_parameters: Mapping[str, Union[str, int, bool]],
 ) -> Any:
     return replace_variables(value, user_metadata, tool_parameters)
 
 
 def array_operator(
     value: Any,
-    user_metadata: Dict[str, Union[str, int, bool]],
-    tool_parameters: Dict[str, Union[str, int, bool]],
+    user_metadata: Mapping[str, Union[str, int, bool]],
+    tool_parameters: Mapping[str, Union[str, int, bool]],
 ) -> Any:
     if is_array_of_strings(value):
         return [
@@ -179,16 +179,16 @@ def array_operator(
 
 def null_operator(
     value: Any,
-    user_metadata: Dict[str, Union[str, int, bool]],
-    tool_parameters: Dict[str, Union[str, int, bool]],
+    user_metadata: Mapping[str, Union[str, int, bool]],
+    tool_parameters: Mapping[str, Union[str, int, bool]],
 ) -> Any:
     return value  # do nothing for now. No variables to replace
 
 
 def empty_operator(
     operator: Operator,
-    user_metadata: Dict[str, Union[str, int, bool]],
-    tool_parameters: Dict[str, Union[str, int, bool]],
+    user_metadata: Mapping[str, Union[str, int, bool]],
+    tool_parameters: Mapping[str, Union[str, int, bool]],
 ) -> Any:
     """Handle IS_EMPTY and IS_NOT_EMPTY operators."""
     if operator == Operator.IS_EMPTY:
@@ -225,8 +225,8 @@ def calculate_later_date(input_str: str) -> str:
 
 def replace_variables(
     value: Any,
-    user_metadata: Dict[str, Union[str, int, bool]],
-    tool_parameters: Dict[str, Union[str, int, bool]],
+    user_metadata: Mapping[str, Union[str, int, bool]],
+    tool_parameters: Mapping[str, Union[str, int, bool]],
 ) -> Any:
     if isinstance(value, str):
         if "||" in value:
@@ -274,8 +274,8 @@ def replace_user_metadata_patterns(
 
 def get_fallback_values(
     value: str,
-    user_metadata: Dict[str, Union[str, int, bool]],
-    tool_parameters: Dict[str, Union[str, int, bool]],
+    user_metadata: Mapping[str, Union[str, int, bool]],
+    tool_parameters: Mapping[str, Union[str, int, bool]],
 ) -> Any:
     values = value.split("||")
     for val in values:

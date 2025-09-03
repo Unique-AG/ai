@@ -469,13 +469,19 @@ def test_immutable_complex_statements():
     assert complex_filter2 is not base_complex
 
     # Verify they have different values
+    assert isinstance(complex_filter1.and_list[0], Statement)
     assert complex_filter1.and_list[0].value == "John"
+    assert isinstance(complex_filter1.and_list[1], Statement)
     assert complex_filter1.and_list[1].value == 100
+    assert isinstance(complex_filter2.and_list[0], Statement)
     assert complex_filter2.and_list[0].value == "Jane"
+    assert isinstance(complex_filter2.and_list[1], Statement)
     assert complex_filter2.and_list[1].value == 200
 
     # Verify the original complex statement is unchanged
+    assert isinstance(base_complex.and_list[0], Statement)
     assert base_complex.and_list[0].value == "<userMetadata.name>"
+    assert isinstance(base_complex.and_list[1], Statement)
     assert base_complex.and_list[1].value == "<userMetadata.score>"
 
 
@@ -543,6 +549,8 @@ def test_parse_uniqueql_nested_statement():
     assert isinstance(result.and_list[1], OrStatement)
     assert result.and_list[0].operator == Operator.EQUALS
     assert len(result.and_list[1].or_list) == 2
+    assert isinstance(result.and_list[1].or_list[0], Statement)
+    assert isinstance(result.and_list[1].or_list[1], Statement)
     assert result.and_list[1].or_list[0].operator == Operator.GREATER_THAN
     assert result.and_list[1].or_list[1].operator == Operator.LESS_THAN
 
