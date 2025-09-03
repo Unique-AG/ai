@@ -164,7 +164,7 @@ class ToolManager:
     def get_tool_prompts(self) -> list[ToolPrompts]:
         return [tool.get_tool_prompts() for tool in self._tools]
 
-    def does_a_tool_take_control(self,tool_calls: list[LanguageModelFunction]) -> bool:
+    def does_a_tool_take_control(self, tool_calls: list[LanguageModelFunction]) -> bool:
         for tool_call in tool_calls:
             tool_instance = self.get_tool_by_name(tool_call.name)
             if tool_instance and tool_instance.takes_control():
