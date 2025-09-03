@@ -77,7 +77,7 @@ def build_request_requestor(
         ]
     ],
     combined_model: Callable[CombinedParamsSpec, CombinedParamsType],
-) -> type[EndpointRequestorProtocol]:
+) -> type[EndpointRequestorProtocol[CombinedParamsSpec, ResponseType]]:
     import requests
 
     class RequestRequestor(EndpointRequestorProtocol):
@@ -178,6 +178,16 @@ if __name__ == "__main__":
         headers={"a": "b"},
         user_id=123,
         include_profile=True,
+    )
+
+    RequestRequstor = build_request_requestor(
+        endpoint_type=UserEndpoint,
+        combined_model=CombinedParams,
+    )
+
+    # Check type hints
+    response = RequestRequstor().request(
+        headers={"a": "b"}, user_id=123, include_profile=True
     )
 
     print(response.model_dump())
