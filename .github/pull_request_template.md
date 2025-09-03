@@ -1,18 +1,18 @@
 ## 🚀 Summary
-Refs: _link to or id of ticket_
+<!--Refs: _link to or id of ticket_
 
 Briefly describe the changes introduced in this PR.
-
+-->
 ## ✅ Changes
-
+<!--
 - [ ] Added feature / fixed bug / updated docs
 - [ ] Refactored code / cleaned up
 - [ ] Other (describe below)
-
+-->
 ## 🧪 Testing
 
 Explain what has been tested and how.
-
+<!--
 ## ⛙ Merging workflow
 Once you have finished developing your feature and done **all** the testing listed above you can perform the process below
 
@@ -22,3 +22,4 @@ Once you have finished developing your feature and done **all** the testing list
 4. Merge PR
 5. Confirm publish action to PyPI succeeds
 6. _Unique employees only: perform testing against monorepo and sync versions_
+-->
