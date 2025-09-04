@@ -396,7 +396,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                                     data=[
                                         MessageLogEvent(
                                             type="WebSearch",
-                                            text=event.item.action.query,
+                                            text=event.item.action.query or "",
                                         )
                                     ],
                                 ),
