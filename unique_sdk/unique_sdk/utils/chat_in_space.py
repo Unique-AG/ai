@@ -17,7 +17,9 @@ async def send_message_and_wait_for_completion(
     chat_id: str = None,
     poll_interval: float = 1.0,
     max_wait: float = 60.0,
-    stopping_condition: Literal["stoppedStreamingAt", "completedAt"] = "stoppedStreamingAt",
+    stopping_condition: Literal[
+        "stoppedStreamingAt", "completedAt"
+    ] = "stoppedStreamingAt",
 ) -> "Space.Message":
     """
     Sends a prompt asynchronously and polls for completion. (until stoppedStreamingAt is not None)
@@ -51,12 +53,14 @@ async def send_message_and_wait_for_completion(
         answer = Space.get_latest_message(user_id, company_id, chat_id)
         if answer.get(stopping_condition) is not None:
             try:
-                user_message = Message.retrieve(user_id, company_id, message_id, chatId=chat_id)
+                user_message = Message.retrieve(
+                    user_id, company_id, message_id, chatId=chat_id
+                )
                 debug_info = user_message.get("debugInfo")
                 answer["debugInfo"] = debug_info
             except Exception as e:
                 print(f"Failed to load debug info from user message: {e}")
-                
+
             return answer
         await asyncio.sleep(poll_interval)
 
