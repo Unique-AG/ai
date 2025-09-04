@@ -1,6 +1,11 @@
 import logging
+from typing import Unpack
 
+import unique_sdk
 from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
+from openai.types.responses import (
+    ResponseInputParam,
+)
 from typing_extensions import deprecated
 
 from unique_toolkit.app.schemas import ChatEvent, Event
@@ -27,6 +32,10 @@ from unique_toolkit.chat.functions import (
     modify_message_assessment,
     modify_message_assessment_async,
     modify_message_async,
+    stream_complete_with_references,
+    stream_complete_with_references_async,
+    stream_responses_with_references,
+    stream_responses_with_references_async,
     update_message_execution,
     update_message_execution_async,
     update_message_log,
@@ -61,11 +70,6 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelStreamResponse,
     LanguageModelTool,
     LanguageModelToolDescription,
-)
-
-from .functions import (
-    stream_complete_with_references,
-    stream_complete_with_references_async,
 )
 
 logger = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
@@ -1628,3 +1632,51 @@ class ChatService:
         )
 
         return LanguageModelResponse.from_stream_response(await response)
+
+    def complete_responses_with_references(
+        self,
+        model_name: LanguageModelName | str,
+        content_chunks: list[ContentChunk] | None,
+        input: "str| ResponseInputParam",
+        debug_info: dict | None = None,
+        start_text: str | None = None,
+        **options: Unpack[unique_sdk.Integrated.CreateStreamResponsesOpenaiParams],
+    ) -> unique_sdk.Integrated.ResponsesStreamResult:
+        return stream_responses_with_references(
+            company_id=self._company_id,
+            user_id=self._user_id,
+            assistant_message_id=self._assistant_message_id,
+            user_message_id=self._user_message_id,
+            chat_id=self._chat_id,
+            assistant_id=self._assistant_id,
+            model_name=model_name,
+            input=input,
+            content_chunks=content_chunks,
+            debug_info=debug_info,
+            start_text=start_text,
+            **options,
+        )
+
+    async def complete_responses_with_references_async(
+        self,
+        model_name: LanguageModelName | str,
+        input: "str| ResponseInputParam",
+        content_chunks: list[ContentChunk] | None,
+        debug_info: dict | None = None,
+        start_text: str | None = None,
+        **options: Unpack[unique_sdk.Integrated.CreateStreamResponsesOpenaiParams],
+    ) -> unique_sdk.Integrated.ResponsesStreamResult:
+        return await stream_responses_with_references_async(
+            company_id=self._company_id,
+            user_id=self._user_id,
+            assistant_message_id=self._assistant_message_id,
+            user_message_id=self._user_message_id,
+            chat_id=self._chat_id,
+            assistant_id=self._assistant_id,
+            input=input,
+            model_name=model_name,
+            content_chunks=content_chunks,
+            debug_info=debug_info,
+            start_text=start_text,
+            **options,
+        )
