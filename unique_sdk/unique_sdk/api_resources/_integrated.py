@@ -1,15 +1,29 @@
 from typing import (
+    TYPE_CHECKING,
     Any,
     ClassVar,
-    Dict,
     List,
     Literal,
+    NotRequired,
     Optional,
-    TypedDict,
+    Union,
+    Unpack,
     cast,
 )
 
-from typing_extensions import NotRequired, Unpack
+from typing_extensions import TypedDict
+
+# Avoid introducing a dependency on the openai sdk as it's only used for type hints
+if TYPE_CHECKING:
+    from openai.types.responses import (
+        ResponseIncludable,
+        ResponseInputParam,
+        ResponseOutputItem,
+        ResponseTextConfigParam,
+        ToolParam,
+        response_create_params,
+    )
+    from openai.types.shared_params import Metadata, Reasoning
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
@@ -35,63 +49,49 @@ class Integrated(APIResource["Integrated"]):
         content: str
         name: Optional[str]
 
-    class CreateStream(RequestOptions):
-        model: NotRequired[
-            Literal[
-                "AZURE_GPT_4_0613",
-                "AZURE_GPT_4_32K_0613",
-            ]
-        ]
-        timeout: NotRequired["int"]
-        messages: List["Integrated.ChatCompletionRequestMessage"]
+    class CommonIntegratedParams(RequestOptions):
+        model: NotRequired[str]
         searchContext: NotRequired[List["Integrated.SearchResult"]]
         chatId: str
         assistantId: str
         assistantMessageId: str
         userMessageId: str
         startText: NotRequired["str"]
-        debugInfo: NotRequired[Dict[str, Any]]
+        debugInfo: NotRequired[dict[str, Any]]
+
+    class CreateStream(CommonIntegratedParams):
+        timeout: NotRequired["int"]
+        messages: List["Integrated.ChatCompletionRequestMessage"]
 
     # For further details about the responses parameters, see the OpenAI API documentation.
-    class CreateStreamResponseParams(TypedDict):
-        debugInfo: Optional[Dict[str, Any]] = None
-        input: Any
-        model: str
-        searchContext: Optional[List["Integrated.SearchResult"]] = None
-        chatId: str
-        assistantMessageId: str
-        userMessageId: str
-        startText: str | None = None
-        include: Optional[
-            list[
-                Literal[
-                    "computer_call_output.output.image_url",
-                    "file_search_call.results",
-                    "message.input_image.image_url",
-                    "reasoning.encrypted_content",
-                ]
-            ]
-        ] = None
-        instructions: str | None = None
-        max_output_tokens: int | None = None
-        metadata: Optional[Dict[str, str]] = None
-        parallel_tool_calls: float | None = None
-        temperature: float | None = None
-        text: Any
-        tool_choice: Any
-        tools: Any
-        top_p: float | None = None
-        reasoning: Any
+    # Note that other parameters from openai.resources.responses.Response.create can be passed
+    class CreateStreamResponsesOpenaiParams(TypedDict):
+        include: NotRequired[list["ResponseIncludable"] | None]
+        instructions: NotRequired[str | None]
+        max_output_tokens: NotRequired[int | None]
+        metadata: NotRequired[Union["Metadata", None]]
+        parallel_tool_calls: NotRequired[bool | None]
+        temperature: NotRequired[float | None]
+        text: NotRequired["ResponseTextConfigParam"]
+        tool_choice: NotRequired["response_create_params.ToolChoice"]
+        tools: NotRequired[list["ToolParam"]]
+        top_p: NotRequired[float | None]
+        reasoning: NotRequired["Reasoning"]
+
+    class CreateStreamResponsesParams(CommonIntegratedParams):
+        input: Union[str, "ResponseInputParam"]
+        options: NotRequired["Integrated.CreateStreamResponsesOpenaiParams"]
 
     class ToolCall(TypedDict):
         id: str
-        name: str | None = None
-        arguments: str | None = None
+        name: str | None
+        arguments: str | None
 
     class ResponsesStreamResult(TypedDict):
         id: str
         message: Message
         toolCalls: List["Integrated.ToolCall"]
+        output: list["ResponseOutputItem"]
 
     @classmethod
     def chat_stream_completion(
@@ -146,7 +146,7 @@ class Integrated(APIResource["Integrated"]):
         cls,
         user_id: str,
         company_id: str,
-        **params: Unpack["Integrated.CreateStreamResponseParams"],
+        **params: Unpack["Integrated.CreateStreamResponsesParams"],
     ) -> "Integrated.ResponsesStreamResult":
         """
         Executes a call to the language model and streams to the chat in real-time.
@@ -154,7 +154,7 @@ class Integrated(APIResource["Integrated"]):
         In the form of [sourceX]. The reference documents must be given as a list in searchContext.
         """
         return cast(
-            "Integrated.Responses",
+            "Integrated.ResponsesStreamResult",
             cls._static_request(
                 "post",
                 "/integrated/chat/stream-responses",
@@ -169,7 +169,7 @@ class Integrated(APIResource["Integrated"]):
         cls,
         user_id: str,
         company_id: str,
-        **params: Unpack["Integrated.CreateStreamResponseParams"],
+        **params: Unpack["Integrated.CreateStreamResponsesParams"],
     ) -> "Integrated.ResponsesStreamResult":
         """
         Executes a call to the language model and streams to the chat in real-time.
@@ -177,7 +177,7 @@ class Integrated(APIResource["Integrated"]):
         In the form of [sourceX]. The reference documents must be given as a list in searchContext.
         """
         return cast(
-            "Integrated.Responses",
+            "Integrated.ResponsesStreamResult",
             cls._static_request(
                 "post",
                 "/integrated/chat/stream-responses",
