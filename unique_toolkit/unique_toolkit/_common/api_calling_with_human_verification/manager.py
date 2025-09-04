@@ -4,7 +4,7 @@ from logging import Logger
 from typing import Any, Generic
 
 import jinja2
-from pydantic import BaseModel, create_model
+from pydantic import BaseModel, ConfigDict, create_model
 from pydantic_core import PydanticUndefined
 
 from unique_toolkit._common.endpoint_builder import (
@@ -68,7 +68,9 @@ class HumanVerificationManagerForEndpointCalling(
             default = field.default if field.default is not PydanticUndefined else ...
             fields[name] = (field.annotation, default)
 
-        CombinedModel = create_model("CombinedModel", **fields)
+        CombinedModel = create_model(
+            "CombinedModel", __config__=ConfigDict(extra="forbid"), **fields
+        )
         return CombinedModel
 
     def __init__(
@@ -119,7 +121,9 @@ class HumanVerificationManagerForEndpointCalling(
         for user_message_dict in user_message_dicts:
             try:
                 # Convert dict to payload model first, then create payload
-                api_call = self._api_call_model.model_validate(user_message_dict)
+                api_call = self._api_call_model.model_validate(
+                    user_message_dict, by_alias=True, by_name=True
+                )
                 if self._verify_human_verification(
                     api_call.confirmation, last_assistant_message
                 ):
