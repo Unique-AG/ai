@@ -172,7 +172,12 @@ def _add_tools_to_options(
     return options
 
 
-def _to_search_context(chunks: list[ContentChunk]) -> dict | None:
+SearchContext = list[unique_sdk.Integrated.SearchResult]
+
+
+def _to_search_context(
+    chunks: list[ContentChunk],
+) -> SearchContext | None:
     if not chunks:
         return None
     return [
@@ -216,7 +221,7 @@ def _prepare_completion_params_util(
     content_chunks: list[ContentChunk] | None = None,
     structured_output_model: type[BaseModel] | None = None,
     structured_output_enforce_schema: bool = False,
-) -> tuple[dict, str, dict, dict | None]:
+) -> tuple[dict, str, dict, SearchContext | None]:
     """Prepare common parameters for completion requests.
 
     Returns
@@ -264,7 +269,7 @@ def _prepare_openai_completion_params_util(
     content_chunks: list[ContentChunk] | None = None,
     structured_output_model: type[BaseModel] | None = None,
     structured_output_enforce_schema: bool = False,
-) -> tuple[dict, str, dict | None]:
+) -> tuple[dict, str, SearchContext | None]:
     """Prepare common parameters for completion requests.
 
     Returns
@@ -339,7 +344,7 @@ def _prepare_all_completions_params_util(
     dict,
     str,
     list[unique_sdk.Integrated.ChatCompletionRequestMessage],
-    dict | None,
+    SearchContext | None,
 ]:
     model_info = None
     if isinstance(model_name, LanguageModelName):
@@ -495,3 +500,23 @@ def _create_language_model_stream_response_with_references(
         message=stream_response_message,
         tool_calls=tool_calls,
     )
+
+
+def _prepare_responses_params_util(
+    model_name: LanguageModelName | str,
+    content_chunks: list[ContentChunk] | None,
+    temperature: float | None,
+) -> tuple[float | None, str, list[unique_sdk.Integrated.SearchResult] | None]:
+    search_context = (
+        _to_search_context(content_chunks) if content_chunks is not None else None
+    )
+
+    model = model_name.name if isinstance(model_name, LanguageModelName) else model_name
+
+    if isinstance(model_name, LanguageModelName):
+        model_info = LanguageModelInfo.from_name(model_name)
+
+        if model_info.temperature_bounds is not None and temperature is not None:
+            temperature = _clamp_temperature(temperature, model_info.temperature_bounds)
+
+    return temperature, model, search_context
