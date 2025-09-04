@@ -21,6 +21,7 @@ from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.chat.schemas import (
     MessageExecutionType,
     MessageLogDetails,
+    MessageLogEvent,
     MessageLogStatus,
     MessageLogUncitedReferences,
 )
@@ -110,7 +111,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         template_dir = Path(__file__).parent / "templates"
         self.env = Environment(loader=FileSystemLoader(str(template_dir)))
         self.execution_id = event.payload.message_execution_id
-
+        self.message_log_idx = 0
 
     def takes_control(self) -> bool:
         """
@@ -155,13 +156,16 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             return []
         return evaluation_check_list
 
+    def get_and_increment_message_log_idx(self) -> int:
+        idx = self.message_log_idx
+        self.message_log_idx += 1
+        return idx
+
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
         self.logger.info("Starting Deep Research tool run")
         # Pre research steps to clarify user intent if needed and put in the message queue
         if not self.is_message_execution():
-            self.logger.info(
-                "Not Deep Research message execution, clarifying user request"
-            )
+            self.logger.info("Determining if we need to clarify user request")
             follow_up_questions = await self.clarify_user_request()
             if follow_up_questions.need_clarification:
                 await self.chat_service.modify_assistant_message_async(
@@ -173,7 +177,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                     content=follow_up_questions.question,
                 )
             self.logger.info(
-                "No clarification needed queuing Deep Research in message execution queue"
+                "No clarification needed. Queuing Deep Research in message execution queue"
             )
             # Put in the message queue and inform the user that we are starting the research
             await self.chat_service.modify_assistant_message_async(
@@ -183,14 +187,15 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                 message_id=self.event.payload.assistant_message.id,
                 type=MessageExecutionType.DEEP_RESEARCH,
             )
+            self.write_message_log_text_message("Waiting for deep research to start...")
             return DeepResearchToolResponse(
                 id=tool_call.id or "",
                 name=self.name,
                 content=follow_up_questions.verification,
             )
-        self.logger.info("Deep Research message execution, running research")
-
+        self.logger.info("Starting research")
         # Run research
+        self.write_message_log_text_message("Generating research plan...")
         research_brief = self.generate_research_brief_from_dict(
             self.get_history_messages_for_research_brief()
         )
@@ -208,6 +213,20 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             name=self.name,
             content=processed_result,
             content_chunks=content_chunks,
+        )
+
+    def write_message_log_text_message(self, text: str):
+        self.chat_service.create_message_log(
+            message_id=self.event.payload.assistant_message.id,
+            text=text,
+            status=MessageLogStatus.COMPLETED,
+            order=self.get_and_increment_message_log_idx(),
+            details=MessageLogDetails(
+                data=[],
+            ),
+            uncited_references=MessageLogUncitedReferences(
+                data=[],
+            ),
         )
 
     def get_history_messages_for_research_brief(self) -> list[dict[str, str]]:
@@ -318,7 +337,6 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         """
         # This index will have gaps on order in the database as we don't track all events
         # Sorted it will give the correct order of the logs
-        idx = 0
         for event in stream:
             match event.type:
                 case "response.completed":
@@ -356,7 +374,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                                 message_id=self.event.payload.assistant_message.id,
                                 text=summary.text,
                                 status=MessageLogStatus.COMPLETED,
-                                order=idx,
+                                order=self.get_and_increment_message_log_idx(),
                                 uncited_references=MessageLogUncitedReferences(
                                     data=[],
                                 ),
@@ -368,24 +386,37 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                         if isinstance(event.item.action, ActionSearch):
                             self.chat_service.create_message_log(
                                 message_id=self.event.payload.assistant_message.id,
-                                text=f"WebSearch: {event.item.action.query}",
+                                text="Searching the web",
                                 status=MessageLogStatus.COMPLETED,
-                                order=idx,
+                                order=self.get_and_increment_message_log_idx(),
                                 uncited_references=MessageLogUncitedReferences(
                                     data=[],
                                 ),
                                 details=MessageLogDetails(
-                                    data=[],
+                                    data=[
+                                        MessageLogEvent(
+                                            type="WebSearch",
+                                            text=event.item.action.query,
+                                        )
+                                    ],
                                 ),
                             )
                         elif isinstance(event.item.action, ActionOpenPage):
                             self.chat_service.create_message_log(
                                 message_id=self.event.payload.assistant_message.id,
-                                text=f"ReadWebPage: {event.item.action.url}",
+                                text="Reviewing Web Sources",
                                 status=MessageLogStatus.COMPLETED,
-                                order=idx,
+                                order=self.get_and_increment_message_log_idx(),
                                 uncited_references=MessageLogUncitedReferences(
-                                    data=[],
+                                    data=[
+                                        ContentReference(
+                                            name=event.item.action.url,
+                                            url=event.item.action.url,
+                                            sequence_number=0,
+                                            source="deep-research-citations",
+                                            source_id=event.item.action.url,
+                                        )
+                                    ],
                                 ),
                                 details=MessageLogDetails(
                                     data=[],
@@ -396,7 +427,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                         message_id=self.event.payload.assistant_message.id,
                         text=f"Failed to complete research: {event.response.error}",
                         status=MessageLogStatus.FAILED,
-                        order=idx,
+                        order=self.get_and_increment_message_log_idx(),
                         uncited_references=MessageLogUncitedReferences(
                             data=[],
                         ),
@@ -406,7 +437,6 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                     )
                     if event.response.error:
                         return event.response.error.message, []
-            idx += 1
 
         self.logger.warning("Stream ended without completion")
         return "", []
