@@ -1,8 +1,9 @@
 import logging
 import re
-from typing import Any
+from typing import Any, Unpack
 
 import unique_sdk
+from openai.types.responses import ResponseInputParam
 from typing_extensions import deprecated
 from unique_sdk._list_object import ListObject
 
@@ -32,6 +33,7 @@ from unique_toolkit.language_model.constants import (
 from unique_toolkit.language_model.functions import (
     ChatCompletionMessageParam,
     _prepare_all_completions_params_util,
+    _prepare_responses_params_util,
 )
 from unique_toolkit.language_model.infos import LanguageModelName
 from unique_toolkit.language_model.schemas import (
@@ -1354,3 +1356,87 @@ async def update_message_execution_async(
     except Exception as e:
         logger.error(f"Failed to update message execution: {e}")
         raise e
+
+
+def stream_responses_with_references(
+    company_id: str,
+    user_id: str,
+    assistant_message_id: str,
+    user_message_id: str,
+    chat_id: str,
+    assistant_id: str,
+    model_name: LanguageModelName | str,
+    input: "str| ResponseInputParam",
+    content_chunks: list[ContentChunk] | None,
+    debug_info: dict | None = None,
+    start_text: str | None = None,
+    **options: Unpack[unique_sdk.Integrated.CreateStreamResponsesOpenaiParams],
+) -> unique_sdk.Integrated.ResponsesStreamResult:
+    temperature, model, search_context = _prepare_responses_params_util(
+        model_name=model_name,
+        content_chunks=content_chunks,
+        temperature=options.get("temperature", DEFAULT_COMPLETE_TEMPERATURE),
+    )
+    options["temperature"] = temperature
+    all_kwargs = {}
+    if search_context is not None:
+        all_kwargs["searchContext"] = search_context
+    if debug_info is not None:
+        all_kwargs["debugInfo"] = debug_info
+    if start_text is not None:
+        all_kwargs["startText"] = start_text
+    all_kwargs["options"] = options
+
+    return unique_sdk.Integrated.responses_stream(
+        user_id=user_id,
+        company_id=company_id,
+        input=input,
+        model=model,
+        assistantId=assistant_id,
+        assistantMessageId=assistant_message_id,
+        userMessageId=user_message_id,
+        chatId=chat_id,
+        **all_kwargs,
+    )
+
+
+async def stream_responses_with_references_async(
+    company_id: str,
+    user_id: str,
+    assistant_message_id: str,
+    user_message_id: str,
+    chat_id: str,
+    assistant_id: str,
+    model_name: LanguageModelName | str,
+    input: "str| ResponseInputParam",
+    content_chunks: list[ContentChunk] | None,
+    debug_info: dict | None = None,
+    start_text: str | None = None,
+    **options: Unpack[unique_sdk.Integrated.CreateStreamResponsesOpenaiParams],
+) -> unique_sdk.Integrated.ResponsesStreamResult:
+    temperature, model, search_context = _prepare_responses_params_util(
+        model_name=model_name,
+        content_chunks=content_chunks,
+        temperature=options.get("temperature", DEFAULT_COMPLETE_TEMPERATURE),
+    )
+    options["temperature"] = temperature
+    all_kwargs = {}
+    if search_context is not None:
+        all_kwargs["searchContext"] = search_context
+    if debug_info is not None:
+        all_kwargs["debugInfo"] = debug_info
+    if start_text is not None:
+        all_kwargs["startText"] = start_text
+    all_kwargs["options"] = options
+
+    return await unique_sdk.Integrated.responses_stream_async(
+        user_id=user_id,
+        company_id=company_id,
+        input=input,
+        model=model,
+        assistantId=assistant_id,
+        assistantMessageId=assistant_message_id,
+        userMessageId=user_message_id,
+        chatId=chat_id,
+        **all_kwargs,
+    )
