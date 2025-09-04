@@ -1,7 +1,8 @@
 import asyncio
-from typing import List
+from typing import List, Literal
 
 from unique_sdk.api_resources._content import Content
+from unique_sdk.api_resources._message import Message
 from unique_sdk.api_resources._space import Space
 from unique_sdk.utils.file_io import upload_file
 
@@ -16,6 +17,7 @@ async def send_message_and_wait_for_completion(
     chat_id: str = None,
     poll_interval: float = 1.0,
     max_wait: float = 60.0,
+    stop_condition: Literal["stoppedStreamingAt", "completedAt"] = "stoppedStreamingAt",
 ) -> "Space.Message":
     """
     Sends a prompt asynchronously and polls for completion. (until stoppedStreamingAt is not None)
@@ -27,6 +29,7 @@ async def send_message_and_wait_for_completion(
         text: The prompt text.
         poll_interval: Seconds between polls.
         max_wait: Maximum seconds to wait for completion.
+        stop_condition: Defines when to expect a response back, when the assistant stop streaming or when it completes the message. (default: "stoppedStreamingAt")
         **kwargs: Additional parameters for the prompt.
 
     Returns:
@@ -42,11 +45,21 @@ async def send_message_and_wait_for_completion(
         scopeRules=scope_rules,
     )
     chat_id = response.get("chatId")
+    message_id = response.get("id")
 
     max_attempts = int(max_wait // poll_interval)
     for _ in range(max_attempts):
         answer = Space.get_latest_message(user_id, company_id, chat_id)
-        if answer.get("stoppedStreamingAt") is not None:
+        if answer.get(stop_condition) is not None:
+            try:
+                user_message = Message.retrieve(
+                    user_id, company_id, message_id, chatId=chat_id
+                )
+                debug_info = user_message.get("debugInfo")
+                answer["debugInfo"] = debug_info
+            except Exception as e:
+                print(f"Failed to load debug info from user message: {e}")
+
             return answer
         await asyncio.sleep(poll_interval)
 
