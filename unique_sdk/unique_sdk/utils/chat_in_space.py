@@ -17,9 +17,7 @@ async def send_message_and_wait_for_completion(
     chat_id: str = None,
     poll_interval: float = 1.0,
     max_wait: float = 60.0,
-    stopping_condition: Literal[
-        "stoppedStreamingAt", "completedAt"
-    ] = "stoppedStreamingAt",
+    stop_condition: Literal["stoppedStreamingAt", "completedAt"] = "stoppedStreamingAt",
 ) -> "Space.Message":
     """
     Sends a prompt asynchronously and polls for completion. (until stoppedStreamingAt is not None)
@@ -51,7 +49,7 @@ async def send_message_and_wait_for_completion(
     max_attempts = int(max_wait // poll_interval)
     for _ in range(max_attempts):
         answer = Space.get_latest_message(user_id, company_id, chat_id)
-        if answer.get(stopping_condition) is not None:
+        if answer.get(stop_condition) is not None:
             try:
                 user_message = Message.retrieve(
                     user_id, company_id, message_id, chatId=chat_id
