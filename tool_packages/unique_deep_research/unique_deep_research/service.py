@@ -383,9 +383,8 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                                 ),
                             )
                     elif isinstance(event.item, ResponseFunctionWebSearch):
-                        if (
-                            isinstance(event.item.action, ActionSearch)
-                            and event.item.action.query
+                        if isinstance(event.item.action, ActionSearch) and isinstance(
+                            event.item.action.query, str
                         ):
                             self.chat_service.create_message_log(
                                 message_id=self.event.payload.assistant_message.id,
