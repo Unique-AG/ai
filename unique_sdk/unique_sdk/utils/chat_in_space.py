@@ -50,9 +50,13 @@ async def send_message_and_wait_for_completion(
     for _ in range(max_attempts):
         answer = Space.get_latest_message(user_id, company_id, chat_id)
         if answer.get(stopping_condition) is not None:
-            user_message = Message.retrieve(user_id, company_id, message_id, chatId=chat_id)
-            debug_info = user_message.get("debugInfo")
-            answer["debugInfo"] = debug_info
+            try:
+                user_message = Message.retrieve(user_id, company_id, message_id, chatId=chat_id)
+                debug_info = user_message.get("debugInfo")
+                answer["debugInfo"] = debug_info
+            except Exception as e:
+                print(f"Failed to load debug info from user message: {e}")
+                
             return answer
         await asyncio.sleep(poll_interval)
 
