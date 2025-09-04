@@ -29,6 +29,7 @@ async def send_message_and_wait_for_completion(
         text: The prompt text.
         poll_interval: Seconds between polls.
         max_wait: Maximum seconds to wait for completion.
+        stop_condition: Defines when to expect a response back, when the assistant stop streaming or when it completes the message. (default: "stoppedStreamingAt")
         **kwargs: Additional parameters for the prompt.
 
     Returns:
