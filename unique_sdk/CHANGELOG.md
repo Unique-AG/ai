@@ -5,8 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.19] - 2025-09-02
+- Improve `send_message_and_wait_for_completion`:
+    - Add option to select stop_condition `["stoppedStreamingAt", "completedAt"]`. 
+    - Load `debugInfo` from `last_user_message` for better developer experience.
+
 ## [0.10.18] - 2025-09-02
-- Temporarily remove support for udpate and delete files by filePath.
+- Temporarily remove support for update and delete files by filePath.
 
 ## [0.10.17] - 2025-09-01
 - Add function to update a file
