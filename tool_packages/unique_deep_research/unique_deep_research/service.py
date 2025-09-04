@@ -383,7 +383,10 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                                 ),
                             )
                     elif isinstance(event.item, ResponseFunctionWebSearch):
-                        if isinstance(event.item.action, ActionSearch):
+                        if (
+                            isinstance(event.item.action, ActionSearch)
+                            and event.item.action.query
+                        ):
                             self.chat_service.create_message_log(
                                 message_id=self.event.payload.assistant_message.id,
                                 text="Searching the web",
@@ -396,7 +399,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                                     data=[
                                         MessageLogEvent(
                                             type="WebSearch",
-                                            text=event.item.action.query or "",
+                                            text=event.item.action.query,
                                         )
                                     ],
                                 ),
