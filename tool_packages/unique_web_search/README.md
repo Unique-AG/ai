@@ -1,3 +1,3 @@
-# Internal Search Tool
+# Web Search Tool
 
-Internal Search Tool to find documents in the Knowledge Base
+Web Search Tool to search the latest information on the internet.
