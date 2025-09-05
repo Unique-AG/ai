@@ -31,7 +31,7 @@ class OpenAIEngineConfig(BaseModel):
 
     enable_report_postprocessing: bool = Field(
         description="Whether to post-process the final report with GPT-4.1 for better markdown formatting",
-        default=False,
+        default=True,
     )
 
     report_postprocessing_model: LMI = Field(
