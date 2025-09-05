@@ -28,6 +28,10 @@ from unique_toolkit.language_model.schemas import (
 )
 from unique_toolkit.reference_manager.reference_manager import ReferenceManager
 
+MAX_INPUT_TOKENS_SAFETY_PERCENTAGE = (
+    0.1  # 10% safety margin for input tokens we need 10% less does not work.
+)
+
 
 class SourceReductionResult(BaseModel):
     message: LanguageModelToolMessage
@@ -74,12 +78,16 @@ class LoopTokenReducer:
     ) -> LanguageModelMessages:
         """Compose the system and user messages for the plan execution step, which is evaluating if any further tool calls are required."""
 
-        messages = await self._construct_history(
+        history_from_db = await self._prep_db_history(
             original_user_message,
             rendered_user_message_string,
             rendered_system_message_string,
-            loop_history,
             remove_from_text,
+        )
+
+        messages = self._construct_history(
+            history_from_db,
+            loop_history,
         )
 
         token_count = self._count_message_tokens(messages)
@@ -88,18 +96,20 @@ class LoopTokenReducer:
         while self._exceeds_token_limit(token_count):
             token_count_before_reduction = token_count
             loop_history = self._handle_token_limit_exceeded(loop_history)
-            messages = await self._construct_history(
-                original_user_message,
-                rendered_user_message_string,
-                rendered_system_message_string,
+            messages = self._construct_history(
+                history_from_db,
                 loop_history,
-                remove_from_text,
             )
             token_count = self._count_message_tokens(messages)
             self._log_token_usage(token_count)
             token_count_after_reduction = token_count
             if token_count_after_reduction >= token_count_before_reduction:
                 break
+
+        token_count = self._count_message_tokens(messages)
+        self._logger.info(
+            f"Final token count after reduction: {token_count} of model_capacity {self._language_model.token_limits.token_limit_input}"
+        )
 
         return messages
 
@@ -110,13 +120,14 @@ class LoopTokenReducer:
             len(chunks) > 1
             for chunks in self._reference_manager.get_chunks_of_all_tools()
         )
-
+        max_tokens = int(
+            self._language_model.token_limits.token_limit_input
+            * (1 - MAX_INPUT_TOKENS_SAFETY_PERCENTAGE)
+        )
         # TODO: This is not fully correct at the moment as the token_count
         # include system_prompt and user question already
         # TODO: There is a problem if we exceed but only have one chunk per tool call
-        exceeds_limit = (
-            token_count > self._language_model.token_limits.token_limit_input
-        )
+        exceeds_limit = token_count > max_tokens
 
         return has_multiple_chunks_for_a_tool_call and exceeds_limit
 
@@ -132,14 +143,13 @@ class LoopTokenReducer:
         self._logger.info(f"Token messages: {token_count}")
         # self.agent_debug_info.add("token_messages", token_count)
 
-    async def _construct_history(
+    async def _prep_db_history(
         self,
         original_user_message: str,
         rendered_user_message_string: str,
         rendered_system_message_string: str,
-        loop_history: list[LanguageModelMessage],
         remove_from_text: Callable[[str], Awaitable[str]],
-    ) -> LanguageModelMessages:
+    ) -> list[LanguageModelMessage]:
         history_from_db = await self._get_history_from_db(remove_from_text)
         history_from_db = self._replace_user_message(
             history_from_db, original_user_message, rendered_user_message_string
@@ -147,9 +157,15 @@ class LoopTokenReducer:
         system_message = LanguageModelSystemMessage(
             content=rendered_system_message_string
         )
+        return [system_message] + history_from_db
 
+    def _construct_history(
+        self,
+        history_from_db: list[LanguageModelMessage],
+        loop_history: list[LanguageModelMessage],
+    ) -> LanguageModelMessages:
         constructed_history = LanguageModelMessages(
-            [system_message] + history_from_db + loop_history,
+            history_from_db + loop_history,
         )
 
         return constructed_history
