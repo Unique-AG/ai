@@ -5,8 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.8.47] - 2025-09-05
+## [0.8.49] - 2025-09-05
 - Fixed token reducer now has a safety margin of 10% less did not work.
+
+## [0.8.48] - 2025-09-05
+- Add documentation on language models to markdown
 
 ## [0.8.47] - 2025-09-05
 - Removed old code
