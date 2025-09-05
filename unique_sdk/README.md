@@ -1450,11 +1450,13 @@ The script sends a prompt asynchronously and continuously polls for completion, 
 - `chat_id`: The ID of the chat where the message should be sent. If omitted, a new chat will be created.
 - `poll_interval`: The number of seconds to wait between polling attempts (default: `1` second).
 - `max_wait`: The maximum number of seconds to wait for the message to complete (default: `60` seconds).
+- `stop_condition`: Defines when to expect a response back, when the assistant stop streaming or when it completes the message. (default: "stoppedStreamingAt")
 
 The script ensures you can flexibly interact with spaces in new or ongoing chats, with fine-grained control over tools, context, and polling behavior.
 
 ```python
-latest_message = await unique_sdk.utils.chat_in_space.send_message_and_wait_for_completion(
+from unique_sdk.utils.chat_in_space import send_message_and_wait_for_completion
+latest_message = await send_message_and_wait_for_completion(
     user_id=user_id,
     company_id=company_id,
     assistant_id=assistant_id,
@@ -1481,6 +1483,7 @@ latest_message = await unique_sdk.utils.chat_in_space.send_message_and_wait_for_
             }
         ]
     },
+    stop_condition = "completedAt" # If not specified, stoppedStreamingAt will be set by default
 )
 ```
 

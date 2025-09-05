@@ -1,4 +1,5 @@
 import logging
+import os
 import sys
 from pathlib import Path
 from typing import Literal
@@ -75,13 +76,13 @@ class Base(BaseSettings):
 
 class Settings(Base):
     model_config = SettingsConfigDict(
-        env_file=Path(__file__).parent / ".env", extra="ignore"
+        env_file=Path(os.getcwd()) / ".env", extra="ignore"
     )
 
 
 class TestSettings(Base):
     model_config = SettingsConfigDict(
-        env_file=Path(__file__).parent / "tests/test.env", extra="ignore"
+        env_file=Path(os.getcwd()) / "tests/test.env", extra="ignore"
     )
 
 
