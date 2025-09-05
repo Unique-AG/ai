@@ -36,7 +36,7 @@ class UploadedContentConfig(BaseModel):
     percent_for_uploaded_content: float = Field(
         default=0.6,
         ge=0.0,
-        lt=1.0,
+        le=1.0,
         description="The fraction of the max input tokens that will be reserved for the uploaded content.",
     )
 

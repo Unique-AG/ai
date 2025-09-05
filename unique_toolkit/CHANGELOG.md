@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.47] - 2025-09-05
+- Removed old code
+- Fixed small bugs in history manager & set the hallucination to use gpt4o as default.
+
 ## [0.8.46] - 2025-09-04
 - Bugfix for hostname identification inside Unique cluster in `unique_settings.py`
 

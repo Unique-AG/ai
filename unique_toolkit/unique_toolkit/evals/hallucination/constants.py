@@ -2,6 +2,7 @@ from typing import Any
 
 from pydantic import Field
 
+from unique_toolkit._common.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit._common.validators import LMI
 from unique_toolkit.evals.config import EvaluationMetricConfig
 from unique_toolkit.evals.hallucination.prompts import (
@@ -14,7 +15,7 @@ from unique_toolkit.evals.schemas import (
     EvaluationMetricInputFieldName,
     EvaluationMetricName,
 )
-from unique_toolkit.language_model.infos import LanguageModelInfo, LanguageModelName
+from unique_toolkit.language_model.infos import LanguageModelInfo
 
 SYSTEM_MSG_KEY = "systemPrompt"
 USER_MSG_KEY = "userPrompt"
@@ -26,7 +27,7 @@ class HallucinationConfig(EvaluationMetricConfig):
     enabled: bool = False
     name: EvaluationMetricName = EvaluationMetricName.HALLUCINATION
     language_model: LMI = LanguageModelInfo.from_name(
-        LanguageModelName.AZURE_GPT_35_TURBO_0125,
+        DEFAULT_GPT_4o,
     )
     additional_llm_options: dict[str, Any] = Field(
         default={},
