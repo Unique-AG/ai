@@ -12,16 +12,14 @@
 - **Total Limit**: 300,000 tokens
 
 ## Capabilities
-
-
 - streaming
 
 
-
-
-
 ## Temperature Bounds
-
 - **Not specified**
+
+
+
+
 
 

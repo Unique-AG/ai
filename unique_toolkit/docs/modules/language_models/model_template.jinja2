@@ -12,13 +12,22 @@
 - **Total Limit**: {{ "{:,}".format(info.token_limits.token_limit) }} tokens
 
 ## Capabilities
-{% if info.capabilities %}
-{% for cap in info.capabilities %}
+{%- if info.capabilities %}
+{%- for cap in info.capabilities %}
 - {{ cap.value if cap.value else cap }}
-{% endfor %}
+{%- endfor %}
 {% else %}
 - None
+{%- endif %}
+
+## Temperature Bounds
+{%- if info.temperature_bounds %}
+- **Min**: {{ info.temperature_bounds.min_temperature }}
+- **Max**: {{ info.temperature_bounds.max_temperature }}
+{%- else %}
+- **Not specified**
 {% endif %}
+
 
 {#
 ## Dates
@@ -28,13 +37,6 @@
 - **Deprecated**: {{ info.deprecated_at.strftime("%Y-%m-%d") if info.deprecated_at else 'Unknown' }}
  #}
 
-## Temperature Bounds
-{% if info.temperature_bounds %}
-- **Min**: {{ info.temperature_bounds.min_temperature }}
-- **Max**: {{ info.temperature_bounds.max_temperature }}
-{% else %}
-- **Not specified**
-{% endif %}
 
 {#
 {% if info.default_options %}

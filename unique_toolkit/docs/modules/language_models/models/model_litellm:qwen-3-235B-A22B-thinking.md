@@ -12,22 +12,17 @@
 - **Total Limit**: 288,768 tokens
 
 ## Capabilities
-
-
 - function_calling
-
 - structured_output
-
 - streaming
-
 - reasoning
 
 
-
-
-
 ## Temperature Bounds
-
 - **Not specified**
+
+
+
+
 
 

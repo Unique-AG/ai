@@ -12,18 +12,15 @@
 - **Total Limit**: 144,384 tokens
 
 ## Capabilities
-
-
 - streaming
-
 - vision
 
 
-
-
-
 ## Temperature Bounds
-
 - **Not specified**
+
+
+
+
 
 

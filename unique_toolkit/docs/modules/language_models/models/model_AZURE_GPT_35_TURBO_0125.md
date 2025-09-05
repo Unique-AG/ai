@@ -12,20 +12,16 @@
 - **Total Limit**: 20,481 tokens
 
 ## Capabilities
-
-
 - function_calling
-
 - parallel_function_calling
-
 - reproducible_output
 
 
-
-
-
 ## Temperature Bounds
-
 - **Not specified**
+
+
+
+
 
 

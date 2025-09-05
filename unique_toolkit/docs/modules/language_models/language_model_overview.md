@@ -68,6 +68,7 @@ The following properties are documented for each model:
 | [litellm:openai-o4-mini-deep-research](models/model_litellm:openai-o4-mini-deep-research.md) | LITELLM | 200,000 | 100,000 | 300,000 |
 | [litellm:qwen-3-235B-A22B](models/model_litellm:qwen-3-235B-A22B.md) | LITELLM | 256,000 | 32,768 | 288,768 |
 | [litellm:qwen-3-235B-A22B-thinking](models/model_litellm:qwen-3-235B-A22B-thinking.md) | LITELLM | 256,000 | 32,768 | 288,768 |
+
 ### Capabilities Matrix
 
 | Model | Streaming | Function Calling | Structured Output | Reasoning |
