@@ -16,6 +16,8 @@ from unique_toolkit.evals.schemas import (
 )
 from unique_toolkit.language_model.infos import LanguageModelInfo, LanguageModelName
 
+from unique_toolkit._common.default_language_model import DEFAULT_GPT_4o
+
 SYSTEM_MSG_KEY = "systemPrompt"
 USER_MSG_KEY = "userPrompt"
 SYSTEM_MSG_DEFAULT_KEY = "systemPromptDefault"
@@ -26,7 +28,7 @@ class HallucinationConfig(EvaluationMetricConfig):
     enabled: bool = False
     name: EvaluationMetricName = EvaluationMetricName.HALLUCINATION
     language_model: LMI = LanguageModelInfo.from_name(
-        LanguageModelName.AZURE_GPT_35_TURBO_0125,
+        DEFAULT_GPT_4o,
     )
     additional_llm_options: dict[str, Any] = Field(
         default={},
