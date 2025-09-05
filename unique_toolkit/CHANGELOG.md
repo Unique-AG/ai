@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [0.8.47] - 2025-09-05
+- Fixed token reducer now has a safety margin of 10% less did not work.
+
+## [0.8.47] - 2025-09-05
 - Removed old code
 - Fixed small bugs in history manager & set the hallucination to use gpt4o as default.
 
