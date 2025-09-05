@@ -214,5 +214,4 @@ class HistoryManager:
             loop_history=self._loop_history,
             remove_from_text=remove_from_text,
         )
-        
         return messages

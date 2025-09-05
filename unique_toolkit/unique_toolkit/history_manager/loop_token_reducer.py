@@ -28,7 +28,10 @@ from unique_toolkit.language_model.schemas import (
 )
 from unique_toolkit.reference_manager.reference_manager import ReferenceManager
 
-MAX_INPUT_TOKENS_SAFETY_PERCENTAGE = 0.1 # 10% safety margin for input tokens we need 10% less does not work.
+MAX_INPUT_TOKENS_SAFETY_PERCENTAGE = (
+    0.1  # 10% safety margin for input tokens we need 10% less does not work.
+)
+
 
 class SourceReductionResult(BaseModel):
     message: LanguageModelToolMessage
@@ -76,15 +79,15 @@ class LoopTokenReducer:
         """Compose the system and user messages for the plan execution step, which is evaluating if any further tool calls are required."""
 
         history_from_db = await self._prep_db_history(
-             original_user_message,
+            original_user_message,
             rendered_user_message_string,
             rendered_system_message_string,
             remove_from_text,
         )
 
         messages = self._construct_history(
-           history_from_db,
-           loop_history,
+            history_from_db,
+            loop_history,
         )
 
         token_count = self._count_message_tokens(messages)
@@ -102,9 +105,11 @@ class LoopTokenReducer:
             token_count_after_reduction = token_count
             if token_count_after_reduction >= token_count_before_reduction:
                 break
-        
+
         token_count = self._count_message_tokens(messages)
-        self._logger.info(f"Final token count after reduction: {token_count} of model_capacity {self._language_model.token_limits.token_limit_input}")
+        self._logger.info(
+            f"Final token count after reduction: {token_count} of model_capacity {self._language_model.token_limits.token_limit_input}"
+        )
 
         return messages
 
@@ -138,7 +143,6 @@ class LoopTokenReducer:
         self._logger.info(f"Token messages: {token_count}")
         # self.agent_debug_info.add("token_messages", token_count)
 
-
     async def _prep_db_history(
         self,
         original_user_message: str,
@@ -160,7 +164,6 @@ class LoopTokenReducer:
         history_from_db: list[LanguageModelMessage],
         loop_history: list[LanguageModelMessage],
     ) -> LanguageModelMessages:
-
         constructed_history = LanguageModelMessages(
             history_from_db + loop_history,
         )
