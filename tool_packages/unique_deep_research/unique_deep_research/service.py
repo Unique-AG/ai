@@ -1,7 +1,5 @@
-from pathlib import Path
 from typing import Any
 
-from jinja2 import Environment, FileSystemLoader
 from openai import Stream
 from openai.types.responses import ResponseFunctionWebSearch, ResponseReasoningItem
 from openai.types.responses.response_function_web_search import (
@@ -42,6 +40,7 @@ from unique_toolkit.tools.tool import Tool
 
 from .config import (
     RESPONSES_API_TIMEOUT_SECONDS,
+    TEMPLATE_ENV,
     DeepResearchEngine,
     DeepResearchToolConfig,
 )
@@ -109,8 +108,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         self.search_service = ContentService(
             company_id=self.company_id, user_id=self.user_id
         )
-        template_dir = Path(__file__).parent / "templates"
-        self.env = Environment(loader=FileSystemLoader(str(template_dir)))
+        self.env = TEMPLATE_ENV
         self.execution_id = event.payload.message_execution_id
         self.message_log_idx = 0
 
@@ -473,9 +471,9 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         """
         self.write_message_log_text_message("Enhancing report formatting...")
 
-        system_prompt = self.env.get_template(
-            "openai/report_postprocessing_system.j2"
-        ).render()
+        system_prompt = (
+            self.config.engine_config.OpenAI.report_postprocessing_system_prompt
+        )
 
         response = self.client.chat.completions.create(
             model=self.config.engine_config.OpenAI.report_postprocessing_model.name,

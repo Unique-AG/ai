@@ -1,13 +1,16 @@
 from enum import StrEnum
+from pathlib import Path
 
+from jinja2 import Environment, FileSystemLoader
 from pydantic import BaseModel, Field
 from unique_toolkit._common.validators import LMI
 from unique_toolkit.evals.schemas import EvaluationMetricName
-from unique_toolkit.language_model.infos import (
-    LanguageModelInfo,
-    LanguageModelName,
-)
+from unique_toolkit.language_model.infos import LanguageModelInfo, LanguageModelName
 from unique_toolkit.tools.schemas import BaseToolConfig
+
+# Global template environment for the deep research tool
+TEMPLATE_DIR = Path(__file__).parent / "templates"
+TEMPLATE_ENV = Environment(loader=FileSystemLoader(str(TEMPLATE_DIR)))
 
 
 class DeepResearchEngine(StrEnum):
@@ -34,6 +37,13 @@ class OpenAIEngineConfig(BaseModel):
     report_postprocessing_model: LMI = Field(
         description="The model to use for post-processing the final report",
         default=LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_41_2025_0414),
+    )
+
+    report_postprocessing_system_prompt: str = Field(
+        description="System prompt for report postprocessing",
+        default_factory=lambda: TEMPLATE_ENV.get_template(
+            "openai/report_postprocessing_system.j2"
+        ).render(),
     )
 
 
