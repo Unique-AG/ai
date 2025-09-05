@@ -20,6 +20,7 @@ from typing_extensions import override
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.chat.schemas import (
     MessageExecutionType,
+    MessageExecutionUpdateStatus,
     MessageLogDetails,
     MessageLogEvent,
     MessageLogStatus,
@@ -200,7 +201,12 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             self.get_history_messages_for_research_brief()
         )
         processed_result, content_chunks = await self.run_research(research_brief)
+
         if not processed_result:
+            await self.chat_service.update_message_execution_async(
+                message_id=self.event.payload.assistant_message.id,
+                status=MessageExecutionUpdateStatus.FAILED,
+            )
             return DeepResearchToolResponse(
                 id=tool_call.id or "",
                 name=self.name,
@@ -236,7 +242,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         history = self.chat_service.get_full_history()
         history_messages = []
         # Take last user and assistant message pair (assuming it's the clarifying question and answer)
-        for msg in history[-2:]:
+        for msg in history[-4:]:
             if msg.role == "user" or msg.role == "assistant":
                 history_messages.append(
                     {
@@ -257,12 +263,14 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         Run the research using the configured strategy.
         Returns a tuple of (processed_result, content_chunks)
         """
-        match self.config.engine:
-            case DeepResearchEngine.OPENAI:
-                self.logger.info("Running OpenAI research")
-                return await self.openai_research(research_brief)
-            case _:
-                raise ValueError(f"Unsupported research engine: {self.config.engine}")
+        try:
+            match self.config.engine:
+                case DeepResearchEngine.OPENAI:
+                    self.logger.info("Running OpenAI research")
+                    return await self.openai_research(research_brief)
+        except Exception as e:
+            self.logger.error(f"Research failed: {e}")
+            return "", []
 
     async def openai_research(self, research_brief: str) -> tuple[str, list[Any]]:
         """
@@ -308,6 +316,9 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         processed_result, _, content_chunks = postprocess_research_result_with_chunks(
             research_result, tool_call_id="", message_id=""
         )
+        # Beautify the report
+        if self.config.engine_config.OpenAI.enable_report_postprocessing:
+            processed_result = await self._postprocess_report_with_gpt(processed_result)
 
         # Convert OpenAI annotations to link references
         link_references = self._convert_annotations_to_references(
@@ -319,6 +330,12 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             content=processed_result,
             references=link_references,
             set_completed_at=True,
+        )
+
+        await self.chat_service.update_message_execution_async(
+            message_id=self.event.payload.assistant_message.id,
+            status=MessageExecutionUpdateStatus.COMPLETED,
+            percentage_completed=100,
         )
 
         return processed_result, content_chunks
@@ -442,6 +459,44 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
 
         self.logger.warning("Stream ended without completion")
         return "", []
+
+    async def _postprocess_report_with_gpt(self, research_result: str) -> str:
+        """
+        Post-process the research report with GPT-4.1 to improve markdown formatting.
+        Preserves all sup tags while enhancing the overall formatting and readability.
+
+        Args:
+            research_result: The raw research result from OpenAI
+
+        Returns:
+            The post-processed research result with improved formatting
+        """
+        self.write_message_log_text_message("Enhancing report formatting...")
+
+        system_prompt = self.env.get_template(
+            "openai/report_postprocessing_system.j2"
+        ).render()
+
+        response = self.client.chat.completions.create(
+            model=self.config.engine_config.OpenAI.report_postprocessing_model.name,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {
+                    "role": "user",
+                    "content": f"Please improve the markdown formatting of this research report:\n\n{research_result}",
+                },
+            ],
+            temperature=0.1,
+            max_tokens=5000,
+        )
+
+        formatted_result = response.choices[0].message.content
+        if formatted_result:
+            self.logger.info("Successfully post-processed research report")
+            return formatted_result
+        else:
+            self.logger.warning("Post-processing returned empty result, using original")
+            return research_result
 
     def get_user_request(self) -> str | None:
         """

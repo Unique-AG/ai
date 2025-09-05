@@ -26,6 +26,16 @@ class OpenAIEngineConfig(BaseModel):
         ),
     )
 
+    enable_report_postprocessing: bool = Field(
+        description="Whether to post-process the final report with GPT-4.1 for better markdown formatting",
+        default=False,
+    )
+
+    report_postprocessing_model: LMI = Field(
+        description="The model to use for post-processing the final report",
+        default=LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_41_2025_0414),
+    )
+
 
 class EngineConfig(BaseModel):
     """Configuration for a deep research engine."""
