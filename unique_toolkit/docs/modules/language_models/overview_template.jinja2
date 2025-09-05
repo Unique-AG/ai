@@ -23,6 +23,7 @@ The following properties are documented for each model:
 {%- for model in all_models %}
 | [{{ model.display_name }}](models/{{ model.filename }}) | {{ model.provider.value if model.provider.value else model.provider }} | {{ "{:,}".format(model.token_limits.token_limit_input) }} | {{ "{:,}".format(model.token_limits.token_limit_output) }} | {{ "{:,}".format(model.token_limits.token_limit) }} |
 {%- endfor %}
+
 ### Capabilities Matrix
 
 | Model | Streaming | Function Calling | Structured Output | Reasoning |

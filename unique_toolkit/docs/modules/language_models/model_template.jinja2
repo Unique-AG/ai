@@ -20,11 +20,13 @@
 - None
 {% endif %}
 
+{#
 ## Dates
 - **Published**: {{ info.published_at.strftime("%Y-%m-%d") if info.published_at else 'Unknown' }}
 - **Info Cutoff**: {{ info.info_cutoff_at.strftime("%Y-%m-%d") if info.info_cutoff_at else 'Unknown' }}
 - **Retirement**: {{ info.retirement_at.strftime("%Y-%m-%d") if info.retirement_at else 'Unknown' }}
 - **Deprecated**: {{ info.deprecated_at.strftime("%Y-%m-%d") if info.deprecated_at else 'Unknown' }}
+ #}
 
 ## Temperature Bounds
 {% if info.temperature_bounds %}
@@ -34,6 +36,7 @@
 - **Not specified**
 {% endif %}
 
+{#
 {% if info.default_options %}
 ## Default Options
 {% for key, value in info.default_options.items() %}
@@ -45,3 +48,4 @@
 ## Retirement Notice
 {{ info.retirement_text }}
 {% endif %}
+#}

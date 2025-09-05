@@ -20,16 +20,10 @@
 
 
 
-## Dates
-- **Published**: 2025-08-07
-- **Info Cutoff**: 2024-10-24
-- **Retirement**: 2026-08-07
-- **Deprecated**: 2026-08-07
+
 
 ## Temperature Bounds
 
 - **Not specified**
-
-
 
 

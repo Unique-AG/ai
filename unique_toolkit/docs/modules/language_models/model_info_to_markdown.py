@@ -11,7 +11,7 @@ def model_info_to_markdown(info: LanguageModelInfo) -> str:
     """Convert a LanguageModelInfo object to markdown format using Jinja template."""
     
     # Load the model template
-    model_template_path = Path(__file__).parent / "model_template.j2"
+    model_template_path = Path(__file__).parent / "model_template.jinja2"
     with model_template_path.open("r") as f:
         template_content = f.read()
     
@@ -49,7 +49,7 @@ for m in LanguageModelName:
     })
 
 # Generate overview page using Jinja template
-template_path = Path(__file__).parent / "overview_template.j2"
+template_path = Path(__file__).parent / "overview_template.jinja2"
 with template_path.open("r") as f:
     template_content = f.read()
 

@@ -22,17 +22,11 @@
 
 
 
-## Dates
-- **Published**: 2025-04-16
-- **Info Cutoff**: 2024-06-01
-- **Retirement**: 2225-12-31
-- **Deprecated**: 2225-12-31
+
 
 ## Temperature Bounds
 
 - **Min**: 1.0
 - **Max**: 1.0
-
-
 
 
