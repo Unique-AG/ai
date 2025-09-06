@@ -4,15 +4,15 @@
 import json
 from typing import Any, Callable
 
+from _common.utils.token.image_token_counting import (
+    calculate_image_tokens_from_base64,
+)
 from pydantic import BaseModel
+
 from unique_toolkit.language_model import (
     LanguageModelMessage,
     LanguageModelMessages,
     LanguageModelName,
-)
-
-from _common.utils.token.image_token_counting import (
-    calculate_image_tokens_from_base64,
 )
 
 
@@ -138,18 +138,14 @@ def num_tokens_for_tools(
                 )
             )
             if len(function.get("parameters", {}).get("properties", "")) > 0:
-                properties = function.get("parameters", {}).get(
-                    "properties", ""
-                )
+                properties = function.get("parameters", {}).get("properties", "")
                 func_token_count += special_token.prop_init
 
                 for key in list(properties.keys()):
                     func_token_count += special_token.prop_key
 
                     if "enum" in properties[key].keys():
-                        func_token_count += num_token_function_enum(
-                            properties, encode
-                        )
+                        func_token_count += num_token_function_enum(properties, encode)
 
                     func_token_count += len(
                         encode(
@@ -162,9 +158,7 @@ def num_tokens_for_tools(
     return func_token_count
 
 
-def handle_message_with_images(
-    message: list[dict], encode: Callable[[str], list[int]]
-):
+def handle_message_with_images(message: list[dict], encode: Callable[[str], list[int]]):
     token_count = 0
     for item in message:
         if item.get("type") == "image_url":
@@ -207,6 +201,4 @@ def num_token_for_language_model_messages(
     messages: LanguageModelMessages | list[LanguageModelMessage],
     encode: Callable[[str], list[int]],
 ) -> int:
-    return num_tokens_from_messages(
-        messages_to_openai_messages(messages), encode
-    )
+    return num_tokens_from_messages(messages_to_openai_messages(messages), encode)
