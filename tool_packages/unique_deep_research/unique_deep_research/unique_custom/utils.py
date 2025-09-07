@@ -5,8 +5,7 @@ This module provides common utility functions for service access, configuration
 handling, and other shared operations across the deep research workflow.
 """
 
-import time
-from typing import Tuple, Union
+from typing import Optional, Tuple, Union
 
 from langchain_core.runnables import RunnableConfig
 from unique_toolkit.chat.schemas import (
@@ -19,6 +18,42 @@ from unique_toolkit.content.service import ContentService
 
 from ..config import UniqueCustomEngineConfig
 from .state import CustomAgentState, CustomResearcherState, CustomSupervisorState
+
+# Per-request counters for message log ordering - keyed by message_id
+_request_counters: dict[str, int] = {}
+
+
+def get_next_message_order(message_id: str) -> int:
+    """
+    Get the next message log order number for a specific request.
+
+    Each message_id (request) gets its own counter: 1, 2, 3, 4, ...
+    This ensures proper ordering within each request while avoiding
+    race conditions between concurrent requests.
+
+    Args:
+        message_id: The message ID to get the next order for
+
+    Returns:
+        Next order number for this specific request
+    """
+    if message_id not in _request_counters:
+        _request_counters[message_id] = 0
+
+    _request_counters[message_id] += 1
+    return _request_counters[message_id]
+
+
+def cleanup_request_counter(message_id: str) -> None:
+    """
+    Clean up the counter for a completed request to prevent memory leaks.
+
+    Should be called when a research request is completely finished.
+
+    Args:
+        message_id: The message ID to clean up
+    """
+    _request_counters.pop(message_id, None)
 
 
 class ServiceAccessError(Exception):
@@ -93,9 +128,6 @@ def get_content_service_from_config(config: RunnableConfig) -> ContentService:
     return content_service
 
 
-# get_required_content_service is now redundant - get_content_service_from_config always returns a valid service
-
-
 def get_message_id_from_config(config: RunnableConfig) -> str:
     """
     Extract message_id from RunnableConfig.
@@ -159,91 +191,89 @@ def get_custom_engine_config(config: RunnableConfig) -> UniqueCustomEngineConfig
 def create_message_log_entry(
     chat_service: ChatService,
     message_id: str,
-    text: str,
+    text: Optional[str] = None,
     status: MessageLogStatus = MessageLogStatus.COMPLETED,
+    details: Optional[MessageLogDetails] = None,
+    uncited_references: Optional[MessageLogUncitedReferences] = None,
 ) -> None:
     """
-    Create a message log entry with standardized formatting.
+    Create a message log entry with customizable details and references.
 
     Args:
         chat_service: ChatService instance for logging
         message_id: Message ID for the log entry
-        text: Log message text
+        text: Optional log message text (default: empty string)
         status: Log status (default: COMPLETED)
+        details: Optional message details (default: empty)
+        uncited_references: Optional uncited references (default: empty)
     """
-    # Generate a timestamp-based order for thread-safe logging
-    order = int(time.time() * 1000) % 1000000
+    # Use per-request incrementing counter for clean, predictable ordering
+    order = get_next_message_order(message_id)
 
     chat_service.create_message_log(
         message_id=message_id,
-        text=text,
+        text=text or "",
         status=status,
         order=order,
-        details=MessageLogDetails(data=[]),
-        uncited_references=MessageLogUncitedReferences(data=[]),
+        details=details or MessageLogDetails(data=[]),
+        uncited_references=uncited_references or MessageLogUncitedReferences(data=[]),
     )
 
 
 def write_tool_message_log(
     config: RunnableConfig,
-    text: str,
+    text: Optional[str] = None,
     status: MessageLogStatus = MessageLogStatus.COMPLETED,
+    details: Optional[MessageLogDetails] = None,
+    uncited_references: Optional[MessageLogUncitedReferences] = None,
 ) -> None:
     """
     Write a tool message log entry using services from config.
 
     Args:
         config: RunnableConfig containing service instances
-        text: Log message text
+        text: Optional log message text (default: empty string)
         status: Log status (default: COMPLETED)
+        details: Optional message details (default: empty)
+        uncited_references: Optional uncited references (default: empty)
     """
     chat_service = get_chat_service_from_config(config)
     message_id = get_message_id_from_config(config)
-    create_message_log_entry(chat_service, message_id, text, status)
-
-
-def get_and_increment_message_log_idx(
-    state: Union[CustomAgentState, CustomSupervisorState, CustomResearcherState],
-) -> int:
-    """
-    Get current message log index and increment it atomically.
-
-    Args:
-        state: State dictionary containing message_log_idx
-
-    Returns:
-        Current message log index before increment
-    """
-    idx = state.get("message_log_idx", 0)
-    state["message_log_idx"] = idx + 1
-    return idx
+    create_message_log_entry(
+        chat_service, message_id, text, status, details, uncited_references
+    )
 
 
 def write_state_message_log(
     state: Union[CustomAgentState, CustomSupervisorState, CustomResearcherState],
-    text: str,
+    text: Optional[str] = None,
     status: MessageLogStatus = MessageLogStatus.COMPLETED,
+    details: Optional[MessageLogDetails] = None,
+    uncited_references: Optional[MessageLogUncitedReferences] = None,
 ) -> None:
     """
     Write a message log entry using services from state.
 
     Args:
         state: State containing ChatService and message_id
-        text: Log message text
+        text: Optional log message text (default: empty string)
         status: Log status (default: COMPLETED)
+        details: Optional message details (default: empty)
+        uncited_references: Optional uncited references (default: empty)
     """
     chat_service = state["chat_service"]
     message_id = state["message_id"]
 
-    order = get_and_increment_message_log_idx(state)
+    # Use the same per-request counter as all other message logging
+    order = get_next_message_order(message_id)
 
     chat_service.create_message_log(
         message_id=message_id,
-        text=text,
+        text=text or "",
         status=status,
         order=order,
-        details=MessageLogDetails(data=[]),
-        uncited_references=MessageLogUncitedReferences(data=[]),
+        details=details or MessageLogDetails(data=[]),
+        uncited_references=uncited_references or MessageLogUncitedReferences(data=[]),
     )
 
 
