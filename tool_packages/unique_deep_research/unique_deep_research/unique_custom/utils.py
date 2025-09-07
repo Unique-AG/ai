@@ -5,7 +5,7 @@ This module provides common utility functions for service access, configuration
 handling, and other shared operations across the deep research workflow.
 """
 
-from typing import Optional, Tuple, Union
+from typing import Optional, Union
 
 from langchain_core.runnables import RunnableConfig
 from unique_toolkit.chat.schemas import (
@@ -275,36 +275,3 @@ def write_state_message_log(
         details=details or MessageLogDetails(data=[]),
         uncited_references=uncited_references or MessageLogUncitedReferences(data=[]),
     )
-
-
-def safe_content_operation(
-    config: RunnableConfig,
-    operation_name: str,
-    fallback_message: str = "Content operation failed",
-) -> Tuple[ContentService, str]:
-    """
-    Get ContentService for an operation with logging.
-
-    Since ContentService is always provided, this function primarily
-    handles logging and error formatting.
-
-    Args:
-        config: RunnableConfig containing services
-        operation_name: Name of the operation for logging
-        fallback_message: Message to use in error formatting
-
-    Returns:
-        Tuple of (ContentService, empty string for success)
-
-    Raises:
-        KeyError/TypeError: If ContentService is missing or invalid (system error)
-    """
-    write_tool_message_log(config, f"Starting {operation_name}...")
-
-    try:
-        content_service = get_content_service_from_config(config)
-        return content_service, ""
-    except (KeyError, TypeError) as e:
-        error_msg = f"{fallback_message}: {str(e)}"
-        write_tool_message_log(config, error_msg, MessageLogStatus.FAILED)
-        raise  # Re-raise the exception since this indicates a system error

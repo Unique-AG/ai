@@ -19,7 +19,7 @@ from unique_web_search.services.preprocessing.crawlers.basic import (
 )
 from unique_web_search.services.search_engine.google import GoogleConfig, GoogleSearch
 
-from .utils import safe_content_operation, write_tool_message_log
+from .utils import get_content_service_from_config, write_tool_message_log
 
 logger = logging.getLogger(__name__)
 
@@ -217,11 +217,8 @@ async def internal_search(query: str, config: RunnableConfig) -> str:
     Searches through internal documents, knowledge bases, and previously
     indexed content to find relevant information for research.
     """
-    content_service, _ = safe_content_operation(
-        config,
-        f"internal search for: {query}",
-        f"Internal search failed for query: '{query}'",
-    )
+    write_tool_message_log(config, f"Searching internal knowledge base for: {query}")
+    content_service = get_content_service_from_config(config)
 
     # Use ContentService to search internal content
     search_results = await content_service.search_content_chunks_async(
@@ -250,11 +247,10 @@ async def internal_fetch(content_id: str, config: RunnableConfig) -> str:
     Retrieves the full content of a specific internal document or
     knowledge base entry by its unique identifier.
     """
-    content_service, _ = safe_content_operation(
-        config,
-        f"internal fetch for content ID: {content_id}",
-        f"Internal fetch failed for content ID: '{content_id}'",
+    write_tool_message_log(
+        config, f"Fetching internal knowledge base for: {content_id}"
     )
+    content_service = get_content_service_from_config(config)
 
     # TODO: Metadata filter review
     search_results = await content_service.search_content_chunks_async(
