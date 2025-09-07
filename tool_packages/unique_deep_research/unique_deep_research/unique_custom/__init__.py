@@ -25,6 +25,7 @@ from .tools import (
 from .utils import (
     ServiceAccessError,
     cleanup_request_counter,
+    execute_tool_safely,
     get_chat_service_from_config,
     get_content_service_from_config,
     get_custom_engine_config,
@@ -48,6 +49,7 @@ __all__ = [
     "web_search",
     "ServiceAccessError",
     "cleanup_request_counter",
+    "execute_tool_safely",
     "get_chat_service_from_config",
     "get_content_service_from_config",
     "get_custom_engine_config",

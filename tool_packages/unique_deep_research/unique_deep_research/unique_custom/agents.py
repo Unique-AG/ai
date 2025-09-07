@@ -27,7 +27,11 @@ from .state import (
     CustomSupervisorState,
 )
 from .tools import get_research_tools, get_supervisor_tools, get_today_str
-from .utils import get_custom_engine_config, write_state_message_log
+from .utils import (
+    execute_tool_safely,
+    get_custom_engine_config,
+    write_state_message_log,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -300,27 +304,25 @@ async def researcher_tools(
     if not tool_calls:
         return Command(goto="compress_research")
 
-    # Execute actual tool calls
+    # Execute actual tool calls safely
     tool_outputs = []
     for tool_call in tool_calls:
         tool_name = tool_call.get("name", "")
         args = tool_call.get("args", {})
 
-        try:
-            # Execute real tools
-            if tool_name == "web_search":
-                result = await web_search.ainvoke(args)
-            elif tool_name == "web_fetch":
-                result = await web_fetch.ainvoke(args)
-            elif tool_name == "internal_search":
-                result = await internal_search.ainvoke(args)
-            elif tool_name == "internal_fetch":
-                result = await internal_fetch.ainvoke(args)
-            else:
-                result = f"Unknown tool: {tool_name}"
-        except Exception as e:
-            logger.error(f"Error executing tool {tool_name}: {e}")
-            result = f"Error executing {tool_name}: {str(e)}"
+        # Map tool names to tool functions
+        tool_map = {
+            "web_search": web_search,
+            "web_fetch": web_fetch,
+            "internal_search": internal_search,
+            "internal_fetch": internal_fetch,
+        }
+
+        if tool_name in tool_map:
+            # Execute tool safely with error handling
+            result = await execute_tool_safely(tool_map[tool_name], args, config)
+        else:
+            result = f"Unknown tool: {tool_name}"
 
         tool_outputs.append(
             ToolMessage(

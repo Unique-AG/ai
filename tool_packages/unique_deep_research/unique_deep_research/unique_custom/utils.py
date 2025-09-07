@@ -275,3 +275,20 @@ def write_state_message_log(
         details=details or MessageLogDetails(data=[]),
         uncited_references=uncited_references or MessageLogUncitedReferences(data=[]),
     )
+
+
+# Tool execution utilities (temporary file - will be merged into utils.py)
+
+
+async def execute_tool_safely(tool, args: dict, config):
+    """
+    Safely execute a tool with error handling.
+
+    Prevents tool execution errors from crashing the workflow.
+    Returns error messages as strings that can be processed by the agent.
+    """
+    try:
+        return await tool.ainvoke(args, config)
+    except Exception as e:
+        tool_name = getattr(tool, "name", str(tool))
+        return f"Error executing tool {tool_name}: {str(e)}"
