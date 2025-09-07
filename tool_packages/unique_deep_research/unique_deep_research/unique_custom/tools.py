@@ -9,14 +9,8 @@ from typing import Any, List
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import tool
 from pydantic import BaseModel, Field
-from unique_toolkit.chat.schemas import (
-    MessageLogDetails,
-    MessageLogStatus,
-    MessageLogUncitedReferences,
-)
-from unique_toolkit.chat.service import ChatService
+from unique_toolkit.chat.schemas import MessageLogStatus
 from unique_toolkit.content.schemas import ContentSearchType
-from unique_toolkit.content.service import ContentService
 from unique_toolkit.history_manager.utils import transform_chunks_to_string
 from unique_web_search.client_settings import get_google_search_settings
 from unique_web_search.services.preprocessing.crawlers.basic import (
@@ -25,35 +19,9 @@ from unique_web_search.services.preprocessing.crawlers.basic import (
 )
 from unique_web_search.services.search_engine.google import GoogleConfig, GoogleSearch
 
+from .utils import safe_content_operation, write_tool_message_log
+
 logger = logging.getLogger(__name__)
-
-# Thread-safe helper functions using RunnableConfig
-
-
-def write_tool_message_log(
-    config: RunnableConfig,
-    text: str,
-    status: MessageLogStatus = MessageLogStatus.COMPLETED,
-) -> None:
-    """Write a message log entry using the chat service from config."""
-    if config and "configurable" in config:
-        chat_service: ChatService = config["configurable"].get("chat_service")
-        message_id: str = config["configurable"].get("message_id", "")
-
-        if chat_service:
-            # Get a simple incrementing order (not perfect but thread-safe per request)
-            import time
-
-            order = int(time.time() * 1000) % 1000000  # Use timestamp for ordering
-
-            chat_service.create_message_log(
-                message_id=message_id,
-                text=text,
-                status=status,
-                order=order,
-                details=MessageLogDetails(data=[]),
-                uncited_references=MessageLogUncitedReferences(data=[]),
-            )
 
 
 def get_today_str() -> str:
@@ -249,12 +217,13 @@ async def internal_search(query: str, config: RunnableConfig) -> str:
     Searches through internal documents, knowledge bases, and previously
     indexed content to find relevant information for research.
     """
-    write_tool_message_log(config, f"Searching internal knowledge base for: {query}")
-    content_service: ContentService = config["configurable"].get("content_service")
-    assert content_service, "ContentService not available"
+    content_service, _ = safe_content_operation(
+        config,
+        f"internal search for: {query}",
+        f"Internal search failed for query: '{query}'",
+    )
+
     # Use ContentService to search internal content
-    # Note: This is a simplified implementation - actual search methods may vary
-    # based on the specific ContentService implementation
     search_results = await content_service.search_content_chunks_async(
         search_string=query,
         search_type=ContentSearchType.COMBINED,
@@ -266,9 +235,10 @@ async def internal_search(query: str, config: RunnableConfig) -> str:
         write_tool_message_log(config, f"No internal results found for: {query}")
         return f"No internal search results found for query: '{query}'"
 
-    # TODO: Toolkit formatting
-
     formatted_results = transform_chunks_to_string(search_results, 10, None, True)
+    write_tool_message_log(
+        config, f"Found {len(search_results)} internal results for: {query}"
+    )
     return formatted_results
 
 
@@ -280,11 +250,12 @@ async def internal_fetch(content_id: str, config: RunnableConfig) -> str:
     Retrieves the full content of a specific internal document or
     knowledge base entry by its unique identifier.
     """
-    write_tool_message_log(
-        config, f"Fetching internal knowledge base for: {content_id}"
+    content_service, _ = safe_content_operation(
+        config,
+        f"internal fetch for content ID: {content_id}",
+        f"Internal fetch failed for content ID: '{content_id}'",
     )
-    content_service: ContentService = config["configurable"].get("content_service")
-    assert content_service, "ContentService not available"
+
     # TODO: Metadata filter review
     search_results = await content_service.search_content_chunks_async(
         search_string=" ",  # Dummy search string
@@ -299,6 +270,7 @@ async def internal_fetch(content_id: str, config: RunnableConfig) -> str:
         return f"No internal fetch results found for content ID: '{content_id}'"
 
     formatted_results = transform_chunks_to_string(search_results, 0, None, True)
+    write_tool_message_log(config, f"Successfully fetched content for ID: {content_id}")
     return formatted_results
 
 
