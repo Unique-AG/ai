@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Optional
 
 from openai import Stream
 from openai.types.responses import ResponseFunctionWebSearch, ResponseReasoningItem
@@ -45,6 +45,10 @@ from .config import (
     DeepResearchToolConfig,
 )
 from .markdown_utils import postprocess_research_result_with_chunks
+from .unique_custom.utils import (
+    create_message_log_entry,
+    get_next_message_order,
+)
 
 
 class DeepResearchToolInput(BaseModel):
@@ -110,7 +114,6 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         )
         self.env = TEMPLATE_ENV
         self.execution_id = event.payload.message_execution_id
-        self.message_log_idx = 0
 
     def takes_control(self) -> bool:
         """
@@ -155,11 +158,6 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             return []
         return evaluation_check_list
 
-    def get_and_increment_message_log_idx(self) -> int:
-        idx = self.message_log_idx
-        self.message_log_idx += 1
-        return idx
-
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
         self.logger.info("Starting Deep Research tool run")
         # Pre research steps to clarify user intent if needed and put in the message queue
@@ -200,17 +198,18 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         )
         processed_result, content_chunks = await self.run_research(research_brief)
 
+        # Handle success/failure status updates centrally
         if not processed_result:
-            await self.chat_service.update_message_execution_async(
-                message_id=self.event.payload.assistant_message.id,
-                status=MessageExecutionUpdateStatus.FAILED,
-            )
+            await self._update_execution_status(MessageExecutionUpdateStatus.FAILED)
             return DeepResearchToolResponse(
                 id=tool_call.id or "",
                 name=self.name,
-                content="Failed to complete research",
+                content=processed_result or "Failed to complete research",
                 error_message="Research process failed or returned empty results",
             )
+
+        await self._update_execution_status(MessageExecutionUpdateStatus.COMPLETED)
+
         # Return the results
         return DeepResearchToolResponse(
             id=tool_call.id or "",
@@ -219,18 +218,33 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             content_chunks=content_chunks,
         )
 
-    def write_message_log_text_message(self, text: str):
-        self.chat_service.create_message_log(
+    async def _update_execution_status(
+        self, status: MessageExecutionUpdateStatus, percentage: Optional[int] = None
+    ) -> None:
+        """
+        Centralized method to update message execution status.
+
+        Args:
+            status: The execution status to set
+            percentage: Optional completion percentage (defaults based on status)
+        """
+        if percentage is None:
+            percentage = 100 if status == MessageExecutionUpdateStatus.COMPLETED else 0
+
+        await self.chat_service.update_message_execution_async(
             message_id=self.event.payload.assistant_message.id,
-            text=text,
-            status=MessageLogStatus.COMPLETED,
-            order=self.get_and_increment_message_log_idx(),
-            details=MessageLogDetails(
-                data=[],
-            ),
-            uncited_references=MessageLogUncitedReferences(
-                data=[],
-            ),
+            status=status,
+            percentage_completed=percentage,
+        )
+
+    def write_message_log_text_message(self, text: str):
+        create_message_log_entry(
+            self.chat_service,
+            self.event.payload.assistant_message.id,
+            text,
+            MessageLogStatus.COMPLETED,
+            details=MessageLogDetails(data=[]),
+            uncited_references=MessageLogUncitedReferences(data=[]),
         )
 
     def get_history_messages_for_research_brief(self) -> list[dict[str, str]]:
@@ -266,9 +280,76 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                 case DeepResearchEngine.OPENAI:
                     self.logger.info("Running OpenAI research")
                     return await self.openai_research(research_brief)
+                case DeepResearchEngine.CUSTOM:
+                    self.logger.info("Running Custom research")
+                    return await self.custom_research(research_brief)
         except Exception as e:
             self.logger.error(f"Research failed: {e}")
             return "", []
+
+    async def custom_research(self, research_brief: str) -> tuple[str, list[Any]]:
+        """
+        Run Custom research using LangGraph multi-agent orchestration.
+        Returns a tuple of (processed_result, content_chunks)
+        """
+        from langchain_core.messages import HumanMessage
+
+        from .unique_custom.agents import custom_agent
+
+        try:
+            self.write_message_log_text_message("Starting custom research workflow...")
+
+            # Initialize LangGraph state with required services
+            initial_state = {
+                "messages": [HumanMessage(content=research_brief)],
+                "research_brief": research_brief,
+                "notes": [],
+                "final_report": "",
+                "chat_service": self.chat_service,
+                "message_id": self.event.payload.assistant_message.id,
+                "tool_progress_reporter": self.tool_progress_reporter,
+            }
+
+            # Run the compiled LangGraph workflow
+            self.write_message_log_text_message("Running multi-agent research...")
+
+            # Prepare configuration for LangGraph
+            config = {
+                "configurable": {
+                    "custom_engine_config": self.config.engine_config.Custom,
+                    "openai_client": self.client,
+                    "chat_service": self.chat_service,
+                    "content_service": self.search_service,
+                    "message_id": self.event.payload.assistant_message.id,
+                }
+            }
+
+            result = await custom_agent.ainvoke(initial_state, config=config)  # type: ignore[arg-type]
+
+            # Clean up per-request counter to prevent memory leaks
+            from .unique_custom.utils import cleanup_request_counter
+
+            cleanup_request_counter(self.event.payload.assistant_message.id)
+
+            # Extract final report and content chunks
+            processed_result = result.get("final_report", "")
+            # Content chunks are not currently extracted from custom research workflow
+            content_chunks = []
+
+            # Update the assistant message with the results
+            await self.chat_service.modify_assistant_message_async(
+                content=processed_result,
+                # References are not currently extracted from custom research workflow
+                references=[],
+                set_completed_at=True,
+            )
+            self.logger.info("Custom research completed successfully")
+            return processed_result, content_chunks
+
+        except Exception as e:
+            error_msg = f"Custom research failed: {str(e)}"
+            self.logger.error(error_msg, exc_info=True)
+            return error_msg, []
 
     async def openai_research(self, research_brief: str) -> tuple[str, list[Any]]:
         """
@@ -389,7 +470,9 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                                 message_id=self.event.payload.assistant_message.id,
                                 text=summary.text,
                                 status=MessageLogStatus.COMPLETED,
-                                order=self.get_and_increment_message_log_idx(),
+                                order=get_next_message_order(
+                                    self.event.payload.assistant_message.id
+                                ),
                                 uncited_references=MessageLogUncitedReferences(
                                     data=[],
                                 ),
@@ -405,7 +488,9 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                                 message_id=self.event.payload.assistant_message.id,
                                 text="Searching the web",
                                 status=MessageLogStatus.COMPLETED,
-                                order=self.get_and_increment_message_log_idx(),
+                                order=get_next_message_order(
+                                    self.event.payload.assistant_message.id
+                                ),
                                 uncited_references=MessageLogUncitedReferences(
                                     data=[],
                                 ),
@@ -423,7 +508,9 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                                 message_id=self.event.payload.assistant_message.id,
                                 text="Reviewing Web Sources",
                                 status=MessageLogStatus.COMPLETED,
-                                order=self.get_and_increment_message_log_idx(),
+                                order=get_next_message_order(
+                                    self.event.payload.assistant_message.id
+                                ),
                                 uncited_references=MessageLogUncitedReferences(
                                     data=[
                                         ContentReference(
@@ -444,7 +531,9 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                         message_id=self.event.payload.assistant_message.id,
                         text=f"Failed to complete research: {event.response.error}",
                         status=MessageLogStatus.FAILED,
-                        order=self.get_and_increment_message_log_idx(),
+                        order=get_next_message_order(
+                            self.event.payload.assistant_message.id
+                        ),
                         uncited_references=MessageLogUncitedReferences(
                             data=[],
                         ),
