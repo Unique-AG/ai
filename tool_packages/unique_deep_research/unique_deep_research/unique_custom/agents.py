@@ -345,28 +345,55 @@ async def compress_research(
     state: CustomResearcherState, config: RunnableConfig
 ) -> Dict[str, Any]:
     """
-    Compress and synthesize research findings into a summary.
+    Compress and synthesize research findings using AI-powered synthesis.
+
+    Uses the synthesis template to create a comprehensive, well-structured
+    summary of the research findings with proper citations and formatting.
     """
     researcher_messages = state.get("researcher_messages", [])
-
-    # Simple compression: extract key information
-    tool_messages = [msg for msg in researcher_messages if isinstance(msg, ToolMessage)]
-    ai_messages = [msg for msg in researcher_messages if isinstance(msg, AIMessage)]
-
-    # Create compressed research summary
     research_topic = state.get("research_topic", "Unknown topic")
-    tool_results = "\n".join([str(msg.content) for msg in tool_messages])
-    ai_analysis = "\n".join([str(msg.content) for msg in ai_messages])
 
-    compressed_research = f"""Research on: {research_topic}
+    # Get custom config for model selection
+    custom_config = get_custom_engine_config(config)
+    synthesis_model_name = custom_config.synthesis_model.name
 
-Tool Results:
-{tool_results}
+    # Prepare synthesis model
+    model_config = {
+        "model": synthesis_model_name,
+        "max_tokens": 4000,
+        "temperature": 0.1,
+    }
 
-Analysis:
-{ai_analysis}
-"""
+    # Prepare synthesis prompt with research context
+    synthesis_prompt = TEMPLATE_ENV.get_template(
+        "unique/synthesis_agent_system.j2"
+    ).render(date=get_today_str())
 
+    # Combine all research messages for synthesis
+    research_context = f"Research Topic: {research_topic}\n\n"
+    for i, msg in enumerate(researcher_messages, 1):
+        if isinstance(msg, ToolMessage):
+            research_context += f"Tool Result {i}:\n{msg.content}\n\n"
+        elif isinstance(msg, AIMessage):
+            research_context += f"Analysis {i}:\n{msg.content}\n\n"
+
+    # Configure synthesis model
+    synthesis_model = configurable_model.with_config(model_config)  # type: ignore[arg-type]
+
+    # Generate compressed research using AI
+    synthesis_messages = [
+        SystemMessage(content=synthesis_prompt),
+        HumanMessage(content=research_context),
+    ]
+
+    synthesis_response = await synthesis_model.ainvoke(synthesis_messages)
+    compressed_research = (
+        str(synthesis_response.content)
+        if synthesis_response.content
+        else research_context
+    )
+
+    # Create raw notes for backup
     raw_notes = [str(msg.content) for msg in researcher_messages]
 
     return {
@@ -379,25 +406,53 @@ async def final_report_generation(
     state: CustomAgentState, config: RunnableConfig
 ) -> Dict[str, Any]:
     """
-    Generate the final comprehensive research report.
+    Generate the final comprehensive research report using AI-powered synthesis.
+
+    Uses the report writer template to create a professional, well-structured
+    final report from all accumulated research findings.
     """
     write_state_message_log(state, "Synthesizing final research report...")
 
     notes = state.get("notes", [])
     research_brief = state.get("research_brief", "")
 
-    # Simple report generation for now
-    final_report = f"""# Research Report
+    # Get custom config for model selection
+    custom_config = get_custom_engine_config(config)
+    synthesis_model_name = custom_config.synthesis_model.name
 
-## Research Brief
+    # Prepare report writer model
+    model_config = {
+        "model": synthesis_model_name,
+        "max_tokens": 8000,  # Larger for comprehensive reports
+        "temperature": 0.1,
+    }
+
+    # Prepare report writer prompt
+    report_writer_prompt = TEMPLATE_ENV.get_template(
+        "unique/report_writer_system_open_deep_research.j2"
+    ).render(date=get_today_str())
+
+    # Combine research brief and all findings
+    report_context = f"""Research Brief:
 {research_brief}
 
-## Findings
+Research Findings:
 {chr(10).join(notes)}
-
-## Generated on
-{get_today_str()}
 """
+
+    # Configure report writer model
+    report_model = configurable_model.with_config(model_config)  # type: ignore[arg-type]
+
+    # Generate final report using AI
+    report_messages = [
+        SystemMessage(content=report_writer_prompt),
+        HumanMessage(content=report_context),
+    ]
+
+    report_response = await report_model.ainvoke(report_messages)
+    final_report = (
+        str(report_response.content) if report_response.content else report_context
+    )
 
     return {
         "final_report": final_report,
