@@ -5,19 +5,22 @@ This module defines the state structures used by the LangGraph workflow
 to manage the research process and integrate with unique_toolkit ChatService.
 """
 
-from typing import List, TypedDict
+from typing import List, Optional, Required, TypedDict
 
 from langchain_core.messages import BaseMessage
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.tools.tool import ToolProgressReporter
 
 
-class CustomAgentState(TypedDict):
+class CustomAgentState(TypedDict, total=False):
     """
     Main agent state for the complete research workflow.
 
     This state is passed through the entire LangGraph workflow from
     clarification through final report generation.
+
+    All fields are optional (total=False) allowing incremental state building
+    as the workflow progresses through different stages.
     """
 
     # Core LangGraph state
@@ -26,14 +29,16 @@ class CustomAgentState(TypedDict):
     notes: List[str]  # Accumulated research findings
     final_report: str  # Generated final report
 
-    # Unique Toolkit Integration
-    chat_service: ChatService  # ChatService instance for message logging
-    message_id: str  # Assistant message ID for logging
+    # Essential services (required for functionality)
+    chat_service: Required[ChatService]  # ChatService instance for message logging
+    message_id: Required[str]  # Assistant message ID for logging
     message_log_idx: int  # Current message log index
-    tool_progress_reporter: ToolProgressReporter  # Tool progress reporter instance
+    tool_progress_reporter: Optional[
+        ToolProgressReporter
+    ]  # Tool progress reporter instance
 
 
-class CustomSupervisorState(TypedDict):
+class CustomSupervisorState(TypedDict, total=False):
     """
     State for the research supervisor (lead agent) subgraph.
 
@@ -47,13 +52,13 @@ class CustomSupervisorState(TypedDict):
     research_brief: str  # Research instructions
     raw_notes: List[str]  # Raw notes from research agents
 
-    # ChatService integration for logging
-    chat_service: ChatService
-    message_id: str
+    # ChatService integration for logging (required)
+    chat_service: Required[ChatService]
+    message_id: Required[str]
     message_log_idx: int
 
 
-class CustomResearcherState(TypedDict):
+class CustomResearcherState(TypedDict, total=False):
     """
     State for individual research agents.
 
@@ -66,13 +71,13 @@ class CustomResearcherState(TypedDict):
     research_topic: str  # Specific topic being researched
     tool_call_iterations: int  # Number of tool calls made
 
-    # ChatService integration for tool logging
-    chat_service: ChatService
-    message_id: str
+    # ChatService integration for tool logging (required)
+    chat_service: Required[ChatService]
+    message_id: Required[str]
     message_log_idx: int
 
 
-class CustomResearcherOutputState(TypedDict):
+class CustomResearcherOutputState(TypedDict, total=False):
     """
     Output state returned by individual research agents.
 
