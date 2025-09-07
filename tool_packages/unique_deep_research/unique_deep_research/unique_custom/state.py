@@ -32,7 +32,6 @@ class CustomAgentState(TypedDict, total=False):
     # Essential services (required for functionality)
     chat_service: Required[ChatService]  # ChatService instance for message logging
     message_id: Required[str]  # Assistant message ID for logging
-    message_log_idx: int  # Current message log index
     tool_progress_reporter: Optional[
         ToolProgressReporter
     ]  # Tool progress reporter instance
@@ -55,7 +54,6 @@ class CustomSupervisorState(TypedDict, total=False):
     # ChatService integration for logging (required)
     chat_service: Required[ChatService]
     message_id: Required[str]
-    message_log_idx: int
 
 
 class CustomResearcherState(TypedDict, total=False):
@@ -74,7 +72,6 @@ class CustomResearcherState(TypedDict, total=False):
     # ChatService integration for tool logging (required)
     chat_service: Required[ChatService]
     message_id: Required[str]
-    message_log_idx: int
 
 
 class CustomResearcherOutputState(TypedDict, total=False):

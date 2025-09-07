@@ -194,7 +194,6 @@ async def supervisor_tools(
                         "tool_call_iterations": 0,
                         "chat_service": state["chat_service"],
                         "message_id": state["message_id"],
-                        "message_log_idx": state.get("message_log_idx", 0),
                     },
                     config,
                 )
