@@ -6,11 +6,12 @@ handling, and other shared operations across the deep research workflow.
 """
 
 import logging
-from typing import List, Optional, Sequence, Union
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 import tiktoken
 from langchain_core.messages import AIMessage, BaseMessage, MessageLikeRepresentation
 from langchain_core.runnables import RunnableConfig
+from langchain_core.tools import BaseTool
 from unique_toolkit.chat.schemas import (
     MessageLogDetails,
     MessageLogStatus,
@@ -287,9 +288,19 @@ def write_state_message_log(
 # Tool execution utilities (temporary file - will be merged into utils.py)
 
 
-async def execute_tool_safely(tool, args: dict, config):
+async def execute_tool_safely(
+    tool: BaseTool, args: Dict[str, Any], config: RunnableConfig
+) -> str:
     """
     Safely execute a tool with error handling.
+
+    Args:
+        tool: The tool to execute (typically a LangChain tool)
+        args: Arguments to pass to the tool
+        config: Runtime configuration for the tool execution
+
+    Returns:
+        Tool execution result as a string, or error message if execution fails
 
     Prevents tool execution errors from crashing the workflow.
     Returns error messages as strings that can be processed by the agent.
