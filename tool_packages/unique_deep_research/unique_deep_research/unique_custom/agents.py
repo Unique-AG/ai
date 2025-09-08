@@ -16,6 +16,7 @@ from langchain_core.messages import (
     HumanMessage,
     SystemMessage,
     ToolMessage,
+    get_buffer_string,
 )
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, StateGraph
@@ -465,92 +466,96 @@ async def final_report_generation(
     """
     Generate the final comprehensive research report using AI-powered synthesis.
 
-    Uses the report writer template to create a professional, well-structured
-    final report from all accumulated research findings.
+    This implementation follows the open_deep_research pattern with sophisticated
+    token limit handling and progressive truncation strategies.
     """
     write_state_message_log(state, "Synthesizing final research report...")
 
+    # Step 1: Extract research findings and prepare state cleanup
     notes = state.get("notes", [])
-    research_brief = state.get("research_brief", "")
+    cleared_state = {"notes": {"type": "override", "value": []}}
+    findings = "\n".join(notes)
 
-    # Get custom config for model selection
+    # Step 2: Configure the final report generation model
     custom_config = get_custom_engine_config(config)
-
-    # Prepare report writer model
     model_config = {
         "model": custom_config.synthesis_model.name,
         "max_tokens": 8000,
         "temperature": 0.1,
     }
 
-    # Prepare report writer prompt
-    report_writer_prompt = TEMPLATE_ENV.get_template(
-        "unique/report_writer_system_open_deep_research.j2"
-    ).render(date=get_today_str())
+    # Step 3: Attempt report generation with token limit retry logic
+    max_retries = 3
+    iteration = 0
+    findings_char_limit = None
 
-    # Combine research brief and all findings
-    report_context = f"""Research Brief:
-    {research_brief}
-    Research Findings:
-    {chr(10).join(notes)}
-    """
-
-    # Configure report writer model
-    report_model = configurable_model.with_config(model_config)  # type: ignore[arg-type]
-
-    report_messages = [
-        SystemMessage(content=report_writer_prompt),
-        HumanMessage(content=report_context),
-    ]
-
-    # Simple report generation with retry logic for token limit issues
-    report_attempts = 0
-    max_attempts = 3
-
-    while report_attempts < max_attempts:
+    while iteration <= max_retries:
+        iteration += 1
         try:
-            report_response = await report_model.ainvoke(report_messages)
-            final_report = (
-                str(report_response.content)
-                if report_response.content
-                else report_context
+            # Use our existing report writer template
+            report_writer_prompt = TEMPLATE_ENV.get_template(
+                "unique/report_writer_system_open_deep_research.j2"
+            ).render(
+                research_brief=state.get("research_brief", ""),
+                messages=get_buffer_string(state.get("messages", [])),
+                findings=findings,
+                date=get_today_str(),
             )
-            # Success! Break out of retry loop
-            break
+
+            # Generate the final report
+            report_model = configurable_model.with_config(model_config)  # type: ignore[arg-type]
+            final_report = await report_model.ainvoke(
+                [HumanMessage(content=report_writer_prompt)]
+            )
+
+            # Return successful report generation
+            return {
+                "final_report": final_report.content,
+                "messages": [final_report],
+                **cleared_state,
+            }
 
         except Exception as e:
-            report_attempts += 1
-
-            # Handle token limit exceeded by truncating the findings
+            # Handle token limit exceeded errors with progressive truncation
             if is_token_error(e):
-                # Simple truncation: cut findings in half each retry
-                findings_text = chr(10).join(notes)
-                truncation_point = len(findings_text) // (
-                    2**report_attempts
-                )  # 1/2, 1/4, 1/8
-                truncated_findings = findings_text[:truncation_point]
+                model_token_limit = (
+                    custom_config.synthesis_model.token_limits.token_limit_input
+                )
 
-                truncated_context = f"""Research Brief:
-                {research_brief}
-                Research Findings:
-                {truncated_findings}"""
-                report_messages = [
-                    SystemMessage(content=report_writer_prompt),
-                    HumanMessage(content=truncated_context),
-                ]
+                if iteration == 1:
+                    # Reserve space for prompt and use ~4 characters per token approximation
+                    # Use 70% of token limit to leave room for prompt, then convert to characters
+                    available_tokens = int(model_token_limit * 0.7)
+                    findings_char_limit = available_tokens * 4  # ~4 chars per token
+                else:
+                    # Subsequent retries: reduce by 10% each time
+
+                    fallback_char_limit = int(model_token_limit * 0.7) * 4
+                    findings_char_limit = int(
+                        (findings_char_limit or fallback_char_limit) * 0.9
+                    )
+
+                # Truncate findings and retry
+                findings = findings[:findings_char_limit]
                 continue
+            else:
+                logger.error(f"Error generating final report: {e}")
+                # Non-token-limit error: return error immediately
+                return {
+                    "final_report": f"Error generating final report: {e}",
+                    "messages": [
+                        AIMessage(content="Report generation failed due to an error")
+                    ],
+                    **cleared_state,
+                }
 
-            # For other errors, continue retrying
-            continue
-
-    # If all attempts failed, use fallback
-    if report_attempts >= max_attempts:
-        final_report = "Error generating final report: Maximum retries exceeded"
-
+    # Step 4: Return failure result if all retries exhausted
     return {
-        "final_report": final_report,
-        "messages": [AIMessage(content=final_report)],
-        "notes": {"type": "override", "value": []},  # Clear notes
+        "final_report": "Error generating final report: Maximum retries exceeded",
+        "messages": [
+            AIMessage(content="Report generation failed after maximum retries")
+        ],
+        **cleared_state,
     }
 
 
