@@ -3,7 +3,7 @@
 The content service provides capabilities to interact with the the knowledge base.
 
 ```{.python #initialize_content_service_standalone}
-content_service = ContentService.from_settings_filename()
+content_service = ContentService.from_settings()
 ```
 
 
