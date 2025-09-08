@@ -12,6 +12,7 @@ from typing import Any, Dict, Literal
 from langchain.chat_models import init_chat_model
 from langchain_core.messages import (
     AIMessage,
+    BaseMessage,
     HumanMessage,
     SystemMessage,
     ToolMessage,
@@ -152,7 +153,7 @@ async def supervisor_tools(
     research_complete_called = False
 
     if most_recent_message and isinstance(most_recent_message, AIMessage):
-        tool_calls = getattr(most_recent_message, "tool_calls", None) or []
+        tool_calls = most_recent_message.tool_calls or []
         no_tool_calls = not tool_calls
         research_complete_called = any(
             tool_call.get("name") == "ResearchComplete" for tool_call in tool_calls
@@ -162,8 +163,8 @@ async def supervisor_tools(
         # Extract notes from all supervisor messages for final report
         notes = []
         for msg in supervisor_messages:
-            if hasattr(msg, "content") and msg.content:
-                notes.append(str(msg.content))
+            if isinstance(msg, BaseMessage) and msg.content:
+                notes.append(msg.content)
 
         return Command(
             goto="__end__",
@@ -178,7 +179,7 @@ async def supervisor_tools(
     conduct_research_calls = []
 
     if most_recent_message and isinstance(most_recent_message, AIMessage):
-        tool_calls = getattr(most_recent_message, "tool_calls", None) or []
+        tool_calls = most_recent_message.tool_calls or []
         conduct_research_calls = [
             tool_call
             for tool_call in tool_calls
@@ -240,7 +241,8 @@ async def supervisor_tools(
             )
 
     return Command(
-        goto="research_supervisor", update={"supervisor_messages": all_tool_messages}
+        goto="research_supervisor",
+        update={"supervisor_messages": all_tool_messages},
     )
 
 
@@ -308,7 +310,7 @@ async def researcher_tools(
     if not most_recent_message or not isinstance(most_recent_message, AIMessage):
         return Command(goto="compress_research")
 
-    tool_calls = getattr(most_recent_message, "tool_calls", None) or []
+    tool_calls = most_recent_message.tool_calls or []
     if not tool_calls:
         return Command(goto="compress_research")
 
@@ -444,12 +446,8 @@ async def compress_research(
     raw_notes = []
     for msg in researcher_messages:
         try:
-            if hasattr(msg, "content"):
-                content = getattr(msg, "content", None)
-                if content:
-                    raw_notes.append(str(content))
-                else:
-                    raw_notes.append(str(msg))
+            if isinstance(msg, BaseMessage) and msg.content:
+                raw_notes.append(msg.content)
             else:
                 raw_notes.append(str(msg))
         except (AttributeError, TypeError):
@@ -492,11 +490,10 @@ async def final_report_generation(
 
     # Combine research brief and all findings
     report_context = f"""Research Brief:
-{research_brief}
-
-Research Findings:
-{chr(10).join(notes)}
-"""
+    {research_brief}
+    Research Findings:
+    {chr(10).join(notes)}
+    """
 
     # Configure report writer model
     report_model = configurable_model.with_config(model_config)  # type: ignore[arg-type]
