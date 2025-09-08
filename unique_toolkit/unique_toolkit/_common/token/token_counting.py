@@ -4,11 +4,11 @@
 import json
 from typing import Any, Callable
 
-from pydantic import BaseModel
-
-from unique_toolkit._common.token.image_token_counting import (
+from _common.utils.token.image_token_counting import (
     calculate_image_tokens_from_base64,
 )
+from pydantic import BaseModel
+
 from unique_toolkit.language_model import (
     LanguageModelMessage,
     LanguageModelMessages,
@@ -71,11 +71,25 @@ def num_tokens_per_messages(
     for message in messages:
         num_tokens = 3  # extra_tokens_per_message
         for key, value in message.items():
-            if isinstance(value, str):
+            if key == "content":
+                if message.get("role") == "tool":
+                    """
+                    We have observed a general difference in the way tool response messages are handled.
+                    Specifically, if we take a list of tool responses and artificially transform them into user messages (content field stays the same)
+                    the token consumption goes does drastically, this seems to scale with the number of tokens in the tool responses.
+
+                    the json.dumps() method was found by trial and error. It will give a conservative estimate, but seems to be close to the token count
+                    returned from the openai call.
+                    """
+                    num_tokens += len(encode(json.dumps(value)))
+                elif isinstance(value, list):
+                    # NOTE: The result returned by the function below is not 100% accurate.
+                    num_tokens += handle_message_with_images(value, encode)
+                else:
+                    num_tokens += len(encode(value))
+            elif isinstance(value, str):
                 num_tokens += len(encode(value))
-            elif isinstance(value, list):
-                # NOTE: The result returned by the function below is not 100% accurate.
-                num_tokens += handle_message_with_images(value, encode)
+
             if key == "name":
                 num_tokens += 1  # extra_tokens_per_name
 
@@ -163,8 +177,14 @@ def messages_to_openai_messages(
         messages = LanguageModelMessages(messages)
 
     return [
-        {k: v for k, v in m.items() if (k in ["content", "role"] and v is not None)}
-        for m in json.loads(messages.model_dump_json())
+        {
+            k: v
+            for k, v in m.items()
+            if (
+                k in ["content", "role", "name"] and v is not None
+            )  # Ignore tool_calls for now
+        }
+        for m in messages.model_dump(mode="json")
     ]
 
 
