@@ -22,6 +22,7 @@ datamodel-code-generator = "^0.31.0"
 openapi3-parser = "^1.1.21"
 openapi-pydantic = "^0.5.1"
 humps = "^0.2.2"
+unique-toolkit = "^0.8.50"
 
 
 [tool.poetry.group.dev.dependencies]
