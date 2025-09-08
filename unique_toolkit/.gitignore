@@ -3,6 +3,7 @@ examples/generated/
 
 # Environment files with secrets
 *.env
+.env*
 unique.env
 docs/examples_from_docs/*.env
 docs/examples_from_docs/unique.env

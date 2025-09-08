@@ -14,7 +14,7 @@ scope_id = demo_env_vars.get("UNIQUE_SCOPE_ID") or "unknown"
 # Search for content using vector similarity
 content_chunks = content_service.search_content_chunks(
     search_string="Harry Potter",
-    search_type=ContentSearchType.VECTOR,
+    search_type=ContentSearchType.COMBINED,
     limit=10,
     score_threshold=0.7,  # Only return results with high similarity
     scope_ids=[scope_id],
@@ -23,3 +23,5 @@ content_chunks = content_service.search_content_chunks(
 print(f"Found {len(content_chunks)} relevant chunks")
 for i, chunk in enumerate(content_chunks[:3]):
     print(f"  {i + 1}. {chunk.text[:100]}...")
+
+# %%

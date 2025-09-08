@@ -77,7 +77,7 @@ def build_request_requestor(
         ]
     ],
     combined_model: Callable[CombinedParamsSpec, CombinedParamsType],
-) -> type[EndpointRequestorProtocol]:
+) -> type[EndpointRequestorProtocol[CombinedParamsSpec, ResponseType]]:
     import requests
 
     class RequestRequestor(EndpointRequestorProtocol):
@@ -173,14 +173,18 @@ if __name__ == "__main__":
         return_value={"id": 100, "name": "John Doe"},
     )
 
-    # Note that the return value is a pydantic UserResponse object
     response = FakeUserRequestor().request(
         headers={"a": "b"},
         user_id=123,
         include_profile=True,
     )
 
-    print(response.model_dump())
-    print(response.model_json_schema())
-    print(response.id)
-    print(response.name)
+    # RequestUserRequestor = build_request_requestor(
+    #    endpoint_type=UserEndpoint,
+    #    combined_model=CombinedParams,
+    # )
+    # response = RequestUserRequestor().request(
+    #    headers={"a": "b"},
+    #    user_id=123,
+    #    include_profile=True,
+    # )
