@@ -1,5 +1,3 @@
-# %%
-
 import json
 from pathlib import Path
 from typing import Any
@@ -47,6 +45,10 @@ def generate_model_content(
     # Generate to temporary file first
     import tempfile
 
+    from datamodel_code_generator.format import (
+        PythonVersion,
+    )
+
     with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as temp_file:
         temp_path = Path(temp_file.name)
 
@@ -56,6 +58,11 @@ def generate_model_content(
         output=temp_path,
         class_name=title,
         output_model_type=output_model_type,
+        target_python_version=PythonVersion.PY_313,
+        use_standard_collections=True,
+        snake_case_field=True,
+        use_union_operator=True,
+        use_double_quotes=True,
     )
 
     # Read the generated content
@@ -131,10 +138,12 @@ def path_to_folder(path: str) -> Path:
 
 def generate_consolidated_endpoint_models():
     """Generate all models for each endpoint in a single file."""
-    openapi_path = Path(__file__).parent / "openapi.json"
+    openapi_path = (
+        Path(__file__).parent / "openapi_generator" / "openapi-no-examples.json"
+    )
     output_root = Path("generated_routes")
 
-    with open(openapi_path) as f:
+    with openapi_path.open("r") as f:
         openapi: dict[str, Any] = jsonref.load(f)
 
     for path, methods in openapi.get("paths", {}).items():
@@ -216,19 +225,18 @@ def generate_consolidated_endpoint_models():
                     except Exception as e:
                         print(f"Error generating response model for {route_name}: {e}")
 
-            # Only create the file if we have models to write
-            if all_models:
-                # Create the consolidated file
-                models_file.parent.mkdir(parents=True, exist_ok=True)
+            # Always create the file, even if there are no models
+            models_file.parent.mkdir(parents=True, exist_ok=True)
 
-                with open(models_file, "w") as f:
-                    # Write header
-                    f.write("# Generated models for endpoint\n")
-                    f.write(f"# {method.upper()} {path}\n\n")
+            with open(models_file, "w") as f:
+                # Write header
+                f.write("# Generated models for endpoint\n")
+                f.write(f"# {method.upper()} {path}\n\n")
 
-                    # Write imports
-                    f.write("from __future__ import annotations\n\n")
+                # Write imports
+                f.write("from __future__ import annotations\n\n")
 
+                if all_models:
                     # Determine what to import based on what's needed
                     typing_imports = []
                     pydantic_imports = []
@@ -264,10 +272,18 @@ def generate_consolidated_endpoint_models():
                         if i > 0:
                             f.write("\n\n")
                         f.write(model_content)
+                else:
+                    # No models were generated for this endpoint
+                    f.write("# No models were generated for this endpoint\n")
+                    f.write(
+                        "# This may be because the endpoint has no request/response schemas\n"
+                    )
 
+            if all_models:
                 print(f"✅ Created consolidated models: {models_file}")
+            else:
+                print(f"📝 Created empty models file: {models_file}")
 
 
-generate_consolidated_endpoint_models()
-
-# %%
+if __name__ == "__main__":
+    generate_consolidated_endpoint_models()
