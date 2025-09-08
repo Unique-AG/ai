@@ -7,7 +7,7 @@ following the pattern from open_deep_research but integrated with unique_toolkit
 
 import asyncio
 import logging
-from typing import Any, Dict, Literal
+from typing import Any, Dict, Literal, Union
 
 from langchain.chat_models import init_chat_model
 from langchain_core.messages import (
@@ -150,7 +150,6 @@ async def supervisor_tools(
     max_iterations = custom_config.max_research_iterations
     exceeded_iterations = research_iterations > max_iterations
 
-    # Type guard for AIMessage with tool_calls
     no_tool_calls = True
     research_complete_called = False
 
@@ -176,70 +175,53 @@ async def supervisor_tools(
             },
         )
 
-    # Process tool calls
+    # TOOL CALL HANDLERS
     all_tool_messages = []
-    conduct_research_calls = []
 
-    if most_recent_message and isinstance(most_recent_message, AIMessage):
-        tool_calls = most_recent_message.tool_calls or []
+    if (
+        most_recent_message
+        and isinstance(most_recent_message, AIMessage)
+        and most_recent_message.tool_calls
+    ):
+        # Collect tool calls by type
+        think_tool_calls = [tc for tc in tool_calls if tc.get("name") == "think_tool"]
         conduct_research_calls = [
-            tool_call
-            for tool_call in tool_calls
-            if tool_call.get("name") == "ConductResearch"
+            tc for tc in tool_calls if tc.get("name") == "ConductResearch"
+        ]
+        unknown_tool_calls = [
+            tc
+            for tc in tool_calls
+            if tc.get("name") not in ["think_tool", "ConductResearch"]
         ]
 
-    if conduct_research_calls:
-        write_state_message_log(
-            state, f"Delegating {len(conduct_research_calls)} research tasks..."
-        )
+        # Handle think_tool calls
+        for tool_call in think_tool_calls:
+            all_tool_messages.append(_handle_think_tool(tool_call))
 
         try:
-            # Limit concurrent research tasks
-            max_concurrent = (
-                custom_config.max_parallel_researchers if custom_config else 3
+            research_tool_messages = await _handle_conduct_research_batch(
+                conduct_research_calls, state, config, custom_config
             )
-            allowed_calls = conduct_research_calls[:max_concurrent]
-
-            # Execute research tasks in parallel
-            research_tasks = [
-                researcher_subgraph.ainvoke(
-                    {
-                        "researcher_messages": [
-                            HumanMessage(content=tool_call["args"]["research_topic"])
-                        ],
-                        "research_topic": tool_call["args"]["research_topic"],
-                        "tool_call_iterations": 0,
-                        "chat_service": state["chat_service"],
-                        "message_id": state["message_id"],
-                    },
-                    config,
-                )
-                for tool_call in allowed_calls
-            ]
-
-            tool_results = await asyncio.gather(*research_tasks)
-
-            # Create tool messages with research results
-            for observation, tool_call in zip(tool_results, allowed_calls):
-                all_tool_messages.append(
-                    ToolMessage(
-                        content=observation.get(
-                            "compressed_research", "No research results"
-                        ),
-                        name=tool_call["name"],
-                        tool_call_id=tool_call["id"],
-                    )
-                )
-
+            all_tool_messages.extend(research_tool_messages)
         except Exception as e:
             logger.error(f"Research execution failed: {e}")
-            # Return end command on error
             return Command(
                 goto="__end__",
                 update={
-                    "notes": ["Research failed due to error"],
+                    "notes": [f"Research failed due to error: {e}"],
                     "research_brief": state.get("research_brief", ""),
                 },
+            )
+
+        # Unknown tool calls
+        for tool_call in unknown_tool_calls:
+            logger.error(f"Unknown tool: {tool_call.get('name', 'unnamed')}")
+            all_tool_messages.append(
+                ToolMessage(
+                    content=f"Unknown tool: {tool_call.get('name', 'unnamed')}",
+                    name=tool_call.get("name", "unknown"),
+                    tool_call_id=tool_call.get("id", "unknown"),
+                )
             )
 
     return Command(
@@ -249,8 +231,6 @@ async def supervisor_tools(
 
 
 # Research Agent Functions
-
-
 async def researcher(
     state: CustomResearcherState, config: RunnableConfig
 ) -> Command[Literal["researcher_tools"]]:
@@ -548,7 +528,68 @@ async def final_report_generation(
     }
 
 
-# Graph Construction
+################ TOOL HANDLERS #################
+
+
+def _handle_think_tool(tool_call: Union[dict, Any]) -> ToolMessage:
+    """Handle think_tool calls with strategic reflection."""
+    reflection_content = tool_call["args"]["reflection"]
+    return ToolMessage(
+        content=f"Reflection recorded: {reflection_content}",
+        name="think_tool",
+        tool_call_id=tool_call["id"],
+    )
+
+
+async def _handle_conduct_research_batch(
+    conduct_research_calls: list[Union[dict, Any]],
+    state: CustomSupervisorState,
+    config: RunnableConfig,
+    custom_config,
+) -> list[ToolMessage]:
+    """Handle multiple ConductResearch calls in parallel for efficiency."""
+    if not conduct_research_calls:
+        return []
+
+    write_state_message_log(
+        state, f"Delegating {len(conduct_research_calls)} research tasks..."
+    )
+
+    # Limit concurrent research tasks to prevent resource exhaustion
+    max_concurrent = custom_config.max_parallel_researchers
+    allowed_calls = conduct_research_calls[:max_concurrent]
+
+    # Execute research tasks in parallel
+    research_tasks = [
+        researcher_subgraph.ainvoke(
+            {
+                "researcher_messages": [
+                    HumanMessage(content=tool_call["args"]["research_topic"])
+                ],
+                "research_topic": tool_call["args"]["research_topic"],
+                "tool_call_iterations": 0,
+                "chat_service": state["chat_service"],
+                "message_id": state["message_id"],
+            },
+            config,
+        )
+        for tool_call in allowed_calls
+    ]
+
+    tool_results = await asyncio.gather(*research_tasks)
+
+    # Create tool messages with research results
+    return [
+        ToolMessage(
+            content=observation.get("compressed_research", "No research results"),
+            name=tool_call["name"],
+            tool_call_id=tool_call["id"],
+        )
+        for observation, tool_call in zip(tool_results, allowed_calls)
+    ]
+
+
+################ GRAPH CONSTRUCTION #################
 
 # Researcher Subgraph for parallel execution
 researcher_builder = StateGraph(CustomResearcherState)
