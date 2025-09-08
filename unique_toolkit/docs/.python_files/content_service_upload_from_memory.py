@@ -26,7 +26,7 @@ from pydantic import Field
 from unique_toolkit import LanguageModelToolDescription
 # ~/~ end
 # ~/~ begin <<docs/modules/examples/content/content_service.md#initialize_content_service_standalone>>[init]
-content_service = ContentService.from_settings_filename()
+content_service = ContentService.from_settings()
 # ~/~ end
 # ~/~ end
 # ~/~ begin <<docs/modules/examples/content/content_service.md#load_demo_variables>>[init]
