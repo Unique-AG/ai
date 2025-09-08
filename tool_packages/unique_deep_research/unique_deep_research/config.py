@@ -61,8 +61,13 @@ class UniqueCustomEngineConfig(BaseModel):
         default=LanguageModelInfo.from_name(LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4),
     )
 
-    synthesis_model: LMI = Field(
+    final_report_synthesis_model: LMI = Field(
         description="The model to use for final report synthesis",
+        default=LanguageModelInfo.from_name(LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4),
+    )
+
+    compression_model: LMI = Field(
+        description="The model to use for compression",
         default=LanguageModelInfo.from_name(LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4),
     )
 

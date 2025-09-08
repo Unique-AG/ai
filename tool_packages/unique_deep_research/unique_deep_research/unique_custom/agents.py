@@ -16,6 +16,7 @@ from langchain_core.messages import (
     HumanMessage,
     SystemMessage,
     ToolMessage,
+    filter_messages,
     get_buffer_string,
 )
 from langchain_core.runnables import RunnableConfig
@@ -364,99 +365,89 @@ async def compress_research(
     Uses the synthesis template to create a comprehensive, well-structured
     summary of the research findings with proper citations and formatting.
     """
-    researcher_messages = state.get("researcher_messages", [])
-    research_topic = state.get("research_topic", "Unknown topic")
-
     # Get custom config for model selection
     custom_config = get_custom_engine_config(config)
 
     # Prepare synthesis model
     model_config = {
-        "model": custom_config.synthesis_model.name,
+        "model": custom_config.compression_model.name,
         "max_tokens": 8000,
         "temperature": 0.1,
     }
 
-    # Prepare synthesis prompt with research context
-    synthesis_prompt = TEMPLATE_ENV.get_template(
-        "unique/synthesis_agent_system.j2"
+    # PROMPTS
+    compression_system_prompt = TEMPLATE_ENV.get_template(
+        "unique/compress_research_system.j2"
     ).render(date=get_today_str())
 
-    # Build synthesis context from messages
-    research_context = f"Research Topic: {research_topic}\n\n"
-    for i, msg in enumerate(researcher_messages, 1):
-        if isinstance(msg, ToolMessage):
-            research_context += f"Tool Result {i}:\n{msg.content}\n\n"
-        elif isinstance(msg, AIMessage):
-            research_context += f"Analysis {i}:\n{msg.content}\n\n"
+    researcher_messages = state.get("researcher_messages", [])
 
-    synthesis_messages = [
-        SystemMessage(content=synthesis_prompt),
-        HumanMessage(content=research_context),
-    ]
+    # Add instruction to switch from research mode to compression mode (like reference)
+    compression_instruction = """All above messages are about research conducted by an AI Researcher. Please clean up these findings. 
+    DO NOT summarize the information. I want the raw information returned, just in a cleaner format. Make sure all relevant information is preserved - you can rewrite findings verbatim."""
 
-    # Configure synthesis model
-    synthesis_model = configurable_model.with_config(model_config)  # type: ignore[arg-type]
+    # Follow reference architecture: append instruction to researcher messages
+    researcher_messages.append(HumanMessage(content=compression_instruction))
 
-    # Simple synthesis with retry logic for token limit issues (like open_deep_research)
-    synthesis_attempts = 0
-    max_attempts = 3
+    # Create messages with system prompt + all researcher messages (like reference)
+    compression_messages = [
+        SystemMessage(content=compression_system_prompt)
+    ] + researcher_messages
 
-    while synthesis_attempts < max_attempts:
+    # Configure compression model
+    compression_model = configurable_model.with_config(model_config)  # type: ignore[arg-type]
+
+    # Synthesis with retry logic for token limit issues
+    max_retries = 3
+    iteration = 0
+
+    while iteration <= max_retries:
+        iteration += 1
         try:
-            synthesis_response = await synthesis_model.ainvoke(synthesis_messages)
+            response = await compression_model.ainvoke(compression_messages)
             compressed_research = (
-                str(synthesis_response.content)
-                if synthesis_response.content
-                else research_context
+                str(response.content)
+                if response.content
+                else "No synthesis content generated"
             )
             # Success! Break out of retry loop
             break
 
         except Exception as e:
-            synthesis_attempts += 1
-
-            # Handle token limit exceeded by removing older messages
+            # Handle token limit exceeded by removing older messages (like reference)
             if is_token_error(e):
+                # Remove older messages to reduce token usage
                 researcher_messages = remove_up_to_last_ai_message(researcher_messages)
 
-                # Rebuild synthesis context with truncated messages
-                research_context = f"Research Topic: {research_topic}\n\n"
-                for i, msg in enumerate(researcher_messages, 1):
-                    if isinstance(msg, ToolMessage):
-                        research_context += f"Tool Result {i}:\n{msg.content}\n\n"
-                    elif isinstance(msg, AIMessage):
-                        research_context += f"Analysis {i}:\n{msg.content}\n\n"
-
-                synthesis_messages = [
-                    SystemMessage(content=synthesis_prompt),
-                    HumanMessage(content=research_context),
-                ]
+                # Rebuild messages with system prompt + truncated researcher messages
+                compression_messages = [
+                    SystemMessage(content=compression_system_prompt)
+                ] + researcher_messages
+                continue
+            else:
+                logger.error(f"Error compressing research: {e}")
+                # For other errors, continue retrying
                 continue
 
-            # For other errors, continue retrying
-            continue
-
     # If all attempts failed, use fallback
-    if synthesis_attempts >= max_attempts:
+    if iteration > max_retries:
         compressed_research = (
             "Error synthesizing research report: Maximum retries exceeded"
         )
 
-    # Create raw notes for backup
-    raw_notes = []
-    for msg in researcher_messages:
-        try:
-            if isinstance(msg, BaseMessage) and msg.content:
-                raw_notes.append(msg.content)
-            else:
-                raw_notes.append(str(msg))
-        except (AttributeError, TypeError):
-            raw_notes.append(str(msg))
+    # Extract raw notes from all tool and AI messages (like reference)
+    raw_notes_content = "\n".join(
+        [
+            str(message.content)
+            for message in filter_messages(
+                researcher_messages, include_types=["tool", "ai"]
+            )
+        ]
+    )
 
     return {
         "compressed_research": compressed_research,
-        "raw_notes": raw_notes,
+        "raw_notes": [raw_notes_content],
     }
 
 
@@ -479,7 +470,7 @@ async def final_report_generation(
     # Step 2: Configure the final report generation model
     custom_config = get_custom_engine_config(config)
     model_config = {
-        "model": custom_config.synthesis_model.name,
+        "model": custom_config.final_report_synthesis_model.name,
         "max_tokens": 8000,
         "temperature": 0.1,
     }
@@ -518,9 +509,7 @@ async def final_report_generation(
         except Exception as e:
             # Handle token limit exceeded errors with progressive truncation
             if is_token_error(e):
-                model_token_limit = (
-                    custom_config.synthesis_model.token_limits.token_limit_input
-                )
+                model_token_limit = custom_config.final_report_synthesis_model.token_limits.token_limit_input
 
                 if iteration == 1:
                     # Reserve space for prompt and use ~4 characters per token approximation
