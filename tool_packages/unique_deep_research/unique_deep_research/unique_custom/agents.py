@@ -31,7 +31,7 @@ from .utils import (
     execute_tool_safely,
     get_custom_engine_config,
     is_token_error,
-    truncate_context,
+    remove_up_to_last_ai_message,
     write_state_message_log,
 )
 
@@ -387,35 +387,65 @@ async def compress_research(
     # Configure synthesis model
     synthesis_model = configurable_model.with_config(model_config)  # type: ignore[arg-type]
 
-    # Simple synthesis with one retry on token errors
-    try:
-        synthesis_response = await synthesis_model.ainvoke(synthesis_messages)
-        compressed_research = (
-            str(synthesis_response.content)
-            if synthesis_response.content
-            else research_context
-        )
-    except Exception as e:
-        if is_token_error(e):
-            # One retry with truncated context
-            truncated_context = truncate_context(
-                research_context, custom_config.synthesis_model, 0.6
+    # Simple synthesis with retry logic for token limit issues (like open_deep_research)
+    synthesis_attempts = 0
+    max_attempts = 3
+
+    while synthesis_attempts < max_attempts:
+        try:
+            synthesis_response = await synthesis_model.ainvoke(synthesis_messages)
+            compressed_research = (
+                str(synthesis_response.content)
+                if synthesis_response.content
+                else research_context
             )
-            synthesis_messages[1] = HumanMessage(content=truncated_context)
-            try:
-                synthesis_response = await synthesis_model.ainvoke(synthesis_messages)
-                compressed_research = (
-                    str(synthesis_response.content)
-                    if synthesis_response.content
-                    else truncated_context
-                )
-            except Exception:
-                compressed_research = truncated_context
-        else:
-            compressed_research = research_context
+            # Success! Break out of retry loop
+            break
+
+        except Exception as e:
+            synthesis_attempts += 1
+
+            # Handle token limit exceeded by removing older messages
+            if is_token_error(e):
+                researcher_messages = remove_up_to_last_ai_message(researcher_messages)
+
+                # Rebuild synthesis context with truncated messages
+                research_context = f"Research Topic: {research_topic}\n\n"
+                for i, msg in enumerate(researcher_messages, 1):
+                    if isinstance(msg, ToolMessage):
+                        research_context += f"Tool Result {i}:\n{msg.content}\n\n"
+                    elif isinstance(msg, AIMessage):
+                        research_context += f"Analysis {i}:\n{msg.content}\n\n"
+
+                synthesis_messages = [
+                    SystemMessage(content=synthesis_prompt),
+                    HumanMessage(content=research_context),
+                ]
+                continue
+
+            # For other errors, continue retrying
+            continue
+
+    # If all attempts failed, use fallback
+    if synthesis_attempts >= max_attempts:
+        compressed_research = (
+            "Error synthesizing research report: Maximum retries exceeded"
+        )
 
     # Create raw notes for backup
-    raw_notes = [str(msg.content) for msg in researcher_messages]
+    raw_notes = []
+    for msg in researcher_messages:
+        try:
+            if hasattr(msg, "content"):
+                content = getattr(msg, "content", None)
+                if content:
+                    raw_notes.append(str(content))
+                else:
+                    raw_notes.append(str(msg))
+            else:
+                raw_notes.append(str(msg))
+        except (AttributeError, TypeError):
+            raw_notes.append(str(msg))
 
     return {
         "compressed_research": compressed_research,
@@ -468,30 +498,49 @@ Research Findings:
         HumanMessage(content=report_context),
     ]
 
-    # Simple report generation with one retry on token errors
-    try:
-        report_response = await report_model.ainvoke(report_messages)
-        final_report = (
-            str(report_response.content) if report_response.content else report_context
-        )
-    except Exception as e:
-        if is_token_error(e):
-            # One retry with truncated context
-            truncated_context = truncate_context(
-                report_context, custom_config.synthesis_model, 0.6
+    # Simple report generation with retry logic for token limit issues
+    report_attempts = 0
+    max_attempts = 3
+
+    while report_attempts < max_attempts:
+        try:
+            report_response = await report_model.ainvoke(report_messages)
+            final_report = (
+                str(report_response.content)
+                if report_response.content
+                else report_context
             )
-            report_messages[1] = HumanMessage(content=truncated_context)
-            try:
-                report_response = await report_model.ainvoke(report_messages)
-                final_report = (
-                    str(report_response.content)
-                    if report_response.content
-                    else truncated_context
-                )
-            except Exception:
-                final_report = truncated_context
-        else:
-            final_report = report_context
+            # Success! Break out of retry loop
+            break
+
+        except Exception as e:
+            report_attempts += 1
+
+            # Handle token limit exceeded by truncating the findings
+            if is_token_error(e):
+                # Simple truncation: cut findings in half each retry
+                findings_text = chr(10).join(notes)
+                truncation_point = len(findings_text) // (
+                    2**report_attempts
+                )  # 1/2, 1/4, 1/8
+                truncated_findings = findings_text[:truncation_point]
+
+                truncated_context = f"""Research Brief:
+                {research_brief}
+                Research Findings:
+                {truncated_findings}"""
+                report_messages = [
+                    SystemMessage(content=report_writer_prompt),
+                    HumanMessage(content=truncated_context),
+                ]
+                continue
+
+            # For other errors, continue retrying
+            continue
+
+    # If all attempts failed, use fallback
+    if report_attempts >= max_attempts:
+        final_report = "Error generating final report: Maximum retries exceeded"
 
     return {
         "final_report": final_report,

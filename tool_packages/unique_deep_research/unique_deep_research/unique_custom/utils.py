@@ -6,9 +6,10 @@ handling, and other shared operations across the deep research workflow.
 """
 
 import logging
-from typing import Optional, Union
+from typing import List, Optional, Sequence, Union
 
 import tiktoken
+from langchain_core.messages import AIMessage, BaseMessage, MessageLikeRepresentation
 from langchain_core.runnables import RunnableConfig
 from unique_toolkit.chat.schemas import (
     MessageLogDetails,
@@ -341,3 +342,29 @@ def is_token_error(exception: Exception) -> bool:
             "maximum context",
         ]
     )
+
+
+def remove_up_to_last_ai_message(
+    messages: Sequence[Union[BaseMessage, MessageLikeRepresentation]],
+) -> List[Union[BaseMessage, MessageLikeRepresentation]]:
+    """Truncate message history by removing up to the last AI message.
+
+    This is useful for handling token limit exceeded errors by removing recent context
+    while preserving conversation structure. It searches backwards through messages
+    to find the last AI message and returns everything up to (but not including) it.
+
+    Args:
+        messages: List of message objects to truncate
+
+    Returns:
+        Truncated message list up to (but not including) the last AI message.
+        If no AI messages found, returns original list.
+    """
+    # Search backwards through messages to find the last AI message
+    for i in range(len(messages) - 1, -1, -1):
+        if isinstance(messages[i], AIMessage):
+            # Return everything up to (but not including) the last AI message
+            return list(messages[:i])
+
+    # No AI messages found, return original list
+    return list(messages)
