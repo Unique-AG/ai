@@ -9,7 +9,13 @@ from typing import Any, List
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import tool
 from pydantic import BaseModel, Field
-from unique_toolkit.chat.schemas import MessageLogStatus
+from unique_toolkit.chat.schemas import (
+    MessageLogDetails,
+    MessageLogEvent,
+    MessageLogStatus,
+    MessageLogUncitedReferences,
+)
+from unique_toolkit.content import ContentReference
 from unique_toolkit.content.schemas import ContentSearchType
 from unique_toolkit.history_manager.utils import transform_chunks_to_string
 from unique_web_search.client_settings import get_google_search_settings
@@ -115,48 +121,35 @@ async def web_search(query: str, config: RunnableConfig) -> str:
     Useful for finding current information, news, and general knowledge
     from across the internet.
     """
-    try:
-        write_tool_message_log(config, f"Searching the web for: {query}")
+    write_tool_message_log(
+        config,
+        "Searching the web",
+        details=MessageLogDetails(data=[MessageLogEvent(type="WebSearch", text=query)]),
+    )
+    google_settings = get_google_search_settings()
 
-        # Check if Google Search is configured
-        google_settings = get_google_search_settings()
+    if not google_settings.is_configured:
+        logger.error("Google Search not configured")
+        raise ValueError("Google Search not configured")
 
-        if not google_settings.is_configured:
-            logger.warning("Google Search not configured")
-            write_tool_message_log(
-                config, "Google Search not configured", MessageLogStatus.FAILED
-            )
-            return f"Web search not configured. Query was: '{query}'. Please configure Google Search API credentials."
+    # Create Google search configuration and service
+    google_config = GoogleConfig(fetch_size=10)
+    google_search = GoogleSearch(google_config)
 
-        # Create Google search configuration and service
-        google_config = GoogleConfig(fetch_size=10)
-        google_search = GoogleSearch(google_config)
+    # Perform the search
+    search_results = await google_search.search(query)
 
-        # Perform the search
-        search_results = await google_search.search(query)
+    if not search_results:
+        logger.warning(f"No search results found for: {query}")
+        return f"No search results found for query: '{query}'"
 
-        if not search_results:
-            write_tool_message_log(config, f"No search results found for: {query}")
-            return f"No search results found for query: '{query}'"
-
-        # Format results for LangGraph
-        formatted_results = []
-        for i, result in enumerate(search_results[:10], 1):
-            formatted_results.append(
-                f"{i}. {result.title}\n   URL: {result.url}\n   Snippet: {result.snippet}\n"
-            )
-
-        write_tool_message_log(
-            config, f"Found {len(search_results)} search results for: {query}"
+    # Format results for LangGraph
+    formatted_results = []
+    for i, result in enumerate(search_results[:10], 1):
+        formatted_results.append(
+            f"{i}. {result.title}\n   URL: {result.url}\n   Snippet: {result.snippet}\n"
         )
-        return f"Web search results for '{query}':\n\n" + "\n".join(formatted_results)
-
-    except Exception as e:
-        logger.error(f"Error in web_search: {e}")
-        write_tool_message_log(
-            config, f"Error searching for: {query} - {str(e)}", MessageLogStatus.FAILED
-        )
-        return f"Error performing web search for '{query}': {str(e)}"
+    return f"Web search results for '{query}':\n\n" + "\n".join(formatted_results)
 
 
 @tool(args_schema=WebFetchArgs)
@@ -167,54 +160,51 @@ async def web_fetch(url: str, config: RunnableConfig) -> str:
     Useful for getting detailed information from specific web pages
     that were found through search or are known to contain relevant content.
     """
-    try:
-        write_tool_message_log(config, f"Fetching content from: {url}")
+    write_tool_message_log(
+        config,
+        "Reviewing Web Sources",
+        uncited_references=MessageLogUncitedReferences(
+            data=[
+                ContentReference(
+                    name=url,
+                    url=url,
+                    sequence_number=0,
+                    source="deep-research-citations",
+                    source_id=url,
+                )
+            ]
+        ),
+    )
+    # Create basic crawler configuration
+    crawler_config = BasicCrawlerConfig()
 
-        # Create basic crawler configuration
-        crawler_config = BasicCrawlerConfig(
-            timeout=30,  # 30 second timeout
-            max_concurrent_requests=1,  # Single request
-        )
+    # Create crawler instance
+    crawler = BasicCrawler(crawler_config)
 
-        # Create crawler instance
-        crawler = BasicCrawler(crawler_config)
+    # Crawl the URL
+    results = await crawler.crawl([url])
 
-        # Crawl the URL
-        results = await crawler.crawl([url])
-
-        if not results or not results[0]:
-            write_tool_message_log(
-                config, f"Unable to fetch content from: {url}", MessageLogStatus.FAILED
-            )
-            return f"Unable to fetch content from URL: {url}"
-
-        content = results[0]
-
-        # Check if the content indicates an error
-        if "An expected error occurred" in content or "Unable to crawl URL" in content:
-            write_tool_message_log(
-                config, f"Error fetching content from: {url}", MessageLogStatus.FAILED
-            )
-            return f"Error fetching content from {url}: {content}"
-
-        # Truncate if too long (keep first 10000 characters)
-        content_length = len(content)
-        if content_length > 10000:
-            content = content[:10000] + "\n\n[Content truncated...]"
-
+    if not results or not results[0]:
         write_tool_message_log(
-            config, f"Successfully fetched {content_length} characters from: {url}"
+            config, f"Unable to fetch content from: {url}", MessageLogStatus.FAILED
         )
-        return f"Content from {url}:\n\n{content}"
+        return f"Unable to fetch content from URL: {url}"
 
-    except Exception as e:
-        logger.error(f"Error in web_fetch for URL {url}: {e}")
+    content = results[0]
+
+    # Check if the content indicates an error
+    if "An expected error occurred" in content or "Unable to crawl URL" in content:
         write_tool_message_log(
-            config,
-            f"Error fetching content from: {url} - {str(e)}",
-            MessageLogStatus.FAILED,
+            config, f"Error fetching content from: {url}", MessageLogStatus.FAILED
         )
-        return f"Error fetching content from {url}: {str(e)}"
+        return f"Error fetching content from {url}: {content}"
+
+    # Truncate if too long (keep first 10000 characters)
+    content_length = len(content)
+    if content_length > 10000:
+        content = content[:10000] + "\n\n[Content truncated...]"
+
+    return f"Content from {url}:\n\n{content}"
 
 
 @tool(args_schema=InternalSearchArgs)
