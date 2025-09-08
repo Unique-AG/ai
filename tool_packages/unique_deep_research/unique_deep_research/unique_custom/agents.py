@@ -19,7 +19,8 @@ from langchain_core.messages import (
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command
-from unique_toolkit.framework_utilities.openai.client import get_openai_client
+from unique_toolkit.app.unique_settings import UniqueSettings
+from unique_toolkit.framework_utilities.utils import get_default_headers
 
 from ..config import TEMPLATE_ENV
 from .state import (
@@ -40,11 +41,12 @@ logger = logging.getLogger(__name__)
 
 
 # Pre-configured model for all agents with OpenAI settings
-openai_client = get_openai_client()
+unique_settings = UniqueSettings.from_env_auto()
 configurable_model = init_chat_model(
     model_provider="openai",
-    openai_api_key=str(openai_client.api_key),
-    openai_api_base=str(openai_client.base_url),
+    openai_api_key=unique_settings.app.key.get_secret_value(),
+    openai_api_base=unique_settings.api.openai_proxy_url(),
+    default_headers=get_default_headers(unique_settings.app, unique_settings.auth),
     configurable_fields=("model", "max_tokens", "temperature"),
 )
 
