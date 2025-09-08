@@ -99,9 +99,10 @@ class InternalSearchService:
         """
         if metadata_filter is None:
             metadata_filter = self.content_service._metadata_filter
-        # metadata_filter_copy = copy.deepcopy(self.content_service._metadata_filter)
+            metadata_filter_copy = self.content_service._metadata_filter
         if chat_only and metadata_filter:
-            # self.content_service._metadata_filter = None
+            # if this is not set to none search_content_chunks_async will overwrite it inside its call thats why it needs to stay.
+            self.content_service._metadata_filter = None
             metadata_filter = None
 
         try:
@@ -124,7 +125,7 @@ class InternalSearchService:
             raise e
 
         # Reset the metadata filter in case it was disabled
-        # self.content_service._metadata_filter = metadata_filter_copy
+        self.content_service._metadata_filter = metadata_filter_copy
 
         # Apply chunk relevancy sorter if enabled
         if self.config.chunk_relevancy_sort_config.enabled:
