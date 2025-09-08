@@ -371,7 +371,7 @@ async def compress_research(
     # Prepare synthesis model
     model_config = {
         "model": custom_config.compression_model.name,
-        "max_tokens": 8000,
+        "max_tokens": 8192,
         "temperature": 0.1,
     }
 
@@ -471,7 +471,7 @@ async def final_report_generation(
     custom_config = get_custom_engine_config(config)
     model_config = {
         "model": custom_config.final_report_synthesis_model.name,
-        "max_tokens": 8000,
+        "max_tokens": 10000,
         "temperature": 0.1,
     }
 

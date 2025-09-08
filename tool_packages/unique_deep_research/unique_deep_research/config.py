@@ -53,22 +53,22 @@ class UniqueCustomEngineConfig(BaseModel):
 
     lead_agent_model: LMI = Field(
         description="The model to use for the lead research agent (supervisor)",
-        default=LanguageModelInfo.from_name(LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4),
+        default=LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_41_2025_0414),
     )
 
     research_agent_model: LMI = Field(
         description="The model to use for individual research agents",
-        default=LanguageModelInfo.from_name(LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4),
+        default=LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_41_2025_0414),
     )
 
     final_report_synthesis_model: LMI = Field(
         description="The model to use for final report synthesis",
-        default=LanguageModelInfo.from_name(LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4),
+        default=LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_41_2025_0414),
     )
 
     compression_model: LMI = Field(
         description="The model to use for compression",
-        default=LanguageModelInfo.from_name(LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4),
+        default=LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_41_2025_0414),
     )
 
     max_parallel_researchers: int = Field(
