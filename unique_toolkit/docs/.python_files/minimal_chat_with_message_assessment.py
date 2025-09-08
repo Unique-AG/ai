@@ -24,7 +24,7 @@ from unique_toolkit.framework_utilities.openai.message_builder import (
 from pydantic import Field
 from unique_toolkit import LanguageModelToolDescription
 # ~/~ end
-# ~/~ begin <<docs/examples_from_docs/application_types/event_driven_applications.md#full_sse_setup>>[init]
+# ~/~ begin <<docs/application_types/event_driven_applications.md#full_sse_setup>>[init]
 # ~/~ begin <<docs/setup/_common_imports.md#common_imports>>[init]
 from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.app.init_sdk import init_unique_sdk
@@ -50,10 +50,10 @@ from unique_toolkit.framework_utilities.openai.message_builder import (
 from pydantic import Field
 from unique_toolkit import LanguageModelToolDescription
 # ~/~ end
-# ~/~ begin <<docs/examples_from_docs/application_types/event_driven_applications.md#unique_setup_settings_sdk_from_env>>[init]
+# ~/~ begin <<docs/application_types/event_driven_applications.md#unique_setup_settings_sdk_from_env>>[init]
 settings = UniqueSettings.from_env_auto_with_sdk_init()
 # ~/~ end
-# ~/~ begin <<docs/examples_from_docs/application_types/event_driven_applications.md#obtaining_sse_client_with_chat_event>>[init]
+# ~/~ begin <<docs/application_types/event_driven_applications.md#obtaining_sse_client_with_chat_event>>[init]
 for event in get_event_generator(unique_settings=settings, event_type=ChatEvent):
     chat_service = ChatService(event)
 # ~/~ end

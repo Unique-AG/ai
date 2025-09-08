@@ -37,7 +37,7 @@ content_service = ContentService.from_settings(settings=settings)
 if it is not passed it is automatically loaded such that the services can be initialized as
 
 ```{.python #unique_init_service_standalone_auto}
-content_service = ContentService.from_settings_filename()
+content_service = ContentService.from_settings()
 ```
 
 ??? example "Full Examples (Click to expand)"

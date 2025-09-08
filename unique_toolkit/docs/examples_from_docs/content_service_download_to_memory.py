@@ -8,7 +8,7 @@ from unique_toolkit import (
     ContentService,
 )
 
-content_service = ContentService.from_settings_filename()
+content_service = ContentService.from_settings()
 demo_env_vars = dotenv_values(Path(__file__).parent / "demo.env")
 content_id = demo_env_vars.get("UNIQUE_CONTENT_ID") or "unknown"
 # Download content as bytes
