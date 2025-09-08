@@ -26,6 +26,7 @@ langgraph = "^0.6.6"
 langchain = "^0.3.0"
 langchain-core = "^0.3.0"
 unique-web-search = "^0.0.6"
+langchain-openai = "^0.3.32"
 
 
 [tool.poetry.group.dev.dependencies]
