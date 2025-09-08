@@ -30,6 +30,8 @@ from .tools import get_research_tools, get_supervisor_tools, get_today_str, thin
 from .utils import (
     execute_tool_safely,
     get_custom_engine_config,
+    is_token_error,
+    truncate_context,
     write_state_message_log,
 )
 
@@ -94,11 +96,10 @@ async def research_supervisor(
 
     # Configure the supervisor model with tools
     custom_config = get_custom_engine_config(config)
-    lead_model = custom_config.lead_agent_model.name
 
     model_config = {
-        "model": lead_model,
-        "max_tokens": 4000,
+        "model": custom_config.lead_agent_model.name,
+        "max_tokens": 8000,
         "temperature": 0.1,
     }
 
@@ -109,8 +110,9 @@ async def research_supervisor(
     model_with_tools = configurable_model.bind_tools(supervisor_tools)
     research_model = model_with_tools.with_config(model_config)  # type: ignore[arg-type]
 
-    # Generate supervisor response
+    # Generate supervisor response with token limit awareness
     supervisor_messages = state.get("supervisor_messages", [])
+
     response = await research_model.ainvoke(supervisor_messages)
 
     return Command(
@@ -247,11 +249,9 @@ async def researcher(
 
     # Configure the researcher model
     custom_config = get_custom_engine_config(config)
-    research_model_name = custom_config.research_agent_model.name
-
     model_config = {
-        "model": research_model_name,
-        "max_tokens": 4000,
+        "model": custom_config.research_agent_model.name,
+        "max_tokens": 10000,
         "temperature": 0.1,
     }
 
@@ -264,7 +264,7 @@ async def researcher(
     model_with_tools = configurable_model.bind_tools(research_tools)
     research_model = model_with_tools.with_config(model_config)  # type: ignore[arg-type]
 
-    # Generate researcher response
+    # Generate researcher response with token limit awareness
     researcher_messages = state.get("researcher_messages", [])
     messages = [SystemMessage(content=researcher_prompt)] + researcher_messages
     response = await research_model.ainvoke(messages)
@@ -358,12 +358,11 @@ async def compress_research(
 
     # Get custom config for model selection
     custom_config = get_custom_engine_config(config)
-    synthesis_model_name = custom_config.synthesis_model.name
 
     # Prepare synthesis model
     model_config = {
-        "model": synthesis_model_name,
-        "max_tokens": 4000,
+        "model": custom_config.synthesis_model.name,
+        "max_tokens": 8000,
         "temperature": 0.1,
     }
 
@@ -372,7 +371,7 @@ async def compress_research(
         "unique/synthesis_agent_system.j2"
     ).render(date=get_today_str())
 
-    # Combine all research messages for synthesis
+    # Build synthesis context from messages
     research_context = f"Research Topic: {research_topic}\n\n"
     for i, msg in enumerate(researcher_messages, 1):
         if isinstance(msg, ToolMessage):
@@ -380,21 +379,40 @@ async def compress_research(
         elif isinstance(msg, AIMessage):
             research_context += f"Analysis {i}:\n{msg.content}\n\n"
 
-    # Configure synthesis model
-    synthesis_model = configurable_model.with_config(model_config)  # type: ignore[arg-type]
-
-    # Generate compressed research using AI
     synthesis_messages = [
         SystemMessage(content=synthesis_prompt),
         HumanMessage(content=research_context),
     ]
 
-    synthesis_response = await synthesis_model.ainvoke(synthesis_messages)
-    compressed_research = (
-        str(synthesis_response.content)
-        if synthesis_response.content
-        else research_context
-    )
+    # Configure synthesis model
+    synthesis_model = configurable_model.with_config(model_config)  # type: ignore[arg-type]
+
+    # Simple synthesis with one retry on token errors
+    try:
+        synthesis_response = await synthesis_model.ainvoke(synthesis_messages)
+        compressed_research = (
+            str(synthesis_response.content)
+            if synthesis_response.content
+            else research_context
+        )
+    except Exception as e:
+        if is_token_error(e):
+            # One retry with truncated context
+            truncated_context = truncate_context(
+                research_context, custom_config.synthesis_model, 0.6
+            )
+            synthesis_messages[1] = HumanMessage(content=truncated_context)
+            try:
+                synthesis_response = await synthesis_model.ainvoke(synthesis_messages)
+                compressed_research = (
+                    str(synthesis_response.content)
+                    if synthesis_response.content
+                    else truncated_context
+                )
+            except Exception:
+                compressed_research = truncated_context
+        else:
+            compressed_research = research_context
 
     # Create raw notes for backup
     raw_notes = [str(msg.content) for msg in researcher_messages]
@@ -421,12 +439,11 @@ async def final_report_generation(
 
     # Get custom config for model selection
     custom_config = get_custom_engine_config(config)
-    synthesis_model_name = custom_config.synthesis_model.name
 
     # Prepare report writer model
     model_config = {
-        "model": synthesis_model_name,
-        "max_tokens": 8000,  # Larger for comprehensive reports
+        "model": custom_config.synthesis_model.name,
+        "max_tokens": 8000,
         "temperature": 0.1,
     }
 
@@ -446,16 +463,35 @@ Research Findings:
     # Configure report writer model
     report_model = configurable_model.with_config(model_config)  # type: ignore[arg-type]
 
-    # Generate final report using AI
     report_messages = [
         SystemMessage(content=report_writer_prompt),
         HumanMessage(content=report_context),
     ]
 
-    report_response = await report_model.ainvoke(report_messages)
-    final_report = (
-        str(report_response.content) if report_response.content else report_context
-    )
+    # Simple report generation with one retry on token errors
+    try:
+        report_response = await report_model.ainvoke(report_messages)
+        final_report = (
+            str(report_response.content) if report_response.content else report_context
+        )
+    except Exception as e:
+        if is_token_error(e):
+            # One retry with truncated context
+            truncated_context = truncate_context(
+                report_context, custom_config.synthesis_model, 0.6
+            )
+            report_messages[1] = HumanMessage(content=truncated_context)
+            try:
+                report_response = await report_model.ainvoke(report_messages)
+                final_report = (
+                    str(report_response.content)
+                    if report_response.content
+                    else truncated_context
+                )
+            except Exception:
+                final_report = truncated_context
+        else:
+            final_report = report_context
 
     return {
         "final_report": final_report,

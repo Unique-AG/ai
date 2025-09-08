@@ -5,8 +5,10 @@ This module provides common utility functions for service access, configuration
 handling, and other shared operations across the deep research workflow.
 """
 
+import logging
 from typing import Optional, Union
 
+import tiktoken
 from langchain_core.runnables import RunnableConfig
 from unique_toolkit.chat.schemas import (
     MessageLogDetails,
@@ -15,9 +17,13 @@ from unique_toolkit.chat.schemas import (
 )
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.service import ContentService
+from unique_toolkit.language_model.infos import LanguageModelInfo
 
 from ..config import UniqueCustomEngineConfig
 from .state import CustomAgentState, CustomResearcherState, CustomSupervisorState
+
+logger = logging.getLogger(__name__)
+
 
 # Per-request counters for message log ordering - keyed by message_id
 _request_counters: dict[str, int] = {}
@@ -292,3 +298,46 @@ async def execute_tool_safely(tool, args: dict, config):
     except Exception as e:
         tool_name = getattr(tool, "name", str(tool))
         return f"Error executing tool {tool_name}: {str(e)}"
+
+
+# Token management utilities
+
+
+def count_tokens(text: str, model_info: LanguageModelInfo) -> int:
+    """Count tokens in text using the model's encoder."""
+    try:
+        encoder = tiktoken.get_encoding(model_info.encoder_name)
+        return len(encoder.encode(text))
+    except Exception as e:
+        logger.warning(f"Error counting tokens: {e}")
+        return len(text) // 4  # Rough fallback
+
+
+def truncate_context(
+    text: str, model_info: LanguageModelInfo, target_ratio: float = 0.7
+) -> str:
+    """Truncate text to fit within token limits."""
+    target_tokens = int(model_info.token_limits.token_limit_input * target_ratio)
+    current_tokens = count_tokens(text, model_info)
+
+    if current_tokens <= target_tokens:
+        return text
+
+    # Simple character-based truncation
+    char_ratio = target_tokens / current_tokens
+    return text[: int(len(text) * char_ratio * 0.9)]
+
+
+def is_token_error(exception: Exception) -> bool:
+    """Simple check if exception is token-related."""
+    error_str = str(exception).lower()
+    return any(
+        pattern in error_str
+        for pattern in [
+            "token limit",
+            "context length",
+            "prompt is too long",
+            "input too long",
+            "maximum context",
+        ]
+    )
