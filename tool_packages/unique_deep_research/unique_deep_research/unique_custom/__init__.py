@@ -19,6 +19,7 @@ from .tools import (
     get_supervisor_tools,
     internal_fetch,
     internal_search,
+    think_tool,
     web_fetch,
     web_search,
 )
@@ -45,6 +46,7 @@ __all__ = [
     "get_supervisor_tools",
     "internal_fetch",
     "internal_search",
+    "think_tool",
     "web_fetch",
     "web_search",
     "ServiceAccessError",

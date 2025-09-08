@@ -69,6 +69,14 @@ class InternalFetchArgs(BaseModel):
     content_id: str = Field(description="Content ID to fetch from internal system")
 
 
+class ThinkArgs(BaseModel):
+    """Arguments for strategic thinking tool."""
+
+    reflection: str = Field(
+        description="Detailed reflection on research progress, findings, gaps, and next steps"
+    )
+
+
 # LangGraph-compatible tool functions
 
 
@@ -270,12 +278,41 @@ async def internal_fetch(content_id: str, config: RunnableConfig) -> str:
     return formatted_results
 
 
+@tool(args_schema=ThinkArgs)
+def think_tool(reflection: str) -> str:
+    """
+    Tool for strategic reflection on research progress and decision-making.
+
+    Use this tool after each search to analyze results and plan next steps systematically.
+    This creates a deliberate pause in the research workflow for quality decision-making.
+
+    When to use:
+    - After receiving search results: What key information did I find?
+    - Before deciding next steps: Do I have enough to answer comprehensively?
+    - When assessing research gaps: What specific information am I still missing?
+    - Before concluding research: Can I provide a complete answer now?
+
+    Reflection should address:
+    1. Analysis of current findings - What concrete information have I gathered?
+    2. Gap assessment - What crucial information is still missing?
+    3. Quality evaluation - Do I have sufficient evidence/examples for a good answer?
+    4. Strategic decision - Should I continue searching or provide my answer?
+
+    Args:
+        reflection: Your detailed reflection on research progress, findings, gaps, and next steps
+
+    Returns:
+        Confirmation that reflection has been recorded
+    """
+    return f"Reflection recorded: {reflection}"
+
+
 # Helper function to get all available tools
 def get_research_tools() -> List[Any]:
     """Get all research tools available to individual researchers."""
-    return [web_search, web_fetch, internal_search, internal_fetch]
+    return [web_search, web_fetch, internal_search, internal_fetch, think_tool]
 
 
 def get_supervisor_tools() -> List[Any]:
     """Get all tools available to the research supervisor."""
-    return [ConductResearch, ResearchComplete]
+    return [ConductResearch, ResearchComplete, think_tool]

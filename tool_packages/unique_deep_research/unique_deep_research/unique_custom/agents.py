@@ -26,7 +26,7 @@ from .state import (
     CustomResearcherState,
     CustomSupervisorState,
 )
-from .tools import get_research_tools, get_supervisor_tools, get_today_str
+from .tools import get_research_tools, get_supervisor_tools, get_today_str, think_tool
 from .utils import (
     execute_tool_safely,
     get_custom_engine_config,
@@ -316,6 +316,7 @@ async def researcher_tools(
             "web_fetch": web_fetch,
             "internal_search": internal_search,
             "internal_fetch": internal_fetch,
+            "think_tool": think_tool,
         }
 
         if tool_name in tool_map:
