@@ -124,7 +124,7 @@ class InternalSearchService:
             self.logger.error(f"Error in search_document_chunks call: {e}")
             raise e
 
-        # Reset the metadata filter in case it was disabled 
+        # Reset the metadata filter in case it was disabled
         self.content_service._metadata_filter = metadata_filter_copy
 
         # Apply chunk relevancy sorter if enabled
