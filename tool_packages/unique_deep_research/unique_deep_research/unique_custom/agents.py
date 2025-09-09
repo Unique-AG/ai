@@ -365,7 +365,8 @@ async def compress_research(
 
     # Add instruction to switch from research mode to compression mode (like reference)
     compression_instruction = """All above messages are about research conducted by an AI Researcher. Please clean up these findings. 
-    DO NOT summarize the information. I want the raw information returned, just in a cleaner format. Make sure all relevant information is preserved - you can rewrite findings verbatim."""
+    DO NOT summarize the information. I want the raw information returned, just in a cleaner format. 
+    Make sure all relevant information is preserved - you can rewrite findings verbatim. Ensure that you keep citations and references!"""
 
     # Follow reference architecture: append instruction to researcher messages
     researcher_messages.append(HumanMessage(content=compression_instruction))
