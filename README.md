@@ -13,3 +13,11 @@ Run the below commands to setup your pre-commit hooks as needed.
 pip install pre-commit
 pre-commit install
 ```
+
+## License
+
+Refer to [`LICENSE.md`](./LICENSE.md).
+
+## Security
+
+Refer to [`SECURITY.md`](./SECURITY.md).
