@@ -398,11 +398,10 @@ def _trigger_upload_content(
     if ingestion_config is None:
         ingestion_config = {}
 
-    if skip_ingestion:
-        ingestion_config["uniqueIngestionMode"] = "SKIP_INGESTION"
-
     if skip_excel_ingestion:
         ingestion_config["uniqueIngestionMode"] = "SKIP_EXCEL_INGESTION"
+    elif skip_ingestion:
+        ingestion_config["uniqueIngestionMode"] = "SKIP_INGESTION"
 
     input_dict = {
         "key": content_name,
