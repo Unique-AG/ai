@@ -500,23 +500,3 @@ def _create_language_model_stream_response_with_references(
         message=stream_response_message,
         tool_calls=tool_calls,
     )
-
-
-def _prepare_responses_params_util(
-    model_name: LanguageModelName | str,
-    content_chunks: list[ContentChunk] | None,
-    temperature: float | None,
-) -> tuple[float | None, str, list[unique_sdk.Integrated.SearchResult] | None]:
-    search_context = (
-        _to_search_context(content_chunks) if content_chunks is not None else None
-    )
-
-    model = model_name.name if isinstance(model_name, LanguageModelName) else model_name
-
-    if isinstance(model_name, LanguageModelName):
-        model_info = LanguageModelInfo.from_name(model_name)
-
-        if model_info.temperature_bounds is not None and temperature is not None:
-            temperature = _clamp_temperature(temperature, model_info.temperature_bounds)
-
-    return temperature, model, search_context
