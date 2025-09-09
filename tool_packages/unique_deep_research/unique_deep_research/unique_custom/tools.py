@@ -12,7 +12,6 @@ from pydantic import BaseModel, Field
 from unique_toolkit.chat.schemas import (
     MessageLogDetails,
     MessageLogEvent,
-    MessageLogStatus,
     MessageLogUncitedReferences,
 )
 from unique_toolkit.content import ContentReference
@@ -185,19 +184,11 @@ async def web_fetch(url: str, config: RunnableConfig) -> str:
     results = await crawler.crawl([url])
 
     if not results or not results[0]:
-        write_tool_message_log(
-            config, f"Unable to fetch content from: {url}", MessageLogStatus.FAILED
-        )
+        # TODO: Should this be shown to the user?
+        logger.info(f"Unable to fetch content from: {url}")
         return f"Unable to fetch content from URL: {url}"
 
     content = results[0]
-
-    # Check if the content indicates an error
-    if "An expected error occurred" in content or "Unable to crawl URL" in content:
-        write_tool_message_log(
-            config, f"Error fetching content from: {url}", MessageLogStatus.FAILED
-        )
-        return f"Error fetching content from {url}: {content}"
 
     # Truncate if too long (keep first 10000 characters)
     content_length = len(content)
@@ -215,7 +206,13 @@ async def internal_search(query: str, config: RunnableConfig) -> str:
     Searches through internal documents, knowledge bases, and previously
     indexed content to find relevant information for research.
     """
-    write_tool_message_log(config, f"Searching internal knowledge base for: {query}")
+    write_tool_message_log(
+        config,
+        "Searching internal knowledge base",
+        details=MessageLogDetails(
+            data=[MessageLogEvent(type="InternalSearch", text=query)]
+        ),
+    )
     content_service = get_content_service_from_config(config)
 
     # Use ContentService to search internal content
@@ -225,15 +222,12 @@ async def internal_search(query: str, config: RunnableConfig) -> str:
         limit=100,
         score_threshold=0,
     )
-
+    logger.info(f"Found {len(search_results)} internal results")
     if not search_results:
-        write_tool_message_log(config, f"No internal results found for: {query}")
+        logger.info("No internal results found")
         return f"No internal search results found for query: '{query}'"
 
     formatted_results = transform_chunks_to_string(search_results, 10, None, True)
-    write_tool_message_log(
-        config, f"Found {len(search_results)} internal results for: {query}"
-    )
     return formatted_results
 
 
@@ -245,9 +239,7 @@ async def internal_fetch(content_id: str, config: RunnableConfig) -> str:
     Retrieves the full content of a specific internal document or
     knowledge base entry by its unique identifier.
     """
-    write_tool_message_log(
-        config, f"Fetching internal knowledge base for: {content_id}"
-    )
+    logger.info("Fetching from internal knowledge base")
     content_service = get_content_service_from_config(config)
 
     # TODO: Metadata filter review
@@ -260,16 +252,30 @@ async def internal_fetch(content_id: str, config: RunnableConfig) -> str:
     )
 
     if not search_results:
-        write_tool_message_log(config, f"No internal results found for: {content_id}")
+        logger.info("No internal results found")
         return f"No internal fetch results found for content ID: '{content_id}'"
 
     formatted_results = transform_chunks_to_string(search_results, 0, None, True)
-    write_tool_message_log(config, f"Successfully fetched content for ID: {content_id}")
+    write_tool_message_log(
+        config,
+        "Reviewing Web Sources",
+        uncited_references=MessageLogUncitedReferences(
+            data=[
+                ContentReference(
+                    name=search_results[0].title or content_id,
+                    url=search_results[0].url or "",
+                    sequence_number=0,
+                    source="deep-research-citations",
+                    source_id=search_results[0].id,
+                )
+            ]
+        ),
+    )
     return formatted_results
 
 
 @tool(args_schema=ThinkArgs)
-def think_tool(reflection: str) -> str:
+def think_tool(reflection: str, config: RunnableConfig) -> str:
     """
     Tool for strategic reflection on research progress and decision-making.
 
@@ -294,6 +300,10 @@ def think_tool(reflection: str) -> str:
     Returns:
         Confirmation that reflection has been recorded
     """
+    write_tool_message_log(
+        config,
+        reflection,
+    )
     return f"Reflection recorded: {reflection}"
 
 
