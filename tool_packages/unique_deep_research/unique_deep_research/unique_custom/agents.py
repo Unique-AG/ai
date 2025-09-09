@@ -64,7 +64,7 @@ async def setup_research_supervisor(
     The research brief was already generated in the main service flow,
     so we just need to initialize the supervisor state.
     """
-    write_state_message_log(state, "Initializing research supervisor...")
+    logger.info("Initializing research supervisor...")
 
     # Get the pre-generated research brief from state
     research_brief = state.get("research_brief")
@@ -104,7 +104,7 @@ async def research_supervisor(
     """
     Lead research supervisor that plans research strategy and delegates to researchers.
     """
-    write_state_message_log(state, "Planning research strategy...")
+    logger.info("Planning research strategy...")
 
     # Configure the supervisor model with tools
     custom_config = get_custom_engine_config(config)
@@ -553,9 +553,7 @@ async def _handle_conduct_research_batch(
     if not conduct_research_calls:
         return []
 
-    write_state_message_log(
-        state, f"Delegating {len(conduct_research_calls)} research tasks..."
-    )
+    logger.info(f"Delegating {len(conduct_research_calls)} research tasks...")
 
     # Limit concurrent research tasks to prevent resource exhaustion
     max_concurrent = custom_config.max_parallel_researchers
