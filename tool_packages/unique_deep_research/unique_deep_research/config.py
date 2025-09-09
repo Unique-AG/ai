@@ -17,7 +17,7 @@ class DeepResearchEngine(StrEnum):
     """Available deep research engines."""
 
     OPENAI = "OpenAI"
-    CUSTOM = "Custom"
+    UNIQUE_CUSTOM = "UniqueCustom"
 
 
 class OpenAIEngineConfig(BaseModel):
