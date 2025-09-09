@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_toolkit"
-version = "0.8.51"
+version = "0.8.52"
 description = ""
 authors = [
     "Cedric Klinkert <cedric.klinkert@unique.ch>",
@@ -59,6 +59,7 @@ entangled-cli = "^2.1.13"
 mkdocs-entangled-plugin = "^0.4.0"
 isort = "^6.0.1"
 mkdocs-codeinclude-plugin = "^0.2.1"
+opik = "^1.8.42"
 
 [build-system]
 requires = ["poetry-core"]
