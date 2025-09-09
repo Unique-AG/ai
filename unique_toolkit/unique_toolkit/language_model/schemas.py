@@ -1,16 +1,28 @@
 import json
 import math
 from enum import StrEnum
-from typing import Any, Self
+from typing import Any, Generic, Literal, Self, TypeVar
 from uuid import uuid4
 
 from humps import camelize
-from openai.types.chat import ChatCompletionAssistantMessageParam
+from openai.types.chat import (
+    ChatCompletionAssistantMessageParam,
+    ChatCompletionSystemMessageParam,
+    ChatCompletionToolMessageParam,
+    ChatCompletionUserMessageParam,
+)
 from openai.types.chat.chat_completion_message_function_tool_call_param import (
     ChatCompletionMessageFunctionToolCallParam,
     Function,
 )
 from openai.types.chat.chat_completion_tool_param import ChatCompletionToolParam
+from openai.types.responses import (
+    EasyInputMessageParam,
+    FunctionToolParam,
+    ResponseFunctionToolCallParam,
+    ResponseOutputItem,
+)
+from openai.types.responses.response_input_param import FunctionCallOutput
 from openai.types.shared_params.function_definition import FunctionDefinition
 from pydantic import (
     BaseModel,
@@ -23,7 +35,7 @@ from pydantic import (
     model_serializer,
     model_validator,
 )
-from typing_extensions import deprecated
+from typing_extensions import deprecated, overload
 
 from unique_toolkit.content.schemas import ContentReference
 from unique_toolkit.language_model.utils import format_message
@@ -109,26 +121,57 @@ class LanguageModelFunction(BaseModel):
 
         return True
 
-    def to_openai_param(self) -> ChatCompletionMessageFunctionToolCallParam:
+    @overload
+    def to_openai_param(
+        self, mode: Literal["completions"] = "completions"
+    ) -> ChatCompletionMessageFunctionToolCallParam: ...
+
+    @overload
+    def to_openai_param(
+        self, mode: Literal["responses"]
+    ) -> ResponseFunctionToolCallParam: ...
+
+    def to_openai_param(
+        self, mode: Literal["completions", "responses"] = "completions"
+    ) -> ChatCompletionMessageFunctionToolCallParam | ResponseFunctionToolCallParam:
         arguments = ""
         if isinstance(self.arguments, dict):
             arguments = json.dumps(self.arguments)
         elif isinstance(self.arguments, str):
             arguments = self.arguments
 
-        return ChatCompletionMessageFunctionToolCallParam(
-            type="function",
-            id=self.id or "unknown_id",
-            function=Function(name=self.name, arguments=arguments),
-        )
+        if mode == "completions":
+            return ChatCompletionMessageFunctionToolCallParam(
+                type="function",
+                id=self.id or "unknown_id",
+                function=Function(name=self.name, arguments=arguments),
+            )
+        elif mode == "responses":
+            if self.id is None:
+                raise ValueError("Missing tool call id")
+
+            return ResponseFunctionToolCallParam(
+                type="function_call",
+                call_id=self.id,
+                name=self.name,
+                arguments=arguments,
+            )
 
 
-# This is tailored to the unique backend
-class LanguageModelStreamResponse(BaseModel):
+class ResponsesLanguageModelFunction(LanguageModelFunction):
+    @field_validator("id", mode="before")
+    def randomize_id(cls, value: Any):
+        return value  # Don't randomize id for responses
+
+
+ToolCallType = TypeVar("ToolCallType", bound=LanguageModelFunction, covariant=True)
+
+
+class BaseLanguageModelStreamResponse(BaseModel, Generic[ToolCallType]):
     model_config = model_config
 
     message: LanguageModelStreamResponseMessage
-    tool_calls: list[LanguageModelFunction] | None = None
+    tool_calls: list[ToolCallType] | None = None
 
     def is_empty(self) -> bool:
         """
@@ -146,6 +189,18 @@ class LanguageModelStreamResponse(BaseModel):
             refusal=None,
             tool_calls=[t.to_openai_param() for t in self.tool_calls or []],
         )
+
+
+# This is tailored to the unique backend
+class LanguageModelStreamResponse(
+    BaseLanguageModelStreamResponse[LanguageModelFunction]
+): ...
+
+
+class ResponsesLanguageModelStreamResponse(
+    BaseLanguageModelStreamResponse[ResponsesLanguageModelFunction]
+):
+    output: list[ResponseOutputItem]
 
 
 class LanguageModelFunctionCall(BaseModel):
@@ -189,14 +244,48 @@ class LanguageModelMessage(BaseModel):
 
         return format_message(self.role.capitalize(), message=message, num_tabs=1)
 
+    def to_specific_message(
+        self,
+    ) -> "LanguageModelSystemMessage | LanguageModelUserMessage | LanguageModelAssistantMessage":
+        match self.role:
+            case LanguageModelMessageRole.SYSTEM:
+                return LanguageModelSystemMessage(content=self.content)
+            case LanguageModelMessageRole.USER:
+                return LanguageModelUserMessage(content=self.content)
+            case LanguageModelMessageRole.ASSISTANT:
+                return LanguageModelAssistantMessage(content=self.content)
+            case LanguageModelMessageRole.TOOL:
+                raise ValueError(
+                    "Cannot convert message with role `tool`. Please use `LanguageModelToolMessage` instead."
+                )
 
-# Equivalent to
+
 class LanguageModelSystemMessage(LanguageModelMessage):
     role: LanguageModelMessageRole = LanguageModelMessageRole.SYSTEM
 
     @field_validator("role", mode="before")
     def set_role(cls, value):
         return LanguageModelMessageRole.SYSTEM
+
+    @overload
+    def to_openai(
+        self, mode: Literal["completions"] = "completions"
+    ) -> ChatCompletionSystemMessageParam: ...
+
+    @overload
+    def to_openai(self, mode: Literal["responses"]) -> EasyInputMessageParam: ...
+
+    def to_openai(
+        self, mode: Literal["completions", "responses"] = "completions"
+    ) -> ChatCompletionSystemMessageParam | EasyInputMessageParam:
+        content = self.content or ""
+        if not isinstance(content, str):
+            raise ValueError("Content must be a string")
+
+        if mode == "completions":
+            return ChatCompletionSystemMessageParam(role="system", content=content)
+        elif mode == "responses":
+            return EasyInputMessageParam(role="user", content=content)
 
 
 # Equivalent to
@@ -209,6 +298,26 @@ class LanguageModelUserMessage(LanguageModelMessage):
     @field_validator("role", mode="before")
     def set_role(cls, value):
         return LanguageModelMessageRole.USER
+
+    @overload
+    def to_openai(
+        self, mode: Literal["completions"] = "completions"
+    ) -> ChatCompletionUserMessageParam: ...
+
+    @overload
+    def to_openai(self, mode: Literal["responses"]) -> EasyInputMessageParam: ...
+
+    def to_openai(
+        self, mode: Literal["completions", "responses"] = "completions"
+    ) -> ChatCompletionUserMessageParam | EasyInputMessageParam:
+        content = self.content or ""
+        if not isinstance(content, str):
+            raise ValueError("Content must be a string")
+
+        if mode == "completions":
+            return ChatCompletionUserMessageParam(role="user", content=content)
+        elif mode == "responses":
+            return EasyInputMessageParam(role="user", content=content)
 
 
 # Equivalent to
@@ -260,6 +369,50 @@ class LanguageModelAssistantMessage(LanguageModelMessage):
             tool_calls=tool_calls,
         )
 
+    @overload
+    def to_openai(
+        self, mode: Literal["completions"] = "completions"
+    ) -> ChatCompletionAssistantMessageParam: ...
+
+    @overload
+    def to_openai(
+        self, mode: Literal["responses"]
+    ) -> list[EasyInputMessageParam | ResponseFunctionToolCallParam]: ...
+
+    def to_openai(
+        self, mode: Literal["completions", "responses"] = "completions"
+    ) -> (
+        ChatCompletionAssistantMessageParam
+        | list[EasyInputMessageParam | ResponseFunctionToolCallParam]
+    ):
+        content = self.content or ""
+        if not isinstance(content, str):
+            raise ValueError("Content must be a string")
+
+        if mode == "completions":
+            return ChatCompletionAssistantMessageParam(
+                role="assistant",
+                content=content,
+                tool_calls=[
+                    t.function.to_openai_param() for t in self.tool_calls or []
+                ],
+            )
+        elif mode == "responses":
+            """
+            Responses API does not support assistant messages with tool calls
+            """
+            res = []
+            if content != "":
+                res.append(EasyInputMessageParam(role="assistant", content=content))
+            if self.tool_calls:
+                res.extend(
+                    [
+                        t.function.to_openai_param(mode="responses")
+                        for t in self.tool_calls
+                    ]
+                )
+            return res
+
 
 # Equivalent to
 # from openai.types.chat.chat_completion_tool_message_param import ChatCompletionToolMessageParam
@@ -281,20 +434,50 @@ class LanguageModelToolMessage(LanguageModelMessage):
     def set_role(cls, value):
         return LanguageModelMessageRole.TOOL
 
+    @overload
+    def to_openai(
+        self, mode: Literal["completions"] = "completions"
+    ) -> ChatCompletionToolMessageParam: ...
+
+    @overload
+    def to_openai(self, mode: Literal["responses"]) -> FunctionCallOutput: ...
+
+    def to_openai(
+        self, mode: Literal["completions", "responses"] = "completions"
+    ) -> ChatCompletionToolMessageParam | FunctionCallOutput:
+        content = self.content or ""
+        if not isinstance(content, str):
+            raise ValueError("Content must be a string")
+
+        if mode == "completions":
+            return ChatCompletionToolMessageParam(
+                role="tool",
+                content=content,
+                tool_call_id=self.tool_call_id,
+            )
+        elif mode == "responses":
+            return FunctionCallOutput(
+                call_id=self.tool_call_id,
+                output=content,
+                type="function_call_output",
+            )
+
 
 # Equivalent implementation for list of
 # from openai.types.chat.chat_completion_tool_message_param import ChatCompletionToolMessageParam
 # with the addition of the builder
 
+LanguageModelMessageOptions = (
+    LanguageModelMessage
+    | LanguageModelToolMessage
+    | LanguageModelAssistantMessage
+    | LanguageModelSystemMessage
+    | LanguageModelUserMessage
+)
+
 
 class LanguageModelMessages(RootModel):
-    root: list[
-        LanguageModelMessage
-        | LanguageModelToolMessage
-        | LanguageModelAssistantMessage
-        | LanguageModelSystemMessage
-        | LanguageModelUserMessage
-    ]
+    root: list[LanguageModelMessageOptions]
 
     @classmethod
     def load_messages_to_root(cls, data: list[dict] | dict) -> Self:
@@ -502,13 +685,32 @@ class LanguageModelToolDescription(BaseModel):
     def serialize_parameters(self, parameters: type[BaseModel]):
         return parameters.model_json_schema()
 
-    def to_openai(self) -> ChatCompletionToolParam:
-        return ChatCompletionToolParam(
-            function=FunctionDefinition(
+    @overload
+    def to_openai(
+        self, mode: Literal["completions"] = "completions"
+    ) -> ChatCompletionToolParam: ...
+
+    @overload
+    def to_openai(self, mode: Literal["responses"]) -> FunctionToolParam: ...
+
+    def to_openai(
+        self, mode: Literal["completions", "responses"] = "completions"
+    ) -> ChatCompletionToolParam | FunctionToolParam:
+        if mode == "completions":
+            return ChatCompletionToolParam(
+                function=FunctionDefinition(
+                    name=self.name,
+                    description=self.description,
+                    parameters=self.parameters.model_json_schema(),
+                    strict=self.strict,
+                ),
+                type="function",
+            )
+        elif mode == "responses":
+            return FunctionToolParam(
+                type="function",
                 name=self.name,
-                description=self.description,
                 parameters=self.parameters.model_json_schema(),
                 strict=self.strict,
-            ),
-            type="function",
-        )
+                description=self.description,
+            )
