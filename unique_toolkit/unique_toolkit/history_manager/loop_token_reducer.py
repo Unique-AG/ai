@@ -479,7 +479,7 @@ class LoopTokenReducer:
         ]
 
         return LanguageModelToolMessage(
-            content=str(sources),
+            content=json.dumps(sources),
             tool_call_id=message.tool_call_id,
             name=message.name,
         )
