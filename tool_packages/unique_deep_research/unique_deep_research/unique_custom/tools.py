@@ -54,24 +54,49 @@ class WebSearchArgs(BaseModel):
     """Arguments for web search tool."""
 
     query: str = Field(description="Search query to find relevant information")
+    limit: int = Field(
+        description="Limit of results to fetch from web", default=50, le=100, ge=1
+    )
 
 
 class WebFetchArgs(BaseModel):
     """Arguments for web fetch tool."""
 
     url: str = Field(description="URL to fetch content from")
+    offset: int = Field(description="Result offset to fetch from web", default=0, ge=0)
+    character_limit: int = Field(
+        description="Limit of characters to fetch from web page",
+        default=10_000,
+        le=100_000,
+        ge=1_000,
+    )
 
 
 class InternalSearchArgs(BaseModel):
     """Arguments for internal search tool."""
 
     query: str = Field(description="Query to search internal knowledge base")
+    limit: int = Field(
+        description="Limit of results to fetch from internal system",
+        default=50,
+        le=100,
+        ge=1,
+    )
 
 
 class InternalFetchArgs(BaseModel):
     """Arguments for internal fetch tool."""
 
     content_id: str = Field(description="Content ID to fetch from internal system")
+    offset: int = Field(
+        description="Result offset to fetch from internal system", default=0, ge=0
+    )
+    limit: int = Field(
+        description="Limit of results to fetch from internal system",
+        default=50,
+        le=100,
+        ge=1,
+    )
 
 
 class ThinkArgs(BaseModel):
@@ -113,7 +138,7 @@ def ResearchComplete(summary: str, sources: List[str] = []) -> str:
 
 
 @tool(args_schema=WebSearchArgs)
-async def web_search(query: str, config: RunnableConfig) -> str:
+async def web_search(query: str, config: RunnableConfig, limit: int = 10) -> str:
     """
     Search the web for comprehensive, accurate, and trusted results.
 
@@ -132,7 +157,7 @@ async def web_search(query: str, config: RunnableConfig) -> str:
         raise ValueError("Google Search not configured")
 
     # Create Google search configuration and service
-    google_config = GoogleConfig(fetch_size=10)
+    google_config = GoogleConfig(fetch_size=limit)
     google_search = GoogleSearch(google_config)
 
     # Perform the search
@@ -144,7 +169,7 @@ async def web_search(query: str, config: RunnableConfig) -> str:
 
     # Format results for LangGraph
     formatted_results = []
-    for i, result in enumerate(search_results[:10], 1):
+    for i, result in enumerate(search_results[:limit], 1):
         formatted_results.append(
             f"{i}. {result.title}\n   URL: {result.url}\n   Snippet: {result.snippet}\n"
         )
@@ -152,7 +177,9 @@ async def web_search(query: str, config: RunnableConfig) -> str:
 
 
 @tool(args_schema=WebFetchArgs)
-async def web_fetch(url: str, config: RunnableConfig) -> str:
+async def web_fetch(
+    url: str, config: RunnableConfig, offset: int = 0, character_limit: int = 10_000
+) -> str:
     """
     Fetch and extract content from a specific web URL.
 
@@ -190,16 +217,39 @@ async def web_fetch(url: str, config: RunnableConfig) -> str:
 
     content = results[0]
 
-    # Truncate if too long (keep first 10000 characters)
-    content_length = len(content)
-    if content_length > 10000:
-        content = content[:10000] + "\n\n[Content truncated...]"
+    # Apply offset and character limit
+    original_content_length = len(content)
+
+    # If offset is beyond content, get the tail within character_limit
+    if offset >= original_content_length:
+        # Get the last character_limit characters from original content
+        tail_start = max(0, original_content_length - character_limit)
+        tail_content = content[tail_start:]
+        tail_content = f"[Showing tail of content from position {tail_start:,}]\n\n{tail_content}\n\n<END_OF_CONTENT>"
+        return f"Content from {url}:\n\n{tail_content}"
+
+    # Apply normal offset
+    if offset > 0:
+        content = content[offset:]
+
+    # Apply character limit and add appropriate markers
+    current_content_length = len(content)
+
+    if current_content_length > character_limit:
+        remaining_chars = current_content_length - character_limit
+        content = (
+            content[:character_limit]
+            + f"\n\n[Content truncated... {remaining_chars:,} characters remaining]"
+        )
+    elif current_content_length <= character_limit:
+        # We're showing all available content (either from offset or from start)
+        content = content + "\n\n<END_OF_CONTENT>"
 
     return f"Content from {url}:\n\n{content}"
 
 
 @tool(args_schema=InternalSearchArgs)
-async def internal_search(query: str, config: RunnableConfig) -> str:
+async def internal_search(query: str, config: RunnableConfig, limit: int = 50) -> str:
     """
     Search internal knowledge base using ContentService.
 
@@ -219,7 +269,7 @@ async def internal_search(query: str, config: RunnableConfig) -> str:
     search_results = await content_service.search_content_chunks_async(
         search_string=query,
         search_type=ContentSearchType.COMBINED,
-        limit=100,
+        limit=limit,
         score_threshold=0,
     )
     logger.info(f"Found {len(search_results)} internal results")
@@ -227,12 +277,14 @@ async def internal_search(query: str, config: RunnableConfig) -> str:
         logger.info("No internal results found")
         return f"No internal search results found for query: '{query}'"
 
-    formatted_results = transform_chunks_to_string(search_results, 10, None, True)
+    formatted_results = transform_chunks_to_string(search_results, limit, None, True)
     return formatted_results
 
 
 @tool(args_schema=InternalFetchArgs)
-async def internal_fetch(content_id: str, config: RunnableConfig) -> str:
+async def internal_fetch(
+    content_id: str, config: RunnableConfig, offset: int = 0, limit: int = 50
+) -> str:
     """
     Fetch internal content by ID using ContentService.
 
@@ -242,20 +294,41 @@ async def internal_fetch(content_id: str, config: RunnableConfig) -> str:
     logger.info("Fetching from internal knowledge base")
     content_service = get_content_service_from_config(config)
 
-    # TODO: Metadata filter review
+    temp_metadata_filter = content_service._metadata_filter
+    content_service._metadata_filter = None
     search_results = await content_service.search_content_chunks_async(
         search_string=" ",  # Dummy search string
         search_type=ContentSearchType.COMBINED,
-        limit=100,
+        limit=limit,  # Get enough results to support offset
         score_threshold=0,
         content_ids=[content_id],
     )
+    content_service._metadata_filter = temp_metadata_filter
 
     if not search_results:
         logger.info("No internal results found")
         return f"No internal fetch results found for content ID: '{content_id}'"
 
-    formatted_results = transform_chunks_to_string(search_results, 0, None, True)
+    # Apply offset and limit to results
+    total_results = len(search_results)
+
+    # Get the paginated results, even if offset is at or beyond the end
+    paginated_results = search_results[offset : offset + limit]
+
+    # Check if we're at the end of results
+    is_at_end = offset + len(paginated_results) >= total_results
+
+    if len(paginated_results) == 0 and offset >= total_results:
+        return f"No more results for content ID: '{content_id}'\n\n<END_OF_CONTENT>\n\nNote: Offset {offset} is at or beyond total results ({total_results:,})"
+
+    formatted_results = transform_chunks_to_string(paginated_results, 0, None, True)
+
+    if is_at_end:
+        formatted_results += "\n\n<END_OF_CONTENT>"
+    else:
+        remaining_results = total_results - (offset + len(paginated_results))
+        if remaining_results > 0:
+            formatted_results += f"\n\n[{remaining_results:,} more results available - use offset {offset + len(paginated_results)} to continue]"
     write_tool_message_log(
         config,
         "Reviewing Web Sources",
