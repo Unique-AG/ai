@@ -268,7 +268,7 @@ def upload_content(
     scope_id: str | None = None,
     chat_id: str | None = None,
     skip_ingestion: bool = False,
-    skip_excel_ingestion: bool =False,
+    skip_excel_ingestion: bool = False,
     ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
     metadata: dict[str, Any] | None = None,
 ):
