@@ -21,14 +21,15 @@ def model_title_generator(model: type) -> str:
 
 
 def get_configuration_dict(**kwargs) -> ConfigDict:
-    return ConfigDict(
+    config = {
         # alias_generator=to_camel,
-        field_title_generator=field_title_generator,
-        model_title_generator=model_title_generator,
+        "field_title_generator": field_title_generator,
+        "model_title_generator": model_title_generator,
         # populate_by_name=True,
         # protected_namespaces=(),
-        **kwargs,
-    )
+    }
+    config.update(kwargs)
+    return ConfigDict(**config)
 
 
 ModelTypeA = TypeVar("ModelTypeA", bound=BaseModel)
@@ -38,8 +39,8 @@ ModelTypeB = TypeVar("ModelTypeB", bound=BaseModel)
 def _name_intersection(
     model_type_a: type[ModelTypeA], model_type_b: type[ModelTypeB]
 ) -> set[str]:
-    field_names_a = model_type_a.model_fields.keys()
-    field_names_b = model_type_b.model_fields.keys()
+    field_names_a = set(model_type_a.model_fields.keys())
+    field_names_b = set(model_type_b.model_fields.keys())
     return field_names_a.intersection(field_names_b)
 
 
@@ -86,13 +87,16 @@ def create_intersection_model(
         )
 
     fields = {}
-    field_names1 = model_type_a.model_fields.keys()
-    field_names2 = model_type_b.model_fields.keys()
+    field_names1 = set(model_type_a.model_fields.keys())
+    field_names2 = set(model_type_b.model_fields.keys())
     common_field_names = field_names1.intersection(field_names2)
 
-    for name, field in common_field_names.items():
+    for name in common_field_names:
         if name in field_names1.intersection(field_names2):
-            fields[name] = (field.annotation, field)
+            fields[name] = (
+                model_type_a.model_fields[name].annotation,
+                model_type_a.model_fields[name],
+            )
 
     IntersectionModel = create_model(model_name, __config__=config_dict, **fields)
     return IntersectionModel
@@ -115,8 +119,8 @@ def create_complement_model(
         )
 
     fields = {}
-    field_names_a = model_type_a.model_fields.keys()
-    field_names_b = model_type_b.model_fields.keys()
+    field_names_a = set(model_type_a.model_fields.keys())
+    field_names_b = set(model_type_b.model_fields.keys())
     complement_field_names = field_names_a.difference(field_names_b)
 
     for name in complement_field_names:
