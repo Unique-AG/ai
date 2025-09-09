@@ -4,8 +4,7 @@ from logging import Logger
 from typing import Any, Generic
 
 import jinja2
-from pydantic import BaseModel, ConfigDict, create_model
-from pydantic_core import PydanticUndefined
+from pydantic import BaseModel
 
 from unique_toolkit._common.endpoint_builder import (
     EndpointClassProtocol,
@@ -19,6 +18,7 @@ from unique_toolkit._common.endpoint_requestor import (
     RequestorType,
     build_requestor,
 )
+from unique_toolkit._common.pydantic_helpers import create_union_model
 from unique_toolkit._common.string_utilities import (
     dict_to_markdown_table,
     extract_dicts_from_string,
@@ -63,22 +63,6 @@ class HumanVerificationManagerForApiCalling(
     and incorporate the response into the user message.
     """
 
-    def _create_combined_model(
-        self, path_params_type: type[PathParamsType], payload_type: type[PayloadType]
-    ) -> type[BaseModel]:
-        fields = {}
-        for name, field in path_params_type.model_fields.items():
-            default = field.default if field.default is not PydanticUndefined else ...
-            fields[name] = (field.annotation, default)
-        for name, field in payload_type.model_fields.items():
-            default = field.default if field.default is not PydanticUndefined else ...
-            fields[name] = (field.annotation, default)
-
-        CombinedModel = create_model(
-            "CombinedModel", __config__=ConfigDict(extra="forbid"), **fields
-        )
-        return CombinedModel
-
     def __init__(
         self,
         logger: Logger,
@@ -104,9 +88,7 @@ class HumanVerificationManagerForApiCalling(
             confirmation: HumanConfirmation
             payload: payload_type
 
-        self._combined_params_model = self._create_combined_model(
-            path_params_type, payload_type
-        )
+        self._combined_params_model = create_union_model(path_params_type, payload_type)
         self._api_call_model = ConcreteApiCall
         self._requestor_type = requestor_type
         self._requestor = build_requestor(
