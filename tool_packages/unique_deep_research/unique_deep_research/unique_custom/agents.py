@@ -28,6 +28,7 @@ from unique_toolkit.framework_utilities.utils import get_default_headers
 from ..config import TEMPLATE_ENV
 from .state import (
     CustomAgentState,
+    CustomResearcherOutputState,
     CustomResearcherState,
     CustomSupervisorState,
 )
@@ -592,7 +593,9 @@ async def _handle_conduct_research_batch(
 ################ GRAPH CONSTRUCTION #################
 
 # Researcher Subgraph for parallel execution
-researcher_builder = StateGraph(CustomResearcherState)
+researcher_builder = StateGraph(
+    CustomResearcherState, output_schema=CustomResearcherOutputState
+)
 
 researcher_builder.add_node("researcher", researcher)
 researcher_builder.add_node("researcher_tools", researcher_tools)
