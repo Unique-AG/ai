@@ -268,6 +268,7 @@ def upload_content(
     scope_id: str | None = None,
     chat_id: str | None = None,
     skip_ingestion: bool = False,
+    skip_excel_ingestion: bool =False,
     ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
     metadata: dict[str, Any] | None = None,
 ):
@@ -283,6 +284,7 @@ def upload_content(
         scope_id (str | None): The scope ID. Defaults to None.
         chat_id (str | None): The chat ID. Defaults to None.
         skip_ingestion (bool): Whether to skip ingestion. Defaults to False.
+        skip_excel_ingestion (bool): Whether to skip excel ingestion. Defaults to False.
         ingestion_config (unique_sdk.Content.IngestionConfig | None): The ingestion configuration. Defaults to None.
         metadata ( dict[str, Any] | None): The metadata for the content. Defaults to None.
 
@@ -300,6 +302,7 @@ def upload_content(
             scope_id=scope_id,
             chat_id=chat_id,
             skip_ingestion=skip_ingestion,
+            skip_excel_ingestion=skip_excel_ingestion,
             ingestion_config=ingestion_config,
             metadata=metadata,
         )
@@ -317,6 +320,7 @@ def _trigger_upload_content(
     scope_id: str | None = None,
     chat_id: str | None = None,
     skip_ingestion: bool = False,
+    skip_excel_ingestion: bool = False,
     ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
     metadata: dict[str, Any] | None = None,
 ):
@@ -332,6 +336,7 @@ def _trigger_upload_content(
         scope_id (str | None): The scope ID. Defaults to None.
         chat_id (str | None): The chat ID. Defaults to None.
         skip_ingestion (bool): Whether to skip ingestion. Defaults to False.
+        skip_excel_ingestion (bool): Whether to skip excel ingestion. Defaults to False.
         ingestion_config (unique_sdk.Content.IngestionConfig | None): The ingestion configuration. Defaults to None.
         metadata (dict[str, Any] | None): The metadata for the content. Defaults to None.
 
@@ -395,6 +400,9 @@ def _trigger_upload_content(
 
     if skip_ingestion:
         ingestion_config["uniqueIngestionMode"] = "SKIP_INGESTION"
+
+    if skip_excel_ingestion:
+        ingestion_config["uniqueIngestionMode"] = "SKIP_EXCEL_INGESTION"
 
     input_dict = {
         "key": content_name,

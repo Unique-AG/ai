@@ -503,6 +503,7 @@ class ContentService:
         scope_id: str | None = None,
         chat_id: str | None = None,
         skip_ingestion: bool = False,
+        skip_excel_ingestion: bool = False,
         ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
         metadata: dict[str, Any] | None = None,
     ):
@@ -532,6 +533,7 @@ class ContentService:
             scope_id=scope_id,
             chat_id=chat_id,
             skip_ingestion=skip_ingestion,
+            skip_excel_ingestion=skip_excel_ingestion,
             ingestion_config=ingestion_config,
             metadata=metadata,
         )
