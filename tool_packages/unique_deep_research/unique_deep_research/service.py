@@ -297,8 +297,6 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         from .unique_custom.agents import custom_agent
 
         try:
-            self.write_message_log_text_message("Starting custom research workflow...")
-
             # Initialize LangGraph state with required services
             initial_state = {
                 "messages": [HumanMessage(content=research_brief)],
@@ -309,9 +307,6 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                 "message_id": self.event.payload.assistant_message.id,
                 "tool_progress_reporter": self.tool_progress_reporter,
             }
-
-            # Run the compiled LangGraph workflow
-            self.write_message_log_text_message("Running multi-agent research...")
 
             # Prepare configuration for LangGraph
             config = {
@@ -332,15 +327,18 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             cleanup_request_counter(self.event.payload.assistant_message.id)
 
             # Extract final report and content chunks
-            processed_result = result.get("final_report", "")
-            # Content chunks are not currently extracted from custom research workflow
-            content_chunks = []
+            research_result = result.get("final_report", "")
+            # Postprocess research result to extract links, create references and chunks
+            processed_result, annotations, content_chunks = (
+                postprocess_research_result_with_chunks(
+                    research_result, tool_call_id="", message_id=""
+                )
+            )
 
             # Update the assistant message with the results
             await self.chat_service.modify_assistant_message_async(
                 content=processed_result,
-                # References are not currently extracted from custom research workflow
-                references=[],
+                references=annotations,
                 set_completed_at=True,
             )
             self.logger.info("Custom research completed successfully")
@@ -409,12 +407,6 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             content=processed_result,
             references=link_references,
             set_completed_at=True,
-        )
-
-        await self.chat_service.update_message_execution_async(
-            message_id=self.event.payload.assistant_message.id,
-            status=MessageExecutionUpdateStatus.COMPLETED,
-            percentage_completed=100,
         )
 
         return processed_result, content_chunks
