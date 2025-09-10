@@ -17,6 +17,7 @@ class DeepResearchEngine(StrEnum):
     """Available deep research engines."""
 
     OPENAI = "OpenAI"
+    UNIQUE_CUSTOM = "UniqueCustom"
 
 
 class OpenAIEngineConfig(BaseModel):
@@ -47,12 +48,56 @@ class OpenAIEngineConfig(BaseModel):
     )
 
 
+class UniqueCustomEngineConfig(BaseModel):
+    """Configuration specific to Unique Custom deep research engine."""
+
+    lead_agent_model: LMI = Field(
+        description="The model to use for the lead research agent (supervisor)",
+        default=LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_41_2025_0414),
+    )
+
+    research_agent_model: LMI = Field(
+        description="The model to use for individual research agents",
+        default=LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_41_2025_0414),
+    )
+
+    final_report_synthesis_model: LMI = Field(
+        description="The model to use for final report synthesis",
+        default=LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_41_2025_0414),
+    )
+
+    compression_model: LMI = Field(
+        description="The model to use for compression",
+        default=LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_41_2025_0414),
+    )
+
+    max_parallel_researchers: int = Field(
+        description="Maximum number of concurrent research agents",
+        default=3,
+    )
+
+    max_research_iterations: int = Field(
+        description="Maximum number of research supervisor iterations",
+        default=5,
+    )
+
+    max_tool_calls_per_researcher: int = Field(
+        description="Maximum number of tool calls per researcher",
+        default=10,
+    )
+
+
 class EngineConfig(BaseModel):
     """Configuration for a deep research engine."""
 
     OpenAI: OpenAIEngineConfig = Field(
         description="Configuration for OpenAI engine",
         default_factory=OpenAIEngineConfig,
+    )
+
+    Custom: UniqueCustomEngineConfig = Field(
+        description="Configuration for Unique Custom engine",
+        default_factory=UniqueCustomEngineConfig,
     )
 
 

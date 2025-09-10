@@ -4,11 +4,11 @@
 import json
 from typing import Any, Callable
 
-from _common.utils.token.image_token_counting import (
-    calculate_image_tokens_from_base64,
-)
 from pydantic import BaseModel
 
+from unique_toolkit._common.token.image_token_counting import (
+    calculate_image_tokens_from_base64,
+)
 from unique_toolkit.language_model import (
     LanguageModelMessage,
     LanguageModelMessages,
