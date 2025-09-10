@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.8.53] - 2025-09-09
 - Add support for skip ingestion for only excel files.
 
+## [0.8.53] - 2025-09-09
+- HistoryManager: compute source numbering offset from prior serialized tool messages using `load_sources_from_string`
+- LoopTokenReducer: serialize reduced tool messages as JSON arrays to keep offsets parsable
+
 ## [0.8.52] - 2025-09-06
 - Fix import error in token counting
 
