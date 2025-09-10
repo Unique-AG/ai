@@ -7,12 +7,11 @@ following the pattern from open_deep_research but integrated with unique_toolkit
 
 import asyncio
 import logging
-from typing import Any, Dict, Literal, Union
+from typing import Any, Dict, Literal, Optional, Union
 
 from langchain.chat_models import init_chat_model
 from langchain_core.messages import (
     AIMessage,
-    BaseMessage,
     HumanMessage,
     SystemMessage,
     ToolMessage,
@@ -36,6 +35,7 @@ from .tools import get_research_tools, get_supervisor_tools, get_today_str, thin
 from .utils import (
     execute_tool_safely,
     get_custom_engine_config,
+    get_notes_from_tool_calls,
     is_token_error,
     remove_up_to_last_ai_message,
     write_state_message_log,
@@ -104,7 +104,7 @@ async def research_supervisor(
     """
     Lead research supervisor that plans research strategy and delegates to researchers.
     """
-    logger.info("Planning research strategy...")
+    logger.info("Research supervisor determining next steps")
 
     # Configure the supervisor model with tools
     custom_config = get_custom_engine_config(config)
@@ -162,12 +162,10 @@ async def supervisor_tools(
         )
 
     if exceeded_iterations or no_tool_calls or research_complete_called:
-        # Extract notes from all supervisor messages for final report
-        notes = []
-        for msg in supervisor_messages:
-            if isinstance(msg, BaseMessage) and msg.content:
-                notes.append(msg.content)
+        # Extract notes from tool call messages
+        notes = get_notes_from_tool_calls(supervisor_messages)
 
+        # Finish subgraph and proceed to final report generation
         return Command(
             goto="__end__",
             update={
@@ -184,26 +182,32 @@ async def supervisor_tools(
         and isinstance(most_recent_message, AIMessage)
         and most_recent_message.tool_calls
     ):
-        # Collect tool calls by type
+        # Collect tool calls by type and handle them
         think_tool_calls = [tc for tc in tool_calls if tc.get("name") == "think_tool"]
         conduct_research_calls = [
             tc for tc in tool_calls if tc.get("name") == "ConductResearch"
         ]
-        unknown_tool_calls = [
-            tc
-            for tc in tool_calls
-            if tc.get("name") not in ["think_tool", "ConductResearch"]
-        ]
 
-        # Handle think_tool calls
+        # Think tool call
         for tool_call in think_tool_calls:
             all_tool_messages.append(_handle_think_tool(tool_call))
 
         try:
-            research_tool_messages = await _handle_conduct_research_batch(
+            (
+                research_tool_messages,
+                raw_notes_concat,
+            ) = await _handle_conduct_research_batch(
                 conduct_research_calls, state, config, custom_config
             )
             all_tool_messages.extend(research_tool_messages)
+
+            # CRITICAL: Update raw notes in state if we have research results
+            update_payload = {"supervisor_messages": all_tool_messages}
+            if raw_notes_concat:
+                update_payload["raw_notes"] = [raw_notes_concat]
+
+            return Command(goto="research_supervisor", update=update_payload)
+
         except Exception as e:
             logger.error(f"Research execution failed: {e}")
             return Command(
@@ -213,18 +217,6 @@ async def supervisor_tools(
                     "research_brief": state.get("research_brief", ""),
                 },
             )
-
-        # Unknown tool calls
-        for tool_call in unknown_tool_calls:
-            logger.error(f"Unknown tool: {tool_call.get('name', 'unnamed')}")
-            all_tool_messages.append(
-                ToolMessage(
-                    content=f"Unknown tool: {tool_call.get('name', 'unnamed')}",
-                    name=tool_call.get("name", "unknown"),
-                    tool_call_id=tool_call.get("id", "unknown"),
-                )
-            )
-
     return Command(
         goto="research_supervisor",
         update={"supervisor_messages": all_tool_messages},
@@ -316,6 +308,7 @@ async def researcher_tools(
             # Execute tool safely with error handling
             result = await execute_tool_safely(tool_map[tool_name], args, config)
         else:
+            logger.error(f"Unknown tool: {tool_name}")
             result = f"Unknown tool: {tool_name}"
 
         tool_outputs.append(
@@ -330,6 +323,7 @@ async def researcher_tools(
     custom_config = get_custom_engine_config(config)
     max_iterations = custom_config.max_tool_calls_per_researcher
     if state.get("tool_call_iterations", 0) >= max_iterations:
+        # TODO: Verify it has the research task etc. potential are
         return Command(
             goto="compress_research", update={"researcher_messages": tool_outputs}
         )
@@ -548,10 +542,10 @@ async def _handle_conduct_research_batch(
     state: CustomSupervisorState,
     config: RunnableConfig,
     custom_config,
-) -> list[ToolMessage]:
+) -> tuple[list[ToolMessage], Optional[str]]:
     """Handle multiple ConductResearch calls in parallel for efficiency."""
     if not conduct_research_calls:
-        return []
+        return [], None
 
     logger.info(f"Delegating {len(conduct_research_calls)} research tasks...")
 
@@ -579,7 +573,7 @@ async def _handle_conduct_research_batch(
     tool_results = await asyncio.gather(*research_tasks)
 
     # Create tool messages with research results
-    return [
+    tool_messages = [
         ToolMessage(
             content=observation.get("compressed_research", "No research results"),
             name=tool_call["name"],
@@ -587,6 +581,18 @@ async def _handle_conduct_research_batch(
         )
         for observation, tool_call in zip(tool_results, allowed_calls)
     ]
+
+    raw_notes_concat = "\n".join(
+        ["\n".join(observation.get("raw_notes", [])) for observation in tool_results]
+    )
+
+    # Store the raw notes in the state update that will be handled by the caller
+    if raw_notes_concat:
+        # We need to return both tool messages and raw notes
+        # The caller (supervisor_tools) will handle the state update
+        return tool_messages, raw_notes_concat
+
+    return tool_messages, None
 
 
 ################ GRAPH CONSTRUCTION #################
