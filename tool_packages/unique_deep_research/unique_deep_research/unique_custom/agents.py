@@ -31,7 +31,16 @@ from .state import (
     CustomResearcherState,
     CustomSupervisorState,
 )
-from .tools import get_research_tools, get_supervisor_tools, get_today_str, think_tool
+from .tools import (
+    get_research_tools,
+    get_supervisor_tools,
+    get_today_str,
+    internal_fetch,
+    internal_search,
+    think_tool,
+    web_fetch,
+    web_search,
+)
 from .utils import (
     execute_tool_safely,
     get_custom_engine_config,
@@ -151,17 +160,16 @@ async def supervisor_tools(
     max_iterations = custom_config.max_research_iterations
     exceeded_iterations = research_iterations > max_iterations
 
-    no_tool_calls = True
-    research_complete_called = False
-
+    # Extract tool calls if available
+    tool_calls = []
     if most_recent_message and isinstance(most_recent_message, AIMessage):
         tool_calls = most_recent_message.tool_calls or []
-        no_tool_calls = not tool_calls
-        research_complete_called = any(
-            tool_call.get("name") == "ResearchComplete" for tool_call in tool_calls
-        )
 
-    if exceeded_iterations or no_tool_calls or research_complete_called:
+    research_complete_called = any(
+        tool_call.get("name") == "ResearchComplete" for tool_call in tool_calls
+    )
+
+    if exceeded_iterations or not tool_calls or research_complete_called:
         # Extract notes from tool call messages
         notes = get_notes_from_tool_calls(supervisor_messages)
 
@@ -177,18 +185,14 @@ async def supervisor_tools(
     # TOOL CALL HANDLERS
     all_tool_messages = []
 
-    if (
-        most_recent_message
-        and isinstance(most_recent_message, AIMessage)
-        and most_recent_message.tool_calls
-    ):
+    if tool_calls:
         # Collect tool calls by type and handle them
         think_tool_calls = [tc for tc in tool_calls if tc.get("name") == "think_tool"]
         conduct_research_calls = [
             tc for tc in tool_calls if tc.get("name") == "ConductResearch"
         ]
 
-        # Think tool call
+        # Handle think_tool calls
         for tool_call in think_tool_calls:
             all_tool_messages.append(_handle_think_tool(tool_call))
 
@@ -197,11 +201,6 @@ async def supervisor_tools(
                 conduct_research_calls, state, config, custom_config
             )
             all_tool_messages.extend(research_tool_messages)
-
-            return Command(
-                goto="research_supervisor",
-                update={"supervisor_messages": all_tool_messages},
-            )
 
         except Exception as e:
             logger.error(f"Research execution failed: {e}")
@@ -212,6 +211,7 @@ async def supervisor_tools(
                     "research_brief": state.get("research_brief", ""),
                 },
             )
+
     return Command(
         goto="research_supervisor",
         update={"supervisor_messages": all_tool_messages},
@@ -264,14 +264,6 @@ async def researcher_tools(
     """
     Execute tools called by the researcher.
     """
-    from .tools import (
-        internal_fetch,
-        internal_search,
-        web_fetch,
-        web_search,
-    )
-
-    # Tools now access services directly through RunnableConfig
 
     researcher_messages = state.get("researcher_messages", [])
     most_recent_message = researcher_messages[-1] if researcher_messages else None
