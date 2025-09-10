@@ -185,32 +185,30 @@ async def supervisor_tools(
     # TOOL CALL HANDLERS
     all_tool_messages = []
 
-    if tool_calls:
-        # Collect tool calls by type and handle them
-        think_tool_calls = [tc for tc in tool_calls if tc.get("name") == "think_tool"]
-        conduct_research_calls = [
-            tc for tc in tool_calls if tc.get("name") == "ConductResearch"
-        ]
+    think_tool_calls = [tc for tc in tool_calls if tc.get("name") == "think_tool"]
+    conduct_research_calls = [
+        tc for tc in tool_calls if tc.get("name") == "ConductResearch"
+    ]
 
-        # Handle think_tool calls
-        for tool_call in think_tool_calls:
-            all_tool_messages.append(_handle_think_tool(tool_call))
+    # Handle think_tool calls
+    for tool_call in think_tool_calls:
+        all_tool_messages.append(_handle_think_tool(tool_call))
 
-        try:
-            research_tool_messages = await _handle_conduct_research_batch(
-                conduct_research_calls, state, config, custom_config
-            )
-            all_tool_messages.extend(research_tool_messages)
+    try:
+        research_tool_messages = await _handle_conduct_research_batch(
+            conduct_research_calls, state, config, custom_config
+        )
+        all_tool_messages.extend(research_tool_messages)
 
-        except Exception as e:
-            logger.error(f"Research execution failed: {e}")
-            return Command(
-                goto="__end__",
-                update={
-                    "notes": [f"Research failed due to error: {e}"],
-                    "research_brief": state.get("research_brief", ""),
-                },
-            )
+    except Exception as e:
+        logger.error(f"Research execution failed: {e}")
+        return Command(
+            goto="__end__",
+            update={
+                "notes": [f"Research failed due to error: {e}"],
+                "research_brief": state.get("research_brief", ""),
+            },
+        )
 
     return Command(
         goto="research_supervisor",
