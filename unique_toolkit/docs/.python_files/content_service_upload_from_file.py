@@ -45,7 +45,6 @@ content = content_service.upload_content(
     mime_type="text/plain",
     scope_id=scope_id,
     skip_ingestion=False, # Process the content for search
-    skip_excel_ingestion=False,
     metadata={"department": "legal", "classification": "confidential"}
 )
 # ~/~ end
