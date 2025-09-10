@@ -9,7 +9,12 @@ import logging
 from typing import Any, Dict, List, Optional, Sequence, Union
 
 import tiktoken
-from langchain_core.messages import AIMessage, BaseMessage, MessageLikeRepresentation
+from langchain_core.messages import (
+    AIMessage,
+    BaseMessage,
+    MessageLikeRepresentation,
+    filter_messages,
+)
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import BaseTool
 from unique_toolkit.chat.schemas import (
@@ -379,3 +384,22 @@ def remove_up_to_last_ai_message(
 
     # No AI messages found, return original list
     return list(messages)
+
+
+def get_notes_from_tool_calls(messages: List[MessageLikeRepresentation]) -> List[str]:
+    """
+    Extract notes from tool call messages.
+
+    This function filters messages to find tool messages and extracts their content
+    as notes, following the pattern from open_deep_research.
+
+    Args:
+        messages: List of messages to extract tool call content from
+
+    Returns:
+        List of strings containing tool call content
+    """
+    return [
+        str(tool_msg.content)
+        for tool_msg in filter_messages(messages, include_types=["tool"])
+    ]
