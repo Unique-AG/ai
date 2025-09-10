@@ -7,7 +7,7 @@ following the pattern from open_deep_research but integrated with unique_toolkit
 
 import asyncio
 import logging
-from typing import Any, Dict, Literal, Optional, Union
+from typing import Any, Dict, Literal, Union
 
 from langchain.chat_models import init_chat_model
 from langchain_core.messages import (
@@ -193,20 +193,15 @@ async def supervisor_tools(
             all_tool_messages.append(_handle_think_tool(tool_call))
 
         try:
-            (
-                research_tool_messages,
-                raw_notes_concat,
-            ) = await _handle_conduct_research_batch(
+            research_tool_messages = await _handle_conduct_research_batch(
                 conduct_research_calls, state, config, custom_config
             )
             all_tool_messages.extend(research_tool_messages)
 
-            # CRITICAL: Update raw notes in state if we have research results
-            update_payload = {"supervisor_messages": all_tool_messages}
-            if raw_notes_concat:
-                update_payload["raw_notes"] = [raw_notes_concat]
-
-            return Command(goto="research_supervisor", update=update_payload)
+            return Command(
+                goto="research_supervisor",
+                update={"supervisor_messages": all_tool_messages},
+            )
 
         except Exception as e:
             logger.error(f"Research execution failed: {e}")
@@ -542,10 +537,10 @@ async def _handle_conduct_research_batch(
     state: CustomSupervisorState,
     config: RunnableConfig,
     custom_config,
-) -> tuple[list[ToolMessage], Optional[str]]:
+) -> list[ToolMessage]:
     """Handle multiple ConductResearch calls in parallel for efficiency."""
     if not conduct_research_calls:
-        return [], None
+        return []
 
     logger.info(f"Delegating {len(conduct_research_calls)} research tasks...")
 
@@ -572,7 +567,7 @@ async def _handle_conduct_research_batch(
 
     tool_results = await asyncio.gather(*research_tasks)
 
-    # Create tool messages with research results
+    # Create tool messages with compressed research results
     tool_messages = [
         ToolMessage(
             content=observation.get("compressed_research", "No research results"),
@@ -582,17 +577,7 @@ async def _handle_conduct_research_batch(
         for observation, tool_call in zip(tool_results, allowed_calls)
     ]
 
-    raw_notes_concat = "\n".join(
-        ["\n".join(observation.get("raw_notes", [])) for observation in tool_results]
-    )
-
-    # Store the raw notes in the state update that will be handled by the caller
-    if raw_notes_concat:
-        # We need to return both tool messages and raw notes
-        # The caller (supervisor_tools) will handle the state update
-        return tool_messages, raw_notes_concat
-
-    return tool_messages, None
+    return tool_messages
 
 
 ################ GRAPH CONSTRUCTION #################
