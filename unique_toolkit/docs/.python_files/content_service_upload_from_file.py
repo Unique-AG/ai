@@ -44,7 +44,7 @@ content = content_service.upload_content(
     content_name=Path(file_path).name,
     mime_type="text/plain",
     scope_id=scope_id,
-    skip_ingestion=False,  # Process the content for search
+    skip_ingestion=False, # Process the content for search
     metadata={"department": "legal", "classification": "confidential"}
 )
 # ~/~ end
