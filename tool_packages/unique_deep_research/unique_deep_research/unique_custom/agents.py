@@ -25,10 +25,10 @@ from unique_toolkit.framework_utilities.utils import get_default_headers
 
 from ..config import TEMPLATE_ENV
 from .state import (
-    CustomAgentState,
-    CustomResearcherOutputState,
-    CustomResearcherState,
-    CustomSupervisorState,
+    AgentState,
+    ResearcherOutputState,
+    ResearcherState,
+    SupervisorState,
 )
 from .tools import (
     get_research_tools,
@@ -64,7 +64,7 @@ configurable_model = init_chat_model(
 
 
 async def setup_research_supervisor(
-    state: CustomAgentState, config: RunnableConfig
+    state: AgentState, config: RunnableConfig
 ) -> Command[Literal["research_supervisor"]]:
     """
     Setup the research supervisor with the pre-generated research brief.
@@ -107,7 +107,7 @@ async def setup_research_supervisor(
 
 
 async def research_supervisor(
-    state: CustomSupervisorState, config: RunnableConfig
+    state: SupervisorState, config: RunnableConfig
 ) -> Command[Literal["supervisor_tools"]]:
     """
     Lead research supervisor that plans research strategy and delegates to researchers.
@@ -145,7 +145,7 @@ async def research_supervisor(
 
 
 async def supervisor_tools(
-    state: CustomSupervisorState, config: RunnableConfig
+    state: SupervisorState, config: RunnableConfig
 ) -> Command[Literal["research_supervisor", "researcher_subgraph", "__end__"]]:
     """
     Execute tools called by the supervisor.
@@ -243,7 +243,7 @@ async def supervisor_tools(
 
 # Research Agent Functions
 async def researcher(
-    state: CustomResearcherState, config: RunnableConfig
+    state: ResearcherState, config: RunnableConfig
 ) -> Command[Literal["researcher_tools"]]:
     """
     Individual researcher that conducts focused research on specific topics.
@@ -282,7 +282,7 @@ async def researcher(
 
 
 async def researcher_tools(
-    state: CustomResearcherState, config: RunnableConfig
+    state: ResearcherState, config: RunnableConfig
 ) -> Command[Literal["researcher", "compress_research"]]:
     """
     Execute tools called by the researcher.
@@ -341,7 +341,7 @@ async def researcher_tools(
 
 
 async def compress_research(
-    state: CustomResearcherState, config: RunnableConfig
+    state: ResearcherState, config: RunnableConfig
 ) -> Dict[str, Any]:
     """
     Compress and synthesize research findings using AI-powered synthesis.
@@ -433,7 +433,7 @@ async def compress_research(
 
 
 async def final_report_generation(
-    state: CustomAgentState, config: RunnableConfig
+    state: AgentState, config: RunnableConfig
 ) -> Dict[str, Any]:
     """
     Generate the final comprehensive research report using AI-powered synthesis.
@@ -560,7 +560,7 @@ def _handle_research_complete(tool_call: Union[dict, Any]) -> ToolMessage:
 
 async def _handle_conduct_research_batch(
     conduct_research_calls: list[Union[dict, Any]],
-    state: CustomSupervisorState,
+    state: SupervisorState,
     config: RunnableConfig,
     custom_config,
 ) -> list[ToolMessage]:
@@ -609,9 +609,7 @@ async def _handle_conduct_research_batch(
 ################ GRAPH CONSTRUCTION #################
 
 # Researcher Subgraph for parallel execution
-researcher_builder = StateGraph(
-    CustomResearcherState, output_schema=CustomResearcherOutputState
-)
+researcher_builder = StateGraph(ResearcherState, output_schema=ResearcherOutputState)
 
 researcher_builder.add_node("researcher", researcher)
 researcher_builder.add_node("researcher_tools", researcher_tools)
@@ -625,7 +623,7 @@ researcher_builder.add_edge("compress_research", END)
 researcher_subgraph = researcher_builder.compile()
 
 # Supervisor Subgraph
-supervisor_builder = StateGraph(CustomSupervisorState)
+supervisor_builder = StateGraph(SupervisorState)
 
 supervisor_builder.add_node("research_supervisor", research_supervisor)
 supervisor_builder.add_node("supervisor_tools", supervisor_tools)
@@ -636,7 +634,7 @@ supervisor_builder.add_edge(START, "research_supervisor")
 supervisor_subgraph = supervisor_builder.compile()
 
 # Main Custom Agent Graph
-custom_agent_builder = StateGraph(CustomAgentState)
+custom_agent_builder = StateGraph(AgentState)
 
 custom_agent_builder.add_node("setup_research_supervisor", setup_research_supervisor)
 custom_agent_builder.add_node("research_supervisor", supervisor_subgraph)

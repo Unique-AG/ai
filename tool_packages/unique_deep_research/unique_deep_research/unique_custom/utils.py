@@ -27,7 +27,7 @@ from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
 from ..config import UniqueCustomEngineConfig
-from .state import CustomAgentState, CustomResearcherState, CustomSupervisorState
+from .state import AgentState, ResearcherState, SupervisorState
 
 logger = logging.getLogger(__name__)
 
@@ -258,7 +258,7 @@ def write_tool_message_log(
 
 
 def write_state_message_log(
-    state: Union[CustomAgentState, CustomSupervisorState, CustomResearcherState],
+    state: Union[AgentState, SupervisorState, ResearcherState],
     text: Optional[str] = None,
     status: MessageLogStatus = MessageLogStatus.COMPLETED,
     details: Optional[MessageLogDetails] = None,

@@ -7,10 +7,10 @@ multi-agent orchestration, integrated with unique_toolkit's ChatService.
 
 from .agents import custom_agent
 from .state import (
-    CustomAgentState,
-    CustomResearcherOutputState,
-    CustomResearcherState,
-    CustomSupervisorState,
+    AgentState,
+    ResearcherOutputState,
+    ResearcherState,
+    SupervisorState,
 )
 from .tools import (
     ConductResearch,
@@ -36,10 +36,10 @@ from .utils import (
 
 __all__ = [
     "custom_agent",
-    "CustomAgentState",
-    "CustomResearcherOutputState",
-    "CustomResearcherState",
-    "CustomSupervisorState",
+    "AgentState",
+    "ResearcherOutputState",
+    "ResearcherState",
+    "SupervisorState",
     "ConductResearch",
     "ResearchComplete",
     "get_research_tools",

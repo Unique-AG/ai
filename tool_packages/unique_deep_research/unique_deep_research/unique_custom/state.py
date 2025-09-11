@@ -22,7 +22,7 @@ def override_reducer(current_value, new_value):
         return operator.add(current_value, new_value)
 
 
-class CustomAgentState(MessagesState):
+class AgentState(MessagesState):
     """
     Main agent state for the complete research workflow.
 
@@ -52,7 +52,7 @@ class CustomAgentState(MessagesState):
     ]  # Tool progress reporter instance
 
 
-class CustomSupervisorState(TypedDict, total=False):
+class SupervisorState(TypedDict, total=False):
     """
     State for the research supervisor (lead agent) subgraph.
 
@@ -73,7 +73,7 @@ class CustomSupervisorState(TypedDict, total=False):
     message_id: Required[str]
 
 
-class CustomResearcherState(TypedDict, total=False):
+class ResearcherState(TypedDict, total=False):
     """
     State for individual research agents.
 
@@ -93,7 +93,7 @@ class CustomResearcherState(TypedDict, total=False):
     message_id: Required[str]
 
 
-class CustomResearcherOutputState(TypedDict, total=False):
+class ResearcherOutputState(TypedDict, total=False):
     """
     Output state returned by individual research agents.
 
