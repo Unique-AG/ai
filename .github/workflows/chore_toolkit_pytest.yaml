@@ -1,4 +1,4 @@
-name: "[pytest] Unique ToolKit"
+name: "[pytest + typecheck] Unique ToolKit"
 
 env:
   PACKAGE: unique_toolkit
@@ -15,6 +15,8 @@ jobs:
     steps:
     - name: Check out code
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch full history for git operations
 
     - name: Set up Python
       uses: actions/setup-python@v5
@@ -26,9 +28,89 @@ jobs:
         POETRY_VERSION='1.8.3'
         PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install poetry==$POETRY_VERSION
 
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y jq curl
+        
     - name: Install dependencies
       working-directory: ${{ env.PACKAGE }}
       run: poetry install
+
+    - name: Install Pyright
+      run: |
+        # Install pyright globally for the type checker script
+        npm install -g pyright
+
+    - name: Run Pyright Type Checker
+      id: typecheck
+      continue-on-error: true
+      run: |
+        # Use the simplified CI script
+        SCRIPT_PATH="$GITHUB_WORKSPACE/scripts/pyright_type_checker_ci.sh"
+        if [[ ! -f "$SCRIPT_PATH" ]]; then
+          echo "Error: CI script not found at $SCRIPT_PATH"
+          exit 1
+        fi
+        echo "Using CI script: $SCRIPT_PATH"
+        chmod +x "$SCRIPT_PATH"
+        
+        # Run from repository root to ensure proper git operations
+        cd "$GITHUB_WORKSPACE"
+        echo "Running script from: $(pwd)"
+        echo "Script path: $SCRIPT_PATH"
+        echo "Script exists: $(test -f "$SCRIPT_PATH" && echo "yes" || echo "no")"
+        echo "Script executable: $(test -x "$SCRIPT_PATH" && echo "yes" || echo "no")"
+        
+        # Run script and capture output
+        if "$SCRIPT_PATH" > typecheck_output.txt 2>&1; then
+          SCRIPT_EXIT_CODE=0
+        else
+          SCRIPT_EXIT_CODE=$?
+        fi
+        
+        echo "Script exit code: $SCRIPT_EXIT_CODE"
+        echo "=== Script Output ==="
+        cat typecheck_output.txt
+        echo "=== End Script Output ==="
+        echo "exit_code=$SCRIPT_EXIT_CODE" >> $GITHUB_OUTPUT
+
+    - name: Comment on PR if type check failed
+      if: steps.typecheck.outputs.exit_code != 0
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const output = fs.readFileSync('typecheck_output.txt', 'utf8');
+          
+          const comment = `## ❌ Type Check Failed
+          
+          The type checker detected new type errors in this PR. Please fix the following issues before merging:
+          
+          \`\`\`
+          ${output}
+          \`\`\`
+          
+          **What to do:**
+          1. Review the errors above
+          2. Fix the type issues in your code
+          3. Push your changes
+          4. The type checker will run again automatically
+          
+          **Note:** This check only fails on *new* type errors. Existing errors in the codebase are ignored.`;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
+
+    - name: Fail if type check failed
+      if: steps.typecheck.outputs.exit_code != 0
+      run: |
+        echo "Type check failed with exit code ${{ steps.typecheck.outputs.exit_code }}"
+        exit ${{ steps.typecheck.outputs.exit_code }}
 
     - name: Run tests
       working-directory: ${{ env.PACKAGE }}
