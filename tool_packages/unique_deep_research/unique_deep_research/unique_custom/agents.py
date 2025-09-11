@@ -15,7 +15,6 @@ from langchain_core.messages import (
     HumanMessage,
     SystemMessage,
     ToolMessage,
-    filter_messages,
     get_buffer_string,
 )
 from langchain_core.runnables import RunnableConfig
@@ -402,19 +401,8 @@ async def compress_research(
             "Error synthesizing research report: Maximum retries exceeded"
         )
 
-    # Extract raw notes from all tool and AI messages (like reference)
-    raw_notes_content = "\n".join(
-        [
-            str(message.content)
-            for message in filter_messages(
-                researcher_messages, include_types=["tool", "ai"]
-            )
-        ]
-    )
-
     return {
         "compressed_research": compressed_research,
-        "raw_notes": [raw_notes_content],
     }
 
 
@@ -588,6 +576,8 @@ researcher_builder.add_node("researcher_tools", researcher_tools)
 researcher_builder.add_node("compress_research", compress_research)
 
 researcher_builder.add_edge(START, "researcher")
+researcher_builder.add_edge("researcher", "researcher_tools")
+researcher_builder.add_edge("researcher_tools", "compress_research")
 researcher_builder.add_edge("compress_research", END)
 
 researcher_subgraph = researcher_builder.compile()
@@ -597,8 +587,12 @@ supervisor_builder = StateGraph(CustomSupervisorState)
 
 supervisor_builder.add_node("research_supervisor", research_supervisor)
 supervisor_builder.add_node("supervisor_tools", supervisor_tools)
+supervisor_builder.add_node("researcher_subgraph", researcher_subgraph)
 
 supervisor_builder.add_edge(START, "research_supervisor")
+supervisor_builder.add_edge("supervisor_tools", "research_supervisor")
+supervisor_builder.add_edge("supervisor_tools", "researcher_subgraph")
+supervisor_builder.add_edge("research_supervisor", "supervisor_tools")
 
 supervisor_subgraph = supervisor_builder.compile()
 

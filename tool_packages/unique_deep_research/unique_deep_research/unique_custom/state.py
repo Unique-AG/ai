@@ -43,7 +43,6 @@ class CustomAgentState(MessagesState):
         List[MessageLikeRepresentation], override_reducer
     ]  # Supervisor conversation history
     research_iterations: int  # Number of supervisor iterations
-    raw_notes: Annotated[List[str], override_reducer]  # Raw notes from research agents
 
     # Essential services (required for functionality)
     chat_service: Required[ChatService]  # ChatService instance for message logging
@@ -67,7 +66,7 @@ class CustomSupervisorState(TypedDict, total=False):
     ]  # Supervisor conversation history
     research_iterations: int  # Number of supervisor iterations
     research_brief: str  # Research instructions
-    raw_notes: Annotated[List[str], override_reducer]  # Raw notes from research agents
+    notes: Annotated[List[str], override_reducer]  # Processed research findings
 
     # ChatService integration for logging (required)
     chat_service: Required[ChatService]
@@ -103,6 +102,3 @@ class CustomResearcherOutputState(TypedDict, total=False):
     """
 
     compressed_research: str  # Synthesized research findings
-    raw_notes: Annotated[
-        List[str], override_reducer
-    ]  # Raw research notes and tool outputs
