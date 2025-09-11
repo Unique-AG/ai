@@ -21,14 +21,17 @@ CombinedParamsSpec = ParamSpec("CombinedParamsSpec")
 CombinedParamsType = TypeVar("CombinedParamsType", bound=BaseModel)
 
 
-class EndpointRequestorProtocol(Protocol, Generic[CombinedParamsSpec, ResponseType]):
+ResponseT_co = TypeVar("ResponseT_co", bound=BaseModel, covariant=True)
+
+
+class EndpointRequestorProtocol(Protocol, Generic[CombinedParamsSpec, ResponseT_co]):
     @classmethod
     def request(
         cls,
         headers: dict[str, str],
         *args: CombinedParamsSpec.args,
         **kwargs: CombinedParamsSpec.kwargs,
-    ) -> ResponseType: ...
+    ) -> ResponseT_co: ...
 
 
 def build_fake_requestor(
@@ -77,7 +80,7 @@ def build_request_requestor(
         ]
     ],
     combined_model: Callable[CombinedParamsSpec, CombinedParamsType],
-) -> type[EndpointRequestorProtocol]:
+) -> type[EndpointRequestorProtocol[CombinedParamsSpec, ResponseType]]:
     import requests
 
     class RequestRequestor(EndpointRequestorProtocol):
@@ -90,10 +93,13 @@ def build_request_requestor(
             *args: CombinedParamsSpec.args,
             **kwargs: CombinedParamsSpec.kwargs,
         ) -> ResponseType:
-            url = cls._endpoint.create_url_from_model(combined_model(*args, **kwargs))
-            payload = cls._endpoint.create_payload_from_model(
-                combined_model(*args, **kwargs)
-            )
+            combined = combined_model(*args, **kwargs)
+
+            # Create separate instances for path params and payload using endpoint helper
+            path_params, payload_model = cls._endpoint.models_from_combined(combined)
+
+            url = cls._endpoint.create_url_from_model(path_params)
+            payload = cls._endpoint.create_payload_from_model(payload_model)
 
             response = requests.request(
                 method=cls._endpoint.request_method(),
@@ -178,6 +184,16 @@ if __name__ == "__main__":
         headers={"a": "b"},
         user_id=123,
         include_profile=True,
+    )
+
+    RequestRequstor = build_request_requestor(
+        endpoint_type=UserEndpoint,
+        combined_model=CombinedParams,
+    )
+
+    # Check type hints
+    response = RequestRequstor().request(
+        headers={"a": "b"}, user_id=123, include_profile=True
     )
 
     print(response.model_dump())
