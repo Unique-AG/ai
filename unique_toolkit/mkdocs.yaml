@@ -53,6 +53,17 @@ nav:
   - Modules:
     - Chat Examples: modules/examples/chat/chat_service.md
     - Content Examples: modules/examples/content/content_service.md
+  - Agentic Framework:
+    - Overview: agentic_framework/framework.md
+    - Orchestrator: agentic_framework/orchestrator/unqiue_ai_how-it-works.md
+    - Tool: agentic_framework/tool.md
+    - Tool Call Response: agentic_framework/tool_call_response.md
+    - Tool Manager: agentic_framework/tool_manager.md
+    - Debug Info Manager: agentic_framework/debug_manager.md
+    - Postprocessor Manager: agentic_framework/postprocessor_manager.md
+    - Evaluation Manager: agentic_framework/evaluation_manager.md
+    - Reference Manager: agentic_framework/reference_manager.md
+    - History Manager: agentic_framework/history_manager.md
   - Platforms:
     - OpenAI: plattforms/openai/openai.md
   - API Reference: api.md
