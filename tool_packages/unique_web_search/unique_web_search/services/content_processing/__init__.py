@@ -1,17 +1,15 @@
 from unique_web_search.services.content_processing.config import (
-    ContentAdapterConfig,
-    ContentProcessingConfig,
     ContentProcessingStartegy,
+    ContentProcessorConfig,
     WebPageChunk,
 )
 from unique_web_search.services.content_processing.content_adapter import (
-    ContentAdapter,
+    ContentProcessor,
 )
 
 __all__ = [
     "ContentProcessingStartegy",
-    "ContentAdapter",
-    "ContentAdapterConfig",
-    "ContentProcessingConfig",
+    "ContentProcessor",
+    "ContentProcessorConfig",
     "WebPageChunk",
 ]
