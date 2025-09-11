@@ -308,7 +308,6 @@ async def researcher_tools(
     custom_config = get_custom_engine_config(config)
     max_iterations = custom_config.max_tool_calls_per_researcher
     if state.get("tool_call_iterations", 0) >= max_iterations:
-        # TODO: Verify it has the research task etc. potential are
         return Command(
             goto="compress_research", update={"researcher_messages": tool_outputs}
         )
@@ -342,10 +341,17 @@ async def compress_research(
 
     researcher_messages = state.get("researcher_messages", [])
 
-    # Add instruction to switch from research mode to compression mode (like reference)
-    compression_instruction = """All above messages are about research conducted by an AI Researcher. Please clean up these findings. 
-    DO NOT summarize the information. I want the raw information returned, just in a cleaner format. 
-    Make sure all relevant information is preserved - you can rewrite findings verbatim. Ensure that you keep citations and references!"""
+    # Get the specific research topic assigned to this researcher
+    research_topic = state.get("research_topic", "")
+
+    # Add instruction to switch from research mode to compression mode with topic context
+    compression_instruction = f"""You are compressing research findings for this SPECIFIC research topic:
+    ASSIGNED TOPIC: {research_topic}
+    All above messages are from research conducted SPECIFICALLY for this topic.
+    Please clean up these findings, focusing ONLY on information relevant to the assigned topic above.
+    DO NOT include tangential information found during searches that doesn't directly address this specific topic.
+    DO NOT summarize - preserve all relevant information in a cleaner format.
+    Keep all citations and references that relate to this topic."""
 
     # Follow reference architecture: append instruction to researcher messages
     researcher_messages.append(HumanMessage(content=compression_instruction))
