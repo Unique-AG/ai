@@ -1,33 +1,15 @@
 import logging
 from time import time
 
+from unique_web_search.services.crawlers import (
+    CrawlerTypes,
+)
 from unique_web_search.services.preprocessing.cleaning.cleaning_strategy import (
     CleaningStrategyConfig,
     get_cleaning_strategy,
 )
-from unique_web_search.services.preprocessing.crawlers import (
-    BasicCrawler,
-    BasicCrawlerConfig,
-    Crawl4AiCrawler,
-    Crawl4AiCrawlerConfig,
-    CrawlerType,
-    FirecrawlCrawler,
-    FirecrawlCrawlerConfig,
-    JinaCrawler,
-    JinaCrawlerConfig,
-    TavilyCrawler,
-    TavilyCrawlerConfig,
-)
 from unique_web_search.services.search_engine import (
-    FireCrawlConfig,
-    FireCrawlSearch,
-    GoogleConfig,
-    GoogleSearch,
-    JinaConfig,
-    JinaSearch,
-    SearchEngineType,
-    TavilyConfig,
-    TavilySearch,
+    SearchEngineTypes,
     WebSearchResult,
 )
 
@@ -38,24 +20,15 @@ class SearchAndCrawlService:
     def __init__(
         self,
         company_id: str,
-        search_engine_config: FireCrawlConfig
-        | GoogleConfig
-        | JinaConfig
-        | TavilyConfig,
-        crawler_config: BasicCrawlerConfig
-        | Crawl4AiCrawlerConfig
-        | FirecrawlCrawlerConfig
-        | JinaCrawlerConfig
-        | TavilyCrawlerConfig,
+        search_engine_service:  SearchEngineTypes,
+        crawler_service: CrawlerTypes,
         cleaning_strategy_config: CleaningStrategyConfig,
     ):
         self.company_id = company_id
 
-        self.search_engine_service = self._get_search_engine_service(
-            search_engine_config
-        )
+        self.search_engine_service = search_engine_service
 
-        self.crawler_service = self._get_crawler_service(crawler_config)
+        self.crawler_service = crawler_service
 
         self.cleaning_function = get_cleaning_strategy(cleaning_strategy_config)
 
@@ -147,50 +120,3 @@ class SearchAndCrawlService:
         except Exception as e:
             logger.error(f"Failed to clean content: {str(e)}")
             raise ValueError("Failed to clean content")
-
-    def _get_search_engine_service(
-        self,
-        search_engine_config: FireCrawlConfig
-        | GoogleConfig
-        | JinaConfig
-        | TavilyConfig,
-    ):
-        match search_engine_config.search_engine_name:
-            case SearchEngineType.FIRECRAWL:
-                return FireCrawlSearch(search_engine_config)
-            case SearchEngineType.GOOGLE:
-                return GoogleSearch(search_engine_config)
-            case SearchEngineType.JINA:
-                return JinaSearch(search_engine_config)
-            case SearchEngineType.TAVILY:
-                return TavilySearch(search_engine_config)
-
-    def _get_crawler_service(
-        self,
-        crawler_config: BasicCrawlerConfig
-        | Crawl4AiCrawlerConfig
-        | FirecrawlCrawlerConfig
-        | JinaCrawlerConfig
-        | TavilyCrawlerConfig,
-    ):
-        try:
-            match crawler_config.crawler_type:
-                case CrawlerType.BASIC:
-                    return BasicCrawler(crawler_config)
-                case CrawlerType.CRAWL4AI:
-                    return Crawl4AiCrawler(crawler_config)
-                case CrawlerType.TAVILY:
-                    return TavilyCrawler(crawler_config)
-                case CrawlerType.FIRECRAWL:
-                    return FirecrawlCrawler(crawler_config)
-                case CrawlerType.JINA:
-                    return JinaCrawler(crawler_config)
-                case CrawlerType.NONE:
-                    return None
-
-        except Exception as e:
-            if isinstance(e, ValueError):
-                raise
-            error_msg = f"Failed to initialize crawler service '{crawler_config.crawler_type}': {str(e)}"
-            logger.error(error_msg)
-            raise RuntimeError(error_msg) from e

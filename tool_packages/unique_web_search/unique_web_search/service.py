@@ -28,6 +28,7 @@ from unique_toolkit.tools.tool_progress_reporter import ProgressState
 
 from unique_web_search.config import WebSearchConfig
 from unique_web_search.services.content_adapter import ContentAdapter
+from unique_web_search.services.crawlers import get_crawler_service
 from unique_web_search.services.search_and_crawl import SearchAndCrawlService
 from unique_web_search.services.search_engine.base import SearchEngineType
 from unique_web_search.services.search_engine.firecrawl import FireCrawlSearch
@@ -83,11 +84,13 @@ class WebSearchTool(Tool[WebSearchConfig]):
         self.chat_history_string: str = ""
 
         self.index = 1000
+        self.search_engine_service = self._get_search_engine_service()
+        self.crawler_service = get_crawler_service(self.config.crawler_config)
 
         self.search_and_crawl_service = SearchAndCrawlService(
             company_id=self.event.company_id,
-            search_engine_config=self.config.search_engine_config,
-            crawler_config=self.config.crawler_config,
+            search_engine_service=self.search_engine_service,
+            crawler_service=self.crawler_service,
             cleaning_strategy_config=self.config.cleaning_strategy_config,
         )
 

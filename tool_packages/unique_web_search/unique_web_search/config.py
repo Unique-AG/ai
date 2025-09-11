@@ -22,18 +22,13 @@ from unique_web_search.prompts import (
     REFINE_QUERY_SYSTEM_PROMPT,
 )
 from unique_web_search.services.content_adapter import ContentAdapterConfig
+from unique_web_search.services.crawlers import (
+    DEFAULT_CRAWLER_CONFIG,
+    CrawlerConfigTypes,
+)
 from unique_web_search.services.preprocessing.cleaning.cleaning_strategy import (
     CleaningStrategyConfig,
 )
-from unique_web_search.services.preprocessing.crawlers.basic import BasicCrawlerConfig
-from unique_web_search.services.preprocessing.crawlers.crawl4ai import (
-    Crawl4AiCrawlerConfig,
-)
-from unique_web_search.services.preprocessing.crawlers.firecrawl import (
-    FirecrawlCrawlerConfig,
-)
-from unique_web_search.services.preprocessing.crawlers.jina import JinaCrawlerConfig
-from unique_web_search.services.preprocessing.crawlers.tavily import TavilyCrawlerConfig
 from unique_web_search.services.search_engine.firecrawl import FireCrawlConfig
 from unique_web_search.services.search_engine.google import GoogleConfig
 from unique_web_search.services.search_engine.jina import JinaConfig
@@ -119,14 +114,8 @@ class WebSearchConfig(BaseToolConfig):
         title="Search Engine Configuration",
     )
 
-    crawler_config: (
-        Crawl4AiCrawlerConfig
-        | BasicCrawlerConfig
-        | SkipJsonSchema[FirecrawlCrawlerConfig]
-        | SkipJsonSchema[JinaCrawlerConfig]
-        | SkipJsonSchema[TavilyCrawlerConfig]
-    ) = Field(
-        default_factory=BasicCrawlerConfig,
+    crawler_config: CrawlerConfigTypes = Field(
+        default_factory=DEFAULT_CRAWLER_CONFIG,
         description="The crawler configuration.",
         discriminator="crawler_type",
     )
