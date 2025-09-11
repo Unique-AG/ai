@@ -12,6 +12,7 @@ from typing import (
     ParamSpec,
     Protocol,
     TypeVar,
+    cast,
 )
 
 from pydantic import BaseModel
@@ -52,9 +53,14 @@ class EndpointClassProtocol(
         ResponseType,
     ],
 ):
-    path_params_model: type[PathParamsType]
-    payload_model: type[PayloadType]
-    response_model: type[ResponseType]
+    @staticmethod
+    def path_params_model() -> type[PathParamsType]: ...
+
+    @staticmethod
+    def payload_model() -> type[PayloadType]: ...
+
+    @staticmethod
+    def response_model() -> type[ResponseType]: ...
 
     @staticmethod
     def create_url(
@@ -77,6 +83,11 @@ class EndpointClassProtocol(
 
     @staticmethod
     def request_method() -> EndpointMethods: ...
+
+    @staticmethod
+    def models_from_combined(
+        combined: BaseModel,
+    ) -> tuple[PathParamsType, PayloadType]: ...
 
 
 # Model for any client to implement
@@ -107,11 +118,6 @@ def build_endpoint_class(
     """
 
     # Verify that the path_params_constructor and payload_constructor are valid pydantic models
-    if not isinstance(path_params_constructor, type(BaseModel)):
-        raise ValueError("path_params_constructor must be a pydantic model")
-    if not isinstance(payload_constructor, type(BaseModel)):
-        raise ValueError("payload_constructor must be a pydantic model")
-
     if not dump_options:
         dump_options = {
             "exclude_unset": True,
@@ -120,9 +126,17 @@ def build_endpoint_class(
         }
 
     class EndpointClass(EndpointClassProtocol):
-        path_params_model = path_params_constructor  # type: ignore
-        payload_model = payload_constructor  # type: ignore
-        response_model = response_model_type
+        @staticmethod
+        def path_params_model() -> type[PathParamsType]:
+            return cast(type[PathParamsType], path_params_constructor)
+
+        @staticmethod
+        def payload_model() -> type[PayloadType]:
+            return cast(type[PayloadType], payload_constructor)
+
+        @staticmethod
+        def response_model() -> type[ResponseType]:
+            return response_model_type
 
         @staticmethod
         def create_url(
@@ -130,7 +144,7 @@ def build_endpoint_class(
             **kwargs: PathParamsSpec.kwargs,
         ) -> str:
             """Create URL from path parameters."""
-            path_model = EndpointClass.path_params_model(*args, **kwargs)
+            path_model = EndpointClass.path_params_model()(*args, **kwargs)
             path_dict = path_model.model_dump(**dump_options)
 
             # Extract expected path parameters from template
@@ -158,7 +172,7 @@ def build_endpoint_class(
             *args: PayloadParamSpec.args, **kwargs: PayloadParamSpec.kwargs
         ) -> dict[str, Any]:
             """Create request body payload."""
-            request_model = EndpointClass.payload_model(*args, **kwargs)
+            request_model = EndpointClass.payload_model()(*args, **kwargs)
             return request_model.model_dump(**dump_options)
 
         @staticmethod
@@ -167,11 +181,20 @@ def build_endpoint_class(
 
         @staticmethod
         def handle_response(response: dict[str, Any]) -> ResponseType:
-            return EndpointClass.response_model.model_validate(response)
+            return EndpointClass.response_model().model_validate(response)
 
         @staticmethod
         def request_method() -> EndpointMethods:
             return method
+
+        @staticmethod
+        def models_from_combined(
+            combined: BaseModel,
+        ) -> tuple[PathParamsType, PayloadType]:
+            data: dict[str, Any] = combined.model_dump(**dump_options)
+            path_params = EndpointClass.path_params_model().model_validate(data)
+            payload = EndpointClass.payload_model().model_validate(data)
+            return path_params, payload
 
     return EndpointClass
 
