@@ -1,12 +1,13 @@
 import json
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, override
 
 from humps import camelize
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing_extensions import deprecated
 
+from unique_toolkit.app.unique_settings import UniqueEventFilterOptions
 from unique_toolkit.smart_rules.compile import UniqueQL, parse_uniqueql
 
 # set config to convert camelCase to snake_case
@@ -45,6 +46,10 @@ class BaseEvent(BaseModel):
         with file_path.open("r", encoding="utf-8") as f:
             data = json.load(f)
         return cls.model_validate(data)
+
+    def filter_event(self, *, filter_options: UniqueEventFilterOptions) -> bool:
+        """Determine if event should be filtered out and be neglected."""
+        return False
 
 
 ###
@@ -241,6 +246,23 @@ class ChatEvent(BaseEvent):
             "chosen_module": self.payload.name,
             "assistant": {"id": self.payload.assistant_id},
         }
+
+    @override
+    def filter_event(self, *, filter_options: UniqueEventFilterOptions) -> bool:
+        # Empty string evals to False
+        if (
+            filter_options.assistant_id
+            and self.payload.assistant_id != filter_options.assistant_id
+        ):
+            return True
+
+        if (
+            filter_options.reference_in_code
+            and self.payload.name != filter_options.reference_in_code
+        ):
+            return True
+
+        return super().filter_event(filter_options=filter_options)
 
 
 @deprecated(

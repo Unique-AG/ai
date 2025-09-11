@@ -11,14 +11,22 @@ We highly recommend using a virtual environment to install Unique Toolkit and SD
 The following secrets need to be setup in a `unique.env` file located as described below or in the environment
 
 ```env
-UNIQUE_AUTH_COMPANY_ID=         # Your company id
-UNIQUE_AUTH_USER_ID=            # Your user id
+UNIQUE_AUTH_COMPANY_ID=                         # Your company id
+UNIQUE_AUTH_USER_ID=                            # Your user id
 
-UNIQUE_API_BASE_URL=            # The backend url of Unique's public API
-UNIQUE_API_VERSION=             # The version Unique's public API
+UNIQUE_API_BASE_URL=                            # The backend url of Unique's public API
+UNIQUE_API_VERSION=                             # The version Unique's public API
 
-UNIQUE_APP_ID=                  # The app id as obtained in the App section of Unique
-UNIQUE_APP_KEY=                 # The app key as obtained in the App section of Unique
+UNIQUE_APP_ID=                                  # The app id as obtained in the App section of Unique
+UNIQUE_APP_KEY=                                 # The app key as obtained in the App section of Unique
+
+# Filter out events that do not originate from specific assistant/space. 
+# Can be found in url when in a a chat window
+UNIQUE_EVENT_FILTER_OPTIONS_ASSISTANT_ID=
+
+# Filter out event that do not orginate from a specific module
+# Can be found in the module section 
+UNIQUE_EVENT_FILTER_OPTIONS_REFERENCE_IN_CODE=  
 ```
 
 ??? info "Environment File Locations (Click to expand)"

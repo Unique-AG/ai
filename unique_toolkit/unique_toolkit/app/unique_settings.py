@@ -159,6 +159,23 @@ class UniqueAuth(BaseSettings):
         return warn_about_defaults(self)
 
 
+class UniqueEventFilterOptions(BaseSettings):
+    # Empty string evals to False
+    assistant_id: str = Field(
+        default="", description="The assistant id (space) to filter by."
+    )
+    reference_in_code: str = Field(
+        default="", description="The module (reference) name in code to filter by."
+    )
+
+    model_config = SettingsConfigDict(
+        env_prefix="unique_event_filter_options_",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+
 class EnvFileNotFoundError(FileNotFoundError):
     """Raised when no environment file can be found in any of the expected locations."""
 
@@ -169,11 +186,13 @@ class UniqueSettings:
         auth: UniqueAuth,
         app: UniqueApp,
         api: UniqueApi,
+        event_filter_options: UniqueEventFilterOptions,
         env_file: Path | None = None,
     ):
         self.app = app
         self.auth = auth
         self.api = api
+        self.event_filter_options = event_filter_options
         self._env_file: Path | None = (
             env_file if (env_file and env_file.exists()) else None
         )
@@ -241,7 +260,14 @@ class UniqueSettings:
         auth = UniqueAuth(_env_file=env_file_str)  # type: ignore[call-arg]
         app = UniqueApp(_env_file=env_file_str)  # type: ignore[call-arg]
         api = UniqueApi(_env_file=env_file_str)  # type: ignore[call-arg]
-        return cls(auth=auth, app=app, api=api, env_file=env_file)
+        event_filter_options = UniqueEventFilterOptions(_env_file=env_file_str)  # type: ignore[call-arg]
+        return cls(
+            auth=auth,
+            app=app,
+            api=api,
+            event_filter_options=event_filter_options,
+            env_file=env_file,
+        )
 
     @classmethod
     def from_env_auto(cls, filename: str = "unique.env") -> "UniqueSettings":
