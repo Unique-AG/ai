@@ -509,7 +509,7 @@ class TestEdgeCases:
         # Union should prefer ModelA (first model)
         union_model = create_union_model(ModelA, ModelB, "TypeUnion")
         field_info = union_model.model_fields["field1"]
-        assert isinstance(field_info.annotation, str)  # Should be from ModelA
+        assert field_info.annotation is str  # Should be from ModelA
 
         # Test instantiation
         instance = union_model(field1="test")
