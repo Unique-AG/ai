@@ -146,7 +146,7 @@ async def research_supervisor(
 
 async def supervisor_tools(
     state: CustomSupervisorState, config: RunnableConfig
-) -> Command[Literal["research_supervisor", "__end__"]]:
+) -> Command[Literal["research_supervisor", "researcher_subgraph", "__end__"]]:
     """
     Execute tools called by the supervisor.
     """
@@ -164,15 +164,9 @@ async def supervisor_tools(
     if most_recent_message and isinstance(most_recent_message, AIMessage):
         tool_calls = most_recent_message.tool_calls or []
 
-    research_complete_called = any(
-        tool_call.get("name") == "ResearchComplete" for tool_call in tool_calls
-    )
-
-    if exceeded_iterations or not tool_calls or research_complete_called:
-        # Extract notes from tool call messages
+    # Early exit if no tool calls at all
+    if not tool_calls:
         notes = get_notes_from_tool_calls(supervisor_messages)
-
-        # Finish subgraph and proceed to final report generation
         return Command(
             goto="__end__",
             update={
@@ -189,10 +183,21 @@ async def supervisor_tools(
         tc for tc in tool_calls if tc.get("name") == "ConductResearch"
     ]
 
-    # Handle think_tool calls
+    research_complete_calls = [
+        tc for tc in tool_calls if tc.get("name") == "ResearchComplete"
+    ]
+
+    if len(research_complete_calls) > 0 and len(tool_calls) > 1:
+        logger.warning("ResearchComplete called when there are other tool calls")
+        # TODO: consider if we remove the other tool calls
+
+    # Process all tool calls to ensure answers to tool calls are in history
+
+    # 1. think_tool calls
     for tool_call in think_tool_calls:
         all_tool_messages.append(_handle_think_tool(tool_call))
 
+    # 2. ConductResearch calls
     try:
         research_tool_messages = await _handle_conduct_research_batch(
             conduct_research_calls, state, config, custom_config
@@ -204,7 +209,28 @@ async def supervisor_tools(
         return Command(
             goto="__end__",
             update={
+                "supervisor_messages": all_tool_messages,  # Include any tool messages created so far
                 "notes": [f"Research failed due to error: {e}"],
+                "research_brief": state.get("research_brief", ""),
+            },
+        )
+
+    # 3. ResearchComplete calls
+    for tool_call in research_complete_calls:
+        all_tool_messages.append(_handle_research_complete(tool_call))
+
+    research_complete_called = len(research_complete_calls) > 0
+
+    if exceeded_iterations or research_complete_called:
+        # Extract notes including the new tool messages we just created
+        notes = get_notes_from_tool_calls(supervisor_messages + all_tool_messages)
+
+        # Finish subgraph and proceed to final report generation
+        return Command(
+            goto="__end__",
+            update={
+                "supervisor_messages": all_tool_messages,  # MUST include tool messages for proper pairing
+                "notes": notes,
                 "research_brief": state.get("research_brief", ""),
             },
         )
@@ -516,6 +542,22 @@ def _handle_think_tool(tool_call: Union[dict, Any]) -> ToolMessage:
     )
 
 
+def _handle_research_complete(tool_call: Union[dict, Any]) -> ToolMessage:
+    """Handle ResearchComplete calls with final summary."""
+    summary = tool_call["args"].get("summary", "Research completed")
+    sources = tool_call["args"].get("sources", [])
+
+    content = f"Research completed with summary: {summary}"
+    if sources:
+        content += f"\nSources: {', '.join(sources)}"
+
+    return ToolMessage(
+        content=content,
+        name="ResearchComplete",
+        tool_call_id=tool_call["id"],
+    )
+
+
 async def _handle_conduct_research_batch(
     conduct_research_calls: list[Union[dict, Any]],
     state: CustomSupervisorState,
@@ -590,9 +632,6 @@ supervisor_builder.add_node("supervisor_tools", supervisor_tools)
 supervisor_builder.add_node("researcher_subgraph", researcher_subgraph)
 
 supervisor_builder.add_edge(START, "research_supervisor")
-supervisor_builder.add_edge("supervisor_tools", "research_supervisor")
-supervisor_builder.add_edge("supervisor_tools", "researcher_subgraph")
-supervisor_builder.add_edge("research_supervisor", "supervisor_tools")
 
 supervisor_subgraph = supervisor_builder.compile()
 
