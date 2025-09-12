@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_deep_research"
-version = "0.0.9"
+version = "0.0.10"
 description = "Deep Research Tool for complex research tasks"
 authors = [
     "Martin Fadler <martin.fadler@unique.ch>",
@@ -25,7 +25,7 @@ openai = "^1.99.0"
 langgraph = "^0.6.6"
 langchain = "^0.3.0"
 langchain-core = "^0.3.0"
-unique-web-search = "^0.0.6"
+unique-web-search = "^0.1.0"
 langchain-openai = "^0.3.32"
 
 
