@@ -1,11 +1,7 @@
 import logging
 from time import time
 
-from unique_web_search.services.preprocessing.cleaning.cleaning_strategy import (
-    CleaningStrategyConfig,
-    get_cleaning_strategy,
-)
-from unique_web_search.services.preprocessing.crawlers import (
+from unique_web_search.services.crawlers import (
     BasicCrawler,
     BasicCrawlerConfig,
     Crawl4AiCrawler,
@@ -47,7 +43,6 @@ class SearchAndCrawlService:
         | FirecrawlCrawlerConfig
         | JinaCrawlerConfig
         | TavilyCrawlerConfig,
-        cleaning_strategy_config: CleaningStrategyConfig,
     ):
         self.company_id = company_id
 
@@ -56,8 +51,6 @@ class SearchAndCrawlService:
         )
 
         self.crawler_service = self._get_crawler_service(crawler_config)
-
-        self.cleaning_function = get_cleaning_strategy(cleaning_strategy_config)
 
     async def search_and_crawl(
         self, query: str, **kwargs
@@ -84,13 +77,11 @@ class SearchAndCrawlService:
                 search_results
             )
 
-        search_results, clean_time = self._clean_content(search_results)
-
+        # Content processing is now handled by ContentProcessor, not here
         time_info = {
             "search_time": search_time,
             "crawl_time": crawl_time,
-            "clean_time": clean_time,
-            "total_time": search_time + crawl_time + clean_time,
+            "total_time": search_time + crawl_time,
         }
 
         return search_results, time_info
@@ -132,21 +123,6 @@ class SearchAndCrawlService:
         except Exception as e:
             logger.error(f"Failed to execute crawl: {str(e)}")
             raise ValueError("Failed to execute crawl")
-
-    def _clean_content(
-        self, search_results: list[WebSearchResult]
-    ) -> tuple[list[WebSearchResult], float]:
-        try:
-            start_time = time()
-            for result in search_results:
-                result.content = self.cleaning_function(result.content)
-
-            delta_time = time() - start_time
-            logger.info(f"Clean content completed in {delta_time} seconds")
-            return search_results, delta_time
-        except Exception as e:
-            logger.error(f"Failed to clean content: {str(e)}")
-            raise ValueError("Failed to clean content")
 
     def _get_search_engine_service(
         self,

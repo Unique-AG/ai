@@ -1,7 +1,6 @@
 from datetime import datetime
 from time import time
 
-import pandas as pd
 from pydantic import BaseModel, ConfigDict, Field, create_model
 from typing_extensions import override
 from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
@@ -27,7 +26,8 @@ from unique_toolkit.tools.tool import Tool
 from unique_toolkit.tools.tool_progress_reporter import ProgressState
 
 from unique_web_search.config import WebSearchConfig
-from unique_web_search.services.content_adapter import ContentAdapter
+from unique_web_search.services.content_processing.config import WebPageChunk
+from unique_web_search.services.content_processing.service import ContentProcessor
 from unique_web_search.services.search_and_crawl import SearchAndCrawlService
 from unique_web_search.services.search_engine.base import SearchEngineType
 from unique_web_search.services.search_engine.firecrawl import FireCrawlSearch
@@ -88,13 +88,11 @@ class WebSearchTool(Tool[WebSearchConfig]):
             company_id=self.event.company_id,
             search_engine_config=self.config.search_engine_config,
             crawler_config=self.config.crawler_config,
-            cleaning_strategy_config=self.config.cleaning_strategy_config,
         )
 
-        self.content_adapter = ContentAdapter(
+        self.content_processor = ContentProcessor(
             event=self.event,
-            config=self.config.content_adapter_config,
-            llm_service=self._language_model_service,
+            config=self.config.content_processor_config,
             language_model=self.config.language_model,
         )
 
@@ -227,7 +225,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
         )
 
         try:
-            df_relevant_chunks = await self.content_adapter.run(
+            web_page_chunks = await self.content_processor.run(
                 query=search_query,
                 pages=search_results,
             )
@@ -254,7 +252,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
                 message=f"{query_human_string} (_Postprocessing search results_)",
                 state=ProgressState.RUNNING,
             )
-        if df_relevant_chunks.empty:
+        if not web_page_chunks:
             self.logger.info("No relevant sources found")
             return ToolCallResponse(
                 id=tool_call.id,  # type: ignore
@@ -264,7 +262,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
             )
         relevant_sources = await self._select_relevant_sources(
             search_query,
-            df_relevant_chunks,
+            web_page_chunks,
             tool_call,
         )
         debug_info["num chunks in final prompts"] = len(relevant_sources)
@@ -292,16 +290,14 @@ class WebSearchTool(Tool[WebSearchConfig]):
     async def _select_relevant_sources(
         self,
         search_query: str,
-        df_chunks: pd.DataFrame,
+        web_page_chunks: list[WebPageChunk],
         tool_call: LanguageModelFunction,
     ) -> list[ContentChunk]:
         # Reduce the sources to the token limit defined in the config
-        top_results = self._reduce_sources_to_token_limit(df_chunks)
+        top_results = self._reduce_sources_to_token_limit(web_page_chunks)
 
-        # Bring sources into ContentChunk format
-        content = [
-            ContentChunk.model_validate(source) for source in top_results["source"]
-        ]
+        # Convert WebPageChunks to ContentChunk format
+        content = [chunk.to_content_chunk() for chunk in top_results]
 
         # Apply chunk relevancy sorting
         if self.config.chunk_relevancy_sort_config.enabled:
@@ -349,20 +345,22 @@ class WebSearchTool(Tool[WebSearchConfig]):
                 else self.config.limit_token_sources
             )
 
-    def _reduce_sources_to_token_limit(self, df: pd.DataFrame) -> pd.DataFrame:
+    def _reduce_sources_to_token_limit(
+        self, web_page_chunks: list[WebPageChunk]
+    ) -> list[WebPageChunk]:
         total_tokens = 0
-        row_count = 0
+        selected_chunks = []
 
         max_token_sources = self._get_max_tokens()
 
-        for i, source in df.iterrows():
+        for chunk in web_page_chunks:
             if total_tokens < max_token_sources - self.chat_history_token_length:
-                total_tokens += count_tokens(text=source.content)
-                row_count += 1
+                total_tokens += count_tokens(text=chunk.content)
+                selected_chunks.append(chunk)
             else:
                 break
 
-        return df.head(row_count)
+        return selected_chunks
 
     def get_tool_call_result_for_loop_history(
         self,
