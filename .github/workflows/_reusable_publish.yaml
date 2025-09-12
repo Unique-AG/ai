@@ -1,0 +1,51 @@
+name: "Reusable Publish Workflow"
+
+on:
+  workflow_call:
+    inputs:
+      package_name:
+        description: 'Package name (e.g., unique-sdk)'
+        required: true
+        type: string
+      package_directory:
+        description: 'Package directory (e.g., unique_sdk)'
+        required: true
+        type: string
+      python_version:
+        description: 'Python version to use'
+        required: false
+        type: string
+        default: '3.11'
+    secrets:
+      PYPI_TOKEN:
+        description: 'PyPI token for publishing'
+        required: true
+
+jobs:
+  build-and-publish:
+    name: Build and Publish 📦
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python_version }}
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        version: "latest"
+
+    - name: Install workspace dependencies
+      run: uv sync --extra dev
+
+    - name: Build Package
+      run: uv build --package ${{ inputs.package_name }}
+    
+    - name: Publish to PyPI
+      run: uv publish --package ${{ inputs.package_name }}
+      env:
+        UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}

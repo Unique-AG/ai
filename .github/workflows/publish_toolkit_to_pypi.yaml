@@ -8,43 +8,19 @@ on:
     # 2. Push must include changes to unique_toolkit/** files
     paths:
       - 'unique_toolkit/**'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - '.github/workflows/publish_toolkit_to_pypi.yaml'
+      - '.github/workflows/_reusable_publish.yaml'
     branches:
       - main
-
-env:
-  PACKAGE_NAME: unique_toolkit
-  PACKAGE_DIR: ./unique_toolkit
     
 jobs:
-  build-and-publish:
-    name: Build distribution 📦
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Check out code
-      uses: actions/checkout@v4
-
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
-
-    - name: Install Poetry
-      run: |
-            POETRY_VERSION='1.8.3'
-            PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install poetry==$POETRY_VERSION
-
-    - name: Install dependencies
-      working-directory: ${{ env.PACKAGE_DIR }}
-      run: poetry install
-
-    - name: Build Package
-      working-directory: ${{ env.PACKAGE_DIR }}
-      run: poetry build
-    
-    - name: Publish to PyPI
-      working-directory: ${{ env.PACKAGE_DIR }}
-      run: poetry publish
-      env:
-        POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_TOKEN }}
+  publish:
+    uses: ./.github/workflows/_reusable_publish.yaml
+    with:
+      package_name: unique-toolkit
+      package_directory: unique_toolkit
+    secrets:
+      PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
     

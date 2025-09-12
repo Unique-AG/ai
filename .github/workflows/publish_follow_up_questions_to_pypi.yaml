@@ -8,43 +8,19 @@ on:
     # 2. Push must include changes to follow_up_questions/** files
     paths:
       - 'postprocessors/follow_up_questions/**'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - '.github/workflows/publish_follow_up_questions_to_pypi.yaml'
+      - '.github/workflows/_reusable_publish.yaml'
     branches:
       - main
-
-env:
-  PACKAGE_NAME: follow_up_questions
-  PACKAGE_DIR: ./postprocessors/unique_follow_up_questions
     
 jobs:
-  build-and-publish:
-    name: Build distribution 📦
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Check out code
-      uses: actions/checkout@v4
-
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
-
-    - name: Install Poetry
-      run: |
-            POETRY_VERSION='2.1.3'
-            PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install poetry==$POETRY_VERSION
-
-    - name: Install dependencies
-      working-directory: ${{ env.PACKAGE_DIR }}
-      run: poetry install
-
-    - name: Build Package
-      working-directory: ${{ env.PACKAGE_DIR }}
-      run: poetry build
-    
-    - name: Publish to PyPI
-      working-directory: ${{ env.PACKAGE_DIR }}
-      run: poetry publish
-      env:
-        POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_TOKEN }}
+  publish:
+    uses: ./.github/workflows/_reusable_publish.yaml
+    with:
+      package_name: unique-follow-up-questions
+      package_directory: unique_follow_up_questions
+    secrets:
+      PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
     
