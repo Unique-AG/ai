@@ -7,6 +7,8 @@ on:
   pull_request:
     paths:
       - 'unique_sdk/**'
+      - '!unique_sdk/**/docs/**'
+      - '!unique_sdk/**/mkdocs.yaml'
 
 jobs:
   validate-changes:
