@@ -122,7 +122,7 @@ class ToolManager:
                 continue
             if t.name in self._disabled_tools:
                 continue
-            if len(tool_choices) > 0 and t.name not in tool_choices:
+            if len(self._tool_choices) > 0 and t.name not in self._tool_choices:
                 continue
 
             self._tools.append(t)
