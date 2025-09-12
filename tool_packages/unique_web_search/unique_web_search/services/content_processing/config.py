@@ -60,7 +60,7 @@ class ContentProcessorConfig(BaseModel):
     )
     regex_preprocessing_patterns: list[str] = Field(
         default=REGEX_PATTERNS,
-        description="Whether to enable regex-based preprocessing to remove navigation, ui clutter, ads, and links",
+        description="Regex patterns for preprocessing to remove navigation, UI clutter, ads, and links. Default includes the aformentioned common patterns for cleanup. Leave empty if you want to skip this preprocessing step.",
     )
     language_model: LanguageModelInfo = Field(
         default=LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_4o_2024_1120),
