@@ -1,8 +1,9 @@
 [project]
-name = "unique-deep-research"
-version = "0.0.9"
-description = "Deep Research Tool for complex research tasks"
+name = "unique-orchestrator"
+version = "0.0.1"
+description = "AI Orchestration Framework for coordinating AI workflows"
 authors = [
+    {name = "Cedric Klinkert", email = "cedric@unique.ch"},
     {name = "Martin Fadler", email = "martin.fadler@unique.ch"},
     {name = "Sadique Sheik", email = "sadique@unique.ch"},
     {name = "Fabian Schläpfer", email = "fabian@unique.ch"},
@@ -12,24 +13,15 @@ readme = "README.md"
 license = {text = "Proprietary"}
 requires-python = ">=3.11"
 dependencies = [
-    "typing-extensions>=4.9.0",
-    "pydantic>=2.8.2",
-    "pydantic-settings>=2.10.1",
-    "python-dotenv>=1.0.1",
-    "unique-toolkit>=0.8.45",
-    "jinja2>=3.1.2",
-    "openai>=1.99.0",
-    "langgraph>=0.6.6",
-    "langchain>=0.3.0",
-    "langchain-core>=0.3.0",
-    "unique-web-search>=0.0.6",
-    "langchain-openai>=0.3.32",
-    "unique-web-search>=0.0.6",
+    # Package-specific dependencies (common ones inherited from workspace)
+    "unique-toolkit>=0.8.18",
+    "unique-agentic>=0.0.1",
 ]
+
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["unique_deep_research*"]
+include = ["unique_orchestrator*"]
 
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]

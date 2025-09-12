@@ -29,22 +29,20 @@ jobs:
       with:
         python-version: '3.11'
 
-    - name: Install Poetry
-      run: |
-            POETRY_VERSION='1.8.3'
-            PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install poetry==$POETRY_VERSION
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
 
     - name: Install dependencies
       working-directory: ${{ env.PACKAGE_DIR }}
-      run: poetry install
+      run: uv sync
 
     - name: Build Package
       working-directory: ${{ env.PACKAGE_DIR }}
-      run: poetry build
+      run: uv build
     
     - name: Publish to PyPI
       working-directory: ${{ env.PACKAGE_DIR }}
-      run: poetry publish
       env:
-        POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_TOKEN }}
+        UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}
+      run: uv publish --token $UV_PUBLISH_TOKEN
     

@@ -1,40 +1,32 @@
-[tool.poetry]
-name = "unique_sdk"
+[project]
+name = "unique-sdk"
 version = "0.10.21"
 description = ""
 authors = [
-    "Martin Fadler <martin.fadler@unique.ch>",
-    "Konstantin Krauss <konstantin@unique.ch>",
-    "Andreas Hauri <andreas@unique.ch>",
+    {name = "Martin Fadler", email = "martin.fadler@unique.ch"},
+    {name = "Konstantin Krauss", email = "konstantin@unique.ch"},
+    {name = "Andreas Hauri", email = "andreas@unique.ch"},
 ]
-readme = ["README.md", "CHANGELOG.md"]
+readme = "README.md"
 license = "MIT"
+requires-python = ">=3.11"
+dependencies = [
+    # Package-specific dependencies (common ones inherited from workspace)
+    "requests>=2.32.3",
+]
 classifiers = [
     "Programming Language :: Python :: 3.11"
 ]
 
-[tool.poetry.dependencies]
-python = "^3.11"
-typing-extensions = "^4.9.0"
-requests = "^2.32.3"
-openai = {version = "^1.105.0", optional = true}
 
 
-[tool.poetry.group.dev.dependencies]
-ruff = "0.11.7"
-pytest = "^8.0"
-tox = "^4.11.4"
-pyright = "^1.1.341"
-pytest-cov = "^4.1.0"
-pytest-asyncio = "^0.24.0"
-python-dotenv = "^1.1.0"
-
-[tool.poetry.extras]
-openai = ["openai"]
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["unique_sdk*"]
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
 
 [tool.ruff]
 target-version = "py311"
