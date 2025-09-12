@@ -83,19 +83,23 @@ The orchestrator that works with the tool-manager needs three kinds of informati
 - Additional tool-specific prompt enhancements/guidance to help the LLM format call the correct tool and format the output of the tools correctly.
 
 Get loaded tools and log them:
-```python
-def log_loaded_tools(self):
-    self._logger.info(f"Loaded tools: {[tool.name for tool in self._tools]}")
+<!-- open-source -->
+::: unique_toolkit.tools.tool_manager.ToolManager.log_loaded_tools
+    options:
+      show_root_heading: false
+      show_source: true
 
-def get_tools(self) -> list[Tool]:
-    return self._tools
+<!-- open-source -->
+::: unique_toolkit.tools.tool_manager.ToolManager.get_tools
+    options:
+      show_root_heading: false  
+      show_source: true
 
-def get_tool_by_name(self, name: str) -> Tool | None:
-    for tool in self._tools:
-        if tool.name == name:
-            return tool
-    return None
-```
+<!-- open-source -->
+::: unique_toolkit.tools.tool_manager.ToolManager.get_tool_by_name
+    options:
+      show_root_heading: false
+      show_source: true
 
 Expose tool definitions and prompts (prompt enhancements):
 ```python
