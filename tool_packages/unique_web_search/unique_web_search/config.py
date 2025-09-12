@@ -106,24 +106,21 @@ class WebSearchConfig(BaseToolConfig):
         description="Language model maximum input tokens",
     )
 
-    search_engine_config: (
-        GoogleConfig
-        | SkipJsonSchema[JinaConfig]
-        | SkipJsonSchema[TavilyConfig]
-        | SkipJsonSchema[FireCrawlConfig]
-    ) = Field(
-        default_factory=GoogleConfig,
-        description="Search Engine Configuration",
-        discriminator="search_engine_name",
-        title="Search Engine Configuration",
+    search_engine_config: GoogleConfig | JinaConfig | TavilyConfig | FireCrawlConfig = (
+        Field(
+            default_factory=GoogleConfig,
+            description="Search Engine Configuration",
+            discriminator="search_engine_name",
+            title="Search Engine Configuration",
+        )
     )
 
     crawler_config: (
         Crawl4AiCrawlerConfig
         | BasicCrawlerConfig
-        | SkipJsonSchema[FirecrawlCrawlerConfig]
-        | SkipJsonSchema[JinaCrawlerConfig]
-        | SkipJsonSchema[TavilyCrawlerConfig]
+        | FirecrawlCrawlerConfig
+        | JinaCrawlerConfig
+        | TavilyCrawlerConfig
     ) = Field(
         default_factory=BasicCrawlerConfig,
         description="The crawler configuration.",
