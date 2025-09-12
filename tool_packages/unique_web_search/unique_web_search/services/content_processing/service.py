@@ -12,6 +12,7 @@ from unique_toolkit.language_model.infos import LanguageModelInfo
 from unique_toolkit.tools.utils.execution.execution import SafeTaskExecutor
 
 from unique_web_search.services.content_processing.config import (
+    REGEX_CONTENT_TRANSFORMATIONS,
     ContentProcessingStartegy,
     ContentProcessorConfig,
     WebPageChunk,
@@ -91,12 +92,9 @@ class ContentProcessor:
         self, page: WebSearchResult, query: str
     ) -> WebSearchResult:
         """Process a single page with optional regex preprocessing."""
-        # Apply regex preprocessing if enabled
-        if (
-            self.config.regex_line_removal_patterns
-            or self.config.regex_content_transformations
-        ):
-            page.content = self._preprocess_content(page.content)
+
+        # Apply the enabled preprocessing steps
+        page.content = self._preprocess_content(page.content)
 
         # Then apply strategy-specific processing
         match self.config.strategy:
@@ -165,8 +163,9 @@ class ContentProcessor:
         content = "\n".join(filtered_lines)
 
         # Stage 2: Apply content transformations
-        for pattern, replacement in self.config.regex_content_transformations:
-            content = re.sub(pattern, replacement, content)
+        if self.config.remove_urls_from_markdown_links:
+            for pattern, replacement in REGEX_CONTENT_TRANSFORMATIONS:
+                content = re.sub(pattern, replacement, content)
 
         # Stage 3: Normalize whitespace
         content = re.sub(r"\n{3,}", "\n\n", content)

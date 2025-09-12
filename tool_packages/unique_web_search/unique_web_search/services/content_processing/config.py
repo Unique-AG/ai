@@ -76,9 +76,9 @@ class ContentProcessorConfig(BaseModel):
         default=REGEX_LINE_REMOVAL_PATTERNS,
         description="Regex patterns for removing entire lines that match (navigation, UI clutter, etc.). Leave empty to skip line removal.",
     )
-    regex_content_transformations: list[tuple[str, str]] = Field(
-        default=REGEX_CONTENT_TRANSFORMATIONS,
-        description="Pattern/replacement pairs for transforming content (e.g., removing URLs from markdown links). Leave empty to skip transformations.",
+    remove_urls_from_markdown_links: bool = Field(
+        default=True,
+        description="Whether to remove URLs from markdown links in website content.",
     )
     language_model: LanguageModelInfo = Field(
         default=LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_4o_2024_1120),
