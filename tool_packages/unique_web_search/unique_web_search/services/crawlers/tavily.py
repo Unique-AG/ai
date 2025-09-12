@@ -3,7 +3,7 @@ from typing import Literal
 from tavily import AsyncTavilyClient
 
 from unique_web_search.client_settings import get_tavily_search_settings
-from unique_web_search.services.preprocessing.crawlers.base import (
+from unique_web_search.services.crawlers.base import (
     BaseCrawler,
     BaseCrawlerConfig,
     CrawlerType,

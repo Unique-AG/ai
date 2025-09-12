@@ -5,7 +5,7 @@ from firecrawl import AsyncFirecrawl
 from unique_web_search.client_settings import (
     get_firecrawl_search_settings,
 )
-from unique_web_search.services.preprocessing.crawlers.base import (
+from unique_web_search.services.crawlers.base import (
     BaseCrawler,
     BaseCrawlerConfig,
     CrawlerType,
