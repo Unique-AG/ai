@@ -9,7 +9,7 @@ from datamodel_code_generator import DataModelType, InputFileType, generate
 def generate_model_content(
     schema: dict,
     title: str,
-    output_model_type: DataModelType = DataModelType.PydanticBaseModel,
+    output_model_type: DataModelType = DataModelType.PydanticV2BaseModel,
 ) -> str:
     """Generate model content as string instead of writing to file."""
     # Fully dereference jsonref objects
@@ -38,6 +38,8 @@ def generate_model_content(
         snake_case_field=True,
         use_union_operator=True,
         use_double_quotes=True,
+        allow_population_by_field_name=True,
+        no_alias=True,
     )
 
     # Read the generated content
