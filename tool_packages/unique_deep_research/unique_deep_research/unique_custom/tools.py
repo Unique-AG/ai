@@ -18,7 +18,7 @@ from unique_toolkit.content import ContentReference
 from unique_toolkit.content.schemas import ContentSearchType
 from unique_toolkit.history_manager.utils import transform_chunks_to_string
 from unique_web_search.client_settings import get_google_search_settings
-from unique_web_search.services.preprocessing.crawlers.basic import (
+from unique_web_search.services.crawlers.basic import (
     BasicCrawler,
     BasicCrawlerConfig,
 )

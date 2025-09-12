@@ -4712,7 +4712,7 @@ files = [
 
 [[package]]
 name = "unique-sdk"
-version = "0.10.20"
+version = "0.10.21"
 description = ""
 optional = false
 python-versions = "^3.11"
@@ -4733,7 +4733,7 @@ url = "../../unique_sdk"
 
 [[package]]
 name = "unique-toolkit"
-version = "0.8.49"
+version = "0.8.54"
 description = ""
 optional = false
 python-versions = "^3.11"
@@ -4763,7 +4763,7 @@ url = "../../unique_toolkit"
 
 [[package]]
 name = "unique-web-search"
-version = "0.0.6"
+version = "0.1.0"
 description = ""
 optional = false
 python-versions = "^3.11"
@@ -5404,4 +5404,4 @@ cffi = ["cffi (>=1.17) ; python_version >= \"3.13\" and platform_python_implemen
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.11"
-content-hash = "9d08a277da5da0c4766098007380b4e5f62b534134406986b42ef0eadec4cc8e"
+content-hash = "db24598310715931009791662678d0a2b7c2503d4c6039983103331e9e56da93"
