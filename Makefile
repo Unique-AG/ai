@@ -28,6 +28,10 @@ help:
 	@echo "  lint-toolkit    Run linting on unique-toolkit"
 	@echo "  type-check      Run type checking on main packages"
 	@echo ""
+	@echo "Validation:"
+	@echo "  validate        Validate workspace imports"
+	@echo "  validate-deps   Validate dependencies match diagram"
+	@echo ""
 	@echo "Maintenance:"
 	@echo "  clean           Clean cache and temporary files"
 	@echo "  lock            Update workspace lockfile"
@@ -148,6 +152,11 @@ validate:
 	@echo "Testing unique_internal_search..."
 	@uv run --package unique-internal-search python -c "import unique_internal_search, unique_toolkit, unique_sdk; print('✅ unique_internal_search validated')"
 	@echo "✅ All packages validated successfully!"
+
+# Dependency validation
+validate-deps:
+	@echo "🔍 Validating package dependencies against Mermaid diagram..."
+	@uv run python scripts/validate_dependencies.py
 
 # Pre-commit simulation
 pre-commit: lint type-check test
