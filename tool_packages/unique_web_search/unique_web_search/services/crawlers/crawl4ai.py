@@ -5,7 +5,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 from unique_toolkit.tools.config import get_configuration_dict
 
-from unique_web_search.services.preprocessing.crawlers.base import (
+from unique_web_search.services.crawlers.base import (
     BaseCrawler,
     BaseCrawlerConfig,
     CrawlerType,
