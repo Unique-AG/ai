@@ -1,0 +1,17 @@
+name: "[pytest] Unique Orchestrator"
+
+on: 
+  pull_request:
+    paths:
+      - 'unique_orchestrator/**'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - '.github/workflows/chore_orchestrator_pytest.yaml'
+      - '.github/workflows/_reusable_test.yaml'
+
+jobs:
+  test:
+    uses: ./.github/workflows/_reusable_test.yaml
+    with:
+      package_name: unique-orchestrator
+      package_directory: unique_orchestrator

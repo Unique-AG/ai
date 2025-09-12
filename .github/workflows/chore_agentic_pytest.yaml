@@ -1,0 +1,17 @@
+name: "[pytest] Unique Agentic"
+
+on: 
+  pull_request:
+    paths:
+      - 'unique_agentic/**'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - '.github/workflows/chore_agentic_pytest.yaml'
+      - '.github/workflows/_reusable_test.yaml'
+
+jobs:
+  test:
+    uses: ./.github/workflows/_reusable_test.yaml
+    with:
+      package_name: unique-agentic
+      package_directory: unique_agentic

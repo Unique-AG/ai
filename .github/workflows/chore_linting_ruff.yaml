@@ -5,6 +5,8 @@ on:
     paths:
       - "unique_toolkit/**"
       - "unique_sdk/**"
+      - "unique_agentic/**"
+      - "unique_orchestrator/**"
       - "postprocessors/unique_follow_up_questions/**"
       - "postprocessors/unique_stock_ticker/**"
       - "tool_packages/unique_internal_search/**"
@@ -19,4 +21,4 @@ jobs:
   lint:
     uses: ./.github/workflows/_reusable_lint.yaml
     with:
-      packages: '["unique_toolkit", "unique_sdk", "postprocessors/unique_follow_up_questions", "postprocessors/unique_stock_ticker", "tool_packages/unique_internal_search", "tool_packages/unique_web_search"]'
+      packages: '["unique_toolkit", "unique_sdk", "unique_agentic", "unique_orchestrator", "postprocessors/unique_follow_up_questions", "postprocessors/unique_stock_ticker", "tool_packages/unique_internal_search", "tool_packages/unique_web_search"]'

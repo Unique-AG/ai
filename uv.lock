@@ -3,10 +3,12 @@ requires-python = ">=3.11"
 
 [manifest]
 members = [
+    "unique-agentic",
     "unique-ai-workspace",
     "unique-deep-research",
     "unique-follow-up-questions",
     "unique-internal-search",
+    "unique-orchestrator",
     "unique-sdk",
     "unique-stock-ticker",
     "unique-toolkit",
@@ -2546,6 +2548,21 @@ wheels = [
 ]
 
 [[package]]
+name = "unique-agentic"
+version = "0.0.1"
+source = { editable = "unique_agentic" }
+dependencies = [
+    { name = "unique-sdk" },
+    { name = "unique-toolkit" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "unique-sdk", editable = "unique_sdk" },
+    { name = "unique-toolkit", editable = "unique_toolkit" },
+]
+
+[[package]]
 name = "unique-ai-workspace"
 version = "0.1.0"
 source = { editable = "." }
@@ -2673,6 +2690,23 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "unique-sdk", editable = "unique_sdk" },
+    { name = "unique-toolkit", editable = "unique_toolkit" },
+]
+
+[[package]]
+name = "unique-orchestrator"
+version = "0.0.1"
+source = { editable = "unique_orchestrator" }
+dependencies = [
+    { name = "unique-agentic" },
+    { name = "unique-sdk" },
+    { name = "unique-toolkit" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "unique-agentic", editable = "unique_agentic" },
     { name = "unique-sdk", editable = "unique_sdk" },
     { name = "unique-toolkit", editable = "unique_toolkit" },
 ]

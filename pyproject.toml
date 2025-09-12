@@ -46,7 +46,9 @@ dev = [
 [tool.uv.workspace]
 members = [
     "unique_sdk",
-    "unique_toolkit", 
+    "unique_toolkit",
+    "unique_agentic",
+    "unique_orchestrator",
     "postprocessors/unique_stock_ticker",
     "postprocessors/unique_follow_up_questions",
     "tool_packages/*"
@@ -60,6 +62,8 @@ exclude = [
 # Workspace sources for internal dependencies
 unique-sdk = { workspace = true }
 unique-toolkit = { workspace = true }
+unique-agentic = { workspace = true }
+unique-orchestrator = { workspace = true }
 unique-stock-ticker = { workspace = true }
 unique-follow-up-questions = { workspace = true }
 unique-web-search = { workspace = true }

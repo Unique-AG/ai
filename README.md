@@ -8,6 +8,8 @@ This repository contains multiple interconnected Python packages:
 
 - **`unique_sdk`** - Core SDK for Unique AI services
 - **`unique_toolkit`** - High-level toolkit built on the SDK
+- **`unique_agentic`** - AI Agent Framework for building intelligent agents
+- **`unique_orchestrator`** - AI Orchestration Framework for coordinating AI workflows
 - **`unique_stock_ticker`** - Stock ticker analysis tools
 - **`unique_follow_up_questions`** - Follow-up question generation
 - **`unique_web_search`** - Web search capabilities
@@ -114,10 +116,12 @@ The packages have the following dependency relationships:
 ```
 unique_sdk (base)
 ├── unique_toolkit (depends on unique_sdk)
-    ├── unique_stock_ticker (depends on unique_sdk + unique_toolkit)
-    ├── unique_follow_up_questions (depends on unique_sdk + unique_toolkit)
-    ├── unique_web_search (depends on unique_sdk + unique_toolkit)
-    └── unique_internal_search (depends on unique_sdk + unique_toolkit)
+├── unique_agentic (depends on unique_sdk + unique_toolkit)
+├── unique_orchestrator (depends on unique_sdk + unique_toolkit + unique_agentic)
+├── unique_stock_ticker (depends on unique_sdk + unique_toolkit)
+├── unique_follow_up_questions (depends on unique_sdk + unique_toolkit)
+├── unique_web_search (depends on unique_sdk + unique_toolkit)
+└── unique_internal_search (depends on unique_sdk + unique_toolkit)
 ```
 
 All workspace dependencies are automatically resolved and installed in editable mode.
@@ -187,6 +191,10 @@ import unique_sdk
 
 # Using the toolkit
 import unique_toolkit
+
+# Using core framework packages
+import unique_agentic
+import unique_orchestrator
 
 # Using domain-specific packages
 import unique_stock_ticker
