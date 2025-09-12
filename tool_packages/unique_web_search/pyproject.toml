@@ -28,8 +28,8 @@ unidecode = "^1.4.0"
 #langchain = "^0.3.27"
 langchain-community = "^0.3.1"
 pandas = "2.2.3"
-unique-sdk = "^0.10.0"
-unique-toolkit = "^0.8.18"
+unique-sdk = "^0.10.20"
+unique-toolkit = "^0.8.52"
 
 
 [tool.poetry.group.dev.dependencies]
