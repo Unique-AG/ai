@@ -21,23 +21,22 @@ from unique_web_search.prompts import (
     DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT,
     REFINE_QUERY_SYSTEM_PROMPT,
 )
-from unique_web_search.services.content_adapter import ContentAdapterConfig
-from unique_web_search.services.preprocessing.cleaning.cleaning_strategy import (
-    CleaningStrategyConfig,
+from unique_web_search.services.content_processing.config import (
+    ContentProcessorConfig,
 )
-from unique_web_search.services.preprocessing.crawlers.basic import BasicCrawlerConfig
-from unique_web_search.services.preprocessing.crawlers.crawl4ai import (
+from unique_web_search.services.crawlers import (
+    BasicCrawlerConfig,
     Crawl4AiCrawlerConfig,
-)
-from unique_web_search.services.preprocessing.crawlers.firecrawl import (
     FirecrawlCrawlerConfig,
+    JinaCrawlerConfig,
+    TavilyCrawlerConfig,
 )
-from unique_web_search.services.preprocessing.crawlers.jina import JinaCrawlerConfig
-from unique_web_search.services.preprocessing.crawlers.tavily import TavilyCrawlerConfig
-from unique_web_search.services.search_engine.firecrawl import FireCrawlConfig
-from unique_web_search.services.search_engine.google import GoogleConfig
-from unique_web_search.services.search_engine.jina import JinaConfig
-from unique_web_search.services.search_engine.tavily import TavilyConfig
+from unique_web_search.services.search_engine import (
+    FireCrawlConfig,
+    GoogleConfig,
+    JinaConfig,
+    TavilyConfig,
+)
 
 logger = getLogger(__name__)
 
@@ -122,25 +121,19 @@ class WebSearchConfig(BaseToolConfig):
     crawler_config: (
         Crawl4AiCrawlerConfig
         | BasicCrawlerConfig
-        | SkipJsonSchema[FirecrawlCrawlerConfig]
-        | SkipJsonSchema[JinaCrawlerConfig]
-        | SkipJsonSchema[TavilyCrawlerConfig]
+        | FirecrawlCrawlerConfig
+        | JinaCrawlerConfig
+        | TavilyCrawlerConfig
     ) = Field(
         default_factory=BasicCrawlerConfig,
         description="The crawler configuration.",
         discriminator="crawler_type",
     )
 
-    cleaning_strategy_config: CleaningStrategyConfig = Field(
-        default_factory=CleaningStrategyConfig,
-        description="The cleaning strategy configuration",
-        title="Cleaning Strategy Configuration",
-    )
-
-    content_adapter_config: ContentAdapterConfig = Field(
-        default_factory=ContentAdapterConfig,
-        description="The content adapter configuration",
-        title="Content Adapter Configuration",
+    content_processor_config: ContentProcessorConfig = Field(
+        default_factory=ContentProcessorConfig,
+        description="The content processor configuration",
+        title="Content Processor Configuration",
     )
 
     chunk_relevancy_sort_config: ChunkRelevancySortConfig = Field(

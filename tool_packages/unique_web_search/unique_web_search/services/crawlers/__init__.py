@@ -1,23 +1,23 @@
-from unique_web_search.services.preprocessing.crawlers.base import (
+from unique_web_search.services.crawlers.base import (
     CrawlerType,
 )
-from unique_web_search.services.preprocessing.crawlers.basic import (
+from unique_web_search.services.crawlers.basic import (
     BasicCrawler,
     BasicCrawlerConfig,
 )
-from unique_web_search.services.preprocessing.crawlers.crawl4ai import (
+from unique_web_search.services.crawlers.crawl4ai import (
     Crawl4AiCrawler,
     Crawl4AiCrawlerConfig,
 )
-from unique_web_search.services.preprocessing.crawlers.firecrawl import (
+from unique_web_search.services.crawlers.firecrawl import (
     FirecrawlCrawler,
     FirecrawlCrawlerConfig,
 )
-from unique_web_search.services.preprocessing.crawlers.jina import (
+from unique_web_search.services.crawlers.jina import (
     JinaCrawler,
     JinaCrawlerConfig,
 )
-from unique_web_search.services.preprocessing.crawlers.tavily import (
+from unique_web_search.services.crawlers.tavily import (
     TavilyCrawler,
     TavilyCrawlerConfig,
 )
