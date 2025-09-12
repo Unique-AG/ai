@@ -9,7 +9,7 @@ from httpx import AsyncClient, Timeout
 from markdownify import markdownify
 from pydantic import Field
 
-from unique_web_search.services.preprocessing.crawlers.base import (
+from unique_web_search.services.crawlers.base import (
     BaseCrawler,
     BaseCrawlerConfig,
     CrawlerType,
