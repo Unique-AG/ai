@@ -2,11 +2,6 @@
 
 The `HistoryManager` is a critical component responsible for managing the conversation history, tool call results, and references during the orchestration process. It ensures that the history provided to the LLM is optimized to fit within the token window constraints while maintaining a coherent and complete context for the conversation.
 
----
-
-## 📘 HistoryManager Documentation (Expanded)
-
-The `HistoryManager` is a critical component responsible for managing the conversation history, tool call results, and references during the orchestration process. It ensures that the history provided to the LLM is optimized to fit within the token window constraints while maintaining a coherent and complete context for the conversation.
 
 ---
 
@@ -168,23 +163,6 @@ The `HistoryManager` is a critical component responsible for managing the conver
 
 ---
 
-### 🔄 Key Concepts
-
-#### 1. **Original vs. Rendered Messages**
-   - **Original User Message**: The raw input provided by the user.
-   - **Rendered User Message**: A processed version of the user message, often modified using Jinja templates to include additional context or formatting.
-   - **Rendered System Message**: The system prompt provided to the LLM, which is added separately and not replaced.
-
-#### 2. **Post-Processing with `remove_from_text`**
-   - Removes artifacts added during post-processing (e.g., follow-up questions or stock tickers) to ensure the LLM is not confused by content it did not generate.
-
-#### 3. **Token Window Constraints**
-   - The LLM has a fixed token limit for each API call. The `HistoryManager` ensures that:
-     - The history fits within this limit.
-     - References and messages are prioritized to maximize relevance and completeness.
-
----
-
 ### 🛠️ Areas for Improvement
 
 1. **Tool Call and Tool Message Persistence**  
@@ -198,7 +176,3 @@ The `HistoryManager` is a critical component responsible for managing the conver
 
 4. **Enhanced Reference Management**  
    - Improve the integration with the `ReferenceManager` to better handle references across multiple iterations and tools.
-
----
-
-This documentation provides a detailed yet concise explanation of the `HistoryManager` class, its responsibilities, and its integration with other components like the `ReferenceManager` and `Loop Token Reducer`. Let me know if further refinements are needed!
