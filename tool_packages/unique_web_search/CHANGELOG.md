@@ -6,6 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.2.0] - 2025-09-12
+### Added
+- **WebSearchV2Executor**: New step-based execution model supporting both search and direct URL reading operations
+- **BaseWebSearchExecutor**: Abstract base class providing common functionality between executor versions
+- **Enhanced Schema**: New models (`WebSearchPlan`, `SearchStep`, `ReadUrlStep`) for structured web search planning
+- **Flexible Step Execution**: Support for mixed search and URL reading operations in a single plan
+
+### Changed
+- **Architecture Refactor**: Improved executor structure with better separation of concerns
+- **Configuration Enhancement**: Added experimental features flag to switch between V1 and V2 modes
+- **Progress Reporting**: Enhanced with step-specific notifications and better user feedback
+
+### Maintained
+- **Backward Compatibility**: Existing V1 executor functionality preserved
+- **API Consistency**: No breaking changes to existing tool interfaces
+
 ## [0.1.0] - 2025-09-12
 - Code simplification
 - Enable new crawlers
