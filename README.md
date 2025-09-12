@@ -113,15 +113,40 @@ cd unique_sdk && uv run --package unique-sdk pytest tests/ -v
 
 The packages have the following dependency relationships:
 
-```
-unique_sdk (base)
-├── unique_toolkit (depends on unique_sdk)
-├── unique_agentic (depends on unique_sdk + unique_toolkit)
-├── unique_orchestrator (depends on unique_sdk + unique_toolkit + unique_agentic)
-├── unique_stock_ticker (depends on unique_sdk + unique_toolkit)
-├── unique_follow_up_questions (depends on unique_sdk + unique_toolkit)
-├── unique_web_search (depends on unique_sdk + unique_toolkit)
-└── unique_internal_search (depends on unique_sdk + unique_toolkit)
+```mermaid
+graph TD
+    SDK[unique_sdk<br/>Core SDK]
+    TOOLKIT[unique_toolkit<br/>High-level toolkit]
+    AGENTIC[unique_agentic<br/>AI Agent Framework]
+    ORCHESTRATOR[unique_orchestrator<br/>AI Orchestration]
+    
+    subgraph POSTPROCESSORS[" Postprocessor Packages "]
+        STOCK[unique_stock_ticker<br/>Stock analysis]
+        FOLLOWUP[unique_follow_up_questions<br/>Question generation]
+    end
+    
+    subgraph TOOLS[" Tool Packages "]
+        WEBSEARCH[unique_web_search<br/>Web search]
+        INTERNALSEARCH[unique_internal_search<br/>Internal search]
+        DEEPRESEARCH[unique_deep_research<br/>Deep research]
+    end
+    
+    SDK --> TOOLKIT
+    TOOLKIT --> POSTPROCESSORS
+    TOOLKIT --> AGENTIC
+    TOOLKIT --> TOOLS
+    AGENTIC --> ORCHESTRATOR
+    TOOLS --> ORCHESTRATOR
+    
+    classDef core fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#000000
+    classDef framework fill:#f3e5f5,stroke:#4a148c,stroke-width:2px,color:#000000
+    classDef postprocessors fill:#e8f5e8,stroke:#1b5e20,stroke-width:2px,color:#000000
+    classDef tools fill:#fff3e0,stroke:#e65100,stroke-width:2px,color:#000000
+    
+    class SDK,TOOLKIT core
+    class AGENTIC,ORCHESTRATOR framework
+    class STOCK,FOLLOWUP postprocessors
+    class WEBSEARCH,INTERNALSEARCH,DEEPRESEARCH tools
 ```
 
 All workspace dependencies are automatically resolved and installed in editable mode.
