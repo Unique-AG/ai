@@ -31,6 +31,7 @@ from unique_web_search.services.crawlers import (
     JinaCrawlerConfig,
     TavilyCrawlerConfig,
 )
+from unique_web_search.services.executors.web_search_v1_executor import RefineQueryMode
 from unique_web_search.services.search_engine import (
     FireCrawlConfig,
     GoogleConfig,
@@ -59,7 +60,23 @@ class AnswerGenerationConfig(BaseModel):
     )
 
 
-class ExperimentalFeatures(FeatureExtendedSourceSerialization): ...
+class ExperimentalFeatures(FeatureExtendedSourceSerialization):
+    v1_mode: RefineQueryMode = Field(
+        default=RefineQueryMode.BASIC,
+        description="The mode of the v1 of the web search tool",
+    )
+    use_v2: bool = Field(
+        default=False,
+        description="Whether to use the v2 of the web search tool",
+    )
+    tool_description_for_system_prompt_v2: str = Field(
+        default="",
+        description="The tool description for the system prompt",
+    )
+    tool_format_information_for_system_prompt_v2: str = Field(
+        default="",
+        description="The tool format information for the system prompt",
+    )
 
 
 class QueryRefinementConfig(BaseModel):

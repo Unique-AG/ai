@@ -22,6 +22,35 @@ from unique_web_search.services.crawlers.tavily import (
     TavilyCrawlerConfig,
 )
 
+CrawlerTypes = (
+    BasicCrawler | Crawl4AiCrawler | FirecrawlCrawler | JinaCrawler | TavilyCrawler
+)
+
+CrawlerConfigTypes = (
+    BasicCrawlerConfig
+    | Crawl4AiCrawlerConfig
+    | FirecrawlCrawlerConfig
+    | JinaCrawlerConfig
+    | TavilyCrawlerConfig
+)
+
+
+def get_crawler_service(
+    crawler_config: CrawlerConfigTypes,
+):
+    match crawler_config.crawler_type:
+        case CrawlerType.BASIC:
+            return BasicCrawler(crawler_config)
+        case CrawlerType.CRAWL4AI:
+            return Crawl4AiCrawler(crawler_config)
+        case CrawlerType.TAVILY:
+            return TavilyCrawler(crawler_config)
+        case CrawlerType.FIRECRAWL:
+            return FirecrawlCrawler(crawler_config)
+        case CrawlerType.JINA:
+            return JinaCrawler(crawler_config)
+
+
 __all__ = [
     "BasicCrawler",
     "BasicCrawlerConfig",
@@ -34,4 +63,7 @@ __all__ = [
     "TavilyCrawler",
     "TavilyCrawlerConfig",
     "CrawlerType",
+    "get_crawler_service",
+    "CrawlerConfigTypes",
+    "CrawlerTypes",
 ]
