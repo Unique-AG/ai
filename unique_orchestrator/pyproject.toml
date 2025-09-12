@@ -14,15 +14,10 @@ license = {text = "Proprietary"}
 requires-python = ">=3.11"
 dependencies = [
     # Package-specific dependencies (common ones inherited from workspace)
-    "unique-sdk>=0.10.0",
     "unique-toolkit>=0.8.18",
     "unique-agentic>=0.0.1",
 ]
 
-[tool.uv.sources]
-unique-sdk = { workspace = true }
-unique-toolkit = { workspace = true }
-unique-agentic = { workspace = true }
 
 [tool.setuptools.packages.find]
 where = ["."]

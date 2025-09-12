@@ -16,7 +16,6 @@ dependencies = [
     "pydantic>=2.8.2",
     "pydantic-settings>=2.10.1",
     "python-dotenv>=1.0.1",
-    "unique-sdk>=0.10.16",
     "unique-toolkit>=0.8.45",
     "jinja2>=3.1.2",
     "openai>=1.99.0",
@@ -25,12 +24,8 @@ dependencies = [
     "langchain-core>=0.3.0",
     "unique-web-search>=0.0.6",
     "langchain-openai>=0.3.32",
+    "unique-web-search>=0.0.6",
 ]
-
-[tool.uv.sources]
-unique-sdk = { workspace = true }
-unique-toolkit = { workspace = true }
-unique-web-search = { workspace = true }
 
 [tool.setuptools.packages.find]
 where = ["."]

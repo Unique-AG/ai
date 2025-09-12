@@ -164,7 +164,7 @@ def get_expected_dependencies() -> Dict[Package, Set[Package]]:
         Package.SDK: set(),  # Base package
         Package.TOOLKIT: {Package.SDK},
         Package.AGENTIC: {Package.SDK, Package.TOOLKIT},
-        Package.ORCHESTRATOR: {Package.SDK, Package.TOOLKIT, Package.AGENTIC},
+        Package.ORCHESTRATOR: {Package.TOOLKIT, Package.AGENTIC},
         Package.STOCK_TICKER: {Package.SDK, Package.TOOLKIT},
         Package.FOLLOW_UP_QUESTIONS: {Package.SDK, Package.TOOLKIT},
         Package.WEB_SEARCH: {Package.SDK, Package.TOOLKIT},

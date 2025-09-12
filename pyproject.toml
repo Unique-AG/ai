@@ -9,6 +9,11 @@ dependencies = [
     "pydantic>=2.8.2", 
     "pydantic-settings>=2.10.1",
     "python-dotenv>=1.0.1",
+    "pyhumps>=3.8.0",
+    "openai>=1.99.0",
+    # PyPI versions for stable imports
+    "unique-sdk>=0.10.0",
+    "unique-toolkit>=0.8.0",
 ]
 
 [project.optional-dependencies]
@@ -45,8 +50,6 @@ dev = [
 
 [tool.uv.workspace]
 members = [
-    "unique_sdk",
-    "unique_toolkit",
     "unique_agentic",
     "unique_orchestrator",
     "postprocessors/unique_stock_ticker",
@@ -55,13 +58,16 @@ members = [
 ]
 exclude = [
     "tutorials/*",
-    "unique_client"
+    "unique_client",
+    "unique_sdk",
+    "unique_toolkit"
 ]
 
 [tool.uv.sources]
 # Workspace sources for internal dependencies
-unique-sdk = { workspace = true }
-unique-toolkit = { workspace = true }
+# Use PyPI versions for SDK and toolkit to avoid import issues
+# unique-sdk = { workspace = true }
+# unique-toolkit = { workspace = true }
 unique-agentic = { workspace = true }
 unique-orchestrator = { workspace = true }
 unique-stock-ticker = { workspace = true }

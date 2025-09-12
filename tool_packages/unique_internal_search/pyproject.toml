@@ -19,9 +19,6 @@ dependencies = [
 
 
 
-[tool.uv.sources]
-unique-sdk = { workspace = true }
-unique-toolkit = { workspace = true }
 
 [tool.setuptools.packages.find]
 where = ["."]
