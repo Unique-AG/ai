@@ -128,9 +128,10 @@ class Content(APIResource["Content"]):
         fileUrl: Optional[str]
 
     class UpdateParams(RequestOptions):
-        contentId: str | None = None
-        ownerId: str | None = None
-        title: str | None = None
+        contentId: NotRequired[str]
+        ownerId: NotRequired[str]
+        title: NotRequired[str]
+        metadata: NotRequired[dict[str, str | None]]
 
     class Chunk(TypedDict):
         id: str

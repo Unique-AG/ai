@@ -547,11 +547,13 @@ Allows you to update a file specified by its `contentId`.
 Currently, the following updates are supported:
 
 Title update:
-- `title` optional, allows updating the title of the folder
+- `title` optional, allows updating the title of the file
 
 Move the file to a different folder. this can be done by specifying either the `ownerId`.
 - `ownerId` optional, allows moving the file to a different folder. Represents the new folder for the file and it should be the id of a folder e.g.: `scope_dhjfieurfloakmdle`. 
 
+Metadata update:
+- `metadata` optional, allows updating the metadata of the file. Default metadata can not be ovrriden. (Available with release >.40)
 
 Example of moving a file specified by its content id.
 
@@ -560,7 +562,10 @@ unique_sdk.Content.update(
     user_id=user_id,
     company_id=company_id,
     contentId="cont_ok2343q5owbce80w78hudawu5",
-    ownerId="scope_e68yz5asho7glfh7c7d041el"
+    ownerId="scope_e68yz5asho7glfh7c7d041el",
+    metadata={
+        "quarter": "q1",
+    }
 )
 ```
 
