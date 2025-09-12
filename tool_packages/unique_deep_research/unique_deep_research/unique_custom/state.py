@@ -22,7 +22,7 @@ def override_reducer(current_value, new_value):
         return operator.add(current_value, new_value)
 
 
-class CustomAgentState(MessagesState):
+class AgentState(MessagesState):
     """
     Main agent state for the complete research workflow.
 
@@ -43,7 +43,6 @@ class CustomAgentState(MessagesState):
         List[MessageLikeRepresentation], override_reducer
     ]  # Supervisor conversation history
     research_iterations: int  # Number of supervisor iterations
-    raw_notes: Annotated[List[str], override_reducer]  # Raw notes from research agents
 
     # Essential services (required for functionality)
     chat_service: Required[ChatService]  # ChatService instance for message logging
@@ -53,7 +52,7 @@ class CustomAgentState(MessagesState):
     ]  # Tool progress reporter instance
 
 
-class CustomSupervisorState(TypedDict, total=False):
+class SupervisorState(TypedDict, total=False):
     """
     State for the research supervisor (lead agent) subgraph.
 
@@ -67,14 +66,14 @@ class CustomSupervisorState(TypedDict, total=False):
     ]  # Supervisor conversation history
     research_iterations: int  # Number of supervisor iterations
     research_brief: str  # Research instructions
-    raw_notes: Annotated[List[str], override_reducer]  # Raw notes from research agents
+    notes: Annotated[List[str], override_reducer]  # Processed research findings
 
     # ChatService integration for logging (required)
     chat_service: Required[ChatService]
     message_id: Required[str]
 
 
-class CustomResearcherState(TypedDict, total=False):
+class ResearcherState(TypedDict, total=False):
     """
     State for individual research agents.
 
@@ -94,7 +93,7 @@ class CustomResearcherState(TypedDict, total=False):
     message_id: Required[str]
 
 
-class CustomResearcherOutputState(TypedDict, total=False):
+class ResearcherOutputState(TypedDict, total=False):
     """
     Output state returned by individual research agents.
 
@@ -103,6 +102,3 @@ class CustomResearcherOutputState(TypedDict, total=False):
     """
 
     compressed_research: str  # Synthesized research findings
-    raw_notes: Annotated[
-        List[str], override_reducer
-    ]  # Raw research notes and tool outputs

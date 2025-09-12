@@ -164,7 +164,7 @@ async def web_search(query: str, config: RunnableConfig, limit: int = 10) -> str
     search_results = await google_search.search(query)
 
     if not search_results:
-        logger.warning(f"No search results found for: {query}")
+        logger.warning("No search results found for query")
         return f"No search results found for query: '{query}'"
 
     # Format results for LangGraph
