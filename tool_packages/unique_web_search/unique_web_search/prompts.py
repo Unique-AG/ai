@@ -58,6 +58,12 @@ DEFAULT_TOOL_DESCRIPTION = (
     "If user provide a specific link, you should include it in the query (not only the domain)."
 )
 
+RESTRICT_DATE_DESCRIPTION = """
+Restricts results to a recent time window. Format: `[period][number]` — `d`=days, `w`=weeks, `m`=months, `y`=years.  
+Examples: `d1` (24h), `w1` (1 week), `m3` (3 months), `y1` (1 year).  
+Omit for no date filter. Avoid adding date terms in the main query.
+"""
+
 REFINE_QUERY_SYSTEM_PROMPT = """
 You're task consist of a query for a search engine.
 

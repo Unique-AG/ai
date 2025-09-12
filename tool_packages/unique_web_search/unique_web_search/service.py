@@ -88,10 +88,8 @@ class WebSearchTool(Tool[WebSearchConfig]):
         self.crawler_service = get_crawler_service(self.config.crawler_config)
 
         self.search_and_crawl_service = SearchAndCrawlService(
-            company_id=self.event.company_id,
             search_engine_service=self.search_engine_service,
             crawler_service=self.crawler_service,
-            cleaning_strategy_config=self.config.cleaning_strategy_config,
         )
 
         self.content_adapter = ContentAdapter(

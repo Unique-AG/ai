@@ -4,10 +4,6 @@ from time import time
 from unique_web_search.services.crawlers import (
     CrawlerTypes,
 )
-from unique_web_search.services.preprocessing.cleaning.cleaning_strategy import (
-    CleaningStrategyConfig,
-    get_cleaning_strategy,
-)
 from unique_web_search.services.search_engine import (
     SearchEngineTypes,
     WebSearchResult,
@@ -19,18 +15,12 @@ logger = logging.getLogger(f"PythonAssistantCoreBundle.{__name__}")
 class SearchAndCrawlService:
     def __init__(
         self,
-        company_id: str,
-        search_engine_service:  SearchEngineTypes,
+        search_engine_service: SearchEngineTypes,
         crawler_service: CrawlerTypes,
-        cleaning_strategy_config: CleaningStrategyConfig,
     ):
-        self.company_id = company_id
-
         self.search_engine_service = search_engine_service
 
         self.crawler_service = crawler_service
-
-        self.cleaning_function = get_cleaning_strategy(cleaning_strategy_config)
 
     async def search_and_crawl(
         self, query: str, **kwargs
@@ -57,13 +47,10 @@ class SearchAndCrawlService:
                 search_results
             )
 
-        search_results, clean_time = self._clean_content(search_results)
-
         time_info = {
             "search_time": search_time,
             "crawl_time": crawl_time,
-            "clean_time": clean_time,
-            "total_time": search_time + crawl_time + clean_time,
+            "total_time": search_time + crawl_time,
         }
 
         return search_results, time_info
@@ -77,7 +64,7 @@ class SearchAndCrawlService:
             end_time = time()
             delta_time = end_time - start_time
             logger.info(
-                f"CompanyID: {self.company_id} - Search with {self.search_engine_service.config.search_engine_name} completed in {delta_time} seconds"
+                f"Search with {self.search_engine_service.config.search_engine_name} completed in {delta_time} seconds"
             )
             return search_results, delta_time
         except Exception as e:
@@ -98,25 +85,10 @@ class SearchAndCrawlService:
 
             delta_time = time() - start_time
             logger.info(
-                f"CompanyID: {self.company_id} - Crawled {len(search_results)} pages with {self.crawler_service.config.crawler_type} completed in {delta_time} seconds"
+                f"Crawled {len(search_results)} pages with {self.crawler_service.config.crawler_type} completed in {delta_time} seconds"
             )
             return search_results, delta_time
 
         except Exception as e:
             logger.error(f"Failed to execute crawl: {str(e)}")
             raise ValueError("Failed to execute crawl")
-
-    def _clean_content(
-        self, search_results: list[WebSearchResult]
-    ) -> tuple[list[WebSearchResult], float]:
-        try:
-            start_time = time()
-            for result in search_results:
-                result.content = self.cleaning_function(result.content)
-
-            delta_time = time() - start_time
-            logger.info(f"Clean content completed in {delta_time} seconds")
-            return search_results, delta_time
-        except Exception as e:
-            logger.error(f"Failed to clean content: {str(e)}")
-            raise ValueError("Failed to clean content")

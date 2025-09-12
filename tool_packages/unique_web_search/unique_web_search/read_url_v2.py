@@ -36,14 +36,14 @@ class ExecutionSteps(Enum):
 
 async def web_read_url(
     tool_call: LanguageModelFunction,
-    url: str,
+    urls: list[str],
     crawler: CrawlerTypes,
     tool_progress_reporter: ToolProgressReporter | None,
     encoder_name: str,
     percentage_of_input_tokens_for_sources: float,
     token_limit_input: int,
     logger: Logger,
-) -> ToolCallResponse:
+) -> list[str]:
     """Run search and generate answer to the user query"""
 
     logger.info("Running the WebSearch tool")
@@ -54,90 +54,37 @@ async def web_read_url(
         "crawler": crawler.__class__.__name__,
     }
 
-    try:
-        if tool_progress_reporter:
-            await tool_progress_reporter.notify_from_tool_call(
-                name=name,
-                message=step.value.message,
-                tool_call=tool_call,
-                state=ProgressState.RUNNING,
-            )
+    domains = ", ".join([f"[{urlparse(url).netloc}]({url})" for url in urls])
+    
+    name = f"**Web Read Url**: {domains}"
 
-        debug_info["url"] = url
-        url_domain = urlparse(url).netloc
-        name = f"**Web Read Url**: {url_domain}"
-        # Step 1: Crawl the URL
-        step = ExecutionSteps.CRAWL_URL
 
-        crawl_start_time = time()
-        markdown_content = await _crawl_url(
-            tool_call=tool_call,
-            name=name,
-            message=step.value.message,
-            url=url,
-            tool_progress_reporter=tool_progress_reporter,
-            crawler=crawler,
-        )
-        debug_info = debug_info | {
-            "crawl_time": time() - crawl_start_time,
-            "markdown_content": markdown_content,
-        }
+    crawl_start_time = time()
+    markdown_contents = await _crawl_url(
+        tool_call=tool_call,
+        name=name,
+        message=step.value.message,
+        urls=urls,
+        tool_progress_reporter=tool_progress_reporter,
+        crawler=crawler,
+    )
+    debug_info = debug_info | {
+        "crawl_time": time() - crawl_start_time,
+        "markdown_content": markdown_contents,
+    }
 
-        # step 2: Analyze the content
-        step = ExecutionSteps.ANALYZE_CONTENT
-        markdown_content = await _limit_to_token_limit(
-            tool_call=tool_call,
-            name=name,
-            message=step.value.message,
-            markdown_content=markdown_content,
-            encoder_name=encoder_name,
-            percentage_of_input_tokens_for_sources=percentage_of_input_tokens_for_sources,
-            token_limit_input=token_limit_input,
-            tool_progress_reporter=tool_progress_reporter,
-        )
-
-        # Step 4: Return Results
-        if tool_progress_reporter:
-            await tool_progress_reporter.notify_from_tool_call(
-                name=name,
-                message=step.value.message,
-                tool_call=tool_call,
-                state=ProgressState.FINISHED,
-            )
-        return ToolCallResponse(
-            id=tool_call.id,  # type: ignore
-            name=tool_call.name,
-            content=markdown_content,
-            debug_info=debug_info,
-        )
-    except Exception as e:
-        if tool_progress_reporter:
-            await tool_progress_reporter.notify_from_tool_call(
-                name=name,
-                message=step.value.message,
-                tool_call=tool_call,
-                state=ProgressState.FAILED,
-            )
-        debug_info = debug_info | {
-            "error_message": step.value.error_message,
-        }
-        logger.exception(f"An error occurred while reading the URL: {e}")
-        return ToolCallResponse(
-            id=tool_call.id,  # type: ignore
-            name=tool_call.name,
-            error_message=step.value.error_message,
-            debug_info=debug_info,
-        )
+    return markdown_contents
+        
 
 
 async def _crawl_url(
     tool_call: LanguageModelFunction,
     name: str,
     message: str,
-    url: str,
+    urls: list[str],
     tool_progress_reporter: ToolProgressReporter | None,
     crawler: CrawlerTypes,
-) -> str:
+) -> list[str]:
     # Step 2: Crawl the URL
     if tool_progress_reporter:
         await tool_progress_reporter.notify_from_tool_call(
@@ -146,14 +93,12 @@ async def _crawl_url(
             tool_call=tool_call,
             state=ProgressState.RUNNING,
         )
-    content = await crawler.crawl([url])  # type: ignore
+    contents = await crawler.crawl(urls)  # type: ignore
 
-    if not content:
-        raise ValueError("No Markdown has been retrieved from the URL")
+    if not contents:
+        raise ValueError("No Markdown has been retrieved from the URLs")
 
-    markdown_content = content[0]
-
-    return markdown_content
+    return contents
 
 
 async def _limit_to_token_limit(
