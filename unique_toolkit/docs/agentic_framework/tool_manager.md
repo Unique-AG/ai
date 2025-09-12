@@ -47,65 +47,31 @@ The available tools (MCP, sub-agents, and internal tools) are derived directly f
 
 #### **Constructor and Initialization**
 The constructor initializes the Tool Manager with the necessary runtime context and managers:
-```python
-def __init__(
-    self,
-    logger: Logger,
-    config: ToolManagerConfig,
-    event: ChatEvent,
-    mcp_manager: MCPManager,
-    a2a_manager: A2AManager,
-):
-    self._logger = logger
-    self._config = config
-    self._tools = []
-    self._tool_choices = event.payload.tool_choices
-    self._disabled_tools = event.payload.disabled_tools
-    self._mcp_manager = mcp_manager
-    self._a2a_manager = a2a_manager
-    self._init__tools(event)
-```
+
+<!-- open-source -->
+::: unique_toolkit.tools.tool_manager.ToolManager.__init__
+    options:
+      show_root_heading: false
+      show_root_toc_entry: false
+      show_root_full_path: false
+      show_root_members_full_path: false
+      heading_level: 1
+      show_source: true
+
+
 
 #### **Tool Initialization**
 The `_init__tools` method discovers and filters tools:
-```python
-def _init__tools(self, event: ChatEvent) -> None:
-    tool_configs = self._config.tools
-    self._logger.info("Initializing tool definitions...")
 
-    # Load sub-agents via A2A Manager
-    tool_configs, sub_agents = self._a2a_manager.get_all_sub_agents(
-        tool_configs, event
-    )
-
-    # Build internal tools
-    internal_tools = [
-        ToolFactory.build_tool_with_settings(
-            t.name,
-            t,
-            t.configuration,
-            event,
-        )
-        for t in tool_configs
-    ]
-
-    # Retrieve MCP tools
-    mcp_tools = self._mcp_manager.get_all_mcp_tools()
-
-    # Combine all tools
-    self.available_tools = internal_tools + mcp_tools + sub_agents
-
-    # Apply filters
-    for t in self.available_tools:
-        if t.is_exclusive():
-            self._tools = [t]
-            return
-        if not t.is_enabled() or t.name in self._disabled_tools:
-            continue
-        if self._tool_choices and t.name not in self._tool_choices:
-            continue
-        self._tools.append(t)
-```
+<!-- open-source -->
+::: unique_toolkit.tools.tool_manager.ToolManager._init__tools
+    options:
+      show_root_heading: false
+      show_root_toc_entry: false
+      show_root_full_path: false
+      show_root_members_full_path: false
+      heading_level: 1
+      show_source: true
 
 ---
 
@@ -117,19 +83,23 @@ The orchestrator that works with the tool-manager needs three kinds of informati
 - Additional tool-specific prompt enhancements/guidance to help the LLM format call the correct tool and format the output of the tools correctly.
 
 Get loaded tools and log them:
-```python
-def log_loaded_tools(self):
-    self._logger.info(f"Loaded tools: {[tool.name for tool in self._tools]}")
+<!-- open-source -->
+::: unique_toolkit.tools.tool_manager.ToolManager.log_loaded_tools
+    options:
+      show_root_heading: false
+      show_source: true
 
-def get_tools(self) -> list[Tool]:
-    return self._tools
+<!-- open-source -->
+::: unique_toolkit.tools.tool_manager.ToolManager.get_tools
+    options:
+      show_root_heading: false  
+      show_source: true
 
-def get_tool_by_name(self, name: str) -> Tool | None:
-    for tool in self._tools:
-        if tool.name == name:
-            return tool
-    return None
-```
+<!-- open-source -->
+::: unique_toolkit.tools.tool_manager.ToolManager.get_tool_by_name
+    options:
+      show_root_heading: false
+      show_source: true
 
 Expose tool definitions and prompts (prompt enhancements):
 ```python

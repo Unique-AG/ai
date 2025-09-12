@@ -10,6 +10,8 @@ package-mode = false
 [tool.poetry.dependencies]
 python = "^3.11"
 unique_toolkit = { path = "./unique_toolkit", develop = true }
+mkdocs-multirepo-plugin = "^0.8.3"
+mkdocs-mermaid2-plugin = "^1.2.2"
 
 [tool.poetry.group.dev.dependencies]
 mkdocs = "^1.6.1"
