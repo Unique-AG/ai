@@ -1,69 +1,45 @@
-[tool.poetry]
-name = "unique_toolkit"
+[project]
+name = "unique-toolkit"
 version = "0.8.54"
 description = ""
 authors = [
-    "Cedric Klinkert <cedric.klinkert@unique.ch>",
-    "Martin Fadler <martin.fadler@unique.ch>",
-    "Sadique Sheik <sadique@unique.ch>",
-    "Fabian Schläpfer <fabian@unique.ch>",
-    "Pascal Hauri <pascal@unique.ch>",
-    "Ejiroghene Oki-Peter<oki-peter.ejiroghene@unique.ai>"
+    {name = "Cedric Klinkert", email = "cedric@unique.ch"},
+    {name = "Martin Fadler", email = "martin.fadler@unique.ch"},
+    {name = "Sadique Sheik", email = "sadique@unique.ch"},
+    {name = "Fabian Schläpfer", email = "fabian@unique.ch"},
+    {name = "Pascal Hauri", email = "pascal@unique.ch"},
 ]
-readme = ["README.md", "CHANGELOG.md"]
-license = "Proprietary"
+readme = "README.md"
+license = {text = "Proprietary"}
+requires-python = ">=3.11"
+dependencies = [
+    # Package-specific dependencies (common ones inherited from workspace)
+    "pyhumps>=3.8.0",
+    "numpy>=1.26.4",
+    "regex>=2024.5.15",
+    "tiktoken>=0.7.0",
+    "unique-sdk>=0.10.0",
+    "sseclient>=0.0.27",
+    "openai>=1.99.9",
+]
 
-[tool.poetry.dependencies]
-python = "^3.11"
-typing-extensions = "^4.9.0"
-pydantic = "^2.8.2"
-pyhumps = "^3.8.0"
-numpy = "^1.26.4"
-python-dotenv = "^1.0.1"
-regex = "^2024.5.15"
-tiktoken = "^0.7.0"
-pydantic-settings = "^2.10.1"
-sseclient = "^0.0.27"
-openai = "^1.99.9"
-platformdirs = "^4.0.0"
-pillow = "^10.4.0"
-unique-sdk = "^0.10.0"
-jambo = "^0.1.2"
+[project.optional-dependencies]
+langchain = [
+    "openai>=1.97.0",
+    "langchain>=0.3.27",
+    "langchain-openai>=0.3.28",
+]
 
-[tool.poetry.group.langchain]
-optional = true
+[tool.uv.sources]
+unique-sdk = { workspace = true }
 
-[tool.poetry.group.langchain.dependencies]
-openai = "^1.97.0"
-langchain = "^0.3.27"
-langchain-openai = "^0.3.28"
-
-[tool.poetry.group.dev.dependencies]
-ruff = "0.12.10"
-pytest = "^7.4.3"
-tox = "^4.11.4"
-pyright = "^1.1.341"
-pytest-cov = "^4.1.0"
-pre-commit = "^3.7.1"
-pytest-asyncio = "^0.23.8"
-pytest-mock = "^3.14.0"
-platformdirs = "^4.0.0"
-pillow = "^10.4.0"
-ipykernel = "^6.29.5"
-# unique-sdk = { path = "../unique_sdk" }
-mkdocs = "^1.6.1"
-mkdocs-material = "^9.6.11"
-mkdocs-include-markdown-plugin = "^7.1.5"
-mkdocs-callouts = "^1.16.0"
-mkdocstrings-python = "^1.16.10"
-entangled-cli = "^2.1.13"
-mkdocs-entangled-plugin = "^0.4.0"
-isort = "^6.0.1"
-mkdocs-codeinclude-plugin = "^0.2.1"
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["unique_toolkit*"]
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
 
 [tool.ruff]
 target-version = "py311"

@@ -1,27 +1,70 @@
-[tool.poetry]
-name = "ai-monorepo"
+[project]
+name = "unique-ai-workspace"
 version = "0.1.0"
-description = "AI Monorepo Documentation"
-authors = ["Unique Team"]
-readme = ["README.md"]
-license = "Proprietary"
-package-mode = false
+description = "Unique AI monorepo workspace"
+requires-python = ">=3.11"
+dependencies = [
+    # Common dependencies shared across workspace packages
+    "typing-extensions>=4.9.0",
+    "pydantic>=2.8.2", 
+    "pydantic-settings>=2.10.1",
+    "python-dotenv>=1.0.1",
+]
 
-[tool.poetry.dependencies]
-python = "^3.11"
-unique_toolkit = { path = "./unique_toolkit", develop = true }
+[project.optional-dependencies]
+dev = [
+    # Linting and formatting
+    "ruff>=0.12.10",
+    
+    # Testing
+    "pytest>=8.4.1",
+    "pytest-cov>=4.1.0",
+    "pytest-asyncio>=0.24.0",
+    "pytest-mock>=3.14.0",
+    
+    # Type checking
+    "pyright>=1.1.341",
+    
+    # Development tools
+    "tox>=4.11.4",
+    "pre-commit>=3.7.1",
+    "python-dotenv>=1.1.0",
+    "ipykernel>=6.29.5",
 
-[tool.poetry.group.dev.dependencies]
-mkdocs = "^1.6.1"
-mkdocs-material = "^9.6.11"
-mkdocs-monorepo-plugin = "^1.1.2"
-mkdocs-include-markdown-plugin = "^7.1.5"
-mkdocs-callouts = "^1.16.0"
-mkdocstrings-python = "^1.16.10"
-entangled-cli = "^2.1.13"
-mkdocs-entangled-plugin = "^0.4.0"
-mkdocs-codeinclude-plugin = "^0.2.1"
+    # Documentation
+    "mkdocs>=1.6.1",
+    "mkdocs-material>=9.6.11",
+    "mkdocs-monorepo-plugin>=1.1.2",
+    "mkdocs-include-markdown-plugin>=7.1.5",
+    "mkdocs-callouts>=1.16.0",
+    "mkdocstrings-python>=1.16.10",
+    "entangled-cli>=2.1.13",
+    "mkdocs-entangled-plugin>=0.4.0",
+    "mkdocs-codeinclude-plugin>=0.2.1",
+]
+
+[tool.uv.workspace]
+members = [
+    "unique_sdk",
+    "unique_toolkit", 
+    "postprocessors/unique_stock_ticker",
+    "postprocessors/unique_follow_up_questions",
+    "tool_packages/*"
+]
+exclude = [
+    "tutorials/*",
+    "unique_client"
+]
+
+[tool.uv.sources]
+# Workspace sources for internal dependencies
+unique-sdk = { workspace = true }
+unique-toolkit = { workspace = true }
+unique-stock-ticker = { workspace = true }
+unique-follow-up-questions = { workspace = true }
+unique-web-search = { workspace = true }
+unique-internal-search = { workspace = true }
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
