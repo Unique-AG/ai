@@ -92,7 +92,10 @@ class ContentProcessor:
     ) -> WebSearchResult:
         """Process a single page with optional regex preprocessing."""
         # Apply regex preprocessing if enabled
-        if self.config.regex_preprocessing_patterns:
+        if (
+            self.config.regex_line_removal_patterns
+            or self.config.regex_content_transformations
+        ):
             page.content = self._preprocess_content(page.content)
 
         # Then apply strategy-specific processing
@@ -114,9 +117,6 @@ class ContentProcessor:
             self.config.language_model.encoder_name or "cl100k_base"
         )
         token_count = len(encoder.encode(content))
-
-        if token_count < 2000:  # Too short to summarize
-            return page
 
         client = get_async_openai_client()
         logger.info(f"Summarizing webpage ({page.url}) with {token_count} tokens")
@@ -149,12 +149,13 @@ class ContentProcessor:
 
     def _preprocess_content(self, content: str) -> str:
         """Smart preprocessing to remove navigation and UI clutter."""
+        # Stage 1: Remove lines matching patterns
         lines = content.split("\n")
         filtered_lines = []
 
         for line in lines:
             should_keep = True
-            for pattern in self.config.regex_preprocessing_patterns:
+            for pattern in self.config.regex_line_removal_patterns:
                 if re.search(pattern, line, re.IGNORECASE):
                     should_keep = False
                     break
@@ -163,7 +164,11 @@ class ContentProcessor:
 
         content = "\n".join(filtered_lines)
 
-        # Normalize whitespace
+        # Stage 2: Apply content transformations
+        for pattern, replacement in self.config.regex_content_transformations:
+            content = re.sub(pattern, replacement, content)
+
+        # Stage 3: Normalize whitespace
         content = re.sub(r"\n{3,}", "\n\n", content)
         content = re.sub(r"[ \t]{2,}", " ", content)
 

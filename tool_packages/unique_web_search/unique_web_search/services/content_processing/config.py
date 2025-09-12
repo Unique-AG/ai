@@ -42,12 +42,26 @@ class WebPageChunk(BaseModel):
         )
 
 
-REGEX_PATTERNS = [
-    r"^[\*\+\-]\s+(Home|Menu|Navigate|Skip to|Sign In|Subscribe).*$",
-    r"^[\?\[]?(Subscribe|Sign [Iu]p|Follow|Share|Like)[\]?]?.*$",
-    r"Cookie.*|Privacy Policy|Terms of Service",
+# Patterns that remove entire lines
+REGEX_LINE_REMOVAL_PATTERNS = [
+    # Skip navigation elements only (not content navigation)
+    r"^[\*\+\-]?\s*(Skip to|Skip Navigation|Jump to|Accessibility help).*$",
+    # Standalone authentication links (not part of content)
+    r"^\s*(Sign In|Log In|Register|Sign Up|Create Account|My Account)\s*$",
+    # Social media and newsletter signup buttons
+    r"^[\?\[]?\s*(Subscribe|Follow Us|Share This|Newsletter Sign Up)\s*[\]?]?$",
+    # Legal/Privacy footer elements (specific phrases)
+    r"^.*(Cookie Policy|Privacy Policy|Terms of Service|Cookie Settings|Accept Cookies|Cookie Notice).*$",
+    # Accessibility labels
     r"^\s*\[.*accessibility.*\].*$",
-    r"https?://[^\s\])]+",
+]
+
+# Pattern/replacement pairs for content transformation
+REGEX_CONTENT_TRANSFORMATIONS = [
+    # Transform markdown links: [text](url) → [text]
+    (r"\[([^\]]+)\]\([^)]+\)", r"[\1]"),
+    # Remove standalone URLs
+    (r"https?://[^\s\])]+ ?", ""),
 ]
 
 
@@ -58,9 +72,13 @@ class ContentProcessorConfig(BaseModel):
         default=ContentProcessingStartegy.NONE,
         description="The content processing strategy to use",
     )
-    regex_preprocessing_patterns: list[str] = Field(
-        default=REGEX_PATTERNS,
-        description="Regex patterns for preprocessing to remove navigation, UI clutter, ads, and links. Default includes the aformentioned common patterns for cleanup. Leave empty if you want to skip this preprocessing step.",
+    regex_line_removal_patterns: list[str] = Field(
+        default=REGEX_LINE_REMOVAL_PATTERNS,
+        description="Regex patterns for removing entire lines that match (navigation, UI clutter, etc.). Leave empty to skip line removal.",
+    )
+    regex_content_transformations: list[tuple[str, str]] = Field(
+        default=REGEX_CONTENT_TRANSFORMATIONS,
+        description="Pattern/replacement pairs for transforming content (e.g., removing URLs from markdown links). Leave empty to skip transformations.",
     )
     language_model: LanguageModelInfo = Field(
         default=LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_4o_2024_1120),

@@ -24,19 +24,19 @@ from unique_web_search.prompts import (
 from unique_web_search.services.content_processing.config import (
     ContentProcessorConfig,
 )
-from unique_web_search.services.crawlers.basic import BasicCrawlerConfig
-from unique_web_search.services.crawlers.crawl4ai import (
+from unique_web_search.services.crawlers import (
+    BasicCrawlerConfig,
     Crawl4AiCrawlerConfig,
-)
-from unique_web_search.services.crawlers.firecrawl import (
     FirecrawlCrawlerConfig,
+    JinaCrawlerConfig,
+    TavilyCrawlerConfig,
 )
-from unique_web_search.services.crawlers.jina import JinaCrawlerConfig
-from unique_web_search.services.crawlers.tavily import TavilyCrawlerConfig
-from unique_web_search.services.search_engine.firecrawl import FireCrawlConfig
-from unique_web_search.services.search_engine.google import GoogleConfig
-from unique_web_search.services.search_engine.jina import JinaConfig
-from unique_web_search.services.search_engine.tavily import TavilyConfig
+from unique_web_search.services.search_engine import (
+    FireCrawlConfig,
+    GoogleConfig,
+    JinaConfig,
+    TavilyConfig,
+)
 
 logger = getLogger(__name__)
 
