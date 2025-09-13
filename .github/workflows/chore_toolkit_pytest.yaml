@@ -40,7 +40,7 @@ jobs:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         # Run deptry and capture output
-        if DEPTRY_OUTPUT=$(poetry run deptry . 2>&1); then
+        if DEPTRY_OUTPUT=$(poetry run deptry . --no-ansi 2>&1); then
           echo "✅ No dependency issues found"
         else
           echo "⚠️ Deptry found dependency issues:"
