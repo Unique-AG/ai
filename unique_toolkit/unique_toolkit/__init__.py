@@ -1,6 +1,7 @@
 # Re-export commonly used classes for easier imports
 from unique_toolkit.chat import ChatService
 from unique_toolkit.content import ContentService
+from unique_toolkit.coverage_pipeline import brand_new_untested_function  # noqa: F401
 from unique_toolkit.embedding import EmbeddingService
 from unique_toolkit.language_model import (
     LanguageModelMessages,
