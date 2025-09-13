@@ -87,5 +87,11 @@ extend-select = ["I"]
 
 [tool.deptry]
 known_first_party = ["unique_toolkit"]
-extend_exclude = ["(^|.*/)?test_.*\\.py$", "conftest\\.py$"]
-pep621_dev_dependency_groups = ["dev", "docs"]
+extend_exclude = ["(^|.*/)?test_.*\\.py$", "conftest\\.py$", "docs/"]
+
+[tool.deptry.per_rule_ignores]
+# Grouped optional dependencies like langchain group
+DEP004 = ["langchain_openai", 
+          "langchain_core",
+          "langchain",
+          "openai"]
