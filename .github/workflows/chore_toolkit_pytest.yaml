@@ -33,3 +33,25 @@ jobs:
     - name: Run tests
       working-directory: ${{ env.PACKAGE }}
       run: poetry run pytest
+
+    - name: Run deptry and comment on PR
+      working-directory: ${{ env.PACKAGE }}
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        # Run deptry and capture output
+        if DEPTRY_OUTPUT=$(poetry run deptry . --no-ansi 2>&1); then
+          echo "✅ No dependency issues found"
+        else
+          echo "⚠️ Deptry found dependency issues:"
+          echo "$DEPTRY_OUTPUT"
+          
+          # Only comment on PR if there are issues
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            gh pr comment ${{ github.event.number }} --body "## ️⚠️ Deptry Found Issuses ️⚠️ 
+
+        \`\`\`
+        $DEPTRY_OUTPUT
+        \`\`\`"
+          fi
+        fi
