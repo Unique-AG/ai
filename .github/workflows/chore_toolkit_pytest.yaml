@@ -48,7 +48,7 @@ jobs:
           
           # Only comment on PR if there are issues
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            gh pr comment ${{ github.event.number }} --body "## Deptry Results
+            gh pr comment ${{ github.event.number }} --body "## ️⚠️ Deptry Found Issuses ️⚠️ 
 
         \`\`\`
         $DEPTRY_OUTPUT
