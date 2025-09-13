@@ -12,9 +12,14 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
     - name: Check out code
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch full history for diff-cover
 
     - name: Set up Python
       uses: actions/setup-python@v5
@@ -33,3 +38,31 @@ jobs:
     - name: Run tests
       working-directory: ${{ env.PACKAGE }}
       run: poetry run pytest
+
+    - name: Check diff coverage
+      working-directory: ${{ env.PACKAGE }}
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        # Get the base branch (usually main or master)
+        BASE_BRANCH="${{ github.event.pull_request.base.ref }}"
+        echo "Checking diff coverage against base branch: $BASE_BRANCH"
+        
+        # Run our script (always shows nice output, never fails build)
+        ./scripts/check_diff_coverage.sh --branch origin/$BASE_BRANCH --threshold 80 --verbose
+        
+        # Run diff-cover once and capture both exit code and output
+        set +e  # Temporarily disable exit on error
+        COVERAGE_SUMMARY=$(poetry run diff-cover coverage.xml --compare-branch origin/$BASE_BRANCH --fail-under 80 2>&1)
+        DIFF_COVER_EXIT_CODE=$?
+        set -e  # Re-enable exit on error
+        
+        if [ $DIFF_COVER_EXIT_CODE -ne 0 ]; then
+          echo "⚠️ New or modified lines have insufficient test coverage"
+          
+          # Post simple failure comment
+          gh pr comment ${{ github.event.number }} --body "⚠️ New or modified lines have insufficient test coverage. Please add tests for the changed code."
+        fi
+        
+        # Always exit successfully to avoid failing the pipeline
+        exit 0

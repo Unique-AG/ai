@@ -1,0 +1,39 @@
+[run]
+# Source directory to measure - this ensures all files are included
+source = unique_toolkit
+
+# Exclude test files and other non-source files
+omit = 
+    */tests/*
+    */test_*
+    */__pycache__/*
+    */.*
+    setup.py
+    conftest.py
+    .venv/*
+    build/*
+    dist/*
+    notebooks/*
+    scripts/*
+
+[report]
+# Show missing line numbers
+show_missing = True
+
+# Skip covered files in report
+skip_covered = False
+
+# Precision for coverage percentages
+precision = 2
+
+[html]
+# Directory for HTML coverage report
+directory = htmlcov
+
+[xml]
+# Output file for XML coverage report
+output = coverage.xml
+
+[json]
+# Output file for JSON coverage report
+output = coverage.json
