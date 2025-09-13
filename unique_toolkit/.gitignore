@@ -1,6 +1,14 @@
 notebooks/
 examples/generated/
 
+# Coverage reports (generated locally only)
+docs/coverage/htmlcov/
+docs/coverage/summary.md
+.coverage
+htmlcov/
+
+# Note: docs/coverage/coverage_history.csv IS tracked for historical analysis
+
 # Environment files with secrets
 *.env
 unique.env

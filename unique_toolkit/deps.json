@@ -1,0 +1,1942 @@
+{
+    "__main__": {
+        "bacon": 0,
+        "imports": [
+            "unique_toolkit",
+            "unique_toolkit.app",
+            "unique_toolkit.app.dev_util",
+            "unique_toolkit.app.init_logging",
+            "unique_toolkit.app.init_sdk",
+            "unique_toolkit.app.schemas",
+            "unique_toolkit.app.unique_settings",
+            "unique_toolkit.app.verification",
+            "unique_toolkit.chat",
+            "unique_toolkit.chat.constants",
+            "unique_toolkit.chat.functions",
+            "unique_toolkit.chat.schemas",
+            "unique_toolkit.chat.service",
+            "unique_toolkit.chat.state",
+            "unique_toolkit.chat.utils",
+            "unique_toolkit.content",
+            "unique_toolkit.content.constants",
+            "unique_toolkit.content.functions",
+            "unique_toolkit.content.schemas",
+            "unique_toolkit.content.service",
+            "unique_toolkit.content.utils",
+            "unique_toolkit.embedding",
+            "unique_toolkit.embedding.constants",
+            "unique_toolkit.embedding.functions",
+            "unique_toolkit.embedding.schemas",
+            "unique_toolkit.embedding.service",
+            "unique_toolkit.embedding.utils",
+            "unique_toolkit.framework_utilities",
+            "unique_toolkit.framework_utilities.openai",
+            "unique_toolkit.framework_utilities.openai.client",
+            "unique_toolkit.framework_utilities.openai.message_builder",
+            "unique_toolkit.framework_utilities.utils",
+            "unique_toolkit.language_model",
+            "unique_toolkit.language_model.builder",
+            "unique_toolkit.language_model.constants",
+            "unique_toolkit.language_model.functions",
+            "unique_toolkit.language_model.infos",
+            "unique_toolkit.language_model.prompt",
+            "unique_toolkit.language_model.reference",
+            "unique_toolkit.language_model.schemas",
+            "unique_toolkit.language_model.service",
+            "unique_toolkit.language_model.utils",
+            "unique_toolkit.short_term_memory",
+            "unique_toolkit.short_term_memory.constants",
+            "unique_toolkit.short_term_memory.functions",
+            "unique_toolkit.short_term_memory.persistent_short_term_memory_manager",
+            "unique_toolkit.short_term_memory.schemas",
+            "unique_toolkit.short_term_memory.service",
+            "unique_toolkit.smart_rules",
+            "unique_toolkit.smart_rules.compile",
+            "unique_toolkit.tools",
+            "unique_toolkit.tools.a2a",
+            "unique_toolkit.tools.a2a.config",
+            "unique_toolkit.tools.a2a.manager",
+            "unique_toolkit.tools.a2a.memory",
+            "unique_toolkit.tools.a2a.schema",
+            "unique_toolkit.tools.a2a.service",
+            "unique_toolkit.tools.agent_chunks_hanlder",
+            "unique_toolkit.tools.config",
+            "unique_toolkit.tools.factory",
+            "unique_toolkit.tools.mcp",
+            "unique_toolkit.tools.mcp.manager",
+            "unique_toolkit.tools.mcp.models",
+            "unique_toolkit.tools.mcp.tool_wrapper",
+            "unique_toolkit.tools.schemas",
+            "unique_toolkit.tools.tool",
+            "unique_toolkit.tools.tool_manager",
+            "unique_toolkit.tools.tool_progress_reporter",
+            "unique_toolkit.tools.utils",
+            "unique_toolkit.tools.utils.execution",
+            "unique_toolkit.tools.utils.execution.execution",
+            "unique_toolkit.tools.utils.source_handling",
+            "unique_toolkit.tools.utils.source_handling.schema",
+            "unique_toolkit.tools.utils.source_handling.source_formatting"
+        ],
+        "name": "__main__",
+        "path": null
+    },
+    "humps": {
+        "bacon": 2,
+        "imported_by": [
+            "humps",
+            "unique_toolkit.app.schemas",
+            "unique_toolkit.chat.schemas",
+            "unique_toolkit.content.schemas",
+            "unique_toolkit.language_model.functions",
+            "unique_toolkit.language_model.schemas",
+            "unique_toolkit.short_term_memory.schemas",
+            "unique_toolkit.tools.config"
+        ],
+        "imports": [
+            "humps"
+        ],
+        "name": "humps",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/.venv/lib/python3.12/site-packages/humps/__init__.py"
+    },
+    "numpy": {
+        "bacon": 2,
+        "imported_by": [
+            "numpy",
+            "unique_toolkit.embedding.utils"
+        ],
+        "imports": [
+            "numpy"
+        ],
+        "name": "numpy",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/.venv/lib/python3.12/site-packages/numpy/__init__.py"
+    },
+    "openai": {
+        "bacon": 2,
+        "imported_by": [
+            "openai",
+            "unique_toolkit.chat.schemas",
+            "unique_toolkit.chat.service",
+            "unique_toolkit.framework_utilities.openai.client",
+            "unique_toolkit.framework_utilities.openai.message_builder",
+            "unique_toolkit.language_model.functions",
+            "unique_toolkit.language_model.schemas"
+        ],
+        "imports": [
+            "openai",
+            "openai.types"
+        ],
+        "name": "openai",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/.venv/lib/python3.12/site-packages/openai/__init__.py"
+    },
+    "openai.types": {
+        "bacon": 2,
+        "imported_by": [
+            "openai",
+            "unique_toolkit.chat.schemas",
+            "unique_toolkit.chat.service",
+            "unique_toolkit.framework_utilities.openai.message_builder",
+            "unique_toolkit.language_model.functions",
+            "unique_toolkit.language_model.schemas"
+        ],
+        "name": "openai.types",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/.venv/lib/python3.12/site-packages/openai/types/__init__.py"
+    },
+    "openai.types.chat": {
+        "bacon": 2,
+        "imported_by": [
+            "unique_toolkit.chat.schemas",
+            "unique_toolkit.chat.service",
+            "unique_toolkit.framework_utilities.openai.message_builder",
+            "unique_toolkit.language_model.functions",
+            "unique_toolkit.language_model.schemas"
+        ],
+        "imports": [
+            "openai.types.chat.chat_completion_assistant_message_param",
+            "openai.types.chat.chat_completion_content_part_param",
+            "openai.types.chat.chat_completion_content_part_text_param",
+            "openai.types.chat.chat_completion_developer_message_param",
+            "openai.types.chat.chat_completion_function_message_param",
+            "openai.types.chat.chat_completion_message_function_tool_call_param",
+            "openai.types.chat.chat_completion_message_param",
+            "openai.types.chat.chat_completion_message_tool_call_param",
+            "openai.types.chat.chat_completion_system_message_param",
+            "openai.types.chat.chat_completion_tool_message_param",
+            "openai.types.chat.chat_completion_tool_param",
+            "openai.types.chat.chat_completion_user_message_param"
+        ],
+        "name": "openai.types.chat",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/.venv/lib/python3.12/site-packages/openai/types/chat/__init__.py"
+    },
+    "openai.types.chat.chat_completion_assistant_message_param": {
+        "bacon": 2,
+        "imported_by": [
+            "openai.types.chat",
+            "openai.types.chat.chat_completion_message_param",
+            "unique_toolkit.framework_utilities.openai.message_builder"
+        ],
+        "imports": [
+            "openai.types.chat.chat_completion_content_part_text_param"
+        ],
+        "name": "openai.types.chat.chat_completion_assistant_message_param",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/.venv/lib/python3.12/site-packages/openai/types/chat/chat_completion_assistant_message_param.py"
+    },
+    "openai.types.chat.chat_completion_content_part_param": {
+        "bacon": 2,
+        "imported_by": [
+            "openai.types.chat",
+            "openai.types.chat.chat_completion_user_message_param",
+            "unique_toolkit.framework_utilities.openai.message_builder"
+        ],
+        "imports": [
+            "openai.types.chat.chat_completion_content_part_text_param"
+        ],
+        "name": "openai.types.chat.chat_completion_content_part_param",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/.venv/lib/python3.12/site-packages/openai/types/chat/chat_completion_content_part_param.py"
+    },
+    "openai.types.chat.chat_completion_content_part_text_param": {
+        "bacon": 2,
+        "imported_by": [
+            "openai.types.chat",
+            "openai.types.chat.chat_completion_assistant_message_param",
+            "openai.types.chat.chat_completion_content_part_param",
+            "openai.types.chat.chat_completion_developer_message_param",
+            "openai.types.chat.chat_completion_system_message_param",
+            "openai.types.chat.chat_completion_tool_message_param",
+            "unique_toolkit.framework_utilities.openai.message_builder"
+        ],
+        "name": "openai.types.chat.chat_completion_content_part_text_param",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/.venv/lib/python3.12/site-packages/openai/types/chat/chat_completion_content_part_text_param.py"
+    },
+    "openai.types.chat.chat_completion_developer_message_param": {
+        "bacon": 2,
+        "imported_by": [
+            "openai.types.chat",
+            "openai.types.chat.chat_completion_message_param",
+            "unique_toolkit.framework_utilities.openai.message_builder"
+        ],
+        "imports": [
+            "openai.types.chat.chat_completion_content_part_text_param"
+        ],
+        "name": "openai.types.chat.chat_completion_developer_message_param",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/.venv/lib/python3.12/site-packages/openai/types/chat/chat_completion_developer_message_param.py"
+    },
+    "openai.types.chat.chat_completion_function_message_param": {
+        "bacon": 2,
+        "imported_by": [
+            "openai.types.chat",
+            "openai.types.chat.chat_completion_message_param",
+            "unique_toolkit.framework_utilities.openai.message_builder"
+        ],
+        "name": "openai.types.chat.chat_completion_function_message_param",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/.venv/lib/python3.12/site-packages/openai/types/chat/chat_completion_function_message_param.py"
+    },
+    "openai.types.chat.chat_completion_message_function_tool_call_param": {
+        "bacon": 2,
+        "imported_by": [
+            "openai.types.chat",
+            "openai.types.chat.chat_completion_message_tool_call_param",
+            "unique_toolkit.chat.schemas",
+            "unique_toolkit.language_model.schemas"
+        ],
+        "name": "openai.types.chat.chat_completion_message_function_tool_call_param",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/.venv/lib/python3.12/site-packages/openai/types/chat/chat_completion_message_function_tool_call_param.py"
+    },
+    "openai.types.chat.chat_completion_message_param": {
+        "bacon": 2,
+        "imported_by": [
+            "openai.types.chat",
+            "unique_toolkit.chat.service",
+            "unique_toolkit.framework_utilities.openai.message_builder",
+            "unique_toolkit.language_model.functions"
+        ],
+        "imports": [
+            "openai.types.chat.chat_completion_assistant_message_param",
+            "openai.types.chat.chat_completion_developer_message_param",
+            "openai.types.chat.chat_completion_function_message_param",
+            "openai.types.chat.chat_completion_system_message_param",
+            "openai.types.chat.chat_completion_tool_message_param",
+            "openai.types.chat.chat_completion_user_message_param"
+        ],
+        "name": "openai.types.chat.chat_completion_message_param",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/.venv/lib/python3.12/site-packages/openai/types/chat/chat_completion_message_param.py"
+    },
+    "openai.types.chat.chat_completion_message_tool_call_param": {
+        "bacon": 2,
+        "imported_by": [
+            "openai.types.chat",
+            "unique_toolkit.framework_utilities.openai.message_builder"
+        ],
+        "imports": [
+            "openai.types.chat.chat_completion_message_function_tool_call_param"
+        ],
+        "name": "openai.types.chat.chat_completion_message_tool_call_param",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/.venv/lib/python3.12/site-packages/openai/types/chat/chat_completion_message_tool_call_param.py"
+    },
+    "openai.types.chat.chat_completion_system_message_param": {
+        "bacon": 2,
+        "imported_by": [
+            "openai.types.chat",
+            "openai.types.chat.chat_completion_message_param",
+            "unique_toolkit.framework_utilities.openai.message_builder"
+        ],
+        "imports": [
+            "openai.types.chat.chat_completion_content_part_text_param"
+        ],
+        "name": "openai.types.chat.chat_completion_system_message_param",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/.venv/lib/python3.12/site-packages/openai/types/chat/chat_completion_system_message_param.py"
+    },
+    "openai.types.chat.chat_completion_tool_message_param": {
+        "bacon": 2,
+        "imported_by": [
+            "openai.types.chat",
+            "openai.types.chat.chat_completion_message_param",
+            "unique_toolkit.framework_utilities.openai.message_builder"
+        ],
+        "imports": [
+            "openai.types.chat.chat_completion_content_part_text_param"
+        ],
+        "name": "openai.types.chat.chat_completion_tool_message_param",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/.venv/lib/python3.12/site-packages/openai/types/chat/chat_completion_tool_message_param.py"
+    },
+    "openai.types.chat.chat_completion_tool_param": {
+        "bacon": 2,
+        "imported_by": [
+            "openai.types.chat",
+            "unique_toolkit.language_model.schemas"
+        ],
+        "name": "openai.types.chat.chat_completion_tool_param",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/.venv/lib/python3.12/site-packages/openai/types/chat/chat_completion_tool_param.py"
+    },
+    "openai.types.chat.chat_completion_user_message_param": {
+        "bacon": 2,
+        "imported_by": [
+            "openai.types.chat",
+            "openai.types.chat.chat_completion_message_param",
+            "unique_toolkit.framework_utilities.openai.message_builder"
+        ],
+        "imports": [
+            "openai.types.chat.chat_completion_content_part_param"
+        ],
+        "name": "openai.types.chat.chat_completion_user_message_param",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/.venv/lib/python3.12/site-packages/openai/types/chat/chat_completion_user_message_param.py"
+    },
+    "openai.types.shared_params": {
+        "bacon": 2,
+        "imported_by": [
+            "unique_toolkit.language_model.schemas"
+        ],
+        "imports": [
+            "openai.types.shared_params.function_definition"
+        ],
+        "name": "openai.types.shared_params",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/.venv/lib/python3.12/site-packages/openai/types/shared_params/__init__.py"
+    },
+    "openai.types.shared_params.function_definition": {
+        "bacon": 2,
+        "imported_by": [
+            "openai.types.shared_params",
+            "unique_toolkit.language_model.schemas"
+        ],
+        "name": "openai.types.shared_params.function_definition",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/.venv/lib/python3.12/site-packages/openai/types/shared_params/function_definition.py"
+    },
+    "platformdirs": {
+        "bacon": 2,
+        "imported_by": [
+            "platformdirs",
+            "unique_toolkit.app.unique_settings"
+        ],
+        "imports": [
+            "platformdirs"
+        ],
+        "name": "platformdirs",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/.venv/lib/python3.12/site-packages/platformdirs/__init__.py"
+    },
+    "pydantic": {
+        "bacon": 2,
+        "imported_by": [
+            "pydantic",
+            "pydantic.fields",
+            "pydantic.json_schema",
+            "unique_toolkit.app.schemas",
+            "unique_toolkit.app.unique_settings",
+            "unique_toolkit.app.verification",
+            "unique_toolkit.chat.schemas",
+            "unique_toolkit.content.schemas",
+            "unique_toolkit.embedding.schemas",
+            "unique_toolkit.language_model.functions",
+            "unique_toolkit.language_model.infos",
+            "unique_toolkit.language_model.schemas",
+            "unique_toolkit.language_model.service",
+            "unique_toolkit.short_term_memory.persistent_short_term_memory_manager",
+            "unique_toolkit.short_term_memory.schemas",
+            "unique_toolkit.smart_rules.compile",
+            "unique_toolkit.tools.a2a.schema",
+            "unique_toolkit.tools.a2a.service",
+            "unique_toolkit.tools.config",
+            "unique_toolkit.tools.mcp.tool_wrapper",
+            "unique_toolkit.tools.schemas",
+            "unique_toolkit.tools.tool_manager",
+            "unique_toolkit.tools.tool_progress_reporter",
+            "unique_toolkit.tools.utils.source_handling.schema"
+        ],
+        "imports": [
+            "pydantic",
+            "pydantic.config",
+            "pydantic.fields",
+            "pydantic.json_schema"
+        ],
+        "name": "pydantic",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/.venv/lib/python3.12/site-packages/pydantic/__init__.py"
+    },
+    "pydantic.alias_generators": {
+        "bacon": 2,
+        "imported_by": [
+            "unique_toolkit.tools.config"
+        ],
+        "name": "pydantic.alias_generators",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/.venv/lib/python3.12/site-packages/pydantic/alias_generators.py"
+    },
+    "pydantic.config": {
+        "bacon": 2,
+        "imported_by": [
+            "pydantic",
+            "pydantic.fields",
+            "pydantic.json_schema",
+            "unique_toolkit.smart_rules.compile"
+        ],
+        "imports": [
+            "pydantic.fields"
+        ],
+        "name": "pydantic.config",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/.venv/lib/python3.12/site-packages/pydantic/config.py"
+    },
+    "pydantic.fields": {
+        "bacon": 2,
+        "imported_by": [
+            "pydantic",
+            "pydantic.config",
+            "unique_toolkit.tools.config"
+        ],
+        "imports": [
+            "pydantic",
+            "pydantic.config",
+            "pydantic.json_schema"
+        ],
+        "name": "pydantic.fields",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/.venv/lib/python3.12/site-packages/pydantic/fields.py"
+    },
+    "pydantic.json_schema": {
+        "bacon": 2,
+        "imported_by": [
+            "pydantic",
+            "pydantic.fields",
+            "unique_toolkit.language_model.infos"
+        ],
+        "imports": [
+            "pydantic",
+            "pydantic.config"
+        ],
+        "name": "pydantic.json_schema",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/.venv/lib/python3.12/site-packages/pydantic/json_schema.py"
+    },
+    "pydantic_settings": {
+        "bacon": 2,
+        "imported_by": [
+            "unique_toolkit.app.unique_settings"
+        ],
+        "name": "pydantic_settings",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/.venv/lib/python3.12/site-packages/pydantic_settings/__init__.py"
+    },
+    "requests": {
+        "bacon": 2,
+        "imported_by": [
+            "requests",
+            "sseclient",
+            "unique_toolkit.content.functions",
+            "unique_toolkit.content.service"
+        ],
+        "imports": [
+            "requests"
+        ],
+        "name": "requests",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/.venv/lib/python3.12/site-packages/requests/__init__.py"
+    },
+    "sseclient": {
+        "bacon": 2,
+        "imported_by": [
+            "unique_toolkit.app.dev_util"
+        ],
+        "imports": [
+            "requests"
+        ],
+        "name": "sseclient",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/.venv/lib/python3.12/site-packages/sseclient.py"
+    },
+    "tiktoken": {
+        "bacon": 2,
+        "imported_by": [
+            "unique_toolkit.content.utils"
+        ],
+        "name": "tiktoken",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/.venv/lib/python3.12/site-packages/tiktoken/__init__.py"
+    },
+    "unique_sdk": {
+        "bacon": 2,
+        "imported_by": [
+            "unique_sdk",
+            "unique_sdk._list_object",
+            "unique_toolkit.app.init_sdk",
+            "unique_toolkit.app.unique_settings",
+            "unique_toolkit.app.verification",
+            "unique_toolkit.chat.functions",
+            "unique_toolkit.content.functions",
+            "unique_toolkit.content.service",
+            "unique_toolkit.content.utils",
+            "unique_toolkit.embedding.functions",
+            "unique_toolkit.language_model.functions",
+            "unique_toolkit.short_term_memory.functions",
+            "unique_toolkit.tools.a2a.service",
+            "unique_toolkit.tools.mcp.tool_wrapper"
+        ],
+        "imports": [
+            "unique_sdk",
+            "unique_sdk._list_object"
+        ],
+        "name": "unique_sdk",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/.venv/lib/python3.12/site-packages/unique_sdk/__init__.py"
+    },
+    "unique_sdk._list_object": {
+        "bacon": 2,
+        "imported_by": [
+            "unique_sdk",
+            "unique_toolkit.chat.functions"
+        ],
+        "imports": [
+            "unique_sdk"
+        ],
+        "name": "unique_sdk._list_object",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/.venv/lib/python3.12/site-packages/unique_sdk/_list_object.py"
+    },
+    "unique_toolkit": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit",
+            "unique_toolkit.app.dev_util",
+            "unique_toolkit.app.init_sdk",
+            "unique_toolkit.app.schemas",
+            "unique_toolkit.app.verification",
+            "unique_toolkit.chat.functions",
+            "unique_toolkit.chat.schemas",
+            "unique_toolkit.chat.service",
+            "unique_toolkit.chat.state",
+            "unique_toolkit.chat.utils",
+            "unique_toolkit.content.functions",
+            "unique_toolkit.content.service",
+            "unique_toolkit.content.utils",
+            "unique_toolkit.embedding.functions",
+            "unique_toolkit.embedding.service",
+            "unique_toolkit.framework_utilities.openai.client",
+            "unique_toolkit.framework_utilities.utils",
+            "unique_toolkit.language_model.builder",
+            "unique_toolkit.language_model.functions",
+            "unique_toolkit.language_model.infos",
+            "unique_toolkit.language_model.prompt",
+            "unique_toolkit.language_model.reference",
+            "unique_toolkit.language_model.schemas",
+            "unique_toolkit.language_model.service",
+            "unique_toolkit.short_term_memory.functions",
+            "unique_toolkit.short_term_memory.persistent_short_term_memory_manager",
+            "unique_toolkit.short_term_memory.service",
+            "unique_toolkit.tools.a2a",
+            "unique_toolkit.tools.a2a.config",
+            "unique_toolkit.tools.a2a.manager",
+            "unique_toolkit.tools.a2a.memory",
+            "unique_toolkit.tools.a2a.schema",
+            "unique_toolkit.tools.a2a.service",
+            "unique_toolkit.tools.agent_chunks_hanlder",
+            "unique_toolkit.tools.config",
+            "unique_toolkit.tools.factory",
+            "unique_toolkit.tools.mcp.manager",
+            "unique_toolkit.tools.mcp.models",
+            "unique_toolkit.tools.mcp.tool_wrapper",
+            "unique_toolkit.tools.schemas",
+            "unique_toolkit.tools.tool",
+            "unique_toolkit.tools.tool_manager",
+            "unique_toolkit.tools.tool_progress_reporter",
+            "unique_toolkit.tools.utils.source_handling.schema",
+            "unique_toolkit.tools.utils.source_handling.source_formatting"
+        ],
+        "imports": [
+            "unique_toolkit",
+            "unique_toolkit.chat",
+            "unique_toolkit.content",
+            "unique_toolkit.embedding",
+            "unique_toolkit.language_model",
+            "unique_toolkit.short_term_memory"
+        ],
+        "name": "unique_toolkit",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/__init__.py"
+    },
+    "unique_toolkit.app": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.app.dev_util",
+            "unique_toolkit.app.init_sdk",
+            "unique_toolkit.app.verification",
+            "unique_toolkit.chat.service",
+            "unique_toolkit.chat.state",
+            "unique_toolkit.content.service",
+            "unique_toolkit.embedding.service",
+            "unique_toolkit.framework_utilities.openai.client",
+            "unique_toolkit.framework_utilities.utils",
+            "unique_toolkit.language_model.service",
+            "unique_toolkit.short_term_memory.service",
+            "unique_toolkit.tools.a2a.manager",
+            "unique_toolkit.tools.a2a.service",
+            "unique_toolkit.tools.mcp.manager",
+            "unique_toolkit.tools.mcp.tool_wrapper",
+            "unique_toolkit.tools.tool",
+            "unique_toolkit.tools.tool_manager"
+        ],
+        "imports": [
+            "unique_toolkit.app.init_logging",
+            "unique_toolkit.app.init_sdk",
+            "unique_toolkit.app.schemas",
+            "unique_toolkit.app.verification"
+        ],
+        "name": "unique_toolkit.app",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/app/__init__.py"
+    },
+    "unique_toolkit.app.dev_util": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__"
+        ],
+        "imports": [
+            "sseclient",
+            "unique_toolkit",
+            "unique_toolkit.app",
+            "unique_toolkit.app.init_sdk",
+            "unique_toolkit.app.unique_settings"
+        ],
+        "name": "unique_toolkit.app.dev_util",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/app/dev_util.py"
+    },
+    "unique_toolkit.app.init_logging": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.app"
+        ],
+        "name": "unique_toolkit.app.init_logging",
+        "path": null
+    },
+    "unique_toolkit.app.init_sdk": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.app",
+            "unique_toolkit.app.dev_util"
+        ],
+        "imports": [
+            "unique_sdk",
+            "unique_toolkit",
+            "unique_toolkit.app",
+            "unique_toolkit.app.unique_settings"
+        ],
+        "name": "unique_toolkit.app.init_sdk",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/app/init_sdk.py"
+    },
+    "unique_toolkit.app.schemas": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.app",
+            "unique_toolkit.app.verification",
+            "unique_toolkit.chat.service",
+            "unique_toolkit.chat.state",
+            "unique_toolkit.content.service",
+            "unique_toolkit.embedding.service",
+            "unique_toolkit.language_model.service",
+            "unique_toolkit.short_term_memory.service",
+            "unique_toolkit.tools.a2a.manager",
+            "unique_toolkit.tools.mcp.manager",
+            "unique_toolkit.tools.mcp.tool_wrapper",
+            "unique_toolkit.tools.tool",
+            "unique_toolkit.tools.tool_manager"
+        ],
+        "imports": [
+            "humps",
+            "pydantic",
+            "unique_toolkit",
+            "unique_toolkit.smart_rules",
+            "unique_toolkit.smart_rules.compile"
+        ],
+        "name": "unique_toolkit.app.schemas",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/app/schemas.py"
+    },
+    "unique_toolkit.app.unique_settings": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.app.dev_util",
+            "unique_toolkit.app.init_sdk",
+            "unique_toolkit.content.service",
+            "unique_toolkit.embedding.service",
+            "unique_toolkit.framework_utilities.openai.client",
+            "unique_toolkit.framework_utilities.utils",
+            "unique_toolkit.language_model.service"
+        ],
+        "imports": [
+            "platformdirs",
+            "pydantic",
+            "pydantic_settings",
+            "unique_sdk"
+        ],
+        "name": "unique_toolkit.app.unique_settings",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/app/unique_settings.py"
+    },
+    "unique_toolkit.app.verification": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.app"
+        ],
+        "imports": [
+            "pydantic",
+            "unique_sdk",
+            "unique_toolkit",
+            "unique_toolkit.app",
+            "unique_toolkit.app.schemas"
+        ],
+        "name": "unique_toolkit.app.verification",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/app/verification.py"
+    },
+    "unique_toolkit.chat": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit",
+            "unique_toolkit.chat.functions",
+            "unique_toolkit.chat.service",
+            "unique_toolkit.chat.utils",
+            "unique_toolkit.language_model.functions",
+            "unique_toolkit.language_model.reference",
+            "unique_toolkit.tools.tool",
+            "unique_toolkit.tools.tool_progress_reporter"
+        ],
+        "imports": [
+            "unique_toolkit.chat.constants",
+            "unique_toolkit.chat.schemas",
+            "unique_toolkit.chat.service",
+            "unique_toolkit.chat.utils"
+        ],
+        "name": "unique_toolkit.chat",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/chat/__init__.py"
+    },
+    "unique_toolkit.chat.constants": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.chat",
+            "unique_toolkit.chat.functions",
+            "unique_toolkit.chat.service"
+        ],
+        "name": "unique_toolkit.chat.constants",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/chat/constants.py"
+    },
+    "unique_toolkit.chat.functions": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.chat.service"
+        ],
+        "imports": [
+            "unique_sdk",
+            "unique_sdk._list_object",
+            "unique_toolkit",
+            "unique_toolkit.chat",
+            "unique_toolkit.chat.constants",
+            "unique_toolkit.chat.schemas",
+            "unique_toolkit.content",
+            "unique_toolkit.content.schemas",
+            "unique_toolkit.content.utils",
+            "unique_toolkit.language_model",
+            "unique_toolkit.language_model.constants",
+            "unique_toolkit.language_model.functions",
+            "unique_toolkit.language_model.infos",
+            "unique_toolkit.language_model.schemas"
+        ],
+        "name": "unique_toolkit.chat.functions",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/chat/functions.py"
+    },
+    "unique_toolkit.chat.schemas": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.chat",
+            "unique_toolkit.chat.functions",
+            "unique_toolkit.chat.service",
+            "unique_toolkit.chat.utils",
+            "unique_toolkit.language_model.functions",
+            "unique_toolkit.language_model.reference"
+        ],
+        "imports": [
+            "humps",
+            "openai",
+            "openai.types",
+            "openai.types.chat",
+            "openai.types.chat.chat_completion_message_function_tool_call_param",
+            "pydantic",
+            "unique_toolkit",
+            "unique_toolkit.content",
+            "unique_toolkit.content.schemas"
+        ],
+        "name": "unique_toolkit.chat.schemas",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/chat/schemas.py"
+    },
+    "unique_toolkit.chat.service": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.chat",
+            "unique_toolkit.tools.tool",
+            "unique_toolkit.tools.tool_progress_reporter"
+        ],
+        "imports": [
+            "openai",
+            "openai.types",
+            "openai.types.chat",
+            "openai.types.chat.chat_completion_message_param",
+            "unique_toolkit",
+            "unique_toolkit.app",
+            "unique_toolkit.app.schemas",
+            "unique_toolkit.chat",
+            "unique_toolkit.chat.constants",
+            "unique_toolkit.chat.functions",
+            "unique_toolkit.chat.schemas",
+            "unique_toolkit.content",
+            "unique_toolkit.content.schemas",
+            "unique_toolkit.language_model",
+            "unique_toolkit.language_model.constants",
+            "unique_toolkit.language_model.infos",
+            "unique_toolkit.language_model.schemas"
+        ],
+        "name": "unique_toolkit.chat.service",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/chat/service.py"
+    },
+    "unique_toolkit.chat.state": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__"
+        ],
+        "imports": [
+            "unique_toolkit",
+            "unique_toolkit.app",
+            "unique_toolkit.app.schemas"
+        ],
+        "name": "unique_toolkit.chat.state",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/chat/state.py"
+    },
+    "unique_toolkit.chat.utils": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.chat"
+        ],
+        "imports": [
+            "unique_toolkit",
+            "unique_toolkit.chat",
+            "unique_toolkit.chat.schemas",
+            "unique_toolkit.content",
+            "unique_toolkit.content.utils"
+        ],
+        "name": "unique_toolkit.chat.utils",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/chat/utils.py"
+    },
+    "unique_toolkit.content": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit",
+            "unique_toolkit.chat.functions",
+            "unique_toolkit.chat.schemas",
+            "unique_toolkit.chat.service",
+            "unique_toolkit.chat.utils",
+            "unique_toolkit.content.functions",
+            "unique_toolkit.content.service",
+            "unique_toolkit.content.utils",
+            "unique_toolkit.language_model.functions",
+            "unique_toolkit.language_model.reference",
+            "unique_toolkit.language_model.schemas",
+            "unique_toolkit.language_model.service",
+            "unique_toolkit.tools.agent_chunks_hanlder",
+            "unique_toolkit.tools.schemas",
+            "unique_toolkit.tools.tool_progress_reporter",
+            "unique_toolkit.tools.utils.source_handling.source_formatting"
+        ],
+        "imports": [
+            "unique_toolkit.content.constants",
+            "unique_toolkit.content.schemas",
+            "unique_toolkit.content.service",
+            "unique_toolkit.content.utils"
+        ],
+        "name": "unique_toolkit.content",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/content/__init__.py"
+    },
+    "unique_toolkit.content.constants": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.content",
+            "unique_toolkit.content.functions",
+            "unique_toolkit.content.service"
+        ],
+        "name": "unique_toolkit.content.constants",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/content/constants.py"
+    },
+    "unique_toolkit.content.functions": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.content.service"
+        ],
+        "imports": [
+            "requests",
+            "unique_sdk",
+            "unique_toolkit",
+            "unique_toolkit.content",
+            "unique_toolkit.content.constants",
+            "unique_toolkit.content.schemas",
+            "unique_toolkit.content.utils"
+        ],
+        "name": "unique_toolkit.content.functions",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/content/functions.py"
+    },
+    "unique_toolkit.content.schemas": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.chat.functions",
+            "unique_toolkit.chat.schemas",
+            "unique_toolkit.chat.service",
+            "unique_toolkit.content",
+            "unique_toolkit.content.functions",
+            "unique_toolkit.content.service",
+            "unique_toolkit.content.utils",
+            "unique_toolkit.language_model.functions",
+            "unique_toolkit.language_model.reference",
+            "unique_toolkit.language_model.schemas",
+            "unique_toolkit.language_model.service",
+            "unique_toolkit.tools.agent_chunks_hanlder",
+            "unique_toolkit.tools.schemas",
+            "unique_toolkit.tools.tool_progress_reporter",
+            "unique_toolkit.tools.utils.source_handling.source_formatting"
+        ],
+        "imports": [
+            "humps",
+            "pydantic"
+        ],
+        "name": "unique_toolkit.content.schemas",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/content/schemas.py"
+    },
+    "unique_toolkit.content.service": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.content"
+        ],
+        "imports": [
+            "requests",
+            "unique_sdk",
+            "unique_toolkit",
+            "unique_toolkit.app",
+            "unique_toolkit.app.schemas",
+            "unique_toolkit.app.unique_settings",
+            "unique_toolkit.content",
+            "unique_toolkit.content.constants",
+            "unique_toolkit.content.functions",
+            "unique_toolkit.content.schemas"
+        ],
+        "name": "unique_toolkit.content.service",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/content/service.py"
+    },
+    "unique_toolkit.content.utils": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.chat.functions",
+            "unique_toolkit.chat.utils",
+            "unique_toolkit.content",
+            "unique_toolkit.content.functions"
+        ],
+        "imports": [
+            "tiktoken",
+            "unique_sdk",
+            "unique_toolkit",
+            "unique_toolkit.content",
+            "unique_toolkit.content.schemas"
+        ],
+        "name": "unique_toolkit.content.utils",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/content/utils.py"
+    },
+    "unique_toolkit.embedding": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit",
+            "unique_toolkit.embedding.functions",
+            "unique_toolkit.embedding.service"
+        ],
+        "imports": [
+            "unique_toolkit.embedding.constants",
+            "unique_toolkit.embedding.schemas",
+            "unique_toolkit.embedding.service",
+            "unique_toolkit.embedding.utils"
+        ],
+        "name": "unique_toolkit.embedding",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/embedding/__init__.py"
+    },
+    "unique_toolkit.embedding.constants": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.embedding",
+            "unique_toolkit.embedding.functions",
+            "unique_toolkit.embedding.service"
+        ],
+        "name": "unique_toolkit.embedding.constants",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/embedding/constants.py"
+    },
+    "unique_toolkit.embedding.functions": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.embedding.service"
+        ],
+        "imports": [
+            "unique_sdk",
+            "unique_toolkit",
+            "unique_toolkit.embedding",
+            "unique_toolkit.embedding.constants",
+            "unique_toolkit.embedding.schemas"
+        ],
+        "name": "unique_toolkit.embedding.functions",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/embedding/functions.py"
+    },
+    "unique_toolkit.embedding.schemas": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.embedding",
+            "unique_toolkit.embedding.functions",
+            "unique_toolkit.embedding.service"
+        ],
+        "imports": [
+            "pydantic"
+        ],
+        "name": "unique_toolkit.embedding.schemas",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/embedding/schemas.py"
+    },
+    "unique_toolkit.embedding.service": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.embedding"
+        ],
+        "imports": [
+            "unique_toolkit",
+            "unique_toolkit.app",
+            "unique_toolkit.app.schemas",
+            "unique_toolkit.app.unique_settings",
+            "unique_toolkit.embedding",
+            "unique_toolkit.embedding.constants",
+            "unique_toolkit.embedding.functions",
+            "unique_toolkit.embedding.schemas"
+        ],
+        "name": "unique_toolkit.embedding.service",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/embedding/service.py"
+    },
+    "unique_toolkit.embedding.utils": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.embedding"
+        ],
+        "imports": [
+            "numpy"
+        ],
+        "name": "unique_toolkit.embedding.utils",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/embedding/utils.py"
+    },
+    "unique_toolkit.framework_utilities": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.framework_utilities.openai.client"
+        ],
+        "name": "unique_toolkit.framework_utilities",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/framework_utilities/__init__.py"
+    },
+    "unique_toolkit.framework_utilities.openai": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__"
+        ],
+        "imports": [
+            "unique_toolkit.framework_utilities.openai.client",
+            "unique_toolkit.framework_utilities.openai.message_builder"
+        ],
+        "name": "unique_toolkit.framework_utilities.openai",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/framework_utilities/openai/__init__.py"
+    },
+    "unique_toolkit.framework_utilities.openai.client": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.framework_utilities.openai"
+        ],
+        "imports": [
+            "openai",
+            "unique_toolkit",
+            "unique_toolkit.app",
+            "unique_toolkit.app.unique_settings",
+            "unique_toolkit.framework_utilities",
+            "unique_toolkit.framework_utilities.utils"
+        ],
+        "name": "unique_toolkit.framework_utilities.openai.client",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/framework_utilities/openai/client.py"
+    },
+    "unique_toolkit.framework_utilities.openai.message_builder": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.framework_utilities.openai"
+        ],
+        "imports": [
+            "openai",
+            "openai.types",
+            "openai.types.chat",
+            "openai.types.chat.chat_completion_assistant_message_param",
+            "openai.types.chat.chat_completion_content_part_param",
+            "openai.types.chat.chat_completion_content_part_text_param",
+            "openai.types.chat.chat_completion_developer_message_param",
+            "openai.types.chat.chat_completion_function_message_param",
+            "openai.types.chat.chat_completion_message_param",
+            "openai.types.chat.chat_completion_message_tool_call_param",
+            "openai.types.chat.chat_completion_system_message_param",
+            "openai.types.chat.chat_completion_tool_message_param",
+            "openai.types.chat.chat_completion_user_message_param"
+        ],
+        "name": "unique_toolkit.framework_utilities.openai.message_builder",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/framework_utilities/openai/message_builder.py"
+    },
+    "unique_toolkit.framework_utilities.utils": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.framework_utilities.openai.client"
+        ],
+        "imports": [
+            "unique_toolkit",
+            "unique_toolkit.app",
+            "unique_toolkit.app.unique_settings"
+        ],
+        "name": "unique_toolkit.framework_utilities.utils",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/framework_utilities/utils.py"
+    },
+    "unique_toolkit.language_model": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit",
+            "unique_toolkit.chat.functions",
+            "unique_toolkit.chat.service",
+            "unique_toolkit.language_model.builder",
+            "unique_toolkit.language_model.functions",
+            "unique_toolkit.language_model.infos",
+            "unique_toolkit.language_model.prompt",
+            "unique_toolkit.language_model.schemas",
+            "unique_toolkit.language_model.service",
+            "unique_toolkit.tools.a2a.service",
+            "unique_toolkit.tools.mcp.tool_wrapper",
+            "unique_toolkit.tools.tool",
+            "unique_toolkit.tools.tool_manager",
+            "unique_toolkit.tools.tool_progress_reporter"
+        ],
+        "imports": [
+            "unique_toolkit.language_model.constants",
+            "unique_toolkit.language_model.infos",
+            "unique_toolkit.language_model.prompt",
+            "unique_toolkit.language_model.schemas",
+            "unique_toolkit.language_model.service",
+            "unique_toolkit.language_model.utils"
+        ],
+        "name": "unique_toolkit.language_model",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/language_model/__init__.py"
+    },
+    "unique_toolkit.language_model.builder": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.language_model.schemas"
+        ],
+        "imports": [
+            "unique_toolkit",
+            "unique_toolkit.language_model"
+        ],
+        "name": "unique_toolkit.language_model.builder",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/language_model/builder.py"
+    },
+    "unique_toolkit.language_model.constants": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.chat.functions",
+            "unique_toolkit.chat.service",
+            "unique_toolkit.language_model",
+            "unique_toolkit.language_model.functions",
+            "unique_toolkit.language_model.service"
+        ],
+        "name": "unique_toolkit.language_model.constants",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/language_model/constants.py"
+    },
+    "unique_toolkit.language_model.functions": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.chat.functions",
+            "unique_toolkit.language_model.service"
+        ],
+        "imports": [
+            "humps",
+            "openai",
+            "openai.types",
+            "openai.types.chat",
+            "openai.types.chat.chat_completion_message_param",
+            "pydantic",
+            "unique_sdk",
+            "unique_toolkit",
+            "unique_toolkit.chat",
+            "unique_toolkit.chat.schemas",
+            "unique_toolkit.content",
+            "unique_toolkit.content.schemas",
+            "unique_toolkit.language_model",
+            "unique_toolkit.language_model.constants",
+            "unique_toolkit.language_model.infos",
+            "unique_toolkit.language_model.reference"
+        ],
+        "name": "unique_toolkit.language_model.functions",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/language_model/functions.py"
+    },
+    "unique_toolkit.language_model.infos": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.chat.functions",
+            "unique_toolkit.chat.service",
+            "unique_toolkit.language_model",
+            "unique_toolkit.language_model.functions",
+            "unique_toolkit.language_model.service"
+        ],
+        "imports": [
+            "pydantic",
+            "pydantic.json_schema",
+            "unique_toolkit",
+            "unique_toolkit.language_model",
+            "unique_toolkit.language_model.schemas"
+        ],
+        "name": "unique_toolkit.language_model.infos",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/language_model/infos.py"
+    },
+    "unique_toolkit.language_model.prompt": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.language_model"
+        ],
+        "imports": [
+            "unique_toolkit",
+            "unique_toolkit.language_model",
+            "unique_toolkit.language_model.schemas"
+        ],
+        "name": "unique_toolkit.language_model.prompt",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/language_model/prompt.py"
+    },
+    "unique_toolkit.language_model.reference": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.language_model.functions"
+        ],
+        "imports": [
+            "unique_toolkit",
+            "unique_toolkit.chat",
+            "unique_toolkit.chat.schemas",
+            "unique_toolkit.content",
+            "unique_toolkit.content.schemas"
+        ],
+        "name": "unique_toolkit.language_model.reference",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/language_model/reference.py"
+    },
+    "unique_toolkit.language_model.schemas": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.chat.functions",
+            "unique_toolkit.chat.service",
+            "unique_toolkit.language_model",
+            "unique_toolkit.language_model.infos",
+            "unique_toolkit.language_model.prompt",
+            "unique_toolkit.language_model.service",
+            "unique_toolkit.tools.mcp.tool_wrapper",
+            "unique_toolkit.tools.tool",
+            "unique_toolkit.tools.tool_manager",
+            "unique_toolkit.tools.tool_progress_reporter"
+        ],
+        "imports": [
+            "humps",
+            "openai",
+            "openai.types",
+            "openai.types.chat",
+            "openai.types.chat.chat_completion_message_function_tool_call_param",
+            "openai.types.chat.chat_completion_tool_param",
+            "openai.types.shared_params",
+            "openai.types.shared_params.function_definition",
+            "pydantic",
+            "unique_toolkit",
+            "unique_toolkit.content",
+            "unique_toolkit.content.schemas",
+            "unique_toolkit.language_model",
+            "unique_toolkit.language_model.builder",
+            "unique_toolkit.language_model.utils"
+        ],
+        "name": "unique_toolkit.language_model.schemas",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/language_model/schemas.py"
+    },
+    "unique_toolkit.language_model.service": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.language_model",
+            "unique_toolkit.tools.tool"
+        ],
+        "imports": [
+            "pydantic",
+            "unique_toolkit",
+            "unique_toolkit.app",
+            "unique_toolkit.app.schemas",
+            "unique_toolkit.app.unique_settings",
+            "unique_toolkit.content",
+            "unique_toolkit.content.schemas",
+            "unique_toolkit.language_model",
+            "unique_toolkit.language_model.constants",
+            "unique_toolkit.language_model.functions",
+            "unique_toolkit.language_model.infos",
+            "unique_toolkit.language_model.schemas"
+        ],
+        "name": "unique_toolkit.language_model.service",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/language_model/service.py"
+    },
+    "unique_toolkit.language_model.utils": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.language_model",
+            "unique_toolkit.language_model.schemas"
+        ],
+        "name": "unique_toolkit.language_model.utils",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/language_model/utils.py"
+    },
+    "unique_toolkit.short_term_memory": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit",
+            "unique_toolkit.short_term_memory.functions",
+            "unique_toolkit.short_term_memory.persistent_short_term_memory_manager",
+            "unique_toolkit.short_term_memory.service",
+            "unique_toolkit.tools.a2a.memory"
+        ],
+        "imports": [
+            "unique_toolkit.short_term_memory.constants",
+            "unique_toolkit.short_term_memory.schemas",
+            "unique_toolkit.short_term_memory.service"
+        ],
+        "name": "unique_toolkit.short_term_memory",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/short_term_memory/__init__.py"
+    },
+    "unique_toolkit.short_term_memory.constants": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.short_term_memory",
+            "unique_toolkit.short_term_memory.functions"
+        ],
+        "name": "unique_toolkit.short_term_memory.constants",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/short_term_memory/constants.py"
+    },
+    "unique_toolkit.short_term_memory.functions": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.short_term_memory.service"
+        ],
+        "imports": [
+            "unique_sdk",
+            "unique_toolkit",
+            "unique_toolkit.short_term_memory",
+            "unique_toolkit.short_term_memory.constants",
+            "unique_toolkit.short_term_memory.schemas"
+        ],
+        "name": "unique_toolkit.short_term_memory.functions",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/short_term_memory/functions.py"
+    },
+    "unique_toolkit.short_term_memory.persistent_short_term_memory_manager": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.tools.a2a.memory"
+        ],
+        "imports": [
+            "pydantic",
+            "unique_toolkit",
+            "unique_toolkit.short_term_memory",
+            "unique_toolkit.short_term_memory.schemas",
+            "unique_toolkit.short_term_memory.service",
+            "unique_toolkit.tools",
+            "unique_toolkit.tools.utils",
+            "unique_toolkit.tools.utils.execution",
+            "unique_toolkit.tools.utils.execution.execution"
+        ],
+        "name": "unique_toolkit.short_term_memory.persistent_short_term_memory_manager",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/short_term_memory/persistent_short_term_memory_manager.py"
+    },
+    "unique_toolkit.short_term_memory.schemas": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.short_term_memory",
+            "unique_toolkit.short_term_memory.functions",
+            "unique_toolkit.short_term_memory.persistent_short_term_memory_manager",
+            "unique_toolkit.short_term_memory.service"
+        ],
+        "imports": [
+            "humps",
+            "pydantic"
+        ],
+        "name": "unique_toolkit.short_term_memory.schemas",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/short_term_memory/schemas.py"
+    },
+    "unique_toolkit.short_term_memory.service": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.short_term_memory",
+            "unique_toolkit.short_term_memory.persistent_short_term_memory_manager"
+        ],
+        "imports": [
+            "unique_toolkit",
+            "unique_toolkit.app",
+            "unique_toolkit.app.schemas",
+            "unique_toolkit.short_term_memory",
+            "unique_toolkit.short_term_memory.functions",
+            "unique_toolkit.short_term_memory.schemas"
+        ],
+        "name": "unique_toolkit.short_term_memory.service",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/short_term_memory/service.py"
+    },
+    "unique_toolkit.smart_rules": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.app.schemas"
+        ],
+        "name": "unique_toolkit.smart_rules",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/smart_rules/__init__.py"
+    },
+    "unique_toolkit.smart_rules.compile": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.app.schemas"
+        ],
+        "imports": [
+            "pydantic",
+            "pydantic.config"
+        ],
+        "name": "unique_toolkit.smart_rules.compile",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/smart_rules/compile.py"
+    },
+    "unique_toolkit.tools": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.short_term_memory.persistent_short_term_memory_manager",
+            "unique_toolkit.tools.a2a",
+            "unique_toolkit.tools.a2a.config",
+            "unique_toolkit.tools.a2a.manager",
+            "unique_toolkit.tools.a2a.memory",
+            "unique_toolkit.tools.a2a.schema",
+            "unique_toolkit.tools.a2a.service",
+            "unique_toolkit.tools.config",
+            "unique_toolkit.tools.factory",
+            "unique_toolkit.tools.mcp.manager",
+            "unique_toolkit.tools.mcp.models",
+            "unique_toolkit.tools.mcp.tool_wrapper",
+            "unique_toolkit.tools.schemas",
+            "unique_toolkit.tools.tool",
+            "unique_toolkit.tools.tool_manager",
+            "unique_toolkit.tools.utils.source_handling.schema",
+            "unique_toolkit.tools.utils.source_handling.source_formatting"
+        ],
+        "name": "unique_toolkit.tools",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/tools/__init__.py"
+    },
+    "unique_toolkit.tools.a2a": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.tools.a2a",
+            "unique_toolkit.tools.a2a.manager",
+            "unique_toolkit.tools.a2a.memory",
+            "unique_toolkit.tools.a2a.service",
+            "unique_toolkit.tools.tool_manager"
+        ],
+        "imports": [
+            "unique_toolkit",
+            "unique_toolkit.tools",
+            "unique_toolkit.tools.a2a",
+            "unique_toolkit.tools.a2a.config",
+            "unique_toolkit.tools.a2a.service"
+        ],
+        "name": "unique_toolkit.tools.a2a",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/tools/a2a/__init__.py"
+    },
+    "unique_toolkit.tools.a2a.config": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.tools.a2a",
+            "unique_toolkit.tools.a2a.manager",
+            "unique_toolkit.tools.a2a.service"
+        ],
+        "imports": [
+            "unique_toolkit",
+            "unique_toolkit.tools",
+            "unique_toolkit.tools.config",
+            "unique_toolkit.tools.schemas"
+        ],
+        "name": "unique_toolkit.tools.a2a.config",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/tools/a2a/config.py"
+    },
+    "unique_toolkit.tools.a2a.manager": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.tools.tool_manager"
+        ],
+        "imports": [
+            "unique_toolkit",
+            "unique_toolkit.app",
+            "unique_toolkit.app.schemas",
+            "unique_toolkit.tools",
+            "unique_toolkit.tools.a2a",
+            "unique_toolkit.tools.a2a.config",
+            "unique_toolkit.tools.a2a.service",
+            "unique_toolkit.tools.config",
+            "unique_toolkit.tools.schemas",
+            "unique_toolkit.tools.tool"
+        ],
+        "name": "unique_toolkit.tools.a2a.manager",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/tools/a2a/manager.py"
+    },
+    "unique_toolkit.tools.a2a.memory": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.tools.a2a.service"
+        ],
+        "imports": [
+            "unique_toolkit",
+            "unique_toolkit.short_term_memory",
+            "unique_toolkit.short_term_memory.persistent_short_term_memory_manager",
+            "unique_toolkit.tools",
+            "unique_toolkit.tools.a2a",
+            "unique_toolkit.tools.a2a.schema"
+        ],
+        "name": "unique_toolkit.tools.a2a.memory",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/tools/a2a/memory.py"
+    },
+    "unique_toolkit.tools.a2a.schema": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.tools.a2a.memory",
+            "unique_toolkit.tools.a2a.service"
+        ],
+        "imports": [
+            "pydantic",
+            "unique_toolkit",
+            "unique_toolkit.tools",
+            "unique_toolkit.tools.schemas"
+        ],
+        "name": "unique_toolkit.tools.a2a.schema",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/tools/a2a/schema.py"
+    },
+    "unique_toolkit.tools.a2a.service": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.tools.a2a",
+            "unique_toolkit.tools.a2a.manager"
+        ],
+        "imports": [
+            "pydantic",
+            "unique_sdk",
+            "unique_toolkit",
+            "unique_toolkit.app",
+            "unique_toolkit.language_model",
+            "unique_toolkit.tools",
+            "unique_toolkit.tools.a2a",
+            "unique_toolkit.tools.a2a.config",
+            "unique_toolkit.tools.a2a.memory",
+            "unique_toolkit.tools.a2a.schema",
+            "unique_toolkit.tools.factory",
+            "unique_toolkit.tools.schemas",
+            "unique_toolkit.tools.tool",
+            "unique_toolkit.tools.tool_progress_reporter"
+        ],
+        "name": "unique_toolkit.tools.a2a.service",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/tools/a2a/service.py"
+    },
+    "unique_toolkit.tools.agent_chunks_hanlder": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.tools.tool"
+        ],
+        "imports": [
+            "unique_toolkit",
+            "unique_toolkit.content",
+            "unique_toolkit.content.schemas"
+        ],
+        "name": "unique_toolkit.tools.agent_chunks_hanlder",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/tools/agent_chunks_hanlder.py"
+    },
+    "unique_toolkit.tools.config": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.tools.a2a.config",
+            "unique_toolkit.tools.a2a.manager",
+            "unique_toolkit.tools.factory",
+            "unique_toolkit.tools.mcp.manager",
+            "unique_toolkit.tools.schemas",
+            "unique_toolkit.tools.tool",
+            "unique_toolkit.tools.tool_manager",
+            "unique_toolkit.tools.utils.source_handling.schema"
+        ],
+        "imports": [
+            "humps",
+            "pydantic",
+            "pydantic.alias_generators",
+            "pydantic.fields",
+            "unique_toolkit",
+            "unique_toolkit.tools",
+            "unique_toolkit.tools.factory",
+            "unique_toolkit.tools.mcp",
+            "unique_toolkit.tools.mcp.models",
+            "unique_toolkit.tools.schemas"
+        ],
+        "name": "unique_toolkit.tools.config",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/tools/config.py"
+    },
+    "unique_toolkit.tools.factory": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.tools.a2a.service",
+            "unique_toolkit.tools.config",
+            "unique_toolkit.tools.tool_manager"
+        ],
+        "imports": [
+            "unique_toolkit",
+            "unique_toolkit.tools",
+            "unique_toolkit.tools.config",
+            "unique_toolkit.tools.schemas",
+            "unique_toolkit.tools.tool"
+        ],
+        "name": "unique_toolkit.tools.factory",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/tools/factory.py"
+    },
+    "unique_toolkit.tools.mcp": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.tools.config",
+            "unique_toolkit.tools.mcp.manager",
+            "unique_toolkit.tools.mcp.tool_wrapper",
+            "unique_toolkit.tools.tool_manager"
+        ],
+        "imports": [
+            "unique_toolkit.tools.mcp.models",
+            "unique_toolkit.tools.mcp.tool_wrapper"
+        ],
+        "name": "unique_toolkit.tools.mcp",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/tools/mcp/__init__.py"
+    },
+    "unique_toolkit.tools.mcp.manager": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.tools.tool_manager"
+        ],
+        "imports": [
+            "unique_toolkit",
+            "unique_toolkit.app",
+            "unique_toolkit.app.schemas",
+            "unique_toolkit.tools",
+            "unique_toolkit.tools.config",
+            "unique_toolkit.tools.mcp",
+            "unique_toolkit.tools.mcp.models",
+            "unique_toolkit.tools.mcp.tool_wrapper",
+            "unique_toolkit.tools.schemas",
+            "unique_toolkit.tools.tool",
+            "unique_toolkit.tools.tool_progress_reporter"
+        ],
+        "name": "unique_toolkit.tools.mcp.manager",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/tools/mcp/manager.py"
+    },
+    "unique_toolkit.tools.mcp.models": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.tools.config",
+            "unique_toolkit.tools.mcp",
+            "unique_toolkit.tools.mcp.manager",
+            "unique_toolkit.tools.mcp.tool_wrapper"
+        ],
+        "imports": [
+            "unique_toolkit",
+            "unique_toolkit.tools",
+            "unique_toolkit.tools.schemas"
+        ],
+        "name": "unique_toolkit.tools.mcp.models",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/tools/mcp/models.py"
+    },
+    "unique_toolkit.tools.mcp.tool_wrapper": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.tools.mcp",
+            "unique_toolkit.tools.mcp.manager"
+        ],
+        "imports": [
+            "pydantic",
+            "unique_sdk",
+            "unique_toolkit",
+            "unique_toolkit.app",
+            "unique_toolkit.app.schemas",
+            "unique_toolkit.language_model",
+            "unique_toolkit.language_model.schemas",
+            "unique_toolkit.tools",
+            "unique_toolkit.tools.mcp",
+            "unique_toolkit.tools.mcp.models",
+            "unique_toolkit.tools.schemas",
+            "unique_toolkit.tools.tool",
+            "unique_toolkit.tools.tool_progress_reporter"
+        ],
+        "name": "unique_toolkit.tools.mcp.tool_wrapper",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/tools/mcp/tool_wrapper.py"
+    },
+    "unique_toolkit.tools.schemas": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.tools.a2a.config",
+            "unique_toolkit.tools.a2a.manager",
+            "unique_toolkit.tools.a2a.schema",
+            "unique_toolkit.tools.a2a.service",
+            "unique_toolkit.tools.config",
+            "unique_toolkit.tools.factory",
+            "unique_toolkit.tools.mcp.manager",
+            "unique_toolkit.tools.mcp.models",
+            "unique_toolkit.tools.mcp.tool_wrapper",
+            "unique_toolkit.tools.tool",
+            "unique_toolkit.tools.tool_manager"
+        ],
+        "imports": [
+            "pydantic",
+            "unique_toolkit",
+            "unique_toolkit.content",
+            "unique_toolkit.content.schemas",
+            "unique_toolkit.tools",
+            "unique_toolkit.tools.config",
+            "unique_toolkit.tools.utils",
+            "unique_toolkit.tools.utils.source_handling",
+            "unique_toolkit.tools.utils.source_handling.schema"
+        ],
+        "name": "unique_toolkit.tools.schemas",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/tools/schemas.py"
+    },
+    "unique_toolkit.tools.tool": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.tools.a2a.manager",
+            "unique_toolkit.tools.a2a.service",
+            "unique_toolkit.tools.factory",
+            "unique_toolkit.tools.mcp.manager",
+            "unique_toolkit.tools.mcp.tool_wrapper",
+            "unique_toolkit.tools.tool_manager"
+        ],
+        "imports": [
+            "unique_toolkit",
+            "unique_toolkit.app",
+            "unique_toolkit.app.schemas",
+            "unique_toolkit.chat",
+            "unique_toolkit.chat.service",
+            "unique_toolkit.language_model",
+            "unique_toolkit.language_model.schemas",
+            "unique_toolkit.language_model.service",
+            "unique_toolkit.tools",
+            "unique_toolkit.tools.agent_chunks_hanlder",
+            "unique_toolkit.tools.config",
+            "unique_toolkit.tools.schemas",
+            "unique_toolkit.tools.tool_progress_reporter"
+        ],
+        "name": "unique_toolkit.tools.tool",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/tools/tool.py"
+    },
+    "unique_toolkit.tools.tool_manager": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__"
+        ],
+        "imports": [
+            "pydantic",
+            "unique_toolkit",
+            "unique_toolkit.app",
+            "unique_toolkit.app.schemas",
+            "unique_toolkit.language_model",
+            "unique_toolkit.language_model.schemas",
+            "unique_toolkit.tools",
+            "unique_toolkit.tools.a2a",
+            "unique_toolkit.tools.a2a.manager",
+            "unique_toolkit.tools.config",
+            "unique_toolkit.tools.factory",
+            "unique_toolkit.tools.mcp",
+            "unique_toolkit.tools.mcp.manager",
+            "unique_toolkit.tools.schemas",
+            "unique_toolkit.tools.tool",
+            "unique_toolkit.tools.tool_progress_reporter",
+            "unique_toolkit.tools.utils",
+            "unique_toolkit.tools.utils.execution",
+            "unique_toolkit.tools.utils.execution.execution"
+        ],
+        "name": "unique_toolkit.tools.tool_manager",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/tools/tool_manager.py"
+    },
+    "unique_toolkit.tools.tool_progress_reporter": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.tools.a2a.service",
+            "unique_toolkit.tools.mcp.manager",
+            "unique_toolkit.tools.mcp.tool_wrapper",
+            "unique_toolkit.tools.tool",
+            "unique_toolkit.tools.tool_manager"
+        ],
+        "imports": [
+            "pydantic",
+            "unique_toolkit",
+            "unique_toolkit.chat",
+            "unique_toolkit.chat.service",
+            "unique_toolkit.content",
+            "unique_toolkit.content.schemas",
+            "unique_toolkit.language_model",
+            "unique_toolkit.language_model.schemas"
+        ],
+        "name": "unique_toolkit.tools.tool_progress_reporter",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/tools/tool_progress_reporter.py"
+    },
+    "unique_toolkit.tools.utils": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.short_term_memory.persistent_short_term_memory_manager",
+            "unique_toolkit.tools.schemas",
+            "unique_toolkit.tools.tool_manager",
+            "unique_toolkit.tools.utils.source_handling.source_formatting"
+        ],
+        "name": "unique_toolkit.tools.utils",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/tools/utils/__init__.py"
+    },
+    "unique_toolkit.tools.utils.execution": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.short_term_memory.persistent_short_term_memory_manager",
+            "unique_toolkit.tools.tool_manager"
+        ],
+        "name": "unique_toolkit.tools.utils.execution",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/tools/utils/execution/__init__.py"
+    },
+    "unique_toolkit.tools.utils.execution.execution": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.short_term_memory.persistent_short_term_memory_manager",
+            "unique_toolkit.tools.tool_manager"
+        ],
+        "name": "unique_toolkit.tools.utils.execution.execution",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/tools/utils/execution/execution.py"
+    },
+    "unique_toolkit.tools.utils.source_handling": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.tools.schemas",
+            "unique_toolkit.tools.utils.source_handling.source_formatting"
+        ],
+        "name": "unique_toolkit.tools.utils.source_handling",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/tools/utils/source_handling/__init__.py"
+    },
+    "unique_toolkit.tools.utils.source_handling.schema": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__",
+            "unique_toolkit.tools.schemas",
+            "unique_toolkit.tools.utils.source_handling.source_formatting"
+        ],
+        "imports": [
+            "pydantic",
+            "unique_toolkit",
+            "unique_toolkit.tools",
+            "unique_toolkit.tools.config"
+        ],
+        "name": "unique_toolkit.tools.utils.source_handling.schema",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/tools/utils/source_handling/schema.py"
+    },
+    "unique_toolkit.tools.utils.source_handling.source_formatting": {
+        "bacon": 1,
+        "imported_by": [
+            "__main__"
+        ],
+        "imports": [
+            "unique_toolkit",
+            "unique_toolkit.content",
+            "unique_toolkit.content.schemas",
+            "unique_toolkit.tools",
+            "unique_toolkit.tools.utils",
+            "unique_toolkit.tools.utils.source_handling",
+            "unique_toolkit.tools.utils.source_handling.schema"
+        ],
+        "name": "unique_toolkit.tools.utils.source_handling.source_formatting",
+        "path": "/Users/cedric/Projects/unique/ai/unique_toolkit/unique_toolkit/tools/utils/source_handling/source_formatting.py"
+    }
+}
