@@ -6,8 +6,11 @@ on:
     # Both conditions must be met (AND logic):
     # 1. Push must be to main branch
     # 2. Push must include changes to unique_toolkit/** files
+    # 3. Exclude docs-only and mkdocs config changes to avoid unnecessary publishes
     paths:
       - 'unique_toolkit/**'
+      - '!unique_toolkit/**/docs/**'
+      - '!unique_toolkit/**/mkdocs.yaml'
     branches:
       - main
 
@@ -41,10 +44,22 @@ jobs:
     - name: Build Package
       working-directory: ${{ env.PACKAGE_DIR }}
       run: poetry build
-    
-    - name: Publish to PyPI
+
+    - name: Check version and publish to PyPI
       working-directory: ${{ env.PACKAGE_DIR }}
-      run: poetry publish
+      run: |
+        CURRENT_VERSION=$(poetry version -s)
+        LATEST_VERSION=$(curl -s https://pypi.org/pypi/${{ env.PACKAGE_NAME }}/json | jq -r '.info.version' 2>/dev/null || echo "0.0.0")
+        if [ "$LATEST_VERSION" = "null" ]; then
+          LATEST_VERSION="0.0.0"
+        fi
+        
+        if [ "$CURRENT_VERSION" = "$LATEST_VERSION" ]; then
+          echo "Version $CURRENT_VERSION already exists on PyPI. Skipping publish."
+        else
+          echo "New version detected. Publishing $CURRENT_VERSION to PyPI..."
+          poetry publish
+        fi
       env:
         POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_TOKEN }}
     

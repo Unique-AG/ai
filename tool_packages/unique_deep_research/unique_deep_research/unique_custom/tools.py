@@ -18,7 +18,7 @@ from unique_toolkit.content import ContentReference
 from unique_toolkit.content.schemas import ContentSearchType
 from unique_toolkit.history_manager.utils import transform_chunks_to_string
 from unique_web_search.client_settings import get_google_search_settings
-from unique_web_search.services.preprocessing.crawlers.basic import (
+from unique_web_search.services.crawlers.basic import (
     BasicCrawler,
     BasicCrawlerConfig,
 )
@@ -164,7 +164,7 @@ async def web_search(query: str, config: RunnableConfig, limit: int = 10) -> str
     search_results = await google_search.search(query)
 
     if not search_results:
-        logger.warning(f"No search results found for: {query}")
+        logger.warning("No search results found for query")
         return f"No search results found for query: '{query}'"
 
     # Format results for LangGraph

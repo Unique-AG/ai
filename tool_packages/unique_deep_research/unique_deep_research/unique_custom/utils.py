@@ -9,7 +9,12 @@ import logging
 from typing import Any, Dict, List, Optional, Sequence, Union
 
 import tiktoken
-from langchain_core.messages import AIMessage, BaseMessage, MessageLikeRepresentation
+from langchain_core.messages import (
+    AIMessage,
+    BaseMessage,
+    MessageLikeRepresentation,
+    filter_messages,
+)
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import BaseTool
 from unique_toolkit.chat.schemas import (
@@ -22,7 +27,7 @@ from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
 from ..config import UniqueCustomEngineConfig
-from .state import CustomAgentState, CustomResearcherState, CustomSupervisorState
+from .state import AgentState, ResearcherState, SupervisorState
 
 logger = logging.getLogger(__name__)
 
@@ -253,7 +258,7 @@ def write_tool_message_log(
 
 
 def write_state_message_log(
-    state: Union[CustomAgentState, CustomSupervisorState, CustomResearcherState],
+    state: Union[AgentState, SupervisorState, ResearcherState],
     text: Optional[str] = None,
     status: MessageLogStatus = MessageLogStatus.COMPLETED,
     details: Optional[MessageLogDetails] = None,
@@ -379,3 +384,22 @@ def remove_up_to_last_ai_message(
 
     # No AI messages found, return original list
     return list(messages)
+
+
+def get_notes_from_tool_calls(messages: List[MessageLikeRepresentation]) -> List[str]:
+    """
+    Extract notes from tool call messages.
+
+    This function filters messages to find tool messages and extracts their content
+    as notes, following the pattern from open_deep_research.
+
+    Args:
+        messages: List of messages to extract tool call content from
+
+    Returns:
+        List of strings containing tool call content
+    """
+    return [
+        str(tool_msg.content)
+        for tool_msg in filter_messages(messages, include_types=["tool"])
+    ]

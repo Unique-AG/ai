@@ -12,11 +12,9 @@ from typing import Any, Dict, Literal, Union
 from langchain.chat_models import init_chat_model
 from langchain_core.messages import (
     AIMessage,
-    BaseMessage,
     HumanMessage,
     SystemMessage,
     ToolMessage,
-    filter_messages,
     get_buffer_string,
 )
 from langchain_core.runnables import RunnableConfig
@@ -27,15 +25,25 @@ from unique_toolkit.framework_utilities.utils import get_default_headers
 
 from ..config import TEMPLATE_ENV
 from .state import (
-    CustomAgentState,
-    CustomResearcherOutputState,
-    CustomResearcherState,
-    CustomSupervisorState,
+    AgentState,
+    ResearcherOutputState,
+    ResearcherState,
+    SupervisorState,
 )
-from .tools import get_research_tools, get_supervisor_tools, get_today_str, think_tool
+from .tools import (
+    get_research_tools,
+    get_supervisor_tools,
+    get_today_str,
+    internal_fetch,
+    internal_search,
+    think_tool,
+    web_fetch,
+    web_search,
+)
 from .utils import (
     execute_tool_safely,
     get_custom_engine_config,
+    get_notes_from_tool_calls,
     is_token_error,
     remove_up_to_last_ai_message,
     write_state_message_log,
@@ -56,7 +64,7 @@ configurable_model = init_chat_model(
 
 
 async def setup_research_supervisor(
-    state: CustomAgentState, config: RunnableConfig
+    state: AgentState, config: RunnableConfig
 ) -> Command[Literal["research_supervisor"]]:
     """
     Setup the research supervisor with the pre-generated research brief.
@@ -99,12 +107,12 @@ async def setup_research_supervisor(
 
 
 async def research_supervisor(
-    state: CustomSupervisorState, config: RunnableConfig
+    state: SupervisorState, config: RunnableConfig
 ) -> Command[Literal["supervisor_tools"]]:
     """
     Lead research supervisor that plans research strategy and delegates to researchers.
     """
-    logger.info("Planning research strategy...")
+    logger.info("Research supervisor determining next steps")
 
     # Configure the supervisor model with tools
     custom_config = get_custom_engine_config(config)
@@ -137,8 +145,8 @@ async def research_supervisor(
 
 
 async def supervisor_tools(
-    state: CustomSupervisorState, config: RunnableConfig
-) -> Command[Literal["research_supervisor", "__end__"]]:
+    state: SupervisorState, config: RunnableConfig
+) -> Command[Literal["research_supervisor", "researcher_subgraph", "__end__"]]:
     """
     Execute tools called by the supervisor.
     """
@@ -151,23 +159,14 @@ async def supervisor_tools(
     max_iterations = custom_config.max_research_iterations
     exceeded_iterations = research_iterations > max_iterations
 
-    no_tool_calls = True
-    research_complete_called = False
-
+    # Extract tool calls if available
+    tool_calls = []
     if most_recent_message and isinstance(most_recent_message, AIMessage):
         tool_calls = most_recent_message.tool_calls or []
-        no_tool_calls = not tool_calls
-        research_complete_called = any(
-            tool_call.get("name") == "ResearchComplete" for tool_call in tool_calls
-        )
 
-    if exceeded_iterations or no_tool_calls or research_complete_called:
-        # Extract notes from all supervisor messages for final report
-        notes = []
-        for msg in supervisor_messages:
-            if isinstance(msg, BaseMessage) and msg.content:
-                notes.append(msg.content)
-
+    # Early exit if no tool calls at all
+    if not tool_calls:
+        notes = get_notes_from_tool_calls(supervisor_messages)
         return Command(
             goto="__end__",
             update={
@@ -179,51 +178,62 @@ async def supervisor_tools(
     # TOOL CALL HANDLERS
     all_tool_messages = []
 
-    if (
-        most_recent_message
-        and isinstance(most_recent_message, AIMessage)
-        and most_recent_message.tool_calls
-    ):
-        # Collect tool calls by type
-        think_tool_calls = [tc for tc in tool_calls if tc.get("name") == "think_tool"]
-        conduct_research_calls = [
-            tc for tc in tool_calls if tc.get("name") == "ConductResearch"
-        ]
-        unknown_tool_calls = [
-            tc
-            for tc in tool_calls
-            if tc.get("name") not in ["think_tool", "ConductResearch"]
-        ]
+    think_tool_calls = [tc for tc in tool_calls if tc.get("name") == "think_tool"]
+    conduct_research_calls = [
+        tc for tc in tool_calls if tc.get("name") == "ConductResearch"
+    ]
 
-        # Handle think_tool calls
-        for tool_call in think_tool_calls:
-            all_tool_messages.append(_handle_think_tool(tool_call))
+    research_complete_calls = [
+        tc for tc in tool_calls if tc.get("name") == "ResearchComplete"
+    ]
 
-        try:
-            research_tool_messages = await _handle_conduct_research_batch(
-                conduct_research_calls, state, config, custom_config
-            )
-            all_tool_messages.extend(research_tool_messages)
-        except Exception as e:
-            logger.error(f"Research execution failed: {e}")
-            return Command(
-                goto="__end__",
-                update={
-                    "notes": [f"Research failed due to error: {e}"],
-                    "research_brief": state.get("research_brief", ""),
-                },
-            )
+    if len(research_complete_calls) > 0 and len(tool_calls) > 1:
+        logger.warning("ResearchComplete called when there are other tool calls")
+        # TODO: consider if we remove the other tool calls
 
-        # Unknown tool calls
-        for tool_call in unknown_tool_calls:
-            logger.error(f"Unknown tool: {tool_call.get('name', 'unnamed')}")
-            all_tool_messages.append(
-                ToolMessage(
-                    content=f"Unknown tool: {tool_call.get('name', 'unnamed')}",
-                    name=tool_call.get("name", "unknown"),
-                    tool_call_id=tool_call.get("id", "unknown"),
-                )
-            )
+    # Process all tool calls to ensure answers to tool calls are in history
+
+    # 1. think_tool calls
+    for tool_call in think_tool_calls:
+        all_tool_messages.append(_handle_think_tool(tool_call))
+
+    # 2. ConductResearch calls
+    try:
+        research_tool_messages = await _handle_conduct_research_batch(
+            conduct_research_calls, state, config, custom_config
+        )
+        all_tool_messages.extend(research_tool_messages)
+
+    except Exception as e:
+        logger.error(f"Research execution failed: {e}")
+        return Command(
+            goto="__end__",
+            update={
+                "supervisor_messages": all_tool_messages,  # Include any tool messages created so far
+                "notes": [f"Research failed due to error: {e}"],
+                "research_brief": state.get("research_brief", ""),
+            },
+        )
+
+    # 3. ResearchComplete calls
+    for tool_call in research_complete_calls:
+        all_tool_messages.append(_handle_research_complete(tool_call))
+
+    research_complete_called = len(research_complete_calls) > 0
+
+    if exceeded_iterations or research_complete_called:
+        # Extract notes including the new tool messages we just created
+        notes = get_notes_from_tool_calls(supervisor_messages + all_tool_messages)
+
+        # Finish subgraph and proceed to final report generation
+        return Command(
+            goto="__end__",
+            update={
+                "supervisor_messages": all_tool_messages,  # MUST include tool messages for proper pairing
+                "notes": notes,
+                "research_brief": state.get("research_brief", ""),
+            },
+        )
 
     return Command(
         goto="research_supervisor",
@@ -233,7 +243,7 @@ async def supervisor_tools(
 
 # Research Agent Functions
 async def researcher(
-    state: CustomResearcherState, config: RunnableConfig
+    state: ResearcherState, config: RunnableConfig
 ) -> Command[Literal["researcher_tools"]]:
     """
     Individual researcher that conducts focused research on specific topics.
@@ -272,19 +282,11 @@ async def researcher(
 
 
 async def researcher_tools(
-    state: CustomResearcherState, config: RunnableConfig
+    state: ResearcherState, config: RunnableConfig
 ) -> Command[Literal["researcher", "compress_research"]]:
     """
     Execute tools called by the researcher.
     """
-    from .tools import (
-        internal_fetch,
-        internal_search,
-        web_fetch,
-        web_search,
-    )
-
-    # Tools now access services directly through RunnableConfig
 
     researcher_messages = state.get("researcher_messages", [])
     most_recent_message = researcher_messages[-1] if researcher_messages else None
@@ -316,6 +318,7 @@ async def researcher_tools(
             # Execute tool safely with error handling
             result = await execute_tool_safely(tool_map[tool_name], args, config)
         else:
+            logger.error(f"Unknown tool: {tool_name}")
             result = f"Unknown tool: {tool_name}"
 
         tool_outputs.append(
@@ -338,7 +341,7 @@ async def researcher_tools(
 
 
 async def compress_research(
-    state: CustomResearcherState, config: RunnableConfig
+    state: ResearcherState, config: RunnableConfig
 ) -> Dict[str, Any]:
     """
     Compress and synthesize research findings using AI-powered synthesis.
@@ -363,10 +366,17 @@ async def compress_research(
 
     researcher_messages = state.get("researcher_messages", [])
 
-    # Add instruction to switch from research mode to compression mode (like reference)
-    compression_instruction = """All above messages are about research conducted by an AI Researcher. Please clean up these findings. 
-    DO NOT summarize the information. I want the raw information returned, just in a cleaner format. 
-    Make sure all relevant information is preserved - you can rewrite findings verbatim. Ensure that you keep citations and references!"""
+    # Get the specific research topic assigned to this researcher
+    research_topic = state.get("research_topic", "")
+
+    # Add instruction to switch from research mode to compression mode with topic context
+    compression_instruction = f"""You are compressing research findings for this SPECIFIC research topic:
+    ASSIGNED TOPIC: {research_topic}
+    All above messages are from research conducted SPECIFICALLY for this topic.
+    Please clean up these findings, focusing ONLY on information relevant to the assigned topic above.
+    DO NOT include tangential information found during searches that doesn't directly address this specific topic.
+    DO NOT summarize - preserve all relevant information in a cleaner format.
+    Keep all citations and references that relate to this topic."""
 
     # Follow reference architecture: append instruction to researcher messages
     researcher_messages.append(HumanMessage(content=compression_instruction))
@@ -417,24 +427,13 @@ async def compress_research(
             "Error synthesizing research report: Maximum retries exceeded"
         )
 
-    # Extract raw notes from all tool and AI messages (like reference)
-    raw_notes_content = "\n".join(
-        [
-            str(message.content)
-            for message in filter_messages(
-                researcher_messages, include_types=["tool", "ai"]
-            )
-        ]
-    )
-
     return {
         "compressed_research": compressed_research,
-        "raw_notes": [raw_notes_content],
     }
 
 
 async def final_report_generation(
-    state: CustomAgentState, config: RunnableConfig
+    state: AgentState, config: RunnableConfig
 ) -> Dict[str, Any]:
     """
     Generate the final comprehensive research report using AI-powered synthesis.
@@ -543,9 +542,25 @@ def _handle_think_tool(tool_call: Union[dict, Any]) -> ToolMessage:
     )
 
 
+def _handle_research_complete(tool_call: Union[dict, Any]) -> ToolMessage:
+    """Handle ResearchComplete calls with final summary."""
+    summary = tool_call["args"].get("summary", "Research completed")
+    sources = tool_call["args"].get("sources", [])
+
+    content = f"Research completed with summary: {summary}"
+    if sources:
+        content += f"\nSources: {', '.join(sources)}"
+
+    return ToolMessage(
+        content=content,
+        name="ResearchComplete",
+        tool_call_id=tool_call["id"],
+    )
+
+
 async def _handle_conduct_research_batch(
     conduct_research_calls: list[Union[dict, Any]],
-    state: CustomSupervisorState,
+    state: SupervisorState,
     config: RunnableConfig,
     custom_config,
 ) -> list[ToolMessage]:
@@ -578,8 +593,8 @@ async def _handle_conduct_research_batch(
 
     tool_results = await asyncio.gather(*research_tasks)
 
-    # Create tool messages with research results
-    return [
+    # Create tool messages with compressed research results
+    tool_messages = [
         ToolMessage(
             content=observation.get("compressed_research", "No research results"),
             name=tool_call["name"],
@@ -588,35 +603,38 @@ async def _handle_conduct_research_batch(
         for observation, tool_call in zip(tool_results, allowed_calls)
     ]
 
+    return tool_messages
+
 
 ################ GRAPH CONSTRUCTION #################
 
 # Researcher Subgraph for parallel execution
-researcher_builder = StateGraph(
-    CustomResearcherState, output_schema=CustomResearcherOutputState
-)
+researcher_builder = StateGraph(ResearcherState, output_schema=ResearcherOutputState)
 
 researcher_builder.add_node("researcher", researcher)
 researcher_builder.add_node("researcher_tools", researcher_tools)
 researcher_builder.add_node("compress_research", compress_research)
 
 researcher_builder.add_edge(START, "researcher")
+researcher_builder.add_edge("researcher", "researcher_tools")
+researcher_builder.add_edge("researcher_tools", "compress_research")
 researcher_builder.add_edge("compress_research", END)
 
 researcher_subgraph = researcher_builder.compile()
 
 # Supervisor Subgraph
-supervisor_builder = StateGraph(CustomSupervisorState)
+supervisor_builder = StateGraph(SupervisorState)
 
 supervisor_builder.add_node("research_supervisor", research_supervisor)
 supervisor_builder.add_node("supervisor_tools", supervisor_tools)
+supervisor_builder.add_node("researcher_subgraph", researcher_subgraph)
 
 supervisor_builder.add_edge(START, "research_supervisor")
 
 supervisor_subgraph = supervisor_builder.compile()
 
 # Main Custom Agent Graph
-custom_agent_builder = StateGraph(CustomAgentState)
+custom_agent_builder = StateGraph(AgentState)
 
 custom_agent_builder.add_node("setup_research_supervisor", setup_research_supervisor)
 custom_agent_builder.add_node("research_supervisor", supervisor_subgraph)

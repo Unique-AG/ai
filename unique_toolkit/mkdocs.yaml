@@ -1,48 +1,38 @@
 site_name: Unique Toolkit
 site_description: Documentation for the Unique Toolkit
 site_author: Unique Team
-# Added from colleague's config - GitHub integration
 site_url: https://github.com/Unique-AG/ai/unique_toolkit
 repo_name: Unique-AG/ai/unique_toolkit
 repo_url: https://github.com/Unique-AG/ai/unique_toolkit  
 edit_uri: /docs/
 
-# Added from colleague's config - custom styling
-#extra_css:
-#  - stylesheets/extra.css
-
-theme:
-  name: material
-  highlithjs: true
-  jljs_languages:
-    - python
-  features:
-    - content.action.edit  # Added from uniques's config
-    - content.code.copy
-    - content.code.select
-  # Added from unique's config - typography and icons
-  font:
-    text: Roboto
-  icon:
-    repo: fontawesome/brands/github
-  # Added from unique's config - dark/light mode toggle
-  palette:
-    - media: "(prefers-color-scheme)"
-      toggle:
-        icon: material/brightness-auto
-        name: Switch to light mode
-    - media: "(prefers-color-scheme: light)"
-      scheme: default
-      primary: teal
-      toggle:
-        icon: material/brightness-7
-        name: Switch to dark mode
-    - media: "(prefers-color-scheme: dark)"
-      scheme: slate
-      primary: blue grey
-      toggle:
-        icon: material/brightness-4
-        name: Switch to system preference
+#theme:
+#  name: material
+#  features:
+#    - content.action.edit
+#    - content.code.copy
+#    - content.code.select
+#  font:
+#    text: Roboto
+#  icon:
+#    repo: fontawesome/brands/github
+#  palette:
+#    - media: "(prefers-color-scheme)"
+#      toggle:
+#        icon: material/brightness-auto
+#        name: Switch to light mode
+#    - media: "(prefers-color-scheme: light)"
+#      scheme: default
+#      primary: teal
+#      toggle:
+#        icon: material/brightness-7
+#        name: Switch to dark mode
+#    - media: "(prefers-color-scheme: dark)"
+#      scheme: slate
+#      primary: blue grey
+#      toggle:
+#        icon: material/brightness-4
+#        name: Switch to system preference
 
 nav:
   - Home: index.md
@@ -71,7 +61,6 @@ nav:
 
 markdown_extensions:
   - admonition
-  - codehilite
   - footnotes
   - meta
   - toc:
@@ -86,7 +75,15 @@ markdown_extensions:
   - pymdownx.magiclink
   - pymdownx.mark
   - pymdownx.smartsymbols
-  - pymdownx.superfences
+  - codeinclude
+  - pymdownx.snippets:
+      base_path: .
+      check_paths: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.tabbed:
       alternate_style: true
   - pymdownx.tasklist

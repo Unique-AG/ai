@@ -46,6 +46,7 @@ from .config import (
 )
 from .markdown_utils import postprocess_research_result_with_chunks
 from .unique_custom.utils import (
+    cleanup_request_counter,
     create_message_log_entry,
     get_next_message_order,
 )
@@ -320,9 +321,6 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             }
 
             result = await custom_agent.ainvoke(initial_state, config=config)  # type: ignore[arg-type]
-
-            # Clean up per-request counter to prevent memory leaks
-            from .unique_custom.utils import cleanup_request_counter
 
             cleanup_request_counter(self.event.payload.assistant_message.id)
 

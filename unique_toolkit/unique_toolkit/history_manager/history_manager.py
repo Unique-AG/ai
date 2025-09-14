@@ -170,7 +170,7 @@ class HistoryManager:
         )  # it can be that the tool response does not have content chunks
 
         # Transform content chunks into sources to be appended to tool result
-        sources = transform_chunks_to_string(
+        stringified_sources, sources = transform_chunks_to_string(
             content_chunks,
             self._source_enumerator,
             None,  # Use None for SourceFormatConfig
@@ -183,7 +183,7 @@ class HistoryManager:
 
         # Append the result to the history
         return LanguageModelToolMessage(
-            content=sources,
+            content=stringified_sources,
             tool_call_id=tool_response.id,  # type: ignore
             name=tool_response.name,
         )

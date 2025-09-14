@@ -64,7 +64,7 @@ def transform_chunks_to_string(
     max_source_number: int,
     cfg: SourceFormatConfig | None,
     full_sources_serialize_dump: bool = False,
-) -> str:
+) -> tuple[str, list[Source]]:
     """Transform content chunks into a string of sources.
 
     Args:
@@ -76,7 +76,7 @@ def transform_chunks_to_string(
         str: String for the tool call response
     """
     if not content_chunks:
-        return "No relevant sources found."
+        return "No relevant sources found.", []
     if full_sources_serialize_dump:
         sources = [
             Source(
@@ -114,7 +114,7 @@ def transform_chunks_to_string(
             }
             for i, chunk in enumerate(content_chunks)
         ]
-    return json.dumps(sources)
+    return json.dumps(sources), sources
 
 
 def load_sources_from_string(
