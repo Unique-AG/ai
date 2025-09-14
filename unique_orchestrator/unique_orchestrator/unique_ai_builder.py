@@ -1,16 +1,16 @@
 from logging import Logger
 
-from postprocessors.unique_follow_up_questions.unique_follow_up_questions.follow_up_postprocessor import (
+from unique_follow_up_questions.follow_up_postprocessor import (
     FollowUpPostprocessor,
 )
-from postprocessors.unique_stock_ticker.unique_stock_ticker.stock_ticker_postprocessor import (
-    StockTickerPostprocessor,
-)
-from tool_packages.unique_internal_search.unique_internal_search.uploaded_search.config import (
+from unique_internal_search.uploaded_search.config import (
     UploadedSearchConfig,
 )
-from tool_packages.unique_internal_search.unique_internal_search.uploaded_search.service import (
+from unique_internal_search.uploaded_search.service import (
     UploadedSearchTool,
+)
+from unique_stock_ticker.stock_ticker_postprocessor import (
+    StockTickerPostprocessor,
 )
 from unique_toolkit import LanguageModelService
 from unique_toolkit.app.schemas import ChatEvent
