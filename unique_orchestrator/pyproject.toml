@@ -1,0 +1,55 @@
+[tool.poetry]
+name = "unique_orchestrator"
+version = "0.0.1"
+description = ""
+authors = [
+    "Martin Fadler <martin.fadler@unique.ch>",
+    "Sadique Sheik <sadique@unique.ch>",
+    "Fabian Schläpfer <fabian@unique.ch>",
+    "Pascal Hauri <pascal@unique.ch>",
+]
+readme = ["README.md", "CHANGELOG.md"]
+license = "Proprietary"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+typing-extensions = "^4.9.0"
+pydantic = "^2.8.2"
+pydantic-settings = "^2.10.1"
+python-dotenv = "^1.0.1"
+pytest = "^8.4.1"
+unique-sdk = "^0.10.0"
+unique-toolkit = "^0.8.57"
+unique-stock-ticker = "^0.0.5"
+unique-follow-up-questions = "^0.0.4"
+unique-web-search = "^0.1.0"
+unique-deep-research = "^0.0.10"
+unique-internal-search = "0.0.5"
+
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.12.10"
+python = "^3.11"
+typing-extensions = "^4.9.0"
+pydantic = "^2.8.2"
+pydantic-settings = "^2.10.1"
+python-dotenv = "^1.0.1"
+pytest = "^8.4.1"
+unique-sdk = { path = "../unique_sdk" }
+unique-toolkit = { path = "../unique_toolkit", develop = true }
+unique-stock-ticker = { path = "../postprocessors/unique_stock_ticker", develop = true }
+unique-follow-up-questions = { path = "../postprocessors/unique_follow_up_questions", develop = true }
+unique-web-search = { path = "../tool_packages/unique_web_search", develop = true }
+unique-deep-research = { path = "../tool_packages/unique_deep_research", develop = true }
+unique-internal-search = { path = "../tool_packages/unique_internal_search", develop = true }
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+target-version = "py311"
+
+[tool.ruff.lint]
+extend-select = ["I"]
