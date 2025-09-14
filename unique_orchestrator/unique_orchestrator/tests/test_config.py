@@ -40,10 +40,7 @@ def test_ai_services_conversion():
     new_config = search_agent_config_to_unique_ai_space_config(old_config)
 
     services = new_config.agent.services
-    assert (
-        services.follow_up_questions_config
-        == old_config.follow_up_questions_config
-    )
+    assert services.follow_up_questions_config == old_config.follow_up_questions_config
     assert services.evaluation_config == old_config.evaluation_config
     assert services.stock_ticker_config == old_config.stock_ticker_config
 

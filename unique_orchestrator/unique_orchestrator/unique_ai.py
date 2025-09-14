@@ -96,9 +96,7 @@ class UniqueAI:
             loop_response = await self._plan_or_execute()
             self._logger.info("Done with _plan_or_execute")
 
-            self._reference_manager.add_references(
-                loop_response.message.references
-            )
+            self._reference_manager.add_references(loop_response.message.references)
             self._logger.info("Done with adding references")
 
             # Update tool progress reporter
@@ -144,9 +142,7 @@ class UniqueAI:
             and self.current_iteration_index == 0
         ):
             self._logger.info("Its needs forced tool calls.")
-            self._logger.info(
-                f"Forced tools: {self._tool_manager.get_forced_tools()}"
-            )
+            self._logger.info(f"Forced tools: {self._tool_manager.get_forced_tools()}")
             responses = [
                 await self._chat_service.complete_with_references_async(
                     messages=messages,
@@ -171,14 +167,9 @@ class UniqueAI:
                 references.extend(r.message.references)
 
             stream_response = responses[0]
-            stream_response.tool_calls = (
-                tool_calls if len(tool_calls) > 0 else None
-            )
+            stream_response.tool_calls = tool_calls if len(tool_calls) > 0 else None
             stream_response.message.references = references
-        elif (
-            self.current_iteration_index
-            == self._config.agent.max_loop_iterations - 1
-        ):
+        elif self.current_iteration_index == self._config.agent.max_loop_iterations - 1:
             self._logger.info(
                 "we are in the last iteration we need to produce an answer now"
             )
@@ -210,18 +201,14 @@ class UniqueAI:
 
         return stream_response
 
-    async def _process_plan(
-        self, loop_response: LanguageModelStreamResponse
-    ) -> bool:
+    async def _process_plan(self, loop_response: LanguageModelStreamResponse) -> bool:
         self._logger.info(
             "Processing the plan, executing the tools and checking for loop exit conditions once all is done."
         )
 
         if loop_response.is_empty():
             self._logger.debug("Empty model response, exiting loop.")
-            self._chat_service.modify_assistant_message(
-                content=EMPTY_MESSAGE_WARNING
-            )
+            self._chat_service.modify_assistant_message(content=EMPTY_MESSAGE_WARNING)
             return True
 
         call_tools = len(loop_response.tool_calls or []) > 0
@@ -297,9 +284,7 @@ class UniqueAI:
         ]
 
         system_message = system_prompt_template.render(
-            model_info=self._config.space.language_model.model_dump(
-                mode="json"
-            ),
+            model_info=self._config.space.language_model.model_dump(mode="json"),
             date_string=date_string,
             tool_descriptions=tool_descriptions,
             used_tools=used_tools,
@@ -316,9 +301,7 @@ class UniqueAI:
         self, loop_response: LanguageModelStreamResponse
     ) -> bool:
         """Handle the case where no tool calls are returned."""
-        selected_evaluation_names = (
-            self._tool_manager.get_evaluation_check_list()
-        )
+        selected_evaluation_names = self._tool_manager.get_evaluation_check_list()
         evaluation_results = await self._evaluation_manager.run_evaluations(
             selected_evaluation_names, loop_response, self._latest_assistant_id
         )
@@ -352,9 +335,7 @@ class UniqueAI:
         # Add tool call results to history first to stabilize source numbering,
         # then extract referenceable chunks and debug info
         self._history_manager.add_tool_call_results(tool_call_responses)
-        self._reference_manager.extract_referenceable_chunks(
-            tool_call_responses
-        )
+        self._reference_manager.extract_referenceable_chunks(tool_call_responses)
         self._debug_info_manager.extract_tool_debug_info(tool_call_responses)
 
         return self._tool_manager.does_a_tool_take_control(tool_calls)
@@ -378,8 +359,8 @@ class UniqueAI:
         ###
         # ToDo: Once references on existing assistant messages can be deleted, we will switch from creating a new assistant message to modifying the existing one (with previous references deleted)
         ###
-        new_assistant_message = (
-            await self._chat_service.create_assistant_message_async(content="")
+        new_assistant_message = await self._chat_service.create_assistant_message_async(
+            content=""
         )
 
         # the new message must have an id that is valid else we use the old one

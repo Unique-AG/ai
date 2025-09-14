@@ -153,9 +153,7 @@ class SearchAgentConfig(BaseModel):
     language_model: LMI = LanguageModelInfo.from_name(DEFAULT_GPT_4o)
 
     token_limits: LoopAgentTokenLimitsConfig = Field(
-        default=LoopAgentTokenLimitsConfig(
-            percent_of_max_tokens_for_history=0.6
-        )
+        default=LoopAgentTokenLimitsConfig(percent_of_max_tokens_for_history=0.6)
     )
     temperature: float = 0.0
     additional_llm_options: dict[str, Any] = Field(
@@ -222,9 +220,7 @@ class SearchAgentConfig(BaseModel):
     ##############################
     ### Follow-up Questions
     ##############################
-    follow_up_questions_config: FollowUpQuestionsConfig = (
-        FollowUpQuestionsConfig()
-    )
+    follow_up_questions_config: FollowUpQuestionsConfig = FollowUpQuestionsConfig()
 
     ##############################
     ### Evaluation
@@ -245,11 +241,9 @@ class SearchAgentConfig(BaseModel):
         return ToolFactory.build_tool_config(tool)
 
     # TODO: @gustavhartz, the Hallucination check should be triggered if enabled and the answer contains references.
-    force_checks_on_stream_response_references: list[EvaluationMetricName] = (
-        Field(
-            default=[EvaluationMetricName.HALLUCINATION],
-            description="A list of checks to force on references. This is used to add hallucination check to references without new tool calls.",
-        )
+    force_checks_on_stream_response_references: list[EvaluationMetricName] = Field(
+        default=[EvaluationMetricName.HALLUCINATION],
+        description="A list of checks to force on references. This is used to add hallucination check to references without new tool calls.",
     )
 
     uploaded_content_config: UploadedContentConfig = Field(
@@ -345,11 +339,9 @@ class ExperimentalConfig(BaseModel):
     thinking_steps_display: bool = False
 
     # TODO: @gustavhartz, the Hallucination check should be triggered if enabled and the answer contains references.
-    force_checks_on_stream_response_references: list[EvaluationMetricName] = (
-        Field(
-            default=[EvaluationMetricName.HALLUCINATION],
-            description="A list of checks to force on references. This is used to add hallucination check to references without new tool calls.",
-        )
+    force_checks_on_stream_response_references: list[EvaluationMetricName] = Field(
+        default=[EvaluationMetricName.HALLUCINATION],
+        description="A list of checks to force on references. This is used to add hallucination check to references without new tool calls.",
     )
 
     # TODO: The temperature should be used via the additional_llm_options
@@ -434,9 +426,7 @@ def search_agent_config_to_unique_ai_space_config(
 
     # Calculate remaining token percentages based on history percentage
 
-    history_percent = (
-        search_agent_config.token_limits.percent_of_max_tokens_for_history
-    )
+    history_percent = search_agent_config.token_limits.percent_of_max_tokens_for_history
 
     agent = UniqueAIAgentConfig(
         max_loop_iterations=search_agent_config.max_loop_iterations,
@@ -471,7 +461,9 @@ def needs_conversion_to_unique_ai_space_config(
 if __name__ == "__main__":
     import json
 
-    from unique_toolkit._common.utils.write_configuration import write_service_configuration
+    from unique_toolkit._common.utils.write_configuration import (
+        write_service_configuration,
+    )
 
     write_service_configuration(
         service_folderpath=Path(__file__).parent.parent,

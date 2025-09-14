@@ -1,5 +1,17 @@
 from logging import Logger
 
+from postprocessors.unique_follow_up_questions.unique_follow_up_questions.follow_up_postprocessor import (
+    FollowUpPostprocessor,
+)
+from postprocessors.unique_stock_ticker.unique_stock_ticker.stock_ticker_postprocessor import (
+    StockTickerPostprocessor,
+)
+from tool_packages.unique_internal_search.unique_internal_search.uploaded_search.config import (
+    UploadedSearchConfig,
+)
+from tool_packages.unique_internal_search.unique_internal_search.uploaded_search.service import (
+    UploadedSearchTool,
+)
 from unique_toolkit import LanguageModelService
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.chat.service import ChatService
@@ -34,11 +46,6 @@ from unique_toolkit.tools.tool_progress_reporter import ToolProgressReporter
 
 from unique_orchestrator.config import UniqueAIConfig
 from unique_orchestrator.unique_ai import UniqueAI
-
-from postprocessors.unique_follow_up_questions.unique_follow_up_questions.follow_up_postprocessor import FollowUpPostprocessor
-from postprocessors.unique_stock_ticker.unique_stock_ticker.stock_ticker_postprocessor import StockTickerPostprocessor
-from tool_packages.unique_internal_search.unique_internal_search.uploaded_search.config import UploadedSearchConfig
-from tool_packages.unique_internal_search.unique_internal_search.uploaded_search.service import UploadedSearchTool
 
 
 def build_unique_ai(
@@ -119,9 +126,7 @@ def build_unique_ai(
         reference_manager,
     )
 
-    evaluation_manager = EvaluationManager(
-        logger=logger, chat_service=chat_service
-    )
+    evaluation_manager = EvaluationManager(logger=logger, chat_service=chat_service)
 
     if config.agent.services.evaluation_config:
         evaluation_manager.add_evaluation(

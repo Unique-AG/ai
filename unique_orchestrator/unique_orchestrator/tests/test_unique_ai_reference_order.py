@@ -49,9 +49,7 @@ async def test_history_updated_before_reference_extraction(monkeypatch):
     mock_tool_manager = MagicMock()
     mock_tool_manager.get_forced_tools.return_value = []
     mock_tool_manager.get_tool_definitions.return_value = []
-    mock_tool_manager.execute_selected_tools = AsyncMock(
-        return_value=[MagicMock()]
-    )
+    mock_tool_manager.execute_selected_tools = AsyncMock(return_value=[MagicMock()])
     mock_tool_manager.does_a_tool_take_control.return_value = False
 
     class DummyStreamResponse:
@@ -68,9 +66,7 @@ async def test_history_updated_before_reference_extraction(monkeypatch):
     mock_chat_service.complete_with_references_async = AsyncMock(
         return_value=DummyStreamResponse()
     )
-    mock_chat_service.modify_assistant_message_async = AsyncMock(
-        return_value=None
-    )
+    mock_chat_service.modify_assistant_message_async = AsyncMock(return_value=None)
     mock_chat_service.create_assistant_message_async = AsyncMock(
         return_value=MagicMock(id="assist_new")
     )
@@ -118,9 +114,7 @@ async def test_history_updated_before_reference_extraction(monkeypatch):
     mock_reference_manager.extract_referenceable_chunks.side_effect = (
         record_reference_extract
     )
-    mock_debug_info_manager.extract_tool_debug_info.side_effect = (
-        record_debug_extract
-    )
+    mock_debug_info_manager.extract_tool_debug_info.side_effect = record_debug_extract
 
     # Run a single iteration
     await ua.run()
