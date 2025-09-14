@@ -6,8 +6,8 @@ from pydantic import BaseModel, Field, ValidationInfo, field_validator
 from unique_deep_research.config import DeepResearchToolConfig
 from unique_deep_research.service import DeepResearchTool
 from unique_follow_up_questions.config import FollowUpQuestionsConfig
-from unique_orchestrator.config import InternalSearchConfig
-from unique_orchestrator.service import InternalSearchTool
+from unique_internal_search.config import InternalSearchConfig
+from unique_internal_search.service import InternalSearchTool
 from unique_stock_ticker.config import StockTickerConfig
 from unique_toolkit._common.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit._common.validators import (
@@ -471,7 +471,7 @@ def needs_conversion_to_unique_ai_space_config(
 if __name__ == "__main__":
     import json
 
-    from _common.utils.write_configuration import write_service_configuration
+    from unique_toolkit._common.utils.write_configuration import write_service_configuration
 
     write_service_configuration(
         service_folderpath=Path(__file__).parent.parent,

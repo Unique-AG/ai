@@ -6,7 +6,7 @@ import pytest
 @pytest.mark.asyncio
 async def test_history_updated_before_reference_extraction(monkeypatch):
     # Lazy import to avoid heavy dependencies at module import time
-    from unique_ai_v2.unique_ai import UniqueAI
+    from unique_orchestrator.unique_ai import UniqueAI
 
     # Create a minimal UniqueAI instance with mocked dependencies
     mock_logger = MagicMock()

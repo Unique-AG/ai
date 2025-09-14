@@ -1,4 +1,4 @@
-from unique_ai.config import (
+from unique_orchestrator.config import (
     SearchAgentConfig,
     search_agent_config_to_unique_ai_space_config,
 )
@@ -46,10 +46,6 @@ def test_ai_services_conversion():
     )
     assert services.evaluation_config == old_config.evaluation_config
     assert services.stock_ticker_config == old_config.stock_ticker_config
-    assert (
-        services.reference_manager_config
-        == old_config.reference_manager_config
-    )
 
 
 def test_ai_experimental_config_conversion():

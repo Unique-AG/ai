@@ -22,7 +22,7 @@ from unique_toolkit.reference_manager.reference_manager import ReferenceManager
 from unique_toolkit.thinking_manager.thinking_manager import ThinkingManager
 from unique_toolkit.tools.tool_manager import ToolManager
 
-from unique_ai_v2.config import UniqueAIConfig
+from unique_orchestrator.config import UniqueAIConfig
 
 EMPTY_MESSAGE_WARNING = (
     "⚠️ **The language model was unable to produce an output.**\n"
