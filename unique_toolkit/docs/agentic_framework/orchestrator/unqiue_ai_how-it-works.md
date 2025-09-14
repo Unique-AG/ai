@@ -296,6 +296,7 @@ Code:
 ```
 
 Key behaviors:
+
 - Forced tools is only be applied on the first iteration. Allowing the LLM to choose freely from the tools in the subsequent iterations.
 - Last iteration forbids tool usage to force an answer.
 - If a tool takes control (e.g., deep research), the base agent stops continuing the loop & sets the agent to complete for the frontend and other consumers to know that it is done.
