@@ -95,14 +95,14 @@ def build_unique_ai(
         tool_progress_reporter=tool_progress_reporter,
     )
 
-    toolConfig = ToolManagerConfig(
+    tool_config = ToolManagerConfig(
         tools=config.space.tools,
         max_tool_calls=config.agent.experimental.loop_configuration.max_tool_calls_per_iteration,
     )
 
     tool_manager = ToolManager(
         logger=logger,
-        config=toolConfig,
+        config=tool_config,
         event=event,
         tool_progress_reporter=tool_progress_reporter,
         mcp_manager=mcp_manager,
