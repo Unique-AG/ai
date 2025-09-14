@@ -59,13 +59,13 @@ def build_unique_ai(
     content_service = ContentService.from_event(event)
     tool_progress_reporter = ToolProgressReporter(chat_service=chat_service)
     reference_manager = ReferenceManager()
-    thinkingManagerConfig = ThinkingManagerConfig(
+    thinking_manager_config = ThinkingManagerConfig(
         thinking_steps_display=config.agent.experimental.thinking_steps_display
     )
 
     thinking_manager = ThinkingManager(
         logger=logger,
-        config=thinkingManagerConfig,
+        config=thinking_manager_config,
         tool_progress_reporter=tool_progress_reporter,
         chat_service=chat_service,
     )
