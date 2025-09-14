@@ -1,0 +1,18 @@
+{# Comments for the user message template
+    - This template is used to format the user message for the LLM
+    - Variables available:
+    - query: The original user query
+    - model_info: Information about the language model being used
+    - date_string: The current date in formatted string
+    - mcp_server_user_prompts: List of unique server-wide user prompts from MCP servers
+    - tool_descriptions_with_user_prompts: List of UniqueToolDescription objects with user prompts
+#}{{ query }}
+
+{%- if mcp_server_user_prompts and mcp_server_user_prompts|length > 0 %}
+
+## MCP Server Context
+{%- for server_prompt in mcp_server_user_prompts %}
+
+{{ server_prompt }}
+{%- endfor %}
+{%- endif %}
