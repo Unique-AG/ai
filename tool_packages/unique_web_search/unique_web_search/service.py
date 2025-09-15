@@ -217,7 +217,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
         max_source_number = len(agent_chunks_handler.chunks)
 
         # Transform content chunks into sources to be appended to tool result
-        sources = transform_chunks_to_string(
+        sources, _ = transform_chunks_to_string(
             content_chunks,
             max_source_number,
             None,  # Use None for SourceFormatConfig
