@@ -4471,7 +4471,7 @@ url = "../postprocessors/unique_stock_ticker"
 
 [[package]]
 name = "unique-toolkit"
-version = "0.8.56"
+version = "0.8.57"
 description = ""
 optional = false
 python-versions = "^3.11"
@@ -5175,4 +5175,4 @@ cffi = ["cffi (>=1.17) ; python_version >= \"3.13\" and platform_python_implemen
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.11"
-content-hash = "c804ea7476987786627444ce8611fd88f9e2199949684c32eaccd21c7d143e56"
+content-hash = "83cfbd998dec3860daeda5c9c54b3bc15d478fb07c9a233848b79ce21dcf12b6"
