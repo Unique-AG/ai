@@ -5,7 +5,7 @@ description = ""
 authors = [
     "Andreas Hauri <andreas@unique.ch>",
     "Gustav Hartz <gustav.hartz.ext@unique.ch>",
-    "Rami Azouz <rami.ext@unique.ch>,
+    "Rami Azouz <rami.ext@unique.ch>",
 ]
 readme = ["README.md", "CHANGELOG.md"]
 license = "Proprietary"
