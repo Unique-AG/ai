@@ -27,10 +27,7 @@ from unique_web_search.services.content_processing.config import (
 )
 from unique_web_search.services.crawlers import (
     BasicCrawlerConfig,
-    Crawl4AiCrawlerConfig,
-    FirecrawlCrawlerConfig,
-    JinaCrawlerConfig,
-    TavilyCrawlerConfig,
+    CrawlerConfigTypes,
 )
 from unique_web_search.services.executors.web_search_v1_executor import RefineQueryMode
 from unique_web_search.services.search_engine import (
@@ -66,23 +63,23 @@ class WebSearchV2(BaseModel):
 
     enabled: bool = Field(
         default=False,
-        description="Whether to enable the v2 of the web search tool",
+        description="Enable or disable the WebSearch V2 tool. Set to True to activate the step-based web search executor.",
     )
     max_steps: int = Field(
         default=5,
-        description="The maximum number of steps for the v2 of the web search tool",
+        description="Maximum number of sequential steps (searches or URL reads) allowed in a single WebSearch V2 plan.",
     )
     tool_description: str = Field(
         default=TOOL_DESCRIPTIONS["v2"],
-        description="The tool description for the v2 of the web search tool",
+        description="Information to help the language model decide when to select this tool; describes the tool's general purpose and when it is relevant.",
     )
     tool_description_for_system_prompt: str = Field(
         default=TOOL_DESCRIPTIONS_FOR_SYSTEM_PROMPT["v2"],
-        description="The tool description for the system prompt",
+        description="Description of the tool's capabilities, intended for inclusion in system prompts to inform the language model what the tool can do.",
     )
     tool_format_information_for_system_prompt: str = Field(
         default=DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT,
-        description="The tool format information for the system prompt",
+        description="Instructions for the language model on how to reference and organize information from the tool in its response.",
     )
 
 
@@ -91,23 +88,31 @@ class WebSearchV1(BaseModel):
 
     refine_query_mode: RefineQueryMode = Field(
         default=RefineQueryMode.BASIC,
-        description="The mode of the v1 of the web search tool",
+        description="Query refinement strategy for WebSearch V1. Determines how user queries are improved before searching (e.g., BASIC, ADVANCED).",
     )
     max_queries: int = Field(
         default=5,
-        description="The maximum number of queries for the v1 of the web search tool",
+        description="Maximum number of search queries that WebSearch V1 will issue per user request.",
     )
 
 
 class ExperimentalFeatures(FeatureExtendedSourceSerialization):
     v1_mode: WebSearchV1 = Field(
         default_factory=WebSearchV1,
-        description="The mode of the v1 of the web search tool",
+        description=(
+            "Configuration options for WebSearch V1 mode. "
+            "Controls the behavior and parameters of the original web search tool, "
+            "including query refinement and search limits."
+        ),
     )
 
     v2_mode: WebSearchV2 = Field(
         default_factory=WebSearchV2,
-        description="The v2 of the web search tool",
+        description=(
+            "Configuration options for WebSearch V2 mode. "
+            "Enables and customizes the new step-based web search executor, "
+            "allowing for advanced planning and multi-step research workflows."
+        ),
     )
 
 
@@ -165,13 +170,7 @@ class WebSearchConfig(BaseToolConfig):
         title="Search Engine Configuration",
     )
 
-    crawler_config: (
-        Crawl4AiCrawlerConfig
-        | BasicCrawlerConfig
-        | FirecrawlCrawlerConfig
-        | JinaCrawlerConfig
-        | TavilyCrawlerConfig
-    ) = Field(
+    crawler_config: CrawlerConfigTypes = Field(
         default_factory=BasicCrawlerConfig,
         description="The crawler configuration.",
         discriminator="crawler_type",
