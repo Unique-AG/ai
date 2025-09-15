@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **WebSearchV2Executor**: New step-based execution model supporting both search and direct URL reading operations
 - **BaseWebSearchExecutor**: Abstract base class providing common functionality between executor versions
-- **Enhanced Schema**: New models (`WebSearchPlan`, `SearchStep`, `ReadUrlStep`) for structured web search planning
+- **Enhanced Schema**: New model `WebSearchPlan` for structured web search planning
 - **Flexible Step Execution**: Support for mixed search and URL reading operations in a single plan
 
 ### Changed
