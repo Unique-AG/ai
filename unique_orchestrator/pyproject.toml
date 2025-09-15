@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_orchestrator"
-version = "0.0.1"
+version = "0.0.2"
 description = ""
 authors = [
     "Martin Fadler <martin.fadler@unique.ch>",
@@ -24,7 +24,7 @@ unique-stock-ticker = "^0.0.5"
 unique-follow-up-questions = "^0.0.4"
 unique-web-search = "^0.1.0"
 unique-deep-research = "^0.0.10"
-unique-internal-search = "0.0.5"
+unique-internal-search = "^0.0.6"
 
 
 [tool.poetry.group.dev.dependencies]
