@@ -16,10 +16,11 @@ from unique_toolkit.tools.config import get_configuration_dict
 from unique_toolkit.tools.schemas import BaseToolConfig
 
 from unique_web_search.prompts import (
-    DEFAULT_TOOL_DESCRIPTION,
-    DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
     DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT,
     REFINE_QUERY_SYSTEM_PROMPT,
+    RESTRICT_DATE_DESCRIPTION,
+    TOOL_DESCRIPTIONS,
+    TOOL_DESCRIPTIONS_FOR_SYSTEM_PROMPT,
 )
 from unique_web_search.services.content_processing.config import (
     ContentProcessorConfig,
@@ -60,22 +61,53 @@ class AnswerGenerationConfig(BaseModel):
     )
 
 
-class ExperimentalFeatures(FeatureExtendedSourceSerialization):
-    v1_mode: RefineQueryMode = Field(
+class WebSearchV2(BaseModel):
+    model_config = get_configuration_dict()
+
+    enabled: bool = Field(
+        default=False,
+        description="Whether to enable the v2 of the web search tool",
+    )
+    max_steps: int = Field(
+        default=5,
+        description="The maximum number of steps for the v2 of the web search tool",
+    )
+    tool_description: str = Field(
+        default=TOOL_DESCRIPTIONS["v2"],
+        description="The tool description for the v2 of the web search tool",
+    )
+    tool_description_for_system_prompt: str = Field(
+        default=TOOL_DESCRIPTIONS_FOR_SYSTEM_PROMPT["v2"],
+        description="The tool description for the system prompt",
+    )
+    tool_format_information_for_system_prompt: str = Field(
+        default=DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT,
+        description="The tool format information for the system prompt",
+    )
+
+
+class WebSearchV1(BaseModel):
+    model_config = get_configuration_dict()
+
+    refine_query_mode: RefineQueryMode = Field(
         default=RefineQueryMode.BASIC,
         description="The mode of the v1 of the web search tool",
     )
-    use_v2: bool = Field(
-        default=False,
-        description="Whether to use the v2 of the web search tool",
+    max_queries: int = Field(
+        default=5,
+        description="The maximum number of queries for the v1 of the web search tool",
     )
-    tool_description_for_system_prompt_v2: str = Field(
-        default="",
-        description="The tool description for the system prompt",
+
+
+class ExperimentalFeatures(FeatureExtendedSourceSerialization):
+    v1_mode: WebSearchV1 = Field(
+        default_factory=WebSearchV1,
+        description="The mode of the v1 of the web search tool",
     )
-    tool_format_information_for_system_prompt_v2: str = Field(
-        default="",
-        description="The tool format information for the system prompt",
+
+    v2_mode: WebSearchV2 = Field(
+        default_factory=WebSearchV2,
+        description="The v2 of the web search tool",
     )
 
 
@@ -98,9 +130,7 @@ class WebSearchToolParametersConfig(BaseModel):
         description="The tool parameter query description",
     )
     date_restrict_description: str = Field(
-        default="""Restricts results to a recent time window. Format: `[period][number]` — `d`=days, `w`=weeks, `m`=months, `y`=years.  
-Examples: `d1` (24h), `w1` (1 week), `m3` (3 months), `y1` (1 year).  
-Omit for no date filter. Avoid adding date terms in the main query.""",
+        default=RESTRICT_DATE_DESCRIPTION,
         description="The tool parameter date restrict description",
     )
 
@@ -180,12 +210,12 @@ class WebSearchConfig(BaseToolConfig):
     )
 
     tool_description: str = Field(
-        default=DEFAULT_TOOL_DESCRIPTION,
+        default=TOOL_DESCRIPTIONS["v1"],
         description="The tool description",
     )
 
     tool_description_for_system_prompt: str = Field(
-        default=DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
+        default=TOOL_DESCRIPTIONS_FOR_SYSTEM_PROMPT["v1"],
     )
 
     tool_format_information_for_system_prompt: str = Field(
@@ -193,6 +223,11 @@ class WebSearchConfig(BaseToolConfig):
     )
 
     experimental_features: ExperimentalFeatures = ExperimentalFeatures()
+
+    debug: bool = Field(
+        default=False,
+        description="Whether to enable the debug mode",
+    )
 
     @model_validator(mode="after")
     def disable_query_refinement_if_no_structured_output(self):

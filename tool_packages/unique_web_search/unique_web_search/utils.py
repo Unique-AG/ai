@@ -3,7 +3,6 @@ from logging import getLogger
 from unique_toolkit.content.utils import count_tokens
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
-from unique_web_search.config import WebSearchConfig
 from unique_web_search.services.content_processing import WebPageChunk
 
 logger = getLogger(__name__)
@@ -40,16 +39,20 @@ def query_params_to_human_string(query: str, date_restrict: str | None) -> str:
     return query_str
 
 
-def _get_max_tokens(config: WebSearchConfig, language_model: LanguageModelInfo) -> int:
-    if config.language_model_max_input_tokens is not None:
+def _get_max_tokens(
+    language_model_max_input_tokens: int | None,
+    percentage_of_input_tokens_for_sources: float,
+    language_model: LanguageModelInfo,
+    limit_token_sources: int,
+) -> int:
+    if language_model_max_input_tokens is not None:
         max_tokens = int(
-            config.language_model_max_input_tokens
-            * config.percentage_of_input_tokens_for_sources
+            language_model_max_input_tokens * percentage_of_input_tokens_for_sources
         )
         logger.debug(
             "Using %s of max tokens %s as token limit: %s",
-            config.percentage_of_input_tokens_for_sources,
-            config.language_model_max_input_tokens,
+            percentage_of_input_tokens_for_sources,
+            language_model_max_input_tokens,
             max_tokens,
         )
         return max_tokens
@@ -59,25 +62,32 @@ def _get_max_tokens(config: WebSearchConfig, language_model: LanguageModelInfo) 
         )
         return (
             min(
-                config.limit_token_sources,
+                limit_token_sources,
                 language_model.token_limits.token_limit_input - 1000,
             )
             if language_model.token_limits
             and language_model.token_limits.token_limit_input
-            else config.limit_token_sources
+            else limit_token_sources
         )
 
 
 def reduce_sources_to_token_limit(
     web_page_chunks: list[WebPageChunk],
-    config: WebSearchConfig,
+    language_model_max_input_tokens: int | None,
+    percentage_of_input_tokens_for_sources: float,
+    limit_token_sources: int,
     language_model: LanguageModelInfo,
     chat_history_token_length: int,
 ) -> list[WebPageChunk]:
     total_tokens = 0
     selected_chunks = []
 
-    max_token_sources = _get_max_tokens(config, language_model)
+    max_token_sources = _get_max_tokens(
+        language_model_max_input_tokens,
+        percentage_of_input_tokens_for_sources,
+        language_model,
+        limit_token_sources,
+    )
 
     for chunk in web_page_chunks:
         if total_tokens < max_token_sources - chat_history_token_length:

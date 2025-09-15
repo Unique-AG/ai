@@ -45,11 +45,14 @@ class WebSearchTool(Tool[WebSearchConfig]):
             config=self.config.content_processor_config,
             language_model=self.language_model,
         )
+        self.debug = self.config.debug
 
         def content_reducer(web_page_chunks: list[WebPageChunk]) -> list[WebPageChunk]:
             return reduce_sources_to_token_limit(
                 web_page_chunks,
-                self.config,
+                self.config.language_model_max_input_tokens,
+                self.config.percentage_of_input_tokens_for_sources,
+                self.config.limit_token_sources,
                 self.language_model,
                 self.chat_history_token_length,
             )
@@ -60,31 +63,34 @@ class WebSearchTool(Tool[WebSearchConfig]):
     def tool_description(self) -> LanguageModelToolDescription:
         self.tool_parameter_calls = (
             WebSearchPlan
-            if self.config.experimental_features.use_v2
+            if self.config.experimental_features.v2_mode.enabled
             else WebSearchToolParameters.from_tool_parameter_query_description(
                 self.config.tool_parameters_config.query_description,
                 self.config.tool_parameters_config.date_restrict_description,
             )
         )
 
+        tool_description = (
+            self.config.experimental_features.v2_mode.tool_description
+            if self.config.experimental_features.v2_mode.enabled
+            else self.config.tool_description
+        )
+
         return LanguageModelToolDescription(
             name=self.name,
-            description=self.config.tool_description,
+            description=tool_description,
             parameters=self.tool_parameter_calls,
         )
 
     def tool_description_for_system_prompt(self) -> str:
-        if self.config.experimental_features.use_v2:
-            return (
-                self.config.experimental_features.tool_description_for_system_prompt_v2
+        if self.config.experimental_features.v2_mode.enabled:
+            return self.config.experimental_features.v2_mode.tool_description_for_system_prompt.replace(
+                "$max_steps", str(self.config.experimental_features.v2_mode.max_steps)
             )
 
         return self.config.tool_description_for_system_prompt
 
     def tool_format_information_for_system_prompt(self) -> str:
-        if self.config.experimental_features.use_v2:
-            return self.config.experimental_features.tool_format_information_for_system_prompt_v2
-
         return self.config.tool_format_information_for_system_prompt
 
     def evaluation_check_list(self) -> list[EvaluationMetricName]:
@@ -123,7 +129,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
                 content_chunks=content_chunks,
             )
         except Exception as e:
-            self.logger.error(f"Error executing WebSearch tool: {e}")
+            self.logger.exception(f"Error executing WebSearch tool: {e}")
 
             if self.tool_progress_reporter:
                 await self.tool_progress_reporter.notify_from_tool_call(
@@ -157,7 +163,10 @@ class WebSearchTool(Tool[WebSearchConfig]):
                 content_processor=self.content_processor,
                 chunk_relevancy_sorter=self.chunk_relevancy_sorter,
                 chunk_relevancy_sort_config=self.config.chunk_relevancy_sort_config,
+                tool_progress_reporter=self.tool_progress_reporter,
                 content_reducer=self.content_reducer,
+                max_steps=self.config.experimental_features.v2_mode.max_steps,
+                debug=self.debug,
             )
         elif isinstance(parameters, WebSearchToolParameters):
             return WebSearchV1Executor(
@@ -168,11 +177,15 @@ class WebSearchTool(Tool[WebSearchConfig]):
                 tool_call=tool_call,
                 tool_parameters=parameters,
                 company_id=self.company_id,
-                mode=self.config.experimental_features.v1_mode,
+                mode=self.config.experimental_features.v1_mode.refine_query_mode,
+                max_queries=self.config.experimental_features.v1_mode.max_queries,
                 content_processor=self.content_processor,
                 chunk_relevancy_sorter=self.chunk_relevancy_sorter,
                 chunk_relevancy_sort_config=self.config.chunk_relevancy_sort_config,
+                tool_progress_reporter=self.tool_progress_reporter,
                 content_reducer=self.content_reducer,
+                refine_query_system_prompt=self.config.query_refinement_config.system_prompt,
+                debug=self.debug,
             )
         else:
             raise ValueError(f"Invalid parameters: {parameters}")
@@ -217,6 +230,17 @@ class WebSearchTool(Tool[WebSearchConfig]):
             tool_call_id=tool_response.id,  # type: ignore
             name=tool_response.name,
         )
+
+    def get_evaluation_checks_based_on_tool_response(
+        self,
+        tool_response: ToolCallResponse,
+    ) -> list[EvaluationMetricName]:
+        evaluation_check_list = self.evaluation_check_list()
+
+        # Check if the tool response is empty
+        if not tool_response.content_chunks:
+            return []
+        return evaluation_check_list
 
 
 ToolFactory.register_tool(WebSearchTool, WebSearchConfig)

@@ -2,13 +2,6 @@ from enum import StrEnum
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, create_model
-from unique_toolkit._common.utils.structured_output.schema import StructuredOutputModel
-
-
-class RefinedQuery(StructuredOutputModel):
-    """A refined query."""
-
-    optimized_query: str = Field(description="The refined query.")
 
 
 class WebSearchToolParameters(BaseModel):
@@ -20,7 +13,7 @@ class WebSearchToolParameters(BaseModel):
 
     @classmethod
     def from_tool_parameter_query_description(
-        cls, query_description: str, date_restrict_description: str
+        cls, query_description: str, date_restrict_description: str | None
     ) -> type["WebSearchToolParameters"]:
         """Create a new model with the query field."""
         return create_model(
@@ -39,21 +32,12 @@ class StepType(StrEnum):
     READ_URL = "read_url"
 
 
-class SearchStep(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    step_type: Literal[StepType.SEARCH]
+class Step(BaseModel):
+    step_type: Literal[StepType.SEARCH, StepType.READ_URL]
     objective: str = Field(description="The objective of the step")
-    query: str = Field(description="Optimized query to send to the search engine")
-
-
-class ReadUrlStep(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    step_type: Literal[StepType.READ_URL]
-    objective: str = Field(description="The objective of the step")
-    url: str = Field(description="URL to read")
-
-
-STEP_TYPES = SearchStep | ReadUrlStep
+    query_or_url: str = Field(
+        description="The input for this step: either an optimized search query (for search steps) or a URL to read (for read_url steps)."
+    )
 
 
 class WebSearchPlan(BaseModel):
@@ -62,5 +46,5 @@ class WebSearchPlan(BaseModel):
     query_analysis: str = Field(
         description="Analysis of the user's query and what information is needed"
     )
-    steps: list[STEP_TYPES] = Field(description="Steps to execute")
+    steps: list[Step] = Field(description="Steps to execute")
     expected_outcome: str = Field(description="Expected outcome")

@@ -38,6 +38,7 @@ class BaseWebSearchExecutor:
         chunk_relevancy_sort_config: ChunkRelevancySortConfig,
         content_reducer: Callable[[list[WebPageChunk]], list[WebPageChunk]],
         tool_progress_reporter: Optional[ToolProgressReporter] = None,
+        debug: bool = False,
     ):
         self.company_id = company_id
         self.search_service = search_service
@@ -50,7 +51,7 @@ class BaseWebSearchExecutor:
         self.chunk_relevancy_sort_config = chunk_relevancy_sort_config
         self.tool_call = tool_call
         self.tool_parameters = tool_parameters
-
+        self.debug = debug
         self.content_reducer = content_reducer
         self._notify_name = ""
         self._notify_message = ""
@@ -103,14 +104,20 @@ class BaseWebSearchExecutor:
         logger.info(
             f"Content processed with {self.content_processor.config.strategy} completed in {delta_time} seconds"
         )
-        self.debug_info["time_info"].append(
+        self.debug_info["step_info"].append(
             {
                 "operation": "content_processing",
                 "execution_time": delta_time,
                 "content_processor": self.content_processor.config.strategy,
                 "number_of_results": len(web_search_results),
-                "urls": [result.url for result in web_search_results],
-                "content": content_results,
+                **(
+                    {
+                        "urls": [result.url for result in web_search_results],
+                        "content": [elem.model_dump() for elem in content_results],
+                    }
+                    if self.debug
+                    else {}
+                ),
             }
         )
         return content_results

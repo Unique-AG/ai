@@ -28,34 +28,6 @@ from unique_web_search.utils import query_params_to_human_string
 logger = logging.getLogger(f"PythonAssistantCoreBundle.{__name__}")
 
 
-RESTRICT_DATE_DESCRIPTION = """
-Restricts results to a recent time window. Format: `[period][number]` — `d`=days, `w`=weeks, `m`=months, `y`=years.  
-Examples: `d1` (24h), `w1` (1 week), `m3` (3 months), `y1` (1 year).  
-Omit for no date filter. Avoid adding date terms in the main query.
-"""
-
-REFINE_QUERY_SYSTEM_PROMPT = """
-You're task consist of a query for a search engine.
-
-** Refine the query Guidelines **
-- The query should be a string that does not exceed 6 key words.
-- Never include temporal information in the refined query. There is a separate field for this purpose.
-- You may add the additional advanced syntax when relevant to refine the results:
-- Use quotes `"..."` for exact words (avoid doing it for phrases as it will dramatically reduce the number of results).
-- Use `-word` to exclude terms.
-- Use `site:domain.com` to restrict to a site.
-- Use `intitle:`, `inurl:` to target title/URL.
-- Use `OR` for alternatives, `*` as a wildcard.
-- Use `..` for number ranges (e.g., 2010..2020).
-- Use `AROUND(N)` to find terms close together.
-- Use `define:word` for definitions.
-- Combine operators for powerful filtering.
-
-** IMPORTANT **
-- You should not use any date restriction in the refined query.
-""".strip()
-
-
 class RefineQueryMode(StrEnum):
     ADVANCED = "advanced"
     BASIC = "basic"
@@ -84,6 +56,7 @@ async def query_generation_agent(
     query: str,
     language_model_service: LanguageModelService,
     language_model: LMI,
+    system_prompt: str,
     mode: Literal[RefineQueryMode.BASIC],
 ) -> RefinedQueries: ...
 
@@ -93,6 +66,7 @@ async def query_generation_agent(
     query: str,
     language_model_service: LanguageModelService,
     language_model: LMI,
+    system_prompt: str,
     mode: Literal[RefineQueryMode.ADVANCED],
 ) -> RefinedQuery: ...
 
@@ -101,12 +75,13 @@ async def query_generation_agent(
     query: str,
     language_model_service: LanguageModelService,
     language_model: LMI,
+    system_prompt: str,
     mode: RefineQueryMode,
 ) -> RefinedQuery | RefinedQueries:
     """Refine the query to be more specific and relevant to the user's question."""
     messages = (
         MessagesBuilder()
-        .system_message_append(REFINE_QUERY_SYSTEM_PROMPT)
+        .system_message_append(system_prompt)
         .user_message_append(query)
         .build()
     )
@@ -147,8 +122,11 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
         content_reducer: Callable[[list[WebPageChunk]], list[WebPageChunk]],
         tool_call: LanguageModelFunction,
         tool_parameters: WebSearchToolParameters,
+        refine_query_system_prompt: str,
         tool_progress_reporter: Optional[ToolProgressReporter] = None,
         mode: RefineQueryMode = RefineQueryMode.BASIC,
+        debug: bool = False,
+        max_queries: int = 10,
     ):
         super().__init__(
             search_service=search_service,
@@ -163,9 +141,12 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
             chunk_relevancy_sort_config=chunk_relevancy_sort_config,
             content_reducer=content_reducer,
             tool_progress_reporter=tool_progress_reporter,
+            debug=debug,
         )
         self.mode = mode
         self.tool_parameters = tool_parameters
+        self.refine_query_system_prompt = refine_query_system_prompt
+        self.max_queries = max_queries
 
     async def run(self) -> tuple[list[ContentChunk], dict]:
         query = self.tool_parameters.query
@@ -178,7 +159,13 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
 
         web_search_results = []
         for index, refined_query in enumerate(refined_queries):
-            self.notify_name = f"**Searching Web {index + 1}/{len(refined_queries)}**"
+            if len(refined_queries) > 1:
+                self.notify_name = (
+                    f"**Searching Web {index + 1}/{len(refined_queries)}**"
+                )
+            else:
+                self.notify_name = "**Searching Web**"
+
             self.notify_message = query_params_to_human_string(
                 refined_query, date_restrict
             )
@@ -219,7 +206,11 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
     async def _refine_query(self, query: str) -> tuple[list[str], str]:
         start_time = time()
         refined_query = await query_generation_agent(
-            query, self.language_model_service, self.language_model, self.mode
+            query,
+            self.language_model_service,
+            self.language_model,
+            self.refine_query_system_prompt,
+            self.mode,
         )
         end_time = time()
         delta_time = end_time - start_time
@@ -233,7 +224,7 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
             ]
         else:
             raise ValueError("Invalid refined query")
-        self.debug_info["time_info"].append(
+        self.debug_info["step_info"].append(
             {
                 "operation": "refine_query",
                 "query": query,
@@ -248,49 +239,53 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
         self, query: str, date_restrict: str | None
     ) -> list[WebSearchResult]:
         start_time = time()
-        logger.info(
-            f"Company {self.company_id} Searching with {self.search_service.__name__}"
-        )
+        logger.info(f"Company {self.company_id} Searching with {self.search_service}")
         search_results = await self.search_service.search(
             query, date_restrict=date_restrict
         )
         end_time = time()
         delta_time = end_time - start_time
         logger.info(
-            f"Searched with {self.search_service.__name__} completed in {delta_time} seconds"
+            f"Searched with {self.search_service} completed in {delta_time} seconds"
         )
-        self.debug_info["time_info"].append(
+        self.debug_info["step_info"].append(
             {
                 "operation": "search",
                 "query": query,
                 "date_restrict": date_restrict,
                 "execution_time": delta_time,
-                "search_service": self.search_service.__name__,
+                "search_service": str(self.search_service),
             }
         )
         return search_results
 
     async def _crawl(self, web_search_results: list[WebSearchResult]) -> list[str]:
         start_time = time()
-        logger.info(
-            f"Company {self.company_id} Crawling with {self.crawler_service.__name__}"
-        )
+        logger.info(f"Company {self.company_id} Crawling with {self.crawler_service}")
         crawl_results = await self.crawler_service.crawl(
             [result.url for result in web_search_results]
         )
         end_time = time()
         delta_time = end_time - start_time
         logger.info(
-            f"Crawled {len(web_search_results)} pages with {self.crawler_service.__name__} completed in {delta_time} seconds"
+            f"Crawled {len(web_search_results)} pages with {self.crawler_service} completed in {delta_time} seconds"
         )
-        self.debug_info["time_info"].append(
+        self.debug_info["step_info"].append(
             {
                 "operation": "crawl",
                 "execution_time": delta_time,
-                "crawler_service": self.crawler_service.__name__,
+                "crawler_service": str(self.crawler_service),
                 "number_of_results": len(web_search_results),
                 "urls": [result.url for result in web_search_results],
                 "content": crawl_results,
             }
         )
         return crawl_results
+
+    def _enforce_max_queries(self, list_of_queries: list[str]) -> list[str]:
+        if len(list_of_queries) > self.max_queries:
+            logger.info(
+                f"Company {self.company_id} Reducing number of queries to {self.max_queries}"
+            )
+            list_of_queries = list_of_queries[: self.max_queries]
+        return list_of_queries
