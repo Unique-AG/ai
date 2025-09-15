@@ -1,3 +1,4 @@
+import asyncio
 from typing import Literal
 
 from tavily import AsyncTavilyClient
@@ -29,14 +30,43 @@ class TavilyCrawler(BaseCrawler[TavilyCrawlerConfig]):
 
         client = AsyncTavilyClient(api_key=api_key)
 
-        response = await client.extract(
-            urls=urls,
-            format="markdown",
-            include_images=False,
-            extract_depth=self.config.depth,
-            timeout=self.config.timeout,
-            include_favicon=False,
-        )
+        # Tavily only supports up to 20 URLs per request, so we need to batch the requests
+        response = {"results": [], "failed_results": []}
+        batch_size = 20
+
+        async def process_batch(batch_urls: list[str]) -> dict:
+            batch_response = await client.extract(
+                urls=batch_urls,
+                format="markdown",
+                include_images=False,
+                extract_depth=self.config.depth,
+                timeout=self.config.timeout,
+                include_favicon=False,
+            )
+            return batch_response
+
+        tasks = [
+            process_batch(urls[i : i + batch_size])
+            for i in range(0, len(urls), batch_size)
+        ]
+        results = await asyncio.gather(*tasks)
+
+        for result in results:
+            response["results"].extend(result.get("results", []))
+            response["failed_results"].extend(result.get("failed_results", []))
+
+        for i in range(0, len(urls), batch_size):
+            batch_urls = urls[i : i + batch_size]
+            batch_response = await client.extract(
+                urls=batch_urls,
+                format="markdown",
+                include_images=False,
+                extract_depth=self.config.depth,
+                timeout=self.config.timeout,
+                include_favicon=False,
+            )
+            response["results"].extend(batch_response.get("results", []))
+            response["failed_results"].extend(batch_response.get("failed_results", []))
 
         # Create a mapping from URL to content
         url_to_content = {}

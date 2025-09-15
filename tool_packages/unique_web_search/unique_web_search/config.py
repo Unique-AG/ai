@@ -16,21 +16,20 @@ from unique_toolkit.tools.config import get_configuration_dict
 from unique_toolkit.tools.schemas import BaseToolConfig
 
 from unique_web_search.prompts import (
-    DEFAULT_TOOL_DESCRIPTION,
-    DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
     DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT,
     REFINE_QUERY_SYSTEM_PROMPT,
+    RESTRICT_DATE_DESCRIPTION,
+    TOOL_DESCRIPTIONS,
+    TOOL_DESCRIPTIONS_FOR_SYSTEM_PROMPT,
 )
 from unique_web_search.services.content_processing.config import (
     ContentProcessorConfig,
 )
 from unique_web_search.services.crawlers import (
     BasicCrawlerConfig,
-    Crawl4AiCrawlerConfig,
-    FirecrawlCrawlerConfig,
-    JinaCrawlerConfig,
-    TavilyCrawlerConfig,
+    CrawlerConfigTypes,
 )
+from unique_web_search.services.executors.web_search_v1_executor import RefineQueryMode
 from unique_web_search.services.search_engine import (
     FireCrawlConfig,
     GoogleConfig,
@@ -59,7 +58,62 @@ class AnswerGenerationConfig(BaseModel):
     )
 
 
-class ExperimentalFeatures(FeatureExtendedSourceSerialization): ...
+class WebSearchV2(BaseModel):
+    model_config = get_configuration_dict()
+
+    enabled: bool = Field(
+        default=False,
+        description="Enable or disable the WebSearch V2 tool. Set to True to activate the step-based web search executor.",
+    )
+    max_steps: int = Field(
+        default=5,
+        description="Maximum number of sequential steps (searches or URL reads) allowed in a single WebSearch V2 plan.",
+    )
+    tool_description: str = Field(
+        default=TOOL_DESCRIPTIONS["v2"],
+        description="Information to help the language model decide when to select this tool; describes the tool's general purpose and when it is relevant.",
+    )
+    tool_description_for_system_prompt: str = Field(
+        default=TOOL_DESCRIPTIONS_FOR_SYSTEM_PROMPT["v2"],
+        description="Description of the tool's capabilities, intended for inclusion in system prompts to inform the language model what the tool can do.",
+    )
+    tool_format_information_for_system_prompt: str = Field(
+        default=DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT,
+        description="Instructions for the language model on how to reference and organize information from the tool in its response.",
+    )
+
+
+class WebSearchV1(BaseModel):
+    model_config = get_configuration_dict()
+
+    refine_query_mode: RefineQueryMode = Field(
+        default=RefineQueryMode.BASIC,
+        description="Query refinement strategy for WebSearch V1. Determines how user queries are improved before searching (e.g., BASIC, ADVANCED).",
+    )
+    max_queries: int = Field(
+        default=5,
+        description="Maximum number of search queries that WebSearch V1 will issue per user request.",
+    )
+
+
+class ExperimentalFeatures(FeatureExtendedSourceSerialization):
+    v1_mode: WebSearchV1 = Field(
+        default_factory=WebSearchV1,
+        description=(
+            "Configuration options for WebSearch V1 mode. "
+            "Controls the behavior and parameters of the original web search tool, "
+            "including query refinement and search limits."
+        ),
+    )
+
+    v2_mode: WebSearchV2 = Field(
+        default_factory=WebSearchV2,
+        description=(
+            "Configuration options for WebSearch V2 mode. "
+            "Enables and customizes the new step-based web search executor, "
+            "allowing for advanced planning and multi-step research workflows."
+        ),
+    )
 
 
 class QueryRefinementConfig(BaseModel):
@@ -81,9 +135,7 @@ class WebSearchToolParametersConfig(BaseModel):
         description="The tool parameter query description",
     )
     date_restrict_description: str = Field(
-        default="""Restricts results to a recent time window. Format: `[period][number]` — `d`=days, `w`=weeks, `m`=months, `y`=years.  
-Examples: `d1` (24h), `w1` (1 week), `m3` (3 months), `y1` (1 year).  
-Omit for no date filter. Avoid adding date terms in the main query.""",
+        default=RESTRICT_DATE_DESCRIPTION,
         description="The tool parameter date restrict description",
     )
 
@@ -118,13 +170,7 @@ class WebSearchConfig(BaseToolConfig):
         title="Search Engine Configuration",
     )
 
-    crawler_config: (
-        Crawl4AiCrawlerConfig
-        | BasicCrawlerConfig
-        | FirecrawlCrawlerConfig
-        | JinaCrawlerConfig
-        | TavilyCrawlerConfig
-    ) = Field(
+    crawler_config: CrawlerConfigTypes = Field(
         default_factory=BasicCrawlerConfig,
         description="The crawler configuration.",
         discriminator="crawler_type",
@@ -163,12 +209,12 @@ class WebSearchConfig(BaseToolConfig):
     )
 
     tool_description: str = Field(
-        default=DEFAULT_TOOL_DESCRIPTION,
+        default=TOOL_DESCRIPTIONS["v1"],
         description="The tool description",
     )
 
     tool_description_for_system_prompt: str = Field(
-        default=DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
+        default=TOOL_DESCRIPTIONS_FOR_SYSTEM_PROMPT["v1"],
     )
 
     tool_format_information_for_system_prompt: str = Field(
@@ -176,6 +222,11 @@ class WebSearchConfig(BaseToolConfig):
     )
 
     experimental_features: ExperimentalFeatures = ExperimentalFeatures()
+
+    debug: bool = Field(
+        default=False,
+        description="Whether to enable the debug mode",
+    )
 
     @model_validator(mode="after")
     def disable_query_refinement_if_no_structured_output(self):
