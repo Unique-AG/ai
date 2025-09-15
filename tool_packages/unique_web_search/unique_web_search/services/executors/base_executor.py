@@ -1,4 +1,5 @@
 import logging
+from abc import ABC, abstractmethod
 from time import time
 from typing import Callable, Optional
 
@@ -23,7 +24,7 @@ from unique_web_search.services.search_engine import SearchEngineTypes, WebSearc
 logger = logging.getLogger(f"PythonAssistantCoreBundle.{__name__}")
 
 
-class BaseWebSearchExecutor:
+class BaseWebSearchExecutor(ABC):
     def __init__(
         self,
         search_service: SearchEngineTypes,
@@ -86,6 +87,7 @@ class BaseWebSearchExecutor:
     def notify_message(self, value):
         self._notify_message = value
 
+    @abstractmethod
     async def run(self) -> tuple[list[ContentChunk], dict]:
         raise NotImplementedError("Subclasses must implement this method.")
 
