@@ -3,10 +3,9 @@ name = "unique_web_search"
 version = "0.1.1"
 description = ""
 authors = [
-    "Martin Fadler <martin.fadler@unique.ch>",
-    "Sadique Sheik <sadique@unique.ch>",
-    "Fabian Schläpfer <fabian@unique.ch>",
-    "Pascal Hauri <pascal@unique.ch>",
+    "Andreas Hauri <andreas@unique.ch>",
+    "Gustav Hartz <gustav.hartz.ext@unique.ch>",
+    "Rami Azouz <rami.ext@unique.ch>,
 ]
 readme = ["README.md", "CHANGELOG.md"]
 license = "Proprietary"
