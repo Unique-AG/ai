@@ -1,13 +1,10 @@
 from typing import (
-    Any,
     ClassVar,
-    Dict,
     List,
     Literal,
     NotRequired,
     Optional,
     TypedDict,
-    Union,
     Unpack,
     cast,
 )
@@ -37,51 +34,6 @@ class ChatCompletionChoicesInner(TypedDict):
 class ChatCompletion(APIResource["ChatCompletion"]):
     OBJECT_NAME: ClassVar[Literal["openai.chat.completion"]] = "openai.chat.completion"
 
-    class FunctionDefinition(TypedDict, total=False):
-        name: str
-        description: Optional[str]
-        parameters: Optional[Dict[str, Any]]
-
-    class ChatCompletionsFunctionToolDefinition(TypedDict):
-        type: Literal["function"]
-        function: "ChatCompletion.FunctionDefinition"
-
-    class FunctionName(TypedDict):
-        name: str
-
-    class ChatCompletionsNamedFunctionToolSelectionName(TypedDict):
-        name: str
-
-    class ChatCompletionsNamedFunctionToolSelection(TypedDict):
-        type: Literal["function"]
-        function: "ChatCompletion.ChatCompletionsNamedFunctionToolSelectionName"
-
-    class ChatCompletionsTextResponseFormat(TypedDict, total=False):
-        type: Literal["text", "json_schema"]
-        json_schema: dict
-
-    class Options(TypedDict, total=False):
-        functions: NotRequired[List["ChatCompletion.FunctionDefinition"]]
-        reasoningEffort: NotRequired[Literal["low", "medium", "high", None]]
-        functionCall: NotRequired[
-            Union[Literal["auto", "none"], "ChatCompletion.FunctionName"]
-        ]
-        maxTokens: NotRequired[int]
-        temperature: NotRequired[float]
-        topP: NotRequired[float]
-        logitBias: NotRequired[Dict[str, float]]
-        user: NotRequired[str]
-        n: NotRequired[int]
-        stop: NotRequired[List[str]]
-        presencePenalty: NotRequired[float]
-        frequencyPenalty: NotRequired[float]
-        seed: NotRequired[int]
-        responseFormat: NotRequired["ChatCompletion.ChatCompletionsTextResponseFormat"]
-        tools: NotRequired[List["ChatCompletion.ChatCompletionsFunctionToolDefinition"]]
-        toolChoice: NotRequired[
-            "ChatCompletion.ChatCompletionsNamedFunctionToolSelection"
-        ]
-
     class CreateParams(RequestOptions):
         model: NotRequired[
             Literal[
@@ -91,7 +43,6 @@ class ChatCompletion(APIResource["ChatCompletion"]):
         ]
         timeout: NotRequired[Optional["int"]]
         messages: List[ChatCompletionRequestMessage]
-        options: NotRequired["ChatCompletion.Options"]
 
     model: Literal[
         "AZURE_GPT_4_0613",
