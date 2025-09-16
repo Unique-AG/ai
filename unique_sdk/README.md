@@ -779,7 +779,6 @@ chat_completion = unique_sdk.ChatCompletion.create(
     ],
     options={
         "temperature": 0.5,             # optional
-        "reasoningEffort": "low",       # optional
     } # optional
 )
 ```
