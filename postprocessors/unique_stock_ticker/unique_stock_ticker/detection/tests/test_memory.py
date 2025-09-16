@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock
 
 import pytest
-from unique_toolkit.short_term_memory.persistent_short_term_memory_manager import (
+from agentic.short_term_memory_manager.persistent_short_term_memory_manager import (
     PersistentShortMemoryManager,
 )
 

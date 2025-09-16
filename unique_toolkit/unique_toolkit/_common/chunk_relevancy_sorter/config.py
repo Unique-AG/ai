@@ -4,8 +4,10 @@ from pydantic import BaseModel, Field
 
 from unique_toolkit._common.default_language_model import DEFAULT_GPT_35_TURBO
 from unique_toolkit._common.validators import LMI, get_LMI_default_field
-from unique_toolkit.evals.context_relevancy.schema import StructuredOutputConfig
-from unique_toolkit.tools.config import get_configuration_dict
+from unique_toolkit.agentic.evaluation.context_relevancy.schema import (
+    StructuredOutputConfig,
+)
+from unique_toolkit.agentic.tools.config import get_configuration_dict
 
 
 class ChunkRelevancySortConfig(BaseModel):

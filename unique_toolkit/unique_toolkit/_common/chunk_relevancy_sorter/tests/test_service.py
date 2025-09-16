@@ -17,10 +17,15 @@ from unique_toolkit._common.default_language_model import (
     DEFAULT_GPT_35_TURBO,
     DEFAULT_GPT_4o,
 )
+from unique_toolkit.agentic.evaluation.context_relevancy.schema import (
+    StructuredOutputConfig,
+)
+from unique_toolkit.agentic.evaluation.schemas import (
+    EvaluationMetricName,
+    EvaluationMetricResult,
+)
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.content.schemas import ContentChunk
-from unique_toolkit.evals.context_relevancy.schema import StructuredOutputConfig
-from unique_toolkit.evals.schemas import EvaluationMetricName, EvaluationMetricResult
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
 

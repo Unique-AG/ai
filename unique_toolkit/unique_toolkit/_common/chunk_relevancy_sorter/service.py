@@ -16,21 +16,23 @@ from unique_toolkit._common.chunk_relevancy_sorter.schemas import (
     ChunkRelevancySorterResult,
 )
 from unique_toolkit._common.validate_required_values import validate_required_values
-from unique_toolkit.app.performance.async_tasks import run_async_tasks_parallel
-from unique_toolkit.app.schemas import BaseEvent, ChatEvent
-from unique_toolkit.content.schemas import ContentChunk
-from unique_toolkit.evals.config import EvaluationMetricConfig
-from unique_toolkit.evals.context_relevancy.schema import (
+from unique_toolkit.agentic.evaluation.config import EvaluationMetricConfig
+from unique_toolkit.agentic.evaluation.context_relevancy.schema import (
     EvaluationSchemaStructuredOutput,
     StructuredOutputConfig,
 )
-from unique_toolkit.evals.context_relevancy.service import ContextRelevancyEvaluator
-from unique_toolkit.evals.exception import EvaluatorException
-from unique_toolkit.evals.schemas import (
+from unique_toolkit.agentic.evaluation.context_relevancy.service import (
+    ContextRelevancyEvaluator,
+)
+from unique_toolkit.agentic.evaluation.exception import EvaluatorException
+from unique_toolkit.agentic.evaluation.schemas import (
     EvaluationMetricInput,
     EvaluationMetricName,
     EvaluationMetricResult,
 )
+from unique_toolkit.app.performance.async_tasks import run_async_tasks_parallel
+from unique_toolkit.app.schemas import BaseEvent, ChatEvent
+from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
 

@@ -2,8 +2,8 @@ from typing import Optional
 
 from pydantic import BaseModel
 
+from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricResult
 from unique_toolkit.content.schemas import ContentChunk
-from unique_toolkit.evals.schemas import EvaluationMetricResult
 
 
 class ChunkRelevancy(BaseModel):
