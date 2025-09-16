@@ -1,7 +1,7 @@
-from agentic.short_term_memory_manager.persistent_short_term_memory_manager import (
+from unique_toolkit.agentic.short_term_memory_manager.persistent_short_term_memory_manager import (
     PersistentShortMemoryManager,
 )
-from agentic.tools.a2a.schema import SubAgentShortTermMemorySchema
+from unique_toolkit.agentic.tools.a2a.schema import SubAgentShortTermMemorySchema
 
 from unique_toolkit import ShortTermMemoryService
 

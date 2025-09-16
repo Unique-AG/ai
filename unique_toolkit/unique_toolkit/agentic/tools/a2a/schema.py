@@ -1,5 +1,6 @@
-from agentic.tools.schemas import ToolCallResponse
 from pydantic import BaseModel
+
+from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 
 
 class SubAgentToolInput(BaseModel):
