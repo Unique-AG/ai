@@ -1,13 +1,8 @@
 [tool.poetry]
 name = "unique_orchestrator"
-version = "0.0.2"
+version = "0.0.3"
 description = ""
-authors = [
-    "Martin Fadler <martin.fadler@unique.ch>",
-    "Sadique Sheik <sadique@unique.ch>",
-    "Fabian Schläpfer <fabian@unique.ch>",
-    "Pascal Hauri <pascal@unique.ch>",
-]
+authors = ["Andreas Hauri <andreas.hauri@unique.ai>"]
 readme = ["README.md", "CHANGELOG.md"]
 license = "Proprietary"
 
