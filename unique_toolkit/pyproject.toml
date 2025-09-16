@@ -19,8 +19,6 @@ typing-extensions = "^4.9.0"
 pydantic = "^2.8.2"
 pyhumps = "^3.8.0"
 numpy = "^1.26.4"
-python-dotenv = "^1.0.1"
-regex = "^2024.5.15"
 tiktoken = "^0.7.0"
 pydantic-settings = "^2.10.1"
 sseclient = "^0.0.27"
@@ -29,8 +27,7 @@ platformdirs = "^4.0.0"
 pillow = "^10.4.0"
 unique-sdk = "^0.10.0"
 jambo = "^0.1.2"
-mkdocs-multirepo-plugin = "^0.8.3"
-mkdocs-mermaid2-plugin = "^1.2.2"
+requests = "^2.32.5"
 
 [tool.poetry.group.langchain]
 optional = true
@@ -39,6 +36,23 @@ optional = true
 openai = "^1.97.0"
 langchain = "^0.3.27"
 langchain-openai = "^0.3.28"
+langchain-core = "^0.3.76"
+
+[tool.poetry.group.docs]
+optional = true
+
+[tool.poetry.group.docs.dependencies]
+python-dotenv = "^1.0.1"
+jinja2 = "^3.1.0"
+mkdocs = "^1.6.1"
+mkdocs-material = "^9.6.11"
+mkdocs-include-markdown-plugin = "^7.1.5"
+mkdocs-callouts = "^1.16.0"
+mkdocstrings-python = "^1.16.10"
+mkdocs-codeinclude-plugin = "^0.2.1"
+mkdocs-entangled-plugin = "^0.4.0"
+mkdocs-multirepo-plugin = "^0.8.3"
+mkdocs-mermaid2-plugin = "^1.2.2"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "0.12.10"
@@ -53,15 +67,11 @@ platformdirs = "^4.0.0"
 pillow = "^10.4.0"
 ipykernel = "^6.29.5"
 # unique-sdk = { path = "../unique_sdk" }
-mkdocs = "^1.6.1"
-mkdocs-material = "^9.6.11"
-mkdocs-include-markdown-plugin = "^7.1.5"
-mkdocs-callouts = "^1.16.0"
-mkdocstrings-python = "^1.16.10"
 entangled-cli = "^2.1.13"
-mkdocs-entangled-plugin = "^0.4.0"
 isort = "^6.0.1"
-mkdocs-codeinclude-plugin = "^0.2.1"
+pydeps = "^3.0.1"
+matplotlib = "^3.10.6"
+deptry = "^0.23.1"
 
 [build-system]
 requires = ["poetry-core"]
@@ -74,3 +84,14 @@ exclude = [".venv", "docs"]
 
 [tool.ruff.lint]
 extend-select = ["I"]
+
+[tool.deptry]
+known_first_party = ["unique_toolkit"]
+extend_exclude = ["(^|.*/)?test_.*\\.py$", "conftest\\.py$", "docs/"]
+
+[tool.deptry.per_rule_ignores]
+# Grouped optional dependencies like langchain group
+DEP004 = ["langchain_openai", 
+          "langchain_core",
+          "langchain",
+          "openai"]
