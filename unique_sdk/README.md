@@ -1125,6 +1125,49 @@ unique_sdk.Folder.remove_access(
 )
 ```
 
+#### `unique_sdk.Folder.update`
+Uupdate a folder specified by its `scopeId` or path. The following properties can be updated:
+- parent folder - move the folder to a new parent folder specified by its `scopeId` or path. If the new parent folder is the root folder, the `parentId` should be explicitly specificed by setting `newParentId` to `None`.
+- name - update the name by setting the `name` field to the new name.
+
+Examples:
+
+Move the folder specified by its `scopeId` to a new parent folder specified by its path.
+
+```python
+unique_sdk.Folder.update(
+    user_id=user_id,
+    company_id=company_id,
+    scopeId="scope_dwekjnf3330woioppm",
+    parentFolderPath="/Company/folder1/folder2"
+)
+```
+
+Move the parent of a folder specified by its path to a new parent folder specified by its `scopeId` and update the name to "January".
+
+```python
+unique_sdk.Folder.update(
+    user_id=user_id,
+    company_id=company_id,
+    folderPath="/Company/folder1",
+    parentId="scope_dweekjrfhirtuhgroppm",
+    name="January"
+)
+```
+
+Move the parent of a folder specified by its path to the root folder and update the name to "January".
+
+```python
+unique_sdk.Folder.update(
+    user_id=user_id,
+    company_id=company_id,
+    folderPath="/Company/folder1",
+    parentId=None,
+    name="January"
+)
+```
+
+
 #### `unique_sdk.Folder.delete` (Compatible with release >.36)
 
 Given a `scopeId` or `folderPath`, the function deletes the folder. If the folder is not empty or if the user has no WRITE access, the delete will fail.
