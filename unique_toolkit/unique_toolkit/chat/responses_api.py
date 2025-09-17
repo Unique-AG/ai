@@ -132,7 +132,6 @@ def _prepare_responses_args(
     chat_id: str,
     assistant_id: str,
     params: _ResponsesParams,
-    temperature: float,
     debug_info: dict | None,
     start_text: str | None,
     include: list[ResponseIncludable] | None,
@@ -170,6 +169,9 @@ def _prepare_responses_args(
 
     openai_options: unique_sdk.Integrated.CreateStreamResponsesOpenaiParams = {}
 
+    if params.temperature is not None:
+        openai_options["temperature"] = params.temperature
+
     if include is not None:
         openai_options["include"] = include
 
@@ -184,9 +186,6 @@ def _prepare_responses_args(
 
     if parallel_tool_calls is not None:
         openai_options["parallel_tool_calls"] = parallel_tool_calls
-
-    if temperature is not None:
-        openai_options["temperature"] = temperature
 
     if text is not None:
         openai_options["text"] = text
@@ -258,7 +257,6 @@ def stream_responses_with_references(
         chat_id=chat_id,
         assistant_id=assistant_id,
         params=responses_params,
-        temperature=temperature,
         debug_info=debug_info,
         start_text=start_text,
         include=include,
@@ -326,7 +324,6 @@ async def stream_responses_with_references_async(
         chat_id=chat_id,
         assistant_id=assistant_id,
         params=responses_params,
-        temperature=temperature,
         debug_info=debug_info,
         start_text=start_text,
         include=include,
