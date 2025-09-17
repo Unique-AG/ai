@@ -1,9 +1,9 @@
 from typing import Self
 
-from  unique_toolkit.agentic.short_term_memory_manager.persistent_short_term_memory_manager import (
+from pydantic import BaseModel
+from unique_toolkit.agentic.short_term_memory_manager.persistent_short_term_memory_manager import (
     PersistentShortMemoryManager,
 )
-from pydantic import BaseModel
 from unique_toolkit.agentic.tools.config import (
     get_configuration_dict,
 )
