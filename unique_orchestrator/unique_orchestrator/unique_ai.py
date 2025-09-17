@@ -5,22 +5,22 @@ import jinja2
 from unique_toolkit.app.schemas import ChatEvent, McpServer
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.service import ContentService
-from unique_toolkit.debug_info_manager.debug_info_manager import (
+from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
     DebugInfoManager,
 )
-from unique_toolkit.evals.evaluation_manager import EvaluationManager
-from unique_toolkit.history_manager.history_manager import HistoryManager
+from unique_toolkit.agentic.evaluation.evaluation_manager import EvaluationManager
+from  unique_toolkit.agentic.history_manager.history_manager import HistoryManager
 from unique_toolkit.language_model.schemas import (
     LanguageModelAssistantMessage,
     LanguageModelMessages,
     LanguageModelStreamResponse,
 )
-from unique_toolkit.postprocessor.postprocessor_manager import (
+from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
     PostprocessorManager,
 )
-from unique_toolkit.reference_manager.reference_manager import ReferenceManager
-from unique_toolkit.thinking_manager.thinking_manager import ThinkingManager
-from unique_toolkit.tools.tool_manager import ToolManager
+from unique_toolkit.agentic.reference_manager.reference_manager import ReferenceManager
+from unique_toolkit.agentic.thinking_manager.thinking_manager import ThinkingManager
+from unique_toolkit.agentic.tools.tool_manager import ToolManager
 
 from unique_orchestrator.config import UniqueAIConfig
 

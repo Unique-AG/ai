@@ -2,7 +2,7 @@ import asyncio
 import logging
 from datetime import date, timedelta
 
-from unique_toolkit.tools.utils.execution.execution import (
+from unique_toolkit.agentic.tools.utils.execution.execution import (
     SafeTaskExecutor,
     safe_execute_async,
 )

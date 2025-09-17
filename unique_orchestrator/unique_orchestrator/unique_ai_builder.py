@@ -16,33 +16,33 @@ from unique_toolkit import LanguageModelService
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.service import ContentService
-from unique_toolkit.debug_info_manager.debug_info_manager import (
+from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
     DebugInfoManager,
 )
-from unique_toolkit.evals.evaluation_manager import EvaluationManager
-from unique_toolkit.evals.hallucination.hallucination_evaluation import (
+from unique_toolkit.agentic.evaluation.evaluation_manager import EvaluationManager
+from unique_toolkit.agentic.evaluation.hallucination.hallucination_evaluation import (
     HallucinationEvaluation,
 )
-from unique_toolkit.history_manager import (
+from  unique_toolkit.agentic.history_manager import (
     history_manager as history_manager_module,
 )
-from unique_toolkit.history_manager.history_manager import (
+from  unique_toolkit.agentic.history_manager.history_manager import (
     HistoryManager,
     HistoryManagerConfig,
 )
-from unique_toolkit.postprocessor.postprocessor_manager import (
+from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
     PostprocessorManager,
 )
-from unique_toolkit.reference_manager.reference_manager import ReferenceManager
-from unique_toolkit.thinking_manager.thinking_manager import (
+from unique_toolkit.agentic.reference_manager.reference_manager import ReferenceManager
+from unique_toolkit.agentic.thinking_manager.thinking_manager import (
     ThinkingManager,
     ThinkingManagerConfig,
 )
-from unique_toolkit.tools.a2a.manager import A2AManager
-from unique_toolkit.tools.config import ToolBuildConfig
-from unique_toolkit.tools.mcp.manager import MCPManager
-from unique_toolkit.tools.tool_manager import ToolManager, ToolManagerConfig
-from unique_toolkit.tools.tool_progress_reporter import ToolProgressReporter
+from unique_toolkit.agentic.tools.a2a.manager import A2AManager
+from unique_toolkit.agentic.tools.config import ToolBuildConfig
+from unique_toolkit.agentic.tools.mcp.manager import MCPManager
+from unique_toolkit.agentic.tools.tool_manager import ToolManager, ToolManagerConfig
+from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
 
 from unique_orchestrator.config import UniqueAIConfig
 from unique_orchestrator.unique_ai import UniqueAI

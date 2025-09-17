@@ -3,7 +3,7 @@ from enum import StrEnum
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
-from unique_toolkit.tools.config import get_configuration_dict
+from unique_toolkit.agentic.tools.config import get_configuration_dict
 
 from unique_web_search.services.crawlers.base import (
     BaseCrawler,

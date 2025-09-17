@@ -27,16 +27,16 @@ from unique_toolkit.chat.schemas import (
 from unique_toolkit.chat.service import LanguageModelToolDescription
 from unique_toolkit.content.schemas import ContentReference
 from unique_toolkit.content.service import ContentService
-from unique_toolkit.evals.schemas import EvaluationMetricName
+from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.framework_utilities.openai.client import get_openai_client
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelMessage,
     LanguageModelToolMessage,
 )
-from unique_toolkit.tools.factory import ToolFactory
-from unique_toolkit.tools.schemas import ToolCallResponse
-from unique_toolkit.tools.tool import Tool
+from unique_toolkit.agentic.tools.factory import ToolFactory
+from unique_toolkit.agentic.tools.schemas import ToolCallResponse
+from unique_toolkit.agentic.tools.tool import Tool
 
 from .config import (
     RESPONSES_API_TIMEOUT_SECONDS,
