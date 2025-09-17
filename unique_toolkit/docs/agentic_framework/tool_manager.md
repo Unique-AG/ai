@@ -49,7 +49,7 @@ The available tools (MCP, sub-agents, and internal tools) are derived directly f
 The constructor initializes the Tool Manager with the necessary runtime context and managers:
 
 <!-- open-source -->
-::: unique_toolkit.agentic.tools.tool_manager.ToolManager.__init__
+::: unique_toolkit.tools.tool_manager.ToolManager.__init__
     options:
       show_root_heading: false
       show_root_toc_entry: false
@@ -64,7 +64,7 @@ The constructor initializes the Tool Manager with the necessary runtime context 
 The `_init__tools` method discovers and filters tools:
 
 <!-- open-source -->
-::: unique_toolkit.agentic.tools.tool_manager.ToolManager._init__tools
+::: unique_toolkit.tools.tool_manager.ToolManager._init__tools
     options:
       show_root_heading: false
       show_root_toc_entry: false
@@ -84,19 +84,19 @@ The orchestrator that works with the tool-manager needs three kinds of informati
 
 Get loaded tools and log them:
 <!-- open-source -->
-::: unique_toolkit.agentic.tools.tool_manager.ToolManager.log_loaded_tools
+::: unique_toolkit.tools.tool_manager.ToolManager.log_loaded_tools
     options:
       show_root_heading: false
       show_source: true
 
 <!-- open-source -->
-::: unique_toolkit.agentic.tools.tool_manager.ToolManager.get_tools
+::: unique_toolkit.tools.tool_manager.ToolManager.get_tools
     options:
       show_root_heading: false  
       show_source: true
 
 <!-- open-source -->
-::: unique_toolkit.agentic.tools.tool_manager.ToolManager.get_tool_by_name
+::: unique_toolkit.tools.tool_manager.ToolManager.get_tool_by_name
     options:
       show_root_heading: false
       show_source: true
