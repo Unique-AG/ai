@@ -147,7 +147,10 @@ class ContentProcessor:
 
     def _preprocess_content(self, content: str) -> str:
         """Smart preprocessing to remove navigation and UI clutter."""
-        # Stage 1: Remove lines matching patterns
+        # Stage 1: Normalize encoding
+        content = content.encode("utf-8", "ignore").decode()
+
+        # Stage 2: Remove lines matching patterns
         lines = content.split("\n")
         filtered_lines = []
 
@@ -162,12 +165,12 @@ class ContentProcessor:
 
         content = "\n".join(filtered_lines)
 
-        # Stage 2: Apply content transformations
+        # Stage 3: Apply content transformations
         if self.config.remove_urls_from_markdown_links:
             for pattern, replacement in REGEX_CONTENT_TRANSFORMATIONS:
                 content = re.sub(pattern, replacement, content)
 
-        # Stage 3: Normalize whitespace
+        # Stage 4: Normalize whitespace
         content = re.sub(r"\n{3,}", "\n\n", content)
         content = re.sub(r"[ \t]{2,}", " ", content)
 
