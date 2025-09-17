@@ -16,6 +16,7 @@ from openai.types.chat.chat_completion_message_param import ChatCompletionMessag
 from openai.types.responses import (
     ResponseIncludable,
     ResponseInputItemParam,
+    ResponseOutputItem,
     ResponseTextConfigParam,
     ToolParam,
     response_create_params,
@@ -49,12 +50,14 @@ from unique_toolkit.chat.functions import (
     modify_message_async,
     stream_complete_with_references,
     stream_complete_with_references_async,
-    stream_responses_with_references,
-    stream_responses_with_references_async,
     update_message_execution,
     update_message_execution_async,
     update_message_log,
     update_message_log_async,
+)
+from unique_toolkit.chat.responses_api import (
+    stream_responses_with_references,
+    stream_responses_with_references_async,
 )
 from unique_toolkit.chat.schemas import (
     ChatMessage,
@@ -1740,7 +1743,11 @@ class ChatService:
         model_name: LanguageModelName | str,
         messages: str
         | LanguageModelMessages
-        | Sequence[ResponseInputItemParam | LanguageModelMessageOptions],
+        | Sequence[
+            ResponseInputItemParam
+            | LanguageModelMessageOptions
+            | ResponseOutputItem  # History is automatically convertible
+        ],
         content_chunks: list[ContentChunk] | None = None,
         tools: Sequence[LanguageModelToolDescription | ToolParam] | None = None,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
@@ -1789,7 +1796,9 @@ class ChatService:
         model_name: LanguageModelName | str,
         messages: str
         | LanguageModelMessages
-        | Sequence[ResponseInputItemParam | LanguageModelMessageOptions],
+        | Sequence[
+            ResponseInputItemParam | LanguageModelMessageOptions | ResponseOutputItem
+        ],
         content_chunks: list[ContentChunk] | None = None,
         tools: Sequence[LanguageModelToolDescription | ToolParam] | None = None,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
