@@ -135,11 +135,19 @@ class ContentService:
 
     @classmethod
     def from_settings(
-        cls, settings: UniqueSettings, metadata_filter: dict | None = None
+        cls,
+        settings: UniqueSettings | str | None = None,
+        metadata_filter: dict | None = None,
     ):
         """
-        Initialize the ContentService with a settings object.
+        Initialize the ContentService with a settings object and metadata filter.
         """
+
+        if settings is None:
+            settings = UniqueSettings.from_env_auto_with_sdk_init()
+        elif isinstance(settings, str):
+            settings = UniqueSettings.from_env_auto_with_sdk_init(filename=settings)
+
         return cls(
             company_id=settings.auth.company_id.get_secret_value(),
             user_id=settings.auth.user_id.get_secret_value(),
@@ -454,6 +462,7 @@ class ContentService:
         scope_id: str | None = None,
         chat_id: str | None = None,
         skip_ingestion: bool = False,
+        skip_excel_ingestion: bool = False,
         ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
         metadata: dict | None = None,
     ) -> Content:
@@ -467,6 +476,7 @@ class ContentService:
             scope_id (str | None): The scope ID. Defaults to None.
             chat_id (str | None): The chat ID. Defaults to None.
             skip_ingestion (bool): Whether to skip ingestion. Defaults to False.
+            skip_excel_ingestion (bool): Whether to skip excel ingestion. Defaults to False.
             ingestion_config (unique_sdk.Content.IngestionConfig | None): The ingestion configuration. Defaults to None.
             metadata (dict | None): The metadata to associate with the content. Defaults to None.
 
@@ -495,6 +505,7 @@ class ContentService:
         scope_id: str | None = None,
         chat_id: str | None = None,
         skip_ingestion: bool = False,
+        skip_excel_ingestion: bool = False,
         ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
         metadata: dict[str, Any] | None = None,
     ):
@@ -508,6 +519,7 @@ class ContentService:
             scope_id (str | None): The scope ID. Defaults to None.
             chat_id (str | None): The chat ID. Defaults to None.
             skip_ingestion (bool): Whether to skip ingestion. Defaults to False.
+            skip_excel_ingestion (bool): Whether to skip excel ingestion. Defaults to False.
             ingestion_config (unique_sdk.Content.IngestionConfig | None): The ingestion configuration. Defaults to None.
             metadata (dict[str, Any] | None): The metadata to associate with the content. Defaults to None.
 
@@ -524,6 +536,7 @@ class ContentService:
             scope_id=scope_id,
             chat_id=chat_id,
             skip_ingestion=skip_ingestion,
+            skip_excel_ingestion=skip_excel_ingestion,
             ingestion_config=ingestion_config,
             metadata=metadata,
         )

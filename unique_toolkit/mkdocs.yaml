@@ -1,0 +1,117 @@
+site_name: Unique Toolkit
+site_description: Documentation for the Unique Toolkit
+site_author: Unique Team
+site_url: https://github.com/Unique-AG/ai/unique_toolkit
+repo_name: Unique-AG/ai/unique_toolkit
+repo_url: https://github.com/Unique-AG/ai/unique_toolkit  
+edit_uri: /docs/
+
+#theme:
+#  name: material
+#  features:
+#    - content.action.edit
+#    - content.code.copy
+#    - content.code.select
+#  font:
+#    text: Roboto
+#  icon:
+#    repo: fontawesome/brands/github
+#  palette:
+#    - media: "(prefers-color-scheme)"
+#      toggle:
+#        icon: material/brightness-auto
+#        name: Switch to light mode
+#    - media: "(prefers-color-scheme: light)"
+#      scheme: default
+#      primary: teal
+#      toggle:
+#        icon: material/brightness-7
+#        name: Switch to dark mode
+#    - media: "(prefers-color-scheme: dark)"
+#      scheme: slate
+#      primary: blue grey
+#      toggle:
+#        icon: material/brightness-4
+#        name: Switch to system preference
+
+nav:
+  - Home: index.md
+  - Environment Setup: setup/getting_started.md
+  - Application Types:
+    - Standalone Application: application_types/standalone_application.md
+    - Event Driven Applications: application_types/event_driven_applications.md
+  - Modules:
+    - Chat Examples: modules/examples/chat/chat_service.md
+    - Content Examples: modules/examples/content/content_service.md
+  - Agentic Framework:
+    - Overview: agentic_framework/framework.md
+    - Orchestrator: agentic_framework/orchestrator/unqiue_ai_how-it-works.md
+    - Tool: agentic_framework/tool.md
+    - Tool Call Response: agentic_framework/tool_call_response.md
+    - Tool Manager: agentic_framework/tool_manager.md
+    - Debug Info Manager: agentic_framework/debug_manager.md
+    - Postprocessor Manager: agentic_framework/postprocessor_manager.md
+    - Evaluation Manager: agentic_framework/evaluation_manager.md
+    - Reference Manager: agentic_framework/reference_manager.md
+    - History Manager: agentic_framework/history_manager.md
+  - Platforms:
+    - OpenAI: plattforms/openai/openai.md
+  - API Reference: api.md
+  - Readme: readme.md
+
+markdown_extensions:
+  - admonition
+  - footnotes
+  - meta
+  - toc:
+      permalink: true
+  - pymdownx.arithmatex
+  - pymdownx.betterem
+  - pymdownx.caret
+  - pymdownx.critic
+  - pymdownx.details
+  - pymdownx.emoji
+  - pymdownx.inlinehilite
+  - pymdownx.magiclink
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - codeinclude
+  - pymdownx.snippets:
+      base_path: .
+      check_paths: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist
+  - pymdownx.tilde
+  - attr_list
+
+docs_dir: docs
+site_dir: site
+
+plugins:
+  - search
+  - entangled
+  - include-markdown 
+  - callouts
+  - codeinclude
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            docstring_section_style: table
+            show_root_heading: true
+            show_source: true
+            filters:
+              - "!.[company|user|assistant|chat|assistant_id|assistant_message_id|user_message_id]_id.*"
+              - "!.*_async.*"
+              - "!.*event.*"
+            extra:
+              show_signature_annotations: true
+              show_type_annotations: true
+              show_if_no_docstring: false

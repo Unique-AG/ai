@@ -1,0 +1,48 @@
+[tool.poetry]
+name = "unique_deep_research"
+version = "0.0.11"
+description = "Deep Research Tool for complex research tasks"
+authors = [
+    "Martin Fadler <martin.fadler@unique.ch>",
+    "Sadique Sheik <sadique@unique.ch>",
+    "Fabian Schläpfer <fabian@unique.ch>",
+    "Pascal Hauri <pascal@unique.ch>",
+]
+readme = ["README.md", "CHANGELOG.md"]
+license = "Proprietary"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+typing-extensions = "^4.9.0"
+pydantic = "^2.8.2"
+pydantic-settings = "^2.10.1"
+python-dotenv = "^1.0.1"
+pytest = "^8.4.1"
+unique-sdk = "^0.10.16"
+unique-toolkit = "^0.9.0"
+jinja2 = "^3.1.2"
+openai = "^1.99.0"
+langgraph = "^0.6.6"
+langchain = "^0.3.0"
+langchain-core = "^0.3.0"
+unique-web-search = "^0.1.0"
+langchain-openai = "^0.3.32"
+
+
+[tool.poetry.group.dev.dependencies]
+unique-sdk = { path = "../../unique_sdk" }
+unique-toolkit = { path = "../../unique_toolkit" }
+unique-web-search = { path = "../unique_web_search" }
+ruff = "^0.12.10"
+opik = "^1.8.42"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+target-version = "py311"
+
+[tool.ruff.lint]
+extend-select = ["I"]

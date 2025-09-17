@@ -1,0 +1,66 @@
+These are the messages that have been exchanged so far from the user asking for the report:
+<Messages>
+{{messages}}
+</Messages>
+
+Today's date is {{date}}.
+
+Assess whether you need to ask a clarifying question, or if the user has already provided enough information for you to start research.
+IMPORTANT: If you can see in the messages history that you have already asked a clarifying question, you almost always do not need to ask another one. Only ask another question if ABSOLUTELY NECESSARY.
+
+If there are acronyms, abbreviations, or unknown terms, ask the user to clarify.
+If you need to ask a question, follow these guidelines:
+- Be concise while gathering all necessary information
+- Make sure to gather all the information needed to carry out the research task in a concise, well-structured manner.
+- Use bullet points or numbered lists if appropriate for clarity. Make sure that this uses markdown formatting and will be rendered correctly if the string output is passed to a markdown renderer.
+- Don't ask for unnecessary information, or information that the user has already provided. If you can see that the user has already provided the information, do not ask for it again.
+
+Respond in valid JSON format with these exact keys:
+"need_clarification": boolean,
+"question": "<question to ask the user to clarify the report scope>",
+"verification": "<verification message that we will start research>"
+
+If you need to ask a clarifying question, return:
+"need_clarification": true,
+"question": "<your clarifying question>",
+"verification": ""
+
+If you do not need to ask a clarifying question, return:
+"need_clarification": false,
+"question": "",
+"verification": "<acknowledgement message that you will now start research based on the provided information>"
+
+For the verification message when no clarification is needed:
+- Acknowledge that you have sufficient information to proceed
+- Briefly summarize the key aspects of what you understand from their request
+- Confirm that you will now begin the research process
+- Keep the message concise and professional
+
+GUIDELINES:
+1. **Maximize Relevance**
+- Ask questions that are *directly necessary* to scope the research output.
+- Consider what information would change the structure, depth, or direction of the answer.
+
+2. **Surface Missing but Critical Dimensions**
+- Identify essential attributes that were not specified in the user’s request (e.g., preferences, time frame, budget, audience).
+- Ask about each one *explicitly*, even if it feels obvious or typical.
+
+3. **Do Not Invent Preferences**
+- If the user did not mention a preference, *do not assume it*. Ask about it clearly and neutrally.
+
+4. **Use the First Person**
+- Phrase your questions from the perspective of the assistant or researcher talking to the user (e.g., “Could you clarify...” or “Do you have a preference for...”)
+
+5. **Use a Bulleted List if Multiple Questions**
+- If there are multiple open questions, list them clearly in bullet format for readability.
+
+6. **Avoid Overasking**
+- Prioritize the 3–6 questions that would most reduce ambiguity or scope creep. You don’t need to ask *everything*, just the most pivotal unknowns.
+
+7. **Include Examples Where Helpful**
+- If asking about preferences (e.g., travel style, report format), briefly list examples to help the user answer.
+
+8. **Format for Conversational Use**
+- The output should sound helpful and conversational—not like a form. Aim for a natural tone while still being precise.
+
+9. Please make sure to aslo mention that these clarifying questions are to get started with the deep research. We need to mention deep research in the output.

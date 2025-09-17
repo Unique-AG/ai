@@ -10,7 +10,6 @@ from pydantic import BaseModel
 
 from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
 from unique_toolkit.content.schemas import ContentChunk, ContentReference
-from unique_toolkit.evaluators import DOMAIN_NAME
 from unique_toolkit.language_model import (
     LanguageModelMessageRole,
     LanguageModelMessages,
@@ -34,7 +33,7 @@ from .constants import (
     DEFAULT_COMPLETE_TIMEOUT,
 )
 
-logger = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
+logger = logging.getLogger(f"toolkit.language_model.{__name__}")
 
 
 def complete(
@@ -94,9 +93,9 @@ def complete(
 
 async def complete_async(
     company_id: str,
-    user_id: str,
     messages: LanguageModelMessages | list[ChatCompletionMessageParam],
     model_name: LanguageModelName | str,
+    user_id: str | None = None,
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
     timeout: int = DEFAULT_COMPLETE_TIMEOUT,
     tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,

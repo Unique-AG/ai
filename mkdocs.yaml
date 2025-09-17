@@ -1,0 +1,96 @@
+site_name: Unique AG - Toolkit Documentation
+site_description: Documentation for the public python toolkit to interact with the Unique platform
+site_author: Unique Team
+site_url: https://unique-ag.github.io/ai/
+repo_name: Unique-AG/ai
+repo_url: https://github.com/Unique-AG/ai
+edit_uri: edit/main/
+
+extra_javascript:
+  - js/open-source-details.js
+
+theme:
+  name: material
+  features:
+    - content.action.edit
+    - content.code.copy
+    - content.code.select
+  font:
+    text: Roboto
+  icon:
+    repo: fontawesome/brands/github
+  palette:
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: blue grey
+      toggle:
+        icon: material/brightness-4
+        name: Switch to system preference
+
+nav:
+  - Home: 'index.md'
+  - Unique Toolkit: '!include ./unique_toolkit/mkdocs.yaml'
+
+plugins:
+  - search
+  - monorepo
+  - entangled
+  - include-markdown
+  - callouts
+  - codeinclude
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            docstring_section_style: table
+            show_root_heading: true
+            show_source: true 
+            filters:
+              - "!.[company|user|assistant|chat|assistant_id|assistant_message_id|user_message_id]_id.*"
+              - "!.*_async.*"
+              - "!.*event.*"
+            extra:
+              show_signature_annotations: true
+              show_type_annotations: true
+              show_if_no_docstring: false
+
+markdown_extensions:
+  - admonition
+  - footnotes
+  - meta
+  - toc:
+      permalink: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+      linenums: true
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.arithmatex
+  - pymdownx.betterem
+  - pymdownx.caret
+  - pymdownx.critic
+  - pymdownx.details
+  - pymdownx.emoji
+  - pymdownx.magiclink
+  - pymdownx.mark
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist
+  - pymdownx.tilde
+  - attr_list

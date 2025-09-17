@@ -1,34 +1,53 @@
 [tool.poetry]
 name = "unique_web_search"
-version = "0.0.1"
+version = "0.1.4"
 description = ""
 authors = [
-    "Martin Fadler <martin.fadler@unique.ch>",
-    "Sadique Sheik <sadique@unique.ch>",
-    "Fabian Schläpfer <fabian@unique.ch>",
-    "Pascal Hauri <pascal@unique.ch>",
+    "Andreas Hauri <andreas@unique.ch>",
+    "Gustav Hartz <gustav.hartz.ext@unique.ch>",
+    "Rami Azouz <rami.ext@unique.ch>",
 ]
 readme = ["README.md", "CHANGELOG.md"]
 license = "Proprietary"
 
 [tool.poetry.dependencies]
-python = "^3.11"
+python = "^3.12"
 typing-extensions = "^4.9.0"
 pydantic = "^2.8.2"
 pydantic-settings = "^2.10.1"
 python-dotenv = "^1.0.1"
 pytest = "^8.4.1"
+timeout-decorator = "^0.5.0"
+markdownify = "^0.14.1"
+fake-useragent = "^2.2.0"
+crawl4ai = "^0.6.3"
+firecrawl = "^3.3.2"
+tavily-python = "^0.7.11"
+unidecode = "^1.4.0"
+#langchain = "^0.3.27"
+langchain-community = "^0.3.1"
+pandas = "2.2.3"
 unique-sdk = "^0.10.0"
-unique-toolkit = "^0.8.18"
+unique-toolkit = "^0.9.0"
 
 
 [tool.poetry.group.dev.dependencies]
-python = "^3.11"
+python = "^3.12"
 typing-extensions = "^4.9.0"
 pydantic = "^2.8.2"
 pydantic-settings = "^2.10.1"
 python-dotenv = "^1.0.1"
 pytest = "^8.4.1"
+timeout-decorator = "^0.5.0"
+markdownify = "^0.14.1"
+fake-useragent = "^2.2.0"
+crawl4ai = "^0.6.3"
+firecrawl = "^3.3.2"
+tavily-python = "^0.7.11"
+unidecode = "^1.4.0"
+#langchain = "^0.3.27"
+langchain-community = "^0.3.1"
+pandas = "2.2.3"
 unique-sdk = { path = "../../unique_sdk" }
 unique-toolkit = { path = "../../unique_toolkit" }
 ruff = "^0.12.10"

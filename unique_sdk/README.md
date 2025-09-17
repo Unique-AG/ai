@@ -538,6 +538,67 @@ Allows you to ingest a magic table sheet, each row is processed and converted in
     unique_sdk.Content.ingest_magic_table_sheets(**params)
 ```
 
+#### `unique_sdk.Content.update` (Compatible with release >.36)
+
+Allows you to update a file specified by its `contentId`.
+
+- `contentId` the id of the file to be updated
+
+Currently, the following updates are supported:
+
+Title update:
+- `title` optional, allows updating the title of the file
+
+Move the file to a different folder. this can be done by specifying either the `ownerId`.
+- `ownerId` optional, allows moving the file to a different folder. Represents the new folder for the file and it should be the id of a folder e.g.: `scope_dhjfieurfloakmdle`. 
+
+Metadata update:
+- `metadata` optional, allows updating the metadata of the file. Default metadata can not be ovrriden. (Available with release >.40)
+
+Example of moving a file specified by its content id.
+
+```python
+unique_sdk.Content.update(
+    user_id=user_id,
+    company_id=company_id,
+    contentId="cont_ok2343q5owbce80w78hudawu5",
+    ownerId="scope_e68yz5asho7glfh7c7d041el",
+    metadata={
+        "quarter": "q1",
+    }
+)
+```
+
+Example of moving a file and updating its title.
+
+```python
+unique_sdk.Content.update(
+    user_id=user_id,
+    company_id=company_id,
+    contentId="cont_ok2343q5owbce80w78hudawu5",
+    ownerId="scope_e68yz5asho7glfh7c7d041el",
+    title="Revision Deck (1)"
+)
+```
+
+#### `unique_sdk.Content.delete` (Compatible with release >.36)
+
+Allows you to delete a file by its `contentId`. If the file is part of a chat, the `chatId` also needs do be set.
+
+- `contentId` the id of the file to be deleted
+- `chatId` optional, the id of the chat where the file is. Only needed if the file is part of a chat
+
+Example of deleting a file from a chat.
+
+```python
+unique_sdk.Content.delete(
+    user_id=user_id,
+    company_id=company_id,
+    contentId="cont_ok2343q5owbce80w78hudawu5",
+    chatId="chat_v3xfa7liv876h89vuiibus1"
+)
+```
+
 ### Message
 
 #### `unique_sdk.Message.list`
@@ -717,8 +778,8 @@ chat_completion = unique_sdk.ChatCompletion.create(
         {"role": "user", "content": "Hello!"},
     ],
     options={
-            "temperature": 0.5
-        } # optional
+        "temperature": 0.5,             # optional
+    } # optional
 )
 ```
 
@@ -1107,6 +1168,34 @@ unique_sdk.Folder.update(
 ```
 
 
+#### `unique_sdk.Folder.delete` (Compatible with release >.36)
+
+Given a `scopeId` or `folderPath`, the function deletes the folder. If the folder is not empty or if the user has no WRITE access, the delete will fail.
+
+If `recursive` is set to true, the function also deletes its subfolders and its contents, behaving exactly like the `rm -rf`. In case a subfolder has no write access, that folder is considered as failed to delete and the function continues with the other subfolders. At the end, the function returns a list of `successFolders` and `failedFolders`.
+
+Examples:
+Deleting recursively by scope id:
+
+```python
+unique_sdk.Folder.delete(
+   user_id=user_id,
+   company_id=company_id,
+   scopeId="scope_w78wfn114va9o22s13r03yq",
+   recursive=True
+)
+```
+
+Deleting by path (non-recursive):
+
+```python
+unique_sdk.Folder.delete(
+   user_id=user_id,
+   company_id=company_id,
+   folderPath="/Company/Atlas/Due Dilligence/Arch",
+)
+```
+
 ### Space
 
 #### `unique_sdk.Space.delete_chat`
@@ -1409,11 +1498,13 @@ The script sends a prompt asynchronously and continuously polls for completion, 
 - `chat_id`: The ID of the chat where the message should be sent. If omitted, a new chat will be created.
 - `poll_interval`: The number of seconds to wait between polling attempts (default: `1` second).
 - `max_wait`: The maximum number of seconds to wait for the message to complete (default: `60` seconds).
+- `stop_condition`: Defines when to expect a response back, when the assistant stop streaming or when it completes the message. (default: "stoppedStreamingAt")
 
 The script ensures you can flexibly interact with spaces in new or ongoing chats, with fine-grained control over tools, context, and polling behavior.
 
 ```python
-latest_message = await unique_sdk.utils.chat_in_space.send_message_and_wait_for_completion(
+from unique_sdk.utils.chat_in_space import send_message_and_wait_for_completion
+latest_message = await send_message_and_wait_for_completion(
     user_id=user_id,
     company_id=company_id,
     assistant_id=assistant_id,
@@ -1440,6 +1531,7 @@ latest_message = await unique_sdk.utils.chat_in_space.send_message_and_wait_for_
             }
         ]
     },
+    stop_condition = "completedAt" # If not specified, stoppedStreamingAt will be set by default
 )
 ```
 

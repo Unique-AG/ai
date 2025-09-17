@@ -1,11 +1,12 @@
 from datetime import date
 from enum import StrEnum
-from typing import Any, ClassVar, Optional, Self
+from typing import Annotated, Any, ClassVar, Optional, Self
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from pydantic.json_schema import SkipJsonSchema
 from typing_extensions import deprecated
 
+from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 from unique_toolkit.language_model.schemas import LanguageModelTokenLimits
 
 
@@ -48,6 +49,14 @@ class LanguageModelName(StrEnum):
     LITELLM_OPENAI_GPT_5_MINI = "litellm:openai-gpt-5-mini"
     LITELLM_OPENAI_GPT_5_NANO = "litellm:openai-gpt-5-nano"
     LITELLM_OPENAI_GPT_5_CHAT = "litellm:openai-gpt-5-chat"
+    LITELLM_OPENAI_O1 = "litellm:openai-o1"
+    LITELLM_OPENAI_O3 = "litellm:openai-o3"
+    LITELLM_OPENAI_O3_DEEP_RESEARCH = "litellm:openai-o3-deep-research"
+    LITELLM_OPENAI_O3_PRO = "litellm:openai-o3-pro"
+    LITELLM_OPENAI_O4_MINI = "litellm:openai-o4-mini"
+    LITELLM_OPENAI_O4_MINI_DEEP_RESEARCH = "litellm:openai-o4-mini-deep-research"
+    LITELLM_OPENAI_GPT_4_1_MINI = "litellm:openai-gpt-4-1-mini"
+    LITELLM_OPENAI_GPT_4_1_NANO = "litellm:openai-gpt-4-1-nano"
     LITELLM_DEEPSEEK_R1 = "litellm:deepseek-r1"
     LITELLM_DEEPSEEK_V3 = "litellm:deepseek-v3-1"
     LITELLM_QWEN_3 = "litellm:qwen-3-235B-A22B"
@@ -83,6 +92,14 @@ def get_encoder_name(model_name: LanguageModelName) -> EncoderName:
             | LMN.LITELLM_OPENAI_GPT_5_MINI
             | LMN.LITELLM_OPENAI_GPT_5_NANO
             | LMN.LITELLM_OPENAI_GPT_5_CHAT
+            | LMN.LITELLM_OPENAI_O1
+            | LMN.LITELLM_OPENAI_O3
+            | LMN.LITELLM_OPENAI_O3_DEEP_RESEARCH
+            | LMN.LITELLM_OPENAI_O4_MINI
+            | LMN.LITELLM_OPENAI_O4_MINI_DEEP_RESEARCH
+            | LMN.LITELLM_OPENAI_GPT_4_1_MINI
+            | LMN.LITELLM_OPENAI_GPT_4_1_NANO
+            | LMN.LITELLM_OPENAI_O3_PRO
         ):
             return EncoderName.O200K_BASE
         case _:
@@ -114,9 +131,13 @@ class TemperatureBounds(BaseModel):
 
 
 class LanguageModelInfo(BaseModel):
-    name: LanguageModelName | str
-    version: str
-    provider: LanguageModelProvider
+    model_config = get_configuration_dict()
+    name: (
+        Annotated[str, Field(title="Custom Model Name")]
+        | SkipJsonSchema[LanguageModelName]
+    ) = Field(title="Model Name", default=LanguageModelName.AZURE_GPT_4o_2024_1120)
+    provider: LanguageModelProvider = LanguageModelProvider.AZURE
+    version: str = Field(title="Model Version", default="")
 
     encoder_name: EncoderName = EncoderName.CL100K_BASE
 
@@ -124,16 +145,34 @@ class LanguageModelInfo(BaseModel):
     token_limits: LanguageModelTokenLimits = LanguageModelTokenLimits(
         token_limit_input=7_000, token_limit_output=1_000
     )
+
     capabilities: list[ModelCapabilities] = [ModelCapabilities.STREAMING]
 
-    info_cutoff_at: date | SkipJsonSchema[None] = None
-    published_at: date | SkipJsonSchema[None] = None
-    retirement_at: date | SkipJsonSchema[None] = None
+    info_cutoff_at: (
+        Annotated[date, Field(title="Info Cutoff")]
+        | Annotated[None, Field(title="Info Cutoff Unknown")]
+    ) = None
 
-    deprecated_at: date | SkipJsonSchema[None] = None
-    retirement_text: str | SkipJsonSchema[None] = None
+    published_at: (
+        Annotated[date, Field(title="Publishing Date")]
+        | Annotated[None, Field(title="Publishing Date Unknown")]
+    ) = None
 
-    temperature_bounds: TemperatureBounds | None = None
+    retirement_at: (
+        Annotated[date, Field(title="Retirement Date")]
+        | Annotated[None, Field(title="Retirement Date Unknown")]
+    ) = date(2225, 12, 31)
+
+    deprecated_at: (
+        Annotated[date, Field(title="Deprecated Date")]
+        | Annotated[None, Field(title="Deprecated Date Unknown")]
+    ) = date(2225, 12, 31)
+
+    retirement_text: str = "This model is no longer supported."
+
+    temperature_bounds: (
+        TemperatureBounds | Annotated[None, Field(title="Temperature Bounds Unknown")]
+    ) = None
 
     default_options: dict[str, Any] = {}
 
@@ -878,6 +917,146 @@ class LanguageModelInfo(BaseModel):
                     published_at=date(2025, 8, 7),
                     deprecated_at=date(2026, 8, 7),
                     retirement_at=date(2026, 8, 7),
+                )
+            case LanguageModelName.LITELLM_OPENAI_O1:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    version="2024-12-17",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.REASONING,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=200_000, token_limit_output=100_000
+                    ),
+                    info_cutoff_at=date(2023, 10, 1),
+                    published_at=date(2024, 12, 17),
+                    temperature_bounds=TemperatureBounds(
+                        min_temperature=1.0, max_temperature=1.0
+                    ),
+                )
+            case LanguageModelName.LITELLM_OPENAI_O3:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    version="2025-04-16",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.REASONING,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=200_000, token_limit_output=100_000
+                    ),
+                    temperature_bounds=TemperatureBounds(
+                        min_temperature=1.0, max_temperature=1.0
+                    ),
+                    published_at=date(2025, 4, 16),
+                    info_cutoff_at=date(2024, 6, 1),
+                )
+            case LanguageModelName.LITELLM_OPENAI_O3_DEEP_RESEARCH:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    version="2025-06-26",
+                    encoder_name=EncoderName.O200K_BASE,
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=200_000, token_limit_output=100_000
+                    ),
+                    published_at=date(2025, 4, 16),
+                    capabilities=[ModelCapabilities.STREAMING],
+                    info_cutoff_at=date(2024, 6, 1),
+                )
+            case LanguageModelName.LITELLM_OPENAI_O3_PRO:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    version="2025-06-10",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=200_000, token_limit_output=100_000
+                    ),
+                    published_at=date(2025, 6, 10),
+                    info_cutoff_at=date(2024, 6, 1),
+                )
+            case LanguageModelName.LITELLM_OPENAI_O4_MINI:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    version="2025-04-16",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=200_000, token_limit_output=100_000
+                    ),
+                    published_at=date(2025, 4, 16),
+                    info_cutoff_at=date(2024, 6, 1),
+                    temperature_bounds=TemperatureBounds(
+                        min_temperature=1.0, max_temperature=1.0
+                    ),
+                )
+            case LanguageModelName.LITELLM_OPENAI_O4_MINI_DEEP_RESEARCH:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    version="2025-06-26",
+                    encoder_name=EncoderName.O200K_BASE,
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=200_000, token_limit_output=100_000
+                    ),
+                    published_at=date(2025, 4, 16),
+                    capabilities=[ModelCapabilities.STREAMING],
+                    info_cutoff_at=date(2024, 6, 1),
+                )
+            case LanguageModelName.LITELLM_OPENAI_GPT_4_1_MINI:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    version="2025-04-14",
+                    encoder_name=EncoderName.O200K_BASE,
+                    published_at=date(2025, 4, 14),
+                    info_cutoff_at=date(2024, 6, 1),
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=1_047_576, token_limit_output=32_768
+                    ),
+                    capabilities=[
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                    ],
+                )
+            case LanguageModelName.LITELLM_OPENAI_GPT_4_1_NANO:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    version="2025-04-14",
+                    encoder_name=EncoderName.O200K_BASE,
+                    published_at=date(2025, 4, 14),
+                    info_cutoff_at=date(2024, 6, 1),
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=1_047_576, token_limit_output=32_768
+                    ),
+                    capabilities=[
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                    ],
                 )
             case LanguageModelName.LITELLM_DEEPSEEK_R1:
                 return cls(

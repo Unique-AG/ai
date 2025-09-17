@@ -135,6 +135,15 @@ class Folder(APIResource["Folder"]):
         scopeAccesses: List["Folder.ScopeAccess"]
         applyToSubScopes: bool
 
+    class DeleteFolderParams(TypedDict):
+        """
+        Parameters for deleting a folder.
+        """
+
+        scopeId: NotRequired[str]
+        folderPath: NotRequired[str]
+        recursive: NotRequired[bool]
+
     class GetParams(RequestOptions):
         """
         Parameters for getting a folder by its Id or path.
@@ -162,6 +171,24 @@ class Folder(APIResource["Folder"]):
         parentId: NotRequired[str]
         take: NotRequired[int]
         skip: NotRequired[int]
+
+    class DeleteFolderResponse(TypedDict):
+        """
+        Response for deleting a folder.
+        """
+
+        id: str
+        name: str
+        path: str
+        failReason: NotRequired[str]
+
+    class DeleteResponse(TypedDict):
+        """
+        Response for deleting a folder.
+        """
+
+        successFolders: List["Folder.DeleteFolderResponse"]
+        failedFolders: List["Folder.DeleteFolderResponse"]
 
     @classmethod
     def get_info(
@@ -402,13 +429,13 @@ class Folder(APIResource["Folder"]):
         Update a folder given its id or path. Can update the name or the parent folder by specifying its id or path.
         """
 
-        scopeId = cls.resolve_scope_id(
+        scopeId = cls.resolve_scope_id_from_folder_path(
             user_id=user_id,
             company_id=company_id,
             scope_id=params.get("scopeId"),
             folder_path=params.get("folderPath"),
         )
-        parentId = cls.resolve_scope_id(
+        parentId = cls.resolve_scope_id_from_folder_path(
             user_id=user_id,
             company_id=company_id,
             scope_id=params.get("parentId"),
@@ -441,13 +468,13 @@ class Folder(APIResource["Folder"]):
         Async update a folder given its id or path. Can update the name or the parent folder by specifying its id or path.
         """
 
-        scopeId = cls.resolve_scope_id(
+        scopeId = cls.resolve_scope_id_from_folder_path(
             user_id=user_id,
             company_id=company_id,
             scope_id=params.get("scopeId"),
             folder_path=params.get("folderPath"),
         )
-        parentId = cls.resolve_scope_id(
+        parentId = cls.resolve_scope_id_from_folder_path(
             user_id=user_id,
             company_id=company_id,
             scope_id=params.get("parentId"),
@@ -470,7 +497,62 @@ class Folder(APIResource["Folder"]):
         )
 
     @classmethod
-    def resolve_scope_id(
+    def delete(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Folder.DeleteFolderParams"],
+    ) -> "Folder.DeleteResponse":
+        """
+        Delete a folder by its ID or path.
+        """
+
+        scopeId = cls.resolve_scope_id_from_folder_path(
+            user_id, company_id, params.get("scopeId"), params.get("folderPath")
+        )
+        params.pop("scopeId", None)
+        params.pop("folderPath", None)
+
+        return cast(
+            "Folder.DeleteResponse",
+            cls._static_request(
+                "delete",
+                f"{cls.RESOURCE_URL}/{scopeId}",
+                user_id,
+                company_id=company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    async def delete_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Folder.DeleteFolderParams"],
+    ) -> "Folder.DeleteResponse":
+        """
+        Async delete a folder by its ID or path.
+        """
+        scopeId = cls.resolve_scope_id_from_folder_path(
+            user_id, company_id, params.get("scopeId"), params.get("folderPath")
+        )
+        params.pop("scopeId", None)
+        params.pop("folderPath", None)
+
+        return cast(
+            "Folder.DeleteResponse",
+            await cls._static_request_async(
+                "delete",
+                f"{cls.RESOURCE_URL}/{scopeId}",
+                user_id,
+                company_id=company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    def resolve_scope_id_from_folder_path(
         cls,
         user_id: str,
         company_id: str,

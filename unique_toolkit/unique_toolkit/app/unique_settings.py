@@ -1,8 +1,11 @@
+import os
 from logging import getLogger
 from pathlib import Path
 from typing import Self, TypeVar
-from urllib.parse import urlparse, urlunparse
+from urllib.parse import ParseResult, urlparse, urlunparse
 
+import unique_sdk
+from platformdirs import user_config_dir
 from pydantic import AliasChoices, Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -65,7 +68,11 @@ class UniqueApi(BaseSettings):
         default="http://localhost:8092/",
         description="The base URL of the Unique API. Ask your admin to provide you with the correct URL.",
         validation_alias=AliasChoices(
-            "unique_api_base_url", "base_url", "UNIQUE_API_BASE_URL", "BASE_URL"
+            "unique_api_base_url",
+            "base_url",
+            "UNIQUE_API_BASE_URL",
+            "BASE_URL",
+            "API_BASE",
         ),
     )
     version: str = Field(
@@ -96,20 +103,30 @@ class UniqueApi(BaseSettings):
             )
         )
 
-    def sdk_url(self) -> str:
+    def base_path(self) -> tuple[ParseResult, str]:
         parsed = urlparse(self.base_url)
+        base_path = "/public/chat/"
 
-        path = "/public/chat"
-        if parsed.hostname and "qa.unique" in parsed.hostname:
-            path = "/public/chat-gen2"
-        return urlunparse(parsed._replace(path=path, query=None, fragment=None))
+        if parsed.hostname and (
+            "gateway.qa.unique" in parsed.hostname
+            or "gateway.unique" in parsed.hostname
+        ):
+            base_path = "/public/chat-gen2/"
+
+        if parsed.hostname and (
+            "localhost" in parsed.hostname or "svc.cluster.local" in parsed.hostname
+        ):
+            base_path = "/public/"
+
+        return parsed, base_path
+
+    def sdk_url(self) -> str:
+        parsed, base_path = self.base_path()
+        return urlunparse(parsed._replace(path=base_path, query=None, fragment=None))
 
     def openai_proxy_url(self) -> str:
-        parsed = urlparse(self.base_url)
-        path = "/public/chat/openai-proxy/"
-        if parsed.hostname and "qa.unique" in parsed.hostname:
-            path = "/public/chat-gen2/openai-proxy/"
-
+        parsed, base_path = self.base_path()
+        path = base_path + "openai-proxy/"
         return urlunparse(parsed._replace(path=path, query=None, fragment=None))
 
 
@@ -142,11 +159,65 @@ class UniqueAuth(BaseSettings):
         return warn_about_defaults(self)
 
 
+class EnvFileNotFoundError(FileNotFoundError):
+    """Raised when no environment file can be found in any of the expected locations."""
+
+
 class UniqueSettings:
-    def __init__(self, auth: UniqueAuth, app: UniqueApp, api: UniqueApi):
+    def __init__(
+        self,
+        auth: UniqueAuth,
+        app: UniqueApp,
+        api: UniqueApi,
+        env_file: Path | None = None,
+    ):
         self.app = app
         self.auth = auth
         self.api = api
+        self._env_file: Path | None = (
+            env_file if (env_file and env_file.exists()) else None
+        )
+
+    @classmethod
+    def _find_env_file(cls, filename: str = "unique.env") -> Path:
+        """Find environment file using cross-platform fallback locations.
+
+        Search order:
+        1. UNIQUE_ENV_FILE environment variable
+        2. Current working directory
+        3. User config directory (cross-platform via platformdirs)
+
+        Args:
+            filename: Name of the environment file (default: 'unique.env')
+
+        Returns:
+            Path to the environment file.
+
+        Raises:
+            EnvFileNotFoundError: If no environment file is found in any location.
+        """
+        locations = [
+            # 1. Explicit environment variable
+            Path(env_path) if (env_path := os.environ.get("UNIQUE_ENV_FILE")) else None,
+            # 2. Current working directory
+            Path.cwd() / filename,
+            # 3. User config directory (cross-platform)
+            Path(user_config_dir("unique", "unique-toolkit")) / filename,
+        ]
+
+        for location in locations:
+            if location and location.exists() and location.is_file():
+                return location
+
+        # If no file found, provide helpful error message
+        searched_locations = [str(loc) for loc in locations if loc is not None]
+        raise EnvFileNotFoundError(
+            f"Environment file '{filename}' not found. Searched locations:\n"
+            + "\n".join(f"  - {loc}" for loc in searched_locations)
+            + "\n\nTo fix this:\n"
+            + f"  1. Create {filename} in one of the above locations, or\n"
+            + f"  2. Set UNIQUE_ENV_FILE environment variable to point to your {filename} file"
+        )
 
     @classmethod
     def from_env(cls, env_file: Path | None = None) -> "UniqueSettings":
@@ -170,4 +241,56 @@ class UniqueSettings:
         auth = UniqueAuth(_env_file=env_file_str)  # type: ignore[call-arg]
         app = UniqueApp(_env_file=env_file_str)  # type: ignore[call-arg]
         api = UniqueApi(_env_file=env_file_str)  # type: ignore[call-arg]
-        return cls(auth=auth, app=app, api=api)
+        return cls(auth=auth, app=app, api=api, env_file=env_file)
+
+    @classmethod
+    def from_env_auto(cls, filename: str = "unique.env") -> "UniqueSettings":
+        """Initialize settings by automatically finding environment file.
+
+        This method will automatically search for an environment file in standard locations
+        and fall back to environment variables only if no file is found.
+
+        Args:
+            filename: Name of the environment file to search for (default: '.env')
+
+        Returns:
+            UniqueSettings instance with values loaded from found env file or environment variables.
+        """
+        try:
+            env_file = cls._find_env_file(filename)
+            logger.info(f"Environment file found at {env_file}")
+            return cls.from_env(env_file=env_file)
+        except EnvFileNotFoundError:
+            logger.warning(
+                f"Environment file '{filename}' not found. Falling back to environment variables only."
+            )
+            # Fall back to environment variables only
+            return cls.from_env()
+
+    def init_sdk(self) -> None:
+        """Initialize the unique_sdk global configuration with these settings.
+
+        This method configures the global unique_sdk module with the API key,
+        app ID, and base URL from these settings.
+        """
+        unique_sdk.api_key = self.app.key.get_secret_value()
+        unique_sdk.app_id = self.app.id.get_secret_value()
+        unique_sdk.api_base = self.api.sdk_url()
+
+    @classmethod
+    def from_env_auto_with_sdk_init(
+        cls, filename: str = "unique.env"
+    ) -> "UniqueSettings":
+        """Initialize settings and SDK in one convenient call.
+
+        This method combines from_env_auto() and init_sdk() for the most common use case.
+
+        Args:
+            filename: Name of the environment file to search for (default: '.env')
+
+        Returns:
+            UniqueSettings instance with SDK already initialized.
+        """
+        settings = cls.from_env_auto(filename)
+        settings.init_sdk()
+        return settings

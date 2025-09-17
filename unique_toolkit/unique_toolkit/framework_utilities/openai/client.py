@@ -17,12 +17,12 @@ class OpenAINotInstalledError(ImportError):
 
 
 if importlib.util.find_spec("openai") is not None:
-    from openai import OpenAI
+    from openai import AsyncOpenAI, OpenAI
 else:
     raise OpenAINotInstalledError()
 
 
-def get_openai_client(unique_settings: UniqueSettings) -> OpenAI:
+def get_openai_client(unique_settings: UniqueSettings | None = None) -> OpenAI:
     """Get an OpenAI client instance.
 
     Args:
@@ -34,9 +34,38 @@ def get_openai_client(unique_settings: UniqueSettings) -> OpenAI:
     Raises:
         OpenAINotInstalledError: If OpenAI package is not installed
     """
+    if unique_settings is None:
+        unique_settings = UniqueSettings.from_env_auto()
+
     default_headers = get_default_headers(unique_settings.app, unique_settings.auth)
 
     return OpenAI(
+        api_key="dummy_key",
+        base_url=unique_settings.api.openai_proxy_url(),
+        default_headers=default_headers,
+    )
+
+
+def get_async_openai_client(
+    unique_settings: UniqueSettings | None = None,
+) -> AsyncOpenAI:
+    """Get an async OpenAI client instance.
+
+    Args:
+        unique_settings: Optional UniqueSettings instance
+
+    Returns:
+        AsyncOpenAI client instance
+
+    Raises:
+        OpenAINotInstalledError: If OpenAI package is not installed
+    """
+    if unique_settings is None:
+        unique_settings = UniqueSettings.from_env_auto()
+
+    default_headers = get_default_headers(unique_settings.app, unique_settings.auth)
+
+    return AsyncOpenAI(
         api_key="dummy_key",
         base_url=unique_settings.api.openai_proxy_url(),
         default_headers=default_headers,

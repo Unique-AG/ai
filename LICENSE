@@ -1,1 +1,31 @@
-Source code in this repository is covered by the "Unique License". The default throughout the repository is the [`Unique License v1`](https://github.com/Unique-AG/license/releases/tag/unique-license.v1), unless the/a header or a nested LICENSE specifies another license.
+# License Disclaimer
+
+**ALL CODE IN THIS REPOSITORY (UNLESS EXPLICITLY STATED OR CREDITED) IS SUBJECT TO THE UNIQUE LICENSE v1.**
+
+This software is licensed under the Unique License. Please refer to the full license terms at [Unique-AG#unique-license.v1](https://github.com/Unique-AG/license/releases/tag/unique-license.v1)
+
+## Key Terms Summary
+
+- **Non-commercial use only** - Commercial use requires explicit prior written approval from UNIQUE.
+- **No distribution** - You may not distribute, sublicense, or transfer the software without approval.
+- **No modifications** - You may not modify, adapt, translate, or create derivative works without approval.
+- **Personal use only** - License is granted solely for personal, non-commercial purposes.
+- **Revocable license** - UNIQUE may terminate this license at any time without notice.
+
+## Open Source Components
+
+This software may include third-party open source components licensed under their respective open source licenses. The use of these components is governed by their respective license terms.
+
+## Intellectual Property
+
+The software and any modifications or derivative works thereof are and shall remain the sole property of UNIQUE AG, Zürich, Switzerland.
+
+## Governing Law
+
+This license is governed by Swiss law, with exclusive venue in Zurich.
+
+---
+
+**Copyright 2020 Unique AG. All rights reserved.**
+
+For questions regarding licensing, please contact UNIQUE AG.

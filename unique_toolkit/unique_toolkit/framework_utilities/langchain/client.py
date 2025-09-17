@@ -23,7 +23,7 @@ else:
 
 
 def get_client(
-    unique_settings: UniqueSettings, model: str = "AZURE_GPT_4o_2024_0806"
+    unique_settings: UniqueSettings | None = None, model: str = "AZURE_GPT_4o_2024_0806"
 ) -> ChatOpenAI:
     """Get a Langchain ChatOpenAI client instance.
 
@@ -36,6 +36,8 @@ def get_client(
     Raises:
         LangchainNotInstalledError: If langchain-openai package is not installed
     """
+    if unique_settings is None:
+        unique_settings = UniqueSettings.from_env_auto()
 
     return ChatOpenAI(
         base_url=unique_settings.api.openai_proxy_url(),

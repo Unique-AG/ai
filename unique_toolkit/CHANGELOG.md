@@ -5,6 +5,142 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.1] - 2025-09-17
+- update to python 3.12 due to security 
+
+## [0.9.0] - 2025-09-14
+- Moved agentic code into the `agentic` folder. This breaks imports of
+  - `debug_info_amanager`
+  - `evals`
+  - `history_manager`
+  - `post_processor`
+  - `reference-manager`
+  - `short_term_memory_manager`
+  - `thinking_manager`
+  - `tools`
+
+## [0.8.57] - 2025-09-14
+- Added more utils to commons
+
+## [0.8.56] - 2025-09-12
+- Fixed token counter in utils
+
+## [0.8.55] - 2025-09-10
+- Update documentation with agentic managers
+
+## [0.8.54] - 2025-09-10
+- HistoryManager: compute source numbering offset from prior serialized tool messages using `load_sources_from_string`
+- LoopTokenReducer: serialize reduced tool messages as JSON arrays to keep offsets parsable
+
+## [0.8.53] - 2025-09-09
+- Add support for skip ingestion for only excel files.
+
+## [0.8.52] - 2025-09-06
+- Fix import error in token counting
+
+## [0.8.51] - 2025-09-06
+- Update token counter to latest version of monorepo.
+
+## [0.8.50] - 2025-09-08
+- Minor fix in documentation
+- Updated examples
+
+## [0.8.49] - 2025-09-05
+- Fixed token reducer now has a safety margin of 10% less did not work.
+
+## [0.8.48] - 2025-09-05
+- Add documentation on language models to markdown
+
+## [0.8.47] - 2025-09-05
+- Removed old code
+- Fixed small bugs in history manager & set the hallucination to use gpt4o as default.
+
+## [0.8.46] - 2025-09-04
+- Bugfix for hostname identification inside Unique cluster in `unique_settings.py`
+
+## [0.8.45] - 2025-09-04
+- Introduce handoff capability to tools. with the `takes_control()` function.
+
+## [0.8.44] - 2025-09-03
+- Refine `EndpointClass` and create `EndpointRequestor`
+
+## [0.8.43] - 2025-09-03
+- Add alias for `UniqueSettings` api base `API_BASE`
+
+## [0.8.42] - 2025-09-02
+- updated schema of `chunk_relevancy_sorter`
+
+## [0.8.41] - 2025-09-02
+- Make A2A tool auto register with tool factory
+
+## [0.8.40] - 2025-09-02
+- Add frontend compatible type for pydantic BaseModel types in pydantic BaseModels
+
+## [0.8.39] - 2025-09-02
+- include `get_async_openai_client`
+
+## [0.8.38] - 2025-09-01
+- Sanitize documentation
+
+## [0.8.37] - 2025-09-01
+- Adapt defaults and json-schema in `LanguageModelInfo`
+
+## [0.8.36] - 2025-09-01
+- Added dependency `Pillow` and `Platformsdir`
+
+## [0.8.35] - 2025-09-01
+- Initial toolkit documentation (WIP)
+
+## [0.8.34] - 2025-09-01
+- Automatic initializations of services and event generator
+
+## [0.8.33] - 2025-08-31
+- fixed tool for `web_search`
+
+## [0.8.32] - 2025-08-30
+- moved over general packages for `web_search`
+
+## [0.8.31] - 2025-08-29
+- Add various openai models to supported model list
+  - o1
+  - o3
+  - o3-deep-research
+  - o3-pro
+  - o4-mini
+  - o4-mini-deep-research
+  - gpt-4-1-mini
+  - gpt-4-1-nano
+
+## [0.8.30] - 2025-08-28
+- Added A2A manager
+
+## [0.8.29] - 2025-08-27
+- Include `MessageExecution` and `MessageLog` in toolkit 
+
+## [0.8.28] - 2025-08-28
+- Fix paths for `sdk_url` and `openai_proxy` for localhost
+
+## [0.8.27] - 2025-08-28
+- Fixed function "create_async" in language_model.functions : "user_id" argument should be optional.
+
+## [0.8.26] - 2025-08-27
+- Optimized MCP manager
+
+## [0.8.26] - 2025-08-27
+- Optimized MCP manager
+
+## [0.8.25] - 2025-08-27
+- Load environment variables automatically from plattform dirs or environment
+- General Endpoint definition utility
+- Expose `LanguageModelToolDescription` and `LanguageModelName` directly
+- Get initial debug information from chat payload  
+
+## [0.8.24] - 2025-08-25
+- Optimized hallucination manager
+
+## [0.8.23] - 2025-08-27
+- Add MCP manager that handles MCP related logic
+
 
 ## [0.8.22] - 2025-08-25
 - Add DeepSeek-R1, DeepSeek-V3.1, Qwen3-235B-A22B and Qwen3-235B-A22B-Thinking-2507 to supported model list

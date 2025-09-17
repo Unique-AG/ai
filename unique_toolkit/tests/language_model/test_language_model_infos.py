@@ -1,3 +1,5 @@
+from datetime import date
+
 import pytest
 
 from unique_toolkit.language_model.infos import (
@@ -54,6 +56,14 @@ class TestLanguageModelInfos:
             LanguageModelName.LITELLM_DEEPSEEK_V3,
             LanguageModelName.LITELLM_QWEN_3,
             LanguageModelName.LITELLM_QWEN_3_THINKING,
+            LanguageModelName.LITELLM_OPENAI_O1,
+            LanguageModelName.LITELLM_OPENAI_O3,
+            LanguageModelName.LITELLM_OPENAI_O3_DEEP_RESEARCH,
+            LanguageModelName.LITELLM_OPENAI_O3_PRO,
+            LanguageModelName.LITELLM_OPENAI_O4_MINI,
+            LanguageModelName.LITELLM_OPENAI_O4_MINI_DEEP_RESEARCH,
+            LanguageModelName.LITELLM_OPENAI_GPT_4_1_MINI,
+            LanguageModelName.LITELLM_OPENAI_GPT_4_1_NANO,
         ]
         assert len(models) == len(expected_models)
         assert all(isinstance(model, LanguageModelInfo) for model in models)
@@ -74,9 +84,9 @@ class TestLanguageModelInfos:
         assert model.token_limit_input == 7_000
         assert model.token_limit_output == 1_000
         assert model.token_limit == 8_000
-        assert model.retirement_at is None
-        assert model.deprecated_at is None
-        assert model.retirement_text is None
+        assert model.retirement_at == date(2225, 12, 31)
+        assert model.deprecated_at == date(2225, 12, 31)
+        assert model.retirement_text == "This model is no longer supported."
 
     def test_get_language_model_returns_custom_model_for_string(self):
         name = "custom"

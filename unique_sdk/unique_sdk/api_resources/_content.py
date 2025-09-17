@@ -1,5 +1,14 @@
 from enum import Enum
-from typing import Any, ClassVar, Dict, List, Literal, Optional, TypedDict, cast
+from typing import (
+    Any,
+    ClassVar,
+    Dict,
+    List,
+    Literal,
+    Optional,
+    TypedDict,
+    cast,
+)
 
 from typing_extensions import NotRequired, Unpack
 
@@ -75,6 +84,7 @@ class Content(APIResource["Content"]):
         metadataFilter: dict
         skip: NotRequired[int]
         take: NotRequired[int]
+        filePath: NotRequired[str]
 
     class CustomApiOptions(TypedDict):
         apiIdentifier: str
@@ -117,6 +127,12 @@ class Content(APIResource["Content"]):
         storeInternally: bool
         fileUrl: Optional[str]
 
+    class UpdateParams(RequestOptions):
+        contentId: NotRequired[str]
+        ownerId: NotRequired[str]
+        title: NotRequired[str]
+        metadata: NotRequired[dict[str, str | None]]
+
     class Chunk(TypedDict):
         id: str
         text: str
@@ -147,6 +163,13 @@ class Content(APIResource["Content"]):
     class PaginatedContentInfo(TypedDict):
         contentInfos: List["Content.ContentInfo"]
         totalCount: int
+
+    class DeleteParams(RequestOptions):
+        contentId: NotRequired[str]
+        chatId: NotRequired[str]
+
+    class DeleteResponse(TypedDict):
+        id: str
 
     id: str
     key: str
@@ -372,3 +395,113 @@ class Content(APIResource["Content"]):
                 params=params,
             ),
         )
+
+    @classmethod
+    def update(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Content.UpdateParams"],
+    ) -> "Content.ContentInfo":
+        return cast(
+            "Content.ContentInfo",
+            cls._static_request(
+                "patch",
+                f"/content/{params.get('contentId')}",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    async def update_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Content.UpdateParams"],
+    ) -> "Content.ContentInfo":
+        return cast(
+            "Content.ContentInfo",
+            await cls._static_request_async(
+                "patch",
+                f"/content/{params.get('contentId')}",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    def delete(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: "Content.DeleteParams",
+    ) -> "Content.DeleteResponse":
+        """
+        Deletes a content by its id or file path.
+        """
+
+        return cast(
+            "Content.DeleteResponse",
+            cls._static_request(
+                "delete",
+                f"/content/{params.get('contentId')}",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    async def delete_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: "Content.DeleteParams",
+    ) -> "Content.DeleteResponse":
+        """
+        Async deletes a content by its id or file path.
+        """
+
+        return cast(
+            "Content.DeleteResponse",
+            await cls._static_request_async(
+                "delete",
+                f"/content/{params.get('contentId')}",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    def resolve_content_id_from_file_path(
+        cls,
+        user_id: str,
+        company_id: str,
+        content_id: str | None = None,
+        file_path: str | None = None,
+    ) -> str:
+        """
+        Returns the contentId to use: if content_id is provided, returns it;
+        if not, but file_path is provided, resolves and returns the id for that file path.
+        """
+        if content_id:
+            return content_id
+        if file_path:
+            file_info = cls.get_info(
+                user_id=user_id,
+                company_id=company_id,
+                filePath=file_path,
+            )
+            resolved_id = (
+                file_info.get("contentInfo")[0].get("id")
+                if file_info.get("totalCount", 0) > 0
+                else None
+            )
+            if not resolved_id:
+                raise ValueError(f"Could not find file with filePath: {file_path}")
+            return resolved_id
+        return None

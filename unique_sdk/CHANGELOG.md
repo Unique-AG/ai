@@ -5,8 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.10.14] - 2025-08-26
+## [0.10.24] - 2025-09-17
 - Add function to update a folder.
+
+## [0.10.23] - 2025-09-12
+- Revert to using default reasoning effort.
+
+## [0.10.22] - 2025-09-12
+- Add support for metadata update of a file.
+
+## [0.10.21] - 2025-09-04
+- Update Chat Completions API types and add support for reasoning effort.
+
+## [0.10.20] - 2025-09-04
+- Update Responses API types
+
+## [0.10.19] - 2025-09-02
+- Improve `send_message_and_wait_for_completion`:
+    - Add option to select stop_condition `["stoppedStreamingAt", "completedAt"]`. 
+    - Load `debugInfo` from `last_user_message` for better developer experience.
+
+## [0.10.18] - 2025-09-02
+- Temporarily remove support for update and delete files by filePath.
+
+## [0.10.17] - 2025-09-01
+- Add function to update a file
+
+## [0.10.16] - 2025-08-31
+- Add function to delete a content.
+
+## [0.10.15] - 2025-08-28
+- Add default values for message log types
+
+## [0.10.14] - 2025-08-28
+- Add function to delete folders and files recursively
 
 ## [0.10.13] - 2025-08-24
 - Add functions to create, get and update a message eecution and create and update a message log.
