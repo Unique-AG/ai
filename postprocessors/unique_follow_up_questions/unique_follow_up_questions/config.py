@@ -6,7 +6,7 @@ from unique_toolkit._common.default_language_model import (
 )
 from unique_toolkit._common.validators import LMI
 from unique_toolkit.language_model.infos import LanguageModelInfo, ModelCapabilities
-from unique_toolkit.tools.config import get_configuration_dict
+from unique_toolkit.agentic.tools.config import get_configuration_dict
 
 from unique_follow_up_questions.prompts.params import (
     FOLLOW_UP_QUESTION_SYSTEM_PROMPT_TEMPLATE,

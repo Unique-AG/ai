@@ -11,7 +11,7 @@ from typing import Annotated, List, Optional, Required, TypedDict
 from langchain_core.messages import MessageLikeRepresentation
 from langgraph.graph import MessagesState
 from unique_toolkit.chat.service import ChatService
-from unique_toolkit.tools.tool import ToolProgressReporter
+from unique_toolkit.agentic.tools.tool import ToolProgressReporter
 
 
 def override_reducer(current_value, new_value):

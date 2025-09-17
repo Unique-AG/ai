@@ -5,7 +5,7 @@ from agentic.short_term_memory_manager.persistent_short_term_memory_manager impo
 )
 from pydantic import BaseModel
 from unique_toolkit.short_term_memory.service import ShortTermMemoryService
-from unique_toolkit.tools.config import (
+from unique_toolkit.agentic.tools.config import (
     get_configuration_dict,
 )
 
