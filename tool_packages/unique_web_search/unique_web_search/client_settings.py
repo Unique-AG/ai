@@ -159,3 +159,44 @@ def get_tavily_search_settings() -> TavilySearchSettings:
     if _tavily_search_settings is None:
         _tavily_search_settings = TavilySearchSettings.from_env_settings()
     return _tavily_search_settings
+
+
+class BraveSearchSettings(BaseModel):
+    api_key: str | None = None
+    api_endpoint: str | None = None
+
+    @property
+    def is_configured(self) -> bool:
+        return self.api_key is not None
+
+    @classmethod
+    def from_env_settings(cls):
+        missing_settings = []
+
+        if env_settings.brave_search_api_key is None:
+            missing_settings.append("API Key")
+        if env_settings.brave_search_api_endpoint is None:
+            missing_settings.append("API Endpoint")
+
+        if missing_settings:
+            logger.warning(
+                f"Brave Search API missing required settings: {', '.join(missing_settings)}"
+            )
+
+        else:
+            logger.info("Brave Search API is properly configured")
+
+        return cls(
+            api_key=env_settings.brave_search_api_key,
+            api_endpoint=env_settings.brave_search_api_endpoint,
+        )
+
+
+_brave_search_settings: BraveSearchSettings | None = None
+
+
+def get_brave_search_settings() -> BraveSearchSettings:
+    global _brave_search_settings
+    if _brave_search_settings is None:
+        _brave_search_settings = BraveSearchSettings.from_env_settings()
+    return _brave_search_settings

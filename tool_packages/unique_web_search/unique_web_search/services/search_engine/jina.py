@@ -7,12 +7,10 @@ from pydantic import BaseModel, Field
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 
 from unique_web_search.client_settings import get_jina_search_settings
-from unique_web_search.services.search_engine.base import (
+from unique_web_search.services.search_engine import (
     BaseSearchEngineConfig,
     SearchEngine,
     SearchEngineType,
-)
-from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
 

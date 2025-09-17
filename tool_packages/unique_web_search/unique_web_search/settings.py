@@ -45,6 +45,10 @@ class Base(BaseSettings):
 
     # Tavily API settings
     tavily_api_key: str | None = None
+    
+    # Brave Search API settings
+    brave_search_api_key: str | None = None
+    brave_search_api_endpoint: str | None = None
 
     # Custom chat error message
     custom_chat_error_message: str | None = None

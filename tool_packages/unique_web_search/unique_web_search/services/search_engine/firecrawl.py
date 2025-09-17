@@ -5,12 +5,10 @@ from firecrawl import AsyncFirecrawl
 from firecrawl.v2.types import Document, ScrapeOptions
 from pydantic import BaseModel, Field
 
-from unique_web_search.services.search_engine.base import (
+from unique_web_search.services.search_engine import (
     BaseSearchEngineConfig,
     SearchEngine,
     SearchEngineType,
-)
-from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
 from unique_web_search.settings import env_settings
