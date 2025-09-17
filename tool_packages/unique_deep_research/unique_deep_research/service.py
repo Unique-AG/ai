@@ -15,6 +15,10 @@ from openai.types.responses.response_output_text import (
 from openai.types.responses.response_stream_event import ResponseStreamEvent
 from pydantic import BaseModel, ConfigDict, Field
 from typing_extensions import override
+from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
+from unique_toolkit.agentic.tools.factory import ToolFactory
+from unique_toolkit.agentic.tools.schemas import ToolCallResponse
+from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.chat.schemas import (
     MessageExecutionType,
@@ -27,16 +31,12 @@ from unique_toolkit.chat.schemas import (
 from unique_toolkit.chat.service import LanguageModelToolDescription
 from unique_toolkit.content.schemas import ContentReference
 from unique_toolkit.content.service import ContentService
-from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.framework_utilities.openai.client import get_openai_client
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelMessage,
     LanguageModelToolMessage,
 )
-from unique_toolkit.agentic.tools.factory import ToolFactory
-from unique_toolkit.agentic.tools.schemas import ToolCallResponse
-from unique_toolkit.agentic.tools.tool import Tool
 
 from .config import (
     RESPONSES_API_TIMEOUT_SECONDS,

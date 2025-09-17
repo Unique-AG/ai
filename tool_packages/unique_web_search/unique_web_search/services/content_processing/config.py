@@ -3,9 +3,9 @@ from enum import StrEnum
 from pydantic import BaseModel, Field
 from unidecode import unidecode
 from unique_toolkit import LanguageModelName
+from unique_toolkit.agentic.tools.config import get_configuration_dict
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.language_model.infos import LanguageModelInfo
-from unique_toolkit.agentic.tools.config import get_configuration_dict
 
 
 class ContentProcessingStartegy(StrEnum):

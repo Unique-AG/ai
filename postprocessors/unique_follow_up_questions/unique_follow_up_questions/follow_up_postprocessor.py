@@ -1,7 +1,8 @@
 import re
 
+from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
+from unique_toolkit.agentic.postprocessor.postprocessor_manager import Postprocessor
 from unique_toolkit.app.schemas import ChatEvent
-from  unique_toolkit.agentic.history_manager.history_manager import HistoryManager
 from unique_toolkit.language_model.builder import MessagesBuilder
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessage,
@@ -10,7 +11,6 @@ from unique_toolkit.language_model.schemas import (
 )
 from unique_toolkit.language_model.service import LanguageModelService
 from unique_toolkit.language_model.utils import convert_string_to_json
-from unique_toolkit.agentic.postprocessor.postprocessor_manager import Postprocessor
 
 from unique_follow_up_questions.config import FollowUpQuestionsConfig
 from unique_follow_up_questions.prompts.params import (
