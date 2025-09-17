@@ -8,8 +8,8 @@ from azure.identity import DefaultAzureCredential
 from pydantic import BaseModel, Field
 from unique_toolkit import LanguageModelService
 from unique_toolkit._common.validators import LMI
+from unique_toolkit.agentic.tools.config import get_configuration_dict
 from unique_toolkit.language_model.builder import MessagesBuilder
-from unique_toolkit.tools.config import get_configuration_dict
 
 from unique_web_search.services.search_engine.base import (
     BaseSearchEngineConfig,

@@ -4308,7 +4308,7 @@ files = [
 
 [[package]]
 name = "unique-sdk"
-version = "0.10.24"
+version = "0.10.23"
 description = ""
 optional = false
 python-versions = "^3.11"
@@ -4329,7 +4329,7 @@ url = "../../unique_sdk"
 
 [[package]]
 name = "unique-toolkit"
-version = "0.9.1"
+version = "0.9.0"
 description = ""
 optional = false
 python-versions = "^3.12"
@@ -5001,4 +5001,4 @@ cffi = ["cffi (>=1.17,<2.0)", "cffi (>=2.0.0b)"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "0e7c4aedb67961183d8c2be5080ebb6af44930ce8964d59a849b92a155125287"
+content-hash = "d27e3f262e7a1126e68d7a430bbe252ea6de01cafee8d2d4613272df5adaf87a"
