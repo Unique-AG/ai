@@ -3,7 +3,7 @@ from typing import Literal, Sequence, Union
 
 from pydantic import BaseModel, Field, ValidationError
 from tavily import AsyncTavilyClient
-from unique_toolkit.tools.config import get_configuration_dict
+from unique_toolkit.agentic.tools.config import get_configuration_dict
 
 from unique_web_search.services.search_engine.base import (
     BaseSearchEngineConfig,

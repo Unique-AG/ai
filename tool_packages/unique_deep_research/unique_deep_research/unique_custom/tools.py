@@ -9,6 +9,7 @@ from typing import Any, List
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import tool
 from pydantic import BaseModel, Field
+from unique_toolkit.agentic.history_manager.utils import transform_chunks_to_string
 from unique_toolkit.chat.schemas import (
     MessageLogDetails,
     MessageLogEvent,
@@ -16,7 +17,6 @@ from unique_toolkit.chat.schemas import (
 )
 from unique_toolkit.content import ContentReference
 from unique_toolkit.content.schemas import ContentSearchType
-from unique_toolkit.history_manager.utils import transform_chunks_to_string
 from unique_web_search.client_settings import get_google_search_settings
 from unique_web_search.services.crawlers.basic import (
     BasicCrawler,

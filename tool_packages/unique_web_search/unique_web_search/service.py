@@ -1,16 +1,20 @@
 from typing_extensions import override
 from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
-from unique_toolkit.evals.schemas import EvaluationMetricName
-from unique_toolkit.history_manager.utils import transform_chunks_to_string
+from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
+from unique_toolkit.agentic.history_manager.utils import transform_chunks_to_string
+from unique_toolkit.agentic.tools.factory import ToolFactory
+from unique_toolkit.agentic.tools.schemas import ToolCallResponse
+from unique_toolkit.agentic.tools.tool import (
+    AgentChunksHandler,
+    LanguageModelMessage,
+    Tool,
+)
+from unique_toolkit.agentic.tools.tool_progress_reporter import ProgressState
 from unique_toolkit.language_model import LanguageModelToolMessage
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelToolDescription,
 )
-from unique_toolkit.tools.factory import ToolFactory
-from unique_toolkit.tools.schemas import ToolCallResponse
-from unique_toolkit.tools.tool import AgentChunksHandler, LanguageModelMessage, Tool
-from unique_toolkit.tools.tool_progress_reporter import ProgressState
 
 from unique_web_search.config import WebSearchConfig
 from unique_web_search.schema import WebSearchPlan, WebSearchToolParameters

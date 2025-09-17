@@ -11,14 +11,14 @@ from unique_toolkit._common.chunk_relevancy_sorter.config import (
 from unique_toolkit._common.feature_flags.schema import (
     FeatureExtendedSourceSerialization,
 )
+from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
+from unique_toolkit.agentic.history_manager.history_manager import DeactivatedNone
+from unique_toolkit.agentic.tools.schemas import BaseToolConfig
+from unique_toolkit.agentic.tools.utils.source_handling.schema import SourceFormatConfig
 from unique_toolkit.content.schemas import (
     ContentRerankerConfig,
     ContentSearchType,
 )
-from unique_toolkit.evals.schemas import EvaluationMetricName
-from unique_toolkit.history_manager.history_manager import DeactivatedNone
-from unique_toolkit.tools.schemas import BaseToolConfig
-from unique_toolkit.tools.utils.source_handling.schema import SourceFormatConfig
 
 from unique_internal_search.prompts import (
     DEFAULT_LANGUAGE_PARAM_DESCRIPTION,

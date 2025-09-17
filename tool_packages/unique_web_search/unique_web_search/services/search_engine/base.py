@@ -5,7 +5,7 @@ from typing import Generic, TypeVar
 
 import tiktoken
 from pydantic import BaseModel, Field
-from unique_toolkit.tools.config import get_configuration_dict
+from unique_toolkit.agentic.tools.config import get_configuration_dict
 
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,

@@ -9,7 +9,7 @@ from pydantic import (
     SerializerFunctionWrapHandler,
     WrapSerializer,
 )
-from unique_toolkit.tools.tool import Tool
+from unique_toolkit.agentic.tools.tool import Tool
 
 
 class Jinja2PromptParams(BaseModel):

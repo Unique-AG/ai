@@ -4,9 +4,9 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader
 from pydantic import BaseModel, Field
 from unique_toolkit._common.validators import LMI
-from unique_toolkit.evals.schemas import EvaluationMetricName
+from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
+from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 from unique_toolkit.language_model.infos import LanguageModelInfo, LanguageModelName
-from unique_toolkit.tools.schemas import BaseToolConfig
 
 # Global template environment for the deep research tool
 TEMPLATE_DIR = Path(__file__).parent / "templates"

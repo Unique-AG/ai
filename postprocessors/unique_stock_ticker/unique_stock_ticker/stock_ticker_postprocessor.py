@@ -1,8 +1,8 @@
 import re
 
+from unique_toolkit.agentic.postprocessor.postprocessor_manager import Postprocessor
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.language_model.schemas import LanguageModelStreamResponse
-from unique_toolkit.postprocessor.postprocessor_manager import Postprocessor
 
 from unique_stock_ticker.config import StockTickerConfig
 from unique_stock_ticker.integrated import retrieve_tickers_and_plot_history

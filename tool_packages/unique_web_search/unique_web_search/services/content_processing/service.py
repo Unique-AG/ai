@@ -5,11 +5,11 @@ import re
 import tiktoken
 from langchain.text_splitter import TokenTextSplitter
 from openai.types.chat import ChatCompletionMessageParam
+from unique_toolkit.agentic.tools.utils.execution.execution import SafeTaskExecutor
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.embedding.service import EmbeddingService
 from unique_toolkit.framework_utilities.openai import get_async_openai_client
 from unique_toolkit.language_model.infos import LanguageModelInfo
-from unique_toolkit.tools.utils.execution.execution import SafeTaskExecutor
 
 from unique_web_search.services.content_processing.config import (
     REGEX_CONTENT_TRANSFORMATIONS,

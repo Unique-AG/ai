@@ -8,11 +8,11 @@ from unique_toolkit._common.chunk_relevancy_sorter.config import (
 )
 from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
 from unique_toolkit._common.validators import LMI
-from unique_toolkit.content import ContentChunk
-from unique_toolkit.language_model import LanguageModelFunction
-from unique_toolkit.tools.tool_progress_reporter import (
+from unique_toolkit.agentic.tools.tool_progress_reporter import (
     ToolProgressReporter,
 )
+from unique_toolkit.content import ContentChunk
+from unique_toolkit.language_model import LanguageModelFunction
 
 from unique_web_search.schema import (
     Step,
