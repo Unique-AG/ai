@@ -1907,7 +1907,7 @@ name = "unique-toolkit"
 version = "0.9.0"
 description = ""
 optional = false
-python-versions = "^3.11"
+python-versions = "^3.12"
 groups = ["main", "dev"]
 files = []
 develop = false
@@ -1997,5 +1997,5 @@ watchmedo = ["PyYAML (>=3.10)"]
 
 [metadata]
 lock-version = "2.1"
-python-versions = "^3.11"
-content-hash = "44e35b8d018c5bd46a552732cfb3cdc234264ea9b186df811d6c2302571655f0"
+python-versions = "^3.12"
+content-hash = "16d4c4b69ab9a7118eb5330c56946ce809ed54991738e7d7fc3a513d99a09516"
