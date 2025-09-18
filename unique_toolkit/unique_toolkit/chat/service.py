@@ -1,6 +1,16 @@
 import logging
+from typing import Sequence
 
 from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
+from openai.types.responses import (
+    ResponseIncludable,
+    ResponseInputItemParam,
+    ResponseOutputItem,
+    ResponseTextConfigParam,
+    ToolParam,
+    response_create_params,
+)
+from openai.types.shared_params import Metadata, Reasoning
 from typing_extensions import deprecated
 
 from unique_toolkit.app.schemas import ChatEvent, Event
@@ -27,10 +37,16 @@ from unique_toolkit.chat.functions import (
     modify_message_assessment,
     modify_message_assessment_async,
     modify_message_async,
+    stream_complete_with_references,
+    stream_complete_with_references_async,
     update_message_execution,
     update_message_execution_async,
     update_message_log,
     update_message_log_async,
+)
+from unique_toolkit.chat.responses_api import (
+    stream_responses_with_references,
+    stream_responses_with_references_async,
 )
 from unique_toolkit.chat.schemas import (
     ChatMessage,
@@ -56,16 +72,13 @@ from unique_toolkit.language_model.infos import (
     LanguageModelName,
 )
 from unique_toolkit.language_model.schemas import (
+    LanguageModelMessageOptions,
     LanguageModelMessages,
     LanguageModelResponse,
     LanguageModelStreamResponse,
     LanguageModelTool,
     LanguageModelToolDescription,
-)
-
-from .functions import (
-    stream_complete_with_references,
-    stream_complete_with_references_async,
+    ResponsesLanguageModelStreamResponse,
 )
 
 logger = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
@@ -1628,3 +1641,107 @@ class ChatService:
         )
 
         return LanguageModelResponse.from_stream_response(await response)
+
+    def complete_responses_with_references(
+        self,
+        *,
+        model_name: LanguageModelName | str,
+        messages: str
+        | LanguageModelMessages
+        | Sequence[
+            ResponseInputItemParam
+            | LanguageModelMessageOptions
+            | ResponseOutputItem  # History is automatically convertible
+        ],
+        content_chunks: list[ContentChunk] | None = None,
+        tools: Sequence[LanguageModelToolDescription | ToolParam] | None = None,
+        temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
+        debug_info: dict | None = None,
+        start_text: str | None = None,
+        include: list[ResponseIncludable] | None = None,
+        instructions: str | None = None,
+        max_output_tokens: int | None = None,
+        metadata: Metadata | None = None,
+        parallel_tool_calls: bool | None = None,
+        text: ResponseTextConfigParam | None = None,
+        tool_choice: response_create_params.ToolChoice | None = None,
+        top_p: float | None = None,
+        reasoning: Reasoning | None = None,
+        other_options: dict | None = None,
+    ) -> ResponsesLanguageModelStreamResponse:
+        return stream_responses_with_references(
+            company_id=self._company_id,
+            user_id=self._user_id,
+            assistant_message_id=self._assistant_message_id,
+            user_message_id=self._user_message_id,
+            chat_id=self._chat_id,
+            assistant_id=self._assistant_id,
+            model_name=model_name,
+            messages=messages,
+            content_chunks=content_chunks,
+            tools=tools,
+            temperature=temperature,
+            debug_info=debug_info,
+            start_text=start_text,
+            include=include,
+            instructions=instructions,
+            max_output_tokens=max_output_tokens,
+            metadata=metadata,
+            parallel_tool_calls=parallel_tool_calls,
+            text=text,
+            tool_choice=tool_choice,
+            top_p=top_p,
+            reasoning=reasoning,
+            other_options=other_options,
+        )
+
+    async def complete_responses_with_references_async(
+        self,
+        *,
+        model_name: LanguageModelName | str,
+        messages: str
+        | LanguageModelMessages
+        | Sequence[
+            ResponseInputItemParam | LanguageModelMessageOptions | ResponseOutputItem
+        ],
+        content_chunks: list[ContentChunk] | None = None,
+        tools: Sequence[LanguageModelToolDescription | ToolParam] | None = None,
+        temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
+        debug_info: dict | None = None,
+        start_text: str | None = None,
+        include: list[ResponseIncludable] | None = None,
+        instructions: str | None = None,
+        max_output_tokens: int | None = None,
+        metadata: Metadata | None = None,
+        parallel_tool_calls: bool | None = None,
+        text: ResponseTextConfigParam | None = None,
+        tool_choice: response_create_params.ToolChoice | None = None,
+        top_p: float | None = None,
+        reasoning: Reasoning | None = None,
+        other_options: dict | None = None,
+    ) -> ResponsesLanguageModelStreamResponse:
+        return await stream_responses_with_references_async(
+            company_id=self._company_id,
+            user_id=self._user_id,
+            assistant_message_id=self._assistant_message_id,
+            user_message_id=self._user_message_id,
+            chat_id=self._chat_id,
+            assistant_id=self._assistant_id,
+            model_name=model_name,
+            messages=messages,
+            content_chunks=content_chunks,
+            tools=tools,
+            temperature=temperature,
+            debug_info=debug_info,
+            start_text=start_text,
+            include=include,
+            instructions=instructions,
+            max_output_tokens=max_output_tokens,
+            metadata=metadata,
+            parallel_tool_calls=parallel_tool_calls,
+            text=text,
+            tool_choice=tool_choice,
+            top_p=top_p,
+            reasoning=reasoning,
+            other_options=other_options,
+        )

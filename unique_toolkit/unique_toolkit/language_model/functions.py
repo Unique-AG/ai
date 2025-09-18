@@ -172,7 +172,12 @@ def _add_tools_to_options(
     return options
 
 
-def _to_search_context(chunks: list[ContentChunk]) -> dict | None:
+SearchContext = list[unique_sdk.Integrated.SearchResult]
+
+
+def _to_search_context(
+    chunks: list[ContentChunk],
+) -> SearchContext | None:
     if not chunks:
         return None
     return [
@@ -216,7 +221,7 @@ def _prepare_completion_params_util(
     content_chunks: list[ContentChunk] | None = None,
     structured_output_model: type[BaseModel] | None = None,
     structured_output_enforce_schema: bool = False,
-) -> tuple[dict, str, dict, dict | None]:
+) -> tuple[dict, str, dict, SearchContext | None]:
     """Prepare common parameters for completion requests.
 
     Returns
@@ -264,7 +269,7 @@ def _prepare_openai_completion_params_util(
     content_chunks: list[ContentChunk] | None = None,
     structured_output_model: type[BaseModel] | None = None,
     structured_output_enforce_schema: bool = False,
-) -> tuple[dict, str, dict | None]:
+) -> tuple[dict, str, SearchContext | None]:
     """Prepare common parameters for completion requests.
 
     Returns
@@ -339,7 +344,7 @@ def _prepare_all_completions_params_util(
     dict,
     str,
     list[unique_sdk.Integrated.ChatCompletionRequestMessage],
-    dict | None,
+    SearchContext | None,
 ]:
     model_info = None
     if isinstance(model_name, LanguageModelName):

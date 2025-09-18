@@ -3,11 +3,14 @@ import re
 from typing import Any
 
 import unique_sdk
+from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
 from typing_extensions import deprecated
 from unique_sdk._list_object import ListObject
 
 from unique_toolkit._common import _time_utils
-from unique_toolkit.chat.constants import DEFAULT_MAX_MESSAGES
+from unique_toolkit.chat.constants import (
+    DEFAULT_MAX_MESSAGES,
+)
 from unique_toolkit.chat.schemas import (
     ChatMessage,
     ChatMessageAssessment,
@@ -30,10 +33,11 @@ from unique_toolkit.language_model.constants import (
     DEFAULT_COMPLETE_TIMEOUT,
 )
 from unique_toolkit.language_model.functions import (
-    ChatCompletionMessageParam,
     _prepare_all_completions_params_util,
 )
-from unique_toolkit.language_model.infos import LanguageModelName
+from unique_toolkit.language_model.infos import (
+    LanguageModelName,
+)
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
     LanguageModelStreamResponse,
