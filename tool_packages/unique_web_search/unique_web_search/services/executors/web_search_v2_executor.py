@@ -22,7 +22,10 @@ from unique_web_search.schema import (
 from unique_web_search.services.content_processing import ContentProcessor, WebPageChunk
 from unique_web_search.services.crawlers import CrawlerTypes
 from unique_web_search.services.executors.base_executor import BaseWebSearchExecutor
-from unique_web_search.services.search_engine import SearchEngineTypes, WebSearchResult
+from unique_web_search.services.search_engine import SearchEngineTypes
+from unique_web_search.services.search_engine.schema import (
+    WebSearchResult,
+)
 from unique_web_search.utils import StepDebugInfo, WebSearchDebugInfo
 
 logger = logging.getLogger(f"PythonAssistantCoreBundle.{__name__}")

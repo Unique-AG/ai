@@ -9,6 +9,8 @@ from unique_web_search.services.search_engine import (
     BaseSearchEngineConfig,
     SearchEngine,
     SearchEngineType,
+)
+from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
 from unique_web_search.settings import env_settings

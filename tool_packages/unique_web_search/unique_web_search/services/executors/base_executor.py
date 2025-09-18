@@ -19,7 +19,10 @@ from unique_toolkit.language_model import LanguageModelFunction
 from unique_web_search.schema import WebSearchPlan, WebSearchToolParameters
 from unique_web_search.services.content_processing import ContentProcessor, WebPageChunk
 from unique_web_search.services.crawlers import CrawlerTypes
-from unique_web_search.services.search_engine import SearchEngineTypes, WebSearchResult
+from unique_web_search.services.search_engine import SearchEngineTypes
+from unique_web_search.services.search_engine.schema import (
+    WebSearchResult,
+)
 from unique_web_search.utils import StepDebugInfo, WebSearchDebugInfo
 
 logger = logging.getLogger(f"PythonAssistantCoreBundle.{__name__}")

@@ -9,11 +9,13 @@ from unique_web_search.services.search_engine import (
     BaseSearchEngineConfig,
     SearchEngine,
     SearchEngineType,
-    WebSearchResult,
 )
 from unique_web_search.services.search_engine.google_utils.schema import (
     GoogleSearchOptionalQueryParams,
     GoogleSearchQueryParams,
+)
+from unique_web_search.services.search_engine.schema import (
+    WebSearchResult,
 )
 
 logger = logging.getLogger(f"PythonAssistantCoreBundle.{__name__}")
