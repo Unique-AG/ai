@@ -20,6 +20,7 @@ from unique_web_search.schema import WebSearchPlan, WebSearchToolParameters
 from unique_web_search.services.content_processing import ContentProcessor, WebPageChunk
 from unique_web_search.services.crawlers import CrawlerTypes
 from unique_web_search.services.search_engine import SearchEngineTypes, WebSearchResult
+from unique_web_search.utils import StepDebugInfo, WebSearchDebugInfo
 
 logger = logging.getLogger(f"PythonAssistantCoreBundle.{__name__}")
 
@@ -37,9 +38,9 @@ class BaseWebSearchExecutor(ABC):
         content_processor: ContentProcessor,
         chunk_relevancy_sorter: ChunkRelevancySorter | None,
         chunk_relevancy_sort_config: ChunkRelevancySortConfig,
+        debug_info: WebSearchDebugInfo,
         content_reducer: Callable[[list[WebPageChunk]], list[WebPageChunk]],
         tool_progress_reporter: Optional[ToolProgressReporter] = None,
-        debug: bool = False,
     ):
         self.company_id = company_id
         self.search_service = search_service
@@ -52,12 +53,11 @@ class BaseWebSearchExecutor(ABC):
         self.chunk_relevancy_sort_config = chunk_relevancy_sort_config
         self.tool_call = tool_call
         self.tool_parameters = tool_parameters
-        self.debug = debug
         self.content_reducer = content_reducer
         self._notify_name = ""
         self._notify_message = ""
 
-        self.debug_info = {"step_info": []}
+        self.debug_info = debug_info
 
         async def notify_callback() -> None:
             logger.info(f"{self.notify_name}: {self.notify_message}")
@@ -88,7 +88,9 @@ class BaseWebSearchExecutor(ABC):
         self._notify_message = value
 
     @abstractmethod
-    async def run(self) -> tuple[list[ContentChunk], dict]:
+    async def run(
+        self,
+    ) -> list[ContentChunk]:
         raise NotImplementedError("Subclasses must implement this method.")
 
     async def _content_processing(
@@ -106,22 +108,18 @@ class BaseWebSearchExecutor(ABC):
         logger.info(
             f"Content processed with {self.content_processor.config.strategy} completed in {delta_time} seconds"
         )
-        self.debug_info["step_info"].append(
-            {
-                "operation": "content_processing",
-                "execution_time": delta_time,
-                "content_processor": self.content_processor.config.strategy,
-                "number_of_results": len(web_search_results),
-                **(
-                    {
-                        "urls": [result.url for result in web_search_results],
-                        "content": [elem.model_dump() for elem in content_results],
-                    }
-                    if self.debug
-                    else {}
-                ),
-            }
+        self.debug_info.steps.append(
+            StepDebugInfo(
+                step_name="content_processing",
+                execution_time=delta_time,
+                config=self.content_processor.config.strategy.name,
+                extra={
+                    "number_of_results": len(web_search_results),
+                    "web_page_chunks": [elem.model_dump() for elem in content_results],
+                },
+            )
         )
+        self.debug_info.web_page_chunks = content_results
         return content_results
 
     async def _select_relevant_sources(

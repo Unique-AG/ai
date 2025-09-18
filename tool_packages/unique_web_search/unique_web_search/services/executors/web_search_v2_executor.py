@@ -23,6 +23,7 @@ from unique_web_search.services.content_processing import ContentProcessor, WebP
 from unique_web_search.services.crawlers import CrawlerTypes
 from unique_web_search.services.executors.base_executor import BaseWebSearchExecutor
 from unique_web_search.services.search_engine import SearchEngineTypes, WebSearchResult
+from unique_web_search.utils import StepDebugInfo, WebSearchDebugInfo
 
 logger = logging.getLogger(f"PythonAssistantCoreBundle.{__name__}")
 
@@ -48,9 +49,9 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
         chunk_relevancy_sorter: ChunkRelevancySorter | None,
         chunk_relevancy_sort_config: ChunkRelevancySortConfig,
         content_reducer: Callable[[list[WebPageChunk]], list[WebPageChunk]],
+        debug_info: WebSearchDebugInfo,
         tool_progress_reporter: Optional[ToolProgressReporter] = None,
         max_steps: int = 3,
-        debug: bool = False,
     ):
         super().__init__(
             search_service=search_service,
@@ -64,8 +65,8 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
             chunk_relevancy_sorter=chunk_relevancy_sorter,
             chunk_relevancy_sort_config=chunk_relevancy_sort_config,
             content_reducer=content_reducer,
+            debug_info=debug_info,
             tool_progress_reporter=tool_progress_reporter,
-            debug=debug,
         )
 
         self.tool_parameters = tool_parameters
@@ -87,7 +88,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
     def notify_message(self, value):
         self._notify_message = value
 
-    async def run(self) -> tuple[list[ContentChunk], dict]:
+    async def run(self) -> list[ContentChunk]:
         await self._enforce_max_steps()
 
         results: list[WebSearchResult] = []
@@ -95,8 +96,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
             self.notify_name = step_type_to_name[step.step_type]
             self.notify_message = step.objective
             await self.notify_callback()
-            step_results, step_debug_info = await self._execute_step(step)
-            self.debug_info["step_info"].append(step_debug_info)
+            step_results = await self._execute_step(step)
             results.extend(step_results)
 
         self.notify_name = "**Analyzing Web Pages**"
@@ -116,9 +116,9 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
             self.tool_parameters.objective, content_results
         )
 
-        return relevant_sources, self.debug_info
+        return relevant_sources
 
-    async def _execute_step(self, step: Step) -> tuple[list[WebSearchResult], dict]:
+    async def _execute_step(self, step: Step) -> list[WebSearchResult]:
         if step.step_type == StepType.SEARCH:
             return await self._execute_search_step(step)
         elif step.step_type == StepType.READ_URL:
@@ -126,22 +126,35 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
         else:
             raise ValueError(f"Invalid step type: {type(step)}")
 
-    async def _execute_search_step(
-        self, step: Step
-    ) -> tuple[list[WebSearchResult], dict]:
-        search_debug_info = step.model_dump()
+    async def _execute_search_step(self, step: Step) -> list[WebSearchResult]:
+        step_name = step.step_type.name
+        self.debug_info.steps.append(
+            StepDebugInfo(
+                step_name=step_name,
+                execution_time=0,
+                config=step.model_dump_json(),
+            )
+        )
 
-        time_info = {}
         time_start = time()
         logger.info(f"Company {self.company_id} Searching with {self.search_service}")
 
         results = await self.search_service.search(step.query_or_url)
         delta_time = time() - time_start
 
-        time_info["search_time"] = {
-            "execution_time": delta_time,
-            "search_service": str(self.search_service),
-        }
+        self.debug_info.steps.append(
+            StepDebugInfo(
+                step_name=f"{step_name}.search",
+                execution_time=delta_time,
+                config=self.search_service.config.search_engine_name.name,
+                extra={
+                    "query": step.query_or_url,
+                    "number_of_results": len(results),
+                    "urls": [result.url for result in results],
+                },
+            )
+        )
+
         logger.info(
             f"Searched with {self.search_service} completed in {delta_time} seconds"
         )
@@ -158,25 +171,31 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
             for result, content in zip(results, crawl_results):
                 result.content = content
 
-            time_info["crawl_time"] = {
-                "execution_time": delta_time,
-                "crawler_service": str(self.crawler_service),
-                "number_of_results": len(results),
-                "urls": [result.url for result in results],
-                **({"content": crawl_results} if self.debug else {}),
-            }
+            self.debug_info.steps.append(
+                StepDebugInfo(
+                    step_name=f"{step_name}.crawl",
+                    execution_time=delta_time,
+                    config=self.crawler_service.config.crawler_type.name,
+                    extra={
+                        "number_of_results": len(results),
+                        "urls": [result.url for result in results],
+                    },
+                )
+            )
             logger.info(
                 f"Crawled {len(results)} pages with {self.crawler_service} completed in {delta_time} seconds"
             )
+        return results
 
-        search_debug_info = search_debug_info | time_info
-
-        return results, search_debug_info
-
-    async def _execute_read_url_step(
-        self, step: Step
-    ) -> tuple[list[WebSearchResult], dict]:
-        read_url_debug_info = step.model_dump()
+    async def _execute_read_url_step(self, step: Step) -> list[WebSearchResult]:
+        step_name = step.step_type.name
+        self.debug_info.steps.append(
+            StepDebugInfo(
+                step_name=step_name,
+                execution_time=0,
+                config=step.model_dump_json(),
+            )
+        )
         time_start = time()
         logger.info(f"Company {self.company_id} Crawling with {self.crawler_service}")
         results = await self.crawler_service.crawl([step.query_or_url])
@@ -185,17 +204,22 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
             f"Crawled {step.query_or_url} with {self.crawler_service} completed in {delta_time} seconds"
         )
 
-        read_url_debug_info["crawl_time"] = {
-            "execution_time": time() - time_start,
-            "crawler_service": str(self.crawler_service),
-            "url": step.query_or_url,
-            **({"content": results} if self.debug else {}),
-        }
+        self.debug_info.steps.append(
+            StepDebugInfo(
+                step_name=f"{step_name}.crawl",
+                execution_time=delta_time,
+                config=self.crawler_service.config.crawler_type.name,
+                extra={
+                    "url": step.query_or_url,
+                    "content": results,
+                },
+            )
+        )
         results = [
             WebSearchResult(url=step.query_or_url, content=result, snippet="", title="")
             for result in results
         ]
-        return results, read_url_debug_info
+        return results
 
     async def _enforce_max_steps(self) -> None:
         if len(self.tool_parameters.steps) > self.max_steps:

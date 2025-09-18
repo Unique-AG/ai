@@ -23,7 +23,11 @@ from unique_web_search.services.content_processing import ContentProcessor, WebP
 from unique_web_search.services.crawlers import CrawlerTypes
 from unique_web_search.services.executors.base_executor import BaseWebSearchExecutor
 from unique_web_search.services.search_engine import SearchEngineTypes, WebSearchResult
-from unique_web_search.utils import query_params_to_human_string
+from unique_web_search.utils import (
+    StepDebugInfo,
+    WebSearchDebugInfo,
+    query_params_to_human_string,
+)
 
 logger = logging.getLogger(f"PythonAssistantCoreBundle.{__name__}")
 
@@ -123,9 +127,9 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
         tool_call: LanguageModelFunction,
         tool_parameters: WebSearchToolParameters,
         refine_query_system_prompt: str,
+        debug_info: WebSearchDebugInfo,
         tool_progress_reporter: Optional[ToolProgressReporter] = None,
         mode: RefineQueryMode = RefineQueryMode.BASIC,
-        debug: bool = False,
         max_queries: int = 10,
     ):
         super().__init__(
@@ -139,16 +143,16 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
             content_processor=content_processor,
             chunk_relevancy_sorter=chunk_relevancy_sorter,
             chunk_relevancy_sort_config=chunk_relevancy_sort_config,
+            debug_info=debug_info,
             content_reducer=content_reducer,
             tool_progress_reporter=tool_progress_reporter,
-            debug=debug,
         )
         self.mode = mode
         self.tool_parameters = tool_parameters
         self.refine_query_system_prompt = refine_query_system_prompt
         self.max_queries = max_queries
 
-    async def run(self) -> tuple[list[ContentChunk], dict]:
+    async def run(self) -> list[ContentChunk]:
         query = self.tool_parameters.query
         date_restrict = self.tool_parameters.date_restrict
 
@@ -201,7 +205,7 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
             objective, content_results
         )
 
-        return relevant_sources, self.debug_info
+        return relevant_sources
 
     async def _refine_query(self, query: str) -> tuple[list[str], str]:
         start_time = time()
@@ -224,15 +228,18 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
             ]
         else:
             raise ValueError("Invalid refined query")
-        self.debug_info["step_info"].append(
-            {
-                "operation": "refine_query",
-                "query": query,
-                "refined_queries": queries,
-                "execution_time": delta_time,
-            }
+        self.debug_info.steps.append(
+            StepDebugInfo(
+                step_name="refine_query",
+                execution_time=delta_time,
+                config=self.mode.name,
+                extra={
+                    "query": query,
+                    "refined_queries": queries,
+                },
+            )
         )
-
+        
         return queries, refined_query.objective
 
     async def _search(
@@ -248,14 +255,18 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
         logger.info(
             f"Searched with {self.search_service} completed in {delta_time} seconds"
         )
-        self.debug_info["step_info"].append(
-            {
-                "operation": "search",
-                "query": query,
-                "date_restrict": date_restrict,
-                "execution_time": delta_time,
-                "search_service": str(self.search_service),
-            }
+        self.debug_info.steps.append(
+            StepDebugInfo(
+                step_name="search",
+                execution_time=delta_time,
+                config=self.search_service.config.search_engine_name.name,
+                extra={
+                    "query": query,
+                    "date_restrict": date_restrict,
+                    "number_of_results": len(search_results),
+                    "urls": [result.url for result in search_results],
+                },
+            )
         )
         return search_results
 
@@ -270,15 +281,16 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
         logger.info(
             f"Crawled {len(web_search_results)} pages with {self.crawler_service} completed in {delta_time} seconds"
         )
-        self.debug_info["step_info"].append(
-            {
-                "operation": "crawl",
-                "execution_time": delta_time,
-                "crawler_service": str(self.crawler_service),
-                "number_of_results": len(web_search_results),
-                "urls": [result.url for result in web_search_results],
-                "content": crawl_results,
-            }
+        self.debug_info.steps.append(
+            StepDebugInfo(
+                step_name="crawl",
+                execution_time=delta_time,
+                config=self.crawler_service.config.crawler_type.name,
+                extra={
+                    "number_of_results": len(web_search_results),
+                    "urls": [result.url for result in web_search_results],
+                },
+            )
         )
         return crawl_results
 

@@ -1,5 +1,6 @@
 from logging import getLogger
 
+from pydantic import BaseModel, Field
 from unique_toolkit.content.utils import count_tokens
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
@@ -97,3 +98,29 @@ def reduce_sources_to_token_limit(
             break
 
     return selected_chunks
+
+
+class StepDebugInfo(BaseModel):
+    step_name: str
+    execution_time: float
+    config: str
+    extra: dict = Field(default_factory=dict)
+
+
+class WebSearchDebugInfo(BaseModel):
+    parameters: dict
+    steps: list[StepDebugInfo] = []
+    web_page_chunks: list[WebPageChunk] = []
+    num_chunks_in_final_prompts: int = 0
+
+    def model_dump(self, *, with_debug_details: bool = True, **kwargs):
+        """
+        Dump the model, dropping `additional_info` in steps when debug=False.
+        """
+        exclude = kwargs.pop("exclude", {})
+        if not with_debug_details:
+            # Build an exclude structure that applies to all steps
+            exclude = {
+                "steps": {i: {"extra"} for i in range(len(self.steps))}
+            } | exclude
+        return super().model_dump(exclude=exclude, **kwargs)
