@@ -5,7 +5,6 @@ from typing import Any, Optional, override
 
 from humps import camelize
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from pydantic_settings import BaseSettings
 from typing_extensions import deprecated
 
 from unique_toolkit.app.unique_settings import UniqueChatEventFilterOptions
@@ -48,7 +47,7 @@ class BaseEvent(BaseModel):
             data = json.load(f)
         return cls.model_validate(data)
 
-    def filter_event(self, *, filter_options: BaseSettings | None = None) -> bool:
+    def filter_event(self, *, filter_options: None = None) -> bool:
         """Determine if event should be filtered out and be neglected."""
         return False
 
