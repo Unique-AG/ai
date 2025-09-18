@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_deep_research"
-version = "0.0.11"
+version = "1.0.0"
 description = "Deep Research Tool for complex research tasks"
 authors = [
     "Martin Fadler <martin.fadler@unique.ch>",
@@ -19,13 +19,13 @@ pydantic-settings = "^2.10.1"
 python-dotenv = "^1.0.1"
 pytest = "^8.4.1"
 unique-sdk = "^0.10.16"
-unique-toolkit = "^0.9.0"
+unique-toolkit = "^1.0.0"
 jinja2 = "^3.1.2"
 openai = "^1.99.0"
 langgraph = "^0.6.6"
 langchain = "^0.3.0"
 langchain-core = "^0.3.0"
-unique-web-search = "^0.1.0"
+unique-web-search = "^1.0.0"
 langchain-openai = "^0.3.32"
 
 
