@@ -135,7 +135,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
             StepDebugInfo(
                 step_name=step_name,
                 execution_time=0,
-                config=step.model_dump_json(),
+                config=step.model_dump(),
             )
         )
 
@@ -181,7 +181,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
                     config=self.crawler_service.config.crawler_type.name,
                     extra={
                         "number_of_results": len(results),
-                        "urls": [result.url for result in results],
+                        "contents": [result.model_dump() for result in results],
                     },
                 )
             )
@@ -196,7 +196,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
             StepDebugInfo(
                 step_name=step_name,
                 execution_time=0,
-                config=step.model_dump_json(),
+                config=step.model_dump(),
             )
         )
         time_start = time()
@@ -231,3 +231,14 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
             )
             logger.info(f"Reducing number of steps to {self.max_steps}")
             self.tool_parameters.steps = self.tool_parameters.steps[: self.max_steps]
+            self.debug_info.steps.append(
+                StepDebugInfo(
+                    step_name="enforce_max_steps",
+                    execution_time=0,
+                    config=self.tool_parameters.model_dump(),
+                    extra={
+                        "max_steps": self.max_steps,
+                        "number_of_planned_steps": len(self.tool_parameters.steps),
+                    },
+                )
+            )

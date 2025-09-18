@@ -103,7 +103,7 @@ def reduce_sources_to_token_limit(
 class StepDebugInfo(BaseModel):
     step_name: str
     execution_time: float
-    config: str
+    config: str | dict
     extra: dict = Field(default_factory=dict)
 
 

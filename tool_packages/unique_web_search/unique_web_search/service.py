@@ -108,10 +108,9 @@ class WebSearchTool(Tool[WebSearchConfig]):
         parameters = self.tool_parameter_calls.model_validate(
             tool_call.arguments,
         )
-        
+
         debug_info = WebSearchDebugInfo(parameters=parameters.model_dump())
         executor = self._get_executor(tool_call, parameters, debug_info)
-        
 
         try:
             content_chunks = await executor.run()
@@ -128,7 +127,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
             return ToolCallResponse(
                 id=tool_call.id,  # type: ignore
                 name=self.name,
-                debug_info=debug_info.model_dump(),
+                debug_info=debug_info.model_dump(with_debug_details=self.debug),
                 content_chunks=content_chunks,
             )
         except Exception as e:
@@ -145,7 +144,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
             return ToolCallResponse(
                 id=tool_call.id,  # type: ignore
                 name=self.name,
-                debug_info=debug_info.model_dump(),
+                debug_info=debug_info.model_dump(with_debug_details=self.debug),
                 error_message=str(e),
             )
 

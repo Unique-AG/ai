@@ -242,7 +242,7 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
                 },
             )
         )
-        
+
         return queries, refined_query.objective
 
     async def _search(
@@ -291,7 +291,7 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
                 config=self.crawler_service.config.crawler_type.name,
                 extra={
                     "number_of_results": len(web_search_results),
-                    "urls": [result.url for result in web_search_results],
+                    "contents": [result.model_dump() for result in web_search_results],
                 },
             )
         )
