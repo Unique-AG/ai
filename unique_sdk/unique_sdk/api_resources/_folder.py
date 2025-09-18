@@ -1,4 +1,3 @@
-from enum import Enum
 from typing import (
     ClassVar,
     List,
@@ -23,26 +22,10 @@ class Folder(APIResource["Folder"]):
         Represents the access level of a scope.
         """
 
-        class ScopeAccessType(Enum):
-            """
-            Enum for scope access levels.
-            """
-
-            READ = "READ"
-            WRITE = "WRITE"
-
-        class ScopeAccessEntityType(Enum):
-            """
-            Enum for scope access entity types.
-            """
-
-            USER = "USER"
-            GROUP = "GROUP"
-
         entityId: str
-        type: ScopeAccessType
-        entityType: ScopeAccessEntityType
-        createdAt: str | None = None
+        type: Literal["READ", "WRITE"]
+        entityType: Literal["USER", "GROUP"]
+        createdAt: NotRequired[str]
 
     class Children(TypedDict):
         """
@@ -61,19 +44,19 @@ class Folder(APIResource["Folder"]):
         languageModel: str | None
 
     class IngestionConfig(TypedDict):
-        chunkMaxTokens: int | None
-        chunkMaxTokensOnePager: int | None
-        chunkMinTokens: int | None
-        chunkStrategy: str | None
-        customApiOptions: List["Folder.CustomApiOptions"] | None
-        documentMinTokens: int | None
-        excelReadMode: str | None
-        jpgReadMode: str | None
-        pdfReadMode: str | None
-        pptReadMode: str | None
+        chunkMaxTokens: NotRequired[int | None]
+        chunkMaxTokensOnePager: NotRequired[int | None]
+        chunkMinTokens: NotRequired[int | None]
+        chunkStrategy: NotRequired[str | None]
+        customApiOptions: NotRequired[List["Folder.CustomApiOptions"] | None]
+        documentMinTokens: NotRequired[int | None]
+        excelReadMode: NotRequired[str | None]
+        jpgReadMode: NotRequired[str | None]
+        pdfReadMode: NotRequired[str | None]
+        pptReadMode: NotRequired[str | None]
         uniqueIngestionMode: str
-        vttConfig: Optional["Folder.VttConfig"]
-        wordReadMode: str | None
+        vttConfig: NotRequired["Folder.VttConfig | None"]
+        wordReadMode: NotRequired[str | None]
 
     class CreatedFolder(TypedDict):
         id: str
@@ -110,8 +93,8 @@ class Folder(APIResource["Folder"]):
         Parameters for updating folder ingestion config.
         """
 
-        scopeId: str | None
-        folderPath: str | None
+        scopeId: NotRequired[str | None]
+        folderPath: NotRequired[str | None]
         ingestionConfig: "Folder.IngestionConfig"
         applyToSubScopes: bool
 
@@ -120,8 +103,8 @@ class Folder(APIResource["Folder"]):
         Parameters for adding access to a folder.
         """
 
-        scopeId: str | None
-        folderPath: str | None
+        scopeId: NotRequired[str | None]
+        folderPath: NotRequired[str | None]
         scopeAccesses: List["Folder.ScopeAccess"]
         applyToSubScopes: bool
 
@@ -130,8 +113,8 @@ class Folder(APIResource["Folder"]):
         Parameters for removing access from a folder.
         """
 
-        scopeId: str | None
-        folderPath: str | None
+        scopeId: NotRequired[str | None]
+        folderPath: NotRequired[str | None]
         scopeAccesses: List["Folder.ScopeAccess"]
         applyToSubScopes: bool
 
@@ -149,8 +132,8 @@ class Folder(APIResource["Folder"]):
         Parameters for getting a folder by its Id or path.
         """
 
-        scopeId: str | None = None
-        folderPath: str | None = None
+        scopeId: NotRequired[str]
+        folderPath: NotRequired[str]
 
     class UpdateParams(RequestOptions):
         """
@@ -267,7 +250,7 @@ class Folder(APIResource["Folder"]):
         cls, user_id: str, company_id: str, **params: Unpack["Folder.CreateParams"]
     ) -> "Folder.CreateFolderStructureResponse":
         return cast(
-            "Folder",
+            "Folder.CreateFolderStructureResponse",
             cls._static_request(
                 "post",
                 cls.RESOURCE_URL,
@@ -282,7 +265,7 @@ class Folder(APIResource["Folder"]):
         cls, user_id: str, company_id: str, **params: Unpack["Folder.CreateParams"]
     ) -> "Folder.CreateFolderStructureResponse":
         return cast(
-            "Folder",
+            "Folder.CreateFolderStructureResponse",
             await cls._static_request_async(
                 "post",
                 cls.RESOURCE_URL,

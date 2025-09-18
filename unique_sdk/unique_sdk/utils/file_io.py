@@ -40,7 +40,7 @@ def upload_file(
     mime_type,
     scope_or_unique_path=None,
     chat_id=None,
-    ingestion_config: Optional[Content.IngestionConfig] = None,
+    ingestion_config: Optional[Content.IngestionConfig] | None = None,
     metadata: dict[str, Any] | None = None,
 ):
     # check that chatid or scope_or_unique_path is provided
@@ -110,7 +110,11 @@ def upload_file(
 
 
 def download_content(
-    companyId: str, userId: str, content_id: str, filename: str, chat_id: str = None
+    companyId: str,
+    userId: str,
+    content_id: str,
+    filename: str,
+    chat_id: str | None = None,
 ):
     # Ensure the URL is a valid string
     if not isinstance(content_id, str):

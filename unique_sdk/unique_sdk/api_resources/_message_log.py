@@ -1,4 +1,4 @@
-from typing import ClassVar, Literal, TypedDict, Unpack, cast
+from typing import ClassVar, Literal, NotRequired, TypedDict, Unpack, cast
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
@@ -25,21 +25,21 @@ class MessageLog(APIResource["MessageLog"]):
         text: str
         status: Literal["RUNNING", "COMPLETED", "FAILED"]
         order: int
-        details: dict | None = None
-        uncitedReferences: dict | None = None
-        references: list["MessageLog.Reference"] | None = None
+        details: NotRequired[dict | None]
+        uncitedReferences: NotRequired[dict | None]
+        references: NotRequired[list["MessageLog.Reference"] | None]
 
     class UpdateMessageLogParams(RequestOptions):
         """
         Parameters for updating a message log.
         """
 
-        text: str | None
-        status: Literal["RUNNING", "COMPLETED", "FAILED"] | None
+        text: NotRequired[str | None]
+        status: NotRequired[Literal["RUNNING", "COMPLETED", "FAILED"] | None]
         order: int
-        details: dict | None = None
-        uncitedReferences: dict | None = None
-        references: list["MessageLog.Reference"] | None = None
+        details: NotRequired[dict | None]
+        uncitedReferences: NotRequired[dict | None]
+        references: NotRequired[list["MessageLog.Reference"] | None]
 
     messageLogId: str | None
     messageId: str | None
