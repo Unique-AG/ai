@@ -49,6 +49,7 @@ class UniqueApp(BaseSettings):
         deprecated="Use UniqueApi.base_url instead",
     )
     endpoint: str = Field(default="dummy")
+
     endpoint_secret: SecretStr = Field(default=SecretStr("dummy_secret"))
 
     @model_validator(mode="after")
@@ -159,6 +160,25 @@ class UniqueAuth(BaseSettings):
         return warn_about_defaults(self)
 
 
+class UniqueChatEventFilterOptions(BaseSettings):
+    # Empty string evals to False
+    assistant_ids: list[str] = Field(
+        default=[],
+        description="The assistant ids (space) to filter by. Default is all assistants.",
+    )
+    references_in_code: list[str] = Field(
+        default=[],
+        description="The module (reference) names in code to filter by. Default is all modules.",
+    )
+
+    model_config = SettingsConfigDict(
+        env_prefix="unique_event_filter_options_",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+
 class EnvFileNotFoundError(FileNotFoundError):
     """Raised when no environment file can be found in any of the expected locations."""
 
@@ -169,11 +189,14 @@ class UniqueSettings:
         auth: UniqueAuth,
         app: UniqueApp,
         api: UniqueApi,
+        *,
+        chat_event_filter_options: UniqueChatEventFilterOptions | None = None,
         env_file: Path | None = None,
     ):
         self.app = app
         self.auth = auth
         self.api = api
+        self.chat_event_filter_options = chat_event_filter_options
         self._env_file: Path | None = (
             env_file if (env_file and env_file.exists()) else None
         )
@@ -220,7 +243,10 @@ class UniqueSettings:
         )
 
     @classmethod
-    def from_env(cls, env_file: Path | None = None) -> "UniqueSettings":
+    def from_env(
+        cls,
+        env_file: Path | None = None,
+    ) -> "UniqueSettings":
         """Initialize settings from environment variables and/or env file.
 
         Args:
@@ -241,7 +267,14 @@ class UniqueSettings:
         auth = UniqueAuth(_env_file=env_file_str)  # type: ignore[call-arg]
         app = UniqueApp(_env_file=env_file_str)  # type: ignore[call-arg]
         api = UniqueApi(_env_file=env_file_str)  # type: ignore[call-arg]
-        return cls(auth=auth, app=app, api=api, env_file=env_file)
+        event_filter_options = UniqueChatEventFilterOptions(_env_file=env_file_str)  # type: ignore[call-arg]
+        return cls(
+            auth=auth,
+            app=app,
+            api=api,
+            chat_event_filter_options=event_filter_options,
+            env_file=env_file,
+        )
 
     @classmethod
     def from_env_auto(cls, filename: str = "unique.env") -> "UniqueSettings":
