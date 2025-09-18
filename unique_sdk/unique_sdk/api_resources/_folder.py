@@ -1,4 +1,3 @@
-from enum import Enum
 from typing import (
     ClassVar,
     List,
@@ -23,26 +22,10 @@ class Folder(APIResource["Folder"]):
         Represents the access level of a scope.
         """
 
-        class ScopeAccessType(Enum):
-            """
-            Enum for scope access levels.
-            """
-
-            READ = "READ"
-            WRITE = "WRITE"
-
-        class ScopeAccessEntityType(Enum):
-            """
-            Enum for scope access entity types.
-            """
-
-            USER = "USER"
-            GROUP = "GROUP"
-
         entityId: str
-        type: ScopeAccessType
-        entityType: ScopeAccessEntityType
-        createdAt: str | None = None
+        type: Literal["READ", "WRITE"]
+        entityType: Literal["USER", "GROUP"]
+        createdAt: NotRequired[str]
 
     class Children(TypedDict):
         """
@@ -149,8 +132,8 @@ class Folder(APIResource["Folder"]):
         Parameters for getting a folder by its Id or path.
         """
 
-        scopeId: str | None = None
-        folderPath: str | None = None
+        scopeId: NotRequired[str]
+        folderPath: NotRequired[str]
 
     class UpdateParams(RequestOptions):
         """
