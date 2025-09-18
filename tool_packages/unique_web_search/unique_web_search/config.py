@@ -31,6 +31,8 @@ from unique_web_search.services.crawlers import (
 )
 from unique_web_search.services.executors.web_search_v1_executor import RefineQueryMode
 from unique_web_search.services.search_engine import (
+    BingSearchConfig,
+    BraveSearchConfig,
     FireCrawlConfig,
     GoogleConfig,
     JinaConfig,
@@ -160,6 +162,8 @@ class WebSearchConfig(BaseToolConfig):
 
     search_engine_config: (
         GoogleConfig
+        | BingSearchConfig
+        | BraveSearchConfig
         | SkipJsonSchema[JinaConfig]
         | SkipJsonSchema[TavilyConfig]
         | SkipJsonSchema[FireCrawlConfig]

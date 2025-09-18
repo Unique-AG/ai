@@ -25,7 +25,7 @@ from unique_web_search.services.executors import (
     WebSearchV2Executor,
 )
 from unique_web_search.services.search_engine import get_search_engine_service
-from unique_web_search.utils import reduce_sources_to_token_limit
+from unique_web_search.utils import WebSearchDebugInfo, reduce_sources_to_token_limit
 
 
 class WebSearchTool(Tool[WebSearchConfig]):
@@ -36,14 +36,15 @@ class WebSearchTool(Tool[WebSearchConfig]):
         self.language_model = self.config.language_model
 
         self.search_engine_service = get_search_engine_service(
-            self.config.search_engine_config
+            self.config.search_engine_config,
+            self.language_model_service,
+            self.language_model,
         )
         self.crawler_service = get_crawler_service(self.config.crawler_config)
         self.chunk_relevancy_sorter = ChunkRelevancySorter(self.event)
         self.company_id = self.event.company_id
         self.chat_history_token_length = 0
         self.chat_history_chat_messages = self._chat_service.get_full_history()
-        self.debug_info = {}
         self.content_processor = ContentProcessor(
             event=self.event,
             config=self.config.content_processor_config,
@@ -107,16 +108,13 @@ class WebSearchTool(Tool[WebSearchConfig]):
         parameters = self.tool_parameter_calls.model_validate(
             tool_call.arguments,
         )
-        self.debug_info = {"tool_call": tool_call.model_dump()}
 
-        executor = self._get_executor(tool_call, parameters)
+        debug_info = WebSearchDebugInfo(parameters=parameters.model_dump())
+        executor = self._get_executor(tool_call, parameters, debug_info)
 
         try:
-            content_chunks, executor_debug_info = await executor.run()
-
-            self.debug_info = self.debug_info | executor_debug_info
-
-            self.debug_info["num_chunks_in_final_prompts"] = len(content_chunks)
+            content_chunks = await executor.run()
+            debug_info.num_chunks_in_final_prompts = len(content_chunks)
 
             if self.tool_progress_reporter:
                 await self.tool_progress_reporter.notify_from_tool_call(
@@ -129,7 +127,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
             return ToolCallResponse(
                 id=tool_call.id,  # type: ignore
                 name=self.name,
-                debug_info=self.debug_info,
+                debug_info=debug_info.model_dump(with_debug_details=self.debug),
                 content_chunks=content_chunks,
             )
         except Exception as e:
@@ -146,7 +144,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
             return ToolCallResponse(
                 id=tool_call.id,  # type: ignore
                 name=self.name,
-                debug_info=self.debug_info,
+                debug_info=debug_info.model_dump(with_debug_details=self.debug),
                 error_message=str(e),
             )
 
@@ -154,6 +152,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
         self,
         tool_call: LanguageModelFunction,
         parameters: WebSearchPlan | WebSearchToolParameters,
+        debug_info: WebSearchDebugInfo,
     ) -> WebSearchV1Executor | WebSearchV2Executor:
         if isinstance(parameters, WebSearchPlan):
             return WebSearchV2Executor(
@@ -170,7 +169,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
                 tool_progress_reporter=self.tool_progress_reporter,
                 content_reducer=self.content_reducer,
                 max_steps=self.config.experimental_features.v2_mode.max_steps,
-                debug=self.debug,
+                debug_info=debug_info,
             )
         elif isinstance(parameters, WebSearchToolParameters):
             return WebSearchV1Executor(
@@ -189,7 +188,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
                 tool_progress_reporter=self.tool_progress_reporter,
                 content_reducer=self.content_reducer,
                 refine_query_system_prompt=self.config.query_refinement_config.system_prompt,
-                debug=self.debug,
+                debug_info=debug_info,
             )
         else:
             raise ValueError(f"Invalid parameters: {parameters}")

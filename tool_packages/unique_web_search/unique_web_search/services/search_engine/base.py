@@ -24,6 +24,9 @@ class SearchEngineType(StrEnum):
     JINA = "Jina"
     FIRECRAWL = "Firecrawl"
     TAVILY = "Tavily"
+    BRAVE = "Brave"
+    BING = "Bing"
+    DUCKDUCKGO = "DuckDuckGo"
 
 
 T = TypeVar("T", bound=SearchEngineType)
