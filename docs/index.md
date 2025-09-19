@@ -9,7 +9,7 @@ The main toolkit for AI development, providing services for chat, content manage
 
 ## Getting Started
 
-Each package has its own documentation section. Start with the [Unique Toolkit](./unique_toolkit/) if you're new to the platform.
+Each package has its own documentation section. Start with the **Unique Toolkit** if you're new to the platform.
 
 ## Development
 

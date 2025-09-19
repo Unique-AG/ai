@@ -1,13 +1,17 @@
 import json
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Generic, Optional, TypeVar, override
 
 from humps import camelize
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic_settings import BaseSettings
 from typing_extensions import deprecated
 
+from unique_toolkit.app.unique_settings import UniqueChatEventFilterOptions
 from unique_toolkit.smart_rules.compile import UniqueQL, parse_uniqueql
+
+FilterOptionsT = TypeVar("FilterOptionsT", bound=BaseSettings)
 
 # set config to convert camelCase to snake_case
 model_config = ConfigDict(
@@ -30,7 +34,7 @@ class EventName(StrEnum):
     MAGIC_TABLE_UPDATE_CELL = "unique.magic-table.update-cell"
 
 
-class BaseEvent(BaseModel):
+class BaseEvent(BaseModel, Generic[FilterOptionsT]):
     model_config = model_config
 
     id: str
@@ -45,6 +49,10 @@ class BaseEvent(BaseModel):
         with file_path.open("r", encoding="utf-8") as f:
             data = json.load(f)
         return cls.model_validate(data)
+
+    def filter_event(self, *, filter_options: FilterOptionsT | None = None) -> bool:
+        """Determine if event should be filtered out and be neglected."""
+        return False
 
 
 ###
@@ -241,6 +249,28 @@ class ChatEvent(BaseEvent):
             "chosen_module": self.payload.name,
             "assistant": {"id": self.payload.assistant_id},
         }
+
+    @override
+    def filter_event(
+        self, *, filter_options: UniqueChatEventFilterOptions | None = None
+    ) -> bool:
+        # Empty string evals to False
+        if filter_options is None:
+            return False
+
+        if (
+            filter_options.assistant_ids
+            and self.payload.assistant_id not in filter_options.assistant_ids
+        ):
+            return True
+
+        if (
+            filter_options.references_in_code
+            and self.payload.name not in filter_options.references_in_code
+        ):
+            return True
+
+        return super().filter_event(filter_options=filter_options)
 
 
 @deprecated(

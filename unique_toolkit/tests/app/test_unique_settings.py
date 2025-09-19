@@ -8,6 +8,7 @@ from unique_toolkit.app.unique_settings import (
     UniqueApi,
     UniqueApp,
     UniqueAuth,
+    UniqueChatEventFilterOptions,
     UniqueSettings,
 )
 
@@ -356,3 +357,158 @@ def test_default_values_reported(caplog):
     assert "Using default value for 'version':" in caplog.text
     assert "Using default value for 'company_id':" in caplog.text
     assert "Using default value for 'user_id':" in caplog.text
+
+
+class TestUniqueChatEventFilterOptions:
+    def test_default_initialization(self):
+        """Test that UniqueChatEventFilterOptions initializes with empty lists by default."""
+        filter_options = UniqueChatEventFilterOptions()
+
+        assert filter_options.assistant_ids == []
+        assert filter_options.references_in_code == []
+
+    def test_custom_initialization(self):
+        """Test that UniqueChatEventFilterOptions can be initialized with custom values."""
+        filter_options = UniqueChatEventFilterOptions(
+            assistant_ids=["assistant1", "assistant2"],
+            references_in_code=["module1", "module2"],
+        )
+
+        assert filter_options.assistant_ids == ["assistant1", "assistant2"]
+        assert filter_options.references_in_code == ["module1", "module2"]
+
+    def test_from_env_variables(self, monkeypatch):
+        """Test that UniqueChatEventFilterOptions can be loaded from environment variables."""
+        monkeypatch.setenv(
+            "UNIQUE_CHAT_EVENT_FILTER_OPTIONS_ASSISTANT_IDS",
+            '["assistant1", "assistant2"]',
+        )
+        monkeypatch.setenv(
+            "UNIQUE_CHAT_EVENT_FILTER_OPTIONS_REFERENCES_IN_CODE",
+            '["module1", "module2"]',
+        )
+
+        filter_options = UniqueChatEventFilterOptions()
+
+        assert filter_options.assistant_ids == ["assistant1", "assistant2"]
+        assert filter_options.references_in_code == ["module1", "module2"]
+
+    def test_case_insensitive_env_variables(self, monkeypatch):
+        """Test that environment variables are case-insensitive."""
+        monkeypatch.setenv(
+            "UNIQUE_CHAT_EVENT_FILTER_OPTIONS_ASSISTANT_IDS", '["assistant1"]'
+        )
+        monkeypatch.setenv(
+            "UNIQUE_CHAT_EVENT_FILTER_OPTIONS_REFERENCES_IN_CODE", '["module1"]'
+        )
+
+        filter_options = UniqueChatEventFilterOptions()
+
+        assert filter_options.assistant_ids == ["assistant1"]
+        assert filter_options.references_in_code == ["module1"]
+
+    def test_empty_string_handling(self, monkeypatch):
+        """Test that empty strings are handled correctly."""
+        monkeypatch.setenv("UNIQUE_CHAT_EVENT_FILTER_OPTIONS_ASSISTANT_IDS", "[]")
+        monkeypatch.setenv("UNIQUE_CHAT_EVENT_FILTER_OPTIONS_REFERENCES_IN_CODE", "[]")
+
+        filter_options = UniqueChatEventFilterOptions()
+
+        # Empty JSON arrays should result in empty lists
+        assert filter_options.assistant_ids == []
+        assert filter_options.references_in_code == []
+
+    def test_whitespace_string_handling(self, monkeypatch):
+        """Test that whitespace strings are handled correctly."""
+        monkeypatch.setenv("UNIQUE_CHAT_EVENT_FILTER_OPTIONS_ASSISTANT_IDS", "[]")
+        monkeypatch.setenv("UNIQUE_CHAT_EVENT_FILTER_OPTIONS_REFERENCES_IN_CODE", "[]")
+
+        filter_options = UniqueChatEventFilterOptions()
+
+        # Empty JSON arrays should result in empty lists
+        assert filter_options.assistant_ids == []
+        assert filter_options.references_in_code == []
+
+
+class TestUniqueSettingsWithFilterOptions:
+    def test_from_env_with_filter_options(self, monkeypatch):
+        """Test that UniqueSettings.from_env loads filter options from environment."""
+        # Set basic required environment variables
+        env_vars = {
+            "UNIQUE_AUTH_COMPANY_ID": "test-company",
+            "UNIQUE_AUTH_USER_ID": "test-user",
+            "UNIQUE_APP_ID": "test-id",
+            "UNIQUE_APP_KEY": "test-key",
+            "UNIQUE_APP_BASE_URL": "https://api.example.com",
+            "UNIQUE_APP_ENDPOINT": "/v1/endpoint",
+            "UNIQUE_APP_ENDPOINT_SECRET": "test-endpoint-secret",
+            # Filter options
+            "UNIQUE_CHAT_EVENT_FILTER_OPTIONS_ASSISTANT_IDS": '["assistant1", "assistant2"]',
+            "UNIQUE_CHAT_EVENT_FILTER_OPTIONS_REFERENCES_IN_CODE": '["module1", "module2"]',
+        }
+
+        for key, value in env_vars.items():
+            monkeypatch.setenv(key, value)
+
+        settings = UniqueSettings.from_env()
+
+        assert settings.chat_event_filter_options is not None
+        assert settings.chat_event_filter_options.assistant_ids == [
+            "assistant1",
+            "assistant2",
+        ]
+        assert settings.chat_event_filter_options.references_in_code == [
+            "module1",
+            "module2",
+        ]
+
+    def test_from_env_without_filter_options(self, monkeypatch):
+        """Test that UniqueSettings.from_env works without filter options."""
+        # Set basic required environment variables
+        env_vars = {
+            "UNIQUE_AUTH_COMPANY_ID": "test-company",
+            "UNIQUE_AUTH_USER_ID": "test-user",
+            "UNIQUE_APP_ID": "test-id",
+            "UNIQUE_APP_KEY": "test-key",
+            "UNIQUE_APP_BASE_URL": "https://api.example.com",
+            "UNIQUE_APP_ENDPOINT": "/v1/endpoint",
+            "UNIQUE_APP_ENDPOINT_SECRET": "test-endpoint-secret",
+        }
+
+        for key, value in env_vars.items():
+            monkeypatch.setenv(key, value)
+
+        settings = UniqueSettings.from_env()
+
+        # Should still create filter options with default values
+        assert settings.chat_event_filter_options is not None
+        assert settings.chat_event_filter_options.assistant_ids == []
+        assert settings.chat_event_filter_options.references_in_code == []
+
+    def test_from_env_file_with_filter_options(self, tmp_path):
+        """Test that UniqueSettings.from_env loads filter options from env file."""
+        env_file = tmp_path / ".env"
+        env_content = """
+UNIQUE_AUTH_COMPANY_ID=file-company
+UNIQUE_AUTH_USER_ID=file-user
+UNIQUE_APP_ID=file-id
+UNIQUE_APP_KEY=file-key
+UNIQUE_APP_BASE_URL=https://api.file-example.com
+UNIQUE_APP_ENDPOINT=/v1/file-endpoint
+UNIQUE_APP_ENDPOINT_SECRET=file-endpoint-secret
+UNIQUE_CHAT_EVENT_FILTER_OPTIONS_ASSISTANT_IDS=["file-assistant1", "file-assistant2"]
+UNIQUE_CHAT_EVENT_FILTER_OPTIONS_REFERENCES_IN_CODE=["file-module1", "file-module2"]
+"""
+        env_file.write_text(env_content)
+
+        settings = UniqueSettings.from_env(env_file=env_file)
+
+        assert settings.chat_event_filter_options is not None
+        assert settings.chat_event_filter_options.assistant_ids == [
+            "file-assistant1",
+            "file-assistant2",
+        ]
+        assert settings.chat_event_filter_options.references_in_code == [
+            "file-module1",
+            "file-module2",
+        ]
