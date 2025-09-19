@@ -1,4 +1,15 @@
-from typing import Any, ClassVar, Dict, List, Literal, Optional, TypedDict, Unpack, cast
+from typing import (
+    Any,
+    ClassVar,
+    Dict,
+    List,
+    Literal,
+    NotRequired,
+    Optional,
+    TypedDict,
+    Unpack,
+    cast,
+)
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
@@ -12,11 +23,11 @@ class Space(APIResource["Space"]):
         Parameters for querying the assistant for a message.
         """
 
-        chatId: str | None = None
+        chatId: NotRequired[str | None]
         assistantId: str
-        text: str | None = None
-        toolChoices: List[str] = None
-        scopeRules: dict | None = None
+        text: NotRequired[str | None]
+        toolChoices: NotRequired[List[str] | None]
+        scopeRules: NotRequired[dict | None]
 
     class Reference(TypedDict):
         """

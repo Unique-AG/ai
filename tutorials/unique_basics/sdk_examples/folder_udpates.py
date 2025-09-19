@@ -54,7 +54,7 @@ def main():
         folder = unique_sdk.Folder.add_access(
             user_id=user_id,
             company_id=company_id,
-            scope_id=scope_id,
+            scopeId=scope_id,
             scopeAccesses=[
                 {
                     "entityId": "group_id",
@@ -73,7 +73,7 @@ def main():
         folder = unique_sdk.Folder.remove_access(
             user_id=user_id,
             company_id=company_id,
-            scope_id=scope_id,
+            scopeId=scope_id,
             scopeAccesses=[
                 {
                     "entityId": "group_id",
