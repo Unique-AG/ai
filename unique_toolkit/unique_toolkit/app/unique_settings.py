@@ -178,6 +178,10 @@ class UniqueChatEventFilterOptions(BaseSettings):
         extra="ignore",
     )
 
+    @model_validator(mode="after")
+    def _warn_about_defaults(self) -> Self:
+        return warn_about_defaults(self)
+
 
 class EnvFileNotFoundError(FileNotFoundError):
     """Raised when no environment file can be found in any of the expected locations."""
