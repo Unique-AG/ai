@@ -7,7 +7,7 @@ import jinja2
 from pydantic import BaseModel
 
 from unique_toolkit._common.endpoint_builder import (
-    EndpointClassProtocol,
+    ApiOperationProtocol,
     PathParamsSpec,
     PathParamsType,
     PayloadParamSpec,
@@ -65,9 +65,10 @@ class HumanVerificationManagerForApiCalling(
 
     def __init__(
         self,
+        *,
         logger: Logger,
-        endpoint: type[
-            EndpointClassProtocol[
+        operation: type[
+            ApiOperationProtocol[
                 PathParamsSpec,
                 PathParamsType,
                 PayloadParamSpec,
@@ -79,7 +80,7 @@ class HumanVerificationManagerForApiCalling(
         **kwargs: dict[str, Any],
     ):
         self._logger = logger
-        self._endpoint = endpoint
+        self._operation = operation
 
         # Create internal models for this manager instance
         _PayloadT = TypeVar("_PayloadT")
@@ -89,20 +90,20 @@ class HumanVerificationManagerForApiCalling(
             payload: _PayloadT
 
         self._combined_params_model = create_union_model(
-            model_type_a=self._endpoint.path_params_model(),
-            model_type_b=self._endpoint.payload_model(),
+            model_type_a=self._operation.path_params_model(),
+            model_type_b=self._operation.payload_model(),
         )
         self._api_call_model = ConcreteApiCall[PayloadType]
         self._requestor_type = requestor_type
         self._requestor = build_requestor(
             requestor_type=requestor_type,
-            endpoint_type=endpoint,
+            operation_type=operation,
             combined_model=self._combined_params_model,
             **kwargs,
         )
 
     def detect_api_calls_from_user_message(
-        self, last_assistant_message: ChatMessage, user_message: str
+        self, *, last_assistant_message: ChatMessage, user_message: str
     ) -> PayloadType | None:
         user_message_dicts = extract_dicts_from_string(user_message)
         if len(user_message_dicts) == 0:
@@ -152,7 +153,7 @@ class HumanVerificationManagerForApiCalling(
             api_call_as_json=api_call.model_dump_json()
         )
 
-    def create_assistant_confirmation_message(self, payload: PayloadType) -> str:
+    def create_assistant_confirmation_message(self, *, payload: PayloadType) -> str:
         return ASSISTANT_CONFIRMATION_MESSAGE_JINJA2_TEMPLATE.render(
             api_call_as_markdown_table=dict_to_markdown_table(payload.model_dump()),
             button_text="Please confirm the call by pressing this button.",
@@ -160,7 +161,11 @@ class HumanVerificationManagerForApiCalling(
         )
 
     def call_api(
-        self, headers: dict[str, str], path_params: PathParamsType, payload: PayloadType
+        self,
+        *,
+        headers: dict[str, str],
+        path_params: PathParamsType,
+        payload: PayloadType,
     ) -> ResponseType:
         params = path_params.model_dump()
         params.update(payload.model_dump())
@@ -169,7 +174,7 @@ class HumanVerificationManagerForApiCalling(
             headers=headers,
             **params,
         )
-        return self._endpoint.handle_response(response)
+        return self._operation.handle_response(response)
 
 
 if __name__ == "__main__":
@@ -178,7 +183,7 @@ if __name__ == "__main__":
 
     from unique_toolkit._common.endpoint_builder import (
         EndpointMethods,
-        build_endpoint_class,
+        build_api_operation,
     )
 
     class GetUserPathParams(BaseModel):
@@ -194,7 +199,7 @@ if __name__ == "__main__":
     class CombinedParams(GetUserPathParams, GetUserRequestBody):
         pass
 
-    UserEndpoint = build_endpoint_class(
+    UserEndpoint = build_api_operation(
         method=EndpointMethods.GET,
         url_template=Template("https://api.example.com/users/{user_id}"),
         path_params_constructor=GetUserPathParams,
@@ -204,7 +209,7 @@ if __name__ == "__main__":
 
     human_verification_manager = HumanVerificationManagerForApiCalling(
         logger=logging.getLogger(__name__),
-        endpoint=UserEndpoint,
+        operation=UserEndpoint,
         requestor_type=RequestorType.FAKE,
         return_value={"id": 100, "name": "John Doe"},
     )
