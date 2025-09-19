@@ -195,8 +195,12 @@ def build_api_operation(
         def models_from_combined(
             combined: dict[str, Any],
         ) -> tuple[PathParamsType, PayloadType]:
-            path_params = Operation.path_params_model().model_validate(combined)
-            payload = Operation.payload_model().model_validate(combined)
+            path_params = Operation.path_params_model().model_validate(
+                combined, by_alias=True, by_name=True
+            )
+            payload = Operation.payload_model().model_validate(
+                combined, by_alias=True, by_name=True
+            )
             return path_params, payload
 
     return Operation
