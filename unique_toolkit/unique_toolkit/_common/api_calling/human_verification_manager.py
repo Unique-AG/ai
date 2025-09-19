@@ -75,8 +75,6 @@ class HumanVerificationManagerForApiCalling(
                 ResponseType,
             ]
         ],
-        path_params_type: type[PathParamsType],
-        payload_type: type[PayloadType],
         requestor_type: RequestorType = RequestorType.REQUESTS,
         **kwargs: dict[str, Any],
     ):
@@ -90,7 +88,10 @@ class HumanVerificationManagerForApiCalling(
             confirmation: HumanConfirmation
             payload: _PayloadT
 
-        self._combined_params_model = create_union_model(path_params_type, payload_type)
+        self._combined_params_model = create_union_model(
+            model_type_a=self._endpoint.path_params_model(),
+            model_type_b=self._endpoint.payload_model(),
+        )
         self._api_call_model = ConcreteApiCall[PayloadType]
         self._requestor_type = requestor_type
         self._requestor = build_requestor(
@@ -204,8 +205,6 @@ if __name__ == "__main__":
     human_verification_manager = HumanVerificationManagerForApiCalling(
         logger=logging.getLogger(__name__),
         endpoint=UserEndpoint,
-        path_params_type=GetUserPathParams,
-        payload_type=GetUserRequestBody,
         requestor_type=RequestorType.FAKE,
         return_value={"id": 100, "name": "John Doe"},
     )
