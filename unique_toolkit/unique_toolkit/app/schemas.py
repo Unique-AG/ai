@@ -1,14 +1,17 @@
 import json
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, Optional, override
+from typing import Any, Generic, Optional, TypeVar, override
 
 from humps import camelize
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic_settings import BaseSettings
 from typing_extensions import deprecated
 
 from unique_toolkit.app.unique_settings import UniqueChatEventFilterOptions
 from unique_toolkit.smart_rules.compile import UniqueQL, parse_uniqueql
+
+FilterOptionsT = TypeVar("FilterOptionsT", bound=BaseSettings)
 
 # set config to convert camelCase to snake_case
 model_config = ConfigDict(
@@ -31,7 +34,7 @@ class EventName(StrEnum):
     MAGIC_TABLE_UPDATE_CELL = "unique.magic-table.update-cell"
 
 
-class BaseEvent(BaseModel):
+class BaseEvent(BaseModel, Generic[FilterOptionsT]):
     model_config = model_config
 
     id: str
@@ -47,7 +50,7 @@ class BaseEvent(BaseModel):
             data = json.load(f)
         return cls.model_validate(data)
 
-    def filter_event(self, *, filter_options: None = None) -> bool:
+    def filter_event(self, *, filter_options: FilterOptionsT | None = None) -> bool:
         """Determine if event should be filtered out and be neglected."""
         return False
 
