@@ -1,7 +1,7 @@
 import hashlib
 from datetime import datetime
 from logging import Logger
-from typing import Any, Generic, TypeVar
+from typing import Any, Generic
 
 import jinja2
 from pydantic import BaseModel
@@ -83,17 +83,17 @@ class HumanVerificationManagerForApiCalling(
         self._operation = operation
 
         # Create internal models for this manager instance
-        _PayloadT = TypeVar("_PayloadT")
 
-        class ConcreteApiCall(BaseModel, Generic[_PayloadT]):
+        class ConcreteApiCall(BaseModel):
             confirmation: HumanConfirmation
-            payload: _PayloadT
+            payload: self._operation.payload_model()  # type: ignore
+
+        self._api_call_model = ConcreteApiCall
 
         self._combined_params_model = create_union_model(
             model_type_a=self._operation.path_params_model(),
             model_type_b=self._operation.payload_model(),
         )
-        self._api_call_model = ConcreteApiCall[PayloadType]
         self._requestor_type = requestor_type
         self._requestor = build_requestor(
             requestor_type=requestor_type,

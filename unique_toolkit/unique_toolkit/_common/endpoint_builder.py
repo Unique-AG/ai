@@ -90,7 +90,7 @@ class ApiOperationProtocol(
 
     @staticmethod
     def models_from_combined(
-        combined: BaseModel,
+        combined: dict[str, Any],
     ) -> tuple[PathParamsType, PayloadType]: ...
 
 
@@ -193,11 +193,10 @@ def build_api_operation(
 
         @staticmethod
         def models_from_combined(
-            combined: BaseModel,
+            combined: dict[str, Any],
         ) -> tuple[PathParamsType, PayloadType]:
-            data: dict[str, Any] = combined.model_dump(**dump_options)
-            path_params = Operation.path_params_model().model_validate(data)
-            payload = Operation.payload_model().model_validate(data)
+            path_params = Operation.path_params_model().model_validate(combined)
+            payload = Operation.payload_model().model_validate(combined)
             return path_params, payload
 
     return Operation
