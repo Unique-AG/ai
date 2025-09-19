@@ -172,7 +172,7 @@ class UniqueChatEventFilterOptions(BaseSettings):
     )
 
     model_config = SettingsConfigDict(
-        env_prefix="unique_event_filter_options_",
+        env_prefix="unique_chat_event_filter_options_",
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
