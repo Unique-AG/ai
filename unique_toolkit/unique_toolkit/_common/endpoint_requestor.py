@@ -93,10 +93,10 @@ def build_request_requestor(
             *args: CombinedParamsSpec.args,
             **kwargs: CombinedParamsSpec.kwargs,
         ) -> ResponseType:
-            combined = combined_model(*args, **kwargs)
-
             # Create separate instances for path params and payload using endpoint helper
-            path_params, payload_model = cls._operation.models_from_combined(combined)
+            path_params, payload_model = cls._operation.models_from_combined(
+                combined=kwargs
+            )
 
             url = cls._operation.create_url_from_model(path_params)
             payload = cls._operation.create_payload_from_model(payload_model)
