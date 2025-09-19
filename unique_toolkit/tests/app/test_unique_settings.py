@@ -380,10 +380,12 @@ class TestUniqueChatEventFilterOptions:
     def test_from_env_variables(self, monkeypatch):
         """Test that UniqueChatEventFilterOptions can be loaded from environment variables."""
         monkeypatch.setenv(
-            "UNIQUE_EVENT_FILTER_OPTIONS_ASSISTANT_IDS", '["assistant1", "assistant2"]'
+            "UNIQUE_CHAT_EVENT_FILTER_OPTIONS_ASSISTANT_IDS",
+            '["assistant1", "assistant2"]',
         )
         monkeypatch.setenv(
-            "UNIQUE_EVENT_FILTER_OPTIONS_REFERENCES_IN_CODE", '["module1", "module2"]'
+            "UNIQUE_CHAT_EVENT_FILTER_OPTIONS_REFERENCES_IN_CODE",
+            '["module1", "module2"]',
         )
 
         filter_options = UniqueChatEventFilterOptions()
@@ -394,10 +396,10 @@ class TestUniqueChatEventFilterOptions:
     def test_case_insensitive_env_variables(self, monkeypatch):
         """Test that environment variables are case-insensitive."""
         monkeypatch.setenv(
-            "unique_event_filter_options_assistant_ids", '["assistant1"]'
+            "UNIQUE_CHAT_EVENT_FILTER_OPTIONS_ASSISTANT_IDS", '["assistant1"]'
         )
         monkeypatch.setenv(
-            "UNIQUE_EVENT_FILTER_OPTIONS_REFERENCES_IN_CODE", '["module1"]'
+            "UNIQUE_CHAT_EVENT_FILTER_OPTIONS_REFERENCES_IN_CODE", '["module1"]'
         )
 
         filter_options = UniqueChatEventFilterOptions()
@@ -407,8 +409,8 @@ class TestUniqueChatEventFilterOptions:
 
     def test_empty_string_handling(self, monkeypatch):
         """Test that empty strings are handled correctly."""
-        monkeypatch.setenv("UNIQUE_EVENT_FILTER_OPTIONS_ASSISTANT_IDS", "[]")
-        monkeypatch.setenv("UNIQUE_EVENT_FILTER_OPTIONS_REFERENCES_IN_CODE", "[]")
+        monkeypatch.setenv("UNIQUE_CHAT_EVENT_FILTER_OPTIONS_ASSISTANT_IDS", "[]")
+        monkeypatch.setenv("UNIQUE_CHAT_EVENT_FILTER_OPTIONS_REFERENCES_IN_CODE", "[]")
 
         filter_options = UniqueChatEventFilterOptions()
 
@@ -418,8 +420,8 @@ class TestUniqueChatEventFilterOptions:
 
     def test_whitespace_string_handling(self, monkeypatch):
         """Test that whitespace strings are handled correctly."""
-        monkeypatch.setenv("UNIQUE_EVENT_FILTER_OPTIONS_ASSISTANT_IDS", "[]")
-        monkeypatch.setenv("UNIQUE_EVENT_FILTER_OPTIONS_REFERENCES_IN_CODE", "[]")
+        monkeypatch.setenv("UNIQUE_CHAT_EVENT_FILTER_OPTIONS_ASSISTANT_IDS", "[]")
+        monkeypatch.setenv("UNIQUE_CHAT_EVENT_FILTER_OPTIONS_REFERENCES_IN_CODE", "[]")
 
         filter_options = UniqueChatEventFilterOptions()
 
@@ -441,8 +443,8 @@ class TestUniqueSettingsWithFilterOptions:
             "UNIQUE_APP_ENDPOINT": "/v1/endpoint",
             "UNIQUE_APP_ENDPOINT_SECRET": "test-endpoint-secret",
             # Filter options
-            "UNIQUE_EVENT_FILTER_OPTIONS_ASSISTANT_IDS": '["assistant1", "assistant2"]',
-            "UNIQUE_EVENT_FILTER_OPTIONS_REFERENCES_IN_CODE": '["module1", "module2"]',
+            "UNIQUE_CHAT_EVENT_FILTER_OPTIONS_ASSISTANT_IDS": '["assistant1", "assistant2"]',
+            "UNIQUE_CHAT_EVENT_FILTER_OPTIONS_REFERENCES_IN_CODE": '["module1", "module2"]',
         }
 
         for key, value in env_vars.items():
@@ -494,8 +496,8 @@ UNIQUE_APP_KEY=file-key
 UNIQUE_APP_BASE_URL=https://api.file-example.com
 UNIQUE_APP_ENDPOINT=/v1/file-endpoint
 UNIQUE_APP_ENDPOINT_SECRET=file-endpoint-secret
-UNIQUE_EVENT_FILTER_OPTIONS_ASSISTANT_IDS=["file-assistant1", "file-assistant2"]
-UNIQUE_EVENT_FILTER_OPTIONS_REFERENCES_IN_CODE=["file-module1", "file-module2"]
+UNIQUE_CHAT_EVENT_FILTER_OPTIONS_ASSISTANT_IDS=["file-assistant1", "file-assistant2"]
+UNIQUE_CHAT_EVENT_FILTER_OPTIONS_REFERENCES_IN_CODE=["file-module1", "file-module2"]
 """
         env_file.write_text(env_content)
 
