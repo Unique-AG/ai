@@ -58,7 +58,9 @@ def build_fake_requestor(
             **kwargs: CombinedParamsSpec.kwargs,
         ) -> ResponseType:
             try:
-                combined_model(*args, **kwargs)
+                path_params, payload_model = cls._operation.models_from_combined(
+                    combined=kwargs
+                )
             except Exception as e:
                 raise ValueError(
                     f"Invalid parameters passed to combined model {combined_model.__name__}: {e}"

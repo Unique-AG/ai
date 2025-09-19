@@ -150,7 +150,7 @@ class HumanVerificationManagerForApiCalling(
             ),
         )
         return NEXT_USER_MESSAGE_JINJA2_TEMPLATE.render(
-            api_call_as_json=api_call.model_dump_json()
+            api_call_as_json=api_call.model_dump_json(indent=2)
         )
 
     def create_assistant_confirmation_message(self, *, payload: PayloadType) -> str:
