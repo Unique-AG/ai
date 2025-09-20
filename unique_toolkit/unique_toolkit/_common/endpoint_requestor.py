@@ -5,8 +5,8 @@ from pydantic import BaseModel
 from typing_extensions import ParamSpec
 
 from unique_toolkit._common.endpoint_builder import (
-    EndpointClassProtocol,
-    EndpointMethods,
+    ApiOperationProtocol,
+    HttpMethods,
     PathParamsSpec,
     PathParamsType,
     PayloadParamSpec,
@@ -21,19 +21,22 @@ CombinedParamsSpec = ParamSpec("CombinedParamsSpec")
 CombinedParamsType = TypeVar("CombinedParamsType", bound=BaseModel)
 
 
-class EndpointRequestorProtocol(Protocol, Generic[CombinedParamsSpec, ResponseType]):
+ResponseT_co = TypeVar("ResponseT_co", bound=BaseModel, covariant=True)
+
+
+class EndpointRequestorProtocol(Protocol, Generic[CombinedParamsSpec, ResponseT_co]):
     @classmethod
     def request(
         cls,
         headers: dict[str, str],
         *args: CombinedParamsSpec.args,
         **kwargs: CombinedParamsSpec.kwargs,
-    ) -> ResponseType: ...
+    ) -> ResponseT_co: ...
 
 
 def build_fake_requestor(
-    endpoint_type: type[
-        EndpointClassProtocol[
+    operation_type: type[
+        ApiOperationProtocol[
             PathParamsSpec,
             PathParamsType,
             PayloadParamSpec,
@@ -45,7 +48,7 @@ def build_fake_requestor(
     return_value: dict[str, Any],
 ) -> type[EndpointRequestorProtocol[CombinedParamsSpec, ResponseType]]:
     class FakeRequestor(EndpointRequestorProtocol):
-        _endpoint = endpoint_type
+        _operation = operation_type
 
         @classmethod
         def request(
@@ -55,20 +58,22 @@ def build_fake_requestor(
             **kwargs: CombinedParamsSpec.kwargs,
         ) -> ResponseType:
             try:
-                combined_model(*args, **kwargs)
+                path_params, payload_model = cls._operation.models_from_combined(
+                    combined=kwargs
+                )
             except Exception as e:
                 raise ValueError(
                     f"Invalid parameters passed to combined model {combined_model.__name__}: {e}"
                 )
 
-            return cls._endpoint.handle_response(return_value)
+            return cls._operation.handle_response(return_value)
 
     return FakeRequestor
 
 
 def build_request_requestor(
-    endpoint_type: type[
-        EndpointClassProtocol[
+    operation_type: type[
+        ApiOperationProtocol[
             PathParamsSpec,
             PathParamsType,
             PayloadParamSpec,
@@ -77,11 +82,11 @@ def build_request_requestor(
         ]
     ],
     combined_model: Callable[CombinedParamsSpec, CombinedParamsType],
-) -> type[EndpointRequestorProtocol]:
+) -> type[EndpointRequestorProtocol[CombinedParamsSpec, ResponseType]]:
     import requests
 
     class RequestRequestor(EndpointRequestorProtocol):
-        _endpoint = endpoint_type
+        _operation = operation_type
 
         @classmethod
         def request(
@@ -90,18 +95,21 @@ def build_request_requestor(
             *args: CombinedParamsSpec.args,
             **kwargs: CombinedParamsSpec.kwargs,
         ) -> ResponseType:
-            url = cls._endpoint.create_url_from_model(combined_model(*args, **kwargs))
-            payload = cls._endpoint.create_payload_from_model(
-                combined_model(*args, **kwargs)
+            # Create separate instances for path params and payload using endpoint helper
+            path_params, payload_model = cls._operation.models_from_combined(
+                combined=kwargs
             )
 
+            url = cls._operation.create_url_from_model(path_params)
+            payload = cls._operation.create_payload_from_model(payload_model)
+
             response = requests.request(
-                method=cls._endpoint.request_method(),
+                method=cls._operation.request_method(),
                 url=url,
                 headers=headers,
                 json=payload,
             )
-            return cls._endpoint.handle_response(response.json())
+            return cls._operation.handle_response(response.json())
 
     return RequestRequestor
 
@@ -113,8 +121,8 @@ class RequestorType(StrEnum):
 
 def build_requestor(
     requestor_type: RequestorType,
-    endpoint_type: type[
-        EndpointClassProtocol[
+    operation_type: type[
+        ApiOperationProtocol[
             PathParamsSpec,
             PathParamsType,
             PayloadParamSpec,
@@ -129,13 +137,13 @@ def build_requestor(
     match requestor_type:
         case RequestorType.REQUESTS:
             return build_request_requestor(
-                endpoint_type=endpoint_type, combined_model=combined_model
+                operation_type=operation_type, combined_model=combined_model
             )
         case RequestorType.FAKE:
             if return_value is None:
                 raise ValueError("return_value is required for fake requestor")
             return build_fake_requestor(
-                endpoint_type=endpoint_type,
+                operation_type=operation_type,
                 combined_model=combined_model,
                 return_value=return_value,
             )
@@ -144,7 +152,7 @@ def build_requestor(
 if __name__ == "__main__":
     from string import Template
 
-    from unique_toolkit._common.endpoint_builder import build_endpoint_class
+    from unique_toolkit._common.endpoint_builder import build_api_operation
 
     class GetUserPathParams(BaseModel):
         user_id: int
@@ -159,8 +167,8 @@ if __name__ == "__main__":
     class CombinedParams(GetUserPathParams, GetUserRequestBody):
         pass
 
-    UserEndpoint = build_endpoint_class(
-        method=EndpointMethods.GET,
+    UserEndpoint = build_api_operation(
+        method=HttpMethods.GET,
         url_template=Template("https://api.example.com/users/{user_id}"),
         path_params_constructor=GetUserPathParams,
         payload_constructor=GetUserRequestBody,
@@ -168,7 +176,7 @@ if __name__ == "__main__":
     )
 
     FakeUserRequestor = build_fake_requestor(
-        endpoint_type=UserEndpoint,
+        operation_type=UserEndpoint,
         combined_model=CombinedParams,
         return_value={"id": 100, "name": "John Doe"},
     )
@@ -178,6 +186,16 @@ if __name__ == "__main__":
         headers={"a": "b"},
         user_id=123,
         include_profile=True,
+    )
+
+    RequestRequstor = build_request_requestor(
+        operation_type=UserEndpoint,
+        combined_model=CombinedParams,
+    )
+
+    # Check type hints
+    response = RequestRequstor().request(
+        headers={"a": "b"}, user_id=123, include_profile=True
     )
 
     print(response.model_dump())
