@@ -171,17 +171,21 @@ class ToolManager:
                 return True
         return False
 
-    def filter_tools_for_exclusive(self, tool_calls: list[LanguageModelFunction]) -> list[LanguageModelFunction]:
+    def filter_tools_for_exclusive(
+        self, tool_calls: list[LanguageModelFunction]
+    ) -> list[LanguageModelFunction]:
         exclusive_tool_calls = [
             tool_call
             for tool_call in tool_calls
-            if self.get_tool_by_name(tool_call.name) and self.get_tool_by_name(tool_call.name).is_exclusive()
+            if self.get_tool_by_name(tool_call.name)
+            and self.get_tool_by_name(tool_call.name).is_exclusive()
         ]
         if len(exclusive_tool_calls) > 0:
-            self._logger.info(f"Exclusive tool calls detected: {[tool_call.name for tool_call in exclusive_tool_calls]}. Filtering out other tool calls.")
+            self._logger.info(
+                f"Exclusive tool calls detected: {[tool_call.name for tool_call in exclusive_tool_calls]}. Filtering out other tool calls."
+            )
             return exclusive_tool_calls
         return tool_calls
-    
 
     async def execute_selected_tools(
         self,
