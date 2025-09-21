@@ -323,6 +323,8 @@ class UniqueAI:
 
         tool_calls = loop_response.tool_calls or []
 
+        tool_calls = self._tool_manager.filter_tools_for_exclusive(tool_calls)
+
         # Append function call to history
         self._history_manager._append_tool_calls_to_history(tool_calls)
 

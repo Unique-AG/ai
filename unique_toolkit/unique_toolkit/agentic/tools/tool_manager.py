@@ -118,9 +118,6 @@ class ToolManager:
         self.available_tools = internal_tools + mcp_tools + sub_agents
 
         for t in self.available_tools:
-            if t.is_exclusive():
-                self._tools = [t]
-                return
             if not t.is_enabled():
                 continue
             if t.name in self._disabled_tools:
@@ -173,6 +170,18 @@ class ToolManager:
             if tool_instance and tool_instance.takes_control():
                 return True
         return False
+
+    def filter_tools_for_exclusive(self, tool_calls: list[LanguageModelFunction]) -> list[LanguageModelFunction]:
+        exclusive_tool_calls = [
+            tool_call
+            for tool_call in tool_calls
+            if self.get_tool_by_name(tool_call.name) and self.get_tool_by_name(tool_call.name).is_exclusive()
+        ]
+        if len(exclusive_tool_calls) > 0:
+            self._logger.info(f"Exclusive tool calls detected: {[tool_call.name for tool_call in exclusive_tool_calls]}. Filtering out other tool calls.")
+            return exclusive_tool_calls
+        return tool_calls
+    
 
     async def execute_selected_tools(
         self,
