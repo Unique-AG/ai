@@ -12,7 +12,7 @@ import io
 import tempfile
 import requests
 from pathlib import Path
-from unique_toolkit.content.schemas import ContentSearchType, ContentRerankerConfig
+from unique_toolkit.content.schemas import ContentSearchType, ContentRerankerConfig, ContentChunk
 import unique_sdk
 from pydantic import BaseModel, Field
 from openai.types.chat.chat_completion_tool_param import ChatCompletionToolParam
@@ -44,7 +44,7 @@ content = content_service.upload_content(
     content_name=Path(file_path).name,
     mime_type="text/plain",
     scope_id=scope_id,
-    skip_ingestion=False, # Process the content for search
+    skip_ingestion=False,  # Process the content for search
     metadata={"department": "legal", "classification": "confidential"}
 )
 # ~/~ end
