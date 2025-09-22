@@ -12,6 +12,7 @@ from typing import (
 
 from typing_extensions import NotRequired, Unpack
 
+import unique_sdk
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
 
@@ -81,7 +82,7 @@ class Content(APIResource["Content"]):
         This is used to retrieve information about content based on various filters.
         """
 
-        metadataFilter: dict
+        metadataFilter: NotRequired[dict]
         skip: NotRequired[int]
         take: NotRequired[int]
         filePath: NotRequired[str]
@@ -117,7 +118,7 @@ class Content(APIResource["Content"]):
         ownerId: str
         byteSize: Optional[int]
         ingestionConfig: "Content.IngestionConfig"
-        metadata: dict[str, Any] | None = None
+        metadata: NotRequired[dict[str, str | None]]
 
     class UpsertParams(RequestOptions):
         input: "Content.Input"
@@ -129,7 +130,9 @@ class Content(APIResource["Content"]):
 
     class UpdateParams(RequestOptions):
         contentId: NotRequired[str]
+        filePath: NotRequired[str]
         ownerId: NotRequired[str]
+        parentFolderPath: NotRequired[str]
         title: NotRequired[str]
         metadata: NotRequired[dict[str, str | None]]
 
@@ -161,11 +164,16 @@ class Content(APIResource["Content"]):
         expiredAt: str | None
 
     class PaginatedContentInfo(TypedDict):
+        contentInfo: List["Content.ContentInfo"]
+        totalCount: int
+
+    class PaginatedContentInfos(TypedDict):
         contentInfos: List["Content.ContentInfo"]
         totalCount: int
 
     class DeleteParams(RequestOptions):
         contentId: NotRequired[str]
+        filePath: NotRequired[str]
         chatId: NotRequired[str]
 
     class DeleteResponse(TypedDict):
@@ -284,9 +292,9 @@ class Content(APIResource["Content"]):
         user_id: str,
         company_id: str,
         **params: Unpack["Content.ContentInfoParams"],
-    ) -> "Content.PaginatedContentInfo":
+    ) -> "Content.PaginatedContentInfos":
         return cast(
-            Content.PaginatedContentInfo,
+            Content.PaginatedContentInfos,
             cls._static_request(
                 "post",
                 "/content/infos",
@@ -302,9 +310,9 @@ class Content(APIResource["Content"]):
         user_id: str,
         company_id: str,
         **params: Unpack["Content.ContentInfoParams"],
-    ) -> "Content.PaginatedContentInfo":
+    ) -> "Content.PaginatedContentInfos":
         return cast(
-            Content.PaginatedContentInfo,
+            Content.PaginatedContentInfos,
             await cls._static_request_async(
                 "post",
                 "/content/infos",
@@ -403,11 +411,29 @@ class Content(APIResource["Content"]):
         company_id: str,
         **params: Unpack["Content.UpdateParams"],
     ) -> "Content.ContentInfo":
+        content_id = cls.resolve_content_id_from_file_path(
+            user_id=user_id,
+            company_id=company_id,
+            content_id=params.get("contentId"),
+            file_path=params.get("filePath"),
+        )
+        owner_id = unique_sdk.Folder.resolve_scope_id_from_folder_path(
+            user_id,
+            company_id,
+            params.get("ownerId"),
+            params.get("parentFolderPath"),
+        )
+        params.pop("contentId", None)
+        params.pop("filePath", None)
+        params.pop("parentFolderPath", None)
+        if owner_id is not None:
+            params["ownerId"] = owner_id
+
         return cast(
             "Content.ContentInfo",
             cls._static_request(
                 "patch",
-                f"/content/{params.get('contentId')}",
+                f"/content/{content_id}",
                 user_id,
                 company_id,
                 params=params,
@@ -421,11 +447,29 @@ class Content(APIResource["Content"]):
         company_id: str,
         **params: Unpack["Content.UpdateParams"],
     ) -> "Content.ContentInfo":
+        content_id = cls.resolve_content_id_from_file_path(
+            user_id,
+            company_id,
+            params.get("contentId"),
+            params.get("filePath"),
+        )
+        owner_id = unique_sdk.Folder.resolve_scope_id_from_folder_path(
+            user_id,
+            company_id,
+            params.get("ownerId"),
+            params.get("parentFolderPath"),
+        )
+        params.pop("contentId", None)
+        params.pop("filePath", None)
+        params.pop("parentFolderPath", None)
+        if owner_id is not None:
+            params["ownerId"] = owner_id
+
         return cast(
             "Content.ContentInfo",
             await cls._static_request_async(
                 "patch",
-                f"/content/{params.get('contentId')}",
+                f"/content/{content_id}",
                 user_id,
                 company_id,
                 params=params,
@@ -437,17 +481,25 @@ class Content(APIResource["Content"]):
         cls,
         user_id: str,
         company_id: str,
-        **params: "Content.DeleteParams",
+        **params: Unpack["Content.DeleteParams"],
     ) -> "Content.DeleteResponse":
         """
         Deletes a content by its id or file path.
         """
+        content_id = cls.resolve_content_id_from_file_path(
+            user_id,
+            company_id,
+            params.get("contentId"),
+            params.get("filePath"),
+        )
+        params.pop("contentId", None)
+        params.pop("filePath", None)
 
         return cast(
             "Content.DeleteResponse",
             cls._static_request(
                 "delete",
-                f"/content/{params.get('contentId')}",
+                f"/content/{content_id}",
                 user_id,
                 company_id,
                 params=params,
@@ -459,17 +511,25 @@ class Content(APIResource["Content"]):
         cls,
         user_id: str,
         company_id: str,
-        **params: "Content.DeleteParams",
+        **params: Unpack["Content.DeleteParams"],
     ) -> "Content.DeleteResponse":
         """
         Async deletes a content by its id or file path.
         """
+        content_id = cls.resolve_content_id_from_file_path(
+            user_id,
+            company_id,
+            params.get("contentId"),
+            params.get("filePath"),
+        )
+        params.pop("contentId", None)
+        params.pop("filePath", None)
 
         return cast(
             "Content.DeleteResponse",
             await cls._static_request_async(
                 "delete",
-                f"/content/{params.get('contentId')}",
+                f"/content/{content_id}",
                 user_id,
                 company_id,
                 params=params,
@@ -483,7 +543,7 @@ class Content(APIResource["Content"]):
         company_id: str,
         content_id: str | None = None,
         file_path: str | None = None,
-    ) -> str:
+    ) -> str | None:
         """
         Returns the contentId to use: if content_id is provided, returns it;
         if not, but file_path is provided, resolves and returns the id for that file path.
@@ -496,9 +556,12 @@ class Content(APIResource["Content"]):
                 company_id=company_id,
                 filePath=file_path,
             )
+            content_infos = file_info.get("contentInfo")
             resolved_id = (
-                file_info.get("contentInfo")[0].get("id")
+                content_infos[0].get("id")
                 if file_info.get("totalCount", 0) > 0
+                and content_infos is not None
+                and len(content_infos) > 0
                 else None
             )
             if not resolved_id:
