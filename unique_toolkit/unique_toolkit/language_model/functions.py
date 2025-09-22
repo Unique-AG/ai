@@ -4,8 +4,8 @@ from datetime import UTC, datetime
 from typing import Any, Sequence, cast
 
 import humps
-from openai.types.chat import ChatCompletionToolChoiceOptionParam
 import unique_sdk
+from openai.types.chat import ChatCompletionToolChoiceOptionParam
 from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
 from pydantic import BaseModel
 
@@ -356,7 +356,7 @@ def _prepare_all_completions_params_util(
         if other_options is None:
             other_options = {}
         if "toolChoice" not in other_options:
-            other_options["toolChoice"] = tool_choice # Backend expects CamelCase
+            other_options["toolChoice"] = tool_choice  # Backend expects CamelCase
 
     if isinstance(model_name, LanguageModelName):
         model_info = LanguageModelInfo.from_name(model_name)

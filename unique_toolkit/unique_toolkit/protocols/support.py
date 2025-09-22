@@ -1,6 +1,9 @@
-from typing import Awaitable, Protocol, Sequence, runtime_checkable
+from typing import Awaitable, Protocol, Sequence
 
-from openai.types.chat import ChatCompletionMessageParam, ChatCompletionToolChoiceOptionParam
+from openai.types.chat import (
+    ChatCompletionMessageParam,
+    ChatCompletionToolChoiceOptionParam,
+)
 from openai.types.responses import (
     ResponseIncludable,
     ResponseInputItemParam,
@@ -65,7 +68,7 @@ class SupportCompleteWithReferences(Protocol):
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
         tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
         start_text: str | None = None,
-        tool_choice: ChatCompletionToolChoiceOptionParam| None = None,
+        tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
         other_options: dict | None = None,
     ) -> LanguageModelStreamResponse: ...
 
@@ -78,7 +81,7 @@ class SupportCompleteWithReferences(Protocol):
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
         tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
-        tool_choice: ChatCompletionToolChoiceOptionParam| None = None,
+        tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
         start_text: str | None = None,
         other_options: dict | None = None,
     ) -> LanguageModelStreamResponse: ...
