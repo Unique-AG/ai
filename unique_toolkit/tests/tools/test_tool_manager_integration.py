@@ -70,6 +70,21 @@ class MockInternalSearchTool(Tool[BaseToolConfig]):
         return ToolCallResponse(id=tool_call.id, name=tool_call.name, content_chunks=[])
 
 
+class MockExclusiveTool(MockInternalSearchTool):
+    """Mock exclusive tool for testing forced-only behaviour"""
+
+    name = "exclusive_search"
+
+    def tool_description(self):
+        from unique_toolkit.language_model.schemas import LanguageModelToolDescription
+
+        return LanguageModelToolDescription(
+            name="exclusive_search",
+            description="Exclusive search tool for testing",
+            parameters=MockParameters,
+        )
+
+
 class MockInternalSearchConfig(BaseToolConfig):
     """Mock configuration for internal search tool"""
 
@@ -84,6 +99,7 @@ class TestMCPManager:
 
         # Register mock internal tool
         ToolFactory.register_tool(MockInternalSearchTool, MockInternalSearchConfig)
+        ToolFactory.register_tool(MockExclusiveTool, MockInternalSearchConfig)
 
         self.event = get_event_obj(
             user_id="test_user",
@@ -366,6 +382,93 @@ class TestMCPManager:
         assert "internal_search" in tool_names
         assert "mcp_test_tool" not in tool_names
         assert len(tools) == 1
+
+    def test_exclusive_tool_not_loaded_by_default(
+        self, mcp_manager, tool_progress_reporter
+    ):
+        """Exclusive tools should not be available when no tool is forced"""
+
+        self.event.payload.tool_choices = []
+
+        regular_tool_config = ToolBuildConfig(
+            name="internal_search",
+            configuration=MockInternalSearchConfig(),
+            is_enabled=True,
+        )
+        exclusive_tool_config = ToolBuildConfig(
+            name="exclusive_search",
+            configuration=MockInternalSearchConfig(),
+            is_enabled=True,
+            is_exclusive=True,
+        )
+
+        config = ToolManagerConfig(
+            tools=[regular_tool_config, exclusive_tool_config],
+            max_tool_calls=10,
+        )
+
+        a2a_manager = A2AManager(
+            logger=self.logger,
+            tool_progress_reporter=tool_progress_reporter,
+        )
+
+        tool_manager = ToolManager(
+            logger=self.logger,
+            config=config,
+            event=self.event,
+            tool_progress_reporter=tool_progress_reporter,
+            mcp_manager=mcp_manager,
+            a2a_manager=a2a_manager,
+        )
+
+        tools = tool_manager.get_tools()
+        tool_names = [tool.name for tool in tools]
+
+        assert "exclusive_search" not in tool_names
+        assert "internal_search" in tool_names
+
+    def test_forced_exclusive_tool_blocks_other_tools(
+        self, mcp_manager, tool_progress_reporter
+    ):
+        """When forced, exclusive tools must be the only available option"""
+
+        self.event.payload.tool_choices = ["exclusive_search", "internal_search"]
+
+        regular_tool_config = ToolBuildConfig(
+            name="internal_search",
+            configuration=MockInternalSearchConfig(),
+            is_enabled=True,
+        )
+        exclusive_tool_config = ToolBuildConfig(
+            name="exclusive_search",
+            configuration=MockInternalSearchConfig(),
+            is_enabled=True,
+            is_exclusive=True,
+        )
+
+        config = ToolManagerConfig(
+            tools=[regular_tool_config, exclusive_tool_config],
+            max_tool_calls=10,
+        )
+
+        a2a_manager = A2AManager(
+            logger=self.logger,
+            tool_progress_reporter=tool_progress_reporter,
+        )
+
+        tool_manager = ToolManager(
+            logger=self.logger,
+            config=config,
+            event=self.event,
+            tool_progress_reporter=tool_progress_reporter,
+            mcp_manager=mcp_manager,
+            a2a_manager=a2a_manager,
+        )
+
+        tools = tool_manager.get_tools()
+        tool_names = [tool.name for tool in tools]
+
+        assert tool_names == ["exclusive_search"]
 
     def test_init_tools_with_exclusive_tool(self, mcp_manager, tool_progress_reporter):
         """Test _init__tools method when an exclusive tool is present"""

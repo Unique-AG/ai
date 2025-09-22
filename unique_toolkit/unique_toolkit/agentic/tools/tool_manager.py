@@ -117,18 +117,54 @@ class ToolManager:
         # Combine both types of tools
         self.available_tools = internal_tools + mcp_tools + sub_agents
 
+        # Keep both a set for fast membership checks and the original order
+        forced_tool_names = set(self._tool_choices)
+        selected_tools: list[Tool] = []
+        forced_exclusive_tools: list[Tool] = []
+
         for t in self.available_tools:
-            if t.is_exclusive():
-                self._tools = [t]
-                return
             if not t.is_enabled():
                 continue
             if t.name in self._disabled_tools:
                 continue
-            if len(self._tool_choices) > 0 and t.name not in self._tool_choices:
+
+            if t.is_exclusive():
+                if t.name in forced_tool_names:
+                    forced_exclusive_tools.append(t)
                 continue
 
-            self._tools.append(t)
+            if forced_tool_names and t.name not in forced_tool_names:
+                continue
+
+            selected_tools.append(t)
+
+        if forced_exclusive_tools:
+            # Choose the exclusive tool respecting the order of tool choices
+            exclusive_names = {t.name for t in forced_exclusive_tools}
+            chosen_exclusive: Tool | None = None
+            for name in self._tool_choices:
+                if name in exclusive_names:
+                    # pick the tool instance matching this name
+                    for t in forced_exclusive_tools:
+                        if t.name == name:
+                            chosen_exclusive = t
+                            break
+                    if chosen_exclusive:
+                        break
+
+            if not chosen_exclusive:
+                # Fallback to the first collected exclusive tool (shouldn't happen)
+                chosen_exclusive = forced_exclusive_tools[0]
+
+            if len(forced_exclusive_tools) > 1:
+                self._logger.warning(
+                    "Multiple exclusive tools were forced; defaulting to %s.",
+                    chosen_exclusive.name,
+                )
+            self._tools = [chosen_exclusive]
+            return
+
+        self._tools = selected_tools
 
     def get_evaluation_check_list(self) -> list[EvaluationMetricName]:
         return list(self._tool_evaluation_check_list)
