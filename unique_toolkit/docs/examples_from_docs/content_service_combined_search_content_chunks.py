@@ -6,7 +6,9 @@ from dotenv import dotenv_values
 from unique_toolkit import (
     ContentService,
 )
-from unique_toolkit.content.schemas import ContentSearchType
+from unique_toolkit.content.schemas import (
+    ContentSearchType,
+)
 
 content_service = ContentService.from_settings()
 demo_env_vars = dotenv_values(Path(__file__).parent / "demo.env")
@@ -21,5 +23,3 @@ content_chunks = content_service.search_content_chunks(
 )
 
 print(f"Combined search found {len(content_chunks)} chunks")
-
-# %%
