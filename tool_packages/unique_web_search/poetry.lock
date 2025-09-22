@@ -4329,7 +4329,7 @@ url = "../../unique_sdk"
 
 [[package]]
 name = "unique-toolkit"
-version = "0.9.1"
+version = "1.0.0"
 description = ""
 optional = false
 python-versions = "^3.12"
@@ -5001,4 +5001,4 @@ cffi = ["cffi (>=1.17,<2.0)", "cffi (>=2.0.0b)"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "7dc41ff3bb34ffc04a2495e7c78f0ec46e0810da3e61fbfea2545f9f9f632114"
+content-hash = "59e3243dee32f25fb8e448641a8827aa9461b5dedaac11b4b01be8cd957c8cc9"

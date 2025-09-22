@@ -11,14 +11,21 @@ We highly recommend using a virtual environment to install Unique Toolkit and SD
 The following secrets need to be setup in a `unique.env` file located as described below or in the environment
 
 ```env
-UNIQUE_AUTH_COMPANY_ID=         # Your company id
-UNIQUE_AUTH_USER_ID=            # Your user id
+UNIQUE_AUTH_COMPANY_ID=                         # Your company id
+UNIQUE_AUTH_USER_ID=                            # Your user id
 
-UNIQUE_API_BASE_URL=            # The backend url of Unique's public API
-UNIQUE_API_VERSION=             # The version Unique's public API
+UNIQUE_API_BASE_URL=                            # The backend url of Unique's public API
+UNIQUE_API_VERSION=                             # The version Unique's public API
 
-UNIQUE_APP_ID=                  # The app id as obtained in the App section of Unique
-UNIQUE_APP_KEY=                 # The app key as obtained in the App section of Unique
+UNIQUE_APP_ID=                                  # The app id as obtained in the App section of Unique
+UNIQUE_APP_KEY=                                 # The app key as obtained in the App section of Unique
+
+# Optional: Event filtering options (JSON format)
+# Filter events by specific assistant IDs (JSON array format)
+UNIQUE_CHAT_EVENT_FILTER_OPTIONS_ASSISTANT_IDS=["assistant1", "assistant2"]
+
+# Filter events by specific module/reference names (JSON array format)  
+UNIQUE_CHAT_EVENT_FILTER_OPTIONS_REFERENCES_IN_CODE=["module1", "module2"]
 ```
 
 ??? info "Environment File Locations (Click to expand)"
@@ -82,6 +89,15 @@ The app credentials can be obtained when creating an app in the corresponding se
 ![alt text](./app_button.png).
 
 The `APP_ID` is immediately visible after creating an app and starts with `app_` followed by a 24-character alphanumeric string. The `APP_KEY` can be generated once the app is activated under the section **API Keys**.
+
+### Filtering Events
+Filtering on events is possible via additional environment variables 
+
+| Variable | Event Type | Value Type | Help |
+|--|--|--|--|
+|`UNIQUE_CHAT_EVENT_FILTER_OPTIONS_REFERENCES_IN_CODE` | `ChatEvent` | `list[str]` | The reference in code of a module found in the `AI Modules Templates` section for each module and can be found just below the module title| 
+|`UNIQUE_CHAT_EVENT_FILTER_OPTIONS_ASSISTANT_IDS` | `ChatEvent` | `list[str]` | The assistant id of a space can be taken from the URL when you configure a Space. It starts with `assistant_..`|
+
 
 ## App endpoint
 

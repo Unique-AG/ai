@@ -42,7 +42,8 @@ def get_sse_client(
 
 
 def get_event_generator(
-    unique_settings: UniqueSettings, event_type: type[T]
+    unique_settings: UniqueSettings,
+    event_type: type[T],
 ) -> Generator[T, None, None]:
     """
     Generator that yields only events of the specified type from an SSE stream.
@@ -68,7 +69,9 @@ def get_event_generator(
         try:
             payload = json.loads(sse_event.data)
             parsed_event = event_type.model_validate(payload)
-            if parsed_event is None:
+            if parsed_event is None or parsed_event.filter_event(
+                filter_options=unique_settings.chat_event_filter_options
+            ):
                 continue
 
             yield parsed_event
