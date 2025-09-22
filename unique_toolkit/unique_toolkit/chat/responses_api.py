@@ -1,4 +1,5 @@
-from typing import Any, NamedTuple, Sequence
+import logging
+from typing import Any, Iterable, NamedTuple, Sequence
 
 import unique_sdk
 from openai.types.responses import (
@@ -31,10 +32,14 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelMessage,
     LanguageModelMessageOptions,
     LanguageModelMessages,
+    LanguageModelSystemMessage,
     LanguageModelToolDescription,
+    LanguageModelToolMessage,
+    LanguageModelUserMessage,
     ResponsesLanguageModelStreamResponse,
 )
 
+logger = logging.getLogger(__name__)
 
 def _convert_tools_to_openai(
     tools: Sequence[LanguageModelToolDescription | ToolParam],
@@ -48,34 +53,40 @@ def _convert_tools_to_openai(
     return openai_tools
 
 
-def _convert_response_output_item_to_compatible_input_param(
-    output: ResponseOutputItem,
-) -> dict[str, Any]:
-    return output.model_dump(exclude_defaults=True)
+def _convert_message_to_openai(
+    message: LanguageModelMessageOptions,
+) -> ResponseInputParam:
+    res = []
+    match message:
+        case LanguageModelAssistantMessage():
+            return message.to_openai(mode="responses")  # type: ignore
+        case (
+            LanguageModelUserMessage()
+            | LanguageModelSystemMessage()
+            | LanguageModelToolMessage()
+        ):
+            return [message.to_openai(mode="responses")]
+        case _:
+            return _convert_message_to_openai(message.to_specific_message())
+    return res
 
 
 def _convert_messages_to_openai(
     messages: Sequence[
         ResponseInputItemParam | LanguageModelMessageOptions | ResponseOutputItem
     ],
-) -> list[ResponseInputParam]:
+) -> ResponseInputParam:
     res = []
     for message in messages:
         if isinstance(message, LanguageModelMessageOptions):
-            if isinstance(message, LanguageModelMessage):
-                message = message.to_specific_message()
-
-            if isinstance(message, LanguageModelAssistantMessage):
-                res.extend(message.to_openai(mode="responses"))
-            else:
-                res.append(message.to_openai(mode="responses"))
+            res.extend(_convert_message_to_openai(message))
         elif isinstance(
             message, dict
         ):  # Openai uses dicts for their input and BaseModel as output
             res.append(message)
         else:
             assert isinstance(message, BaseModel)
-            res.append(_convert_response_output_item_to_compatible_input_param(message))
+            res.append(message.model_dump(exclude_defaults=True))
 
     return res
 
@@ -84,8 +95,9 @@ class _ResponsesParams(NamedTuple):
     temperature: float
     model_name: str
     search_context: SearchContext | None
-    messages: str | list[ResponseInputParam]
+    messages: str | ResponseInputParam
     tools: list[ToolParam] | None
+    reasoning: Reasoning | None
 
 
 def _prepare_responses_params_util(
@@ -98,6 +110,7 @@ def _prepare_responses_params_util(
     | Sequence[
         ResponseInputItemParam | LanguageModelMessageOptions | ResponseOutputItem
     ],
+    reasoning: Reasoning | None,
 ) -> _ResponsesParams:
     search_context = (
         _to_search_context(content_chunks) if content_chunks is not None else None
@@ -105,11 +118,30 @@ def _prepare_responses_params_util(
 
     model = model_name.name if isinstance(model_name, LanguageModelName) else model_name
 
+    tools_res = _convert_tools_to_openai(tools) if tools is not None else None
+
     if isinstance(model_name, LanguageModelName):
         model_info = LanguageModelInfo.from_name(model_name)
 
         if model_info.temperature_bounds is not None and temperature is not None:
             temperature = _clamp_temperature(temperature, model_info.temperature_bounds)
+
+        if (
+            reasoning is None
+            and model_info.default_options is not None
+            and "reasoning_effort" in model_info.default_options
+        ):
+            reasoning = Reasoning(effort=model_info.default_options["reasoning_effort"])
+
+        if (
+            reasoning is not None
+            and tools_res is not None
+            and any(tool["type"] == "code_interpreter" for tool in tools_res)
+            and "effort" in reasoning
+            and reasoning["effort"] == "minimal"
+        ):
+            logger.warning("Code interpreter cannot be used with `minimal` effort. Switching to `low`.")
+            reasoning["effort"] = "low"  # Code interpreter cannot be used with minimal effort
 
     messages_res = None
     if isinstance(messages, LanguageModelMessages):
@@ -120,8 +152,9 @@ def _prepare_responses_params_util(
         assert isinstance(messages, str)
         messages_res = messages
 
-    tools_res = _convert_tools_to_openai(tools) if tools is not None else None
-    return _ResponsesParams(temperature, model, search_context, messages_res, tools_res)
+    return _ResponsesParams(
+        temperature, model, search_context, messages_res, tools_res, reasoning
+    )
 
 
 def _prepare_responses_args(
@@ -142,7 +175,6 @@ def _prepare_responses_args(
     text: ResponseTextConfigParam | None,
     tool_choice: response_create_params.ToolChoice | None,
     top_p: float | None,
-    reasoning: Reasoning | None,
     other_options: dict | None = None,
 ) -> dict[str, Any]:
     options = {}
@@ -172,6 +204,9 @@ def _prepare_responses_args(
     if params.temperature is not None:
         openai_options["temperature"] = params.temperature
 
+    if params.reasoning is not None:
+        openai_options["reasoning"] = params.reasoning
+
     if include is not None:
         openai_options["include"] = include
 
@@ -198,9 +233,6 @@ def _prepare_responses_args(
 
     if top_p is not None:
         openai_options["top_p"] = top_p
-
-    if reasoning is not None:
-        openai_options["reasoning"] = reasoning
 
     # allow any other openai.resources.responses.Response.create options
     if other_options is not None:
@@ -247,6 +279,7 @@ def stream_responses_with_references(
         temperature=temperature,
         tools=tools,
         messages=messages,
+        reasoning=reasoning,
     )
 
     responses_args = _prepare_responses_args(
@@ -267,7 +300,6 @@ def stream_responses_with_references(
         text=text,
         tool_choice=tool_choice,
         top_p=top_p,
-        reasoning=reasoning,
         other_options=other_options,
     )
 
@@ -314,6 +346,7 @@ async def stream_responses_with_references_async(
         temperature=temperature,
         tools=tools,
         messages=messages,
+        reasoning=reasoning,
     )
 
     responses_args = _prepare_responses_args(
@@ -334,7 +367,6 @@ async def stream_responses_with_references_async(
         text=text,
         tool_choice=tool_choice,
         top_p=top_p,
-        reasoning=reasoning,
         other_options=other_options,
     )
 
