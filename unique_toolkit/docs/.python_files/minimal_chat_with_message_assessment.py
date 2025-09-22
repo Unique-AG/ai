@@ -11,7 +11,7 @@ import io
 import tempfile
 import requests
 from pathlib import Path
-from unique_toolkit.content.schemas import ContentSearchType, ContentRerankerConfig
+from unique_toolkit.content.schemas import ContentSearchType, ContentRerankerConfig, ContentChunk
 import unique_sdk
 from pydantic import BaseModel, Field
 from openai.types.chat.chat_completion_tool_param import ChatCompletionToolParam
@@ -37,7 +37,7 @@ import io
 import tempfile
 import requests
 from pathlib import Path
-from unique_toolkit.content.schemas import ContentSearchType, ContentRerankerConfig
+from unique_toolkit.content.schemas import ContentSearchType, ContentRerankerConfig, ContentChunk
 import unique_sdk
 from pydantic import BaseModel, Field
 from openai.types.chat.chat_completion_tool_param import ChatCompletionToolParam
