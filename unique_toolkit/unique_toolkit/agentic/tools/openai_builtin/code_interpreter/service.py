@@ -35,14 +35,16 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
         }
 
     @classmethod
-    async def build_tool(cls, config: CodeInterpreterConfig, uploaded_files: list[Content]) -> "OpenAICodeInterpreterTool":
+    async def build_tool(
+        cls, config: CodeInterpreterConfig, uploaded_files: list[Content]
+    ) -> "OpenAICodeInterpreterTool":
         return cls(config, uploaded_files)
-    
+
     @override
     def get_tool_prompts(self) -> ToolPrompts:
         return ToolPrompts(
             name=self.name,
-            display_name="the python tool", # https://platform.openai.com/docs/guides/tools-code-interpreter
+            display_name="the python tool",  # https://platform.openai.com/docs/guides/tools-code-interpreter
             tool_description="Always use this tool to run code.",
             tool_system_prompt="Always use this tool to run code.",
             tool_format_information_for_system_prompt="Always use this tool to run code.",
@@ -50,4 +52,3 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
             tool_format_information_for_user_prompt="Always use this tool to run code.",
             input_model={},
         )
-

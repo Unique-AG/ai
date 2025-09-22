@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Iterable, NamedTuple, Sequence
+from typing import Any, NamedTuple, Sequence
 
 import unique_sdk
 from openai.types.responses import (
@@ -29,7 +29,6 @@ from unique_toolkit.language_model.infos import (
 )
 from unique_toolkit.language_model.schemas import (
     LanguageModelAssistantMessage,
-    LanguageModelMessage,
     LanguageModelMessageOptions,
     LanguageModelMessages,
     LanguageModelSystemMessage,
@@ -40,6 +39,7 @@ from unique_toolkit.language_model.schemas import (
 )
 
 logger = logging.getLogger(__name__)
+
 
 def _convert_tools_to_openai(
     tools: Sequence[LanguageModelToolDescription | ToolParam],
@@ -140,8 +140,12 @@ def _prepare_responses_params_util(
             and "effort" in reasoning
             and reasoning["effort"] == "minimal"
         ):
-            logger.warning("Code interpreter cannot be used with `minimal` effort. Switching to `low`.")
-            reasoning["effort"] = "low"  # Code interpreter cannot be used with minimal effort
+            logger.warning(
+                "Code interpreter cannot be used with `minimal` effort. Switching to `low`."
+            )
+            reasoning["effort"] = (
+                "low"  # Code interpreter cannot be used with minimal effort
+            )
 
     messages_res = None
     if isinstance(messages, LanguageModelMessages):

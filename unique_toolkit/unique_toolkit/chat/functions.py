@@ -2,8 +2,8 @@ import logging
 import re
 from typing import Any, Sequence
 
-from openai.types.chat import ChatCompletionToolChoiceOptionParam
 import unique_sdk
+from openai.types.chat import ChatCompletionToolChoiceOptionParam
 from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
 from typing_extensions import deprecated
 from unique_sdk._list_object import ListObject

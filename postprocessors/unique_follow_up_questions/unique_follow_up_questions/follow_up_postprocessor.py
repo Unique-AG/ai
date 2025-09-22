@@ -21,6 +21,7 @@ from unique_follow_up_questions.prompts.params import (
 )
 from unique_follow_up_questions.schema import FollowUpQuestionsOutput
 
+
 class FollowUpPostprocessor(Postprocessor):
     """
     Postprocessor for follow-up questions in the loop agent.

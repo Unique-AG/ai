@@ -423,6 +423,6 @@ class UniqueAIResponsesApi(UniqueAI):
             tool_manager,  # type: ignore
             history_manager,
             evaluation_manager,
-            postprocessor_manager, # type: ignore
+            postprocessor_manager,  # type: ignore
             mcp_servers,
         )
