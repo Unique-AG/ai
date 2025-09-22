@@ -118,14 +118,23 @@ class ToolManager:
         self.available_tools = internal_tools + mcp_tools + sub_agents
 
         for t in self.available_tools:
-            if t.is_exclusive():
-                self._tools = [t]
-                return
             if not t.is_enabled():
                 continue
             if t.name in self._disabled_tools:
                 continue
+            # if tool choices are given, only include those tools
             if len(self._tool_choices) > 0 and t.name not in self._tool_choices:
+                continue
+            # is the tool exclusive and has been choosen by the user?
+            if (
+                t.is_exclusive()
+                and len(tool_choices) > 0
+                and t.name not in tool_choices
+            ):
+                self._tools = [t]  # override all other tools
+                break
+            # if the tool is exclusive but no tool choices are given, skip it
+            if t.is_exclusive():
                 continue
 
             self._tools.append(t)
