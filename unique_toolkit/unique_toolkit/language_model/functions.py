@@ -1,9 +1,10 @@
 import copy
 import logging
 from datetime import UTC, datetime
-from typing import Any, cast
+from typing import Any, Sequence, cast
 
 import humps
+from openai.types.chat import ChatCompletionToolChoiceOptionParam
 import unique_sdk
 from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
 from pydantic import BaseModel
@@ -159,7 +160,7 @@ async def complete_async(
 
 def _add_tools_to_options(
     options: dict,
-    tools: list[LanguageModelTool | LanguageModelToolDescription] | None,
+    tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None,
 ) -> dict:
     if tools:
         options["tools"] = [
@@ -216,7 +217,7 @@ def _prepare_completion_params_util(
     messages: LanguageModelMessages,
     model_name: LanguageModelName | str,
     temperature: float,
-    tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
+    tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
     other_options: dict | None = None,
     content_chunks: list[ContentChunk] | None = None,
     structured_output_model: type[BaseModel] | None = None,
@@ -264,7 +265,7 @@ def _prepare_completion_params_util(
 def _prepare_openai_completion_params_util(
     model_name: LanguageModelName | str,
     temperature: float,
-    tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
+    tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
     other_options: dict | None = None,
     content_chunks: list[ContentChunk] | None = None,
     structured_output_model: type[BaseModel] | None = None,
@@ -335,9 +336,10 @@ def _prepare_all_completions_params_util(
     messages: LanguageModelMessages | list[ChatCompletionMessageParam],
     model_name: LanguageModelName | str,
     temperature: float,
-    tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
+    tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
     other_options: dict | None = None,
     content_chunks: list[ContentChunk] | None = None,
+    tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
     structured_output_model: type[BaseModel] | None = None,
     structured_output_enforce_schema: bool = False,
 ) -> tuple[
@@ -347,6 +349,15 @@ def _prepare_all_completions_params_util(
     SearchContext | None,
 ]:
     model_info = None
+
+    other_options = copy.deepcopy(other_options)
+
+    if tool_choice is not None:
+        if other_options is None:
+            other_options = {}
+        if "toolChoice" not in other_options:
+            other_options["toolChoice"] = tool_choice # Backend expects CamelCase
+
     if isinstance(model_name, LanguageModelName):
         model_info = LanguageModelInfo.from_name(model_name)
         other_options = _prepare_other_options(

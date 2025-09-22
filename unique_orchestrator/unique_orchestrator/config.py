@@ -254,6 +254,11 @@ class ExperimentalConfig(BaseModel):
 
     sub_agents_config: SubAgentsConfig = SubAgentsConfig()
 
+    use_responses_api: bool = Field(
+        default=False,
+        description="Whether to use the responses API instead of the completions API.",
+    )
+
 
 class UniqueAIAgentConfig(BaseModel):
     model_config = get_configuration_dict(frozen=True)

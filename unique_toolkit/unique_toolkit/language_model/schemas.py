@@ -158,20 +158,20 @@ class LanguageModelFunction(BaseModel):
             )
 
 
-class ResponsesLanguageModelFunction(LanguageModelFunction):
-    @field_validator("id", mode="before")
-    def randomize_id(cls, value: Any):
-        return value  # Don't randomize id for responses
+# class ResponsesLanguageModelFunction(LanguageModelFunction):
+#     @field_validator("id", mode="before")
+#     def randomize_id(cls, value: Any):
+#         return value  # Don't randomize id for responses
 
 
-ToolCallType = TypeVar("ToolCallType", bound=LanguageModelFunction, covariant=True)
+# ToolCallType = TypeVar("ToolCallType", bound=LanguageModelFunction, covariant=True)
 
 
-class BaseLanguageModelStreamResponse(BaseModel, Generic[ToolCallType]):
+class LanguageModelStreamResponse(BaseModel):
     model_config = model_config
 
     message: LanguageModelStreamResponseMessage
-    tool_calls: list[ToolCallType] | None = None
+    tool_calls: list[LanguageModelFunction] | None = None
 
     def is_empty(self) -> bool:
         """
@@ -191,15 +191,7 @@ class BaseLanguageModelStreamResponse(BaseModel, Generic[ToolCallType]):
         )
 
 
-# This is tailored to the unique backend
-class LanguageModelStreamResponse(
-    BaseLanguageModelStreamResponse[LanguageModelFunction]
-): ...
-
-
-class ResponsesLanguageModelStreamResponse(
-    BaseLanguageModelStreamResponse[ResponsesLanguageModelFunction]
-):
+class ResponsesLanguageModelStreamResponse(LanguageModelStreamResponse):
     output: list[ResponseOutputItem]
 
 
@@ -353,8 +345,8 @@ class LanguageModelAssistantMessage(LanguageModelMessage):
     def from_stream_response(cls, response: LanguageModelStreamResponse):
         tool_calls = [
             LanguageModelFunctionCall(
-                id=None,
-                type=None,
+                id=f.id,
+                type="function",
                 function=f,
             )
             for f in response.tool_calls or []

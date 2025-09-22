@@ -1,4 +1,5 @@
 import re
+from typing import override
 
 from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import Postprocessor
@@ -19,7 +20,6 @@ from unique_follow_up_questions.prompts.params import (
     FollowUpQuestionUserPromptParams,
 )
 from unique_follow_up_questions.schema import FollowUpQuestionsOutput
-
 
 class FollowUpPostprocessor(Postprocessor):
     """
@@ -54,7 +54,8 @@ class FollowUpPostprocessor(Postprocessor):
             history=history.root,
         )
 
-    def apply_postprocessing_to_response(
+    @override
+    async def apply_postprocessing_to_response(
         self, loop_response: LanguageModelStreamResponse
     ) -> bool:
         if not self._text or len(self._text) == 0:
