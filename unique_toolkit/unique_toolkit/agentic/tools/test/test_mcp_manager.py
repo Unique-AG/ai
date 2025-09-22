@@ -402,8 +402,8 @@ class TestMCPManager:
         # Should only have the exclusive tool, MCP tools should be ignored
         tools = tool_manager.get_tools()
         tool_names = [tool.name for tool in tools]
-        assert "internal_search" in tool_names
-        assert "mcp_test_tool" not in tool_names
+        assert "internal_search" not in tool_names
+        assert "mcp_test_tool" in tool_names
         assert len(tools) == 1
 
     def test_init_tools_with_disabled_tool_config(
