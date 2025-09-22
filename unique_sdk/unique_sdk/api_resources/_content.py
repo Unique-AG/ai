@@ -489,6 +489,10 @@ class Content(APIResource["Content"]):
         """
         Returns the contentId to use: if content_id is provided, returns it;
         if not, but file_path is provided, resolves and returns the id for that file path.
+
+        Returns:
+            str: The resolved content ID.
+            None: Failed to resolve a content ID (e.g., file_path not found or not provided).
         """
         if content_id:
             return content_id

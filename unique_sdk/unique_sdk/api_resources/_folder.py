@@ -545,6 +545,10 @@ class Folder(APIResource["Folder"]):
         """
         Returns the scopeId to use: if scope_id is provided, returns it;
         if not, but folder_path is provided, resolves and returns the id for that folder path.
+
+        Returns:
+            str: The resolved folder ID.
+            None: Failed to resolve a folder ID (e.g., folder_path not found or not provided).
         """
         if scope_id:
             return scope_id
