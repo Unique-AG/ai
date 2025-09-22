@@ -73,7 +73,7 @@ class Content(APIResource["Content"]):
 
     class SearchParams(RequestOptions):
         where: "Content.ContentWhereInput"
-        chatId: NotRequired[str]
+        chatId: NotRequired[str | None]
         includeFailedContent: NotRequired[bool]
 
     class ContentInfoParams(TypedDict):
@@ -82,10 +82,10 @@ class Content(APIResource["Content"]):
         This is used to retrieve information about content based on various filters.
         """
 
-        metadataFilter: NotRequired[dict]
-        skip: NotRequired[int]
-        take: NotRequired[int]
-        filePath: NotRequired[str]
+        metadataFilter: NotRequired[dict[str, Any] | None]
+        skip: NotRequired[int | None]
+        take: NotRequired[int | None]
+        filePath: NotRequired[str | None]
 
     class CustomApiOptions(TypedDict):
         apiIdentifier: str
@@ -114,19 +114,19 @@ class Content(APIResource["Content"]):
         key: str
         title: Optional[str]
         mimeType: str
-        ownerType: str
-        ownerId: str
-        byteSize: Optional[int]
-        ingestionConfig: "Content.IngestionConfig"
-        metadata: NotRequired[dict[str, str | None]]
+        ownerType: NotRequired[str | None]
+        ownerId: NotRequired[str | None]
+        byteSize: NotRequired[int | None]
+        ingestionConfig: NotRequired["Content.IngestionConfig | None"]
+        metadata: NotRequired[dict[str, Any] | None]
 
     class UpsertParams(RequestOptions):
         input: "Content.Input"
-        scopeId: Optional[str]
-        chatId: Optional[str]
-        sourceOwnerType: str
-        storeInternally: bool
-        fileUrl: Optional[str]
+        scopeId: NotRequired[str | None]
+        chatId: NotRequired[str | None]
+        sourceOwnerType: NotRequired[str | None]
+        storeInternally: NotRequired[bool | None]
+        fileUrl: NotRequired[str | None]
 
     class UpdateParams(RequestOptions):
         contentId: NotRequired[str]
@@ -186,6 +186,8 @@ class Content(APIResource["Content"]):
     updatedAt: str
     chunks: List[Chunk]
     metadata: Optional[Dict[str, Any]]
+    writeUrl: str
+    readUrl: str
 
     class MagicTableSheetTableColumn(TypedDict):
         columnId: str
@@ -547,6 +549,10 @@ class Content(APIResource["Content"]):
         """
         Returns the contentId to use: if content_id is provided, returns it;
         if not, but file_path is provided, resolves and returns the id for that file path.
+
+        Returns:
+            str: The resolved content ID.
+            None: Failed to resolve a content ID (e.g., file_path not found or not provided).
         """
         if content_id:
             return content_id

@@ -44,19 +44,19 @@ class Folder(APIResource["Folder"]):
         languageModel: str | None
 
     class IngestionConfig(TypedDict):
-        chunkMaxTokens: int | None
-        chunkMaxTokensOnePager: int | None
-        chunkMinTokens: int | None
-        chunkStrategy: str | None
-        customApiOptions: List["Folder.CustomApiOptions"] | None
-        documentMinTokens: int | None
-        excelReadMode: str | None
-        jpgReadMode: str | None
-        pdfReadMode: str | None
-        pptReadMode: str | None
+        chunkMaxTokens: NotRequired[int | None]
+        chunkMaxTokensOnePager: NotRequired[int | None]
+        chunkMinTokens: NotRequired[int | None]
+        chunkStrategy: NotRequired[str | None]
+        customApiOptions: NotRequired[List["Folder.CustomApiOptions"] | None]
+        documentMinTokens: NotRequired[int | None]
+        excelReadMode: NotRequired[str | None]
+        jpgReadMode: NotRequired[str | None]
+        pdfReadMode: NotRequired[str | None]
+        pptReadMode: NotRequired[str | None]
         uniqueIngestionMode: str
-        vttConfig: Optional["Folder.VttConfig"]
-        wordReadMode: str | None
+        vttConfig: NotRequired["Folder.VttConfig | None"]
+        wordReadMode: NotRequired[str | None]
 
     class CreatedFolder(TypedDict):
         id: str
@@ -93,8 +93,8 @@ class Folder(APIResource["Folder"]):
         Parameters for updating folder ingestion config.
         """
 
-        scopeId: str | None
-        folderPath: str | None
+        scopeId: NotRequired[str | None]
+        folderPath: NotRequired[str | None]
         ingestionConfig: "Folder.IngestionConfig"
         applyToSubScopes: bool
 
@@ -103,8 +103,8 @@ class Folder(APIResource["Folder"]):
         Parameters for adding access to a folder.
         """
 
-        scopeId: str | None
-        folderPath: str | None
+        scopeId: NotRequired[str | None]
+        folderPath: NotRequired[str | None]
         scopeAccesses: List["Folder.ScopeAccess"]
         applyToSubScopes: bool
 
@@ -113,8 +113,8 @@ class Folder(APIResource["Folder"]):
         Parameters for removing access from a folder.
         """
 
-        scopeId: str | None
-        folderPath: str | None
+        scopeId: NotRequired[str | None]
+        folderPath: NotRequired[str | None]
         scopeAccesses: List["Folder.ScopeAccess"]
         applyToSubScopes: bool
 
@@ -250,7 +250,7 @@ class Folder(APIResource["Folder"]):
         cls, user_id: str, company_id: str, **params: Unpack["Folder.CreateParams"]
     ) -> "Folder.CreateFolderStructureResponse":
         return cast(
-            "Folder",
+            "Folder.CreateFolderStructureResponse",
             cls._static_request(
                 "post",
                 cls.RESOURCE_URL,
@@ -265,7 +265,7 @@ class Folder(APIResource["Folder"]):
         cls, user_id: str, company_id: str, **params: Unpack["Folder.CreateParams"]
     ) -> "Folder.CreateFolderStructureResponse":
         return cast(
-            "Folder",
+            "Folder.CreateFolderStructureResponse",
             await cls._static_request_async(
                 "post",
                 cls.RESOURCE_URL,
@@ -545,6 +545,10 @@ class Folder(APIResource["Folder"]):
         """
         Returns the scopeId to use: if scope_id is provided, returns it;
         if not, but folder_path is provided, resolves and returns the id for that folder path.
+
+        Returns:
+            str: The resolved folder ID.
+            None: Failed to resolve a folder ID (e.g., folder_path not found or not provided).
         """
         if scope_id:
             return scope_id

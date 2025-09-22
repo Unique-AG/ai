@@ -1,4 +1,4 @@
-from typing import ClassVar, Literal, Unpack, cast
+from typing import ClassVar, Literal, NotRequired, Unpack, cast
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
@@ -15,9 +15,9 @@ class MessageExecution(APIResource["MessageExecution"]):
 
         messageId: str
         chatId: str
-        type: Literal["DEEP_RESEARCH"] = "DEEP_RESEARCH"
-        secondsRemaining: int | None = None
-        percentageCompleted: int | None = None
+        type: Literal["DEEP_RESEARCH"]
+        secondsRemaining: NotRequired[int | None]
+        percentageCompleted: NotRequired[int | None]
 
     class GetMessageExecutionParams(RequestOptions):
         """
@@ -33,8 +33,8 @@ class MessageExecution(APIResource["MessageExecution"]):
 
         messageId: str
         status: Literal["COMPLETED", "FAILED"]
-        secondsRemaining: int | None = None
-        percentageCompleted: int | None = None
+        secondsRemaining: NotRequired[int | None]
+        percentageCompleted: NotRequired[int | None]
 
     messageExecutionId: str | None
     messageId: str | None

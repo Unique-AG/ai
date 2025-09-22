@@ -62,7 +62,7 @@ def main():
     )
 
     logger.info(f"Total count: {content_info_result['totalCount']}")
-    for item in content_info_result["contentInfo"]:
+    for item in content_info_result["contentInfos"]:
         content = unique_sdk.Content.search(
             user_id=user_id,
             company_id=company_id,
