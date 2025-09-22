@@ -161,6 +161,10 @@ class Content(APIResource["Content"]):
         expiredAt: str | None
 
     class PaginatedContentInfo(TypedDict):
+        contentInfo: List["Content.ContentInfo"]
+        totalCount: int
+
+    class PaginatedContentInfos(TypedDict):
         contentInfos: List["Content.ContentInfo"]
         totalCount: int
 
@@ -286,9 +290,9 @@ class Content(APIResource["Content"]):
         user_id: str,
         company_id: str,
         **params: Unpack["Content.ContentInfoParams"],
-    ) -> "Content.PaginatedContentInfo":
+    ) -> "Content.PaginatedContentInfos":
         return cast(
-            Content.PaginatedContentInfo,
+            Content.PaginatedContentInfos,
             cls._static_request(
                 "post",
                 "/content/infos",
@@ -304,9 +308,9 @@ class Content(APIResource["Content"]):
         user_id: str,
         company_id: str,
         **params: Unpack["Content.ContentInfoParams"],
-    ) -> "Content.PaginatedContentInfo":
+    ) -> "Content.PaginatedContentInfos":
         return cast(
-            Content.PaginatedContentInfo,
+            Content.PaginatedContentInfos,
             await cls._static_request_async(
                 "post",
                 "/content/infos",
