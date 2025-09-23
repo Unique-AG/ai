@@ -18,6 +18,7 @@ from unique_web_search.services.crawlers.base import (
 logger = logging.getLogger(f"PythonAssistantCoreBundle.{__name__}")
 
 unwanted_types = {
+    "application/octet-stream",
     "application/pdf",
     "application/msword",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -32,6 +33,10 @@ class BasicCrawlerConfig(BaseCrawlerConfig[CrawlerType.BASIC]):
     url_pattern_blacklist: list[str] = Field(
         default=[r".*\.pdf$"],
         description="List of URL patterns to blacklist",
+    )
+    unwanted_content_types: set[str] = Field(
+        default=unwanted_types,
+        description="Set of content types to not allow",
     )
     max_concurrent_requests: int = Field(
         default=10,
@@ -93,7 +98,7 @@ class BasicCrawler(BaseCrawler[BasicCrawlerConfig]):
         )
 
     def _content_type_not_allowed(self, content_type: str) -> bool:
-        return content_type in unwanted_types
+        return content_type in self.config.unwanted_content_types
 
 
 def _markdownify_html_with_timeout(content: str, timeout: float) -> str:
