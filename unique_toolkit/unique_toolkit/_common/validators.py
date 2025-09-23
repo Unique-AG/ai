@@ -17,11 +17,13 @@ LMI = Annotated[
     LanguageModelInfo,
     BeforeValidator(
         lambda v: validate_and_init_language_model_info(v),
-        json_schema_input_type=LanguageModelName | LanguageModelInfo | Annotated[
+        json_schema_input_type=LanguageModelName
+        | LanguageModelInfo
+        | Annotated[
             str,
             Field(
                 title="Language Model String",
-            )
+            ),
         ],
     ),
     PlainSerializer(
