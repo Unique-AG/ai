@@ -112,11 +112,11 @@ class DeepResearchToolConfig(BaseToolConfig):
     )
     clarifying_model: LMI = Field(
         description="The model to use for the clarifying agent.",
-        default=LanguageModelInfo.from_name(LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4),
+        default=LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_4o_2024_1120),
     )
     research_brief_model: LMI = Field(
         description="The model to use for the research brief agent.",
-        default=LanguageModelInfo.from_name(LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4),
+        default=LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_41_2025_0414),
     )
     tool_call_description: str = Field(
         description="The description to use for the tool call in the language model",
