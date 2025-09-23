@@ -13,18 +13,19 @@ Use this tool to run python code, e.g to generate plots, process excel files, pe
 Instructions:
 - All files uploaded to the chat are available in the code interpreter under the path `/mnt/data/<filename>
 - All files generated through code should be saved in the `/mnt/data` folder
-""".strip()
 
-DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT = """
 Instructions for displaying files in the chat:
 - Once files are generated in the `/mnt/data` folder you can reference them in the chat using markdown syntax:
     - If you want to display an image, use the following syntax: `![Image Name](sandbox:/mnt/data/<filename>)`
         - Images are displayed as images in the chat
+        - Do NOT display a download link for images as these are already downloadable on the platform.
     - For displaying a link to a file, use the following syntax: `[filename](sandbox:/mnt/data/<filename>)`
         - Files are converted to references the user can click on to download the file
 
 You MUST always use this syntax, otherwise the files will not be displayed in the chat.
 """.strip()
+
+DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT = ""
 
 DEFAULT_TOOL_FORMAT_INFORMATION_FOR_USER_PROMPT = ""
 

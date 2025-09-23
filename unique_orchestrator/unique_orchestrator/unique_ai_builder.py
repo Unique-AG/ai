@@ -63,7 +63,7 @@ from unique_toolkit.content.service import ContentService
 from unique_toolkit.protocols.support import ResponsesSupportCompleteWithReferences
 
 from unique_orchestrator.config import UniqueAIConfig
-from unique_orchestrator.post_process_responses import ShowInterpreterCodePostprocessor
+from unique_orchestrator.post_process_responses import DisplayCodeInterpreterFilesPostProcessor, DisplayCodeInterpreterFilesPostProcessorConfig, ShowInterpreterCodePostprocessor
 from unique_orchestrator.unique_ai import UniqueAI, UniqueAIResponsesApi
 
 
@@ -227,13 +227,15 @@ async def _build_responses(
     common_components: _CommonComponents,
     debug_info_manager: DebugInfoManager,
 ) -> UniqueAIResponsesApi:
+    print("using responses api")
+    client = _get_openai_client_from_env()
     builtin_tool_manager = OpenAIBuiltInToolManager(
         uploaded_files=common_components.uploaded_documents,
         chat_id=event.payload.chat_id,
         content_service=common_components.content_service,
         user_id=event.user_id,
         company_id=event.company_id,
-        client=_get_openai_client_from_env(),
+        client=client,
     )
 
     tool_manager = await ResponsesApiToolManager.build_manager(
@@ -254,6 +256,13 @@ async def _build_responses(
         postprocessor_manager.add_postprocessor(postprocessor)
 
     postprocessor_manager.add_postprocessor(ShowInterpreterCodePostprocessor())
+    postprocessor_manager.add_postprocessor(DisplayCodeInterpreterFilesPostProcessor(
+        client=client,
+        content_service=common_components.content_service,
+        config=DisplayCodeInterpreterFilesPostProcessorConfig(
+            upload_scope_id=config.agent.experimental.scope_id_responses_api,
+        ),
+    ))
 
     class ResponsesStreamingHandler(ResponsesSupportCompleteWithReferences):
         def complete_with_references(self, *args, **kwargs):
@@ -307,6 +316,7 @@ def _build_completions(
     common_components: _CommonComponents,
     debug_info_manager: DebugInfoManager,
 ) -> UniqueAI:
+    print("using completions api")
     if len(common_components.uploaded_documents) > 0:
         logger.info(
             f"Adding UploadedSearchTool with {len(common_components.uploaded_documents)} documents"
