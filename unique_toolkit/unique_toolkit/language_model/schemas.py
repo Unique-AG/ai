@@ -80,13 +80,14 @@ class LanguageModelFunction(BaseModel):
 
     @field_validator("id", mode="before")
     def randomize_id(cls, value):
-        return uuid4().hex
+        if not value:
+            return uuid4().hex
+        else:
+            return value
 
     @model_serializer()
     def serialize_model(self):
         seralization = {}
-        if self.id:
-            seralization["id"] = self.id
         seralization["name"] = self.name
         if self.arguments:
             seralization["arguments"] = json.dumps(self.arguments)
