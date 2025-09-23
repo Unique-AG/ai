@@ -148,7 +148,7 @@ class ContentProcessor:
     def _preprocess_content(self, content: str) -> str:
         """Smart preprocessing to remove navigation and UI clutter."""
         # Stage 1: Normalize encoding
-        content = content.encode("utf-8", "ignore").decode()
+        content = content.encode(encoding="utf-8", errors="ignore").decode()
 
         # Stage 2: Remove lines matching patterns
         lines = content.split("\n")
