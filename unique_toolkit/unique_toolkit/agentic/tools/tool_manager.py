@@ -24,7 +24,6 @@ from unique_toolkit.language_model.schemas import (
 )
 
 
-
 class ForcedToolOption:
     type: str = "function"
 
