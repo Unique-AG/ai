@@ -19,7 +19,7 @@ from pydantic import BaseModel
 from typing_extensions import get_type_hints
 
 
-# --------- Metadata carrier ----------
+# --------- Base Metadata carrier ----------
 class RJSFMetaTag:
     def __init__(self, attrs: dict[str, Any] | None = None):
         """Initialize with either a dict or keyword arguments.
@@ -30,484 +30,548 @@ class RJSFMetaTag:
         """
         self.attrs = attrs if attrs is not None else {}
 
-    # --------- Widget/Field Type Classmethods ----------
+    # --------- Widget Type Subclasses ----------
 
-    @classmethod
-    def textfield(
-        cls,
-        *,
-        placeholder: str | None = None,
-        disabled: bool = False,
-        readonly: bool = False,
-        autofocus: bool = False,
-        title: str | None = None,
-        description: str | None = None,
-        help: str | None = None,
-        class_names: str | None = None,
-        **kwargs: Any,
-    ) -> "RJSFMetaTag":
-        """Create a text field tag with common options."""
-        attrs: dict[str, Any] = {
-            "ui:widget": "text",
-            "ui:placeholder": placeholder,
-            "ui:disabled": disabled,
-            "ui:readonly": readonly,
-            "ui:autofocus": autofocus,
-            "ui:title": title,
-            "ui:description": description,
-            "ui:help": help,
-            "ui:classNames": class_names,
-            **kwargs,
-        }
-        return cls({k: v for k, v in attrs.items() if v is not None})
+    class BooleanWidget:
+        """Widgets for boolean fields: radio, select, checkbox (default)."""
 
-    @classmethod
-    def textarea(
-        cls,
-        *,
-        placeholder: str | None = None,
-        disabled: bool = False,
-        readonly: bool = False,
-        rows: int | None = None,
-        title: str | None = None,
-        description: str | None = None,
-        help: str | None = None,
-        **kwargs: Any,
-    ) -> "RJSFMetaTag":
-        """Create a textarea field tag."""
-        attrs: dict[str, Any] = {
-            "ui:widget": "textarea",
-            "ui:placeholder": placeholder,
-            "ui:disabled": disabled,
-            "ui:readonly": readonly,
-            "ui:options": {"rows": rows} if rows else None,
-            "ui:title": title,
-            "ui:description": description,
-            "ui:help": help,
-            **kwargs,
-        }
-        return cls({k: v for k, v in attrs.items() if v is not None})
+        @classmethod
+        def radio(
+            cls,
+            *,
+            disabled: bool = False,
+            title: str | None = None,
+            description: str | None = None,
+            help: str | None = None,
+            **kwargs: Any,
+        ) -> RJSFMetaTag:
+            """Create a radio button group for boolean values."""
+            attrs = {
+                "ui:widget": "radio",
+                "ui:disabled": disabled,
+                "ui:title": title,
+                "ui:description": description,
+                "ui:help": help,
+                **kwargs,
+            }
+            return RJSFMetaTag({k: v for k, v in attrs.items() if v is not None})
 
-    @classmethod
-    def number(
-        cls,
-        *,
-        placeholder: str | None = None,
-        disabled: bool = False,
-        readonly: bool = False,
-        min: int | float | None = None,
-        max: int | float | None = None,
-        step: int | float | None = None,
-        title: str | None = None,
-        description: str | None = None,
-        help: str | None = None,
-        **kwargs: Any,
-    ) -> "RJSFMetaTag":
-        """Create a number field tag."""
-        options: dict[str, Any] = {
-            "min": min,
-            "max": max,
-            "step": step,
-        }
-        options = {k: v for k, v in options.items() if v is not None}
+        @classmethod
+        def select(
+            cls,
+            *,
+            disabled: bool = False,
+            title: str | None = None,
+            description: str | None = None,
+            help: str | None = None,
+            **kwargs: Any,
+        ) -> RJSFMetaTag:
+            """Create a select dropdown for boolean values."""
+            attrs = {
+                "ui:widget": "select",
+                "ui:disabled": disabled,
+                "ui:title": title,
+                "ui:description": description,
+                "ui:help": help,
+                **kwargs,
+            }
+            return RJSFMetaTag({k: v for k, v in attrs.items() if v is not None})
 
-        attrs = {
-            "ui:widget": "number",
-            "ui:placeholder": placeholder,
-            "ui:disabled": disabled,
-            "ui:readonly": readonly,
-            "ui:title": title,
-            "ui:options": options if options else None,
-            "ui:description": description,
-            "ui:help": help,
-            **kwargs,
-        }
+        @classmethod
+        def checkbox(
+            cls,
+            *,
+            disabled: bool = False,
+            title: str | None = None,
+            description: str | None = None,
+            help: str | None = None,
+            **kwargs: Any,
+        ) -> RJSFMetaTag:
+            """Create a checkbox for boolean values (default widget)."""
+            attrs = {
+                "ui:widget": "checkbox",
+                "ui:disabled": disabled,
+                "ui:title": title,
+                "ui:description": description,
+                "ui:help": help,
+                **kwargs,
+            }
+            return RJSFMetaTag({k: v for k, v in attrs.items() if v is not None})
 
-        return cls({k: v for k, v in attrs.items() if v is not None})
+    class StringWidget:
+        """Widgets for string fields: text, textarea, password, color, email, url, date, datetime, time, file."""
 
-    @classmethod
-    def range(
-        cls,
-        *,
-        disabled: bool = False,
-        min: int | float | None = None,
-        max: int | float | None = None,
-        step: int | float | None = None,
-        title: str | None = None,
-        description: str | None = None,
-        help: str | None = None,
-        **kwargs: Any,
-    ) -> "RJSFMetaTag":
-        """Create a range slider field tag."""
-        options: dict[str, Any] = {
-            "min": min,
-            "max": max,
-            "step": step,
-        }
-        options = {k: v for k, v in options.items() if v is not None}
+        @classmethod
+        def textfield(
+            cls,
+            *,
+            placeholder: str | None = None,
+            disabled: bool = False,
+            readonly: bool = False,
+            autofocus: bool = False,
+            title: str | None = None,
+            description: str | None = None,
+            help: str | None = None,
+            class_names: str | None = None,
+            **kwargs: Any,
+        ) -> RJSFMetaTag:
+            """Create a text field (default for strings)."""
+            attrs: dict[str, Any] = {
+                "ui:widget": "text",
+                "ui:placeholder": placeholder,
+                "ui:disabled": disabled,
+                "ui:readonly": readonly,
+                "ui:autofocus": autofocus,
+                "ui:title": title,
+                "ui:description": description,
+                "ui:help": help,
+                "ui:classNames": class_names,
+                **kwargs,
+            }
+            return RJSFMetaTag({k: v for k, v in attrs.items() if v is not None})
 
-        attrs = {
-            "ui:widget": "range",
-            "ui:disabled": str(disabled).lower() if disabled else None,
-            "ui:options": options if options else None,
-            "ui:title": title,
-            "ui:description": description,
-            "ui:help": help,
-            **kwargs,
-        }
-        return cls({k: v for k, v in attrs.items() if v is not None})
+        @classmethod
+        def textarea(
+            cls,
+            *,
+            placeholder: str | None = None,
+            disabled: bool = False,
+            readonly: bool = False,
+            rows: int | None = None,
+            title: str | None = None,
+            description: str | None = None,
+            help: str | None = None,
+            **kwargs: Any,
+        ) -> RJSFMetaTag:
+            """Create a textarea field."""
+            attrs: dict[str, Any] = {
+                "ui:widget": "textarea",
+                "ui:placeholder": placeholder,
+                "ui:disabled": disabled,
+                "ui:readonly": readonly,
+                "ui:options": {"rows": rows} if rows else None,
+                "ui:title": title,
+                "ui:description": description,
+                "ui:help": help,
+                **kwargs,
+            }
+            return RJSFMetaTag({k: v for k, v in attrs.items() if v is not None})
 
-    @classmethod
-    def select(
-        cls,
-        *,
-        disabled: bool = False,
-        title: str | None = None,
-        description: str | None = None,
-        help: str | None = None,
-        **kwargs: Any,
-    ) -> "RJSFMetaTag":
-        """Create a select dropdown field tag."""
-        attrs: dict[str, Any] = {
-            "ui:widget": "select",
-            "ui:disabled": disabled,
-            "ui:title": title,
-            "ui:description": description,
-            "ui:help": help,
-            **kwargs,
-        }
-        return cls({k: v for k, v in attrs.items() if v is not None})
+        @classmethod
+        def password(
+            cls,
+            *,
+            placeholder: str | None = None,
+            disabled: bool = False,
+            readonly: bool = False,
+            title: str | None = None,
+            description: str | None = None,
+            help: str | None = None,
+            **kwargs: Any,
+        ) -> RJSFMetaTag:
+            """Create a password field."""
+            attrs = {
+                "ui:widget": "password",
+                "ui:placeholder": placeholder,
+                "ui:disabled": disabled,
+                "ui:readonly": readonly,
+                "ui:title": title,
+                "ui:description": description,
+                "ui:help": help,
+                **kwargs,
+            }
+            return RJSFMetaTag({k: v for k, v in attrs.items() if v is not None})
 
-    @classmethod
-    def checkbox(
-        cls,
-        *,
-        disabled: bool = False,
-        title: str | None = None,
-        description: str | None = None,
-        help: str | None = None,
-        **kwargs: Any,
-    ) -> "RJSFMetaTag":
-        """Create a checkbox field tag."""
-        attrs = {
-            "ui:widget": "checkbox",
-            "ui:disabled": disabled,
-            "ui:title": title,
-            "ui:description": description,
-            "ui:help": help,
-            **kwargs,
-        }
-        # Remove None values
-        return cls({k: v for k, v in attrs.items() if v is not None})
+        @classmethod
+        def color(
+            cls,
+            *,
+            disabled: bool = False,
+            title: str | None = None,
+            description: str | None = None,
+            help: str | None = None,
+            **kwargs: Any,
+        ) -> RJSFMetaTag:
+            """Create a color picker field."""
+            attrs = {
+                "ui:widget": "color",
+                "ui:disabled": disabled,
+                "ui:title": title,
+                "ui:description": description,
+                "ui:help": help,
+                **kwargs,
+            }
+            return RJSFMetaTag({k: v for k, v in attrs.items() if v is not None})
 
-    @classmethod
-    def checkboxes(
-        cls,
-        *,
-        disabled: bool = False,
-        title: str | None = None,
-        description: str | None = None,
-        help: str | None = None,
-        **kwargs: Any,
-    ) -> "RJSFMetaTag":
-        """Create a checkboxes field tag."""
-        attrs = {
-            "ui:widget": "checkboxes",
-            "ui:disabled": disabled,
-            "ui:title": title,
-            "ui:description": description,
-            "ui:help": help,
-            **kwargs,
-        }
-        # Remove None values
-        return cls({k: v for k, v in attrs.items() if v is not None})
+        @classmethod
+        def email(
+            cls,
+            *,
+            placeholder: str | None = None,
+            disabled: bool = False,
+            readonly: bool = False,
+            title: str | None = None,
+            description: str | None = None,
+            help: str | None = None,
+            **kwargs: Any,
+        ) -> RJSFMetaTag:
+            """Create an email field."""
+            attrs = {
+                "ui:widget": "email",
+                "ui:placeholder": placeholder,
+                "ui:disabled": disabled,
+                "ui:readonly": readonly,
+                "ui:title": title,
+                "ui:description": description,
+                "ui:help": help,
+                **kwargs,
+            }
+            return RJSFMetaTag({k: v for k, v in attrs.items() if v is not None})
 
-    @classmethod
-    def radio(
-        cls,
-        *,
-        disabled: bool = False,
-        title: str | None = None,
-        description: str | None = None,
-        help: str | None = None,
-        **kwargs: Any,
-    ) -> "RJSFMetaTag":
-        """Create a radio buttons field tag."""
-        attrs = {
-            "ui:widget": "radio",
-            "ui:disabled": disabled,
-            "ui:title": title,
-            "ui:description": description,
-            "ui:help": help,
-            **kwargs,
-        }
-        # Remove None values
-        return cls({k: v for k, v in attrs.items() if v is not None})
+        @classmethod
+        def url(
+            cls,
+            *,
+            placeholder: str | None = None,
+            disabled: bool = False,
+            readonly: bool = False,
+            title: str | None = None,
+            description: str | None = None,
+            help: str | None = None,
+            **kwargs: Any,
+        ) -> RJSFMetaTag:
+            """Create a URL field."""
+            attrs = {
+                "ui:widget": "uri",
+                "ui:placeholder": placeholder,
+                "ui:disabled": disabled,
+                "ui:readonly": readonly,
+                "ui:title": title,
+                "ui:description": description,
+                "ui:help": help,
+                **kwargs,
+            }
+            return RJSFMetaTag({k: v for k, v in attrs.items() if v is not None})
 
-    @classmethod
-    def password(
-        cls,
-        *,
-        placeholder: str | None = None,
-        disabled: bool = False,
-        readonly: bool = False,
-        title: str | None = None,
-        description: str | None = None,
-        help: str | None = None,
-        **kwargs: Any,
-    ) -> "RJSFMetaTag":
-        """Create a password field tag."""
-        attrs = {
-            "ui:widget": "password",
-            "ui:placeholder": placeholder,
-            "ui:disabled": disabled,
-            "ui:readonly": readonly,
-            "ui:title": title,
-            "ui:description": description,
-            "ui:help": help,
-            **kwargs,
-        }
-        # Remove None values
-        return cls({k: v for k, v in attrs.items() if v is not None})
+        @classmethod
+        def date(
+            cls,
+            *,
+            disabled: bool = False,
+            title: str | None = None,
+            description: str | None = None,
+            help: str | None = None,
+            **kwargs: Any,
+        ) -> RJSFMetaTag:
+            """Create a date field."""
+            attrs = {
+                "ui:widget": "date",
+                "ui:disabled": disabled,
+                "ui:title": title,
+                "ui:description": description,
+                "ui:help": help,
+                **kwargs,
+            }
+            return RJSFMetaTag({k: v for k, v in attrs.items() if v is not None})
 
-    @classmethod
-    def email(
-        cls,
-        *,
-        placeholder: str | None = None,
-        disabled: bool = False,
-        readonly: bool = False,
-        title: str | None = None,
-        description: str | None = None,
-        help: str | None = None,
-        **kwargs: Any,
-    ) -> "RJSFMetaTag":
-        """Create an email field tag."""
-        attrs = {
-            "ui:widget": "email",
-            "ui:placeholder": placeholder,
-            "ui:disabled": disabled,
-            "ui:readonly": readonly,
-            "ui:title": title,
-            "ui:description": description,
-            "ui:help": help,
-            **kwargs,
-        }
-        # Remove None values
-        return cls({k: v for k, v in attrs.items() if v is not None})
+        @classmethod
+        def datetime(
+            cls,
+            *,
+            disabled: bool = False,
+            title: str | None = None,
+            description: str | None = None,
+            help: str | None = None,
+            **kwargs: Any,
+        ) -> RJSFMetaTag:
+            """Create a datetime field."""
+            attrs = {
+                "ui:widget": "datetime",
+                "ui:disabled": disabled,
+                "ui:title": title,
+                "ui:description": description,
+                "ui:help": help,
+                **kwargs,
+            }
+            return RJSFMetaTag({k: v for k, v in attrs.items() if v is not None})
 
-    @classmethod
-    def url(
-        cls,
-        *,
-        placeholder: str | None = None,
-        disabled: bool = False,
-        readonly: bool = False,
-        title: str | None = None,
-        description: str | None = None,
-        help: str | None = None,
-        **kwargs: Any,
-    ) -> "RJSFMetaTag":
-        """Create a URL field tag."""
-        attrs = {
-            "ui:widget": "uri",
-            "ui:placeholder": placeholder,
-            "ui:disabled": disabled,
-            "ui:readonly": readonly,
-            "ui:title": title,
-            "ui:description": description,
-            "ui:help": help,
-            **kwargs,
-        }
-        # Remove None values
-        return cls({k: v for k, v in attrs.items() if v is not None})
+        @classmethod
+        def time(
+            cls,
+            *,
+            disabled: bool = False,
+            title: str | None = None,
+            description: str | None = None,
+            help: str | None = None,
+            **kwargs: Any,
+        ) -> RJSFMetaTag:
+            """Create a time field."""
+            attrs = {
+                "ui:widget": "time",
+                "ui:disabled": disabled,
+                "ui:title": title,
+                "ui:description": description,
+                "ui:help": help,
+                **kwargs,
+            }
+            return RJSFMetaTag({k: v for k, v in attrs.items() if v is not None})
 
-    @classmethod
-    def date(
-        cls,
-        *,
-        disabled: bool = False,
-        title: str | None = None,
-        description: str | None = None,
-        help: str | None = None,
-        **kwargs: Any,
-    ) -> "RJSFMetaTag":
-        """Create a date field tag."""
-        attrs = {
-            "ui:widget": "date",
-            "ui:disabled": disabled,
-            "ui:title": title,
-            "ui:description": description,
-            "ui:help": help,
-            **kwargs,
-        }
-        # Remove None values
-        return cls({k: v for k, v in attrs.items() if v is not None})
+        @classmethod
+        def file(
+            cls,
+            *,
+            disabled: bool = False,
+            accept: str | None = None,
+            title: str | None = None,
+            description: str | None = None,
+            help: str | None = None,
+            **kwargs: Any,
+        ) -> RJSFMetaTag:
+            """Create a file upload field."""
+            attrs = {
+                "ui:widget": "file",
+                "ui:disabled": disabled,
+                "ui:options": {"accept": accept} if accept else None,
+                "ui:title": title,
+                "ui:description": description,
+                "ui:help": help,
+                **kwargs,
+            }
+            return RJSFMetaTag({k: v for k, v in attrs.items() if v is not None})
 
-    @classmethod
-    def datetime(
-        cls,
-        *,
-        disabled: bool = False,
-        title: str | None = None,
-        description: str | None = None,
-        help: str | None = None,
-        **kwargs: Any,
-    ) -> "RJSFMetaTag":
-        """Create a datetime field tag."""
-        attrs = {
-            "ui:widget": "datetime",
-            "ui:disabled": disabled,
-            "ui:title": title,
-            "ui:description": description,
-            "ui:help": help,
-            **kwargs,
-        }
-        # Remove None values
-        return cls({k: v for k, v in attrs.items() if v is not None})
+    class NumberWidget:
+        """Widgets for number and integer fields: updown, range, radio (with enum)."""
 
-    @classmethod
-    def time(
-        cls,
-        *,
-        disabled: bool = False,
-        title: str | None = None,
-        description: str | None = None,
-        help: str | None = None,
-        **kwargs: Any,
-    ) -> "RJSFMetaTag":
-        """Create a time field tag."""
-        attrs = {
-            "ui:widget": "time",
-            "ui:disabled": disabled,
-            "ui:title": title,
-            "ui:description": description,
-            "ui:help": help,
-            **kwargs,
-        }
-        # Remove None values
-        return cls({k: v for k, v in attrs.items() if v is not None})
+        @classmethod
+        def updown(
+            cls,
+            *,
+            placeholder: str | None = None,
+            disabled: bool = False,
+            readonly: bool = False,
+            min: int | float | None = None,
+            max: int | float | None = None,
+            step: int | float | None = None,
+            title: str | None = None,
+            description: str | None = None,
+            help: str | None = None,
+            **kwargs: Any,
+        ) -> RJSFMetaTag:
+            """Create a number updown field (default for numbers)."""
+            options: dict[str, Any] = {
+                "min": min,
+                "max": max,
+                "step": step,
+            }
+            options = {k: v for k, v in options.items() if v is not None}
 
-    @classmethod
-    def color(
-        cls,
-        *,
-        disabled: bool = False,
-        title: str | None = None,
-        description: str | None = None,
-        help: str | None = None,
-        **kwargs: Any,
-    ) -> "RJSFMetaTag":
-        """Create a color picker field tag."""
-        attrs = {
-            "ui:widget": "color",
-            "ui:disabled": disabled,
-            "ui:title": title,
-            "ui:description": description,
-            "ui:help": help,
-            **kwargs,
-        }
-        # Remove None values
-        return cls({k: v for k, v in attrs.items() if v is not None})
+            attrs = {
+                "ui:widget": "updown",
+                "ui:placeholder": placeholder,
+                "ui:disabled": disabled,
+                "ui:readonly": readonly,
+                "ui:options": options if options else None,
+                "ui:title": title,
+                "ui:description": description,
+                "ui:help": help,
+                **kwargs,
+            }
+            return RJSFMetaTag({k: v for k, v in attrs.items() if v is not None})
 
-    @classmethod
-    def file(
-        cls,
-        *,
-        disabled: bool = False,
-        accept: str | None = None,
-        title: str | None = None,
-        description: str | None = None,
-        help: str | None = None,
-        **kwargs: Any,
-    ) -> "RJSFMetaTag":
-        """Create a file upload field tag."""
-        attrs = {
-            "ui:widget": "file",
-            "ui:disabled": disabled,
-            "ui:options": {"accept": accept} if accept else None,
-            "ui:title": title,
-            "ui:description": description,
-            "ui:help": help,
-            **kwargs,
-        }
-        # Remove None values
-        return cls({k: v for k, v in attrs.items() if v is not None})
+        @classmethod
+        def range(
+            cls,
+            *,
+            disabled: bool = False,
+            min: int | float | None = None,
+            max: int | float | None = None,
+            step: int | float | None = None,
+            title: str | None = None,
+            description: str | None = None,
+            help: str | None = None,
+            **kwargs: Any,
+        ) -> RJSFMetaTag:
+            """Create a range slider field."""
+            options: dict[str, Any] = {
+                "min": min,
+                "max": max,
+                "step": step,
+            }
+            options = {k: v for k, v in options.items() if v is not None}
 
-    # --------- Array/Collection Classmethods ----------
+            attrs = {
+                "ui:widget": "range",
+                "ui:disabled": str(disabled).lower() if disabled else None,
+                "ui:options": options if options else None,
+                "ui:title": title,
+                "ui:description": description,
+                "ui:help": help,
+                **kwargs,
+            }
+            return RJSFMetaTag({k: v for k, v in attrs.items() if v is not None})
 
-    @classmethod
-    def array(
-        cls,
-        *,
-        title: str | None = None,
-        description: str | None = None,
-        help: str | None = None,
-        addable: bool = True,
-        removable: bool = True,
-        moveable: bool = True,
-        **kwargs: Any,
-    ) -> "RJSFMetaTag":
-        """Create an array field tag."""
-        attrs = {
-            "ui:title": title,
-            "ui:description": description,
-            "ui:help": help,
-            "ui:addable": addable,
-            "ui:removable": removable,
-            "ui:moveable": moveable,
-            **kwargs,
-        }
-        # Remove None values
-        return cls({k: v for k, v in attrs.items() if v is not None})
+        @classmethod
+        def radio(
+            cls,
+            *,
+            disabled: bool = False,
+            title: str | None = None,
+            description: str | None = None,
+            help: str | None = None,
+            **kwargs: Any,
+        ) -> RJSFMetaTag:
+            """Create radio buttons for number enum values."""
+            attrs = {
+                "ui:widget": "radio",
+                "ui:disabled": disabled,
+                "ui:title": title,
+                "ui:description": description,
+                "ui:help": help,
+                **kwargs,
+            }
+            return RJSFMetaTag({k: v for k, v in attrs.items() if v is not None})
 
-    # --------- Object/Container Classmethods ----------
+    class ArrayWidget:
+        """Widgets for array fields: checkboxes, select, radio."""
 
-    @classmethod
-    def object(
-        cls,
-        *,
-        title: str | None = None,
-        description: str | None = None,
-        help: str | None = None,
-        expandable: bool = False,
-        collapsible: bool = False,
-        **kwargs: Any,
-    ) -> "RJSFMetaTag":
-        """Create an object field tag."""
-        attrs = {
-            "ui:title": title,
-            "ui:description": description,
-            "ui:help": help,
-            "ui:expandable": expandable,
-            "ui:collapsible": collapsible,
-            **kwargs,
-        }
-        # Remove None values
-        return cls({k: v for k, v in attrs.items() if v is not None})
+        @classmethod
+        def checkboxes(
+            cls,
+            *,
+            disabled: bool = False,
+            title: str | None = None,
+            description: str | None = None,
+            help: str | None = None,
+            **kwargs: Any,
+        ) -> RJSFMetaTag:
+            """Create checkboxes for array values."""
+            attrs = {
+                "ui:widget": "checkboxes",
+                "ui:disabled": disabled,
+                "ui:title": title,
+                "ui:description": description,
+                "ui:help": help,
+                **kwargs,
+            }
+            return RJSFMetaTag({k: v for k, v in attrs.items() if v is not None})
 
-    # --------- Custom Field Classmethods ----------
+        @classmethod
+        def select(
+            cls,
+            *,
+            disabled: bool = False,
+            title: str | None = None,
+            description: str | None = None,
+            help: str | None = None,
+            **kwargs: Any,
+        ) -> RJSFMetaTag:
+            """Create a select dropdown for array values."""
+            attrs = {
+                "ui:widget": "select",
+                "ui:disabled": disabled,
+                "ui:title": title,
+                "ui:description": description,
+                "ui:help": help,
+                **kwargs,
+            }
+            return RJSFMetaTag({k: v for k, v in attrs.items() if v is not None})
 
-    @classmethod
-    def custom_field(
-        cls,
-        field_name: str,
-        *,
-        title: str | None = None,
-        description: str | None = None,
-        help: str | None = None,
-        **kwargs: Any,
-    ) -> "RJSFMetaTag":
-        """Create a custom field tag."""
-        attrs = {
-            "ui:field": field_name,
-            "ui:title": title,
-            "ui:description": description,
-            "ui:help": help,
-            **kwargs,
-        }
-        # Remove None values
-        return cls({k: v for k, v in attrs.items() if v is not None})
+        @classmethod
+        def radio(
+            cls,
+            *,
+            disabled: bool = False,
+            title: str | None = None,
+            description: str | None = None,
+            help: str | None = None,
+            **kwargs: Any,
+        ) -> RJSFMetaTag:
+            """Create radio buttons for array values."""
+            attrs = {
+                "ui:widget": "radio",
+                "ui:disabled": disabled,
+                "ui:title": title,
+                "ui:description": description,
+                "ui:help": help,
+                **kwargs,
+            }
+            return RJSFMetaTag({k: v for k, v in attrs.items() if v is not None})
+
+    class ObjectWidget:
+        """Widgets for object fields: expandable, collapsible."""
+
+        @classmethod
+        def expandable(
+            cls,
+            *,
+            title: str | None = None,
+            description: str | None = None,
+            help: str | None = None,
+            **kwargs: Any,
+        ) -> RJSFMetaTag:
+            """Create an expandable object field."""
+            attrs = {
+                "ui:expandable": True,
+                "ui:title": title,
+                "ui:description": description,
+                "ui:help": help,
+                **kwargs,
+            }
+            return RJSFMetaTag({k: v for k, v in attrs.items() if v is not None})
+
+        @classmethod
+        def collapsible(
+            cls,
+            *,
+            title: str | None = None,
+            description: str | None = None,
+            help: str | None = None,
+            **kwargs: Any,
+        ) -> RJSFMetaTag:
+            """Create a collapsible object field."""
+            attrs = {
+                "ui:collapsible": True,
+                "ui:title": title,
+                "ui:description": description,
+                "ui:help": help,
+                **kwargs,
+            }
+            return RJSFMetaTag({k: v for k, v in attrs.items() if v is not None})
+
+    class SpecialWidget:
+        """Special widgets: hidden, custom fields."""
+
+        @classmethod
+        def hidden(
+            cls,
+            **kwargs: Any,
+        ) -> RJSFMetaTag:
+            """Create a hidden field."""
+            attrs = {
+                "ui:widget": "hidden",
+                **kwargs,
+            }
+            return RJSFMetaTag({k: v for k, v in attrs.items() if v is not None})
+
+        @classmethod
+        def custom_field(
+            cls,
+            field_name: str,
+            *,
+            title: str | None = None,
+            description: str | None = None,
+            help: str | None = None,
+            **kwargs: Any,
+        ) -> RJSFMetaTag:
+            """Create a custom field."""
+            attrs = {
+                "ui:field": field_name,
+                "ui:title": title,
+                "ui:description": description,
+                "ui:help": help,
+                **kwargs,
+            }
+            return RJSFMetaTag({k: v for k, v in attrs.items() if v is not None})
 
 
 # --------- Helpers ----------
@@ -730,21 +794,28 @@ def ui_schema_for_model(model_cls: type[BaseModel]) -> dict[str, Any]:
 if __name__ == "__main__":
 
     class Address(BaseModel):
-        street: Annotated[str, RJSFMetaTag.textfield(placeholder="Street")]
-        zip: Annotated[str, RJSFMetaTag.number(placeholder="12345")]
+        street: Annotated[str, RJSFMetaTag.StringWidget.textfield(placeholder="Street")]
+        zip: Annotated[str, RJSFMetaTag.NumberWidget.updown(placeholder="12345")]
 
     class User(BaseModel):
-        id: Annotated[int, RJSFMetaTag.number(disabled=True)]
+        id: Annotated[int, RJSFMetaTag.NumberWidget.updown(disabled=True)]
         name: Annotated[
-            str, RJSFMetaTag.textfield(placeholder="Enter your name", autofocus=True)
+            str,
+            RJSFMetaTag.StringWidget.textfield(
+                placeholder="Enter your name", autofocus=True
+            ),
         ]
-        address: Annotated[Address, RJSFMetaTag.custom_field("AddressField")]
+        address: Annotated[
+            Address, RJSFMetaTag.SpecialWidget.custom_field("AddressField")
+        ]
         tags: Annotated[
-            list[Annotated[str, RJSFMetaTag.checkboxes()]],
-            RJSFMetaTag.array(title="Tags"),
+            list[Annotated[str, RJSFMetaTag.ArrayWidget.checkboxes()]],
+            RJSFMetaTag.ArrayWidget.checkboxes(title="Tags"),
         ]
-        prefs: dict[str, Annotated[int, RJSFMetaTag.range(min=0, max=100)]]
-        alt: Union[Annotated[Address, RJSFMetaTag.object(role="home")], None]
+        prefs: dict[str, Annotated[int, RJSFMetaTag.NumberWidget.range(min=0, max=100)]]
+        alt: Union[
+            Annotated[Address, RJSFMetaTag.ObjectWidget.expandable(role="home")], None
+        ]
 
     import json
 
