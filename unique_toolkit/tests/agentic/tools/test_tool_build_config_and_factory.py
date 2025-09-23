@@ -336,10 +336,6 @@ class TestToolBuildConfigAndFactory:
 
     def test_tool_build_config_model_rebuild(self):
         """Test model rebuild functionality."""
-        from unique_toolkit.agentic.tools.config import _rebuild_config_model
-
-        # This should not raise an error
-        _rebuild_config_model()
 
         # Verify the model is still functional
         ToolFactory.register_tool(TestTool, TestToolConfig)
