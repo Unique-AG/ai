@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from time import time
-from typing import Callable, Literal, Optional
+from typing import Callable, Optional
 
 from unique_toolkit import LanguageModelService
 from unique_toolkit._common.chunk_relevancy_sorter.config import (
@@ -148,7 +148,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
             raise ValueError(f"Invalid step type: {type(step)}")
 
     async def _execute_search_step(self, step: Step) -> list[WebSearchResult]:
-        step_name: Literal["SEARCH", "READ_URL"] = step.step_type.name
+        step_name = step.step_type.name
         self.debug_info.steps.append(
             StepDebugInfo(
                 step_name=step_name,

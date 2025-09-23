@@ -111,6 +111,7 @@ class WebSearchDebugInfo(BaseModel):
     parameters: dict
     steps: list[StepDebugInfo] = []
     web_page_chunks: list[WebPageChunk] = []
+    execution_time: float | None = None
     num_chunks_in_final_prompts: int = 0
 
     def model_dump(self, *, with_debug_details: bool = True, **kwargs):

@@ -1,3 +1,5 @@
+from time import time
+
 from typing_extensions import override
 from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
@@ -104,7 +106,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
     @override
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
         self.logger.info("Running the WebSearch tool")
-
+        start_time = time()
         parameters = self.tool_parameter_calls.model_validate(
             tool_call.arguments,
         )
@@ -115,6 +117,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
         try:
             content_chunks = await executor.run()
             debug_info.num_chunks_in_final_prompts = len(content_chunks)
+            debug_info.execution_time = time() - start_time
 
             if self.tool_progress_reporter:
                 await self.tool_progress_reporter.notify_from_tool_call(
