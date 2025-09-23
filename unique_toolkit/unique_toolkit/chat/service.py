@@ -1,4 +1,5 @@
 import logging
+from typing import overload
 
 from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
 from typing_extensions import deprecated
@@ -334,6 +335,30 @@ class ChatService:
             debug_info=debug_info,
         )
 
+    @deprecated(
+        "Use keyword only method instead. Positional arguments are deprecated and will be removed on the 1st of January 2026."
+    )
+    @overload
+    def modify_user_message(
+        self,
+        content: str,
+        references: list[ContentReference] | None = None,
+        debug_info: dict | None = None,
+        message_id: str | None = None,
+        set_completed_at: bool | None = False,
+    ) -> ChatMessage: ...
+
+    @overload
+    def modify_user_message(  # type: ignore
+        self,
+        *,
+        content: str,
+        references: list[ContentReference] | None = None,
+        debug_info: dict | None = None,
+        message_id: str | None = None,
+        set_completed_at: bool | None = False,
+    ) -> ChatMessage: ...
+
     def modify_user_message(
         self,
         content: str,
@@ -412,6 +437,32 @@ class ChatService:
             set_completed_at=set_completed_at or False,
         )
 
+    @deprecated(
+        "Use keyword only method instead. Positional arguments are deprecated and will be removed on the 1st of January 2026."
+    )
+    @overload
+    def modify_assistant_message(
+        self,
+        content: str | None = None,
+        original_content: str | None = None,
+        references: list[ContentReference] | None = None,
+        debug_info: dict | None = None,
+        message_id: str | None = None,
+        set_completed_at: bool | None = None,
+    ) -> ChatMessage: ...
+
+    @overload
+    def modify_assistant_message(  # type: ignore
+        self,
+        *,
+        content: str | None = None,
+        original_content: str | None = None,
+        references: list[ContentReference] | None = None,
+        debug_info: dict | None = None,
+        message_id: str | None = None,
+        set_completed_at: bool | None = None,
+    ) -> ChatMessage: ...
+
     def modify_assistant_message(
         self,
         content: str | None = None,
@@ -453,6 +504,32 @@ class ChatService:
             message_id=message_id,
             set_completed_at=set_completed_at or False,
         )
+
+    @deprecated(
+        "Use keyword only method instead. Positional arguments are deprecated and will be removed on the 1st of January 2026."
+    )
+    @overload
+    async def modify_assistant_message_async(
+        self,
+        content: str | None = None,
+        original_content: str | None = None,
+        references: list[ContentReference] | None = None,
+        debug_info: dict | None = None,
+        message_id: str | None = None,
+        set_completed_at: bool | None = False,
+    ) -> ChatMessage: ...
+
+    @overload
+    async def modify_assistant_message_async(  # type: ignore
+        self,
+        *,
+        content: str | None = None,
+        original_content: str | None = None,
+        references: list[ContentReference] | None = None,
+        debug_info: dict | None = None,
+        message_id: str | None = None,
+        set_completed_at: bool | None = False,
+    ) -> ChatMessage: ...
 
     async def modify_assistant_message_async(
         self,
@@ -532,6 +609,26 @@ class ChatService:
             event_payload_chat_id=self._chat_id,
         )
 
+    @deprecated(
+        "Use keyword only method instead. Positional arguments are deprecated and will be removed on the 1st of January 2026."
+    )
+    @overload
+    def get_full_and_selected_history(
+        self,
+        token_limit: int,
+        percent_of_max_tokens: float = DEFAULT_PERCENT_OF_MAX_TOKENS,
+        max_messages: int = DEFAULT_MAX_MESSAGES,
+    ) -> tuple[list[ChatMessage], list[ChatMessage]]: ...
+
+    @overload
+    def get_full_and_selected_history(  # type: ignore
+        self,
+        *,
+        token_limit: int,
+        percent_of_max_tokens: float = DEFAULT_PERCENT_OF_MAX_TOKENS,
+        max_messages: int = DEFAULT_MAX_MESSAGES,
+    ) -> tuple[list[ChatMessage], list[ChatMessage]]: ...
+
     def get_full_and_selected_history(
         self,
         token_limit: int,
@@ -565,6 +662,26 @@ class ChatService:
 
         return full_history, selected_history
 
+    @deprecated(
+        "Use keyword only method instead. Positional arguments are deprecated and will be removed on the 1st of January 2026."
+    )
+    @overload
+    async def get_full_and_selected_history_async(
+        self,
+        token_limit: int,
+        percent_of_max_tokens: float = DEFAULT_PERCENT_OF_MAX_TOKENS,
+        max_messages: int = DEFAULT_MAX_MESSAGES,
+    ) -> tuple[list[ChatMessage], list[ChatMessage]]: ...
+
+    @overload
+    async def get_full_and_selected_history_async(  # type: ignore
+        self,
+        *,
+        token_limit: int,
+        percent_of_max_tokens: float = DEFAULT_PERCENT_OF_MAX_TOKENS,
+        max_messages: int = DEFAULT_MAX_MESSAGES,
+    ) -> tuple[list[ChatMessage], list[ChatMessage]]: ...
+
     async def get_full_and_selected_history_async(
         self,
         token_limit: int,
@@ -597,6 +714,30 @@ class ChatService:
         )
 
         return full_history, selected_history
+
+    @deprecated(
+        "Use keyword only method instead. Positional arguments are deprecated and will be removed on the 1st of January 2026."
+    )
+    @overload
+    def create_assistant_message(
+        self,
+        content: str,
+        original_content: str | None = None,
+        references: list[ContentReference] | None = None,
+        debug_info: dict | None = None,
+        set_completed_at: bool | None = False,
+    ) -> ChatMessage: ...
+
+    @overload
+    def create_assistant_message(  # type: ignore
+        self,
+        *,
+        content: str,
+        original_content: str | None = None,
+        references: list[ContentReference] | None = None,
+        debug_info: dict | None = None,
+        set_completed_at: bool | None = False,
+    ) -> ChatMessage: ...
 
     def create_assistant_message(
         self,
@@ -637,6 +778,30 @@ class ChatService:
         # Update the assistant message id
         self._assistant_message_id = chat_message.id or "unknown"
         return chat_message
+
+    @deprecated(
+        "Use keyword only method instead. Positional arguments are deprecated and will be removed on the 1st of January 2026."
+    )
+    @overload
+    async def create_assistant_message_async(
+        self,
+        content: str,
+        original_content: str | None = None,
+        references: list[ContentReference] | None = None,
+        debug_info: dict | None = None,
+        set_completed_at: bool | None = False,
+    ) -> ChatMessage: ...
+
+    @overload
+    async def create_assistant_message_async(  # type: ignore
+        self,
+        *,
+        content: str,
+        original_content: str | None = None,
+        references: list[ContentReference] | None = None,
+        debug_info: dict | None = None,
+        set_completed_at: bool | None = False,
+    ) -> ChatMessage: ...
 
     async def create_assistant_message_async(
         self,
@@ -679,6 +844,30 @@ class ChatService:
         return chat_message
 
     @deprecated("Not working at the moment.")
+    @deprecated(
+        "Use keyword only method instead. Positional arguments are deprecated and will be removed on the 1st of January 2026."
+    )
+    @overload
+    def create_user_message(
+        self,
+        content: str,
+        original_content: str | None = None,
+        references: list[ContentReference] | None = None,
+        debug_info: dict | None = None,
+        set_completed_at: bool | None = False,
+    ) -> ChatMessage: ...
+
+    @overload
+    def create_user_message(  # type: ignore
+        self,
+        *,
+        content: str,
+        original_content: str | None = None,
+        references: list[ContentReference] | None = None,
+        debug_info: dict | None = None,
+        set_completed_at: bool | None = False,
+    ) -> ChatMessage: ...
+
     def create_user_message(
         self,
         content: str,
@@ -718,6 +907,30 @@ class ChatService:
         # Update the user message id
         self._user_message_id = chat_message.id or "unknown"
         return chat_message
+
+    @deprecated(
+        "Use keyword only method instead. Positional arguments are deprecated and will be removed on the 1st of January 2026."
+    )
+    @overload
+    async def create_user_message_async(
+        self,
+        content: str,
+        original_content: str | None = None,
+        references: list[ContentReference] | None = None,
+        debug_info: dict | None = None,
+        set_completed_at: bool | None = False,
+    ) -> ChatMessage: ...
+
+    @overload
+    async def create_user_message_async(  # type: ignore
+        self,
+        *,
+        content: str,
+        original_content: str | None = None,
+        references: list[ContentReference] | None = None,
+        debug_info: dict | None = None,
+        set_completed_at: bool | None = False,
+    ) -> ChatMessage: ...
 
     async def create_user_message_async(
         self,
@@ -759,6 +972,34 @@ class ChatService:
         self._user_message_id = chat_message.id or "unknown"
         return chat_message
 
+    @deprecated(
+        "Use keyword only method instead. Positional arguments are deprecated and will be removed on the 1st of January 2026."
+    )
+    @overload
+    def create_message_assessment(
+        self,
+        assistant_message_id: str,
+        status: ChatMessageAssessmentStatus,
+        type: ChatMessageAssessmentType,
+        title: str | None = None,
+        explanation: str | None = None,
+        label: ChatMessageAssessmentLabel | None = None,
+        is_visible: bool = True,
+    ) -> ChatMessageAssessment: ...
+
+    @overload
+    def create_message_assessment(  # type: ignore
+        self,
+        *,
+        assistant_message_id: str,
+        status: ChatMessageAssessmentStatus,
+        type: ChatMessageAssessmentType,
+        title: str | None = None,
+        explanation: str | None = None,
+        label: ChatMessageAssessmentLabel | None = None,
+        is_visible: bool = True,
+    ) -> ChatMessageAssessment: ...
+
     def create_message_assessment(
         self,
         assistant_message_id: str,
@@ -798,6 +1039,34 @@ class ChatService:
             label=label,
             is_visible=is_visible,
         )
+
+    @deprecated(
+        "Use keyword only method instead. Positional arguments are deprecated and will be removed on the 1st of January 2026."
+    )
+    @overload
+    async def create_message_assessment_async(
+        self,
+        assistant_message_id: str,
+        status: ChatMessageAssessmentStatus,
+        type: ChatMessageAssessmentType,
+        title: str | None = None,
+        explanation: str | None = None,
+        label: ChatMessageAssessmentLabel | None = None,
+        is_visible: bool = True,
+    ) -> ChatMessageAssessment: ...
+
+    @overload
+    async def create_message_assessment_async(  # type: ignore
+        self,
+        *,
+        assistant_message_id: str,
+        status: ChatMessageAssessmentStatus,
+        type: ChatMessageAssessmentType,
+        title: str | None = None,
+        explanation: str | None = None,
+        label: ChatMessageAssessmentLabel | None = None,
+        is_visible: bool = True,
+    ) -> ChatMessageAssessment: ...
 
     async def create_message_assessment_async(
         self,
@@ -839,6 +1108,32 @@ class ChatService:
             is_visible=is_visible,
         )
 
+    @deprecated(
+        "Use keyword only method instead. Positional arguments are deprecated and will be removed on the 1st of January 2026."
+    )
+    @overload
+    def modify_message_assessment(
+        self,
+        assistant_message_id: str,
+        status: ChatMessageAssessmentStatus,
+        type: ChatMessageAssessmentType,
+        title: str | None = None,
+        explanation: str | None = None,
+        label: ChatMessageAssessmentLabel | None = None,
+    ) -> ChatMessageAssessment: ...
+
+    @overload
+    def modify_message_assessment(  # type: ignore
+        self,
+        *,
+        assistant_message_id: str,
+        status: ChatMessageAssessmentStatus,
+        type: ChatMessageAssessmentType,
+        title: str | None = None,
+        explanation: str | None = None,
+        label: ChatMessageAssessmentLabel | None = None,
+    ) -> ChatMessageAssessment: ...
+
     def modify_message_assessment(
         self,
         assistant_message_id: str,
@@ -876,6 +1171,32 @@ class ChatService:
             label=label,
         )
 
+    @deprecated(
+        "Use keyword only method instead. Positional arguments are deprecated and will be removed on the 1st of January 2026."
+    )
+    @overload
+    async def modify_message_assessment_async(
+        self,
+        assistant_message_id: str,
+        type: ChatMessageAssessmentType,
+        title: str | None = None,
+        status: ChatMessageAssessmentStatus | None = None,
+        explanation: str | None = None,
+        label: ChatMessageAssessmentLabel | None = None,
+    ) -> ChatMessageAssessment: ...
+
+    @overload
+    async def modify_message_assessment_async(  # type: ignore
+        self,
+        *,
+        assistant_message_id: str,
+        type: ChatMessageAssessmentType,
+        title: str | None = None,
+        status: ChatMessageAssessmentStatus | None = None,
+        explanation: str | None = None,
+        label: ChatMessageAssessmentLabel | None = None,
+    ) -> ChatMessageAssessment: ...
+
     async def modify_message_assessment_async(
         self,
         assistant_message_id: str,
@@ -912,6 +1233,34 @@ class ChatService:
             explanation=explanation,
             label=label,
         )
+
+    @deprecated(
+        "Use keyword only method instead. Positional arguments are deprecated and will be removed on the 1st of January 2026."
+    )
+    @overload
+    def create_message_log(
+        self,
+        message_id: str,
+        text: str,
+        status: MessageLogStatus,
+        order: int,
+        details: MessageLogDetails | None = None,
+        uncited_references: MessageLogUncitedReferences | None = None,
+        references: list[ContentReference] | None = None,
+    ) -> MessageLog: ...
+
+    @overload
+    def create_message_log(  # type: ignore
+        self,
+        *,
+        message_id: str,
+        text: str,
+        status: MessageLogStatus,
+        order: int,
+        details: MessageLogDetails | None = None,
+        uncited_references: MessageLogUncitedReferences | None = None,
+        references: list[ContentReference] | None = None,
+    ) -> MessageLog: ...
 
     def create_message_log(
         self,
@@ -953,6 +1302,34 @@ class ChatService:
             references=references,
         )
 
+    @deprecated(
+        "Use keyword only method instead. Positional arguments are deprecated and will be removed on the 1st of January 2026."
+    )
+    @overload
+    async def create_message_log_async(
+        self,
+        message_id: str,
+        text: str,
+        status: MessageLogStatus,
+        order: int,
+        details: MessageLogDetails | None = None,
+        uncited_references: MessageLogUncitedReferences | None = None,
+        references: list[ContentReference] | None = None,
+    ) -> MessageLog: ...
+
+    @overload
+    async def create_message_log_async(  # type: ignore
+        self,
+        *,
+        message_id: str,
+        text: str,
+        status: MessageLogStatus,
+        order: int,
+        details: MessageLogDetails | None = None,
+        uncited_references: MessageLogUncitedReferences | None = None,
+        references: list[ContentReference] | None = None,
+    ) -> MessageLog: ...
+
     async def create_message_log_async(
         self,
         message_id: str,
@@ -992,6 +1369,34 @@ class ChatService:
             uncited_references=uncited_references,
             references=references,
         )
+
+    @deprecated(
+        "Use keyword only method instead. Positional arguments are deprecated and will be removed on the 1st of January 2026."
+    )
+    @overload
+    def update_message_log(
+        self,
+        message_log_id: str,
+        order: int,
+        text: str | None = None,
+        status: MessageLogStatus | None = None,
+        details: MessageLogDetails | None = None,
+        uncited_references: MessageLogUncitedReferences | None = None,
+        references: list[ContentReference] | None = None,
+    ) -> MessageLog: ...
+
+    @overload
+    def update_message_log(  # type: ignore
+        self,
+        *,
+        message_log_id: str,
+        order: int,
+        text: str | None = None,
+        status: MessageLogStatus | None = None,
+        details: MessageLogDetails | None = None,
+        uncited_references: MessageLogUncitedReferences | None = None,
+        references: list[ContentReference] | None = None,
+    ) -> MessageLog: ...
 
     def update_message_log(
         self,
@@ -1033,6 +1438,34 @@ class ChatService:
             references=references,
         )
 
+    @deprecated(
+        "Use keyword only method instead. Positional arguments are deprecated and will be removed on the 1st of January 2026."
+    )
+    @overload
+    async def update_message_log_async(
+        self,
+        message_log_id: str,
+        order: int,
+        text: str | None = None,
+        status: MessageLogStatus | None = None,
+        details: MessageLogDetails | None = None,
+        uncited_references: MessageLogUncitedReferences | None = None,
+        references: list[ContentReference] | None = None,
+    ) -> MessageLog: ...
+
+    @overload
+    async def update_message_log_async(  # type: ignore
+        self,
+        *,
+        message_log_id: str,
+        order: int,
+        text: str | None = None,
+        status: MessageLogStatus | None = None,
+        details: MessageLogDetails | None = None,
+        uncited_references: MessageLogUncitedReferences | None = None,
+        references: list[ContentReference] | None = None,
+    ) -> MessageLog: ...
+
     async def update_message_log_async(
         self,
         message_log_id: str,
@@ -1073,6 +1506,32 @@ class ChatService:
             references=references,
         )
 
+    @deprecated(
+        "Use keyword only method instead. Positional arguments are deprecated and will be removed on the 1st of January 2026."
+    )
+    @overload
+    def create_assistant_message_log(
+        self,
+        text: str,
+        status: MessageLogStatus,
+        order: int,
+        details: MessageLogDetails | None = None,
+        uncited_references: MessageLogUncitedReferences | None = None,
+        references: list[ContentReference] | None = None,
+    ) -> MessageLog: ...
+
+    @overload
+    def create_assistant_message_log(  # type: ignore
+        self,
+        *,
+        text: str,
+        status: MessageLogStatus,
+        order: int,
+        details: MessageLogDetails | None = None,
+        uncited_references: MessageLogUncitedReferences | None = None,
+        references: list[ContentReference] | None = None,
+    ) -> MessageLog: ...
+
     def create_assistant_message_log(
         self,
         text: str,
@@ -1110,6 +1569,32 @@ class ChatService:
             uncited_references=uncited_references,
             references=references,
         )
+
+    @deprecated(
+        "Use keyword only method instead. Positional arguments are deprecated and will be removed on the 1st of January 2026."
+    )
+    @overload
+    async def create_assistant_message_log_async(
+        self,
+        text: str,
+        status: MessageLogStatus,
+        order: int,
+        details: MessageLogDetails | None = None,
+        uncited_references: MessageLogUncitedReferences | None = None,
+        references: list[ContentReference] | None = None,
+    ) -> MessageLog: ...
+
+    @overload
+    async def create_assistant_message_log_async(  # type: ignore
+        self,
+        *,
+        text: str,
+        status: MessageLogStatus,
+        order: int,
+        details: MessageLogDetails | None = None,
+        uncited_references: MessageLogUncitedReferences | None = None,
+        references: list[ContentReference] | None = None,
+    ) -> MessageLog: ...
 
     async def create_assistant_message_log_async(
         self,
@@ -1149,6 +1634,28 @@ class ChatService:
             references=references,
         )
 
+    @deprecated(
+        "Use keyword only method instead. Positional arguments are deprecated and will be removed on the 1st of January 2026."
+    )
+    @overload
+    def create_message_execution(
+        self,
+        message_id: str,
+        type: MessageExecutionType = MessageExecutionType.DEEP_RESEARCH,
+        seconds_remaining: int | None = None,
+        percentage_completed: int | None = None,
+    ) -> MessageExecution: ...
+
+    @overload
+    def create_message_execution(  # type: ignore
+        self,
+        *,
+        message_id: str,
+        type: MessageExecutionType = MessageExecutionType.DEEP_RESEARCH,
+        seconds_remaining: int | None = None,
+        percentage_completed: int | None = None,
+    ) -> MessageExecution: ...
+
     def create_message_execution(
         self,
         message_id: str,
@@ -1180,6 +1687,28 @@ class ChatService:
             seconds_remaining=seconds_remaining,
             percentage_completed=percentage_completed,
         )
+
+    @deprecated(
+        "Use keyword only method instead. Positional arguments are deprecated and will be removed on the 1st of January 2026."
+    )
+    @overload
+    async def create_message_execution_async(
+        self,
+        message_id: str,
+        type: MessageExecutionType = MessageExecutionType.DEEP_RESEARCH,
+        seconds_remaining: int | None = None,
+        percentage_completed: int | None = None,
+    ) -> MessageExecution: ...
+
+    @overload
+    async def create_message_execution_async(  # type: ignore
+        self,
+        *,
+        message_id: str,
+        type: MessageExecutionType = MessageExecutionType.DEEP_RESEARCH,
+        seconds_remaining: int | None = None,
+        percentage_completed: int | None = None,
+    ) -> MessageExecution: ...
 
     async def create_message_execution_async(
         self,
@@ -1257,6 +1786,28 @@ class ChatService:
             message_id=message_id,
         )
 
+    @deprecated(
+        "Use keyword only method instead. Positional arguments are deprecated and will be removed on the 1st of January 2026."
+    )
+    @overload
+    def update_message_execution(
+        self,
+        message_id: str,
+        status: MessageExecutionUpdateStatus,
+        seconds_remaining: int | None = None,
+        percentage_completed: int | None = None,
+    ) -> MessageExecution: ...
+
+    @overload
+    def update_message_execution(  # type: ignore
+        self,
+        *,
+        message_id: str,
+        status: MessageExecutionUpdateStatus,
+        seconds_remaining: int | None = None,
+        percentage_completed: int | None = None,
+    ) -> MessageExecution: ...
+
     def update_message_execution(
         self,
         message_id: str,
@@ -1287,6 +1838,28 @@ class ChatService:
             seconds_remaining=seconds_remaining,
             percentage_completed=percentage_completed,
         )
+
+    @deprecated(
+        "Use keyword only method instead. Positional arguments are deprecated and will be removed on the 1st of January 2026."
+    )
+    @overload
+    async def update_message_execution_async(
+        self,
+        message_id: str,
+        status: MessageExecutionUpdateStatus,
+        seconds_remaining: int | None = None,
+        percentage_completed: int | None = None,
+    ) -> MessageExecution: ...
+
+    @overload
+    async def update_message_execution_async(  # type: ignore
+        self,
+        *,
+        message_id: str,
+        status: MessageExecutionUpdateStatus,
+        seconds_remaining: int | None = None,
+        percentage_completed: int | None = None,
+    ) -> MessageExecution: ...
 
     async def update_message_execution_async(
         self,
@@ -1319,6 +1892,26 @@ class ChatService:
             percentage_completed=percentage_completed,
         )
 
+    @deprecated(
+        "Use keyword only method instead. Positional arguments are deprecated and will be removed on the 1st of January 2026."
+    )
+    @overload
+    def create_assistant_message_execution(
+        self,
+        type: MessageExecutionType = MessageExecutionType.DEEP_RESEARCH,
+        seconds_remaining: int | None = None,
+        percentage_completed: int | None = None,
+    ) -> MessageExecution: ...
+
+    @overload
+    def create_assistant_message_execution(  # type: ignore
+        self,
+        *,
+        type: MessageExecutionType = MessageExecutionType.DEEP_RESEARCH,
+        seconds_remaining: int | None = None,
+        percentage_completed: int | None = None,
+    ) -> MessageExecution: ...
+
     def create_assistant_message_execution(
         self,
         type: MessageExecutionType = MessageExecutionType.DEEP_RESEARCH,
@@ -1347,6 +1940,26 @@ class ChatService:
             seconds_remaining=seconds_remaining,
             percentage_completed=percentage_completed,
         )
+
+    @deprecated(
+        "Use keyword only method instead. Positional arguments are deprecated and will be removed on the 1st of January 2026."
+    )
+    @overload
+    async def create_assistant_message_execution_async(
+        self,
+        type: MessageExecutionType = MessageExecutionType.DEEP_RESEARCH,
+        seconds_remaining: int | None = None,
+        percentage_completed: int | None = None,
+    ) -> MessageExecution: ...
+
+    @overload
+    async def create_assistant_message_execution_async(  # type: ignore
+        self,
+        *,
+        type: MessageExecutionType = MessageExecutionType.DEEP_RESEARCH,
+        seconds_remaining: int | None = None,
+        percentage_completed: int | None = None,
+    ) -> MessageExecution: ...
 
     async def create_assistant_message_execution_async(
         self,
@@ -1407,6 +2020,26 @@ class ChatService:
             message_id=self._assistant_message_id
         )
 
+    @deprecated(
+        "Use keyword only method instead. Positional arguments are deprecated and will be removed on the 1st of January 2026."
+    )
+    @overload
+    def update_assistant_message_execution(
+        self,
+        status: MessageExecutionUpdateStatus,
+        seconds_remaining: int | None = None,
+        percentage_completed: int | None = None,
+    ) -> MessageExecution: ...
+
+    @overload
+    def update_assistant_message_execution(  # type: ignore
+        self,
+        *,
+        status: MessageExecutionUpdateStatus,
+        seconds_remaining: int | None = None,
+        percentage_completed: int | None = None,
+    ) -> MessageExecution: ...
+
     def update_assistant_message_execution(
         self,
         status: MessageExecutionUpdateStatus,
@@ -1435,6 +2068,26 @@ class ChatService:
             seconds_remaining=seconds_remaining,
             percentage_completed=percentage_completed,
         )
+
+    @deprecated(
+        "Use keyword only method instead. Positional arguments are deprecated and will be removed on the 1st of January 2026."
+    )
+    @overload
+    async def update_assistant_message_execution_async(
+        self,
+        status: MessageExecutionUpdateStatus,
+        seconds_remaining: int | None = None,
+        percentage_completed: int | None = None,
+    ) -> MessageExecution: ...
+
+    @overload
+    async def update_assistant_message_execution_async(  # type: ignore
+        self,
+        *,
+        status: MessageExecutionUpdateStatus,
+        seconds_remaining: int | None = None,
+        percentage_completed: int | None = None,
+    ) -> MessageExecution: ...
 
     async def update_assistant_message_execution_async(
         self,
@@ -1490,6 +2143,38 @@ class ChatService:
             other_options=other_options,
         )
 
+    @deprecated(
+        "Use keyword only method instead. Positional arguments are deprecated and will be removed on the 1st of January 2026."
+    )
+    @overload
+    def complete_with_references(
+        self,
+        messages: LanguageModelMessages | list[ChatCompletionMessageParam],
+        model_name: LanguageModelName | str,
+        content_chunks: list[ContentChunk] | None = None,
+        debug_info: dict | None = None,
+        temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
+        timeout: int = DEFAULT_COMPLETE_TIMEOUT,
+        tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
+        start_text: str | None = None,
+        other_options: dict | None = None,
+    ) -> LanguageModelStreamResponse: ...
+
+    @overload
+    def complete_with_references(  # type: ignore
+        self,
+        *,
+        messages: LanguageModelMessages | list[ChatCompletionMessageParam],
+        model_name: LanguageModelName | str,
+        content_chunks: list[ContentChunk] | None = None,
+        debug_info: dict | None = None,
+        temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
+        timeout: int = DEFAULT_COMPLETE_TIMEOUT,
+        tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
+        start_text: str | None = None,
+        other_options: dict | None = None,
+    ) -> LanguageModelStreamResponse: ...
+
     def complete_with_references(
         self,
         messages: LanguageModelMessages | list[ChatCompletionMessageParam],
@@ -1520,6 +2205,38 @@ class ChatService:
             start_text=start_text,
             other_options=other_options,
         )
+
+    @deprecated(
+        "Use keyword only method instead. Positional arguments are deprecated and will be removed on the 1st of January 2026."
+    )
+    @overload
+    def complete(
+        self,
+        messages: LanguageModelMessages | list[ChatCompletionMessageParam],
+        model_name: LanguageModelName | str,
+        content_chunks: list[ContentChunk] | None = None,
+        debug_info: dict | None = None,
+        temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
+        timeout: int = DEFAULT_COMPLETE_TIMEOUT,
+        tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
+        start_text: str | None = None,
+        other_options: dict | None = None,
+    ) -> LanguageModelResponse: ...
+
+    @overload
+    def complete(  # type: ignore
+        self,
+        *,
+        messages: LanguageModelMessages | list[ChatCompletionMessageParam],
+        model_name: LanguageModelName | str,
+        content_chunks: list[ContentChunk] | None = None,
+        debug_info: dict | None = None,
+        temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
+        timeout: int = DEFAULT_COMPLETE_TIMEOUT,
+        tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
+        start_text: str | None = None,
+        other_options: dict | None = None,
+    ) -> LanguageModelResponse: ...
 
     def complete(
         self,
@@ -1573,6 +2290,38 @@ class ChatService:
             other_options=other_options,
         )
 
+    @deprecated(
+        "Use keyword only method instead. Positional arguments are deprecated and will be removed on the 1st of January 2026."
+    )
+    @overload
+    async def complete_with_references_async(
+        self,
+        messages: LanguageModelMessages | list[ChatCompletionMessageParam],
+        model_name: LanguageModelName | str,
+        content_chunks: list[ContentChunk] | None = None,
+        debug_info: dict | None = None,
+        temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
+        timeout: int = DEFAULT_COMPLETE_TIMEOUT,
+        tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
+        start_text: str | None = None,
+        other_options: dict | None = None,
+    ) -> LanguageModelStreamResponse: ...
+
+    @overload
+    async def complete_with_references_async(  # type: ignore
+        self,
+        *,
+        messages: LanguageModelMessages | list[ChatCompletionMessageParam],
+        model_name: LanguageModelName | str,
+        content_chunks: list[ContentChunk] | None = None,
+        debug_info: dict | None = None,
+        temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
+        timeout: int = DEFAULT_COMPLETE_TIMEOUT,
+        tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
+        start_text: str | None = None,
+        other_options: dict | None = None,
+    ) -> LanguageModelStreamResponse: ...
+
     async def complete_with_references_async(
         self,
         messages: LanguageModelMessages | list[ChatCompletionMessageParam],
@@ -1602,6 +2351,38 @@ class ChatService:
             start_text=start_text,
             other_options=other_options,
         )
+
+    @deprecated(
+        "Use keyword only method instead. Positional arguments are deprecated and will be removed on the 1st of January 2026."
+    )
+    @overload
+    async def complete_async(
+        self,
+        messages: LanguageModelMessages | list[ChatCompletionMessageParam],
+        model_name: LanguageModelName | str,
+        content_chunks: list[ContentChunk] | None,
+        debug_info: dict | None = None,
+        temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
+        timeout: int = DEFAULT_COMPLETE_TIMEOUT,
+        tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
+        start_text: str | None = None,
+        other_options: dict | None = None,
+    ) -> LanguageModelResponse: ...
+
+    @overload
+    async def complete_async(  # type: ignore
+        self,
+        *,
+        messages: LanguageModelMessages | list[ChatCompletionMessageParam],
+        model_name: LanguageModelName | str,
+        content_chunks: list[ContentChunk] | None,
+        debug_info: dict | None = None,
+        temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
+        timeout: int = DEFAULT_COMPLETE_TIMEOUT,
+        tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
+        start_text: str | None = None,
+        other_options: dict | None = None,
+    ) -> LanguageModelResponse: ...
 
     async def complete_async(
         self,

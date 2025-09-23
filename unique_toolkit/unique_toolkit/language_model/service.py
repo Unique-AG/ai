@@ -222,6 +222,36 @@ class LanguageModelService:
         """
         self._assistant_id = value
 
+    @deprecated(
+        "Use keyword only method instead. Positional arguments are deprecated and will be removed on the 1st of January 2026."
+    )
+    @overload
+    def complete(
+        self,
+        messages: LanguageModelMessages,
+        model_name: LanguageModelName | str,
+        temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
+        timeout: int = DEFAULT_COMPLETE_TIMEOUT,
+        tools: Optional[list[LanguageModelTool | LanguageModelToolDescription]] = None,
+        structured_output_model: Optional[Type[BaseModel]] = None,
+        structured_output_enforce_schema: bool = False,
+        other_options: Optional[dict] = None,
+    ) -> LanguageModelResponse: ...
+
+    @overload
+    def complete(  # type: ignore
+        self,
+        *,
+        messages: LanguageModelMessages,
+        model_name: LanguageModelName | str,
+        temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
+        timeout: int = DEFAULT_COMPLETE_TIMEOUT,
+        tools: Optional[list[LanguageModelTool | LanguageModelToolDescription]] = None,
+        structured_output_model: Optional[Type[BaseModel]] = None,
+        structured_output_enforce_schema: bool = False,
+        other_options: Optional[dict] = None,
+    ) -> LanguageModelResponse: ...
+
     def complete(
         self,
         messages: LanguageModelMessages,
@@ -248,6 +278,36 @@ class LanguageModelService:
             structured_output_model=structured_output_model,
             structured_output_enforce_schema=structured_output_enforce_schema,
         )
+
+    @deprecated(
+        "Use keyword only method instead. Positional arguments are deprecated and will be removed on the 1st of January 2026."
+    )
+    @overload
+    async def complete_async(
+        self,
+        messages: LanguageModelMessages,
+        model_name: LanguageModelName | str,
+        temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
+        timeout: int = DEFAULT_COMPLETE_TIMEOUT,
+        tools: Optional[list[LanguageModelTool | LanguageModelToolDescription]] = None,
+        structured_output_model: Optional[Type[BaseModel]] = None,
+        structured_output_enforce_schema: bool = False,
+        other_options: Optional[dict] = None,
+    ) -> LanguageModelResponse: ...
+
+    @overload
+    async def complete_async(  # type: ignore
+        self,
+        *,
+        messages: LanguageModelMessages,
+        model_name: LanguageModelName | str,
+        temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
+        timeout: int = DEFAULT_COMPLETE_TIMEOUT,
+        tools: Optional[list[LanguageModelTool | LanguageModelToolDescription]] = None,
+        structured_output_model: Optional[Type[BaseModel]] = None,
+        structured_output_enforce_schema: bool = False,
+        other_options: Optional[dict] = None,
+    ) -> LanguageModelResponse: ...
 
     async def complete_async(
         self,
@@ -309,6 +369,38 @@ class LanguageModelService:
             structured_output_enforce_schema=structured_output_enforce_schema,
         )
 
+    @deprecated(
+        "Use keyword only method instead. Positional arguments are deprecated and will be removed on the 1st of January 2026."
+    )
+    @overload
+    def complete_with_references(
+        self,
+        messages: LanguageModelMessages,
+        model_name: LanguageModelName | str,
+        content_chunks: list[ContentChunk] | None = None,
+        debug_info: dict = {},
+        temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
+        timeout: int = DEFAULT_COMPLETE_TIMEOUT,
+        tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
+        start_text: str | None = None,
+        other_options: dict[str, Any] | None = None,
+    ) -> LanguageModelStreamResponse: ...
+
+    @overload
+    def complete_with_references(  # type: ignore
+        self,
+        *,
+        messages: LanguageModelMessages,
+        model_name: LanguageModelName | str,
+        content_chunks: list[ContentChunk] | None = None,
+        debug_info: dict = {},
+        temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
+        timeout: int = DEFAULT_COMPLETE_TIMEOUT,
+        tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
+        start_text: str | None = None,
+        other_options: dict[str, Any] | None = None,
+    ) -> LanguageModelStreamResponse: ...
+
     def complete_with_references(
         self,
         messages: LanguageModelMessages,
@@ -333,6 +425,38 @@ class LanguageModelService:
             start_text=start_text,
         )
 
+    @deprecated(
+        "Use keyword only method instead. Positional arguments are deprecated and will be removed on the 1st of January 2026."
+    )
+    @overload
+    async def complete_with_references_async(
+        self,
+        messages: LanguageModelMessages,
+        model_name: LanguageModelName | str,
+        content_chunks: list[ContentChunk] | None = None,
+        debug_info: dict = {},
+        temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
+        timeout: int = DEFAULT_COMPLETE_TIMEOUT,
+        tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
+        start_text: str | None = None,
+        other_options: dict[str, Any] | None = None,
+    ) -> LanguageModelStreamResponse: ...
+
+    @overload
+    async def complete_with_references_async(  # type: ignore
+        self,
+        *,
+        messages: LanguageModelMessages,
+        model_name: LanguageModelName | str,
+        content_chunks: list[ContentChunk] | None = None,
+        debug_info: dict = {},
+        temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
+        timeout: int = DEFAULT_COMPLETE_TIMEOUT,
+        tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
+        start_text: str | None = None,
+        other_options: dict[str, Any] | None = None,
+    ) -> LanguageModelStreamResponse: ...
+
     async def complete_with_references_async(
         self,
         messages: LanguageModelMessages,
@@ -346,6 +470,7 @@ class LanguageModelService:
         other_options: dict[str, Any] | None = None,
     ) -> LanguageModelStreamResponse:
         return await complete_with_references_async(
+            user_id=self._user_id,
             company_id=self._company_id,
             messages=messages,
             model_name=model_name,
