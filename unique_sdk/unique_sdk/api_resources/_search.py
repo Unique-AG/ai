@@ -1,4 +1,14 @@
-from typing import Any, ClassVar, Dict, Literal, NotRequired, Optional, Unpack, cast
+from typing import (
+    Any,
+    ClassVar,
+    Dict,
+    List,
+    Literal,
+    Optional,
+    cast,
+)
+
+from typing_extensions import NotRequired, Unpack
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
@@ -12,13 +22,13 @@ class Search(APIResource["Search"]):
         searchString: str
         searchType: Literal["VECTOR", "COMBINED"]
         language: NotRequired[Optional[str]]
-        reranker: NotRequired[Optional[dict[str, Any]]]
-        scopeIds: NotRequired[Optional[list[str]]]
+        reranker: NotRequired[Optional[Dict[str, Any]]]
+        scopeIds: NotRequired[Optional[List[str]]]
         chatOnly: NotRequired[Optional[bool]]
         limit: NotRequired[Optional[int]]
         page: NotRequired[Optional[int]]
-        metaDataFilter: NotRequired[Optional[dict[str, Any]]]
-        contentIds: NotRequired[Optional[list[str]]]
+        metaDataFilter: NotRequired[Optional[Dict[str, Any]]]
+        contentIds: NotRequired[Optional[List[str]]]
         scoreThreshold: NotRequired[Optional[float]]
 
     id: str
@@ -37,9 +47,9 @@ class Search(APIResource["Search"]):
     @classmethod
     def create(
         cls, user_id: str, company_id: str, **params: Unpack["Search.CreateParams"]
-    ) -> list["Search"]:
+    ) -> List["Search"]:
         return cast(
-            list["Search"],
+            List["Search"],
             cls._static_request(
                 "post",
                 "/search/search",
@@ -52,9 +62,9 @@ class Search(APIResource["Search"]):
     @classmethod
     async def create_async(
         cls, user_id: str, company_id: str, **params: Unpack["Search.CreateParams"]
-    ) -> list["Search"]:
+    ) -> List["Search"]:
         return cast(
-            list["Search"],
+            List["Search"],
             await cls._static_request_async(
                 "post",
                 "/search/search",

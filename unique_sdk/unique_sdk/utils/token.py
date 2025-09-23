@@ -1,9 +1,11 @@
+from typing import List
+
 import tiktoken
 
 
 def pick_search_results_for_token_window(
     searchResults, tokenLimit, encoding_model="cl100k_base"
-) -> list[str]:
+) -> List[str]:
     """
     Selects and returns a list of search results that fit within a specified token limit.
 

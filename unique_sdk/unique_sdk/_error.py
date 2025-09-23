@@ -9,7 +9,7 @@ class UniqueError(Exception):
     headers: Optional[Dict[str, str]]
     code: Optional[str]
     request_id: Optional[str]
-    original_error: Optional[Exception | str]
+    original_error: Optional[Union[Exception, str]]
 
     def __init__(
         self,
@@ -19,7 +19,7 @@ class UniqueError(Exception):
         json_body: Optional[object] = None,
         headers: Optional[Dict[str, str]] = None,
         code: Optional[str] = None,
-        original_error: Optional[Exception | str] = None,
+        original_error: Optional[Union[Exception, str]] = None,
     ):
         super(UniqueError, self).__init__(message)
 

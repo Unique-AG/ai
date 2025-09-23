@@ -1,5 +1,5 @@
 import asyncio
-from typing import List, Literal
+from typing import Dict, List, Literal, Optional
 
 from unique_sdk.api_resources._content import Content
 from unique_sdk.api_resources._message import Message
@@ -12,9 +12,9 @@ async def send_message_and_wait_for_completion(
     company_id: str,
     assistant_id: str,
     text: str,
-    tool_choices: List[str] | None = None,
-    scope_rules: dict | None = None,
-    chat_id: str | None = None,
+    tool_choices: Optional[List[str]] = None,
+    scope_rules: Optional[Dict] = None,
+    chat_id: Optional[str] = None,
     poll_interval: float = 1.0,
     max_wait: float = 60.0,
     stop_condition: Literal["stoppedStreamingAt", "completedAt"] = "stoppedStreamingAt",
@@ -152,7 +152,7 @@ async def wait_for_ingestion_completion(
     user_id: str,
     company_id: str,
     content_id: str,
-    chat_id: str | None = None,
+    chat_id: Optional[str] = None,
     poll_interval: float = 1.0,
     max_wait: float = 60.0,
 ):

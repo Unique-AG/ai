@@ -1,7 +1,8 @@
 import re
+from typing import List
 
 
-def sort_sources(searchContext) -> list[str]:
+def sort_sources(searchContext) -> List[str]:
     """
     Sorts the search results based on their 'order' in the original document.
     This function sorts the search results based on their 'order' in ascending order.
@@ -34,7 +35,7 @@ def sort_sources(searchContext) -> list[str]:
     return sortedSources
 
 
-def merge_sources(searchContext) -> list[str]:
+def merge_sources(searchContext) -> List[str]:
     """
     Merges multiple search results based on their 'id', removing redundant document and info markers.
 
@@ -94,7 +95,7 @@ def generate_pages_postfix(sources) -> str:
     - string: A string of page numbers separated by commas, prefixed with " : ".
     """
 
-    def gen_all_numbers_in_between(start, end) -> list[int]:
+    def gen_all_numbers_in_between(start, end) -> List[int]:
         """
         Generates a list of all numbers between start and end, inclusive.
         If start or end is -1, it behaves as follows:

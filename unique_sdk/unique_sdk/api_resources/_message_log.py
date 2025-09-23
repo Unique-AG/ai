@@ -1,4 +1,13 @@
-from typing import ClassVar, Literal, NotRequired, TypedDict, Unpack, cast
+from typing import (
+    ClassVar,
+    Dict,
+    List,
+    Literal,
+    Optional,
+    cast,
+)
+
+from typing_extensions import NotRequired, TypedDict, Unpack
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
@@ -10,9 +19,9 @@ class MessageLog(APIResource["MessageLog"]):
 
     class Reference(TypedDict):
         name: str
-        url: str | None
+        url: Optional[str]
         sequenceNumber: int
-        originalIndex: list[int] | None
+        originalIndex: Optional[List[int]]
         sourceId: str
         source: str
 
@@ -25,31 +34,31 @@ class MessageLog(APIResource["MessageLog"]):
         text: str
         status: Literal["RUNNING", "COMPLETED", "FAILED"]
         order: int
-        details: NotRequired[dict | None]
-        uncitedReferences: NotRequired[dict | None]
-        references: NotRequired[list["MessageLog.Reference"] | None]
+        details: NotRequired[Optional[Dict]]
+        uncitedReferences: NotRequired[Optional[Dict]]
+        references: NotRequired[Optional[List["MessageLog.Reference"]]]
 
     class UpdateMessageLogParams(RequestOptions):
         """
         Parameters for updating a message log.
         """
 
-        text: NotRequired[str | None]
-        status: NotRequired[Literal["RUNNING", "COMPLETED", "FAILED"] | None]
+        text: NotRequired[Optional[str]]
+        status: NotRequired[Optional[Literal["RUNNING", "COMPLETED", "FAILED"]]]
         order: int
-        details: NotRequired[dict | None]
-        uncitedReferences: NotRequired[dict | None]
-        references: NotRequired[list["MessageLog.Reference"] | None]
+        details: NotRequired[Optional[Dict]]
+        uncitedReferences: NotRequired[Optional[Dict]]
+        references: NotRequired[Optional[List["MessageLog.Reference"]]]
 
-    messageLogId: str | None
-    messageId: str | None
+    messageLogId: Optional[str]
+    messageId: Optional[str]
     status: Literal["RUNNING", "COMPLETED", "FAILED"]
-    text: str | None
+    text: Optional[str]
     details: dict
     uncitedReferences: dict
     order: int
     createdAt: str
-    updatedAt: str | None
+    updatedAt: Optional[str]
 
     @classmethod
     def create(

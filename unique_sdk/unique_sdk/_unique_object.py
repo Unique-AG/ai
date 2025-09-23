@@ -8,13 +8,14 @@ from typing import (
     Literal,
     Mapping,
     Optional,
-    Self,
     Set,
     Tuple,
     Type,
     Union,
     cast,
 )
+
+from typing_extensions import Self
 
 import unique_sdk
 from unique_sdk import _util

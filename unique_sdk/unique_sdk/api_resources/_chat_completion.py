@@ -2,12 +2,11 @@ from typing import (
     ClassVar,
     List,
     Literal,
-    NotRequired,
     Optional,
-    TypedDict,
-    Unpack,
     cast,
 )
+
+from typing_extensions import NotRequired, TypedDict, Unpack
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
@@ -54,7 +53,7 @@ class ChatCompletion(APIResource["ChatCompletion"]):
     def create(
         cls,
         company_id: str,
-        user_id: str | None = None,
+        user_id: Optional[str] = None,
         **params: Unpack["ChatCompletion.CreateParams"],
     ) -> "ChatCompletion":
         return cast(
@@ -72,7 +71,7 @@ class ChatCompletion(APIResource["ChatCompletion"]):
     async def create_async(
         cls,
         company_id: str,
-        user_id: str | None = None,
+        user_id: Optional[str] = None,
         **params: Unpack["ChatCompletion.CreateParams"],
     ) -> "ChatCompletion":
         return cast(
