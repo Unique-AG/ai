@@ -40,7 +40,7 @@ class TestRJSFMetaTag:
 
     def test_textfield_basic(self):
         """Test basic textfield creation."""
-        tag = RJSFMetaTag.textfield()
+        tag = RJSFMetaTag.StringWidget.textfield()
         expected = {
             "ui:widget": "text",
             "ui:disabled": False,
@@ -51,7 +51,7 @@ class TestRJSFMetaTag:
 
     def test_textfield_with_options(self):
         """Test textfield with various options."""
-        tag = RJSFMetaTag.textfield(
+        tag = RJSFMetaTag.StringWidget.textfield(
             placeholder="Enter name",
             disabled=True,
             readonly=True,
@@ -76,7 +76,9 @@ class TestRJSFMetaTag:
 
     def test_textfield_filters_none_values(self):
         """Test that textfield filters out None values."""
-        tag = RJSFMetaTag.textfield(placeholder="test", title=None, description=None)
+        tag = RJSFMetaTag.StringWidget.textfield(
+            placeholder="test", title=None, description=None
+        )
         expected = {
             "ui:widget": "text",
             "ui:placeholder": "test",
@@ -88,13 +90,13 @@ class TestRJSFMetaTag:
 
     def test_textarea_basic(self):
         """Test basic textarea creation."""
-        tag = RJSFMetaTag.textarea()
+        tag = RJSFMetaTag.StringWidget.textarea()
         expected = {"ui:widget": "textarea", "ui:disabled": False, "ui:readonly": False}
         assert tag.attrs == expected
 
     def test_textarea_with_rows(self):
         """Test textarea with rows option."""
-        tag = RJSFMetaTag.textarea(rows=5, placeholder="Enter description")
+        tag = RJSFMetaTag.StringWidget.textarea(rows=5, placeholder="Enter description")
         expected = {
             "ui:widget": "textarea",
             "ui:placeholder": "Enter description",
@@ -106,15 +108,17 @@ class TestRJSFMetaTag:
 
     def test_number_basic(self):
         """Test basic number field creation."""
-        tag = RJSFMetaTag.number()
-        expected = {"ui:widget": "number", "ui:disabled": False, "ui:readonly": False}
+        tag = RJSFMetaTag.NumberWidget.updown()
+        expected = {"ui:widget": "updown", "ui:disabled": False, "ui:readonly": False}
         assert tag.attrs == expected
 
     def test_number_with_constraints(self):
         """Test number field with min/max/step constraints."""
-        tag = RJSFMetaTag.number(min=0, max=100, step=5, placeholder="Enter value")
+        tag = RJSFMetaTag.NumberWidget.updown(
+            min=0, max=100, step=5, placeholder="Enter value"
+        )
         expected = {
-            "ui:widget": "number",
+            "ui:widget": "updown",
             "ui:placeholder": "Enter value",
             "ui:disabled": False,
             "ui:readonly": False,
@@ -124,12 +128,12 @@ class TestRJSFMetaTag:
 
     def test_range_basic(self):
         """Test basic range slider creation."""
-        tag = RJSFMetaTag.range()
+        tag = RJSFMetaTag.NumberWidget.range()
         assert tag.attrs == {"ui:widget": "range"}
 
     def test_range_with_constraints(self):
         """Test range slider with constraints."""
-        tag = RJSFMetaTag.range(min=0, max=100, step=10, disabled=True)
+        tag = RJSFMetaTag.NumberWidget.range(min=0, max=100, step=10, disabled=True)
         expected = {
             "ui:widget": "range",
             "ui:disabled": "true",
@@ -139,79 +143,79 @@ class TestRJSFMetaTag:
 
     def test_select_basic(self):
         """Test basic select dropdown creation."""
-        tag = RJSFMetaTag.select()
+        tag = RJSFMetaTag.BooleanWidget.select()
         expected = {"ui:widget": "select", "ui:disabled": False}
         assert tag.attrs == expected
 
     def test_checkbox_basic(self):
         """Test basic checkbox creation."""
-        tag = RJSFMetaTag.checkbox()
+        tag = RJSFMetaTag.BooleanWidget.checkbox()
         expected = {"ui:widget": "checkbox", "ui:disabled": False}
         assert tag.attrs == expected
 
     def test_checkboxes_basic(self):
         """Test basic checkboxes creation."""
-        tag = RJSFMetaTag.checkboxes()
+        tag = RJSFMetaTag.ArrayWidget.checkboxes()
         expected = {"ui:widget": "checkboxes", "ui:disabled": False}
         assert tag.attrs == expected
 
     def test_radio_basic(self):
         """Test basic radio buttons creation."""
-        tag = RJSFMetaTag.radio()
+        tag = RJSFMetaTag.BooleanWidget.radio()
         expected = {"ui:widget": "radio", "ui:disabled": False}
         assert tag.attrs == expected
 
     def test_password_basic(self):
         """Test basic password field creation."""
-        tag = RJSFMetaTag.password()
+        tag = RJSFMetaTag.StringWidget.password()
         expected = {"ui:widget": "password", "ui:disabled": False, "ui:readonly": False}
         assert tag.attrs == expected
 
     def test_email_basic(self):
         """Test basic email field creation."""
-        tag = RJSFMetaTag.email()
+        tag = RJSFMetaTag.StringWidget.email()
         expected = {"ui:widget": "email", "ui:disabled": False, "ui:readonly": False}
         assert tag.attrs == expected
 
     def test_url_basic(self):
         """Test basic URL field creation."""
-        tag = RJSFMetaTag.url()
+        tag = RJSFMetaTag.StringWidget.url()
         expected = {"ui:widget": "uri", "ui:disabled": False, "ui:readonly": False}
         assert tag.attrs == expected
 
     def test_date_basic(self):
         """Test basic date field creation."""
-        tag = RJSFMetaTag.date()
+        tag = RJSFMetaTag.StringWidget.date()
         expected = {"ui:widget": "date", "ui:disabled": False}
         assert tag.attrs == expected
 
     def test_datetime_basic(self):
         """Test basic datetime field creation."""
-        tag = RJSFMetaTag.datetime()
+        tag = RJSFMetaTag.StringWidget.datetime()
         expected = {"ui:widget": "datetime", "ui:disabled": False}
         assert tag.attrs == expected
 
     def test_time_basic(self):
         """Test basic time field creation."""
-        tag = RJSFMetaTag.time()
+        tag = RJSFMetaTag.StringWidget.time()
         expected = {"ui:widget": "time", "ui:disabled": False}
         assert tag.attrs == expected
 
     def test_color_basic(self):
         """Test basic color picker creation."""
-        tag = RJSFMetaTag.color()
+        tag = RJSFMetaTag.StringWidget.color()
         expected = {"ui:widget": "color", "ui:disabled": False}
         assert tag.attrs == expected
 
     def test_file_basic(self):
         """Test basic file upload creation."""
-        tag = RJSFMetaTag.file()
+        tag = RJSFMetaTag.StringWidget.file()
         expected = {"ui:widget": "file", "ui:disabled": False}
         assert tag.attrs == expected
 
     def test_file_with_accept(self):
         """Test file upload with accept filter."""
-        tag = RJSFMetaTag.file(accept=".pdf,.doc,.docx")
+        tag = RJSFMetaTag.StringWidget.file(accept=".pdf,.doc,.docx")
         expected = {
             "ui:widget": "file",
             "ui:disabled": False,
@@ -221,58 +225,52 @@ class TestRJSFMetaTag:
 
     def test_array_basic(self):
         """Test basic array field creation."""
-        tag = RJSFMetaTag.array()
-        expected = {"ui:addable": True, "ui:removable": True, "ui:moveable": True}
+        tag = RJSFMetaTag.ArrayWidget.checkboxes()
+        expected = {"ui:widget": "checkboxes", "ui:disabled": False}
         assert tag.attrs == expected
 
     def test_array_with_options(self):
         """Test array field with custom options."""
-        tag = RJSFMetaTag.array(
+        tag = RJSFMetaTag.ArrayWidget.checkboxes(
             title="Items",
             description="Add items to the list",
-            addable=False,
-            removable=False,
-            moveable=False,
+            disabled=False,
         )
         expected = {
+            "ui:widget": "checkboxes",
             "ui:title": "Items",
             "ui:description": "Add items to the list",
-            "ui:addable": False,
-            "ui:removable": False,
-            "ui:moveable": False,
+            "ui:disabled": False,
         }
         assert tag.attrs == expected
 
     def test_object_basic(self):
         """Test basic object field creation."""
-        tag = RJSFMetaTag.object()
-        expected = {"ui:expandable": False, "ui:collapsible": False}
+        tag = RJSFMetaTag.ObjectWidget.expandable()
+        expected = {"ui:expandable": True}
         assert tag.attrs == expected
 
     def test_object_with_options(self):
         """Test object field with options."""
-        tag = RJSFMetaTag.object(
+        tag = RJSFMetaTag.ObjectWidget.expandable(
             title="Address",
             description="Enter address details",
-            expandable=True,
-            collapsible=True,
         )
         expected = {
+            "ui:expandable": True,
             "ui:title": "Address",
             "ui:description": "Enter address details",
-            "ui:expandable": True,
-            "ui:collapsible": True,
         }
         assert tag.attrs == expected
 
     def test_custom_field_basic(self):
         """Test basic custom field creation."""
-        tag = RJSFMetaTag.custom_field("MyCustomField")
+        tag = RJSFMetaTag.SpecialWidget.custom_field("MyCustomField")
         assert tag.attrs == {"ui:field": "MyCustomField"}
 
     def test_custom_field_with_options(self):
         """Test custom field with additional options."""
-        tag = RJSFMetaTag.custom_field(
+        tag = RJSFMetaTag.SpecialWidget.custom_field(
             "MyCustomField",
             title="Custom Field",
             description="This is a custom field",
@@ -292,7 +290,7 @@ class TestHelperFunctions:
 
     def test_strip_annotated_with_annotated(self):
         """Test _strip_annotated with Annotated type."""
-        tag = RJSFMetaTag.textfield(placeholder="test")
+        tag = RJSFMetaTag.StringWidget.textfield(placeholder="test")
         ann = Annotated[str, tag]
         base, extras = _strip_annotated(ann)
         assert base is str
@@ -307,19 +305,19 @@ class TestHelperFunctions:
 
     def test_collect_metatags(self):
         """Test _collect_metatags function."""
-        tag1 = RJSFMetaTag.textfield(placeholder="test1")
-        tag2 = RJSFMetaTag.number(min=0, max=100)
+        tag1 = RJSFMetaTag.StringWidget.textfield(placeholder="test1")
+        tag2 = RJSFMetaTag.NumberWidget.updown(min=0, max=100)
         extras = [tag1, "not_a_tag", tag2]
 
         result = _collect_metatags(extras)
         # Should merge both tags, with the last one taking precedence for overlapping keys
         expected = {
-            "ui:widget": "number",  # Last tag overwrites
+            "ui:widget": "updown",  # Last tag overwrites
             "ui:placeholder": "test1",
             "ui:options": {"min": 0, "max": 100},
             "ui:disabled": False,
             "ui:readonly": False,
-            "ui:autofocus": False,
+            "ui:autofocus": False,  # From first tag
         }
         assert result == expected
 
@@ -347,7 +345,7 @@ class TestHelperFunctions:
 
     def test_walk_annotated_chain_single(self):
         """Test _walk_annotated_chain with single Annotated."""
-        tag = RJSFMetaTag.textfield(placeholder="test")
+        tag = RJSFMetaTag.StringWidget.textfield(placeholder="test")
         ann = Annotated[str, tag]
         base, meta = _walk_annotated_chain(ann)
         assert base is str
@@ -355,8 +353,8 @@ class TestHelperFunctions:
 
     def test_walk_annotated_chain_nested(self):
         """Test _walk_annotated_chain with nested Annotated."""
-        tag1 = RJSFMetaTag.textfield(placeholder="test")
-        tag2 = RJSFMetaTag.number(min=0)
+        tag1 = RJSFMetaTag.StringWidget.textfield(placeholder="test")
+        tag2 = RJSFMetaTag.NumberWidget.updown(min=0)
         ann = Annotated[Annotated[str, tag1], tag2]
         base, meta = _walk_annotated_chain(ann)
         assert base is str
@@ -407,8 +405,10 @@ class TestUISchemaForModel:
         """Test ui_schema_for_model with annotated fields."""
 
         class AnnotatedModel(BaseModel):
-            name: Annotated[str, RJSFMetaTag.textfield(placeholder="Enter name")]
-            age: Annotated[int, RJSFMetaTag.number(min=0, max=120)]
+            name: Annotated[
+                str, RJSFMetaTag.StringWidget.textfield(placeholder="Enter name")
+            ]
+            age: Annotated[int, RJSFMetaTag.NumberWidget.updown(min=0, max=120)]
 
         schema = ui_schema_for_model(AnnotatedModel)
         expected = {
@@ -420,7 +420,7 @@ class TestUISchemaForModel:
                 "ui:autofocus": False,
             },
             "age": {
-                "ui:widget": "number",
+                "ui:widget": "updown",
                 "ui:options": {"min": 0, "max": 120},
                 "ui:disabled": False,
                 "ui:readonly": False,
@@ -432,12 +432,16 @@ class TestUISchemaForModel:
         """Test ui_schema_for_model with nested models."""
 
         class Address(BaseModel):
-            street: Annotated[str, RJSFMetaTag.textfield(placeholder="Street")]
-            city: Annotated[str, RJSFMetaTag.textfield(placeholder="City")]
+            street: Annotated[
+                str, RJSFMetaTag.StringWidget.textfield(placeholder="Street")
+            ]
+            city: Annotated[str, RJSFMetaTag.StringWidget.textfield(placeholder="City")]
 
         class Person(BaseModel):
-            name: Annotated[str, RJSFMetaTag.textfield(placeholder="Name")]
-            address: Annotated[Address, RJSFMetaTag.object(title="Address")]
+            name: Annotated[str, RJSFMetaTag.StringWidget.textfield(placeholder="Name")]
+            address: Annotated[
+                Address, RJSFMetaTag.ObjectWidget.expandable(title="Address")
+            ]
 
         schema = ui_schema_for_model(Person)
         expected = {
@@ -450,8 +454,7 @@ class TestUISchemaForModel:
             },
             "address": {
                 "ui:title": "Address",
-                "ui:expandable": False,
-                "ui:collapsible": False,
+                "ui:expandable": True,
                 "street": {
                     "ui:widget": "text",
                     "ui:placeholder": "Street",
@@ -474,26 +477,26 @@ class TestUISchemaForModel:
         """Test ui_schema_for_model with list fields."""
 
         class ListModel(BaseModel):
-            items: Annotated[list[str], RJSFMetaTag.array(title="Items")]
+            items: Annotated[
+                list[str], RJSFMetaTag.ArrayWidget.checkboxes(title="Items")
+            ]
             tags: Annotated[
-                list[Annotated[str, RJSFMetaTag.textfield()]],
-                RJSFMetaTag.array(title="Tags"),
+                list[Annotated[str, RJSFMetaTag.StringWidget.textfield()]],
+                RJSFMetaTag.ArrayWidget.checkboxes(title="Tags"),
             ]
 
         schema = ui_schema_for_model(ListModel)
         expected = {
             "items": {
                 "ui:title": "Items",
-                "ui:addable": True,
-                "ui:removable": True,
-                "ui:moveable": True,
+                "ui:widget": "checkboxes",
+                "ui:disabled": False,
                 "items": {},
             },
             "tags": {
                 "ui:title": "Tags",
-                "ui:addable": True,
-                "ui:removable": True,
-                "ui:moveable": True,
+                "ui:widget": "checkboxes",
+                "ui:disabled": False,
                 "items": {
                     "ui:widget": "text",
                     "ui:disabled": False,
@@ -508,24 +511,24 @@ class TestUISchemaForModel:
         """Test ui_schema_for_model with dict fields."""
 
         class DictModel(BaseModel):
-            prefs: Annotated[dict[str, int], RJSFMetaTag.object(title="Preferences")]
+            prefs: Annotated[
+                dict[str, int], RJSFMetaTag.ObjectWidget.expandable(title="Preferences")
+            ]
             settings: Annotated[
-                dict[str, Annotated[str, RJSFMetaTag.textfield()]],
-                RJSFMetaTag.object(title="Settings"),
+                dict[str, Annotated[str, RJSFMetaTag.StringWidget.textfield()]],
+                RJSFMetaTag.ObjectWidget.expandable(title="Settings"),
             ]
 
         schema = ui_schema_for_model(DictModel)
         expected = {
             "prefs": {
                 "ui:title": "Preferences",
-                "ui:expandable": False,
-                "ui:collapsible": False,
+                "ui:expandable": True,
                 "additionalProperties": {},
             },
             "settings": {
                 "ui:title": "Settings",
-                "ui:expandable": False,
-                "ui:collapsible": False,
+                "ui:expandable": True,
                 "additionalProperties": {
                     "ui:widget": "text",
                     "ui:disabled": False,
@@ -540,9 +543,10 @@ class TestUISchemaForModel:
         """Test ui_schema_for_model with Union fields."""
 
         class UnionModel(BaseModel):
-            value: Annotated[Union[str, int], RJSFMetaTag.select()]
+            value: Annotated[Union[str, int], RJSFMetaTag.BooleanWidget.select()]
             alt: Annotated[
-                Union[str, Annotated[int, RJSFMetaTag.number()]], RJSFMetaTag.radio()
+                Union[str, Annotated[int, RJSFMetaTag.NumberWidget.updown()]],
+                RJSFMetaTag.BooleanWidget.radio(),
             ]
 
         schema = ui_schema_for_model(UnionModel)
@@ -553,7 +557,7 @@ class TestUISchemaForModel:
                 "ui:disabled": False,
                 "anyOf": [
                     {},
-                    {"ui:widget": "number", "ui:disabled": False, "ui:readonly": False},
+                    {"ui:widget": "updown", "ui:disabled": False, "ui:readonly": False},
                 ],
             },
         }
@@ -563,8 +567,10 @@ class TestUISchemaForModel:
         """Test ui_schema_for_model with Optional fields."""
 
         class OptionalModel(BaseModel):
-            name: Annotated[str, RJSFMetaTag.textfield()]
-            optional_field: Annotated[Union[str, None], RJSFMetaTag.textfield()]
+            name: Annotated[str, RJSFMetaTag.StringWidget.textfield()]
+            optional_field: Annotated[
+                Union[str, None], RJSFMetaTag.StringWidget.textfield()
+            ]
 
         schema = ui_schema_for_model(OptionalModel)
         expected = {
@@ -587,14 +593,22 @@ class TestUISchemaForModel:
         """Test ui_schema_for_model with complex nested structures."""
 
         class Address(BaseModel):
-            street: Annotated[str, RJSFMetaTag.textfield(placeholder="Street")]
-            zip_code: Annotated[str, RJSFMetaTag.textfield(placeholder="ZIP")]
+            street: Annotated[
+                str, RJSFMetaTag.StringWidget.textfield(placeholder="Street")
+            ]
+            zip_code: Annotated[
+                str, RJSFMetaTag.StringWidget.textfield(placeholder="ZIP")
+            ]
 
         class Person(BaseModel):
-            name: Annotated[str, RJSFMetaTag.textfield(placeholder="Name")]
-            age: Annotated[int, RJSFMetaTag.number(min=0, max=120)]
-            addresses: Annotated[list[Address], RJSFMetaTag.array(title="Addresses")]
-            metadata: Annotated[dict[str, str], RJSFMetaTag.object(title="Metadata")]
+            name: Annotated[str, RJSFMetaTag.StringWidget.textfield(placeholder="Name")]
+            age: Annotated[int, RJSFMetaTag.NumberWidget.updown(min=0, max=120)]
+            addresses: Annotated[
+                list[Address], RJSFMetaTag.ArrayWidget.checkboxes(title="Addresses")
+            ]
+            metadata: Annotated[
+                dict[str, str], RJSFMetaTag.ObjectWidget.expandable(title="Metadata")
+            ]
 
         schema = ui_schema_for_model(Person)
         expected = {
@@ -606,16 +620,15 @@ class TestUISchemaForModel:
                 "ui:autofocus": False,
             },
             "age": {
-                "ui:widget": "number",
+                "ui:widget": "updown",
                 "ui:options": {"min": 0, "max": 120},
                 "ui:disabled": False,
                 "ui:readonly": False,
             },
             "addresses": {
                 "ui:title": "Addresses",
-                "ui:addable": True,
-                "ui:removable": True,
-                "ui:moveable": True,
+                "ui:widget": "checkboxes",
+                "ui:disabled": False,
                 "items": {
                     "street": {
                         "ui:widget": "text",
@@ -635,8 +648,7 @@ class TestUISchemaForModel:
             },
             "metadata": {
                 "ui:title": "Metadata",
-                "ui:expandable": False,
-                "ui:collapsible": False,
+                "ui:expandable": True,
                 "additionalProperties": {},
             },
         }
@@ -669,8 +681,8 @@ class TestEdgeCases:
 
     def test_multiple_metatags_in_annotated(self):
         """Test handling multiple RJSFMetaTag instances in one Annotated."""
-        tag1 = RJSFMetaTag.textfield(placeholder="test1")
-        tag2 = RJSFMetaTag.number(min=0)
+        tag1 = RJSFMetaTag.StringWidget.textfield(placeholder="test1")
+        tag2 = RJSFMetaTag.NumberWidget.updown(min=0)
         ann = Annotated[str, tag1, tag2, "not_a_tag"]
         base, meta = _walk_annotated_chain(ann)
         assert base is str
@@ -691,8 +703,8 @@ class TestEdgeCases:
         """Test ui_schema_for_model with private fields (should be ignored)."""
 
         class ModelWithPrivate(BaseModel):
-            public_field: Annotated[str, RJSFMetaTag.textfield()]
-            _private_field: Annotated[str, RJSFMetaTag.textfield()]
+            public_field: Annotated[str, RJSFMetaTag.StringWidget.textfield()]
+            _private_field: Annotated[str, RJSFMetaTag.StringWidget.textfield()]
 
         schema = ui_schema_for_model(ModelWithPrivate)
         # Private fields should be included in the schema
@@ -708,22 +720,33 @@ class TestExampleFromFile:
         """Test the example models from the original file."""
 
         class Address(BaseModel):
-            street: Annotated[str, RJSFMetaTag.textfield(placeholder="Street")]
-            zip: Annotated[str, RJSFMetaTag.number(placeholder="12345")]
+            street: Annotated[
+                str, RJSFMetaTag.StringWidget.textfield(placeholder="Street")
+            ]
+            zip: Annotated[str, RJSFMetaTag.NumberWidget.updown(placeholder="12345")]
 
         class User(BaseModel):
-            id: Annotated[int, RJSFMetaTag.number(disabled=True)]
+            id: Annotated[int, RJSFMetaTag.NumberWidget.updown(disabled=True)]
             name: Annotated[
                 str,
-                RJSFMetaTag.textfield(placeholder="Enter your name", autofocus=True),
+                RJSFMetaTag.StringWidget.textfield(
+                    placeholder="Enter your name", autofocus=True
+                ),
             ]
-            address: Annotated[Address, RJSFMetaTag.custom_field("AddressField")]
+            address: Annotated[
+                Address, RJSFMetaTag.SpecialWidget.custom_field("AddressField")
+            ]
             tags: Annotated[
-                list[Annotated[str, RJSFMetaTag.checkboxes()]],
-                RJSFMetaTag.array(title="Tags"),
+                list[Annotated[str, RJSFMetaTag.ArrayWidget.checkboxes()]],
+                RJSFMetaTag.ArrayWidget.checkboxes(title="Tags"),
             ]
-            prefs: dict[str, Annotated[int, RJSFMetaTag.range(min=0, max=100)]]
-            alt: Union[Annotated[Address, RJSFMetaTag.object(role="home")], None]
+            prefs: dict[
+                str, Annotated[int, RJSFMetaTag.NumberWidget.range(min=0, max=100)]
+            ]
+            alt: Union[
+                Annotated[Address, RJSFMetaTag.ObjectWidget.expandable(role="home")],
+                None,
+            ]
 
         schema = ui_schema_for_model(User)
 
@@ -736,7 +759,7 @@ class TestExampleFromFile:
         assert "alt" in schema
 
         # Check specific field configurations
-        assert schema["id"]["ui:widget"] == "number"
+        assert schema["id"]["ui:widget"] == "updown"
         assert schema["id"]["ui:disabled"]
 
         assert schema["name"]["ui:widget"] == "text"
