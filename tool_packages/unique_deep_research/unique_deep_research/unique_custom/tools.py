@@ -277,7 +277,7 @@ async def internal_search(query: str, config: RunnableConfig, limit: int = 50) -
         logger.info("No internal results found")
         return f"No internal search results found for query: '{query}'"
 
-    formatted_results = transform_chunks_to_string(search_results, limit, None, True)
+    formatted_results, _ = transform_chunks_to_string(search_results, limit, None, True)
     return formatted_results
 
 
@@ -321,7 +321,7 @@ async def internal_fetch(
     if len(paginated_results) == 0 and offset >= total_results:
         return f"No more results for content ID: '{content_id}'\n\n<END_OF_CONTENT>\n\nNote: Offset {offset} is at or beyond total results ({total_results:,})"
 
-    formatted_results = transform_chunks_to_string(paginated_results, 0, None, True)
+    formatted_results, _ = transform_chunks_to_string(paginated_results, 0, None, True)
 
     if is_at_end:
         formatted_results += "\n\n<END_OF_CONTENT>"
