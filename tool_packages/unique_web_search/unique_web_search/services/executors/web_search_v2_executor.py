@@ -1,6 +1,7 @@
+import asyncio
 import logging
 from time import time
-from typing import Callable, Optional
+from typing import Callable, Literal, Optional
 
 from unique_toolkit import LanguageModelService
 from unique_toolkit._common.chunk_relevancy_sorter.config import (
@@ -95,15 +96,32 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
         await self._enforce_max_steps()
 
         results: list[WebSearchResult] = []
-        for step in self.tool_parameters.steps:
-            self.notify_name = step_type_to_name[step.step_type]
-            self.notify_message = step.objective
-            await self.notify_callback()
-            step_results = await self._execute_step(step)
-            results.extend(step_results)
+        self.notify_name = "**Searching Web**"
+        self.notify_message = self.tool_parameters.objective
+        await self.notify_callback()
+
+        tasks = [
+            asyncio.create_task(self._execute_step(step))
+            for step in self.tool_parameters.steps
+        ]
+
+        results_nested = await asyncio.gather(*tasks, return_exceptions=True)
+
+        for result in results_nested:
+            if isinstance(result, BaseException):
+                logger.exception(f"Error executing step: {result}")
+            else:
+                results.extend(result)
+
+        # for step in self.tool_parameters.steps:
+        #     self.notify_name = step_type_to_name[step.step_type]
+        #     self.notify_message = step.objective
+        #     await self.notify_callback()
+        #     step_results = await self._execute_step(step)
+        #     results.extend(step_results)
 
         self.notify_name = "**Analyzing Web Pages**"
-        self.notify_message = self.tool_parameters.objective
+        self.notify_message = self.tool_parameters.expected_outcome
         await self.notify_callback()
 
         content_results = await self._content_processing(
@@ -130,7 +148,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
             raise ValueError(f"Invalid step type: {type(step)}")
 
     async def _execute_search_step(self, step: Step) -> list[WebSearchResult]:
-        step_name = step.step_type.name
+        step_name: Literal["SEARCH", "READ_URL"] = step.step_type.name
         self.debug_info.steps.append(
             StepDebugInfo(
                 step_name=step_name,
