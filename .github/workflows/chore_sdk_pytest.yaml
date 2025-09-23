@@ -1,4 +1,4 @@
-name: "[pytest] Unique SDK"
+name: "[pytest] Unique SDK - Quick Tests"
 
 env:
   PACKAGE: unique_sdk
@@ -7,10 +7,11 @@ on:
   pull_request:
     paths:
       - 'unique_sdk/**'
-
+  workflow_dispatch:
 
 jobs:
-  build-and-test:
+  quick-test:
+    name: Quick Test (Python 3.11)
     runs-on: ubuntu-latest
     steps:
     - name: Check out code
@@ -28,8 +29,19 @@ jobs:
 
     - name: Install dependencies
       working-directory: ${{ env.PACKAGE }}
-      run: poetry install
+      run: |
+        echo "📦 Installing dependencies for Python 3.11"
+        poetry install --with dev
+        echo "✅ Dependencies installed successfully"
 
-    - name: Run tests
+    - name: Verify package installation
       working-directory: ${{ env.PACKAGE }}
-      run: poetry run pytest
+      run: |
+        echo "🔍 Verifying package installation for Python 3.11"
+        poetry run python -c "import unique_sdk; print('✅ unique_sdk imports successfully')"
+
+    - name: Run quick tests
+      working-directory: ${{ env.PACKAGE }}
+      run: |
+        echo "🧪 Running quick tests for Python 3.11"
+        poetry run pytest --import-mode importlib -v

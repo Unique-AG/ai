@@ -10,11 +10,15 @@ authors = [
 readme = ["README.md", "CHANGELOG.md"]
 license = "MIT"
 classifiers = [
-    "Programming Language :: Python :: 3.11"
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13"
 ]
 
 [tool.poetry.dependencies]
-python = "^3.11"
+python = "^3.9"
 typing-extensions = "^4.9.0"
 requests = "^2.32.3"
 openai = {version = "^1.105.0", optional = true}
@@ -37,7 +41,7 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.ruff]
-target-version = "py311"
+target-version = "py39"
 
 [tool.ruff.lint]
 extend-select = ["I"]
@@ -53,13 +57,28 @@ legacy_tox_ini = """
     isolated_build = true
     env_list =
         lint
+        py39
+        py310
         py311
         py312
+        py313
 
     [testenv]
     allowlist_externals = poetry
     commands_pre =
         poetry install --no-root --sync --with dev
+
+    [testenv:py39]
+    description = run tests with python 3.9
+    basepython = python3.9
+    commands =
+        poetry run pytest --cov=unique_sdk tests/ --import-mode importlib
+
+    [testenv:py310]
+    description = run tests with python 3.10
+    basepython = python3.10
+    commands =
+        poetry run pytest --cov=unique_sdk tests/ --import-mode importlib
 
     [testenv:py311]
     description = run tests with python 3.11
@@ -70,6 +89,12 @@ legacy_tox_ini = """
     [testenv:py312]
     description = run tests with python 3.12
     basepython = python3.12
+    commands =
+        poetry run pytest --cov=unique_sdk tests/ --import-mode importlib
+
+    [testenv:py313]
+    description = run tests with python 3.13
+    basepython = python3.13
     commands =
         poetry run pytest --cov=unique_sdk tests/ --import-mode importlib
 
