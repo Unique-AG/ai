@@ -1,41 +1,15 @@
 from enum import StrEnum
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-import humps
 from pydantic import (
     BaseModel,
-    ConfigDict,
     Field,
     ValidationInfo,
     model_validator,
 )
-from pydantic.alias_generators import to_camel
-from pydantic.fields import ComputedFieldInfo, FieldInfo
 
-if TYPE_CHECKING:
-    from unique_toolkit.agentic.tools.schemas import BaseToolConfig
-
-
-def field_title_generator(
-    title: str,
-    info: FieldInfo | ComputedFieldInfo,
-) -> str:
-    return humps.decamelize(title).replace("_", " ").title()
-
-
-def model_title_generator(model: type) -> str:
-    return humps.decamelize(model.__name__).replace("_", " ").title()
-
-
-def get_configuration_dict(**kwargs) -> ConfigDict:
-    return ConfigDict(
-        alias_generator=to_camel,
-        field_title_generator=field_title_generator,
-        model_title_generator=model_title_generator,
-        populate_by_name=True,
-        protected_namespaces=(),
-        **kwargs,
-    )
+from unique_toolkit._common.pydantic_helpers import get_configuration_dict
+from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 
 
 class ToolIcon(StrEnum):
@@ -63,7 +37,7 @@ class ToolBuildConfig(BaseModel):
     """Main tool configuration"""
 
     name: str
-    configuration: "BaseToolConfig"
+    configuration: BaseToolConfig
     display_name: str = ""
     icon: ToolIcon = ToolIcon.BOOK
     selection_policy: ToolSelectionPolicy = Field(

@@ -5,7 +5,7 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
 
-from unique_toolkit.agentic.tools.config import get_configuration_dict
+from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 from unique_toolkit.agentic.tools.utils.source_handling.schema import SourceFormatConfig
 from unique_toolkit.content.schemas import ContentChunk
 
