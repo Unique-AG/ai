@@ -1,6 +1,8 @@
+import os
 from logging import Logger
 from typing import NamedTuple
 
+from openai import AsyncOpenAI
 from unique_follow_up_questions.follow_up_postprocessor import (
     FollowUpPostprocessor,
 )
@@ -118,18 +120,6 @@ def _build_common(
     content_service = ContentService.from_event(event)
 
     uploaded_documents = content_service.get_documents_uploaded_to_chat()
-    if len(uploaded_documents) > 0:
-        logger.info(
-            f"Adding UploadedSearchTool with {len(uploaded_documents)} documents"
-        )
-        config.space.tools.append(
-            ToolBuildConfig(
-                name=UploadedSearchTool.name,
-                display_name=UploadedSearchTool.name,
-                configuration=UploadedSearchConfig(),
-            ),
-        )
-        event.payload.tool_choices.append(str(UploadedSearchTool.name))
 
     tool_progress_reporter = ToolProgressReporter(chat_service=chat_service)
     thinking_manager_config = ThinkingManagerConfig(
@@ -222,6 +212,14 @@ def _build_common(
     )
 
 
+def _get_openai_client_from_env() -> AsyncOpenAI:
+    # TODO: (for testing only), remove when v1 endpoint is working
+    return AsyncOpenAI(
+        api_key=os.environ["OPENAI_API_KEY"],
+        base_url=os.environ["OPENAI_BASE_URL"],
+    )
+
+
 async def _build_responses(
     event: ChatEvent,
     logger: Logger,
@@ -231,7 +229,13 @@ async def _build_responses(
 ) -> UniqueAIResponsesApi:
     builtin_tool_manager = OpenAIBuiltInToolManager(
         uploaded_files=common_components.uploaded_documents,
+        chat_id=event.payload.chat_id,
+        content_service=common_components.content_service,
+        user_id=event.user_id,
+        company_id=event.company_id,
+        client=_get_openai_client_from_env(),
     )
+
     tool_manager = await ResponsesApiToolManager.build_manager(
         logger=logger,
         config=common_components.tool_manager_config,
@@ -303,6 +307,19 @@ def _build_completions(
     common_components: _CommonComponents,
     debug_info_manager: DebugInfoManager,
 ) -> UniqueAI:
+    if len(common_components.uploaded_documents) > 0:
+        logger.info(
+            f"Adding UploadedSearchTool with {len(common_components.uploaded_documents)} documents"
+        )
+        config.space.tools.append(
+            ToolBuildConfig(
+                name=UploadedSearchTool.name,
+                display_name=UploadedSearchTool.name,
+                configuration=UploadedSearchConfig(),
+            ),
+        )
+        event.payload.tool_choices.append(str(UploadedSearchTool.name))
+
     tool_manager = ToolManager(
         logger=logger,
         config=common_components.tool_manager_config,

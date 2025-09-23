@@ -1,3 +1,5 @@
+from openai import AsyncOpenAI
+
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
 from unique_toolkit.agentic.tools.openai_builtin.base import (
     OpenAIBuiltInTool,
@@ -8,14 +10,25 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter import (
     OpenAICodeInterpreterTool,
 )
 from unique_toolkit.content.schemas import Content
+from unique_toolkit.content.service import ContentService
 
 
 class OpenAIBuiltInToolManager:
     def __init__(
         self,
         uploaded_files: list[Content],
+        content_service: ContentService,
+        user_id: str,
+        company_id: str,
+        chat_id: str,
+        client: AsyncOpenAI,
     ):
         self._uploaded_files = uploaded_files
+        self._content_service = content_service
+        self._user_id = user_id
+        self._company_id = company_id
+        self._client = client
+        self._chat_id = chat_id
 
     async def _build_tool(self, tool_config: ToolBuildConfig) -> OpenAIBuiltInTool:
         if tool_config.name == OpenAIBuiltInToolName.CODE_INTERPRETER:
@@ -23,6 +36,11 @@ class OpenAIBuiltInToolManager:
             tool = await OpenAICodeInterpreterTool.build_tool(
                 config=tool_config.configuration,
                 uploaded_files=self._uploaded_files,
+                user_id=self._user_id,
+                company_id=self._company_id,
+                chat_id=self._chat_id,
+                content_service=self._content_service,
+                client=self._client,
             )
             return tool
         else:
