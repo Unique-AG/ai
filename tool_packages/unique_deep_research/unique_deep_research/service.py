@@ -217,6 +217,9 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                 await self.chat_service.modify_assistant_message_async(
                     content="Deep Research failed to complete for an unknown reason",
                 )
+                self.write_message_log_text_message(
+                    "Research failed for an unknown reason"
+                )
                 return DeepResearchToolResponse(
                     id=tool_call.id or "",
                     name=self.name,
@@ -359,6 +362,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                     research_result, tool_call_id="", message_id=""
                 )
             )
+            self.write_message_log_text_message("Research completed successfully")
 
             # Update the assistant message with the results
             await self.chat_service.modify_assistant_message_async(
@@ -426,6 +430,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         link_references = self._convert_annotations_to_references(
             annotations or [], message_id=""
         )
+        self.write_message_log_text_message("Research completed successfully")
 
         # Update the assistant message with the results
         await self.chat_service.modify_assistant_message_async(
