@@ -111,6 +111,15 @@ def build_request_requestor(
             )
             return cls._operation.handle_response(response.json())
 
+        @classmethod
+        def __call__(
+            cls,
+            headers: dict[str, str],
+            *args: CombinedParamsSpec.args,
+            **kwargs: CombinedParamsSpec.kwargs,
+        ) -> ResponseType:
+            return cls.request(headers=headers, *args, **kwargs)
+
     return RequestRequestor
 
 
