@@ -41,6 +41,7 @@ from unique_toolkit.language_model.schemas import (
 from unique_toolkit.short_term_memory.service import ShortTermMemoryService
 
 from .config import (
+    MEMORY_KEY_FOLLOWUP_QUESTION,
     RESPONSES_API_TIMEOUT_SECONDS,
     TEMPLATE_ENV,
     DeepResearchEngine,
@@ -132,13 +133,13 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         """
         try:
             result = await self.memory_service.find_latest_memory_async(
-                key="deep_research:followup_question_message_id"
+                key=MEMORY_KEY_FOLLOWUP_QUESTION,
             )
         except APIError as e:
             if e.http_status != 201:
                 raise e
             self.logger.warning(
-                f"No short term memory found for chat {self.memory_service.chat_id} and key deep_research:followup_question_message_id"
+                f"No short term memory found for chat {self.memory_service.chat_id} and key {MEMORY_KEY_FOLLOWUP_QUESTION}"
             )
             return None
         if not result:
@@ -237,7 +238,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         followup_question_message = await self.clarify_user_request()
         # put message in short term memory to remember that we asked the followup questions
         self.memory_service.create_memory(
-            key="deep_research:followup_question_message_id",
+            key=MEMORY_KEY_FOLLOWUP_QUESTION,
             value=self.event.payload.assistant_message.id,
         )
         return DeepResearchToolResponse(
