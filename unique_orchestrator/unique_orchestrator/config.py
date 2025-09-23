@@ -228,6 +228,11 @@ class ExperimentalConfig(BaseModel):
         max_tool_calls_per_iteration=5
     )
 
+    scope_id_responses_api: str = Field(
+        default="<SCOPE_ID_PLACEHOLDER>",
+        description="Scope ID for the responses API.",
+    )
+
     use_responses_api: bool = Field(
         default=False,
         description="Whether to use the responses API instead of the completions API.",

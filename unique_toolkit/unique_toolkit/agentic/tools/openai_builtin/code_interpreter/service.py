@@ -127,7 +127,8 @@ async def _upload_files_to_container(
             )
             file_content = content_service.download_content_to_bytes(
                 content_id=file.id, chat_id=chat_id
-            )
+            ) # TODO: Use async version when available
+
             openai_file = await client.containers.files.create(
                 container_id=container_id,
                 file=(file.key, file_content),
