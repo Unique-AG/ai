@@ -139,4 +139,3 @@ class DeepResearchToolConfig(BaseToolConfig):
 
 
 RESPONSES_API_TIMEOUT_SECONDS = 3600
-MEMORY_KEY_FOLLOWUP_QUESTION = "deep_research:followup_question_message_id"

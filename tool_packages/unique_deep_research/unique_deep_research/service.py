@@ -15,8 +15,10 @@ from openai.types.responses.response_output_text import (
 from openai.types.responses.response_stream_event import ResponseStreamEvent
 from pydantic import BaseModel, ConfigDict, Field
 from typing_extensions import override
-from unique_sdk._error import APIError
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
+from unique_toolkit.agentic.short_term_memory_manager.persistent_short_term_memory_manager import (
+    PersistentShortMemoryManager,
+)
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
@@ -41,7 +43,6 @@ from unique_toolkit.language_model.schemas import (
 from unique_toolkit.short_term_memory.service import ShortTermMemoryService
 
 from .config import (
-    MEMORY_KEY_FOLLOWUP_QUESTION,
     RESPONSES_API_TIMEOUT_SECONDS,
     TEMPLATE_ENV,
     DeepResearchEngine,
@@ -67,6 +68,10 @@ class DeepResearchToolInput(BaseModel):
 
 class DeepResearchToolResponse(ToolCallResponse):
     content: str | None = None
+
+
+class MemorySchema(BaseModel):
+    message_id: str
 
 
 class DeepResearchTool(Tool[DeepResearchToolConfig]):
@@ -102,11 +107,15 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         self.content_service = ContentService(
             company_id=self.company_id, user_id=self.user_id
         )
-        self.memory_service = ShortTermMemoryService(
-            company_id=self.company_id,
-            user_id=self.user_id,
-            chat_id=self.chat_id,
-            message_id=None,
+        self.memory_service = PersistentShortMemoryManager(
+            short_term_memory_service=ShortTermMemoryService(
+                company_id=self.company_id,
+                user_id=self.user_id,
+                chat_id=self.chat_id,
+                message_id=None,
+            ),
+            short_term_memory_schema=MemorySchema,
+            short_term_memory_name="deep_research:followup_question_message_id",
         )
         self.env = TEMPLATE_ENV
         self.execution_id = event.payload.message_execution_id
@@ -131,23 +140,11 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         """
         Get the follow-up question message id.
         """
-        try:
-            result = await self.memory_service.find_latest_memory_async(
-                key=MEMORY_KEY_FOLLOWUP_QUESTION,
-            )
-        except APIError as e:
-            if e.http_status != 201:
-                raise e
-            self.logger.warning(
-                f"No short term memory found for chat {self.memory_service.chat_id} and key {MEMORY_KEY_FOLLOWUP_QUESTION}"
-            )
-            return None
+
+        result = await self.memory_service.load_async()
         if not result:
             return None
-        assert isinstance(result.data, str), (
-            "Follow-up question message id is not a string"
-        )
-        return result.data
+        return result.message_id
 
     async def is_followup_question_answer(self) -> bool:
         """
@@ -217,6 +214,9 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             # Handle success/failure status updates centrally
             if not processed_result:
                 await self._update_execution_status(MessageExecutionUpdateStatus.FAILED)
+                await self.chat_service.modify_assistant_message_async(
+                    content="Deep Research failed to complete for an unknown reason",
+                )
                 return DeepResearchToolResponse(
                     id=tool_call.id or "",
                     name=self.name,
@@ -237,9 +237,8 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         # Ask followup questions
         followup_question_message = await self.clarify_user_request()
         # put message in short term memory to remember that we asked the followup questions
-        self.memory_service.create_memory(
-            key=MEMORY_KEY_FOLLOWUP_QUESTION,
-            value=self.event.payload.assistant_message.id,
+        await self.memory_service.save_async(
+            MemorySchema(message_id=self.event.payload.assistant_message.id),
         )
         return DeepResearchToolResponse(
             id=tool_call.id or "",
