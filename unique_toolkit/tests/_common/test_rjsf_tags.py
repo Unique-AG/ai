@@ -284,6 +284,217 @@ class TestRJSFMetaTag:
         }
         assert tag.attrs == expected
 
+    def test_optional_basic(self):
+        """Test basic Optional composer creation."""
+        widget = RJSFMetaTag.StringWidget.textfield(placeholder="Enter text")
+        optional = RJSFMetaTag.Optional(widget)
+
+        expected = {
+            "ui:disabled": False,
+            "ui:readonly": False,
+            "anyOf": [
+                {
+                    "ui:widget": "text",
+                    "ui:placeholder": "Enter text",
+                    "ui:disabled": False,
+                    "ui:readonly": False,
+                    "ui:autofocus": False,
+                },
+                {"type": "null"},
+            ],
+        }
+        assert optional.attrs == expected
+
+    def test_optional_with_metadata(self):
+        """Test Optional composer with additional metadata."""
+        widget = RJSFMetaTag.NumberWidget.updown(min=0, max=100)
+        optional = RJSFMetaTag.Optional(
+            widget,
+            title="Optional Number",
+            description="Enter a number between 0 and 100",
+            help="This field is optional",
+            readonly=True,
+            optional_title="None (optional)",
+        )
+
+        expected = {
+            "ui:title": "Optional Number",
+            "ui:description": "Enter a number between 0 and 100",
+            "ui:help": "This field is optional",
+            "ui:disabled": False,
+            "ui:readonly": True,
+            "anyOf": [
+                {
+                    "ui:widget": "updown",
+                    "ui:disabled": False,
+                    "ui:readonly": False,
+                    "ui:options": {"min": 0, "max": 100},
+                },
+                {"ui:title": "None (optional)", "type": "null"},
+            ],
+        }
+        assert optional.attrs == expected
+
+    def test_optional_filters_none_values(self):
+        """Test that Optional composer filters out None values."""
+        widget = RJSFMetaTag.StringWidget.textfield(placeholder="test")
+        optional = RJSFMetaTag.Optional(
+            widget, title="Test Field", optional_title="Optional Test Field"
+        )
+
+        expected = {
+            "ui:title": "Test Field",
+            "ui:disabled": False,
+            "ui:readonly": False,
+            "anyOf": [
+                {
+                    "ui:widget": "text",
+                    "ui:placeholder": "test",
+                    "ui:disabled": False,
+                    "ui:readonly": False,
+                    "ui:autofocus": False,
+                },
+                {"ui:title": "Optional Test Field", "type": "null"},
+            ],
+        }
+        assert optional.attrs == expected
+
+    def test_union_basic(self):
+        """Test basic Union composer creation."""
+        widget1 = RJSFMetaTag.StringWidget.textfield(placeholder="Text")
+        widget2 = RJSFMetaTag.NumberWidget.updown(min=0)
+        union = RJSFMetaTag.Union([widget1, widget2])
+
+        expected = {
+            "ui:disabled": False,
+            "ui:readonly": False,
+            "anyOf": [
+                {
+                    "ui:widget": "text",
+                    "ui:placeholder": "Text",
+                    "ui:disabled": False,
+                    "ui:readonly": False,
+                    "ui:autofocus": False,
+                },
+                {
+                    "ui:widget": "updown",
+                    "ui:disabled": False,
+                    "ui:readonly": False,
+                    "ui:options": {"min": 0},
+                },
+            ],
+        }
+        assert union.attrs == expected
+
+    def test_union_with_metadata(self):
+        """Test Union composer with additional metadata."""
+        widget1 = RJSFMetaTag.StringWidget.textfield(placeholder="Name")
+        widget2 = RJSFMetaTag.NumberWidget.updown(min=0, max=120)
+        union = RJSFMetaTag.Union(
+            [widget1, widget2],
+            title="Name or Age",
+            description="Enter either a name or age",
+            help="Choose one option",
+        )
+
+        expected = {
+            "ui:title": "Name or Age",
+            "ui:description": "Enter either a name or age",
+            "ui:help": "Choose one option",
+            "ui:disabled": False,
+            "ui:readonly": False,
+            "anyOf": [
+                {
+                    "ui:widget": "text",
+                    "ui:placeholder": "Name",
+                    "ui:disabled": False,
+                    "ui:readonly": False,
+                    "ui:autofocus": False,
+                },
+                {
+                    "ui:widget": "updown",
+                    "ui:disabled": False,
+                    "ui:readonly": False,
+                    "ui:options": {"min": 0, "max": 120},
+                },
+            ],
+        }
+        assert union.attrs == expected
+
+    def test_union_single_widget_error(self):
+        """Test that Union composer raises error for single widget."""
+        widget = RJSFMetaTag.StringWidget.textfield()
+
+        with pytest.raises(ValueError, match="Union types require multiple widgets"):
+            RJSFMetaTag.Union([widget])
+
+    def test_union_empty_list(self):
+        """Test that Union composer handles empty widget list."""
+        union = RJSFMetaTag.Union([])
+        expected = {"ui:disabled": False, "ui:readonly": False, "anyOf": []}
+        assert union.attrs == expected
+
+    def test_union_three_widgets(self):
+        """Test Union composer with three widgets."""
+        widget1 = RJSFMetaTag.StringWidget.textfield(placeholder="Text")
+        widget2 = RJSFMetaTag.NumberWidget.updown(min=0)
+        widget3 = RJSFMetaTag.BooleanWidget.checkbox()
+
+        union = RJSFMetaTag.Union([widget1, widget2, widget3])
+
+        expected = {
+            "ui:disabled": False,
+            "ui:readonly": False,
+            "anyOf": [
+                {
+                    "ui:widget": "text",
+                    "ui:placeholder": "Text",
+                    "ui:disabled": False,
+                    "ui:readonly": False,
+                    "ui:autofocus": False,
+                },
+                {
+                    "ui:widget": "updown",
+                    "ui:disabled": False,
+                    "ui:readonly": False,
+                    "ui:options": {"min": 0},
+                },
+                {
+                    "ui:widget": "checkbox",
+                    "ui:disabled": False,
+                },
+            ],
+        }
+        assert union.attrs == expected
+
+    def test_union_with_none_values(self):
+        """Test that Union composer includes None values in metadata."""
+        widget1 = RJSFMetaTag.StringWidget.textfield(placeholder="test")
+        widget2 = RJSFMetaTag.NumberWidget.updown(min=0)
+        union = RJSFMetaTag.Union([widget1, widget2], title="Test Union")
+
+        expected = {
+            "ui:title": "Test Union",
+            "ui:disabled": False,
+            "ui:readonly": False,
+            "anyOf": [
+                {
+                    "ui:widget": "text",
+                    "ui:placeholder": "test",
+                    "ui:disabled": False,
+                    "ui:readonly": False,
+                    "ui:autofocus": False,
+                },
+                {
+                    "ui:widget": "updown",
+                    "ui:disabled": False,
+                    "ui:readonly": False,
+                    "ui:options": {"min": 0},
+                },
+            ],
+        }
+        assert union.attrs == expected
+
 
 class TestHelperFunctions:
     """Test helper functions."""
@@ -782,3 +993,201 @@ class TestExampleFromFile:
         # For the Union field with None, it should be unwrapped to an empty dict
         # since None is filtered out and the Union is unwrapped
         assert schema["alt"] == {}
+
+    def test_model_with_optional_composer(self):
+        """Test ui_schema_for_model with Optional composer."""
+
+        class OptionalModel(BaseModel):
+            name: Annotated[
+                str,
+                RJSFMetaTag.Optional(
+                    RJSFMetaTag.StringWidget.textfield(placeholder="Enter name"),
+                    title="Name Field",
+                    description="Enter your name",
+                    optional_title="No name provided",
+                ),
+            ]
+            age: Annotated[
+                int,
+                RJSFMetaTag.Optional(
+                    RJSFMetaTag.NumberWidget.updown(min=0, max=120),
+                    title="Age Field",
+                    help="Enter your age",
+                ),
+            ]
+
+        schema = ui_schema_for_model(OptionalModel)
+        expected = {
+            "name": {
+                "ui:title": "Name Field",
+                "ui:description": "Enter your name",
+                "ui:disabled": False,
+                "ui:readonly": False,
+                "anyOf": [
+                    {
+                        "ui:widget": "text",
+                        "ui:placeholder": "Enter name",
+                        "ui:disabled": False,
+                        "ui:readonly": False,
+                        "ui:autofocus": False,
+                    },
+                    {"ui:title": "No name provided", "type": "null"},
+                ],
+            },
+            "age": {
+                "ui:title": "Age Field",
+                "ui:help": "Enter your age",
+                "ui:disabled": False,
+                "ui:readonly": False,
+                "anyOf": [
+                    {
+                        "ui:widget": "updown",
+                        "ui:disabled": False,
+                        "ui:readonly": False,
+                        "ui:options": {"min": 0, "max": 120},
+                    },
+                    {"type": "null"},
+                ],
+            },
+        }
+        assert schema == expected
+
+    def test_model_with_union_composer(self):
+        """Test ui_schema_for_model with Union composer."""
+
+        class UnionModel(BaseModel):
+            value: Annotated[
+                Union[str, int],
+                RJSFMetaTag.Union(
+                    [
+                        RJSFMetaTag.StringWidget.textfield(placeholder="Enter text"),
+                        RJSFMetaTag.NumberWidget.updown(min=0),
+                    ],
+                    title="Value Field",
+                    description="Enter text or number",
+                ),
+            ]
+            choice: Annotated[
+                Union[str, int, bool],
+                RJSFMetaTag.Union(
+                    [
+                        RJSFMetaTag.StringWidget.textfield(placeholder="Text"),
+                        RJSFMetaTag.NumberWidget.updown(min=0, max=100),
+                        RJSFMetaTag.BooleanWidget.checkbox(),
+                    ],
+                    title="Choice Field",
+                    help="Select one option",
+                ),
+            ]
+
+        schema = ui_schema_for_model(UnionModel)
+        expected = {
+            "value": {
+                "ui:title": "Value Field",
+                "ui:description": "Enter text or number",
+                "ui:disabled": False,
+                "ui:readonly": False,
+                "anyOf": [
+                    {
+                        "ui:widget": "text",
+                        "ui:placeholder": "Enter text",
+                        "ui:disabled": False,
+                        "ui:readonly": False,
+                        "ui:autofocus": False,
+                    },
+                    {
+                        "ui:widget": "updown",
+                        "ui:disabled": False,
+                        "ui:readonly": False,
+                        "ui:options": {"min": 0},
+                    },
+                ],
+            },
+            "choice": {
+                "ui:title": "Choice Field",
+                "ui:help": "Select one option",
+                "ui:disabled": False,
+                "ui:readonly": False,
+                "anyOf": [
+                    {
+                        "ui:widget": "text",
+                        "ui:placeholder": "Text",
+                        "ui:disabled": False,
+                        "ui:readonly": False,
+                        "ui:autofocus": False,
+                    },
+                    {
+                        "ui:widget": "updown",
+                        "ui:disabled": False,
+                        "ui:readonly": False,
+                        "ui:options": {"min": 0, "max": 100},
+                    },
+                    {
+                        "ui:widget": "checkbox",
+                        "ui:disabled": False,
+                    },
+                ],
+            },
+        }
+        assert schema == expected
+
+    def test_model_with_nested_composer_usage(self):
+        """Test ui_schema_for_model with nested composer usage."""
+
+        class Address(BaseModel):
+            street: Annotated[
+                str, RJSFMetaTag.StringWidget.textfield(placeholder="Street address")
+            ]
+            city: Annotated[str, RJSFMetaTag.StringWidget.textfield(placeholder="City")]
+
+        class Person(BaseModel):
+            name: Annotated[
+                str, RJSFMetaTag.StringWidget.textfield(placeholder="Full name")
+            ]
+            contact: Annotated[
+                Union[str, Address],
+                RJSFMetaTag.Union(
+                    [
+                        RJSFMetaTag.StringWidget.textfield(
+                            placeholder="Email or phone"
+                        ),
+                        RJSFMetaTag.ObjectWidget.expandable(title="Address Details"),
+                    ],
+                    title="Contact Information",
+                    description="Provide email/phone or address",
+                ),
+            ]
+            optional_address: Annotated[
+                Address,
+                RJSFMetaTag.Optional(
+                    RJSFMetaTag.ObjectWidget.expandable(title="Optional Address"),
+                    title="Optional Address Field",
+                    optional_title="No address provided",
+                ),
+            ]
+
+        schema = ui_schema_for_model(Person)
+
+        # Check that the schema has the expected structure
+        assert "name" in schema
+        assert "contact" in schema
+        assert "optional_address" in schema
+
+        # Check name field
+        assert schema["name"]["ui:widget"] == "text"
+        assert schema["name"]["ui:placeholder"] == "Full name"
+
+        # Check contact field (Union with composer)
+        assert "anyOf" in schema["contact"]
+        assert len(schema["contact"]["anyOf"]) == 2
+        assert schema["contact"]["ui:title"] == "Contact Information"
+        assert schema["contact"]["ui:description"] == "Provide email/phone or address"
+
+        # Check optional_address field (Optional with composer)
+        assert "anyOf" in schema["optional_address"]
+        assert len(schema["optional_address"]["anyOf"]) == 2
+        assert schema["optional_address"]["ui:title"] == "Optional Address Field"
+        assert schema["optional_address"]["anyOf"][1]["type"] == "null"
+        assert (
+            schema["optional_address"]["anyOf"][1]["ui:title"] == "No address provided"
+        )
