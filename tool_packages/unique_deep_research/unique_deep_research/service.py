@@ -15,6 +15,7 @@ from openai.types.responses.response_output_text import (
 from openai.types.responses.response_stream_event import ResponseStreamEvent
 from pydantic import BaseModel, ConfigDict, Field
 from typing_extensions import override
+from unique_sdk._error import APIError
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
@@ -37,6 +38,7 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelMessage,
     LanguageModelToolMessage,
 )
+from unique_toolkit.short_term_memory.service import ShortTermMemoryService
 
 from .config import (
     RESPONSES_API_TIMEOUT_SECONDS,
@@ -64,20 +66,6 @@ class DeepResearchToolInput(BaseModel):
 
 class DeepResearchToolResponse(ToolCallResponse):
     content: str | None = None
-
-
-class ClarifyingQuestions(BaseModel):
-    """Model for user clarification requests."""
-
-    need_clarification: bool = Field(
-        description="Whether the user needs to be asked a clarifying question.",
-    )
-    question: str = Field(
-        description="A question to ask the user to clarify the report scope",
-    )
-    verification: str = Field(
-        description="Verify message that we will start research after the user has provided the necessary information.",
-    )
 
 
 class DeepResearchTool(Tool[DeepResearchToolConfig]):
@@ -110,8 +98,14 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         self.client = get_openai_client()
         self.logger.info(f"Using OpenAI client pointed to {self.client.base_url}")
 
-        self.search_service = ContentService(
+        self.content_service = ContentService(
             company_id=self.company_id, user_id=self.user_id
+        )
+        self.memory_service = ShortTermMemoryService(
+            company_id=self.company_id,
+            user_id=self.user_id,
+            chat_id=self.chat_id,
+            message_id=None,
         )
         self.env = TEMPLATE_ENV
         self.execution_id = event.payload.message_execution_id
@@ -131,6 +125,40 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         Check if the execution id is valid.
         """
         return self.execution_id is not None
+
+    async def get_followup_question_message_id(self) -> str | None:
+        """
+        Get the follow-up question message id.
+        """
+        try:
+            result = await self.memory_service.find_latest_memory_async(
+                key="deep_research:followup_question_message_id"
+            )
+        except APIError as e:
+            if e.http_status != 201:
+                raise e
+            self.logger.warning(
+                f"No short term memory found for chat {self.memory_service.chat_id} and key deep_research:followup_question_message_id"
+            )
+            return None
+        if not result:
+            return None
+        assert isinstance(result.data, str), (
+            "Follow-up question message id is not a string"
+        )
+        return result.data
+
+    async def is_followup_question_answer(self) -> bool:
+        """
+        Check if the message is a follow-up question answer.
+        """
+        followup_question_message_id = await self.get_followup_question_message_id()
+        if not followup_question_message_id:
+            return False
+        history = await self.chat_service.get_full_history_async()
+        if history and history[-1].id == followup_question_message_id:
+            return True
+        return False
 
     @override
     def tool_description(self) -> LanguageModelToolDescription:
@@ -161,62 +189,61 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
 
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
         self.logger.info("Starting Deep Research tool run")
-        # Pre research steps to clarify user intent if needed and put in the message queue
-        if not self.is_message_execution():
-            self.logger.info("Determining if we need to clarify user request")
-            follow_up_questions = await self.clarify_user_request()
-            if follow_up_questions.need_clarification:
-                await self.chat_service.modify_assistant_message_async(
-                    content=follow_up_questions.question,
-                )
-                return DeepResearchToolResponse(
-                    id=tool_call.id or "",
-                    name=self.name,
-                    content=follow_up_questions.question,
-                )
-            self.logger.info(
-                "No clarification needed. Queuing Deep Research in message execution queue"
-            )
-            # Put in the message queue and inform the user that we are starting the research
-            await self.chat_service.modify_assistant_message_async(
-                content=follow_up_questions.verification,
-            )
+
+        # Question answer and message execution will have the same message id, so we need to check if it is a message execution
+        if await self.is_followup_question_answer() and not self.is_message_execution():
+            self.logger.info("This is a follow-up question answer")
+            # TODO: Should we also write a message to the user?
+            self.write_message_log_text_message("Waiting for deep research to start...")
             self.chat_service.create_message_execution(
                 message_id=self.event.payload.assistant_message.id,
                 type=MessageExecutionType.DEEP_RESEARCH,
             )
-            self.write_message_log_text_message("Waiting for deep research to start...")
             return DeepResearchToolResponse(
                 id=tool_call.id or "",
                 name=self.name,
-                content=follow_up_questions.verification,
+                content="",
             )
-        self.logger.info("Starting research")
-        # Run research
-        self.write_message_log_text_message("Generating research plan...")
-        research_brief = self.generate_research_brief_from_dict(
-            self.get_history_messages_for_research_brief()
+        if self.is_message_execution():
+            self.logger.info("Starting research")
+            # Run research
+            self.write_message_log_text_message("Generating research plan...")
+            research_brief = self.generate_research_brief_from_dict(
+                self.get_history_messages_for_research_brief()
+            )
+            processed_result, content_chunks = await self.run_research(research_brief)
+
+            # Handle success/failure status updates centrally
+            if not processed_result:
+                await self._update_execution_status(MessageExecutionUpdateStatus.FAILED)
+                return DeepResearchToolResponse(
+                    id=tool_call.id or "",
+                    name=self.name,
+                    content=processed_result or "Failed to complete research",
+                    error_message="Research process failed or returned empty results",
+                )
+
+            await self._update_execution_status(MessageExecutionUpdateStatus.COMPLETED)
+
+            # Return the results
+            return DeepResearchToolResponse(
+                id=tool_call.id or "",
+                name=self.name,
+                content=processed_result,
+                content_chunks=content_chunks,
+            )
+
+        # Ask followup questions
+        followup_question_message = await self.clarify_user_request()
+        # put message in short term memory to remember that we asked the followup questions
+        self.memory_service.create_memory(
+            key="deep_research:followup_question_message_id",
+            value=self.event.payload.assistant_message.id,
         )
-        processed_result, content_chunks = await self.run_research(research_brief)
-
-        # Handle success/failure status updates centrally
-        if not processed_result:
-            await self._update_execution_status(MessageExecutionUpdateStatus.FAILED)
-            return DeepResearchToolResponse(
-                id=tool_call.id or "",
-                name=self.name,
-                content=processed_result or "Failed to complete research",
-                error_message="Research process failed or returned empty results",
-            )
-
-        await self._update_execution_status(MessageExecutionUpdateStatus.COMPLETED)
-
-        # Return the results
         return DeepResearchToolResponse(
             id=tool_call.id or "",
             name=self.name,
-            content=processed_result,
-            content_chunks=content_chunks,
+            content=followup_question_message,
         )
 
     async def _update_execution_status(
@@ -315,7 +342,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                     "custom_engine_config": self.config.engine_config.Custom,
                     "openai_client": self.client,
                     "chat_service": self.chat_service,
-                    "content_service": self.search_service,
+                    "content_service": self.content_service,
                     "message_id": self.event.payload.assistant_message.id,
                 }
             }
@@ -585,7 +612,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             or ""
         )
 
-    async def clarify_user_request(self) -> ClarifyingQuestions:
+    async def clarify_user_request(self) -> str:
         """
         Clarify the user's request.
         """
@@ -600,15 +627,15 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             },
             *last_two_interactions,
         ]
-        clarifying_response = self.client.chat.completions.parse(
-            model=self.config.clarifying_model.name,
-            messages=messages,  # type: ignore
-            response_format=ClarifyingQuestions,
+        response = await self.chat_service.complete_async(
+            messages=messages,
+            model_name=self.config.clarifying_model.name,
+            content_chunks=None,
         )
-        assert clarifying_response.choices[0].message.parsed, (
+        assert isinstance(response.choices[0].message.content, str), (
             "No clarifying questions generated"
         )
-        return clarifying_response.choices[0].message.parsed
+        return response.choices[0].message.content
 
     def generate_research_brief_from_dict(self, messages: list[dict[str, str]]) -> str:
         """Generate research brief from dictionary messages."""
