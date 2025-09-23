@@ -573,6 +573,114 @@ class RJSFMetaTag:
             }
             return RJSFMetaTag({k: v for k, v in attrs.items() if v is not None})
 
+    # --------- Composer Methods ----------
+
+    @classmethod
+    def Optional(
+        cls,
+        widget_tag: RJSFMetaTag,
+        /,
+        title: str | None = None,
+        description: str | None = None,
+        help: str | None = None,
+        disabled: bool = False,
+        readonly: bool = False,
+        optional_title: str | None = None,
+        **kwargs: Any,
+    ) -> RJSFMetaTag:
+        """
+        Create an Optional widget that applies the given widget to the non-None type.
+
+        Args:
+            widget_tag: The widget tag to apply to the Optional type
+
+        Returns:
+            RJSFMetaTag with the widget applied to the Optional type
+        """
+
+        union_attrs = {
+            "ui:title": title,
+            "ui:description": description,
+            "ui:help": help,
+            "ui:disabled": disabled,
+            "ui:readonly": readonly,
+            **kwargs,
+        }
+
+        union_attrs = {k: v for k, v in union_attrs.items() if v is not None}
+
+        optional_attrs = {
+            "ui:title": optional_title,
+        }
+        optional_attrs = {k: v for k, v in optional_attrs.items() if v is not None}
+        return RJSFMetaTag(
+            {
+                **union_attrs,
+                "anyOf": [{**widget_tag.attrs}, {**optional_attrs, "type": "null"}],
+            }
+        )
+
+    @classmethod
+    def Union(
+        cls,
+        widgets: list[RJSFMetaTag],
+        /,
+        title: str | None = None,
+        description: str | None = None,
+        help: str | None = None,
+        disabled: bool = False,
+        readonly: bool = False,
+        **kwargs: Any,
+    ) -> RJSFMetaTag:
+        """
+        Create a Union widget that applies different widgets to each branch of the Union.
+
+        According to RJSF docs, anyOf should be at the same level as the field,
+        not nested inside the field metadata.
+
+        Args:
+            widgets: List of widget tags for each branch of the Union type
+            title: Title for the Union field
+            description: Description for the Union field
+            help: Help text for the Union field
+            disabled: Whether the Union field is disabled
+            readonly: Whether the Union field is readonly
+            **kwargs: Additional Union-level metadata
+
+        Returns:
+            RJSFMetaTag with anyOf structure containing widgets for each branch
+        """
+
+        if len(widgets) == 1:
+            raise ValueError(
+                "Union types require multiple widgets (one per branch). "
+                "For single widget usage, consider using Optional() or a regular widget. "
+                f"Received only 1 widget: {widgets[0].attrs.get('ui:widget', 'unknown')}"
+            )
+
+        # Create anyOf structure with the provided widgets
+        any_of_branches = []
+        for widget in widgets:
+            any_of_branches.append(widget.attrs)
+
+        # Start with Union-level metadata
+        union_attrs = {
+            "ui:title": title,
+            "ui:description": description,
+            "ui:help": help,
+            "ui:disabled": disabled,
+            "ui:readonly": readonly,
+            **kwargs,
+        }
+
+        # Add any additional kwargs
+        for key, value in kwargs.items():
+            if value is not None:
+                union_attrs[f"ui:{key}" if not key.startswith("ui:") else key] = value
+
+        union_attrs = {k: v for k, v in union_attrs.items() if v is not None}
+        return RJSFMetaTag({**union_attrs, "anyOf": any_of_branches})
+
 
 # --------- Helpers ----------
 _NONE_TYPES = {type(None)}
@@ -781,7 +889,13 @@ def ui_schema_for_model(model_cls: type[BaseModel]) -> dict[str, Any]:
                     branch.update(ui_schema_for_model(alt_b))
                 branches.append(branch)
             if branches:
-                node["anyOf"] = branches
+                # Check if the metadata already has an anyOf structure (from Union composer)
+                if "anyOf" in node:
+                    # Use the anyOf from the metadata (from Union composer)
+                    pass  # Keep the existing anyOf from the Union composer
+                else:
+                    # Create anyOf structure for Union types
+                    node["anyOf"] = branches
 
         # Scalars: node already has metadata if any
 
