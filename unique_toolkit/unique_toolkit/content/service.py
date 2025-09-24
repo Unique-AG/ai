@@ -271,42 +271,6 @@ class ContentService:
         """
         self._metadata_filter = value
 
-    @deprecated(
-        "Use keyword only method instead. Positional arguments are deprecated and will be removed on the 1st of January 2026."
-    )
-    @overload
-    def search_content_chunks(
-        self,
-        search_string: str,
-        search_type: ContentSearchType,
-        limit: int,
-        search_language: str = DEFAULT_SEARCH_LANGUAGE,
-        chat_id: str = "",
-        reranker_config: ContentRerankerConfig | None = None,
-        scope_ids: list[str] | None = None,
-        chat_only: bool | None = None,
-        metadata_filter: dict | None = None,
-        content_ids: list[str] | None = None,
-        score_threshold: float | None = None,
-    ) -> list[ContentChunk]: ...
-
-    @overload
-    def search_content_chunks(  # type: ignore
-        self,
-        *,
-        search_string: str,
-        search_type: ContentSearchType,
-        limit: int,
-        search_language: str = DEFAULT_SEARCH_LANGUAGE,
-        chat_id: str = "",
-        reranker_config: ContentRerankerConfig | None = None,
-        scope_ids: list[str] | None = None,
-        chat_only: bool | None = None,
-        metadata_filter: dict | None = None,
-        content_ids: list[str] | None = None,
-        score_threshold: float | None = None,
-    ) -> list[ContentChunk]: ...
-
     def search_content_chunks(
         self,
         search_string: str,
@@ -372,42 +336,6 @@ class ContentService:
         except Exception as e:
             logger.error(f"Error while searching content chunks: {e}")
             raise e
-
-    @deprecated(
-        "Use keyword only method instead. Positional arguments are deprecated and will be removed on the 1st of January 2026."
-    )
-    @overload
-    async def search_content_chunks_async(
-        self,
-        search_string: str,
-        search_type: ContentSearchType,
-        limit: int,
-        search_language: str = DEFAULT_SEARCH_LANGUAGE,
-        chat_id: str = "",
-        reranker_config: ContentRerankerConfig | None = None,
-        scope_ids: list[str] | None = None,
-        chat_only: bool | None = None,
-        metadata_filter: dict | None = None,
-        content_ids: list[str] | None = None,
-        score_threshold: float | None = None,
-    ): ...
-
-    @overload
-    async def search_content_chunks_async(  # type: ignore
-        self,
-        *,
-        search_string: str,
-        search_type: ContentSearchType,
-        limit: int,
-        search_language: str = DEFAULT_SEARCH_LANGUAGE,
-        chat_id: str = "",
-        reranker_config: ContentRerankerConfig | None = None,
-        scope_ids: list[str] | None = None,
-        chat_only: bool | None = None,
-        metadata_filter: dict | None = None,
-        content_ids: list[str] | None = None,
-        score_threshold: float | None = None,
-    ): ...
 
     async def search_content_chunks_async(
         self,
@@ -526,38 +454,6 @@ class ContentService:
 
         return self.search_contents(where, chat_id=chat_id)
 
-    @deprecated(
-        "Use keyword only method instead. Positional arguments are deprecated and will be removed on the 1st of January 2026."
-    )
-    @overload
-    def upload_content_from_bytes(
-        self,
-        content: bytes,
-        content_name: str,
-        mime_type: str,
-        scope_id: str | None = None,
-        chat_id: str | None = None,
-        skip_ingestion: bool = False,
-        skip_excel_ingestion: bool = False,
-        ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
-        metadata: dict | None = None,
-    ) -> Content: ...
-
-    @overload
-    def upload_content_from_bytes(  # type: ignore
-        self,
-        *,
-        content: bytes,
-        content_name: str,
-        mime_type: str,
-        scope_id: str | None = None,
-        chat_id: str | None = None,
-        skip_ingestion: bool = False,
-        skip_excel_ingestion: bool = False,
-        ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
-        metadata: dict | None = None,
-    ) -> Content: ...
-
     def upload_content_from_bytes(
         self,
         content: bytes,
@@ -601,10 +497,6 @@ class ContentService:
             metadata=metadata,
         )
 
-    @deprecated(
-        "Use keyword only method instead. Positional arguments are deprecated and will be removed on the 1st of January 2026."
-    )
-    @overload
     def upload_content(
         self,
         path_to_content: str,
@@ -616,35 +508,7 @@ class ContentService:
         skip_excel_ingestion: bool = False,
         ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
         metadata: dict[str, Any] | None = None,
-    ) -> Content: ...
-
-    @overload
-    def upload_content(  # type: ignore
-        self,
-        *,
-        path_to_content: str,
-        content_name: str,
-        mime_type: str,
-        scope_id: str | None = None,
-        chat_id: str | None = None,
-        skip_ingestion: bool = False,
-        skip_excel_ingestion: bool = False,
-        ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
-        metadata: dict[str, Any] | None = None,
-    ) -> Content: ...
-
-    def upload_content(
-        self,
-        path_to_content: str,
-        content_name: str,
-        mime_type: str,
-        scope_id: str | None = None,
-        chat_id: str | None = None,
-        skip_ingestion: bool = False,
-        skip_excel_ingestion: bool = False,
-        ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
-        metadata: dict[str, Any] | None = None,
-    ) -> Content:
+    ):
         """
         Uploads content to the knowledge base.
 
