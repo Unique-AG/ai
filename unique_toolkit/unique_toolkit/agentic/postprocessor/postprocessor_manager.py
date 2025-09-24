@@ -16,10 +16,10 @@ class Postprocessor(ABC):
     def get_name(self) -> str:
         return self.name
 
-    async def run(self, loop_response: LanguageModelStreamResponse) -> str:
+    async def run(self, loop_response: LanguageModelStreamResponse) -> None:
         raise NotImplementedError("Subclasses must implement this method.")
 
-    async def apply_postprocessing_to_response(
+    def apply_postprocessing_to_response(
         self, loop_response: LanguageModelStreamResponse
     ) -> bool:
         raise NotImplementedError(
@@ -102,6 +102,7 @@ class PostprocessorManager:
             self._chat_service.modify_assistant_message(
                 content=loop_response.message.text,
                 message_id=loop_response.message.id,
+                references=loop_response.message.references,
             )
 
     async def execute_postprocessors(

@@ -3,8 +3,6 @@ from logging import Logger
 from unique_toolkit.agentic.tools.a2a.config import SubAgentToolConfig
 from unique_toolkit.agentic.tools.a2a.service import SubAgentTool, ToolProgressReporter
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
-from unique_toolkit.agentic.tools.schemas import BaseToolConfig
-from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.app.schemas import ChatEvent
 
 
@@ -19,7 +17,7 @@ class A2AManager:
 
     def get_all_sub_agents(
         self, tool_configs: list[ToolBuildConfig], event: ChatEvent
-    ) -> tuple[list[ToolBuildConfig], list[Tool[BaseToolConfig]]]:
+    ) -> tuple[list[ToolBuildConfig], list[SubAgentTool]]:
         sub_agents = []
 
         for tool_config in tool_configs:
@@ -32,13 +30,15 @@ class A2AManager:
                 )
                 continue
 
-            sub_agent_tool_config: SubAgentToolConfig = tool_config.configuration
+            sub_agent_tool_config = tool_config.configuration
 
             sub_agents.append(
                 SubAgentTool(
                     configuration=sub_agent_tool_config,
                     event=event,
                     tool_progress_reporter=self._tool_progress_reporter,
+                    name=tool_config.name,
+                    display_name=tool_config.display_name,
                 )
             )
 

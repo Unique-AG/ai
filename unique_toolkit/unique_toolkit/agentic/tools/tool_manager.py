@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.tools.a2a.manager import A2AManager
+from unique_toolkit.agentic.tools.a2a.service import SubAgentTool
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.mcp.manager import MCPManager
@@ -113,6 +114,7 @@ class ToolManager:
         mcp_tools = self._mcp_manager.get_all_mcp_tools()
         # Combine both types of tools
         self.available_tools = internal_tools + mcp_tools + sub_agents
+        self._sub_agents = sub_agents
 
         for t in self.available_tools:
             if not t.is_enabled():
@@ -136,6 +138,10 @@ class ToolManager:
 
             self._tools.append(t)
 
+    @property
+    def sub_agents(self) -> list[SubAgentTool]:
+        return self._sub_agents
+
     def get_evaluation_check_list(self) -> list[EvaluationMetricName]:
         return list(self._tool_evaluation_check_list)
 
@@ -143,7 +149,7 @@ class ToolManager:
         self._logger.info(f"Loaded tools: {[tool.name for tool in self._tools]}")
 
     def get_tools(self) -> list[Tool]:
-        return self._tools
+        return self._tools  # type: ignore
 
     def get_tool_by_name(self, name: str) -> Tool | None:
         for tool in self._tools:
