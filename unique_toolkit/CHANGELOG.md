@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2025-09-24
+- A2A: Add optional `tool_choices` to `SubAgentToolConfig` and thread into SDK call
+- A2A: When `tool_choices` is empty, omit the parameter (backward compatible)
+- Tests: Add tests for A2A `tool_choices` behavior
 
 ## [1.1.9] - 2025-09-24
 - Fix bug in `LanguageModelFunction` to extend support mistral tool calling.

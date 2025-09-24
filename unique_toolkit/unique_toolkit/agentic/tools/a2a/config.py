@@ -1,3 +1,4 @@
+from pydantic import Field
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 
@@ -11,6 +12,7 @@ class SubAgentToolConfig(BaseToolConfig):
 
     name: str = "default_name"
     assistant_id: str = ""
+    tool_choices: list[str] = Field(default_factory=list)
     chat_id: str | None = None
     reuse_chat: bool = True
     tool_description_for_system_prompt: str = ""

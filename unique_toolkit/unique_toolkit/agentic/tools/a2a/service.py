@@ -1,4 +1,6 @@
 from pydantic import Field, create_model
+import secrets
+import string
 from unique_sdk.utils.chat_in_space import send_message_and_wait_for_completion
 
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
@@ -61,6 +63,11 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
             parameters=tool_input_model_with_description,
         )
 
+    @staticmethod
+    def _generate_tool_call_id(length: int = 9) -> str:
+        alphabet = string.ascii_letters + string.digits
+        return "".join(secrets.choice(alphabet) for _ in range(length))
+
     def tool_description_for_system_prompt(self) -> str:
         return self.config.tool_description_for_system_prompt
 
@@ -119,11 +126,19 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
         # Check if there is a saved chat id in short term memory
         chat_id = await self._get_chat_id()
 
+        # Preserve backward compatibility: don't send an empty list
+        tool_choices = (
+            self.config.tool_choices
+            if getattr(self.config, "tool_choices", None)
+            else None
+        )
+
         response = await send_message_and_wait_for_completion(
             user_id=self._user_id,
             assistant_id=self.config.assistant_id,
             company_id=self._company_id,
             text=tool_input.user_message,  # type: ignore
+            tool_choices=tool_choices,
             chat_id=chat_id,  # type: ignore
             poll_interval=self.config.poll_interval,
             max_wait=self.config.max_wait,
@@ -137,7 +152,7 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
 
         self._text = response["text"]
         return ToolCallResponse(
-            id=tool_call.id,  # type: ignore
+            id=tool_call.id or self._generate_tool_call_id(),  # type: ignore
             name=tool_call.name,
             content=response["text"],
         )
