@@ -36,6 +36,9 @@ from unique_toolkit.agentic.thinking_manager.thinking_manager import (
     ThinkingManagerConfig,
 )
 from unique_toolkit.agentic.tools.a2a.manager import A2AManager
+from unique_toolkit.agentic.tools.a2a.postprocessing import (
+    SubAgentResponsesPostprocessor,
+)
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
 from unique_toolkit.agentic.tools.mcp.manager import MCPManager
 from unique_toolkit.agentic.tools.tool_manager import ToolManager, ToolManagerConfig
@@ -158,6 +161,16 @@ def build_unique_ai(
                 event=event,
                 historyManager=history_manager,
                 llm_service=LanguageModelService.from_event(event),
+            )
+        )
+
+    if len(tool_manager.sub_agents) > 0:
+        postprocessor_manager.add_postprocessor(
+            SubAgentResponsesPostprocessor(
+                user_id=event.user_id,
+                agent_chat_id=event.payload.chat_id,
+                company_id=event.company_id,
+                sub_agent_tools=tool_manager.sub_agents,
             )
         )
 
