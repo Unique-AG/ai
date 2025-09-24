@@ -1,3 +1,5 @@
+from typing import List, Tuple
+
 import regex as re
 
 import unique_sdk
@@ -71,7 +73,7 @@ def load_history(
     return fullHistory, selectedHistory
 
 
-def convert_chat_history_to_injectable_string(history) -> tuple[list[str], int]:
+def convert_chat_history_to_injectable_string(history) -> Tuple[List[str], int]:
     chatHistory = []
     for msg in history:
         if msg["role"].lower() == "assistant":

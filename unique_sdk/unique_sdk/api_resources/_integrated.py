@@ -2,16 +2,15 @@ from typing import (
     TYPE_CHECKING,
     Any,
     ClassVar,
+    Dict,
     List,
     Literal,
-    NotRequired,
     Optional,
     Union,
-    Unpack,
     cast,
 )
 
-from typing_extensions import TypedDict
+from typing_extensions import NotRequired, TypedDict, Unpack
 
 # Avoid introducing a dependency on the openai sdk as it's only used for type hints
 if TYPE_CHECKING:
@@ -57,7 +56,7 @@ class Integrated(APIResource["Integrated"]):
         assistantMessageId: str
         userMessageId: str
         startText: NotRequired["str"]
-        debugInfo: NotRequired[dict[str, Any]]
+        debugInfo: NotRequired[Dict[str, Any]]
 
     class CreateStream(CommonIntegratedParams):
         timeout: NotRequired["int"]
@@ -66,16 +65,16 @@ class Integrated(APIResource["Integrated"]):
     # For further details about the responses parameters, see the OpenAI API documentation.
     # Note that other parameters from openai.resources.responses.Response.create can be passed
     class CreateStreamResponsesOpenaiParams(TypedDict):
-        include: NotRequired[list["ResponseIncludable"] | None]
-        instructions: NotRequired[str | None]
-        max_output_tokens: NotRequired[int | None]
+        include: NotRequired[Optional[List["ResponseIncludable"]]]
+        instructions: NotRequired[Optional[str]]
+        max_output_tokens: NotRequired[Optional[int]]
         metadata: NotRequired[Union["Metadata", None]]
-        parallel_tool_calls: NotRequired[bool | None]
-        temperature: NotRequired[float | None]
+        parallel_tool_calls: NotRequired[Optional[bool]]
+        temperature: NotRequired[Optional[float]]
         text: NotRequired["ResponseTextConfigParam"]
         tool_choice: NotRequired["response_create_params.ToolChoice"]
-        tools: NotRequired[list["ToolParam"]]
-        top_p: NotRequired[float | None]
+        tools: NotRequired[List["ToolParam"]]
+        top_p: NotRequired[Optional[float]]
         reasoning: NotRequired["Reasoning"]
 
     class CreateStreamResponsesParams(CommonIntegratedParams):
@@ -84,14 +83,14 @@ class Integrated(APIResource["Integrated"]):
 
     class ToolCall(TypedDict):
         id: str
-        name: str | None
-        arguments: str | None
+        name: Optional[str]
+        arguments: Optional[str]
 
     class ResponsesStreamResult(TypedDict):
         id: str
         message: Message
         toolCalls: List["Integrated.ToolCall"]
-        output: list["ResponseOutputItem"]
+        output: List["ResponseOutputItem"]
 
     @classmethod
     def chat_stream_completion(

@@ -5,14 +5,14 @@ from typing import (
     Dict,
     List,
     Literal,
-    NotRequired,
     Optional,
     TypedDict,
-    Unpack,
     cast,
     overload,
 )
 from urllib.parse import quote_plus
+
+from typing_extensions import NotRequired, Unpack
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._list_object import ListObject

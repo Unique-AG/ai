@@ -1,8 +1,10 @@
 from typing import (
     ClassVar,
     Literal,
-    Unpack,
+    Optional,
 )
+
+from typing_extensions import Unpack
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
@@ -17,17 +19,17 @@ class MessageAssessment(APIResource["MessageAssessment"]):
         status: Literal["PENDING", "DONE", "ERROR"]
         type: Literal["HALLUCINATION", "COMPLIANCE"]
         isVisible: bool
-        title: str | None
-        explanation: str | None
-        label: Literal["RED", "YELLOW", "GREEN"] | None
+        title: Optional[str]
+        explanation: Optional[str]
+        label: Optional[Literal["RED", "YELLOW", "GREEN"]]
 
     class ModifyParams(RequestOptions):
         messageId: str
         type: Literal["HALLUCINATION", "COMPLIANCE"]
-        status: Literal["PENDING", "DONE", "ERROR"] | None
-        title: str | None
-        explanation: str | None
-        label: Literal["RED", "YELLOW", "GREEN"] | None
+        status: Optional[Literal["PENDING", "DONE", "ERROR"]]
+        title: Optional[str]
+        explanation: Optional[str]
+        label: Optional[Literal["RED", "YELLOW", "GREEN"]]
 
     @classmethod
     def create(

@@ -7,11 +7,10 @@ from typing import (
     Optional,
     TypedDict,
     Union,
-    Unpack,
     cast,
 )
 
-from typing_extensions import NotRequired
+from typing_extensions import NotRequired, Unpack
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions

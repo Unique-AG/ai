@@ -73,7 +73,7 @@ class Content(APIResource["Content"]):
 
     class SearchParams(RequestOptions):
         where: "Content.ContentWhereInput"
-        chatId: NotRequired[str | None]
+        chatId: NotRequired[Optional[str]]
         includeFailedContent: NotRequired[bool]
 
     class ContentInfoParams(TypedDict):
@@ -82,10 +82,10 @@ class Content(APIResource["Content"]):
         This is used to retrieve information about content based on various filters.
         """
 
-        metadataFilter: NotRequired[dict[str, Any] | None]
-        skip: NotRequired[int | None]
-        take: NotRequired[int | None]
-        filePath: NotRequired[str | None]
+        metadataFilter: NotRequired[Optional[Dict[str, Any]]]
+        skip: NotRequired[Optional[int]]
+        take: NotRequired[Optional[int]]
+        filePath: NotRequired[Optional[str]]
 
     class CustomApiOptions(TypedDict):
         apiIdentifier: str
@@ -114,19 +114,19 @@ class Content(APIResource["Content"]):
         key: str
         title: Optional[str]
         mimeType: str
-        ownerType: NotRequired[str | None]
-        ownerId: NotRequired[str | None]
-        byteSize: NotRequired[int | None]
-        ingestionConfig: NotRequired["Content.IngestionConfig | None"]
-        metadata: NotRequired[dict[str, Any] | None]
+        ownerType: NotRequired[Optional[str]]
+        ownerId: NotRequired[Optional[str]]
+        byteSize: NotRequired[Optional[int]]
+        ingestionConfig: NotRequired[Optional["Content.IngestionConfig"]]
+        metadata: NotRequired[Optional[Dict[str, Any]]]
 
     class UpsertParams(RequestOptions):
         input: "Content.Input"
-        scopeId: NotRequired[str | None]
-        chatId: NotRequired[str | None]
-        sourceOwnerType: NotRequired[str | None]
-        storeInternally: NotRequired[bool | None]
-        fileUrl: NotRequired[str | None]
+        scopeId: NotRequired[Optional[str]]
+        chatId: NotRequired[Optional[str]]
+        sourceOwnerType: NotRequired[Optional[str]]
+        storeInternally: NotRequired[Optional[bool]]
+        fileUrl: NotRequired[Optional[str]]
 
     class UpdateParams(RequestOptions):
         contentId: NotRequired[str]
@@ -134,7 +134,7 @@ class Content(APIResource["Content"]):
         ownerId: NotRequired[str]
         parentFolderPath: NotRequired[str]
         title: NotRequired[str]
-        metadata: NotRequired[dict[str, str | None]]
+        metadata: NotRequired[Dict[str, Optional[str]]]
 
     class Chunk(TypedDict):
         id: str
@@ -151,17 +151,17 @@ class Content(APIResource["Content"]):
 
         id: str
         key: str
-        url: str | None
-        title: str | None
-        metadata: Dict[str, Any] | None
+        url: Optional[str]
+        title: Optional[str]
+        metadata: Optional[Dict[str, Any]]
         mimeType: str
         byteSize: int
         ownerId: str
         createdAt: str
         updatedAt: str
-        expiresAt: str | None
-        deletedAt: str | None
-        expiredAt: str | None
+        expiresAt: Optional[str]
+        deletedAt: Optional[str]
+        expiredAt: Optional[str]
 
     class PaginatedContentInfo(TypedDict):
         contentInfo: List["Content.ContentInfo"]
@@ -543,9 +543,9 @@ class Content(APIResource["Content"]):
         cls,
         user_id: str,
         company_id: str,
-        content_id: str | None = None,
-        file_path: str | None = None,
-    ) -> str | None:
+        content_id: Optional[str] = None,
+        file_path: Optional[str] = None,
+    ) -> Optional[str]:
         """
         Returns the contentId to use: if content_id is provided, returns it;
         if not, but file_path is provided, resolves and returns the id for that file path.

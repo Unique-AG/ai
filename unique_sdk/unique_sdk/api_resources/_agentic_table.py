@@ -1,18 +1,18 @@
-from enum import StrEnum
+from enum import Enum
 from typing import (
+    List,
     Literal,
-    NotRequired,
-    TypedDict,
+    Optional,
     cast,
 )
 
-from typing_extensions import Unpack
+from typing_extensions import NotRequired, TypedDict, Unpack
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
 
 
-class AgenticTableSheetState(StrEnum):
+class AgenticTableSheetState(str, Enum):
     STOPPED_BY_USER = "STOPPED_BY_USER"
     PROCESSING = "PROCESSING"
     IDLE = "IDLE"
@@ -20,7 +20,7 @@ class AgenticTableSheetState(StrEnum):
 
 class LogDetail(TypedDict, total=False):
     text: str
-    messageId: str | None
+    messageId: Optional[str]
 
 
 class LogEntry(TypedDict):
@@ -28,7 +28,7 @@ class LogEntry(TypedDict):
     createdAt: str
     actorType: Literal["USER", "SYSTEM", "ASSISTANT", "TOOL"]
     messageId: NotRequired[str]
-    details: NotRequired[list[LogDetail]]
+    details: NotRequired[List[LogDetail]]
 
 
 class AgenticTableCell(TypedDict, total=False):
@@ -37,12 +37,12 @@ class AgenticTableCell(TypedDict, total=False):
     columnOrder: int
     rowLocked: bool
     text: str
-    logEntries: list[LogEntry]
+    logEntries: List[LogEntry]
 
 
 class ColumnMetadataUpdateStatus(TypedDict, total=False):
     status: bool
-    message: str | None
+    message: Optional[str]
 
 
 class AgenticTableSheet(TypedDict):
@@ -54,10 +54,10 @@ class AgenticTableSheet(TypedDict):
     companyId: str
     createdAt: str
     magicTableRowCount: int
-    magicTableCells: NotRequired[list[AgenticTableCell]]
+    magicTableCells: NotRequired[List[AgenticTableCell]]
 
 
-class FilterTypes(StrEnum):
+class FilterTypes(str, Enum):
     VALUE_MATCH_FILTER = "ValueMatchFilter"
     PARTIAL_MATCH_FILTER = "PartialMatchFilter"
     REFERENCE_FILTER = "ReferenceFilter"
@@ -66,7 +66,7 @@ class FilterTypes(StrEnum):
     ASSIGNEE_FILTER = "AssigneeFilter"
 
 
-class CellRendererTypes(StrEnum):
+class CellRendererTypes(str, Enum):
     CHECKBOX_LOCK_CELL_RENDERER = "CheckboxLockCellRenderer"
     COLLABORATOR_DROPDOWN = "CollaboratorDropdown"
     REVIEW_STATUS_DROPDOWN = "ReviewStatusDropdown"
@@ -74,17 +74,17 @@ class CellRendererTypes(StrEnum):
     SELECTABLE_CELL_RENDERER = "SelectableCellRenderer"
 
 
-class SelectionMethod(StrEnum):
+class SelectionMethod(str, Enum):
     DEFAULT = "DEFAULT"
     MANUAL = "MANUAL"
 
 
-class AgreementStatus(StrEnum):
+class AgreementStatus(str, Enum):
     MATCH = "MATCH"
     NO_MATCH = "NO_MATCH"
 
 
-class RowVerificationStatus(StrEnum):
+class RowVerificationStatus(str, Enum):
     NEED_REVIEW = "NEED_REVIEW"
     READY_FOR_VERIFICATION = "READY_FOR_VERIFICATION"
     VERIFIED = "VERIFIED"
@@ -100,7 +100,7 @@ class AgenticTable(APIResource["AgenticTable"]):
         rowOrder: int
         columnOrder: int
         text: str
-        logEntries: NotRequired[list[LogEntry]]
+        logEntries: NotRequired[List[LogEntry]]
 
     class GetCell(RequestOptions):
         tableId: str
@@ -169,7 +169,7 @@ class AgenticTable(APIResource["AgenticTable"]):
 
     class BulkUpdateStatus(RequestOptions):
         tableId: str
-        rowOrders: list[int]
+        rowOrders: List[int]
         status: RowVerificationStatus
 
     @classmethod
@@ -325,7 +325,7 @@ class AgenticTable(APIResource["AgenticTable"]):
         user_id: str,
         company_id: str,
         tableId: str,
-        cells: list[AgenticTableCell],
+        cells: List[AgenticTableCell],
     ) -> ColumnMetadataUpdateStatus:
         url = f"/magic-table/{tableId}/cells/bulk-upsert"
         # Map AgenticTableCell to PublicAgenticTableCellDto

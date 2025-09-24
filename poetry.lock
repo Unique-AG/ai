@@ -2471,7 +2471,7 @@ openai = ["openai (>=1.105.0,<2.0.0)"]
 
 [[package]]
 name = "unique-toolkit"
-version = "1.1.4"
+version = "1.1.5"
 description = ""
 optional = false
 python-versions = "^3.12"

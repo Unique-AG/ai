@@ -1,0 +1,78 @@
+name: "[manual] Unique SDK - Test Specific Python Version"
+
+env:
+  PACKAGE: unique_sdk
+
+on:
+  workflow_dispatch:
+    inputs:
+      python-version:
+        description: 'Python version to test (e.g., 3.9, 3.10, 3.11, 3.12, 3.13)'
+        required: true
+        default: '3.11'
+        type: choice
+        options:
+          - '3.9'
+          - '3.10'
+          - '3.11'
+          - '3.12'
+          - '3.13'
+      test-type:
+        description: 'Type of testing to run'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - linting
+          - tests
+          - type-checking
+
+jobs:
+  manual-test:
+    name: Test Python ${{ github.event.inputs.python-version }}
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v4
+
+    - name: Set up Python ${{ github.event.inputs.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ github.event.inputs.python-version }}
+
+    - name: Cache Poetry dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pypoetry
+        key: ${{ runner.os }}-poetry-${{ github.event.inputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-poetry-${{ github.event.inputs.python-version }}-
+
+    - name: Install Poetry
+      run: |
+        POETRY_VERSION='1.8.3'
+        PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install poetry==$POETRY_VERSION
+
+    - name: Install dependencies
+      working-directory: ${{ env.PACKAGE }}
+      run: poetry install --with dev
+
+    - name: Run tests
+      if: github.event.inputs.test-type == 'all' || github.event.inputs.test-type == 'tests'
+      working-directory: ${{ env.PACKAGE }}
+      run: |
+        echo "🧪 Running tests for Python ${{ github.event.inputs.python-version }}"
+        poetry run pytest --import-mode importlib -v
+
+    - name: Generate test summary
+      if: always()
+      run: |
+        echo "# 🐍 Manual Test Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## Test Configuration" >> $GITHUB_STEP_SUMMARY
+        echo "- **Python Version**: ${{ github.event.inputs.python-version }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Test Type**: ${{ github.event.inputs.test-type }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## Results" >> $GITHUB_STEP_SUMMARY
+        echo "Check the logs above for detailed test results." >> $GITHUB_STEP_SUMMARY

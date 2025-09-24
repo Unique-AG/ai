@@ -1,7 +1,7 @@
 import os
 import tempfile
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 import requests
 
@@ -41,7 +41,7 @@ def upload_file(
     scope_or_unique_path=None,
     chat_id=None,
     ingestion_config: Optional[Content.IngestionConfig] = None,
-    metadata: dict[str, Any] | None = None,
+    metadata: Optional[Dict[str, Any]] = None,
 ):
     # check that chatid or scope_or_unique_path is provided
     if not chat_id and not scope_or_unique_path:
@@ -114,7 +114,7 @@ def download_content(
     userId: str,
     content_id: str,
     filename: str,
-    chat_id: str | None = None,
+    chat_id: Optional[str] = None,
 ):
     # Ensure the URL is a valid string
     if not isinstance(content_id, str):

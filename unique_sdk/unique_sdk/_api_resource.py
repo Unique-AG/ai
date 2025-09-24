@@ -6,10 +6,11 @@ from typing import (
     Literal,
     Mapping,
     Optional,
-    Self,
     TypeVar,
 )
 from urllib.parse import quote_plus
+
+from typing_extensions import Self
 
 from unique_sdk._api_requestor import APIRequestor
 from unique_sdk._error import InvalidRequestError
