@@ -136,24 +136,6 @@ class EmbeddingService(BaseService):
         """
         self._user_id = value
 
-    @deprecated(
-        "Use keyword only method instead. Positional arguments are deprecated and will be removed on the 1st of January 2026."
-    )
-    @overload
-    def embed_texts(
-        self,
-        texts: list[str],
-        timeout: int = DEFAULT_TIMEOUT,
-    ) -> Embeddings: ...
-
-    @overload
-    def embed_texts(  # type: ignore
-        self,
-        *,
-        texts: list[str],
-        timeout: int = DEFAULT_TIMEOUT,
-    ) -> Embeddings: ...
-
     def embed_texts(
         self,
         texts: list[str],
@@ -178,24 +160,6 @@ class EmbeddingService(BaseService):
             texts=texts,
             timeout=timeout,
         )
-
-    @deprecated(
-        "Use keyword only method instead. Positional arguments are deprecated and will be removed on the 1st of January 2026."
-    )
-    @overload
-    async def embed_texts_async(
-        self,
-        texts: list[str],
-        timeout: int = DEFAULT_TIMEOUT,
-    ) -> Embeddings: ...
-
-    @overload
-    async def embed_texts_async(  # type: ignore
-        self,
-        *,
-        texts: list[str],
-        timeout: int = DEFAULT_TIMEOUT,
-    ) -> Embeddings: ...
 
     async def embed_texts_async(
         self,

@@ -209,15 +209,6 @@ class ShortTermMemoryService:
             message_id=chat_event.payload.user_message.id,
         )
 
-    @deprecated(
-        "Use keyword only method instead. Positional arguments are deprecated and will be removed on the 1st of January 2026."
-    )
-    @overload
-    async def find_latest_memory_async(self, key: str) -> ShortTermMemory: ...
-
-    @overload
-    async def find_latest_memory_async(self, *, key: str) -> ShortTermMemory: ...  # type: ignore
-
     async def find_latest_memory_async(self, key: str) -> ShortTermMemory:
         """
         Find the latest short term memory.
@@ -240,15 +231,6 @@ class ShortTermMemoryService:
             message_id=self._message_id,
         )
 
-    @deprecated(
-        "Use keyword only method instead. Positional arguments are deprecated and will be removed on the 1st of January 2026."
-    )
-    @overload
-    def find_latest_memory(self, key: str) -> ShortTermMemory: ...
-
-    @overload
-    def find_latest_memory(self, *, key: str) -> ShortTermMemory: ...  # type: ignore
-
     def find_latest_memory(self, key: str) -> ShortTermMemory:
         """
         Find the latest short term memory.
@@ -270,15 +252,6 @@ class ShortTermMemoryService:
             chat_id=self._chat_id,
             message_id=self._message_id,
         )
-
-    @deprecated(
-        "Use keyword only method instead. Positional arguments are deprecated and will be removed on the 1st of January 2026."
-    )
-    @overload
-    async def create_memory_async(self, key: str, value: str | dict): ...
-
-    @overload
-    async def create_memory_async(self, *, key: str, value: str | dict): ...  # type: ignore
 
     async def create_memory_async(self, key: str, value: str | dict):
         """
@@ -303,15 +276,6 @@ class ShortTermMemoryService:
             chat_id=self._chat_id,
             message_id=self._message_id,
         )
-
-    @deprecated(
-        "Use keyword only method instead. Positional arguments are deprecated and will be removed on the 1st of January 2026."
-    )
-    @overload
-    def create_memory(self, key: str, value: str | dict): ...
-
-    @overload
-    def create_memory(self, *, key: str, value: str | dict): ...  # type: ignore
 
     def create_memory(self, key: str, value: str | dict):
         """
