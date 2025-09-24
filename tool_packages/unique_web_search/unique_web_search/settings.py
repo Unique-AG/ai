@@ -2,9 +2,7 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Literal
 
-from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # TODO: Clean this up from monorepo. Its mixing everything
@@ -13,18 +11,12 @@ logger = logging.getLogger(f"PythonAssistantCoreBundle.{__name__}")
 
 
 class Base(BaseSettings):
-    save_to_local_file: bool = Field(
-        default=False,
-        description="Save conversation to local file. DO NOT USE THIS IN PRODUCTION!",
-    )
-    debug_file_folder: str | None = Field(
-        default=None,
-        description="Folder to save conversation to. DO NOT USE THIS IN PRODUCTION!",
-    )
-
     env: str | None = None
     log_level: str | None = None
     tiktoken_cache_dir: str = "./tiktoken_cache/"
+
+    # Active search engines
+    active_search_engines: list[str] = ["google"]
 
     # Bing settings
     bing_search_v7_subscription_key: str | None = None
@@ -49,33 +41,6 @@ class Base(BaseSettings):
     # Brave Search API settings
     brave_search_api_key: str | None = None
     brave_search_api_endpoint: str | None = None
-
-    # Custom chat error message
-    custom_chat_error_message: str | None = None
-
-    # Quartr Creds
-    quartr_api_creds: str | None = None
-    quartr_api_activated_companies: list[str] = []
-
-    # Six API Creds
-    six_api_creds: str | None = None
-    six_api_activated_companies: list[str] = []
-
-    # SQL Database
-    database_mode: Literal["sqlite", "postgresql"] = "sqlite"
-    database_url: str | None = None  # Must be supplied for postgresql
-
-    # Variables only used during testing
-    test_company_id: str = ""
-    test_user_id: str = ""
-    test_chat_id: str = ""
-    test_assistant_id: str = ""
-    test_user_message_id: str = ""
-    test_scope_id: str = ""
-    test_run_integration_test: bool = False
-
-    # Evaluation framework
-    enable_opik: bool = False
 
 
 class Settings(Base):

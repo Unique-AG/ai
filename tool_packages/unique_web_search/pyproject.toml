@@ -47,8 +47,6 @@ crawl4ai = "^0.6.3"
 firecrawl = "^3.3.2"
 tavily-python = "^0.7.11"
 unidecode = "^1.4.0"
-#langchain = "^0.3.27"
-langchain-community = "^0.3.1"
 pandas = "2.2.3"
 unique-sdk = { path = "../../unique_sdk" }
 unique-toolkit = { path = "../../unique_toolkit" }
