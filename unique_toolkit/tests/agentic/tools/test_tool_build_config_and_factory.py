@@ -191,7 +191,7 @@ class TestToolBuildConfigAndFactory:
             "icon": ToolIcon.BOOK,
             "selection_policy": ToolSelectionPolicy.BY_USER,
             "is_exclusive": False,
-            "is_sub_agent": True,
+            "is_sub_agent": False,
             "is_enabled": False,
         }
 
