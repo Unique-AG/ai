@@ -1,3 +1,7 @@
+import operator
+from functools import reduce
+from typing import TypeAlias
+
 from unique_toolkit import LanguageModelService
 from unique_toolkit._common.validators import LMI
 
@@ -48,6 +52,15 @@ SearchEngineConfigTypes = (
     | FireCrawlConfig
 )
 
+ENGINE_NAME_TO_CONFIG = {
+    "google": GoogleConfig,
+    "jina": JinaConfig,
+    "tavily": TavilyConfig,
+    "bing": BingSearchConfig,
+    "brave": BraveSearchConfig,
+    "firecrawl": FireCrawlConfig,
+}
+
 
 def get_search_engine_service(
     search_engine_config: SearchEngineConfigTypes,
@@ -67,6 +80,30 @@ def get_search_engine_service(
             return BingSearch(search_engine_config, language_model_service, lmi)
         case SearchEngineType.BRAVE:
             return BraveSearch(search_engine_config, language_model_service, lmi)
+
+
+def get_config_types_from_names(engine_names: list[str]) -> TypeAlias:
+    assert len(engine_names) > 1, "At least one search engine must be active"
+
+    selected_types = [
+        ENGINE_NAME_TO_CONFIG[name.lower()]
+        for name in engine_names
+        if name.lower() in ENGINE_NAME_TO_CONFIG
+    ]
+    if not selected_types:
+        raise ValueError(f"No search engine config found for names: {engine_names}")
+    if len(selected_types) == 1:
+        return selected_types[0]
+    # Use reduce to create Union[Type1, Type2, Type3, ...]
+    return reduce(operator.or_, selected_types)
+
+
+def get_default_search_engine_config(
+    engine_names: list[str],
+) -> SearchEngineConfigTypes:
+    assert len(engine_names) > 1, "At least one search engine must be active"
+
+    return ENGINE_NAME_TO_CONFIG[engine_names[0]]
 
 
 __all__ = [

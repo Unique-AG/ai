@@ -31,17 +31,19 @@ from unique_web_search.services.crawlers import (
 )
 from unique_web_search.services.executors.web_search_v1_executor import RefineQueryMode
 from unique_web_search.services.search_engine import (
-    BingSearchConfig,
-    BraveSearchConfig,
-    FireCrawlConfig,
-    GoogleConfig,
-    JinaConfig,
-    TavilyConfig,
+    get_config_types_from_names,
+    get_default_search_engine_config,
 )
+from unique_web_search.settings import env_settings
 
 logger = getLogger(__name__)
 
 DEFAULT_MODEL_NAME = DEFAULT_GPT_4o
+
+ActivatedSearchEngine = get_config_types_from_names(env_settings.active_search_engines)
+DefaultSearchEngine = get_default_search_engine_config(
+    env_settings.active_search_engines
+)
 
 
 class AnswerGenerationConfig(BaseModel):
@@ -160,15 +162,8 @@ class WebSearchConfig(BaseToolConfig):
         description="Language model maximum input tokens",
     )
 
-    search_engine_config: (
-        GoogleConfig
-        | BingSearchConfig
-        | BraveSearchConfig
-        | SkipJsonSchema[JinaConfig]
-        | SkipJsonSchema[TavilyConfig]
-        | SkipJsonSchema[FireCrawlConfig]
-    ) = Field(
-        default_factory=GoogleConfig,
+    search_engine_config: ActivatedSearchEngine = Field(  # type: ignore
+        default_factory=DefaultSearchEngine,  # type: ignore
         description="Search Engine Configuration",
         discriminator="search_engine_name",
         title="Search Engine Configuration",
