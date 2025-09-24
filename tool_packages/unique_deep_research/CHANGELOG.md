@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2025-09-23
+Minor bugfixes:
+- Message log entry at the completion of the report
+- Improved instruction on followup questions to use numbered list instead of bullets
+- Bugfix of internalsearch and internalfetch due to breaking change in toolkit
+- Stronger citation requirements in prompt
+
+## [1.1.0] - 2025-09-23
+- Use streaming for followup questions and only a single iteration allowed
+- Set default models to GPT 4o for followup and GPT 4.1 for research brief
+
 ## [1.0.0] - 2025-09-18
 - Bump toolkit version to allow for both patch and minor updates
 

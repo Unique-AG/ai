@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_web_search"
-version = "1.0.0"
+version = "1.0.3"
 description = ""
 authors = [
     "Andreas Hauri <andreas@unique.ch>",

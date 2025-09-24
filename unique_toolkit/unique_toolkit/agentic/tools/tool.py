@@ -61,6 +61,11 @@ class Tool(ABC, Generic[ConfigType]):
         """
         return False
 
+    @property
+    def configuration(self) -> BaseToolConfig:
+        """The configuration of the tool."""
+        return self.settings.configuration
+
     @abstractmethod
     def tool_description(self) -> LanguageModelToolDescription:
         raise NotImplementedError
@@ -72,18 +77,23 @@ class Tool(ABC, Generic[ConfigType]):
         else:
             return cast("dict[str, Any]", parameters)
 
+    # TODO: This method should be a property
     def tool_description_for_system_prompt(self) -> str:
         return ""
 
+    # TODO: This method should be a property
     def tool_format_information_for_system_prompt(self) -> str:
         return ""
 
+    # TODO: This method should be a property
     def tool_description_for_user_prompt(self) -> str:
         return ""
 
+    # TODO: This method should be a property
     def tool_format_information_for_user_prompt(self) -> str:
         return ""
 
+    # TODO: This method should be a property
     def tool_format_reminder_for_user_prompt(self) -> str:
         """A short reminder for the user prompt for formatting rules for the tool.
         You can use this if the LLM fails to follow the formatting rules.

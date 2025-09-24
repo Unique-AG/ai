@@ -12,9 +12,11 @@ from typing import (
     ParamSpec,
     Protocol,
     TypeVar,
+    cast,
 )
 
 from pydantic import BaseModel
+from typing_extensions import deprecated
 
 # Paramspecs
 PayloadParamSpec = ParamSpec("PayloadParamSpec")
@@ -31,7 +33,7 @@ PayloadType = TypeVar("PayloadType", bound=BaseModel)
 ModelConstructor = Callable[..., BaseModel]
 
 
-class EndpointMethods(StrEnum):
+class HttpMethods(StrEnum):
     GET = "GET"
     POST = "POST"
     PUT = "PUT"
@@ -41,8 +43,11 @@ class EndpointMethods(StrEnum):
     HEAD = "HEAD"
 
 
-# Necessary for typing of make_endpoint_class
-class EndpointClassProtocol(
+# Backward compatibility TODO: Remove in 2.0.0.
+EndpointMethods = HttpMethods
+
+
+class ApiOperationProtocol(
     Protocol,
     Generic[
         PathParamsSpec,
@@ -52,9 +57,14 @@ class EndpointClassProtocol(
         ResponseType,
     ],
 ):
-    path_params_model: type[PathParamsType]
-    payload_model: type[PayloadType]
-    response_model: type[ResponseType]
+    @staticmethod
+    def path_params_model() -> type[PathParamsType]: ...
+
+    @staticmethod
+    def payload_model() -> type[PayloadType]: ...
+
+    @staticmethod
+    def response_model() -> type[ResponseType]: ...
 
     @staticmethod
     def create_url(
@@ -78,18 +88,23 @@ class EndpointClassProtocol(
     @staticmethod
     def request_method() -> EndpointMethods: ...
 
+    @staticmethod
+    def models_from_combined(
+        combined: dict[str, Any],
+    ) -> tuple[PathParamsType, PayloadType]: ...
+
 
 # Model for any client to implement
-def build_endpoint_class(
+def build_api_operation(
     *,
-    method: EndpointMethods,
+    method: HttpMethods,
     url_template: Template,
     path_params_constructor: Callable[PathParamsSpec, PathParamsType],
     payload_constructor: Callable[PayloadParamSpec, PayloadType],
     response_model_type: type[ResponseType],
     dump_options: dict | None = None,
 ) -> type[
-    EndpointClassProtocol[
+    ApiOperationProtocol[
         PathParamsSpec,
         PathParamsType,
         PayloadParamSpec,
@@ -107,11 +122,6 @@ def build_endpoint_class(
     """
 
     # Verify that the path_params_constructor and payload_constructor are valid pydantic models
-    if not isinstance(path_params_constructor, type(BaseModel)):
-        raise ValueError("path_params_constructor must be a pydantic model")
-    if not isinstance(payload_constructor, type(BaseModel)):
-        raise ValueError("payload_constructor must be a pydantic model")
-
     if not dump_options:
         dump_options = {
             "exclude_unset": True,
@@ -119,10 +129,18 @@ def build_endpoint_class(
             "exclude_defaults": True,
         }
 
-    class EndpointClass(EndpointClassProtocol):
-        path_params_model = path_params_constructor  # type: ignore
-        payload_model = payload_constructor  # type: ignore
-        response_model = response_model_type
+    class Operation(ApiOperationProtocol):
+        @staticmethod
+        def path_params_model() -> type[PathParamsType]:
+            return cast(type[PathParamsType], path_params_constructor)
+
+        @staticmethod
+        def payload_model() -> type[PayloadType]:
+            return cast(type[PayloadType], payload_constructor)
+
+        @staticmethod
+        def response_model() -> type[ResponseType]:
+            return response_model_type
 
         @staticmethod
         def create_url(
@@ -130,7 +148,7 @@ def build_endpoint_class(
             **kwargs: PathParamsSpec.kwargs,
         ) -> str:
             """Create URL from path parameters."""
-            path_model = EndpointClass.path_params_model(*args, **kwargs)
+            path_model = Operation.path_params_model()(*args, **kwargs)
             path_dict = path_model.model_dump(**dump_options)
 
             # Extract expected path parameters from template
@@ -158,7 +176,7 @@ def build_endpoint_class(
             *args: PayloadParamSpec.args, **kwargs: PayloadParamSpec.kwargs
         ) -> dict[str, Any]:
             """Create request body payload."""
-            request_model = EndpointClass.payload_model(*args, **kwargs)
+            request_model = Operation.payload_model()(*args, **kwargs)
             return request_model.model_dump(**dump_options)
 
         @staticmethod
@@ -167,13 +185,58 @@ def build_endpoint_class(
 
         @staticmethod
         def handle_response(response: dict[str, Any]) -> ResponseType:
-            return EndpointClass.response_model.model_validate(response)
+            return Operation.response_model().model_validate(response)
 
         @staticmethod
-        def request_method() -> EndpointMethods:
+        def request_method() -> HttpMethods:
             return method
 
-    return EndpointClass
+        @staticmethod
+        def models_from_combined(
+            combined: dict[str, Any],
+        ) -> tuple[PathParamsType, PayloadType]:
+            path_params = Operation.path_params_model().model_validate(
+                combined, by_alias=True, by_name=True
+            )
+            payload = Operation.payload_model().model_validate(
+                combined, by_alias=True, by_name=True
+            )
+            return path_params, payload
+
+    return Operation
+
+
+@deprecated("Use ApiOperationProtocol instead")
+class EndpointClassProtocol(ApiOperationProtocol):
+    pass
+
+
+@deprecated("Use build_api_operation instead")
+def build_endpoint_class(
+    *,
+    method: HttpMethods,
+    url_template: Template,
+    path_params_constructor: Callable[PathParamsSpec, PathParamsType],
+    payload_constructor: Callable[PayloadParamSpec, PayloadType],
+    response_model_type: type[ResponseType],
+    dump_options: dict | None = None,
+) -> type[
+    ApiOperationProtocol[
+        PathParamsSpec,
+        PathParamsType,
+        PayloadParamSpec,
+        PayloadType,
+        ResponseType,
+    ]
+]:
+    return build_api_operation(
+        method=method,
+        url_template=url_template,
+        path_params_constructor=path_params_constructor,
+        payload_constructor=payload_constructor,
+        response_model_type=response_model_type,
+        dump_options=dump_options,
+    )
 
 
 if __name__ == "__main__":
@@ -195,7 +258,7 @@ if __name__ == "__main__":
         name: str
 
     # Example usage of make_endpoint_class
-    UserEndpoint = build_endpoint_class(
+    UserOperation = build_endpoint_class(
         url_template=Template("/users/${user_id}"),
         path_params_constructor=GetUserPathParams,
         payload_constructor=GetUserRequestBody,
@@ -204,15 +267,15 @@ if __name__ == "__main__":
     )
 
     # Create URL from path parameters
-    url = UserEndpoint.create_url(user_id=123)
+    url = UserOperation.create_url(user_id=123)
     print(f"URL: {url}")
 
     # Create payload from request body parameters
-    payload = UserEndpoint.create_payload(include_profile=True)
+    payload = UserOperation.create_payload(include_profile=True)
     print(f"Payload: {payload}")
 
     # Create response from endpoint
-    response = UserEndpoint.handle_response(
+    response = UserOperation.handle_response(
         {
             "id": 123,
             "name": "John Doe",

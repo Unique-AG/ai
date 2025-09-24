@@ -10,6 +10,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A2A: When `tool_choices` is empty, omit the parameter (backward compatible)
 - Tests: Add tests for A2A `tool_choices` behavior
 
+## [1.1.9] - 2025-09-24
+- Fix bug in `LanguageModelFunction` to extend support mistral tool calling.
+
+## [1.1.8] - 2025-09-23
+- Revert last to version 1.1.6
+
+## [1.1.7] - 2025-09-23
+- Introduce keyword only functions in services for better backward compatibility
+- Deprecatea functions that are using positional arguments in services 
+
+## [1.1.6] - 2025-09-23
+- Fix model_dump for `ToolBuildConfig`
+
+## [1.1.5] - 2025-09-23
+- Fix a circular import and add tests for `ToolBuildConfig`
+
+## [1.1.4] - 2025-09-23
+- First version human verification on api calls
+
+## [1.1.3] - 2025-09-23
+- Updated LMI JSON schema input type to include annotated string field with title
+
 ## [1.1.2] - 2025-09-22
 - Fixed bug tool selection for exclusive tools
 
