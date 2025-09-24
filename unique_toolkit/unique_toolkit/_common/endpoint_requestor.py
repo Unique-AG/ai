@@ -33,6 +33,14 @@ class EndpointRequestorProtocol(Protocol, Generic[CombinedParamsSpec, ResponseT_
         **kwargs: CombinedParamsSpec.kwargs,
     ) -> ResponseT_co: ...
 
+    @classmethod
+    async def request_async(
+        cls,
+        headers: dict[str, str],
+        *args: CombinedParamsSpec.args,
+        **kwargs: CombinedParamsSpec.kwargs,
+    ) -> ResponseT_co: ...
+
 
 def build_fake_requestor(
     operation_type: type[
@@ -67,6 +75,17 @@ def build_fake_requestor(
                 )
 
             return cls._operation.handle_response(return_value)
+
+        @classmethod
+        async def request_async(
+            cls,
+            headers: dict[str, str],
+            *args: CombinedParamsSpec.args,
+            **kwargs: CombinedParamsSpec.kwargs,
+        ) -> ResponseType:
+            raise NotImplementedError(
+                "Async request not implemented for fake requestor"
+            )
 
     return FakeRequestor
 
@@ -111,12 +130,137 @@ def build_request_requestor(
             )
             return cls._operation.handle_response(response.json())
 
+        @classmethod
+        async def request_async(
+            cls,
+            headers: dict[str, str],
+            *args: CombinedParamsSpec.args,
+            **kwargs: CombinedParamsSpec.kwargs,
+        ) -> ResponseType:
+            raise NotImplementedError(
+                "Async request not implemented for request requestor"
+            )
+
     return RequestRequestor
+
+
+def build_httpx_requestor(
+    operation_type: type[
+        ApiOperationProtocol[
+            PathParamsSpec,
+            PathParamsType,
+            PayloadParamSpec,
+            PayloadType,
+            ResponseType,
+        ]
+    ],
+    combined_model: Callable[CombinedParamsSpec, CombinedParamsType],
+) -> type[EndpointRequestorProtocol[CombinedParamsSpec, ResponseType]]:
+    import httpx
+
+    class HttpxRequestor(EndpointRequestorProtocol):
+        _operation = operation_type
+
+        @classmethod
+        def request(
+            cls,
+            headers: dict[str, str],
+            *args: CombinedParamsSpec.args,
+            **kwargs: CombinedParamsSpec.kwargs,
+        ) -> ResponseType:
+            path_params, payload_model = cls._operation.models_from_combined(
+                combined=kwargs
+            )
+
+            httpx_client = httpx.Client()
+            response = httpx_client.request(
+                method=cls._operation.request_method(),
+                url=cls._operation.create_url_from_model(path_params),
+                headers=headers,
+                json=cls._operation.create_payload_from_model(payload_model),
+            )
+            return cls._operation.handle_response(response.json())
+
+        @classmethod
+        async def request_async(
+            cls,
+            headers: dict[str, str],
+            *args: CombinedParamsSpec.args,
+            **kwargs: CombinedParamsSpec.kwargs,
+        ) -> ResponseType:
+            path_params, payload_model = cls._operation.models_from_combined(
+                combined=kwargs
+            )
+
+            client = httpx.AsyncClient()
+            response = client.request(
+                method=cls._operation.request_method(),
+                url=cls._operation.create_url_from_model(path_params),
+                headers=headers,
+                json=cls._operation.create_payload_from_model(payload_model),
+            )
+
+            return cls._operation.handle_response((await response).json())
+
+    return HttpxRequestor
+
+
+def build_aiohttp_requestor(
+    operation_type: type[
+        ApiOperationProtocol[
+            PathParamsSpec,
+            PathParamsType,
+            PayloadParamSpec,
+            PayloadType,
+            ResponseType,
+        ]
+    ],
+    combined_model: Callable[CombinedParamsSpec, CombinedParamsType],
+) -> type[EndpointRequestorProtocol[CombinedParamsSpec, ResponseType]]:
+    import aiohttp
+
+    class AiohttpRequestor(EndpointRequestorProtocol):
+        _operation = operation_type
+
+        @classmethod
+        def request(
+            cls,
+            headers: dict[str, str],
+            *args: CombinedParamsSpec.args,
+            **kwargs: CombinedParamsSpec.kwargs,
+        ) -> ResponseType:
+            raise NotImplementedError(
+                "Sync request not implemented for aiohttp requestor"
+            )
+
+        @classmethod
+        async def request_async(
+            cls,
+            headers: dict[str, str],
+            *args: CombinedParamsSpec.args,
+            **kwargs: CombinedParamsSpec.kwargs,
+        ) -> ResponseType:
+            path_params, payload_model = cls._operation.models_from_combined(
+                combined=kwargs
+            )
+
+            async with aiohttp.ClientSession() as session:
+                response = await session.request(
+                    method=cls._operation.request_method(),
+                    url=cls._operation.create_url_from_model(path_params),
+                    headers=headers,
+                    json=cls._operation.create_payload_from_model(payload_model),
+                )
+            return cls._operation.handle_response(await response.json())
+
+    return AiohttpRequestor
 
 
 class RequestorType(StrEnum):
     REQUESTS = "requests"
     FAKE = "fake"
+    HTTPIX = "httpx"
+    AIOHTTP = "aiohttp"
 
 
 def build_requestor(
@@ -146,6 +290,14 @@ def build_requestor(
                 operation_type=operation_type,
                 combined_model=combined_model,
                 return_value=return_value,
+            )
+        case RequestorType.HTTPIX:
+            return build_httpx_requestor(
+                operation_type=operation_type, combined_model=combined_model
+            )
+        case RequestorType.AIOHTTP:
+            return build_aiohttp_requestor(
+                operation_type=operation_type, combined_model=combined_model
             )
 
 
