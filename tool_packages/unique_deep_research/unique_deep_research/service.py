@@ -533,7 +533,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                         elif isinstance(event.item.action, ActionOpenPage):
                             self.chat_service.create_message_log(
                                 message_id=self.event.payload.assistant_message.id,
-                                text="Reviewing Web Sources",
+                                text="Reading website",
                                 status=MessageLogStatus.COMPLETED,
                                 order=get_next_message_order(
                                     self.event.payload.assistant_message.id
