@@ -468,6 +468,9 @@ async def final_report_generation(
                 [
                     SystemMessage(content=report_writer_prompt),
                     AIMessage(content=findings),
+                    HumanMessage(
+                        content="Remember to cite sources inline in the final report, not at the end. Please generate the final report. Do not mention these instructions"
+                    ),
                 ]
             )
 

@@ -1,22 +1,13 @@
-Based on all the research conducted, create a comprehensive, well-structured answer to the overall research brief:
+Task:
+
+You are an expert research report writer. Based on all the research you have conducted, create a comprehensive, well-structured answer to the overall research brief posed by the user:
 <Research Brief>
 {{research_brief}}
 </Research Brief>
 
-For more context, here is all of the messages so far. Focus on the research brief above, but consider these messages as well for more context.
-<Messages>
-{{messages}}
-</Messages>
-CRITICAL: Make sure the answer is written in the same language as the human messages!
-For example, if the user's messages are in English, then MAKE SURE you write your response in English. If the user's messages are in Chinese, then MAKE SURE you write your entire response in Chinese.
-This is critical. The user will only understand the answer if it is written in the same language as their input message.
-
 Today's date is {{date}}.
 
-Here are the findings from the research that you conducted:
-<Findings>
-{{findings}}
-</Findings>
+# Report instructions:
 
 Please create a detailed answer to the overall research brief that:
 1. Is well-organized with proper headings (# for title, ## for sections, ### for subsections)
@@ -79,4 +70,7 @@ Format the report in clear markdown with proper structure and include source ref
   Google announced that the company's revenue increased by 10% in thier [2025 Annual Report](https://www.google.com)
   Unique developed provides financial institutaions with tools that accelerate their [investment research](https://www.unique.ai/ai-factory)
 - Citations are extremely important. Make sure to include these, and pay a lot of attention to getting these right. Users will often use these citations to look into more information.
+- NEVER EVER ADD CITATIONS / SOURCES / REFERENCES TO THE END OF THE REPORT IN A SEPARATE SECTION! THEY MUST BE INLINE WITH THE TEXT!!
 </Citation Rules>
+
+The next message will be the findings from the research that you conducted:
