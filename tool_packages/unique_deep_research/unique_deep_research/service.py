@@ -162,18 +162,24 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
     def tool_description(self) -> LanguageModelToolDescription:
         return LanguageModelToolDescription(
             name=self.name,
-            description=self.config.tool_call_description,
+            description="Use this tool for complex research tasks that require deep investigation",
             parameters=DeepResearchToolInput,
         )
 
     def tool_description_for_system_prompt(self) -> str:
-        return self.config.tool_description_for_system_prompt
+        return (
+            "The DeepResearch tool is for complex research tasks that require:\n"
+            "- In-depth investigation across multiple sources\n"
+            "- Synthesis of information from various perspectives\n"
+            "- Comprehensive analysis with citations\n"
+            "- Detailed reports on specific topics\n\n"
+        )
 
     def tool_format_information_for_system_prompt(self) -> str:
         return ""
 
     def evaluation_check_list(self) -> list[EvaluationMetricName]:
-        return self.config.evaluation_check_list
+        return [EvaluationMetricName.HALLUCINATION]
 
     def get_evaluation_checks_based_on_tool_response(
         self, tool_response: ToolCallResponse
@@ -342,7 +348,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             # Prepare configuration for LangGraph
             config = {
                 "configurable": {
-                    "custom_engine_config": self.config.engine_config.Custom,
+                    "engine_config": self.config,
                     "openai_client": self.client,
                     "chat_service": self.chat_service,
                     "content_service": self.content_service,
@@ -385,7 +391,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         """
         stream = self.client.responses.create(
             timeout=RESPONSES_API_TIMEOUT_SECONDS,
-            model=self.config.engine_config.OpenAI.research_model.name,
+            model=self.config.research_model.name,
             input=[
                 {
                     "role": "developer",
@@ -423,8 +429,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             research_result, tool_call_id="", message_id=""
         )
         # Beautify the report
-        if self.config.engine_config.OpenAI.enable_report_postprocessing:
-            processed_result = await self._postprocess_report_with_gpt(processed_result)
+        processed_result = await self._postprocess_report_with_gpt(processed_result)
 
         # Convert OpenAI annotations to link references
         link_references = self._convert_annotations_to_references(
@@ -582,14 +587,15 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         """
         self.write_message_log_text_message("Enhancing report formatting...")
 
-        system_prompt = (
-            self.config.engine_config.OpenAI.report_postprocessing_system_prompt
-        )
-
         response = self.client.chat.completions.create(
-            model=self.config.engine_config.OpenAI.report_postprocessing_model.name,
+            model=self.config.large_model.name,
             messages=[
-                {"role": "system", "content": system_prompt},
+                {
+                    "role": "system",
+                    "content": self.env.get_template(
+                        "openai/report_postprocessing_system.j2"
+                    ).render(),
+                },
                 {
                     "role": "user",
                     "content": f"Please improve the markdown formatting of this research report:\n\n{research_result}",
@@ -634,7 +640,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         ]
         response = await self.chat_service.complete_async(
             messages=messages,
-            model_name=self.config.clarifying_model.name,
+            model_name=self.config.small_model.name,
             content_chunks=None,
         )
         assert isinstance(response.choices[0].message.content, str), (
@@ -654,7 +660,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         ] + messages
 
         research_response = self.client.chat.completions.create(
-            model=self.config.research_brief_model.name,
+            model=self.config.research_model.name,
             messages=chat_messages,
             temperature=0.1,
         )

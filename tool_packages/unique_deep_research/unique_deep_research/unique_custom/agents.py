@@ -23,7 +23,7 @@ from langgraph.types import Command
 from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.framework_utilities.utils import get_default_headers
 
-from ..config import TEMPLATE_ENV
+from ..config import TEMPLATE_ENV, UniqueCustomEngineConfig
 from .state import (
     AgentState,
     ResearcherOutputState,
@@ -42,7 +42,7 @@ from .tools import (
 )
 from .utils import (
     execute_tool_safely,
-    get_custom_engine_config,
+    get_engine_config,
     get_notes_from_tool_calls,
     is_token_error,
     remove_up_to_last_ai_message,
@@ -79,9 +79,8 @@ async def setup_research_supervisor(
     assert research_brief, "Research brief is required"
 
     # Initialize supervisor state with config values
-    custom_config = get_custom_engine_config(config)
-    max_concurrent = custom_config.max_parallel_researchers
-    max_iterations = custom_config.max_research_iterations
+    max_concurrent = UniqueCustomEngineConfig.max_parallel_researchers
+    max_iterations = UniqueCustomEngineConfig.max_research_iterations
 
     supervisor_system_prompt = TEMPLATE_ENV.get_template(
         "unique/lead_agent_system.j2"
@@ -115,10 +114,10 @@ async def research_supervisor(
     logger.info("Research supervisor determining next steps")
 
     # Configure the supervisor model with tools
-    custom_config = get_custom_engine_config(config)
+    custom_config = get_engine_config(config)
 
     model_config = {
-        "model": custom_config.lead_agent_model.name,
+        "model": custom_config.research_model.name,
         "max_tokens": 8000,
         "temperature": 0.1,
     }
@@ -155,8 +154,7 @@ async def supervisor_tools(
     most_recent_message = supervisor_messages[-1] if supervisor_messages else None
 
     # Check exit conditions
-    custom_config = get_custom_engine_config(config)
-    max_iterations = custom_config.max_research_iterations
+    max_iterations = UniqueCustomEngineConfig.max_research_iterations
     exceeded_iterations = research_iterations > max_iterations
 
     # Extract tool calls if available
@@ -200,7 +198,7 @@ async def supervisor_tools(
     # 2. ConductResearch calls
     try:
         research_tool_messages = await _handle_conduct_research_batch(
-            conduct_research_calls, state, config, custom_config
+            conduct_research_calls, state, config
         )
         all_tool_messages.extend(research_tool_messages)
 
@@ -251,9 +249,9 @@ async def researcher(
     research_tools = get_research_tools()
 
     # Configure the researcher model
-    custom_config = get_custom_engine_config(config)
+    custom_config = get_engine_config(config)
     model_config = {
-        "model": custom_config.research_agent_model.name,
+        "model": custom_config.research_model.name,
         "max_tokens": 10000,
         "temperature": 0.1,
     }
@@ -330,8 +328,7 @@ async def researcher_tools(
         )
 
     # Check if we should continue or finish
-    custom_config = get_custom_engine_config(config)
-    max_iterations = custom_config.max_tool_calls_per_researcher
+    max_iterations = UniqueCustomEngineConfig.max_tool_calls_per_researcher
     if state.get("tool_call_iterations", 0) >= max_iterations:
         return Command(
             goto="compress_research", update={"researcher_messages": tool_outputs}
@@ -350,11 +347,11 @@ async def compress_research(
     summary of the research findings with proper citations and formatting.
     """
     # Get custom config for model selection
-    custom_config = get_custom_engine_config(config)
+    custom_config = get_engine_config(config)
 
     # Prepare synthesis model
     model_config = {
-        "model": custom_config.compression_model.name,
+        "model": custom_config.large_model.name,
         "max_tokens": 8192,
         "temperature": 0.1,
     }
@@ -449,9 +446,9 @@ async def final_report_generation(
     findings = "\n".join(notes)
 
     # Step 2: Configure the final report generation model
-    custom_config = get_custom_engine_config(config)
+    custom_config = get_engine_config(config)
     model_config = {
-        "model": custom_config.final_report_synthesis_model.name,
+        "model": custom_config.large_model.name,
         "max_tokens": 10000,
         "temperature": 0.1,
     }
@@ -490,7 +487,9 @@ async def final_report_generation(
         except Exception as e:
             # Handle token limit exceeded errors with progressive truncation
             if is_token_error(e):
-                model_token_limit = custom_config.final_report_synthesis_model.token_limits.token_limit_input
+                model_token_limit = (
+                    custom_config.large_model.token_limits.token_limit_input
+                )
 
                 if iteration == 1:
                     # Reserve space for prompt and use ~4 characters per token approximation
@@ -562,7 +561,6 @@ async def _handle_conduct_research_batch(
     conduct_research_calls: list[Union[dict, Any]],
     state: SupervisorState,
     config: RunnableConfig,
-    custom_config,
 ) -> list[ToolMessage]:
     """Handle multiple ConductResearch calls in parallel for efficiency."""
     if not conduct_research_calls:
@@ -571,7 +569,7 @@ async def _handle_conduct_research_batch(
     logger.info(f"Delegating {len(conduct_research_calls)} research tasks...")
 
     # Limit concurrent research tasks to prevent resource exhaustion
-    max_concurrent = custom_config.max_parallel_researchers
+    max_concurrent = UniqueCustomEngineConfig.max_parallel_researchers
     allowed_calls = conduct_research_calls[:max_concurrent]
 
     # Execute research tasks in parallel

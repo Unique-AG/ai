@@ -29,7 +29,7 @@ from .utils import (
     execute_tool_safely,
     get_chat_service_from_config,
     get_content_service_from_config,
-    get_custom_engine_config,
+    get_engine_config,
     write_state_message_log,
     write_tool_message_log,
 )
@@ -54,7 +54,7 @@ __all__ = [
     "execute_tool_safely",
     "get_chat_service_from_config",
     "get_content_service_from_config",
-    "get_custom_engine_config",
+    "get_engine_config",
     "write_state_message_log",
     "write_tool_message_log",
 ]

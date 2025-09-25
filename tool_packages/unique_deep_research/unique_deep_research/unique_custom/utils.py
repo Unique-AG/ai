@@ -26,7 +26,7 @@ from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
-from ..config import UniqueCustomEngineConfig
+from ..config import DeepResearchToolConfig
 from .state import AgentState, ResearcherState, SupervisorState
 
 logger = logging.getLogger(__name__)
@@ -169,7 +169,7 @@ def get_message_id_from_config(config: RunnableConfig) -> str:
     return str(message_id)
 
 
-def get_custom_engine_config(config: RunnableConfig) -> UniqueCustomEngineConfig:
+def get_engine_config(config: RunnableConfig) -> DeepResearchToolConfig:
     """
     Extract custom engine configuration from RunnableConfig.
 
@@ -189,13 +189,13 @@ def get_custom_engine_config(config: RunnableConfig) -> UniqueCustomEngineConfig
     if not config or "configurable" not in config:
         raise KeyError("RunnableConfig missing 'configurable' section")
 
-    custom_config = config["configurable"].get("custom_engine_config")
+    custom_config = config["configurable"].get("engine_config")
     if not custom_config:
         raise KeyError("custom_engine_config missing from RunnableConfig")
 
-    if not isinstance(custom_config, UniqueCustomEngineConfig):
+    if not isinstance(custom_config, DeepResearchToolConfig):
         raise TypeError(
-            f"custom_engine_config is {type(custom_config)}, expected UniqueCustomEngineConfig"
+            f"engine_config is {type(custom_config)}, expected DeepResearchToolConfig"
         )
 
     return custom_config
