@@ -105,6 +105,9 @@ class ThinkArgs(BaseModel):
     reflection: str = Field(
         description="Detailed reflection on research progress, findings, gaps, and next steps"
     )
+    short_progress_update: str = Field(
+        description="A 1-2 sentence highlevel summary of new findings, and next steps to be displayed to the user that initiated the research so they can understand the progress of the research"
+    )
 
 
 # LangGraph-compatible tool functions
@@ -188,7 +191,7 @@ async def web_fetch(
     """
     write_tool_message_log(
         config,
-        "Reviewing Web Sources",
+        "Reading website",
         uncited_references=MessageLogUncitedReferences(
             data=[
                 ContentReference(
@@ -251,14 +254,19 @@ async def web_fetch(
 @tool(args_schema=InternalSearchArgs)
 async def internal_search(query: str, config: RunnableConfig, limit: int = 50) -> str:
     """
-    Search internal knowledge base using ContentService.
-
-    Searches through internal documents, knowledge bases, and previously
-    indexed content to find relevant information for research.
+    You can use the InternalSearch tool to access internal company documentations, including information on policies, procedures, benefits, groups, financial details, and specific individuals
+    If this tool can help answer your question, feel free to use it to search the internal knowledge base for more information.
+    If possible always try to get information from the internal knowledge base with the InternalSearch tool before using expanding to other tools unless explicitly requested otherwise by the user.
+    Use cases for the Internal Knowledge Search are:
+    - User asks to work with a document: Most likely the document is uploaded to the chat and mentioned in a message and can be loaded with this tool
+    - Policy and Procedure Verification: Use the internal search tool to find the most current company policies, procedures, or guidelines to ensure compliance and accuracy in responses.
+    - Project-Specific Information: When answering questions related to ongoing projects or initiatives, use the internal search to access project documents, reports, or meeting notes for precise details.
+    - Employee Directory and Contact Information: Utilize the internal search to locate contact details or organizational charts to facilitate communication and collaboration within the company.
+    - Confidential and Proprietary Information: When dealing with sensitive topics that require proprietary knowledge or confidential data, use the internal search to ensure the information is sourced from secure and authorized company documents.
     """
     write_tool_message_log(
         config,
-        "Searching internal knowledge base",
+        "Searching the internal knowledge base",
         details=MessageLogDetails(
             data=[MessageLogEvent(type="InternalSearch", text=query)]
         ),
@@ -286,12 +294,12 @@ async def internal_fetch(
     content_id: str, config: RunnableConfig, offset: int = 0, limit: int = 50
 ) -> str:
     """
-    Fetch internal content by ID using ContentService.
+    Fetch and extract content from a specific internal document or knowledge base entry by its unique identifier.
+    This tool is used to get the full content of a specific internal document or knowledge base entry by its unique identifier.
 
-    Retrieves the full content of a specific internal document or
-    knowledge base entry by its unique identifier.
+    This tool supports the internal search tool to get the full content of a specific internal document or knowledge base entry discovered by the internal search tool
     """
-    logger.info("Fetching from internal knowledge base")
+    logger.info("Reading internal knowledge base document")
     content_service = get_content_service_from_config(config)
 
     temp_metadata_filter = content_service._metadata_filter
@@ -331,7 +339,7 @@ async def internal_fetch(
             formatted_results += f"\n\n[{remaining_results:,} more results available - use offset {offset + len(paginated_results)} to continue]"
     write_tool_message_log(
         config,
-        "Reviewing Web Sources",
+        "Reading internal knowledge base document",
         uncited_references=MessageLogUncitedReferences(
             data=[
                 ContentReference(
@@ -348,11 +356,13 @@ async def internal_fetch(
 
 
 @tool(args_schema=ThinkArgs)
-def think_tool(reflection: str, config: RunnableConfig) -> str:
+def think_tool(
+    reflection: str, short_progress_update: str, config: RunnableConfig
+) -> str:
     """
     Tool for strategic reflection on research progress and decision-making.
 
-    Use this tool after each search to analyze results and plan next steps systematically.
+    Use this tool after each search and fetch action to analyze results and plan next steps systematically.
     This creates a deliberate pause in the research workflow for quality decision-making.
 
     When to use:
@@ -369,13 +379,13 @@ def think_tool(reflection: str, config: RunnableConfig) -> str:
 
     Args:
         reflection: Your detailed reflection on research progress, findings, gaps, and next steps
-
+        short_progress_update: A 1-2 sentence highlevel summary of new findings, and next steps to be displayed to the user that initiated the research so they can understand the progress of the research
     Returns:
         Confirmation that reflection has been recorded
     """
     write_tool_message_log(
         config,
-        reflection,
+        short_progress_update,
     )
     return f"Reflection recorded: {reflection}"
 
