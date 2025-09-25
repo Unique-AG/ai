@@ -192,6 +192,24 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         return evaluation_check_list
 
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
+        try:
+            return await self._run(tool_call)
+        except Exception as e:
+            if self.is_message_execution():
+                await self._update_execution_status(MessageExecutionUpdateStatus.FAILED)
+            self.logger.error(f"Deep Research tool run failed: {e}")
+            await self.chat_service.modify_assistant_message_async(
+                content="Deep Research failed to complete for an unknown reason",
+                set_completed_at=True,
+            )
+        return DeepResearchToolResponse(
+            id=tool_call.id or "",
+            name=self.name,
+            content="Failed to complete research",
+            error_message="Research process failed or returned empty results",
+        )
+
+    async def _run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
         self.logger.info("Starting Deep Research tool run")
 
         # Question answer and message execution will have the same message id, so we need to check if it is a message execution
