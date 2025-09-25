@@ -663,7 +663,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         ] + messages
 
         research_response = self.client.chat.completions.create(
-            model=self.config.research_model.name,
+            model=self.config.large_model.name,
             messages=chat_messages,
             temperature=0.1,
         )
