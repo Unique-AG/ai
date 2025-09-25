@@ -114,7 +114,7 @@ class ThinkArgs(BaseModel):
 
 
 @tool(args_schema=ConductResearchArgs)
-def ConductResearch(research_topic: str) -> str:
+def conduct_research(research_topic: str) -> str:
     """
     Delegate a specific research task to a specialized research agent.
 
@@ -125,19 +125,17 @@ def ConductResearch(research_topic: str) -> str:
 
 
 @tool(args_schema=ResearchCompleteArgs)
-def ResearchComplete(summary: str, sources: List[str] = []) -> str:
+def research_complete(summary: str, sources: List[str] = []) -> str:
     """
     Signal that research is complete and provide a comprehensive summary.
 
     Use this tool when you have gathered sufficient information to answer
     the research question comprehensively.
     """
-    sources = sources or []
-    sources_text = f" Sources: {', '.join(sources)}" if sources else ""
-    return f"Research completed. Summary: {summary}{sources_text}"
-
-
-# Research tools using unique-web-search implementations
+    content = f"Research completed with summary: {summary}"
+    if sources:
+        content += f"\nSources: {', '.join(sources)}"
+    return content
 
 
 @tool(args_schema=WebSearchArgs)
@@ -398,4 +396,4 @@ def get_research_tools() -> List[Any]:
 
 def get_supervisor_tools() -> List[Any]:
     """Get all tools available to the research supervisor."""
-    return [ConductResearch, ResearchComplete, think_tool]
+    return [conduct_research, research_complete, think_tool]

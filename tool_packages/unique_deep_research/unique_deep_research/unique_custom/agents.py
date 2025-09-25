@@ -14,8 +14,8 @@ from langchain_core.messages import (
     AIMessage,
     HumanMessage,
     SystemMessage,
+    ToolCall,
     ToolMessage,
-    get_buffer_string,
 )
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, StateGraph
@@ -36,6 +36,7 @@ from .tools import (
     get_today_str,
     internal_fetch,
     internal_search,
+    research_complete,
     think_tool,
     web_fetch,
     web_search,
@@ -175,25 +176,12 @@ async def supervisor_tools(
 
     # TOOL CALL HANDLERS
     all_tool_messages = []
-
-    think_tool_calls = [tc for tc in tool_calls if tc.get("name") == "think_tool"]
     conduct_research_calls = [
-        tc for tc in tool_calls if tc.get("name") == "ConductResearch"
+        tc for tc in tool_calls if tc.get("name") == "conduct_research"
     ]
-
-    research_complete_calls = [
-        tc for tc in tool_calls if tc.get("name") == "ResearchComplete"
+    remaining_tool_calls = [
+        tc for tc in tool_calls if tc.get("name") != "conduct_research"
     ]
-
-    if len(research_complete_calls) > 0 and len(tool_calls) > 1:
-        logger.warning("ResearchComplete called when there are other tool calls")
-        # TODO: consider if we remove the other tool calls
-
-    # Process all tool calls to ensure answers to tool calls are in history
-
-    # 1. think_tool calls
-    for tool_call in think_tool_calls:
-        all_tool_messages.append(_handle_think_tool(tool_call))
 
     # 2. ConductResearch calls
     try:
@@ -212,14 +200,13 @@ async def supervisor_tools(
                 "research_brief": state.get("research_brief", ""),
             },
         )
+    all_tool_messages.extend(
+        await _handle_tool_call_batch(remaining_tool_calls, config)
+    )
 
-    # 3. ResearchComplete calls
-    for tool_call in research_complete_calls:
-        all_tool_messages.append(_handle_research_complete(tool_call))
-
-    research_complete_called = len(research_complete_calls) > 0
-
-    if exceeded_iterations or research_complete_called:
+    if exceeded_iterations or any(
+        tc.get("name") == "research_complete" for tc in tool_calls
+    ):
         # Extract notes including the new tool messages we just created
         notes = get_notes_from_tool_calls(supervisor_messages + all_tool_messages)
 
@@ -279,6 +266,39 @@ async def researcher(
     )
 
 
+async def _handle_tool_call(tool_call: ToolCall, config: RunnableConfig) -> ToolMessage:
+    """Handle a tool call."""
+    tool_name = tool_call.get("name", "")
+    args = tool_call.get("args", {})
+    tool_map = {
+        "web_search": web_search,
+        "web_fetch": web_fetch,
+        "internal_search": internal_search,
+        "internal_fetch": internal_fetch,
+        "think_tool": think_tool,
+        "research_complete": research_complete,
+    }
+    if tool_name in tool_map:
+        result = await execute_tool_safely(tool_map[tool_name], args, config)
+    else:
+        logger.error(f"Unknown tool: {tool_name}")
+        result = f"Unknown tool: {tool_name}"
+    return ToolMessage(
+        content=result,
+        name=tool_name,
+        tool_call_id=tool_call.get("id", "unknown"),
+    )
+
+
+async def _handle_tool_call_batch(
+    tool_calls: list[ToolCall], config: RunnableConfig
+) -> list[ToolMessage]:
+    """Handle a batch of tool calls."""
+    return await asyncio.gather(
+        *[_handle_tool_call(tool_call, config) for tool_call in tool_calls]
+    )
+
+
 async def researcher_tools(
     state: ResearcherState, config: RunnableConfig
 ) -> Command[Literal["researcher", "compress_research"]]:
@@ -298,34 +318,7 @@ async def researcher_tools(
         return Command(goto="compress_research")
 
     # Execute actual tool calls safely
-    tool_outputs = []
-    for tool_call in tool_calls:
-        tool_name = tool_call.get("name", "")
-        args = tool_call.get("args", {})
-
-        # Map tool names to tool functions
-        tool_map = {
-            "web_search": web_search,
-            "web_fetch": web_fetch,
-            "internal_search": internal_search,
-            "internal_fetch": internal_fetch,
-            "think_tool": think_tool,
-        }
-
-        if tool_name in tool_map:
-            # Execute tool safely with error handling
-            result = await execute_tool_safely(tool_map[tool_name], args, config)
-        else:
-            logger.error(f"Unknown tool: {tool_name}")
-            result = f"Unknown tool: {tool_name}"
-
-        tool_outputs.append(
-            ToolMessage(
-                content=result,
-                name=tool_name,
-                tool_call_id=tool_call.get("id", "unknown"),
-            )
-        )
+    tool_outputs = await _handle_tool_call_batch(tool_calls, config)
 
     # Check if we should continue or finish
     max_iterations = UniqueCustomEngineConfig.max_tool_calls_per_researcher
@@ -466,15 +459,16 @@ async def final_report_generation(
                 "unique/report_writer_system_open_deep_research.j2"
             ).render(
                 research_brief=state.get("research_brief", ""),
-                messages=get_buffer_string(state.get("messages", [])),
-                findings=findings,
                 date=get_today_str(),
             )
 
             # Generate the final report
             report_model = configurable_model.with_config(model_config)  # type: ignore[arg-type]
             final_report = await report_model.ainvoke(
-                [HumanMessage(content=report_writer_prompt)]
+                [
+                    SystemMessage(content=report_writer_prompt),
+                    AIMessage(content=findings),
+                ]
             )
 
             # Return successful report generation
@@ -529,32 +523,6 @@ async def final_report_generation(
 
 
 ################ TOOL HANDLERS #################
-
-
-def _handle_think_tool(tool_call: Union[dict, Any]) -> ToolMessage:
-    """Handle think_tool calls with strategic reflection."""
-    reflection_content = tool_call["args"]["reflection"]
-    return ToolMessage(
-        content=f"Reflection recorded: {reflection_content}",
-        name="think_tool",
-        tool_call_id=tool_call["id"],
-    )
-
-
-def _handle_research_complete(tool_call: Union[dict, Any]) -> ToolMessage:
-    """Handle ResearchComplete calls with final summary."""
-    summary = tool_call["args"].get("summary", "Research completed")
-    sources = tool_call["args"].get("sources", [])
-
-    content = f"Research completed with summary: {summary}"
-    if sources:
-        content += f"\nSources: {', '.join(sources)}"
-
-    return ToolMessage(
-        content=content,
-        name="ResearchComplete",
-        tool_call_id=tool_call["id"],
-    )
 
 
 async def _handle_conduct_research_batch(
