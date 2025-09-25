@@ -29,20 +29,20 @@ class UniqueCustomEngineConfig:
 
 class DeepResearchToolConfig(BaseToolConfig):
     small_model: LMI = Field(
-        description="The model to use for less demanding tasks",
+        description="A smaller fast model for less demanding tasks",
         default=LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_4o_2024_1120),
     )
     large_model: LMI = Field(
-        description="The model to use for more demanding tasks",
+        description="A larger model with longer context window and more powerful capabilities",
         default=LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_41_2025_0414),
     )
     research_model: LMI = Field(
-        description="The main research model to be used",
+        description="The main research model to be used for conducting research",
         default=LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_41_2025_0414),
     )
     engine: DeepResearchEngine = Field(
-        description="The deep research engine to use",
-        default=DeepResearchEngine.OPENAI,
+        description="The deep research engine to use. Please be aware that OpenAI engine requires particular models to be used as the research model.",
+        default=DeepResearchEngine.UNIQUE_CUSTOM,
     )
 
 
