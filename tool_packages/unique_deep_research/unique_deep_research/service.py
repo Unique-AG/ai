@@ -198,7 +198,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         if await self.is_followup_question_answer() and not self.is_message_execution():
             self.logger.info("This is a follow-up question answer")
             # TODO: Should we also write a message to the user?
-            self.write_message_log_text_message("Waiting for deep research to start...")
+            self.write_message_log_text_message("Waiting for deep research to start")
             self.chat_service.create_message_execution(
                 message_id=self.event.payload.assistant_message.id,
                 type=MessageExecutionType.DEEP_RESEARCH,
@@ -211,7 +211,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         if self.is_message_execution():
             self.logger.info("Starting research")
             # Run research
-            self.write_message_log_text_message("Generating research plan...")
+            self.write_message_log_text_message("Generating research plan")
             research_brief = self.generate_research_brief_from_dict(
                 self.get_history_messages_for_research_brief()
             )
@@ -585,7 +585,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         Returns:
             The post-processed research result with improved formatting
         """
-        self.write_message_log_text_message("Enhancing report formatting...")
+        self.write_message_log_text_message("Synthesizing final research report")
 
         response = self.client.chat.completions.create(
             model=self.config.large_model.name,

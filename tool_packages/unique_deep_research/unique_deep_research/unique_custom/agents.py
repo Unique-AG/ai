@@ -438,7 +438,7 @@ async def final_report_generation(
     This implementation follows the open_deep_research pattern with sophisticated
     token limit handling and progressive truncation strategies.
     """
-    write_state_message_log(state, "Synthesizing final research report...")
+    write_state_message_log(state, "Synthesizing final research report")
 
     # Step 1: Extract research findings and prepare state cleanup
     notes = state.get("notes", [])
