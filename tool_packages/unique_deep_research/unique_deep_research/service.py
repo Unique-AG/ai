@@ -424,6 +424,9 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         # Process the stream
         research_result, annotations = self._process_research_stream(stream)
 
+        if not research_result:
+            return "", []
+
         # Postprocess research result to extract links, create references and chunks
         processed_result, _, content_chunks = postprocess_research_result_with_chunks(
             research_result, tool_call_id="", message_id=""
