@@ -6,8 +6,13 @@ import logging
 from datetime import datetime
 from typing import Any, List
 
+import timeout_decorator
+from bs4 import BeautifulSoup
+from fake_useragent import UserAgent
+from httpx import AsyncClient
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import tool
+from markdownify import markdownify
 from pydantic import BaseModel, Field
 from unique_toolkit.agentic.history_manager.utils import transform_chunks_to_string
 from unique_toolkit.chat.schemas import (
@@ -18,10 +23,6 @@ from unique_toolkit.chat.schemas import (
 from unique_toolkit.content import ContentReference
 from unique_toolkit.content.schemas import ContentSearchType
 from unique_web_search.client_settings import get_google_search_settings
-from unique_web_search.services.crawlers.basic import (
-    BasicCrawler,
-    BasicCrawlerConfig,
-)
 from unique_web_search.services.search_engine.google import GoogleConfig, GoogleSearch
 
 from .utils import get_content_service_from_config, write_tool_message_log
@@ -188,13 +189,21 @@ async def web_fetch(
     Useful for getting detailed information from specific web pages
     that were found through search or are known to contain relevant content.
     """
+
+    content, title = await crawl_url(AsyncClient(), url)
+
+    # Crawl the URL
+    if not content:
+        logger.info(f"Unable to fetch content from: {url}")
+        return f"Unable to fetch content from URL: {url}"
+
     write_tool_message_log(
         config,
         "Reading website",
         uncited_references=MessageLogUncitedReferences(
             data=[
                 ContentReference(
-                    name=url,
+                    name=title or url,
                     url=url,
                     sequence_number=0,
                     source="deep-research-citations",
@@ -203,21 +212,6 @@ async def web_fetch(
             ]
         ),
     )
-    # Create basic crawler configuration
-    crawler_config = BasicCrawlerConfig()
-
-    # Create crawler instance
-    crawler = BasicCrawler(crawler_config)
-
-    # Crawl the URL
-    results = await crawler.crawl([url])
-
-    if not results or not results[0]:
-        # TODO: Should this be shown to the user?
-        logger.info(f"Unable to fetch content from: {url}")
-        return f"Unable to fetch content from URL: {url}"
-
-    content = results[0]
 
     # Apply offset and character limit
     original_content_length = len(content)
@@ -399,3 +393,59 @@ def get_research_tools() -> List[Any]:
 def get_supervisor_tools() -> List[Any]:
     """Get all tools available to the research supervisor."""
     return [conduct_research, research_complete, think_tool]
+
+
+################# Web Crawler Helper Functions #################
+
+unwanted_types = {
+    "application/octet-stream",
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "image/",
+    "video/",
+    "audio/",
+}
+
+
+async def crawl_url(client: AsyncClient, url: str) -> tuple[str, str | None]:
+    headers = {"User-Agent": UserAgent().random}
+
+    try:
+        response = await client.get(url, headers=headers)
+        response.raise_for_status()
+    except Exception:
+        logger.warning(f"Site returned error {response.status_code}")
+        return "Unable to crawl URL", None
+
+    content_type = response.headers.get("content-type", "").lower().split(";")[0]
+
+    if content_type in unwanted_types:
+        return f"Content type {content_type} is not allowed", None
+
+    content = response.text
+
+    markdown = _markdownify_html_with_timeout(content, 10)
+
+    return markdown, get_title(content)
+
+
+def _markdownify_html_with_timeout(content: str, timeout: float) -> str:
+    @timeout_decorator.timeout(timeout)
+    def _markdownify_html(content: str) -> str:
+        markdown = markdownify(
+            content,
+            heading_style="ATX",
+        )
+        return markdown
+
+    try:
+        return _markdownify_html(content)
+    except Exception:
+        return "Unable to markdownify HTML"
+
+
+def get_title(text: str) -> str | None:
+    soup = BeautifulSoup(text, "html.parser")
+    title_tag = soup.title
+    return title_tag.string.strip() if title_tag and title_tag.string else None
