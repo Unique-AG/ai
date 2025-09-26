@@ -162,18 +162,24 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
     def tool_description(self) -> LanguageModelToolDescription:
         return LanguageModelToolDescription(
             name=self.name,
-            description=self.config.tool_call_description,
+            description="Use this tool for complex research tasks that require deep investigation",
             parameters=DeepResearchToolInput,
         )
 
     def tool_description_for_system_prompt(self) -> str:
-        return self.config.tool_description_for_system_prompt
+        return (
+            "The DeepResearch tool is for complex research tasks that require:\n"
+            "- In-depth investigation across multiple sources\n"
+            "- Synthesis of information from various perspectives\n"
+            "- Comprehensive analysis with citations\n"
+            "- Detailed reports on specific topics\n\n"
+        )
 
     def tool_format_information_for_system_prompt(self) -> str:
         return ""
 
     def evaluation_check_list(self) -> list[EvaluationMetricName]:
-        return self.config.evaluation_check_list
+        return [EvaluationMetricName.HALLUCINATION]
 
     def get_evaluation_checks_based_on_tool_response(
         self, tool_response: ToolCallResponse
@@ -186,13 +192,31 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         return evaluation_check_list
 
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
+        try:
+            return await self._run(tool_call)
+        except Exception as e:
+            if self.is_message_execution():
+                await self._update_execution_status(MessageExecutionUpdateStatus.FAILED)
+            self.logger.error(f"Deep Research tool run failed: {e}")
+            await self.chat_service.modify_assistant_message_async(
+                content="Deep Research failed to complete for an unknown reason",
+                set_completed_at=True,
+            )
+        return DeepResearchToolResponse(
+            id=tool_call.id or "",
+            name=self.name,
+            content="Failed to complete research",
+            error_message="Research process failed or returned empty results",
+        )
+
+    async def _run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
         self.logger.info("Starting Deep Research tool run")
 
         # Question answer and message execution will have the same message id, so we need to check if it is a message execution
         if await self.is_followup_question_answer() and not self.is_message_execution():
             self.logger.info("This is a follow-up question answer")
             # TODO: Should we also write a message to the user?
-            self.write_message_log_text_message("Waiting for deep research to start...")
+            self.write_message_log_text_message("Waiting for deep research to start")
             self.chat_service.create_message_execution(
                 message_id=self.event.payload.assistant_message.id,
                 type=MessageExecutionType.DEEP_RESEARCH,
@@ -205,7 +229,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         if self.is_message_execution():
             self.logger.info("Starting research")
             # Run research
-            self.write_message_log_text_message("Generating research plan...")
+            self.write_message_log_text_message("Generating research plan")
             research_brief = self.generate_research_brief_from_dict(
                 self.get_history_messages_for_research_brief()
             )
@@ -342,7 +366,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             # Prepare configuration for LangGraph
             config = {
                 "configurable": {
-                    "custom_engine_config": self.config.engine_config.Custom,
+                    "engine_config": self.config,
                     "openai_client": self.client,
                     "chat_service": self.chat_service,
                     "content_service": self.content_service,
@@ -385,7 +409,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         """
         stream = self.client.responses.create(
             timeout=RESPONSES_API_TIMEOUT_SECONDS,
-            model=self.config.engine_config.OpenAI.research_model.name,
+            model=self.config.research_model.name,
             input=[
                 {
                     "role": "developer",
@@ -418,13 +442,15 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         # Process the stream
         research_result, annotations = self._process_research_stream(stream)
 
+        if not research_result:
+            return "", []
+
         # Postprocess research result to extract links, create references and chunks
         processed_result, _, content_chunks = postprocess_research_result_with_chunks(
             research_result, tool_call_id="", message_id=""
         )
         # Beautify the report
-        if self.config.engine_config.OpenAI.enable_report_postprocessing:
-            processed_result = await self._postprocess_report_with_gpt(processed_result)
+        processed_result = await self._postprocess_report_with_gpt(processed_result)
 
         # Convert OpenAI annotations to link references
         link_references = self._convert_annotations_to_references(
@@ -528,7 +554,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                         elif isinstance(event.item.action, ActionOpenPage):
                             self.chat_service.create_message_log(
                                 message_id=self.event.payload.assistant_message.id,
-                                text="Reviewing Web Sources",
+                                text="Reading website",
                                 status=MessageLogStatus.COMPLETED,
                                 order=get_next_message_order(
                                     self.event.payload.assistant_message.id
@@ -580,16 +606,17 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         Returns:
             The post-processed research result with improved formatting
         """
-        self.write_message_log_text_message("Enhancing report formatting...")
-
-        system_prompt = (
-            self.config.engine_config.OpenAI.report_postprocessing_system_prompt
-        )
+        self.write_message_log_text_message("Synthesizing final research report")
 
         response = self.client.chat.completions.create(
-            model=self.config.engine_config.OpenAI.report_postprocessing_model.name,
+            model=self.config.large_model.name,
             messages=[
-                {"role": "system", "content": system_prompt},
+                {
+                    "role": "system",
+                    "content": self.env.get_template(
+                        "openai/report_postprocessing_system.j2"
+                    ).render(),
+                },
                 {
                     "role": "user",
                     "content": f"Please improve the markdown formatting of this research report:\n\n{research_result}",
@@ -634,7 +661,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         ]
         response = await self.chat_service.complete_async(
             messages=messages,
-            model_name=self.config.clarifying_model.name,
+            model_name=self.config.small_model.name,
             content_chunks=None,
         )
         assert isinstance(response.choices[0].message.content, str), (
@@ -654,7 +681,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         ] + messages
 
         research_response = self.client.chat.completions.create(
-            model=self.config.research_brief_model.name,
+            model=self.config.large_model.name,
             messages=chat_messages,
             temperature=0.1,
         )

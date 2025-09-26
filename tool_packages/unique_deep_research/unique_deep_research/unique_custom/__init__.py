@@ -13,12 +13,12 @@ from .state import (
     SupervisorState,
 )
 from .tools import (
-    ConductResearch,
-    ResearchComplete,
+    conduct_research,
     get_research_tools,
     get_supervisor_tools,
     internal_fetch,
     internal_search,
+    research_complete,
     think_tool,
     web_fetch,
     web_search,
@@ -29,7 +29,7 @@ from .utils import (
     execute_tool_safely,
     get_chat_service_from_config,
     get_content_service_from_config,
-    get_custom_engine_config,
+    get_engine_config,
     write_state_message_log,
     write_tool_message_log,
 )
@@ -40,8 +40,8 @@ __all__ = [
     "ResearcherOutputState",
     "ResearcherState",
     "SupervisorState",
-    "ConductResearch",
-    "ResearchComplete",
+    "conduct_research",
+    "research_complete",
     "get_research_tools",
     "get_supervisor_tools",
     "internal_fetch",
@@ -54,7 +54,7 @@ __all__ = [
     "execute_tool_safely",
     "get_chat_service_from_config",
     "get_content_service_from_config",
-    "get_custom_engine_config",
+    "get_engine_config",
     "write_state_message_log",
     "write_tool_message_log",
 ]

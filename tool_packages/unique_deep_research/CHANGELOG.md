@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2025-09-26
+Simplification, bugfixes, and performance improvements
+- Improve lead and research agent prompts
+- Simplify configuration of tool
+- root try-catch for error handeling
+- Prompt engineering on report writer prompt to ensure inline citations
+- Simplify thinking messages
+- Include url title for web_fetch
+
 ## [1.1.1] - 2025-09-23
 Minor bugfixes:
 - Message log entry at the completion of the report

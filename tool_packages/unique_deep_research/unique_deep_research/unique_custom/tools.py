@@ -6,8 +6,13 @@ import logging
 from datetime import datetime
 from typing import Any, List
 
+import timeout_decorator
+from bs4 import BeautifulSoup
+from fake_useragent import UserAgent
+from httpx import AsyncClient
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import tool
+from markdownify import markdownify
 from pydantic import BaseModel, Field
 from unique_toolkit.agentic.history_manager.utils import transform_chunks_to_string
 from unique_toolkit.chat.schemas import (
@@ -18,10 +23,6 @@ from unique_toolkit.chat.schemas import (
 from unique_toolkit.content import ContentReference
 from unique_toolkit.content.schemas import ContentSearchType
 from unique_web_search.client_settings import get_google_search_settings
-from unique_web_search.services.crawlers.basic import (
-    BasicCrawler,
-    BasicCrawlerConfig,
-)
 from unique_web_search.services.search_engine.google import GoogleConfig, GoogleSearch
 
 from .utils import get_content_service_from_config, write_tool_message_log
@@ -105,13 +106,16 @@ class ThinkArgs(BaseModel):
     reflection: str = Field(
         description="Detailed reflection on research progress, findings, gaps, and next steps"
     )
+    short_progress_update: str = Field(
+        description="A 1-2 sentence highlevel summary of new findings, and next steps to be displayed to the user that initiated the research so they can understand the progress of the research"
+    )
 
 
 # LangGraph-compatible tool functions
 
 
 @tool(args_schema=ConductResearchArgs)
-def ConductResearch(research_topic: str) -> str:
+def conduct_research(research_topic: str) -> str:
     """
     Delegate a specific research task to a specialized research agent.
 
@@ -122,19 +126,17 @@ def ConductResearch(research_topic: str) -> str:
 
 
 @tool(args_schema=ResearchCompleteArgs)
-def ResearchComplete(summary: str, sources: List[str] = []) -> str:
+def research_complete(summary: str, sources: List[str] = []) -> str:
     """
     Signal that research is complete and provide a comprehensive summary.
 
     Use this tool when you have gathered sufficient information to answer
     the research question comprehensively.
     """
-    sources = sources or []
-    sources_text = f" Sources: {', '.join(sources)}" if sources else ""
-    return f"Research completed. Summary: {summary}{sources_text}"
-
-
-# Research tools using unique-web-search implementations
+    content = f"Research completed with summary: {summary}"
+    if sources:
+        content += f"\nSources: {', '.join(sources)}"
+    return content
 
 
 @tool(args_schema=WebSearchArgs)
@@ -143,7 +145,8 @@ async def web_search(query: str, config: RunnableConfig, limit: int = 10) -> str
     Search the web for comprehensive, accurate, and trusted results.
 
     Useful for finding current information, news, and general knowledge
-    from across the internet.
+    from across the internet. Only returns snippets of the results.
+    Should be followed up by web_fetch to get the complete content of the results.
     """
     write_tool_message_log(
         config,
@@ -181,18 +184,26 @@ async def web_fetch(
     url: str, config: RunnableConfig, offset: int = 0, character_limit: int = 10_000
 ) -> str:
     """
-    Fetch and extract content from a specific web URL.
+    Fetch and extract the full content from a specific web URL.
 
     Useful for getting detailed information from specific web pages
     that were found through search or are known to contain relevant content.
     """
+
+    content, title = await crawl_url(AsyncClient(), url)
+
+    # Crawl the URL
+    if not content:
+        logger.info(f"Unable to fetch content from: {url}")
+        return f"Unable to fetch content from URL: {url}"
+
     write_tool_message_log(
         config,
-        "Reviewing Web Sources",
+        "Reading website",
         uncited_references=MessageLogUncitedReferences(
             data=[
                 ContentReference(
-                    name=url,
+                    name=title or url,
                     url=url,
                     sequence_number=0,
                     source="deep-research-citations",
@@ -201,21 +212,6 @@ async def web_fetch(
             ]
         ),
     )
-    # Create basic crawler configuration
-    crawler_config = BasicCrawlerConfig()
-
-    # Create crawler instance
-    crawler = BasicCrawler(crawler_config)
-
-    # Crawl the URL
-    results = await crawler.crawl([url])
-
-    if not results or not results[0]:
-        # TODO: Should this be shown to the user?
-        logger.info(f"Unable to fetch content from: {url}")
-        return f"Unable to fetch content from URL: {url}"
-
-    content = results[0]
 
     # Apply offset and character limit
     original_content_length = len(content)
@@ -251,14 +247,19 @@ async def web_fetch(
 @tool(args_schema=InternalSearchArgs)
 async def internal_search(query: str, config: RunnableConfig, limit: int = 50) -> str:
     """
-    Search internal knowledge base using ContentService.
-
-    Searches through internal documents, knowledge bases, and previously
-    indexed content to find relevant information for research.
+    You can use the InternalSearch tool to access internal company documentations, including information on policies, procedures, benefits, groups, financial details, and specific individuals
+    If this tool can help answer your question, feel free to use it to search the internal knowledge base for more information.
+    If possible always try to get information from the internal knowledge base with the InternalSearch tool before using expanding to other tools unless explicitly requested otherwise by the user.
+    Use cases for the Internal Knowledge Search are:
+    - User asks to work with a document: Most likely the document is uploaded to the chat and mentioned in a message and can be loaded with this tool
+    - Policy and Procedure Verification: Use the internal search tool to find the most current company policies, procedures, or guidelines to ensure compliance and accuracy in responses.
+    - Project-Specific Information: When answering questions related to ongoing projects or initiatives, use the internal search to access project documents, reports, or meeting notes for precise details.
+    - Employee Directory and Contact Information: Utilize the internal search to locate contact details or organizational charts to facilitate communication and collaboration within the company.
+    - Confidential and Proprietary Information: When dealing with sensitive topics that require proprietary knowledge or confidential data, use the internal search to ensure the information is sourced from secure and authorized company documents.
     """
     write_tool_message_log(
         config,
-        "Searching internal knowledge base",
+        "Searching the internal knowledge base",
         details=MessageLogDetails(
             data=[MessageLogEvent(type="InternalSearch", text=query)]
         ),
@@ -286,12 +287,12 @@ async def internal_fetch(
     content_id: str, config: RunnableConfig, offset: int = 0, limit: int = 50
 ) -> str:
     """
-    Fetch internal content by ID using ContentService.
+    Fetch and extract content from a specific internal document or knowledge base entry by its unique identifier.
+    This tool is used to get the full content of a specific internal document or knowledge base entry by its unique identifier.
 
-    Retrieves the full content of a specific internal document or
-    knowledge base entry by its unique identifier.
+    This tool supports the internal search tool to get the full content of a specific internal document or knowledge base entry discovered by the internal search tool
     """
-    logger.info("Fetching from internal knowledge base")
+    logger.info("Reading internal knowledge base document")
     content_service = get_content_service_from_config(config)
 
     temp_metadata_filter = content_service._metadata_filter
@@ -331,7 +332,7 @@ async def internal_fetch(
             formatted_results += f"\n\n[{remaining_results:,} more results available - use offset {offset + len(paginated_results)} to continue]"
     write_tool_message_log(
         config,
-        "Reviewing Web Sources",
+        "Reading internal knowledge base document",
         uncited_references=MessageLogUncitedReferences(
             data=[
                 ContentReference(
@@ -348,11 +349,13 @@ async def internal_fetch(
 
 
 @tool(args_schema=ThinkArgs)
-def think_tool(reflection: str, config: RunnableConfig) -> str:
+def think_tool(
+    reflection: str, short_progress_update: str, config: RunnableConfig
+) -> str:
     """
     Tool for strategic reflection on research progress and decision-making.
 
-    Use this tool after each search to analyze results and plan next steps systematically.
+    Use this tool after each search and fetch action to analyze results and plan next steps systematically.
     This creates a deliberate pause in the research workflow for quality decision-making.
 
     When to use:
@@ -369,14 +372,15 @@ def think_tool(reflection: str, config: RunnableConfig) -> str:
 
     Args:
         reflection: Your detailed reflection on research progress, findings, gaps, and next steps
-
+        short_progress_update: A 1-2 sentence highlevel summary of new findings, and next steps to be displayed to the user that initiated the research so they can understand the progress of the research
     Returns:
         Confirmation that reflection has been recorded
     """
-    write_tool_message_log(
-        config,
-        reflection,
-    )
+    if config.get("metadata", {}).get("langgraph_node", "") == "supervisor_tools":
+        write_tool_message_log(
+            config,
+            short_progress_update,
+        )
     return f"Reflection recorded: {reflection}"
 
 
@@ -388,4 +392,60 @@ def get_research_tools() -> List[Any]:
 
 def get_supervisor_tools() -> List[Any]:
     """Get all tools available to the research supervisor."""
-    return [ConductResearch, ResearchComplete, think_tool]
+    return [conduct_research, research_complete, think_tool]
+
+
+################# Web Crawler Helper Functions #################
+
+unwanted_types = {
+    "application/octet-stream",
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "image/",
+    "video/",
+    "audio/",
+}
+
+
+async def crawl_url(client: AsyncClient, url: str) -> tuple[str, str | None]:
+    headers = {"User-Agent": UserAgent().random}
+
+    try:
+        response = await client.get(url, headers=headers)
+        response.raise_for_status()
+    except Exception:
+        logger.warning(f"Site returned error {response.status_code}")
+        return "Unable to crawl URL", None
+
+    content_type = response.headers.get("content-type", "").lower().split(";")[0]
+
+    if content_type in unwanted_types:
+        return f"Content type {content_type} is not allowed", None
+
+    content = response.text
+
+    markdown = _markdownify_html_with_timeout(content, 10)
+
+    return markdown, get_title(content)
+
+
+def _markdownify_html_with_timeout(content: str, timeout: float) -> str:
+    @timeout_decorator.timeout(timeout)
+    def _markdownify_html(content: str) -> str:
+        markdown = markdownify(
+            content,
+            heading_style="ATX",
+        )
+        return markdown
+
+    try:
+        return _markdownify_html(content)
+    except Exception:
+        return "Unable to markdownify HTML"
+
+
+def get_title(text: str) -> str | None:
+    soup = BeautifulSoup(text, "html.parser")
+    title_tag = soup.title
+    return title_tag.string.strip() if title_tag and title_tag.string else None
