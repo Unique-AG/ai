@@ -144,7 +144,8 @@ async def web_search(query: str, config: RunnableConfig, limit: int = 10) -> str
     Search the web for comprehensive, accurate, and trusted results.
 
     Useful for finding current information, news, and general knowledge
-    from across the internet.
+    from across the internet. Only returns snippets of the results.
+    Should be followed up by web_fetch to get the complete content of the results.
     """
     write_tool_message_log(
         config,
@@ -182,7 +183,7 @@ async def web_fetch(
     url: str, config: RunnableConfig, offset: int = 0, character_limit: int = 10_000
 ) -> str:
     """
-    Fetch and extract content from a specific web URL.
+    Fetch and extract the full content from a specific web URL.
 
     Useful for getting detailed information from specific web pages
     that were found through search or are known to contain relevant content.
