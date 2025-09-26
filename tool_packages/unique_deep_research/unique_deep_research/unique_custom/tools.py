@@ -381,10 +381,11 @@ def think_tool(
     Returns:
         Confirmation that reflection has been recorded
     """
-    write_tool_message_log(
-        config,
-        short_progress_update,
-    )
+    if config.get("metadata", {}).get("langgraph_node", "") == "supervisor_tools":
+        write_tool_message_log(
+            config,
+            short_progress_update,
+        )
     return f"Reflection recorded: {reflection}"
 
 
