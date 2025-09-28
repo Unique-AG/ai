@@ -1,9 +1,10 @@
 import logging
 import warnings
-from typing import TypeVar
+from typing import TypeVar, Unpack
 
 import humps
 from pydantic import BaseModel, ConfigDict, Field, create_model
+from pydantic.alias_generators import to_camel
 from pydantic.fields import ComputedFieldInfo, FieldInfo
 
 logger = logging.getLogger(__name__)
@@ -20,12 +21,12 @@ def model_title_generator(model: type) -> str:
     return humps.decamelize(model.__name__).replace("_", " ").title()
 
 
-def get_configuration_dict(**kwargs) -> ConfigDict:
+def get_configuration_dict(**kwargs: Unpack[ConfigDict]) -> ConfigDict:
     config = {
-        # alias_generator=to_camel,
+        "alias_generator": to_camel,
         "field_title_generator": field_title_generator,
         "model_title_generator": model_title_generator,
-        # populate_by_name=True,
+        "populate_by_name": True,
         # protected_namespaces=(),
     }
     config.update(kwargs)
