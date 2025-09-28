@@ -22,10 +22,15 @@ logger = logging.getLogger(__name__)
 SpaceMessage = unique_sdk.Space.Message
 
 
+class _SubAgentMessageInfo(TypedDict):
+    text: str | None
+    references: list[unique_sdk.Space.Reference]
+
+
 class _SubAgentToolInfo(TypedDict):
     display_name: str
     display_config: SubAgentToolDisplayConfig
-    response: NotRequired[SpaceMessage]
+    response: NotRequired[_SubAgentMessageInfo]
 
 
 class SubAgentResponsesPostprocessor(Postprocessor):
@@ -144,17 +149,30 @@ class SubAgentResponsesPostprocessor(Postprocessor):
             )
             return
 
-        self._assistant_id_to_tool_info[sub_agent_assistant_id]["response"] = response
+        self._assistant_id_to_tool_info[sub_agent_assistant_id]["response"] = {
+            "text": response["text"],
+            "references": [
+                {
+                    "name": ref["name"],
+                    "url": ref["url"],
+                    "sequenceNumber": ref["sequenceNumber"],
+                    "originalIndex": [],
+                    "sourceId": ref["sourceId"],
+                    "source": ref["source"],
+                }
+                for ref in response["references"] or []
+            ],
+        }
 
 
 def _consolidate_references_in_place(
-    messages: dict[str, SpaceMessage], existing_refs: dict[str, int]
+    messages: dict[str, _SubAgentMessageInfo], existing_refs: dict[str, int]
 ) -> None:
     start_index = max(existing_refs.values(), default=0) + 1
 
     for assistant_id, message in messages.items():
         references = message["references"]
-        if references is None or len(references) == 0 or message["text"] is None:
+        if len(references) == 0 or message["text"] is None:
             logger.info(
                 "Message from assistant %s does not contain any references",
                 assistant_id,
