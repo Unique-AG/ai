@@ -1,11 +1,11 @@
 import re
 from abc import ABC, abstractmethod
-from typing import Literal
+from typing import Literal, override
 
 from unique_toolkit.agentic.tools.a2a.config import ResponseDisplayMode
 
 
-class ResponseDisplayHandler(ABC):
+class _ResponseDisplayHandler(ABC):
     @abstractmethod
     def build_response_display(
         self, display_name: str, assistant_id: str, answer: str
@@ -17,7 +17,7 @@ class ResponseDisplayHandler(ABC):
         raise NotImplementedError()
 
 
-class DetailsResponseDisplayHandler(ResponseDisplayHandler):
+class _DetailsResponseDisplayHandler(_ResponseDisplayHandler):
     def __init__(self, mode: Literal["open", "closed"]) -> None:
         self._mode = mode
 
@@ -70,6 +70,7 @@ class DetailsResponseDisplayHandler(ResponseDisplayHandler):
         else:
             return self.DETAILS_CLOSED_TEMPLATE
 
+    @override
     def build_response_display(
         self, display_name: str, assistant_id: str, answer: str
     ) -> str:
@@ -77,13 +78,14 @@ class DetailsResponseDisplayHandler(ResponseDisplayHandler):
             assistant_id=assistant_id, display_name=display_name, answer=answer
         )
 
+    @override
     def remove_response_display(self, assistant_id: str, text: str) -> str:
         return re.sub(self._get_detect_re(assistant_id=assistant_id), "", text)
 
 
 _DISPLAY_HANDLERS = {
-    ResponseDisplayMode.DETAILS_OPEN: DetailsResponseDisplayHandler(mode="open"),
-    ResponseDisplayMode.DETAILS_CLOSED: DetailsResponseDisplayHandler(mode="closed"),
+    ResponseDisplayMode.DETAILS_OPEN: _DetailsResponseDisplayHandler(mode="open"),
+    ResponseDisplayMode.DETAILS_CLOSED: _DetailsResponseDisplayHandler(mode="closed"),
 }
 
 

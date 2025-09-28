@@ -4,7 +4,7 @@ import pytest
 
 from unique_toolkit.agentic.tools.a2a.config import ResponseDisplayMode
 from unique_toolkit.agentic.tools.a2a.postprocessing.display import (
-    DetailsResponseDisplayHandler,
+    _DetailsResponseDisplayHandler,
     build_sub_agent_answer_display,
     remove_sub_agent_answer_from_text,
 )
@@ -16,12 +16,12 @@ class TestDetailsResponseDisplayHandler:
     @pytest.fixture
     def open_handler(self):
         """Create a handler with open mode."""
-        return DetailsResponseDisplayHandler(mode="open")
+        return _DetailsResponseDisplayHandler(mode="open")
 
     @pytest.fixture
     def closed_handler(self):
         """Create a handler with closed mode."""
-        return DetailsResponseDisplayHandler(mode="closed")
+        return _DetailsResponseDisplayHandler(mode="closed")
 
     @pytest.fixture
     def sample_data(self):
@@ -328,7 +328,7 @@ class TestEdgeCases:
 
     def test_empty_strings(self):
         """Test handling of empty strings."""
-        handler = DetailsResponseDisplayHandler(mode="open")
+        handler = _DetailsResponseDisplayHandler(mode="open")
 
         result = handler.build_response_display(
             display_name="", assistant_id="test", answer=""
@@ -339,7 +339,7 @@ class TestEdgeCases:
 
     def test_multiline_content(self):
         """Test handling of multiline content."""
-        handler = DetailsResponseDisplayHandler(mode="open")
+        handler = _DetailsResponseDisplayHandler(mode="open")
 
         multiline_answer = """Line 1
         Line 2
@@ -367,7 +367,7 @@ class TestEdgeCases:
 
     def test_html_content_in_answer(self):
         """Test handling of HTML content within the answer."""
-        handler = DetailsResponseDisplayHandler(mode="open")
+        handler = _DetailsResponseDisplayHandler(mode="open")
 
         html_answer = "<p>This is <strong>bold</strong> text with <em>emphasis</em></p>"
 
@@ -389,7 +389,7 @@ class TestEdgeCases:
 
     def test_unicode_content(self):
         """Test handling of Unicode content."""
-        handler = DetailsResponseDisplayHandler(mode="open")
+        handler = _DetailsResponseDisplayHandler(mode="open")
 
         unicode_content = "Testing Unicode: 你好 🌟 café naïve résumé"
 

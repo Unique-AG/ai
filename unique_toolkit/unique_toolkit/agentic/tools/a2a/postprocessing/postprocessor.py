@@ -55,14 +55,22 @@ class SubAgentResponsesPostprocessor(Postprocessor):
                 )
             )
 
+        self._sub_agent_message = None
+
     @override
     async def run(self, loop_response: LanguageModelStreamResponse) -> None:
-        return
+        self._sub_agent_message = await unique_sdk.Space.get_latest_message_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            chat_id=self._agent_chat_id,
+        )
 
     @override
     def apply_postprocessing_to_response(
         self, loop_response: LanguageModelStreamResponse
     ) -> bool:
+        logger.info("Adding sub agent responses to the response")
+
         # Get responses to display
         displayed = {}
         for assistant_id, tool_info in self._assistant_id_to_tool_info.items():
@@ -98,8 +106,11 @@ class SubAgentResponsesPostprocessor(Postprocessor):
                 + loop_response.message.text
             )
 
+            assert self._sub_agent_message is not None
+
             loop_response.message.references.extend(
                 ContentReference(
+                    message_id=self._sub_agent_message["id"],
                     source_id=ref["sourceId"],
                     url=ref["url"],
                     source=ref["source"],
