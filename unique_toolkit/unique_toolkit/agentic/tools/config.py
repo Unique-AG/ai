@@ -78,8 +78,17 @@ class ToolBuildConfig(BaseModel):
             # Configuration can remain as a dict
             return value
 
+        is_sub_agent_tool = (
+            value.get("is_sub_agent") or value.get("isSubAgent") or False
+        )
+
         configuration = value.get("configuration", {})
-        if isinstance(configuration, dict):
+
+        if is_sub_agent_tool:
+            from unique_toolkit.agentic.tools.a2a.config import SubAgentToolConfig
+
+            config = SubAgentToolConfig.model_validate(configuration)
+        elif isinstance(configuration, dict):
             # Local import to avoid circular import at module import time
             from unique_toolkit.agentic.tools.factory import ToolFactory
 
