@@ -204,7 +204,7 @@ class TestToolBuildConfigAndFactory:
         assert tool_build_config.icon == ToolIcon.BOOK
         assert tool_build_config.selection_policy == ToolSelectionPolicy.BY_USER
         assert tool_build_config.is_exclusive is False
-        assert tool_build_config.is_sub_agent is True
+        assert tool_build_config.is_sub_agent is False
         assert tool_build_config.is_enabled is False
 
         # Verify configuration object
