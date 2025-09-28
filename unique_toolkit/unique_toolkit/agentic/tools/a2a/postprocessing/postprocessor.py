@@ -97,6 +97,7 @@ class SubAgentResponsesPostprocessor(Postprocessor):
         }
         _consolidate_references_in_place(displayed, existing_refs)
 
+        modified = len(displayed) > 0
         for assistant_id, message in reversed(displayed.items()):
             tool_info = self._assistant_id_to_tool_info[assistant_id]
             display_mode = tool_info["display_config"].mode
@@ -125,7 +126,7 @@ class SubAgentResponsesPostprocessor(Postprocessor):
                 for ref in message["references"]
             )
 
-        return True
+        return modified
 
     @override
     async def remove_from_text(self, text) -> str:
