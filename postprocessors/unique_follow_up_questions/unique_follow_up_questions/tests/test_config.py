@@ -34,7 +34,7 @@ def test_use_structured_output_property(valid_config):
     # Test with a model that doesn't support structured output
     config_without_structured = FollowUpQuestionsConfig(
         language_model=LanguageModelInfo.from_name(
-            LanguageModelName.AZURE_GPT_35_TURBO_0125
+            LanguageModelName.AZURE_GPT_4o_2024_1120
         )  # This model doesn't support structured output  # noqa: F821
     )
     assert config_without_structured.use_structured_output is False

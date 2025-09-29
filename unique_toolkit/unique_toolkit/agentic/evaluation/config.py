@@ -24,7 +24,7 @@ class EvaluationMetricConfig(BaseModel):
     enabled: bool = False
     name: EvaluationMetricName
     language_model: LMI = LanguageModelInfo.from_name(
-        LanguageModelName.AZURE_GPT_35_TURBO_0125,
+        LanguageModelName.AZURE_GPT_4o_2024_1120,
     )
     additional_llm_options: dict[str, Any] = Field(
         default={},

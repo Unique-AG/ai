@@ -1,11 +1,11 @@
 from unittest.mock import AsyncMock, MagicMock, create_autospec
 
 import pytest
+from unique_toolkit._common.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit.chat import ChatService
 from unique_toolkit.language_model import LanguageModelService
 from unique_toolkit.language_model.infos import (
     LanguageModelInfo,
-    LanguageModelName,
 )
 
 from unique_stock_ticker.detection.config import StockTickerDetectionConfig
@@ -29,7 +29,7 @@ def stock_ticker_config():
     # Adjust as necessary to create a real or dummy config
     return StockTickerDetectionConfig(
         language_model=LanguageModelInfo.from_name(
-            LanguageModelName.AZURE_GPT_35_TURBO_0125
+            DEFAULT_GPT_4o
         )
     )
 

@@ -11,7 +11,7 @@ from unique_stock_ticker.detection.memory import StockTickerMemoryConfig
 class StockTickerDetectionConfig(BaseModel):
     model_config = get_configuration_dict()
     language_model: LMI = LanguageModelInfo.from_name(
-        LanguageModelName.AZURE_GPT_35_TURBO_0125,
+        LanguageModelName.AZURE_GPT_4o_2024_1120,
     )
     additional_llm_options: dict[str, Any] = Field(
         default={},
