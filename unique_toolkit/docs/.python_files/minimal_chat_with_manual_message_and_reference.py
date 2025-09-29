@@ -28,11 +28,9 @@ from unique_toolkit import LanguageModelToolDescription
 # ~/~ begin <<docs/application_types/event_driven_applications.md#unique_setup_settings_sdk_from_env>>[init]
 settings = UniqueSettings.from_env_auto_with_sdk_init()
 # ~/~ end
-# ~/~ begin <<docs/application_types/event_driven_applications.md#obtaining_sse_client_with_chat_event>>[init]
 for event in get_event_generator(unique_settings=settings, event_type=ChatEvent):
+# ~/~ end
     chat_service = ChatService(event)
-# ~/~ end
-# ~/~ end
     # ~/~ begin <<docs/modules/examples/chat/chat_service.md#chat_service_create_assistant_message>>[init]
     assistant_message = chat_service.create_assistant_message(
             content="Hello from Unique",

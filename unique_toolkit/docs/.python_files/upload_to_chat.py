@@ -1,5 +1,4 @@
-# ~/~ begin <<docs/modules/examples/chat/chat_service.md#docs/.python_files/minimal_chat_with_manual_message_create_free_user_input.py>>[init]
-# ~/~ begin <<docs/application_types/event_driven_applications.md#full_sse_setup_with_services>>[init]
+# ~/~ begin <<docs/tutorials/file_creation_and_upload_to_chat.md#docs/.python_files/upload_to_chat.py>>[init]
 # ~/~ begin <<docs/application_types/event_driven_applications.md#full_sse_setup>>[init]
 # ~/~ begin <<docs/setup/_common_imports.md#common_imports>>[init]
 from unique_toolkit.app.unique_settings import UniqueSettings
@@ -31,24 +30,49 @@ settings = UniqueSettings.from_env_auto_with_sdk_init()
 # ~/~ end
 for event in get_event_generator(unique_settings=settings, event_type=ChatEvent):
 # ~/~ end
+    settings.update_from_event(event)
     # ~/~ begin <<docs/application_types/event_driven_applications.md#init_services_from_event>>[init]
     # Initialize services from event
     chat_service = ChatService(event)
     content_service = ContentService.from_event(event)
     # ~/~ end
-# ~/~ end
-    # ~/~ begin <<docs/modules/examples/chat/chat_service.md#chat_service_create_assistant_message>>[init]
-    assistant_message = chat_service.create_assistant_message(
-            content="Hello from Unique",
+    # ~/~ begin <<docs/tutorials/file_creation_and_upload_to_chat.md#upload_with_reference_initial_message>>[init]
+
+    assistant_message =chat_service.create_assistant_message(
+        content="Hi there, the agent has started to create your document.",
+    )
+    # ~/~ end
+    # ~/~ begin <<docs/tutorials/file_creation_and_upload_to_chat.md#upload_with_reference_document_creation>>[init]
+    content_bytes = b"Hello, world!"
+    # ~/~ end
+    # ~/~ begin <<docs/tutorials/file_creation_and_upload_to_chat.md#upload_with_reference_upload_document>>[init]
+    uploaded_content = content_service.upload_content_from_bytes(
+            content=content_bytes,
+            content_name="document.txt",
+            mime_type="text/plain",
+            chat_id=event.payload.chat_id,
+            skip_ingestion=True,
         )
     # ~/~ end
-    # ~/~ begin <<docs/modules/examples/chat/chat_service.md#chat_service_modify_assistant_message>>[init]
+    # ~/~ begin <<docs/tutorials/file_creation_and_upload_to_chat.md#upload_with_reference_referencing_in_message>>[init]
+    reference = ContentReference(
+            id=uploaded_content.id,
+            sequence_number=1,
+            message_id=event.payload.assistant_message.id,
+            name="document.txt",
+            source=event.payload.name,
+            source_id=event.payload.chat_id,
+            url=f"unique://content/{uploaded_content.id}",
+        )
+
+
     chat_service.modify_assistant_message(
-            content="Modified User Message",
-            message_id=assistant_message.id
-        )
+                    content="Please find the translated document below in the references.",
+                    message_id=assistant_message.id, 
+                    references=[reference],
+                )
     # ~/~ end
-    # ~/~ begin <<docs/modules/examples/chat/chat_service.md#chat_service_free_user_input>>[init]
+    # ~/~ begin <<docs/tutorials/file_creation_and_upload_to_chat.md#free_user_input>>[init]
     chat_service.free_user_input()
     # ~/~ end
 # ~/~ end

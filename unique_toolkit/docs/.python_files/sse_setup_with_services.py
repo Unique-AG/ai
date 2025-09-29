@@ -1,3 +1,4 @@
+# ~/~ begin <<docs/application_types/event_driven_applications.md#full_sse_setup_with_services>>[init]
 # ~/~ begin <<docs/application_types/event_driven_applications.md#full_sse_setup>>[init]
 # ~/~ begin <<docs/setup/_common_imports.md#common_imports>>[init]
 from unique_toolkit.app.unique_settings import UniqueSettings
@@ -27,8 +28,11 @@ from unique_toolkit import LanguageModelToolDescription
 # ~/~ begin <<docs/application_types/event_driven_applications.md#unique_setup_settings_sdk_from_env>>[init]
 settings = UniqueSettings.from_env_auto_with_sdk_init()
 # ~/~ end
-# ~/~ begin <<docs/application_types/event_driven_applications.md#obtaining_sse_client_with_chat_event>>[init]
 for event in get_event_generator(unique_settings=settings, event_type=ChatEvent):
-    chat_service = ChatService(event)
 # ~/~ end
+    # ~/~ begin <<docs/application_types/event_driven_applications.md#init_services_from_event>>[init]
+    # Initialize services from event
+    chat_service = ChatService(event)
+    content_service = ContentService.from_event(event)
+    # ~/~ end
 # ~/~ end

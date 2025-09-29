@@ -60,7 +60,7 @@ chat_service.complete_with_references(
 <!--
 
 ```{.python file=docs/.python_files/minimal_chat_app.py}
-<<full_sse_setup>>
+<<full_sse_setup_with_services>>
     <<trivial_message_from_user>>
     <<chat_service_complete_with_references>>
 ```
@@ -77,7 +77,7 @@ assistant_message = chat_service.create_assistant_message(
 
 <!--
 ```{.python file=docs/.python_files/minimal_chat_with_manual_message_create.py}
-<<full_sse_setup>>
+<<full_sse_setup_with_services>>
     <<chat_service_create_assistant_message>>
 ```
 -->
@@ -111,7 +111,7 @@ chat_service.modify_assistant_message(
 
 <!--
 ```{.python file=docs/.python_files/minimal_chat_with_manual_message_create_and_modification.py}
-<<full_sse_setup>>
+<<full_sse_setup_with_services>>
     <<chat_service_create_assistant_message>>
     <<chat_service_modify_assistant_message>>
 ```
@@ -132,7 +132,7 @@ chat_service.free_user_input()
 
 <!--
 ```{.python file=docs/.python_files/minimal_chat_with_manual_message_create_free_user_input.py}
-<<full_sse_setup>>
+<<full_sse_setup_with_services>>
     <<chat_service_create_assistant_message>>
     <<chat_service_modify_assistant_message>>
     <<chat_service_free_user_input>>
@@ -165,6 +165,7 @@ In the `content` string the refercnes must be referred to by `<sup>sequence_numb
 <!--
 ```{.python file=docs/.python_files/minimal_chat_with_manual_message_and_reference.py}
 <<full_sse_setup>>
+    chat_service = ChatService(event)
     <<chat_service_create_assistant_message>>
     <<chat_service_modify_assistant_message>>
     <<chat_service_assistant_message_with_reference>>
@@ -247,6 +248,7 @@ chat_service.complete_with_references(
 <!--
 ```{.python file=docs/.python_files/minimal_chat_with_streamed_references.py}
 <<full_sse_setup>>
+    chat_service = ChatService(event)
     <<chat_service_retrieved_chunks>>
     <<chat_service_chunk_presentation>>
     <<chat_service_reference_guidelines>>
@@ -279,7 +281,7 @@ chat_service.modify_user_message(
 ```
 <!--
 ```{.python file=docs/.python_files/minimal_chat_edit_debug_information.py}
-<<full_sse_setup>>
+<<full_sse_setup_with_services>>
     <<chat_service_create_assistant_message>>
     <<chat_service_modify_assistant_message>>
     <<chat_service_modify_user_message_debug_info>>
@@ -348,7 +350,7 @@ which displays as
 <!--
 ```{.python file=docs/.python_files/minimal_chat_with_message_assessment.py}
 <<common_imports>>
-<<full_sse_setup>>
+<<full_sse_setup_with_services>>
     <<chat_service_create_assistant_message>>
     <<chat_service_create_message_assessment>>
     <<chat_service_modify_message_assessment>>

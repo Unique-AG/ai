@@ -101,6 +101,34 @@ file_path = Path(__file__).parent/"test.txt"
 -->
 
 
+### Make uploaded document available to user
+
+```
+uploaded_content = content_service.upload_content(
+        path_to_content=str(output_filepath),
+        content_name=output_filepath.name,
+        mime_type=str(mimetypes.guess_type(output_filepath)[0]),
+        chat_id=payload.chat_id,
+        skip_ingestion=skip_ingestion,
+    )
+
+reference = ContentReference(
+    id=content.id,
+    sequence_number=1,
+    message_id=message_id,
+    name=filename,
+    source=payload.name,
+    source_id=chat_id,
+    url=f"unique://content/{uploaded_content.id}",
+)
+
+self.chat_service.modify_assistant_message(
+                content="Please find the translated document below in the references.",
+                references=[reference],
+                set_completed_at=True,
+            )
+```
+
 
 ## Content Download
 
