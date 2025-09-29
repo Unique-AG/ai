@@ -52,13 +52,13 @@ This tool is called {{ tool_description.display_name }} by the user.
 {%- set tool_messages = {
   'automations': {'display': 'automations', 'message': 'Cannot create reminders, recurring tasks, or scheduled prompts.'},
   'canmore': {'display': 'canmore', 'message': 'Cannot create or edit documents/canvas for writing or coding.'},
-  'InternalSearch': {'display': 'file_search', 'message': 'Cannot search across internal company sources (Google Drive, Slack, Notion, etc.).'},
+  'InternalSearch': {'display': 'Internal Search', 'message': 'Cannot search across internal company sources. If you cannot force it in this space, ask an admin to activate the tool.'},
   'gcal': {'display': 'gcal (Google Calendar)', 'message': 'Cannot show or search calendar events.'},
   'gcontacts': {'display': 'gcontacts (Google Contacts)', 'message': 'Cannot look up or retrieve contact information.'},
   'gmail': {'display': 'gmail', 'message': 'Cannot search, read, or summarize emails.'},
   'image_gen': {'display': 'image_gen', 'message': 'Cannot generate or edit images.'},
   'python': {'display': 'python', 'message': 'Cannot analyze data, process files, generate charts, or create/export different file formats.'},
-  'WebSearch': {'display': 'web', 'message': 'Cannot perform live web searches, fetch fresh news, or look up real-time information.'},
+  'WebSearch': {'display': 'Web Search', 'message': 'Cannot perform live web searches, fetch fresh news, or look up real-time information. If you cannot force it in this space, ask an admin to activate the tool.'},
   'recording_knowledge': {'display': 'recording_knowledge', 'message': 'Cannot access or summarize meeting transcripts from ChatGPT Record Mode.'}
 } -%}
 {%- set ns = namespace(any=false) -%}
