@@ -3,7 +3,14 @@ from enum import StrEnum
 from typing import Generic, TypeVar
 
 from pydantic import BaseModel
-from unique_toolkit.agentic.tools.config import get_configuration_dict
+from unique_toolkit.agentic.tools.config import (
+    get_configuration_dict,
+)
+
+from unique_web_search.services.helpers import (
+    clean_model_title_generator,
+    experimental_model_title_generator,
+)
 
 
 class CrawlerType(StrEnum):
@@ -20,9 +27,17 @@ T = TypeVar("T", bound=CrawlerType)
 
 
 class BaseCrawlerConfig(BaseModel, Generic[T]):
-    model_config = get_configuration_dict()
+    model_config = get_configuration_dict(
+        model_title_generator=clean_model_title_generator
+    )
     crawler_type: T
     timeout: int = 10
+
+
+class BaseCrawlerConfigExperimental(BaseCrawlerConfig[T]):
+    model_config = get_configuration_dict(
+        model_title_generator=experimental_model_title_generator
+    )
 
 
 CrawlerConfig = TypeVar(

@@ -6,12 +6,12 @@ from tavily import AsyncTavilyClient
 from unique_web_search.client_settings import get_tavily_search_settings
 from unique_web_search.services.crawlers.base import (
     BaseCrawler,
-    BaseCrawlerConfig,
+    BaseCrawlerConfigExperimental,
     CrawlerType,
 )
 
 
-class TavilyCrawlerConfig(BaseCrawlerConfig[CrawlerType.TAVILY]):
+class TavilyCrawlerConfig(BaseCrawlerConfigExperimental[CrawlerType.TAVILY]):
     crawler_type: Literal[CrawlerType.TAVILY] = CrawlerType.TAVILY
     depth: Literal["basic", "advanced"] = "advanced"
 
