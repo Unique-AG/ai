@@ -165,6 +165,7 @@ In the `content` string the refercnes must be referred to by `<sup>sequence_numb
 <!--
 ```{.python file=docs/.python_files/minimal_chat_with_manual_message_and_reference.py}
 <<full_sse_setup>>
+    chat_service = ChatService(event)
     <<chat_service_create_assistant_message>>
     <<chat_service_modify_assistant_message>>
     <<chat_service_assistant_message_with_reference>>
@@ -247,6 +248,7 @@ chat_service.complete_with_references(
 <!--
 ```{.python file=docs/.python_files/minimal_chat_with_streamed_references.py}
 <<full_sse_setup>>
+    chat_service = ChatService(event)
     <<chat_service_retrieved_chunks>>
     <<chat_service_chunk_presentation>>
     <<chat_service_reference_guidelines>>

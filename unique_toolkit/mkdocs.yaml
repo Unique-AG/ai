@@ -44,7 +44,7 @@ nav:
     - Chat Examples: modules/examples/chat/chat_service.md
     - Content Examples: modules/examples/content/content_service.md
   - Tutorials:
-    - Agentic Creation and Upload to User: tutorials/agentic_creation_and_upload_to_user.md
+    - File Creation with Upload to Chat: tutorials/file_creation_and_upload_to_chat.md
   - Agentic Framework:
     - Overview: agentic_framework/framework.md
     - Orchestrator: agentic_framework/orchestrator/unqiue_ai_how-it-works.md

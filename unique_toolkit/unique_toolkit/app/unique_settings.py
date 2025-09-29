@@ -65,7 +65,6 @@ class UniqueApp(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
-        frozen=True,
     )
 
 
@@ -93,7 +92,6 @@ class UniqueApi(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
-        frozen=True,
     )
 
     @model_validator(mode="after")
