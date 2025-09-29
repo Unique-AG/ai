@@ -46,7 +46,8 @@ def get_event_generator(
     event_type: type[T],
 ) -> Generator[T, None, None]:
     """
-    Generator that yields only events of the specified type from an SSE stream.
+    Generator that updates the unique settings according to the events and
+    yields only events of the specified type from an SSE stream.
 
     Args:
         sse_client: The SSE client to read events from
@@ -73,6 +74,8 @@ def get_event_generator(
                 filter_options=unique_settings.chat_event_filter_options
             ):
                 continue
+
+            unique_settings.update_from_event(event=parsed_event)
 
             yield parsed_event
 
