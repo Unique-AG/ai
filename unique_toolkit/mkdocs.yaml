@@ -43,6 +43,8 @@ nav:
   - Modules:
     - Chat Examples: modules/examples/chat/chat_service.md
     - Content Examples: modules/examples/content/content_service.md
+  - Tutorials:
+    - Agentic Creation and Upload to User: tutorials/agentic_creation_and_upload_to_user.md
   - Agentic Framework:
     - Overview: agentic_framework/framework.md
     - Orchestrator: agentic_framework/orchestrator/unqiue_ai_how-it-works.md
@@ -75,7 +77,6 @@ markdown_extensions:
   - pymdownx.magiclink
   - pymdownx.mark
   - pymdownx.smartsymbols
-  - codeinclude
   - pymdownx.snippets:
       base_path: .
       check_paths: true

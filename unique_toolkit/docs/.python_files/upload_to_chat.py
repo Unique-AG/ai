@@ -1,5 +1,4 @@
-# ~/~ begin <<docs/modules/examples/chat/chat_service.md#docs/.python_files/minimal_chat_with_manual_message_create_free_user_input.py>>[init]
-# ~/~ begin <<docs/application_types/event_driven_applications.md#full_sse_setup_with_services>>[init]
+# ~/~ begin <<docs/tutorials/agentic_creation_and_upload_to_user.md#docs/.python_files/upload_to_chat.py>>[init]
 # ~/~ begin <<docs/application_types/event_driven_applications.md#full_sse_setup>>[init]
 # ~/~ begin <<docs/setup/_common_imports.md#common_imports>>[init]
 from unique_toolkit.app.unique_settings import UniqueSettings
@@ -13,7 +12,7 @@ import io
 import tempfile
 import requests
 from pathlib import Path
-from unique_toolkit.content.schemas import ContentSearchType, ContentRerankerConfig, ContentChunk, ContentReference
+from unique_toolkit.content.schemas import ContentSearchType, ContentRerankerConfig
 import unique_sdk
 from pydantic import BaseModel, Field
 from openai.types.chat.chat_completion_tool_param import ChatCompletionToolParam
@@ -31,24 +30,10 @@ settings = UniqueSettings.from_env_auto_with_sdk_init()
 # ~/~ end
 for event in get_event_generator(unique_settings=settings, event_type=ChatEvent):
 # ~/~ end
+    settings.update_from_event(event)
     # ~/~ begin <<docs/application_types/event_driven_applications.md#init_services_from_event>>[init]
     # Initialize services from event
     chat_service = ChatService(event)
     content_service = ContentService.from_event(event)
-    # ~/~ end
-# ~/~ end
-    # ~/~ begin <<docs/modules/examples/chat/chat_service.md#chat_service_create_assistant_message>>[init]
-    assistant_message = chat_service.create_assistant_message(
-            content="Hello from Unique",
-        )
-    # ~/~ end
-    # ~/~ begin <<docs/modules/examples/chat/chat_service.md#chat_service_modify_assistant_message>>[init]
-    chat_service.modify_assistant_message(
-            content="Modified User Message",
-            message_id=assistant_message.id
-        )
-    # ~/~ end
-    # ~/~ begin <<docs/modules/examples/chat/chat_service.md#chat_service_free_user_input>>[init]
-    chat_service.free_user_input()
     # ~/~ end
 # ~/~ end

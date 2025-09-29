@@ -38,24 +38,33 @@ settings = UniqueSettings.from_env_auto_with_sdk_init()
 
 ```{.python #obtaining_sse_client_with_chat_event}
 for event in get_event_generator(unique_settings=settings, event_type=ChatEvent):
-    chat_service = ChatService(event)
+    <<init_services_from_event>>
+
 ```
 
 ## Service Initialization from Events
 
 Once you have an event, you can initialize services directly from it:
 
-```python
+```{.python #init_services_from_event}
 # Initialize services from event
 chat_service = ChatService(event)
 content_service = ContentService.from_event(event)
+```
+
+<!--
+```{.python #full_sse_setup}
+<<common_imports>>
+<<unique_setup_settings_sdk_from_env>>
+for event in get_event_generator(unique_settings=settings, event_type=ChatEvent):
+```
+-->
 
 ```
 <!--
-```{.python #full_sse_setup file=docs/.python_files/sse_setup.py}
-<<common_imports>>
-<<unique_setup_settings_sdk_from_env>>
-<<obtaining_sse_client_with_chat_event>>
+```{.python #full_sse_setup_with_services file=docs/.python_files/sse_setup_with_services.py}
+<<full_sse_setup>>
+    <<init_services_from_event>>
 ```
 -->
 
@@ -63,7 +72,7 @@ content_service = ContentService.from_event(event)
 ??? example "Full Examples (Click to expand)"
     
     <!--codeinclude-->
-    [Full SSE Setup](../examples_from_docs/sse_setup.py)
+    [Full SSE Setup](../examples_from_docs/sse_setup_with_services.py)
     <!--/codeinclude-->
 
 
