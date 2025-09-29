@@ -15,6 +15,7 @@ from unique_toolkit.chat.schemas import (
 class EvaluationMetricName(StrEnum):
     HALLUCINATION = "hallucination"
     CONTEXT_RELEVANCY = "relevancy"
+    SUB_AGENT = "sub_agent"
 
 
 class EvaluationMetricInputFieldName(StrEnum):
