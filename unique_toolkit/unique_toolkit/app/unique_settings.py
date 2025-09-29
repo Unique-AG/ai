@@ -1,13 +1,17 @@
 import os
 from logging import getLogger
 from pathlib import Path
-from typing import Self, TypeVar
+from typing import TYPE_CHECKING, Self, TypeVar
 from urllib.parse import ParseResult, urlparse, urlunparse
 
 import unique_sdk
 from platformdirs import user_config_dir
 from pydantic import AliasChoices, Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+if TYPE_CHECKING:
+    from unique_toolkit.app.schemas import BaseEvent
+
 
 logger = getLogger(__name__)
 
@@ -159,6 +163,13 @@ class UniqueAuth(BaseSettings):
     def _warn_about_defaults(self) -> Self:
         return warn_about_defaults(self)
 
+    @classmethod
+    def from_event(cls, event: "BaseEvent") -> Self:
+        return cls(
+            company_id=SecretStr(event.company_id),
+            user_id=SecretStr(event.user_id),
+        )
+
 
 class UniqueChatEventFilterOptions(BaseSettings):
     # Empty string evals to False
@@ -197,10 +208,10 @@ class UniqueSettings:
         chat_event_filter_options: UniqueChatEventFilterOptions | None = None,
         env_file: Path | None = None,
     ):
-        self.app = app
-        self.auth = auth
-        self.api = api
-        self.chat_event_filter_options = chat_event_filter_options
+        self._app = app
+        self._auth = auth
+        self._api = api
+        self._chat_event_filter_options = chat_event_filter_options
         self._env_file: Path | None = (
             env_file if (env_file and env_file.exists()) else None
         )
@@ -310,9 +321,9 @@ class UniqueSettings:
         This method configures the global unique_sdk module with the API key,
         app ID, and base URL from these settings.
         """
-        unique_sdk.api_key = self.app.key.get_secret_value()
-        unique_sdk.app_id = self.app.id.get_secret_value()
-        unique_sdk.api_base = self.api.sdk_url()
+        unique_sdk.api_key = self._app.key.get_secret_value()
+        unique_sdk.app_id = self._app.id.get_secret_value()
+        unique_sdk.api_base = self._api.sdk_url()
 
     @classmethod
     def from_env_auto_with_sdk_init(
@@ -331,3 +342,26 @@ class UniqueSettings:
         settings = cls.from_env_auto(filename)
         settings.init_sdk()
         return settings
+
+    def update_from_event(self, event: "BaseEvent") -> None:
+        self._auth = UniqueAuth.from_event(event)
+
+    @property
+    def api(self) -> UniqueApi:
+        return self._api
+
+    @property
+    def app(self) -> UniqueApp:
+        return self._app
+
+    @property
+    def auth(self) -> UniqueAuth:
+        return self._auth
+
+    @auth.setter
+    def auth(self, value: UniqueAuth) -> None:
+        self._auth = value
+
+    @property
+    def chat_event_filter_options(self) -> UniqueChatEventFilterOptions | None:
+        return self._chat_event_filter_options
