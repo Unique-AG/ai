@@ -125,11 +125,7 @@ class ToolManager:
             if len(self._tool_choices) > 0 and t.name not in self._tool_choices:
                 continue
             # is the tool exclusive and has been choosen by the user?
-            if (
-                t.is_exclusive()
-                and len(tool_choices) > 0
-                and t.name not in tool_choices
-            ):
+            if t.is_exclusive() and len(tool_choices) > 0 and t.name in tool_choices:
                 self._tools = [t]  # override all other tools
                 break
             # if the tool is exclusive but no tool choices are given, skip it
