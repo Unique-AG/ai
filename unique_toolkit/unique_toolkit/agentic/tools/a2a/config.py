@@ -23,6 +23,11 @@ class SubAgentToolDisplayConfig(BaseModel):
     remove_from_history: bool = True
 
 
+class SubAgentEvaluationConfig(BaseModel):
+    model_config = get_configuration_dict()
+    display_evalution: bool = True
+
+
 class SubAgentToolConfig(BaseToolConfig):
     model_config = get_configuration_dict()
 
@@ -43,3 +48,4 @@ class SubAgentToolConfig(BaseToolConfig):
     max_wait: float = 120.0
 
     response_display_config: SubAgentToolDisplayConfig = SubAgentToolDisplayConfig()
+    evaluation_config: SubAgentEvaluationConfig = SubAgentEvaluationConfig()

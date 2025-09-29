@@ -64,6 +64,7 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
             assistant_id=self.config.assistant_id,
         )
         self._subscribers: list[SubAgentResponseSubscriber] = []
+        self._should_run_evaluation = False
 
     def display_name(self) -> str:
         return self._display_name
@@ -99,7 +100,7 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
         return self.config.tool_format_information_for_user_prompt
 
     def evaluation_check_list(self) -> list[EvaluationMetricName]:
-        return []
+        return [EvaluationMetricName.SUB_AGENT] if self._should_run_evaluation else []
 
     def get_evaluation_checks_based_on_tool_response(
         self,
@@ -192,6 +193,10 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
             tool_user_message=tool_input.user_message,  # type: ignore
             chat_id=chat_id,  # type: ignore
             tool_call=tool_call,
+        )
+
+        self._should_run_evaluation = (
+            response["assessment"] is not None and len(response["assessment"]) > 0
         )
 
         self._notify_subscribers(response)

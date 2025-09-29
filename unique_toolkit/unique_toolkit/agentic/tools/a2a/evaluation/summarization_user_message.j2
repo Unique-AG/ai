@@ -1,0 +1,9 @@
+Here are the sub_agent(s) assessments:
+
+{% for sub_agent in sub_agents %}
+- Agent name: {{ sub_agent.name }} 
+{% for assessment in sub_agent.assessments %}
+    - {{ assessment.title }}: {{ assessment.label }}
+        {{ assessment.explanation }}
+{% endfor %}
+{% endfor %}
