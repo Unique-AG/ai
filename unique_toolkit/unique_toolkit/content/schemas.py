@@ -26,15 +26,41 @@ class ContentMetadata(BaseModel):
 
 class ContentChunk(BaseModel):
     model_config = model_config
-    id: str
-    text: str
-    order: int
-    key: str | None = None
-    chunk_id: str | None = None
-    url: str | None = None
-    title: str | None = None
-    start_page: int | None = None
-    end_page: int | None = None
+    id: str = Field(
+        default="",
+        description="The id of the content this chunk belongs to. The id starts with 'cont_' followed by an alphanumeric string of length 24.",
+        examples=["cont_abcdefgehijklmnopqrstuvwx"],
+    )
+    text: str = Field(default="", description="The text content of the chunk.")
+    order: int = Field(
+        default=0,
+        description="The order of the chunk in the original content. Concatenating the chunks in order will give the original content.",
+    )
+    key: str | None = Field(
+        default=None,
+        description="The key of the chunk. For document chunks this is the the filename",
+    )
+    chunk_id: str | None = Field(
+        default=None,
+        description="The id of the chunk. The id starts with 'chunk_' followed by an alphanumeric string of length 24.",
+        examples=["chunk_abcdefgehijklmnopqrstuv"],
+    )
+    url: str | None = Field(
+        default=None,
+        description="For chunk retrieved from the web this is the url of the chunk.",
+    )
+    title: str | None = Field(
+        default=None,
+        description="The title of the chunk. For document chunks this is the title of the document.",
+    )
+    start_page: int | None = Field(
+        default=None,
+        description="The start page of the chunk. For document chunks this is the start page of the document.",
+    )
+    end_page: int | None = Field(
+        default=None,
+        description="The end page of the chunk. For document chunks this is the end page of the document.",
+    )
 
     object: str | None = None
     metadata: ContentMetadata | None = None
@@ -45,9 +71,19 @@ class ContentChunk(BaseModel):
 
 class Content(BaseModel):
     model_config = model_config
-    id: str
-    key: str
-    title: str | None = None
+    id: str = Field(
+        default="",
+        description="The id of the content. The id starts with 'cont_' followed by an alphanumeric string of length 24.",
+        examples=["cont_abcdefgehijklmnopqrstuvwx"],
+    )
+    key: str = Field(
+        default="",
+        description="The key of the content. For documents this is the the filename",
+    )
+    title: str | None = Field(
+        default=None,
+        description="The title of the content. For documents this is the title of the document.",
+    )
     url: str | None = None
     chunks: list[ContentChunk] = []
     write_url: str | None = None

@@ -142,6 +142,124 @@ chat_service.free_user_input()
 which should be called at the end of an agent interaction. Alternatively the user input can be freed by setting the `set_completed_at` flag in `create_assistant_message` or `modify_assistant_message`.
 
 
+## Adding References
+
+For applications using additional information retrieved from the knowledge base or external Apis references are an important measure to verify the generated text from the LLM. Additionally, references can also be used on deterministically created assitant message as in the following example 
+
+```{python #chat_service_assistant_message_with_reference}
+chat_service.create_assistant_message(
+        content="Hello from Unique <sup>0</sup>",
+        references=[ContentReference(source="source0",
+                                     url="https://www.unique.ai",
+                                     name="reference_name",
+                                     sequence_number=0,
+                                     source_id="source_id_0",
+                                     id="id_0")]
+    )
+```
+
+In the `content` string the refercnes must be referred to by `<sup>sequence_number</sub>`. The name property of the `ContentReference` will be displayed on the reference component and below the message as seen below
+
+![alt text](./chat_with_reference.png)
+
+<!--
+```{.python file=docs/.python_files/minimal_chat_with_manual_message_and_reference.py}
+<<full_sse_setup>>
+    <<chat_service_create_assistant_message>>
+    <<chat_service_modify_assistant_message>>
+    <<chat_service_assistant_message_with_reference>>
+```
+-->
+
+
+## Referencing Content Chunks when streaming to the frontend
+
+Lets assume that the vector search has retrieved the following chunks
+
+```{python #chat_service_retrieved_chunks}
+chunks = [ContentChunk(text="Unique is a company that provides the platform for AI-powered solutions.",
+                                     order=0,
+                                     chunk_id="chunk_id_0",
+                                     key="key_0",
+                                     title="title_0",
+                                     start_page=1,
+                                     end_page=1,
+                                     url="https://www.unique.ai",
+                                     id="id_0"),
+          ContentChunk(text="Unique is your Responsible AI Partner, with extensive experience in implementing AI solutions for enterprise clients in financial services.",
+                                     order=1,
+                                     chunk_id="chunk_id_1",
+                                     key="key_1",
+                                     title="title_1",
+                                     start_page=1,
+                                     end_page=1,
+                                     url="https://www.unique.ai",
+                                     id="id_1")
+                                     ]
+```
+
+If we want the LLM be able to reference them in its answer we need to present the information nicely, e.g. in a markdown table
+
+```{python #chat_service_chunk_presentation}
+def to_source_table(chunks: list[ContentChunk]) -> str:
+    header = "| Source Number | Title |  URL | \n" + "| --- | --- | --- | --- |\n"
+    rows = [f"| {index} | {chunk.title} | {chunk.url} |\n" for index,chunk in enumerate(chunks)]
+    return header + "\n".join(rows)
+```
+
+The index of the list here is important as the backend requires to match the output of the LLM to the content chunk, for this we use the following reference guidelines as part of the system prompt.
+
+
+```{python #chat_service_reference_guidelines}
+reference_guidelines = """
+Whenever you use information retrieved with a tool, you must adhere to strict reference guidelines. 
+You must strictly reference each fact used with the `source_number` of the corresponding passage, in 
+the following format: '[source<order_number>]'.
+
+Example:
+- The stock price of Apple Inc. is $150 [source0] and the company's revenue increased by 10% [source1].
+- Moreover, the company's market capitalization is $2 trillion [source2][source3].
+- Our internal documents tell us to invest[source4] (Internal)
+"""
+```
+
+
+
+
+The message to the LLM could now look like this
+
+```{python #chat_service_streaming_call_with_sources}
+messages = (
+        OpenAIMessageBuilder()
+        .system_message_append(content=f"You are a helpful assistant. {reference_guidelines}")
+        .user_message_append(content=f"<Sources> {to_source_table(chunks)}</Srouces>\n\n User question: {event.payload.user_message.text}")
+        .messages
+    )
+
+chat_service.complete_with_references(
+        messages=messages, 
+        model_name=LanguageModelName.AZURE_GPT_4o_2024_1120,
+        content_chunks=chunks)
+```
+
+![alt text](./chat_references_with_streaming.png)
+
+<!--
+```{.python file=docs/.python_files/minimal_chat_with_streamed_references.py}
+<<full_sse_setup>>
+    <<chat_service_retrieved_chunks>>
+    <<chat_service_chunk_presentation>>
+    <<chat_service_reference_guidelines>>
+    <<chat_service_streaming_call_with_sources>>
+```
+-->
+
+
+
+
+
+
+
 ## Debug Information
 Debuging information can be added to both the user and assistant messages but only the debug information that is added to the user message will be shown in the chat frontend.
 
