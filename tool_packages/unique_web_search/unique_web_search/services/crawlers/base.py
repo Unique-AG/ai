@@ -9,7 +9,7 @@ from unique_toolkit.agentic.tools.config import (
 
 from unique_web_search.services.helpers import (
     clean_model_title_generator,
-    experimenatl_model_title_generator,
+    experimental_model_title_generator,
 )
 
 
@@ -36,7 +36,7 @@ class BaseCrawlerConfig(BaseModel, Generic[T]):
 
 class BaseCrawlerConfigExperimental(BaseCrawlerConfig[T]):
     model_config = get_configuration_dict(
-        model_title_generator=experimenatl_model_title_generator
+        model_title_generator=experimental_model_title_generator
     )
 
 

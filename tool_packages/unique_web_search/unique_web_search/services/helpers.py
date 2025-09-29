@@ -8,6 +8,6 @@ def clean_model_title_generator(model: type) -> str:
     return title.replace("Config", "").strip()
 
 
-def experimenatl_model_title_generator(model: type) -> str:
+def experimental_model_title_generator(model: type) -> str:
     title = clean_model_title_generator(model)
     return title.replace("Config", "").strip() + " (Experimental)"
