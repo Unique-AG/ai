@@ -83,7 +83,7 @@ def get_search_engine_service(
 
 
 def get_config_types_from_names(engine_names: list[str]) -> TypeAlias:
-    assert len(engine_names) > 1, "At least one search engine must be active"
+    assert len(engine_names) >= 1, "At least one search engine must be active"
 
     selected_types = [
         ENGINE_NAME_TO_CONFIG[name.lower()]
@@ -101,7 +101,7 @@ def get_config_types_from_names(engine_names: list[str]) -> TypeAlias:
 def get_default_search_engine_config(
     engine_names: list[str],
 ) -> SearchEngineConfigTypes:
-    assert len(engine_names) > 1, "At least one search engine must be active"
+    assert len(engine_names) >= 1, "At least one search engine must be active"
 
     return ENGINE_NAME_TO_CONFIG[engine_names[0]]
 

@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field, HttpUrl
 from unique_web_search.client_settings import get_jina_search_settings
 from unique_web_search.services.crawlers.base import (
     BaseCrawler,
-    BaseCrawlerConfig,
+    BaseCrawlerConfigExperimental,
     CrawlerType,
 )
 
@@ -32,7 +32,7 @@ class ReaderResponse(BaseModel):
     data: ReaderData | None = None
 
 
-class JinaCrawlerConfig(BaseCrawlerConfig[CrawlerType.JINA]):
+class JinaCrawlerConfig(BaseCrawlerConfigExperimental[CrawlerType.JINA]):
     crawler_type: Literal[CrawlerType.JINA] = CrawlerType.JINA
     headers: dict[str, str] = Field(
         default={

@@ -48,6 +48,7 @@ DefaultSearchEngine = get_default_search_engine_config(
 
 class AnswerGenerationConfig(BaseModel):
     model_config = get_configuration_dict()
+
     limit_token_sources: int = Field(
         default=10000,
         description="Token Source Limit",
@@ -122,6 +123,7 @@ class ExperimentalFeatures(FeatureExtendedSourceSerialization):
 
 class QueryRefinementConfig(BaseModel):
     model_config = get_configuration_dict()
+
     enabled: bool = Field(
         default=True,
         description="Whether to enable the refined query",
@@ -134,6 +136,7 @@ class QueryRefinementConfig(BaseModel):
 
 class WebSearchToolParametersConfig(BaseModel):
     model_config = get_configuration_dict()
+
     query_description: str = Field(
         default="The search query to issue to the web.",
         description="The tool parameter query description",
@@ -171,13 +174,14 @@ class WebSearchConfig(BaseToolConfig):
 
     crawler_config: CrawlerConfigTypes = Field(
         default_factory=BasicCrawlerConfig,
-        description="The crawler configuration.",
+        title="Crawler Configuration",
+        description="Crawler configuration.",
         discriminator="crawler_type",
     )
 
     content_processor_config: ContentProcessorConfig = Field(
         default_factory=ContentProcessorConfig,
-        description="The content processor configuration",
+        description="Content processor configuration",
         title="Content Processor Configuration",
     )
 
@@ -203,13 +207,13 @@ class WebSearchConfig(BaseToolConfig):
 
     tool_parameters_config: WebSearchToolParametersConfig = Field(
         default_factory=WebSearchToolParametersConfig,
-        description="The tool parameters configuration",
+        description="Tool parameters configuration",
         title="Tool Parameters Configuration",
     )
 
     tool_description: str = Field(
         default=TOOL_DESCRIPTIONS["v1"],
-        description="The tool description",
+        description="Tool description",
     )
 
     tool_description_for_system_prompt: str = Field(

@@ -218,7 +218,7 @@ class ContentProcessor:
                     display_link=page.display_link,
                     title=page.title,
                     snippet=page.snippet,
-                    content=self._wrap_with_snipper(page.snippet, page.content),
+                    content=self._wrap_with_snippet(page.snippet, page.content),
                     order="0",
                 )
             ]
@@ -229,7 +229,7 @@ class ContentProcessor:
                 display_link=page.display_link,
                 title=page.title,
                 snippet=page.snippet,
-                content=self._wrap_with_snipper(page.snippet, chunk),
+                content=self._wrap_with_snippet(page.snippet, chunk),
                 order=str(order),
             )
             for order, chunk in enumerate(chunks)
@@ -237,7 +237,7 @@ class ContentProcessor:
         return records
 
     @staticmethod
-    def _wrap_with_snipper(snippet: str, content: str) -> str:
+    def _wrap_with_snippet(snippet: str, content: str) -> str:
         if len(content) > 0:
             return f"<SearchEngineSnippet>{snippet}</SearchEngineSnippet>\n\n<FetchContent>{content}</FetchContent>"
         return f"<SearchEngineSnippet>{snippet}</SearchEngineSnippet>"

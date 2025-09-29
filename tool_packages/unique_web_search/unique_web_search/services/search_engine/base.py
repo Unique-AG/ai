@@ -7,6 +7,9 @@ import tiktoken
 from pydantic import BaseModel, Field
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 
+from unique_web_search.services.helpers import (
+    clean_model_title_generator,
+)
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
@@ -33,11 +36,13 @@ T = TypeVar("T", bound=SearchEngineType)
 
 
 class BaseSearchEngineConfig(BaseModel, Generic[T]):
-    model_config = get_configuration_dict()
+    model_config = get_configuration_dict(
+        model_title_generator=clean_model_title_generator
+    )
     search_engine_name: T
 
     fetch_size: int = Field(
-        default=15,
+        default=5,
         description="Number of search results to fetch",
     )
 

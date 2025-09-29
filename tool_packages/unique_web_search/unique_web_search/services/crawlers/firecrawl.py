@@ -7,12 +7,12 @@ from unique_web_search.client_settings import (
 )
 from unique_web_search.services.crawlers.base import (
     BaseCrawler,
-    BaseCrawlerConfig,
+    BaseCrawlerConfigExperimental,
     CrawlerType,
 )
 
 
-class FirecrawlCrawlerConfig(BaseCrawlerConfig[CrawlerType.FIRECRAWL]):
+class FirecrawlCrawlerConfig(BaseCrawlerConfigExperimental[CrawlerType.FIRECRAWL]):
     crawler_type: Literal[CrawlerType.FIRECRAWL] = CrawlerType.FIRECRAWL
 
 
