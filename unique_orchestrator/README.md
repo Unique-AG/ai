@@ -1,3 +1,3 @@
-# Internal Search Tool
+# Unique Orchestrator
 
-Internal Search Tool to find documents in the Knowledge Base
+Unique AI orchestrator agent to struct and direct subagents, tools and services
