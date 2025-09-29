@@ -22,6 +22,7 @@ from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.history_manager.history_manager import (
     UploadedContentConfig,
 )
+from unique_toolkit.agentic.tools.a2a.evaluation import SubAgentEvaluationConfig
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 from unique_toolkit.agentic.tools.tool import ToolBuildConfig
 from unique_web_search.config import WebSearchConfig
@@ -116,6 +117,7 @@ class EvaluationConfig(BaseModel):
     model_config = get_configuration_dict()
     max_review_steps: int = 3
     hallucination_config: HallucinationConfig = HallucinationConfig()
+    sub_agents_config: SubAgentEvaluationConfig = SubAgentEvaluationConfig()
 
 
 # ------------------------------------------------------------

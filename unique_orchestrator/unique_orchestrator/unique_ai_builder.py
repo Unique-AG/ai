@@ -35,7 +35,11 @@ from unique_toolkit.agentic.thinking_manager.thinking_manager import (
     ThinkingManager,
     ThinkingManagerConfig,
 )
+from unique_toolkit.agentic.tools.a2a.evaluation import SubAgentsEvaluation
 from unique_toolkit.agentic.tools.a2a.manager import A2AManager
+from unique_toolkit.agentic.tools.a2a.postprocessing import (
+    SubAgentResponsesPostprocessor,
+)
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
 from unique_toolkit.agentic.tools.mcp.manager import MCPManager
 from unique_toolkit.agentic.tools.tool_manager import ToolManager, ToolManagerConfig
@@ -160,6 +164,27 @@ def build_unique_ai(
                 llm_service=LanguageModelService.from_event(event),
             )
         )
+
+    if len(tool_manager.sub_agents) > 0:
+        postprocessor_manager.add_postprocessor(
+            SubAgentResponsesPostprocessor(
+                user_id=event.user_id,
+                agent_chat_id=event.payload.chat_id,
+                company_id=event.company_id,
+                sub_agent_tools=tool_manager.sub_agents,
+            )
+        )
+        if config.agent.services.evaluation_config is not None:
+            logger.info("Adding sub agents evaluation")
+            evaluation_manager.add_evaluation(
+                SubAgentsEvaluation(
+                    config.agent.services.evaluation_config.sub_agents_config,
+                    tool_manager.sub_agents,
+                    LanguageModelService.from_event(event),
+                )
+            )
+        else:
+            logger.warning("No evaluation config found for sub agents")
 
     return UniqueAI(
         event=event,
