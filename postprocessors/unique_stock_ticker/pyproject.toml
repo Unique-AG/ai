@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_stock_ticker"
-version = "1.0.0"
+version = "0.0.4"
 description = ""
 authors = [
     "Martin Fadler <martin.fadler@unique.ch>",
