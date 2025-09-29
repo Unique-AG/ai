@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_orchestrator"
-version = "1.0.1"
+version = "1.0.2"
 description = ""
 authors = ["Andreas Hauri <andreas.hauri@unique.ai>"]
 readme = ["README.md", "CHANGELOG.md"]
@@ -19,7 +19,7 @@ unique-toolkit = "^1.1.1"
 unique-stock-ticker = "^1.0.0"
 unique-follow-up-questions = "^1.0.0"
 unique-internal-search = "^1.0.0"
-unique-deep-research = "^1.0.0"
+unique-deep-research = "^2.0.0"
 unique-web-search = "^1.0.0"
 
 
