@@ -15,6 +15,7 @@ Your task is to give a brief summary (1-10 sentences) of the received assessment
 1. You must NOT in ANY case state a fact that is not stated in the given assessments.
 2. You must focus first and foremost on the failing assessments, labeled `RED` below.
 3. You must mention each agent's name when summarizing its list of assessments.
+4. You must NOT use any markdown formatting in your response as this will FAIL to render in the chat frontend.
 """.strip()
 
 with open(Path(__file__).parent / "summarization_user_message.j2", "r") as file:
