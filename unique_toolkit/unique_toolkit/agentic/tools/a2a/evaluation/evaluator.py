@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 class _SubAgentToolInfo(TypedDict):
-    assessment: list[unique_sdk.Space.Assessment] | None
+    assessments: list[list[unique_sdk.Space.Assessment]]
     display_name: str
 
 
@@ -53,7 +53,7 @@ class SubAgentsEvaluation(Evaluation):
             if sub_agent_tool.config.evaluation_config.display_evalution:
                 sub_agent_tool.subscribe(self)
                 self._assistant_id_to_tool_info[sub_agent_tool.config.assistant_id] = {
-                    "assessment": None,
+                    "assessments": [],
                     "display_name": sub_agent_tool.display_name(),
                 }
 
@@ -80,47 +80,53 @@ class SubAgentsEvaluation(Evaluation):
         label_comparison_dict[ChatMessageAssessmentLabel.RED] = 0
 
         for assistant_id, tool_info in self._assistant_id_to_tool_info.items():
-            assessments = tool_info["assessment"] or []
-            valid_assessments = []
-            for assessment in assessments:
-                if (
-                    assessment["label"] is None
-                    or assessment["label"] not in ChatMessageAssessmentLabel
-                ):
-                    logger.warning(
-                        "Unkown assistant label %s for assistant %s will be ignored",
-                        assessment["label"],
-                        assistant_id,
+            sub_agent_assessments = tool_info["assessments"] or []
+            for i, assessments in enumerate(sub_agent_assessments, start=1):
+                valid_assessments = []
+                for assessment in assessments:
+                    if (
+                        assessment["label"] is None
+                        or assessment["label"] not in ChatMessageAssessmentLabel
+                    ):
+                        logger.warning(
+                            "Unkown assistant label %s for assistant %s will be ignored",
+                            assessment["label"],
+                            assistant_id,
+                        )
+                        continue
+                    if assessment["status"] != ChatMessageAssessmentStatus.DONE:
+                        logger.warning(
+                            "Assessment %s for assistant %s is not done (status: %s) will be ignored",
+                            assessment["label"],
+                            assistant_id,
+                        )
+                        continue
+                    valid_assessments.append(assessment)
+
+                if len(valid_assessments) == 0:
+                    logger.info(
+                        "No valid assessment found for assistant %s", assistant_id
                     )
                     continue
-                if assessment["status"] != ChatMessageAssessmentStatus.DONE:
-                    logger.warning(
-                        "Assessment %s for assistant %s is not done (status: %s) will be ignored",
-                        assessment["label"],
-                        assistant_id,
-                    )
-                    continue
-                valid_assessments.append(assessment)
 
-            if len(valid_assessments) == 0:
-                logger.info("No valid assessment found for assistant %s", assistant_id)
-                continue
-
-            assessments = sorted(
-                valid_assessments, key=lambda x: label_comparison_dict[x["label"]]
-            )
-
-            for assessment in assessments:
-                value = min(
-                    value, assessment["label"], key=lambda x: label_comparison_dict[x]
+                assessments = sorted(
+                    valid_assessments, key=lambda x: label_comparison_dict[x["label"]]
                 )
 
-            sub_agents_display_data.append(
-                {
+                for assessment in assessments:
+                    value = min(
+                        value,
+                        assessment["label"],
+                        key=lambda x: label_comparison_dict[x],
+                    )
+                data = {
                     "name": tool_info["display_name"],
                     "assessments": assessments,
                 }
-            )
+                if len(sub_agent_assessments) > 1:
+                    data["name"] += f" {i}"
+
+                sub_agents_display_data.append(data)
 
         if len(sub_agents_display_data) == 0:
             logger.warning("No valid sub agent assessments found")
@@ -200,10 +206,10 @@ class SubAgentsEvaluation(Evaluation):
             )
             return
 
-        self._assistant_id_to_tool_info[sub_agent_assistant_id]["assessment"] = (
+        self._assistant_id_to_tool_info[sub_agent_assistant_id]["assessments"].append(
             response[
                 "assessment"
             ].copy()  # Shallow copy as we don't modify individual assessments
             if response["assessment"] is not None
-            else None
+            else []
         )
