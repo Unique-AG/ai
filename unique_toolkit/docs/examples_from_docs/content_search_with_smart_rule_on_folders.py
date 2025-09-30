@@ -21,12 +21,12 @@ smart_rule_folder_content = Statement(
     operator=Operator.EQUALS, value=f"{scope_id}", path=["folderIdPath"]
 )
 
+metadata_filter = smart_rule_folder_content.model_dump(mode="json")
+
 
 content_chunks = content_service.search_content_chunks(
     search_string="Harry Potter",
     search_type=ContentSearchType.COMBINED,
     limit=15,
-    search_language="english",
-    metadata_filter=smart_rule_folder_content.model_dump(mode="json"),
+    metadata_filter=metadata_filter,
 )
-
