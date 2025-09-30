@@ -40,15 +40,14 @@ class ConductResearchArgs(BaseModel):
     """Arguments for delegating research to a specialized research agent."""
 
     research_topic: str = Field(
-        description="The specific research topic or question to investigate"
+        description="The specific research instructions for the research agent to investigate"
     )
 
 
 class ResearchCompleteArgs(BaseModel):
     """Arguments for signaling that research is complete."""
 
-    summary: str = Field(description="Final summary of research findings")
-    sources: List[str] = Field(default_factory=list, description="List of sources used")
+    reason: str = Field(description="Reason for completing research")
 
 
 class WebSearchArgs(BaseModel):
@@ -107,7 +106,7 @@ class ThinkArgs(BaseModel):
         description="Detailed reflection on research progress, findings, gaps, and next steps"
     )
     short_progress_update: str = Field(
-        description="A 1-2 sentence highlevel summary of new findings, and next steps to be displayed to the user that initiated the research so they can understand the progress of the research"
+        description="The progress update and findings of the research"
     )
 
 
@@ -126,17 +125,13 @@ def conduct_research(research_topic: str) -> str:
 
 
 @tool(args_schema=ResearchCompleteArgs)
-def research_complete(summary: str, sources: List[str] = []) -> str:
+def research_complete(reason: str) -> str:
     """
-    Signal that research is complete and provide a comprehensive summary.
+    Signal that research is complete and provide a short reasoning.
 
-    Use this tool when you have gathered sufficient information to answer
-    the research question comprehensively.
+    Use this tool when you have gathered sufficient information on the research topic.
     """
-    content = f"Research completed with summary: {summary}"
-    if sources:
-        content += f"\nSources: {', '.join(sources)}"
-    return content
+    return f"Research completed with reason: {reason}"
 
 
 @tool(args_schema=WebSearchArgs)
@@ -370,9 +365,20 @@ def think_tool(
     3. Quality evaluation - Do I have sufficient evidence/examples for a good answer?
     4. Strategic decision - Should I continue searching or provide my answer?
 
+    The short_progress_update is for the user to understand the progress of the research and should be a 1-2 sentence highlevel summary of new findings,
+    and next steps to be displayed to the user that initiated the research so they can understand the progress of the research.
+    Make sure it's valid markdown with a **bold** header and a short paragraph of text. Don't mention the deployment of the research tool in the short_progress_update.
+    make it about what will be done. Keep it short and concise. Also don't directly reference technical stuff such as delegating to a research agent.
+
+    Example:
+
+    **Analyzing recent developments in crypto**
+    I'm noticing that tokenized US Treasuries on public chains have surged in 2024-2025, surpassing $1B and later $2B, according to sources like 21.co and RWA trackers.
+    There's also the launch of spot Bitcoin ETFs in the US in January 2024, marking a significant step in institutional adoption.
+
     Args:
         reflection: Your detailed reflection on research progress, findings, gaps, and next steps
-        short_progress_update: A 1-2 sentence highlevel summary of new findings, and next steps to be displayed to the user that initiated the research so they can understand the progress of the research
+        short_progress_update: The progress update and findings of the research
     Returns:
         Confirmation that reflection has been recorded
     """
@@ -387,7 +393,14 @@ def think_tool(
 # Helper function to get all available tools
 def get_research_tools() -> List[Any]:
     """Get all research tools available to individual researchers."""
-    return [web_search, web_fetch, internal_search, internal_fetch, think_tool]
+    return [
+        web_search,
+        web_fetch,
+        internal_search,
+        internal_fetch,
+        think_tool,
+        research_complete,
+    ]
 
 
 def get_supervisor_tools() -> List[Any]:

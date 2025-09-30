@@ -20,17 +20,16 @@ Only these fully comprehensive cleaned findings are going to be returned to the 
 <Output Format>
 The report should be structured like this:
 **List of Queries and Tool Calls Made**
-**Fully Comprehensive Findings**
-**List of All Relevant Sources (with citations in the report)**
+**Fully Comprehensive Findings with inline citations and references**
+**Executive Summary**
 </Output Format>
 
 <Citation Rules>
-- Assign each unique URL a single citation number in your text
-- End with ### Sources that lists each source with corresponding numbers
-- IMPORTANT: Number sources sequentially without gaps (1,2,3,4...) in the final list regardless of which sources you choose
+- Citation and references should be inline with the text using valid markdown format
+- references to data from internal tools should be done using [text](source_id) format
 - Example format:
-  [1] Source Title: URL
-  [2] Source Title: URL
+  "The stock price of Apple Inc. is [$150](https://www.apple.com) and the company's revenue increased by 10% as noted in their [annual report](cont_iurj5t402asgcju0dsx1w9ol_chunk_niwi72c10a3laaxqgp4ki2ad)"
+  "The new policy takes effect [January 1st](cont_iurj5t402asgcju0dsx1w9ol_chunk_niwi72c10a3laaxqgp4ki2ad)"
 </Citation Rules>
 
 Critical Reminder: It is extremely important that any information that is even remotely relevant to the user's research topic is preserved verbatim (e.g. don't rewrite it, don't summarize it, don't paraphrase it).

@@ -322,7 +322,9 @@ async def researcher_tools(
 
     # Check if we should continue or finish
     max_iterations = UniqueCustomEngineConfig.max_tool_calls_per_researcher
-    if state.get("tool_call_iterations", 0) >= max_iterations:
+    if state.get("tool_call_iterations", 0) >= max_iterations or any(
+        tc.get("name") == "research_complete" for tc in tool_calls
+    ):
         return Command(
             goto="compress_research", update={"researcher_messages": tool_outputs}
         )
