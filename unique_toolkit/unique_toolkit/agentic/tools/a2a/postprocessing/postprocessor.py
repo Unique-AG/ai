@@ -1,6 +1,6 @@
 import logging
 import re
-from typing import NotRequired, TypedDict, override
+from typing import TypedDict, override
 
 import unique_sdk
 
@@ -30,7 +30,7 @@ class _SubAgentMessageInfo(TypedDict):
 class _SubAgentToolInfo(TypedDict):
     display_name: str
     display_config: SubAgentToolDisplayConfig
-    response: NotRequired[_SubAgentMessageInfo]
+    responses: list[_SubAgentMessageInfo]
 
 
 class SubAgentResponsesPostprocessor(Postprocessor):
@@ -57,6 +57,7 @@ class SubAgentResponsesPostprocessor(Postprocessor):
                 _SubAgentToolInfo(
                     display_config=sub_agent_tool.config.response_display_config,
                     display_name=sub_agent_tool.display_name(),
+                    responses=[],
                 )
             )
 
@@ -81,7 +82,7 @@ class SubAgentResponsesPostprocessor(Postprocessor):
         for assistant_id, tool_info in self._assistant_id_to_tool_info.items():
             display_mode = tool_info["display_config"].mode
 
-            if "response" not in tool_info:
+            if len(tool_info["responses"]) == 0:
                 logger.warning(
                     "No response from assistant %s",
                     assistant_id,
@@ -89,7 +90,7 @@ class SubAgentResponsesPostprocessor(Postprocessor):
                 continue
 
             if display_mode != ResponseDisplayMode.HIDDEN:
-                displayed[assistant_id] = tool_info["response"]
+                displayed[assistant_id] = tool_info["responses"]
 
         existing_refs = {
             ref.source_id: ref.sequence_number
@@ -98,33 +99,38 @@ class SubAgentResponsesPostprocessor(Postprocessor):
         _consolidate_references_in_place(displayed, existing_refs)
 
         modified = len(displayed) > 0
-        for assistant_id, message in reversed(displayed.items()):
-            tool_info = self._assistant_id_to_tool_info[assistant_id]
-            display_mode = tool_info["display_config"].mode
-            display_name = tool_info["display_name"]
-            loop_response.message.text = (
-                build_sub_agent_answer_display(
-                    display_name=display_name,
-                    assistant_id=assistant_id,
-                    display_mode=display_mode,
-                    answer=message["text"],
-                )
-                + loop_response.message.text
-            )
+        for assistant_id, messages in reversed(displayed.items()):
+            for i in reversed(range(len(messages))):
+                message = messages[i]
+                tool_info = self._assistant_id_to_tool_info[assistant_id]
+                display_mode = tool_info["display_config"].mode
+                display_name = tool_info["display_name"]
+                if len(messages) > 1:
+                    display_name += f" {i + 1}"
 
-            assert self._sub_agent_message is not None
-
-            loop_response.message.references.extend(
-                ContentReference(
-                    message_id=self._sub_agent_message["id"],
-                    source_id=ref["sourceId"],
-                    url=ref["url"],
-                    source=ref["source"],
-                    name=ref["name"],
-                    sequence_number=ref["sequenceNumber"],
+                loop_response.message.text = (
+                    build_sub_agent_answer_display(
+                        display_name=display_name,
+                        assistant_id=assistant_id,
+                        display_mode=display_mode,
+                        answer=message["text"],
+                    )
+                    + loop_response.message.text
                 )
-                for ref in message["references"]
-            )
+
+                assert self._sub_agent_message is not None
+
+                loop_response.message.references.extend(
+                    ContentReference(
+                        message_id=self._sub_agent_message["id"],
+                        source_id=ref["sourceId"],
+                        url=ref["url"],
+                        source=ref["source"],
+                        name=ref["name"],
+                        sequence_number=ref["sequenceNumber"],
+                    )
+                    for ref in message["references"]
+                )
 
         return modified
 
@@ -150,59 +156,58 @@ class SubAgentResponsesPostprocessor(Postprocessor):
             )
             return
 
-        self._assistant_id_to_tool_info[sub_agent_assistant_id]["response"] = {
-            "text": response["text"],
-            "references": [
-                {
-                    "name": ref["name"],
-                    "url": ref["url"],
-                    "sequenceNumber": ref["sequenceNumber"],
-                    "originalIndex": [],
-                    "sourceId": ref["sourceId"],
-                    "source": ref["source"],
-                }
-                for ref in response["references"] or []
-            ],
-        }
+        self._assistant_id_to_tool_info[sub_agent_assistant_id]["responses"].append(
+            {
+                "text": response["text"],
+                "references": [
+                    {
+                        "name": ref["name"],
+                        "url": ref["url"],
+                        "sequenceNumber": ref["sequenceNumber"],
+                        "originalIndex": [],
+                        "sourceId": ref["sourceId"],
+                        "source": ref["source"],
+                    }
+                    for ref in response["references"] or []
+                ],
+            }
+        )
 
 
 def _consolidate_references_in_place(
-    messages: dict[str, _SubAgentMessageInfo], existing_refs: dict[str, int]
+    messages: dict[str, list[_SubAgentMessageInfo]], existing_refs: dict[str, int]
 ) -> None:
     start_index = max(existing_refs.values(), default=0) + 1
 
-    for assistant_id, message in messages.items():
-        references = message["references"]
-        if len(references) == 0 or message["text"] is None:
-            logger.info(
-                "Message from assistant %s does not contain any references",
-                assistant_id,
-            )
-            continue
+    for assistant_id, assistant_messages in messages.items():
+        for message in assistant_messages:
+            references = message["references"]
+            if len(references) == 0 or message["text"] is None:
+                logger.info(
+                    "Message from assistant %s does not contain any references",
+                    assistant_id,
+                )
+                continue
 
-        references = list(sorted(references, key=lambda ref: ref["sequenceNumber"]))
+            references = list(sorted(references, key=lambda ref: ref["sequenceNumber"]))
 
-        ref_map = {}
+            ref_map = {}
 
-        message_new_refs = []
-        for reference in references:
-            source_id = reference["sourceId"]
+            message_new_refs = []
+            for reference in references:
+                source_id = reference["sourceId"]
 
-            if source_id not in existing_refs:
-                message_new_refs.append(reference)
+                if source_id not in existing_refs:
+                    message_new_refs.append(reference)
+                    existing_refs[source_id] = start_index
+                    start_index += 1
 
-                existing_refs[source_id] = start_index
-                start_index += 1
+                reference_num = existing_refs[source_id]
+                ref_map[reference["sequenceNumber"]] = reference_num
+                reference["sequenceNumber"] = reference_num
 
-            reference_num = existing_refs[source_id]
-            seq_num = reference["sequenceNumber"]
-
-            ref_map[seq_num] = reference_num
-
-            reference["sequenceNumber"] = reference_num
-
-        message["text"] = _replace_references_in_text(message["text"], ref_map)
-        message["references"] = message_new_refs
+            message["text"] = _replace_references_in_text(message["text"], ref_map)
+            message["references"] = message_new_refs
 
 
 def _replace_references_in_text_non_overlapping(
@@ -215,7 +220,7 @@ def _replace_references_in_text_non_overlapping(
 
 def _replace_references_in_text(text: str, ref_map: dict[int, int]) -> str:
     # 2 phase replacement, since the map keys and values can overlap
-    max_ref = max(ref_map.keys(), default=0) + 1
+    max_ref = max(max(ref_map.keys(), default=0), max(ref_map.values(), default=0)) + 1
     unique_refs = range(max_ref, max_ref + len(ref_map))
 
     text = _replace_references_in_text_non_overlapping(
