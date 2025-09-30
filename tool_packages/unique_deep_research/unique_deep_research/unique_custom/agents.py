@@ -31,6 +31,7 @@ from .state import (
     SupervisorState,
 )
 from .tools import (
+    format_tools_for_prompt,
     get_research_tools,
     get_supervisor_tools,
     get_today_str,
@@ -83,10 +84,15 @@ async def setup_research_supervisor(
     max_concurrent = UniqueCustomEngineConfig.max_parallel_researchers
     max_iterations = UniqueCustomEngineConfig.max_research_iterations
 
+    # Get supervisor tools and format their descriptions
+    supervisor_tools = get_supervisor_tools()
+    tools_description = format_tools_for_prompt(supervisor_tools)
+
     supervisor_system_prompt = TEMPLATE_ENV.get_template(
         "unique/lead_agent_system.j2"
     ).render(
         date=get_today_str(),
+        tools=tools_description,
         max_concurrent_research_units=max_concurrent,
         max_researcher_iterations=max_iterations,
     )
@@ -243,10 +249,11 @@ async def researcher(
         "temperature": 0.1,
     }
 
-    # Prepare system prompt
+    # Prepare system prompt with dynamic tool descriptions
+    tools_description = format_tools_for_prompt(research_tools)
     researcher_prompt = TEMPLATE_ENV.get_template(
         "unique/research_agent_system.j2"
-    ).render(date=get_today_str())
+    ).render(date=get_today_str(), tools=tools_description)
 
     # Configure model with research tools
     model_with_tools = configurable_model.bind_tools(research_tools)
@@ -471,7 +478,7 @@ async def final_report_generation(
                     SystemMessage(content=report_writer_prompt),
                     AIMessage(content=findings),
                     HumanMessage(
-                        content="Remember to cite sources inline in the final report, not at the end. Please generate the final report. Do not mention these instructions"
+                        content="Remember to cite sources inline in the final report, not at the end. Please generate the final report. Do not mention these instructions or anything related to them in your report."
                     ),
                 ]
             )

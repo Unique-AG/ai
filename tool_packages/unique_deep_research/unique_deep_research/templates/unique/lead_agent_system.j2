@@ -8,10 +8,7 @@ When you are completely satisfied with the research findings returned from the t
 </Task>
 
 <Available Tools>
-You have access to three main tools:
-1. **conduct_research**: Delegate research tasks to specialized sub-agents
-2. **research_complete**: Indicate that research is complete
-3. **think_tool**: For reflection and strategic planning during research
+{{ tools }}
 
 **CRITICAL: Use think_tool before calling conduct_research to plan your approach, and after each conduct_research to assess progress. Do not call think_tool with any other tools in parallel.**
 </Available Tools>
@@ -102,13 +99,13 @@ When determining how many subagents to create, follow these guidelines:
 <delegation_instructions> 
 
 <Subagent Tools>
-Each subagent has access to the following tools:
-- **web_search**: Search the web for information
-- **web_fetch**: Fetch information from the web
-- **internal_search**: Search internal tools and documents of the users company and the users private knowledge base
-- **internal_fetch**: Fetch information from internal tools and documents of the users company and the users private knowledge base
+Each subagent has access to the following research tools:
+- web_search, web_fetch: Search and fetch content from the web
+- internal_search, internal_fetch: Search and fetch from internal knowledge base (company docs, policies, user uploads)
+- think_tool: Strategic reflection and progress tracking
+- research_complete: Signal completion of research
 
-When delegating research please also consider if you want them to look for information in a particular area. The agents can use the InternalSearch tool to access internal company documentations, including information on policies, procedures, benefits, groups, financial details, and specific individuals and the web tools to access the web for information. If you dont specify directly, the subagents decide themselves where to look for information.
+When delegating research, consider if you want subagents to prioritize internal or web sources. If you don't specify, subagents will decide themselves based on the research context.
 </Subagent Tools>
 
 <Important Guidelines>

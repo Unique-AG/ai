@@ -11,7 +11,7 @@ from bs4 import BeautifulSoup
 from fake_useragent import UserAgent
 from httpx import AsyncClient
 from langchain_core.runnables import RunnableConfig
-from langchain_core.tools import tool
+from langchain_core.tools import Tool, tool
 from markdownify import markdownify
 from pydantic import BaseModel, Field
 from unique_toolkit.agentic.history_manager.utils import transform_chunks_to_string
@@ -462,3 +462,46 @@ def get_title(text: str) -> str | None:
     soup = BeautifulSoup(text, "html.parser")
     title_tag = soup.title
     return title_tag.string.strip() if title_tag and title_tag.string else None
+
+
+def format_tools_for_prompt(tools: list[Tool]) -> str:
+    """
+    Extract complete tool information for prompt injection.
+
+    Returns formatted markdown string with:
+    - Tool name
+    - Full description
+    - Parameter details with types and descriptions
+
+    Args:
+        tools: List of LangChain tool objects
+
+    Returns:
+        Formatted string ready for template injection
+    """
+    lines = []
+
+    for tool_obj in tools:
+        # Tool name (bold)
+        lines.append(f"**{tool_obj.name}**")
+
+        # Full description (preserve multi-line formatting)
+        lines.append(tool_obj.description)
+
+        # Extract parameter details using built-in .args property
+        properties = tool_obj.args
+
+        if properties:
+            lines.append("Parameters:")
+            for param_name, param_info in properties.items():
+                param_type = param_info.get("type", "any")
+                param_desc = param_info.get("description", "")
+
+                if param_desc:
+                    lines.append(f"  - `{param_name}` ({param_type}): {param_desc}")
+                else:
+                    lines.append(f"  - `{param_name}` ({param_type})")
+
+        lines.append("")  # Blank line between tools
+
+    return "\n".join(lines)
