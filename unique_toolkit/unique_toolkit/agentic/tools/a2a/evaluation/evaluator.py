@@ -31,6 +31,9 @@ class _SubAgentToolInfo(TypedDict):
     display_name: str
 
 
+NO_ASSESSMENTS_FOUND = "NO_ASSESSMENTS_FOUND"
+
+
 class SubAgentsEvaluation(Evaluation):
     DISPLAY_NAME = "Sub Agents"
 
@@ -68,6 +71,7 @@ class SubAgentsEvaluation(Evaluation):
 
         value = ChatMessageAssessmentLabel.GREEN
 
+        # Use a dict in order to compare labels (RED being the worst)
         label_comparison_dict = defaultdict(
             lambda: 3
         )  # Unkown labels are highest in the sorting
@@ -76,31 +80,54 @@ class SubAgentsEvaluation(Evaluation):
         label_comparison_dict[ChatMessageAssessmentLabel.RED] = 0
 
         for assistant_id, tool_info in self._assistant_id_to_tool_info.items():
-            assessments = tool_info["assessment"]
-            if assessments is None or len(assessments) == 0:
-                logger.info("No assessment found for assistant %s", assistant_id)
+            assessments = tool_info["assessment"] or []
+            valid_assessments = []
+            for assessment in assessments:
+                if (
+                    assessment["label"] is None
+                    or assessment["label"] not in ChatMessageAssessmentLabel
+                ):
+                    logger.warning(
+                        "Unkown assistant label %s for assistant %s will be ignored",
+                        assessment["label"],
+                        assistant_id,
+                    )
+                    continue
+                if assessment["status"] != ChatMessageAssessmentStatus.DONE:
+                    logger.warning(
+                        "Assessment %s for assistant %s is not done (status: %s) will be ignored",
+                        assessment["label"],
+                        assistant_id,
+                    )
+                    continue
+                valid_assessments.append(assessment)
+
+            if len(valid_assessments) == 0:
+                logger.info("No valid assessment found for assistant %s", assistant_id)
                 continue
 
-            assessments_display_data = sorted(
-                assessments, key=lambda x: label_comparison_dict[x["label"]]
+            assessments = sorted(
+                valid_assessments, key=lambda x: label_comparison_dict[x["label"]]
             )
 
             for assessment in assessments:
-                if label := assessment["label"]:
-                    if label not in ChatMessageAssessmentLabel:
-                        logger.warning(
-                            "Unkown assistant label %s for assistant %s will be ignored",
-                            label,
-                            assistant_id,
-                        )
-                        continue
-                    value = min(value, label, key=lambda x: label_comparison_dict[x])
+                value = min(
+                    value, assessment["label"], key=lambda x: label_comparison_dict[x]
+                )
 
             sub_agents_display_data.append(
                 {
                     "name": tool_info["display_name"],
-                    "assessments": assessments_display_data,
+                    "assessments": assessments,
                 }
+            )
+
+        if len(sub_agents_display_data) == 0:
+            logger.warning("No valid sub agent assessments found")
+            return EvaluationMetricResult(
+                name=self.get_name(),
+                value=NO_ASSESSMENTS_FOUND,
+                reason="No sub agents assessments found",
             )
 
         should_summarize = False
@@ -115,8 +142,6 @@ class SubAgentsEvaluation(Evaluation):
                 reason = (
                     sub_agents_display_data[0]["assessments"][0]["explanation"] or ""
                 )
-        else:
-            assert False, "No sub agents assessments found"
 
         if should_summarize:
             messages = (
@@ -148,6 +173,15 @@ class SubAgentsEvaluation(Evaluation):
     async def evaluation_metric_to_assessment(
         self, evaluation_result: EvaluationMetricResult
     ) -> EvaluationAssessmentMessage:
+        if evaluation_result.value == NO_ASSESSMENTS_FOUND:
+            return EvaluationAssessmentMessage(
+                status=ChatMessageAssessmentStatus.DONE,
+                explanation="No valid sub agents assessments found to consolidate.",
+                title=self.DISPLAY_NAME,
+                label=ChatMessageAssessmentLabel.GREEN,
+                type=self.get_assessment_type(),
+            )
+
         return EvaluationAssessmentMessage(
             status=ChatMessageAssessmentStatus.DONE,
             explanation=evaluation_result.reason,
