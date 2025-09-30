@@ -21,6 +21,7 @@ unique-follow-up-questions = "^1.0.0"
 unique-internal-search = "^1.0.0"
 unique-deep-research = "^2.0.0"
 unique-web-search = "^1.0.0"
+jinja2 = "^3.1.6"
 
 
 [tool.poetry.group.dev.dependencies]

@@ -1,5 +1,6 @@
 from datetime import datetime
 from logging import Logger
+from typing import Any
 
 import jinja2
 from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
@@ -52,6 +53,7 @@ class UniqueAI:
         evaluation_manager: EvaluationManager,
         postprocessor_manager: PostprocessorManager,
         mcp_servers: list[McpServer],
+        user_metadata: dict[str, Any] | None = None,
     ):
         self._logger = logger
         self._event = event
@@ -70,6 +72,7 @@ class UniqueAI:
         self._postprocessor_manager = postprocessor_manager
         self._latest_assistant_id: str = event.payload.assistant_message.id
         self._mcp_servers = mcp_servers
+        self._user_metadata = user_metadata or {}
 
     ############################################################
     # Override of base methods
@@ -262,6 +265,7 @@ class UniqueAI:
             used_tools=used_tools,
             mcp_server_user_prompts=list(mcp_server_user_prompts),
             tool_descriptions_with_user_prompts=tool_descriptions_with_user_prompts,
+            user_metadata=self._user_metadata,
         )
         return user_msg
 
@@ -294,6 +298,7 @@ class UniqueAI:
             max_loop_iterations=self._config.agent.max_loop_iterations,
             current_iteration=self.current_iteration_index + 1,
             mcp_server_system_prompts=mcp_server_system_prompts,
+            user_metadata=self._user_metadata,
         )
         return system_message
 
