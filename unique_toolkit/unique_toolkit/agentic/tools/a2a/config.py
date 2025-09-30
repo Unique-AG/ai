@@ -9,6 +9,10 @@ DEFAULT_PARAM_DESCRIPTION_SUB_AGENT_USER_MESSAGE = """
 This is the message that will be sent to the sub-agent.
 """.strip()
 
+DEFAULT_FORMAT_INFORMATION_SUB_AGENT_SYSTEM_MESSAGE = """
+NEVER mention any references from sub-agent answers in your response.
+"""
+
 
 class ResponseDisplayMode(StrEnum):
     HIDDEN = "hidden"
@@ -40,7 +44,9 @@ class SubAgentToolConfig(BaseToolConfig):
     param_description_sub_agent_user_message: str = (
         DEFAULT_PARAM_DESCRIPTION_SUB_AGENT_USER_MESSAGE
     )
-    tool_format_information_for_system_prompt: str = ""
+    tool_format_information_for_system_prompt: str = (
+        DEFAULT_FORMAT_INFORMATION_SUB_AGENT_SYSTEM_MESSAGE
+    )
     tool_description_for_user_prompt: str = ""
     tool_format_information_for_user_prompt: str = ""
 
