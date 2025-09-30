@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 import pytest
 
-from unique_toolkit.smart_rules.compile import (
+from unique_toolkit.content.smart_rules import (
     AndStatement,
     Operator,
     OrStatement,
@@ -156,7 +156,7 @@ def test_fallback_values(user_metadata, tool_parameters):
 
 def test_earlier_date_calculation(mock_datetime):
     """Test calculation of dates in the past."""
-    with patch("unique_toolkit.smart_rules.compile.datetime", mock_datetime):
+    with patch("unique_toolkit.content.smart_rules.datetime", mock_datetime):
         query = Statement(
             operator=Operator.GREATER_THAN_OR_EQUAL,
             value="<T-1>",  # 1 day ago
@@ -172,7 +172,7 @@ def test_earlier_date_calculation(mock_datetime):
 
 def test_later_date_calculation(mock_datetime):
     """Test calculation of dates in the future."""
-    with patch("unique_toolkit.smart_rules.compile.datetime", mock_datetime):
+    with patch("unique_toolkit.content.smart_rules.datetime", mock_datetime):
         query = Statement(
             operator=Operator.LESS_THAN_OR_EQUAL,
             value="<T+2>",  # 2 days later
@@ -188,7 +188,7 @@ def test_later_date_calculation(mock_datetime):
 
 def test_current_date_calculation(mock_datetime):
     """Test handling of current date."""
-    with patch("unique_toolkit.smart_rules.compile.datetime", mock_datetime):
+    with patch("unique_toolkit.content.smart_rules.datetime", mock_datetime):
         query = Statement(
             operator=Operator.EQUALS,
             value="<T>",  # current date
@@ -202,7 +202,7 @@ def test_current_date_calculation(mock_datetime):
 
 def test_multiple_days_calculation(mock_datetime):
     """Test calculation with multiple days."""
-    with patch("unique_toolkit.smart_rules.compile.datetime", mock_datetime):
+    with patch("unique_toolkit.content.smart_rules.datetime", mock_datetime):
         query = Statement(
             operator=Operator.GREATER_THAN_OR_EQUAL,
             value="<T-7>",  # 7 days ago
