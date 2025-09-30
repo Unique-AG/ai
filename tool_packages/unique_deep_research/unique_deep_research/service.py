@@ -386,7 +386,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                     research_result, tool_call_id="", message_id=""
                 )
             )
-            self.write_message_log_text_message("Research completed successfully")
+            self.write_message_log_text_message("Research done")
 
             # Update the assistant message with the results
             await self.chat_service.modify_assistant_message_async(
@@ -456,7 +456,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         link_references = self._convert_annotations_to_references(
             annotations or [], message_id=""
         )
-        self.write_message_log_text_message("Research completed successfully")
+        self.write_message_log_text_message("Research done")
 
         # Update the assistant message with the results
         await self.chat_service.modify_assistant_message_async(
