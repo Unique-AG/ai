@@ -182,23 +182,45 @@ def _consolidate_references_in_place(
 
         references = list(sorted(references, key=lambda ref: ref["sequenceNumber"]))
 
+        ref_map = {}
+
         message_new_refs = []
         for reference in references:
             source_id = reference["sourceId"]
 
             if source_id not in existing_refs:
                 message_new_refs.append(reference)
+
                 existing_refs[source_id] = start_index
                 start_index += 1
 
             reference_num = existing_refs[source_id]
-
             seq_num = reference["sequenceNumber"]
-            message["text"] = re.sub(
-                rf"<sup>{seq_num}</sup>",
-                f"<sup>{reference_num}</sup>",
-                message["text"],
-            )
+
+            ref_map[seq_num] = reference_num
+
             reference["sequenceNumber"] = reference_num
 
+        message["text"] = _replace_references_in_text(message["text"], ref_map)
         message["references"] = message_new_refs
+
+
+def _replace_references_in_text_non_overlapping(
+    text: str, ref_map: dict[int, int]
+) -> str:
+    for orig, repl in ref_map.items():
+        text = re.sub(rf"<sup>{orig}</sup>", f"<sup>{repl}</sup>", text)
+    return text
+
+
+def _replace_references_in_text(text: str, ref_map: dict[int, int]) -> str:
+    # 2 phase replacement, since the map keys and values can overlap
+    max_ref = max(ref_map.keys(), default=0) + 1
+    unique_refs = range(max_ref, max_ref + len(ref_map))
+
+    text = _replace_references_in_text_non_overlapping(
+        text, dict(zip(ref_map.keys(), unique_refs))
+    )
+    return _replace_references_in_text_non_overlapping(
+        text, dict(zip(unique_refs, ref_map.values()))
+    )
