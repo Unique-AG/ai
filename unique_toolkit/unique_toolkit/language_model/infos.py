@@ -37,7 +37,9 @@ class LanguageModelName(StrEnum):
         "litellm:anthropic-claude-3-7-sonnet-thinking"
     )
     ANTHROPIC_CLAUDE_SONNET_4 = "litellm:anthropic-claude-sonnet-4"
+    ANTHROPIC_CLAUDE_SONNET_4_5 = "litellm:anthropic-claude-sonnet-4-5"
     ANTHROPIC_CLAUDE_OPUS_4 = "litellm:anthropic-claude-opus-4"
+    ANTHROPIC_CLAUDE_OPUS_4_1 = "litellm:anthropic-claude-opus-4-1"
     GEMINI_2_0_FLASH = "litellm:gemini-2-0-flash"
     GEMINI_2_5_FLASH = "litellm:gemini-2-5-flash"
     GEMINI_2_5_FLASH_LITE_PREVIEW_0617 = "litellm:gemini-2-5-flash-lite-preview-06-17"
@@ -663,6 +665,26 @@ class LanguageModelInfo(BaseModel):
                     info_cutoff_at=date(2025, 3, 1),
                     published_at=date(2025, 5, 1),
                 )
+            case LanguageModelName.ANTHROPIC_CLAUDE_SONNET_4_5:
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    version="claude-sonnet-4-5",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
+                    token_limits=LanguageModelTokenLimits(
+                        # Input limit is 200_000, we leave 20_000 tokens as buffer due to tokenizer mismatch
+                        token_limit_input=200_000,
+                        token_limit_output=64_000,
+                    ),
+                    info_cutoff_at=date(2025, 7, 1),
+                    published_at=date(2025, 9, 29),
+                )
             case LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4:
                 return cls(
                     name=model_name,
@@ -678,6 +700,25 @@ class LanguageModelInfo(BaseModel):
                     token_limits=LanguageModelTokenLimits(
                         # Input limit is 200_000, we leave 20_000 tokens as buffer due to tokenizer mismatch
                         token_limit_input=180_000,
+                        token_limit_output=32_000,
+                    ),
+                    info_cutoff_at=date(2025, 3, 1),
+                    published_at=date(2025, 5, 1),
+                )
+            case LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4_1:
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    version="claude-opus-4",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=200_000,
                         token_limit_output=32_000,
                     ),
                     info_cutoff_at=date(2025, 3, 1),

@@ -37,6 +37,8 @@ class TestLanguageModelInfos:
             LanguageModelName.ANTHROPIC_CLAUDE_3_7_SONNET_THINKING,
             LanguageModelName.ANTHROPIC_CLAUDE_SONNET_4,
             LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4,
+            LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4_1,
+            LanguageModelName.ANTHROPIC_CLAUDE_SONNET_4_5,
             LanguageModelName.GEMINI_2_0_FLASH,
             LanguageModelName.GEMINI_2_5_FLASH,
             LanguageModelName.GEMINI_2_5_FLASH_LITE_PREVIEW_0617,
