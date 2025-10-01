@@ -86,6 +86,8 @@ class Content(APIResource["Content"]):
         skip: NotRequired[int | None]
         take: NotRequired[int | None]
         filePath: NotRequired[str | None]
+        contentId: NotRequired[str | None]
+        chatId: NotRequired[str | None]
 
     class CustomApiOptions(TypedDict):
         apiIdentifier: str
@@ -157,6 +159,7 @@ class Content(APIResource["Content"]):
         mimeType: str
         byteSize: int
         ownerId: str
+        ingestionState: str
         createdAt: str
         updatedAt: str
         expiresAt: str | None
