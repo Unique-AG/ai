@@ -38,6 +38,7 @@ from .tools import (
     internal_fetch,
     internal_search,
     research_complete,
+    research_complete_tool_called,
     think_tool,
     web_fetch,
     web_search,
@@ -156,6 +157,7 @@ async def supervisor_tools(
     """
     Execute tools called by the supervisor.
     """
+    logger.info("Supervisor tool processing")
     supervisor_messages = state.get("supervisor_messages", [])
     research_iterations = state.get("research_iterations", 0)
     most_recent_message = supervisor_messages[-1] if supervisor_messages else None
@@ -171,6 +173,7 @@ async def supervisor_tools(
 
     # Early exit if no tool calls at all
     if not tool_calls:
+        logger.info("Supervisor has no tool calls. Ending supervisor")
         notes = get_notes_from_tool_calls(supervisor_messages)
         return Command(
             goto="__end__",
@@ -210,9 +213,10 @@ async def supervisor_tools(
         await _handle_tool_call_batch(remaining_tool_calls, config)
     )
 
-    if exceeded_iterations or any(
-        tc.get("name") == "research_complete" for tc in tool_calls
-    ):
+    if exceeded_iterations or research_complete_tool_called(tool_calls):
+        logger.info(
+            "Supervisor has reached the maximum number of iterations or has a research complete tool call. Ending supervisor"
+        )
         # Extract notes including the new tool messages we just created
         notes = get_notes_from_tool_calls(supervisor_messages + all_tool_messages)
 
@@ -239,6 +243,7 @@ async def researcher(
     """
     Individual researcher that conducts focused research on specific topics.
     """
+    logger.info("Research agent determining next steps")
     research_tools = get_research_tools()
 
     # Configure the researcher model
@@ -312,26 +317,36 @@ async def researcher_tools(
     """
     Execute tools called by the researcher.
     """
-
+    logger.info("Research agent executing tools")
     researcher_messages = state.get("researcher_messages", [])
     most_recent_message = researcher_messages[-1] if researcher_messages else None
+    exceeded_iterations = (
+        state.get("tool_call_iterations", 0)
+        >= UniqueCustomEngineConfig.max_tool_calls_per_researcher
+    )
 
     # Check if any tool calls were made
     if not most_recent_message or not isinstance(most_recent_message, AIMessage):
+        logger.info(
+            f"Research agent has no tool calls. Ending researcher after {len(researcher_messages)} messages"
+        )
         return Command(goto="compress_research")
 
     tool_calls = most_recent_message.tool_calls or []
     if not tool_calls:
+        logger.info(
+            f"Research agent has no tool calls. Ending researcher after {len(researcher_messages)} messages"
+        )
         return Command(goto="compress_research")
 
     # Execute actual tool calls safely
     tool_outputs = await _handle_tool_call_batch(tool_calls, config)
 
     # Check if we should continue or finish
-    max_iterations = UniqueCustomEngineConfig.max_tool_calls_per_researcher
-    if state.get("tool_call_iterations", 0) >= max_iterations or any(
-        tc.get("name") == "research_complete" for tc in tool_calls
-    ):
+    if exceeded_iterations or research_complete_tool_called(tool_calls):
+        logger.info(
+            f"Research agent has reached the maximum number of tool calls or has a research complete tool call. Ending researcher after {len(researcher_messages)} messages"
+        )
         return Command(
             goto="compress_research", update={"researcher_messages": tool_outputs}
         )
@@ -594,8 +609,6 @@ researcher_builder.add_node("researcher_tools", researcher_tools)
 researcher_builder.add_node("compress_research", compress_research)
 
 researcher_builder.add_edge(START, "researcher")
-researcher_builder.add_edge("researcher", "researcher_tools")
-researcher_builder.add_edge("researcher_tools", "compress_research")
 researcher_builder.add_edge("compress_research", END)
 
 researcher_subgraph = researcher_builder.compile()
