@@ -1,5 +1,6 @@
 import json
 from enum import StrEnum
+from logging import getLogger
 from pathlib import Path
 from typing import Any, Generic, Optional, TypeVar, override
 
@@ -8,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic_settings import BaseSettings
 from typing_extensions import deprecated
 
+from unique_toolkit._common.exception import ConfigurationException
 from unique_toolkit.app.unique_settings import UniqueChatEventFilterOptions
 from unique_toolkit.smart_rules.compile import UniqueQL, parse_uniqueql
 
@@ -19,6 +21,7 @@ model_config = ConfigDict(
     populate_by_name=True,
     arbitrary_types_allowed=True,
 )
+_logger = getLogger(__name__)
 
 
 class EventName(StrEnum):
@@ -255,9 +258,20 @@ class ChatEvent(BaseEvent):
         self, *, filter_options: UniqueChatEventFilterOptions | None = None
     ) -> bool:
         # Empty string evals to False
-        if filter_options is None:
-            return False
 
+        if filter_options is None:
+            return False  # Don't filter when no options provided
+
+        if not filter_options.assistant_ids and not filter_options.references_in_code:
+            raise ConfigurationException(
+                "No filter options provided, all events will be filtered! \n"
+                "Please define: \n"
+                " - 'UNIQUE_CHAT_EVENT_FILTER_OPTIONS_ASSISTANT_IDS' \n"
+                " - 'UNIQUE_CHAT_EVENT_FILTER_OPTIONS_REFERENCES_IN_CODE' \n"
+                "in your environment variables."
+            )
+
+        # Per reference in code there can be multiple assistants
         if (
             filter_options.assistant_ids
             and self.payload.assistant_id not in filter_options.assistant_ids
