@@ -1904,7 +1904,7 @@ url = "../../unique_sdk"
 
 [[package]]
 name = "unique-toolkit"
-version = "1.5.0"
+version = "1.7.0"
 description = ""
 optional = false
 python-versions = "^3.12"
@@ -1998,4 +1998,4 @@ watchmedo = ["PyYAML (>=3.10)"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "492358dfb41bd23203ee26d18f1ced0b44e281d6a9a145ca6784eeb2855cd208"
+content-hash = "555d8f50c444bdb39e1158e4e6b0f6911517d2329df035552e1e30c94e4a015b"

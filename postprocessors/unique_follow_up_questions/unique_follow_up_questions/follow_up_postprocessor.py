@@ -45,7 +45,8 @@ class FollowUpPostprocessor(Postprocessor):
 
     async def run(self, loop_response: LanguageModelStreamResponse) -> None:
         history = await self._historyManager.get_user_visible_chat_history(
-            loop_response.message.text
+            loop_response.message.text,
+            self.remove_from_text,
         )
         self._text = await self._get_follow_up_question_suggestion(
             language=self._language,
