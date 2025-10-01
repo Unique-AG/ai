@@ -222,7 +222,7 @@ class HistoryManager:
         """Get the user visible chat history.
 
         Args:
-            message (LanguageModelAssistantMessage): The latest assistant message to append to the history, as this is not extracted from the history.
+            message_text (str | None): The latest assistant message to append to the history, as this is not extracted from the history. If None, the history will be returned without the latest assistant message.
 
         Returns:
             LanguageModelMessages: The user visible chat history.
