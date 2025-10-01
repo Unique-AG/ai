@@ -215,3 +215,18 @@ class HistoryManager:
             remove_from_text=remove_from_text,
         )
         return messages
+
+    async def get_user_visible_chat_history(
+        self, message: LanguageModelAssistantMessage
+    ) -> LanguageModelMessages:
+        """Get the user visible chat history.
+
+        Args:
+            message (LanguageModelAssistantMessage): The latest assistant message to append to the history, as this is not extracted from the history.
+
+        Returns:
+            LanguageModelMessages: The user visible chat history.
+        """
+        history = await self._token_reducer._get_history_from_db()
+        history.append(message)
+        return LanguageModelMessages(history)

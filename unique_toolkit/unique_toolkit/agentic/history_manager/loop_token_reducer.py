@@ -113,6 +113,21 @@ class LoopTokenReducer:
 
         return messages
 
+    async def get_user_visible_chat_history(
+        self, message: LanguageModelAssistantMessage
+    ) -> LanguageModelMessages:
+        """Get the user visible chat history.
+
+        Args:
+            message (LanguageModelAssistantMessage): The latest assistant message to append to the history, as this is not extracted from the history.
+
+        Returns:
+            LanguageModelMessages: The user visible chat history.
+        """
+        history = await self._get_history_from_db()
+        history.append(message)
+        return LanguageModelMessages(history)
+
     def _exceeds_token_limit(self, token_count: int) -> bool:
         """Check if token count exceeds the maximum allowed limit and if at least one tool call has more than one source."""
         # At least one tool call should have more than one chunk as answer
@@ -223,7 +238,7 @@ class LoopTokenReducer:
         return history
 
     async def _get_history_from_db(
-        self, remove_from_text: Callable[[str], Awaitable[str]]
+        self, remove_from_text: Callable[[str], Awaitable[str]] | None = None
     ) -> list[LanguageModelMessage]:
         """
         Get the history of the conversation. The function will retrieve a subset of the full history based on the configuration.
@@ -242,10 +257,10 @@ class LoopTokenReducer:
                 else FileContentSerialization.FILE_NAME
             ),
         )
-
-        full_history.root = await self._clean_messages(
-            full_history.root, remove_from_text
-        )
+        if remove_from_text is not None:
+            full_history.root = await self._clean_messages(
+                full_history.root, remove_from_text
+            )
 
         limited_history_messages = self._limit_to_token_window(
             full_history.root, self._max_history_tokens
