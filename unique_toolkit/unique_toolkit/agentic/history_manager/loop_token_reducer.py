@@ -113,21 +113,6 @@ class LoopTokenReducer:
 
         return messages
 
-    async def get_user_visible_chat_history(
-        self, message: LanguageModelAssistantMessage
-    ) -> LanguageModelMessages:
-        """Get the user visible chat history.
-
-        Args:
-            message (LanguageModelAssistantMessage): The latest assistant message to append to the history, as this is not extracted from the history.
-
-        Returns:
-            LanguageModelMessages: The user visible chat history.
-        """
-        history = await self._get_history_from_db()
-        history.append(message)
-        return LanguageModelMessages(history)
-
     def _exceeds_token_limit(self, token_count: int) -> bool:
         """Check if token count exceeds the maximum allowed limit and if at least one tool call has more than one source."""
         # At least one tool call should have more than one chunk as answer
@@ -165,7 +150,7 @@ class LoopTokenReducer:
         rendered_system_message_string: str,
         remove_from_text: Callable[[str], Awaitable[str]],
     ) -> list[LanguageModelMessage]:
-        history_from_db = await self._get_history_from_db(remove_from_text)
+        history_from_db = await self.get_history_from_db(remove_from_text)
         history_from_db = self._replace_user_message(
             history_from_db, original_user_message, rendered_user_message_string
         )
@@ -237,7 +222,7 @@ class LoopTokenReducer:
             ]
         return history
 
-    async def _get_history_from_db(
+    async def get_history_from_db(
         self, remove_from_text: Callable[[str], Awaitable[str]] | None = None
     ) -> list[LanguageModelMessage]:
         """
