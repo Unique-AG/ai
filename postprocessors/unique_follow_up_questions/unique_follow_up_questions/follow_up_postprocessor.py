@@ -44,11 +44,13 @@ class FollowUpPostprocessor(Postprocessor):
         self._llm_service = llm_service
 
     async def run(self, loop_response: LanguageModelStreamResponse) -> None:
-        # data:LanguageModelMessages = await self._historyManager.get_history_for_model_call()
+        history = await self._historyManager.get_user_visible_chat_history(
+            loop_response.message.text
+        )
         self._text = await self._get_follow_up_question_suggestion(
             language=self._language,
             language_model_service=self._llm_service,
-            history=[],  # TODO: History must get here!
+            history=history.root,
         )
 
     def apply_postprocessing_to_response(
