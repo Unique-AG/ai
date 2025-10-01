@@ -10,6 +10,7 @@ import timeout_decorator
 from bs4 import BeautifulSoup
 from fake_useragent import UserAgent
 from httpx import AsyncClient
+from langchain_core.messages import ToolCall
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import Tool, tool
 from markdownify import markdownify
@@ -132,6 +133,11 @@ def research_complete(reason: str) -> str:
     Use this tool when you have gathered sufficient information on the research topic.
     """
     return f"Research completed with reason: {reason}"
+
+
+def research_complete_tool_called(tool_calls: list[ToolCall]) -> bool:
+    """Check if the research complete tool was called."""
+    return any(tc.get("name") == "research_complete" for tc in tool_calls)
 
 
 @tool(args_schema=WebSearchArgs)
