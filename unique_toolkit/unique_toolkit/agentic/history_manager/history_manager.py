@@ -217,7 +217,7 @@ class HistoryManager:
         return messages
 
     async def get_user_visible_chat_history(
-        self, message: LanguageModelAssistantMessage
+        self, message_text: str | None = None
     ) -> LanguageModelMessages:
         """Get the user visible chat history.
 
@@ -228,5 +228,6 @@ class HistoryManager:
             LanguageModelMessages: The user visible chat history.
         """
         history = await self._token_reducer._get_history_from_db()
-        history.append(message)
+        if message_text:
+            history.append(LanguageModelAssistantMessage(content=message_text))
         return LanguageModelMessages(history)
