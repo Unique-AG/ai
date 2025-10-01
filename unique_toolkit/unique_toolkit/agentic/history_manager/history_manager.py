@@ -217,18 +217,21 @@ class HistoryManager:
         return messages
 
     async def get_user_visible_chat_history(
-        self, assistant_message_text: str | None = None
+        self,
+        assistant_message_text: str | None = None,
+        remove_from_text: Callable[[str], Awaitable[str]] | None = None,
     ) -> LanguageModelMessages:
         """Get the user visible chat history.
 
         Args:
             assistant_message_text (str | None): The latest assistant message to append to the history, as this is not extracted from the history.
             If None, the history will be returned without the latest assistant message.
+            remove_from_text (Callable[[str], Awaitable[str]] | None): A function to remove text from the history before returning it.
 
         Returns:
             LanguageModelMessages: The user visible chat history.
         """
-        history = await self._token_reducer.get_history_from_db()
+        history = await self._token_reducer.get_history_from_db(remove_from_text)
         if assistant_message_text:
             history.append(
                 LanguageModelAssistantMessage(content=assistant_message_text)
