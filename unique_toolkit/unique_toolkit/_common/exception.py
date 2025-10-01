@@ -31,3 +31,7 @@ class CommonException(Exception):
 
     def __str__(self):
         return self._error_message
+
+
+class ConfigurationException(Exception):
+    pass

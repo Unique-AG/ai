@@ -6,6 +6,7 @@ from unittest.mock import Mock, patch
 import pytest
 from pydantic import SecretStr
 
+from unique_toolkit._common.exception import ConfigurationException
 from unique_toolkit.app.dev_util import get_event_generator
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.app.unique_settings import (
@@ -18,7 +19,7 @@ from unique_toolkit.app.unique_settings import (
 
 
 @pytest.fixture
-def mock_unique_settings():
+def mock_unique_settings() -> UniqueSettings:
     """Create a mock UniqueSettings instance for testing."""
     auth = UniqueAuth(
         company_id=SecretStr("test-company"), user_id=SecretStr("test-user")
@@ -38,7 +39,7 @@ def mock_unique_settings():
 
 
 @pytest.fixture
-def mock_unique_settings_with_filters():
+def mock_unique_settings_with_filters() -> UniqueSettings:
     """Create a mock UniqueSettings instance with filter options for testing."""
     auth = UniqueAuth(
         company_id=SecretStr("test-company"), user_id=SecretStr("test-user")
@@ -64,7 +65,7 @@ def mock_unique_settings_with_filters():
 
 
 @pytest.fixture
-def mock_unique_settings_with_assistant_filter_only():
+def mock_unique_settings_with_assistant_filter_only() -> UniqueSettings:
     """Create a mock UniqueSettings instance with only assistant_id filtering."""
     auth = UniqueAuth(
         company_id=SecretStr("test-company"), user_id=SecretStr("test-user")
@@ -89,8 +90,36 @@ def mock_unique_settings_with_assistant_filter_only():
     )
 
 
+@pytest.fixture
+def mock_unique_settings_with_empty_filters() -> UniqueSettings:
+    """Create a mock UniqueSettings instance with empty filter lists."""
+    auth = UniqueAuth(
+        company_id=SecretStr("test-company"), user_id=SecretStr("test-user")
+    )
+    app = UniqueApp(
+        id=SecretStr("test-id"),
+        key=SecretStr("test-key"),
+        base_url="https://api.example.com",
+        endpoint="/v1/endpoint",
+        endpoint_secret=SecretStr("test-endpoint-secret"),
+    )
+    api = UniqueApi(
+        base_url="https://api.example.com",
+        version="2023-12-06",
+    )
+    filter_options = UniqueChatEventFilterOptions(
+        assistant_ids=[],  # Empty list
+        references_in_code=[],  # Empty list
+    )
+    return UniqueSettings(
+        auth=auth, app=app, api=api, chat_event_filter_options=filter_options
+    )
+
+
 class TestGetEventGeneratorFiltering:
-    def test_get_event_generator_without_filtering(self, mock_unique_settings):
+    def test_get_event_generator_without_filtering(
+        self, mock_unique_settings: UniqueSettings
+    ):
         """Test that get_event_generator yields events when no filtering is applied."""
         # Mock SSE events
         mock_sse_events = [
@@ -137,7 +166,7 @@ class TestGetEventGeneratorFiltering:
             assert events[0].payload.assistant_id == "any_assistant"
 
     def test_get_event_generator_with_assistant_id_filtering(
-        self, mock_unique_settings_with_assistant_filter_only
+        self, mock_unique_settings_with_assistant_filter_only: UniqueSettings
     ):
         """Test that get_event_generator filters events by assistant_id only."""
         # Mock SSE events - one that should be filtered out, one that should pass
@@ -218,7 +247,7 @@ class TestGetEventGeneratorFiltering:
             assert events[0].payload.assistant_id == "assistant1"
 
     def test_get_event_generator_with_reference_filtering(
-        self, mock_unique_settings_with_filters
+        self, mock_unique_settings_with_filters: UniqueSettings
     ):
         """Test that get_event_generator filters events by reference name."""
         # Mock SSE events - one that should be filtered out, one that should pass
@@ -299,7 +328,7 @@ class TestGetEventGeneratorFiltering:
             assert events[0].payload.name == "module1"
 
     def test_get_event_generator_with_both_filters(
-        self, mock_unique_settings_with_filters
+        self, mock_unique_settings_with_filters: UniqueSettings
     ):
         """Test that get_event_generator filters events by both assistant_id and reference name."""
         # Mock SSE events - only one that matches both criteria should pass
@@ -410,7 +439,9 @@ class TestGetEventGeneratorFiltering:
             assert events[0].payload.assistant_id == "assistant1"
             assert events[0].payload.name == "module1"
 
-    def test_get_event_generator_with_none_filter_options(self, mock_unique_settings):
+    def test_get_event_generator_with_none_filter_options(
+        self, mock_unique_settings: UniqueSettings
+    ):
         """Test that get_event_generator works when filter_options is None."""
         # Mock SSE events
         mock_sse_events = [
@@ -503,7 +534,9 @@ class TestGetEventGeneratorFiltering:
             assert len(events) == 1
             assert events[0].id == "event1"
 
-    def test_get_event_generator_handles_validation_errors(self, mock_unique_settings):
+    def test_get_event_generator_handles_validation_errors(
+        self, mock_unique_settings: UniqueSettings
+    ):
         """Test that get_event_generator handles validation errors gracefully."""
         # Mock SSE events with invalid event data
         mock_sse_events = [
@@ -562,3 +595,54 @@ class TestGetEventGeneratorFiltering:
             # Only the valid event should pass through
             assert len(events) == 1
             assert events[0].id == "event2"
+
+    def test_get_event_generator_with_empty_filter_lists(
+        self, mock_unique_settings_with_empty_filters: UniqueSettings
+    ):
+        """Test that get_event_generator raises ConfigurationException when both filter lists are empty."""
+        # Mock SSE events
+        mock_sse_events = [
+            Mock(
+                data=json.dumps(
+                    {
+                        "id": "event1",
+                        "event": "unique.chat.external-module.chosen",
+                        "userId": "test-user",
+                        "companyId": "test-company",
+                        "payload": {
+                            "name": "any_module",
+                            "description": "Test description",
+                            "configuration": {},
+                            "chatId": "test-chat",
+                            "assistantId": "any_assistant",
+                            "userMessage": {
+                                "id": "msg1",
+                                "text": "Hello",
+                                "createdAt": "2023-01-01T00:00:00Z",
+                                "originalText": "Hello",
+                                "language": "en",
+                            },
+                            "assistantMessage": {
+                                "id": "msg2",
+                                "createdAt": "2023-01-01T00:01:00Z",
+                            },
+                        },
+                        "createdAt": 1672531200,
+                        "version": "1.0",
+                    }
+                )
+            ),
+        ]
+
+        with patch("unique_toolkit.app.dev_util.get_sse_client") as mock_sse_client:
+            mock_sse_client.return_value = mock_sse_events
+
+            generator = get_event_generator(
+                mock_unique_settings_with_empty_filters, ChatEvent
+            )
+
+            # Should raise ConfigurationException when both filter lists are empty
+            with pytest.raises(
+                ConfigurationException, match="No filter options provided"
+            ):
+                list(generator)

@@ -1,5 +1,8 @@
 """Tests for event filtering functionality added in the last commit."""
 
+import pytest
+
+from unique_toolkit._common.exception import ConfigurationException
 from unique_toolkit.app.schemas import ChatEvent, Event
 from unique_toolkit.app.unique_settings import UniqueChatEventFilterOptions
 
@@ -37,9 +40,10 @@ class TestBaseEventFiltering:
         # Test with None filter options
         assert event.filter_event(filter_options=None) is False
 
-        # Test with empty filter options
+        # Test with empty filter options - should raise ConfigurationException
         filter_options = UniqueChatEventFilterOptions()
-        assert event.filter_event(filter_options=filter_options) is False
+        with pytest.raises(ConfigurationException, match="No filter options provided"):
+            event.filter_event(filter_options=filter_options)
 
 
 class TestChatEventFiltering:
@@ -74,9 +78,10 @@ class TestChatEventFiltering:
         # Test with None filter options
         assert chat_event.filter_event(filter_options=None) is False
 
-        # Test with empty filter options
+        # Test with empty filter options - should raise ConfigurationException
         filter_options = UniqueChatEventFilterOptions()
-        assert chat_event.filter_event(filter_options=filter_options) is False
+        with pytest.raises(ConfigurationException, match="No filter options provided"):
+            chat_event.filter_event(filter_options=filter_options)
 
     def test_chat_event_filter_by_assistant_id_included(self):
         """Test that ChatEvent.filter_event returns False when assistant_id is in the filter list."""
@@ -287,7 +292,7 @@ class TestChatEventFiltering:
         assert chat_event.filter_event(filter_options=filter_options) is False
 
     def test_chat_event_filter_empty_lists(self):
-        """Test that ChatEvent.filter_event works correctly with empty filter lists."""
+        """Test that ChatEvent.filter_event raises ConfigurationException with empty filter lists."""
         event_data = {
             "id": "test-event",
             "event": "unique.chat.external-module.chosen",
@@ -314,9 +319,9 @@ class TestChatEventFiltering:
 
         chat_event = ChatEvent.model_validate(event_data)
 
-        # Filter options with empty lists
+        # Filter options with empty lists - should raise ConfigurationException
         filter_options = UniqueChatEventFilterOptions(
             assistant_ids=[], references_in_code=[]
         )
-        # Should not be filtered out because empty lists mean no filtering
-        assert chat_event.filter_event(filter_options=filter_options) is False
+        with pytest.raises(ConfigurationException, match="No filter options provided"):
+            chat_event.filter_event(filter_options=filter_options)
