@@ -228,7 +228,7 @@ class HistoryManager:
         Returns:
             LanguageModelMessages: The user visible chat history.
         """
-        history = await self._token_reducer._get_history_from_db()
+        history = await self._token_reducer.get_history_from_db()
         if assistant_message_text:
             history.append(
                 LanguageModelAssistantMessage(content=assistant_message_text)
