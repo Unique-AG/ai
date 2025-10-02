@@ -129,7 +129,6 @@ async def research_supervisor(
         "max_tokens": min(
             10_000, custom_config.research_model.token_limits.token_limit_output * 0.8
         ),
-        "temperature": 0.1,
     }
 
     # Available tools for the supervisor
@@ -255,7 +254,6 @@ async def researcher(
         "max_tokens": min(
             10_000, custom_config.research_model.token_limits.token_limit_output * 0.8
         ),
-        "temperature": 0.1,
     }
 
     # Prepare system prompt with dynamic tool descriptions
@@ -376,7 +374,6 @@ async def compress_research(
         "max_tokens": min(
             15_000, custom_config.large_model.token_limits.token_limit_output * 0.8
         ),
-        "temperature": 0.1,
     }
 
     # PROMPTS
@@ -475,7 +472,6 @@ async def final_report_generation(
         "max_tokens": min(
             30_000, custom_config.large_model.token_limits.token_limit_output * 0.8
         ),
-        "temperature": 0.1,
     }
 
     # Step 3: Attempt report generation with token limit retry logic
