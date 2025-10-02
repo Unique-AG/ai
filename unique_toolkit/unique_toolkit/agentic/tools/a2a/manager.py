@@ -1,8 +1,8 @@
 from logging import Logger
 
-from unique_toolkit.agentic.tools.a2a.config import SubAgentToolConfig
-from unique_toolkit.agentic.tools.a2a.service import SubAgentTool, ToolProgressReporter
+from unique_toolkit.agentic.tools.a2a.tool import SubAgentTool, SubAgentToolConfig
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
+from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
 from unique_toolkit.app.schemas import ChatEvent
 
 

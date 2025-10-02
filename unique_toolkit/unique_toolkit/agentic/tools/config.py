@@ -85,9 +85,9 @@ class ToolBuildConfig(BaseModel):
         configuration = value.get("configuration", {})
 
         if is_sub_agent_tool:
-            from unique_toolkit.agentic.tools.a2a.config import SubAgentToolConfig
+            from unique_toolkit.agentic.tools.a2a import ExtendedSubAgentToolConfig
 
-            config = SubAgentToolConfig.model_validate(configuration)
+            config = ExtendedSubAgentToolConfig.model_validate(configuration)
         elif isinstance(configuration, dict):
             # Local import to avoid circular import at module import time
             from unique_toolkit.agentic.tools.factory import ToolFactory
