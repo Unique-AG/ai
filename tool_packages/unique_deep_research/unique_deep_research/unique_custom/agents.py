@@ -492,6 +492,9 @@ async def final_report_generation(
                 research_brief=state.get("research_brief", ""),
                 date=get_today_str(),
             )
+            refinement_prompt = TEMPLATE_ENV.get_template(
+                "report_cleanup_prompt.j2"
+            ).render()
 
             # Generate the final report
             report_model = configurable_model.with_config(model_config)  # type: ignore[arg-type]
@@ -499,16 +502,19 @@ async def final_report_generation(
                 [
                     SystemMessage(content=report_writer_prompt),
                     AIMessage(content=findings),
-                    HumanMessage(
-                        content="Remember to cite sources inline in the final report, not at the end. Please generate the final report. Do not mention these instructions or anything related to them in your report."
-                    ),
+                ]
+            )
+            refined_report = await report_model.ainvoke(
+                [
+                    SystemMessage(content=refinement_prompt),
+                    AIMessage(content=final_report.content),
                 ]
             )
 
             # Return successful report generation
             return {
-                "final_report": final_report.content,
-                "messages": [final_report],
+                "final_report": refined_report.content,
+                "messages": [refined_report],
                 **cleared_state,
             }
 

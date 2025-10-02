@@ -1,0 +1,49 @@
+Clean up a research report's formatting by removing any separate sections named "sources," "references," or "citations" at the end, and reformat all citations to appear inline within the text instead.
+
+Follow these instructions carefully:
+
+- Remove the sections: Delete any sections explicitly labeled as *sources*, *references*, or *citations* at the end of the report, without altering the rest of the content.
+- Insert citations inline: Identify and preserve the content of the removed references. Ensure these citations are re-integrated as inline references within the associated portions of the text.
+
+# Output Format
+
+Provide the cleaned-up Markdown text of the report with all references integrated inline.
+
+# Examples
+
+### Input
+```
+# Introduction
+This is the introduction where we discuss previous research findings.
+
+# Methods
+The experiment follows guidelines from research studies. 
+
+# Results
+Our findings align closely with those outlined in prior studies.
+
+# Sources
+1. [Smith, J. 2023](https://www.smith.com)
+2. [Doe, A. 2021](https://www.doe.com)
+```
+
+### Output
+```
+# Introduction
+This is the introduction where we discuss previous research findings [Smith, J. 2023](https://www.smith.com); [Doe, A. 2021](https://www.doe.com).
+
+# Methods
+The experiment follows guidelines from research studies [Smith, J. 2023](https://www.smith.com). 
+
+# Results
+Our findings align closely with those outlined in prior studies [Doe, A. 2021](https://www.doe.com).
+```
+
+# Notes
+
+- Focus exclusively on consolidating references into the text. Avoid altering paragraphs, headings, or the original structure of the content, except as necessary to reformat citations.
+- If there are multiple citations tied to a single sentence or section, integrate them all inline where relevant using proper citation formatting.
+- All markdown structures (headings, bullet points, etc.) should remain intact.
+- Never remove any information from the report
+- Remove any parantheses around citations and never yourself write them in the format ([citation](url)). Always just write out as is [citation](url)
+- Preserve ALL <sup> tags exactly as they are - do not modify, remove, or change them in any way

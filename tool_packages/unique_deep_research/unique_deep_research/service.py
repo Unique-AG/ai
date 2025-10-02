@@ -394,7 +394,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                 references=annotations,
                 set_completed_at=True,
             )
-            self.logger.info("Custom research completed successfully")
+            self.logger.info("Custom research completed")
             return processed_result, content_chunks
 
         except Exception as e:
@@ -592,7 +592,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                     if event.response.error:
                         return event.response.error.message, []
 
-        self.logger.warning("Stream ended without completion")
+        self.logger.error("Stream ended without completion")
         return "", []
 
     async def _postprocess_report_with_gpt(self, research_result: str) -> str:
@@ -614,7 +614,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                 {
                     "role": "system",
                     "content": self.env.get_template(
-                        "openai/report_postprocessing_system.j2"
+                        "report_cleanup_prompt.j2"
                     ).render(),
                 },
                 {
@@ -649,7 +649,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         Clarify the user's request.
         """
         # # Get user query
-        last_two_interactions = self.get_history_messages_for_research_brief()
+        relevant_interactions = self.get_history_messages_for_research_brief()
 
         # Step 1: Generate clarifying questions
         messages = [
@@ -657,7 +657,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                 "role": "system",
                 "content": self.env.get_template("clarifying_agent.j2").render(),
             },
-            *last_two_interactions,
+            *relevant_interactions,
         ]
         response = await self.chat_service.complete_async(
             messages=messages,
