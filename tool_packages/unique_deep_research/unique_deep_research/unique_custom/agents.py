@@ -206,7 +206,7 @@ async def supervisor_tools(
         return Command(
             goto="__end__",
             update={
-                "supervisor_messages": all_tool_messages,  # Include any tool messages created so far
+                "supervisor_messages": all_tool_messages,
                 "notes": [f"Research failed due to error: {e}"],
                 "research_brief": state.get("research_brief", ""),
             },
@@ -591,17 +591,34 @@ async def _handle_conduct_research_batch(
         for tool_call in allowed_calls
     ]
 
-    tool_results = await asyncio.gather(*research_tasks)
+    # Use return_exceptions=True to handle partial failures gracefully
+    tool_results = await asyncio.gather(*research_tasks, return_exceptions=True)
 
-    # Create tool messages with compressed research results
-    tool_messages = [
-        ToolMessage(
-            content=observation.get("compressed_research", "No research results"),
-            name=tool_call["name"],
-            tool_call_id=tool_call["id"],
-        )
-        for observation, tool_call in zip(tool_results, allowed_calls)
-    ]
+    # Create tool messages with compressed research results or error messages
+    tool_messages = []
+    for observation, tool_call in zip(tool_results, allowed_calls):
+        if isinstance(observation, Exception):
+            logger.error(f"Research task failed: {str(observation)}")
+            error_content = f"Research task failed: {str(observation)}"
+            tool_messages.append(
+                ToolMessage(
+                    content=error_content,
+                    name=tool_call["name"],
+                    tool_call_id=tool_call["id"],
+                )
+            )
+        else:
+            # Handle successful task
+            content = "No research results"
+            if isinstance(observation, dict):
+                content = observation.get("compressed_research", "No research results")
+            tool_messages.append(
+                ToolMessage(
+                    content=content,
+                    name=tool_call["name"],
+                    tool_call_id=tool_call["id"],
+                )
+            )
 
     return tool_messages
 
