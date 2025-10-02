@@ -127,7 +127,8 @@ async def research_supervisor(
     model_config = {
         "model": custom_config.research_model.name,
         "max_tokens": min(
-            10_000, custom_config.research_model.token_limits.token_limit_output * 0.8
+            10_000,
+            int(custom_config.research_model.token_limits.token_limit_output * 0.9),
         ),
     }
 
@@ -252,7 +253,8 @@ async def researcher(
     model_config = {
         "model": custom_config.research_model.name,
         "max_tokens": min(
-            10_000, custom_config.research_model.token_limits.token_limit_output * 0.8
+            10_000,
+            int(custom_config.research_model.token_limits.token_limit_output * 0.9),
         ),
     }
 
@@ -372,7 +374,8 @@ async def compress_research(
     model_config = {
         "model": custom_config.large_model.name,
         "max_tokens": min(
-            15_000, custom_config.large_model.token_limits.token_limit_output * 0.8
+            15_000,
+            int(custom_config.large_model.token_limits.token_limit_output * 0.9),
         ),
     }
 
@@ -470,7 +473,7 @@ async def final_report_generation(
     model_config = {
         "model": custom_config.large_model.name,
         "max_tokens": min(
-            30_000, custom_config.large_model.token_limits.token_limit_output * 0.8
+            30_000, int(custom_config.large_model.token_limits.token_limit_output * 0.9)
         ),
     }
 
