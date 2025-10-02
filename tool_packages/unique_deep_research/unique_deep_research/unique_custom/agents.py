@@ -126,8 +126,10 @@ async def research_supervisor(
 
     model_config = {
         "model": custom_config.research_model.name,
-        "max_tokens": 8000,
-        "temperature": 0.1,
+        "max_tokens": min(
+            10_000,
+            int(custom_config.research_model.token_limits.token_limit_output * 0.9),
+        ),
     }
 
     # Available tools for the supervisor
@@ -204,7 +206,7 @@ async def supervisor_tools(
         return Command(
             goto="__end__",
             update={
-                "supervisor_messages": all_tool_messages,  # Include any tool messages created so far
+                "supervisor_messages": all_tool_messages,
                 "notes": [f"Research failed due to error: {e}"],
                 "research_brief": state.get("research_brief", ""),
             },
@@ -244,14 +246,16 @@ async def researcher(
     Individual researcher that conducts focused research on specific topics.
     """
     logger.info("Research agent determining next steps")
-    research_tools = get_research_tools()
+    research_tools = get_research_tools(config)
 
     # Configure the researcher model
     custom_config = get_engine_config(config)
     model_config = {
         "model": custom_config.research_model.name,
-        "max_tokens": 10000,
-        "temperature": 0.1,
+        "max_tokens": min(
+            10_000,
+            int(custom_config.research_model.token_limits.token_limit_output * 0.9),
+        ),
     }
 
     # Prepare system prompt with dynamic tool descriptions
@@ -369,8 +373,10 @@ async def compress_research(
     # Prepare synthesis model
     model_config = {
         "model": custom_config.large_model.name,
-        "max_tokens": 8192,
-        "temperature": 0.1,
+        "max_tokens": min(
+            15_000,
+            int(custom_config.large_model.token_limits.token_limit_output * 0.9),
+        ),
     }
 
     # PROMPTS
@@ -466,8 +472,9 @@ async def final_report_generation(
     custom_config = get_engine_config(config)
     model_config = {
         "model": custom_config.large_model.name,
-        "max_tokens": 10000,
-        "temperature": 0.1,
+        "max_tokens": min(
+            30_000, int(custom_config.large_model.token_limits.token_limit_output * 0.9)
+        ),
     }
 
     # Step 3: Attempt report generation with token limit retry logic
@@ -485,6 +492,9 @@ async def final_report_generation(
                 research_brief=state.get("research_brief", ""),
                 date=get_today_str(),
             )
+            refinement_prompt = TEMPLATE_ENV.get_template(
+                "report_cleanup_prompt.j2"
+            ).render()
 
             # Generate the final report
             report_model = configurable_model.with_config(model_config)  # type: ignore[arg-type]
@@ -492,16 +502,19 @@ async def final_report_generation(
                 [
                     SystemMessage(content=report_writer_prompt),
                     AIMessage(content=findings),
-                    HumanMessage(
-                        content="Remember to cite sources inline in the final report, not at the end. Please generate the final report. Do not mention these instructions or anything related to them in your report."
-                    ),
+                ]
+            )
+            refined_report = await report_model.ainvoke(
+                [
+                    SystemMessage(content=refinement_prompt),
+                    AIMessage(content=final_report.content),
                 ]
             )
 
             # Return successful report generation
             return {
-                "final_report": final_report.content,
-                "messages": [final_report],
+                "final_report": refined_report.content,
+                "messages": [refined_report],
                 **cleared_state,
             }
 
@@ -584,17 +597,34 @@ async def _handle_conduct_research_batch(
         for tool_call in allowed_calls
     ]
 
-    tool_results = await asyncio.gather(*research_tasks)
+    # Use return_exceptions=True to handle partial failures gracefully
+    tool_results = await asyncio.gather(*research_tasks, return_exceptions=True)
 
-    # Create tool messages with compressed research results
-    tool_messages = [
-        ToolMessage(
-            content=observation.get("compressed_research", "No research results"),
-            name=tool_call["name"],
-            tool_call_id=tool_call["id"],
-        )
-        for observation, tool_call in zip(tool_results, allowed_calls)
-    ]
+    # Create tool messages with compressed research results or error messages
+    tool_messages = []
+    for observation, tool_call in zip(tool_results, allowed_calls):
+        if isinstance(observation, Exception):
+            logger.error(f"Research task failed: {str(observation)}")
+            error_content = f"Research task failed: {str(observation)}"
+            tool_messages.append(
+                ToolMessage(
+                    content=error_content,
+                    name=tool_call["name"],
+                    tool_call_id=tool_call["id"],
+                )
+            )
+        else:
+            # Handle successful task
+            content = "No research results"
+            if isinstance(observation, dict):
+                content = observation.get("compressed_research", "No research results")
+            tool_messages.append(
+                ToolMessage(
+                    content=content,
+                    name=tool_call["name"],
+                    tool_call_id=tool_call["id"],
+                )
+            )
 
     return tool_messages
 

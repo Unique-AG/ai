@@ -26,7 +26,11 @@ from unique_toolkit.content.schemas import ContentSearchType
 from unique_web_search.client_settings import get_google_search_settings
 from unique_web_search.services.search_engine.google import GoogleConfig, GoogleSearch
 
-from .utils import get_content_service_from_config, write_tool_message_log
+from .utils import (
+    get_content_service_from_config,
+    get_engine_config,
+    write_tool_message_log,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -396,16 +400,19 @@ def think_tool(
 
 
 # Helper function to get all available tools
-def get_research_tools() -> List[Any]:
+def get_research_tools(config: RunnableConfig) -> List[Any]:
     """Get all research tools available to individual researchers."""
-    return [
-        web_search,
-        web_fetch,
-        internal_search,
-        internal_fetch,
+    tools = [
         think_tool,
         research_complete,
     ]
+
+    # TODO: Check which tools are enabled
+    get_engine_config(config)
+    tools.extend([web_search, web_fetch])
+    tools.extend([internal_search, internal_fetch])
+
+    return tools
 
 
 def get_supervisor_tools() -> List[Any]:

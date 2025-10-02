@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.2] - 2025-10-02
+- Remove temperature param to allow for more models used in unique custom
+- Research prompt improvements
+- Citation rendering improvements with extra llm call
+- Additional logging for openai and custom agent
+
 ## [2.1.1] - 2025-10-01
 - bugfix of langgraph state issue
 - more logging
