@@ -246,7 +246,7 @@ async def researcher(
     Individual researcher that conducts focused research on specific topics.
     """
     logger.info("Research agent determining next steps")
-    research_tools = get_research_tools()
+    research_tools = get_research_tools(config)
 
     # Configure the researcher model
     custom_config = get_engine_config(config)

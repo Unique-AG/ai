@@ -44,6 +44,14 @@ class DeepResearchToolConfig(BaseToolConfig):
         description="The deep research engine to use. Please be aware that OpenAI engine requires particular models to be used as the research model.",
         default=DeepResearchEngine.UNIQUE_CUSTOM,
     )
+    web_search: bool = Field(
+        description="Whether to enable web search tool. If set to False, web search will not be used.",
+        default=True,
+    )
+    internal_search: bool = Field(
+        description="Whether to enable internal search. If set to False, internal search will not be used.",
+        default=True,
+    )
 
 
 RESPONSES_API_TIMEOUT_SECONDS = 3600
