@@ -126,7 +126,9 @@ async def research_supervisor(
 
     model_config = {
         "model": custom_config.research_model.name,
-        "max_tokens": 8000,
+        "max_tokens": min(
+            10_000, custom_config.research_model.token_limits.token_limit_output * 0.8
+        ),
         "temperature": 0.1,
     }
 
@@ -250,7 +252,9 @@ async def researcher(
     custom_config = get_engine_config(config)
     model_config = {
         "model": custom_config.research_model.name,
-        "max_tokens": 10000,
+        "max_tokens": min(
+            10_000, custom_config.research_model.token_limits.token_limit_output * 0.8
+        ),
         "temperature": 0.1,
     }
 
@@ -369,7 +373,9 @@ async def compress_research(
     # Prepare synthesis model
     model_config = {
         "model": custom_config.large_model.name,
-        "max_tokens": 8192,
+        "max_tokens": min(
+            15_000, custom_config.large_model.token_limits.token_limit_output * 0.8
+        ),
         "temperature": 0.1,
     }
 
@@ -466,7 +472,9 @@ async def final_report_generation(
     custom_config = get_engine_config(config)
     model_config = {
         "model": custom_config.large_model.name,
-        "max_tokens": 10000,
+        "max_tokens": min(
+            30_000, custom_config.large_model.token_limits.token_limit_output * 0.8
+        ),
         "temperature": 0.1,
     }
 
