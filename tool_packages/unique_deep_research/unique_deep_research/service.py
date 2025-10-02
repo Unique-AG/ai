@@ -482,6 +482,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         # This index will have gaps on order in the database as we don't track all events
         # Sorted it will give the correct order of the logs
         for event in stream:
+            self.logger.debug(f"Processing event: {event.type}")
             match event.type:
                 case "response.completed":
                     # Extract the final output with annotations
@@ -501,6 +502,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                         # Extract final report and references
                         report_text = content_item.text
                         annotations = content_item.annotations or []
+                        self.logger.info("Final report extracted from OpenAI stream")
                         return report_text, annotations
                     return event.response.output_text or "", []
                 case "response.incomplete":
