@@ -411,11 +411,11 @@ def get_research_tools(config: RunnableConfig) -> List[Any]:
     engine_config = get_engine_config(config)
 
     # Add web search tools if enabled
-    if engine_config.web_search:
+    if engine_config.enable_web_search:
         tools.extend([web_search, web_fetch])
 
     # Add internal search tools if enabled
-    if engine_config.internal_search:
+    if engine_config.enable_internal_search:
         tools.extend([internal_search, internal_fetch])
 
     return tools
