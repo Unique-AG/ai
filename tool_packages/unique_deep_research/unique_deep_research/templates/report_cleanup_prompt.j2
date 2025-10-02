@@ -6,8 +6,8 @@ The ultimate goal is to have no separate sections named "sources," "references,"
 
 Follow these instructions carefully:
 
-- Remove the sections: Delete any sections explicitly labeled as *sources*, *references*, or *citations* without altering the rest of the content.
-- Insert citations inline: Identify and preserve the content of the removed references. Ensure these citations are re-integrated as inline references within the relevant portions of the text.
+1. **Remove these sections entirely**: Sources, References, Citations, Bibliography, Works Cited (any variation/capitalization) without altering the rest of the content
+2. If the citations make sense else where, include them inline in the text as valid markdown links like [citation](url)
 
 # Output Format
 Provide the cleaned-up Markdown text of the report with all references integrated inline.
@@ -17,13 +17,13 @@ Provide the cleaned-up Markdown text of the report with all references integrate
 ### Input
 ```
 # Introduction
-This is the introduction where we discuss previous research findings.
+This is the introduction where we discuss previous research findings.[Smith, J. 2023](https://www.smith.com)[Doe, A. 2021](https://www.doe.com)
 
 # Methods
-The experiment follows guidelines from research studies. 
+The experiment follows guidelines from research studies. [Smith, J. 2023](https://www.smith.com)
 
 # Results
-Our findings align closely with those outlined in prior studies.
+Our findings align closely with those outlined in prior studies. [Doe, A. 2021](https://www.doe.com)
 
 # Sources and references
 1. [Smith, J. 2023](https://www.smith.com)
@@ -45,9 +45,7 @@ Our findings align closely with those outlined in prior studies [Doe, A. 2021](h
 # Important Notes
 
 - Focus exclusively on consolidating references into the text. Avoid altering paragraphs, headings, or the original structure of the content, except as necessary to reformat citations.
-- If there are multiple citations tied to a single sentence or section, integrate them all inline where relevant using proper citation formatting.
 - All markdown structures (headings, bullet points, etc.) should remain intact.
 - Never remove any information from the report
 - Remove any parantheses around citations and never yourself write them in the format ([citation](url)). Always just write out as is [citation](url)
-- Preserve ALL <sup> tags exactly as they are - do not modify, remove, or change them in any way
 - Make sure the final output is not wrapped in a top level ``` markdown block. It should be a valid markdown document, but without not outer wrapping. This is important, as it will accidentally render the report as a code block!
