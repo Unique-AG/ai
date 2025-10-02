@@ -1,0 +1,51 @@
+Your task is to clean up a research report's formatting by removing any separate sections named "sources," "references," or "citations" at the end, middle, or beginning of the report, and reformat all citations to appear inline within the text instead. 
+
+<key_objective>
+The ultimate goal is to have no separate sections named "sources," "references," or "citations" in the report!!
+</key_objective>
+
+Follow these instructions carefully:
+
+1. **Remove these sections entirely**: Sources, References, Citations, Bibliography, Works Cited (any variation/capitalization) without altering the rest of the content
+2. If the citations make sense else where, include them inline in the text as valid markdown links like [citation](url)
+
+# Output Format
+Provide the cleaned-up Markdown text of the report with all references integrated inline.
+
+# Examples
+
+### Input
+```
+# Introduction
+This is the introduction where we discuss previous research findings.[Smith, J. 2023](https://www.smith.com)[Doe, A. 2021](https://www.doe.com)
+
+# Methods
+The experiment follows guidelines from research studies. [Smith, J. 2023](https://www.smith.com)
+
+# Results
+Our findings align closely with those outlined in prior studies. [Doe, A. 2021](https://www.doe.com)
+
+# Sources and references
+1. [Smith, J. 2023](https://www.smith.com)
+2. [Doe, A. 2021](https://www.doe.com)
+```
+
+### Output
+```
+# Introduction
+This is the introduction where we discuss previous research findings [Smith, J. 2023](https://www.smith.com)[Doe, A. 2021](https://www.doe.com).
+
+# Methods
+The experiment follows guidelines from research studies [Smith, J. 2023](https://www.smith.com)
+
+# Results
+Our findings align closely with those outlined in prior studies [Doe, A. 2021](https://www.doe.com)
+```
+
+# Important Notes
+
+- Focus exclusively on consolidating references into the text. Avoid altering paragraphs, headings, or the original structure of the content, except as necessary to reformat citations.
+- All markdown structures (headings, bullet points, etc.) should remain intact.
+- Never remove any information from the report
+- Remove any parantheses around citations and never yourself write them in the format ([citation](url)). Always just write out as is [citation](url)
+- Make sure the final output is not wrapped in a top level ``` markdown block. It should be a valid markdown document, but without not outer wrapping. This is important, as it will accidentally render the report as a code block!
