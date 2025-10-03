@@ -10,7 +10,14 @@ from dotenv import load_dotenv
 from pydantic import SecretStr
 
 from tests.test_obj_factory import get_event_obj
-from unique_toolkit.app.schemas import ChatEvent
+from unique_toolkit.app.schemas import (
+    ChatEvent,
+    Event,
+    EventAssistantMessage,
+    EventName,
+    EventPayload,
+    EventUserMessage,
+)
 from unique_toolkit.app.unique_settings import (
     UniqueApi,
     UniqueApp,
@@ -18,7 +25,23 @@ from unique_toolkit.app.unique_settings import (
     UniqueChatEventFilterOptions,
     UniqueSettings,
 )
+from unique_toolkit.chat.schemas import (
+    ChatMessage,
+    ChatMessageAssessment,
+    ChatMessageAssessmentLabel,
+    ChatMessageAssessmentStatus,
+    ChatMessageAssessmentType,
+    ChatMessageRole,
+    MessageExecution,
+    MessageExecutionType,
+    MessageExecutionUpdateStatus,
+    MessageLog,
+    MessageLogDetails,
+    MessageLogStatus,
+    MessageLogUncitedReferences,
+)
 from unique_toolkit.chat.service import ChatService
+from unique_toolkit.content.schemas import ContentChunk, ContentReference
 
 # ============================================================================
 # UniqueSettings Test Fixtures
@@ -490,3 +513,360 @@ def minimal_event_json(base_chat_event_data: ChatEvent) -> str:
         }
     )
     return json.dumps(event_data)
+
+
+# ============================================================================
+# Chat Module Test Fixtures
+# ============================================================================
+
+
+@pytest.fixture
+def base_chat_event() -> Event:
+    """
+    Base chat event fixture with all required fields.
+
+    Returns:
+        Event: A complete Event object for chat testing.
+    """
+    return Event(
+        id="test-event-123",
+        company_id="test_company_123",
+        user_id="test_user_123",
+        event=EventName.EXTERNAL_MODULE_CHOSEN,
+        payload=EventPayload(
+            name="test_module",
+            description="Test module description",
+            configuration={"test": "config"},
+            assistant_message=EventAssistantMessage(
+                id="assistant_msg_123",
+                created_at="2024-01-01T12:00:00Z",
+            ),
+            user_message=EventUserMessage(
+                id="user_msg_123",
+                text="Hello, this is a test message",
+                original_text="Hello, this is a test message",
+                created_at="2024-01-01T12:00:00Z",
+                language="english",
+            ),
+            chat_id="test_chat_123",
+            assistant_id="test_assistant_123",
+        ),
+    )
+
+
+@pytest.fixture
+def base_chat_message() -> ChatMessage:
+    """
+    Base chat message fixture with all required fields.
+
+    Returns:
+        ChatMessage: A complete ChatMessage object for testing.
+    """
+    return ChatMessage(
+        id="msg_123",
+        chat_id="test_chat_123",
+        role=ChatMessageRole.ASSISTANT,
+        text="Test message content",
+        content="Test message content",
+        original_text="Test message content",
+        created_at="2024-01-01T12:00:00Z",
+        updated_at="2024-01-01T12:00:00Z",
+        completed_at="2024-01-01T12:00:00Z",
+        debug_info={"test": "debug"},
+        references=[],
+    )
+
+
+@pytest.fixture
+def base_user_message() -> ChatMessage:
+    """
+    Base user message fixture.
+
+    Returns:
+        ChatMessage: A user ChatMessage object for testing.
+    """
+    return ChatMessage(
+        id="user_msg_123",
+        chat_id="test_chat_123",
+        role=ChatMessageRole.USER,
+        text="User test message",
+        content="User test message",
+        original_text="User test message",
+        created_at="2024-01-01T12:00:00Z",
+        updated_at="2024-01-01T12:00:00Z",
+        completed_at=None,
+        debug_info=None,
+        references=[],
+    )
+
+
+@pytest.fixture
+def base_content_reference() -> ContentReference:
+    """
+    Base content reference fixture.
+
+    Returns:
+        ContentReference: A complete ContentReference object for testing.
+    """
+    return ContentReference(
+        id="ref_123",
+        message_id="msg_123",
+        name="Test Document",
+        url="https://example.com/test",
+        sequence_number=1,
+        source_id="src_123",
+        source="web",
+    )
+
+
+@pytest.fixture
+def base_content_chunk() -> ContentChunk:
+    """
+    Base content chunk fixture.
+
+    Returns:
+        ContentChunk: A complete ContentChunk object for testing.
+    """
+    return ContentChunk(
+        id="chunk_123",
+        chunk_id="chunk_123",
+        key="test_key",
+        order=1,
+        text="Test chunk content",
+    )
+
+
+@pytest.fixture
+def base_message_assessment() -> ChatMessageAssessment:
+    """
+    Base message assessment fixture.
+
+    Returns:
+        ChatMessageAssessment: A complete ChatMessageAssessment object for testing.
+    """
+    return ChatMessageAssessment(
+        id="assessment_123",
+        message_id="msg_123",
+        status=ChatMessageAssessmentStatus.DONE,
+        explanation="Test assessment explanation",
+        label=ChatMessageAssessmentLabel.GREEN,
+        type=ChatMessageAssessmentType.HALLUCINATION,
+        is_visible=True,
+        title="Test Assessment",
+        created_at="2024-01-01T12:00:00Z",
+        updated_at="2024-01-01T12:00:00Z",
+    )
+
+
+@pytest.fixture
+def base_message_log() -> MessageLog:
+    """
+    Base message log fixture.
+
+    Returns:
+        MessageLog: A complete MessageLog object for testing.
+    """
+    return MessageLog(
+        id="log_123",
+        message_id="msg_123",
+        status=MessageLogStatus.COMPLETED,
+        details=MessageLogDetails(
+            total_tokens=100,
+            prompt_tokens=50,
+            completion_tokens=50,
+            model="test-model",
+        ),
+        uncited_references=MessageLogUncitedReferences(
+            count=0,
+            references=[],
+        ),
+        created_at="2024-01-01T12:00:00Z",
+        updated_at="2024-01-01T12:00:00Z",
+    )
+
+
+@pytest.fixture
+def base_message_execution() -> MessageExecution:
+    """
+    Base message execution fixture.
+
+    Returns:
+        MessageExecution: A complete MessageExecution object for testing.
+    """
+    return MessageExecution(
+        id="execution_123",
+        message_id="msg_123",
+        type=MessageExecutionType.TOOL_CALL,
+        status=MessageExecutionUpdateStatus.COMPLETED,
+        result={"test": "result"},
+        created_at="2024-01-01T12:00:00Z",
+        updated_at="2024-01-01T12:00:00Z",
+    )
+
+
+@pytest.fixture
+def sample_messages_list() -> list[ChatMessage]:
+    """
+    Sample list of chat messages for history testing.
+
+    Returns:
+        list[ChatMessage]: A list of ChatMessage objects representing a conversation.
+    """
+    return [
+        ChatMessage(
+            id="msg_1",
+            chat_id="test_chat_123",
+            role=ChatMessageRole.USER,
+            text="Hello, how are you?",
+            content="Hello, how are you?",
+            original_text="Hello, how are you?",
+            created_at="2024-01-01T12:00:00Z",
+            updated_at="2024-01-01T12:00:00Z",
+            completed_at=None,
+            debug_info=None,
+            references=[],
+        ),
+        ChatMessage(
+            id="msg_2",
+            chat_id="test_chat_123",
+            role=ChatMessageRole.ASSISTANT,
+            text="I'm doing well, thank you!",
+            content="I'm doing well, thank you!",
+            original_text="I'm doing well, thank you!",
+            created_at="2024-01-01T12:01:00Z",
+            updated_at="2024-01-01T12:01:00Z",
+            completed_at="2024-01-01T12:01:00Z",
+            debug_info={"tokens": 10},
+            references=[],
+        ),
+        ChatMessage(
+            id="msg_3",
+            chat_id="test_chat_123",
+            role=ChatMessageRole.USER,
+            text="What's the weather like?",
+            content="What's the weather like?",
+            original_text="What's the weather like?",
+            created_at="2024-01-01T12:02:00Z",
+            updated_at="2024-01-01T12:02:00Z",
+            completed_at=None,
+            debug_info=None,
+            references=[],
+        ),
+    ]
+
+
+@pytest.fixture
+def sample_sdk_message_data() -> dict:
+    """
+    Sample SDK message data that matches what the SDK returns.
+
+    Returns:
+        dict: Raw SDK message data with proper field names.
+    """
+    return {
+        "id": "sdk_msg_123",
+        "chatId": "test_chat_123",
+        "text": "SDK test message",
+        "role": "ASSISTANT",
+        "originalText": "SDK test message",
+        "createdAt": "2024-01-01T12:00:00Z",
+        "updatedAt": "2024-01-01T12:00:00Z",
+        "completedAt": "2024-01-01T12:00:00Z",
+        "debugInfo": {"test": "debug"},
+        "references": [],
+    }
+
+
+@pytest.fixture
+def sample_sdk_messages_list() -> dict:
+    """
+    Sample SDK messages list response.
+
+    Returns:
+        dict: Raw SDK list response with proper structure.
+    """
+    return {
+        "object": "list",
+        "data": [
+            {
+                "id": "msg_1",
+                "chatId": "test_chat_123",
+                "text": "Hello, how are you?",
+                "role": "USER",
+                "originalText": "Hello, how are you?",
+                "createdAt": "2024-01-01T12:00:00Z",
+                "updatedAt": "2024-01-01T12:00:00Z",
+                "completedAt": None,
+                "debugInfo": None,
+                "references": [],
+            },
+            {
+                "id": "msg_2",
+                "chatId": "test_chat_123",
+                "text": "I'm doing well, thank you!",
+                "role": "ASSISTANT",
+                "originalText": "I'm doing well, thank you!",
+                "createdAt": "2024-01-01T12:01:00Z",
+                "updatedAt": "2024-01-01T12:01:00Z",
+                "completedAt": "2024-01-01T12:01:00Z",
+                "debugInfo": {"tokens": 10},
+                "references": [],
+            },
+        ],
+    }
+
+
+@pytest.fixture
+def sample_references_list() -> list[ContentReference]:
+    """
+    Sample list of content references for testing.
+
+    Returns:
+        list[ContentReference]: A list of ContentReference objects for testing.
+    """
+    return [
+        ContentReference(
+            id="ref_1",
+            message_id="msg_1",
+            name="Document 1",
+            url="https://example.com/doc1",
+            sequence_number=1,
+            source_id="src_1",
+            source="web",
+        ),
+        ContentReference(
+            id="ref_2",
+            message_id="msg_2",
+            name="Document 2",
+            url="https://example.com/doc2",
+            sequence_number=2,
+            source_id="src_2",
+            source="pdf",
+        ),
+    ]
+
+
+@pytest.fixture
+def sample_content_chunks_list() -> list[ContentChunk]:
+    """
+    Sample list of content chunks for testing.
+
+    Returns:
+        list[ContentChunk]: A list of ContentChunk objects for testing.
+    """
+    return [
+        ContentChunk(
+            id="chunk_1",
+            chunk_id="chunk_1",
+            key="test_key_1",
+            order=1,
+            text="First chunk content",
+        ),
+        ContentChunk(
+            id="chunk_2",
+            chunk_id="chunk_2",
+            key="test_key_2",
+            order=2,
+            text="Second chunk content",
+        ),
+    ]

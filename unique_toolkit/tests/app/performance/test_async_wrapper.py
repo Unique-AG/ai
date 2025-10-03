@@ -80,35 +80,34 @@ class TestToAsync:
         assert callable(to_async)
 
     @patch("unique_toolkit.app.performance.async_wrapper.asyncio.to_thread")
-    def test_to_async_converts_sync_to_async(self, mock_to_thread):
+    async def test_to_async_converts_sync_to_async(self, mock_to_thread):
         """Test that to_async converts synchronous function to async."""
         mock_to_thread.return_value = "async_result"
 
         def sync_func(x, y):
             return x + y
 
-        # Since to_async is decorated with @async_warning, calling it returns a coroutine
-        # that tries to await the to_async function itself, which is not what we want
-        # This is a design issue in the actual code
-        with pytest.raises(
-            TypeError, match="object function can't be used in 'await' expression"
-        ):
-            asyncio.run(to_async(sync_func)(1, 2))
+        # to_async should return a callable async function
+        async_func = to_async(sync_func)
+        result = await async_func(1, 2)
+
+        assert result == "async_result"
+        mock_to_thread.assert_called_once_with(sync_func, 1, 2)
 
     @patch("unique_toolkit.app.performance.async_wrapper.asyncio.to_thread")
-    def test_to_async_with_keyword_arguments(self, mock_to_thread):
+    async def test_to_async_with_keyword_arguments(self, mock_to_thread):
         """Test to_async with keyword arguments."""
         mock_to_thread.return_value = "async_result"
 
         def sync_func(x, y=0):
             return x + y
 
-        # Since to_async is decorated with @async_warning, calling it returns a coroutine
-        # that tries to await the to_async function itself, which is not what we want
-        with pytest.raises(
-            TypeError, match="object function can't be used in 'await' expression"
-        ):
-            asyncio.run(to_async(sync_func)(1, 0))
+        # to_async should work with keyword arguments
+        async_func = to_async(sync_func)
+        result = await async_func(1, y=0)
+
+        assert result == "async_result"
+        mock_to_thread.assert_called_once_with(sync_func, 1, y=0)
 
     @patch("unique_toolkit.app.performance.async_wrapper.asyncio.to_thread")
     def test_to_async_preserves_function_metadata(self, mock_to_thread):
@@ -128,40 +127,40 @@ class TestToAsync:
         assert sync_func.__name__ == "sync_func"
 
     @patch("unique_toolkit.app.performance.async_wrapper.asyncio.to_thread")
-    def test_to_async_with_exception(self, mock_to_thread):
+    async def test_to_async_with_exception(self, mock_to_thread):
         """Test to_async with exception handling."""
         mock_to_thread.side_effect = ValueError("Test error")
 
         def sync_func():
             return "test"
 
-        # Since to_async is decorated with @async_warning, calling it returns a coroutine
-        # that tries to await the to_async function itself, which is not what we want
-        with pytest.raises(
-            TypeError, match="object function can't be used in 'await' expression"
-        ):
-            asyncio.run(to_async(sync_func)())
+        # to_async should propagate exceptions from the wrapped function
+        async_func = to_async(sync_func)
 
-    def test_to_async_has_async_warning_decorator(self):
+        with pytest.raises(ValueError, match="Test error"):
+            await async_func()
+
+    async def test_to_async_has_async_warning_decorator(self):
         """Test that to_async function has the async_warning decorator."""
-        # This test verifies that the to_async function itself is decorated with async_warning
-        # We can check this by looking at the function's attributes or by testing the warning behavior
+        # This test verifies that the async_warning decorator is applied to the returned function
+        # We can verify this by checking if warnings are issued when the async function is called
 
         def sync_func():
             return "test"
 
-        # The async_warning decorator should be applied to the to_async function itself
-        # We can verify this by checking if warnings are issued when to_async is called
+        # The async_warning decorator should be applied to the returned async function
+        # We can verify this by checking if warnings are issued when the async function is called
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
-            with pytest.raises(
-                TypeError, match="object function can't be used in 'await' expression"
-            ):
-                asyncio.run(to_async(sync_func)())
 
-            # Should have at least one warning (from async_warning decorator on to_async)
-            assert len(w) >= 1
-            assert any("to_async" in str(warning.message) for warning in w)
+            async_func = to_async(sync_func)
+            result = await async_func()
+
+            # Check that a warning was issued
+            assert len(w) == 1
+            assert issubclass(w[0].category, RuntimeWarning)
+            assert "not purely async" in str(w[0].message)
+            assert result == "test"
 
     def test_to_async_executes_function_in_thread(self):
         """Test that to_async executes the function in a thread pool (covers line 37)."""

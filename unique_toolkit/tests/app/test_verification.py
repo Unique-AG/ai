@@ -3,7 +3,6 @@
 from unittest.mock import patch
 
 import pytest
-from pydantic import ValidationError
 
 from unique_toolkit.app.schemas import ChatEvent, Event
 from unique_toolkit.app.verification import (
@@ -302,7 +301,19 @@ class TestVerifyRequestAndConstructEvent:
         ) as mock_verify:
             with patch.dict("os.environ", {"ENDPOINT_SECRET": "test_secret"}):
                 # Mock verify_signature_and_construct_event to raise ValidationError
-                mock_verify.side_effect = ValidationError("Field required")
+                from pydantic import ValidationError
+
+                mock_verify.side_effect = ValidationError.from_exception_data(
+                    "ValidationError",
+                    [
+                        {
+                            "type": "missing",
+                            "loc": ("field",),
+                            "msg": "Field required",
+                            "input": {},
+                        }
+                    ],
+                )
 
                 with pytest.raises(ValidationError):
                     verify_request_and_construct_event(
