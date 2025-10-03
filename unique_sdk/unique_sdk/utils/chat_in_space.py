@@ -49,10 +49,10 @@ async def send_message_and_wait_for_completion(
 
     max_attempts = int(max_wait // poll_interval)
     for _ in range(max_attempts):
-        answer = Space.get_latest_message(user_id, company_id, chat_id)
+        answer = await Space.get_latest_message_async(user_id, company_id, chat_id)
         if answer.get(stop_condition) is not None:
             try:
-                user_message = Message.retrieve(
+                user_message = await Message.retrieve_async(
                     user_id, company_id, message_id, chatId=chat_id
                 )
                 debug_info = user_message.get("debugInfo")
