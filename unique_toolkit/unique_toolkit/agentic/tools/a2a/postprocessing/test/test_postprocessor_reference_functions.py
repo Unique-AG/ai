@@ -1,4 +1,6 @@
-from unique_toolkit.agentic.tools.a2a.postprocessing.postprocessor import (
+import pytest
+
+from unique_toolkit.agentic.tools.a2a.postprocessing._utils import (
     _replace_references_in_text,
     _replace_references_in_text_non_overlapping,
 )
@@ -30,19 +32,21 @@ class TestReplaceReferencesInTextNonOverlapping:
         result = _replace_references_in_text_non_overlapping(text, ref_map)
         assert result == text
 
-    def test_empty_ref_map(self):
-        """Test with empty reference map."""
-        text = "This text has<sup>1</sup> references but empty map."
-        ref_map = {}
+    @pytest.mark.parametrize(
+        "text,ref_map,expected",
+        [
+            (
+                "This text has<sup>1</sup> references but empty map.",
+                {},
+                "This text has<sup>1</sup> references but empty map.",
+            ),
+            ("", {1: 5}, ""),
+        ],
+    )
+    def test_empty_inputs(self, text, ref_map, expected):
+        """Test with empty reference map or empty text."""
         result = _replace_references_in_text_non_overlapping(text, ref_map)
-        assert result == text
-
-    def test_empty_text(self):
-        """Test with empty text."""
-        text = ""
-        ref_map = {1: 5}
-        result = _replace_references_in_text_non_overlapping(text, ref_map)
-        assert result == ""
+        assert result == expected
 
     def test_reference_not_in_map(self):
         """Test with references in text that are not in the map."""
@@ -92,20 +96,24 @@ class TestReplaceReferencesInTextNonOverlapping:
         expected = "Good<sup>10</sup> and bad<sup>abc</sup> and<sup></sup>."
         assert result == expected
 
-    def test_zero_reference_number(self):
-        """Test with zero as reference number."""
-        text = "Zero reference<sup>0</sup> here."
-        ref_map = {0: 100}
+    @pytest.mark.parametrize(
+        "text,ref_map,expected",
+        [
+            (
+                "Zero reference<sup>0</sup> here.",
+                {0: 100},
+                "Zero reference<sup>100</sup> here.",
+            ),
+            (
+                "Negative<sup>-1</sup> reference.",
+                {-1: 5},
+                "Negative<sup>5</sup> reference.",
+            ),
+        ],
+    )
+    def test_special_reference_numbers(self, text, ref_map, expected):
+        """Test with zero and negative reference numbers."""
         result = _replace_references_in_text_non_overlapping(text, ref_map)
-        expected = "Zero reference<sup>100</sup> here."
-        assert result == expected
-
-    def test_negative_reference_numbers(self):
-        """Test with negative reference numbers (edge case)."""
-        text = "Negative<sup>-1</sup> reference."
-        ref_map = {-1: 5}
-        result = _replace_references_in_text_non_overlapping(text, ref_map)
-        expected = "Negative<sup>5</sup> reference."
         assert result == expected
 
 
@@ -152,26 +160,26 @@ class TestReplaceReferencesInText:
         expected = "A<sup>4</sup>B<sup>1</sup>C<sup>2</sup>D<sup>3</sup>."
         assert result == expected
 
-    def test_empty_ref_map(self):
-        """Test with empty reference map."""
-        text = "Text with<sup>1</sup> references."
-        ref_map = {}
+    @pytest.mark.parametrize(
+        "text,ref_map,expected",
+        [
+            (
+                "Text with<sup>1</sup> references.",
+                {},
+                "Text with<sup>1</sup> references.",
+            ),
+            ("", {1: 2}, ""),
+            (
+                "This text has no references.",
+                {1: 10, 2: 20},
+                "This text has no references.",
+            ),
+        ],
+    )
+    def test_edge_cases(self, text, ref_map, expected):
+        """Test edge cases: empty reference map, empty text, and text with no references."""
         result = _replace_references_in_text(text, ref_map)
-        assert result == text
-
-    def test_empty_text(self):
-        """Test with empty text."""
-        text = ""
-        ref_map = {1: 2}
-        result = _replace_references_in_text(text, ref_map)
-        assert result == ""
-
-    def test_no_references_in_text(self):
-        """Test with text containing no references."""
-        text = "This text has no references."
-        ref_map = {1: 10, 2: 20}
-        result = _replace_references_in_text(text, ref_map)
-        assert result == text
+        assert result == expected
 
     def test_single_reference_no_overlap(self):
         """Test single reference with no overlap potential."""
