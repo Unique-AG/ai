@@ -22,43 +22,10 @@ from unique_toolkit.content.schemas import (
 )
 
 
-@pytest.fixture
-def mock_sdk():
-    with patch("unique_toolkit.content.functions.unique_sdk") as mock:
-        yield mock
-
-
-@pytest.fixture
-def sample_content_chunk_data():
-    return {
-        "id": "chunk123",
-        "text": "Test content chunk",
-        "content": "Test content chunk",
-        "order": 1,
-        "metadata": {"page": 1, "key": "test.pdf", "mimeType": "application/pdf"},
-        "score": 0.95,
-    }
-
-
-@pytest.fixture
-def sample_content_data():
-    return {
-        "id": "content123",
-        "key": "test.pdf",
-        "title": "Test Document",
-        "mimeType": "application/pdf",
-        "readUrl": "http://example.com/read",
-        "writeUrl": "http://example.com/write",
-        "url": "http://example.com/content",
-        "chunks": [],
-        "createdAt": "2024-01-01T00:00:00Z",
-        "updatedAt": "2024-01-01T00:00:00Z",
-    }
-
-
-def test_search_content_chunks(mock_sdk, sample_content_chunk_data):
+@patch("unique_toolkit.content.functions.unique_sdk")
+def test_search_content_chunks(mock_sdk, base_content_chunk):
     # Setup
-    mock_sdk.Search.create.return_value = [sample_content_chunk_data]
+    mock_sdk.Search.create.return_value = [base_content_chunk.model_dump()]
 
     # Execute
     result = search_content_chunks(
@@ -76,14 +43,15 @@ def test_search_content_chunks(mock_sdk, sample_content_chunk_data):
     assert all(isinstance(chunk, ContentChunk) for chunk in result)
     mock_sdk.Search.create.assert_called_once()
     assert len(result) == 1
-    assert result[0].text == "Test content chunk"
+    assert result[0].text == "Test chunk content"
 
 
 @pytest.mark.asyncio
-async def test_search_content_chunks_async(mock_sdk, sample_content_chunk_data):
+@patch("unique_toolkit.content.functions.unique_sdk")
+async def test_search_content_chunks_async(mock_sdk, base_content_chunk):
     # Setup
     async def async_return():
-        return [sample_content_chunk_data]
+        return [base_content_chunk.model_dump()]
 
     mock_sdk.Search.create_async.return_value = async_return()
 
@@ -104,9 +72,19 @@ async def test_search_content_chunks_async(mock_sdk, sample_content_chunk_data):
     mock_sdk.Search.create_async.assert_called_once()
 
 
-def test_search_contents(mock_sdk, sample_content_data):
+@patch("unique_toolkit.content.functions.unique_sdk")
+def test_search_contents(mock_sdk):
     # Setup
-    mock_sdk.Content.search.return_value = [sample_content_data]
+    content_data = {
+        "id": "content_123",
+        "key": "test_key",
+        "title": "Test Document",
+        "url": None,
+        "chunks": [],
+        "createdAt": "2021-01-01T00:00:00Z",
+        "updatedAt": "2021-01-01T00:00:00Z",
+    }
+    mock_sdk.Content.search.return_value = [content_data]
 
     # Execute
     result = search_contents(
@@ -123,10 +101,21 @@ def test_search_contents(mock_sdk, sample_content_data):
 
 
 @pytest.mark.asyncio
-async def test_search_contents_async(mock_sdk, sample_content_data):
+@patch("unique_toolkit.content.functions.unique_sdk")
+async def test_search_contents_async(mock_sdk):
     # Setup
+    content_data = {
+        "id": "content_123",
+        "key": "test_key",
+        "title": "Test Document",
+        "url": None,
+        "chunks": [],
+        "createdAt": "2021-01-01T00:00:00Z",
+        "updatedAt": "2021-01-01T00:00:00Z",
+    }
+
     async def async_return():
-        return [sample_content_data]
+        return [content_data]
 
     mock_sdk.Content.search_async.return_value = async_return()
 
@@ -146,9 +135,16 @@ async def test_search_contents_async(mock_sdk, sample_content_data):
 
 @patch("unique_toolkit.content.functions.requests.put")
 @patch("unique_toolkit.content.functions._upsert_content")
-def test_upload_content(mock_upsert, mock_put, mock_sdk, sample_content_data, tmp_path):
+def test_upload_content(mock_upsert, mock_put, tmp_path):
     # Setup
-    mock_upsert.return_value = sample_content_data
+    content_data = {
+        "id": "content_123",
+        "key": "test_key",
+        "title": "Test Document",
+        "writeUrl": "http://test-write-url.com",
+        "readUrl": "http://test-read-url.com",
+    }
+    mock_upsert.return_value = content_data
     test_file = tmp_path / "test.txt"
     test_file.write_text("test content")
 
@@ -178,9 +174,16 @@ def test_upload_content(mock_upsert, mock_put, mock_sdk, sample_content_data, tm
 
 @patch("unique_toolkit.content.functions.requests.put")
 @patch("unique_toolkit.content.functions._upsert_content")
-def test_upload_content_from_bytes(mock_upsert, mock_put, sample_content_data):
+def test_upload_content_from_bytes(mock_upsert, mock_put):
     # Setup
-    mock_upsert.return_value = sample_content_data
+    content_data = {
+        "id": "content_123",
+        "key": "test_key",
+        "title": "Test Document",
+        "writeUrl": "http://test-write-url.com",
+        "readUrl": "http://test-read-url.com",
+    }
+    mock_upsert.return_value = content_data
     content = b"test content"
 
     ingestion_config = {
@@ -229,6 +232,7 @@ def test_download_content_to_file_by_id(mock_get, tmp_path):
     mock_get.assert_called_once()
 
 
+@patch("unique_toolkit.content.functions.unique_sdk")
 def test_download_content(mock_sdk, tmp_path):
     # Setup
     mock_response = Mock()
@@ -275,9 +279,10 @@ def test_download_content_to_memory(mock_request):
     assert result == b"test content"
 
 
-def test_search_with_reranker_config(mock_sdk, sample_content_chunk_data):
+@patch("unique_toolkit.content.functions.unique_sdk")
+def test_search_with_reranker_config(mock_sdk, base_content_chunk):
     # Setup
-    mock_sdk.Search.create.return_value = [sample_content_chunk_data]
+    mock_sdk.Search.create.return_value = [base_content_chunk.model_dump()]
     reranker_config = ContentRerankerConfig(
         deployment_name="test-deployment",
         options={"model": "test-model", "temperature": 0.7},
@@ -302,9 +307,10 @@ def test_search_with_reranker_config(mock_sdk, sample_content_chunk_data):
     assert call_kwargs["reranker"]["deploymentName"] == "test-deployment"
 
 
-def test_search_with_metadata_filter(mock_sdk, sample_content_chunk_data):
+@patch("unique_toolkit.content.functions.unique_sdk")
+def test_search_with_metadata_filter(mock_sdk, base_content_chunk):
     # Setup
-    mock_sdk.Search.create.return_value = [sample_content_chunk_data]
+    mock_sdk.Search.create.return_value = [base_content_chunk.model_dump()]
     metadata_filter = {"category": "test"}
 
     # Execute
@@ -325,6 +331,7 @@ def test_search_with_metadata_filter(mock_sdk, sample_content_chunk_data):
     assert call_kwargs["metaDataFilter"] == metadata_filter
 
 
+@patch("unique_toolkit.content.functions.unique_sdk")
 def test_upload_content_error_handling(mock_sdk, tmp_path):
     # Setup
     test_file = tmp_path / "test.txt"
@@ -344,11 +351,20 @@ def test_upload_content_error_handling(mock_sdk, tmp_path):
 
 @patch("unique_toolkit.content.functions.requests.put")
 @patch("unique_toolkit.content.functions._upsert_content")
-def test_upload_content_with_metadata(
-    mock_upsert, mock_put, mock_sdk, sample_content_data, tmp_path
-):
+def test_upload_content_with_metadata(mock_upsert, mock_put, tmp_path):
     # Setup
-    mock_upsert.return_value = sample_content_data
+    content_data = {
+        "id": "content_123",
+        "key": "test_key",
+        "title": "Test Document",
+        "url": None,
+        "chunks": [],
+        "createdAt": "2021-01-01T00:00:00Z",
+        "updatedAt": "2021-01-01T00:00:00Z",
+        "writeUrl": "https://example.com/write",
+        "readUrl": "https://example.com/read",
+    }
+    mock_upsert.return_value = content_data
     content = b"test content"
 
     metadata = {
@@ -372,6 +388,7 @@ def test_upload_content_with_metadata(
     assert call_kwargs["input_data"]["metadata"] == metadata
 
 
+@patch("unique_toolkit.content.functions.unique_sdk")
 def test_request_content_by_id(mock_sdk):
     # Setup
     with patch("unique_toolkit.content.functions.requests.get") as mock_get:
@@ -400,6 +417,7 @@ def test_request_content_by_id(mock_sdk):
         assert headers["x-company-id"] == "company123"
 
 
+@patch("unique_toolkit.content.functions.unique_sdk")
 def test_download_content_to_file_by_id_error(mock_sdk):
     # Setup
     with patch(
@@ -420,6 +438,7 @@ def test_download_content_to_file_by_id_error(mock_sdk):
         assert "Error downloading file: Status code 404" in str(exc_info.value)
 
 
+@patch("unique_toolkit.content.functions.unique_sdk")
 def test_download_content_to_file_by_id_no_filename(mock_sdk):
     # Setup
     with patch(
@@ -439,6 +458,7 @@ def test_download_content_to_file_by_id_no_filename(mock_sdk):
         assert "Filename could not be determined" in str(exc_info.value)
 
 
+@patch("unique_toolkit.content.functions.unique_sdk")
 def test_search_content_chunks_sdk_error(mock_sdk):
     # Setup
     mock_sdk.Search.create.side_effect = Exception("SDK error")
@@ -458,6 +478,7 @@ def test_search_content_chunks_sdk_error(mock_sdk):
 
 
 @pytest.mark.asyncio
+@patch("unique_toolkit.content.functions.unique_sdk")
 async def test_search_contents_async_error(mock_sdk):
     # Setup
     mock_sdk.Content.search_async.side_effect = Exception("SDK error")
@@ -474,6 +495,7 @@ async def test_search_contents_async_error(mock_sdk):
     assert str(exc_info.value) == "SDK error"
 
 
+@patch("unique_toolkit.content.functions.unique_sdk")
 def test_upload_content_missing_write_url(mock_sdk, tmp_path):
     # Setup
     test_file = tmp_path / "test.txt"
