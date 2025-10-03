@@ -269,4 +269,5 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                 "Timeout while waiting for response from sub agent. The user should consider increasing the max wait time.",
             ) from e
 
+
 ToolFactory.register_tool(SubAgentTool, SubAgentToolConfig)

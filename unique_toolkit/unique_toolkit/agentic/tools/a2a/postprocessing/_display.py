@@ -86,13 +86,20 @@ class _DetailsResponseDisplayHandler(_ResponseDisplayHandler):
 
 
 _DISPLAY_HANDLERS = {
-    SubAgentResponseDisplayMode.DETAILS_OPEN: _DetailsResponseDisplayHandler(mode="open"),
-    SubAgentResponseDisplayMode.DETAILS_CLOSED: _DetailsResponseDisplayHandler(mode="closed"),
+    SubAgentResponseDisplayMode.DETAILS_OPEN: _DetailsResponseDisplayHandler(
+        mode="open"
+    ),
+    SubAgentResponseDisplayMode.DETAILS_CLOSED: _DetailsResponseDisplayHandler(
+        mode="closed"
+    ),
 }
 
 
 def _build_sub_agent_answer_display(
-    display_name: str, display_mode: SubAgentResponseDisplayMode, answer: str, assistant_id: str
+    display_name: str,
+    display_mode: SubAgentResponseDisplayMode,
+    answer: str,
+    assistant_id: str,
 ) -> str:
     if display_mode not in _DISPLAY_HANDLERS:
         return ""
