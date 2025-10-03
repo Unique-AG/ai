@@ -10,6 +10,13 @@ from dotenv import load_dotenv
 from pydantic import SecretStr
 
 from tests.test_obj_factory import get_event_obj
+from unique_toolkit.agentic.evaluation.config import EvaluationMetricConfig
+from unique_toolkit.agentic.evaluation.schemas import (
+    EvaluationAssessmentMessage,
+    EvaluationMetricInput,
+    EvaluationMetricName,
+    EvaluationMetricResult,
+)
 from unique_toolkit.app.schemas import (
     ChatEvent,
     Event,
@@ -42,6 +49,7 @@ from unique_toolkit.chat.schemas import (
 )
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.schemas import ContentChunk, ContentReference
+from unique_toolkit.language_model.infos import LanguageModelInfo, LanguageModelName
 
 # ============================================================================
 # UniqueSettings Test Fixtures
@@ -870,3 +878,126 @@ def sample_content_chunks_list() -> list[ContentChunk]:
             text="Second chunk content",
         ),
     ]
+
+
+# ============================================================================
+# Evaluation Test Fixtures
+# ============================================================================
+
+
+@pytest.fixture
+def base_evaluation_input() -> EvaluationMetricInput:
+    """
+    Base evaluation input fixture with all required fields.
+
+    Returns:
+        EvaluationMetricInput: A complete EvaluationMetricInput object for testing.
+    """
+    return EvaluationMetricInput(
+        input_text="What is the capital of France?",
+        context_texts=[
+            "Paris is the capital of France.",
+            "France is a country in Europe.",
+        ],
+        output_text="The capital of France is Paris.",
+    )
+
+
+@pytest.fixture
+def base_evaluation_result() -> EvaluationMetricResult:
+    """
+    Base evaluation result fixture.
+
+    Returns:
+        EvaluationMetricResult: A complete EvaluationMetricResult object for testing.
+    """
+    return EvaluationMetricResult(
+        name=EvaluationMetricName.HALLUCINATION,
+        value="low",
+        reason="The output is consistent with the provided context.",
+        is_positive=True,
+        user_info="Hallucination level: low",
+    )
+
+
+@pytest.fixture
+def base_assessment_message() -> EvaluationAssessmentMessage:
+    """
+    Base assessment message fixture.
+
+    Returns:
+        EvaluationAssessmentMessage: A complete EvaluationAssessmentMessage object for testing.
+    """
+    return EvaluationAssessmentMessage(
+        status=ChatMessageAssessmentStatus.DONE,
+        explanation="No hallucination detected in the response",
+        title="Hallucination Check",
+        label=ChatMessageAssessmentLabel.GREEN,
+        type=ChatMessageAssessmentType.HALLUCINATION,
+    )
+
+
+@pytest.fixture
+def base_evaluation_config() -> EvaluationMetricConfig:
+    """
+    Base evaluation config fixture.
+
+    Returns:
+        EvaluationMetricConfig: A complete EvaluationMetricConfig object for testing.
+    """
+    return EvaluationMetricConfig(
+        enabled=True,
+        name=EvaluationMetricName.HALLUCINATION,
+        language_model=LanguageModelInfo.from_name(
+            LanguageModelName.AZURE_GPT_35_TURBO_0125
+        ),
+    )
+
+
+@pytest.fixture
+def disabled_evaluation_config() -> EvaluationMetricConfig:
+    """
+    Disabled evaluation config fixture.
+
+    Returns:
+        EvaluationMetricConfig: A disabled EvaluationMetricConfig object for testing.
+    """
+    return EvaluationMetricConfig(
+        enabled=False,
+        name=EvaluationMetricName.HALLUCINATION,
+    )
+
+
+@pytest.fixture
+def context_relevancy_evaluation_input() -> EvaluationMetricInput:
+    """
+    Context relevancy evaluation input fixture.
+
+    Returns:
+        EvaluationMetricInput: A complete input for context relevancy testing.
+    """
+    return EvaluationMetricInput(
+        input_text="What is the weather like today?",
+        context_texts=[
+            "Today is sunny with 25°C temperature.",
+            "The forecast shows clear skies.",
+        ],
+        output_text="Based on the current information, it's sunny and 25°C today.",
+    )
+
+
+@pytest.fixture
+def context_relevancy_evaluation_result() -> EvaluationMetricResult:
+    """
+    Context relevancy evaluation result fixture.
+
+    Returns:
+        EvaluationMetricResult: A complete result for context relevancy testing.
+    """
+    return EvaluationMetricResult(
+        name=EvaluationMetricName.CONTEXT_RELEVANCY,
+        value="high",
+        reason="The context is highly relevant to the input question.",
+        is_positive=True,
+        user_info="Relevancy level: high",
+    )
