@@ -6,6 +6,7 @@ import pytest
 import unique_sdk
 from dotenv import load_dotenv
 
+# Import fixtures from fixtures module
 from tests.test_obj_factory import get_event_obj
 from unique_toolkit.chat.service import ChatService
 
