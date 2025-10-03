@@ -49,7 +49,7 @@ class SubAgentEvaluationConfig(BaseModel):
         description="Whether to include the evaluation in the response.",
         validation_alias=AliasChoices(
             "includeEvaluation",
-            "displayEvalution", # typo in old config name
-            "display_evalution",  
+            "displayEvalution",  # typo in old config name
+            "display_evalution",
         ),
     )
