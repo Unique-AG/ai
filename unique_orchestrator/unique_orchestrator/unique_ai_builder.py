@@ -35,9 +35,10 @@ from unique_toolkit.agentic.thinking_manager.thinking_manager import (
     ThinkingManager,
     ThinkingManagerConfig,
 )
-from unique_toolkit.agentic.tools.a2a.evaluation import SubAgentsEvaluation
-from unique_toolkit.agentic.tools.a2a.manager import A2AManager
-from unique_toolkit.agentic.tools.a2a.postprocessing import (
+from unique_toolkit.agentic.tools.a2a import (
+    A2AManager,
+    ExtendedSubAgentToolConfig,
+    SubAgentEvaluationService,
     SubAgentResponsesPostprocessor,
 )
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
@@ -166,25 +167,33 @@ def build_unique_ai(
         )
 
     if len(tool_manager.sub_agents) > 0:
-        postprocessor_manager.add_postprocessor(
-            SubAgentResponsesPostprocessor(
-                user_id=event.user_id,
-                agent_chat_id=event.payload.chat_id,
-                company_id=event.company_id,
-                sub_agent_tools=tool_manager.sub_agents,
-            )
+        sub_agent_responses_postprocessor = SubAgentResponsesPostprocessor(
+            user_id=event.user_id,
+            main_agent_chat_id=event.payload.chat_id,
+            company_id=event.company_id,
         )
-        if config.agent.services.evaluation_config is not None:
-            logger.info("Adding sub agents evaluation")
-            evaluation_manager.add_evaluation(
-                SubAgentsEvaluation(
-                    config.agent.services.evaluation_config.sub_agents_config,
-                    tool_manager.sub_agents,
-                    LanguageModelService.from_event(event),
-                )
+        postprocessor_manager.add_postprocessor(sub_agent_responses_postprocessor)
+
+        sub_agent_evaluation = None
+        if (
+            config.agent.services.evaluation_config is not None
+            and config.agent.services.evaluation_config.sub_agents_config is not None
+        ):
+            sub_agent_evaluation = SubAgentEvaluationService(
+                config=config.agent.services.evaluation_config.sub_agents_config,
+                language_model_service=LanguageModelService.from_event(event),
             )
-        else:
-            logger.warning("No evaluation config found for sub agents")
+            evaluation_manager.add_evaluation(sub_agent_evaluation)
+
+        for tool in tool_manager.sub_agents:
+            assert isinstance(tool.config, ExtendedSubAgentToolConfig)
+            sub_agent_responses_postprocessor.register_sub_agent_tool(
+                tool, tool.config.response_display_config
+            )
+            if sub_agent_evaluation is not None:
+                sub_agent_evaluation.register_sub_agent_tool(
+                    tool, tool.config.evaluation_config
+                )
 
     return UniqueAI(
         event=event,

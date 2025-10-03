@@ -4502,7 +4502,7 @@ unique-web-search = ">=1.0.0,<2.0.0"
 
 [[package]]
 name = "unique-follow-up-questions"
-version = "1.0.0"
+version = "1.1.0"
 description = ""
 optional = false
 python-versions = "^3.12"
@@ -4519,7 +4519,7 @@ pytest = "^8.4.1"
 python-dotenv = "^1.0.1"
 typing-extensions = "^4.9.0"
 unique-sdk = "^0.10.0"
-unique-toolkit = "^1.0.0"
+unique-toolkit = "^1.7.0"
 
 [package.source]
 type = "directory"
@@ -4527,7 +4527,7 @@ url = "../postprocessors/unique_follow_up_questions"
 
 [[package]]
 name = "unique-internal-search"
-version = "1.0.0"
+version = "1.0.1"
 description = ""
 optional = false
 python-versions = "^3.12"
@@ -4551,7 +4551,7 @@ url = "../tool_packages/unique_internal_search"
 
 [[package]]
 name = "unique-sdk"
-version = "0.10.27"
+version = "0.10.28"
 description = ""
 optional = false
 python-versions = "^3.11"
@@ -4599,7 +4599,7 @@ url = "../postprocessors/unique_stock_ticker"
 
 [[package]]
 name = "unique-toolkit"
-version = "1.4.0"
+version = "1.8.0"
 description = ""
 optional = false
 python-versions = "^3.12"
@@ -5303,4 +5303,4 @@ cffi = ["cffi (>=1.17,<2.0)", "cffi (>=2.0.0b)"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "70d0fea86b4f886a64765e6efe86ed2437c1dee9c3d5e2848c78f8f7f421b5b8"
+content-hash = "a4985e8e18d959b87394db94e62069a8951c025e7e68810faed97fb54de7b280"
