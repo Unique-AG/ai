@@ -3,8 +3,17 @@
 from typing import Any, Dict
 
 import pytest
+from pydantic import SecretStr
 
-from unique_toolkit.app.schemas import ChatEvent
+from unique_toolkit.app.schemas import (
+    ChatEvent,
+)
+from unique_toolkit.app.unique_settings import (
+    UniqueApi,
+    UniqueApp,
+    UniqueAuth,
+    UniqueSettings,
+)
 
 
 @pytest.fixture
@@ -34,3 +43,23 @@ def base_chat_event_data() -> ChatEvent:
         "version": "1.0",
     }
     return ChatEvent.model_validate(event_data)
+
+
+@pytest.fixture
+def base_unique_settings() -> UniqueSettings:
+    """Base UniqueSettings that can be modified for specific tests."""
+    auth = UniqueAuth(
+        company_id=SecretStr("test-company"), user_id=SecretStr("test-user")
+    )
+    app = UniqueApp(
+        id=SecretStr("test-id"),
+        key=SecretStr("test-key"),
+        base_url="https://api.example.com",
+        endpoint="/v1/endpoint",
+        endpoint_secret=SecretStr("test-endpoint-secret"),
+    )
+    api = UniqueApi(
+        base_url="https://api.example.com",
+        version="2023-12-06",
+    )
+    return UniqueSettings(auth=auth, app=app, api=api)
