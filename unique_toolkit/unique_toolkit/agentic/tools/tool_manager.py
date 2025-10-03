@@ -5,8 +5,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
-from unique_toolkit.agentic.tools.a2a.manager import A2AManager
-from unique_toolkit.agentic.tools.a2a.service import SubAgentTool
+from unique_toolkit.agentic.tools.a2a import A2AManager, SubAgentTool
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.mcp.manager import MCPManager

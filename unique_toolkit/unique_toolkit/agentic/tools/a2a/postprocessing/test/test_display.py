@@ -2,11 +2,13 @@ import re
 
 import pytest
 
-from unique_toolkit.agentic.tools.a2a.config import ResponseDisplayMode
-from unique_toolkit.agentic.tools.a2a.postprocessing.display import (
+from unique_toolkit.agentic.tools.a2a.postprocessing._display import (
+    _build_sub_agent_answer_display,
     _DetailsResponseDisplayHandler,
-    build_sub_agent_answer_display,
-    remove_sub_agent_answer_from_text,
+    _remove_sub_agent_answer_from_text,
+)
+from unique_toolkit.agentic.tools.a2a.postprocessing.config import (
+    SubAgentResponseDisplayMode,
 )
 
 
@@ -14,12 +16,12 @@ class TestDetailsResponseDisplayHandler:
     """Test suite for DetailsResponseDisplayHandler class."""
 
     @pytest.fixture
-    def open_handler(self):
+    def open_handler(self) -> _DetailsResponseDisplayHandler:
         """Create a handler with open mode."""
         return _DetailsResponseDisplayHandler(mode="open")
 
     @pytest.fixture
-    def closed_handler(self):
+    def closed_handler(self) -> _DetailsResponseDisplayHandler:
         """Create a handler with closed mode."""
         return _DetailsResponseDisplayHandler(mode="closed")
 
@@ -201,82 +203,59 @@ class TestDisplayFunctions:
             "answer": "This is a test answer.",
         }
 
-    def test_build_sub_agent_answer_display_details_open(self, sample_data):
-        """Test building sub-agent answer display with DETAILS_OPEN mode."""
-        result = build_sub_agent_answer_display(
+    @pytest.mark.parametrize(
+        "display_mode,expected_content,not_expected_content",
+        [
+            (SubAgentResponseDisplayMode.DETAILS_OPEN, "<details open>", None),
+            (SubAgentResponseDisplayMode.DETAILS_CLOSED, "<details>", "<details open>"),
+            (SubAgentResponseDisplayMode.HIDDEN, "", None),
+        ],
+    )
+    def test_build_sub_agent_answer_display(
+        self, sample_data, display_mode, expected_content, not_expected_content
+    ):
+        """Test building sub-agent answer display with different modes."""
+        result = _build_sub_agent_answer_display(
             display_name=sample_data["display_name"],
-            display_mode=ResponseDisplayMode.DETAILS_OPEN,
+            display_mode=display_mode,
             answer=sample_data["answer"],
             assistant_id=sample_data["assistant_id"],
         )
 
-        assert "<details open>" in result
-        assert sample_data["display_name"] in result
-        assert sample_data["answer"] in result
-        assert sample_data["assistant_id"] in result
+        if display_mode == SubAgentResponseDisplayMode.HIDDEN:
+            assert result == ""
+        else:
+            assert expected_content in result
+            assert sample_data["display_name"] in result
+            assert sample_data["answer"] in result
+            assert sample_data["assistant_id"] in result
 
-    def test_build_sub_agent_answer_display_details_closed(self, sample_data):
-        """Test building sub-agent answer display with DETAILS_CLOSED mode."""
-        result = build_sub_agent_answer_display(
-            display_name=sample_data["display_name"],
-            display_mode=ResponseDisplayMode.DETAILS_CLOSED,
-            answer=sample_data["answer"],
-            assistant_id=sample_data["assistant_id"],
-        )
+            if not_expected_content:
+                assert not_expected_content not in result
 
-        assert "<details>" in result
-        assert "<details open>" not in result
-        assert sample_data["display_name"] in result
-        assert sample_data["answer"] in result
-        assert sample_data["assistant_id"] in result
-
-    def test_build_sub_agent_answer_display_hidden_mode(self, sample_data):
-        """Test building sub-agent answer display with HIDDEN mode."""
-        result = build_sub_agent_answer_display(
-            display_name=sample_data["display_name"],
-            display_mode=ResponseDisplayMode.HIDDEN,
-            answer=sample_data["answer"],
-            assistant_id=sample_data["assistant_id"],
-        )
-
-        assert result == ""
-
-    def test_remove_sub_agent_answer_from_text_details_open(self, sample_data):
-        """Test removing sub-agent answer from text with DETAILS_OPEN mode."""
+    @pytest.mark.parametrize(
+        "display_mode",
+        [
+            SubAgentResponseDisplayMode.DETAILS_OPEN,
+            SubAgentResponseDisplayMode.DETAILS_CLOSED,
+        ],
+    )
+    def test_remove_sub_agent_answer_from_text_details_modes(
+        self, sample_data, display_mode
+    ):
+        """Test removing sub-agent answer from text with DETAILS_OPEN and DETAILS_CLOSED modes."""
         # First build the display
-        display_html = build_sub_agent_answer_display(
+        display_html = _build_sub_agent_answer_display(
             display_name=sample_data["display_name"],
-            display_mode=ResponseDisplayMode.DETAILS_OPEN,
+            display_mode=display_mode,
             answer=sample_data["answer"],
             assistant_id=sample_data["assistant_id"],
         )
 
         text_with_display = f"Before\n{display_html}\nAfter"
 
-        result = remove_sub_agent_answer_from_text(
-            display_mode=ResponseDisplayMode.DETAILS_OPEN,
-            text=text_with_display,
-            assistant_id=sample_data["assistant_id"],
-        )
-
-        assert "Before" in result
-        assert "After" in result
-        assert sample_data["answer"] not in result
-
-    def test_remove_sub_agent_answer_from_text_details_closed(self, sample_data):
-        """Test removing sub-agent answer from text with DETAILS_CLOSED mode."""
-        # First build the display
-        display_html = build_sub_agent_answer_display(
-            display_name=sample_data["display_name"],
-            display_mode=ResponseDisplayMode.DETAILS_CLOSED,
-            answer=sample_data["answer"],
-            assistant_id=sample_data["assistant_id"],
-        )
-
-        text_with_display = f"Before\n{display_html}\nAfter"
-
-        result = remove_sub_agent_answer_from_text(
-            display_mode=ResponseDisplayMode.DETAILS_CLOSED,
+        result = _remove_sub_agent_answer_from_text(
+            display_mode=display_mode,
             text=text_with_display,
             assistant_id=sample_data["assistant_id"],
         )
@@ -288,8 +267,8 @@ class TestDisplayFunctions:
     def test_remove_sub_agent_answer_from_text_hidden_mode(self, sample_data):
         """Test removing sub-agent answer from text with HIDDEN mode."""
         text = "Some text here"
-        result = remove_sub_agent_answer_from_text(
-            display_mode=ResponseDisplayMode.HIDDEN,
+        result = _remove_sub_agent_answer_from_text(
+            display_mode=SubAgentResponseDisplayMode.HIDDEN,
             text=text,
             assistant_id=sample_data["assistant_id"],
         )
@@ -301,9 +280,9 @@ class TestDisplayFunctions:
         original_text = "This is the original text."
 
         # Build display
-        display_html = build_sub_agent_answer_display(
+        display_html = _build_sub_agent_answer_display(
             display_name=sample_data["display_name"],
-            display_mode=ResponseDisplayMode.DETAILS_OPEN,
+            display_mode=SubAgentResponseDisplayMode.DETAILS_OPEN,
             answer=sample_data["answer"],
             assistant_id=sample_data["assistant_id"],
         )
@@ -312,8 +291,8 @@ class TestDisplayFunctions:
         text_with_display = f"{original_text}\n{display_html}"
 
         # Remove display
-        result = remove_sub_agent_answer_from_text(
-            display_mode=ResponseDisplayMode.DETAILS_OPEN,
+        result = _remove_sub_agent_answer_from_text(
+            display_mode=SubAgentResponseDisplayMode.DETAILS_OPEN,
             text=text_with_display,
             assistant_id=sample_data["assistant_id"],
         )

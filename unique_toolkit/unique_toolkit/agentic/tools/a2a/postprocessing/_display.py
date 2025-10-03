@@ -2,7 +2,9 @@ import re
 from abc import ABC, abstractmethod
 from typing import Literal, override
 
-from unique_toolkit.agentic.tools.a2a.config import ResponseDisplayMode
+from unique_toolkit.agentic.tools.a2a.postprocessing.config import (
+    SubAgentResponseDisplayMode,
+)
 
 
 class _ResponseDisplayHandler(ABC):
@@ -84,13 +86,20 @@ class _DetailsResponseDisplayHandler(_ResponseDisplayHandler):
 
 
 _DISPLAY_HANDLERS = {
-    ResponseDisplayMode.DETAILS_OPEN: _DetailsResponseDisplayHandler(mode="open"),
-    ResponseDisplayMode.DETAILS_CLOSED: _DetailsResponseDisplayHandler(mode="closed"),
+    SubAgentResponseDisplayMode.DETAILS_OPEN: _DetailsResponseDisplayHandler(
+        mode="open"
+    ),
+    SubAgentResponseDisplayMode.DETAILS_CLOSED: _DetailsResponseDisplayHandler(
+        mode="closed"
+    ),
 }
 
 
-def build_sub_agent_answer_display(
-    display_name: str, display_mode: ResponseDisplayMode, answer: str, assistant_id: str
+def _build_sub_agent_answer_display(
+    display_name: str,
+    display_mode: SubAgentResponseDisplayMode,
+    answer: str,
+    assistant_id: str,
 ) -> str:
     if display_mode not in _DISPLAY_HANDLERS:
         return ""
@@ -102,8 +111,8 @@ def build_sub_agent_answer_display(
     )
 
 
-def remove_sub_agent_answer_from_text(
-    display_mode: ResponseDisplayMode, text: str, assistant_id: str
+def _remove_sub_agent_answer_from_text(
+    display_mode: SubAgentResponseDisplayMode, text: str, assistant_id: str
 ) -> str:
     if display_mode not in _DISPLAY_HANDLERS:
         return text
