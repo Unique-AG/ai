@@ -18,6 +18,7 @@ from unique_toolkit.agentic.tools.a2a.tool.config import (
     SubAgentToolConfig,
 )
 from unique_toolkit.agentic.tools.agent_chunks_hanlder import AgentChunksHandler
+from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.agentic.tools.tool_progress_reporter import (
@@ -135,7 +136,7 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
         if self._lock.locked():
             await self._notify_progress(
                 tool_call=tool_call,
-                message=f"Waiting for another run of {self.name} to finish",
+                message=f"Waiting for another run of `{self.display_name()}` to finish",
                 state=ProgressState.STARTED,
             )
 
@@ -267,3 +268,5 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
             raise TimeoutError(
                 "Timeout while waiting for response from sub agent. The user should consider increasing the max wait time.",
             ) from e
+
+ToolFactory.register_tool(SubAgentTool, SubAgentToolConfig)
