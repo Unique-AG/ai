@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field
 
 from unique_toolkit._common.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
@@ -47,4 +47,9 @@ class SubAgentEvaluationConfig(BaseModel):
     include_evaluation: bool = Field(
         default=True,
         description="Whether to include the evaluation in the response.",
+        validation_alias=AliasChoices(
+            "includeEvaluation",
+            "displayEvalution",  # typo in old config name
+            "display_evalution",
+        ),
     )
