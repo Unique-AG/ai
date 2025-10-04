@@ -58,6 +58,17 @@ def generate_model_content(
     # Clean up temp file
     temp_path.unlink()
 
+    # Replace alias= with both validation_alias= and serialization_alias= for proper Pydantic v2 behavior
+    # validation_alias: accepts both snake_case (field name) AND camelCase for flexibility
+    # serialization_alias: outputs camelCase for the API
+    import re
+
+    # Replace alias="value" with validation_alias="value", serialization_alias="value"
+    # This allows input with either snake_case or camelCase, but always outputs camelCase
+    content = re.sub(
+        r'alias="([^"]+)"', r'validation_alias="\1", serialization_alias="\1"', content
+    )
+
     return content
 
 
@@ -99,9 +110,38 @@ def extract_class_definitions(content: str) -> str:
 
 
 def path_to_folder(path: str) -> Path:
-    """Convert an OpenAPI path to a folder path, removing curly braces from path params."""
-    segments = [seg.strip("{}") for seg in path.strip("/").split("/")]
+    """Convert an OpenAPI path to a folder path, removing curly braces and sanitizing special chars."""
+    segments = []
+    for seg in path.strip("/").split("/"):
+        # Remove curly braces from path params
+        seg = seg.strip("{}")
+        # Replace hyphens with underscores and wildcards with 'wildcard'
+        seg = seg.replace("-", "_").replace("*", "wildcard")
+        segments.append(seg)
     return Path(*segments)
+
+
+def convert_path_to_snake_case(path: str) -> str:
+    """Convert path parameter names from camelCase to snake_case.
+
+    Example: /public/folder/{scopeId} -> /public/folder/{scope_id}
+    """
+    import re
+
+    def camel_to_snake(name: str) -> str:
+        """Convert camelCase to snake_case."""
+        # Insert underscore before uppercase letters (except at start)
+        name = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", name)
+        # Insert underscore before uppercase letters preceded by lowercase or numbers
+        name = re.sub("([a-z0-9])([A-Z])", r"\1_\2", name)
+        return name.lower()
+
+    # Find all {paramName} patterns and convert them
+    def replace_param(match):
+        param_name = match.group(1)
+        return f"{{{camel_to_snake(param_name)}}}"
+
+    return re.sub(r"\{([^}]+)\}", replace_param, path)
 
 
 def resolve_refs(schema: Any, spec: Dict[str, Any]) -> JSONValue:
@@ -296,6 +336,7 @@ def generate_consolidated_endpoint_models() -> None:
         models_file = route_dir / "models.py"
 
         all_models = []
+        operations_info = []  # Track operation info for API client generation
 
         # Generate PathParams once for the entire path (shared across all operations)
         # Collect all parameters from path_item level
@@ -440,6 +481,9 @@ def generate_consolidated_endpoint_models() -> None:
             print(f"    - Success responses: {success_responses}")
             response_generated = False
 
+            # Use first success response code for API client
+            success_code = success_responses[0] if success_responses else "200"
+
             if operation.responses:
                 for status_code, response in operation.responses.items():
                     response_obj = resolve_reference(response, raw_spec)
@@ -480,9 +524,37 @@ def generate_consolidated_endpoint_models() -> None:
                                     all_models.append(model)
                                 response_generated = True
 
-            if not response_generated:
+            if not response_generated and success_responses:
+                # Use first success status code as fallback
+                first_success = success_responses[0]
                 all_models.append(
-                    f"class {method_prefix}Response(BaseModel):\n    pass"
+                    f"class {method_prefix}Response{first_success}(BaseModel):\n    pass"
+                )
+
+            # Only collect operation info if we have success responses
+            if success_responses:
+                # Check if this operation has query params
+                has_query_params = any(
+                    (isinstance(p, Parameter) and p.param_in == "query")
+                    or (
+                        isinstance(p, Reference)
+                        and (resolved := resolve_reference(p, raw_spec))
+                        and isinstance(resolved, dict)
+                        and resolved.get("in") == "query"
+                    )
+                    for p in operation_parameters
+                )
+
+                # Collect operation info for API client generation
+                operations_info.append(
+                    {
+                        "method": method,
+                        "method_prefix": method_prefix,
+                        "name": operation.operationId
+                        or f"{method}_{path.replace('/', '_').replace('{', '').replace('}', '')}",
+                        "success_code": success_code,
+                        "has_query_params": has_query_params,
+                    }
                 )
 
         # Write the file once for all operations in this path
@@ -520,6 +592,43 @@ def generate_consolidated_endpoint_models() -> None:
             f.write(rendered)
 
         print(f"✅ Created models: {models_file}")
+
+        # Generate API client file
+        api_file = route_dir / "path_operation.py"
+        api_template = env.get_template("api_template.jinja2")
+
+        # Convert folder name to CamelCase for class name
+        import humps
+
+        folder_name = route_dir.name
+        # Sanitize folder name: replace special characters with descriptive names
+        sanitized_name = (
+            folder_name.replace("*", "Wildcard").replace("{", "").replace("}", "")
+        )
+        class_name = humps.pascalize(sanitized_name) if sanitized_name else "Operation"
+
+        # Convert path to use snake_case parameter names for Python code
+        python_path = convert_path_to_snake_case(path)
+
+        api_rendered = api_template.render(
+            path=python_path,  # Use snake_case path for Python code
+            has_path_params=bool(path_params),
+            operations=operations_info,
+            class_name=class_name,
+        )
+
+        with open(api_file, "w") as f:
+            f.write(api_rendered)
+
+        print(f"✅ Created API client: {api_file}")
+
+        # Create __init__.py to export the class
+        init_file = route_dir / "__init__.py"
+        with open(init_file, "w") as f:
+            f.write(f"from .path_operation import {class_name}\n\n")
+            f.write(f"__all__ = ['{class_name}']\n")
+
+        print(f"✅ Created __init__.py: {init_file}")
 
 
 if __name__ == "__main__":
