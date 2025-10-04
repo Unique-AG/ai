@@ -9,6 +9,7 @@ from pydantic import BaseModel
 
 from unique_toolkit._common.endpoint_builder import HttpMethods, build_api_operation
 from unique_toolkit._common.endpoint_requestor import (
+    RequestContext,
     RequestorType,
     build_aiohttp_requestor,
     build_fake_requestor,
@@ -101,7 +102,10 @@ def test_fake_requestor():
 
     # Test the fake requestor
     response = FakePostRequestor.request(
-        headers={"Content-Type": "application/json"}, post_id=1, _limit=10, _page=1
+        context=RequestContext(headers={"Content-Type": "application/json"}),
+        post_id=1,
+        _limit=10,
+        _page=1,
     )
 
     # Assertions
@@ -131,7 +135,7 @@ def test_requests_requestor():
 
     # Test the requests requestor
     response = RequestsPostRequestor.request(
-        headers={"Content-Type": "application/json"}, post_id=1
+        context=RequestContext(headers={"Content-Type": "application/json"}), post_id=1
     )
 
     # Assertions
@@ -163,7 +167,7 @@ def test_httpx_requestor():
 
     # Test the httpx requestor (sync)
     response = HttpxPostRequestor.request(
-        headers={"Content-Type": "application/json"}, post_id=2
+        context=RequestContext(headers={"Content-Type": "application/json"}), post_id=2
     )
 
     # Assertions
@@ -195,7 +199,7 @@ async def test_httpx_async_requestor():
 
     # Test the httpx requestor (async)
     response = await HttpxPostRequestor.request_async(
-        headers={"Content-Type": "application/json"}, post_id=3
+        context=RequestContext(headers={"Content-Type": "application/json"}), post_id=3
     )
 
     # Assertions
@@ -227,7 +231,7 @@ async def test_aiohttp_requestor():
 
     # Test the aiohttp requestor (async)
     response = await AiohttpPostRequestor.request_async(
-        headers={"Content-Type": "application/json"}, post_id=4
+        context=RequestContext(headers={"Content-Type": "application/json"}), post_id=4
     )
 
     # Assertions
@@ -259,7 +263,7 @@ def test_post_request():
 
     # Test the POST request
     response = CreatePostRequestor.request(
-        headers={"Content-Type": "application/json"},
+        context=RequestContext(headers={"Content-Type": "application/json"}),
         post_id=0,  # Not used for POST
         title="Test Post Title",
         body="This is a test post body created via the endpoint requestor.",
@@ -295,7 +299,7 @@ def test_build_requestor_factory():
     )
 
     response = FactoryRequestor.request(
-        headers={"Content-Type": "application/json"}, post_id=5
+        context=RequestContext(headers={"Content-Type": "application/json"}), post_id=5
     )
 
     # Assertions for requests factory
@@ -321,7 +325,8 @@ def test_build_requestor_factory():
     )
 
     response = FactoryFakeRequestor.request(
-        headers={"Content-Type": "application/json"}, post_id=999
+        context=RequestContext(headers={"Content-Type": "application/json"}),
+        post_id=999,
     )
 
     # Assertions for fake factory
