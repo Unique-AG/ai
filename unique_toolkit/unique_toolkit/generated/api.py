@@ -1,33 +1,8 @@
-from string import Template
-
-from unique_toolkit._common.endpoint_builder import HttpMethods, build_api_operation
-from unique_toolkit._common.endpoint_requestor import build_request_requestor
 from unique_toolkit.app.unique_settings import UniqueSettings
-from unique_toolkit.generated.generated_routes.public.folder.post.models import (
-    PathParams,
-    Request,
-    Response,
-)
-
-
-class CombinedParams(PathParams, Request):
-    pass
-
+from unique_toolkit.generated.generated_routes.public.folder import Folder
+from unique_toolkit.generated.generated_routes.public.folder.scopeId import ScopeId
 
 base_url = "https://gateway.qa.unique.app/public/chat-gen2"
-
-
-class Folder:
-    create = RequestRequestor = build_request_requestor(
-        operation_type=build_api_operation(
-            method=HttpMethods.POST,
-            url_template=Template(base_url + "/folder"),
-            path_params_constructor=PathParams,
-            payload_constructor=Request,
-            response_model_type=Response,
-        ),
-        combined_model=CombinedParams,
-    )
 
 
 settings = UniqueSettings.from_env_auto()
@@ -39,7 +14,14 @@ headers = {
     "x-api-version": settings.api.version,
 }
 
+answer = Folder.createFolderStructure.request(
+    headers=headers,
+    paths=["/testcreation/test/test"],
+)
 
-answer = Folder.create.request(headers=headers, paths=["/testcreation/test/test"])
+# Now using snake_case parameters! 🎉
+ScopeId.deleteFolder.request(headers=headers, scope_id="test")
 
+ScopeId.update.request(headers=headers, parent_id=None, name=None, scope_id="test")
+ScopeId.deleteFolder.request(headers=headers, scope_id="test")
 print(answer)
