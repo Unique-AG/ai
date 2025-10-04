@@ -15,6 +15,7 @@ from unique_toolkit._common.endpoint_builder import (
     ResponseType,
 )
 from unique_toolkit._common.endpoint_requestor import (
+    RequestContext,
     RequestorType,
     build_requestor,
 )
@@ -163,7 +164,7 @@ class HumanVerificationManagerForApiCalling(
     def call_api(
         self,
         *,
-        headers: dict[str, str],
+        context: RequestContext,
         path_params: PathParamsType,
         payload: PayloadType,
     ) -> ResponseType:
@@ -171,7 +172,7 @@ class HumanVerificationManagerForApiCalling(
         params.update(payload.model_dump())
 
         response = self._requestor.request(
-            headers=headers,
+            context=context,
             **params,
         )
         return self._operation.handle_response(response)
