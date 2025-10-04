@@ -1,5 +1,6 @@
 from enum import StrEnum
 from typing import Any, Callable, Generic, Protocol, TypeVar
+from urllib.parse import urljoin, urlparse
 
 from pydantic import BaseModel
 from typing_extensions import ParamSpec
@@ -22,6 +23,22 @@ CombinedParamsType = TypeVar("CombinedParamsType", bound=BaseModel)
 
 
 ResponseT_co = TypeVar("ResponseT_co", bound=BaseModel, covariant=True)
+
+
+def _construct_full_url(base_url: str, url: str) -> str:
+    """
+    Construct full URL from base_url and url.
+    If base_url is provided and url is absolute, strip the scheme/netloc from url.
+    """
+    if not base_url:
+        return url
+
+    parsed = urlparse(url)
+    if parsed.scheme:
+        # URL is absolute, extract only path + query + fragment
+        url = parsed._replace(scheme="", netloc="").geturl()
+
+    return urljoin(base_url, url)
 
 
 class RequestContext(BaseModel):
@@ -130,7 +147,7 @@ def build_request_requestor(
 
             response = requests.request(
                 method=cls._operation.request_method(),
-                url=f"{context.base_url}/{url}",
+                url=_construct_full_url(context.base_url, url),
                 headers=context.headers,
                 json=payload,
             )
@@ -181,14 +198,17 @@ def build_httpx_requestor(
                 combined=kwargs
             )
 
-            httpx_client = httpx.Client()
-            response = httpx_client.request(
-                method=cls._operation.request_method(),
-                url=f"{context.base_url}/{cls._operation.create_url_from_model(path_params)}",
-                headers=headers,
-                json=cls._operation.create_payload_from_model(payload_model),
-            )
-            return cls._operation.handle_response(response.json())
+            with httpx.Client() as client:
+                response = client.request(
+                    method=cls._operation.request_method(),
+                    url=_construct_full_url(
+                        base_url=context.base_url,
+                        url=cls._operation.create_url_from_model(path_params),
+                    ),
+                    headers=headers,
+                    json=cls._operation.create_payload_from_model(payload_model),
+                )
+                return cls._operation.handle_response(response.json())
 
         @classmethod
         async def request_async(
@@ -203,15 +223,17 @@ def build_httpx_requestor(
                 combined=kwargs
             )
 
-            client = httpx.AsyncClient()
-            response = client.request(
-                method=cls._operation.request_method(),
-                url=f"{context.base_url}/{cls._operation.create_url_from_model(path_params)}",
-                headers=headers,
-                json=cls._operation.create_payload_from_model(payload_model),
-            )
-
-            return cls._operation.handle_response((await response).json())
+            async with httpx.AsyncClient() as client:
+                response = await client.request(
+                    method=cls._operation.request_method(),
+                    url=_construct_full_url(
+                        base_url=context.base_url,
+                        url=cls._operation.create_url_from_model(path_params),
+                    ),
+                    headers=headers,
+                    json=cls._operation.create_payload_from_model(payload_model),
+                )
+                return cls._operation.handle_response(response.json())
 
     return HttpxRequestor
 
@@ -261,7 +283,10 @@ def build_aiohttp_requestor(
             async with aiohttp.ClientSession() as session:
                 response = await session.request(
                     method=cls._operation.request_method(),
-                    url=f"{context.base_url}/{cls._operation.create_url_from_model(path_params)}",
+                    url=_construct_full_url(
+                        base_url=context.base_url,
+                        url=cls._operation.create_url_from_model(path_params),
+                    ),
                     headers=headers,
                     json=cls._operation.create_payload_from_model(payload_model),
                 )
