@@ -24,11 +24,16 @@ CombinedParamsType = TypeVar("CombinedParamsType", bound=BaseModel)
 ResponseT_co = TypeVar("ResponseT_co", bound=BaseModel, covariant=True)
 
 
+class RequestContext(BaseModel):
+    base_url: str = ""
+    headers: dict[str, str] | None = None
+
+
 class EndpointRequestorProtocol(Protocol, Generic[CombinedParamsSpec, ResponseT_co]):
     @classmethod
     def request(
         cls,
-        headers: dict[str, str],
+        context: RequestContext,
         *args: CombinedParamsSpec.args,
         **kwargs: CombinedParamsSpec.kwargs,
     ) -> ResponseT_co: ...
@@ -36,7 +41,7 @@ class EndpointRequestorProtocol(Protocol, Generic[CombinedParamsSpec, ResponseT_
     @classmethod
     async def request_async(
         cls,
-        headers: dict[str, str],
+        context: RequestContext,
         *args: CombinedParamsSpec.args,
         **kwargs: CombinedParamsSpec.kwargs,
     ) -> ResponseT_co: ...
@@ -61,7 +66,7 @@ def build_fake_requestor(
         @classmethod
         def request(
             cls,
-            headers: dict[str, str],
+            context: RequestContext,
             *args: CombinedParamsSpec.args,
             **kwargs: CombinedParamsSpec.kwargs,
         ) -> ResponseType:
@@ -79,7 +84,8 @@ def build_fake_requestor(
         @classmethod
         async def request_async(
             cls,
-            headers: dict[str, str],
+            context: RequestContext,
+            headers: dict[str, str] | None = None,
             *args: CombinedParamsSpec.args,
             **kwargs: CombinedParamsSpec.kwargs,
         ) -> ResponseType:
@@ -110,7 +116,7 @@ def build_request_requestor(
         @classmethod
         def request(
             cls,
-            headers: dict[str, str],
+            context: RequestContext,
             *args: CombinedParamsSpec.args,
             **kwargs: CombinedParamsSpec.kwargs,
         ) -> ResponseType:
@@ -124,8 +130,8 @@ def build_request_requestor(
 
             response = requests.request(
                 method=cls._operation.request_method(),
-                url=url,
-                headers=headers,
+                url=f"{context.base_url}/{url}",
+                headers=context.headers,
                 json=payload,
             )
             return cls._operation.handle_response(response.json())
@@ -133,7 +139,8 @@ def build_request_requestor(
         @classmethod
         async def request_async(
             cls,
-            headers: dict[str, str],
+            base_url: str = "",
+            headers: dict[str, str] | None = None,
             *args: CombinedParamsSpec.args,
             **kwargs: CombinedParamsSpec.kwargs,
         ) -> ResponseType:
@@ -164,10 +171,12 @@ def build_httpx_requestor(
         @classmethod
         def request(
             cls,
-            headers: dict[str, str],
+            context: RequestContext,
             *args: CombinedParamsSpec.args,
             **kwargs: CombinedParamsSpec.kwargs,
         ) -> ResponseType:
+            headers = context.headers or {}
+
             path_params, payload_model = cls._operation.models_from_combined(
                 combined=kwargs
             )
@@ -175,7 +184,7 @@ def build_httpx_requestor(
             httpx_client = httpx.Client()
             response = httpx_client.request(
                 method=cls._operation.request_method(),
-                url=cls._operation.create_url_from_model(path_params),
+                url=f"{context.base_url}/{cls._operation.create_url_from_model(path_params)}",
                 headers=headers,
                 json=cls._operation.create_payload_from_model(payload_model),
             )
@@ -184,10 +193,12 @@ def build_httpx_requestor(
         @classmethod
         async def request_async(
             cls,
-            headers: dict[str, str],
+            context: RequestContext,
             *args: CombinedParamsSpec.args,
             **kwargs: CombinedParamsSpec.kwargs,
         ) -> ResponseType:
+            headers = context.headers or {}
+
             path_params, payload_model = cls._operation.models_from_combined(
                 combined=kwargs
             )
@@ -195,7 +206,7 @@ def build_httpx_requestor(
             client = httpx.AsyncClient()
             response = client.request(
                 method=cls._operation.request_method(),
-                url=cls._operation.create_url_from_model(path_params),
+                url=f"{context.base_url}/{cls._operation.create_url_from_model(path_params)}",
                 headers=headers,
                 json=cls._operation.create_payload_from_model(payload_model),
             )
@@ -225,7 +236,7 @@ def build_aiohttp_requestor(
         @classmethod
         def request(
             cls,
-            headers: dict[str, str],
+            context: RequestContext,
             *args: CombinedParamsSpec.args,
             **kwargs: CombinedParamsSpec.kwargs,
         ) -> ResponseType:
@@ -236,10 +247,13 @@ def build_aiohttp_requestor(
         @classmethod
         async def request_async(
             cls,
-            headers: dict[str, str],
+            context: RequestContext,
+            headers: dict[str, str] | None = None,
             *args: CombinedParamsSpec.args,
             **kwargs: CombinedParamsSpec.kwargs,
         ) -> ResponseType:
+            headers = context.headers or {}
+
             path_params, payload_model = cls._operation.models_from_combined(
                 combined=kwargs
             )
@@ -247,7 +261,7 @@ def build_aiohttp_requestor(
             async with aiohttp.ClientSession() as session:
                 response = await session.request(
                     method=cls._operation.request_method(),
-                    url=cls._operation.create_url_from_model(path_params),
+                    url=f"{context.base_url}/{cls._operation.create_url_from_model(path_params)}",
                     headers=headers,
                     json=cls._operation.create_payload_from_model(payload_model),
                 )
@@ -335,19 +349,19 @@ if __name__ == "__main__":
 
     # Note that the return value is a pydantic UserResponse object
     response = FakeUserRequestor().request(
-        headers={"a": "b"},
+        context=RequestContext(headers={"a": "b"}),
         user_id=123,
         include_profile=True,
     )
 
-    RequestRequstor = build_request_requestor(
+    RequestRequestor = build_request_requestor(
         operation_type=UserEndpoint,
         combined_model=CombinedParams,
     )
 
     # Check type hints
-    response = RequestRequstor().request(
-        headers={"a": "b"}, user_id=123, include_profile=True
+    response = RequestRequestor().request(
+        context=RequestContext(headers={"a": "b"}), user_id=123, include_profile=True
     )
 
     print(response.model_dump())
