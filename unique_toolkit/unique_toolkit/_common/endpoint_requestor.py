@@ -316,7 +316,7 @@ def build_requestor(
     combined_model: Callable[CombinedParamsSpec, CombinedParamsType],
     return_value: dict[str, Any] | None = None,
     **kwargs: Any,
-) -> type[EndpointRequestorProtocol]:
+) -> type[EndpointRequestorProtocol[CombinedParamsSpec, ResponseType]]:
     match requestor_type:
         case RequestorType.REQUESTS:
             return build_request_requestor(

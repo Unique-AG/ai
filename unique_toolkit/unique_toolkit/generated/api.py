@@ -1,3 +1,4 @@
+from unique_toolkit._common.endpoint_requestor import RequestContext
 from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.generated.generated_routes.public.folder import Folder
 from unique_toolkit.generated.generated_routes.public.folder.scopeId import ScopeId
@@ -15,13 +16,15 @@ headers = {
 }
 
 answer = Folder.createFolderStructure.request(
-    headers=headers,
+    context=RequestContext(headers=headers),
     paths=["/testcreation/test/test"],
 )
 
 # Now using snake_case parameters! 🎉
-ScopeId.deleteFolder.request(headers=headers, scope_id="test")
+ScopeId.deleteFolder.request(context=RequestContext(headers=headers), scope_id="test")
 
-ScopeId.update.request(headers=headers, parent_id=None, name=None, scope_id="test")
-ScopeId.deleteFolder.request(headers=headers, scope_id="test")
+ScopeId.update.request(
+    context=RequestContext(headers=headers), parent_id=None, name=None, scope_id="test"
+)
+ScopeId.deleteFolder.request(context=RequestContext(headers=headers), scope_id="test")
 print(answer)
