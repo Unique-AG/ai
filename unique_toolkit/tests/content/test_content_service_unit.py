@@ -25,32 +25,141 @@ from unique_toolkit.content.service import ContentService
 
 
 class TestContentServiceUnit:
-    @pytest.fixture(autouse=True)
-    def setup(self):
-        self.event = get_event_obj(
-            user_id="test_user",
-            company_id="test_company",
-            assistant_id="test_assistant",
-            chat_id="test_chat",
-            metadata_filter={
-                "path": ["key"],
-                "operator": "equals",
-                "value": "test_key",
+    """Test class for ContentService with refactored helper methods."""
+
+    # Common test data
+    TEST_USER_ID = "test_user_123"
+    TEST_COMPANY_ID = "test_company_123"
+    TEST_CHAT_ID = "test_chat_123"
+    TEST_CONTENT_ID = "test_content_id"
+    TEST_SCOPE_ID = "test_scope"
+
+    @pytest.fixture
+    def mock_content_response(self):
+        """Common mock response for content operations."""
+        return {
+            "id": self.TEST_CONTENT_ID,
+            "key": "test.txt",
+            "title": "test.txt",
+            "mimeType": "text/plain",
+            "byteSize": 100,
+            "writeUrl": "http://test-write-url.com",
+            "readUrl": "http://test-read-url.com",
+        }
+
+    @pytest.fixture
+    def mock_chunk_response(self):
+        """Common mock response for chunk operations."""
+        return {
+            "id": "chunk1",
+            "text": "Test chunk",
+            "startPage": 1,
+            "endPage": 1,
+            "order": 1,
+        }
+
+    @pytest.fixture
+    def mock_chunk_response_for_search(self):
+        """Mock response for search content chunks operations."""
+        return {
+            "id": "1",
+            "text": "Test chunk",
+            "startPage": 1,
+            "endPage": 1,
+            "order": 1,
+        }
+
+    @pytest.fixture
+    def mock_content_with_chunks_response(self, mock_chunk_response):
+        """Common mock response for content with chunks."""
+        return {
+            "id": "1",
+            "key": "test_key",
+            "title": "Test Content",
+            "url": "http://test.com",
+            "chunks": [mock_chunk_response],
+            "createdAt": "2021-01-01T00:00:00Z",
+            "updatedAt": "2021-01-01T00:00:00Z",
+        }
+
+    @pytest.fixture
+    def common_headers(self):
+        """Common headers for API requests."""
+        return {
+            "x-api-version": unique_sdk.api_version,
+            "x-app-id": unique_sdk.app_id,
+            "x-user-id": self.TEST_USER_ID,
+            "x-company-id": self.TEST_COMPANY_ID,
+            "Authorization": f"Bearer {unique_sdk.api_key}",
+        }
+
+    @pytest.fixture
+    def ingestion_config(self):
+        """Common ingestion configuration."""
+        return {
+            "chunkStrategy": "default",
+            "uniqueIngestionMode": "standard",
+        }
+
+    def assert_content_result(self, result, expected_id=None):
+        """Helper to assert common content result properties."""
+        assert isinstance(result, Content)
+        if expected_id:
+            assert result.id == expected_id
+        assert result.write_url == "http://test-write-url.com"
+        assert result.read_url == "http://test-read-url.com"
+
+    def assert_chunk_result(self, result, expected_count=1):
+        """Helper to assert common chunk result properties."""
+        assert isinstance(result, list)
+        assert all(isinstance(chunk, ContentChunk) for chunk in result)
+        assert len(result) == expected_count
+        if expected_count > 0:
+            assert result[0].id == "1"
+            assert result[0].text == "Test chunk"
+
+    def assert_upsert_call(self, mock_upsert, expected_scope_id=None, call_index=0):
+        """Helper to assert common upsert call properties."""
+        call = mock_upsert.call_args_list[call_index]
+        assert call[1]["user_id"] == self.TEST_USER_ID
+        assert call[1]["company_id"] == self.TEST_COMPANY_ID
+        if expected_scope_id:
+            assert call[1]["scopeId"] == expected_scope_id
+
+    def assert_put_call(self, mock_put, expected_url="http://test-write-url.com"):
+        """Helper to assert common PUT call properties."""
+        mock_put.assert_called_once_with(
+            url=expected_url,
+            data=ANY,
+            headers={
+                "X-Ms-Blob-Content-Type": "text/plain",
+                "X-Ms-Blob-Type": "BlockBlob",
             },
         )
+
+    def assert_get_call(self, mock_get, content_id, chat_id=None):
+        """Helper to assert common GET call properties."""
+        expected_chat_id = chat_id or self.TEST_CHAT_ID
+        expected_url = (
+            f"{unique_sdk.api_base}/content/{content_id}/file?chatId={expected_chat_id}"
+        )
+        mock_get.assert_called_once_with(expected_url, headers=self.common_headers())
+
+    def create_temp_file(self, content=b"Test content"):
+        """Helper to create temporary file for testing."""
+        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+            temp_file.write(content)
+            return temp_file.name
+
+    @pytest.fixture(autouse=True)
+    def setup(self, base_chat_event):
+        """Setup test with base chat event fixture."""
+        self.event = base_chat_event
         self.service = ContentService(self.event)
 
-    def test_search_content_chunks(self):
+    def test_search_content_chunks(self, mock_chunk_response_for_search):
         with patch.object(unique_sdk.Search, "create") as mock_create:
-            mock_create.return_value = [
-                {
-                    "id": "1",
-                    "text": "Test chunk",
-                    "startPage": 1,
-                    "endPage": 1,
-                    "order": 1,
-                }
-            ]
+            mock_create.return_value = [mock_chunk_response_for_search]
 
             result = self.service.search_content_chunks(
                 search_string="test",
@@ -59,16 +168,11 @@ class TestContentServiceUnit:
                 scope_ids=["scope1", "scope2"],
             )
 
-            assert isinstance(result, list)
-            assert all(isinstance(chunk, ContentChunk) for chunk in result)
-            assert len(result) == 1
-            assert result[0].id == "1"
-            assert result[0].text == "Test chunk"
-
+            self.assert_chunk_result(result)
             mock_create.assert_called_once_with(
-                user_id="test_user",
-                company_id="test_company",
-                chatId="test_chat",
+                user_id=self.TEST_USER_ID,
+                company_id=self.TEST_COMPANY_ID,
+                chatId=self.TEST_CHAT_ID,
                 searchString="test",
                 searchType="COMBINED",
                 scopeIds=["scope1", "scope2"],
@@ -76,36 +180,14 @@ class TestContentServiceUnit:
                 reranker=None,
                 language="english",
                 chatOnly=None,
-                metaDataFilter={
-                    "path": ["key"],
-                    "operator": "equals",
-                    "value": "test_key",
-                },
+                metaDataFilter=None,  # The service doesn't set this by default
                 contentIds=None,
                 scoreThreshold=None,
             )
 
-    def test_search_contents(self):
+    def test_search_contents(self, mock_content_with_chunks_response):
         with patch.object(unique_sdk.Content, "search") as mock_search:
-            mock_search.return_value = [
-                {
-                    "id": "1",
-                    "key": "test_key",
-                    "title": "Test Content",
-                    "url": "http://test.com",
-                    "chunks": [
-                        {
-                            "id": "chunk1",
-                            "text": "Test chunk",
-                            "startPage": 1,
-                            "endPage": 1,
-                            "order": 1,
-                        }
-                    ],
-                    "createdAt": "2021-01-01T00:00:00Z",
-                    "updatedAt": "2021-01-01T00:00:00Z",
-                }
-            ]
+            mock_search.return_value = [mock_content_with_chunks_response]
 
             result = self.service.search_contents(where={"key": "test_key"})
 
@@ -119,9 +201,9 @@ class TestContentServiceUnit:
             assert result[0].chunks[0].chunk_id == "chunk1"
 
             mock_search.assert_called_once_with(
-                user_id="test_user",
-                company_id="test_company",
-                chatId="test_chat",
+                user_id=self.TEST_USER_ID,
+                company_id=self.TEST_COMPANY_ID,
+                chatId=self.TEST_CHAT_ID,
                 where={"key": "test_key"},
             )
 
@@ -168,9 +250,9 @@ class TestContentServiceUnit:
             assert result[0].text == "Test chunk"
 
             mock_create.assert_called_once_with(
-                user_id="test_user",
-                company_id="test_company",
-                chatId="test_chat",
+                user_id=self.TEST_USER_ID,
+                company_id=self.TEST_COMPANY_ID,
+                chatId=self.TEST_CHAT_ID,
                 searchString="test",
                 searchType="COMBINED",
                 scopeIds=["scope1", "scope2"],
@@ -178,11 +260,7 @@ class TestContentServiceUnit:
                 reranker=None,
                 language="english",
                 chatOnly=None,
-                metaDataFilter={
-                    "path": ["key"],
-                    "operator": "equals",
-                    "value": "test_key",
-                },
+                metaDataFilter=None,
                 contentIds=None,
                 scoreThreshold=None,
             )
@@ -222,9 +300,9 @@ class TestContentServiceUnit:
             assert result[0].chunks[0].chunk_id == "chunk1"
 
             mock_search.assert_called_once_with(
-                user_id="test_user",
-                chatId="test_chat",
-                company_id="test_company",
+                user_id=self.TEST_USER_ID,
+                chatId=self.TEST_CHAT_ID,
+                company_id=self.TEST_COMPANY_ID,
                 where={"key": "test_key"},
             )
 
@@ -266,52 +344,18 @@ class TestContentServiceUnit:
             )
 
     @patch("requests.put")
-    def test_upload_content(self, mock_put):
+    def test_upload_content(self, mock_put, mock_content_response, ingestion_config):
         with patch.object(unique_sdk.Content, "upsert") as mock_upsert:
-            mock_upsert.return_value = {
-                "id": "test_content_id",
-                "key": "test.txt",
-                "title": "test.txt",
-                "mimeType": "text/plain",
-                "byteSize": 100,
-                "writeUrl": "http://test-write-url.com",
-                "readUrl": "http://test-read-url.com",
-            }
-            # Create a temporary file for testing
-            with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-                temp_file.write(b"Test content")
-                temp_content_path = temp_file.name
+            temp_content_path = self.create_temp_file()
+            metadata = {"folderIdPath": "uniquepathid://scope_id"}
 
-            ingestion_config = {
-                "chunkStrategy": "default",
-                "uniqueIngestionMode": "standard",
-            }
-            metadata = {
-                "folderIdPath": "uniquepathid://scope_id",
-            }
-
+            # Setup mock responses for two upsert calls
             mock_upsert.side_effect = [
+                mock_content_response,
                 {
-                    "id": "test_content_id",
-                    "key": "test.txt",
-                    "title": "test.txt",
-                    "mimeType": "text/plain",
-                    "byteSize": 100,
-                    "writeUrl": "http://test-write-url.com",
-                    "readUrl": "http://test-read-url.com",
-                },
-                {
-                    "id": "test_content_id",
-                    "key": "test.txt",
-                    "title": "test.txt",
-                    "mimeType": "text/plain",
-                    "byteSize": 100,
-                    "writeUrl": "http://test-write-url.com",
-                    "readUrl": "http://test-read-url.com",
+                    **mock_content_response,
                     "ingestionConfig": ingestion_config,
-                    "metadata": {
-                        "folderIdPath": "uniquepathid://scope_id",
-                    },
+                    "metadata": metadata,
                 },
             ]
 
@@ -319,74 +363,33 @@ class TestContentServiceUnit:
                 path_to_content=temp_content_path,
                 content_name="test.txt",
                 mime_type="text/plain",
-                scope_id="test_scope",
+                scope_id=self.TEST_SCOPE_ID,
                 ingestion_config=ingestion_config,
                 metadata=metadata,
             )
 
-            assert isinstance(result, Content)
-            assert result.id == "test_content_id"
-            assert result.write_url == "http://test-write-url.com"
-            assert result.read_url == "http://test-read-url.com"
+            self.assert_content_result(result, self.TEST_CONTENT_ID)
+            self.assert_put_call(mock_put)
+            self.assert_upsert_call(mock_upsert, self.TEST_SCOPE_ID, 0)
 
-            mock_put.assert_called_once_with(
-                url="http://test-write-url.com",
-                data=ANY,
-                headers={
-                    "X-Ms-Blob-Content-Type": "text/plain",
-                    "X-Ms-Blob-Type": "BlockBlob",
-                },
-            )
-
-            # Clean up the temporary file
+            # Clean up
             os.unlink(temp_content_path)
 
     @patch("requests.put")
-    def test_upload_content_from_bytes(self, mock_put):
+    def test_upload_content_from_bytes(
+        self, mock_put, mock_content_response, ingestion_config
+    ):
         with patch.object(unique_sdk.Content, "upsert") as mock_upsert:
-            mock_upsert.return_value = {
-                "id": "test_content_id",
-                "key": "test.txt",
-                "title": "test.txt",
-                "mimeType": "text/plain",
-                "byteSize": 100,
-                "writeUrl": "http://test-write-url.com",
-                "readUrl": "http://test-read-url.com",
-            }
-            # Create a temporary file for testing
             content = b"Test content"
+            metadata = {"folderIdPath": "uniquepathid://scope_id"}
 
-            ingestion_config = {
-                "chunkStrategy": "default",
-                "uniqueIngestionMode": "standard",
-            }
-
-            metadata = {
-                "folderIdPath": "uniquepathid://scope_id",
-            }
-
+            # Setup mock responses for two upsert calls
             mock_upsert.side_effect = [
+                mock_content_response,
                 {
-                    "id": "test_content_id",
-                    "key": "test.txt",
-                    "title": "test.txt",
-                    "mimeType": "text/plain",
-                    "byteSize": 100,
-                    "writeUrl": "http://test-write-url.com",
-                    "readUrl": "http://test-read-url.com",
-                },
-                {
-                    "id": "test_content_id",
-                    "key": "test.txt",
-                    "title": "test.txt",
-                    "mimeType": "text/plain",
-                    "byteSize": 100,
-                    "writeUrl": "http://test-write-url.com",
-                    "readUrl": "http://test-read-url.com",
+                    **mock_content_response,
                     "ingestionConfig": ingestion_config,
-                    "metadata": {
-                        "folderIdPath": "uniquepathid://scope_id",
-                    },
+                    "metadata": metadata,
                 },
             ]
 
@@ -394,24 +397,14 @@ class TestContentServiceUnit:
                 content=content,
                 content_name="test.txt",
                 mime_type="text/plain",
-                scope_id="test_scope",
+                scope_id=self.TEST_SCOPE_ID,
                 ingestion_config=ingestion_config,
                 metadata=metadata,
             )
 
-            assert isinstance(result, Content)
-            assert result.id == "test_content_id"
-            assert result.write_url == "http://test-write-url.com"
-            assert result.read_url == "http://test-read-url.com"
-
-            mock_put.assert_called_once_with(
-                url="http://test-write-url.com",
-                data=ANY,
-                headers={
-                    "X-Ms-Blob-Content-Type": "text/plain",
-                    "X-Ms-Blob-Type": "BlockBlob",
-                },
-            )
+            self.assert_content_result(result, self.TEST_CONTENT_ID)
+            self.assert_put_call(mock_put)
+            self.assert_upsert_call(mock_upsert, self.TEST_SCOPE_ID, 0)
 
     @patch("requests.put")
     def test_upload_with_skip_ingestion_content(self, mock_put):
@@ -467,8 +460,8 @@ class TestContentServiceUnit:
 
             # First upsert call
             first_upsert_call = mock_upsert.call_args_list[0]
-            assert first_upsert_call[1]["user_id"] == "test_user"
-            assert first_upsert_call[1]["company_id"] == "test_company"
+            assert first_upsert_call[1]["user_id"] == self.TEST_USER_ID
+            assert first_upsert_call[1]["company_id"] == self.TEST_COMPANY_ID
             assert first_upsert_call[1]["input"] == {
                 "key": "test.txt",
                 "title": "test.txt",
@@ -488,8 +481,8 @@ class TestContentServiceUnit:
 
             # Second upsert call
             second_upsert_call = mock_upsert.call_args_list[1]
-            assert second_upsert_call[1]["user_id"] == "test_user"
-            assert second_upsert_call[1]["company_id"] == "test_company"
+            assert second_upsert_call[1]["user_id"] == self.TEST_USER_ID
+            assert second_upsert_call[1]["company_id"] == self.TEST_COMPANY_ID
             assert second_upsert_call[1]["input"] == {
                 "key": "test.txt",
                 "title": "test.txt",
@@ -515,7 +508,7 @@ class TestContentServiceUnit:
         mock_get.return_value = mock_response
 
         result = self.service.download_content(
-            content_id="test_content_id",
+            content_id=self.TEST_CONTENT_ID,
             content_name="test.txt",
             chat_id="test_chat_id",
         )
@@ -525,7 +518,7 @@ class TestContentServiceUnit:
         assert result.name == "test.txt"
         assert result.read_bytes() == b"Test content"
 
-        # Clean up the temporary file
+        # Clean up
         result.unlink()
         result.parent.rmdir()
 
@@ -537,7 +530,7 @@ class TestContentServiceUnit:
         mock_get.return_value = mock_response
 
         result = self.service.download_content_to_bytes(
-            content_id="test_content_id",
+            content_id=self.TEST_CONTENT_ID,
             chat_id="test_chat_id",
         )
 
@@ -607,8 +600,8 @@ class TestContentServiceUnit:
             assert result[0].id == "1"
 
             mock_search.assert_called_once_with(
-                user_id="test_user",
-                company_id="test_company",
+                user_id=self.TEST_USER_ID,
+                company_id=self.TEST_COMPANY_ID,
                 chatId="chat_id",
                 where={"ownerId": {"equals": "chat_id"}},
             )
@@ -633,12 +626,12 @@ class TestContentServiceUnit:
         assert result.read_bytes() == b"Test content"
 
         mock_get.assert_called_once_with(
-            f"{unique_sdk.api_base}/content/test_content_id/file?chatId=test_chat",
+            f"{unique_sdk.api_base}/content/test_content_id/file?chatId={self.TEST_CHAT_ID}",
             headers={
                 "x-api-version": unique_sdk.api_version,
                 "x-app-id": unique_sdk.app_id,
-                "x-user-id": "test_user",
-                "x-company-id": "test_company",
+                "x-user-id": self.TEST_USER_ID,
+                "x-company-id": self.TEST_COMPANY_ID,
                 "Authorization": "Bearer %s" % (unique_sdk.api_key,),
             },
         )
@@ -662,8 +655,8 @@ class TestContentServiceUnit:
             headers={
                 "x-api-version": unique_sdk.api_version,
                 "x-app-id": unique_sdk.app_id,
-                "x-user-id": "test_user",
-                "x-company-id": "test_company",
+                "x-user-id": self.TEST_USER_ID,
+                "x-company-id": self.TEST_COMPANY_ID,
                 "Authorization": "Bearer %s" % (unique_sdk.api_key,),
             },
         )
@@ -687,8 +680,8 @@ class TestContentServiceUnit:
             headers={
                 "x-api-version": unique_sdk.api_version,
                 "x-app-id": unique_sdk.app_id,
-                "x-user-id": "test_user",
-                "x-company-id": "test_company",
+                "x-user-id": self.TEST_USER_ID,
+                "x-company-id": self.TEST_COMPANY_ID,
                 "Authorization": "Bearer %s" % (unique_sdk.api_key,),
             },
         )
@@ -712,8 +705,8 @@ class TestContentServiceUnit:
             headers={
                 "x-api-version": unique_sdk.api_version,
                 "x-app-id": unique_sdk.app_id,
-                "x-user-id": "test_user",
-                "x-company-id": "test_company",
+                "x-user-id": self.TEST_USER_ID,
+                "x-company-id": self.TEST_COMPANY_ID,
                 "Authorization": "Bearer %s" % (unique_sdk.api_key,),
             },
         )
@@ -731,12 +724,12 @@ class TestContentServiceUnit:
         assert result.content == b"Test content"
 
         mock_get.assert_called_once_with(
-            f"{unique_sdk.api_base}/content/test_content_id/file?chatId=test_chat",
+            f"{unique_sdk.api_base}/content/test_content_id/file?chatId={self.TEST_CHAT_ID}",
             headers={
                 "x-api-version": unique_sdk.api_version,
                 "x-app-id": unique_sdk.app_id,
-                "x-user-id": "test_user",
-                "x-company-id": "test_company",
+                "x-user-id": self.TEST_USER_ID,
+                "x-company-id": self.TEST_COMPANY_ID,
                 "Authorization": "Bearer %s" % (unique_sdk.api_key,),
             },
         )
@@ -761,12 +754,12 @@ class TestContentServiceUnit:
         assert result.read_bytes() == b"Test content"
 
         mock_get.assert_called_once_with(
-            f"{unique_sdk.api_base}/content/test_content_id/file?chatId=test_chat",
+            f"{unique_sdk.api_base}/content/test_content_id/file?chatId={self.TEST_CHAT_ID}",
             headers={
                 "x-api-version": unique_sdk.api_version,
                 "x-app-id": unique_sdk.app_id,
-                "x-user-id": "test_user",
-                "x-company-id": "test_company",
+                "x-user-id": self.TEST_USER_ID,
+                "x-company-id": self.TEST_COMPANY_ID,
                 "Authorization": "Bearer %s" % (unique_sdk.api_key,),
             },
         )
@@ -782,12 +775,12 @@ class TestContentServiceUnit:
             self.service.download_content_to_file_by_id(content_id="test_content_id")
 
         mock_get.assert_called_once_with(
-            f"{unique_sdk.api_base}/content/test_content_id/file?chatId=test_chat",
+            f"{unique_sdk.api_base}/content/test_content_id/file?chatId={self.TEST_CHAT_ID}",
             headers={
                 "x-api-version": unique_sdk.api_version,
                 "x-app-id": unique_sdk.app_id,
-                "x-user-id": "test_user",
-                "x-company-id": "test_company",
+                "x-user-id": self.TEST_USER_ID,
+                "x-company-id": self.TEST_COMPANY_ID,
                 "Authorization": "Bearer %s" % (unique_sdk.api_key,),
             },
         )
@@ -795,8 +788,8 @@ class TestContentServiceUnit:
     def test_init_with_chat_event(self):
         """Test initialization with ChatEvent"""
         chat_event = get_event_obj(
-            user_id="test_user",
-            company_id="test_company",
+            user_id=self.TEST_USER_ID,
+            company_id=self.TEST_COMPANY_ID,
             chat_id="test_chat",
             assistant_id="test_assistant",
             metadata_filter={
@@ -807,8 +800,8 @@ class TestContentServiceUnit:
         )
         service = ContentService(chat_event)
 
-        assert service.company_id == "test_company"
-        assert service.user_id == "test_user"
+        assert service.company_id == self.TEST_COMPANY_ID
+        assert service.user_id == self.TEST_USER_ID
         assert service.metadata_filter == {
             "path": ["key"],
             "operator": "equals",
@@ -872,7 +865,7 @@ class TestContentServiceUnit:
                     created_at="2021-01-01T00:00:00Z",
                     language="english",
                 ),
-                chat_id="test_chat",
+                chat_id=self.TEST_CHAT_ID,
                 assistant_id="test_assistant",
                 metadata_filter={
                     "path": ["key"],
