@@ -1,7 +1,4 @@
-name: "[chore] Unique Toolkit -Enforce Changelog and Version Bump"
-
-env:
-  PACKAGE: unique_toolkit
+name: "[chore] Unique Toolkit - Enforce Changelog and Version Bump"
 
 on: 
   pull_request:
@@ -20,42 +17,7 @@ jobs:
       with:
         fetch-depth: 0  # Fetch full history for proper diff comparison
 
-    - name: Validate CHANGELOG.md and version bump
-      run: |
-        # Get the merge base between the PR and target branch  
-        git fetch origin ${{ github.base_ref }}
-        MERGE_BASE=$(git merge-base HEAD origin/${{ github.base_ref }})
-        
-        echo "🔍 Validating package: ${{ env.PACKAGE }}"
-        
-        # Check CHANGELOG.md is updated
-        if ! git diff --name-only $MERGE_BASE..HEAD | grep -q "^${{ env.PACKAGE }}/CHANGELOG.md$"; then
-          echo "❌ Error: ${{ env.PACKAGE }}/CHANGELOG.md must be updated in this PR"
-          echo "Please add an entry to the changelog describing your changes."
-          exit 1
-        else
-          echo "✅ ${{ env.PACKAGE }}/CHANGELOG.md has been updated"
-        fi
-        
-        # Check pyproject.toml exists and has been modified
-        if ! git diff --name-only $MERGE_BASE..HEAD | grep -q "^${{ env.PACKAGE }}/pyproject.toml$"; then
-          echo "❌ Error: ${{ env.PACKAGE }}/pyproject.toml must be updated in this PR"
-          echo "Please update the version in pyproject.toml to reflect your changes."
-          exit 1
-        fi
-        
-        # Extract and compare versions
-        BASE_VERSION=$(git show $MERGE_BASE:${{ env.PACKAGE }}/pyproject.toml | grep -E '^version\s*=' | sed -E 's/version\s*=\s*"([^"]+)"/\1/')
-        CURRENT_VERSION=$(grep -E '^version\s*=' ${{ env.PACKAGE }}/pyproject.toml | sed -E 's/version\s*=\s*"([^"]+)"/\1/')
-        
-        echo "Base branch version: $BASE_VERSION"
-        echo "Current branch version: $CURRENT_VERSION"
-        
-        if [ "$BASE_VERSION" = "$CURRENT_VERSION" ]; then
-          echo "❌ Error: Version in ${{ env.PACKAGE }}/pyproject.toml has not been updated"
-          echo "Please bump the version number to reflect your changes."
-          echo "Current version: $CURRENT_VERSION"
-          exit 1
-        else
-          echo "✅ Version has been updated from $BASE_VERSION to $CURRENT_VERSION"
-        fi
+    - name: Validate changelog and version
+      uses: ./.github/actions/validate-changelog
+      with:
+        package_name: "unique_toolkit"
