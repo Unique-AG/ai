@@ -2,6 +2,17 @@
 
 Integration tests that validate the generated SDK code against the actual Unique API.
 
+## ⚠️ Important: Regenerate Routes First
+
+Before running integration tests, regenerate all routes with the latest generator:
+
+```bash
+cd unique_toolkit/generated
+poetry run python generate_routes.py
+```
+
+This ensures all operations have correct type signatures and parameter names.
+
 ## Setup
 
 1. **Copy environment template:**
@@ -21,6 +32,9 @@ Integration tests that validate the generated SDK code against the actual Unique
    TEST_CHAT_ID=existing_chat_for_testing
    TEST_FOLDER_SCOPE_ID=existing_folder_for_testing
    TEST_ASSISTANT_ID=your_assistant_id
+   TEST_CONTENT_ID=existing_content_for_testing
+   TEST_MESSAGE_ID=existing_message_for_testing
+   TEST_TABLE_ID=existing_table_for_testing
    ```
 
 3. **Run tests:**
@@ -30,23 +44,25 @@ Integration tests that validate the generated SDK code against the actual Unique
 
 ## Test Files
 
-### `test_folder_crud.py`
-Tests folder CRUD operations:
-- Create folder structure
-- Update folder properties
-- Delete folder
-- Get folder info
+### CRUD Operations
+- **test_folder_crud.py** - Folder create/update/delete cycle
+- **test_messages.py** - Message lifecycle (create -> read -> delete)
+- **test_content.py** - Content upsert and deletion
+- **test_chunk.py** - Chunk creation (single and batch)
+- **test_short_term_memory.py** - Memory create and find latest
+- **test_magic_table.py** - Table operations (rows, cells)
 
-### `test_messages.py`
-Tests message operations:
-- Create message
-- Find all messages for chat
-- Complete message lifecycle (create -> read -> delete)
+### Read-Only Operations
+- **test_search.py** - Search and search-string operations  
+- **test_company.py** - Company resources (acronyms)
+- **test_openai_proxy.py** - OpenAI completions and embeddings
 
-### `test_search.py`
-Tests search functionality:
-- Search with query
-- String search
+### Other Operations
+- **test_message_assessment.py** - Message assessment CRUD
+- **test_message_log.py** - Message execution logging
+- **test_agent.py** - Agent execution
+- **test_mcp.py** - MCP tool calling
+- **test_space.py** - Space and chat management
 
 ## Running Tests
 
@@ -65,6 +81,23 @@ poetry run pytest unique_toolkit/generated/generator/tests/integration/ -v
 # (tests will auto-skip with helpful message)
 ```
 
+## Verifying Test Code Before Running
+
+Use pyright to check for parameter errors:
+
+```bash
+# Check all integration tests
+pyright unique_toolkit/generated/generator/tests/integration/
+
+# Check specific file
+pyright unique_toolkit/generated/generator/tests/integration/test_messages.py
+```
+
+Common issues:
+- "No parameter named X" - Routes need regeneration
+- "is not a known attribute" - Operation name incorrect or route not generated
+- Missing required parameters - Check the generated models for required fields
+
 ## Test Patterns
 
 ### CRUD Pattern
@@ -74,23 +107,33 @@ def test_resource_crud__create_update_delete__succeeds(request_context):
     resource_id = None
     try:
         # Create
-        response = unique_SDK.resource.Create.request(context=request_context, ...)
-        resource_id = response.id
+        response = unique_SDK.resource.Create.request(
+            context=request_context,
+            field1="value1",  # Use snake_case field names
+            field2="value2",
+        )
+        resource_id = response.id if hasattr(response, "id") else response.get("id")
         
         # Update
         unique_SDK.resource.id.Update.request(
-            context=request_context, id=resource_id, ...
+            context=request_context, 
+            id=resource_id,
+            field1="updated_value",
         )
         
         # Delete
         unique_SDK.resource.id.Delete.request(
-            context=request_context, id=resource_id
+            context=request_context, 
+            id=resource_id
         )
         resource_id = None
     finally:
         # Cleanup
         if resource_id:
-            unique_SDK.resource.id.Delete.request(...)
+            unique_SDK.resource.id.Delete.request(
+                context=request_context,
+                id=resource_id
+            )
 ```
 
 ### Read-Only Pattern
@@ -99,12 +142,15 @@ def test_resource_crud__create_update_delete__succeeds(request_context):
 def test_resource_read__retrieves_data__successfully(request_context, integration_env):
     # Use existing resource ID from environment
     resource_id = integration_env["test_resource_id"]
+    if not resource_id:
+        pytest.skip("TEST_RESOURCE_ID required")
     
     response = unique_SDK.resource.id.Get.request(
-        context=request_context, id=resource_id
+        context=request_context, 
+        id=resource_id
     )
     
-    assert response.id == resource_id
+    assert response is not None
 ```
 
 ## Cleanup
@@ -113,8 +159,9 @@ Tests use `cleanup_items` fixture to track created resources:
 
 ```python
 def test_creates_resource(request_context, cleanup_items):
-    response = unique_SDK.resource.Create.request(...)
-    cleanup_items.append(("resource", response.id))
+    response = unique_SDK.resource.Create.request(context=request_context, ...)
+    resource_id = response.id if hasattr(response, "id") else response.get("id")
+    cleanup_items.append(("resource", resource_id))
     # Cleanup happens automatically in fixture teardown
 ```
 
@@ -161,3 +208,14 @@ pytest tests/integration/
 - Check base URL is correct for your environment
 - Ensure API version matches your setup
 
+### "No parameter named X"
+- **Solution:** Regenerate all routes first:
+  ```bash
+  poetry run python unique_toolkit/generated/generate_routes.py
+  ```
+- This happens when routes were generated before the latest generator improvements
+
+### "Operation is not a known attribute"
+- Check operation name capitalization matches generated code
+- Verify the endpoint path exists in OpenAPI spec
+- Regenerate routes if operation was recently added
