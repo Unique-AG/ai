@@ -56,11 +56,21 @@ def generate_model_content(
     return content
 
 
-def extract_class_definitions(content: str) -> str:
-    """Extract only class definitions from generated content, removing imports and header comments."""
+def extract_class_definitions(content: str, target_class: str = None) -> str:
+    """Extract class definitions from generated content.
+
+    Args:
+        content: Generated Python code content
+        target_class: If specified, extract only this class and put it first
+
+    Returns:
+        Extracted class definitions
+    """
     lines = content.split("\n")
-    class_lines = []
     in_class = False
+    current_class_lines = []
+    current_class_name = None
+    all_classes = {}  # class_name -> lines
 
     for line in lines:
         # Skip header comments and imports
@@ -68,29 +78,63 @@ def extract_class_definitions(content: str) -> str:
             line.startswith("#")
             or line.startswith("from ")
             or line.startswith("import ")
-            or line.strip() == ""
-            and not in_class
+            or (line.strip() == "" and not in_class)
         ):
             continue
 
         # Check if we're starting a class definition
         if line.startswith("class "):
+            # Save previous class if any
+            if current_class_name and current_class_lines:
+                all_classes[current_class_name] = current_class_lines[:]
+
+            # Extract class name
+            import re
+
+            match = re.match(r"class\s+(\w+)", line)
+            current_class_name = match.group(1) if match else None
+            current_class_lines = [line]
             in_class = True
-            class_lines.append(line)
         elif in_class:
             if line.startswith(" ") or line.strip() == "":
                 # Still inside the class
-                class_lines.append(line)
+                current_class_lines.append(line)
             else:
-                # End of class, check if this is another class
-                if line.startswith("class "):
-                    class_lines.append("")  # Add blank line between classes
-                    class_lines.append(line)
-                else:
-                    # Not a class, we're done with this class
-                    in_class = False
+                # End of class
+                if current_class_name and current_class_lines:
+                    all_classes[current_class_name] = current_class_lines[:]
+                current_class_lines = []
+                current_class_name = None
+                in_class = False
 
-    return "\n".join(class_lines)
+                # Check if this line starts another class
+                if line.startswith("class "):
+                    match = re.match(r"class\s+(\w+)", line)
+                    current_class_name = match.group(1) if match else None
+                    current_class_lines = [line]
+                    in_class = True
+
+    # Save last class
+    if current_class_name and current_class_lines:
+        all_classes[current_class_name] = current_class_lines[:]
+
+    # Build output - target class first if specified, then rest
+    output_lines = []
+    if target_class and target_class in all_classes:
+        output_lines.extend(all_classes[target_class])
+        output_lines.append("")
+        for class_name, lines in all_classes.items():
+            if class_name != target_class:
+                output_lines.append("")
+                output_lines.extend(lines)
+    else:
+        # No target or target not found, return all classes
+        for class_name, lines in all_classes.items():
+            if output_lines:
+                output_lines.append("")
+            output_lines.extend(lines)
+
+    return "\n".join(output_lines)
 
 
 def create_simple_model_from_schema(
@@ -157,7 +201,7 @@ def generate_model_from_schema(
         # Try full model generation first
         if isinstance(resolved_schema, dict):
             content = generate_model_content(resolved_schema, class_name)
-            if class_def := extract_class_definitions(content).strip():
+            if class_def := extract_class_definitions(content, class_name).strip():
                 return class_def
     except Exception as e:
         print(f"    - Schema error: {e}")

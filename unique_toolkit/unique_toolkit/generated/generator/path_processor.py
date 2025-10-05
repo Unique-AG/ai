@@ -293,7 +293,15 @@ class PathProcessor:
                                 if status_code.startswith("2")
                                 else f"{base_response_name}{status_code}"
                             )
-                            schema_dict = content_details.media_type_schema.model_dump()
+                            # Resolve reference if needed
+                            schema = resolve_reference(
+                                content_details.media_type_schema, self.raw_spec
+                            )
+                            schema_dict = (
+                                schema
+                                if isinstance(schema, dict)
+                                else content_details.media_type_schema.model_dump()
+                            )
 
                             model = generate_model_from_schema(
                                 schema_dict, title, self.raw_spec

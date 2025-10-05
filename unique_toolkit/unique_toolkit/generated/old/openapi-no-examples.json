@@ -1,0 +1,4252 @@
+{
+  "openapi": "3.1.0",
+  "paths": {
+    "/public/messages": {
+      "get": {
+        "operationId": "PublicMessageController_findAll",
+        "parameters": [
+          {
+            "name": "chatId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved messages for the chat.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListObjectDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "messages"
+        ]
+      },
+      "post": {
+        "operationId": "PublicMessageController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicCreateMessageDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successfully created a new message.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicMessageDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "messages"
+        ]
+      }
+    },
+    "/public/messages/{id}": {
+      "get": {
+        "operationId": "PublicMessageController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "chatId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved the message.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicMessageDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "messages"
+        ]
+      },
+      "patch": {
+        "operationId": "PublicMessageController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicUpdateMessageDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successfully updated the message.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicMessageDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "messages"
+        ]
+      },
+      "delete": {
+        "operationId": "PublicMessageController_delete",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "chatId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully deleted the message.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletedObjectDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "messages"
+        ]
+      }
+    },
+    "/public/openai/chat/completions": {
+      "post": {
+        "operationId": "PublicOpenaiController_createChatCompletion",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicCreateChatCompletionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successfully created chat completion.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatCompletionsDtoOld"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "openai"
+        ]
+      }
+    },
+    "/public/openai/embeddings": {
+      "post": {
+        "operationId": "PublicOpenaiController_createEmbeddings",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateEmbeddingsRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successfully created embeddings.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmbeddingsResultDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "openai"
+        ]
+      }
+    },
+    "/public/search/search-string": {
+      "post": {
+        "operationId": "PublicSearchController_createSearchString",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicCreateSearchStringDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successfully created a search string.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicSearchStringDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "search"
+        ]
+      }
+    },
+    "/public/search/search": {
+      "post": {
+        "operationId": "PublicSearchController_search",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicCreateSearchDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successfully performed search and returned results.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListObjectDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "search"
+        ]
+      }
+    },
+    "/public/content/search": {
+      "post": {
+        "operationId": "PublicContentController_search",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successfully searched content.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PublicContentDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "content"
+        ]
+      }
+    },
+    "/public/content/info": {
+      "post": {
+        "operationId": "PublicContentController_getContentInfo",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContentInfoDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved content information.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicContentInfoResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "content"
+        ]
+      }
+    },
+    "/public/content/upsert": {
+      "post": {
+        "operationId": "PublicContentController_upsert",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContentUpsertDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successfully upserted content.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicContentUpsertMutationDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "content"
+        ]
+      }
+    },
+    "/public/content/query-table": {
+      "post": {
+        "operationId": "PublicContentController_queryTable",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QueryTableRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successfully queried table data.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueryTableAnswertDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "content"
+        ]
+      }
+    },
+    "/public/content/export/excel": {
+      "post": {
+        "operationId": "PublicContentController_exportExcel",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExcelExportRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successfully exported content to Excel.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExcelExportResultDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "content"
+        ]
+      }
+    },
+    "/public/content/table-atttributes": {
+      "get": {
+        "operationId": "PublicContentController_tableAttributes",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TableConfigDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved table attributes.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "content"
+        ]
+      }
+    },
+    "/public/content/{id}/file": {
+      "get": {
+        "operationId": "PublicContentController_fileContent",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "chatId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved file content stream.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "content"
+        ]
+      }
+    },
+    "/public/integrated/chat/stream-completions": {
+      "post": {
+        "operationId": "PublicIntegratedController_stream",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicStreamMessageDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successfully created stream completion.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicStreamResultDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "integrated"
+        ]
+      }
+    },
+    "/public/short-term-memory": {
+      "post": {
+        "operationId": "PublicShortTermMemoryController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShortTermMemoryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successfully processed short-term memory request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShortTermMemoryResultDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "short-term-memory"
+        ]
+      }
+    },
+    "/public/short-term-memory/find-latest": {
+      "post": {
+        "operationId": "PublicShortTermMemoryController_findLatest",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShortTermMemoryRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved latest short-term memory or null if not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShortTermMemoryResultDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "short-term-memory"
+        ]
+      }
+    },
+    "/public/company/acronyms": {
+      "get": {
+        "operationId": "PublicCompanyController_getCompanyAcronyms",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved company acronyms.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CompanyAcronymDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "company"
+        ]
+      }
+    },
+    "/public/chunk": {
+      "post": {
+        "operationId": "PublicChunkController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChunkCreateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successfully created a chunk.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicChunkCreateMutationDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "chunk"
+        ]
+      }
+    },
+    "/public/chunk/createMany": {
+      "post": {
+        "operationId": "PublicChunkController_createMany",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChunkCreateManyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successfully created multiple chunks.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListObjectDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "chunk"
+        ]
+      }
+    },
+    "/public/magic-table/{tableId}/cell": {
+      "post": {
+        "operationId": "PublicMagicTableController_setMagicTableCell",
+        "parameters": [
+          {
+            "name": "tableId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicCreateMagicTableCellDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successfully set magic table cell.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicMagicTableCellDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "magic-table"
+        ]
+      },
+      "get": {
+        "operationId": "PublicMagicTableController_getMagicTableCell",
+        "parameters": [
+          {
+            "name": "tableId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "rowOrder",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "columnOrder",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved magic table cell.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicMagicTableCellDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "magic-table"
+        ]
+      }
+    },
+    "/public/magic-table/{tableId}/row/{rowOrder}": {
+      "get": {
+        "operationId": "PublicMagicTableController_getMagicTableRow",
+        "parameters": [
+          {
+            "name": "tableId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "rowOrder",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved magic table row.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicMagicTableRowDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "magic-table"
+        ]
+      }
+    },
+    "/public/magic-table/{tableId}/activity": {
+      "post": {
+        "operationId": "PublicMagicTableController_sendActivityStatus",
+        "parameters": [
+          {
+            "name": "tableId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicMagicTableActivityDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successfully sent activity status.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "magic-table"
+        ]
+      }
+    },
+    "/public/magic-table/{tableId}/row": {
+      "delete": {
+        "operationId": "PublicMagicTableController_deleteTableRow",
+        "parameters": [
+          {
+            "name": "tableId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "rowOrder",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "magic-table"
+        ]
+      }
+    },
+    "/public/magic-table/{tableId}/column": {
+      "delete": {
+        "operationId": "PublicMagicTableController_deleteTableColumn",
+        "parameters": [
+          {
+            "name": "tableId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "columnOrder",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "magic-table"
+        ]
+      }
+    },
+    "/public/magic-table/{tableId}/artifact": {
+      "post": {
+        "operationId": "PublicMagicTableController_setMagicTableArtifact",
+        "parameters": [
+          {
+            "name": "tableId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicMagicTableArtifactDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "magic-table"
+        ]
+      }
+    },
+    "/public/magic-table/{tableId}": {
+      "post": {
+        "operationId": "PublicMagicTableController_updateMagicTableSheet",
+        "parameters": [
+          {
+            "name": "tableId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicUpdateMagicTableSheetDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "magic-table"
+        ]
+      },
+      "get": {
+        "operationId": "PublicMagicTableController_fetchMagicTableSheet",
+        "parameters": [
+          {
+            "name": "tableId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "includeCells",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "includeLogHistory",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "includeRowCount",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "includeCellMetaData",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "startRow",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "endRow",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved magic table sheet.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicMagicTableSheetDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "magic-table"
+        ]
+      }
+    },
+    "/public/magic-table/{tableId}/column/metadata": {
+      "post": {
+        "operationId": "PublicMagicTableController_setColumnMetaData",
+        "parameters": [
+          {
+            "name": "tableId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicSetMagicTableColumnMetaDataDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "magic-table"
+        ]
+      }
+    },
+    "/public/magic-table/{tableId}/cell/metadata": {
+      "post": {
+        "operationId": "PublicMagicTableController_setCellMetaData",
+        "parameters": [
+          {
+            "name": "tableId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicSetMagicTableCellMetaDataDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "magic-table"
+        ]
+      }
+    },
+    "/public/magic-table/{tableId}/library": {
+      "get": {
+        "operationId": "PublicMagicTableController_fetchSheetLibraryByMagicTableSheetId",
+        "parameters": [
+          {
+            "name": "tableId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "magic-table"
+        ]
+      }
+    },
+    "/public/message-assessment": {
+      "post": {
+        "operationId": "PublicMessageAssessmentController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicMessageAssessmentCreateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successfully created a message assessment.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicMessageAssessmentDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "message-assessment"
+        ]
+      }
+    },
+    "/public/message-assessment/{messageId}": {
+      "patch": {
+        "operationId": "PublicMessageAssessmentController_update",
+        "parameters": [
+          {
+            "name": "messageId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicMessageAssessmentUpdateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successfully updated the message assessment.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicMessageAssessmentDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "message-assessment"
+        ]
+      }
+    },
+    "/public/folder": {
+      "post": {
+        "operationId": "PublicFolderController_createFolderStructure",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicCreateFolderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successfully created folders.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicCreateFolderResultDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "folder"
+        ]
+      }
+    },
+    "/public/folder/{scopeId}/access": {
+      "patch": {
+        "operationId": "PublicFolderController_addFolderAccess",
+        "parameters": [
+          {
+            "name": "scopeId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddScopeAccessDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successfully added folder access.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicUpdateFolderAccessResultDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "folder"
+        ]
+      }
+    },
+    "/public/folder/{scopeId}/remove-access": {
+      "patch": {
+        "operationId": "PublicFolderController_removeAccess",
+        "parameters": [
+          {
+            "name": "scopeId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteScopeAccessDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successfully removed folder access.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicUpdateFolderAccessResultDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "folder"
+        ]
+      }
+    },
+    "/public/folder/{scopeId}/ingestion-config": {
+      "patch": {
+        "operationId": "PublicFolderController_updateFolderIngestionConfig",
+        "parameters": [
+          {
+            "name": "scopeId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateFolderIngestionConfigDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successfully updated folder ingestion config.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "folder"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "Node Chat Public API",
+    "description": "Public API endpoints for Node Chat service. All endpoints require authentication.",
+    "version": "2023-12-06",
+    "contact": {}
+  },
+  "tags": [
+    {
+      "name": "messages",
+      "description": "Message management operations"
+    },
+    {
+      "name": "content",
+      "description": "Content management and search operations"
+    },
+    {
+      "name": "search",
+      "description": "Search functionality"
+    },
+    {
+      "name": "openai",
+      "description": "OpenAI integration endpoints"
+    },
+    {
+      "name": "chunk",
+      "description": "Chunk management operations"
+    },
+    {
+      "name": "company",
+      "description": "Company-related operations"
+    },
+    {
+      "name": "folder",
+      "description": "Folder and scope management"
+    },
+    {
+      "name": "magic-table",
+      "description": "Magic table operations"
+    },
+    {
+      "name": "message-assessment",
+      "description": "Message assessment operations"
+    },
+    {
+      "name": "short-term-memory",
+      "description": "Short-term memory operations"
+    },
+    {
+      "name": "integrated",
+      "description": "Integrated chat operations"
+    }
+  ],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
+    "schemas": {
+      "ListObjectDto": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "description": "Object type identifier for list responses"
+          },
+          "data": {
+            "type": "array",
+            "description": "Array of data items",
+            "items": {
+              "type": "object",
+              "description": "Data item"
+            }
+          }
+        },
+        "required": [
+          "object",
+          "data"
+        ]
+      },
+      "ReferenceDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "nullable": true
+          },
+          "sequenceNumber": {
+            "type": "number"
+          },
+          "sourceId": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "sequenceNumber",
+          "sourceId",
+          "source"
+        ]
+      },
+      "PublicMessageDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the object"
+          },
+          "object": {
+            "type": "string",
+            "description": "Object type identifier"
+          },
+          "text": {
+            "type": "object",
+            "description": "Text content of the message",
+            "nullable": true
+          },
+          "originalText": {
+            "type": "object",
+            "description": "Original text before any processing",
+            "nullable": true
+          },
+          "chatId": {
+            "type": "object",
+            "description": "ID of the chat this message belongs to",
+            "nullable": true
+          },
+          "role": {
+            "type": "string",
+            "description": "Role of the message sender",
+            "enum": [
+              "SYSTEM",
+              "USER",
+              "ASSISTANT"
+            ]
+          },
+          "gptRequest": {
+            "type": "object",
+            "description": "GPT request data associated with the message",
+            "nullable": true
+          },
+          "debugInfo": {
+            "type": "object",
+            "description": "Debug information for the message",
+            "nullable": true
+          },
+          "completedAt": {
+            "type": "object",
+            "description": "Date when the message was completed",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "object",
+            "description": "Date when the message was created",
+            "nullable": true
+          },
+          "updatedAt": {
+            "type": "object",
+            "description": "Date when the message was last updated",
+            "nullable": true
+          },
+          "references": {
+            "description": "References associated with the message",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReferenceDto"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "object",
+          "text",
+          "originalText",
+          "chatId",
+          "role",
+          "gptRequest",
+          "debugInfo",
+          "completedAt",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "PublicCreateMessageDto": {
+        "type": "object",
+        "properties": {
+          "chatId": {
+            "type": "string"
+          },
+          "assistantId": {
+            "type": "string"
+          },
+          "originalText": {
+            "type": "string",
+            "nullable": true
+          },
+          "text": {
+            "type": "string",
+            "nullable": true
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "SYSTEM",
+              "USER",
+              "ASSISTANT"
+            ]
+          },
+          "references": {
+            "description": "References belonging to the message",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReferenceDto"
+            }
+          },
+          "gptRequest": {
+            "type": "object",
+            "nullable": true
+          },
+          "debugInfo": {
+            "type": "object",
+            "nullable": true
+          },
+          "completedAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "chatId",
+          "assistantId",
+          "role"
+        ]
+      },
+      "PublicUpdateMessageDto": {
+        "type": "object",
+        "properties": {
+          "chatId": {
+            "type": "string"
+          },
+          "originalText": {
+            "type": "string",
+            "nullable": true
+          },
+          "text": {
+            "type": "string",
+            "nullable": true
+          },
+          "references": {
+            "description": "References belonging to the message",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReferenceDto"
+            }
+          },
+          "gptRequest": {
+            "type": "object",
+            "nullable": true
+          },
+          "debugInfo": {
+            "type": "object",
+            "nullable": true
+          },
+          "completedAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "chatId"
+        ]
+      },
+      "DeletedObjectDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the object"
+          },
+          "object": {
+            "type": "string",
+            "description": "Object type identifier"
+          },
+          "deleted": {
+            "type": "boolean",
+            "description": "Indicates whether the object was successfully deleted"
+          }
+        },
+        "required": [
+          "id",
+          "object",
+          "deleted"
+        ]
+      },
+      "FunctionDefinition": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The name of the function to be called."
+          },
+          "description": {
+            "type": "string",
+            "description": "A description of what the function does."
+          },
+          "parameters": {
+            "type": "object",
+            "description": "The parameters the functions accepts, described as a JSON Schema object."
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "JSONSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The name of the response format. Must be a-z, A-Z, 0-9, or contain underscores and dashes, with a maximum length of 64."
+          },
+          "description": {
+            "type": "string",
+            "description": "A description of what the response format is for, used by the model to determine how to respond in the format."
+          },
+          "schema": {
+            "type": "object",
+            "description": "The schema for the response format, described as a JSON Schema object."
+          },
+          "strict": {
+            "type": "boolean",
+            "description": "Whether to enable strict schema adherence when generating the output."
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "ChatCompletionsTextResponseFormat": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "text",
+              "json_object",
+              "json_schema"
+            ]
+          },
+          "json_schema": {
+            "description": "The JSON Schema for the response format.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/JSONSchema"
+              }
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "json_schema"
+        ]
+      },
+      "ChatCompletionsFunctionToolDefinition": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "function": {
+            "$ref": "#/components/schemas/FunctionDefinition"
+          }
+        },
+        "required": [
+          "type",
+          "function"
+        ]
+      },
+      "ChatCompletionsNamedFunctionToolSelectionName": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The name of the function to call."
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "ChatCompletionsNamedFunctionToolSelection": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "function": {
+            "$ref": "#/components/schemas/ChatCompletionsNamedFunctionToolSelectionName"
+          }
+        },
+        "required": [
+          "type",
+          "function"
+        ]
+      },
+      "GetChatCompletionsOptions": {
+        "type": "object",
+        "properties": {
+          "functions": {
+            "description": "A list of functions the model may generate JSON inputs for.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FunctionDefinition"
+            }
+          },
+          "function_call": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "none"
+            ],
+            "description": "Controls how the model responds to function calls."
+          },
+          "max_tokens": {
+            "type": "number",
+            "description": "The maximum number of tokens to generate."
+          },
+          "temperature": {
+            "type": "number",
+            "description": "The sampling temperature to use that controls the apparent creativity of generated completions."
+          },
+          "top_p": {
+            "type": "number",
+            "description": "An alternative to sampling with temperature called nucleus sampling."
+          },
+          "logit_bias": {
+            "type": "object",
+            "description": "A map between GPT token IDs and bias scores that influences the probability of specific tokens appearing in a completions response."
+          },
+          "user": {
+            "type": "string",
+            "description": "An identifier for the caller or end user of the operation."
+          },
+          "n": {
+            "type": "number",
+            "description": "The number of chat completions choices that should be generated for a chat completions response."
+          },
+          "stop": {
+            "description": "A collection of textual sequences that will end completions generation.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "presence_penalty": {
+            "type": "number",
+            "description": "A value that influences the probability of generated tokens appearing based on their existing presence in generated text."
+          },
+          "frequency_penalty": {
+            "type": "number",
+            "description": "A value that influences the probability of generated tokens appearing based on their cumulative frequency in generated text."
+          },
+          "seed": {
+            "type": "number",
+            "description": "If specified, the system will make a best effort to sample deterministically."
+          },
+          "response_format": {
+            "description": "An object specifying the format that the model must output. Used to enable JSON mode.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ChatCompletionsTextResponseFormat"
+              }
+            ]
+          },
+          "tools": {
+            "description": "The available tool definitions that the chat completions request can use, including caller-defined functions.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatCompletionsFunctionToolDefinition"
+            }
+          },
+          "tool_choice": {
+            "description": "If specified, the model will configure which of the provided tools it can use for the chat completions response.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ChatCompletionsNamedFunctionToolSelection"
+              }
+            ]
+          }
+        }
+      },
+      "PublicCreateChatCompletionDto": {
+        "type": "object",
+        "properties": {
+          "model": {
+            "type": "string"
+          },
+          "timeout": {
+            "type": "number"
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/ChatRequestSystemMessage"
+                },
+                {
+                  "$ref": "#/components/schemas/ChatRequestUserMessage"
+                },
+                {
+                  "$ref": "#/components/schemas/ChatRequestAssistantMessage"
+                },
+                {
+                  "$ref": "#/components/schemas/ChatRequestToolMessage"
+                },
+                {
+                  "$ref": "#/components/schemas/ChatRequestFunctionMessage"
+                }
+              ]
+            }
+          },
+          "options": {
+            "$ref": "#/components/schemas/GetChatCompletionsOptions"
+          }
+        },
+        "required": [
+          "messages"
+        ]
+      },
+      "FunctionCallDTO": {
+        "type": "object",
+        "properties": {}
+      },
+      "ChatCompletionsToolCallDTO": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "function": {
+            "$ref": "#/components/schemas/FunctionCallDTO"
+          },
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "function",
+          "id"
+        ]
+      },
+      "ChatResponseMessageDto": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "tool_calls": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatCompletionsToolCallDTO"
+            }
+          },
+          "function_call": {
+            "$ref": "#/components/schemas/FunctionCallDTO"
+          }
+        },
+        "required": [
+          "role",
+          "content",
+          "tool_calls",
+          "function_call"
+        ]
+      },
+      "StopFinishDetailsDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "stop": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "stop"
+        ]
+      },
+      "MaxTokensFinishDetailsDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "ChatFinishDetailsDto": {
+        "type": "object",
+        "properties": {
+          "stop_finish_details": {
+            "$ref": "#/components/schemas/StopFinishDetailsDto"
+          },
+          "max_tokens_finish_details": {
+            "$ref": "#/components/schemas/MaxTokensFinishDetailsDto"
+          }
+        },
+        "required": [
+          "stop_finish_details",
+          "max_tokens_finish_details"
+        ]
+      },
+      "ChatChoiceDto": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "$ref": "#/components/schemas/ChatResponseMessageDto"
+          },
+          "index": {
+            "type": "number"
+          },
+          "finish_reason": {
+            "type": "string"
+          },
+          "finish_details": {
+            "$ref": "#/components/schemas/ChatFinishDetailsDto"
+          },
+          "delta": {
+            "$ref": "#/components/schemas/ChatResponseMessageDto"
+          }
+        },
+        "required": [
+          "message",
+          "index",
+          "finish_reason",
+          "finish_details",
+          "delta"
+        ]
+      },
+      "CompletionsUsageDto": {
+        "type": "object",
+        "properties": {
+          "completion_tokens": {
+            "type": "number"
+          },
+          "prompt_tokens": {
+            "type": "number"
+          },
+          "total_tokens": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "completion_tokens",
+          "prompt_tokens",
+          "total_tokens"
+        ]
+      },
+      "ChatCompletionsDtoOld": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "choices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatChoiceDto"
+            }
+          },
+          "system_fingerprint": {
+            "type": "string"
+          },
+          "usage": {
+            "$ref": "#/components/schemas/CompletionsUsageDto"
+          }
+        },
+        "required": [
+          "id",
+          "created",
+          "choices",
+          "system_fingerprint",
+          "usage"
+        ]
+      },
+      "CreateEmbeddingsRequestDto": {
+        "type": "object",
+        "properties": {
+          "texts": {
+            "description": "Array of texts to create embeddings for",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "texts"
+        ]
+      },
+      "EmbeddingsResultDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the object"
+          },
+          "object": {
+            "type": "string",
+            "description": "Object type identifier"
+          },
+          "embeddings": {
+            "type": "array",
+            "description": "Array of embedding vectors",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "required": [
+          "id",
+          "object",
+          "embeddings"
+        ]
+      },
+      "HistoryMessage": {
+        "type": "object",
+        "properties": {}
+      },
+      "PublicCreateSearchStringDto": {
+        "type": "object",
+        "properties": {
+          "prompt": {
+            "type": "string"
+          },
+          "chatId": {
+            "type": "string"
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HistoryMessage"
+            }
+          },
+          "languageModel": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "prompt"
+        ]
+      },
+      "PublicSearchStringDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the object"
+          },
+          "object": {
+            "type": "string",
+            "description": "Object type identifier"
+          },
+          "searchString": {
+            "type": "string",
+            "description": "The search string that was created"
+          }
+        },
+        "required": [
+          "id",
+          "object",
+          "searchString"
+        ]
+      },
+      "RerankerRequestDto": {
+        "type": "object",
+        "properties": {
+          "deploymentName": {
+            "type": "string"
+          },
+          "options": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "deploymentName"
+        ]
+      },
+      "PublicCreateSearchDto": {
+        "type": "object",
+        "properties": {
+          "chatId": {
+            "type": "string"
+          },
+          "searchString": {
+            "type": "string"
+          },
+          "searchType": {
+            "type": "string",
+            "enum": [
+              "VECTOR",
+              "COMBINED"
+            ]
+          },
+          "scopeIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "chatOnly": {
+            "type": "boolean"
+          },
+          "limit": {
+            "type": "number"
+          },
+          "page": {
+            "type": "number"
+          },
+          "metaDataFilter": {
+            "type": "object"
+          },
+          "reranker": {
+            "$ref": "#/components/schemas/RerankerRequestDto"
+          },
+          "language": {
+            "type": "string"
+          },
+          "contentIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "searchString",
+          "searchType"
+        ]
+      },
+      "NestedStringFilter": {
+        "type": "object",
+        "properties": {
+          "contains": {
+            "type": "string",
+            "description": "Filter condition that matches if the field contains the specified string."
+          },
+          "endsWith": {
+            "type": "string",
+            "description": "Filter condition that matches if the field ends with the specified string."
+          },
+          "equals": {
+            "type": "string",
+            "description": "Filter condition that matches if the field is equal to the specified string."
+          },
+          "gt": {
+            "type": "string",
+            "description": "Filter condition that matches if the field is greater than the specified string."
+          },
+          "gte": {
+            "type": "string",
+            "description": "Filter condition that matches if the field is greater than or equal to the specified string."
+          },
+          "in": {
+            "description": "Filter condition that matches if the field is within the specified list of strings.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "lt": {
+            "type": "string",
+            "description": "Filter condition that matches if the field is less than the specified string."
+          },
+          "lte": {
+            "type": "string",
+            "description": "Filter condition that matches if the field is less than or equal to the specified string."
+          },
+          "not": {
+            "description": "Negation of the current filter. Can be used to specify a condition that should not match.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NestedStringFilter"
+              }
+            ]
+          },
+          "notIn": {
+            "description": "Filter condition that matches if the field is not within the specified list of strings.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "startsWith": {
+            "type": "string",
+            "description": "Filter condition that matches if the field starts with the specified string."
+          }
+        }
+      },
+      "StringFilter": {
+        "type": "object",
+        "properties": {
+          "contains": {
+            "type": "string",
+            "description": "Filter condition that matches if the field contains the specified string."
+          },
+          "endsWith": {
+            "type": "string",
+            "description": "Filter condition that matches if the field ends with the specified string."
+          },
+          "equals": {
+            "type": "string",
+            "description": "Filter condition that matches if the field is equal to the specified string."
+          },
+          "gt": {
+            "type": "string",
+            "description": "Filter condition that matches if the field is greater than the specified string."
+          },
+          "gte": {
+            "type": "string",
+            "description": "Filter condition that matches if the field is greater than or equal to the specified string."
+          },
+          "in": {
+            "description": "Filter condition that matches if the field is within the specified list of strings.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "lt": {
+            "type": "string",
+            "description": "Filter condition that matches if the field is less than the specified string."
+          },
+          "lte": {
+            "type": "string",
+            "description": "Filter condition that matches if the field is less than or equal to the specified string."
+          },
+          "mode": {
+            "type": "string",
+            "description": "Specifies the mode for string comparison.",
+            "enum": [
+              "default",
+              "insensitive"
+            ]
+          },
+          "not": {
+            "description": "Filter condition for all properties except this one.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NestedStringFilter"
+              }
+            ]
+          },
+          "notIn": {
+            "description": "Filter condition that matches if the field is not within the specified list of strings.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "startsWith": {
+            "type": "string",
+            "description": "Filter condition that matches if the field starts with the specified string."
+          }
+        }
+      },
+      "NestedStringNullableFilter": {
+        "type": "object",
+        "properties": {
+          "contains": {
+            "type": "string",
+            "description": "Filter condition that matches if the field contains the specified string."
+          },
+          "endsWith": {
+            "type": "string",
+            "description": "Filter condition that matches if the field ends with the specified string."
+          },
+          "equals": {
+            "type": "string",
+            "description": "Filter condition that matches if the field is equal to the specified string."
+          },
+          "gt": {
+            "type": "string",
+            "description": "Filter condition that matches if the field is greater than the specified string."
+          },
+          "gte": {
+            "type": "string",
+            "description": "Filter condition that matches if the field is greater than or equal to the specified string."
+          },
+          "in": {
+            "description": "Filter condition that matches if the field is within the specified list of strings.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "lt": {
+            "type": "string",
+            "description": "Filter condition that matches if the field is less than the specified string."
+          },
+          "lte": {
+            "type": "string",
+            "description": "Filter condition that matches if the field is less than or equal to the specified string."
+          },
+          "not": {
+            "description": "Negation of the current filter. Can be used to specify a condition that should not match.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NestedStringNullableFilter"
+              }
+            ]
+          },
+          "notIn": {
+            "description": "Filter condition that matches if the field is not within the specified list of strings.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "startsWith": {
+            "type": "string",
+            "description": "Filter condition that matches if the field starts with the specified string."
+          }
+        }
+      },
+      "StringNullableFilter": {
+        "type": "object",
+        "properties": {
+          "contains": {
+            "type": "string",
+            "description": "Filter condition that matches if the field contains the specified string."
+          },
+          "endsWith": {
+            "type": "string",
+            "description": "Filter condition that matches if the field ends with the specified string."
+          },
+          "equals": {
+            "type": "string",
+            "description": "Filter condition that matches if the field is equal to the specified string."
+          },
+          "gt": {
+            "type": "string",
+            "description": "Filter condition that matches if the field is greater than the specified string."
+          },
+          "gte": {
+            "type": "string",
+            "description": "Filter condition that matches if the field is greater than or equal to the specified string."
+          },
+          "in": {
+            "description": "Filter condition that matches if the field is within the specified list of strings.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "lt": {
+            "type": "string",
+            "description": "Filter condition that matches if the field is less than the specified string."
+          },
+          "lte": {
+            "type": "string",
+            "description": "Filter condition that matches if the field is less than or equal to the specified string."
+          },
+          "mode": {
+            "type": "string",
+            "description": "Specifies the mode for string comparison.",
+            "enum": [
+              "default",
+              "insensitive"
+            ]
+          },
+          "not": {
+            "description": "Filter condition for all properties except this one.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NestedStringNullableFilter"
+              }
+            ]
+          },
+          "notIn": {
+            "description": "Filter condition that matches if the field is not within the specified list of strings.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "ContentWhereInput": {
+        "type": "object",
+        "properties": {
+          "AND": {
+            "description": "Logical AND on all conditions.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ContentWhereInput"
+            }
+          },
+          "NOT": {
+            "description": "Logical NOT on all conditions.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ContentWhereInput"
+            }
+          },
+          "OR": {
+            "description": "Logical OR on all conditions.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ContentWhereInput"
+            }
+          },
+          "id": {
+            "description": "Filter by ID.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StringFilter"
+              }
+            ]
+          },
+          "key": {
+            "description": "Filter by key.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StringFilter"
+              }
+            ]
+          },
+          "ownerId": {
+            "description": "Filter by owner ID.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StringFilter"
+              }
+            ]
+          },
+          "title": {
+            "description": "Filter by title.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StringNullableFilter"
+              }
+            ]
+          },
+          "url": {
+            "description": "Filter by URL.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StringNullableFilter"
+              }
+            ]
+          }
+        }
+      },
+      "SearchDto": {
+        "type": "object",
+        "properties": {
+          "where": {
+            "description": "Filters to apply on the content search.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ContentWhereInput"
+              }
+            ]
+          },
+          "chatId": {
+            "type": "string",
+            "description": "The chat ID related to the search query.",
+            "nullable": true
+          }
+        }
+      },
+      "PublicContentDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the content"
+          },
+          "object": {
+            "type": "string",
+            "description": "Object type identifier"
+          },
+          "key": {
+            "type": "string",
+            "description": "Unique key for the content"
+          },
+          "url": {
+            "type": "string",
+            "description": "URL of the content",
+            "nullable": true
+          },
+          "title": {
+            "type": "string",
+            "description": "Title of the content",
+            "nullable": true
+          },
+          "mimeType": {
+            "type": "string",
+            "description": "MIME type of the content",
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Metadata associated with the content",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "Date when the content was created",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "description": "Date when the content was last updated",
+            "format": "date-time"
+          },
+          "readUrl": {
+            "type": "string",
+            "description": "Read URL for accessing the content"
+          },
+          "chunks": {
+            "type": "array",
+            "description": "Chunks of the content",
+            "items": {
+              "type": "object",
+              "description": "Content chunk"
+            }
+          },
+          "ingestionState": {
+            "type": "string",
+            "description": "Current ingestion state of the content"
+          }
+        },
+        "required": [
+          "id",
+          "object",
+          "key",
+          "url",
+          "title",
+          "mimeType",
+          "metadata",
+          "createdAt",
+          "updatedAt",
+          "chunks",
+          "ingestionState"
+        ]
+      },
+      "ContentInfoDto": {
+        "type": "object",
+        "properties": {
+          "metadataFilter": {
+            "type": "object",
+            "description": "UniqueQL metadata filters to apply on the content search."
+          },
+          "take": {
+            "type": "number",
+            "description": "The number of results to return."
+          },
+          "skip": {
+            "type": "number",
+            "description": "The number of results to skip."
+          }
+        },
+        "required": [
+          "metadataFilter",
+          "take",
+          "skip"
+        ]
+      },
+      "PublicContentInfoDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the content"
+          },
+          "object": {
+            "type": "string",
+            "description": "Object type identifier"
+          },
+          "key": {
+            "type": "string",
+            "description": "Unique key for the content"
+          },
+          "url": {
+            "type": "object",
+            "description": "URL of the content",
+            "nullable": true
+          },
+          "title": {
+            "type": "object",
+            "description": "Title of the content",
+            "nullable": true
+          },
+          "mimeType": {
+            "type": "object",
+            "description": "MIME type of the content",
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Metadata associated with the content",
+            "nullable": true
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Date when the content was created"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Date when the content was last updated"
+          }
+        },
+        "required": [
+          "id",
+          "object",
+          "key",
+          "url",
+          "title",
+          "mimeType",
+          "metadata",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "PublicContentInfoResponseDto": {
+        "type": "object",
+        "properties": {
+          "contentInfo": {
+            "description": "Array of content information",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicContentInfoDto"
+            }
+          },
+          "totalCount": {
+            "type": "number",
+            "description": "Total count of content items"
+          }
+        },
+        "required": [
+          "contentInfo",
+          "totalCount"
+        ]
+      },
+      "CustomApiOptionsDto": {
+        "type": "object",
+        "properties": {
+          "apiIdentifier": {
+            "type": "string"
+          },
+          "apiPayload": {
+            "type": "string"
+          },
+          "customisationType": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "apiIdentifier",
+          "customisationType"
+        ]
+      },
+      "VttConfigDto": {
+        "type": "object",
+        "properties": {
+          "languageModel": {
+            "type": "string"
+          }
+        }
+      },
+      "IngestionConfigDto": {
+        "type": "object",
+        "properties": {
+          "chunkMaxTokens": {
+            "type": "number"
+          },
+          "chunkMaxTokensOnePager": {
+            "type": "number"
+          },
+          "chunkMinTokens": {
+            "type": "number"
+          },
+          "chunkStrategy": {
+            "type": "string"
+          },
+          "customApiOptions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomApiOptionsDto"
+            }
+          },
+          "documentMinTokens": {
+            "type": "number"
+          },
+          "excelReadMode": {
+            "type": "string"
+          },
+          "jpgReadMode": {
+            "type": "string"
+          },
+          "pdfReadMode": {
+            "type": "string"
+          },
+          "pptReadMode": {
+            "type": "string"
+          },
+          "uniqueIngestionMode": {
+            "type": "string"
+          },
+          "vttConfig": {
+            "$ref": "#/components/schemas/VttConfigDto"
+          },
+          "wordReadMode": {
+            "type": "string"
+          }
+        }
+      },
+      "ContentUpsertInputDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "mimeType": {
+            "type": "string"
+          },
+          "byteSize": {
+            "type": "number",
+            "nullable": true
+          },
+          "url": {
+            "type": "string",
+            "nullable": true
+          },
+          "ingestionConfig": {
+            "$ref": "#/components/schemas/IngestionConfigDto"
+          },
+          "metadata": {
+            "type": "object",
+            "nullable": true
+          }
+        },
+        "required": [
+          "key",
+          "title",
+          "mimeType"
+        ]
+      },
+      "ContentUpsertDto": {
+        "type": "object",
+        "properties": {
+          "input": {
+            "$ref": "#/components/schemas/ContentUpsertInputDto"
+          },
+          "scopeId": {
+            "type": "string"
+          },
+          "chatId": {
+            "type": "string"
+          },
+          "storeInternally": {
+            "type": "boolean"
+          },
+          "fileUrl": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "input"
+        ]
+      },
+      "PublicContentUpsertMutationDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the content"
+          },
+          "object": {
+            "type": "string",
+            "description": "Object type identifier"
+          },
+          "key": {
+            "type": "string",
+            "description": "Unique key for the content"
+          },
+          "url": {
+            "type": "object",
+            "description": "URL of the content",
+            "nullable": true
+          },
+          "title": {
+            "type": "object",
+            "description": "Title of the content",
+            "nullable": true
+          },
+          "mimeType": {
+            "type": "object",
+            "description": "MIME type of the content",
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Metadata associated with the content",
+            "nullable": true
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Date when the content was last updated"
+          },
+          "readUrl": {
+            "type": "object",
+            "description": "Read URL for accessing the content"
+          },
+          "writeUrl": {
+            "type": "object",
+            "description": "Write URL for uploading content"
+          }
+        },
+        "required": [
+          "id",
+          "object",
+          "key",
+          "url",
+          "title",
+          "mimeType",
+          "metadata",
+          "updatedAt"
+        ]
+      },
+      "TableColumnDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The name of the column."
+          },
+          "type": {
+            "type": "string",
+            "description": "The data type of the column."
+          },
+          "identifying": {
+            "type": "boolean",
+            "description": "Indicates whether the column is an identifying attribute of the table.",
+            "default": false
+          },
+          "displayed": {
+            "type": "boolean",
+            "description": "Indicates whether the column is displayed in the table.",
+            "default": true
+          }
+        },
+        "required": [
+          "name",
+          "type"
+        ]
+      },
+      "TableConfigDto": {
+        "type": "object",
+        "properties": {
+          "tableFileName": {
+            "type": "string",
+            "description": "The file name of the table configuration."
+          },
+          "columns": {
+            "description": "An array of column configurations for the table.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TableColumnDto"
+            }
+          },
+          "rowFilter": {
+            "type": "string",
+            "description": "A filter string to apply to the rows of the table."
+          },
+          "repeatingTable": {
+            "type": "string",
+            "description": "The name of the repeating table structure."
+          },
+          "header": {
+            "type": "string",
+            "description": "The header content for the table."
+          },
+          "footer": {
+            "type": "string",
+            "description": "The footer content for the table."
+          },
+          "noDataFound": {
+            "type": "string",
+            "description": "The message displayed when no data is found for the table."
+          }
+        },
+        "required": [
+          "tableFileName",
+          "columns",
+          "rowFilter",
+          "repeatingTable",
+          "header",
+          "footer",
+          "noDataFound"
+        ]
+      },
+      "QueryTableRequest": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "The SQL query string to be executed for retrieving table data."
+          },
+          "tableConfig": {
+            "description": "The configuration object for the table that includes columns, filters, and other settings.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TableConfigDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "query",
+          "tableConfig"
+        ]
+      },
+      "QueryTableAnswertDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the object"
+          },
+          "object": {
+            "type": "string",
+            "description": "Object type identifier"
+          },
+          "markdown": {
+            "type": "string",
+            "description": "Markdown formatted answer from the table query"
+          },
+          "selected": {
+            "type": "array",
+            "description": "Selected data from the table query",
+            "items": {
+              "type": "object",
+              "description": "Selected table row data"
+            }
+          },
+          "cleanedQuery": {
+            "type": "string",
+            "description": "Cleaned and processed query string"
+          }
+        },
+        "required": [
+          "id",
+          "object",
+          "markdown",
+          "selected",
+          "cleanedQuery"
+        ]
+      },
+      "ExcelExportRequestDto": {
+        "type": "object",
+        "properties": {
+          "templateName": {
+            "type": "string",
+            "description": "The name of the template to be used for the export."
+          },
+          "scopeId": {
+            "type": "string",
+            "description": "The identifier of the scope within which the export is performed."
+          },
+          "data": {
+            "type": "object",
+            "description": "The data to be included in the export."
+          },
+          "resultingFilename": {
+            "type": "string",
+            "description": "The filename that will be used for the resulting exported file."
+          }
+        },
+        "required": [
+          "templateName",
+          "scopeId",
+          "data",
+          "resultingFilename"
+        ]
+      },
+      "ExcelExportResultDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the object"
+          },
+          "object": {
+            "type": "string",
+            "description": "Object type identifier"
+          },
+          "name": {
+            "type": "string",
+            "description": "Name of the exported Excel file"
+          },
+          "url": {
+            "type": "string",
+            "description": "URL to download the exported Excel file"
+          },
+          "sourceId": {
+            "type": "string",
+            "description": "ID of the source used for the export"
+          },
+          "source": {
+            "type": "string",
+            "description": "Name of the source used for the export"
+          }
+        },
+        "required": [
+          "id",
+          "object",
+          "name",
+          "url",
+          "sourceId",
+          "source"
+        ]
+      },
+      "SearchResultDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the search result."
+          },
+          "chunkId": {
+            "type": "string",
+            "description": "Identifier of the chunk containing the search result."
+          },
+          "key": {
+            "type": "string",
+            "description": "Key associated with the search result."
+          },
+          "title": {
+            "type": "string",
+            "description": "Title of the search result.",
+            "nullable": true
+          },
+          "url": {
+            "type": "string",
+            "description": "URL of the search result.",
+            "nullable": true
+          },
+          "internallyStoredAt": {
+            "type": "string",
+            "description": "Timestamp when the search result was stored internally.",
+            "nullable": true,
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "chunkId",
+          "key"
+        ]
+      },
+      "PublicStreamMessageDto": {
+        "type": "object",
+        "properties": {
+          "model": {
+            "type": "string"
+          },
+          "timeout": {
+            "type": "number"
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/ChatRequestSystemMessage"
+                },
+                {
+                  "$ref": "#/components/schemas/ChatRequestUserMessage"
+                },
+                {
+                  "$ref": "#/components/schemas/ChatRequestAssistantMessage"
+                },
+                {
+                  "$ref": "#/components/schemas/ChatRequestToolMessage"
+                },
+                {
+                  "$ref": "#/components/schemas/ChatRequestFunctionMessage"
+                }
+              ]
+            }
+          },
+          "chatId": {
+            "type": "string"
+          },
+          "assistantMessageId": {
+            "type": "string"
+          },
+          "searchContext": {
+            "description": "Available search results that can be added as references to the message. This happens automatically in case a [source<NUMBER>] is found in the streamed text.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SearchResultDto"
+            }
+          },
+          "userMessageId": {
+            "type": "string"
+          },
+          "startText": {
+            "type": "string"
+          },
+          "debugInfo": {
+            "type": "object",
+            "nullable": true
+          },
+          "options": {
+            "$ref": "#/components/schemas/GetChatCompletionsOptions"
+          }
+        },
+        "required": [
+          "messages",
+          "chatId",
+          "assistantMessageId",
+          "userMessageId"
+        ]
+      },
+      "PublicToolCallDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the tool call"
+          },
+          "object": {
+            "type": "string",
+            "description": "Object type identifier"
+          },
+          "name": {
+            "type": "object",
+            "description": "Name of the tool being called",
+            "nullable": true
+          },
+          "arguments": {
+            "type": "object",
+            "description": "Arguments passed to the tool call",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "object",
+          "name",
+          "arguments"
+        ]
+      },
+      "PublicStreamResultDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the object"
+          },
+          "object": {
+            "type": "string",
+            "description": "Object type identifier"
+          },
+          "message": {
+            "description": "The message result from the stream completion",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PublicMessageDto"
+              }
+            ]
+          },
+          "toolCalls": {
+            "description": "Tool calls made during the stream completion",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicToolCallDto"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "object",
+          "message",
+          "toolCalls"
+        ]
+      },
+      "ShortTermMemoryDto": {
+        "type": "object",
+        "properties": {
+          "memoryName": {
+            "type": "string"
+          },
+          "chatId": {
+            "type": "string",
+            "nullable": true
+          },
+          "messageId": {
+            "type": "string",
+            "nullable": true
+          },
+          "data": {
+            "type": "string",
+            "maxLength": 10000
+          }
+        },
+        "required": [
+          "memoryName",
+          "data"
+        ]
+      },
+      "ShortTermMemoryResultDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the short-term memory entry"
+          },
+          "object": {
+            "type": "string",
+            "description": "Object type identifier"
+          },
+          "chatId": {
+            "type": "object",
+            "description": "ID of the chat this memory belongs to",
+            "nullable": true
+          },
+          "messageId": {
+            "type": "object",
+            "description": "ID of the message this memory is associated with",
+            "nullable": true
+          },
+          "data": {
+            "type": "string",
+            "description": "Data stored in the short-term memory"
+          }
+        },
+        "required": [
+          "id",
+          "object",
+          "chatId",
+          "messageId",
+          "data"
+        ]
+      },
+      "ShortTermMemoryRequestDto": {
+        "type": "object",
+        "properties": {
+          "memoryName": {
+            "type": "string"
+          },
+          "chatId": {
+            "type": "string",
+            "nullable": true
+          },
+          "messageId": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "memoryName"
+        ]
+      },
+      "CompanyAcronymDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the object"
+          },
+          "object": {
+            "type": "string",
+            "description": "Object type identifier"
+          },
+          "acronym": {
+            "type": "string",
+            "description": "The acronym abbreviation"
+          },
+          "text": {
+            "type": "string",
+            "description": "The full text that the acronym represents"
+          }
+        },
+        "required": [
+          "id",
+          "object",
+          "acronym",
+          "text"
+        ]
+      },
+      "ChunkCreateInputDto": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "startPage": {
+            "type": "number"
+          },
+          "endPage": {
+            "type": "number"
+          },
+          "order": {
+            "type": "number"
+          },
+          "embedding": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "text"
+        ]
+      },
+      "ChunkCreateDto": {
+        "type": "object",
+        "properties": {
+          "input": {
+            "$ref": "#/components/schemas/ChunkCreateInputDto"
+          },
+          "contentId": {
+            "type": "string"
+          },
+          "chatId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "input",
+          "contentId"
+        ]
+      },
+      "PublicChunkCreateMutationDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the chunk"
+          },
+          "object": {
+            "type": "string",
+            "description": "Object type identifier"
+          },
+          "text": {
+            "type": "string",
+            "description": "Text content of the chunk"
+          },
+          "contentId": {
+            "type": "string",
+            "description": "ID of the content this chunk belongs to"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Date when the chunk was last updated"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Date when the chunk was created"
+          },
+          "startPage": {
+            "type": "object",
+            "description": "Starting page number in the source document"
+          },
+          "endPage": {
+            "type": "object",
+            "description": "Ending page number in the source document"
+          },
+          "order": {
+            "type": "object",
+            "description": "Order of the chunk within the content"
+          },
+          "model": {
+            "type": "object",
+            "description": "Model used to process this chunk"
+          }
+        },
+        "required": [
+          "id",
+          "object",
+          "text",
+          "contentId",
+          "updatedAt",
+          "createdAt"
+        ]
+      },
+      "ChunkCreateManyDto": {
+        "type": "object",
+        "properties": {
+          "input": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "contentId": {
+            "type": "string"
+          },
+          "chatId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "input",
+          "contentId"
+        ]
+      },
+      "LogDetail": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "messageId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ]
+      },
+      "PublicMagicTableLogEntryDto": {
+        "type": "object",
+        "properties": {
+          "messageId": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "actorType": {
+            "type": "string",
+            "enum": [
+              "USER",
+              "SYSTEM",
+              "ASSISTANT",
+              "TOOL"
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "details": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LogDetail"
+            }
+          }
+        },
+        "required": [
+          "text",
+          "actorType",
+          "createdAt"
+        ]
+      },
+      "PublicCreateMagicTableCellDto": {
+        "type": "object",
+        "properties": {
+          "rowOrder": {
+            "type": "number"
+          },
+          "columnOrder": {
+            "type": "number"
+          },
+          "text": {
+            "type": "string"
+          },
+          "logEntries": {
+            "description": "LogEntry for the cell update",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicMagicTableLogEntryDto"
+            }
+          }
+        },
+        "required": [
+          "rowOrder",
+          "columnOrder",
+          "text"
+        ]
+      },
+      "PublicSetMagicTableCellMetaDataDto": {
+        "type": "object",
+        "properties": {
+          "rowOrder": {
+            "type": "number"
+          },
+          "columnOrder": {
+            "type": "number"
+          },
+          "selected": {
+            "type": "boolean"
+          },
+          "selectionMethod": {
+            "type": "string",
+            "enum": [
+              "DEFAULT",
+              "MANUAL"
+            ]
+          },
+          "agreementStatus": {
+            "type": "string",
+            "enum": [
+              "MATCH",
+              "NO_MATCH"
+            ]
+          }
+        },
+        "required": [
+          "rowOrder",
+          "columnOrder"
+        ]
+      },
+      "PublicMagicTableCellDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the object"
+          },
+          "object": {
+            "type": "string",
+            "description": "Object type identifier"
+          },
+          "sheetId": {
+            "type": "string",
+            "description": "ID of the sheet this cell belongs to"
+          },
+          "columnOrder": {
+            "type": "number",
+            "description": "Column order/position of the cell"
+          },
+          "rowOrder": {
+            "type": "number",
+            "description": "Row order/position of the cell"
+          },
+          "rowLocked": {
+            "type": "boolean",
+            "description": "Whether the row containing this cell is locked"
+          },
+          "text": {
+            "type": "string",
+            "description": "Text content of the cell"
+          },
+          "logEntries": {
+            "description": "Log entries associated with this cell",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicMagicTableLogEntryDto"
+            }
+          },
+          "metaData": {
+            "description": "Metadata associated with this cell",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PublicSetMagicTableCellMetaDataDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "object",
+          "sheetId",
+          "columnOrder",
+          "rowOrder",
+          "rowLocked",
+          "text"
+        ]
+      },
+      "PublicMagicTableRowDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the object"
+          },
+          "object": {
+            "type": "string",
+            "description": "Object type identifier"
+          },
+          "sheetId": {
+            "type": "string",
+            "description": "ID of the sheet this row belongs to"
+          },
+          "rowOrder": {
+            "type": "number",
+            "description": "Order/position of the row"
+          },
+          "rowLocked": {
+            "type": "boolean",
+            "description": "Whether the row is locked for editing"
+          }
+        },
+        "required": [
+          "id",
+          "object",
+          "sheetId"
+        ]
+      },
+      "PublicMagicTableActivityDto": {
+        "type": "object",
+        "properties": {
+          "activity": {
+            "type": "string",
+            "enum": [
+              "DeleteRow",
+              "DeleteColumn",
+              "UpdateCell",
+              "AddQuestionText",
+              "AddMetaData",
+              "GenerateArtifact",
+              "SheetCompleted",
+              "LibrarySheetRowVerified"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "IN_PROGRESS",
+              "COMPLETED",
+              "FAILED"
+            ]
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "activity",
+          "status",
+          "text"
+        ]
+      },
+      "PublicMagicTableArtifactDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "contentId": {
+            "type": "string"
+          },
+          "mimeType": {
+            "type": "string"
+          },
+          "artifactType": {
+            "type": "string",
+            "enum": [
+              "QUESTIONS",
+              "FULL_REPORT"
+            ]
+          }
+        },
+        "required": [
+          "contentId",
+          "artifactType"
+        ]
+      },
+      "PublicUpdateMagicTableSheetDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "STOPPED_BY_USER",
+              "PROCESSING",
+              "IDLE"
+            ]
+          }
+        }
+      },
+      "PublicMagicTableSheetDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the object"
+          },
+          "object": {
+            "type": "string",
+            "description": "Object type identifier"
+          },
+          "sheetId": {
+            "type": "string",
+            "description": "Unique identifier for the magic table sheet"
+          },
+          "name": {
+            "type": "string",
+            "description": "Name of the magic table sheet"
+          },
+          "state": {
+            "type": "string",
+            "description": "Current state of the magic table sheet",
+            "enum": [
+              "STOPPED_BY_USER",
+              "PROCESSING",
+              "IDLE"
+            ]
+          },
+          "chatId": {
+            "type": "string",
+            "description": "ID of the chat this sheet belongs to"
+          },
+          "createdBy": {
+            "type": "string",
+            "description": "ID of the user who created the sheet"
+          },
+          "companyId": {
+            "type": "string",
+            "description": "ID of the company this sheet belongs to"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Date when the sheet was created"
+          },
+          "magicTableCells": {
+            "description": "Cells contained in the magic table sheet",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicMagicTableCellDto"
+            }
+          },
+          "magicTableRowCount": {
+            "type": "number",
+            "description": "Total number of rows in the magic table"
+          }
+        },
+        "required": [
+          "id",
+          "object",
+          "sheetId",
+          "name",
+          "state",
+          "chatId",
+          "createdBy",
+          "companyId",
+          "createdAt",
+          "magicTableRowCount"
+        ]
+      },
+      "PublicSetMagicTableColumnMetaDataDto": {
+        "type": "object",
+        "properties": {
+          "columnOrder": {
+            "type": "number"
+          },
+          "columnWidth": {
+            "type": "number"
+          },
+          "cellRenderer": {
+            "type": "string"
+          },
+          "filter": {
+            "type": "string"
+          },
+          "editable": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "columnOrder"
+        ]
+      },
+      "PublicMessageAssessmentCreateDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "messageId": {
+            "type": "string"
+          },
+          "explanation": {
+            "type": "string",
+            "nullable": true
+          },
+          "label": {
+            "type": "string",
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "nullable": true
+          },
+          "isVisible": {
+            "type": "boolean",
+            "nullable": true
+          }
+        },
+        "required": [
+          "status",
+          "messageId"
+        ]
+      },
+      "PublicMessageAssessmentDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the object"
+          },
+          "object": {
+            "type": "string",
+            "description": "Object type identifier"
+          },
+          "messageAssessmentId": {
+            "type": "object",
+            "description": "Unique identifier for the message assessment",
+            "nullable": true
+          },
+          "messageId": {
+            "type": "object",
+            "description": "ID of the message being assessed",
+            "nullable": true
+          },
+          "status": {
+            "type": "object",
+            "description": "Status of the assessment",
+            "nullable": true
+          },
+          "explanation": {
+            "type": "object",
+            "description": "Explanation for the assessment",
+            "nullable": true
+          },
+          "label": {
+            "type": "object",
+            "description": "Label assigned to the assessment",
+            "nullable": true
+          },
+          "type": {
+            "type": "object",
+            "description": "Type of assessment",
+            "nullable": true
+          },
+          "isVisible": {
+            "type": "object",
+            "description": "Whether the assessment is visible",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "object",
+            "description": "Date when the assessment was created",
+            "nullable": true
+          },
+          "updatedAt": {
+            "type": "object",
+            "description": "Date when the assessment was last updated",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "object",
+          "messageAssessmentId",
+          "messageId",
+          "status",
+          "explanation",
+          "label",
+          "type",
+          "isVisible",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "PublicMessageAssessmentUpdateDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "explanation": {
+            "type": "string",
+            "nullable": true
+          },
+          "label": {
+            "type": "string",
+            "nullable": true
+          },
+          "isVisible": {
+            "type": "boolean",
+            "nullable": true
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "PublicCreateFolderDto": {
+        "type": "object",
+        "properties": {
+          "paths": {
+            "description": "An array of paths to validate",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "paths"
+        ]
+      },
+      "FolderDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the object"
+          },
+          "object": {
+            "type": "string",
+            "description": "Object type identifier"
+          },
+          "name": {
+            "type": "string",
+            "description": "The name of the scope"
+          },
+          "parentId": {
+            "type": "object",
+            "description": "The ID of the parent scope",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "object",
+          "name",
+          "parentId"
+        ]
+      },
+      "PublicCreateFolderResultDto": {
+        "type": "object",
+        "properties": {
+          "createdFolders": {
+            "description": "Array of created folder objects",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FolderDto"
+            }
+          }
+        },
+        "required": [
+          "createdFolders"
+        ]
+      },
+      "ScopeAccessDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the object"
+          },
+          "object": {
+            "type": "string",
+            "description": "Object type identifier"
+          },
+          "entityId": {
+            "type": "string",
+            "description": "Id of the Scope Access"
+          },
+          "entityType": {
+            "type": "string",
+            "description": "Type of the Scope Access Entity",
+            "enum": [
+              "GROUP",
+              "USER"
+            ]
+          },
+          "type": {
+            "type": "string",
+            "description": "Type of the Scope Access",
+            "enum": [
+              "READ",
+              "WRITE"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "object",
+          "entityId",
+          "entityType",
+          "type"
+        ]
+      },
+      "AddScopeAccessDto": {
+        "type": "object",
+        "properties": {
+          "scopeAccesses": {
+            "description": "Scope accesses to add to the folder and its subfolders.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScopeAccessDto"
+            }
+          },
+          "applyToSubScopes": {
+            "type": "boolean",
+            "description": "If true, the scope access will be added to all subfolders.",
+            "default": false
+          }
+        },
+        "required": [
+          "scopeAccesses",
+          "applyToSubScopes"
+        ]
+      },
+      "ChildrenScope": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The id of the scope."
+          },
+          "name": {
+            "type": "string",
+            "description": "The name of the scope."
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ]
+      },
+      "PublicUpdateFolderAccessResultDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The id of the folder whose access was updated."
+          },
+          "object": {
+            "type": "string",
+            "description": "Object type identifier"
+          },
+          "name": {
+            "type": "string",
+            "description": "The name of the folder whose access was updated."
+          },
+          "scopeAccesses": {
+            "description": "Scope accesses of the folder.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScopeAccessDto"
+            }
+          },
+          "children": {
+            "description": "Subfolders of the folder.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChildrenScope"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "object",
+          "name",
+          "scopeAccesses",
+          "children"
+        ]
+      },
+      "DeleteScopeAccessDto": {
+        "type": "object",
+        "properties": {
+          "scopeAccesses": {
+            "description": "Scope accesses to add to the folder and its subfolders.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "applyToSubScopes": {
+            "type": "boolean",
+            "description": "If true, the scope access will be removed from all subfolders.",
+            "default": false
+          }
+        },
+        "required": [
+          "scopeAccesses",
+          "applyToSubScopes"
+        ]
+      },
+      "UpdateFolderIngestionConfigDto": {
+        "type": "object",
+        "properties": {
+          "ingestionConfig": {
+            "description": "Ingestion config for the folder",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/IngestionConfigDto"
+              }
+            ]
+          },
+          "applyToSubScopes": {
+            "type": "boolean",
+            "description": "If true, the scope access will be added to all subfolders.",
+            "default": false
+          }
+        },
+        "required": [
+          "ingestionConfig",
+          "applyToSubScopes"
+        ]
+      }
+    }
+  }
+}

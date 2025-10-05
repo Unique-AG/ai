@@ -38,7 +38,7 @@ answer2 = unique_SDK.folder.CreateFolderStructure.request_async(
     paths=["/testcreation/test/test"],
 )
 
-unique_SDK.messages.Create.request(
+resp = unique_SDK.messages.Create.request(
     context=request_context,
     chat_id="test",
     assistant_id="test",
