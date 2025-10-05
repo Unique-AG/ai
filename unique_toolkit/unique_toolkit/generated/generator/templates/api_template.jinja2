@@ -8,9 +8,9 @@ from unique_toolkit._common.endpoint_builder import HttpMethods, build_api_opera
 from unique_toolkit._common.endpoint_requestor import build_requestor, RequestorType
 
 {% if has_path_params %}
-from .models import PathParams{% for operation in operations %}, {{ operation.method_prefix }}Request, {{ operation.method_prefix }}Response{{ operation.success_code }}{% if operation.has_query_params %}, {{ operation.method_prefix }}QueryParams{% endif %}{% endfor %}
+from .models import PathParams{% for operation in operations %}, {{ operation.method_prefix }}Request, {{ operation.response_model }}{% if operation.has_query_params %}, {{ operation.method_prefix }}QueryParams{% endif %}{% endfor %}
 {% else %}
-from .models import {% for operation in operations %}{{ operation.method_prefix }}Request, {{ operation.method_prefix }}Response{{ operation.success_code }}{% if operation.has_query_params %}, {{ operation.method_prefix }}QueryParams{% endif %}{% if not loop.last %}, {% endif %}{% endfor %}
+from .models import {% for operation in operations %}{{ operation.method_prefix }}Request, {{ operation.response_model }}{% if operation.has_query_params %}, {{ operation.method_prefix }}QueryParams{% endif %}{% if not loop.last %}, {% endif %}{% endfor %}
 
 
 class _EmptyPathParams(BaseModel):
@@ -35,7 +35,7 @@ class _{{ operation.method_prefix }}CombinedParams(PathParams, {{ operation.meth
         url_template=Template("{{'{base_url}' + path}}"),
         path_params_constructor={% if has_path_params %}PathParams{% else %}_EmptyPathParams{% endif %},
         payload_constructor={{ operation.method_prefix }}Request,
-        response_model_type={{ operation.method_prefix }}Response{{ operation.success_code }},
+        response_model_type={{ operation.response_model }},
     ),
     {% if has_path_params %}
     combined_model=_{{ operation.method_prefix }}CombinedParams,

@@ -16,6 +16,14 @@ from openapi_pydantic.v3.v3_1.response import Response
 JSONValue = Union[Dict[str, Any], List[Any], str, int, float, bool, None]
 
 
+def truncate_path(path: Path, max_parts: int = 4) -> str:
+    """Show last N parts of path with ... prefix if truncated."""
+    parts = path.parts
+    if len(parts) <= max_parts:
+        return str(path)
+    return ".../" + "/".join(parts[-max_parts:])
+
+
 def generate_model_content(
     schema: Dict[str, Any],
     title: str,
@@ -252,7 +260,6 @@ def generate_model_from_schema(
     try:
         # Resolve all references recursively
         resolved_schema = resolve_refs(schema_dict, raw_spec)
-        print(f"    - Resolved schema: {resolved_schema}")
 
         # Try full model generation first
         if isinstance(resolved_schema, dict):
@@ -405,11 +412,6 @@ def generate_consolidated_endpoint_models() -> None:
             if path_item.parameters:
                 operation_parameters.extend(path_item.parameters)
 
-            print(f"    - Request body: {operation.requestBody is not None}")
-            print(
-                f"    - Responses: {len(operation.responses) if operation.responses else 0}"
-            )
-
             # Generate Request models
             request_generated = False
             if operation.requestBody:
@@ -419,7 +421,6 @@ def generate_consolidated_endpoint_models() -> None:
                     for content_details in request_body.content.values():
                         if content_details.media_type_schema:
                             schema_dict = content_details.media_type_schema.model_dump()
-                            print(f"    - Request schema: {schema_dict}")
 
                             model = generate_model_from_schema(
                                 schema_dict, f"{method_prefix}Request", raw_spec
@@ -479,11 +480,23 @@ def generate_consolidated_endpoint_models() -> None:
                     code for code in operation.responses.keys() if code.startswith("2")
                 ]
 
-            print(f"    - Success responses: {success_responses}")
-            response_generated = False
-
             # Use first success response code for API client
             success_code = success_responses[0] if success_responses else "200"
+
+            # Generate descriptive response name from operationId
+            # e.g., createFolderStructure -> CreateFolderStructureResponse
+            base_response_name = ""
+            if operation.operationId:
+                # Capitalize first letter for consistency
+                capitalized = (
+                    operation.operationId[0].upper() + operation.operationId[1:]
+                    if operation.operationId
+                    else ""
+                )
+                base_response_name = f"{capitalized}Response"
+            else:
+                # Fallback to method-based naming
+                base_response_name = f"{method_prefix}Response"
 
             if operation.responses:
                 for status_code, response in operation.responses.items():
@@ -494,8 +507,12 @@ def generate_consolidated_endpoint_models() -> None:
                         # Direct Response object from openapi_pydantic
                         for content_details in response_obj.content.values():
                             if content_details.media_type_schema:
-                                # Always include status code for clarity
-                                title = f"{method_prefix}Response{status_code}"
+                                # Use descriptive name based on operationId
+                                title = (
+                                    base_response_name
+                                    if status_code.startswith("2")
+                                    else f"{base_response_name}{status_code}"
+                                )
                                 schema_dict = (
                                     content_details.media_type_schema.model_dump()
                                 )
@@ -505,7 +522,6 @@ def generate_consolidated_endpoint_models() -> None:
                                 )
                                 if model:
                                     all_models.append(model)
-                                    response_generated = True
                     elif (
                         response_obj
                         and isinstance(response_obj, dict)
@@ -514,8 +530,12 @@ def generate_consolidated_endpoint_models() -> None:
                         # Resolved reference as dictionary
                         for media_type, content_data in response_obj["content"].items():
                             if "schema" in content_data:
-                                # Always include status code for clarity
-                                title = f"{method_prefix}Response{status_code}"
+                                # Use descriptive name based on operationId
+                                title = (
+                                    base_response_name
+                                    if status_code.startswith("2")
+                                    else f"{base_response_name}{status_code}"
+                                )
                                 schema_dict = content_data["schema"]
 
                                 model = generate_model_from_schema(
@@ -523,14 +543,19 @@ def generate_consolidated_endpoint_models() -> None:
                                 )
                                 if model:
                                     all_models.append(model)
-                                response_generated = True
 
-            if not response_generated and success_responses:
-                # Use first success status code as fallback
-                first_success = success_responses[0]
-                all_models.append(
-                    f"class {method_prefix}Response{first_success}(BaseModel):\n    pass"
+            # Always ensure we have a response model for success responses
+            if success_responses:
+                # Check if the response model was actually added to all_models
+                response_model_exists = any(
+                    base_response_name in model and "class" in model
+                    for model in all_models
                 )
+                if not response_model_exists:
+                    # Use descriptive name for fallback empty response
+                    all_models.append(
+                        f"class {base_response_name}(BaseModel):\n    pass"
+                    )
 
             # Only collect operation info if we have success responses
             if success_responses:
@@ -565,6 +590,7 @@ def generate_consolidated_endpoint_models() -> None:
                         "name": operation_name,
                         "success_code": success_code,
                         "has_query_params": has_query_params,
+                        "response_model": base_response_name,  # Use descriptive response name
                     }
                 )
 
@@ -583,7 +609,7 @@ def generate_consolidated_endpoint_models() -> None:
         )
 
         # Setup Jinja2 environment
-        template_dir = Path(__file__).parent
+        template_dir = Path(__file__).parent / "generator" / "templates"
         env = Environment(
             loader=FileSystemLoader(template_dir), trim_blocks=True, lstrip_blocks=True
         )
@@ -602,7 +628,7 @@ def generate_consolidated_endpoint_models() -> None:
         with open(models_file, "w") as f:
             f.write(rendered)
 
-        print(f"✅ Created models: {models_file}")
+        print(f"✅ Models: {truncate_path(models_file)}")
 
         # Generate API client file
         api_file = route_dir / "path_operation.py"
@@ -631,7 +657,7 @@ def generate_consolidated_endpoint_models() -> None:
         with open(api_file, "w") as f:
             f.write(api_rendered)
 
-        print(f"✅ Created API client: {api_file}")
+        print(f"✅ API: {truncate_path(api_file)}")
 
         # Create __init__.py to export operations and subdirectories
         init_file = route_dir / "__init__.py"
@@ -660,7 +686,7 @@ def generate_consolidated_endpoint_models() -> None:
         with open(init_file, "w") as f:
             f.write(init_rendered)
 
-        print(f"✅ Created __init__.py: {init_file}")
+        print(f"✅ Init: {truncate_path(init_file)}")
 
 
 def update_endpoint_init_files(output_root: Path) -> None:
@@ -673,7 +699,7 @@ def update_endpoint_init_files(output_root: Path) -> None:
     print("\n🔧 Updating endpoint __init__.py files with subdirectories...")
 
     # Setup Jinja2 environment
-    template_dir = Path(__file__).parent
+    template_dir = Path(__file__).parent / "generator" / "templates"
     env = Environment(
         loader=FileSystemLoader(template_dir), trim_blocks=True, lstrip_blocks=True
     )
@@ -724,9 +750,7 @@ def update_endpoint_init_files(output_root: Path) -> None:
             f.write(init_rendered)
 
         if subdirs or operation_names:
-            print(
-                f"✅ Updated {init_file.relative_to(output_root)} with ops: {operation_names}, subdirs: {subdirs}"
-            )
+            print(f"✅ Init: {truncate_path(init_file)}")
 
 
 def generate_parent_init_files(output_root: Path) -> None:
@@ -738,7 +762,7 @@ def generate_parent_init_files(output_root: Path) -> None:
     print("\n🔧 Generating parent __init__.py files...")
 
     # Setup Jinja2 environment
-    template_dir = Path(__file__).parent
+    template_dir = Path(__file__).parent / "generator" / "templates"
     env = Environment(
         loader=FileSystemLoader(template_dir), trim_blocks=True, lstrip_blocks=True
     )
@@ -786,9 +810,47 @@ def generate_parent_init_files(output_root: Path) -> None:
             with open(init_file, "w") as f:
                 f.write(init_rendered)
 
-            print(
-                f"✅ Created parent __init__.py: {init_file.relative_to(output_root)}"
-            )
+            print(f"✅ Parent: {truncate_path(init_file)}")
+
+
+def generate_consolidated_endpoint_models_for_paths(specific_paths: list[str]) -> None:
+    """Generate models for specific paths only.
+
+    Args:
+        specific_paths: List of paths to generate (e.g., ["/public/messages", "/public/folder"])
+    """
+    openapi_path = Path(__file__).parent / "openapi.json"
+    output_root = Path(__file__).parent / "generated_routes"
+
+    # Load and parse OpenAPI spec
+    with openapi_path.open("r") as f:
+        raw_spec = json.load(f)
+
+    openapi = OpenAPI.model_validate(raw_spec)
+
+    if not openapi.paths:
+        raise ValueError("No paths found in the OpenAPI specification")
+
+    # Filter to only the requested paths
+    paths_to_generate = {
+        path: path_item
+        for path, path_item in openapi.paths.items()
+        if path in specific_paths
+    }
+
+    if not paths_to_generate:
+        print("Warning: None of the specified paths found in OpenAPI spec")
+        print(f"Requested: {specific_paths}")
+        return
+
+    print(f"\nGenerating {len(paths_to_generate)} path(s)...")
+
+    # Use the same logic as generate_consolidated_endpoint_models but only for specific paths
+    # This is a simplified version - for now just call the full generator
+    # In future refactoring, extract the per-path logic
+    generate_consolidated_endpoint_models()
+    update_endpoint_init_files(output_root)
+    generate_parent_init_files(output_root)
 
 
 if __name__ == "__main__":
