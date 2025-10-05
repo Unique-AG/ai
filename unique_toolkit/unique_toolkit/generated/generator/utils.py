@@ -103,19 +103,40 @@ def resolve_reference(
 
 
 def deduplicate_models(models: list[str]) -> list[str]:
-    """Remove duplicate model definitions, keeping the first occurrence."""
-    seen_classes = set()
+    """Remove duplicate model definitions, keeping the first occurrence.
+
+    Deduplicates based on both class name AND content to catch identical
+    definitions generated from the same schema reference.
+    """
+    seen_classes = {}  # class_name -> normalized_content
     deduplicated = []
 
     for model in models:
         # Extract class name from the model definition
-        # Look for patterns like "class ClassName" or "class ClassName(BaseModel)"
         class_match = re.match(r"^class\s+(\w+)", model.strip())
 
         if class_match:
             class_name = class_match.group(1)
-            if class_name not in seen_classes:
-                seen_classes.add(class_name)
+
+            # Normalize the model content for comparison (remove whitespace variations)
+            normalized = re.sub(r"\s+", " ", model.strip())
+
+            # Check if we've seen this class name before
+            if class_name in seen_classes:
+                # Compare the normalized content
+                if seen_classes[class_name] == normalized:
+                    # Exact duplicate, skip it
+                    continue
+                else:
+                    # Same name but different content - this is a real conflict
+                    # Keep the first one and warn
+                    print(
+                        f"    - Warning: Duplicate class name '{class_name}' with different definitions"
+                    )
+                    continue
+            else:
+                # First occurrence of this class
+                seen_classes[class_name] = normalized
                 deduplicated.append(model)
         else:
             # Not a class definition, keep it
