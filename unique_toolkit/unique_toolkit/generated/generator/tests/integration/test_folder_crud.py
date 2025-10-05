@@ -3,6 +3,9 @@
 import pytest
 
 import unique_toolkit.generated.generated_routes.public as unique_SDK
+from unique_toolkit.generated.generated_routes.public.folder.info.models import (
+    GetFolderInfoResponse,
+)
 
 
 @pytest.mark.integration
@@ -93,11 +96,10 @@ class TestFolderCRUD:
             pytest.skip("TEST_FOLDER_SCOPE_ID not set in test.env")
 
         # Act
-        info_response = unique_SDK.folder.info.Get.request(
+        info_response = unique_SDK.folder.info.GetFolderInfo.request(
             context=request_context,
-            scope_ids=[test_scope_id],
         )
 
         # Assert
         assert info_response is not None
-        assert isinstance(info_response, (list, dict))
+        assert isinstance(info_response, GetFolderInfoResponse)

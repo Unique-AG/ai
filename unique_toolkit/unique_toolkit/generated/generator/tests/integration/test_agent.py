@@ -28,10 +28,12 @@ class TestAgentOperations:
         # Act
         response = unique_SDK.agent.run.RunAgent.request(
             context=request_context,
-            chat_id=test_chat_id,
-            assistant_id=test_assistant_id,
-            input="Integration test input",
-            config={},
+            module_type="internal",
+            payload={
+                "chatId": test_chat_id,
+                "assistantId": test_assistant_id,
+                "input": "Integration test input",
+            },
         )
 
         # Assert

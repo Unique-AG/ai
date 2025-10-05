@@ -3,6 +3,7 @@
 import pytest
 
 import unique_toolkit.generated.generated_routes.public as unique_SDK
+from unique_toolkit.generated.generated_routes.public.chunk.models import Input
 
 
 @pytest.mark.integration
@@ -20,16 +21,21 @@ class TestChunkOperations:
         """
         # Arrange
         test_chat_id = integration_env.get("test_chat_id")
-        if not test_chat_id:
-            pytest.skip("TEST_CHAT_ID required for chunk tests")
+        test_content_id: str = integration_env.get("test_content_id")
+        if not test_chat_id or not test_content_id:
+            pytest.skip("TEST_CHAT_ID and TEST_CONTENT_ID required for chunk tests")
 
-        # Act
-        response = unique_SDK.chunk.CreateChunk.request(
-            context=request_context,
-            chat_id=test_chat_id,
+        test_input = Input(
             text="Integration test chunk",
-            embedding=[0.1] * 1536,  # Sample embedding vector
-            metadata={"test": "integration"},
+            start_page=None,
+            end_page=None,
+        )
+        # Act
+        response = unique_SDK.chunk.Create.request(
+            context=request_context,
+            content_id=test_content_id,
+            chat_id=test_chat_id,
+            input=test_input,
         )
 
         # Assert
@@ -44,22 +50,18 @@ class TestChunkOperations:
         Setup: Request context with multiple chunk data.
         """
         # Arrange
-        test_chat_id = integration_env.get("test_chat_id")
-        if not test_chat_id:
-            pytest.skip("TEST_CHAT_ID required")
+        test_content_id: str = integration_env.get("test_content_id")
+        test_chat_id: str = integration_env.get("test_chat_id")
+
+        if not test_chat_id or not test_content_id:
+            pytest.skip("TEST_CHAT_ID and TEST_CONTENT_ID required")
 
         # Act
         response = unique_SDK.chunk.createMany.CreateMany.request(
             context=request_context,
-            chunks=[
-                {
-                    "chatId": test_chat_id,
-                    "text": f"Test chunk {i}",
-                    "embedding": [0.1] * 1536,
-                    "metadata": {},
-                }
-                for i in range(3)
-            ],
+            input=["Test chunk 1", "Test chunk 2", "Test chunk 3"],
+            content_id=test_content_id,
+            chat_id=test_chat_id,
         )
 
         # Assert

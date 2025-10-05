@@ -186,6 +186,25 @@ class PathProcessor:
         except Exception:
             return "class PathParams(BaseModel):\n    pass"
 
+    def _extract_schema_name_from_ref(
+        self, schema_dict: Dict[str, Any]
+    ) -> Optional[str]:
+        """Extract schema name from $ref if present.
+
+        Args:
+            schema_dict: Schema dictionary that might contain a $ref
+
+        Returns:
+            Schema name if $ref is present (e.g., 'PublicMessageDto'), None otherwise
+        """
+        if isinstance(schema_dict, dict) and "$ref" in schema_dict:
+            ref = schema_dict["$ref"]
+            # Extract the last part of the reference path
+            # e.g., "#/components/schemas/PublicMessageDto" -> "PublicMessageDto"
+            if "/" in ref:
+                return ref.split("/")[-1]
+        return None
+
     def _generate_request_model(self, operation: Operation, method_prefix: str) -> str:
         """Generate request model for an operation."""
         if operation.requestBody:
@@ -194,10 +213,25 @@ class PathProcessor:
             if hasattr(request_body, "content") and request_body.content:
                 for content_details in request_body.content.values():
                     if content_details.media_type_schema:
-                        schema_dict = content_details.media_type_schema.model_dump()
+                        # Extract schema name from $ref BEFORE model_dump() to preserve it
+                        actual_schema_name = None
+                        if isinstance(content_details.media_type_schema, Reference):
+                            if hasattr(content_details.media_type_schema, "ref"):
+                                ref = content_details.media_type_schema.ref
+                                if "/" in ref:
+                                    actual_schema_name = ref.split("/")[-1]
+
+                        # If not extracted yet, try from model_dump
+                        if not actual_schema_name:
+                            schema_dict = content_details.media_type_schema.model_dump()
+                            actual_schema_name = self._extract_schema_name_from_ref(
+                                schema_dict
+                            )
+
+                        title = actual_schema_name or f"{method_prefix}Request"
 
                         model = generate_model_from_schema(
-                            schema_dict, f"{method_prefix}Request", self.raw_spec
+                            content_details.media_type_schema, title, self.raw_spec
                         )
                         if model:
                             return model
@@ -288,11 +322,36 @@ class PathProcessor:
                 if isinstance(response_obj, Response) and response_obj.content:
                     for content_details in response_obj.content.values():
                         if content_details.media_type_schema:
+                            # Extract schema name from $ref BEFORE model_dump() to preserve it
+                            # Check if it's a Reference object first
+                            actual_schema_name = None
+                            if isinstance(content_details.media_type_schema, Reference):
+                                # It's a Reference, extract the schema name from the ref attribute
+                                if hasattr(content_details.media_type_schema, "ref"):
+                                    ref = content_details.media_type_schema.ref
+                                    if "/" in ref:
+                                        actual_schema_name = ref.split("/")[-1]
+
+                            # If not extracted yet, try from model_dump
+                            if not actual_schema_name:
+                                schema_dict = (
+                                    content_details.media_type_schema.model_dump()
+                                )
+                                actual_schema_name = self._extract_schema_name_from_ref(
+                                    schema_dict
+                                )
+
                             title = (
-                                base_response_name
+                                actual_schema_name or base_response_name
                                 if status_code.startswith("2")
-                                else f"{base_response_name}{status_code}"
+                                else actual_schema_name
+                                or f"{base_response_name}{status_code}"
                             )
+
+                            # If we found a schema name from $ref, update base_response_name for success responses
+                            if status_code.startswith("2") and actual_schema_name:
+                                base_response_name = actual_schema_name
+
                             # Resolve reference if needed
                             schema = resolve_reference(
                                 content_details.media_type_schema, self.raw_spec
@@ -315,12 +374,23 @@ class PathProcessor:
                 ):
                     for media_type, content_data in response_obj["content"].items():
                         if "schema" in content_data:
-                            title = (
-                                base_response_name
-                                if status_code.startswith("2")
-                                else f"{base_response_name}{status_code}"
-                            )
                             schema_dict = content_data["schema"]
+
+                            # Extract schema name from $ref if present
+                            actual_schema_name = self._extract_schema_name_from_ref(
+                                schema_dict
+                            )
+
+                            title = (
+                                actual_schema_name or base_response_name
+                                if status_code.startswith("2")
+                                else actual_schema_name
+                                or f"{base_response_name}{status_code}"
+                            )
+
+                            # If we found a schema name from $ref, update base_response_name for success responses
+                            if status_code.startswith("2") and actual_schema_name:
+                                base_response_name = actual_schema_name
 
                             model = generate_model_from_schema(
                                 schema_dict, title, self.raw_spec

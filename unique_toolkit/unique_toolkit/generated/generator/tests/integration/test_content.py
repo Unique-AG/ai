@@ -3,6 +3,10 @@
 import pytest
 
 import unique_toolkit.generated.generated_routes.public as unique_SDK
+from unique_toolkit.generated.generated_routes.public.content.upsert.models import (
+    Input,
+    UpsertResponse,
+)
 
 
 @pytest.mark.integration
@@ -25,22 +29,32 @@ class TestContentCRUD:
 
         content_id = None
 
+        test_input = Input(
+            url="https://example.com/test",
+            key="integration_test",
+            title="Integration test content",
+            mime_type="text/plain",
+            byte_size=100,
+            ingestion_config=None,
+            metadata=None,
+        )
+
         try:
+            content_id = None
             # Act: Upsert content
             response = unique_SDK.content.upsert.Upsert.request(
                 context=request_context,
                 chat_id=test_chat_id,
-                text="Integration test content",
-                source="integration_test",
-                url="https://example.com/test",
+                scope_id=None,
+                input=test_input,
+                store_internally=False,
+                file_url=None,
             )
-
             # Assert
-            assert response is not None
-            content_id = response.id if hasattr(response, "id") else response.get("id")
+            assert isinstance(response, UpsertResponse)
 
-            if content_id:
-                cleanup_items.append(("content", content_id))
+            if response.id:
+                cleanup_items.append(("content", response.id))
 
         finally:
             # Cleanup
@@ -67,14 +81,20 @@ class TestContentCRUD:
             if integration_env.get("test_content_id")
             else []
         )
+        test_chat_id = integration_env.get("test_chat_id")
 
-        if not content_ids:
-            pytest.skip("TEST_CONTENT_ID not set in test.env")
+        if not content_ids or not test_chat_id:
+            pytest.skip("TEST_CONTENT_ID and TEST_CHAT_ID not set in test.env")
 
         # Act
         response = unique_SDK.content.info.GetContentInfo.request(
             context=request_context,
-            ids=content_ids,
+            content_id=content_ids[0],
+            chat_id=test_chat_id,
+            metadata_filter={},
+            file_path="",
+            take=1,
+            skip=0,
         )
 
         # Assert
