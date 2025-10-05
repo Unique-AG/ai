@@ -9,10 +9,17 @@ cd "$SCRIPT_DIR"
 echo "🔍 Checking generated code quality..."
 echo
 
-# Check with ruff
-echo "📝 Running ruff..."
-ruff check generated_routes/ || true
+## Fix fixable
+echo "🔍 Fixing fixable issues with ruff..."
+ruff check generated_routes/ --fix --unsafe-fixes || true
+ruff format generated_routes/ || true
 echo
+
+## Fix type errors
+echo "🔍 Fixing type errors..."
+pyright generated_routes/ --fix-errors || true
+echo
+
 
 # Check with pyright  
 echo "🔎 Running pyright type checking..."
