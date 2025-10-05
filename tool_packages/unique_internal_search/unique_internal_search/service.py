@@ -77,7 +77,7 @@ class InternalSearchService:
 
     async def search(
         self,
-        search_string: str,
+        search_strings: list[str],
         content_ids: list[str] | None = None,
         metadata_filter: dict | None = None,
         **kwargs,
@@ -85,7 +85,6 @@ class InternalSearchService:
         """
         Perform a search in the Vector DB based on the user's message and generate a response.
         """
-        search_string_data = search_string
 
         ###
         # 2. Search for context in the Vector DB
@@ -105,48 +104,66 @@ class InternalSearchService:
             self.content_service._metadata_filter = None
             metadata_filter = None
 
-        try:
-            found_chunks = await self.content_service.search_content_chunks_async(
-                search_string=search_string_data,  # type: ignore
-                search_type=self.config.search_type,
-                limit=self.config.limit,
-                reranker_config=self.config.reranker_config,
-                search_language=self.config.search_language,
-                scope_ids=self.config.scope_ids,
-                metadata_filter=metadata_filter,
-                chat_id=self.chat_id if self.config.exclude_uploaded_files else "",
-                chat_only=chat_only,
-                content_ids=content_ids,
-                score_threshold=self.config.score_threshold,
-            )
-            self.logger.info(f"Found {len(found_chunks)} chunks")
-        except Exception as e:
-            self.logger.error(f"Error in search_document_chunks call: {e}")
-            raise e
+        found_chunks_per_query = []
+        for i, search_string in enumerate(search_strings):
+            search_string_data = search_string
+            print(f"search_string_data: {search_string_data} (Query {i + 1}/{len(search_strings)})")
+            try:
+                found_chunks = await self.content_service.search_content_chunks_async(
+                    search_string=search_string_data,  # type: ignore
+                    search_type=self.config.search_type,
+                    limit=self.config.limit,
+                    reranker_config=self.config.reranker_config,
+                    search_language=self.config.search_language,
+                    scope_ids=self.config.scope_ids,
+                    metadata_filter=metadata_filter,
+                    chat_id=self.chat_id if self.config.exclude_uploaded_files else "",
+                    chat_only=chat_only,
+                    content_ids=content_ids,
+                    score_threshold=self.config.score_threshold,
+                )
+                self.logger.info(f"Found {len(found_chunks)} chunks (Query {i + 1}/{len(search_strings)})")
+                print(f"Found {len(found_chunks)} chunks (Query {i + 1}/{len(search_strings)})")
+            except Exception as e:
+                self.logger.error(f"Error in search_document_chunks call: {e}")
+                raise e
+
+            found_chunks_per_query.append({"query": search_string_data, "chunks": found_chunks})
 
         # Reset the metadata filter in case it was disabled
         self.content_service._metadata_filter = metadata_filter_copy
 
         # Apply chunk relevancy sorter if enabled
         if self.config.chunk_relevancy_sort_config.enabled:
-            await self.post_progress_message(
-                f"{search_string_data} (_Resorting {len(found_chunks)} search results_ 🔄)",
-                **kwargs,
-            )
-            found_chunks = await self._resort_found_chunks_if_enabled(
-                found_chunks=found_chunks,
-                search_string=search_string_data,  # type: ignore
-            )
+            for i, result in enumerate(found_chunks_per_query):
+                await self.post_progress_message(
+                    f"{result['query']} (_Resorting {len(result['chunks'])} search results_ 🔄 in query {i + 1}/{len(search_strings)})",
+                    **kwargs,
+                )
+                result['chunks'] = await self._resort_found_chunks_if_enabled(
+                    found_chunks=result['chunks'],
+                    search_string=result["query"],  # type: ignore
+                )
 
         ###
         # 3. Pick a subset of the search results
         ###
+        """ Make certain chunks from each query end up in the final result """
+        found_chunks_all = []
+        max_chunks = max(len(result['chunks']) for result in found_chunks_per_query) if found_chunks_per_query else 0
+        # max_chunks = 2
+        for i in range(max_chunks):
+            for result in found_chunks_per_query:
+                if i < len(result['chunks']):
+                    chunk = result['chunks'][i]
+                    # print(f"chunk: {chunk} (Query {i + 1}/{max_chunks})")
+                    found_chunks_all.append(chunk)
         await self.post_progress_message(
-            f"{search_string_data} (_Postprocessing search results_)",
+            f"{', '.join(search_strings)} (_Postprocessing search results_)",
             **kwargs,
         )
         selected_chunks = pick_content_chunks_for_token_window(
-            found_chunks, self._get_max_tokens()
+            found_chunks_all, self._get_max_tokens()
         )
 
         ###
@@ -158,7 +175,7 @@ class InternalSearchService:
             selected_chunks = sort_content_chunks(selected_chunks)
 
         self.debug_info = {
-            "searchString": search_string_data,
+            "searchStrings": search_strings,
             "metadataFilter": metadata_filter,
             "chatOnly": chat_only,
         }
@@ -257,9 +274,9 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
     def tool_description(self) -> LanguageModelToolDescription:
         internal_search_tool_input = create_model(
             "InternalSearchToolInput",
-            search_string=(
-                str,
-                Field(description=self.config.param_description_search_string),
+            search_strings=(
+                list[str],
+                Field(description=self.config.param_description_search_strings),
             ),
             language=(
                 str,
@@ -300,7 +317,7 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
         if (
             tool_call.arguments is None
             or not isinstance(tool_call.arguments, dict)
-            or "search_string" not in tool_call.arguments
+            or "search_strings" not in tool_call.arguments
         ):
             self.logger.error("Tool call arguments are missing or invalid")
             return ToolCallResponse(
@@ -310,9 +327,9 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
                 debug_info={},
             )
 
-        # Extract the search string and user message language
-        search_string_data = tool_call.arguments["search_string"]
-        await self.post_progress_message(f"{search_string_data}", tool_call)
+        # Extract the search strings and user message language
+        search_strings_data = tool_call.arguments["search_strings"]
+        await self.post_progress_message(f"{', '.join(search_strings_data)}", tool_call)
 
         selected_chunks = await self.search(
             **tool_call.arguments,
@@ -330,7 +347,7 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             await self.tool_progress_reporter.notify_from_tool_call(
                 tool_call=tool_call,
                 name=f"**{self.tool_execution_message_name}**",
-                message=f"{search_string_data}",
+                message=f"{', '.join(search_strings_data)}",
                 state=ProgressState.FINISHED,
             )
 

@@ -22,7 +22,7 @@ from unique_toolkit.content.schemas import (
 
 from unique_internal_search.prompts import (
     DEFAULT_LANGUAGE_PARAM_DESCRIPTION,
-    DEFAULT_SEARCH_STRING_PARAM_DESCRIPTION,
+    DEFAULT_SEARCH_STRINGS_PARAM_DESCRIPTION,
     DEFAULT_TOOL_DESCRIPTION,
     DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
     DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT,
@@ -107,9 +107,9 @@ class InternalSearchConfig(BaseToolConfig):
         DEFAULT_TOOL_DESCRIPTION,
         description="Tool description.",
     )
-    param_description_search_string: str = get_string_field_with_pattern_validation(
-        DEFAULT_SEARCH_STRING_PARAM_DESCRIPTION,
-        description="`search_string` parameter description.",
+    param_description_search_strings: str = get_string_field_with_pattern_validation(
+        DEFAULT_SEARCH_STRINGS_PARAM_DESCRIPTION,
+        description="`search_strings` parameter description.",
     )
     param_description_language: str = get_string_field_with_pattern_validation(
         DEFAULT_LANGUAGE_PARAM_DESCRIPTION,
