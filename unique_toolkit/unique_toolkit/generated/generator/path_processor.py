@@ -103,9 +103,10 @@ class PathProcessor:
                 all_models.append(query_params_model)
 
             # Generate Response models
-            response_info = self._generate_response_models(
-                operation, method_prefix, all_models
+            response_info, response_models = self._generate_response_models(
+                operation, method_prefix
             )
+            all_models.extend(response_models)
 
             # Collect operation info
             operation_info = self._collect_operation_info(
@@ -252,9 +253,14 @@ class PathProcessor:
         return None
 
     def _generate_response_models(
-        self, operation: Operation, method_prefix: str, all_models: List[str]
-    ) -> Dict[str, Any]:
-        """Generate response models and return metadata."""
+        self, operation: Operation, method_prefix: str
+    ) -> tuple[Dict[str, Any], List[str]]:
+        """Generate response models and return metadata.
+
+        Returns:
+            Tuple of (response_info_dict, list_of_generated_models)
+        """
+        generated_models = []
         success_responses = []
         if operation.responses:
             success_responses = [
@@ -293,7 +299,7 @@ class PathProcessor:
                                 schema_dict, title, self.raw_spec
                             )
                             if model:
-                                all_models.append(model)
+                                generated_models.append(model)
                 elif (
                     response_obj
                     and isinstance(response_obj, dict)
@@ -312,21 +318,27 @@ class PathProcessor:
                                 schema_dict, title, self.raw_spec
                             )
                             if model:
-                                all_models.append(model)
+                                generated_models.append(model)
 
         # Always ensure we have a response model for success responses
         if success_responses:
             response_model_exists = any(
-                base_response_name in model and "class" in model for model in all_models
+                base_response_name in model and "class" in model
+                for model in generated_models
             )
             if not response_model_exists:
-                all_models.append(f"class {base_response_name}(BaseModel):\n    pass")
+                generated_models.append(
+                    f"class {base_response_name}(BaseModel):\n    pass"
+                )
 
-        return {
-            "success_code": success_code,
-            "response_model": base_response_name,
-            "has_success_responses": bool(success_responses),
-        }
+        return (
+            {
+                "success_code": success_code,
+                "response_model": base_response_name,
+                "has_success_responses": bool(success_responses),
+            },
+            generated_models,
+        )
 
     def _collect_operation_info(
         self,
