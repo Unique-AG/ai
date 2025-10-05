@@ -5,51 +5,72 @@ Unit and integration tests for the OpenAPI route generator.
 ## Running Tests
 
 ```bash
-# Run all generator tests
+# Run all tests (unit + integration)
 poetry run pytest unique_toolkit/generated/generator/tests/
 
+# Run only unit tests (fast, no API calls)
+poetry run pytest unique_toolkit/generated/generator/tests/unit/
+
+# Run only integration tests (requires test.env)
+poetry run pytest unique_toolkit/generated/generator/tests/integration/
+
 # Run specific test file
-poetry run pytest unique_toolkit/generated/generator/tests/test_utils.py
+poetry run pytest unique_toolkit/generated/generator/tests/unit/test_utils.py
 
 # Run with coverage
-poetry run pytest unique_toolkit/generated/generator/tests/ --cov=unique_toolkit.generated.generator
+poetry run pytest unique_toolkit/generated/generator/tests/unit/ --cov=unique_toolkit.generated.generator
 
 # Run with verbose output
 poetry run pytest unique_toolkit/generated/generator/tests/ -v
 
 # Run only AI-generated tests
 poetry run pytest unique_toolkit/generated/generator/tests/ -m ai_generated
+
+# Skip integration tests (for CI without credentials)
+poetry run pytest unique_toolkit/generated/generator/tests/ -m "not integration"
 ```
 
 ## Test Structure
 
 ```
 tests/
-├── conftest.py                           # Shared fixtures
-├── unit/                                 # Unit tests
+├── conftest.py                           # Shared fixtures for all tests
+├── unit/                                 # Unit tests (fast, no external deps)
 │   ├── test_utils.py                     # Utility function tests
 │   ├── test_schema_generator.py          # Model generation tests
 │   ├── test_template_renderer.py         # Jinja2 rendering tests
 │   ├── test_init_generator.py            # __init__.py generation tests
 │   ├── test_path_processor.py            # Path processing tests
 │   └── test_integration.py               # Component integration tests
+├── integration/                          # Integration tests (require API)
+│   ├── conftest.py                       # Integration-specific fixtures
+│   ├── test.env.example                  # Environment template
+│   ├── test_folder_crud.py               # Folder CRUD operations
+│   ├── test_messages.py                  # Message operations
+│   ├── test_search.py                    # Search operations
+│   └── README.md                         # Integration test guide
 ├── pytest.ini                            # Pytest configuration
 └── README.md                             # This file
 ```
 
 ## Test Categories
 
-### Unit Tests
+### Unit Tests (`unit/`)
+Fast tests with no external dependencies:
 - `test_utils.py` - Path conversion, deduplication, reference resolution
 - `test_schema_generator.py` - Pydantic model generation from OpenAPI schemas
 - `test_template_renderer.py` - Jinja2 template rendering
-
-### Component Tests  
 - `test_init_generator.py` - __init__.py file generation logic
 - `test_path_processor.py` - Individual path processing
+- `test_integration.py` - Component integration (not API integration)
 
-### Integration Tests
-- `test_integration.py` - End-to-end generation pipeline
+### Integration Tests (`integration/`)
+Tests against real API (require `test.env` with credentials):
+- `test_folder_crud.py` - Folder create/update/delete operations
+- `test_messages.py` - Message creation and retrieval
+- `test_search.py` - Search functionality
+
+**Note:** Integration tests auto-skip if `test.env` is missing or incomplete.
 
 ## Key Test Scenarios
 
