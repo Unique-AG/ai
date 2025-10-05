@@ -1,0 +1,23 @@
+{
+  "include": [
+    "generated_routes"
+  ],
+  "exclude": [
+    "**/__pycache__",
+    "**/.pytest_cache"
+  ],
+  "typeCheckingMode": "basic",
+  "reportMissingImports": true,
+  "reportMissingTypeStubs": false,
+  "reportUnknownParameterType": false,
+  "reportUnknownArgumentType": false,
+  "reportUnknownMemberType": false,
+  "reportUnknownVariableType": false,
+  "reportRedeclaration": true,
+  "reportAttributeAccessIssue": true,
+  "pythonVersion": "3.12",
+  "pythonPlatform": "All",
+  "venvPath": "../../..",
+  "venv": ".venv"
+}
+

@@ -113,11 +113,44 @@ If you see import errors for response models, regenerate all routes:
 poetry run python unique_toolkit/generated/generate_routes.py
 ```
 
-### Linter Errors
+### Type Checking with Pyright
 
-After generation, check for linter errors:
+Pyright is excellent for finding type issues in generated code:
+
 ```bash
+# Check specific path
+pyright unique_toolkit/generated/generated_routes/public/messages/
+
+# Check all generated routes
+pyright unique_toolkit/generated/generated_routes/
+
+# With more verbose output
+pyright --verbose unique_toolkit/generated/generated_routes/
+```
+
+Common issues Pyright finds:
+- Missing response models (`CreateResponse`, `UpdateResponse`)
+- Duplicate class declarations
+- Type inconsistencies
+- Import errors
+
+### Automated Quality Check
+
+Use the provided script to check both linting and type errors:
+
+```bash
+cd unique_toolkit/generated
+./check_generated.sh
+```
+
+Or manually:
+
+```bash
+# Linter
 ruff check unique_toolkit/generated/generated_routes/
+
+# Type checker  
+pyright unique_toolkit/generated/generated_routes/
 ```
 
 ## Architecture
