@@ -1,7 +1,6 @@
+import unique_toolkit.generated.generated_routes.public as uniquq_SDK
 from unique_toolkit._common.endpoint_requestor import RequestContext
 from unique_toolkit.app.unique_settings import UniqueSettings
-from unique_toolkit.generated.generated_routes.public.folder import Folder
-from unique_toolkit.generated.generated_routes.public.folder.scopeId import ScopeId
 
 base_url = "https://gateway.qa.unique.app/public/chat-gen2"
 
@@ -15,16 +14,24 @@ headers = {
     "x-api-version": settings.api.version,
 }
 
-answer = Folder.createFolderStructure.request(
-    context=RequestContext(headers=headers),
-    paths=["/testcreation/test/test"],
-)
 
 # Now using snake_case parameters! 🎉
-ScopeId.deleteFolder.request(context=RequestContext(headers=headers), scope_id="test")
 
-ScopeId.update.request(
-    context=RequestContext(headers=headers), parent_id=None, name=None, scope_id="test"
+request_context = RequestContext(headers=headers)
+
+uniquq_SDK.folder.scopeId.Update.request(
+    context=request_context, parent_id=None, name=None, scope_id="test"
 )
-ScopeId.deleteFolder.request(context=RequestContext(headers=headers), scope_id="test")
-print(answer)
+
+uniquq_SDK.folder.scopeId.DeleteFolder.request(context=request_context, scope_id="test")
+
+
+# Using the new client-style API (operations start with capital letter)
+answer2 = uniquq_SDK.folder.CreateFolderStructure.request(
+    context=request_context,
+    paths=["/testcreation/test/test"],
+)
+print(answer2)
+
+# Now nested routes work too! (operations at module level)
+uniquq_SDK.folder.scopeId.DeleteFolder.request(context=request_context, scope_id="test")

@@ -19,33 +19,32 @@ class _EmptyPathParams(BaseModel):
 {% endif %}
 
 
-class {{ class_name }}:
-    """API client for {{ path }}"""
-    
-    {% for operation in operations %}
+"""API client for {{ path }} with {{ class_name }}"""
+
+{% for operation in operations %}
+{% if has_path_params %}
+class _{{ operation.method_prefix }}CombinedParams(PathParams, {{ operation.method_prefix }}Request):
+    """Combined path and request parameters for {{ operation.method|upper }}"""
+    pass
+{% endif %}
+
+{{ operation.name }} = build_requestor(
+    requestor_type=RequestorType.REQUESTS,
+    operation_type=build_api_operation(
+        method=HttpMethods.{{ operation.method|upper }},
+        url_template=Template("{{'{base_url}' + path}}"),
+        path_params_constructor={% if has_path_params %}PathParams{% else %}_EmptyPathParams{% endif %},
+        payload_constructor={{ operation.method_prefix }}Request,
+        response_model_type={{ operation.method_prefix }}Response{{ operation.success_code }},
+    ),
     {% if has_path_params %}
-    class _{{ operation.method_prefix }}CombinedParams(PathParams, {{ operation.method_prefix }}Request):
-        """Combined path and request parameters for {{ operation.method|upper }}"""
-        pass
+    combined_model=_{{ operation.method_prefix }}CombinedParams,
+    {% else %}
+    combined_model={{ operation.method_prefix }}Request,
     {% endif %}
+)
+{% if not loop.last %}
 
-    {{ operation.name }} = build_requestor(
-        requestor_type=RequestorType.REQUESTS,
-        operation_type=build_api_operation(
-            method=HttpMethods.{{ operation.method|upper }},
-            url_template=Template("{{'{base_url}' + path}}"),
-            path_params_constructor={% if has_path_params %}PathParams{% else %}_EmptyPathParams{% endif %},
-            payload_constructor={{ operation.method_prefix }}Request,
-            response_model_type={{ operation.method_prefix }}Response{{ operation.success_code }},
-        ),
-        {% if has_path_params %}
-        combined_model=_{{ operation.method_prefix }}CombinedParams,
-        {% else %}
-        combined_model={{ operation.method_prefix }}Request,
-        {% endif %}
-    )
-    {% if not loop.last %}
-
-    {% endif %}
-    {% endfor %}
+{% endif %}
+{% endfor %}
 

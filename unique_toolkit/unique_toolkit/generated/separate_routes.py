@@ -1,4 +1,5 @@
 import json
+import os
 import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
@@ -546,12 +547,22 @@ def generate_consolidated_endpoint_models() -> None:
                 )
 
                 # Collect operation info for API client generation
+                # Capitalize operation name (e.g., deleteFolder -> DeleteFolder)
+                operation_name = (
+                    operation.operationId
+                    or f"{method}_{path.replace('/', '_').replace('{', '').replace('}', '')}"
+                )
+                operation_name = (
+                    operation_name[0].upper() + operation_name[1:]
+                    if operation_name
+                    else operation_name
+                )
+
                 operations_info.append(
                     {
                         "method": method,
                         "method_prefix": method_prefix,
-                        "name": operation.operationId
-                        or f"{method}_{path.replace('/', '_').replace('{', '').replace('}', '')}",
+                        "name": operation_name,
                         "success_code": success_code,
                         "has_query_params": has_query_params,
                     }
@@ -622,14 +633,166 @@ def generate_consolidated_endpoint_models() -> None:
 
         print(f"✅ Created API client: {api_file}")
 
-        # Create __init__.py to export the class
+        # Create __init__.py to export operations and subdirectories
         init_file = route_dir / "__init__.py"
+
+        # Check for subdirectories with __init__.py files
+        subdirs = []
+        for item in route_dir.iterdir():
+            if item.is_dir() and (item / "__init__.py").exists():
+                subdirs.append(item.name)
+
+        subdirs.sort()  # Consistent ordering
+
+        # Extract operation names from operations_info
+        operation_names = [op["name"] for op in operations_info]
+
+        # Use Jinja2 template for init file
+        endpoint_init_template = env.get_template("endpoint_init_template.jinja2")
+        exports = operation_names + subdirs
+
+        init_rendered = endpoint_init_template.render(
+            operations=operation_names,
+            subdirs=subdirs,
+            exports=exports,
+        )
+
         with open(init_file, "w") as f:
-            f.write(f"from .path_operation import {class_name}\n\n")
-            f.write(f"__all__ = ['{class_name}']\n")
+            f.write(init_rendered)
 
         print(f"✅ Created __init__.py: {init_file}")
 
 
+def update_endpoint_init_files(output_root: Path) -> None:
+    """Update endpoint-level __init__.py files to include subdirectories.
+
+    This is a post-processing step that runs after all endpoints are generated,
+    ensuring that each endpoint's __init__.py exposes both operations
+    and any subdirectories (for nested routes).
+    """
+    print("\n🔧 Updating endpoint __init__.py files with subdirectories...")
+
+    # Setup Jinja2 environment
+    template_dir = Path(__file__).parent
+    env = Environment(
+        loader=FileSystemLoader(template_dir), trim_blocks=True, lstrip_blocks=True
+    )
+    endpoint_init_template = env.get_template("endpoint_init_template.jinja2")
+
+    # Find all directories with path_operation.py (these are endpoints)
+    for root, dirs, files in os.walk(output_root):
+        if "path_operation.py" not in files:
+            continue
+
+        root_path = Path(root)
+        init_file = root_path / "__init__.py"
+        path_operation_file = root_path / "path_operation.py"
+
+        if not init_file.exists() or not path_operation_file.exists():
+            continue
+
+        # Read path_operation.py to extract operation names
+        with open(path_operation_file, "r") as f:
+            path_op_content = f.read()
+
+        # Extract operation names (variables assigned with build_requestor)
+        # Pattern: operation_name = build_requestor(...)
+        operation_names = re.findall(
+            r"^(\w+)\s*=\s*build_requestor\(", path_op_content, re.MULTILINE
+        )
+
+        if not operation_names:
+            continue
+
+        # Find subdirectories with __init__.py
+        subdirs = []
+        for item in root_path.iterdir():
+            if item.is_dir() and (item / "__init__.py").exists():
+                subdirs.append(item.name)
+
+        subdirs.sort()
+
+        # Regenerate the __init__.py with operations and subdirectories using template
+        exports = operation_names + subdirs
+        init_rendered = endpoint_init_template.render(
+            operations=operation_names,
+            subdirs=subdirs,
+            exports=exports,
+        )
+
+        with open(init_file, "w") as f:
+            f.write(init_rendered)
+
+        if subdirs or operation_names:
+            print(
+                f"✅ Updated {init_file.relative_to(output_root)} with ops: {operation_names}, subdirs: {subdirs}"
+            )
+
+
+def generate_parent_init_files(output_root: Path) -> None:
+    """Generate __init__.py files for all parent directories in the route tree.
+
+    This creates __init__.py files that expose submodules, making imports like
+    'import unique_toolkit.generated.generated_routes.public as client' work.
+    """
+    print("\n🔧 Generating parent __init__.py files...")
+
+    # Setup Jinja2 environment
+    template_dir = Path(__file__).parent
+    env = Environment(
+        loader=FileSystemLoader(template_dir), trim_blocks=True, lstrip_blocks=True
+    )
+    parent_init_template = env.get_template("parent_init_template.jinja2")
+
+    # Collect all directories that need __init__.py files
+    dirs_to_process = set()
+
+    # Walk through all directories in the output_root
+    for root, dirs, files in os.walk(output_root):
+        root_path = Path(root)
+
+        # Skip if this is a leaf directory (has path_operation.py)
+        if "path_operation.py" in files:
+            continue
+
+        # Check if this directory has subdirectories with __init__.py
+        has_python_subdirs = False
+        for subdir in dirs:
+            subdir_path = root_path / subdir
+            if (subdir_path / "__init__.py").exists():
+                has_python_subdirs = True
+                break
+
+        if has_python_subdirs:
+            dirs_to_process.add(root_path)
+
+    # Generate __init__.py for each directory
+    for dir_path in sorted(dirs_to_process):
+        # Get immediate subdirectories that have __init__.py
+        subdirs = []
+        for item in dir_path.iterdir():
+            if item.is_dir() and (item / "__init__.py").exists():
+                subdirs.append(item.name)
+
+        if subdirs:
+            init_file = dir_path / "__init__.py"
+
+            # Sort subdirs for consistent output
+            subdirs.sort()
+
+            # Render template
+            init_rendered = parent_init_template.render(subdirs=subdirs)
+
+            with open(init_file, "w") as f:
+                f.write(init_rendered)
+
+            print(
+                f"✅ Created parent __init__.py: {init_file.relative_to(output_root)}"
+            )
+
+
 if __name__ == "__main__":
+    output_root = Path(__file__).parent / "generated_routes"
     generate_consolidated_endpoint_models()
+    update_endpoint_init_files(output_root)  # Update endpoints with subdirectories
+    generate_parent_init_files(output_root)  # Generate parent directory inits

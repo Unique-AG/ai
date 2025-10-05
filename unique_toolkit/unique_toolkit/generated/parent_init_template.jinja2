@@ -1,0 +1,7 @@
+# Generated parent module init
+{% for subdir in subdirs %}
+from . import {{ subdir }}
+{% endfor %}
+
+__all__ = {{ subdirs }}
+
