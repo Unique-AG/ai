@@ -6,3 +6,10 @@ examples/generated/
 unique.env
 docs/examples_from_docs/*.env
 docs/examples_from_docs/unique.env
+
+# Coverage analysis files
+coverage_analysis/
+coverage.xml
+coverage.json
+.coverage
+htmlcov/

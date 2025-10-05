@@ -20,7 +20,6 @@ def async_warning(func):
     return wrapper
 
 
-@async_warning
 def to_async(func: Callable[..., T]) -> Callable[..., Coroutine[Any, Any, T]]:
     """
     Decorator to convert a synchronous function to an asynchronous function using a thread pool executor.
@@ -32,6 +31,7 @@ def to_async(func: Callable[..., T]) -> Callable[..., Coroutine[Any, Any, T]]:
         Callable[..., Coroutine[Any, Any, T]]: The asynchronous function.
     """
 
+    @async_warning
     @wraps(func)
     async def wrapper(*args, **kwargs) -> T:
         return await asyncio.to_thread(func, *args, **kwargs)

@@ -25,12 +25,6 @@ from unique_toolkit.language_model.schemas import LanguageModelMessages
 
 
 @pytest.fixture
-def mock_sdk():
-    with patch("unique_toolkit.chat.functions.unique_sdk") as mock:
-        yield mock
-
-
-@pytest.fixture
 def sample_message_data():
     return {
         "user_id": "user123",
@@ -45,9 +39,10 @@ def sample_message_data():
     }
 
 
-def test_modify_message(mock_sdk, sample_message_data):
+@patch.object(unique_sdk.Message, "modify")
+def test_modify_message(mock_modify, sample_message_data):
     # Setup
-    mock_sdk.Message.modify.return_value = sample_message_data
+    mock_modify.return_value = sample_message_data
 
     # Execute
     result = modify_message(
@@ -63,13 +58,14 @@ def test_modify_message(mock_sdk, sample_message_data):
 
     # Assert
     assert isinstance(result, ChatMessage)
-    mock_sdk.Message.modify.assert_called_once()
+    mock_modify.assert_called_once()
     assert result.content == "Hello world"
 
 
-def test_create_message(mock_sdk, sample_message_data):
+@patch.object(unique_sdk.Message, "create")
+def test_create_message(mock_create, sample_message_data):
     # Setup
-    mock_sdk.Message.create.return_value = sample_message_data
+    mock_create.return_value = sample_message_data
 
     # Execute
     result = create_message(
@@ -83,11 +79,12 @@ def test_create_message(mock_sdk, sample_message_data):
 
     # Assert
     assert isinstance(result, ChatMessage)
-    mock_sdk.Message.create.assert_called_once()
+    mock_create.assert_called_once()
     assert result.content == "Hello world"
 
 
-def test_get_full_history(mock_sdk):
+@patch.object(unique_sdk.Message, "list")
+def test_get_full_history(mock_list):
     # Setup
     mock_messages = {
         "data": [
@@ -120,7 +117,7 @@ def test_get_full_history(mock_sdk):
             },
         ]
     }
-    mock_sdk.Message.list.return_value = mock_messages
+    mock_list.return_value = mock_messages
 
     # Execute
     result = get_full_history("user123", "company123", "chat123")
@@ -163,12 +160,10 @@ def test_get_selection_from_history():
 
 
 @pytest.mark.asyncio
-async def test_modify_message_async(mock_sdk, sample_message_data):
+@patch.object(unique_sdk.Message, "modify_async")
+async def test_modify_message_async(mock_modify_async, sample_message_data):
     # Setup
-    async def async_return():
-        return sample_message_data
-
-    mock_sdk.Message.modify_async.return_value = async_return()
+    mock_modify_async.return_value = sample_message_data
 
     # Execute
     result = await modify_message_async(
@@ -184,13 +179,14 @@ async def test_modify_message_async(mock_sdk, sample_message_data):
 
     # Assert
     assert isinstance(result, ChatMessage)
-    mock_sdk.Message.modify_async.assert_called_once()
+    mock_modify_async.assert_called_once()
     assert result.content == "Hello world"
 
 
-def test_modify_message_with_references(mock_sdk, sample_message_data):
+@patch.object(unique_sdk.Message, "modify")
+def test_modify_message_with_references(mock_modify, sample_message_data):
     # Setup
-    mock_sdk.Message.modify.return_value = sample_message_data
+    mock_modify.return_value = sample_message_data
     references = [
         ContentReference(
             id="ref123",
@@ -218,19 +214,17 @@ def test_modify_message_with_references(mock_sdk, sample_message_data):
 
     # Assert
     assert isinstance(result, ChatMessage)
-    mock_sdk.Message.modify.assert_called_once()
-    call_kwargs = mock_sdk.Message.modify.call_args[1]
+    mock_modify.assert_called_once()
+    call_kwargs = mock_modify.call_args[1]
     assert "references" in call_kwargs
     assert isinstance(call_kwargs["references"], list)
 
 
 @pytest.mark.asyncio
-async def test_create_message_async(mock_sdk, sample_message_data):
+@patch.object(unique_sdk.Message, "create_async")
+async def test_create_message_async(mock_create_async, sample_message_data):
     # Setup
-    async def async_return():
-        return sample_message_data
-
-    mock_sdk.Message.create_async.return_value = async_return()
+    mock_create_async.return_value = sample_message_data
 
     # Execute
     result = await create_message_async(
@@ -244,7 +238,7 @@ async def test_create_message_async(mock_sdk, sample_message_data):
 
     # Assert
     assert isinstance(result, ChatMessage)
-    mock_sdk.Message.create_async.assert_called_once()
+    mock_create_async.assert_called_once()
     assert result.content == "Hello world"
 
 
@@ -276,7 +270,8 @@ def test_map_references():
 
 
 @pytest.mark.asyncio
-async def test_list_messages_async(mock_sdk):
+@patch.object(unique_sdk.Message, "list_async")
+async def test_list_messages_async(mock_list_async):
     # Setup
     mock_messages = {
         "data": [
@@ -291,16 +286,13 @@ async def test_list_messages_async(mock_sdk):
         ]
     }
 
-    async def async_return():
-        return mock_messages
-
-    mock_sdk.Message.list_async.return_value = async_return()
+    mock_list_async.return_value = mock_messages
 
     # Execute
     result = await list_messages_async("user123", "company123", "chat123")
 
     # Assert
-    mock_sdk.Message.list_async.assert_called_once_with(
+    mock_list_async.assert_called_once_with(
         user_id="user123", company_id="company123", chatId="chat123"
     )
     assert result == mock_messages
