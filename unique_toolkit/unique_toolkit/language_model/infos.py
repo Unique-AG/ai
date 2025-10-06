@@ -6,7 +6,6 @@ from pydantic import BaseModel, Field
 from pydantic.json_schema import SkipJsonSchema
 from typing_extensions import deprecated
 
-from unique_toolkit._common.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 from unique_toolkit.language_model.schemas import LanguageModelTokenLimits
 
@@ -135,7 +134,7 @@ class LanguageModelInfo(BaseModel):
     name: (
         Annotated[str, Field(title="Custom Model Name")]
         | SkipJsonSchema[LanguageModelName]
-    ) = Field(title="Model Name", default=DEFAULT_GPT_4o)
+    ) = Field(title="Model Name", default=LanguageModelName.AZURE_GPT_4o_2024_1120)
     provider: LanguageModelProvider = LanguageModelProvider.AZURE
     version: str = Field(title="Model Version", default="")
 
