@@ -4,7 +4,7 @@ from pydantic import BaseModel
 
 from unique_web_search.settings import env_settings
 
-logger = logging.getLogger(f"PythonAssistantCoreBundle.{__name__}")
+logger = logging.getLogger(__name__)
 
 
 class GoogleSearchSettings(BaseModel):

@@ -25,7 +25,7 @@ from unique_web_search.services.search_engine.schema import (
 )
 from unique_web_search.utils import StepDebugInfo, WebSearchDebugInfo
 
-logger = logging.getLogger(f"PythonAssistantCoreBundle.{__name__}")
+logger = logging.getLogger(__name__)
 
 
 class BaseWebSearchExecutor(ABC):

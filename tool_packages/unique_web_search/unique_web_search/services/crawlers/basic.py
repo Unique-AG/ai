@@ -9,13 +9,14 @@ from httpx import AsyncClient, Timeout
 from markdownify import markdownify
 from pydantic import Field
 
+from unique_web_search.services.client.proxy_config import async_client
 from unique_web_search.services.crawlers.base import (
     BaseCrawler,
     BaseCrawlerConfig,
     CrawlerType,
 )
 
-logger = logging.getLogger(f"PythonAssistantCoreBundle.{__name__}")
+logger = logging.getLogger(__name__)
 
 unwanted_types = {
     "application/octet-stream",
@@ -55,7 +56,7 @@ class BasicCrawler(BaseCrawler[BasicCrawlerConfig]):
     #     tags=["basic", "scrape"],
     # )
     async def crawl(self, urls: list[str]) -> list[str]:
-        async with AsyncClient(timeout=Timeout(self.config.timeout)) as client:
+        async with async_client(timeout=Timeout(self.config.timeout)) as client:
             tasks = [self._crawl_url_with_client(client, url) for url in urls]
             results = await asyncio.gather(*tasks, return_exceptions=True)
 
