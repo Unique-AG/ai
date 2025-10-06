@@ -1,9 +1,15 @@
 """Tests for OpenAPI path processing."""
 
+import sys
+from pathlib import Path
+
 import pytest
 from openapi_pydantic import OpenAPI
 
-from ...path_processor import PathProcessor
+# Add src to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+
+from generator.path_processor import PathProcessor
 
 
 class TestPathProcessor:
@@ -31,7 +37,8 @@ class TestPathProcessor:
 
         # Assert
         endpoint_dir = output_root / "test" / "endpoint"
-        assert (endpoint_dir / "operation.py").exists()
+        assert (endpoint_dir / "models.py").exists()
+        assert (endpoint_dir / "path_operation.py").exists()
         assert (endpoint_dir / "__init__.py").exists()
 
     @pytest.mark.ai_generated
@@ -55,11 +62,11 @@ class TestPathProcessor:
         processor.process_path(path, path_item)
 
         # Assert
-        operation_content = (
-            output_root / "test" / "endpoint" / "operation.py"
+        path_operation_content = (
+            output_root / "test" / "endpoint" / "path_operation.py"
         ).read_text()
-        assert "FindAll" in operation_content
-        assert "Create" in operation_content
+        assert "FindAll" in path_operation_content
+        assert "Create" in path_operation_content
 
     @pytest.mark.ai_generated
     def test_process_path__resolves_schema_refs__in_responses(
@@ -82,18 +89,10 @@ class TestPathProcessor:
         processor.process_path(path, path_item)
 
         # Assert
-        operation_content = (
-            output_root / "test" / "endpoint" / "operation.py"
-        ).read_text()
-        # POST operation should have response (either inline or from components)
-        # The schema uses $ref to TestResponse, so we should see TestResponse referenced
-        # or the actual model with id/name properties
-        assert "PostRequest" in operation_content or "Create" in operation_content
-        assert (
-            "id" in operation_content
-            or "name" in operation_content
-            or "TestResponse" in operation_content
-        )
+        models_content = (output_root / "test" / "endpoint" / "models.py").read_text()
+        assert "class CreateResponse(BaseModel):" in models_content
+        # Should have properties from TestResponse schema
+        assert "id" in models_content or "name" in models_content
 
     @pytest.mark.ai_generated
     def test_process_path__generates_path_params__for_parameterized_routes(
@@ -116,11 +115,11 @@ class TestPathProcessor:
         processor.process_path(path, path_item)
 
         # Assert
-        operation_content = (
-            output_root / "test" / "endpoint" / "itemId" / "operation.py"
+        models_content = (
+            output_root / "test" / "endpoint" / "itemId" / "models.py"
         ).read_text()
-        assert "PathParams" in operation_content
-        assert "item_id" in operation_content  # snake_case conversion
+        assert "class PathParams(BaseModel):" in models_content
+        assert "item_id" in models_content  # snake_case conversion
 
 
 class TestPathProcessorHelpers:

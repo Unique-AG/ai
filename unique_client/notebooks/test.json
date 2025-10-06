@@ -1,0 +1,116 @@
+{
+    "$defs": {
+        "OpenAIEngine": {
+            "properties": {
+                "id": {
+                    "title": "Id",
+                    "type": "string"
+                },
+                "name": {
+                    "default": "openai",
+                    "title": "Name",
+                    "type": "string"
+                },
+                "description": {
+                    "title": "Description",
+                    "type": "string"
+                },
+                "model": {
+                    "$ref": "#/$defs/OpenAIModels"
+                },
+                "type": {
+                    "const": "openai",
+                    "title": "Type",
+                    "type": "string"
+                },
+                "api_key": {
+                    "title": "Api Key",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "id",
+                "description",
+                "model",
+                "type",
+                "api_key"
+            ],
+            "title": "OpenAIEngine",
+            "type": "object"
+        },
+        "OpenAIModels": {
+            "enum": [
+                "gpt-4o",
+                "gpt-4o-mini",
+                "gpt-4o-2024-08-06",
+                "gpt-4o-2024-08-06-mini"
+            ],
+            "title": "OpenAIModels",
+            "type": "string"
+        },
+        "UniqueEngine": {
+            "properties": {
+                "id": {
+                    "title": "Id",
+                    "type": "string"
+                },
+                "name": {
+                    "default": "unique",
+                    "title": "Name",
+                    "type": "string"
+                },
+                "description": {
+                    "title": "Description",
+                    "type": "string"
+                },
+                "model": {
+                    "$ref": "#/$defs/UniqueModels"
+                },
+                "type": {
+                    "const": "unique",
+                    "title": "Type",
+                    "type": "string"
+                },
+                "api_key": {
+                    "title": "Api Key",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "id",
+                "description",
+                "model",
+                "type",
+                "api_key"
+            ],
+            "title": "UniqueEngine",
+            "type": "object"
+        },
+        "UniqueModels": {
+            "enum": [
+                "unique-1",
+                "unique-2"
+            ],
+            "title": "UniqueModels",
+            "type": "string"
+        }
+    },
+    "properties": {
+        "engine": {
+            "anyOf": [
+                {
+                    "$ref": "#/$defs/OpenAIEngine"
+                },
+                {
+                    "$ref": "#/$defs/UniqueEngine"
+                }
+            ],
+            "title": "Engine"
+        }
+    },
+    "required": [
+        "engine"
+    ],
+    "title": "Config",
+    "type": "objectschebma_json"
+}

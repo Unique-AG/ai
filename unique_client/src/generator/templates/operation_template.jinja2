@@ -1,14 +1,15 @@
 # Generated operation for path: {{ path }}
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, TYPE_CHECKING
 from pydantic import BaseModel, Field, ConfigDict, AwareDatetime
 from enum import Enum
 from datetime import datetime
 from string import Template
 
-from unique_toolkit._common.endpoint_builder import HttpMethods, build_api_operation
-from unique_toolkit._common.endpoint_requestor import build_requestor, RequestorType
+from {{ '.' * (import_depth + 2) }}endpoint_builder import HttpMethods, build_api_operation
+from {{ '.' * (import_depth + 2) }}endpoint_requestor import build_requestor, RequestorType
+from {{ '.' * (import_depth + 2) }}endpoint_requestor import EndpointRequestorProtocol
 
 {% if referenced_components %}
 # Import component schemas
@@ -68,19 +69,22 @@ class _{{ operation.method_prefix }}CombinedParams({% if has_path_params %}PathP
     pass
 
 {% endif %}
+# Build the API operation once and reuse for all requestor types
+_{{ operation.name }}Operation = build_api_operation(
+    method=HttpMethods.{{ operation.method|upper }},
+    url_template=Template("{base_url}{{ python_path }}"),
+    path_params_constructor={% if has_path_params %}PathParams{% else %}_EmptyPathParams{% endif %},
+    payload_constructor={{ operation.request_model }},
+    response_model_type={{ operation.response_model }},
+)
+
+# Default requestor (requests-based - always available)  
 {{ operation.name }} = build_requestor(
     requestor_type=RequestorType.REQUESTS,
-    operation_type=build_api_operation(
-        method=HttpMethods.{{ operation.method|upper }},
-        url_template=Template("{base_url}{{ python_path }}"),
-        path_params_constructor={% if has_path_params %}PathParams{% else %}_EmptyPathParams{% endif %},
-        payload_constructor={{ operation.request_model }},
-        response_model_type={{ operation.response_model }},
-    ),
+    operation_type=_{{ operation.name }}Operation,
     combined_model={% if operation.has_combined_params %}_{{ operation.method_prefix }}CombinedParams{% else %}{{ operation.request_model }}{% endif %},
 )
 {% if not loop.last %}
 
 {% endif %}
 {% endfor %}
-

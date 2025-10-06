@@ -1,8 +1,7 @@
 """Tests for Jinja2 template rendering."""
 
 import pytest
-
-from ...template_renderer import TemplateRenderer
+from generator.template_renderer import TemplateRenderer
 
 
 class TestTemplateRenderer:

@@ -1,10 +1,9 @@
 """Integration tests for end-to-end route generation."""
 
 import pytest
+from generator.init_generator import InitGenerator
+from generator.path_processor import PathProcessor
 from openapi_pydantic import OpenAPI
-
-from ...init_generator import InitGenerator
-from ...path_processor import PathProcessor
 
 
 class TestEndToEndGeneration:

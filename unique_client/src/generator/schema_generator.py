@@ -53,10 +53,51 @@ def generate_model_content(
         r'alias="([^"]+)"', r'validation_alias="\1", serialization_alias="\1"', content
     )
 
+    # Fix Python keywords as field names
+    python_keywords = [
+        "and",
+        "as",
+        "assert",
+        "break",
+        "class",
+        "continue",
+        "def",
+        "del",
+        "elif",
+        "else",
+        "except",
+        "exec",
+        "finally",
+        "for",
+        "from",
+        "global",
+        "if",
+        "import",
+        "in",
+        "is",
+        "lambda",
+        "not",
+        "or",
+        "pass",
+        "print",
+        "raise",
+        "return",
+        "try",
+        "while",
+        "with",
+        "yield",
+    ]
+
+    for keyword in python_keywords:
+        # Replace field definitions like "in: dict[str, Any]" with "in_: dict[str, Any]"
+        pattern = rf"^(\s*){keyword}(\s*:)"
+        replacement = rf"\1{keyword}_\2"
+        content = re.sub(pattern, replacement, content, flags=re.MULTILINE)
+
     return content
 
 
-def extract_class_definitions(content: str, target_class: str = None) -> str:
+def extract_class_definitions(content: str, target_class: str = "") -> str:
     """Extract class definitions from generated content.
 
     Args:
@@ -66,6 +107,7 @@ def extract_class_definitions(content: str, target_class: str = None) -> str:
     Returns:
         Extracted class definitions
     """
+
     lines = content.split("\n")
     in_class = False
     current_class_lines = []

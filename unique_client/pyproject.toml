@@ -1,0 +1,15 @@
+[project]
+name = "unique-client"
+version = "0.1.0"
+description = "OpenAPI SDK generator and client for unique.app APIs"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2.0.0",
+    "openapi-pydantic>=0.4.0",
+    "jinja2>=3.0.0",
+    "requests>=2.28.0",
+    "typing-extensions>=4.0.0",
+    "datamodel-code-generator>=0.25.0",
+    "pytest>=7.0.0",
+]

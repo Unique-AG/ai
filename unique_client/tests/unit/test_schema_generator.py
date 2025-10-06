@@ -1,8 +1,7 @@
 """Tests for schema and model generation."""
 
 import pytest
-
-from ...schema_generator import (
+from generator.schema_generator import (
     create_simple_model_from_schema,
     extract_class_definitions,
     generate_model_from_schema,

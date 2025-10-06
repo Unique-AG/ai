@@ -56,10 +56,15 @@ def generate_specific_paths(
 ) -> None:
     """Generate routes for specific paths only."""
     import json
+    import sys
 
     from openapi_pydantic import OpenAPI
 
-    from unique_toolkit.generated.generator import (
+    # Add src to Python path
+    src_path = Path(__file__).parent.parent / "src"
+    sys.path.insert(0, str(src_path))
+
+    from generator import (
         InitGenerator,
         PathProcessor,
         generate_components_file,
@@ -88,7 +93,7 @@ def generate_specific_paths(
         return
 
     # Initialize template directory
-    template_dir = Path(__file__).parent / "generator" / "templates"
+    template_dir = Path(__file__).parent.parent / "src" / "generator" / "templates"
 
     # STEP 1: Generate components file first
     print("\n🔧 Generating component schemas...")
@@ -110,17 +115,22 @@ def generate_specific_paths(
 def generate_all_routes() -> None:
     """Generate all routes (original behavior)."""
     import json
+    import sys
 
     from openapi_pydantic import OpenAPI
 
-    from unique_toolkit.generated.generator import (
+    # Add src to Python path
+    src_path = Path(__file__).parent.parent / "src"
+    sys.path.insert(0, str(src_path))
+
+    from generator import (
         InitGenerator,
         PathProcessor,
         generate_components_file,
     )
 
-    openapi_path = Path(__file__).parent / "openapi.json"
-    output_root = Path(__file__).parent / "generated_routes"
+    openapi_path = Path(__file__).parent.parent / "src" / "openapi.json"
+    output_root = Path(__file__).parent.parent / "src" / "generated_routes"
 
     print("Generating all routes...")
 
@@ -135,7 +145,7 @@ def generate_all_routes() -> None:
         return
 
     # Initialize template directory
-    template_dir = Path(__file__).parent / "generator" / "templates"
+    template_dir = Path(__file__).parent.parent / "src" / "generator" / "templates"
 
     # STEP 1: Generate components file first
     print("\n🔧 Generating component schemas...")
@@ -178,9 +188,9 @@ def main():
 
     parser.add_argument(
         "--openapi",
-        default=Path(__file__).parent / "openapi.json",
+        default=Path(__file__).parent.parent / "src" / "openapi.json",
         type=Path,
-        help="Path to OpenAPI spec (default: openapi.json)",
+        help="Path to OpenAPI spec (default: src/openapi.json)",
     )
 
     args = parser.parse_args()
@@ -194,7 +204,7 @@ def main():
         list_paths(openapi_path)
         return 0
 
-    output_root = Path(__file__).parent / "generated_routes"
+    output_root = Path(__file__).parent.parent / "src" / "generated_routes"
 
     if args.paths:
         generate_specific_paths(openapi_path, output_root, args.paths)

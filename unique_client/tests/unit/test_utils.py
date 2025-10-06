@@ -3,8 +3,7 @@
 from pathlib import Path
 
 import pytest
-
-from ...utils import (
+from generator.utils import (
     convert_path_to_snake_case,
     deduplicate_models,
     path_to_folder,

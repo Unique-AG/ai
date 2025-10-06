@@ -1,8 +1,7 @@
 """Tests for __init__.py file generation."""
 
 import pytest
-
-from ...init_generator import InitGenerator
+from generator.init_generator import InitGenerator
 
 
 class TestInitGenerator:
