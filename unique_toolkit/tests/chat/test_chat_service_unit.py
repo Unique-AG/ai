@@ -1150,7 +1150,7 @@ class TestChatServiceUnit:
 
         response = self.service.stream_complete(
             messages=messages,
-            model_name=LanguageModelName.AZURE_GPT_35_TURBO_0125,
+            model_name=LanguageModelName.AZURE_GPT_4o_2024_1120,
             tools=[mock_tool],
         )
 
@@ -1263,7 +1263,7 @@ class TestChatServiceUnit:
 
         response = await self.service.stream_complete_async(
             messages=messages,
-            model_name=LanguageModelName.AZURE_GPT_35_TURBO_0125,
+            model_name=LanguageModelName.AZURE_GPT_4o_2024_1120,
             tools=[mock_tool],
         )
 

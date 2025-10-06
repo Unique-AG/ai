@@ -236,12 +236,12 @@ class TestMCPManager:
         tool_names = [tool.name for tool in tools]
 
         # Verify both tool types are present
-        assert "internal_search" in tool_names, (
-            f"Internal tool missing. Available tools: {tool_names}"
-        )
-        assert "mcp_test_tool" in tool_names, (
-            f"MCP tool missing. Available tools: {tool_names}"
-        )
+        assert (
+            "internal_search" in tool_names
+        ), f"Internal tool missing. Available tools: {tool_names}"
+        assert (
+            "mcp_test_tool" in tool_names
+        ), f"MCP tool missing. Available tools: {tool_names}"
 
         # Verify we have the expected number of tools
         assert len(tools) == 2, f"Expected 2 tools, got {len(tools)}: {tool_names}"

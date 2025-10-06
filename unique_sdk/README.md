@@ -809,7 +809,7 @@ Send a prompt to an AI model supported by Unique Unique AI and receive a result.
 chat_completion = unique_sdk.ChatCompletion.create(
     company_id=company_id,
     user_id=user_id
-    model="AZURE_GPT_35_TURBO",
+    model="AZURE_GPT_4o_2024_1120",
     messages=[
         {"role": "system", "content": "You are a helpful assistant."},
         {"role": "user", "content": "Hello!"},

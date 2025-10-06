@@ -23,7 +23,6 @@ class SearchString(APIResource["SearchString"]):
                 "AZURE_GPT_4_0613",
                 "AZURE_GPT_4_32K_0613",
                 "AZURE_GPT_4_TURBO_1106",
-                "AZURE_GPT_35_TURBO_INSTRUCT_0914",
             ]
         ]
 

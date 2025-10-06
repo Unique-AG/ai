@@ -16,7 +16,6 @@ class TestLanguageModelInfos:
     def test_can_list_all_defined_models(self):
         models = LanguageModel.list_models()
         expected_models = [
-            LanguageModelName.AZURE_GPT_35_TURBO_0125,
             LanguageModelName.AZURE_GPT_4_0613,
             LanguageModelName.AZURE_GPT_4_32K_0613,
             LanguageModelName.AZURE_GPT_4_TURBO_2024_0409,

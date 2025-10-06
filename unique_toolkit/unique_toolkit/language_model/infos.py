@@ -11,7 +11,6 @@ from unique_toolkit.language_model.schemas import LanguageModelTokenLimits
 
 
 class LanguageModelName(StrEnum):
-    AZURE_GPT_35_TURBO_0125 = "AZURE_GPT_35_TURBO_0125"
     AZURE_GPT_4_0613 = "AZURE_GPT_4_0613"
     AZURE_GPT_4_32K_0613 = "AZURE_GPT_4_32K_0613"
     AZURE_GPT_4_TURBO_2024_0409 = "AZURE_GPT_4_TURBO_2024_0409"
@@ -73,8 +72,6 @@ class EncoderName(StrEnum):
 def get_encoder_name(model_name: LanguageModelName) -> EncoderName:
     LMN = LanguageModelName
     match model_name:
-        case LMN.AZURE_GPT_35_TURBO_0125:
-            return EncoderName.CL100K_BASE
         case (
             LMN.AZURE_GPT_4_0613
             | LMN.AZURE_GPT_4_32K_0613
@@ -181,24 +178,6 @@ class LanguageModelInfo(BaseModel):
     @classmethod
     def from_name(cls, model_name: LanguageModelName) -> Self:
         match model_name:
-            case LanguageModelName.AZURE_GPT_35_TURBO_0125:
-                return cls(
-                    name=model_name,
-                    provider=LanguageModelProvider.AZURE,
-                    capabilities=[
-                        ModelCapabilities.FUNCTION_CALLING,
-                        ModelCapabilities.PARALLEL_FUNCTION_CALLING,
-                        ModelCapabilities.REPRODUCIBLE_OUTPUT,
-                    ],
-                    version="0125",
-                    encoder_name=EncoderName.CL100K_BASE,
-                    token_limits=LanguageModelTokenLimits(
-                        token_limit_input=16385, token_limit_output=4096
-                    ),
-                    info_cutoff_at=date(2021, 9, 1),
-                    published_at=date(2023, 1, 25),
-                    retirement_at=date(5, 3, 31),
-                )
             case LanguageModelName.AZURE_GPT_4_0613:
                 return cls(
                     name=model_name,

@@ -2,7 +2,7 @@ import pytest
 from pydantic import ValidationError
 from schema import FollowUpCategory, FollowUpQuestion
 from unique_toolkit._common.default_language_model import (
-    DEFAULT_GPT_4o_STRUCTURED_OUTPUT,
+    DEFAULT_GPT_4o,
 )
 from unique_toolkit.language_model import LanguageModelName
 from unique_toolkit.language_model.infos import LanguageModelInfo
@@ -18,7 +18,7 @@ def valid_config():
 
 def test_default_config_values(valid_config):
     """Test that default values are set correctly."""
-    assert valid_config.language_model.name == DEFAULT_GPT_4o_STRUCTURED_OUTPUT
+    assert valid_config.language_model.name == DEFAULT_GPT_4o
     assert valid_config.number_of_questions == 3
     assert valid_config.adapt_to_language is True
     assert isinstance(valid_config.examples, list)
