@@ -56,6 +56,7 @@ def _get_cert_args() -> tuple[str, str] | str:
 
 
 def _get_none_proxy_kwargs() -> ProxyConfig:
+    logger.info("Proxy auth mode: none. Using no proxy")
     return ProxyConfig(
         proxy=None,
         headers=None,
@@ -65,7 +66,7 @@ def _get_none_proxy_kwargs() -> ProxyConfig:
 
 def _get_username_password_proxy_kwargs() -> ProxyConfig:
     proxy_url = _build_proxy_url_with_username_password()
-
+    logger.info("Proxy auth mode: username_password. Using proxy with username and password")
     return ProxyConfig(
         proxy=proxy_url,
         headers=env_settings.proxy_headers,
@@ -76,6 +77,7 @@ def _get_username_password_proxy_kwargs() -> ProxyConfig:
 def _get_ssl_tls_proxy_kwargs() -> ProxyConfig:
     proxy_url = _build_proxy_url_with_tls()
     cert_args = _get_cert_args()
+    logger.info("Proxy auth mode: ssl_tls. Using proxy with SSL/TLS")
     return ProxyConfig(
         proxy=proxy_url,
         cert=cert_args,
