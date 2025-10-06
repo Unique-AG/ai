@@ -31,20 +31,20 @@ class InitGenerator:
         """
         print("\n🔧 Updating endpoint __init__.py files with subdirectories...")
 
-        # Find all directories with path_operation.py (these are endpoints)
+        # Find all directories with operation.py (these are endpoints)
         for root, dirs, files in os.walk(output_root):
-            if "path_operation.py" not in files:
+            if "operation.py" not in files:
                 continue
 
             root_path = Path(root)
             init_file = root_path / "__init__.py"
-            path_operation_file = root_path / "path_operation.py"
+            operation_file = root_path / "operation.py"
 
-            if not init_file.exists() or not path_operation_file.exists():
+            if not init_file.exists() or not operation_file.exists():
                 continue
 
-            # Read path_operation.py to extract operation names
-            with open(path_operation_file, "r") as f:
+            # Read operation.py to extract operation names
+            with open(operation_file, "r") as f:
                 path_op_content = f.read()
 
             # Extract operation names (variables assigned with build_requestor)
@@ -96,8 +96,8 @@ class InitGenerator:
         for root, dirs, files in os.walk(output_root):
             root_path = Path(root)
 
-            # Skip if this is a leaf directory (has path_operation.py)
-            if "path_operation.py" in files:
+            # Skip if this is a leaf directory (has operation.py)
+            if "operation.py" in files:
                 continue
 
             # Check if this directory has subdirectories with __init__.py

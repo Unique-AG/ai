@@ -1,0 +1,86 @@
+# Generated operation for path: {{ path }}
+from __future__ import annotations
+
+from typing import Any, Dict, List, Optional, Union
+from pydantic import BaseModel, Field, ConfigDict, AwareDatetime
+from enum import Enum
+from datetime import datetime
+from string import Template
+
+from unique_toolkit._common.endpoint_builder import HttpMethods, build_api_operation
+from unique_toolkit._common.endpoint_requestor import build_requestor, RequestorType
+
+{% if referenced_components %}
+# Import component schemas
+from {{ '.' * (import_depth + 1) }}components import {{ referenced_components|join(', ') }}
+
+{% endif %}
+
+# ============================================================================
+# URL Path Configuration
+# ============================================================================
+
+PATH_TEMPLATE = Template("{{ template_path }}")
+PATH = "{{ path }}"  # Original path with {} placeholders
+
+
+{% if has_path_params %}
+def build_url(path_params: PathParams) -> str:
+    """Build the full URL path with the given path parameters.
+    
+    Can also be called directly with a dict:
+        PATH_TEMPLATE.substitute({{ param_examples }})
+    """
+    return PATH_TEMPLATE.substitute(**path_params.model_dump(by_alias=False))
+{% else %}
+def build_url() -> str:
+    """Build the full URL path (no parameters needed)."""
+    return PATH
+{% endif %}
+
+
+# ============================================================================
+# Request/Response Models
+# ============================================================================
+
+{% for model in models %}
+{{ model }}
+{% if not loop.last %}
+
+{% endif %}
+{% endfor %}
+
+
+# ============================================================================
+# API Operations
+# ============================================================================
+
+{% if not has_path_params %}
+class _EmptyPathParams(BaseModel):
+    """Empty path parameters model for endpoints without path parameters."""
+    pass
+
+{% endif %}
+{% for operation in operations %}
+{% if operation.has_combined_params %}
+class _{{ operation.method_prefix }}CombinedParams({% if has_path_params %}PathParams, {% endif %}{{ operation.request_model }}):
+    """Combined path and request parameters for {{ operation.method }}"""
+    pass
+
+{% endif %}
+{{ operation.name }} = build_requestor(
+    requestor_type=RequestorType.REQUESTS,
+    operation_type=build_api_operation(
+        method=HttpMethods.{{ operation.method|upper }},
+        url_template=Template("{base_url}{{ python_path }}"),
+        path_params_constructor={% if has_path_params %}PathParams{% else %}_EmptyPathParams{% endif %},
+        payload_constructor={{ operation.request_model }},
+        response_model_type={{ operation.response_model }},
+    ),
+    combined_model={% if operation.has_combined_params %}_{{ operation.method_prefix }}CombinedParams{% else %}{{ operation.request_model }}{% endif %},
+)
+{% if not loop.last %}
+
+{% endif %}
+{% endfor %}
+

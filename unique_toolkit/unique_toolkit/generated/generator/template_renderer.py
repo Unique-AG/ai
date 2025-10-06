@@ -21,63 +21,6 @@ class TemplateRenderer:
             lstrip_blocks=True,
         )
 
-    def render_models(
-        self,
-        path: str,
-        template_path: str,
-        has_path_params: bool,
-        param_examples: str,
-        models: List[str],
-    ) -> str:
-        """Render the models.py file.
-
-        Args:
-            path: OpenAPI path
-            template_path: Path with $ instead of {}
-            has_path_params: Whether path has parameters
-            param_examples: Example parameter string
-            models: List of model class definitions
-
-        Returns:
-            Rendered models file content
-        """
-        template = self.env.get_template("model_template.jinja2")
-        return template.render(
-            path=path,
-            template_path=template_path,
-            has_path_params=has_path_params,
-            param_examples=param_examples,
-            models=models,
-        )
-
-    def render_api_client(
-        self,
-        path: str,
-        python_path: str,
-        has_path_params: bool,
-        operations: List[Dict[str, Any]],
-        class_name: str,
-    ) -> str:
-        """Render the path_operation.py file.
-
-        Args:
-            path: Original OpenAPI path
-            python_path: Path with snake_case parameters
-            has_path_params: Whether path has parameters
-            operations: List of operation metadata
-            class_name: PascalCase class name for the endpoint
-
-        Returns:
-            Rendered API client file content
-        """
-        template = self.env.get_template("api_template.jinja2")
-        return template.render(
-            path=python_path,
-            has_path_params=has_path_params,
-            operations=operations,
-            class_name=class_name,
-        )
-
     def render_endpoint_init(
         self,
         operations: List[str],
@@ -112,3 +55,59 @@ class TemplateRenderer:
         """
         template = self.env.get_template("parent_init_template.jinja2")
         return template.render(subdirs=subdirs)
+
+    def render_components(self, models: List[str]) -> str:
+        """Render the components.py file with all OpenAPI component schemas.
+
+        Args:
+            models: List of generated Pydantic model class definitions
+
+        Returns:
+            Rendered components.py content
+        """
+        template = self.env.get_template("components.py.jinja2")
+        return template.render(models=models)
+
+    def render_operation(
+        self,
+        path: str,
+        template_path: str,
+        python_path: str,
+        has_path_params: bool,
+        param_examples: str,
+        models: List[str],
+        operations: List[Dict[str, Any]],
+        referenced_components: List[str] | None = None,
+        import_depth: int = 2,
+    ) -> str:
+        """Render the combined operation.py file with models and API operations.
+
+        Args:
+            path: OpenAPI path
+            template_path: Path with $ instead of {}
+            python_path: Path with snake_case parameters
+            has_path_params: Whether path has parameters
+            param_examples: Example parameter string
+            models: List of model class definitions
+            operations: List of operation metadata
+            referenced_components: List of component schema names to import
+            import_depth: Number of parent directories to traverse for components import
+
+        Returns:
+            Rendered operation.py content
+        """
+        if not referenced_components:
+            referenced_components = []
+
+        template = self.env.get_template("operation_template.jinja2")
+        return template.render(
+            path=path,
+            template_path=template_path,
+            python_path=python_path,
+            has_path_params=has_path_params,
+            param_examples=param_examples,
+            models=models,
+            operations=operations,
+            referenced_components=sorted(referenced_components),
+            import_depth=import_depth,
+        )

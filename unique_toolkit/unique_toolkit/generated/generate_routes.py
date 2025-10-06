@@ -59,7 +59,11 @@ def generate_specific_paths(
 
     from openapi_pydantic import OpenAPI
 
-    from unique_toolkit.generated.generator import InitGenerator, PathProcessor
+    from unique_toolkit.generated.generator import (
+        InitGenerator,
+        PathProcessor,
+        generate_components_file,
+    )
 
     print(f"Generating routes for {len(paths)} path(s)...")
 
@@ -83,15 +87,19 @@ def generate_specific_paths(
         print(f"Available paths: {list(openapi.paths.keys())[:5]}...")
         return
 
-    # Initialize processor
+    # Initialize template directory
     template_dir = Path(__file__).parent / "generator" / "templates"
-    processor = PathProcessor(template_dir, output_root, raw_spec)
 
-    # Process each path
+    # STEP 1: Generate components file first
+    print("\n🔧 Generating component schemas...")
+    generate_components_file(raw_spec, output_root, template_dir)
+
+    # STEP 2: Process each path (they can now import from components)
+    processor = PathProcessor(template_dir, output_root, raw_spec)
     for path, path_item in paths_to_generate.items():
         processor.process_path(path, path_item)
 
-    # Update __init__.py files
+    # STEP 3: Update __init__.py files
     init_generator = InitGenerator(template_dir)
     init_generator.update_endpoint_init_files(output_root)
     init_generator.generate_parent_init_files(output_root)
@@ -101,18 +109,48 @@ def generate_specific_paths(
 
 def generate_all_routes() -> None:
     """Generate all routes (original behavior)."""
-    from unique_toolkit.generated.separate_routes import (
-        generate_consolidated_endpoint_models,
-        generate_parent_init_files,
-        update_endpoint_init_files,
+    import json
+
+    from openapi_pydantic import OpenAPI
+
+    from unique_toolkit.generated.generator import (
+        InitGenerator,
+        PathProcessor,
+        generate_components_file,
     )
 
+    openapi_path = Path(__file__).parent / "openapi.json"
     output_root = Path(__file__).parent / "generated_routes"
 
     print("Generating all routes...")
-    generate_consolidated_endpoint_models()
-    update_endpoint_init_files(output_root)
-    generate_parent_init_files(output_root)
+
+    # Load OpenAPI spec
+    with openapi_path.open("r") as f:
+        raw_spec = json.load(f)
+
+    openapi = OpenAPI.model_validate(raw_spec)
+
+    if not openapi.paths:
+        print("Error: No paths found in OpenAPI spec")
+        return
+
+    # Initialize template directory
+    template_dir = Path(__file__).parent / "generator" / "templates"
+
+    # STEP 1: Generate components file first
+    print("\n🔧 Generating component schemas...")
+    generate_components_file(raw_spec, output_root, template_dir)
+
+    # STEP 2: Process all paths (they can now import from components)
+    processor = PathProcessor(template_dir, output_root, raw_spec)
+    for path, path_item in openapi.paths.items():
+        processor.process_path(path, path_item)
+
+    # STEP 3: Update __init__.py files
+    init_generator = InitGenerator(template_dir)
+    init_generator.update_endpoint_init_files(output_root)
+    init_generator.generate_parent_init_files(output_root)
+
     print("\n✅ Generation complete!")
 
 

@@ -1,4 +1,4 @@
-from .path_operation import {% for operation in operations %}{{ operation }}{% if not loop.last %}, {% endif %}{% endfor %}
+from .operation import {% for operation in operations %}{{ operation }}{% if not loop.last %}, {% endif %}{% endfor %}
 
 {% if subdirs %}
 {% for subdir in subdirs %}

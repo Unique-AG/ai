@@ -107,39 +107,46 @@ def deduplicate_models(models: list[str]) -> list[str]:
 
     Deduplicates based on both class name AND content to catch identical
     definitions generated from the same schema reference.
+
+    Each model string may contain multiple class definitions (parent + nested),
+    so we split them up, deduplicate at the class level, and reassemble.
     """
     seen_classes = {}  # class_name -> normalized_content
-    deduplicated = []
+    all_individual_classes = []
 
+    # Split each model string into individual class definitions
     for model in models:
-        # Extract class name from the model definition
-        class_match = re.match(r"^class\s+(\w+)", model.strip())
+        # Split on "class " at the start of a line to separate multiple classes
+        class_defs = re.split(r"\n(?=class\s+\w+)", model.strip())
 
-        if class_match:
-            class_name = class_match.group(1)
+        for class_def in class_defs:
+            if not class_def.strip():
+                continue
 
-            # Normalize the model content for comparison (remove whitespace variations)
-            normalized = re.sub(r"\s+", " ", model.strip())
+            # Extract class name from the class definition
+            class_match = re.match(r"^class\s+(\w+)", class_def.strip())
 
-            # Check if we've seen this class name before
-            if class_name in seen_classes:
-                # Compare the normalized content
-                if seen_classes[class_name] == normalized:
-                    # Exact duplicate, skip it
-                    continue
+            if class_match:
+                class_name = class_match.group(1)
+
+                # Normalize the content for comparison (remove whitespace variations)
+                normalized = re.sub(r"\s+", " ", class_def.strip())
+
+                # Check if we've seen this class name before
+                if class_name in seen_classes:
+                    # Compare the normalized content
+                    if seen_classes[class_name] == normalized:
+                        # Exact duplicate, skip it
+                        continue
+                    else:
+                        # Same name but different content - keep first one and skip
+                        continue
                 else:
-                    # Same name but different content - this is a real conflict
-                    # Keep the first one and warn
-                    print(
-                        f"    - Warning: Duplicate class name '{class_name}' with different definitions"
-                    )
-                    continue
+                    # First occurrence of this class
+                    seen_classes[class_name] = normalized
+                    all_individual_classes.append(class_def.strip())
             else:
-                # First occurrence of this class
-                seen_classes[class_name] = normalized
-                deduplicated.append(model)
-        else:
-            # Not a class definition, keep it
-            deduplicated.append(model)
+                # Not a class definition, keep it
+                all_individual_classes.append(class_def.strip())
 
-    return deduplicated
+    return all_individual_classes
