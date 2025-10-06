@@ -20,7 +20,7 @@ class ProxyConfig(BaseModel):
 def _get_proxy_host_and_port() -> tuple[str, int]:
     proxy_host = env_settings.proxy_host
     proxy_port = env_settings.proxy_port
-    assert proxy_host and proxy_port, "Proxy host and port are required"
+    assert proxy_host is not None and proxy_port is not None, "Proxy host and port are required"
 
     return proxy_host, proxy_port
 
@@ -30,19 +30,19 @@ def _build_proxy_url_with_username_password() -> str:
 
     proxy_username = env_settings.proxy_username
     proxy_password = env_settings.proxy_password
-    assert proxy_username and proxy_password, "Proxy username and password are required"
+    assert proxy_username is not None and proxy_password is not None, "Proxy username and password are required"
 
-    return f"http://{proxy_username}:{proxy_password}@{proxy_host}:{proxy_port}"
+    return f"https://{proxy_username}:{proxy_password}@{proxy_host}:{proxy_port}"
 
 
 def _build_proxy_url_with_tls() -> str:
     proxy_host, proxy_port = _get_proxy_host_and_port()
-    return f"http://{proxy_host}:{proxy_port}"
+    return f"https://{proxy_host}:{proxy_port}"
 
 
 def _get_cert_args() -> tuple[str, str] | str:
     proxy_ssl_cert_path = env_settings.proxy_ssl_cert_path
-    assert proxy_ssl_cert_path, "Proxy SSL cert path is required"
+    assert proxy_ssl_cert_path is not None, "Proxy SSL cert path is required"
 
     proxy_ssl_key_path = env_settings.proxy_ssl_key_path
 
