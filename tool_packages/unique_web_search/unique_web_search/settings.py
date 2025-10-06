@@ -18,7 +18,7 @@ class Base(BaseSettings):
 
     # Active search engines
     active_search_engines: list[str] = ["google"]
-    
+
     # Default Crawlers
     active_inhouse_crawlers: list[str] = ["basic", "crawl4ai"]
 
@@ -70,7 +70,7 @@ class Base(BaseSettings):
             default_crawlers.append("jina")
         if self.tavily_api_key:
             default_crawlers.append("tavily")
-            
+
         return default_crawlers
 
 

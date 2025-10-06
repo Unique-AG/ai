@@ -20,7 +20,9 @@ class ProxyConfig(BaseModel):
 def _get_proxy_host_and_port() -> tuple[str, int]:
     proxy_host = env_settings.proxy_host
     proxy_port = env_settings.proxy_port
-    assert proxy_host is not None and proxy_port is not None, "Proxy host and port are required"
+    assert proxy_host is not None and proxy_port is not None, (
+        "Proxy host and port are required"
+    )
 
     return proxy_host, proxy_port
 
@@ -30,7 +32,9 @@ def _build_proxy_url_with_username_password() -> str:
 
     proxy_username = env_settings.proxy_username
     proxy_password = env_settings.proxy_password
-    assert proxy_username is not None and proxy_password is not None, "Proxy username and password are required"
+    assert proxy_username is not None and proxy_password is not None, (
+        "Proxy username and password are required"
+    )
 
     return f"https://{proxy_username}:{proxy_password}@{proxy_host}:{proxy_port}"
 
@@ -66,7 +70,9 @@ def _get_none_proxy_kwargs() -> ProxyConfig:
 
 def _get_username_password_proxy_kwargs() -> ProxyConfig:
     proxy_url = _build_proxy_url_with_username_password()
-    logger.info("Proxy auth mode: username_password. Using proxy with username and password")
+    logger.info(
+        "Proxy auth mode: username_password. Using proxy with username and password"
+    )
     return ProxyConfig(
         proxy=proxy_url,
         headers=env_settings.proxy_headers,
