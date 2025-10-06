@@ -31,6 +31,7 @@ azure-ai-projects = "1.0.0b10"
 azure-identity = "^1.25.0"
 unique-toolkit = "^1.0.0"
 unique-sdk = "^0.10.23"
+pytest-asyncio = "^1.2.0"
 
 
 [tool.poetry.group.dev.dependencies]

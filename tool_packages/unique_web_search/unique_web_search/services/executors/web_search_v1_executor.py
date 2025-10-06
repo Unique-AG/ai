@@ -32,7 +32,7 @@ from unique_web_search.utils import (
     query_params_to_human_string,
 )
 
-logger = logging.getLogger(f"PythonAssistantCoreBundle.{__name__}")
+logger = logging.getLogger(__name__)
 
 
 class RefineQueryMode(StrEnum):
