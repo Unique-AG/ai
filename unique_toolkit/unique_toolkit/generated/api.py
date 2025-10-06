@@ -1,7 +1,6 @@
 import unique_toolkit.generated.generated_routes.public as unique_SDK
 from unique_toolkit._common.endpoint_requestor import RequestContext
 from unique_toolkit.app.unique_settings import UniqueSettings
-from unique_toolkit.generated.generated_routes.public.messages.models import Role
 
 base_url = "https://gateway.qa.unique.app/public/chat-gen2"
 
@@ -24,6 +23,7 @@ unique_SDK.folder.scopeId.Update.request(
     context=request_context, parent_id=None, name=None, scope_id="test"
 )
 
+
 unique_SDK.folder.scopeId.DeleteFolder.request(context=request_context, scope_id="test")
 
 
@@ -43,7 +43,7 @@ resp = unique_SDK.messages.Create.request(
     chat_id="test",
     assistant_id="test",
     original_text="test",
-    role=Role.user,
+    role="user",  # Fixed: use string instead of Role.user
     references=[],
     gpt_request={},
     debug_info={},

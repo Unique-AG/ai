@@ -27,7 +27,7 @@ class TestTemplateRenderer:
         result = renderer.render_endpoint_init(operations, subdirs, exports)
 
         # Assert
-        assert "from .path_operation import Create, FindAll" in result
+        assert "from .operation import Create, FindAll" in result
         assert "['Create', 'FindAll', 'id']" in result
         # Template may not add newlines, check operations are imported
         assert "Create" in result and "FindAll" in result
@@ -55,9 +55,9 @@ class TestTemplateRenderer:
         assert "['folder', 'agent', 'messages']" in result
 
     @pytest.mark.ai_generated
-    def test_render_api_client__includes_path_params__when_present(self, template_dir):
+    def test_render_operation__includes_path_params__when_present(self, template_dir):
         """
-        Purpose: Verify API client renders path parameter handling.
+        Purpose: Verify operation file renders path parameter handling.
         Why: Routes with parameters need PathParams constructor.
         Setup: Template with has_path_params=True.
         """
@@ -69,17 +69,21 @@ class TestTemplateRenderer:
                 "method": "delete",
                 "method_prefix": "Delete",
                 "response_model": "DeleteFolderResponse",
+                "request_model": "DeleteRequest",
                 "has_query_params": False,
+                "has_combined_params": False,
             }
         ]
 
         # Act
-        result = renderer.render_api_client(
+        result = renderer.render_operation(
             path="/public/folder/{scope_id}",
+            template_path="/public/folder/$scope_id",
             python_path="/public/folder/{scope_id}",
             has_path_params=True,
+            param_examples="scope_id='abc'",
+            models=[],
             operations=operations,
-            class_name="ScopeId",
         )
 
         # Assert

@@ -103,20 +103,20 @@ def template_dir(tmp_path: Path) -> Path:
     templates.mkdir()
 
     # Create minimal mock templates
-    (templates / "model_template.jinja2").write_text(
-        "# Models for {{ path }}\n{% for model in models %}{{ model }}\n{% endfor %}"
-    )
-
-    (templates / "api_template.jinja2").write_text(
-        "# API for {{ path }}\n{% for op in operations %}{{ op.name }}\n{% endfor %}"
+    (templates / "operation_template.jinja2").write_text(
+        "# Operation for {{ path }}\n{% for model in models %}{{ model }}\n{% endfor %}\n{% for op in operations %}{{ op.name }}\n{% endfor %}"
     )
 
     (templates / "endpoint_init_template.jinja2").write_text(
-        "from .path_operation import {% for op in operations %}{{ op }}{% if not loop.last %}, {% endif %}{% endfor %}\n__all__ = {{ exports }}"
+        "from .operation import {% for op in operations %}{{ op }}{% if not loop.last %}, {% endif %}{% endfor %}\n__all__ = {{ exports }}"
     )
 
     (templates / "parent_init_template.jinja2").write_text(
         "{% for subdir in subdirs %}from . import {{ subdir }}\n{% endfor %}__all__ = {{ subdirs }}"
+    )
+
+    (templates / "components.py.jinja2").write_text(
+        "# Components\n{% for model in models %}{{ model }}\n{% endfor %}"
     )
 
     return templates

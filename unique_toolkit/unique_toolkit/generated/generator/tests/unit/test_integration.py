@@ -38,8 +38,7 @@ class TestEndToEndGeneration:
         # Assert - Check complete structure
         endpoint_dir = output_root / "test" / "endpoint"
         assert endpoint_dir.exists()
-        assert (endpoint_dir / "models.py").exists()
-        assert (endpoint_dir / "path_operation.py").exists()
+        assert (endpoint_dir / "operation.py").exists()
         assert (endpoint_dir / "__init__.py").exists()
 
         # Verify __init__ exports operations
@@ -78,12 +77,11 @@ class TestEndToEndGeneration:
         # Assert
         nested_dir = output_root / "test" / "endpoint" / "itemId"
         assert nested_dir.exists()
-        assert (nested_dir / "models.py").exists()
-        assert (nested_dir / "path_operation.py").exists()
+        assert (nested_dir / "operation.py").exists()
 
-        # Verify PathParams in models
-        models_content = (nested_dir / "models.py").read_text()
-        assert "PathParams" in models_content
+        # Verify PathParams in operation file
+        operation_content = (nested_dir / "operation.py").read_text()
+        assert "PathParams" in operation_content
 
     @pytest.mark.ai_generated
     def test_selective_path_generation__only_processes_specified_paths__correctly(
@@ -159,8 +157,10 @@ class TestErrorHandling:
         # Assert - Files should still be created with fallback models
         endpoint_dir = tmp_path / "test"
         assert endpoint_dir.exists()
-        assert (endpoint_dir / "models.py").exists()
+        assert (endpoint_dir / "operation.py").exists()
 
         # Should have at least a fallback response model
-        models_content = (endpoint_dir / "models.py").read_text()
-        assert "CreateResponse" in models_content or "PostRequest" in models_content
+        operation_content = (endpoint_dir / "operation.py").read_text()
+        assert (
+            "CreateResponse" in operation_content or "PostRequest" in operation_content
+        )

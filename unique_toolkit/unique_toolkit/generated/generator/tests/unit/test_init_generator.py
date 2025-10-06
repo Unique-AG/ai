@@ -21,21 +21,21 @@ class TestInitGenerator:
         endpoint_dir = tmp_path / "public" / "folder"
         endpoint_dir.mkdir(parents=True)
 
-        # Create path_operation.py with an operation
-        (endpoint_dir / "path_operation.py").write_text(
+        # Create operation.py with an operation
+        (endpoint_dir / "operation.py").write_text(
             "CreateFolder = build_requestor(...)"
         )
 
         # Create initial __init__.py
         (endpoint_dir / "__init__.py").write_text(
-            "from .path_operation import CreateFolder\n__all__ = ['CreateFolder']\n"
+            "from .operation import CreateFolder\n__all__ = ['CreateFolder']\n"
         )
 
         # Create subdirectory with __init__.py
         subdir = endpoint_dir / "scopeId"
         subdir.mkdir()
         (subdir / "__init__.py").write_text("")
-        (subdir / "path_operation.py").write_text("DeleteFolder = build_requestor(...)")
+        (subdir / "operation.py").write_text("DeleteFolder = build_requestor(...)")
 
         generator = InitGenerator(template_dir)
 
@@ -65,12 +65,12 @@ class TestInitGenerator:
 
         # Create endpoint __init__.py
         (folder_dir / "__init__.py").write_text("")
-        (folder_dir / "path_operation.py").write_text("")
+        (folder_dir / "operation.py").write_text("")
 
         messages_dir = public_dir / "messages"
         messages_dir.mkdir()
         (messages_dir / "__init__.py").write_text("")
-        (messages_dir / "path_operation.py").write_text("")
+        (messages_dir / "operation.py").write_text("")
 
         generator = InitGenerator(template_dir)
 

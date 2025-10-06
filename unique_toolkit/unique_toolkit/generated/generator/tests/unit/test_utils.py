@@ -149,12 +149,10 @@ class TestDeduplicateModels:
         assert result[1] == "class Other(BaseModel):\n    pass"
 
     @pytest.mark.ai_generated
-    def test_deduplicate_models__keeps_first__when_same_name_different_content(
-        self, capsys
-    ):
+    def test_deduplicate_models__keeps_first__when_same_name_different_content(self):
         """
-        Purpose: Verify conflicts (same name, different content) keep first and warn.
-        Why: Schema conflicts need visibility but shouldn't break generation.
+        Purpose: Verify conflicts (same name, different content) keep first occurrence.
+        Why: First definition wins, prevents duplicate class definitions.
         Setup: Two Status enums with different values.
         """
         # Arrange
@@ -164,12 +162,10 @@ class TestDeduplicateModels:
 
         # Act
         result = deduplicate_models(models)
-        captured = capsys.readouterr()
 
         # Assert
         assert len(result) == 1
         assert result[0] == model1
-        assert "Warning: Duplicate class name 'Status'" in captured.out
 
 
 class TestResolveRefs:
