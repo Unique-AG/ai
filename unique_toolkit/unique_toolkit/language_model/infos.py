@@ -198,7 +198,7 @@ class LanguageModelInfo(BaseModel):
                     info_cutoff_at=date(2021, 9, 1),
                     published_at=date(2023, 1, 25),
                     retirement_at=date(5, 3, 31),
-                )      
+                )
             case LanguageModelName.AZURE_GPT_4_0613:
                 return cls(
                     name=model_name,
