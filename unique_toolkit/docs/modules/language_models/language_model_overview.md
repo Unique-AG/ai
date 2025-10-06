@@ -20,6 +20,7 @@ The following properties are documented for each model:
 
 | Model | Provider | Input Tokens | Output Tokens | Total Tokens |
 |-------|----------|--------------|---------------|--------------|
+| [AZURE_GPT_35_TURBO_0125](models/model_AZURE_GPT_35_TURBO_0125.md) | AZURE | 16,385 | 4,096 | 20,481 |
 | [AZURE_GPT_41_2025_0414](models/model_AZURE_GPT_41_2025_0414.md) | AZURE | 1,047,576 | 32,768 | 1,080,344 |
 | [AZURE_GPT_41_MINI_2025_0414](models/model_AZURE_GPT_41_MINI_2025_0414.md) | AZURE | 1,047,576 | 32,768 | 1,080,344 |
 | [AZURE_GPT_41_NANO_2025_0414](models/model_AZURE_GPT_41_NANO_2025_0414.md) | AZURE | 1,047,576 | 32,768 | 1,080,344 |
@@ -72,6 +73,7 @@ The following properties are documented for each model:
 
 | Model | Streaming | Function Calling | Structured Output | Reasoning |
 |-------|-----------|------------------|-------------------|-----------|
+| [AZURE_GPT_35_TURBO_0125](models/model_AZURE_GPT_35_TURBO_0125.md) | ❌ | ✅ | ❌ | ❌ |
 | [AZURE_GPT_41_2025_0414](models/model_AZURE_GPT_41_2025_0414.md) | ✅ | ✅ | ✅ | ❌ |
 | [AZURE_GPT_41_MINI_2025_0414](models/model_AZURE_GPT_41_MINI_2025_0414.md) | ✅ | ✅ | ✅ | ❌ |
 | [AZURE_GPT_41_NANO_2025_0414](models/model_AZURE_GPT_41_NANO_2025_0414.md) | ✅ | ✅ | ✅ | ❌ |
