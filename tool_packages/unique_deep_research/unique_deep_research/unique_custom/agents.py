@@ -44,11 +44,11 @@ from .tools import (
     web_search,
 )
 from .utils import (
+    ainvoke_with_token_handling,
     execute_tool_safely,
     get_engine_config,
     get_notes_from_tool_calls,
     is_token_error,
-    remove_up_to_last_ai_message,
     write_state_message_log,
 )
 
@@ -139,10 +139,12 @@ async def research_supervisor(
     model_with_tools = configurable_model.bind_tools(supervisor_tools)
     research_model = model_with_tools.with_config(model_config)  # type: ignore[arg-type]
 
-    # Generate supervisor response with token limit awareness
+    # Generate supervisor response with comprehensive token limit handling
     supervisor_messages = state.get("supervisor_messages", [])
 
-    response = await research_model.ainvoke(supervisor_messages)
+    response = await ainvoke_with_token_handling(
+        research_model, supervisor_messages, model_info=custom_config.research_model
+    )
 
     return Command(
         goto="supervisor_tools",
@@ -268,10 +270,12 @@ async def researcher(
     model_with_tools = configurable_model.bind_tools(research_tools)
     research_model = model_with_tools.with_config(model_config)  # type: ignore[arg-type]
 
-    # Generate researcher response with token limit awareness
+    # Generate researcher response with comprehensive token limit handling
     researcher_messages = state.get("researcher_messages", [])
     messages = [SystemMessage(content=researcher_prompt)] + researcher_messages
-    response = await research_model.ainvoke(messages)
+    response = await ainvoke_with_token_handling(
+        research_model, messages, model_info=custom_config.research_model
+    )
 
     return Command(
         goto="researcher_tools",
@@ -409,43 +413,14 @@ async def compress_research(
     # Configure compression model
     compression_model = configurable_model.with_config(model_config)  # type: ignore[arg-type]
 
-    # Synthesis with retry logic for token limit issues
-    max_retries = 3
-    iteration = 0
+    # Use proactive token handling instead of retry logic
+    response = await ainvoke_with_token_handling(
+        compression_model, compression_messages, model_info=custom_config.large_model
+    )
 
-    while iteration <= max_retries:
-        iteration += 1
-        try:
-            response = await compression_model.ainvoke(compression_messages)
-            compressed_research = (
-                str(response.content)
-                if response.content
-                else "No synthesis content generated"
-            )
-            # Success! Break out of retry loop
-            break
-
-        except Exception as e:
-            # Handle token limit exceeded by removing older messages (like reference)
-            if is_token_error(e):
-                # Remove older messages to reduce token usage
-                researcher_messages = remove_up_to_last_ai_message(researcher_messages)
-
-                # Rebuild messages with system prompt + truncated researcher messages
-                compression_messages = [
-                    SystemMessage(content=compression_system_prompt)
-                ] + researcher_messages
-                continue
-            else:
-                logger.error(f"Error compressing research: {e}")
-                # For other errors, continue retrying
-                continue
-
-    # If all attempts failed, use fallback
-    if iteration > max_retries:
-        compressed_research = (
-            "Error synthesizing research report: Maximum retries exceeded"
-        )
+    compressed_research = (
+        str(response.content) if response.content else "No synthesis content generated"
+    )
 
     return {
         "compressed_research": compressed_research,

@@ -6,16 +6,15 @@ handling, and other shared operations across the deep research workflow.
 """
 
 import logging
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import Any, Dict, List, Optional, Union
 
 import tiktoken
 from langchain_core.messages import (
-    AIMessage,
     BaseMessage,
     MessageLikeRepresentation,
     filter_messages,
 )
-from langchain_core.runnables import RunnableConfig
+from langchain_core.runnables import Runnable, RunnableConfig
 from langchain_core.tools import BaseTool
 from unique_toolkit.chat.schemas import (
     MessageLogDetails,
@@ -26,7 +25,7 @@ from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
-from ..config import DeepResearchToolConfig
+from ..config import DeepResearchToolConfig, UniqueCustomEngineConfig
 from .state import AgentState, ResearcherState, SupervisorState
 
 logger = logging.getLogger(__name__)
@@ -297,7 +296,7 @@ async def execute_tool_safely(
     tool: BaseTool, args: Dict[str, Any], config: RunnableConfig
 ) -> str:
     """
-    Safely execute a tool with error handling.
+    Safely execute a tool with error handling and token limit awareness.
 
     Args:
         tool: The tool to execute (typically a LangChain tool)
@@ -314,35 +313,17 @@ async def execute_tool_safely(
         return await tool.ainvoke(args, config)
     except Exception as e:
         tool_name = getattr(tool, "name", str(tool))
-        return f"Error executing tool {tool_name}: {str(e)}"
+
+        # Handle token limit errors specifically
+        if is_token_error(e):
+            logger.warning(f"Token limit exceeded in tool {tool_name}: {str(e)}")
+            return f"Tool {tool_name} failed due to token limit: {str(e)}"
+        else:
+            logger.error(f"Error executing tool {tool_name}: {str(e)}")
+            return f"Error executing tool {tool_name}: {str(e)}"
 
 
 # Token management utilities
-
-
-def count_tokens(text: str, model_info: LanguageModelInfo) -> int:
-    """Count tokens in text using the model's encoder."""
-    try:
-        encoder = tiktoken.get_encoding(model_info.encoder_name)
-        return len(encoder.encode(text))
-    except Exception as e:
-        logger.warning(f"Error counting tokens: {e}")
-        return len(text) // 4  # Rough fallback
-
-
-def truncate_context(
-    text: str, model_info: LanguageModelInfo, target_ratio: float = 0.7
-) -> str:
-    """Truncate text to fit within token limits."""
-    target_tokens = int(model_info.token_limits.token_limit_input * target_ratio)
-    current_tokens = count_tokens(text, model_info)
-
-    if current_tokens <= target_tokens:
-        return text
-
-    # Simple character-based truncation
-    char_ratio = target_tokens / current_tokens
-    return text[: int(len(text) * char_ratio * 0.9)]
 
 
 def is_token_error(exception: Exception) -> bool:
@@ -358,32 +339,6 @@ def is_token_error(exception: Exception) -> bool:
             "maximum context",
         ]
     )
-
-
-def remove_up_to_last_ai_message(
-    messages: Sequence[Union[BaseMessage, MessageLikeRepresentation]],
-) -> List[Union[BaseMessage, MessageLikeRepresentation]]:
-    """Truncate message history by removing up to the last AI message.
-
-    This is useful for handling token limit exceeded errors by removing recent context
-    while preserving conversation structure. It searches backwards through messages
-    to find the last AI message and returns everything up to (but not including) it.
-
-    Args:
-        messages: List of message objects to truncate
-
-    Returns:
-        Truncated message list up to (but not including) the last AI message.
-        If no AI messages found, returns original list.
-    """
-    # Search backwards through messages to find the last AI message
-    for i in range(len(messages) - 1, -1, -1):
-        if isinstance(messages[i], AIMessage):
-            # Return everything up to (but not including) the last AI message
-            return list(messages[:i])
-
-    # No AI messages found, return original list
-    return list(messages)
 
 
 def get_notes_from_tool_calls(messages: List[MessageLikeRepresentation]) -> List[str]:
@@ -403,3 +358,100 @@ def get_notes_from_tool_calls(messages: List[MessageLikeRepresentation]) -> List
         str(tool_msg.content)
         for tool_msg in filter_messages(messages, include_types=["tool"])
     ]
+
+
+def count_tokens(text: str, model_info: LanguageModelInfo) -> int:
+    """Count tokens in text using the model's encoder."""
+    if not text:
+        return 0
+    try:
+        encoder = tiktoken.get_encoding(model_info.encoder_name)
+        return len(encoder.encode(str(text)))
+    except Exception as e:
+        logger.warning(f"Error counting tokens: {e}")
+        return len(str(text)) // 4  # Rough fallback
+
+
+def prepare_messages_for_model(
+    messages: List[BaseMessage],
+    model_info: LanguageModelInfo,
+    token_limit_ratio: float = 0.8,
+) -> List[BaseMessage]:
+    """
+    Simple proactive message filtering - keep system (first message) + recent messages up to specified ratio of limit.
+
+    Args:
+        messages: List of messages to prepare
+        model_info: Model information with token limits
+        token_limit_ratio: Ratio of token limit to use (default: 0.8)
+
+    Returns:
+        List of messages that fit within token limit ratio
+    """
+    if not messages:
+        return messages
+
+    # Use specified ratio of input limit to leave buffer
+    token_budget = int(model_info.token_limits.token_limit_input * token_limit_ratio)
+
+    system_msg = messages[0]
+    other_messages = messages[1:]
+
+    # Count system message tokens
+    system_tokens = (
+        count_tokens(str(system_msg.content), model_info) + 4 if system_msg else 0
+    )
+
+    # Calculate remaining budget
+    remaining_budget = token_budget - system_tokens
+
+    # Keep most recent messages that fit
+    result = []
+    total_tokens = 0
+
+    for message in reversed(other_messages):
+        msg_tokens = (
+            count_tokens(str(message.content), model_info) + 4
+        )  # +4 for message overhead
+        if total_tokens + msg_tokens <= remaining_budget:
+            result.insert(0, message)
+            total_tokens += msg_tokens
+        else:
+            break
+
+    # Combine system + recent messages
+    if system_msg:
+        result.insert(0, system_msg)
+
+    if len(result) < len(messages):
+        logger.debug(
+            f"Trimmed {len(messages) - len(result)} messages to fit token limit"
+        )
+
+    return result
+
+
+async def ainvoke_with_token_handling(
+    model: Runnable[List[BaseMessage], Any],
+    messages: List[BaseMessage],
+    model_info: Optional[LanguageModelInfo] = None,
+) -> Any:
+    """
+    Invoke model with proactive token filtering to prevent errors.
+
+    Args:
+        model: The model to invoke
+        messages: List of messages to send
+        model_info: Model info for token limits
+
+    Returns:
+        Model response
+    """
+    token_limit_ratio = (
+        UniqueCustomEngineConfig.max_tokens_in_context_window_limit_percentage
+    )
+
+    if model_info:
+        messages = prepare_messages_for_model(messages, model_info, token_limit_ratio)
+
+    return await model.ainvoke(messages)

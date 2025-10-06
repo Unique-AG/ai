@@ -25,6 +25,9 @@ class UniqueCustomEngineConfig:
     max_parallel_researchers: int = 3
     max_research_iterations: int = 5
     max_tool_calls_per_researcher: int = 10
+    max_tokens_in_context_window_limit_percentage: float = (
+        0.8  # Use 80% of token limit to leave buffer for output
+    )
 
 
 class DeepResearchToolConfig(BaseToolConfig):
