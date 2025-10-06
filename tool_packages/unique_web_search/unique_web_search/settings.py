@@ -18,10 +18,9 @@ class Base(BaseSettings):
 
     # Active search engines
     active_search_engines: list[str] = ["google"]
-
-    # Bing settings
-    bing_search_v7_subscription_key: str | None = None
-    bing_api_endpoint: str | None = None
+    
+    # Default Crawlers
+    active_inhouse_crawlers: list[str] = ["basic", "crawl4ai"]
 
     # Google Search settings
     google_search_api_key: str | None = None
@@ -60,6 +59,19 @@ class Base(BaseSettings):
     ## For SSL/TLS authentication
     proxy_ssl_cert_path: str | None = None
     proxy_ssl_key_path: str | None = None
+
+    @property
+    def active_crawlers(self) -> list[str]:
+        "Dynamically determine the active crawlers based on the API keys provided"
+        default_crawlers = self.active_inhouse_crawlers
+        if self.firecrawl_api_key:
+            default_crawlers.append("firecrawl")
+        if self.jina_api_key:
+            default_crawlers.append("jina")
+        if self.tavily_api_key:
+            default_crawlers.append("tavily")
+            
+        return default_crawlers
 
 
 class Settings(Base):

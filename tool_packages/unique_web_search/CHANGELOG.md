@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Proxy Authentication Support**: Route search engine and crawler requests through proxies with multiple authentication methods:
   - Username/Password authentication
   - Client Certificate authentication
+- **Active Crawlers**: Dynamic crawler activation system allowing selective enablement of crawling services:
+  - **In-house crawlers**: Control activation via environment variables for internal crawlers (Basic, Crawl4AI.)
+  - **External crawlers**: Auto-activate when API keys are configured (Firecrawl, Jina, Tavily)
 - **Test Coverage**: Added comprehensive tests to ensure web search tool stability and reliability
 
 ## [1.2.0] - 2025-09-29
