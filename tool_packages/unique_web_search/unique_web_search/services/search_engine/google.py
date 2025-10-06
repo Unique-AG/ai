@@ -2,9 +2,10 @@ import logging
 from typing import Literal
 from urllib.parse import urlparse
 
-from httpx import AsyncClient, Response
+from httpx import Response
 
 from unique_web_search.client_settings import get_google_search_settings
+from unique_web_search.services.client.proxy_config import async_client
 from unique_web_search.services.search_engine import (
     BaseSearchEngineConfig,
     SearchEngine,
@@ -18,7 +19,7 @@ from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
 
-logger = logging.getLogger(f"PythonAssistantCoreBundle.{__name__}")
+logger = logging.getLogger(__name__)
 
 # Pagingation size fixed to 10 because of the Google Search API limit
 PAGINATION_SIZE = 10
@@ -143,7 +144,7 @@ class GoogleSearch(SearchEngine[GoogleConfig]):
 
         """
         request_params = self._get_request_params(query=query, **kwargs)
-        async with AsyncClient() as client:
+        async with async_client() as client:
             response = await client.get(**request_params)
         return response
 

@@ -82,7 +82,7 @@ def get_search_engine_service(
             return BraveSearch(search_engine_config, language_model_service, lmi)
 
 
-def get_config_types_from_names(engine_names: list[str]) -> TypeAlias:
+def get_search_engine_config_types_from_names(engine_names: list[str]) -> TypeAlias:
     assert len(engine_names) >= 1, "At least one search engine must be active"
 
     selected_types = [
@@ -124,4 +124,6 @@ __all__ = [
     "BaseSearchEngineConfig",
     "SearchEngine",
     "SearchEngineType",
+    "get_search_engine_config_types_from_names",
+    "get_default_search_engine_config",
 ]
