@@ -161,15 +161,17 @@ async def wait_for_ingestion_completion(
     """
     max_attempts = int(max_wait // poll_interval)
     for _ in range(max_attempts):
-        searched_content = Content.search(
+        searched_content = Content.get_info(
             user_id=user_id,
             company_id=company_id,
-            where={"id": {"equals": content_id}},
+            contentId=content_id,
             chatId=chat_id,
-            includeFailedContent=True,
         )
-        if searched_content:
-            ingestion_state = searched_content[0].get("ingestionState")
+        content_info_list = searched_content.get("contentInfo", [])
+        if not content_info_list:
+            raise RuntimeError(f"Content not found for contentId: {content_id}")
+        if content_info_list:
+            ingestion_state = content_info_list[0].get("ingestionState")
             if ingestion_state == "FINISHED":
                 return ingestion_state
             if isinstance(ingestion_state, str) and ingestion_state.startswith(
