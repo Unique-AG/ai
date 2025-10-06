@@ -11,7 +11,6 @@ from unique_toolkit._common.endpoint_builder import HttpMethods, build_api_opera
 from unique_toolkit._common.endpoint_requestor import (
     RequestContext,
     RequestorType,
-    build_aiohttp_requestor,
     build_fake_requestor,
     build_httpx_requestor,
     build_request_requestor,
