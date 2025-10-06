@@ -5,6 +5,7 @@ This module provides common utility functions for service access, configuration
 handling, and other shared operations across the deep research workflow.
 """
 
+import asyncio
 import logging
 from typing import Any, Dict, List, Optional, Union
 
@@ -434,10 +435,10 @@ def prepare_messages_for_model(
 async def ainvoke_with_token_handling(
     model: Runnable[List[BaseMessage], Any],
     messages: List[BaseMessage],
-    model_info: Optional[LanguageModelInfo] = None,
+    model_info: LanguageModelInfo,
 ) -> Any:
     """
-    Invoke model with proactive token filtering to prevent errors.
+    Invoke model with proactive token filtering and retry logic with exponential backoff.
 
     Args:
         model: The model to invoke
@@ -447,11 +448,35 @@ async def ainvoke_with_token_handling(
     Returns:
         Model response
     """
-    token_limit_ratio = (
-        UniqueCustomEngineConfig.max_tokens_in_context_window_limit_percentage
+
+    messages = prepare_messages_for_model(
+        messages,
+        model_info,
+        UniqueCustomEngineConfig.max_tokens_in_context_window_limit_percentage,
     )
 
-    if model_info:
-        messages = prepare_messages_for_model(messages, model_info, token_limit_ratio)
+    # Retry configuration
+    max_retries = 3
+    base_delay = 4.0  # Base delay in seconds
 
-    return await model.ainvoke(messages)
+    for attempt in range(max_retries + 1):
+        try:
+            return await model.ainvoke(messages)
+        except Exception as e:
+            # Don't retry on token errors - these are handled by token filtering
+            if is_token_error(e):
+                logger.warning(f"Token limit error in model invocation: {str(e)}")
+                raise
+
+            # For other errors, retry with exponential backoff
+            if attempt < max_retries:
+                delay = base_delay * (2**attempt)  # Exponential backoff: 4s, 8s, 16s
+                logger.warning(
+                    f"Model invocation failed (attempt {attempt + 1}/{max_retries + 1}): {str(e)}. Retrying in {delay}s..."
+                )
+                await asyncio.sleep(delay)
+            else:
+                logger.error(
+                    f"Model invocation failed after {max_retries + 1} attempts: {str(e)}"
+                )
+                raise e
