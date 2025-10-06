@@ -28,9 +28,7 @@ def mock_llm_service():
 def stock_ticker_config():
     # Adjust as necessary to create a real or dummy config
     return StockTickerDetectionConfig(
-        language_model=LanguageModelInfo.from_name(
-            DEFAULT_GPT_4o
-        )
+        language_model=LanguageModelInfo.from_name(DEFAULT_GPT_4o)
     )
 
 
