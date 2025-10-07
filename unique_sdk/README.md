@@ -1,8 +1,8 @@
 # Unique Python SDK
 
-Unique Unique AI is a tailored solution for the financial industry, designed to increase productivity by automating manual workloads through AI and ChatGPT solutions.
+Unique AI is a tailored solution for the financial industry, designed to increase productivity by automating manual workloads through AI and ChatGPT solutions.
 
-The Unique Python SDK provides access to the public API of Unique Unique AI. It also enables verification of Webhook signatures to ensure the authenticity of incoming Webhook requests.
+The Unique Python SDK provides access to the public API of Unique AI. It also enables verification of Webhook signatures to ensure the authenticity of incoming Webhook requests.
 
 ## Table of Contents
 
@@ -208,7 +208,7 @@ This trigger can be used in combination with assistants marked as `external`. Th
 }
 ```
 
-This Webhook is triggered when the Unique Unique AI AI selects an external module as the best response to a user message. The module must be marked as `external` and available for the assistant used in the chat to be selected by the AI.
+This Webhook is triggered when the Unique AI selects an external module as the best response to a user message. The module must be marked as `external` and available for the assistant used in the chat to be selected by the AI.
 
 Unique's UI will create an empty `assistantMessage` below the user message and update this message with status updates.
 
@@ -555,7 +555,7 @@ Move the file to a different folder. This can be done by specifying either the `
 - `parentFolderPath` optional, allows moving the file to a different folder. Represents the path new folder for the file.
 
 Metadata update:
-- `metadata` optional, allows updating the metadata of the file. Default metadata can not be ovrriden. (Available with release >.40)
+- `metadata` optional, allows updating the metadata of the file. Default metadata can not be overridden. (Available with release >.40)
 
 Example of updating the title of a file specified by its path.
 
@@ -803,7 +803,7 @@ unique_sdk.Integrated.responses_stream(
 
 #### `unique_sdk.ChatCompletion.create`
 
-Send a prompt to an AI model supported by Unique Unique AI and receive a result. The `messages` attribute must follow the [OpenAI API format](https://platform.openai.com/docs/api-reference/chat).
+Send a prompt to an AI model supported by Unique AI and receive a result. The `messages` attribute must follow the [OpenAI API format](https://platform.openai.com/docs/api-reference/chat).
 
 ```python
 chat_completion = unique_sdk.ChatCompletion.create(
@@ -853,7 +853,7 @@ print(result)
 
 #### `unique_sdk.Search.create`
 
-Search the Unique Unique AI Knowledge database for RAG (Retrieval-Augmented Generation). The API supports vector search and a `searchType` that combines vector and full-text search, enhancing the precision of search results.
+Search the Unique AI Knowledge database for RAG (Retrieval-Augmented Generation). The API supports vector search and a `searchType` that combines vector and full-text search, enhancing the precision of search results.
 
 These are the options are available for `searchType`:
 
