@@ -635,6 +635,10 @@ class KnowledgeBaseService:
         content_info: ContentInfo,
         keys_to_remove: list[str],
     ) -> ContentInfo:
+        """
+        Removes the specified keys irreversibly from the content metadata.
+        """
+
         if content_info.metadata is None:
             _LOGGER.warning(f"Content metadata is None for content {content_info.id}")
             return content_info
