@@ -714,6 +714,7 @@ class ChatService(ChatServiceDeprecated):
 
     def create_message_log(
         self,
+        *,
         message_id: str,
         text: str,
         status: MessageLogStatus,
@@ -754,6 +755,7 @@ class ChatService(ChatServiceDeprecated):
 
     async def create_message_log_async(
         self,
+        *,
         message_id: str,
         text: str,
         status: MessageLogStatus,
@@ -794,6 +796,7 @@ class ChatService(ChatServiceDeprecated):
 
     def update_message_log(
         self,
+        *,
         message_log_id: str,
         order: int,
         text: str | None = None,
@@ -834,6 +837,7 @@ class ChatService(ChatServiceDeprecated):
 
     async def update_message_log_async(
         self,
+        *,
         message_log_id: str,
         order: int,
         text: str | None = None,
@@ -874,6 +878,7 @@ class ChatService(ChatServiceDeprecated):
 
     def create_assistant_message_log(
         self,
+        *,
         text: str,
         status: MessageLogStatus,
         order: int,
@@ -912,6 +917,7 @@ class ChatService(ChatServiceDeprecated):
 
     async def create_assistant_message_log_async(
         self,
+        *,
         text: str,
         status: MessageLogStatus,
         order: int,
@@ -953,6 +959,7 @@ class ChatService(ChatServiceDeprecated):
 
     def create_message_execution(
         self,
+        *,
         message_id: str,
         type: MessageExecutionType = MessageExecutionType.DEEP_RESEARCH,
         seconds_remaining: int | None = None,
@@ -985,6 +992,7 @@ class ChatService(ChatServiceDeprecated):
 
     async def create_message_execution_async(
         self,
+        *,
         message_id: str,
         type: MessageExecutionType = MessageExecutionType.DEEP_RESEARCH,
         seconds_remaining: int | None = None,
@@ -1017,6 +1025,7 @@ class ChatService(ChatServiceDeprecated):
 
     def get_message_execution(
         self,
+        *,
         message_id: str,
     ) -> MessageExecution:
         """Gets a message execution by message ID synchronously.
@@ -1039,6 +1048,7 @@ class ChatService(ChatServiceDeprecated):
 
     async def get_message_execution_async(
         self,
+        *,
         message_id: str,
     ) -> MessageExecution:
         """Gets a message execution by message ID asynchronously.
@@ -1061,6 +1071,7 @@ class ChatService(ChatServiceDeprecated):
 
     def update_message_execution(
         self,
+        *,
         message_id: str,
         status: MessageExecutionUpdateStatus,
         seconds_remaining: int | None = None,
@@ -1092,6 +1103,7 @@ class ChatService(ChatServiceDeprecated):
 
     async def update_message_execution_async(
         self,
+        *,
         message_id: str,
         status: MessageExecutionUpdateStatus,
         seconds_remaining: int | None = None,
@@ -1123,6 +1135,7 @@ class ChatService(ChatServiceDeprecated):
 
     def create_assistant_message_execution(
         self,
+        *,
         type: MessageExecutionType = MessageExecutionType.DEEP_RESEARCH,
         seconds_remaining: int | None = None,
         percentage_completed: int | None = None,
@@ -1152,6 +1165,7 @@ class ChatService(ChatServiceDeprecated):
 
     async def create_assistant_message_execution_async(
         self,
+        *,
         type: MessageExecutionType = MessageExecutionType.DEEP_RESEARCH,
         seconds_remaining: int | None = None,
         percentage_completed: int | None = None,
@@ -1211,6 +1225,7 @@ class ChatService(ChatServiceDeprecated):
 
     def update_assistant_message_execution(
         self,
+        *,
         status: MessageExecutionUpdateStatus,
         seconds_remaining: int | None = None,
         percentage_completed: int | None = None,
@@ -1240,6 +1255,7 @@ class ChatService(ChatServiceDeprecated):
 
     async def update_assistant_message_execution_async(
         self,
+        *,
         status: MessageExecutionUpdateStatus,
         seconds_remaining: int | None = None,
         percentage_completed: int | None = None,
