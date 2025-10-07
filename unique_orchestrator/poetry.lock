@@ -4502,7 +4502,7 @@ unique-web-search = ">=1.0.0,<2.0.0"
 
 [[package]]
 name = "unique-follow-up-questions"
-version = "1.1.0"
+version = "1.1.1"
 description = ""
 optional = false
 python-versions = "^3.12"
@@ -4551,7 +4551,7 @@ url = "../tool_packages/unique_internal_search"
 
 [[package]]
 name = "unique-sdk"
-version = "0.10.28"
+version = "0.10.29"
 description = ""
 optional = false
 python-versions = "^3.11"
@@ -4572,7 +4572,7 @@ url = "../unique_sdk"
 
 [[package]]
 name = "unique-stock-ticker"
-version = "1.0.0"
+version = "1.0.1"
 description = ""
 optional = false
 python-versions = "^3.12"
@@ -4599,7 +4599,7 @@ url = "../postprocessors/unique_stock_ticker"
 
 [[package]]
 name = "unique-toolkit"
-version = "1.8.0"
+version = "1.11.0"
 description = ""
 optional = false
 python-versions = "^3.12"
@@ -4623,7 +4623,7 @@ regex = "^2024.5.15"
 sseclient = "^0.0.27"
 tiktoken = "^0.7.0"
 typing-extensions = "^4.9.0"
-unique-sdk = "^0.10.0"
+unique-sdk = "^0.10.28"
 
 [package.source]
 type = "directory"
@@ -5303,4 +5303,4 @@ cffi = ["cffi (>=1.17,<2.0)", "cffi (>=2.0.0b)"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "a4985e8e18d959b87394db94e62069a8951c025e7e68810faed97fb54de7b280"
+content-hash = "f0c38b99b340a94e2ca60c76e9d2c09a05ff66cae3c3181edf203ea1a5979401"

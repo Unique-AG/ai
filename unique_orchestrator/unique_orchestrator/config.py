@@ -2,7 +2,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Annotated, Any, Generic, Literal, TypeVar
 
-from pydantic import BaseModel, Field, ValidationInfo, field_validator
+from pydantic import BaseModel, Field, ValidationInfo, field_validator, model_validator
 from unique_deep_research.config import DeepResearchToolConfig
 from unique_deep_research.service import DeepResearchTool
 from unique_follow_up_questions.config import FollowUpQuestionsConfig
@@ -21,6 +21,10 @@ from unique_toolkit.agentic.evaluation.hallucination.constants import (
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.history_manager.history_manager import (
     UploadedContentConfig,
+)
+from unique_toolkit.agentic.tools.a2a import (
+    REFERENCING_INSTRUCTIONS_FOR_SYSTEM_PROMPT,
+    REFERENCING_INSTRUCTIONS_FOR_USER_PROMPT,
 )
 from unique_toolkit.agentic.tools.a2a.evaluation import SubAgentEvaluationServiceConfig
 from unique_toolkit.agentic.tools.config import get_configuration_dict
@@ -201,6 +205,22 @@ class InputTokenDistributionConfig(BaseModel):
         return int(self.percent_for_history * max_input_token)
 
 
+class SubAgentsConfig(BaseModel):
+    model_config = get_configuration_dict()
+    use_sub_agent_references: bool = Field(
+        default=True,
+        description="Whether to use sub agent references in the main agent's response. Only has an effect if sub agents are used.",
+    )
+    referencing_instructions_for_system_prompt: str = Field(
+        default=REFERENCING_INSTRUCTIONS_FOR_SYSTEM_PROMPT,
+        description="Referencing instructions for the main agent's system prompt.",
+    )
+    referencing_instructions_for_user_prompt: str = Field(
+        default=REFERENCING_INSTRUCTIONS_FOR_USER_PROMPT,
+        description="Referencing instructions for the main agent's user prompt. Should correspond to a short reminder.",
+    )
+
+
 class ExperimentalConfig(BaseModel):
     """Experimental features this part of the configuration might evolve in the future continuously"""
 
@@ -232,6 +252,8 @@ class ExperimentalConfig(BaseModel):
         max_tool_calls_per_iteration=5
     )
 
+    sub_agents_config: SubAgentsConfig = SubAgentsConfig()
+
 
 class UniqueAIAgentConfig(BaseModel):
     model_config = get_configuration_dict(frozen=True)
@@ -256,3 +278,9 @@ class UniqueAIConfig(BaseModel):
     space: UniqueAISpaceConfig = UniqueAISpaceConfig()
 
     agent: UniqueAIAgentConfig = UniqueAIAgentConfig()
+
+    @model_validator(mode="after")
+    def disable_sub_agent_referencing_if_not_used(self) -> "UniqueAIConfig":
+        if not any(tool.is_sub_agent for tool in self.space.tools):
+            self.agent.experimental.sub_agents_config.use_sub_agent_references = False
+        return self
