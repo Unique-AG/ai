@@ -6,13 +6,18 @@
     - date_string: The current date in formatted string
     - mcp_server_user_prompts: List of unique server-wide user prompts from MCP servers
     - tool_descriptions_with_user_prompts: List of UniqueToolDescription objects with user prompts
-#}{{ query }}
+#}
+# User Query
+{{ query }}
+
+{% if use_sub_agent_references and sub_agent_referencing_instructions | length > 0 %}
+# Sub Agents Referencing Reminder
+{{ sub_agent_referencing_instructions }}
+{% endif %}
 
 {%- if mcp_server_user_prompts and mcp_server_user_prompts|length > 0 %}
-
-## MCP Server Context
+# MCP Server Context
 {%- for server_prompt in mcp_server_user_prompts %}
-
 {{ server_prompt }}
 {%- endfor %}
 {%- endif %}
