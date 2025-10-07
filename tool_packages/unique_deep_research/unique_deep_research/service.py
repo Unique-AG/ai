@@ -335,7 +335,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                 case DeepResearchEngine.OPENAI:
                     self.logger.info("Running OpenAI research")
                     return await self.openai_research(research_brief)
-                case DeepResearchEngine.UNIQUE_CUSTOM:
+                case DeepResearchEngine.UNIQUE:
                     self.logger.info("Running Custom research")
                     return await self.custom_research(research_brief)
         except Exception as e:

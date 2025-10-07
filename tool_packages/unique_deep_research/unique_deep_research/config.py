@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
+from typing import Literal
 
 from jinja2 import Environment, FileSystemLoader
 from pydantic import BaseModel, Field
@@ -17,8 +18,8 @@ TEMPLATE_ENV = Environment(loader=FileSystemLoader(str(TEMPLATE_DIR)))
 class DeepResearchEngine(StrEnum):
     """Available deep research engines."""
 
-    OPENAI = "OpenAI"
-    UNIQUE_CUSTOM = "UniqueCustom"
+    OPENAI = "openai"
+    UNIQUE = "unique"
 
 
 # Hardcoded configuration for the unique custom engine
@@ -33,9 +34,9 @@ RESPONSES_API_TIMEOUT_SECONDS = 3600
 
 
 class BaseEngine(BaseModel):
-    research_type: SkipJsonSchema[DeepResearchEngine] = Field(
-        default=DeepResearchEngine.UNIQUE_CUSTOM
-    )
+    engine_type: SkipJsonSchema[
+        Literal[DeepResearchEngine.UNIQUE, DeepResearchEngine.OPENAI]
+    ] = Field(description="The type of engine to use for deep research")
     small_model: LMI = get_LMI_default_field(
         LanguageModelName.AZURE_GPT_4o_2024_1120,
         description="A smaller fast model for less demanding tasks",
@@ -52,11 +53,11 @@ class BaseEngine(BaseModel):
     )
 
     def get_type(self) -> DeepResearchEngine:
-        return self.research_type
+        return DeepResearchEngine(self.engine_type)
 
 
 class OpenAIEngine(BaseEngine):
-    research_type: SkipJsonSchema[DeepResearchEngine] = Field(
+    engine_type: SkipJsonSchema[Literal[DeepResearchEngine.OPENAI]] = Field(
         default=DeepResearchEngine.OPENAI
     )
     research_model: LMI = get_LMI_default_field(
@@ -66,11 +67,14 @@ class OpenAIEngine(BaseEngine):
 
 
 class UniqueEngine(BaseEngine):
-    pass
+    engine_type: SkipJsonSchema[Literal[DeepResearchEngine.UNIQUE]] = Field(
+        default=DeepResearchEngine.UNIQUE
+    )
 
 
 class DeepResearchToolConfig(BaseToolConfig):
     engine: UniqueEngine | OpenAIEngine = Field(
         description="The deep research engine to use. Please be aware that OpenAI engine requires particular models to be used as the research model and they have different tools available.",
         default=UniqueEngine(),
+        discriminator="engine_type",
     )
