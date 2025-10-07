@@ -484,13 +484,13 @@ async def final_report_generation(
             final_report = await report_model.ainvoke(
                 [
                     SystemMessage(content=report_writer_prompt),
-                    AIMessage(content=message),
+                    HumanMessage(content=message),
                 ]
             )
             refined_report = await report_model.ainvoke(
                 [
                     SystemMessage(content=refinement_prompt),
-                    AIMessage(content=final_report.content),
+                    HumanMessage(content=final_report.content),
                 ]
             )
 
