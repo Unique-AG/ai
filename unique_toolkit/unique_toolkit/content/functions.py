@@ -591,7 +591,7 @@ def get_content_info(
 ):
     """Gets the info of a content."""
     get_info_params = unique_sdk.Content.ContentInfoParams(
-        metadataFilter=metadata_filter,
+        metadataFilter=metadata_filter or None,  # Dict cannot be empty
         skip=skip,
         take=take,
         filePath=file_path,
