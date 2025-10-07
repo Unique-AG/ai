@@ -282,6 +282,123 @@ if chat_id:
     chat_contents = kb_service.search_content_on_chat(chat_id)
 ```
 
+### Filtering with Smart Rules
+
+A powerful mechanism to obtain more relevant information from the knowledge base are `smart rules`. These rules act as conditionals to reduce the amount of retrieved information. A smart rule is a logical statement that either evaluates to `true` or `false` given the metadata of the documents. 
+
+
+#### Simple Statments 
+
+In its simplest form define a smart rule we need 
+
+1. `path`: 
+2. `operator`: 
+3. `value`: 
+
+**Use Cases**
+
+The following presents the definition in python 
+
+<!--
+```{.python #smart_rules_imports}
+from unique_toolkit.smart_rules.compile import Statement, Operator, AndStatement, OrStatement
+```
+-->
+
+**A smart rule filtering on document titles** 
+
+```{.python #smart_rule_file_title}
+smart_rule_file_title= Statement(operator=Operator.CONTAINS, 
+                                            value="test_title", 
+                                            path=["title"])
+
+metadata_filter = smart_rule_file_title.model_dump(mode="json") 
+```
+
+**A smart rule for mime types**
+
+
+```{.python #smart_rule_mime_type}
+smart_rule_mime_type = Statement(operator=Operator.EQUALS, 
+                                            value="application/pdf", 
+                                            path=["title"])
+
+metadata_filter = smart_rule_mime_type.model_dump(mode="json") 
+
+```
+
+
+**A smart rule that filters content in a folder with and its subfolders**.
+
+The folder must be identified through its `scope_id` 
+
+```{.python #smart_rule_folder_and_subfolder}
+smart_rule_folder_and_subfolder = Statement(operator=Operator.CONTAINS, 
+                                            value=f"{scope_id}", 
+                                            path=["folderIdPath"])
+
+metadata_filter = smart_rule_folder_and_subfolder.model_dump(mode="json")
+```
+
+3. A smart rule that filters the content of a folder only
+
+If a restriction on the content in a specific folder is desired the smart rule would use the `Operator.EQUALS` instead
+```{.python #smart_rule_folder_content}
+smart_rule_folder_content = Statement(operator=Operator.EQUALS, 
+                                      value=f"{scope_id}", 
+                                      path=["folderIdPath"])
+
+metadata_filter = smart_rule_folder_content.model_dump(mode="json")
+```
+
+
+
+```{.python #kb_service_combined_with_metadafilter}
+
+
+content_chunks = kb_service.search_content_chunks(
+    search_string="Harry Potter",
+    search_type=ContentSearchType.COMBINED,
+    limit=15,
+    metadata_filter=metadata_filter
+)
+```
+
+<!--
+```{.python file=./docs/.python_files/content_search_with_smart_rule_on_folders.py }
+<<smart_rules_imports>>
+<<kb_service_setup>>
+<<load_demo_variables>>
+<<env_scope_id>>
+<<smart_rule_folder_content>>
+<<kb_service_combined_with_metadafilter>>
+```
+-->
+
+
+
+
+
+
+**Combining Smart Rules**
+
+A smart rule can be more than just a single statement but combined into `AndStament` or an `OrStament`. For example we can simpy combine a the above smart rules for the folder and the mime type into 
+
+```{.python #smart_rule_mime_type_and_folder_and_sufolder}
+smart_rule_folders_and_mime = AndStatement(and_list=[smart_rule_folder_and_subfolder, 
+                                                     smart_rule_mime_type])
+metadata_filter = smart_rule_folders_and_mime.model_dump(mode="json") 
+```
+
+
+
+
+
+
+
+
+
+
 
 ## Best Practices
 
