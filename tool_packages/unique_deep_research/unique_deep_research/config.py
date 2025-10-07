@@ -76,5 +76,4 @@ class DeepResearchToolConfig(BaseToolConfig):
     engine: UniqueEngine | OpenAIEngine = Field(
         description="The deep research engine to use. Please be aware that OpenAI engine requires particular models to be used as the research model and they have different tools available.",
         default=UniqueEngine(),
-        discriminator="engine_type",
     )
