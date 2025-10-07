@@ -86,6 +86,19 @@ class Content(APIResource["Content"]):
         skip: NotRequired[int | None]
         take: NotRequired[int | None]
         filePath: NotRequired[str | None]
+        contentId: NotRequired[str | None]
+        chatId: NotRequired[str | None]
+
+    class ContentInfosParams(TypedDict):
+        """
+        Parameters for the content infos endpoint.
+        This is used to retrieve information about contents based on various filters.
+        """
+
+        metadataFilter: NotRequired[dict[str, Any] | None]
+        skip: NotRequired[int | None]
+        take: NotRequired[int | None]
+        parentId: NotRequired[str | None]
 
     class CustomApiOptions(TypedDict):
         apiIdentifier: str
@@ -293,7 +306,7 @@ class Content(APIResource["Content"]):
         cls,
         user_id: str,
         company_id: str,
-        **params: Unpack["Content.ContentInfoParams"],
+        **params: Unpack["Content.ContentInfosParams"],
     ) -> "Content.PaginatedContentInfos":
         return cast(
             Content.PaginatedContentInfos,
@@ -311,7 +324,7 @@ class Content(APIResource["Content"]):
         cls,
         user_id: str,
         company_id: str,
-        **params: Unpack["Content.ContentInfoParams"],
+        **params: Unpack["Content.ContentInfosParams"],
     ) -> "Content.PaginatedContentInfos":
         return cast(
             Content.PaginatedContentInfos,
