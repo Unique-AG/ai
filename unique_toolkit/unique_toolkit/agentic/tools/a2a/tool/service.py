@@ -226,6 +226,11 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
         return None
 
     def _prepare_response_references(self, response: str, sequence_number: int) -> str:
+        if not self.config.use_sub_agent_references:
+            # Remove all references from the response
+            response = re.sub(r"<sup>\s*\d+\s*</sup>", "", response)
+            return response
+
         for ref_number in re.findall(r"<sup>(\d+)</sup>", response):
             reference = self.get_sub_agent_reference_format(
                 name=self.name,
