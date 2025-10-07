@@ -154,12 +154,13 @@ class ContentRerankerConfig(BaseModel):
 class ContentInfo(BaseModel):
     model_config = model_config
     id: str
+    object: str
     key: str
     url: str | None = None
     title: str | None = None
     metadata: dict[str, Any] | None = None
-    mime_type: str
     byte_size: int
+    mime_type: str
     owner_id: str
     created_at: datetime
     updated_at: datetime
@@ -168,7 +169,19 @@ class ContentInfo(BaseModel):
     expired_at: datetime | None = None
 
 
-class PaginatedContentInfo(BaseModel):
+class PaginatedContentInfos(BaseModel):
     model_config = model_config
-    content_info: list[ContentInfo]
+    object: str
+    content_infos: list[ContentInfo]
     total_count: int
+
+
+class FolderInfo(BaseModel):
+    model_config = model_config
+    id: str
+    name: str
+    ingestion_config: dict[str, Any]
+    createdAt: str | None
+    updatedAt: str | None
+    parentId: str | None
+    externalId: str | None
