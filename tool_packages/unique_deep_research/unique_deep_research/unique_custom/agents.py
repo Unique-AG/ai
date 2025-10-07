@@ -89,6 +89,10 @@ async def setup_research_supervisor(
     supervisor_tools = get_supervisor_tools()
     tools_description = format_tools_for_prompt(supervisor_tools)
 
+    # Get research tools and format their descriptions for template
+    research_tools = get_research_tools(config)
+    research_tools_description = format_tools_for_prompt(research_tools)
+
     supervisor_system_prompt = TEMPLATE_ENV.get_template(
         "unique/lead_agent_system.j2"
     ).render(
@@ -96,6 +100,7 @@ async def setup_research_supervisor(
         tools=tools_description,
         max_concurrent_research_units=max_concurrent,
         max_researcher_iterations=max_iterations,
+        research_tools_description=research_tools_description,
     )
 
     return Command(
@@ -442,6 +447,10 @@ async def final_report_generation(
     notes = state.get("notes", [])
     cleared_state = {"notes": {"type": "override", "value": []}}
     findings = "\n".join(notes)
+    research_brief = state.get("research_brief", "")
+
+    message = f"# Research Brief\n{research_brief}"
+    message += f"\n\n# Research Findings\n{findings}"
 
     # Step 2: Configure the final report generation model
     custom_config = get_engine_config(config)
@@ -464,7 +473,6 @@ async def final_report_generation(
             report_writer_prompt = TEMPLATE_ENV.get_template(
                 "unique/report_writer_system_open_deep_research.j2"
             ).render(
-                research_brief=state.get("research_brief", ""),
                 date=get_today_str(),
             )
             refinement_prompt = TEMPLATE_ENV.get_template(
@@ -476,13 +484,13 @@ async def final_report_generation(
             final_report = await report_model.ainvoke(
                 [
                     SystemMessage(content=report_writer_prompt),
-                    AIMessage(content=findings),
+                    HumanMessage(content=message),
                 ]
             )
             refined_report = await report_model.ainvoke(
                 [
                     SystemMessage(content=refinement_prompt),
-                    AIMessage(content=final_report.content),
+                    HumanMessage(content=final_report.content),
                 ]
             )
 

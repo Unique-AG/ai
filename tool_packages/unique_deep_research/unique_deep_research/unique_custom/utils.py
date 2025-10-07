@@ -26,7 +26,7 @@ from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
-from ..config import DeepResearchToolConfig
+from ..config import BaseEngine
 from .state import AgentState, ResearcherState, SupervisorState
 
 logger = logging.getLogger(__name__)
@@ -169,7 +169,7 @@ def get_message_id_from_config(config: RunnableConfig) -> str:
     return str(message_id)
 
 
-def get_engine_config(config: RunnableConfig) -> DeepResearchToolConfig:
+def get_engine_config(config: RunnableConfig) -> BaseEngine:
     """
     Extract custom engine configuration from RunnableConfig.
 
@@ -193,7 +193,7 @@ def get_engine_config(config: RunnableConfig) -> DeepResearchToolConfig:
     if not custom_config:
         raise KeyError("custom_engine_config missing from RunnableConfig")
 
-    if not isinstance(custom_config, DeepResearchToolConfig):
+    if not isinstance(custom_config, BaseEngine):
         raise TypeError(
             f"engine_config is {type(custom_config)}, expected DeepResearchToolConfig"
         )
