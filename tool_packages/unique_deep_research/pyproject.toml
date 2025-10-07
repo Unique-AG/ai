@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_deep_research"
-version = "2.1.3"
+version = "3.0.0"
 description = "Deep Research Tool for complex research tasks"
 authors = [
     "Martin Fadler <martin.fadler@unique.ch>",
