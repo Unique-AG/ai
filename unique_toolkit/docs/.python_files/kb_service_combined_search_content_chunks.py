@@ -1,11 +1,11 @@
-# ~/~ begin <<docs/modules/examples/content/content_service.md#content_service_upload_from_memory>>[init]
-# ~/~ begin <<docs/modules/examples/content/content_service.md#content_service_setup>>[init]
+# ~/~ begin <<docs/modules/examples/content/kb_service.md#./docs/.python_files/kb_service_combined_search_content_chunks.py>>[init]
+# ~/~ begin <<docs/modules/examples/content/kb_service.md#kb_service_setup>>[init]
 # ~/~ begin <<docs/setup/_common_imports.md#common_imports>>[init]
 from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.app.init_sdk import init_unique_sdk
 from unique_toolkit.app.dev_util import get_event_generator
 from unique_toolkit.app.schemas import ChatEvent 
-from unique_toolkit import ChatService, ContentService, EmbeddingService, LanguageModelService, LanguageModelName
+from unique_toolkit import ChatService, ContentService, EmbeddingService, LanguageModelService, LanguageModelName, KnowledgeBaseService
 from unique_toolkit.chat.schemas import ChatMessageAssessmentStatus, ChatMessageAssessmentType, ChatMessageAssessmentLabel
 import os
 import io
@@ -25,25 +25,27 @@ from unique_toolkit.framework_utilities.openai.message_builder import (
 from pydantic import Field
 from unique_toolkit import LanguageModelToolDescription
 # ~/~ end
-# ~/~ begin <<docs/modules/examples/content/content_service.md#initialize_content_service_standalone>>[init]
-content_service = ContentService.from_settings()
+# ~/~ begin <<docs/modules/examples/content/kb_service.md#initialize_kb_service_standalone>>[init]
+kb_service = KnowledgeBaseService.from_settings()
 # ~/~ end
 # ~/~ end
-# ~/~ begin <<docs/modules/examples/content/content_service.md#load_demo_variables>>[init]
+# ~/~ begin <<docs/modules/examples/content/kb_service.md#load_demo_variables>>[init]
 from dotenv import dotenv_values
 demo_env_vars = dotenv_values(Path(__file__).parent/"demo.env")
 # ~/~ end
-# ~/~ begin <<docs/modules/examples/content/content_service.md#env_scope_id>>[init]
+# ~/~ begin <<docs/modules/examples/content/kb_service.md#env_scope_id>>[init]
 scope_id = demo_env_vars.get("UNIQUE_SCOPE_ID") or "unknown"
 # ~/~ end
-# ~/~ begin <<docs/modules/examples/content/content_service.md#content_service_upload_bytes>>[init]
-content_bytes = b"Your file content here"
-content = content_service.upload_content_from_bytes(
-    content=content_bytes,
-    content_name="document.txt",
-    mime_type="text/plain",
-    scope_id=scope_id,
-    metadata={"category": "documentation", "version": "1.0"}
+# ~/~ begin <<docs/modules/examples/content/kb_service.md#kb_service_combined_search>>[init]
+# Combined semantic and keyword search for best results
+content_chunks = kb_service.search_content_chunks(
+    search_string="Harry Potter",
+    search_type=ContentSearchType.COMBINED,
+    limit=15,
+    search_language="english",
+    scope_ids=[scope_id],  # Limit to specific scopes if configured
 )
+
+print(f"Combined search found {len(content_chunks)} chunks")
 # ~/~ end
 # ~/~ end

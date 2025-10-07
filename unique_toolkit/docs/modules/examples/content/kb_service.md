@@ -1,9 +1,9 @@
 
-# Content Service
-The content service provides capabilities to interact with the the knowledge base.
+# Knowledge Base Service
+The knowledge base service provides capabilities to interact with the the knowledge base.
 
-```{.python #initialize_content_service_standalone}
-content_service = ContentService.from_settings()
+```{.python #initialize_kb_service_standalone}
+kb_service = KnowledgeBaseService.from_settings()
 ```
 
 
@@ -42,9 +42,9 @@ chat_id = demo_env_vars.get("UNIQUE_CHAT_ID") or "unknown"
 -->
 
 <!--
-```{.python #content_service_setup}
+```{.python #kb_service_setup}
 <<common_imports>>
-<<initialize_content_service_standalone>>
+<<initialize_kb_service_standalone>>
 ```
 -->
 
@@ -54,9 +54,9 @@ chat_id = demo_env_vars.get("UNIQUE_CHAT_ID") or "unknown"
 
 For security, prefer uploading from memory to avoid disk-based information leakage:
 
-```{python #content_service_upload_bytes}
+```{python #kb_service_upload_bytes}
 content_bytes = b"Your file content here"
-content = content_service.upload_content_from_bytes(
+content = kb_service.upload_content_from_bytes(
     content=content_bytes,
     content_name="document.txt",
     mime_type="text/plain",
@@ -66,11 +66,11 @@ content = content_service.upload_content_from_bytes(
 ```
 
 <!--
-```{.python #content_service_upload_from_memory file=./docs/.python_files/content_service_upload_from_memory.py }
-<<content_service_setup>>
+```{.python #kb_service_upload_from_memory file=./docs/.python_files/kb_service_upload_from_memory.py }
+<<kb_service_setup>>
 <<load_demo_variables>>
 <<env_scope_id>>
-<<content_service_upload_bytes>>
+<<kb_service_upload_bytes>>
 ```
 -->
 
@@ -78,9 +78,9 @@ content = content_service.upload_content_from_bytes(
 
 When you must upload from disk:
 
-```{.python #content_service_upload_from_file}
+```{.python #kb_service_upload_from_file}
 # Configure ingestion settings
-content = content_service.upload_content(
+content = kb_service.upload_content(
     path_to_content=str(file_path),
     content_name=Path(file_path).name,
     mime_type="text/plain",
@@ -91,12 +91,12 @@ content = content_service.upload_content(
 ```
 
 <!--
-```{.python file=./docs/.python_files/content_service_upload_from_file.py }
-<<content_service_setup>>
+```{.python file=./docs/.python_files/kb_service_upload_from_file.py }
+<<kb_service_setup>>
 <<load_demo_variables>>
 <<env_scope_id>>
 file_path = Path(__file__).parent/"test.txt"
-<<content_service_upload_from_file>>
+<<kb_service_upload_from_file>>
 ```
 -->
 
@@ -104,7 +104,7 @@ file_path = Path(__file__).parent/"test.txt"
 ### Make uploaded document available to user
 
 ```
-uploaded_content = content_service.upload_content(
+uploaded_content = kb_service.upload_content(
         path_to_content=str(output_filepath),
         content_name=output_filepath.name,
         mime_type=str(mimetypes.guess_type(output_filepath)[0]),
@@ -136,9 +136,9 @@ self.chat_service.modify_assistant_message(
 
 Prefer downloading to memory for security:
 
-```{.python #content_service_download_bytes}
+```{.python #kb_service_download_bytes}
 # Download content as bytes
-content_bytes = content_service.download_content_to_bytes(
+content_bytes = kb_service.download_content_to_bytes(
     content_id=content_id or "unknown",
 )
 
@@ -151,11 +151,11 @@ print(text)
 ```
 
 <!--
-```{.python file=./docs/.python_files/content_service_download_to_memory.py }
-<<content_service_setup>>
+```{.python file=./docs/.python_files/kb_service_download_to_memory.py }
+<<kb_service_setup>>
 <<load_demo_variables>>
 <<env_content_id>>
-<<content_service_download_bytes>>
+<<kb_service_download_bytes>>
 ```
 -->
 
@@ -165,14 +165,14 @@ print(text)
 
 When you need a file on disk, use secure temporary directories:
 
-```{.python #content_service_download_file}
+```{.python #kb_service_download_file}
 # Download to secure temporary file
 
 filename = "my_testfile.txt"
-temp_file_path = content_service.download_content_to_file_by_id(
+temp_file_path = kb_service.download_content_to_file(
     content_id=content_id,
-    filename=filename,
-    tmp_dir_path=tempfile.mkdtemp()  # Use secure temp directory
+    output_filename=filename,
+    output_dir_path=Path(tempfile.mkdtemp())  # Use secure temp directory
 )
 
 try:
@@ -189,11 +189,11 @@ finally:
 ```
 
 <!--
-```{.python file=./docs/.python_files/content_service_download_to_file.py }
-<<content_service_setup>>
+```{.python file=./docs/.python_files/kb_service_download_to_file.py }
+<<kb_service_setup>>
 <<load_demo_variables>>
 <<env_content_id>>
-<<content_service_download_file>>
+<<kb_service_download_file>>
 ```
 -->
 
@@ -206,9 +206,9 @@ finally:
 
 Use vector search for semantic similarity matching:
 
-```{.python #content_service_vector_search}
+```{.python #kb_service_vector_search}
 # Search for content using vector similarity
-content_chunks = content_service.search_content_chunks(
+content_chunks = kb_service.search_content_chunks(
     search_string="Harry Potter",
     search_type=ContentSearchType.VECTOR,
     limit=10,
@@ -222,11 +222,11 @@ for i, chunk in enumerate(content_chunks[:3]):
 ```
 
 <!--
-```{.python file=./docs/.python_files/content_service_vector_search_content_chunks.py }
-<<content_service_setup>>
+```{.python file=./docs/.python_files/kb_service_vector_search_content_chunks.py }
+<<kb_service_setup>>
 <<load_demo_variables>>
 <<env_scope_id>>
-<<content_service_vector_search>>
+<<kb_service_vector_search>>
 ```
 -->
 
@@ -242,9 +242,9 @@ for i, chunk in enumerate(content_chunks[:3]):
 
 Combine semantic and keyword search for best results:
 
-```{.python #content_service_combined_search}
+```{.python #kb_service_combined_search}
 # Combined semantic and keyword search for best results
-content_chunks = content_service.search_content_chunks(
+content_chunks = kb_service.search_content_chunks(
     search_string="Harry Potter",
     search_type=ContentSearchType.COMBINED,
     limit=15,
@@ -256,11 +256,11 @@ print(f"Combined search found {len(content_chunks)} chunks")
 ```
 
 <!--
-```{.python file=./docs/.python_files/content_service_combined_search_content_chunks.py }
-<<content_service_setup>>
+```{.python file=./docs/.python_files/kb_service_combined_search_content_chunks.py }
+<<kb_service_setup>>
 <<load_demo_variables>>
 <<env_scope_id>>
-<<content_service_combined_search>>
+<<kb_service_combined_search>>
 ```
 -->
 
@@ -270,16 +270,16 @@ print(f"Combined search found {len(content_chunks)} chunks")
 
 Search for complete content files by metadata:
 
-```{.python #content_service_content_search}
+```{.python #kb_service_content_search}
 # Search for specific content files
-contents = content_service.search_contents(
+contents = kb_service.search_contents(
     where={"title": {"contains": "manual"}},
     chat_id=chat_id
 )
 
 # Search for content in a specific chat (if chat_id is provided)
 if chat_id:
-    chat_contents = content_service.search_content_on_chat(chat_id)
+    chat_contents = kb_service.search_content_on_chat(chat_id)
 ```
 
 

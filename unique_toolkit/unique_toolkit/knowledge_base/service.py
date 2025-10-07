@@ -1,16 +1,16 @@
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Any, overload
 
 import unique_sdk
 
-from unique_toolkit._common.utils.files import is_file_content, is_image_content
 from unique_toolkit._common.validate_required_values import validate_required_values
 from unique_toolkit.app.schemas import BaseEvent, ChatEvent, Event
 from unique_toolkit.app.unique_settings import UniqueSettings
-from unique_toolkit.content.constants import DEFAULT_SEARCH_LANGUAGE
+from unique_toolkit.content.constants import (
+    DEFAULT_SEARCH_LANGUAGE,
+)
 from unique_toolkit.content.functions import (
-    download_content,
     download_content_to_bytes,
     download_content_to_file_by_id,
     get_content_info,
@@ -32,6 +32,8 @@ from unique_toolkit.content.schemas import (
 )
 
 _LOGGER = logging.getLogger(f"toolkit.knowledge_base.{__name__}")
+
+_DEFAULT_SCORE_THRESHOLD: float = 0.5
 
 
 class KnowledgeBaseService:
@@ -92,6 +94,47 @@ class KnowledgeBaseService:
             metadata_filter=metadata_filter,
         )
 
+    @overload
+    def search_content_chunks(
+        self,
+        *,
+        search_string: str,
+        search_type: ContentSearchType,
+        limit: int,
+        scope_ids: list[str],
+        score_threshold: float = _DEFAULT_SCORE_THRESHOLD,
+        search_language: str = DEFAULT_SEARCH_LANGUAGE,
+        reranker_config: ContentRerankerConfig | None = None,
+    ) -> list[ContentChunk]: ...
+
+    @overload
+    def search_content_chunks(
+        self,
+        *,
+        search_string: str,
+        search_type: ContentSearchType,
+        limit: int,
+        metadata_filter: dict,
+        scope_ids: list[str] | None = None,
+        score_threshold: float = _DEFAULT_SCORE_THRESHOLD,
+        search_language: str = DEFAULT_SEARCH_LANGUAGE,
+        reranker_config: ContentRerankerConfig | None = None,
+    ) -> list[ContentChunk]: ...
+
+    @overload
+    def search_content_chunks(
+        self,
+        *,
+        search_string: str,
+        search_type: ContentSearchType,
+        limit: int,
+        metadata_filter: dict,
+        content_ids: list[str],
+        score_threshold: float = _DEFAULT_SCORE_THRESHOLD,
+        search_language: str = DEFAULT_SEARCH_LANGUAGE,
+        reranker_config: ContentRerankerConfig | None = None,
+    ) -> list[ContentChunk]: ...
+
     def search_content_chunks(
         self,
         *,
@@ -149,6 +192,47 @@ class KnowledgeBaseService:
         except Exception as e:
             _LOGGER.error(f"Error while searching content chunks: {e}")
             raise e
+
+    @overload
+    async def search_content_chunks_async(
+        self,
+        *,
+        search_string: str,
+        search_type: ContentSearchType,
+        limit: int,
+        scope_ids: list[str],
+        score_threshold: float = _DEFAULT_SCORE_THRESHOLD,
+        search_language: str = DEFAULT_SEARCH_LANGUAGE,
+        reranker_config: ContentRerankerConfig | None = None,
+    ) -> list[ContentChunk]: ...
+
+    @overload
+    async def search_content_chunks_async(
+        self,
+        *,
+        search_string: str,
+        search_type: ContentSearchType,
+        limit: int,
+        metadata_filter: dict,
+        scope_ids: list[str] | None = None,
+        score_threshold: float = _DEFAULT_SCORE_THRESHOLD,
+        search_language: str = DEFAULT_SEARCH_LANGUAGE,
+        reranker_config: ContentRerankerConfig | None = None,
+    ) -> list[ContentChunk]: ...
+
+    @overload
+    async def search_content_chunks_async(
+        self,
+        *,
+        search_string: str,
+        search_type: ContentSearchType,
+        limit: int,
+        metadata_filter: dict,
+        content_ids: list[str],
+        score_threshold: float = _DEFAULT_SCORE_THRESHOLD,
+        search_language: str = DEFAULT_SEARCH_LANGUAGE,
+        reranker_config: ContentRerankerConfig | None = None,
+    ) -> list[ContentChunk]: ...
 
     async def search_content_chunks_async(
         self,
@@ -258,7 +342,7 @@ class KnowledgeBaseService:
         *,
         content_name: str,
         mime_type: str,
-        scope_id: str | None = None,
+        scope_id: str,
         skip_ingestion: bool = False,
         ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
         metadata: dict | None = None,
@@ -298,7 +382,7 @@ class KnowledgeBaseService:
         path_to_content: str,
         content_name: str,
         mime_type: str,
-        scope_id: str | None = None,
+        scope_id: str,
         skip_ingestion: bool = False,
         skip_excel_ingestion: bool = False,
         ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
@@ -335,12 +419,12 @@ class KnowledgeBaseService:
             metadata=metadata,
         )
 
-    def download_content_to_file_by_id(
+    def download_content_to_file(
         self,
         *,
         content_id: str,
-        filename: str | None = None,
-        tmp_dir_path: str | Path | None = "/tmp",
+        output_dir_path: Path | None = None,
+        output_filename: str | None = None,
     ):
         """
         Downloads content from a chat and saves it to a file.
@@ -362,47 +446,14 @@ class KnowledgeBaseService:
             company_id=self._company_id,
             content_id=content_id,
             chat_id="",
-            filename=filename,
-            tmp_dir_path=tmp_dir_path,
-        )
-
-    # TODO: Discuss if we should deprecate this method due to unclear use by content_name
-    def download_content(
-        self,
-        *,
-        content_id: str,
-        content_name: str,
-        dir_path: str | Path | None = "/tmp",
-    ) -> Path:
-        """
-        Downloads content to temporary directory
-
-        Args:
-            content_id (str): The id of the uploaded content.
-            content_name (str): The name of the uploaded content.
-            dir_path (Optional[Union[str, Path]]): The directory path to download the content to, defaults to "/tmp". If not provided, the content will be downloaded to a random directory inside /tmp. Be aware that this directory won't be cleaned up automatically.
-
-        Returns:
-            content_path: The path to the downloaded content in the temporary directory.
-
-        Raises:
-            Exception: If the download fails.
-        """
-
-        return download_content(
-            user_id=self._user_id,
-            company_id=self._company_id,
-            content_id=content_id,
-            content_name=content_name,
-            chat_id="",
-            dir_path=dir_path,
+            filename=output_filename,
+            tmp_dir_path=output_dir_path,
         )
 
     def download_content_to_bytes(
         self,
         *,
         content_id: str,
-        chat_id: str | None = None,
     ) -> bytes:
         """
         Downloads content to memory
@@ -422,14 +473,8 @@ class KnowledgeBaseService:
             user_id=self._user_id,
             company_id=self._company_id,
             content_id=content_id,
-            chat_id="",
+            chat_id=None,
         )
-
-    def is_file_content(self, filename: str) -> bool:
-        return is_file_content(filename=filename)
-
-    def is_image_content(self, filename: str) -> bool:
-        return is_image_content(filename=filename)
 
     def get_paginated_content_infos(
         self,
@@ -460,3 +505,16 @@ class KnowledgeBaseService:
             content_id=content_id,
             metadata=metadata,
         )
+
+
+if __name__ == "__main__":
+    kb_service = KnowledgeBaseService.from_settings()
+
+    kb_service.search_contents(where={"metadata.key": "123"})
+    kb_service.search_content_chunks(
+        search_string="test",
+        search_type=ContentSearchType.VECTOR,
+        limit=10,
+        scope_ids=["123"],
+        metadata_filter={"key": "123"},
+    )

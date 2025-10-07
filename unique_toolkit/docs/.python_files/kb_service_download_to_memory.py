@@ -1,11 +1,11 @@
-# ~/~ begin <<docs/modules/examples/content/content_service.md#./docs/.python_files/content_service_upload_from_file.py>>[init]
-# ~/~ begin <<docs/modules/examples/content/content_service.md#content_service_setup>>[init]
+# ~/~ begin <<docs/modules/examples/content/kb_service.md#./docs/.python_files/kb_service_download_to_memory.py>>[init]
+# ~/~ begin <<docs/modules/examples/content/kb_service.md#kb_service_setup>>[init]
 # ~/~ begin <<docs/setup/_common_imports.md#common_imports>>[init]
 from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.app.init_sdk import init_unique_sdk
 from unique_toolkit.app.dev_util import get_event_generator
 from unique_toolkit.app.schemas import ChatEvent 
-from unique_toolkit import ChatService, ContentService, EmbeddingService, LanguageModelService, LanguageModelName
+from unique_toolkit import ChatService, ContentService, EmbeddingService, LanguageModelService, LanguageModelName, KnowledgeBaseService
 from unique_toolkit.chat.schemas import ChatMessageAssessmentStatus, ChatMessageAssessmentType, ChatMessageAssessmentLabel
 import os
 import io
@@ -25,27 +25,28 @@ from unique_toolkit.framework_utilities.openai.message_builder import (
 from pydantic import Field
 from unique_toolkit import LanguageModelToolDescription
 # ~/~ end
-# ~/~ begin <<docs/modules/examples/content/content_service.md#initialize_content_service_standalone>>[init]
-content_service = ContentService.from_settings()
+# ~/~ begin <<docs/modules/examples/content/kb_service.md#initialize_kb_service_standalone>>[init]
+kb_service = KnowledgeBaseService.from_settings()
 # ~/~ end
 # ~/~ end
-# ~/~ begin <<docs/modules/examples/content/content_service.md#load_demo_variables>>[init]
+# ~/~ begin <<docs/modules/examples/content/kb_service.md#load_demo_variables>>[init]
 from dotenv import dotenv_values
 demo_env_vars = dotenv_values(Path(__file__).parent/"demo.env")
 # ~/~ end
-# ~/~ begin <<docs/modules/examples/content/content_service.md#env_scope_id>>[init]
-scope_id = demo_env_vars.get("UNIQUE_SCOPE_ID") or "unknown"
+# ~/~ begin <<docs/modules/examples/content/kb_service.md#env_content_id>>[init]
+content_id = demo_env_vars.get("UNIQUE_CONTENT_ID") or "unknown"
 # ~/~ end
-file_path = Path(__file__).parent/"test.txt"
-# ~/~ begin <<docs/modules/examples/content/content_service.md#content_service_upload_from_file>>[init]
-# Configure ingestion settings
-content = content_service.upload_content(
-    path_to_content=str(file_path),
-    content_name=Path(file_path).name,
-    mime_type="text/plain",
-    scope_id=scope_id,
-    skip_ingestion=False,  # Process the content for search
-    metadata={"department": "legal", "classification": "confidential"}
+# ~/~ begin <<docs/modules/examples/content/kb_service.md#kb_service_download_bytes>>[init]
+# Download content as bytes
+content_bytes = kb_service.download_content_to_bytes(
+    content_id=content_id or "unknown",
 )
+
+# Process in memory
+text = ""
+with io.BytesIO(content_bytes) as file_like:
+    text = file_like.read().decode("utf-8")
+
+print(text)
 # ~/~ end
 # ~/~ end

@@ -42,7 +42,7 @@ nav:
     - Event Driven Applications: application_types/event_driven_applications.md
   - Modules:
     - Chat Examples: modules/examples/chat/chat_service.md
-    - Content Examples: modules/examples/content/content_service.md
+    - Knowledge Base Examples: modules/examples/content/kb_service.md
   - Tutorials:
     - File Creation with Upload to Chat: tutorials/file_creation_and_upload_to_chat.md
   - Agentic Framework:
