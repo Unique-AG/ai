@@ -16,7 +16,8 @@ from unique_toolkit.content.schemas import (
     ContentInfo,
     ContentRerankerConfig,
     ContentSearchType,
-    PaginatedContentInfo,
+    FolderInfo,
+    PaginatedContentInfos,
 )
 from unique_toolkit.content.utils import map_contents, map_to_content_chunks
 
@@ -590,19 +591,31 @@ def get_content_info(
     file_path: str | None = None,
 ):
     """Gets the info of a content."""
+
     get_info_params = unique_sdk.Content.ContentInfoParams(
         metadataFilter=metadata_filter or None,  # Dict cannot be empty
-        skip=skip,
-        take=take,
-        filePath=file_path,
     )
+    if skip:
+        get_info_params["skip"] = skip
+    if take:
+        get_info_params["take"] = take
+    if file_path:
+        get_info_params["filePath"] = file_path
 
-    content_info = unique_sdk.Content.get_info(
+    content_info = unique_sdk.Content.get_infos(
         user_id=user_id, company_id=company_id, **get_info_params
     )
-    return PaginatedContentInfo.model_validate(
+    return PaginatedContentInfos.model_validate(
         content_info, by_alias=True, by_name=True
     )
+
+
+def get_folder_info(user_id: str, company_id: str, scope_id: str) -> FolderInfo:
+    info = unique_sdk.Folder.get_info(
+        user_id=user_id, company_id=company_id, scopeId=scope_id
+    )
+
+    return FolderInfo.model_validate(info, by_alias=True, by_name=True)
 
 
 def update_content(

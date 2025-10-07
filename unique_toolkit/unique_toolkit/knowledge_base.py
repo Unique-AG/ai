@@ -14,6 +14,7 @@ from unique_toolkit.content.functions import (
     download_content_to_bytes,
     download_content_to_file_by_id,
     get_content_info,
+    get_folder_info,
     search_content_chunks,
     search_content_chunks_async,
     search_contents,
@@ -28,7 +29,8 @@ from unique_toolkit.content.schemas import (
     ContentInfo,
     ContentRerankerConfig,
     ContentSearchType,
-    PaginatedContentInfo,
+    FolderInfo,
+    PaginatedContentInfos,
 )
 
 _LOGGER = logging.getLogger(f"toolkit.knowledge_base.{__name__}")
@@ -483,7 +485,7 @@ class KnowledgeBaseService:
         skip: int | None = None,
         take: int | None = None,
         file_path: str | None = None,
-    ) -> PaginatedContentInfo:
+    ) -> PaginatedContentInfos:
         return get_content_info(
             user_id=self._user_id,
             company_id=self._company_id,
@@ -491,6 +493,17 @@ class KnowledgeBaseService:
             skip=skip,
             take=take,
             file_path=file_path,
+        )
+
+    def get_folder_info(
+        self,
+        *,
+        scope_id: str,
+    ) -> FolderInfo:
+        return get_folder_info(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            scope_id=scope_id,
         )
 
     def replace_content_metadata(
@@ -505,6 +518,72 @@ class KnowledgeBaseService:
             content_id=content_id,
             metadata=metadata,
         )
+
+    def _resolve_visible_file_tree(self, content_infos: list[ContentInfo]) -> list[str]:
+        # collect all scope ids
+        folder_id_paths: set[str] = set()
+        known_folder_paths: set[str] = set()
+        for content_info in content_infos:
+            if (
+                content_info.metadata
+                and content_info.metadata.get(r"{FullPath}") is not None
+            ):
+                known_folder_paths.add(str(content_info.metadata.get(r"{FullPath}")))
+                continue
+
+            if (
+                content_info.metadata
+                and content_info.metadata.get("folderIdPath") is not None
+            ):
+                folder_id_paths.add(str(content_info.metadata.get("folderIdPath")))
+
+        scope_ids: set[str] = set()
+        for fp in folder_id_paths:
+            scope_ids_list = set(fp.replace("uniquepathid://", "").split("/"))
+            scope_ids.update(scope_ids_list)
+
+        scope_id_to_folder_name: dict[str, str] = {}
+        for scope_id in scope_ids:
+            folder_info = self.get_folder_info(
+                scope_id=scope_id,
+            )
+            scope_id_to_folder_name[scope_id] = folder_info.name
+
+        folder_paths: set[str] = set()
+        for folder_id_path in folder_id_paths:
+            scope_ids_list = folder_id_path.replace("uniquepathid://", "").split("/")
+
+            if all(scope_id in scope_id_to_folder_name for scope_id in scope_ids_list):
+                folder_path = [
+                    scope_id_to_folder_name[scope_id] for scope_id in scope_ids_list
+                ]
+                folder_paths.add("/".join(folder_path))
+
+        return [
+            p if p.startswith("/") else f"/{p}"
+            for p in folder_paths.union(known_folder_paths)
+        ]
+
+    def resolve_visible_file_tree(
+        self, *, metadata_filter: dict[str, Any] | None = None
+    ) -> list[str]:
+        """
+        Resolves the visible file tree for the knowledge base for the current user.
+
+        Args:
+            metadata_filter (dict[str, Any] | None): The metadata filter to use. Defaults to None.
+
+        Returns:
+            list[str]: The visible file tree.
+
+
+
+        """
+        info = self.get_paginated_content_infos(
+            metadata_filter=metadata_filter,
+        )
+
+        return self._resolve_visible_file_tree(content_infos=info.content_infos)
 
 
 if __name__ == "__main__":
