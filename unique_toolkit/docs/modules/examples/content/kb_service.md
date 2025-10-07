@@ -353,10 +353,10 @@ metadata_filter = smart_rule_folder_content.model_dump(mode="json")
 
 
 
-```{.python #content_service_combined_with_metadafilter}
+```{.python #kb_service_combined_with_metadafilter}
 
 
-content_chunks = content_service.search_content_chunks(
+content_chunks = kb_service.search_content_chunks(
     search_string="Harry Potter",
     search_type=ContentSearchType.COMBINED,
     limit=15,
@@ -367,11 +367,11 @@ content_chunks = content_service.search_content_chunks(
 <!--
 ```{.python file=./docs/.python_files/content_search_with_smart_rule_on_folders.py }
 <<smart_rules_imports>>
-<<content_service_setup>>
+<<kb_service_setup>>
 <<load_demo_variables>>
 <<env_scope_id>>
 <<smart_rule_folder_content>>
-<<content_service_combined_with_metadafilter>>
+<<kb_service_combined_with_metadafilter>>
 ```
 -->
 
