@@ -149,3 +149,26 @@ class ContentRerankerConfig(BaseModel):
     model_config = model_config
     deployment_name: str = Field(serialization_alias="deploymentName")
     options: dict | None = None
+
+
+class ContentInfo(BaseModel):
+    model_config = model_config
+    id: str
+    key: str
+    url: str | None = None
+    title: str | None = None
+    metadata: dict[str, Any] | None = None
+    mime_type: str
+    byte_size: int
+    owner_id: str
+    created_at: datetime
+    updated_at: datetime
+    expires_at: datetime | None = None
+    deleted_at: datetime | None = None
+    expired_at: datetime | None = None
+
+
+class PaginatedContentInfo(BaseModel):
+    model_config = model_config
+    content_info: list[ContentInfo]
+    total_count: int
