@@ -185,3 +185,8 @@ class FolderInfo(BaseModel):
     updatedAt: str | None
     parentId: str | None
     externalId: str | None
+
+
+class DeleteContentResponse(BaseModel):
+    model_config = model_config
+    id: str
