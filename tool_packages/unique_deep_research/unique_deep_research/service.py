@@ -366,7 +366,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             # Prepare configuration for LangGraph
             config = {
                 "configurable": {
-                    "engine_config": self.config,
+                    "engine_config": self.config.engine,
                     "openai_client": self.client,
                     "chat_service": self.chat_service,
                     "content_service": self.content_service,
@@ -409,7 +409,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         """
         stream = self.client.responses.create(
             timeout=RESPONSES_API_TIMEOUT_SECONDS,
-            model=self.config.research_model.name,
+            model=self.config.engine.research_model.name,
             input=[
                 {
                     "role": "developer",
@@ -611,7 +611,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         self.write_message_log_text_message("Synthesizing final research report")
 
         response = self.client.chat.completions.create(
-            model=self.config.large_model.name,
+            model=self.config.engine.large_model.name,
             messages=[
                 {
                     "role": "system",
@@ -663,7 +663,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         ]
         response = await self.chat_service.complete_async(
             messages=messages,
-            model_name=self.config.small_model.name,
+            model_name=self.config.engine.small_model.name,
             content_chunks=None,
         )
         assert isinstance(response.choices[0].message.content, str), (
@@ -683,7 +683,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         ] + messages
 
         research_response = self.client.chat.completions.create(
-            model=self.config.large_model.name,
+            model=self.config.engine.large_model.name,
             messages=chat_messages,
             temperature=0.1,
         )
