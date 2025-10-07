@@ -13,8 +13,10 @@ from unique_toolkit.content.constants import DEFAULT_SEARCH_LANGUAGE
 from unique_toolkit.content.schemas import (
     Content,
     ContentChunk,
+    ContentInfo,
     ContentRerankerConfig,
     ContentSearchType,
+    PaginatedContentInfo,
 )
 from unique_toolkit.content.utils import map_contents, map_to_content_chunks
 
@@ -429,7 +431,7 @@ def _trigger_upload_content(
             scope_id=scope_id,
         )  # type: ignore
 
-    return Content(**created_content)
+    return Content.model_validate(created_content, by_alias=True, by_name=True)
 
 
 def request_content_by_id(
@@ -577,3 +579,59 @@ def download_content(
         raise Exception(error_msg)
 
     return content_path
+
+
+def get_content_info(
+    user_id: str,
+    company_id: str,
+    metadata_filter: dict[str, Any] | None = None,
+    skip: int | None = None,
+    take: int | None = None,
+    file_path: str | None = None,
+):
+    """Gets the info of a content."""
+    get_info_params = unique_sdk.Content.ContentInfoParams(
+        metadataFilter=metadata_filter,
+        skip=skip,
+        take=take,
+        filePath=file_path,
+    )
+
+    content_info = unique_sdk.Content.get_info(
+        user_id=user_id, company_id=company_id, **get_info_params
+    )
+    return PaginatedContentInfo.model_validate(
+        content_info, by_alias=True, by_name=True
+    )
+
+
+def update_content(
+    user_id: str,
+    company_id: str,
+    *,
+    content_id: str,
+    metadata: dict[str, Any],
+    file_path: str | None = None,
+    owner_id: str | None = None,
+    parent_folder_path: str | None = None,
+    title: str | None = None,
+) -> ContentInfo:
+    """Updates the metadata of a content."""
+
+    update_params = unique_sdk.Content.UpdateParams(
+        contentId=content_id, metadata=metadata
+    )
+
+    if file_path:
+        update_params["filePath"] = file_path
+    if owner_id:
+        update_params["ownerId"] = owner_id
+    if parent_folder_path:
+        update_params["parentFolderPath"] = parent_folder_path
+    if title:
+        update_params["title"] = title
+
+    content_info = unique_sdk.Content.update(
+        user_id=user_id, company_id=company_id, **update_params
+    )
+    return ContentInfo.model_validate(content_info, by_alias=True, by_name=True)

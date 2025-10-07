@@ -5,14 +5,14 @@ from pathlib import Path
 from dotenv import dotenv_values
 
 from unique_toolkit import (
-    ContentService,
+    KnowledgeBaseService,
 )
 
-content_service = ContentService.from_settings()
+kb_service = KnowledgeBaseService.from_settings()
 demo_env_vars = dotenv_values(Path(__file__).parent / "demo.env")
 content_id = demo_env_vars.get("UNIQUE_CONTENT_ID") or "unknown"
 # Download content as bytes
-content_bytes = content_service.download_content_to_bytes(
+content_bytes = kb_service.download_content_to_bytes(
     content_id=content_id or "unknown",
 )
 

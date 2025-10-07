@@ -2,6 +2,7 @@
 from unique_toolkit.chat import ChatService
 from unique_toolkit.content import ContentService
 from unique_toolkit.embedding import EmbeddingService
+from unique_toolkit.knowledge_base import KnowledgeBaseService
 from unique_toolkit.language_model import (
     LanguageModelMessages,
     LanguageModelName,
@@ -21,4 +22,5 @@ __all__ = [
     "ContentService",
     "EmbeddingService",
     "ShortTermMemoryService",
+    "KnowledgeBaseService",
 ]

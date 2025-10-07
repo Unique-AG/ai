@@ -5,19 +5,19 @@ from pathlib import Path
 from dotenv import dotenv_values
 
 from unique_toolkit import (
-    ContentService,
+    KnowledgeBaseService,
 )
 
-content_service = ContentService.from_settings()
+kb_service = KnowledgeBaseService.from_settings()
 demo_env_vars = dotenv_values(Path(__file__).parent / "demo.env")
 content_id = demo_env_vars.get("UNIQUE_CONTENT_ID") or "unknown"
 # Download to secure temporary file
 
 filename = "my_testfile.txt"
-temp_file_path = content_service.download_content_to_file_by_id(
+temp_file_path = kb_service.download_content_to_file(
     content_id=content_id,
-    filename=filename,
-    tmp_dir_path=tempfile.mkdtemp(),  # Use secure temp directory
+    output_filename=filename,
+    output_dir_path=Path(tempfile.mkdtemp()),  # Use secure temp directory
 )
 
 try:
