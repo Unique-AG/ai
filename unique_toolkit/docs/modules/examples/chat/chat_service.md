@@ -1,5 +1,5 @@
 
-# Chat Service
+# Chat Service - Basics
 
 <!--
 ```{.python #import_language_model_name}
@@ -22,7 +22,7 @@ messages = (
 
 The chat service is responsible for all interactions with the Unique chat frontend as seen below
 
-![alt text](chat_frontend.png)
+![alt text](./images/chat_frontend.png)
 
 
 The following elements are directly influenced by it.
@@ -122,7 +122,7 @@ chat_service.modify_assistant_message(
 For each user interaction the plattform is expected to answer in some form. 
 Thus, the user input is blocked during the process leading to this answer as seen below. 
 
-![alt text](chat_window_active_stop_button.png)
+![alt text](./images/chat_window_active_stop_button.png)
 
 It can be unblocked using 
 
@@ -160,7 +160,7 @@ chat_service.create_assistant_message(
 
 In the `content` string the refercnes must be referred to by `<sup>sequence_number</sub>`. The name property of the `ContentReference` will be displayed on the reference component and below the message as seen below
 
-![alt text](./chat_with_reference.png)
+![alt text](.images/chat_with_reference.png)
 
 <!--
 ```{.python file=docs/.python_files/minimal_chat_with_manual_message_and_reference.py}
@@ -243,7 +243,7 @@ chat_service.complete_with_references(
         content_chunks=chunks)
 ```
 
-![alt text](./chat_references_with_streaming.png)
+![alt text](./images/chat_references_with_streaming.png)
 
 <!--
 ```{.python file=docs/.python_files/minimal_chat_with_streamed_references.py}
