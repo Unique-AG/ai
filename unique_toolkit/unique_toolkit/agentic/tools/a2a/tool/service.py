@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import re
 from typing import Protocol, override
 
 import unique_sdk
@@ -78,6 +79,12 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
         # Synchronization state
         self._sequence_number = 1
         self._lock = asyncio.Lock()
+
+    @staticmethod
+    def get_sub_agent_reference_format(
+        name: str, sequence_number: int, reference_number: int
+    ) -> str:
+        return f"<sup><name>{name} {sequence_number}</name>{reference_number}</sup>"
 
     def subscribe(self, subscriber: SubAgentResponseSubscriber) -> None:
         self._subscribers.append(subscriber)
@@ -175,6 +182,11 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
             if response["text"] is None:
                 raise ValueError("No response returned from sub agent")
 
+            response_text_with_references = self._prepare_response_references(
+                response=response["text"],
+                sequence_number=sequence_number,
+            )
+
             await self._notify_progress(
                 tool_call=tool_call,
                 message=tool_input.user_message,
@@ -184,7 +196,7 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
             return ToolCallResponse(
                 id=tool_call.id,  # type: ignore
                 name=tool_call.name,
-                content=response["text"],
+                content=response_text_with_references,
             )
 
     @override
@@ -208,6 +220,21 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
             return short_term_memory.chat_id
 
         return None
+
+    def _prepare_response_references(self, response: str, sequence_number: int) -> str:
+        if not self.config.use_sub_agent_references:
+            # Remove all references from the response
+            response = re.sub(r"<sup>\s*\d+\s*</sup>", "", response)
+            return response
+
+        for ref_number in re.findall(r"<sup>(\d+)</sup>", response):
+            reference = self.get_sub_agent_reference_format(
+                name=self.name,
+                sequence_number=sequence_number,
+                reference_number=ref_number,
+            )
+            response = response.replace(f"<sup>{ref_number}</sup>", reference)
+        return response
 
     async def _save_chat_id(self, chat_id: str) -> None:
         if not self.config.reuse_chat:

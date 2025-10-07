@@ -7,10 +7,6 @@ DEFAULT_PARAM_DESCRIPTION_SUB_AGENT_USER_MESSAGE = """
 This is the message that will be sent to the sub-agent.
 """.strip()
 
-DEFAULT_FORMAT_INFORMATION_SUB_AGENT_SYSTEM_MESSAGE = """
-NEVER mention any references from sub-agent answers in your response.
-""".strip()
-
 
 class SubAgentToolConfig(BaseToolConfig):
     model_config = get_configuration_dict()
@@ -27,6 +23,10 @@ class SubAgentToolConfig(BaseToolConfig):
         default=True,
         description="Whether to reuse the existing chat or create a new one for each sub-agent call.",
     )
+    use_sub_agent_references: bool = Field(
+        default=True,
+        description="Whether this sub agent's references should be used in the main agent's response.",
+    )
 
     tool_description_for_system_prompt: str = Field(
         default="",
@@ -41,7 +41,7 @@ class SubAgentToolConfig(BaseToolConfig):
         description="Description of the user message parameter that will be sent to the model.",
     )
     tool_format_information_for_system_prompt: str = Field(
-        default=DEFAULT_FORMAT_INFORMATION_SUB_AGENT_SYSTEM_MESSAGE,
+        default="",
         description="Format information that will be included in the system prompt to guide response formatting.",
     )
     tool_description_for_user_prompt: str = Field(

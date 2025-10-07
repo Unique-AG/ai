@@ -1,4 +1,5 @@
 import logging
+import re
 from typing import TypedDict, override
 
 import unique_sdk
@@ -30,6 +31,7 @@ class _SubAgentMessageInfo(TypedDict):
 
 
 class _SubAgentToolInfo(TypedDict):
+    name: str
     display_name: str
     display_config: SubAgentDisplayConfig
     responses: dict[int, _SubAgentMessageInfo]
@@ -83,7 +85,7 @@ class SubAgentResponsesPostprocessor(Postprocessor):
         }
 
         _consolidate_references_in_place(
-            list(self._assistant_id_to_tool_info.values()), existing_refs
+            list(self._assistant_id_to_tool_info.values()), existing_refs, loop_response
         )
 
         answers = []
@@ -151,6 +153,7 @@ class SubAgentResponsesPostprocessor(Postprocessor):
             self._assistant_id_to_tool_info[tool.config.assistant_id] = (
                 _SubAgentToolInfo(
                     display_config=display_config,
+                    name=tool.name,
                     display_name=tool.display_name(),
                     responses={},
                 )
@@ -192,7 +195,9 @@ class SubAgentResponsesPostprocessor(Postprocessor):
 
 
 def _consolidate_references_in_place(
-    messages: list[_SubAgentToolInfo], existing_refs: dict[str, int]
+    messages: list[_SubAgentToolInfo],
+    existing_refs: dict[str, int],
+    loop_response: LanguageModelStreamResponse,
 ) -> None:
     start_index = max(existing_refs.values(), default=0) + 1
 
@@ -226,5 +231,29 @@ def _consolidate_references_in_place(
                 ref_map[reference["sequenceNumber"]] = reference_num
                 reference["sequenceNumber"] = reference_num
 
+            loop_response.message.text = (
+                _replace_sub_agent_references_in_main_agent_message(
+                    loop_response.message.text,
+                    assistant_tool_info["name"],
+                    sequence_number,
+                    ref_map,
+                )
+            )
             message["text"] = _replace_references_in_text(message["text"], ref_map)
             message["references"] = message_new_refs
+
+
+def _replace_sub_agent_references_in_main_agent_message(
+    message: str, sub_agent_name: str, sequence_number: int, ref_map: dict[int, int]
+) -> str:
+    for old_seq_num, new_seq_num in ref_map.items():
+        reference = SubAgentTool.get_sub_agent_reference_format(
+            name=sub_agent_name,
+            sequence_number=sequence_number,
+            reference_number=old_seq_num,
+        )
+        message = re.sub(rf"\s*{reference}", f" <sup>{new_seq_num}</sup>", message)
+
+    # Remove spaces between consecutive references
+    message = re.sub(r"</sup>\s*<sup>", "</sup><sup>", message)
+    return message
