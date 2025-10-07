@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [0.10.30] - 2025-10-07
-- Improve types for cotent get infos.
+- Improve types for content get infos.
 
 ## [0.10.29] - 2025-10-06
 - Switch default model used from `GPT-3.5-turbo (0125)` to `GPT-4o (1120)`
