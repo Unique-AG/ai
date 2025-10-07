@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [3.0.0] - 2025-10-14
 - Simplification and better descriptions of configuration
 - Dynamic tool descriptions and improved prompts
+- Reduce OpenAI engine logging 
 
 ## [2.1.3] - 2025-10-06
 - Error handeling on context window limits
