@@ -16,6 +16,7 @@ from unique_toolkit.content.schemas import (
     ContentInfo,
     ContentRerankerConfig,
     ContentSearchType,
+    DeleteContentResponse,
     FolderInfo,
     PaginatedContentInfos,
 )
@@ -585,6 +586,7 @@ def download_content(
 def get_content_info(
     user_id: str,
     company_id: str,
+    *,
     metadata_filter: dict[str, Any] | None = None,
     skip: int | None = None,
     take: int | None = None,
@@ -610,7 +612,7 @@ def get_content_info(
     )
 
 
-def get_folder_info(user_id: str, company_id: str, scope_id: str) -> FolderInfo:
+def get_folder_info(user_id: str, company_id: str, *, scope_id: str) -> FolderInfo:
     info = unique_sdk.Folder.get_info(
         user_id=user_id, company_id=company_id, scopeId=scope_id
     )
@@ -648,3 +650,45 @@ def update_content(
         user_id=user_id, company_id=company_id, **update_params
     )
     return ContentInfo.model_validate(content_info, by_alias=True, by_name=True)
+
+
+def delete_content(
+    user_id: str,
+    company_id: str,
+    *,
+    content_id: str | None = None,
+    file_path: str | None = None,
+) -> DeleteContentResponse:
+    if content_id:
+        resp = unique_sdk.Content.delete(
+            user_id=user_id, company_id=company_id, contentId=content_id
+        )
+    elif file_path:
+        resp = unique_sdk.Content.delete(
+            user_id=user_id, company_id=company_id, filePath=file_path
+        )
+    else:
+        raise ValueError("content_id or file_path must be provided")
+
+    return DeleteContentResponse.model_validate(resp, by_alias=True, by_name=True)
+
+
+async def delete_content_async(
+    user_id: str,
+    company_id: str,
+    *,
+    content_id: str | None = None,
+    file_path: str | None = None,
+) -> DeleteContentResponse:
+    if content_id:
+        resp = await unique_sdk.Content.delete_async(
+            user_id=user_id, company_id=company_id, contentId=content_id
+        )
+    elif file_path:
+        resp = await unique_sdk.Content.delete_async(
+            user_id=user_id, company_id=company_id, filePath=file_path
+        )
+    else:
+        raise ValueError("content_id or file_path must be provided")
+
+    return DeleteContentResponse.model_validate(resp, by_alias=True, by_name=True)
