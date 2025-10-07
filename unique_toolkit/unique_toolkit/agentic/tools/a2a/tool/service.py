@@ -115,9 +115,7 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
 
     @override
     def tool_format_information_for_system_prompt(self) -> str:
-        return self.config.tool_format_information_for_system_prompt.format(
-            name=self.name
-        )
+        return self.config.tool_format_information_for_system_prompt
 
     @override
     def tool_description_for_user_prompt(self) -> str:
@@ -125,9 +123,7 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
 
     @override
     def tool_format_information_for_user_prompt(self) -> str:
-        return self.config.tool_format_information_for_user_prompt.format(
-            name=self.name
-        )
+        return self.config.tool_format_information_for_user_prompt
 
     @override
     def evaluation_check_list(self) -> list[EvaluationMetricName]:
