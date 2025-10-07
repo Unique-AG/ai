@@ -4,7 +4,7 @@ from typing import overload
 from pydantic import BaseModel, ValidationError
 from typing_extensions import deprecated
 
-from unique_toolkit._common.default_language_model import DEFAULT_GPT_35_TURBO
+from unique_toolkit._common.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit._common.validate_required_values import (
     validate_required_values,
 )
@@ -49,7 +49,7 @@ USER_MSG_KEY = "userPrompt"
 default_config = EvaluationMetricConfig(
     enabled=False,
     name=EvaluationMetricName.CONTEXT_RELEVANCY,
-    language_model=LanguageModelInfo.from_name(DEFAULT_GPT_35_TURBO),
+    language_model=LanguageModelInfo.from_name(DEFAULT_GPT_4o),
     custom_prompts={
         SYSTEM_MSG_KEY: CONTEXT_RELEVANCY_METRIC_SYSTEM_MSG,
         USER_MSG_KEY: CONTEXT_RELEVANCY_METRIC_USER_MSG,

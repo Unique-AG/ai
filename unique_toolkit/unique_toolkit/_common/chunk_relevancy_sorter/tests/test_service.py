@@ -14,7 +14,6 @@ from unique_toolkit._common.chunk_relevancy_sorter.schemas import (
 )
 from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
 from unique_toolkit._common.default_language_model import (
-    DEFAULT_GPT_35_TURBO,
     DEFAULT_GPT_4o,
 )
 from unique_toolkit.agentic.evaluation.context_relevancy.schema import (
@@ -60,7 +59,7 @@ def config():
         relevancy_levels_to_consider=["high", "medium", "low"],
         relevancy_level_order={"high": 0, "medium": 1, "low": 2},
         language_model=LanguageModelInfo.from_name(DEFAULT_GPT_4o),
-        fallback_language_model=LanguageModelInfo.from_name(DEFAULT_GPT_35_TURBO),
+        fallback_language_model=LanguageModelInfo.from_name(DEFAULT_GPT_4o),
         structured_output_config=StructuredOutputConfig(
             enabled=False,
             extract_fact_list=False,

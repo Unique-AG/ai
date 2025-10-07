@@ -5,7 +5,7 @@ from config import FollowUpQuestionsConfig
 from schema import FollowUpCategory, FollowUpQuestion, FollowUpQuestionsOutput
 from service import FollowUpQuestionService
 from unique_toolkit import LanguageModelService
-from unique_toolkit._common.default_language_model import DEFAULT_GPT_35_TURBO
+from unique_toolkit._common.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit.language_model import (
     LanguageModelMessage,
     LanguageModelMessageRole,
@@ -35,7 +35,7 @@ def config():
 @pytest.fixture
 def config_without_structured_output():
     return FollowUpQuestionsConfig(
-        language_model=LanguageModelInfo.from_name(DEFAULT_GPT_35_TURBO),
+        language_model=LanguageModelInfo.from_name(DEFAULT_GPT_4o),
         examples=[
             FollowUpQuestion(
                 category=FollowUpCategory.CLARIFICATION, question="Example 1"

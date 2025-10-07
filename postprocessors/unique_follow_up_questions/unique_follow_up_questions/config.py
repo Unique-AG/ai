@@ -2,7 +2,7 @@ from logging import getLogger
 
 from pydantic import BaseModel, Field, field_validator
 from unique_toolkit._common.default_language_model import (
-    DEFAULT_GPT_4o_STRUCTURED_OUTPUT,
+    DEFAULT_GPT_4o,
 )
 from unique_toolkit._common.validators import LMI
 from unique_toolkit.agentic.tools.config import get_configuration_dict
@@ -22,7 +22,7 @@ logger = getLogger(__name__)
 class FollowUpQuestionsConfig(BaseModel):
     model_config = get_configuration_dict()
     language_model: LMI = Field(
-        default=LanguageModelInfo.from_name(DEFAULT_GPT_4o_STRUCTURED_OUTPUT),
+        default=LanguageModelInfo.from_name(DEFAULT_GPT_4o),
         description="The language model to be used for the follow-up question.",
     )
 
