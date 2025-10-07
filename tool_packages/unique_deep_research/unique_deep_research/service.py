@@ -331,7 +331,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         Returns a tuple of (processed_result, content_chunks)
         """
         try:
-            match self.config.engine:
+            match self.config.engine.get_type():
                 case DeepResearchEngine.OPENAI:
                     self.logger.info("Running OpenAI research")
                     return await self.openai_research(research_brief)
