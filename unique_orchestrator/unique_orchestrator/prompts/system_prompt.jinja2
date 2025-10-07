@@ -73,7 +73,12 @@ This tool is called {{ tool_description.display_name }} by the user.
   - {{ meta.message }}
   {%- endif -%}
 {%- endfor -%}
-{%- endif -%}
+{%- endif %}
+
+{% if use_sub_agent_references and sub_agent_referencing_instructions | length > 0 %}
+# Special Instructions: Referencing Sub Agents Answers
+{{ sub_agent_referencing_instructions }}
+{%- endif %}
 
 {# Answer Style Section #}
 # Answer Style

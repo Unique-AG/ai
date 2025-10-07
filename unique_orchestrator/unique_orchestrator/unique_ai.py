@@ -256,12 +256,19 @@ class UniqueAI:
 
         query = self._event.payload.user_message.text
 
+        use_sub_agent_references = (
+            self._config.agent.experimental.sub_agents_config.use_sub_agent_references
+        )
+        sub_agent_referencing_instructions = self._config.agent.experimental.sub_agents_config.referencing_instructions_for_user_prompt
+
         user_msg = user_message_template.render(
             query=query,
             tool_descriptions=tool_descriptions,
             used_tools=used_tools,
             mcp_server_user_prompts=list(mcp_server_user_prompts),
             tool_descriptions_with_user_prompts=tool_descriptions_with_user_prompts,
+            use_sub_agent_references=use_sub_agent_references,
+            sub_agent_referencing_instructions=sub_agent_referencing_instructions,
         )
         return user_msg
 
@@ -283,6 +290,11 @@ class UniqueAI:
             mcp_server.system_prompt for mcp_server in self._mcp_servers
         ]
 
+        use_sub_agent_references = (
+            self._config.agent.experimental.sub_agents_config.use_sub_agent_references
+        )
+        sub_agent_referencing_instructions = self._config.agent.experimental.sub_agents_config.referencing_instructions_for_system_prompt
+
         system_message = system_prompt_template.render(
             model_info=self._config.space.language_model.model_dump(mode="json"),
             date_string=date_string,
@@ -294,6 +306,8 @@ class UniqueAI:
             max_loop_iterations=self._config.agent.max_loop_iterations,
             current_iteration=self.current_iteration_index + 1,
             mcp_server_system_prompts=mcp_server_system_prompts,
+            use_sub_agent_references=use_sub_agent_references,
+            sub_agent_referencing_instructions=sub_agent_referencing_instructions,
         )
         return system_message
 
