@@ -61,6 +61,8 @@ class SwotTool(Tool[SwotConfig]):
     @override
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
         plan = SWOTPlan.model_validate(tool_call.arguments)
+        # Ensure the plan is semantically valid for execution, as Pydantic validation may accept plans that 
+        # are structurally correct but logically invalid (e.g., missing required modify instructions)
         plan.validate_swot_plan()
         
 
