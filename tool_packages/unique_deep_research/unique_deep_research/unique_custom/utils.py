@@ -26,7 +26,7 @@ from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
-from ..config import DeepResearchToolConfig, UniqueCustomEngineConfig
+from ..config import DeepResearchToolConfig
 from .state import AgentState, ResearcherState, SupervisorState
 
 logger = logging.getLogger(__name__)
@@ -376,7 +376,6 @@ def count_tokens(text: str, model_info: LanguageModelInfo) -> int:
 def prepare_messages_for_model(
     messages: List[BaseMessage],
     model_info: LanguageModelInfo,
-    token_limit_ratio: float = 0.8,
 ) -> List[BaseMessage]:
     """
     Simple proactive message filtering - keep system (first message) + recent messages up to specified ratio of limit.
@@ -384,7 +383,6 @@ def prepare_messages_for_model(
     Args:
         messages: List of messages to prepare
         model_info: Model information with token limits
-        token_limit_ratio: Ratio of token limit to use (default: 0.8)
 
     Returns:
         List of messages that fit within token limit ratio
@@ -393,7 +391,7 @@ def prepare_messages_for_model(
         return messages
 
     # Use specified ratio of input limit to leave buffer
-    token_budget = int(model_info.token_limits.token_limit_input * token_limit_ratio)
+    token_budget = model_info.token_limits.token_limit_input
 
     system_msg = messages[0]
     other_messages = messages[1:]
@@ -452,7 +450,6 @@ async def ainvoke_with_token_handling(
     messages = prepare_messages_for_model(
         messages,
         model_info,
-        UniqueCustomEngineConfig.max_tokens_in_context_window_limit_percentage,
     )
 
     # Retry configuration
