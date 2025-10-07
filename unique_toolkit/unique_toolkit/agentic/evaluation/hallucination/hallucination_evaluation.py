@@ -40,7 +40,7 @@ class HallucinationEvaluation(Evaluation):
     async def run(
         self, loop_response: LanguageModelStreamResponse
     ) -> EvaluationMetricResult:  # type: ignore
-        chunks = self._reference_manager.get_chunks()
+        chunks = self._reference_manager.get_latest_referenced_chunks()
 
         evaluation_result: EvaluationMetricResult = await check_hallucination(
             company_id=self._company_id,
