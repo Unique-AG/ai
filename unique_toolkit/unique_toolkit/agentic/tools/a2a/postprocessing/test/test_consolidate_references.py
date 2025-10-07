@@ -32,6 +32,7 @@ class TestConsolidateReferencesInPlace:
         """Test with empty existing references."""
         messages = [
             {
+                "name": "Assistant1",
                 "display_name": "Assistant1",
                 "display_config": {"mode": "expanded"},
                 "responses": {
@@ -68,6 +69,7 @@ class TestConsolidateReferencesInPlace:
         """Test with existing references."""
         messages = [
             {
+                "name": "Assistant1",
                 "display_name": "Assistant1",
                 "display_config": {"mode": "expanded"},
                 "responses": {
@@ -104,6 +106,7 @@ class TestConsolidateReferencesInPlace:
         """Test with duplicate source IDs across different messages."""
         messages = [
             {
+                "name": "Assistant1",
                 "display_name": "Assistant1",
                 "display_config": {"mode": "expanded"},
                 "responses": {
@@ -154,6 +157,7 @@ class TestConsolidateReferencesInPlace:
         """Test with multiple references in a single message."""
         messages = [
             {
+                "name": "Assistant1",
                 "display_name": "Assistant1",
                 "display_config": {"mode": "expanded"},
                 "responses": {
@@ -198,6 +202,7 @@ class TestConsolidateReferencesInPlace:
         """Test that references are sorted by sequence number before processing."""
         messages = [
             {
+                "name": "Assistant1",
                 "display_name": "Assistant1",
                 "display_config": {"mode": "expanded"},
                 "responses": {
@@ -249,6 +254,7 @@ class TestConsolidateReferencesInPlace:
         """Test with empty references list."""
         messages = [
             {
+                "name": "Assistant1",
                 "display_name": "Assistant1",
                 "display_config": {"mode": "expanded"},
                 "responses": {1: {"text": "Text with no references", "references": []}},
@@ -266,6 +272,7 @@ class TestConsolidateReferencesInPlace:
         """Test with multiple assistants."""
         messages = [
             {
+                "name": "Assistant1",
                 "display_name": "Assistant1",
                 "display_config": {"mode": "expanded"},
                 "responses": {
@@ -285,6 +292,7 @@ class TestConsolidateReferencesInPlace:
                 },
             },
             {
+                "name": "Assistant2",
                 "display_name": "Assistant2",
                 "display_config": {"mode": "expanded"},
                 "responses": {
@@ -317,6 +325,7 @@ class TestConsolidateReferencesInPlace:
         """Test complex scenario with overlapping sequence numbers and mixed source IDs."""
         messages = [
             {
+                "name": "Assistant1",
                 "display_name": "Assistant1",
                 "display_config": {"mode": "expanded"},
                 "responses": {
@@ -385,6 +394,7 @@ class TestConsolidateReferencesInPlace:
 
         messages = [
             {
+                "name": "Assistant1",
                 "display_name": "Assistant1",
                 "display_config": {"mode": "expanded"},
                 "responses": {
@@ -426,6 +436,7 @@ class TestConsolidateReferencesInPlace:
 
         messages = [
             {
+                "name": "Assistant1",
                 "display_name": "Assistant1",
                 "display_config": {"mode": "expanded"},
                 "responses": {
@@ -455,6 +466,7 @@ class TestConsolidateReferencesInPlace:
         """Test that start_index is calculated correctly from existing_refs."""
         messages = [
             {
+                "name": "Assistant1",
                 "display_name": "Assistant1",
                 "display_config": {"mode": "expanded"},
                 "responses": {
@@ -485,6 +497,7 @@ class TestConsolidateReferencesInPlace:
         """Test with assistant that has no responses."""
         messages = [
             {
+                "name": "Assistant1",
                 "display_name": "Assistant1",
                 "display_config": {"mode": "expanded"},
                 "responses": {},
@@ -501,6 +514,7 @@ class TestConsolidateReferencesInPlace:
         """Test with mix of valid messages and messages with no references."""
         messages = [
             {
+                "name": "Assistant1",
                 "display_name": "Assistant1",
                 "display_config": {"mode": "expanded"},
                 "responses": {
@@ -549,6 +563,7 @@ class TestConsolidateReferencesInPlace:
         """Test that responses are processed in sorted sequence number order."""
         messages = [
             {
+                "name": "Assistant1",
                 "display_name": "Assistant1",
                 "display_config": {"mode": "expanded"},
                 "responses": {
@@ -609,6 +624,7 @@ class TestConsolidateReferencesInPlace:
         """Test when source ID already exists in existing_refs."""
         messages = [
             {
+                "name": "Assistant1",
                 "display_name": "Assistant1",
                 "display_config": {"mode": "expanded"},
                 "responses": {
@@ -647,6 +663,7 @@ class TestConsolidateReferencesInPlace:
         """Test edge case with zero and negative values in existing_refs."""
         messages = [
             {
+                "name": "Assistant1",
                 "display_name": "Assistant1",
                 "display_config": {"mode": "expanded"},
                 "responses": {
