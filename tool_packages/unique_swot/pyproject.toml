@@ -1,0 +1,31 @@
+[tool.poetry]
+name = "unique-swot"
+version = "0.1.0"
+description = "Unique Swot package is a tool that takes care of conducting swot analysis based on documents and external data from the web"
+authors = ["Rami Azouz <rami.ext@unique.ch>"]
+license = "Proprietary"
+readme = "README.md"
+
+
+[tool.poetry.dependencies]
+python = "^3.12"
+pydantic = "^2.8.2"
+ruff = "^0.13.2"
+
+[tool.poetry.group.dev.dependencies]
+python = "^3.12"
+pydantic = "^2.8.2"
+unique-web-search = { path = "../unique_web_search" }
+unique-sdk = { path = "../../unique_sdk" }
+unique-toolkit = { path = "../../unique_toolkit" }
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+
+[tool.ruff]
+target-version = "py311"
+
+[tool.ruff.lint]
+extend-select = ["I"]
