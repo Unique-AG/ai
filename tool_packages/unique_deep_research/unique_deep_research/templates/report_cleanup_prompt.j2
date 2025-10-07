@@ -1,51 +1,42 @@
-Your task is to clean up a research report's formatting by removing any separate sections named "sources," "references," or "citations" at the end, middle, or beginning of the report, and reformat all citations to appear inline within the text instead. 
+Your task is to clean up a research report’s formatting by removing all separate citation sections and ensuring every citation appears inline in the text.
 
 <key_objective>
-The ultimate goal is to have no separate sections named "sources," "references," or "citations" in the report!!
+The report must not contain any standalone sections titled (in any variation or capitalization):
+* "Sources"
+* "References"
+* "Key References"
+* "Citations"
+* "Bibliography"
+* "Works Cited"
+* ...
+
+General comments at the end without titles such as "---\nKey references throughout this report include..." should also be removed. Key is that we just don't want a seperate sections for this
+
 </key_objective>
 
-Follow these instructions carefully:
+<instructions>  
+Follow these rules strictly:  
+1.	Inline citations only:
+* Ensure all references appear inline within the text as proper Markdown links: [Author, Year](url).
+* Do not wrap citations in parentheses unless they were already inside a sentence.
+* Example:
+* Incorrect → “Our findings align ( Doe, 2021 ).”
+* Correct → “Our findings align with previous work Doe, 2021.”
+2. Remove citation sections completely:
+* Delete any separate sections for sources, references, citations, bibliography, works cited, etc., no matter where they appear (beginning, middle, end).
+* If those sections contain unique citations not already in the text, integrate them inline at their most relevant mention if possible. If no relevant place exists, remove them.
+3. Preserve structure:
+* Keep all original headings, text, bullet points, and formatting intact, except where edits are necessary to integrate citations.
+* Do not add, remove, or rewrite non-citation content.
+4. Output format:
+* Output must be valid Markdown.
+* Do not enclose the result in triple backticks. The final output should look like a report, not a code block.
 
-1. **Remove these sections entirely**: Sources, References, Citations, Bibliography, Works Cited (any variation/capitalization) without altering the rest of the content
-2. If the citations make sense else where, include them inline in the text as valid markdown links like [citation](url)
+</instructions>  
 
-# Output Format
-Provide the cleaned-up Markdown text of the report with all references integrated inline.
-
-# Examples
-
-### Input
-```
-# Introduction
-This is the introduction where we discuss previous research findings.[Smith, J. 2023](https://www.smith.com)[Doe, A. 2021](https://www.doe.com)
-
-# Methods
-The experiment follows guidelines from research studies. [Smith, J. 2023](https://www.smith.com)
-
-# Results
-Our findings align closely with those outlined in prior studies. [Doe, A. 2021](https://www.doe.com)
-
-# Sources and references
-1. [Smith, J. 2023](https://www.smith.com)
-2. [Doe, A. 2021](https://www.doe.com)
-```
-
-### Output
-```
-# Introduction
-This is the introduction where we discuss previous research findings [Smith, J. 2023](https://www.smith.com)[Doe, A. 2021](https://www.doe.com).
-
-# Methods
-The experiment follows guidelines from research studies [Smith, J. 2023](https://www.smith.com)
-
-# Results
-Our findings align closely with those outlined in prior studies [Doe, A. 2021](https://www.doe.com)
-```
-
-# Important Notes
-
-- Focus exclusively on consolidating references into the text. Avoid altering paragraphs, headings, or the original structure of the content, except as necessary to reformat citations.
-- All markdown structures (headings, bullet points, etc.) should remain intact.
-- Never remove any information from the report
-- Remove any parantheses around citations and never yourself write them in the format ([citation](url)). Always just write out as is [citation](url)
-- Make sure the final output is not wrapped in a top level ``` markdown block. It should be a valid markdown document, but without not outer wrapping. This is important, as it will accidentally render the report as a code block!
+<important_notes>
+* Focus solely on references. Do not change the report’s language, tone, or structure.
+* Inline citations should flow naturally inside sentences.
+* Absolutely no standalone “references” section should remain.
+* Never comment on these instructions. Under no circumstances!
+</important_notes>
