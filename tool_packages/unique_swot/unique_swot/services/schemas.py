@@ -18,7 +18,7 @@ from unique_swot.services.generation import (
 
 # Type definitions for SWOT operations
 SWOTOperation = Literal["generate", "modify", "retrieve"]
-TStep = TypeVar("TStep", bound="SWOTStep")
+TStep = TypeVar("TStep", bound="PlannedSWOTStep")
 
 
 class SourceType(StrEnum):
@@ -44,7 +44,7 @@ class Source(BaseModel):
     content: str
 
 
-class SWOTStep(BaseModel):
+class PlannedSWOTStep(BaseModel):
     """
     Represents a single step in a SWOT analysis plan.
 
@@ -66,7 +66,7 @@ class SWOTStep(BaseModel):
     )
 
 
-class ExecutedSwotStep(SWOTStep):
+class ExecutedSwotStep(PlannedSWOTStep):
     """
     Represents a SWOT analysis step that has been executed with results.
 
@@ -81,7 +81,7 @@ class ExecutedSwotStep(SWOTStep):
 
     @classmethod
     def from_step_and_result(
-        cls, *, step: SWOTStep, result: SWOTAnalysisModels
+        cls, *, step: PlannedSWOTStep, result: SWOTAnalysisModels
     ) -> "ExecutedSwotStep":
         """
         Factory method to create an ExecutedSwotStep from a plan step and its results.
@@ -118,7 +118,7 @@ class SWOTPlanBase(BaseModel, Generic[TStep]):
     steps: list[TStep]
 
 
-class SWOTPlan(SWOTPlanBase[SWOTStep]):
+class SWOTPlan(SWOTPlanBase[PlannedSWOTStep]):
     """
     Represents a planned SWOT analysis before execution.
 
