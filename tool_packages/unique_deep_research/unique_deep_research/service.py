@@ -479,10 +479,8 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         Returns:
             Tuple of (report_text, annotations)
         """
-        # This index will have gaps on order in the database as we don't track all events
-        # Sorted it will give the correct order of the logs
+
         for event in stream:
-            self.logger.debug(f"Processing event: {event.type}")
             match event.type:
                 case "response.completed":
                     # Extract the final output with annotations
