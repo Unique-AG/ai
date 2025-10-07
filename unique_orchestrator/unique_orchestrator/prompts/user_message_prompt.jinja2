@@ -13,7 +13,7 @@
 {% if use_sub_agent_references and sub_agent_referencing_instructions | length > 0 %}
 # Sub Agents Referencing Reminder
 {{ sub_agent_referencing_instructions }}
-{% endif %}
+{%- endif %}
 
 {%- if mcp_server_user_prompts and mcp_server_user_prompts|length > 0 %}
 # MCP Server Context
