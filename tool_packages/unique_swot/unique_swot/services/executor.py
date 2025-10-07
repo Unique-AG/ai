@@ -68,7 +68,7 @@ class SWOTExecutionManager:
         self.configuration = configuration
         self.language_model_service = language_model_service
         self.notifier = notifier
-        self.memory_service = SwotMemoryService(short_term_memory_service)
+        self.memory_service = SwotMemoryService(short_term_memory_service) # TODO: Check compatibility with short term memory manager from toolkit
 
     async def run(self, *, plan: SWOTPlan, sources: list[Source]) -> ExecutedSWOTPlan:
         """
