@@ -7,6 +7,7 @@ import unique_sdk
 import unique_sdk.utils
 
 from tests.test_obj_factory import get_event_obj
+from unique_toolkit._common.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit.app.schemas import (
     Event,
     EventAssistantMessage,
@@ -1150,7 +1151,7 @@ class TestChatServiceUnit:
 
         response = self.service.stream_complete(
             messages=messages,
-            model_name=LanguageModelName.AZURE_GPT_35_TURBO_0125,
+            model_name=DEFAULT_GPT_4o,
             tools=[mock_tool],
         )
 
@@ -1263,7 +1264,7 @@ class TestChatServiceUnit:
 
         response = await self.service.stream_complete_async(
             messages=messages,
-            model_name=LanguageModelName.AZURE_GPT_35_TURBO_0125,
+            model_name=DEFAULT_GPT_4o,
             tools=[mock_tool],
         )
 

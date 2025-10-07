@@ -59,7 +59,7 @@ The `unique_toolkit.embedding` module encompasses all embedding related function
 The `unique_toolkit.language_model` module encompasses all language model related functionality and information on the different language models deployed through the 
 Unique platform.
 
-- `infos.py` comprises the information on all language models deployed through the Unique platform. We recommend to use the LanguageModel class, initialized with the LanguageModelName, e.g., LanguageModel(LanguageModelName.AZURE_GPT_35_TURBO_0125) to get the information on the specific language model like the name, version, token limits or retirement date.
+- `infos.py` comprises the information on all language models deployed through the Unique platform. We recommend to use the LanguageModel class, initialized with the LanguageModelName, e.g., LanguageModel(LanguageModelName.AZURE_GPT_4o_2024_1120) to get the information on the specific language model like the name, version, token limits or retirement date.
 - `functions.py` comprises the functions to complete and stream complete to chat.
 - `service.py` comprises the LanguageModelService and provides an interface to interact with the language models, e.g., complete. 
 - `schemas.py` comprises all relevant schemas, e.g., LanguageModelResponse, used in the LanguageModelService.
