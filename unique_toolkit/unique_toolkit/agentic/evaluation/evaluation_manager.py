@@ -123,6 +123,15 @@ class EvaluationManager:
                 self._evaluation_passed = False
             evaluation_results_unpacked.append(unpacked_evaluation_result)
 
+        for evaluation_name, evaluation_result in zip(
+            selected_evaluation_names, evaluation_results_unpacked
+        ):
+            evaluation_instance = self.get_evaluation_by_name(evaluation_name)
+            if evaluation_instance:
+                await self._show_message_assessment(
+                    evaluation_instance, evaluation_result, assistant_message_id
+                )
+
         return evaluation_results_unpacked
 
     async def execute_evaluation_call(
@@ -143,11 +152,6 @@ class EvaluationManager:
             evaluation_metric_result: EvaluationMetricResult = (
                 await evaluation_instance.run(loop_response)
             )
-            # show results to the user
-            await self._show_message_assessment(
-                evaluation_instance, evaluation_metric_result, assistant_message_id
-            )
-
             return evaluation_metric_result
 
         return EvaluationMetricResult(
