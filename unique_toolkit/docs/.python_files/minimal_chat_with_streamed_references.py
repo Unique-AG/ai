@@ -11,6 +11,7 @@ import os
 import io
 import tempfile
 import requests
+import mimetypes
 from pathlib import Path
 from unique_toolkit.content.schemas import ContentSearchType, ContentRerankerConfig, ContentChunk, ContentReference
 import unique_sdk
@@ -21,6 +22,7 @@ from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.framework_utilities.openai.client import get_openai_client
 from unique_toolkit.framework_utilities.openai.message_builder import (
     OpenAIMessageBuilder,
+    OpenAIUserMessageBuilder
 )
 from pydantic import Field
 from unique_toolkit import LanguageModelToolDescription
