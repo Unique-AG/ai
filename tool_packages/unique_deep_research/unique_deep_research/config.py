@@ -5,7 +5,6 @@ from typing import Literal
 
 from jinja2 import Environment, FileSystemLoader
 from pydantic import BaseModel, Field
-from pydantic.json_schema import SkipJsonSchema
 from unique_toolkit._common.validators import LMI, get_LMI_default_field
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 from unique_toolkit.language_model.infos import LanguageModelName
@@ -18,8 +17,8 @@ TEMPLATE_ENV = Environment(loader=FileSystemLoader(str(TEMPLATE_DIR)))
 class DeepResearchEngine(StrEnum):
     """Available deep research engines."""
 
-    OPENAI = "openai"
-    UNIQUE = "unique"
+    OPENAI = "OpenAI"
+    UNIQUE = "Unique"
 
 
 # Hardcoded configuration for the unique custom engine
@@ -34,9 +33,9 @@ RESPONSES_API_TIMEOUT_SECONDS = 3600
 
 
 class BaseEngine(BaseModel):
-    engine_type: SkipJsonSchema[
-        Literal[DeepResearchEngine.UNIQUE, DeepResearchEngine.OPENAI]
-    ] = Field(description="The type of engine to use for deep research")
+    engine_type: Literal[DeepResearchEngine.UNIQUE, DeepResearchEngine.OPENAI] = Field(
+        description="The type of engine to use for deep research"
+    )
     small_model: LMI = get_LMI_default_field(
         LanguageModelName.AZURE_GPT_4o_2024_1120,
         description="A smaller fast model for less demanding tasks",
@@ -57,7 +56,7 @@ class BaseEngine(BaseModel):
 
 
 class OpenAIEngine(BaseEngine):
-    engine_type: SkipJsonSchema[Literal[DeepResearchEngine.OPENAI]] = Field(
+    engine_type: Literal[DeepResearchEngine.OPENAI] = Field(
         default=DeepResearchEngine.OPENAI
     )
     research_model: LMI = get_LMI_default_field(
@@ -67,7 +66,7 @@ class OpenAIEngine(BaseEngine):
 
 
 class UniqueEngine(BaseEngine):
-    engine_type: SkipJsonSchema[Literal[DeepResearchEngine.UNIQUE]] = Field(
+    engine_type: Literal[DeepResearchEngine.UNIQUE] = Field(
         default=DeepResearchEngine.UNIQUE
     )
 
@@ -76,4 +75,5 @@ class DeepResearchToolConfig(BaseToolConfig):
     engine: UniqueEngine | OpenAIEngine = Field(
         description="The deep research engine to use. Please be aware that OpenAI engine requires particular models to be used as the research model and they have different tools available.",
         default=UniqueEngine(),
+        discriminator="engine_type",
     )
