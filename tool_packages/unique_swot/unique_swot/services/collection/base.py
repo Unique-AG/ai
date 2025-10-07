@@ -57,15 +57,9 @@ class SourceCollectionManager:
         return sources
 
     def collect_earnings_calls(self) -> list[Source]:
-        logger.warning(
-            "Collecting earnings calls as a data source is not implemented yet. No sources will be collected."
-        )
         return collect_earnings_calls()
 
     def collect_web_sources(self) -> list[Source]:
-        logger.warning(
-            "Collecting web sources as a data source is not implemented yet. No sources will be collected."
-        )
         return collect_web_sources()
 
     def collect_internal_documents(self) -> list[Source]:
