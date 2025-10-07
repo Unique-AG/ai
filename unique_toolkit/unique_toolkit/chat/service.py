@@ -1,9 +1,11 @@
 import logging
+from typing import Any
 
+import unique_sdk
 from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
 from typing_extensions import deprecated
 
-from unique_toolkit.app.schemas import ChatEvent, Event
+from unique_toolkit._common.utils.files import is_file_content, is_image_content
 from unique_toolkit.chat.constants import (
     DEFAULT_MAX_MESSAGES,
     DEFAULT_PERCENT_OF_MAX_TOKENS,
@@ -47,7 +49,16 @@ from unique_toolkit.chat.schemas import (
     MessageLogStatus,
     MessageLogUncitedReferences,
 )
-from unique_toolkit.content.schemas import ContentChunk, ContentReference
+from unique_toolkit.content.functions import (
+    download_content_to_bytes,
+    search_contents,
+    upload_content_from_bytes,
+)
+from unique_toolkit.content.schemas import (
+    Content,
+    ContentChunk,
+    ContentReference,
+)
 from unique_toolkit.language_model.constants import (
     DEFAULT_COMPLETE_TEMPERATURE,
     DEFAULT_COMPLETE_TIMEOUT,
@@ -63,6 +74,7 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelToolDescription,
 )
 
+from .deprecated.service import ChatServiceDeprecated
 from .functions import (
     stream_complete_with_references,
     stream_complete_with_references_async,
@@ -71,213 +83,8 @@ from .functions import (
 logger = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
 
 
-class ChatService:
+class ChatService(ChatServiceDeprecated):
     """Provides all functionalities to manage the chat session."""
-
-    def __init__(self, event: ChatEvent | Event):
-        self._event = event
-        self._company_id: str = event.company_id
-        self._user_id: str = event.user_id
-        self._assistant_message_id: str = event.payload.assistant_message.id
-        self._user_message_id: str = event.payload.user_message.id
-        self._chat_id: str = event.payload.chat_id
-        self._assistant_id: str = event.payload.assistant_id
-        self._user_message_text: str = event.payload.user_message.text
-
-    @property
-    @deprecated(
-        "The event property is deprecated and will be removed in a future version.",
-    )
-    def event(self) -> Event | ChatEvent:
-        """Get the event object (deprecated).
-
-        Returns:
-            Event | BaseEvent | None: The event object.
-
-        """
-        return self._event
-
-    @property
-    @deprecated(
-        "The company_id property is deprecated and will be removed in a future version.",
-    )
-    def company_id(self) -> str:
-        """Get the company identifier (deprecated).
-
-        Returns:
-            str | None: The company identifier.
-
-        """
-        return self._company_id
-
-    @company_id.setter
-    @deprecated(
-        "The company_id setter is deprecated and will be removed in a future version.",
-    )
-    def company_id(self, value: str) -> None:
-        """Set the company identifier (deprecated).
-
-        Args:
-            value (str | None): The company identifier.
-
-        """
-        self._company_id = value
-
-    @property
-    @deprecated(
-        "The user_id property is deprecated and will be removed in a future version.",
-    )
-    def user_id(self) -> str:
-        """Get the user identifier (deprecated).
-
-        Returns:
-            str | None: The user identifier.
-
-        """
-        return self._user_id
-
-    @user_id.setter
-    @deprecated(
-        "The user_id setter is deprecated and will be removed in a future version.",
-    )
-    def user_id(self, value: str) -> None:
-        """Set the user identifier (deprecated).
-
-        Args:
-            value (str | None): The user identifier.
-
-        """
-        self._user_id = value
-
-    @property
-    @deprecated(
-        "The assistant_message_id property is deprecated and will be removed in a future version.",
-    )
-    def assistant_message_id(self) -> str:
-        """Get the assistant message identifier (deprecated).
-
-        Returns:
-            str | None: The assistant message identifier.
-
-        """
-        return self._assistant_message_id
-
-    @assistant_message_id.setter
-    @deprecated(
-        "The assistant_message_id setter is deprecated and will be removed in a future version.",
-    )
-    def assistant_message_id(self, value: str) -> None:
-        """Set the assistant message identifier (deprecated).
-
-        Args:
-            value (str | None): The assistant message identifier.
-
-        """
-        self._assistant_message_id = value
-
-    @property
-    @deprecated(
-        "The user_message_id property is deprecated and will be removed in a future version.",
-    )
-    def user_message_id(self) -> str:
-        """Get the user message identifier (deprecated).
-
-        Returns:
-            str | None: The user message identifier.
-
-        """
-        return self._user_message_id
-
-    @user_message_id.setter
-    @deprecated(
-        "The user_message_id setter is deprecated and will be removed in a future version.",
-    )
-    def user_message_id(self, value: str) -> None:
-        """Set the user message identifier (deprecated).
-
-        Args:
-            value (str | None): The user message identifier.
-
-        """
-        self._user_message_id = value
-
-    @property
-    @deprecated(
-        "The chat_id property is deprecated and will be removed in a future version.",
-    )
-    def chat_id(self) -> str:
-        """Get the chat identifier (deprecated).
-
-        Returns:
-            str | None: The chat identifier.
-
-        """
-        return self._chat_id
-
-    @chat_id.setter
-    @deprecated(
-        "The chat_id setter is deprecated and will be removed in a future version.",
-    )
-    def chat_id(self, value: str) -> None:
-        """Set the chat identifier (deprecated).
-
-        Args:
-            value (str | None): The chat identifier.
-
-        """
-        self._chat_id = value
-
-    @property
-    @deprecated(
-        "The assistant_id property is deprecated and will be removed in a future version.",
-    )
-    def assistant_id(self) -> str:
-        """Get the assistant identifier (deprecated).
-
-        Returns:
-            str | None: The assistant identifier.
-
-        """
-        return self._assistant_id
-
-    @assistant_id.setter
-    @deprecated(
-        "The assistant_id setter is deprecated and will be removed in a future version.",
-    )
-    def assistant_id(self, value: str) -> None:
-        """Set the assistant identifier (deprecated).
-
-        Args:
-            value (str | None): The assistant identifier.
-
-        """
-        self._assistant_id = value
-
-    @property
-    @deprecated(
-        "The user_message_text property is deprecated and will be removed in a future version.",
-    )
-    def user_message_text(self) -> str:
-        """Get the user message text (deprecated).
-
-        Returns:
-            str | None: The user message text.
-
-        """
-        return self._user_message_text
-
-    @user_message_text.setter
-    @deprecated(
-        "The user_message_text setter is deprecated and will be removed in a future version.",
-    )
-    def user_message_text(self, value: str) -> None:
-        """Set the user message text (deprecated).
-
-        Args:
-            value (str | None): The user message text.
-
-        """
-        self._user_message_text = value
 
     async def update_debug_info_async(self, debug_info: dict):
         """Updates the debug information for the chat session.
@@ -287,25 +94,6 @@ class ChatService:
 
         """
         return await modify_message_async(
-            user_id=self._user_id,
-            company_id=self._company_id,
-            assistant_message_id=self._assistant_message_id,
-            chat_id=self._chat_id,
-            user_message_id=self._user_message_id,
-            user_message_text=self._user_message_text,
-            assistant=False,
-            debug_info=debug_info,
-        )
-
-    @deprecated("Use `replace_debug_info`")
-    def update_debug_info(self, debug_info: dict):
-        """Updates the debug information for the chat session.
-
-        Args:
-            debug_info (dict): The new debug information.
-
-        """
-        return modify_message(
             user_id=self._user_id,
             company_id=self._company_id,
             assistant_message_id=self._assistant_message_id,
@@ -333,6 +121,9 @@ class ChatService:
             assistant=False,
             debug_info=debug_info,
         )
+
+    # Message Methods
+    ############################################################################
 
     def modify_user_message(
         self,
@@ -496,9 +287,172 @@ class ChatService:
             set_completed_at=set_completed_at or False,
         )
 
+    def create_assistant_message(
+        self,
+        content: str,
+        original_content: str | None = None,
+        references: list[ContentReference] | None = None,
+        debug_info: dict | None = None,
+        set_completed_at: bool | None = False,
+    ) -> ChatMessage:
+        """Creates a message in the chat session synchronously.
+
+        Args:
+            content (str): The content for the message.
+            original_content (str, optional): The original content for the message.
+            references (list[ContentReference]): list of ContentReference objects. Defaults to None.
+            debug_info (dict[str, Any]]): Debug information. Defaults to None.
+            set_completed_at (Optional[bool]): Whether to set the completedAt field with the current date time. Defaults to False.
+
+        Returns:
+            ChatMessage: The created message.
+
+        Raises:
+            Exception: If the creation fails.
+
+        """
+        chat_message = create_message(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            chat_id=self._chat_id,
+            assistant_id=self._assistant_id,
+            role=ChatMessageRole.ASSISTANT,
+            content=content,
+            original_content=original_content,
+            references=references,
+            debug_info=debug_info,
+            set_completed_at=set_completed_at,
+        )
+        # Update the assistant message id
+        self._assistant_message_id = chat_message.id or "unknown"
+        return chat_message
+
+    async def create_assistant_message_async(
+        self,
+        content: str,
+        original_content: str | None = None,
+        references: list[ContentReference] | None = None,
+        debug_info: dict | None = None,
+        set_completed_at: bool | None = False,
+    ) -> ChatMessage:
+        """Creates a message in the chat session asynchronously.
+
+        Args:
+            content (str): The content for the message.
+            original_content (str, optional): The original content for the message.
+            references (list[ContentReference]): list of references. Defaults to None.
+            debug_info (dict[str, Any]]): Debug information. Defaults to None.
+            set_completed_at (Optional[bool]): Whether to set the completedAt field with the current date time. Defaults to False.
+
+        Returns:
+            ChatMessage: The created message.
+
+        Raises:
+            Exception: If the creation fails.
+
+        """
+        chat_message = await create_message_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            chat_id=self._chat_id,
+            assistant_id=self._assistant_id,
+            role=ChatMessageRole.ASSISTANT,
+            content=content,
+            original_content=original_content,
+            references=references,
+            debug_info=debug_info,
+            set_completed_at=set_completed_at,
+        )
+        # Update the assistant message id
+        self._assistant_message_id = chat_message.id or "unknown"
+        return chat_message
+
+    def create_user_message(
+        self,
+        content: str,
+        original_content: str | None = None,
+        references: list[ContentReference] | None = None,
+        debug_info: dict | None = None,
+        set_completed_at: bool | None = False,
+    ) -> ChatMessage:
+        """Creates a user message in the chat session synchronously.
+
+        Args:
+            content (str): The content for the message.
+            original_content (str, optional): The original content for the message.
+            references (list[ContentReference]): list of ContentReference objects. Defaults to None.
+            debug_info (dict[str, Any]]): Debug information. Defaults to None.
+            set_completed_at (Optional[bool]): Whether to set the completedAt field with the current date time. Defaults to False.
+
+        Returns:
+            ChatMessage: The created message.
+
+        Raises:
+            Exception: If the creation fails.
+
+        """
+        chat_message = create_message(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            chat_id=self._chat_id,
+            assistant_id=self._assistant_id,
+            role=ChatMessageRole.USER,
+            content=content,
+            original_content=original_content,
+            references=references,
+            debug_info=debug_info,
+            set_completed_at=set_completed_at,
+        )
+        # Update the user message id
+        self._user_message_id = chat_message.id or "unknown"
+        return chat_message
+
+    async def create_user_message_async(
+        self,
+        content: str,
+        original_content: str | None = None,
+        references: list[ContentReference] | None = None,
+        debug_info: dict | None = None,
+        set_completed_at: bool | None = False,
+    ) -> ChatMessage:
+        """Creates a user message in the chat session asynchronously.
+
+        Args:
+            content (str): The content for the message.
+            original_content (str, optional): The original content for the message.
+            references (list[ContentReference]): list of references. Defaults to None.
+            debug_info (dict[str, Any]]): Debug information. Defaults to None.
+            set_completed_at (Optional[bool]): Whether to set the completedAt field with the current date time. Defaults to False.
+
+        Returns:
+            ChatMessage: The created message.
+
+        Raises:
+            Exception: If the creation fails.
+
+        """
+        chat_message = await create_message_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            chat_id=self._chat_id,
+            assistant_id=self._assistant_id,
+            role=ChatMessageRole.USER,
+            content=content,
+            original_content=original_content,
+            references=references,
+            debug_info=debug_info,
+            set_completed_at=set_completed_at,
+        )
+        # Update the user message id
+        self._user_message_id = chat_message.id or "unknown"
+        return chat_message
+
     def free_user_input(self) -> None:
         """Unblocks the next user input"""
         self.modify_assistant_message(set_completed_at=True)
+
+    # History Methods
+    ############################################################################
 
     def get_full_history(self) -> list[ChatMessage]:
         """Loads the full chat history for the chat session synchronously.
@@ -598,166 +552,8 @@ class ChatService:
 
         return full_history, selected_history
 
-    def create_assistant_message(
-        self,
-        content: str,
-        original_content: str | None = None,
-        references: list[ContentReference] | None = None,
-        debug_info: dict | None = None,
-        set_completed_at: bool | None = False,
-    ) -> ChatMessage:
-        """Creates a message in the chat session synchronously.
-
-        Args:
-            content (str): The content for the message.
-            original_content (str, optional): The original content for the message.
-            references (list[ContentReference]): list of ContentReference objects. Defaults to None.
-            debug_info (dict[str, Any]]): Debug information. Defaults to None.
-            set_completed_at (Optional[bool]): Whether to set the completedAt field with the current date time. Defaults to False.
-
-        Returns:
-            ChatMessage: The created message.
-
-        Raises:
-            Exception: If the creation fails.
-
-        """
-        chat_message = create_message(
-            user_id=self._user_id,
-            company_id=self._company_id,
-            chat_id=self._chat_id,
-            assistant_id=self._assistant_id,
-            role=ChatMessageRole.ASSISTANT,
-            content=content,
-            original_content=original_content,
-            references=references,
-            debug_info=debug_info,
-            set_completed_at=set_completed_at,
-        )
-        # Update the assistant message id
-        self._assistant_message_id = chat_message.id or "unknown"
-        return chat_message
-
-    async def create_assistant_message_async(
-        self,
-        content: str,
-        original_content: str | None = None,
-        references: list[ContentReference] | None = None,
-        debug_info: dict | None = None,
-        set_completed_at: bool | None = False,
-    ) -> ChatMessage:
-        """Creates a message in the chat session asynchronously.
-
-        Args:
-            content (str): The content for the message.
-            original_content (str, optional): The original content for the message.
-            references (list[ContentReference]): list of references. Defaults to None.
-            debug_info (dict[str, Any]]): Debug information. Defaults to None.
-            set_completed_at (Optional[bool]): Whether to set the completedAt field with the current date time. Defaults to False.
-
-        Returns:
-            ChatMessage: The created message.
-
-        Raises:
-            Exception: If the creation fails.
-
-        """
-        chat_message = await create_message_async(
-            user_id=self._user_id,
-            company_id=self._company_id,
-            chat_id=self._chat_id,
-            assistant_id=self._assistant_id,
-            role=ChatMessageRole.ASSISTANT,
-            content=content,
-            original_content=original_content,
-            references=references,
-            debug_info=debug_info,
-            set_completed_at=set_completed_at,
-        )
-        # Update the assistant message id
-        self._assistant_message_id = chat_message.id or "unknown"
-        return chat_message
-
-    @deprecated("Not working at the moment.")
-    def create_user_message(
-        self,
-        content: str,
-        original_content: str | None = None,
-        references: list[ContentReference] | None = None,
-        debug_info: dict | None = None,
-        set_completed_at: bool | None = False,
-    ) -> ChatMessage:
-        """Creates a user message in the chat session synchronously.
-
-        Args:
-            content (str): The content for the message.
-            original_content (str, optional): The original content for the message.
-            references (list[ContentReference]): list of ContentReference objects. Defaults to None.
-            debug_info (dict[str, Any]]): Debug information. Defaults to None.
-            set_completed_at (Optional[bool]): Whether to set the completedAt field with the current date time. Defaults to False.
-
-        Returns:
-            ChatMessage: The created message.
-
-        Raises:
-            Exception: If the creation fails.
-
-        """
-        chat_message = create_message(
-            user_id=self._user_id,
-            company_id=self._company_id,
-            chat_id=self._chat_id,
-            assistant_id=self._assistant_id,
-            role=ChatMessageRole.USER,
-            content=content,
-            original_content=original_content,
-            references=references,
-            debug_info=debug_info,
-            set_completed_at=set_completed_at,
-        )
-        # Update the user message id
-        self._user_message_id = chat_message.id or "unknown"
-        return chat_message
-
-    async def create_user_message_async(
-        self,
-        content: str,
-        original_content: str | None = None,
-        references: list[ContentReference] | None = None,
-        debug_info: dict | None = None,
-        set_completed_at: bool | None = False,
-    ) -> ChatMessage:
-        """Creates a user message in the chat session asynchronously.
-
-        Args:
-            content (str): The content for the message.
-            original_content (str, optional): The original content for the message.
-            references (list[ContentReference]): list of references. Defaults to None.
-            debug_info (dict[str, Any]]): Debug information. Defaults to None.
-            set_completed_at (Optional[bool]): Whether to set the completedAt field with the current date time. Defaults to False.
-
-        Returns:
-            ChatMessage: The created message.
-
-        Raises:
-            Exception: If the creation fails.
-
-        """
-        chat_message = await create_message_async(
-            user_id=self._user_id,
-            company_id=self._company_id,
-            chat_id=self._chat_id,
-            assistant_id=self._assistant_id,
-            role=ChatMessageRole.USER,
-            content=content,
-            original_content=original_content,
-            references=references,
-            debug_info=debug_info,
-            set_completed_at=set_completed_at,
-        )
-        # Update the user message id
-        self._user_message_id = chat_message.id or "unknown"
-        return chat_message
+    # Message Assessment Methods
+    ############################################################################
 
     def create_message_assessment(
         self,
@@ -912,6 +708,9 @@ class ChatService:
             explanation=explanation,
             label=label,
         )
+
+    # Message Log Methods
+    ############################################################################
 
     def create_message_log(
         self,
@@ -1148,6 +947,9 @@ class ChatService:
             uncited_references=uncited_references,
             references=references,
         )
+
+    # Message Execution Methods
+    ############################################################################
 
     def create_message_execution(
         self,
@@ -1465,6 +1267,9 @@ class ChatService:
             percentage_completed=percentage_completed,
         )
 
+    # Language Model Methods
+    ############################################################################
+
     @deprecated("Use complete_with_references instead")
     def stream_complete(
         self,
@@ -1628,3 +1433,53 @@ class ChatService:
         )
 
         return LanguageModelResponse.from_stream_response(await response)
+
+    # Chat Content Methods
+    ############################################################################
+
+    def upload_to_chat_from_bytes(
+        self,
+        *,
+        content: bytes,
+        content_name: str,
+        mime_type: str,
+        scope_id: str | None = None,
+        skip_ingestion: bool = False,
+        ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> Content:
+        return upload_content_from_bytes(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            content=content,
+            content_name=content_name,
+            mime_type=mime_type,
+            scope_id=scope_id,
+            chat_id=self._chat_id,
+            skip_ingestion=skip_ingestion,
+            ingestion_config=ingestion_config,
+            metadata=metadata,
+        )
+
+    def download_chat_content_to_bytes(self, *, content_id: str) -> bytes:
+        return download_content_to_bytes(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            content_id=content_id,
+            chat_id=self._chat_id,
+        )
+
+    def download_chat_images_and_documents(self) -> tuple[list[Content], list[Content]]:
+        images: list[Content] = []
+        files: list[Content] = []
+        for c in search_contents(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            chat_id=self._chat_id,
+            where={"ownerId": {"equals": self._chat_id}},
+        ):
+            if is_file_content(filename=c.key):
+                files.append(c)
+            if is_image_content(filename=c.key):
+                images.append(c)
+        return images, files
