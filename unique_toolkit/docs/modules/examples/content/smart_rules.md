@@ -239,6 +239,91 @@ kb_service.delete_contents(
 -->
 
 
+### For Bulk Metadata Updates
+
+Update or add metadata fields to multiple files at once based on a metadata filter. This is useful for tagging, categorizing, or enriching file metadata without modifying the files themselves.
+
+**What it does:**
+- Adds new metadata fields to matching files
+- Updates existing metadata fields (merges with existing metadata)
+- Preserves other metadata that isn't specified in the update
+- Returns the updated content information
+
+**Use cases:**
+- Tag all files in a folder with a project identifier
+- Add classification or department labels to existing files
+- Update version numbers or status fields in bulk
+- Enrich metadata based on file location or type
+
+**Example: Add a department tag to all PDFs in a folder**
+
+```{.python #kb_service_update_metadata}
+# Update metadata for all files matching the filter
+updated_contents = kb_service.update_contents_metadata(
+    additional_metadata={
+        "department": "legal",
+        "classification": "confidential",
+        "last_reviewed": "2025-01-01"
+    },
+    metadata_filter=metadata_filter
+)
+
+print(f"Updated metadata for {len(updated_contents)} files")
+```
+
+<!--
+```{.python file=./docs/.python_files/update_metadata_with_smart_rule.py }
+<<smart_rules_imports>>
+<<kb_service_setup>>
+<<load_demo_variables>>
+<<env_scope_id>>
+<<smart_rule_folder_content>>
+<<kb_service_update_metadata>>
+```
+-->
+
+### For Bulk Metadata Removal
+
+Remove specific metadata fields from multiple files at once. This is useful for cleaning up obsolete metadata or removing sensitive information.
+
+**What it does:**
+- Removes specified metadata keys from matching files
+- Leaves other metadata fields intact
+- Does not affect file content or standard metadata (title, MIME type, etc.)
+- Returns the updated content information
+
+**Use cases:**
+- Remove temporary or expired metadata fields
+- Clean up metadata from deprecated workflows
+- Remove sensitive metadata that's no longer needed
+- Standardize metadata by removing inconsistent fields
+
+**Example: Remove temporary metadata from processed files**
+
+```{.python #kb_service_remove_metadata}
+# Remove specific metadata keys from all matching files
+updated_contents = kb_service.remove_contents_metadata(
+    keys_to_remove=["temp_status", "processing_id", "draft_version"],
+    metadata_filter=metadata_filter
+)
+
+print(f"Removed metadata from {len(updated_contents)} files")
+```
+
+**Best practice:** Test your filter with `get_paginated_content_infos()` first to see which files will be affected and what metadata they currently have.
+
+<!--
+```{.python file=./docs/.python_files/remove_metadata_with_smart_rule.py }
+<<smart_rules_imports>>
+<<kb_service_setup>>
+<<load_demo_variables>>
+<<env_scope_id>>
+<<smart_rule_folder_content>>
+<<kb_service_remove_metadata>>
+```
+-->
+
+
 
 
 
