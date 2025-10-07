@@ -135,7 +135,7 @@ class SWOTPlan(SWOTPlanBase[PlannedSWOTStep]):
         """
         for step in self.steps:
             if step.operation == "modify" and step.modify_instruction is None:
-                raise ValueError("Modify instruction is required for modify operation")
+                raise ValueError("Modify instruction is required for modify operations")
 
 
 class ExecutedSWOTPlan(SWOTPlanBase[ExecutedSwotStep]):
