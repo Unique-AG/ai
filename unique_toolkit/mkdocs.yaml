@@ -46,6 +46,7 @@ nav:
       - Document Handling: modules/examples/chat/chat_document_handling.md
     - Knowledge Base:
       - Base Service: modules/examples/content/kb_service.md
+      - Smart Rules: modules/examples/content/smart_rules.md
   - Tutorials:
     - File Creation with Upload to Chat: tutorials/file_creation_and_upload_to_chat.md
   - Agentic Framework:

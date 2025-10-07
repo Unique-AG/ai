@@ -29,7 +29,6 @@ images, documents = chat_service.download_chat_images_and_documents()
 
 if len(documents) > 0:
     doc_bytes = chat_service.download_chat_content_to_bytes(content_id=documents[0].id)
-
 ```
 
 Once you have the list of uploaded content, you can download the actual bytes of any specific file using `download_chat_content_to_bytes()`. This is useful for processing documents or passing images to vision-capable language models.
@@ -57,8 +56,6 @@ if img_bytes is not None and img_mime_type is not None:
         )
 else:
     builder.user_message_append(content="Can you see the image? If not, say so.")
-
-
 ```
 
 In this example:

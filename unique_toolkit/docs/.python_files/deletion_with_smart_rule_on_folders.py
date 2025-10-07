@@ -1,4 +1,4 @@
-# ~/~ begin <<docs/modules/examples/content/smart_rules.md#./docs/.python_files/content_search_with_smart_rule_on_folders.py>>[init]
+# ~/~ begin <<docs/modules/examples/content/smart_rules.md#./docs/.python_files/deletion_with_smart_rule_on_folders.py>>[init]
 # ~/~ begin <<docs/modules/examples/content/smart_rules.md#smart_rules_imports>>[init]
 from unique_toolkit.smart_rules.compile import Statement, Operator, AndStatement, OrStatement
 # ~/~ end
@@ -41,6 +41,26 @@ demo_env_vars = dotenv_values(Path(__file__).parent/"demo.env")
 # ~/~ begin <<docs/modules/examples/content/kb_service.md#env_scope_id>>[init]
 scope_id = demo_env_vars.get("UNIQUE_SCOPE_ID") or "unknown"
 # ~/~ end
+# ~/~ begin <<docs/modules/examples/content/smart_rules.md#upload_with_custom_metadata>>[init]
+content_bytes = b"Your file content here"
+content = kb_service.upload_content_from_bytes(
+    content=content_bytes,
+    content_name="document_custom.txt",
+    mime_type="text/plain",
+    scope_id=scope_id,
+    metadata={"customMetaData": "customValue", "version": "1.0"}
+)
+# ~/~ end
+# ~/~ begin <<docs/modules/examples/content/kb_service.md#kb_service_upload_bytes>>[init]
+content_bytes = b"Your file content here"
+content = kb_service.upload_content_from_bytes(
+    content=content_bytes,
+    content_name="document.txt",
+    mime_type="text/plain",
+    scope_id=scope_id,
+    metadata={"category": "documentation", "version": "1.0"}
+)
+# ~/~ end
 # ~/~ begin <<docs/modules/examples/content/smart_rules.md#smart_rule_custom_metadata>>[init]
 smart_rule_custom = Statement(operator=Operator.EQUALS, 
                                       value=f"customValue", 
@@ -48,8 +68,20 @@ smart_rule_custom = Statement(operator=Operator.EQUALS,
 
 metadata_filter = smart_rule_custom.model_dump(mode="json")
 # ~/~ end
-# ~/~ begin <<docs/modules/examples/content/smart_rules.md#kb_content_search>>[init]
-infos =kb_service.get_paginated_content_infos(
+# ~/~ begin <<docs/modules/examples/content/smart_rules.md#smart_rule_folder_content>>[init]
+smart_rule_folder_content = Statement(operator=Operator.EQUALS, 
+                                      value=f"{scope_id}", 
+                                      path=["folderId"])
+
+metadata_filter = smart_rule_folder_content.model_dump(mode="json")
+# ~/~ end
+# ~/~ begin <<docs/modules/examples/content/smart_rules.md#combined_folder_and_custom_metadata>>[init]
+smart_rule_folders_and_mime = AndStatement(and_list=[smart_rule_folder_content, 
+                                                     smart_rule_custom])
+metadata_filter = smart_rule_folders_and_mime.model_dump(mode="json") 
+# ~/~ end
+# ~/~ begin <<docs/modules/examples/content/smart_rules.md#kb_service_delete>>[init]
+kb_service.delete_contents(
     metadata_filter=metadata_filter
 )
 # ~/~ end

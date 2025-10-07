@@ -543,7 +543,6 @@ def download_content_to_bytes(
 def download_content(
     user_id: str,
     company_id: str,
-    *,
     content_id: str,
     content_name: str,
     chat_id: str | None = None,
@@ -606,10 +605,8 @@ def get_content_info(
         get_info_params["filePath"] = file_path
 
     content_info = unique_sdk.Content.get_infos(
-    content_info = unique_sdk.Content.get_infos(
         user_id=user_id, company_id=company_id, **get_info_params
     )
-    return PaginatedContentInfos.model_validate(
     return PaginatedContentInfos.model_validate(
         content_info, by_alias=True, by_name=True
     )

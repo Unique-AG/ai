@@ -1,4 +1,4 @@
-# ~/~ begin <<docs/modules/examples/content/smart_rules.md#./docs/.python_files/content_search_with_smart_rule_on_folders.py>>[init]
+# ~/~ begin <<docs/modules/examples/content/smart_rules.md#./docs/.python_files/content_chunk_search_with_smart_rule_on_folders.py>>[init]
 # ~/~ begin <<docs/modules/examples/content/smart_rules.md#smart_rules_imports>>[init]
 from unique_toolkit.smart_rules.compile import Statement, Operator, AndStatement, OrStatement
 # ~/~ end
@@ -41,15 +41,20 @@ demo_env_vars = dotenv_values(Path(__file__).parent/"demo.env")
 # ~/~ begin <<docs/modules/examples/content/kb_service.md#env_scope_id>>[init]
 scope_id = demo_env_vars.get("UNIQUE_SCOPE_ID") or "unknown"
 # ~/~ end
-# ~/~ begin <<docs/modules/examples/content/smart_rules.md#smart_rule_custom_metadata>>[init]
-smart_rule_custom = Statement(operator=Operator.EQUALS, 
-                                      value=f"customValue", 
-                                      path=["customMetaData"])
+# ~/~ begin <<docs/modules/examples/content/smart_rules.md#smart_rule_folder_content>>[init]
+smart_rule_folder_content = Statement(operator=Operator.EQUALS, 
+                                      value=f"{scope_id}", 
+                                      path=["folderId"])
 
-metadata_filter = smart_rule_custom.model_dump(mode="json")
+metadata_filter = smart_rule_folder_content.model_dump(mode="json")
 # ~/~ end
-# ~/~ begin <<docs/modules/examples/content/smart_rules.md#kb_content_search>>[init]
-infos =kb_service.get_paginated_content_infos(
+# ~/~ begin <<docs/modules/examples/content/smart_rules.md#kb_service_combined_with_metadafilter>>[init]
+
+
+content_chunks = kb_service.search_content_chunks(
+    search_string="Harry Potter",
+    search_type=ContentSearchType.COMBINED,
+    limit=15,
     metadata_filter=metadata_filter
 )
 # ~/~ end

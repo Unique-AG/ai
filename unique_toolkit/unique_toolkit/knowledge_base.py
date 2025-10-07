@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from pathlib import Path
 from typing import Any, overload
@@ -11,6 +12,8 @@ from unique_toolkit.content.constants import (
     DEFAULT_SEARCH_LANGUAGE,
 )
 from unique_toolkit.content.functions import (
+    delete_content,
+    delete_content_async,
     download_content_to_bytes,
     download_content_to_file_by_id,
     get_content_info,
@@ -29,6 +32,7 @@ from unique_toolkit.content.schemas import (
     ContentInfo,
     ContentRerankerConfig,
     ContentSearchType,
+    DeleteContentResponse,
     FolderInfo,
     PaginatedContentInfos,
 )
@@ -584,6 +588,129 @@ class KnowledgeBaseService:
         )
 
         return self._resolve_visible_file_tree(content_infos=info.content_infos)
+
+    @overload
+    def delete_content(
+        self,
+        *,
+        content_id: str,
+    ) -> DeleteContentResponse: ...
+
+    """Delete content by id"""
+
+    @overload
+    def delete_content(
+        self,
+        *,
+        file_path: str,
+    ) -> DeleteContentResponse: ...
+
+    """Delete all content matching the file path"""
+
+    def delete_content(
+        self,
+        *,
+        content_id: str | None = None,
+        file_path: str | None = None,
+        metadata_filter: dict[str, Any] | None = None,
+    ) -> DeleteContentResponse:
+        """Delete content by id, file path or metadata filter"""
+        if metadata_filter:
+            infos = self.get_paginated_content_infos(
+                metadata_filter=metadata_filter,
+            )
+            for info in infos.content_infos:
+                delete_content(
+                    user_id=self._user_id,
+                    company_id=self._company_id,
+                    content_id=info.id,
+                )
+
+        return delete_content(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            content_id=content_id,
+            file_path=file_path,
+        )
+
+    def delete_contents(
+        self,
+        *,
+        metadata_filter: dict[str, Any],
+    ) -> list[DeleteContentResponse]:
+        """Delete all content matching the metadata filter"""
+        resp: list[DeleteContentResponse] = []
+
+        if metadata_filter:
+            infos = self.get_paginated_content_infos(
+                metadata_filter=metadata_filter,
+            )
+
+            for info in infos.content_infos:
+                resp.append(
+                    delete_content(
+                        user_id=self._user_id,
+                        company_id=self._company_id,
+                        content_id=info.id,
+                    )
+                )
+
+        return resp
+
+    @overload
+    async def delete_content_async(
+        self,
+        *,
+        content_id: str,
+    ) -> DeleteContentResponse: ...
+
+    @overload
+    async def delete_content_async(
+        self,
+        *,
+        file_path: str,
+    ) -> DeleteContentResponse: ...
+
+    async def delete_content_async(
+        self,
+        *,
+        content_id: str | None = None,
+        file_path: str | None = None,
+    ) -> DeleteContentResponse:
+        return await delete_content_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            content_id=content_id,
+            file_path=file_path,
+        )
+
+    async def delete_contents_async(
+        self,
+        *,
+        metadata_filter: dict[str, Any],
+    ) -> list[DeleteContentResponse]:
+        """Delete all content matching the metadata filter"""
+        if not metadata_filter:
+            return []
+
+        infos = self.get_paginated_content_infos(
+            metadata_filter=metadata_filter,
+        )
+
+        # Create all delete tasks without awaiting them
+        delete_tasks = [
+            delete_content_async(
+                user_id=self._user_id,
+                company_id=self._company_id,
+                content_id=info.id,
+            )
+            for info in infos.content_infos
+        ]
+
+        # Await all delete operations concurrently
+        resp = await asyncio.gather(*delete_tasks)
+
+        return list(resp)
 
 
 if __name__ == "__main__":

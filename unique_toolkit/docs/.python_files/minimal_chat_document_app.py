@@ -64,7 +64,6 @@ for event in get_event_generator(unique_settings=settings, event_type=ChatEvent)
             )
     else:
         builder.user_message_append(content="Can you see the image? If not, say so.")
-
     # ~/~ end
     # ~/~ begin <<docs/modules/examples/chat/chat_document_handling.md#chat_service_send_message>>[init]
     chat_service.complete_with_references(
