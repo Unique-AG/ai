@@ -3,6 +3,7 @@ import logging
 from pathlib import Path
 from typing import Any, overload
 
+import humps
 import unique_sdk
 
 from unique_toolkit._common.validate_required_values import validate_required_values
@@ -588,6 +589,138 @@ class KnowledgeBaseService:
         )
 
         return self._resolve_visible_file_tree(content_infos=info.content_infos)
+
+    def _pop_forbidden_metadata_keys(self, metadata: dict[str, Any]) -> dict[str, Any]:
+        forbidden_keys = [
+            "key",
+            "url",
+            "title",
+            "folderId",
+            "mimeType",
+            "companyId",
+            "contentId",
+            "folderIdPath",
+            "externalFileOwner",
+        ]
+        for key in forbidden_keys:
+            metadata.pop(key, None)
+        return metadata
+
+    def update_content_metadata(
+        self,
+        *,
+        content_info: ContentInfo,
+        additional_metadata: dict[str, Any],
+    ) -> ContentInfo:
+        camelized_additional_metadata = humps.camelize(additional_metadata)
+        camelized_additional_metadata = self._pop_forbidden_metadata_keys(
+            camelized_additional_metadata
+        )
+
+        if content_info.metadata is not None:
+            content_info.metadata.update(camelized_additional_metadata)
+        else:
+            content_info.metadata = camelized_additional_metadata
+
+        return update_content(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            content_id=content_info.id,
+            metadata=content_info.metadata,
+        )
+
+    def remove_content_metadata(
+        self,
+        *,
+        content_info: ContentInfo,
+        keys_to_remove: list[str],
+    ) -> ContentInfo:
+        """
+        Removes the specified keys irreversibly from the content metadata.
+        """
+
+        if content_info.metadata is None:
+            _LOGGER.warning(f"Content metadata is None for content {content_info.id}")
+            return content_info
+
+        for key in keys_to_remove:
+            content_info.metadata.pop(key, None)
+
+        return update_content(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            content_id=content_info.id,
+            metadata=content_info.metadata or {},
+        )
+
+    @overload
+    def update_contents_metadata(
+        self,
+        *,
+        additional_metadata: dict[str, Any],
+        content_infos: list[ContentInfo],
+    ) -> list[ContentInfo]: ...
+
+    @overload
+    def update_contents_metadata(
+        self, *, additional_metadata: dict[str, Any], metadata_filter: dict[str, Any]
+    ) -> list[ContentInfo]: ...
+
+    def update_contents_metadata(
+        self,
+        *,
+        additional_metadata: dict[str, Any],
+        metadata_filter: dict[str, Any] | None = None,
+        content_infos: list[ContentInfo] | None = None,
+    ) -> list[ContentInfo]:
+        additional_metadata_camelized = humps.camelize(additional_metadata)
+        additional_metadata_camelized = self._pop_forbidden_metadata_keys(
+            additional_metadata_camelized
+        )
+
+        if content_infos is None:
+            content_infos = self.get_paginated_content_infos(
+                metadata_filter=metadata_filter,
+            ).content_infos
+
+        for info in content_infos:
+            self.update_content_metadata(
+                content_info=info, additional_metadata=additional_metadata_camelized
+            )
+
+        return content_infos
+
+    @overload
+    def remove_contents_metadata(
+        self,
+        *,
+        keys_to_remove: list[str],
+        content_infos: list[ContentInfo],
+    ) -> list[ContentInfo]: ...
+
+    @overload
+    def remove_contents_metadata(
+        self, *, keys_to_remove: list[str], metadata_filter: dict[str, Any]
+    ) -> list[ContentInfo]: ...
+
+    def remove_contents_metadata(
+        self,
+        *,
+        keys_to_remove: list[str],
+        metadata_filter: dict[str, Any] | None = None,
+        content_infos: list[ContentInfo] | None = None,
+    ) -> list[ContentInfo]:
+        if content_infos is None:
+            content_infos = self.get_paginated_content_infos(
+                metadata_filter=metadata_filter,
+            ).content_infos
+
+        for info in content_infos:
+            self.remove_content_metadata(
+                content_info=info, keys_to_remove=keys_to_remove
+            )
+
+        return content_infos
 
     @overload
     def delete_content(
