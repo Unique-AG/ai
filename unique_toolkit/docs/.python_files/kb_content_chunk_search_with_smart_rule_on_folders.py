@@ -1,4 +1,4 @@
-# ~/~ begin <<docs/modules/examples/content/smart_rules.md#./docs/.python_files/content_chunk_search_with_smart_rule_on_folders.py>>[init]
+# ~/~ begin <<docs/modules/examples/content/smart_rules.md#./docs/.python_files/kb_content_chunk_search_with_smart_rule_on_folders.py>>[init]
 # ~/~ begin <<docs/modules/examples/content/smart_rules.md#smart_rules_imports>>[init]
 from unique_toolkit.smart_rules.compile import Statement, Operator, AndStatement, OrStatement
 # ~/~ end

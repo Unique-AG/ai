@@ -1,5 +1,4 @@
-# ~/~ begin <<docs/modules/examples/chat/chat_document_handling.md#docs/.python_files/minimal_chat_document_app.py>>[init]
-# ~/~ begin <<docs/application_types/event_driven_applications.md#full_sse_setup_with_services>>[init]
+# ~/~ begin <<docs/tutorials/file_creation_and_upload_to_chat.md#docs/.python_files/chat_upload_to_chat.py>>[init]
 # ~/~ begin <<docs/application_types/event_driven_applications.md#full_sse_setup>>[init]
 # ~/~ begin <<docs/setup/_common_imports.md#common_imports>>[init]
 from unique_toolkit.app.unique_settings import UniqueSettings
@@ -33,44 +32,49 @@ settings = UniqueSettings.from_env_auto_with_sdk_init()
 # ~/~ end
 for event in get_event_generator(unique_settings=settings, event_type=ChatEvent):
 # ~/~ end
+    settings.update_from_event(event)
     # ~/~ begin <<docs/application_types/event_driven_applications.md#init_services_from_event>>[init]
     # Initialize services from event
     chat_service = ChatService(event)
-    content_service = ContentService.from_event(event)
+    kb_service= KnowledgeBaseService.from_event(event)
     # ~/~ end
-# ~/~ end
-    # ~/~ begin <<docs/modules/examples/chat/chat_document_handling.md#chat_service_document_and_image_download>>[init]
-    images, documents = chat_service.download_chat_images_and_documents()
+    # ~/~ begin <<docs/tutorials/file_creation_and_upload_to_chat.md#upload_with_reference_initial_message>>[init]
 
-    if len(documents) > 0:
-        doc_bytes = chat_service.download_chat_content_to_bytes(content_id=documents[0].id)
-    # ~/~ end
-    # ~/~ begin <<docs/modules/examples/chat/chat_document_handling.md#chat_service_images_message_building>>[init]
-    img_bytes = None
-    img_mime_type = None
-    if len(images) > 0:
-        img_bytes = chat_service.download_chat_content_to_bytes(content_id=images[0].id)
-        img_mime_type, _ = mimetypes.guess_type(images[0].key)
-
-    builder = (OpenAIMessageBuilder()
-            .system_message_append(content="You are a helpful assistant."))
-
-    if img_bytes is not None and img_mime_type is not None:
-        builder.user_message_append(
-                content=OpenAIUserMessageBuilder()
-                .append_text("What is the content of the image?")
-                .append_image(content=img_bytes, mime_type=img_mime_type)
-                .iterable_content
-            )
-    else:
-        builder.user_message_append(content="Can you see the image? If not, say so.")
-    # ~/~ end
-    # ~/~ begin <<docs/modules/examples/chat/chat_document_handling.md#chat_service_send_message>>[init]
-    chat_service.complete_with_references(
-        messages=builder.messages,
-        model_name=LanguageModelName.AZURE_GPT_4o_2024_1120
+    assistant_message =chat_service.create_assistant_message(
+        content="Hi there, the agent has started to create your document.",
     )
+    # ~/~ end
+    # ~/~ begin <<docs/tutorials/file_creation_and_upload_to_chat.md#upload_with_reference_document_creation>>[init]
+    content_bytes = b"Hello, world!"
+    # ~/~ end
+    # ~/~ begin <<docs/tutorials/file_creation_and_upload_to_chat.md#upload_with_reference_upload_document>>[init]
+    uploaded_content = kb_service.upload_content_from_bytes(
+            content=content_bytes,
+            content_name="document.txt",
+            mime_type="text/plain",
+            chat_id=event.payload.chat_id,
+            skip_ingestion=True,
+        )
+    # ~/~ end
+    # ~/~ begin <<docs/tutorials/file_creation_and_upload_to_chat.md#upload_with_reference_referencing_in_message>>[init]
+    reference = ContentReference(
+            id=uploaded_content.id,
+            sequence_number=1,
+            message_id=event.payload.assistant_message.id,
+            name="document.txt",
+            source=event.payload.name,
+            source_id=event.payload.chat_id,
+            url=f"unique://content/{uploaded_content.id}",
+        )
 
+
+    chat_service.modify_assistant_message(
+                    content="Please find the translated document below in the references.",
+                    message_id=assistant_message.id, 
+                    references=[reference],
+                )
+    # ~/~ end
+    # ~/~ begin <<docs/tutorials/file_creation_and_upload_to_chat.md#free_user_input>>[init]
     chat_service.free_user_input()
     # ~/~ end
 # ~/~ end

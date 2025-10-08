@@ -1,5 +1,4 @@
-# ~/~ begin <<docs/modules/examples/chat/chat_service.md#docs/.python_files/minimal_chat_with_manual_message_create_free_user_input.py>>[init]
-# ~/~ begin <<docs/application_types/event_driven_applications.md#full_sse_setup_with_services>>[init]
+# ~/~ begin <<docs/modules/examples/chat/chat_service.md#docs/.python_files/chat_with_manual_message_and_reference.py>>[init]
 # ~/~ begin <<docs/application_types/event_driven_applications.md#full_sse_setup>>[init]
 # ~/~ begin <<docs/setup/_common_imports.md#common_imports>>[init]
 from unique_toolkit.app.unique_settings import UniqueSettings
@@ -33,12 +32,7 @@ settings = UniqueSettings.from_env_auto_with_sdk_init()
 # ~/~ end
 for event in get_event_generator(unique_settings=settings, event_type=ChatEvent):
 # ~/~ end
-    # ~/~ begin <<docs/application_types/event_driven_applications.md#init_services_from_event>>[init]
-    # Initialize services from event
     chat_service = ChatService(event)
-    content_service = ContentService.from_event(event)
-    # ~/~ end
-# ~/~ end
     # ~/~ begin <<docs/modules/examples/chat/chat_service.md#chat_service_create_assistant_message>>[init]
     assistant_message = chat_service.create_assistant_message(
             content="Hello from Unique",
@@ -50,7 +44,15 @@ for event in get_event_generator(unique_settings=settings, event_type=ChatEvent)
             message_id=assistant_message.id
         )
     # ~/~ end
-    # ~/~ begin <<docs/modules/examples/chat/chat_service.md#chat_service_free_user_input>>[init]
-    chat_service.free_user_input()
+    # ~/~ begin <<docs/modules/examples/chat/chat_service.md#chat_service_assistant_message_with_reference>>[init]
+    chat_service.create_assistant_message(
+            content="Hello from Unique <sup>0</sup>",
+            references=[ContentReference(source="source0",
+                                         url="https://www.unique.ai",
+                                         name="reference_name",
+                                         sequence_number=0,
+                                         source_id="source_id_0",
+                                         id="id_0")]
+        )
     # ~/~ end
 # ~/~ end

@@ -1,4 +1,5 @@
-# ~/~ begin <<docs/modules/examples/chat/chat_service.md#docs/.python_files/minimal_chat_with_manual_message_and_reference.py>>[init]
+# ~/~ begin <<docs/modules/examples/chat/chat_service.md#docs/.python_files/chat_app_minimal.py>>[init]
+# ~/~ begin <<docs/application_types/event_driven_applications.md#full_sse_setup_with_services>>[init]
 # ~/~ begin <<docs/application_types/event_driven_applications.md#full_sse_setup>>[init]
 # ~/~ begin <<docs/setup/_common_imports.md#common_imports>>[init]
 from unique_toolkit.app.unique_settings import UniqueSettings
@@ -32,27 +33,23 @@ settings = UniqueSettings.from_env_auto_with_sdk_init()
 # ~/~ end
 for event in get_event_generator(unique_settings=settings, event_type=ChatEvent):
 # ~/~ end
+    # ~/~ begin <<docs/application_types/event_driven_applications.md#init_services_from_event>>[init]
+    # Initialize services from event
     chat_service = ChatService(event)
-    # ~/~ begin <<docs/modules/examples/chat/chat_service.md#chat_service_create_assistant_message>>[init]
-    assistant_message = chat_service.create_assistant_message(
-            content="Hello from Unique",
+    kb_service= KnowledgeBaseService.from_event(event)
+    # ~/~ end
+# ~/~ end
+    # ~/~ begin <<docs/modules/examples/chat/chat_service.md#trivial_message_from_user>>[init]
+    messages = (
+            OpenAIMessageBuilder()
+            .system_message_append(content="You are a helpful assistant")
+            .user_message_append(content=event.payload.user_message.text)
+            .messages
         )
     # ~/~ end
-    # ~/~ begin <<docs/modules/examples/chat/chat_service.md#chat_service_modify_assistant_message>>[init]
-    chat_service.modify_assistant_message(
-            content="Modified User Message",
-            message_id=assistant_message.id
-        )
-    # ~/~ end
-    # ~/~ begin <<docs/modules/examples/chat/chat_service.md#chat_service_assistant_message_with_reference>>[init]
-    chat_service.create_assistant_message(
-            content="Hello from Unique <sup>0</sup>",
-            references=[ContentReference(source="source0",
-                                         url="https://www.unique.ai",
-                                         name="reference_name",
-                                         sequence_number=0,
-                                         source_id="source_id_0",
-                                         id="id_0")]
-        )
+    # ~/~ begin <<docs/modules/examples/chat/chat_service.md#chat_service_complete_with_references>>[init]
+    chat_service.complete_with_references(
+            messages = messages,
+            model_name = LanguageModelName.AZURE_GPT_4o_2024_1120)
     # ~/~ end
 # ~/~ end

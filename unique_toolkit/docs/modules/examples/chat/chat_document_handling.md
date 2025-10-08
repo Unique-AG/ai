@@ -12,7 +12,7 @@ When users upload images or documents through the chat interface, you can:
 
 <!--
 
-```{.python file=docs/.python_files/minimal_chat_document_app.py}
+```{.python file=docs/.python_files/chat_with_document_app.py}
 <<full_sse_setup_with_services>>
     <<chat_service_document_and_image_download>>
     <<chat_service_images_message_building>>

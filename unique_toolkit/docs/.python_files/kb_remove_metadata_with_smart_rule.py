@@ -1,4 +1,4 @@
-# ~/~ begin <<docs/modules/examples/content/smart_rules.md#./docs/.python_files/remove_metadata_with_smart_rule.py>>[init]
+# ~/~ begin <<docs/modules/examples/content/smart_rules.md#./docs/.python_files/kb_remove_metadata_with_smart_rule.py>>[init]
 # ~/~ begin <<docs/modules/examples/content/smart_rules.md#smart_rules_imports>>[init]
 from unique_toolkit.smart_rules.compile import Statement, Operator, AndStatement, OrStatement
 # ~/~ end
@@ -51,7 +51,7 @@ metadata_filter = smart_rule_folder_content.model_dump(mode="json")
 # ~/~ begin <<docs/modules/examples/content/smart_rules.md#kb_service_remove_metadata>>[init]
 # Remove specific metadata keys from all matching files
 updated_contents = kb_service.remove_contents_metadata(
-    keys_to_remove=["department"],
+    keys_to_remove=["temp_status", "processing_id", "draft_version"],
     metadata_filter=metadata_filter
 )
 

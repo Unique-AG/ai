@@ -27,7 +27,7 @@ from pydantic import Field
 from unique_toolkit import LanguageModelToolDescription
 # ~/~ end
 # ~/~ begin <<docs/application_types/standalone_application.md#unique_init_service_standalone_auto>>[init]
-content_service = ContentService.from_settings()
+kb_service = KnowledgeBaseService.from_settings()
 # ~/~ end
 client = get_openai_client()
 # ~/~ end

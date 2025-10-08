@@ -59,7 +59,7 @@ chat_service.complete_with_references(
 
 <!--
 
-```{.python file=docs/.python_files/minimal_chat_app.py}
+```{.python file=docs/.python_files/chat_app_minimal.py}
 <<full_sse_setup_with_services>>
     <<trivial_message_from_user>>
     <<chat_service_complete_with_references>>
@@ -76,7 +76,7 @@ assistant_message = chat_service.create_assistant_message(
 ```
 
 <!--
-```{.python file=docs/.python_files/minimal_chat_with_manual_message_create.py}
+```{.python file=docs/.python_files/chat_with_manual_message_create.py}
 <<full_sse_setup_with_services>>
     <<chat_service_create_assistant_message>>
 ```
@@ -85,8 +85,8 @@ assistant_message = chat_service.create_assistant_message(
 ??? example "Full Examples (Click to expand)"
     
     <!--codeinclude-->
-    [Simple Streaming](../../../examples_from_docs/minimal_chat_app.py)
-    [Simple Manual Response](../../../examples_from_docs/minimal_chat_with_manual_message_create.py)
+    [Simple Streaming](../../../examples_from_docs/chat_app_minimal.py)
+    [Simple Manual Response](../../../examples_from_docs/chat_with_manual_message_create.py)
     <!--/codeinclude-->
 
 ## Modifying messages
@@ -110,7 +110,7 @@ chat_service.modify_assistant_message(
 ```
 
 <!--
-```{.python file=docs/.python_files/minimal_chat_with_manual_message_create_and_modification.py}
+```{.python file=docs/.python_files/chat_with_manual_message_create_and_modification.py}
 <<full_sse_setup_with_services>>
     <<chat_service_create_assistant_message>>
     <<chat_service_modify_assistant_message>>
@@ -131,7 +131,7 @@ chat_service.free_user_input()
 ```
 
 <!--
-```{.python file=docs/.python_files/minimal_chat_with_manual_message_create_free_user_input.py}
+```{.python file=docs/.python_files/chat_with_manual_message_create_free_user_input.py}
 <<full_sse_setup_with_services>>
     <<chat_service_create_assistant_message>>
     <<chat_service_modify_assistant_message>>
@@ -163,7 +163,7 @@ In the `content` string the refercnes must be referred to by `<sup>sequence_numb
 ![alt text](.images/chat_with_reference.png)
 
 <!--
-```{.python file=docs/.python_files/minimal_chat_with_manual_message_and_reference.py}
+```{.python file=docs/.python_files/chat_with_manual_message_and_reference.py}
 <<full_sse_setup>>
     chat_service = ChatService(event)
     <<chat_service_create_assistant_message>>
@@ -246,7 +246,7 @@ chat_service.complete_with_references(
 ![alt text](./images/chat_references_with_streaming.png)
 
 <!--
-```{.python file=docs/.python_files/minimal_chat_with_streamed_references.py}
+```{.python file=docs/.python_files/chat_with_streamed_references.py}
 <<full_sse_setup>>
     chat_service = ChatService(event)
     <<chat_service_retrieved_chunks>>
@@ -280,7 +280,7 @@ chat_service.modify_user_message(
     )
 ```
 <!--
-```{.python file=docs/.python_files/minimal_chat_edit_debug_information.py}
+```{.python file=docs/.python_files/chat_edit_debug_information.py}
 <<full_sse_setup_with_services>>
     <<chat_service_create_assistant_message>>
     <<chat_service_modify_assistant_message>>
@@ -297,9 +297,9 @@ The debug information will be updated after a refresh of the page and look as fo
 ??? example "Full Examples (Click to expand)"
     
     <!--codeinclude-->
-    [Modifying Assistant Message](../../../examples_from_docs/minimal_chat_with_manual_message_create_and_modification.py)
-    [Unblocking](../../../examples_from_docs/minimal_chat_with_manual_message_create_free_user_input.py)
-    [Debug Information](../../../examples_from_docs/minimal_chat_edit_debug_information.py)
+    [Modifying Assistant Message](../../../examples_from_docs/chat_with_manual_message_create_and_modification.py)
+    [Unblocking](../../../examples_from_docs/chat_with_manual_message_create_free_user_input.py)
+    [Debug Information](../../../examples_from_docs/chat_edit_debug_information.py)
     <!--/codeinclude-->
 
 
@@ -348,7 +348,7 @@ which displays as
 ![alt text](./../../../finished_message_assessment.png)
 
 <!--
-```{.python file=docs/.python_files/minimal_chat_with_message_assessment.py}
+```{.python file=docs/.python_files/chat_with_message_assessment.py}
 <<common_imports>>
 <<full_sse_setup_with_services>>
     <<chat_service_create_assistant_message>>
