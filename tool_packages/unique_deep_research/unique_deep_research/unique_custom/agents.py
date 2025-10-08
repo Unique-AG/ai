@@ -48,7 +48,6 @@ from .utils import (
     execute_tool_safely,
     get_engine_config,
     get_notes_from_tool_calls,
-    is_token_error,
     write_state_message_log,
 )
 
@@ -140,9 +139,23 @@ async def research_supervisor(
     # Available tools for the supervisor
     supervisor_tools = get_supervisor_tools()
 
-    # Configure model with tools
-    model_with_tools = configurable_model.bind_tools(supervisor_tools)
-    research_model = model_with_tools.with_config(model_config)  # type: ignore[arg-type]
+    # Check if we should force tool usage
+    research_iterations = state.get("research_iterations", 0)
+    max_iterations = UniqueCustomEngineConfig.max_research_iterations
+    should_force_complete = research_iterations >= max_iterations
+
+    if should_force_complete:
+        logger.info(
+            f"Forcing research_complete at iteration {research_iterations}/{max_iterations}"
+        )
+        model_with_tools = configurable_model.bind_tools(
+            supervisor_tools,
+            tool_choice={"type": "function", "function": {"name": "research_complete"}},
+        )
+    else:
+        model_with_tools = configurable_model.bind_tools(supervisor_tools)
+
+    research_model = model_with_tools.with_config(model_config)
 
     # Generate supervisor response with comprehensive token limit handling
     supervisor_messages = state.get("supervisor_messages", [])
@@ -180,16 +193,10 @@ async def supervisor_tools(
     if most_recent_message and isinstance(most_recent_message, AIMessage):
         tool_calls = most_recent_message.tool_calls or []
 
-    # Early exit if no tool calls at all
     if not tool_calls:
-        logger.info("Supervisor has no tool calls. Ending supervisor")
-        notes = get_notes_from_tool_calls(supervisor_messages)
+        logger.info("Supervisor has no tool calls - will go back to supervisor")
         return Command(
-            goto="__end__",
-            update={
-                "notes": notes,
-                "research_brief": state.get("research_brief", ""),
-            },
+            goto="research_supervisor",
         )
 
     # TOOL CALL HANDLERS
@@ -460,87 +467,33 @@ async def final_report_generation(
             30_000, int(custom_config.large_model.token_limits.token_limit_output * 0.9)
         ),
     }
+    llm = configurable_model.with_config(model_config)
+    report_writer_prompt = TEMPLATE_ENV.get_template(
+        "unique/report_writer_system_open_deep_research.j2"
+    ).render(
+        date=get_today_str(),
+    )
+    messages = [
+        SystemMessage(content=report_writer_prompt),
+        HumanMessage(content=message),
+    ]
+    raw_report = await ainvoke_with_token_handling(
+        llm, messages, model_info=custom_config.large_model
+    )
 
-    # Step 3: Attempt report generation with token limit retry logic
-    max_retries = 3
-    iteration = 0
-    findings_char_limit = None
+    refinement_prompt = TEMPLATE_ENV.get_template("report_cleanup_prompt.j2").render()
+    messages = [
+        SystemMessage(content=refinement_prompt),
+        HumanMessage(content=raw_report.content),
+    ]
+    refined_report = await ainvoke_with_token_handling(
+        llm, messages, model_info=custom_config.large_model
+    )
 
-    while iteration <= max_retries:
-        iteration += 1
-        try:
-            # Use our existing report writer template
-            report_writer_prompt = TEMPLATE_ENV.get_template(
-                "unique/report_writer_system_open_deep_research.j2"
-            ).render(
-                date=get_today_str(),
-            )
-            refinement_prompt = TEMPLATE_ENV.get_template(
-                "report_cleanup_prompt.j2"
-            ).render()
-
-            # Generate the final report
-            report_model = configurable_model.with_config(model_config)  # type: ignore[arg-type]
-            final_report = await report_model.ainvoke(
-                [
-                    SystemMessage(content=report_writer_prompt),
-                    HumanMessage(content=message),
-                ]
-            )
-            refined_report = await report_model.ainvoke(
-                [
-                    SystemMessage(content=refinement_prompt),
-                    HumanMessage(content=final_report.content),
-                ]
-            )
-
-            # Return successful report generation
-            return {
-                "final_report": refined_report.content,
-                "messages": [refined_report],
-                **cleared_state,
-            }
-
-        except Exception as e:
-            # Handle token limit exceeded errors with progressive truncation
-            if is_token_error(e):
-                model_token_limit = (
-                    custom_config.large_model.token_limits.token_limit_input
-                )
-
-                if iteration == 1:
-                    # Reserve space for prompt and use ~4 characters per token approximation
-                    # Use 70% of token limit to leave room for prompt, then convert to characters
-                    available_tokens = int(model_token_limit * 0.7)
-                    findings_char_limit = available_tokens * 4  # ~4 chars per token
-                else:
-                    # Subsequent retries: reduce by 10% each time
-
-                    fallback_char_limit = int(model_token_limit * 0.7) * 4
-                    findings_char_limit = int(
-                        (findings_char_limit or fallback_char_limit) * 0.9
-                    )
-
-                # Truncate findings and retry
-                findings = findings[:findings_char_limit]
-                continue
-            else:
-                logger.error(f"Error generating final report: {e}")
-                # Non-token-limit error: return error immediately
-                return {
-                    "final_report": f"Error generating final report: {e}",
-                    "messages": [
-                        AIMessage(content="Report generation failed due to an error")
-                    ],
-                    **cleared_state,
-                }
-
-    # Step 4: Return failure result if all retries exhausted
+    # Return successful report generation
     return {
-        "final_report": "Error generating final report: Maximum retries exceeded",
-        "messages": [
-            AIMessage(content="Report generation failed after maximum retries")
-        ],
+        "final_report": refined_report.content,
+        "messages": [refined_report],
         **cleared_state,
     }
 
@@ -562,6 +515,7 @@ async def _handle_conduct_research_batch(
     # Limit concurrent research tasks to prevent resource exhaustion
     max_concurrent = UniqueCustomEngineConfig.max_parallel_researchers
     allowed_calls = conduct_research_calls[:max_concurrent]
+    skipped_calls = conduct_research_calls[max_concurrent:]
 
     # Execute research tasks in parallel
     research_tasks = [
@@ -608,6 +562,16 @@ async def _handle_conduct_research_batch(
                     tool_call_id=tool_call["id"],
                 )
             )
+
+    # Add "research not started" responses for skipped calls
+    for tool_call in skipped_calls:
+        tool_messages.append(
+            ToolMessage(
+                content=f"Research not started - exceeded concurrent research limit of {max_concurrent}. Please try again in the next iteration.",
+                name=tool_call["name"],
+                tool_call_id=tool_call["id"],
+            )
+        )
 
     return tool_messages
 
