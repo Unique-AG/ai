@@ -45,7 +45,9 @@ from unique_toolkit import ChatService
 
 The `ChatService` is a stateful service and therefore should be freshly instantiated for each request sent by a user from the frontend. 
 
-## Create assistant messages
+## Basics
+
+### Create assistant messages
 
 The most used functionality is to create an assistant message via a stream to the frontend
 
@@ -89,9 +91,9 @@ assistant_message = chat_service.create_assistant_message(
     [Simple Manual Response](../../../examples_from_docs/chat_with_manual_message_create.py)
     <!--/codeinclude-->
 
-## Modifying messages
+### Modifying messages
 
-## Edit texts 
+### Edit texts 
 
 Both user messages as well as assistant message may be modified via the `message_id`. If no id is specified the last message in the chat history will be modified.
 
@@ -117,7 +119,7 @@ chat_service.modify_assistant_message(
 ```
 -->
 
-## Unblocking the next user input
+### Unblocking the next user input
 
 For each user interaction the plattform is expected to answer in some form. 
 Thus, the user input is blocked during the process leading to this answer as seen below. 
@@ -141,10 +143,21 @@ chat_service.free_user_input()
 
 which should be called at the end of an agent interaction. Alternatively the user input can be freed by setting the `set_completed_at` flag in `create_assistant_message` or `modify_assistant_message`.
 
+### Full Examples
+??? example "Full Examples (Click to expand)"
+    
+    <!--codeinclude-->
+    [Modifying Assistant Message](../../../examples_from_docs/chat_with_manual_message_create_and_modification.py)
+    [Unblocking](../../../examples_from_docs/chat_with_manual_message_create_free_user_input.py)
+    <!--/codeinclude-->
+
+
 
 ## Adding References
 
 For applications using additional information retrieved from the knowledge base or external Apis references are an important measure to verify the generated text from the LLM. Additionally, references can also be used on deterministically created assitant message as in the following example 
+
+### Manual References
 
 ```{python #chat_service_assistant_message_with_reference}
 chat_service.create_assistant_message(
@@ -160,7 +173,7 @@ chat_service.create_assistant_message(
 
 In the `content` string the refercnes must be referred to by `<sup>sequence_number</sub>`. The name property of the `ContentReference` will be displayed on the reference component and below the message as seen below
 
-![alt text](.images/chat_with_reference.png)
+![alt text](./images/chat_with_reference.png)
 
 <!--
 ```{.python file=docs/.python_files/chat_with_manual_message_and_reference.py}
@@ -173,7 +186,7 @@ In the `content` string the refercnes must be referred to by `<sup>sequence_numb
 -->
 
 
-## Referencing Content Chunks when streaming to the frontend
+### Referencing Content Chunks when streaming to the frontend
 
 Lets assume that the vector search has retrieved the following chunks
 
@@ -224,9 +237,6 @@ Example:
 """
 ```
 
-
-
-
 The message to the LLM could now look like this
 
 ```{python #chat_service_streaming_call_with_sources}
@@ -256,13 +266,17 @@ chat_service.complete_with_references(
 ```
 -->
 
+??? example "Full Examples (Click to expand)"
+    
+    <!--codeinclude-->
+    [Manual Referencing](../../../examples_from_docs/chat_with_manual_message_and_reference.py)
+    [Streaming Referencing](../../../examples_from_docs/chat_with_streamed_references.py)
+    <!--/codeinclude-->
 
 
+## Post Answer 
 
-
-
-
-## Debug Information
+### Debug Information
 Debuging information can be added to both the user and assistant messages but only the debug information that is added to the user message will be shown in the chat frontend.
 
 Therefore we recommend to use 
@@ -297,7 +311,6 @@ The debug information will be updated after a refresh of the page and look as fo
 ??? example "Full Examples (Click to expand)"
     
     <!--codeinclude-->
-    [Modifying Assistant Message](../../../examples_from_docs/chat_with_manual_message_create_and_modification.py)
     [Unblocking](../../../examples_from_docs/chat_with_manual_message_create_free_user_input.py)
     [Debug Information](../../../examples_from_docs/chat_edit_debug_information.py)
     <!--/codeinclude-->
@@ -305,7 +318,7 @@ The debug information will be updated after a refresh of the page and look as fo
 
 
 
-## Message Assessments
+### Message Assessments
 
 Once an assistant has answered its time to access the quality of its answer. This happense usually through an LLM call to a more sophisticated or a task specialized LLM. The result of the assessment can be reported  using the message assessments by the Unique plattform.
 
@@ -356,4 +369,13 @@ which displays as
     <<chat_service_modify_message_assessment>>
 ```
 -->
+
+### Full Examples 
+
+??? example "Full Examples (Click to expand)"
+    
+    <!--codeinclude-->
+    [Debug Information](../../../examples_from_docs/chat_edit_debug_information.py)
+    [Message Assesment](../../../examples_from_docs/chat_with_message_assessment.py)
+    <!--/codeinclude-->
 

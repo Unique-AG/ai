@@ -325,6 +325,18 @@ print(f"Removed metadata from {len(updated_contents)} files")
 
 
 
+### Full Examples
+
+??? example "Full Examples Content Search (Click to expand)"
+    
+    <!--codeinclude-->
+    [Content Chunks](../../../examples_from_docs/kb_content_chunk_search_with_smart_rule_on_folders.py)
+    [Content Search](../../../examples_from_docs/kb_content_search_with_smart_rule_on_folders.py)    
+    [Content Deletion](../../../examples_from_docs/kb_deletion_with_smart_rule_on_folders.py)
+    [Metadata Update](../../../examples_from_docs/kb_update_metadata_with_smart_rule.py)
+    [Metadata Removal](../../../examples_from_docs/kb_remove_metadata_with_smart_rule.py)
+    <!--/codeinclude-->
+
 
 
 

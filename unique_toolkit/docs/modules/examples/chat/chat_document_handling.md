@@ -10,15 +10,7 @@ When users upload images or documents through the chat interface, you can:
 - Handle documents for analysis or context
 - Build messages that combine text and visual content
 
-<!--
 
-```{.python file=docs/.python_files/chat_with_document_app.py}
-<<full_sse_setup_with_services>>
-    <<chat_service_document_and_image_download>>
-    <<chat_service_images_message_building>>
-    <<chat_service_send_message>>
-```
--->
 
 ## Downloading Images and Documents
 
@@ -90,3 +82,20 @@ Finally, `free_user_input()` re-enables the chat input field, allowing the user 
 - **MIME Types**: Ensure you provide the correct MIME type for images
 - **Error Handling**: Always check if images/documents exist before processing
 - **Memory Usage**: Large images and documents consume memory; consider processing strategies for multiple files
+
+<!--
+
+```{.python file=docs/.python_files/chat_with_document_app.py}
+<<full_sse_setup_with_services>>
+    <<chat_service_document_and_image_download>>
+    <<chat_service_images_message_building>>
+    <<chat_service_send_message>>
+```
+-->
+
+??? example "Full Examples Content Search (Click to expand)"
+    
+    <!--codeinclude-->
+    [Content Chunks](../../../examples_from_docs/chat_with_document_app.py)
+    <!--/codeinclude-->
+

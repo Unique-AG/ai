@@ -19,8 +19,6 @@ Should it stream it makes sure the references are automatically cited correctly 
 **Flow diagram:**
 Detailed description of Step A from the Main Control flow:
 
-![Answer or request tool calls](answer_or_request_tool_calls.png)
-
 Code:
 ```python
     # @track()
