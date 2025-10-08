@@ -27,6 +27,7 @@ from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
 from ..config import BaseEngine
+from .citation import GlobalCitationManager
 from .state import AgentState, ResearcherState, SupervisorState
 
 logger = logging.getLogger(__name__)
@@ -199,6 +200,38 @@ def get_engine_config(config: RunnableConfig) -> BaseEngine:
         )
 
     return custom_config
+
+
+def get_citation_manager(config: RunnableConfig) -> GlobalCitationManager:
+    """
+    Extract GlobalCitationManager from RunnableConfig.
+
+    The citation manager is provided by the service layer and shared
+    across all subgraphs to enable centralized citation tracking.
+
+    Args:
+        config: LangChain RunnableConfig containing citation manager
+
+    Returns:
+        GlobalCitationManager instance (guaranteed to exist)
+
+    Raises:
+        KeyError: If citation_manager is missing (indicates system error)
+        TypeError: If citation_manager is wrong type (indicates system error)
+    """
+    if not config or "configurable" not in config:
+        raise KeyError("RunnableConfig missing 'configurable' section")
+
+    citation_manager = config["configurable"].get("citation_manager")
+    if not citation_manager:
+        raise KeyError("citation_manager missing from RunnableConfig")
+
+    if not isinstance(citation_manager, GlobalCitationManager):
+        raise TypeError(
+            f"citation_manager is {type(citation_manager)}, expected GlobalCitationManager"
+        )
+
+    return citation_manager
 
 
 def create_message_log_entry(
