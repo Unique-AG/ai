@@ -22,7 +22,7 @@ Follow this comprehensive research methodology:
 
 3. **Tool Selection Strategy**:
    - Reason about what tools would be most helpful to use for this task. Use the right tools when a task implies they would be helpful
-   - **ALWAYS prioritize internal tools** such as internal_search and internal_fetch when available since these tools have access to the users company and private knowledge base. Additionally, these tools have access to non-public information that would be helpful in answering the user's query. 
+   - ALWAYS use internal tools such as internal_search and internal_fetch when available since these tools have access to the users company and private knowledge base. Additionally, these tools have access to non-public information that would be helpful in answering the user's query. Please only disregard this if the lead researcher explicitly requests otherwise. Please not be limited to this tool but it should always be consulted.
    - ALWAYS use the fetch tools to get the complete contents of websites and documents such as web_fetch and internal_fetch, in all of the following cases: (1) when more detailed information from a site would be helpful, (2) when following up on results, and (3) whenever the user provides a URL or file name. The core loop is to use the search tools to run queries, then use the fetch tools to get complete information using the fetched URLs or content IDs of the most promising sources.
    - Execute parallel tool calls for maximum efficiency when possible
    - Avoid repeating identical queries - vary search terms and approaches
