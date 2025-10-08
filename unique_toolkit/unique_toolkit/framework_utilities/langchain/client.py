@@ -1,6 +1,8 @@
 import importlib.util
 import logging
 
+from typing_extensions import deprecated
+
 from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.framework_utilities.utils import get_default_headers
 
@@ -22,7 +24,7 @@ else:
     raise LangchainNotInstalledError()
 
 
-def get_client(
+def get_langchain_client(
     unique_settings: UniqueSettings | None = None, model: str = "AZURE_GPT_4o_2024_0806"
 ) -> ChatOpenAI:
     """Get a Langchain ChatOpenAI client instance.
@@ -45,3 +47,18 @@ def get_client(
         model=model,
         api_key=unique_settings.app.key,
     )
+
+
+@deprecated("Use get_langchain_client instead")
+def get_client(
+    unique_settings: UniqueSettings | None = None, model: str = "AZURE_GPT_4o_2024_0806"
+) -> ChatOpenAI:
+    """Get a Langchain ChatOpenAI client instance.
+
+    Args:
+        unique_settings: UniqueSettings instance
+
+    Returns:
+        ChatOpenAI client instance
+    """
+    return get_client(unique_settings, model)

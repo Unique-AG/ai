@@ -1,4 +1,4 @@
-# ~/~ begin <<docs/modules/examples/chat/chat_service.md#docs/.python_files/minimal_chat_edit_debug_information.py>>[init]
+# ~/~ begin <<docs/modules/examples/chat/chat_service.md#docs/.python_files/chat_with_manual_message_create_free_user_input.py>>[init]
 # ~/~ begin <<docs/application_types/event_driven_applications.md#full_sse_setup_with_services>>[init]
 # ~/~ begin <<docs/application_types/event_driven_applications.md#full_sse_setup>>[init]
 # ~/~ begin <<docs/setup/_common_imports.md#common_imports>>[init]
@@ -36,7 +36,7 @@ for event in get_event_generator(unique_settings=settings, event_type=ChatEvent)
     # ~/~ begin <<docs/application_types/event_driven_applications.md#init_services_from_event>>[init]
     # Initialize services from event
     chat_service = ChatService(event)
-    content_service = ContentService.from_event(event)
+    kb_service= KnowledgeBaseService.from_event(event)
     # ~/~ end
 # ~/~ end
     # ~/~ begin <<docs/modules/examples/chat/chat_service.md#chat_service_create_assistant_message>>[init]
@@ -48,18 +48,6 @@ for event in get_event_generator(unique_settings=settings, event_type=ChatEvent)
     chat_service.modify_assistant_message(
             content="Modified User Message",
             message_id=assistant_message.id
-        )
-    # ~/~ end
-    # ~/~ begin <<docs/modules/examples/chat/chat_service.md#chat_service_modify_user_message_debug_info>>[init]
-
-    debug_info = event.get_initial_debug_info()
-    debug_info.update({"timing": "20s till completion"})
-
-
-    chat_service.modify_user_message(
-            content="Modified User Message",
-            message_id=event.payload.user_message.id,
-            debug_info=debug_info
         )
     # ~/~ end
     # ~/~ begin <<docs/modules/examples/chat/chat_service.md#chat_service_free_user_input>>[init]

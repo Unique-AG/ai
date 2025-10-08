@@ -1,7 +1,7 @@
 # %%
 from unique_toolkit import (
     ChatService,
-    ContentService,
+    KnowledgeBaseService,
 )
 from unique_toolkit.app.dev_util import get_event_generator
 from unique_toolkit.app.schemas import ChatEvent
@@ -15,13 +15,13 @@ for event in get_event_generator(unique_settings=settings, event_type=ChatEvent)
     settings.update_from_event(event)
     # Initialize services from event
     chat_service = ChatService(event)
-    content_service = ContentService.from_event(event)
+    kb_service = KnowledgeBaseService.from_event(event)
 
     assistant_message = chat_service.create_assistant_message(
         content="Hi there, the agent has started to create your document.",
     )
     content_bytes = b"Hello, world!"
-    uploaded_content = content_service.upload_content_from_bytes(
+    uploaded_content = kb_service.upload_content_from_bytes(
         content=content_bytes,
         content_name="document.txt",
         mime_type="text/plain",

@@ -14,8 +14,6 @@
 Detailed description of Step D from the Main Control flow
 
 
-![Agent Control Flow](execute_tool.png)
-
 Code:
 ```python
     async def _process_plan(

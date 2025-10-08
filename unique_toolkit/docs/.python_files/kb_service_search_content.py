@@ -1,7 +1,4 @@
-# ~/~ begin <<docs/modules/examples/content/smart_rules.md#./docs/.python_files/remove_metadata_with_smart_rule.py>>[init]
-# ~/~ begin <<docs/modules/examples/content/smart_rules.md#smart_rules_imports>>[init]
-from unique_toolkit.smart_rules.compile import Statement, Operator, AndStatement, OrStatement
-# ~/~ end
+# ~/~ begin <<docs/modules/examples/content/kb_service.md#./docs/.python_files/kb_service_search_content.py>>[init]
 # ~/~ begin <<docs/modules/examples/content/kb_service.md#kb_service_setup>>[init]
 # ~/~ begin <<docs/setup/_common_imports.md#common_imports>>[init]
 from unique_toolkit.app.unique_settings import UniqueSettings
@@ -41,20 +38,10 @@ demo_env_vars = dotenv_values(Path(__file__).parent/"demo.env")
 # ~/~ begin <<docs/modules/examples/content/kb_service.md#env_scope_id>>[init]
 scope_id = demo_env_vars.get("UNIQUE_SCOPE_ID") or "unknown"
 # ~/~ end
-# ~/~ begin <<docs/modules/examples/content/smart_rules.md#smart_rule_folder_content>>[init]
-smart_rule_folder_content = Statement(operator=Operator.EQUALS, 
-                                      value=f"{scope_id}", 
-                                      path=["folderId"])
-
-metadata_filter = smart_rule_folder_content.model_dump(mode="json")
-# ~/~ end
-# ~/~ begin <<docs/modules/examples/content/smart_rules.md#kb_service_remove_metadata>>[init]
-# Remove specific metadata keys from all matching files
-updated_contents = kb_service.remove_contents_metadata(
-    keys_to_remove=["department"],
-    metadata_filter=metadata_filter
+# ~/~ begin <<docs/modules/examples/content/kb_service.md#kb_service_content_search>>[init]
+# Search for specific content files
+contents = kb_service.search_contents(
+    where={"title": {"contains": "manual"}},
 )
-
-print(f"Removed metadata from {len(updated_contents)} files")
 # ~/~ end
 # ~/~ end

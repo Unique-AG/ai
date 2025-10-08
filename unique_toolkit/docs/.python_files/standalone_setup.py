@@ -30,7 +30,7 @@ from unique_toolkit import LanguageModelToolDescription
 settings = UniqueSettings.from_env_auto_with_sdk_init()
 # ~/~ end
 # ~/~ begin <<docs/application_types/standalone_application.md#unique_init_service_standalone>>[init]
-content_service = ContentService.from_settings(settings=settings)
+kb_service = KnowledgeBaseService.from_settings(settings=settings)
 # ~/~ end
 client = get_openai_client(unique_settings=settings)
 # ~/~ end

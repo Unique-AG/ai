@@ -1,4 +1,4 @@
-# ~/~ begin <<docs/modules/examples/chat/chat_service.md#docs/.python_files/minimal_chat_with_streamed_references.py>>[init]
+# ~/~ begin <<docs/modules/examples/chat/chat_service.md#docs/.python_files/chat_with_streamed_references.py>>[init]
 # ~/~ begin <<docs/application_types/event_driven_applications.md#full_sse_setup>>[init]
 # ~/~ begin <<docs/setup/_common_imports.md#common_imports>>[init]
 from unique_toolkit.app.unique_settings import UniqueSettings

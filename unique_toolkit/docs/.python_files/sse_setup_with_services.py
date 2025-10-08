@@ -35,6 +35,6 @@ for event in get_event_generator(unique_settings=settings, event_type=ChatEvent)
     # ~/~ begin <<docs/application_types/event_driven_applications.md#init_services_from_event>>[init]
     # Initialize services from event
     chat_service = ChatService(event)
-    content_service = ContentService.from_event(event)
+    kb_service= KnowledgeBaseService.from_event(event)
     # ~/~ end
 # ~/~ end

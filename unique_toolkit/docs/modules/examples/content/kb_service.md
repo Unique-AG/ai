@@ -142,6 +142,14 @@ self.chat_service.modify_assistant_message(
 - Providing processed/converted files (e.g., PDF to Word)
 - Making analysis results available for download
 
+??? example "Full Examples Download (Click to expand)"
+    
+    <!--codeinclude-->
+    [Upload from Memory](../../../examples_from_docs/kb_service_upload_from_memory.py)
+    [Upload from File](../../../examples_from_docs/kb_service_upload_from_file.py)
+    <!--/codeinclude-->
+
+
 
 ## Content Download
 
@@ -229,6 +237,17 @@ finally:
 ```
 -->
 
+??? example "Full Examples Download (Click to expand)"
+    
+    <!--codeinclude-->
+    [Download to Memory](../../../examples_from_docs/kb_service_download_to_memory.py)
+    [Download to File](../../../examples_from_docs/kb_service_download_to_file.py)
+    <!--/codeinclude-->
+
+
+
+
+
 ## Content Deletion
 
 Permanently removes content from the knowledge base. This operation:
@@ -251,11 +270,11 @@ kb_service.delete_content(
 <<kb_service_delete_content>>
 ```
 -->
-
-
-
-
-
+??? example "Full Examples Content Search (Click to expand)"
+    
+    <!--codeinclude-->
+    [Content Delection](../../../examples_from_docs/kb_service_delete.py)
+    <!--/codeinclude-->
 
 
 ## Content Search
@@ -308,10 +327,6 @@ for i, chunk in enumerate(content_chunks[:3]):
 
 
 
-??? example "Full Examples (Click to expand)"
-    
-    <!--codeinclude-->
-    <!--/codeinclude-->
 
 ### Combined Search (Hybrid)
 
@@ -365,13 +380,28 @@ Search for complete content files (not chunks) by metadata. This is useful when 
 # Search for specific content files
 contents = kb_service.search_contents(
     where={"title": {"contains": "manual"}},
-    chat_id=chat_id
 )
 
-# Search for content in a specific chat (if chat_id is provided)
-if chat_id:
-    chat_contents = kb_service.search_content_on_chat(chat_id)
 ```
+<!--
+```{.python file=./docs/.python_files/kb_service_search_content.py }
+<<kb_service_setup>>
+<<load_demo_variables>>
+<<env_scope_id>>
+<<kb_service_content_search>>
+```
+-->
+
+## Full Examples
+    
+??? example "Full Examples Content Search (Click to expand)"
+    
+    <!--codeinclude-->
+    [Vector Search](../../../examples_from_docs/kb_service_vector_search_content_chunks.py)
+    [Combined Search](../../../examples_from_docs/kb_service_combined_search_content_chunks.py)
+    [Content Search](../../../examples_from_docs/kb_service_search_content.py)
+    <!--/codeinclude-->
+
 
 
 ## Best Practices
