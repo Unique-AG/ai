@@ -1,7 +1,7 @@
 import random
 import string
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import Any
 
 from unique_toolkit.app.schemas import (
     BaseEvent,
@@ -12,11 +12,7 @@ from unique_toolkit.app.schemas import (
     ChatEventUserMessage,
     EventName,
 )
-
-if TYPE_CHECKING:
-    from typing import Any
-
-    from unique_toolkit.app.unique_settings import UniqueSettings
+from unique_toolkit.app.unique_settings import UniqueSettings
 
 
 def generated_numeric_string(length: int) -> str:
@@ -166,12 +162,18 @@ class TestEventFactory:
         user_message_original_text: str | None = None,
         assistant_message_created_at: datetime | None = None,
         configuration: dict[str, Any] | None = None,
-        chat_id: str = generated_chat_id(),
-        assistant_id: str = generated_assistant_id(),
+        chat_id: str | None = None,
+        assistant_id: str | None = None,
         user_id: str | None = None,
         company_id: str | None = None,
         version: str = "1.0",
     ) -> ChatEvent:
+        if chat_id is None:
+            chat_id = generated_chat_id()
+
+        if assistant_id is None:
+            assistant_id = generated_assistant_id()
+
         payload = self.get_chat_event_payload(
             name=name,
             description=description,
