@@ -143,7 +143,7 @@ content_chunks = kb_service.search_content_chunks(
 ```
 
 <!--
-```{.python file=./docs/.python_files/content_chunk_search_with_smart_rule_on_folders.py }
+```{.python file=./docs/.python_files/kb_content_chunk_search_with_smart_rule_on_folders.py }
 <<smart_rules_imports>>
 <<kb_service_setup>>
 <<load_demo_variables>>
@@ -177,7 +177,7 @@ infos =kb_service.get_paginated_content_infos(
 
 
 <!--
-```{.python file=./docs/.python_files/content_search_with_smart_rule_on_folders.py }
+```{.python file=./docs/.python_files/kb_content_search_with_smart_rule_on_folders.py }
 <<smart_rules_imports>>
 <<kb_service_setup>>
 <<load_demo_variables>>
@@ -224,7 +224,7 @@ kb_service.delete_contents(
 ```
 
 <!--
-```{.python file=./docs/.python_files/deletion_with_smart_rule_on_folders.py }
+```{.python file=./docs/.python_files/kb_deletion_with_smart_rule_on_folders.py }
 <<smart_rules_imports>>
 <<kb_service_setup>>
 <<load_demo_variables>>
@@ -272,7 +272,7 @@ print(f"Updated metadata for {len(updated_contents)} files")
 ```
 
 <!--
-```{.python file=./docs/.python_files/update_metadata_with_smart_rule.py }
+```{.python file=./docs/.python_files/kb_update_metadata_with_smart_rule.py }
 <<smart_rules_imports>>
 <<kb_service_setup>>
 <<load_demo_variables>>
@@ -313,7 +313,7 @@ print(f"Removed metadata from {len(updated_contents)} files")
 **Best practice:** Test your filter with `get_paginated_content_infos()` first to see which files will be affected and what metadata they currently have.
 
 <!--
-```{.python file=./docs/.python_files/remove_metadata_with_smart_rule.py }
+```{.python file=./docs/.python_files/kb_remove_metadata_with_smart_rule.py }
 <<smart_rules_imports>>
 <<kb_service_setup>>
 <<load_demo_variables>>
@@ -324,6 +324,18 @@ print(f"Removed metadata from {len(updated_contents)} files")
 -->
 
 
+
+### Full Examples
+
+??? example "Full Examples Content Search (Click to expand)"
+    
+    <!--codeinclude-->
+    [Content Chunks](../../../examples_from_docs/kb_content_chunk_search_with_smart_rule_on_folders.py)
+    [Content Search](../../../examples_from_docs/kb_content_search_with_smart_rule_on_folders.py)    
+    [Content Deletion](../../../examples_from_docs/kb_deletion_with_smart_rule_on_folders.py)
+    [Metadata Update](../../../examples_from_docs/kb_update_metadata_with_smart_rule.py)
+    [Metadata Removal](../../../examples_from_docs/kb_remove_metadata_with_smart_rule.py)
+    <!--/codeinclude-->
 
 
 

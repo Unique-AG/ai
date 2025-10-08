@@ -1,4 +1,4 @@
-# ~/~ begin <<docs/modules/examples/chat/chat_service.md#docs/.python_files/minimal_chat_app.py>>[init]
+# ~/~ begin <<docs/modules/examples/chat/chat_service.md#docs/.python_files/chat_edit_debug_information.py>>[init]
 # ~/~ begin <<docs/application_types/event_driven_applications.md#full_sse_setup_with_services>>[init]
 # ~/~ begin <<docs/application_types/event_driven_applications.md#full_sse_setup>>[init]
 # ~/~ begin <<docs/setup/_common_imports.md#common_imports>>[init]
@@ -36,20 +36,33 @@ for event in get_event_generator(unique_settings=settings, event_type=ChatEvent)
     # ~/~ begin <<docs/application_types/event_driven_applications.md#init_services_from_event>>[init]
     # Initialize services from event
     chat_service = ChatService(event)
-    content_service = ContentService.from_event(event)
+    kb_service= KnowledgeBaseService.from_event(event)
     # ~/~ end
 # ~/~ end
-    # ~/~ begin <<docs/modules/examples/chat/chat_service.md#trivial_message_from_user>>[init]
-    messages = (
-            OpenAIMessageBuilder()
-            .system_message_append(content="You are a helpful assistant")
-            .user_message_append(content=event.payload.user_message.text)
-            .messages
+    # ~/~ begin <<docs/modules/examples/chat/chat_service.md#chat_service_create_assistant_message>>[init]
+    assistant_message = chat_service.create_assistant_message(
+            content="Hello from Unique",
         )
     # ~/~ end
-    # ~/~ begin <<docs/modules/examples/chat/chat_service.md#chat_service_complete_with_references>>[init]
-    chat_service.complete_with_references(
-            messages = messages,
-            model_name = LanguageModelName.AZURE_GPT_4o_2024_1120)
+    # ~/~ begin <<docs/modules/examples/chat/chat_service.md#chat_service_modify_assistant_message>>[init]
+    chat_service.modify_assistant_message(
+            content="Modified User Message",
+            message_id=assistant_message.id
+        )
+    # ~/~ end
+    # ~/~ begin <<docs/modules/examples/chat/chat_service.md#chat_service_modify_user_message_debug_info>>[init]
+
+    debug_info = event.get_initial_debug_info()
+    debug_info.update({"timing": "20s till completion"})
+
+
+    chat_service.modify_user_message(
+            content="Modified User Message",
+            message_id=event.payload.user_message.id,
+            debug_info=debug_info
+        )
+    # ~/~ end
+    # ~/~ begin <<docs/modules/examples/chat/chat_service.md#chat_service_free_user_input>>[init]
+    chat_service.free_user_input()
     # ~/~ end
 # ~/~ end

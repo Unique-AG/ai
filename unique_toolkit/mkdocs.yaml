@@ -36,6 +36,7 @@ edit_uri: /docs/
 
 nav:
   - Home: index.md
+  - Architecture: architectural.md
   - Environment Setup: setup/getting_started.md
   - Application Types:
     - Standalone Application: application_types/standalone_application.md

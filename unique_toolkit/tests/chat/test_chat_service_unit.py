@@ -901,7 +901,7 @@ class TestChatServiceUnit:
         assert service.assistant_id == "test_assistant"
         assert service.user_message_text == "Hello user"
 
-    @patch("unique_toolkit.chat.service.stream_complete_with_references")
+    @patch("unique_toolkit.services.chat_service.stream_complete_with_references")
     def test_stream_complete_to_chat(self, mock_stream_complete):
         """Test stream_complete method delegates correctly to function"""
         mock_stream_complete.return_value = LanguageModelStreamResponse(
@@ -941,7 +941,7 @@ class TestChatServiceUnit:
         )
 
     @pytest.mark.asyncio
-    @patch("unique_toolkit.chat.service.stream_complete_with_references_async")
+    @patch("unique_toolkit.services.chat_service.stream_complete_with_references_async")
     async def test_stream_complete_to_chat_async(self, mock_stream_complete_async):
         """Test stream_complete_async method delegates correctly to function"""
         mock_stream_complete_async.return_value = LanguageModelStreamResponse(

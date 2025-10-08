@@ -1,7 +1,7 @@
 # %%
 from unique_toolkit import (
     ChatService,
-    ContentService,
+    KnowledgeBaseService,
     LanguageModelName,
 )
 from unique_toolkit.app.dev_util import get_event_generator
@@ -15,7 +15,7 @@ settings = UniqueSettings.from_env_auto_with_sdk_init()
 for event in get_event_generator(unique_settings=settings, event_type=ChatEvent):
     # Initialize services from event
     chat_service = ChatService(event)
-    content_service = ContentService.from_event(event)
+    kb_service = KnowledgeBaseService.from_event(event)
     messages = (
         OpenAIMessageBuilder()
         .system_message_append(content="You are a helpful assistant")
