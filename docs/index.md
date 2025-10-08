@@ -4,7 +4,7 @@ Welcome to the Unique Ag Toolkit documentation. This repository contains multipl
 
 ## Available Packages
 
-### [Unique Toolkit](../unique_toolkit/)
+### Unique Toolkit
 The main toolkit for AI development, providing services for chat, content management, embeddings, and language model interactions.
 
 ## Getting Started
