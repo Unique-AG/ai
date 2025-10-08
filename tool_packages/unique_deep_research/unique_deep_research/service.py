@@ -1,6 +1,7 @@
 from typing import Any, Optional
 
-from openai import Stream
+from langchain_core.messages import HumanMessage
+from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
 from openai.types.responses import ResponseFunctionWebSearch, ResponseReasoningItem
 from openai.types.responses.response_function_web_search import (
     ActionOpenPage,
@@ -12,7 +13,6 @@ from openai.types.responses.response_output_text import (
     Annotation,
     AnnotationURLCitation,
 )
-from openai.types.responses.response_stream_event import ResponseStreamEvent
 from pydantic import BaseModel, ConfigDict, Field
 from typing_extensions import override
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
@@ -34,7 +34,7 @@ from unique_toolkit.chat.schemas import (
 from unique_toolkit.chat.service import LanguageModelToolDescription
 from unique_toolkit.content.schemas import ContentReference
 from unique_toolkit.content.service import ContentService
-from unique_toolkit.framework_utilities.openai.client import get_openai_client
+from unique_toolkit.framework_utilities.openai.client import get_async_openai_client
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelMessage,
@@ -48,7 +48,12 @@ from .config import (
     DeepResearchEngine,
     DeepResearchToolConfig,
 )
-from .markdown_utils import postprocess_research_result_with_chunks
+from .markdown_utils import (
+    postprocess_research_result_with_chunks,
+    validate_and_map_citations,
+)
+from .unique_custom.agents import custom_agent
+from .unique_custom.citation import GlobalCitationManager
 from .unique_custom.utils import (
     cleanup_request_counter,
     create_message_log_entry,
@@ -101,8 +106,8 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         self.company_id = event.company_id
         self.user_id = event.user_id
 
-        self.client = get_openai_client()
-        self.logger.info(f"Using OpenAI client pointed to {self.client.base_url}")
+        self.client = get_async_openai_client()
+        self.logger.info(f"Using async OpenAI client pointed to {self.client.base_url}")
 
         self.content_service = ContentService(
             company_id=self.company_id, user_id=self.user_id
@@ -230,8 +235,8 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             self.logger.info("Starting research")
             # Run research
             self.write_message_log_text_message("Generating research plan")
-            research_brief = self.generate_research_brief_from_dict(
-                self.get_history_messages_for_research_brief()
+            research_brief = await self.generate_research_brief_from_dict(
+                self.get_visible_history_messages()
             )
             processed_result, content_chunks = await self.run_research(research_brief)
 
@@ -302,14 +307,16 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             uncited_references=MessageLogUncitedReferences(data=[]),
         )
 
-    def get_history_messages_for_research_brief(self) -> list[dict[str, str]]:
+    def get_visible_history_messages(
+        self, messages_to_take: int = 2
+    ) -> list[ChatCompletionMessageParam]:
         """
         Get the history messages for the research brief.
         """
         history = self.chat_service.get_full_history()
         history_messages = []
         # Take last user and assistant message pair (assuming it's the clarifying question and answer)
-        for msg in history[-4:]:
+        for msg in history[-messages_to_take:]:
             if msg.role == "user" or msg.role == "assistant":
                 history_messages.append(
                     {
@@ -347,11 +354,10 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         Run Custom research using LangGraph multi-agent orchestration.
         Returns a tuple of (processed_result, content_chunks)
         """
-        from langchain_core.messages import HumanMessage
-
-        from .unique_custom.agents import custom_agent
-
         try:
+            # Create citation manager for this research session
+            citation_manager = GlobalCitationManager()
+
             # Initialize LangGraph state with required services
             initial_state = {
                 "messages": [HumanMessage(content=research_brief)],
@@ -371,31 +377,38 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                     "chat_service": self.chat_service,
                     "content_service": self.content_service,
                     "message_id": self.event.payload.assistant_message.id,
-                }
+                    "citation_manager": citation_manager,
+                },
             }
 
             result = await custom_agent.ainvoke(initial_state, config=config)  # type: ignore[arg-type]
 
             cleanup_request_counter(self.event.payload.assistant_message.id)
 
-            # Extract final report and content chunks
+            # Extract final report (citations already refined by agents.py)
             research_result = result.get("final_report", "")
-            # Postprocess research result to extract links, create references and chunks
-            processed_result, annotations, content_chunks = (
-                postprocess_research_result_with_chunks(
-                    research_result, tool_call_id="", message_id=""
-                )
+
+            if not research_result:
+                return "", []
+
+            # Validate and map citations using the citation registry
+            citation_registry = citation_manager.get_all_citations()
+            processed_result, references = validate_and_map_citations(
+                research_result, citation_registry
             )
-            self.write_message_log_text_message("Research done")
+
+            self.write_message_log_text_message("**Research done**")
 
             # Update the assistant message with the results
             await self.chat_service.modify_assistant_message_async(
                 content=processed_result,
-                references=annotations,
+                references=references,
                 set_completed_at=True,
             )
-            self.logger.info("Custom research completed")
-            return processed_result, content_chunks
+            self.logger.info(
+                f"Custom research completed with {len(references)} validated citations"
+            )
+            return processed_result, []
 
         except Exception as e:
             error_msg = f"Custom research failed: {str(e)}"
@@ -407,7 +420,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         Run OpenAI-specific research.
         Returns a tuple of (processed_result, content_chunks)
         """
-        stream = self.client.responses.create(
+        stream = await self.client.responses.create(
             timeout=RESPONSES_API_TIMEOUT_SECONDS,
             model=self.config.engine.research_model.name,
             input=[
@@ -440,7 +453,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         )
 
         # Process the stream
-        research_result, annotations = self._process_research_stream(stream)
+        research_result, annotations = await self._process_research_stream(stream)
 
         if not research_result:
             return "", []
@@ -467,9 +480,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
 
         return processed_result, content_chunks
 
-    def _process_research_stream(
-        self, stream: Stream[ResponseStreamEvent]
-    ) -> tuple[str, list[Annotation]]:
+    async def _process_research_stream(self, stream) -> tuple[str, list[Annotation]]:
         """
         Process the OpenAI Realtime API stream and extract the final report.
 
@@ -480,7 +491,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             Tuple of (report_text, annotations)
         """
 
-        for event in stream:
+        async for event in stream:
             match event.type:
                 case "response.completed":
                     # Extract the final output with annotations
@@ -534,7 +545,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                         ):
                             self.chat_service.create_message_log(
                                 message_id=self.event.payload.assistant_message.id,
-                                text="Searching the web",
+                                text="**Searching the web**",
                                 status=MessageLogStatus.COMPLETED,
                                 order=get_next_message_order(
                                     self.event.payload.assistant_message.id
@@ -554,7 +565,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                         elif isinstance(event.item.action, ActionOpenPage):
                             self.chat_service.create_message_log(
                                 message_id=self.event.payload.assistant_message.id,
-                                text="Reading website",
+                                text="**Reading website**",
                                 status=MessageLogStatus.COMPLETED,
                                 order=get_next_message_order(
                                     self.event.payload.assistant_message.id
@@ -608,7 +619,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         """
         self.write_message_log_text_message("Synthesizing final research report")
 
-        response = self.client.chat.completions.create(
+        response = await self.client.chat.completions.create(
             model=self.config.engine.large_model.name,
             messages=[
                 {
@@ -649,10 +660,10 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         Clarify the user's request.
         """
         # # Get user query
-        relevant_interactions = self.get_history_messages_for_research_brief()
+        relevant_interactions = self.get_visible_history_messages(4)
 
         # Step 1: Generate clarifying questions
-        messages = [
+        messages: list[ChatCompletionMessageParam] = [
             {
                 "role": "system",
                 "content": self.env.get_template("clarifying_agent.j2").render(),
@@ -669,7 +680,9 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         )
         return response.choices[0].message.content
 
-    def generate_research_brief_from_dict(self, messages: list[dict[str, str]]) -> str:
+    async def generate_research_brief_from_dict(
+        self, messages: list[ChatCompletionMessageParam]
+    ) -> str:
         """Generate research brief from dictionary messages."""
         chat_messages: list[Any] = [
             {
@@ -680,17 +693,16 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             }
         ] + messages
 
-        research_response = self.client.chat.completions.create(
+        research_response = await self.client.chat.completions.create(
             model=self.config.engine.large_model.name,
             messages=chat_messages,
-            temperature=0.1,
         )
 
         research_instructions = research_response.choices[0].message.content
         assert research_instructions, "No research instructions generated"
         return research_instructions
 
-    def generate_research_brief(
+    async def generate_research_brief(
         self, messages: list[LanguageModelMessage]
     ) -> str | None:
         """Generate research brief from LanguageModelMessage objects."""
@@ -706,7 +718,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                         "content": message.content,
                     }
                 )
-        return self.generate_research_brief_from_dict(dict_messages)
+        return await self.generate_research_brief_from_dict(dict_messages)
 
     def _convert_annotations_to_references(
         self, annotations: list[Annotation], message_id: str | None = None
