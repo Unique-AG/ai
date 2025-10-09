@@ -2,6 +2,7 @@ import logging
 from typing import Any, Sequence
 
 import unique_sdk
+from openai.types.chat import ChatCompletionToolChoiceOptionParam
 from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
 from openai.types.responses import (
     ResponseIncludable,
@@ -1307,8 +1308,9 @@ class ChatService(ChatServiceDeprecated):
         debug_info: dict = {},
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
-        tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
+        tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
         start_text: str | None = None,
+        tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
         other_options: dict | None = None,
     ) -> LanguageModelStreamResponse:
         return self.complete_with_references(
@@ -1320,6 +1322,7 @@ class ChatService(ChatServiceDeprecated):
             timeout=timeout,
             tools=tools,
             start_text=start_text,
+            tool_choice=tool_choice,
             other_options=other_options,
         )
 
@@ -1331,8 +1334,9 @@ class ChatService(ChatServiceDeprecated):
         debug_info: dict | None = None,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
-        tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
+        tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
         start_text: str | None = None,
+        tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
         other_options: dict | None = None,
     ) -> LanguageModelStreamResponse:
         """Streams a completion in the chat session synchronously."""
@@ -1351,6 +1355,7 @@ class ChatService(ChatServiceDeprecated):
             timeout=timeout,
             tools=tools,
             start_text=start_text,
+            tool_choice=tool_choice,
             other_options=other_options,
         )
 
@@ -1362,8 +1367,9 @@ class ChatService(ChatServiceDeprecated):
         debug_info: dict | None = None,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
-        tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
+        tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
         start_text: str | None = None,
+        tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
         other_options: dict | None = None,
     ) -> LanguageModelResponse:
         response = self.complete_with_references(
@@ -1375,6 +1381,7 @@ class ChatService(ChatServiceDeprecated):
             timeout=timeout,
             tools=tools,
             start_text=start_text,
+            tool_choice=tool_choice,
             other_options=other_options,
         )
 
@@ -1389,8 +1396,9 @@ class ChatService(ChatServiceDeprecated):
         debug_info: dict | None = None,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
-        tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
+        tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
         start_text: str | None = None,
+        tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
         other_options: dict | None = None,
     ) -> LanguageModelStreamResponse:
         """Stream a completion in the chat session asynchronously."""
@@ -1403,6 +1411,7 @@ class ChatService(ChatServiceDeprecated):
             timeout=timeout,
             tools=tools,
             start_text=start_text,
+            tool_choice=tool_choice,
             other_options=other_options,
         )
 
@@ -1414,7 +1423,8 @@ class ChatService(ChatServiceDeprecated):
         debug_info: dict | None = None,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
-        tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
+        tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
+        tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
         start_text: str | None = None,
         other_options: dict | None = None,
     ) -> LanguageModelStreamResponse:
@@ -1433,6 +1443,7 @@ class ChatService(ChatServiceDeprecated):
             timeout=timeout,
             tools=tools,
             start_text=start_text,
+            tool_choice=tool_choice,
             other_options=other_options,
         )
 
@@ -1444,8 +1455,9 @@ class ChatService(ChatServiceDeprecated):
         debug_info: dict | None = None,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
-        tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
+        tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
         start_text: str | None = None,
+        tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
         other_options: dict | None = None,
     ) -> LanguageModelResponse:
         response = self.complete_with_references_async(
@@ -1457,6 +1469,7 @@ class ChatService(ChatServiceDeprecated):
             timeout=timeout,
             tools=tools,
             start_text=start_text,
+            tool_choice=tool_choice,
             other_options=other_options,
         )
 
