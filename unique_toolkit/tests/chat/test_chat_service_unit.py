@@ -7,7 +7,6 @@ import unique_sdk
 import unique_sdk.utils
 
 from tests.test_obj_factory import get_event_obj
-from unique_toolkit._common.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit.app.schemas import (
     Event,
     EventAssistantMessage,
@@ -25,6 +24,7 @@ from unique_toolkit.chat.schemas import (
 )
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.schemas import ContentChunk, ContentReference
+from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit.language_model.infos import LanguageModelName
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessage,
