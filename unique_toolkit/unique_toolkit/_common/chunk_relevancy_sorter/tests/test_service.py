@@ -13,9 +13,6 @@ from unique_toolkit._common.chunk_relevancy_sorter.schemas import (
     ChunkRelevancySorterResult,
 )
 from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
-from unique_toolkit._common.default_language_model import (
-    DEFAULT_GPT_4o,
-)
 from unique_toolkit.agentic.evaluation.context_relevancy.schema import (
     StructuredOutputConfig,
 )
@@ -25,6 +22,7 @@ from unique_toolkit.agentic.evaluation.schemas import (
 )
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.content.schemas import ContentChunk
+from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
 

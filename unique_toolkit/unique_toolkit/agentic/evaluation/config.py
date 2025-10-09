@@ -3,8 +3,8 @@ from typing import Any
 from humps import camelize
 from pydantic import BaseModel, ConfigDict, Field
 
-from unique_toolkit._common.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit._common.validators import LMI
+from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
 from .schemas import (

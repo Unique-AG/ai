@@ -4,7 +4,6 @@ from typing import overload
 from pydantic import BaseModel, ValidationError
 from typing_extensions import deprecated
 
-from unique_toolkit._common.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit._common.validate_required_values import (
     validate_required_values,
 )
@@ -24,6 +23,7 @@ from unique_toolkit.agentic.evaluation.schemas import (
     EvaluationMetricResult,
 )
 from unique_toolkit.app.schemas import BaseEvent, ChatEvent
+from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit.language_model.infos import (
     LanguageModelInfo,
     ModelCapabilities,

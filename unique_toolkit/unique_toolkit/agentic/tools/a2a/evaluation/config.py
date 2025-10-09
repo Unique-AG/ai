@@ -2,12 +2,12 @@ from pathlib import Path
 
 from pydantic import AliasChoices, BaseModel, Field
 
-from unique_toolkit._common.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 from unique_toolkit._common.validators import LMI, get_LMI_default_field
 from unique_toolkit.chat.schemas import (
     ChatMessageAssessmentType,
 )
+from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 
 DEFAULT_EVALUATION_SYSTEM_MESSAGE_TEMPLATE = """
 You are a through and precise summarization model.
