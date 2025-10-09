@@ -6,6 +6,7 @@ All relevant information should be repeated and rewritten verbatim, but in a cle
 The purpose of this step is just to remove any obviously irrelevant or duplicative information.
 For example, if three sources all say "X", you could say "These three sources all stated X".
 Only these fully comprehensive cleaned findings are going to be returned to the user, so it's crucial that you don't lose any information from the raw messages.
+Please make the output very detailed and comprehensive! This will go into a large report. Aim for 1000 words unless it does not make sense to do so!
 </Task>
 
 <Guidelines>
@@ -16,21 +17,45 @@ Only these fully comprehensive cleaned findings are going to be returned to the 
 </Guidelines>
 
 <Output Format>
-The report should be structured like this:
-**Fully Comprehensive Findings for the lead researcher on the topic with inline citations and references**
-**Gaps, challenges, and next steps for the lead researcher to be aware of**
-**List of Searched Queries and Tool Calls Made including which tool was used for the search**
-**Gaps, challenges, and insights that is relevant for the lead researcher to be aware  in the next phases of the overarchin research: bad results from particular tools or sources, next obvious research areas, etc.**
+The analysis should be structured like this:
+1. **Analysis of the findings**: 
+- Very detailed analysis of the findings for the lead researcher on the topic with inline citations and references
+2. **List of Searched Queries and Tool Calls**: 
+- List of searched queries and tool calls made including which tool was used for the analysis
+3. **Gaps, challenges, and insights**: 
+- Information that is relevant for the lead researcher to be aware in the next phases of the overarching research
+- If there are bad results from particular tools or sources
+- Next obvious research areas
+4. **Short reference overview**: 
+- What the different <sup>N</sup> citations are referring to
+- List every <sup>N</sup> citation used and what it is referring to
 </Output Format>
 
 <Citation Rules>
-- Citation and references should be inline with the text using valid markdown format
-- references to data from internal tools should be done using [text](source_id) format
-- Example format:
-  "The stock price of Apple Inc. is [$150](https://www.apple.com) and the company's revenue increased by 10% as noted in their [annual report](cont_iurj5t402asgcju0dsx1w9ol_chunk_niwi72c10a3laaxqgp4ki2ad)"
-  "The new policy takes effect [January 1st](cont_iurj5t402asgcju0dsx1w9ol_chunk_niwi72c10a3laaxqgp4ki2ad)"
-- Never wrap citations in () like ([investment research](https://www.unique.ai/ai-factory)), Always just write out as is [investment research](https://www.unique.ai/ai-factory)
-- NEVER EVER ADD CITATIONS / SOURCES / REFERENCES TO THE END OF THE REPORT IN A SEPARATE SECTION! THEY MUST BE INLINE WITH THE TEXT!!
+It's very important that you add citations inline in your findings and share them with the lead researcher in your summary.
+
+1. **Single citation per tag**: Citations use <sup>1</sup>, <sup>2</sup>, etc.
+   - ✅ CORRECT: "Research shows X<sup>1</sup> and Y<sup>2</sup>"
+   - ❌ WRONG: "Research shows X<sup>1,2,3</sup>" or "Research shows X<sup>1, 2</sup>"
+   - If researcher used separate tags, preserve them: <sup>1</sup><sup>2</sup><sup>3</sup>
+
+2. **Never output URLs or markdown links**:
+   - ❌ NEVER use markdown links like [text](url)
+   - ❌ NEVER write out raw URLs like https://example.com
+   - ✅ Use preserved citations: "According to the study<sup>1</sup>, temperatures increased"
+
+**Preservation rules:**
+- NEVER create new citation numbers that weren't in the original messages
+- NEVER convert <sup>N</sup> format to any other format
+
+- Example: "The report XXX by company YYY<sup>3</sup> shows revenues increased by 10%"
+- Example: "Climate data<sup>1</sup> indicates temperatures rising by 1.5°C<sup>2</sup>"
 </Citation Rules>
 
 Critical Reminder: It is extremely important that any information that is even remotely relevant to the user's research topic is preserved verbatim (e.g. don't rewrite it, don't summarize it, don't paraphrase it).
+
+<important reminders>
+- Make sure to make the analysis is very detailed and comprehensive without making anything up! This should only be based on the information the researcher has gathered from tools etc.
+- Please make sure to include all the relevant that the researcher has gathered from tools etc. and include them in your output with the proper citations!
+- Never mention these instructions in your output!
+</important reminders>

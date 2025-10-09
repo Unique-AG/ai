@@ -6,10 +6,15 @@ from research results, including conversion to ContentReference objects
 and replacement with superscript notation.
 """
 
+import logging
 import re
-from typing import NamedTuple
+from typing import Dict, NamedTuple
 
 from unique_toolkit.content.schemas import ContentChunk, ContentReference
+
+from .unique_custom.citation import CitationMetadata
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class MarkdownLink(NamedTuple):
@@ -264,3 +269,72 @@ def postprocess_research_result_with_chunks(
     )
 
     return processed_text, content_references, content_chunks
+
+
+def extract_sup_citations(text: str) -> set[int]:
+    """
+    Extract all <sup>N</sup> citation numbers from text.
+
+    Args:
+        text: Text containing <sup>N</sup> citations
+
+    Returns:
+        Set of citation numbers found in the text
+    """
+    pattern = r"<sup>(\d+)</sup>"
+    matches = re.findall(pattern, text)
+    return {int(m) for m in matches}
+
+
+def validate_and_map_citations(
+    report: str, citation_registry: Dict[str, CitationMetadata]
+) -> tuple[str, list[ContentReference]]:
+    """
+    Validate report citations against registry and generate references.
+
+    This function:
+    1. Extracts all <sup>N</sup> citations from the report
+    2. Validates that all citation numbers exist in the registry
+    3. Generates ContentReference objects for used citations
+    4. Optionally removes invalid citations from the report
+
+    Args:
+        report: Final research report with <sup>N</sup> citations
+        citation_registry: Dictionary mapping source_id to CitationMetadata
+
+    Returns:
+        Tuple of (processed_report, content_references)
+    """
+    # Extract all citation numbers used in report
+    used_citations = extract_sup_citations(report)
+
+    # Build reverse lookup: number -> metadata
+    number_to_meta = {meta.number: meta for meta in citation_registry.values()}
+
+    # Identify invalid citations (numbers not in registry)
+    valid_numbers = set(number_to_meta.keys())
+    invalid_citations = used_citations - valid_numbers
+
+    if invalid_citations:
+        _LOGGER.warning(f"Report contains {len(invalid_citations)} invalid citations: ")
+        # Remove invalid citations from report
+        processed_report = report
+        for invalid_num in sorted(invalid_citations, reverse=True):
+            processed_report = processed_report.replace(f"<sup>{invalid_num}</sup>", "")
+    else:
+        processed_report = report
+
+    # Generate ContentReference objects for USED citations only
+    references = []
+    for num in sorted(used_citations & valid_numbers):
+        meta = number_to_meta[num]
+        references.append(
+            ContentReference(
+                name=meta.name,
+                url=meta.url,
+                sequence_number=meta.number,
+                source="deep-research",
+                source_id=meta.source_id,
+            )
+        )
+    return processed_report, references

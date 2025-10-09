@@ -27,9 +27,10 @@ from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
 from ..config import BaseEngine
+from .citation import GlobalCitationManager
 from .state import AgentState, ResearcherState, SupervisorState
 
-logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 
 # Per-request counters for message log ordering - keyed by message_id
@@ -201,6 +202,38 @@ def get_engine_config(config: RunnableConfig) -> BaseEngine:
     return custom_config
 
 
+def get_citation_manager(config: RunnableConfig) -> GlobalCitationManager:
+    """
+    Extract GlobalCitationManager from RunnableConfig.
+
+    The citation manager is provided by the service layer and shared
+    across all subgraphs to enable centralized citation tracking.
+
+    Args:
+        config: LangChain RunnableConfig containing citation manager
+
+    Returns:
+        GlobalCitationManager instance (guaranteed to exist)
+
+    Raises:
+        KeyError: If citation_manager is missing (indicates system error)
+        TypeError: If citation_manager is wrong type (indicates system error)
+    """
+    if not config or "configurable" not in config:
+        raise KeyError("RunnableConfig missing 'configurable' section")
+
+    citation_manager = config["configurable"].get("citation_manager")
+    if not citation_manager:
+        raise KeyError("citation_manager missing from RunnableConfig")
+
+    if not isinstance(citation_manager, GlobalCitationManager):
+        raise TypeError(
+            f"citation_manager is {type(citation_manager)}, expected GlobalCitationManager"
+        )
+
+    return citation_manager
+
+
 def create_message_log_entry(
     chat_service: ChatService,
     message_id: str,
@@ -317,10 +350,10 @@ async def execute_tool_safely(
 
         # Handle token limit errors specifically
         if is_token_error(e):
-            logger.warning(f"Token limit exceeded in tool {tool_name}: {str(e)}")
+            _LOGGER.warning(f"Token limit exceeded in tool {tool_name}: {str(e)}")
             return f"Tool {tool_name} failed due to token limit: {str(e)}"
         else:
-            logger.error(f"Error executing tool {tool_name}: {str(e)}")
+            _LOGGER.error(f"Error executing tool {tool_name}: {str(e)}")
             return f"Error executing tool {tool_name}: {str(e)}"
 
 
@@ -369,7 +402,7 @@ def count_tokens(text: str, model_info: LanguageModelInfo) -> int:
         encoder = tiktoken.get_encoding(model_info.encoder_name)
         return len(encoder.encode(str(text)))
     except Exception as e:
-        logger.warning(f"Error counting tokens: {e}")
+        _LOGGER.warning(f"Error counting tokens: {e}")
         return len(str(text)) // 4  # Rough fallback
 
 
@@ -423,7 +456,7 @@ def prepare_messages_for_model(
         result.insert(0, system_msg)
 
     if len(result) < len(messages):
-        logger.debug(
+        _LOGGER.debug(
             f"Trimmed {len(messages) - len(result)} messages to fit token limit"
         )
 
@@ -462,18 +495,18 @@ async def ainvoke_with_token_handling(
         except Exception as e:
             # Don't retry on token errors - these are handled by token filtering
             if is_token_error(e):
-                logger.warning(f"Token limit error in model invocation: {str(e)}")
+                _LOGGER.warning(f"Token limit error in model invocation: {str(e)}")
                 raise
 
             # For other errors, retry with exponential backoff
             if attempt < max_retries:
                 delay = base_delay * (2**attempt)  # Exponential backoff: 4s, 8s, 16s
-                logger.warning(
+                _LOGGER.warning(
                     f"Model invocation failed (attempt {attempt + 1}/{max_retries + 1}): {str(e)}. Retrying in {delay}s..."
                 )
                 await asyncio.sleep(delay)
             else:
-                logger.error(
+                _LOGGER.error(
                     f"Model invocation failed after {max_retries + 1} attempts: {str(e)}"
                 )
                 raise e
