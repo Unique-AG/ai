@@ -220,8 +220,9 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         # Question answer and message execution will have the same message id, so we need to check if it is a message execution
         if await self.is_followup_question_answer() and not self.is_message_execution():
             self.logger.info("This is a follow-up question answer")
-            # TODO: Should we also write a message to the user?
-            self.write_message_log_text_message("Waiting for deep research to start")
+            self.write_message_log_text_message(
+                "**Waiting for deep research to start**"
+            )
             self.chat_service.create_message_execution(
                 message_id=self.event.payload.assistant_message.id,
                 type=MessageExecutionType.DEEP_RESEARCH,
@@ -234,7 +235,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         if self.is_message_execution():
             self.logger.info("Starting research")
             # Run research
-            self.write_message_log_text_message("Generating research plan")
+            self.write_message_log_text_message("**Generating research plan**")
             research_brief = await self.generate_research_brief_from_dict(
                 self.get_visible_history_messages()
             )
@@ -247,7 +248,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                     content="Deep Research failed to complete for an unknown reason",
                 )
                 self.write_message_log_text_message(
-                    "Research failed for an unknown reason"
+                    "**Research failed for an unknown reason**"
                 )
                 return DeepResearchToolResponse(
                     id=tool_call.id or "",
@@ -469,7 +470,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         link_references = self._convert_annotations_to_references(
             annotations or [], message_id=""
         )
-        self.write_message_log_text_message("Research done")
+        self.write_message_log_text_message("**Research done**")
 
         # Update the assistant message with the results
         await self.chat_service.modify_assistant_message_async(
