@@ -212,10 +212,10 @@ async def web_fetch(
     that were found through search or are known to contain relevant content.
     """
 
-    content, title = await crawl_url(AsyncClient(), url)
+    content, title, success = await crawl_url(AsyncClient(), url)
 
     # Crawl the URL
-    if not content:
+    if not success:
         _LOGGER.info(f"Unable to fetch content from: {url}")
         return f"Unable to fetch content from URL: {url}"
 
@@ -490,7 +490,16 @@ unwanted_types = {
 }
 
 
-async def crawl_url(client: AsyncClient, url: str) -> tuple[str, str | None]:
+async def crawl_url(client: AsyncClient, url: str) -> tuple[str, str | None, bool]:
+    """Crawl a URL and return the content and title.
+
+    Args:
+        client (AsyncClient): The HTTP client to use to crawl the URL
+        url (str): The URL to crawl
+
+    Returns:
+        tuple[str, str | None, bool]: The content and title of the URL and if the URL was crawled successfully
+    """
     headers = {"User-Agent": UserAgent().random}
 
     try:
@@ -498,21 +507,22 @@ async def crawl_url(client: AsyncClient, url: str) -> tuple[str, str | None]:
         response.raise_for_status()
     except Exception:
         _LOGGER.warning(f"Site returned error {response.status_code}")
-        return "Unable to crawl URL", None
+        return "Unable to crawl URL in web_fetch", None, False
 
     content_type = response.headers.get("content-type", "").lower().split(";")[0]
 
     if content_type in unwanted_types:
-        return f"Content type {content_type} is not allowed", None
+        _LOGGER.info(f"Content type {content_type} is not allowed in web_fetch")
+        return f"Content type {content_type} is not allowed", None, False
 
     content = response.text
 
-    markdown = _markdownify_html_with_timeout(content, 10)
+    markdown, success = _markdownify_html_with_timeout(content, 10)
 
-    return markdown, get_title(content)
+    return markdown, get_title(content), success
 
 
-def _markdownify_html_with_timeout(content: str, timeout: float) -> str:
+def _markdownify_html_with_timeout(content: str, timeout: float) -> tuple[str, bool]:
     @timeout_decorator.timeout(timeout)
     def _markdownify_html(content: str) -> str:
         markdown = markdownify(
@@ -522,15 +532,63 @@ def _markdownify_html_with_timeout(content: str, timeout: float) -> str:
         return markdown
 
     try:
-        return _markdownify_html(content)
+        return _markdownify_html(content), True
     except Exception:
-        return "Unable to markdownify HTML"
+        _LOGGER.info("Unable to markdownify HTML")
+        return "Unable to markdownify HTML", False
 
 
 def get_title(text: str) -> str | None:
+    """
+    Extract website title using BeautifulSoup.
+
+    Tries multiple strategies in order:
+    1. og:title (OpenGraph title - most reliable)
+    2. twitter:title (Twitter card title)
+    3. HTML <title> tag (standard)
+    4. meta[name=title] (alternative meta tag)
+    5. og:site_name (site name as last resort)
+    """
     soup = BeautifulSoup(text, "html.parser")
-    title_tag = soup.title
-    return title_tag.string.strip() if title_tag and title_tag.string else None
+
+    # Strategy 1: OpenGraph title (og:title)
+    og_title = soup.find("meta", property="og:title")
+    if og_title and og_title.get("content"):
+        content = og_title.get("content")
+        if isinstance(content, str) and content.strip():
+            return content.strip()
+
+    # Strategy 2: Twitter title (twitter:title)
+    twitter_title = soup.find("meta", attrs={"name": "twitter:title"})
+    if twitter_title and twitter_title.get("content"):
+        content = twitter_title.get("content")
+        if isinstance(content, str) and content.strip():
+            return content.strip()
+
+    # Strategy 3: HTML title tag (get all text, not just .string)
+    title_tag = soup.find("title")
+    if title_tag:
+        # Use get_text() instead of .string to handle nested elements
+        title_text = title_tag.get_text(strip=True)
+        if title_text:
+            return title_text
+
+    # Strategy 4: Check for property="title" meta tag
+    meta_title = soup.find("meta", attrs={"name": "title"})
+    if meta_title and meta_title.get("content"):
+        content = meta_title.get("content")
+        if isinstance(content, str) and content.strip():
+            return content.strip()
+
+    # Strategy 5: OpenGraph site name as last resort (better than nothing)
+    og_site_name = soup.find("meta", property="og:site_name")
+    if og_site_name and og_site_name.get("content"):
+        content = og_site_name.get("content")
+        if isinstance(content, str) and content.strip():
+            return content.strip()
+
+    _LOGGER.info("No title found using any strategy")
+    return None
 
 
 def format_tools_for_prompt(tools: list[Tool]) -> str:
