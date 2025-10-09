@@ -6,7 +6,7 @@ import unique_sdk
 from pydantic import BaseModel
 
 from tests.test_obj_factory import get_event_obj
-from unique_toolkit._common.default_language_model import DEFAULT_GPT_4o
+from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit.language_model.functions import (
     _add_response_format_to_options,
     _prepare_completion_params_util,
