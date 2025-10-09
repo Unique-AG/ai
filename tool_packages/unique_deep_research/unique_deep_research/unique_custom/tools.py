@@ -31,7 +31,7 @@ from .utils import (
     write_tool_message_log,
 )
 
-logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 
 def get_today_str() -> str:
@@ -163,7 +163,7 @@ async def web_search(query: str, config: RunnableConfig, limit: int = 10) -> str
     google_settings = get_google_search_settings()
 
     if not google_settings.is_configured:
-        logger.error("Google Search not configured")
+        _LOGGER.error("Google Search not configured")
         raise ValueError("Google Search not configured")
 
     # Create Google search configuration and service
@@ -174,7 +174,7 @@ async def web_search(query: str, config: RunnableConfig, limit: int = 10) -> str
     search_results = await google_search.search(query)
 
     if not search_results:
-        logger.warning("No search results found for query")
+        _LOGGER.warning("No search results found for query")
         return f"No search results found for query: '{query}'"
 
     # Register all search result sources and format with citation info
@@ -216,7 +216,7 @@ async def web_fetch(
 
     # Crawl the URL
     if not content:
-        logger.info(f"Unable to fetch content from: {url}")
+        _LOGGER.info(f"Unable to fetch content from: {url}")
         return f"Unable to fetch content from URL: {url}"
 
     # Register citation and get metadata
@@ -303,9 +303,9 @@ async def internal_search(query: str, config: RunnableConfig, limit: int = 50) -
         limit=limit,
         score_threshold=0,
     )
-    logger.info(f"Found {len(search_results)} internal results")
+    _LOGGER.info(f"Found {len(search_results)} internal results")
     if not search_results:
-        logger.info("No internal results found")
+        _LOGGER.info("No internal results found")
         return f"No internal search results found for query: '{query}'"
 
     # Register all search result sources
@@ -342,7 +342,7 @@ async def internal_fetch(
 
     This tool supports the internal search tool to get the full content of a specific internal document or knowledge base entry discovered by the internal search tool
     """
-    logger.info("**Reading internal document**")
+    _LOGGER.info("**Reading internal document**")
     content_service = get_content_service_from_config(config)
 
     temp_metadata_filter = content_service._metadata_filter
@@ -357,7 +357,7 @@ async def internal_fetch(
     content_service._metadata_filter = temp_metadata_filter
 
     if not search_results:
-        logger.info("No internal results found")
+        _LOGGER.info("No internal results found")
         return f"No internal fetch results found for content ID: '{content_id}'"
 
     # Register citation and get metadata
@@ -497,7 +497,7 @@ async def crawl_url(client: AsyncClient, url: str) -> tuple[str, str | None]:
         response = await client.get(url, headers=headers)
         response.raise_for_status()
     except Exception:
-        logger.warning(f"Site returned error {response.status_code}")
+        _LOGGER.warning(f"Site returned error {response.status_code}")
         return "Unable to crawl URL", None
 
     content_type = response.headers.get("content-type", "").lower().split(";")[0]
