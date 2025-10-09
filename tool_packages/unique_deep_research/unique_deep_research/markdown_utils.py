@@ -316,10 +316,7 @@ def validate_and_map_citations(
     invalid_citations = used_citations - valid_numbers
 
     if invalid_citations:
-        _LOGGER.warning(
-            f"Report contains {len(invalid_citations)} invalid citations: "
-            f"{sorted(invalid_citations)}"
-        )
+        _LOGGER.warning(f"Report contains {len(invalid_citations)} invalid citations: ")
         # Remove invalid citations from report
         processed_report = report
         for invalid_num in sorted(invalid_citations, reverse=True):
@@ -340,5 +337,4 @@ def validate_and_map_citations(
                 source_id=meta.source_id,
             )
         )
-    _LOGGER.info(f"invalid citations: {list(invalid_citations)}")
     return processed_report, references
