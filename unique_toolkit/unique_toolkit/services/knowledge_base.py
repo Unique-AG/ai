@@ -745,19 +745,8 @@ class KnowledgeBaseService:
         *,
         content_id: str | None = None,
         file_path: str | None = None,
-        metadata_filter: dict[str, Any] | None = None,
     ) -> DeleteContentResponse:
         """Delete content by id, file path or metadata filter"""
-        if metadata_filter:
-            infos = self.get_paginated_content_infos(
-                metadata_filter=metadata_filter,
-            )
-            for info in infos.content_infos:
-                delete_content(
-                    user_id=self._user_id,
-                    company_id=self._company_id,
-                    content_id=info.id,
-                )
 
         return delete_content(
             user_id=self._user_id,
