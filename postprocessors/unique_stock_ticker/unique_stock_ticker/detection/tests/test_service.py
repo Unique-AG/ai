@@ -1,9 +1,9 @@
 from unittest.mock import AsyncMock, MagicMock, create_autospec
 
 import pytest
-from unique_toolkit._common.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit.chat import ChatService
 from unique_toolkit.language_model import LanguageModelService
+from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit.language_model.infos import (
     LanguageModelInfo,
 )

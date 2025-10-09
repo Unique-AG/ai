@@ -9,9 +9,9 @@ from pydantic import (
     model_validator,
 )
 from typing_extensions import deprecated
-from unique_toolkit._common.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit._common.validators import LMI
 from unique_toolkit.agentic.tools.config import get_configuration_dict
+from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
 from unique_stock_ticker.detection.config import StockTickerDetectionConfig
