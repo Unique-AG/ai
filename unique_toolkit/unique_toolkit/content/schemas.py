@@ -189,4 +189,5 @@ class FolderInfo(BaseModel):
 
 class DeleteContentResponse(BaseModel):
     model_config = model_config
-    id: str
+    content_id: str
+    object: str
