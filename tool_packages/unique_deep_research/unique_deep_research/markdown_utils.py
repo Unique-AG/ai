@@ -14,7 +14,7 @@ from unique_toolkit.content.schemas import ContentChunk, ContentReference
 
 from .unique_custom.citation import CitationMetadata
 
-logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 
 class MarkdownLink(NamedTuple):
@@ -303,7 +303,7 @@ def validate_and_map_citations(
         citation_registry: Dictionary mapping source_id to CitationMetadata
 
     Returns:
-        Tuple of (processed_report, content_references, invalid_citation_numbers)
+        Tuple of (processed_report, content_references)
     """
     # Extract all citation numbers used in report
     used_citations = extract_sup_citations(report)
@@ -316,7 +316,7 @@ def validate_and_map_citations(
     invalid_citations = used_citations - valid_numbers
 
     if invalid_citations:
-        logger.warning(
+        _LOGGER.warning(
             f"Report contains {len(invalid_citations)} invalid citations: "
             f"{sorted(invalid_citations)}"
         )
@@ -340,5 +340,5 @@ def validate_and_map_citations(
                 source_id=meta.source_id,
             )
         )
-    logger.info(f"invalid citations: {list(invalid_citations)}")
+    _LOGGER.info(f"invalid citations: {list(invalid_citations)}")
     return processed_report, references

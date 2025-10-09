@@ -51,7 +51,7 @@ from .utils import (
     write_state_message_log,
 )
 
-logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 
 # Pre-configured model for all agents with OpenAI settings
@@ -74,7 +74,7 @@ async def setup_research_supervisor(
     The research brief was already generated in the main service flow,
     so we just need to initialize the supervisor state.
     """
-    logger.info("Initializing research supervisor...")
+    _LOGGER.info("Initializing research supervisor...")
 
     # Get the pre-generated research brief from state
     research_brief = state.get("research_brief")
@@ -123,7 +123,7 @@ async def research_supervisor(
     """
     Lead research supervisor that plans research strategy and delegates to researchers.
     """
-    logger.info("Research supervisor determining next steps")
+    _LOGGER.info("Research supervisor determining next steps")
 
     # Configure the supervisor model with tools
     custom_config = get_engine_config(config)
@@ -145,7 +145,7 @@ async def research_supervisor(
     should_force_complete = research_iterations >= max_iterations
 
     if should_force_complete:
-        logger.info(
+        _LOGGER.info(
             f"Forcing research_complete at iteration {research_iterations}/{max_iterations}"
         )
         model_with_tools = configurable_model.bind_tools(
@@ -179,7 +179,7 @@ async def supervisor_tools(
     """
     Execute tools called by the supervisor.
     """
-    logger.info("Supervisor tool processing")
+    _LOGGER.info("Supervisor tool processing")
     supervisor_messages = state.get("supervisor_messages", [])
     research_iterations = state.get("research_iterations", 0)
     most_recent_message = supervisor_messages[-1] if supervisor_messages else None
@@ -194,7 +194,7 @@ async def supervisor_tools(
         tool_calls = most_recent_message.tool_calls or []
 
     if not tool_calls:
-        logger.info("Supervisor has no tool calls - will go back to supervisor")
+        _LOGGER.info("Supervisor has no tool calls - will go back to supervisor")
         return Command(
             goto="research_supervisor",
         )
@@ -216,7 +216,7 @@ async def supervisor_tools(
         all_tool_messages.extend(research_tool_messages)
 
     except Exception as e:
-        logger.error(f"Research execution failed: {e}")
+        _LOGGER.error(f"Research execution failed: {e}")
         return Command(
             goto="__end__",
             update={
@@ -230,7 +230,7 @@ async def supervisor_tools(
     )
 
     if exceeded_iterations or research_complete_tool_called(tool_calls):
-        logger.info(
+        _LOGGER.info(
             "Supervisor has reached the maximum number of iterations or has a research complete tool call. Ending supervisor"
         )
         # Extract notes including the new tool messages we just created
@@ -259,7 +259,7 @@ async def researcher(
     """
     Individual researcher that conducts focused research on specific topics.
     """
-    logger.info("Research agent determining next steps")
+    _LOGGER.info("Research agent determining next steps")
     research_tools = get_research_tools(config)
 
     # Configure the researcher model
@@ -313,7 +313,7 @@ async def _handle_tool_call(tool_call: ToolCall, config: RunnableConfig) -> Tool
     if tool_name in tool_map:
         result = await execute_tool_safely(tool_map[tool_name], args, config)
     else:
-        logger.error(f"Unknown tool: {tool_name}")
+        _LOGGER.error(f"Unknown tool: {tool_name}")
         result = f"Unknown tool: {tool_name}"
     return ToolMessage(
         content=result,
@@ -337,7 +337,7 @@ async def researcher_tools(
     """
     Execute tools called by the researcher.
     """
-    logger.info("Research agent executing tools")
+    _LOGGER.info("Research agent executing tools")
     researcher_messages = state.get("researcher_messages", [])
     most_recent_message = researcher_messages[-1] if researcher_messages else None
     exceeded_iterations = (
@@ -347,14 +347,14 @@ async def researcher_tools(
 
     # Check if any tool calls were made
     if not most_recent_message or not isinstance(most_recent_message, AIMessage):
-        logger.info(
+        _LOGGER.info(
             f"Research agent has no tool calls. Ending researcher after {len(researcher_messages)} messages"
         )
         return Command(goto="compress_research")
 
     tool_calls = most_recent_message.tool_calls or []
     if not tool_calls:
-        logger.info(
+        _LOGGER.info(
             f"Research agent has no tool calls. Ending researcher after {len(researcher_messages)} messages"
         )
         return Command(goto="compress_research")
@@ -364,7 +364,7 @@ async def researcher_tools(
 
     # Check if we should continue or finish
     if exceeded_iterations or research_complete_tool_called(tool_calls):
-        logger.info(
+        _LOGGER.info(
             f"Research agent has reached the maximum number of tool calls or has a research complete tool call. Ending researcher after {len(researcher_messages)} messages"
         )
         return Command(
@@ -510,7 +510,7 @@ async def _handle_conduct_research_batch(
     if not conduct_research_calls:
         return []
 
-    logger.info(f"Delegating {len(conduct_research_calls)} research tasks...")
+    _LOGGER.info(f"Delegating {len(conduct_research_calls)} research tasks...")
 
     # Limit concurrent research tasks to prevent resource exhaustion
     max_concurrent = UniqueCustomEngineConfig.max_parallel_researchers
@@ -541,7 +541,7 @@ async def _handle_conduct_research_batch(
     tool_messages = []
     for observation, tool_call in zip(tool_results, allowed_calls):
         if isinstance(observation, Exception):
-            logger.error(f"Research task failed: {str(observation)}")
+            _LOGGER.error(f"Research task failed: {str(observation)}")
             error_content = f"Research task failed: {str(observation)}"
             tool_messages.append(
                 ToolMessage(

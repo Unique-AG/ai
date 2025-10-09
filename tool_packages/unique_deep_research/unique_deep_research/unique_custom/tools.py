@@ -234,7 +234,7 @@ async def web_fetch(
                     name=title or url,
                     url=url,
                     sequence_number=0,
-                    source="deep-research-citations",
+                    source="web",
                     source_id=url,
                 )
             ]

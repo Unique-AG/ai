@@ -7,12 +7,9 @@ LLM hallucination of sources.
 """
 
 import asyncio
-import logging
 from typing import Dict, Optional
 
 from pydantic import BaseModel
-
-logger = logging.getLogger(__name__)
 
 
 class CitationMetadata(BaseModel):
