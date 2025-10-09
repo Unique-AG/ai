@@ -1,9 +1,7 @@
 import pytest
 from pydantic import ValidationError
 from schema import FollowUpCategory, FollowUpQuestion
-from unique_toolkit._common.default_language_model import (
-    DEFAULT_GPT_4o,
-)
+from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
 from unique_follow_up_questions.config import FollowUpQuestionsConfig

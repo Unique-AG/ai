@@ -1,13 +1,6 @@
 import logging
 import re
 
-from config import FollowUpQuestionsConfig
-from prompts.params import (
-    FollowUpQuestionResponseParams,
-    FollowUpQuestionSystemPromptParams,
-    FollowUpQuestionUserPromptParams,
-)
-from schema import FollowUpQuestionsOutput
 from unique_toolkit.language_model import (
     LanguageModelMessage,
     convert_string_to_json,
@@ -15,6 +8,14 @@ from unique_toolkit.language_model import (
 from unique_toolkit.language_model.builder import MessagesBuilder
 from unique_toolkit.language_model.schemas import LanguageModelMessages
 from unique_toolkit.language_model.service import LanguageModelService
+
+from unique_follow_up_questions.config import FollowUpQuestionsConfig
+from unique_follow_up_questions.prompts.params import (
+    FollowUpQuestionResponseParams,
+    FollowUpQuestionSystemPromptParams,
+    FollowUpQuestionUserPromptParams,
+)
+from unique_follow_up_questions.schema import FollowUpQuestionsOutput
 
 logger = logging.getLogger(__name__)
 

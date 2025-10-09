@@ -1,11 +1,11 @@
 from logging import getLogger
 
-from pydantic import BaseModel, Field, field_validator
-from unique_toolkit._common.default_language_model import (
-    DEFAULT_GPT_4o,
-)
+from pydantic import AliasChoices, BaseModel, Field, field_validator
 from unique_toolkit._common.validators import LMI
 from unique_toolkit.agentic.tools.config import get_configuration_dict
+from unique_toolkit.language_model.default_language_model import (
+    DEFAULT_GPT_4o,
+)
 from unique_toolkit.language_model.infos import LanguageModelInfo, ModelCapabilities
 
 from unique_follow_up_questions.prompts.params import (
@@ -46,6 +46,11 @@ class FollowUpQuestionsConfig(BaseModel):
         ge=0,
         default=3,
         description="The number of questions to be used for the follow-up question.",
+        validation_alias=AliasChoices(
+            "number_of_follow_up_questions",
+            "numberOfFollowUpQuestions",
+            "numberOfQuestions",
+        ),
     )
     adapt_to_language: bool = Field(
         default=True,

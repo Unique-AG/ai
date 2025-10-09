@@ -5,11 +5,11 @@ from config import FollowUpQuestionsConfig
 from schema import FollowUpCategory, FollowUpQuestion, FollowUpQuestionsOutput
 from service import FollowUpQuestionService
 from unique_toolkit import LanguageModelService
-from unique_toolkit._common.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit.language_model import (
     LanguageModelMessage,
     LanguageModelMessageRole,
 )
+from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
 
