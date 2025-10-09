@@ -12,8 +12,11 @@ from openai.types.responses import (
     response_create_params,
 )
 from openai.types.shared_params import Metadata, Reasoning
-from pydantic import BaseModel
+from pydantic import BaseModel, TypeAdapter, ValidationError
 
+from unique_toolkit.agentic.tools.utils.execution.execution import (
+    failsafe,
+)
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.language_model.constants import (
     DEFAULT_COMPLETE_TEMPERATURE,
@@ -98,6 +101,7 @@ class _ResponsesParams(NamedTuple):
     messages: str | ResponseInputParam
     tools: list[ToolParam] | None
     reasoning: Reasoning | None
+    text: ResponseTextConfigParam | None
 
 
 def _prepare_responses_params_util(
@@ -111,6 +115,8 @@ def _prepare_responses_params_util(
         ResponseInputItemParam | LanguageModelMessageOptions | ResponseOutputItem
     ],
     reasoning: Reasoning | None,
+    text: ResponseTextConfigParam | None,
+    other_options: dict | None = None,
 ) -> _ResponsesParams:
     search_context = (
         _to_search_context(content_chunks) if content_chunks is not None else None
@@ -119,6 +125,11 @@ def _prepare_responses_params_util(
     model = model_name.name if isinstance(model_name, LanguageModelName) else model_name
 
     tools_res = _convert_tools_to_openai(tools) if tools is not None else None
+
+    if other_options is not None:
+        # Key word argument takes precedence
+        reasoning = reasoning or _attempt_extract_reasoning_from_options(other_options)
+        text = text or _attempt_extract_verbosity_from_options(other_options)
 
     if isinstance(model_name, LanguageModelName):
         model_info = LanguageModelInfo.from_name(model_name)
@@ -157,8 +168,58 @@ def _prepare_responses_params_util(
         messages_res = messages
 
     return _ResponsesParams(
-        temperature, model, search_context, messages_res, tools_res, reasoning
+        temperature, model, search_context, messages_res, tools_res, reasoning, text
     )
+
+
+@failsafe(
+    failure_return_value=None,
+    exceptions=(ValidationError,),
+    log_exc_info=False,
+    logger=logger,
+)
+def _attempt_extract_reasoning_from_options(options: dict) -> Reasoning | None:
+    reasoning = None
+
+    # Responses API
+    if "reasoning" in options:
+        reasoning = options["reasoning"]
+
+    # Completions API
+    elif "reasoning_effort" in options:
+        reasoning = {"effort": options["reasoning_effort"]}
+    if "reasoningEffort" in options:
+        reasoning = {"effort": options["reasoningEffort"]}
+
+    if reasoning is not None:
+        return TypeAdapter(Reasoning).validate_python(reasoning)
+
+    return None
+
+
+@failsafe(
+    failure_return_value=None,
+    exceptions=(ValidationError,),
+    log_exc_info=False,
+    logger=logger,
+)
+def _attempt_extract_verbosity_from_options(
+    options: dict,
+) -> ResponseTextConfigParam | None:
+    reasoning = None
+
+    # Responses API
+    if "text" in options:
+        reasoning = options["reasoning"]
+
+    # Completions API
+    elif "verbosity" in options:
+        reasoning = {"verbosity": options["verbosity"]}
+
+    if reasoning is not None:
+        return TypeAdapter(ResponseTextConfigParam).validate_python(reasoning)
+
+    return None
 
 
 def _prepare_responses_args(
@@ -176,7 +237,6 @@ def _prepare_responses_args(
     max_output_tokens: int | None,
     metadata: Metadata | None,
     parallel_tool_calls: bool | None,
-    text: ResponseTextConfigParam | None,
     tool_choice: response_create_params.ToolChoice | None,
     top_p: float | None,
     other_options: dict | None = None,
@@ -211,6 +271,9 @@ def _prepare_responses_args(
     if params.reasoning is not None:
         openai_options["reasoning"] = params.reasoning
 
+    if params.text is not None:
+        openai_options["text"] = params.text
+
     if include is not None:
         openai_options["include"] = include
 
@@ -225,9 +288,6 @@ def _prepare_responses_args(
 
     if parallel_tool_calls is not None:
         openai_options["parallel_tool_calls"] = parallel_tool_calls
-
-    if text is not None:
-        openai_options["text"] = text
 
     if tool_choice is not None:
         openai_options["tool_choice"] = tool_choice
@@ -284,6 +344,8 @@ def stream_responses_with_references(
         tools=tools,
         messages=messages,
         reasoning=reasoning,
+        text=text,
+        other_options=other_options,
     )
 
     responses_args = _prepare_responses_args(
@@ -301,7 +363,6 @@ def stream_responses_with_references(
         max_output_tokens=max_output_tokens,
         metadata=metadata,
         parallel_tool_calls=parallel_tool_calls,
-        text=text,
         tool_choice=tool_choice,
         top_p=top_p,
         other_options=other_options,
@@ -351,6 +412,8 @@ async def stream_responses_with_references_async(
         tools=tools,
         messages=messages,
         reasoning=reasoning,
+        text=text,
+        other_options=other_options,
     )
 
     responses_args = _prepare_responses_args(
@@ -368,7 +431,6 @@ async def stream_responses_with_references_async(
         max_output_tokens=max_output_tokens,
         metadata=metadata,
         parallel_tool_calls=parallel_tool_calls,
-        text=text,
         tool_choice=tool_choice,
         top_p=top_p,
         other_options=other_options,
