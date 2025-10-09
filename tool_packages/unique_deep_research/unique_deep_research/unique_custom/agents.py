@@ -82,7 +82,7 @@ async def setup_research_supervisor(
 
     # Initialize supervisor state with config values
     max_concurrent = UniqueCustomEngineConfig.max_parallel_researchers
-    max_iterations = UniqueCustomEngineConfig.max_research_iterations
+    max_iterations = UniqueCustomEngineConfig.max_research_iterations_lead_researcher
 
     # Get supervisor tools and format their descriptions
     supervisor_tools = get_supervisor_tools()
@@ -141,7 +141,7 @@ async def research_supervisor(
 
     # Check if we should force tool usage
     research_iterations = state.get("research_iterations", 0)
-    max_iterations = UniqueCustomEngineConfig.max_research_iterations
+    max_iterations = UniqueCustomEngineConfig.max_research_iterations_lead_researcher
     should_force_complete = research_iterations >= max_iterations
 
     if should_force_complete:
@@ -185,7 +185,7 @@ async def supervisor_tools(
     most_recent_message = supervisor_messages[-1] if supervisor_messages else None
 
     # Check exit conditions
-    max_iterations = UniqueCustomEngineConfig.max_research_iterations
+    max_iterations = UniqueCustomEngineConfig.max_research_iterations_lead_researcher
     exceeded_iterations = research_iterations > max_iterations
 
     # Extract tool calls if available
@@ -293,7 +293,7 @@ async def researcher(
         goto="researcher_tools",
         update={
             "researcher_messages": [response],
-            "tool_call_iterations": state.get("tool_call_iterations", 0) + 1,
+            "research_iterations": state.get("research_iterations", 0) + 1,
         },
     )
 
@@ -340,10 +340,11 @@ async def researcher_tools(
     _LOGGER.info("Research agent executing tools")
     researcher_messages = state.get("researcher_messages", [])
     most_recent_message = researcher_messages[-1] if researcher_messages else None
-    exceeded_iterations = (
-        state.get("tool_call_iterations", 0)
-        >= UniqueCustomEngineConfig.max_tool_calls_per_researcher
-    )
+
+    # Check iteration limit
+    research_iterations = state.get("research_iterations", 0)
+    max_iterations = UniqueCustomEngineConfig.max_research_iterations_sub_researcher
+    exceeded_iterations = research_iterations >= max_iterations
 
     # Check if any tool calls were made
     if not most_recent_message or not isinstance(most_recent_message, AIMessage):
@@ -525,7 +526,7 @@ async def _handle_conduct_research_batch(
                     HumanMessage(content=tool_call["args"]["research_topic"])
                 ],
                 "research_topic": tool_call["args"]["research_topic"],
-                "tool_call_iterations": 0,
+                "research_iterations": 0,
                 "chat_service": state["chat_service"],
                 "message_id": state["message_id"],
             },
