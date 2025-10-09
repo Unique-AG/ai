@@ -9,17 +9,36 @@ LLM hallucination of sources.
 import asyncio
 from typing import Dict, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class CitationMetadata(BaseModel):
     """Metadata for a registered citation source."""
 
-    number: int
-    type: str
-    name: str
-    url: str
-    source_id: str
+    number: int = Field(
+        ...,
+        description="Sequential citation number assigned to this source",
+        gt=0,
+    )
+    type: str = Field(
+        ...,
+        description='Type of source, either "web" or "node-ingestion-chunks"',
+    )
+    name: str = Field(
+        ...,
+        description="Human-readable name or title of the source",
+        min_length=1,
+    )
+    url: str = Field(
+        ...,
+        description="URL or content_id_chunk_id",
+        min_length=1,
+    )
+    source_id: str = Field(
+        ...,
+        description="Unique identifier for the source and what is used by the frontend to fetch the source (typically URL or content_id_chunk_id)",
+        min_length=1,
+    )
 
 
 class GlobalCitationManager:
