@@ -147,7 +147,7 @@ def research_complete_tool_called(tool_calls: list[ToolCall]) -> bool:
 
 
 @tool(args_schema=WebSearchArgs)
-async def web_search(query: str, config: RunnableConfig, limit: int = 10) -> str:
+async def web_search(query: str, config: RunnableConfig, limit: int = 50) -> str:
     """
     Search the web for comprehensive, accurate, and trusted results.
 
@@ -439,6 +439,8 @@ def think_tool(
     Make sure it's valid markdown with a **bold** header and a short paragraph of text. Don't mention the deployment of the research tool in the short_progress_update.
     make it about what will be done. Keep it short and concise. Also don't directly reference technical stuff such as delegating to a research agent.
 
+    Important reminder: Make sure to bold the header of the short_progress_update!
+
     Example:
 
     **Analyzing recent developments in crypto**
@@ -447,7 +449,7 @@ def think_tool(
 
     Args:
         reflection: Your detailed reflection on research progress, findings, gaps, and next steps
-        short_progress_update: The progress update and findings of the research
+        short_progress_update: The progress update and findings of the research. Valid markdown with a **bold** header and a short paragraph of text!
     Returns:
         Confirmation that reflection has been recorded
     """
