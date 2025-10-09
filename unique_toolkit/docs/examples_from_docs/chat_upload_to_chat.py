@@ -1,4 +1,6 @@
 # %%
+from pathlib import Path
+
 from unique_toolkit import (
     ChatService,
     KnowledgeBaseService,
@@ -16,6 +18,10 @@ for event in get_event_generator(unique_settings=settings, event_type=ChatEvent)
     # Initialize services from event
     chat_service = ChatService(event)
     kb_service = KnowledgeBaseService.from_event(event)
+    from dotenv import dotenv_values
+
+    demo_env_vars = dotenv_values(Path(__file__).parent / "demo.env")
+    scope_id = demo_env_vars.get("UNIQUE_SCOPE_ID") or "unknown"
 
     assistant_message = chat_service.create_assistant_message(
         content="Hi there, the agent has started to create your document.",
@@ -25,7 +31,7 @@ for event in get_event_generator(unique_settings=settings, event_type=ChatEvent)
         content=content_bytes,
         content_name="document.txt",
         mime_type="text/plain",
-        chat_id=event.payload.chat_id,
+        scope_id=scope_id,
         skip_ingestion=True,
     )
     reference = ContentReference(

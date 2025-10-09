@@ -38,6 +38,13 @@ for event in get_event_generator(unique_settings=settings, event_type=ChatEvent)
     chat_service = ChatService(event)
     kb_service= KnowledgeBaseService.from_event(event)
     # ~/~ end
+    # ~/~ begin <<docs/modules/examples/content/kb_service.md#load_demo_variables>>[init]
+    from dotenv import dotenv_values
+    demo_env_vars = dotenv_values(Path(__file__).parent/"demo.env")
+    # ~/~ end
+    # ~/~ begin <<docs/modules/examples/content/kb_service.md#env_scope_id>>[init]
+    scope_id = demo_env_vars.get("UNIQUE_SCOPE_ID") or "unknown"
+    # ~/~ end
     # ~/~ begin <<docs/tutorials/file_creation_and_upload_to_chat.md#upload_with_reference_initial_message>>[init]
 
     assistant_message =chat_service.create_assistant_message(
@@ -52,7 +59,7 @@ for event in get_event_generator(unique_settings=settings, event_type=ChatEvent)
             content=content_bytes,
             content_name="document.txt",
             mime_type="text/plain",
-            chat_id=event.payload.chat_id,
+            scope_id=scope_id,
             skip_ingestion=True,
         )
     # ~/~ end
