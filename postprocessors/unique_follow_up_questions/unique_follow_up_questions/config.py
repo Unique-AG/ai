@@ -1,7 +1,6 @@
 from logging import getLogger
 
-from pydantic import BaseModel, Field, field_validator, model_validator
-from pydantic.json_schema import SkipJsonSchema
+from pydantic import AliasChoices, BaseModel, Field, field_validator
 from unique_toolkit._common.validators import LMI
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 from unique_toolkit.language_model.default_language_model import (
@@ -47,24 +46,12 @@ class FollowUpQuestionsConfig(BaseModel):
         ge=0,
         default=3,
         description="The number of questions to be used for the follow-up question.",
-    )
-    number_of_follow_up_questions: SkipJsonSchema[int] = Field(
-        ge=0,
-        default=3,
-        description="The number of questions to be used for the follow-up question.",
-        deprecated=True,
+        validation_alias=AliasChoices("number_of_follow_up_questions", "numberOfFollowUpQuestions", "numberOfQuestions"),
     )
     adapt_to_language: bool = Field(
         default=True,
         description="Whether to adapt the follow-up questions to the language of the conversation.",
     )
-
-    @model_validator(mode="before")
-    @classmethod
-    def handle_deprecated_field(cls, data):
-        if isinstance(data, dict) and "number_of_follow_up_questions" in data:
-            data["number_of_questions"] = data["number_of_follow_up_questions"]
-        return data
 
     @property
     def use_structured_output(self) -> bool:
