@@ -39,7 +39,7 @@ uploaded_content = kb_service.upload_content_from_bytes(
         content=content_bytes,
         content_name="document.txt",
         mime_type="text/plain",
-        chat_id=event.payload.chat_id,
+        scope_id=scope_id,
         skip_ingestion=True,
     )
 ```
@@ -81,6 +81,8 @@ chat_service.free_user_input()
 <<full_sse_setup>>
     settings.update_from_event(event)
     <<init_services_from_event>>
+    <<load_demo_variables>>
+    <<env_scope_id>>
     <<upload_with_reference_initial_message>>
     <<upload_with_reference_document_creation>>
     <<upload_with_reference_upload_document>>
