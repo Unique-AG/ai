@@ -9,7 +9,6 @@ from unique_follow_up_questions.config import FollowUpQuestionsConfig
 from unique_internal_search.config import InternalSearchConfig
 from unique_internal_search.service import InternalSearchTool
 from unique_stock_ticker.config import StockTickerConfig
-from unique_toolkit._common.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit._common.validators import (
     LMI,
     ClipInt,
@@ -29,6 +28,7 @@ from unique_toolkit.agentic.tools.a2a import (
 from unique_toolkit.agentic.tools.a2a.evaluation import SubAgentEvaluationServiceConfig
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 from unique_toolkit.agentic.tools.tool import ToolBuildConfig
+from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 from unique_web_search.config import WebSearchConfig
 from unique_web_search.service import WebSearchTool
 
