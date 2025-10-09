@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - OpenAI engine converted to async processing to not be blocking
 - Prompt improvements
 - Small changes to message logs
+- Improve success rate of website title extraction
+- Web_fetch tool improvements on error handeling for llm
 
 ## [3.0.0] - 2025-10-07
 - Simplification and better descriptions of configuration
