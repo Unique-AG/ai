@@ -1,5 +1,4 @@
 import re
-from typing import override
 
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import Postprocessor
 from unique_toolkit.app.schemas import ChatEvent
@@ -38,8 +37,7 @@ class StockTickerPostprocessor(Postprocessor):
             user_message=self._user_message,
         )
 
-    @override
-    async def apply_postprocessing_to_response(
+    def apply_postprocessing_to_response(
         self, loop_response: LanguageModelStreamResponse
     ) -> bool:
         if not self._text or len(self._text) == 0:
