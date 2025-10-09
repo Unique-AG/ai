@@ -5,7 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.0.0] - 2025-10-14
+## [3.0.1] - 2025-10-08
+- Improved citation logic supporting internal search documents
+- Fixed bug in referencing of internal sources not giving the correct title of sources
+- OpenAI engine converted to async processing to not be blocking
+- Prompt improvements
+- Small changes to message logs
+- Improve success rate of website title extraction
+- Web_fetch tool improvements on error handeling for llm
+
+## [3.0.0] - 2025-10-07
 - Simplification and better descriptions of configuration
 - Dynamic tool descriptions and improved prompts
 - Reduce OpenAI engine logging 

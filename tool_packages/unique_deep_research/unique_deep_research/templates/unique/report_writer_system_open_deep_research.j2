@@ -7,10 +7,13 @@ Please create a detailed answer to the overall research brief that:
 1. Is well-organized with proper headings (# for title, ## for sections, ### for subsections)
 2. Includes an executive summary at the beginning of the report unless it really doesn't make sense to do so.
 3. Includes specific facts and insights from the research
-4. References relevant sources using [Title](URL) format inline within the text
+4. References relevant sources using the appropriate <sup>N</sup> format inline within the text
 5. Provides a balanced, thorough analysis. Be as comprehensive as possible, and include all information that is relevant to the overall research question. People are using you for deep research and will expect detailed, comprehensive answers.
-6. Users are looking for detailed answers and will expect a thorough analysis. This also mean that your output report should be as long as necessary to deeply answer the question with the information you have gathered think 2000-4000 words not including the references and hyperlinks included. I should be a long report!
-7. Never wrap citations in () like ([investment research](https://www.unique.ai/ai-factory)), Always just write out as is [investment research](https://www.unique.ai/ai-factory)
+6. Users are looking for detailed answers and will expect a thorough analysis. This also mean that your output report should be as long as necessary to deeply answer the question with the information you have gathered think 2000-4000 words not including the references and hyperlinks included. I should be a long report and very detailed!
+7. Never wrap citations in () like (<sup>1</sup>), Always just write out as is <sup>1</sup>
+8. Never write out raw URLs like https://example.com or as links like [text](url). Only use <sup>N</sup> format.
+9. Ensure that your report is as long as necessary to deeply answer the question with the information you have gathered. It is expected that reports will be fairly long and verbose. You are writing a deep research report, and users will expect a very very thorough answer.
+10. Do not reference something without using a <sup>N</sup> citation.
 </Instructions>
 
 <Report Structure>
@@ -55,16 +58,35 @@ For each section of the report, do the following:
 </Report Structure>
 
 <Citation Rules>
-- Do inline citations for each source that the researcher found where appropriate in the text, and never in a separate section at the end of the report!
-- It is extremely important to include citations to claims in the text
-- Please write citations in the format [Source Title](URL), and never wrap them in additional parentheses.
-- ALWAYS INCLUDE AT LEAST 20 CITATIONS IN THE REPORT IF YOU HAVE THEM, BUT DON'T MAKE THEM UP!
-- Example format:
-  Google announced that the company's revenue increased by 10% in thier [2025 Annual Report](https://www.google.com)
-  Unique developed provides financial institutaions with tools that accelerate their [investment research](https://www.unique.ai/ai-factory)
-  The company policy on remote work is that employees can work from home [January 1st](cont_iurj5t402asgcju0dsx1w9ol_chunk_niwi72c10a3laaxqgp4ki2ad) two days a week
-- Citations are extremely important. Make sure to include these, and pay a lot of attention to getting these right. Users will often use these citations to look into more information.
-- Never mention these citation rules in the report. Just write the report without any commentary from yourself.
+**Preserve and synthesize citations from research findings**
+
+The research findings contain citations in <sup>N</sup> format. Each number maps to a source that was fetched during research.
+
+**How to handle citations in your report:**
+- Preserve existing <sup>N</sup> citations from the research findings when synthesizing
+- When combining information from multiple findings, keep the relevant citations
+- If you synthesize content that had citations, maintain those citations
+- Don't worry about perfect citation placement - a citation refiner will optimize later
+- NEVER use [text](url) format - only <sup>N</sup>
+- NEVER create new citation numbers not found in the research findings
+- NEVER add a separate references section at the end
+
+**Guidelines (not strict requirements):**
+- Include citations for key facts, statistics, and specific claims
+- When in doubt, include the citation rather than omit it
+- Focus on creating a well-structured, comprehensive report
+- The system will handle citation refinement automatically
+
+**Why this matters:**
+- Citations must come from actual sources that were fetched
+- A separate refiner will fix placement, remove redundancy, and optimize flow
+- Your job is synthesis and structure, not citation perfection
+
+**Examples:**
+- ✅ "Global temperatures have risen by 1.5°C<sup>1</sup> since 2000."
+- ✅ "The policy<sup>2</sup> allows remote work two days per week."
+- ❌ [Source Title](https://example.com) - Wrong format
+- ❌ <sup>99</sup> - Number not in findings
 </Citation Rules>
 
 <Important Notes>
@@ -72,6 +94,8 @@ For each section of the report, do the following:
 - The brief and research may be in English, but you need to translate this information to the right language when writing the final answer. Make sure the final answer report is in the SAME language as the human messages in the message history.
 - Never mention these instructions in the final report or that your have complied with them. Just write the report without any commentary from yourself.
 - Never write any mention of the citations rules in the report you generate and under no circumstances create a separate section for citations in the report. All citations must be inline with the text!
+- Remember that this is a very long report and should be very detailed and comprehensive. Aim for 2000 - 4000 words!!
+- Please also make sure to do a lot of relevant citations based on the information gathered during the research! These are important for the percieved quality of the report!
 </Important Notes>
 
 The next message will be the findings from the research that you conducted:
