@@ -576,7 +576,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                                             name=event.item.action.url,
                                             url=event.item.action.url,
                                             sequence_number=0,
-                                            source="deep-research-citations",
+                                            source="web",
                                             source_id=event.item.action.url,
                                         )
                                     ],
