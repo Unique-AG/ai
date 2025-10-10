@@ -59,6 +59,16 @@ class Message(APIResource["Message"]):
     class RetrieveParams(RequestOptions):
         chatId: str
 
+    class CreateEventParams(RequestOptions):
+        messageId: str
+        chatId: str
+        originalText: NotRequired[str | None]
+        text: NotRequired[str | None]
+        references: NotRequired[List["Message.Reference"] | None]
+        gptRequest: NotRequired[Dict[str, Any] | None]
+        debugInfo: NotRequired[Dict[str, Any] | None]
+        completedAt: NotRequired[datetime | None]
+
     chatId: str
     text: Optional[str]
     role: Literal["SYSTEM", "USER", "ASSISTANT"]
@@ -302,4 +312,50 @@ class Message(APIResource["Message"]):
             user_id,
             company_id,
             params=params,
+        )
+
+    @classmethod
+    def create_event(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Message.CreateEventParams"],
+    ) -> "Message":
+        """
+        Creates a new message event object.
+        """
+        message_id = params.get("messageId")
+        params.pop("messageId", None)
+        return cast(
+            "Message",
+            cls._static_request(
+                "post",
+                f"{cls.class_url()}/{message_id}/event",
+                user_id,
+                company_id,
+                params,
+            ),
+        )
+
+    @classmethod
+    async def create_event_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Message.CreateEventParams"],
+    ) -> "Message":
+        """
+        Creates a new message event object.
+        """
+        message_id = params.get("messageId")
+        params.pop("messageId", None)
+        return cast(
+            "Message",
+            await cls._static_request_async(
+                "post",
+                f"{cls.class_url()}/{message_id}/event",
+                user_id,
+                company_id,
+                params,
+            ),
         )
