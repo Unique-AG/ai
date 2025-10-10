@@ -19,7 +19,10 @@ from unique_toolkit._common.endpoint_requestor import (
     RequestorType,
     build_requestor,
 )
-from unique_toolkit._common.pydantic_helpers import create_union_model
+from unique_toolkit._common.pydantic_helpers import (
+    create_complement_model,
+    create_union_model,
+)
 from unique_toolkit._common.string_utilities import (
     dict_to_markdown_table,
     extract_dicts_from_string,
@@ -78,23 +81,33 @@ class HumanVerificationManagerForApiCalling(
             ]
         ],
         requestor_type: RequestorType = RequestorType.REQUESTS,
+        environment_params: BaseModel | None = None,
         **kwargs: dict[str, Any],
     ):
         self._logger = logger
         self._operation = operation
-
+        self._environment_params = environment_params
         # Create internal models for this manager instance
-
-        class ConcreteApiCall(BaseModel):
-            confirmation: HumanConfirmation
-            payload: self._operation.payload_model()  # type: ignore
-
-        self._api_call_model = ConcreteApiCall
 
         self._combined_params_model = create_union_model(
             model_type_a=self._operation.path_params_model(),
             model_type_b=self._operation.payload_model(),
         )
+
+        if self._environment_params is None:
+            self._modifiable_params_model = self._operation.payload_model()
+        else:
+            self._modifiable_params_model = create_complement_model(
+                model_type_a=self._operation.payload_model(),
+                model_type_b=type(self._environment_params),
+            )
+
+        class VerificationModel(BaseModel):
+            confirmation: HumanConfirmation
+            modifiable_params: self._modifiable_params_model  # type: ignore
+
+        self._verification_model = VerificationModel
+
         self._requestor_type = requestor_type
         self._requestor = build_requestor(
             requestor_type=requestor_type,
@@ -104,7 +117,10 @@ class HumanVerificationManagerForApiCalling(
         )
 
     def detect_api_calls_from_user_message(
-        self, *, last_assistant_message: ChatMessage, user_message: str
+        self,
+        *,
+        last_assistant_message: ChatMessage,
+        user_message: str,
     ) -> PayloadType | None:
         user_message_dicts = extract_dicts_from_string(user_message)
         if len(user_message_dicts) == 0:
@@ -114,13 +130,18 @@ class HumanVerificationManagerForApiCalling(
         for user_message_dict in user_message_dicts:
             try:
                 # Convert dict to payload model first, then create payload
-                api_call = self._api_call_model.model_validate(
+                verfication_data = self._verification_model.model_validate(
                     user_message_dict, by_alias=True, by_name=True
                 )
                 if self._verify_human_verification(
-                    api_call.confirmation, last_assistant_message
+                    verfication_data.confirmation, last_assistant_message
                 ):
-                    return api_call.payload
+                    payload_dict = verfication_data.modifiable_params.model_dump()
+                    if self._environment_params is not None:
+                        payload_dict.update(self._environment_params.model_dump())
+
+                    return self._operation.payload_model().model_validate(payload_dict)
+
             except Exception as e:
                 self._logger.error(f"Error detecting api calls from user message: {e}")
 
@@ -141,11 +162,12 @@ class HumanVerificationManagerForApiCalling(
         return confirmation.payload_hash in last_assistant_message.content
 
     def _create_next_user_message(self, payload: PayloadType) -> str:
-        api_call = self._api_call_model(
-            payload=payload,
+        modifiable_params = self._modifiable_params_model.model_validate(payload)
+        api_call = self._verification_model(
+            modifiable_params=modifiable_params,
             confirmation=HumanConfirmation(
                 payload_hash=hashlib.sha256(
-                    payload.model_dump_json().encode()
+                    modifiable_params.model_dump_json().encode()
                 ).hexdigest(),
                 time_stamp=datetime.now(),
             ),
@@ -168,6 +190,14 @@ class HumanVerificationManagerForApiCalling(
         path_params: PathParamsType,
         payload: PayloadType,
     ) -> ResponseType:
+        """
+        Call the api with the given path params, payload and secured payload params.
+
+        The `secured payload params` are params that are enforced by the application.
+        It should generally be not possible for the user to adapt those but here we
+        ensure that the application has the last word.
+
+        """
         params = path_params.model_dump()
         params.update(payload.model_dump())
 
@@ -217,8 +247,8 @@ if __name__ == "__main__":
 
     payload = GetUserRequestBody(include_profile=True)
 
-    api_call = human_verification_manager._api_call_model(
-        payload=payload,
+    api_call = human_verification_manager._verification_model(
+        modifiable_params=payload,
         confirmation=HumanConfirmation(
             payload_hash=hashlib.sha256(payload.model_dump_json().encode()).hexdigest(),
             time_stamp=datetime.now(),
