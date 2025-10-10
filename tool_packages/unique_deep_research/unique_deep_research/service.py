@@ -1,5 +1,6 @@
 from typing import Any, Optional
 
+from httpx import AsyncClient
 from langchain_core.messages import HumanMessage
 from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
 from openai.types.responses import ResponseFunctionWebSearch, ResponseReasoningItem
@@ -41,6 +42,8 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelToolMessage,
 )
 from unique_toolkit.short_term_memory.service import ShortTermMemoryService
+
+from unique_deep_research.unique_custom.tools import crawl_url
 
 from .config import (
     RESPONSES_API_TIMEOUT_SECONDS,
@@ -339,13 +342,16 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         Returns a tuple of (processed_result, content_chunks)
         """
         try:
+            result = "", []
             match self.config.engine.get_type():
                 case DeepResearchEngine.OPENAI:
                     self.logger.info("Running OpenAI research")
-                    return await self.openai_research(research_brief)
+                    result = await self.openai_research(research_brief)
                 case DeepResearchEngine.UNIQUE:
                     self.logger.info("Running Custom research")
-                    return await self.custom_research(research_brief)
+                    result = await self.custom_research(research_brief)
+            self.write_message_log_text_message("**Research done**")
+            return result
         except Exception as e:
             self.logger.error(f"Research failed: {e}")
             return "", []
@@ -397,8 +403,6 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             processed_result, references = validate_and_map_citations(
                 research_result, citation_registry
             )
-
-            self.write_message_log_text_message("**Research done**")
 
             # Update the assistant message with the results
             await self.chat_service.modify_assistant_message_async(
@@ -470,7 +474,6 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         link_references = self._convert_annotations_to_references(
             annotations or [], message_id=""
         )
-        self.write_message_log_text_message("**Research done**")
 
         # Update the assistant message with the results
         await self.chat_service.modify_assistant_message_async(
@@ -541,6 +544,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                                 ),
                             )
                     elif isinstance(event.item, ResponseFunctionWebSearch):
+                        self.logger.info("OpenAI web search")
                         if isinstance(event.item.action, ActionSearch) and isinstance(
                             event.item.action.query, str
                         ):
@@ -564,6 +568,15 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                                 ),
                             )
                         elif isinstance(event.item.action, ActionOpenPage):
+                            self.logger.info("OpenAI reading web page")
+                            _, title, success = await crawl_url(
+                                AsyncClient(), event.item.action.url
+                            )
+                            if not success:
+                                self.logger.info(
+                                    f"Failed to crawl URL: {event.item.action.url} but openai still opened the page"
+                                )
+                                continue
                             self.chat_service.create_message_log(
                                 message_id=self.event.payload.assistant_message.id,
                                 text="**Reading website**",
@@ -574,7 +587,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                                 uncited_references=MessageLogUncitedReferences(
                                     data=[
                                         ContentReference(
-                                            name=event.item.action.url,
+                                            name=title or event.item.action.url,
                                             url=event.item.action.url,
                                             sequence_number=0,
                                             source="web",
