@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.14.5] - 2025-10-10
+- Fix circular import appearing in orchestrator
+
 ## [1.14.5] - 2025-10-09
 - Move `DEFAULT_GPT_4o` constant from `_common/default_language_model.py` to `language_model/constants.py` and deprecate old import path
 
