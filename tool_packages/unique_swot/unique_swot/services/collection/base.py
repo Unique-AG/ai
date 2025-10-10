@@ -1,7 +1,6 @@
-from dataclasses import dataclass
 from logging import getLogger
 
-from pydantic import Field
+from pydantic import BaseModel, ConfigDict
 from unique_toolkit import KnowledgeBaseService
 from unique_toolkit.app.schemas import ChatEvent
 
@@ -10,23 +9,17 @@ from unique_swot.services.collection.knowledge_base import collect_knowledge_bas
 from unique_swot.services.collection.web import collect_web_sources
 from unique_swot.services.schemas import Source
 
-logger = getLogger(__name__)
+_LOGGER = getLogger(__name__)
 
 
-@dataclass
-class CollectionContext:
-    use_earnings_calls: bool = Field(
-        default=True,
-        description="Whether to use earnings calls as a data source.",
-    )
-    use_web_sources: bool = Field(
-        default=True,
-        description="Whether to use web sources as a data source.",
-    )
+class CollectionContext(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    use_earnings_calls: bool
+    use_web_sources: bool
 
     @classmethod
     def from_event(cls, event: ChatEvent) -> "CollectionContext":
-        logger.warning(
+        _LOGGER.warning(
             "CollectionContext.from_event is not implemented yet. Defaulting to False for use_earnings_calls and use_web_sources."
         )
         return cls(
@@ -43,16 +36,16 @@ class SourceCollectionManager:
         knowledge_base_service: KnowledgeBaseService,
         where_clause: dict,
     ):
-        self.context = context
-        self.knowledge_base_service = knowledge_base_service
-        self.where_clause = where_clause
+        self._context = context
+        self._knowledge_base_service = knowledge_base_service
+        self._where_clause = where_clause
 
     def collect_sources(self) -> list[Source]:
         sources = self.collect_internal_documents()
 
-        if self.context.use_earnings_calls:
+        if self._context.use_earnings_calls:
             sources.extend(self.collect_earnings_calls())
-        if self.context.use_web_sources:
+        if self._context.use_web_sources:
             sources.extend(self.collect_web_sources())
         return sources
 
@@ -64,6 +57,6 @@ class SourceCollectionManager:
 
     def collect_internal_documents(self) -> list[Source]:
         return collect_knowledge_base(
-            knowledge_base_service=self.knowledge_base_service,
-            where_clause=self.where_clause,
+            knowledge_base_service=self._knowledge_base_service,
+            where_clause=self._where_clause,
         )

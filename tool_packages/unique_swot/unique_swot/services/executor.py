@@ -32,7 +32,7 @@ from unique_swot.services.schemas import (
     SWOTPlan,
 )
 
-logger = getLogger(__name__)
+_LOGGER = getLogger(__name__)
 
 
 class SWOTExecutionManager:
@@ -162,7 +162,7 @@ class SWOTExecutionManager:
         saved_analysis = self.memory_service.get(get_analysis_model(component))
 
         if not saved_analysis:
-            logger.warning(
+            _LOGGER.warning(
                 "No SWOT analysis found in memory for component: %s. Falling back to generation",
                 component,
             )
@@ -171,7 +171,7 @@ class SWOTExecutionManager:
                 sources=sources,
             )
 
-        logger.warning(
+        _LOGGER.warning(
             "Modify function not implemented, Falling back to generation for component: %s",
             component,
         )
@@ -249,7 +249,7 @@ class SWOTExecutionManager:
             return saved_analysis
 
         # If we don't have a saved analysis, generate a new one
-        logger.warning(
+        _LOGGER.warning(
             "No SWOT analysis found in memory for component: %s. Falling back to generation",
             component,
         )

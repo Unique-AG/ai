@@ -8,7 +8,6 @@ efficiently by splitting it into manageable batches.
 """
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from logging import getLogger
 from typing import Callable, Generic, Sequence, TypeVar, cast
 
@@ -25,14 +24,11 @@ from unique_toolkit.language_model.builder import MessagesBuilder
 from unique_swot.services.notifier import Notifier
 from unique_swot.services.schemas import Source
 
-logger = getLogger(__name__)
+_LOGGER = getLogger(__name__)
 
 _DEFAULT_LANGUAGE_MODEL = DEFAULT_GPT_4o
 _DEFAULT_BATCH_SIZE = 3
 _DEFAULT_MAX_TOKENS_PER_BATCH = 30_000
-
-# Generic type variable for ReportGenerationOutputModel subclasses
-T = TypeVar("T", bound="ReportGenerationOutputModel")
 
 
 class ReportGenerationConfig(BaseModel):
@@ -52,6 +48,10 @@ class ReportGenerationConfig(BaseModel):
     language_model: LMI = get_LMI_default_field(_DEFAULT_LANGUAGE_MODEL)
     batch_size: int = Field(default=_DEFAULT_BATCH_SIZE)
     max_tokens_per_batch: int = Field(default=_DEFAULT_MAX_TOKENS_PER_BATCH)
+
+
+# Generic type variable for ReportGenerationOutputModel subclasses
+T = TypeVar("T", bound="ReportGenerationOutputModel")
 
 
 class ReportGenerationOutputModel(BaseModel, ABC, Generic[T]):
@@ -87,8 +87,7 @@ class ReportGenerationOutputModel(BaseModel, ABC, Generic[T]):
         raise NotImplementedError
 
 
-@dataclass
-class ReportGenerationContext(Generic[T]):
+class ReportGenerationContext(BaseModel, Generic[T]):
     """
     Context information for generating SWOT analysis reports.
 
@@ -101,6 +100,7 @@ class ReportGenerationContext(Generic[T]):
         sources: List of data sources to analyze
         output_model: The Pydantic model class for structured output
     """
+    model_config = ConfigDict(frozen=True)
 
     step_name: str
     system_prompt: str
@@ -167,8 +167,7 @@ async def generate_report(
     return cast(T, context.output_model.group_batches(report_batches))
 
 
-@dataclass
-class ReportModifyContext(Generic[T]):
+class ReportModifyContext(BaseModel, Generic[T]):
     """
     Context information for modifying existing SWOT analysis reports.
 
@@ -182,6 +181,7 @@ class ReportModifyContext(Generic[T]):
         structured_report: The existing report to be modified
         sources: List of new data sources to incorporate
     """
+    model_config = ConfigDict(frozen=True)
 
     step_name: str
     system_prompt: str
@@ -302,4 +302,4 @@ async def _generate_report_batch(
         )
         return output_model.model_validate(response.choices[0].message.parsed)
     except Exception as e:
-        logger.exception(f"Error generating report batch: {e}")
+        _LOGGER.exception(f"Error generating report batch: {e}")
