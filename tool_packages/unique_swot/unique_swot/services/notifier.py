@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from logging import getLogger
 
-logger = getLogger(__name__)
+_LOGGER = getLogger(__name__)
 
 class Notifier(ABC):
     @abstractmethod
@@ -13,4 +13,4 @@ class Notifier(ABC):
 # TODO: Implement a real notifier
 class LoggerNotifier(Notifier):
     def notify(self, step_name: str, progress: float) -> None:
-        logger.info(f"{step_name}: {progress}")
+        _LOGGER.info(f"{step_name}: {progress}")
