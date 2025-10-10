@@ -34,11 +34,13 @@ GUIDELINES:
 9. **Clarify acronyms, abbreviations, and unknown terms**
 - If there are acronyms, abbreviations, or unknown terms that you don't understand, ask the user to clarify.
 
+
 10. **Sources**
 - Ask the user to specify the sources that they want to use for the research
+{% if engine_type == "Unique" %}
 * InternalSearch to access internal company documentations, including information on policies, procedures, benefits, groups, financial details, and specific individuals knowledge base
 * WebSearch to search the web for current information and general knowledge
-
+{% endif %}
 11. **Output Format**
 - The output should be a single question that you will ask the user to clarify the report scope.
 - The output should be in markdown format.

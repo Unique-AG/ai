@@ -680,7 +680,9 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         messages: list[ChatCompletionMessageParam] = [
             {
                 "role": "system",
-                "content": self.env.get_template("clarifying_agent.j2").render(),
+                "content": self.env.get_template("clarifying_agent.j2").render(
+                    engine_type=self.config.engine.get_type().value
+                ),
             },
             *relevant_interactions,
         ]
@@ -703,7 +705,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                 "role": "system",
                 "content": self.env.get_template(
                     "research_instructions_agent.j2"
-                ).render(),
+                ).render(engine_type=self.config.engine.get_type().value),
             }
         ] + messages
 
