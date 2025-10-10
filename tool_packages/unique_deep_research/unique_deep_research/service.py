@@ -631,7 +631,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         Returns:
             The post-processed research result with improved formatting
         """
-        self.write_message_log_text_message("Synthesizing final research report")
+        self.write_message_log_text_message("**Synthesizing final research report**")
 
         response = await self.client.chat.completions.create(
             model=self.config.engine.large_model.name,
