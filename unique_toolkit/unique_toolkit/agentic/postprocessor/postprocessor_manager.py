@@ -1,38 +1,42 @@
 import asyncio
 from abc import ABC
 from logging import Logger
+from typing import Generic, TypeVar
 
 from unique_toolkit.agentic.tools.utils.execution.execution import SafeTaskExecutor
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.language_model.schemas import (
     LanguageModelStreamResponse,
+    ResponsesLanguageModelStreamResponse,
+)
+
+ResponseType = TypeVar(
+    "ResponseType", bound=LanguageModelStreamResponse, contravariant=True
 )
 
 
-class Postprocessor(ABC):
+class Postprocessor(Generic[ResponseType], ABC):
     def __init__(self, name: str):
         self.name = name
 
     def get_name(self) -> str:
         return self.name
 
-    async def run(self, loop_response: LanguageModelStreamResponse) -> None:
+    async def run(self, loop_response: ResponseType) -> None:
         raise NotImplementedError("Subclasses must implement this method.")
 
-    def apply_postprocessing_to_response(
-        self, loop_response: LanguageModelStreamResponse
-    ) -> bool:
+    def apply_postprocessing_to_response(self, loop_response: ResponseType) -> bool:
         raise NotImplementedError(
             "Subclasses must implement this method to apply post-processing to the response."
         )
 
-    async def remove_from_text(self, text) -> str:
+    async def remove_from_text(self, text: str) -> str:
         raise NotImplementedError(
             "Subclasses must implement this method to remove post-processing from the message."
         )
 
 
-class PostprocessorManager:
+class PostprocessorManager(Generic[ResponseType]):
     """
     Manages and executes postprocessors for modifying and refining responses.
 
@@ -59,17 +63,17 @@ class PostprocessorManager:
     ):
         self._logger = logger
         self._chat_service = chat_service
-        self._postprocessors: list[Postprocessor] = []
+        self._postprocessors: list[Postprocessor[ResponseType]] = []
 
-    def add_postprocessor(self, postprocessor: Postprocessor):
+    def add_postprocessor(self, postprocessor: Postprocessor[ResponseType]):
         self._postprocessors.append(postprocessor)
 
-    def get_postprocessors(self, name: str) -> list[Postprocessor]:
+    def get_postprocessors(self, name: str) -> list[Postprocessor[ResponseType]]:
         return self._postprocessors
 
     async def run_postprocessors(
         self,
-        loop_response: LanguageModelStreamResponse,
+        loop_response: ResponseType,
     ) -> None:
         task_executor = SafeTaskExecutor(
             logger=self._logger,
@@ -119,3 +123,9 @@ class PostprocessorManager:
         for postprocessor in self._postprocessors:
             text = await postprocessor.remove_from_text(text)
         return text
+
+
+CompletionsPostprocessorManager = PostprocessorManager[LanguageModelStreamResponse]
+ResponsesPostprocessorManager = PostprocessorManager[
+    ResponsesLanguageModelStreamResponse
+]
