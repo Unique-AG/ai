@@ -678,6 +678,24 @@ message = unique_sdk.Message.create(
 )
 ```
 
+#### `unique_sdk.Message.create_event`
+
+Create a new message event in a chat.
+
+```python
+message = unique_sdk.Message.create_event(
+    user_id=user_id,
+    company_id=company_id,
+    messageId="msg_l4ushn85yqbewpf6tllh2cl7",
+    chatId="chat_kc8p3kgkn7393qhgmv5js5nt",
+    text="Hello.",                  #optional
+    originalText="Hello.",          #optional
+    references=[],                  #optional
+    gptRequest={}                   #optional
+    debugInfo={  "hello": "test" }, #optional
+)
+```
+
 #### `unique_sdk.Message.modify`
 
 Modify an existing chat message.
