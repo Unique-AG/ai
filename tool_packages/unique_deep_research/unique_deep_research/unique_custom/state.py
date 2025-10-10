@@ -86,7 +86,7 @@ class ResearcherState(TypedDict, total=False):
         List[MessageLikeRepresentation], operator.add
     ]  # Researcher conversation history
     research_topic: str  # Specific topic being researched
-    tool_call_iterations: int  # Number of tool calls made
+    research_iterations: int  # Number of researcher agent iterations
 
     # ChatService integration for tool logging (required)
     chat_service: Required[ChatService]

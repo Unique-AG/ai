@@ -24,9 +24,9 @@ class DeepResearchEngine(StrEnum):
 # Hardcoded configuration for the unique custom engine
 @dataclass
 class UniqueCustomEngineConfig:
-    max_parallel_researchers: int = 3
-    max_research_iterations: int = 5
-    max_tool_calls_per_researcher: int = 10
+    max_parallel_researchers: int = 5
+    max_research_iterations_lead_researcher: int = 6
+    max_research_iterations_sub_researcher: int = 10
 
 
 RESPONSES_API_TIMEOUT_SECONDS = 3600
