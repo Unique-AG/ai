@@ -7,7 +7,7 @@ from unique_swot.services.memory.exceptions import (
     MemoryEmptyException,
 )
 
-logger = getLogger(__name__)
+_LOGGER = getLogger(__name__)
 
 
 
@@ -25,7 +25,7 @@ class SwotMemoryService:
 
             return input.model_validate(memory.data)
         except Exception as e:
-            logger.warning(f"Error getting memory {key}: {e}. Returning None.")
+            _LOGGER.warning(f"Error getting memory {key}: {e}. Returning None.")
             return None
 
     def set(self, input: SWOTAnalysisModels) -> None:
