@@ -266,7 +266,7 @@ class LoopTokenReducer:
         selected_messages = []
         token_count = 0
         for msg in messages[::-1]:
-            msg_token_count = self._count_tokens(str(msg.content))
+            msg_token_count = self._count_message_tokens(LanguageModelMessages(root=[msg]))
             if token_count + msg_token_count > token_limit:
                 break
             selected_messages.append(msg)
@@ -292,9 +292,6 @@ class LoopTokenReducer:
                     f"Skipping message with unsupported content type: {type(message.content)}"
                 )
         return messages
-
-    def _count_tokens(self, text: str) -> int:
-        return len(self._encoder.encode(text))
 
     def ensure_last_message_is_user_message(self, limited_history_messages):
         """
