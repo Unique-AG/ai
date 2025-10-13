@@ -23,7 +23,7 @@ from unique_toolkit.content.schemas import (
 logger = logging.getLogger(__name__)
 
 
-SHORT_TERM_MEMORY_NAME = "container_code_execution"
+_SHORT_TERM_MEMORY_NAME = "container_code_execution"
 
 
 class CodeExecutionShortTermMemorySchema(BaseModel):
@@ -48,7 +48,7 @@ def _get_container_code_execution_short_term_memory_manager(
     short_term_memory_manager = PersistentShortMemoryManager(
         short_term_memory_service=short_term_memory_service,
         short_term_memory_schema=CodeExecutionShortTermMemorySchema,
-        short_term_memory_name=SHORT_TERM_MEMORY_NAME,
+        short_term_memory_name=_SHORT_TERM_MEMORY_NAME,
     )
     return short_term_memory_manager
 
