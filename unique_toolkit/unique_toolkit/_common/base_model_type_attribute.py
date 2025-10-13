@@ -259,35 +259,16 @@ if __name__ == "__main__":
         def serialize_parameters(self, parameters: type[BaseModel]):
             return parameters.model_json_schema()
 
-        @overload
-        def to_openai(
-            self, mode: Literal["completions"]
-        ) -> ChatCompletionToolParam: ...
-
-        @overload
-        def to_openai(self, mode: Literal["responses"]) -> FunctionToolParam: ...
-
-        def to_openai(
-            self, mode: Literal["completions", "responses"] = "completions"
-        ) -> ChatCompletionToolParam | FunctionToolParam:
-            if mode == "completions":
-                return ChatCompletionToolParam(
-                    function=FunctionDefinition(
-                        name=self.name,
-                        description=self.description,
-                        parameters=self.parameters.model_json_schema(),
-                        strict=self.strict,
-                    ),
-                    type="function",
-                )
-            elif mode == "responses":
-                return FunctionToolParam(
-                    type="function",
+        def to_openai(self) -> ChatCompletionToolParam:
+            return ChatCompletionToolParam(
+                function=FunctionDefinition(
                     name=self.name,
+                    description=self.description,
                     parameters=self.parameters.model_json_schema(),
                     strict=self.strict,
-                    description=self.description,
-                )
+                ),
+                type="function",
+            )
 
     class WeatherToolParameterModel(BaseModel):
         lon: float = Field(
