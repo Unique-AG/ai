@@ -155,7 +155,10 @@ def build_unique_ai(
             )
         )
 
-    if config.agent.services.follow_up_questions_config:
+    if (
+        config.agent.services.follow_up_questions_config
+        and config.agent.services.follow_up_questions_config.number_of_questions > 0
+    ):
         postprocessor_manager.add_postprocessor(
             FollowUpPostprocessor(
                 logger=logger,
