@@ -1,9 +1,10 @@
 import json
 from enum import StrEnum
-from typing import Any, Dict
+from typing import Annotated, Any, Dict
 
 from pydantic import (
     BaseModel,
+    BeforeValidator,
     Field,
     ValidationInfo,
     model_validator,
@@ -33,6 +34,13 @@ class ToolSelectionPolicy(StrEnum):
     BY_USER = "ByUser"
 
 
+def handle_undefinded_icon(value: Any) -> ToolIcon:
+    try:
+        return ToolIcon(value)
+    except ValueError:
+        return ToolIcon.BOOK
+
+
 class ToolBuildConfig(BaseModel):
     model_config = get_configuration_dict()
     """Main tool configuration"""
@@ -40,7 +48,10 @@ class ToolBuildConfig(BaseModel):
     name: str
     configuration: BaseToolConfig
     display_name: str = ""
-    icon: ToolIcon = ToolIcon.BOOK
+    icon: Annotated[ToolIcon, BeforeValidator(handle_undefinded_icon)] = Field(
+        default=ToolIcon.BOOK,
+        description="The icon name that will be used to display the tool in the user interface.",
+    )
     selection_policy: ToolSelectionPolicy = Field(
         default=ToolSelectionPolicy.BY_USER,
     )
