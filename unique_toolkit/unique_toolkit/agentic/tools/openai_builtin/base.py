@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from enum import StrEnum
+from typing import Generic, TypeVar
 
 from openai.types.responses.tool_param import CodeInterpreter
 
@@ -11,9 +12,10 @@ class OpenAIBuiltInToolName(StrEnum):
 
 
 BuiltInToolType = CodeInterpreter  # Add other tool types when needed
+ToolType = TypeVar("ToolType", bound=BuiltInToolType)
 
 
-class OpenAIBuiltInTool[ToolType: BuiltInToolType](ABC):
+class OpenAIBuiltInTool(ABC, Generic[ToolType]):
     @property
     @abstractmethod
     def name(self) -> OpenAIBuiltInToolName:
