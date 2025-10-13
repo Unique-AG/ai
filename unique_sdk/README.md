@@ -13,6 +13,8 @@ The Unique Python SDK provides access to the public API of Unique AI. It also en
 5. [Available API Resources](#available-api-resources)
    - [Content](#content)
    - [Message](#message)
+   - [Message Log](#message-log)
+   - [Message Execution](#message-execution)
    - [Chat Completion](#chat-completion)
    - [Embeddings](#embeddings)
    - [Acronyms](#acronyms)
@@ -228,6 +230,8 @@ unique_sdk.Message.modify(
 
 - [Content](#content)
 - [Message](#message)
+- [Message Log](#message-log)
+- [Message Execution](#message-execution)
 - [Chat Completion](#chat-completion)
 - [Embeddings](#embeddings)
 - [Acronyms](#acronyms)
@@ -798,6 +802,89 @@ unique_sdk.Integrated.responses_stream(
 ```
 
 **Warning:** Currently, the deletion of a chat message does not automatically sync with the user UI. Users must refresh the chat page to view the updated state. This issue will be addressed in a future update of our API.
+
+### Message Log
+
+#### `unique_sdk.MessageLog.create`
+
+Create a message log for a provided `messageId`.
+
+```python
+msg_log = unique_sdk.MessageLog.create(
+    user_id=user_id,
+    company_id=company_id,
+    messageId="msg_a0jgnt1jrqv1d3uzr450waxw",
+    text="Create message log text",
+    order=1,
+    status="RUNNING",                               # one of "RUNNING", "COMPLETED", "FAILED"
+    details=None,                                   # optional, details dictionary
+    uncitedReferences=None,                         # optional, references dictionary
+    references=None,                                # optional, list of references
+)
+```
+
+#### `unique_sdk.MessageLog.update`
+
+Update a message log for a provided `messageId`.
+
+```python
+msg_log = unique_sdk.MessageLog.update(
+    user_id=user_id,
+    company_id=company_id,
+    message_log_id="message_log_fd7z7gjljo1z2wu5g6l9q7r9",
+    text="Update a message log text",               # optional
+    order=1,                                        # optional
+    status="RUNNING",                               # one of "RUNNING", "COMPLETED", "FAILED"
+    details=None,                                   # optional, details dictionary
+    uncitedReferences=None,                         # optional, references dictionary
+    references=None,                              
+)
+```
+
+### Message Execution
+
+#### `unique_sdk.MessageExecution.create`
+
+Create a message execution for a provided `messageId` and `chatId`.
+
+```python
+msg_execution = unique_sdk.MessageExecution.create(
+    user_id=user_id,
+    company_id=company_id,
+    messageId="msg_a0jgnt1jrqv143uzr750waxw",
+    chatId="chat_nx21havszl1skchd7544oykh",
+    type="DEEP_RESEARCH"
+    secondsRemaining=None                       # optional, number defining the seconds remaining
+    percentageCompleted=None                    # optional, number defining the percentage completed
+)
+```
+
+#### `unique_sdk.MessageExecution.get`
+
+Get a message execution for a provided `messageId`.
+
+```python
+msg_execution = unique_sdk.MessageExecution.get(
+    user_id=user_id,
+    company_id=company_id,
+    messageId="msg_a0jgnt1jrqv143uzr750waxw",
+)
+```
+
+#### `unique_sdk.MessageExecution.update`
+
+Update a message execution for a provided `messageId`.
+
+```python
+msg_execution = unique_sdk.MessageExecution.update(
+    user_id=user_id,
+    company_id=company_id,
+    messageId="msg_a0jgnt1jrqv143uzr750waxw",
+    status="COMPLETED",                       # one of: COMPLETED, FAILED
+    secondsRemaining=55                       # optional, number defining the seconds remaining
+    percentageCompleted=10                    # optional, number defining the percentage completed
+)
+```
 
 ### Chat Completion
 

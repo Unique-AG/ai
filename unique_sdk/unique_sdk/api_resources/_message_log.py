@@ -36,7 +36,7 @@ class MessageLog(APIResource["MessageLog"]):
 
         text: NotRequired[str | None]
         status: NotRequired[Literal["RUNNING", "COMPLETED", "FAILED"] | None]
-        order: int
+        order: NotRequired[int | None]
         details: NotRequired[dict | None]
         uncitedReferences: NotRequired[dict | None]
         references: NotRequired[list["MessageLog.Reference"] | None]
