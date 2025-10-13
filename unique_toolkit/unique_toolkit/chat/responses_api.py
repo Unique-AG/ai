@@ -210,7 +210,7 @@ def _attempt_extract_verbosity_from_options(
 
     # Responses API
     if "text" in options:
-        reasoning = options["reasoning"]
+        reasoning = options["text"]
 
     # Completions API
     elif "verbosity" in options:
