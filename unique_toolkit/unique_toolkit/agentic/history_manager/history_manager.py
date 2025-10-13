@@ -17,7 +17,6 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelMessage,
     LanguageModelMessages,
-    LanguageModelStreamResponse,
     LanguageModelToolMessage,
 )
 
@@ -197,11 +196,6 @@ class HistoryManager:
 
     def add_assistant_message(self, message: LanguageModelAssistantMessage) -> None:
         self._loop_history.append(message)
-
-    def handle_loop_response(self, loop_response: LanguageModelStreamResponse) -> None:
-        self.add_assistant_message(
-            LanguageModelAssistantMessage.from_stream_response(loop_response)
-        )
 
     async def get_history_for_model_call(
         self,
