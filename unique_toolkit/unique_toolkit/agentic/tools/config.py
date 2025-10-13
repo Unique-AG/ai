@@ -36,7 +36,10 @@ class ToolSelectionPolicy(StrEnum):
 
 def handle_undefinded_icon(value: Any) -> ToolIcon:
     try:
-        return ToolIcon(value)
+        if isinstance(value, str):
+            return ToolIcon(value)
+        else:
+            return ToolIcon.BOOK
     except ValueError:
         return ToolIcon.BOOK
 
