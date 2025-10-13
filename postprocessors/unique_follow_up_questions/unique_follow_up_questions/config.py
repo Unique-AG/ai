@@ -47,9 +47,9 @@ class FollowUpQuestionsConfig(BaseModel):
         default=3,
         description="The number of questions to be used for the follow-up question.",
         validation_alias=AliasChoices(
+            "numberOfQuestions",
             "number_of_follow_up_questions",
             "numberOfFollowUpQuestions",
-            "numberOfQuestions",
         ),
     )
     adapt_to_language: bool = Field(
