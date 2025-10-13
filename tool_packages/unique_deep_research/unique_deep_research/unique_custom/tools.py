@@ -507,8 +507,8 @@ async def crawl_url(client: AsyncClient, url: str) -> tuple[str, str | None, boo
     try:
         response = await client.get(url, headers=headers)
         response.raise_for_status()
-    except Exception:
-        _LOGGER.warning(f"Site returned error {response.status_code}")
+    except Exception as e:
+        _LOGGER.warning(f"Failed to crawl URL: {str(e)}")
         return "Unable to crawl URL in web_fetch", None, False
 
     content_type = response.headers.get("content-type", "").lower().split(";")[0]
