@@ -63,6 +63,8 @@ mkdocs-entangled-plugin = "^0.4.0"
 isort = "^6.0.1"
 mkdocs-codeinclude-plugin = "^0.2.1"
 aiohttp = "^3.12.15"
+fastapi = "^0.119.0"
+uvicorn = "^0.37.0"
 
 [build-system]
 requires = ["poetry-core"]
