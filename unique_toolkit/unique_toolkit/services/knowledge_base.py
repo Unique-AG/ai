@@ -637,6 +637,8 @@ class KnowledgeBaseService:
     ) -> ContentInfo:
         """
         Removes the specified keys irreversibly from the content metadata.
+
+        Note: Keys are camelized before being removed as metadata keys are stored in camelCase.
         """
 
         if content_info.metadata is None:
@@ -673,6 +675,11 @@ class KnowledgeBaseService:
         metadata_filter: dict[str, Any] | None = None,
         content_infos: list[ContentInfo] | None = None,
     ) -> list[ContentInfo]:
+        """Update the metadata of the contents matching the metadata filter.
+
+        Note: Keys are camelized before being updated as metadata keys are stored in camelCase.
+        """
+
         additional_metadata_camelized = humps.camelize(additional_metadata)
         additional_metadata_camelized = self._pop_forbidden_metadata_keys(
             additional_metadata_camelized
@@ -710,6 +717,12 @@ class KnowledgeBaseService:
         metadata_filter: dict[str, Any] | None = None,
         content_infos: list[ContentInfo] | None = None,
     ) -> list[ContentInfo]:
+        """Remove the specified keys irreversibly from the content metadata.
+
+        Note: Keys are camelized before being removed as metadata keys are stored in camelCase.
+
+        """
+
         if content_infos is None:
             content_infos = self.get_paginated_content_infos(
                 metadata_filter=metadata_filter,
