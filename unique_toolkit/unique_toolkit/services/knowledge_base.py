@@ -644,7 +644,7 @@ class KnowledgeBaseService:
             return content_info
 
         for key in keys_to_remove:
-            content_info.metadata.pop(key, None)
+            content_info.metadata[humps.camelize(key)] = None
 
         return update_content(
             user_id=self._user_id,
