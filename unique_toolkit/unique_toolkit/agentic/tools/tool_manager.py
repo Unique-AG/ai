@@ -243,7 +243,6 @@ class ToolManager(BaseToolManager):
         tool_configs = self._config.tools
         self._logger.info("Initializing tool definitions...")
         self._logger.info(f"Tool choices: {tool_choices}")
-        self._logger.info(f"Tool configs: {tool_configs}")
 
         tool_configs, sub_agents = self._a2a_manager.get_all_sub_agents(
             tool_configs, event

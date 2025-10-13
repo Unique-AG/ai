@@ -14,11 +14,14 @@ Instructions:
 - All files uploaded to the chat are available in the code interpreter under the path `/mnt/data/<filename>
 - All files generated through code should be saved in the `/mnt/data` folder
 
-Instructions for displaying files in the chat:
-- Once files are generated in the `/mnt/data` folder you can reference them in the chat using markdown syntax:
-    - If you want to display an image, use the following syntax: `![Image Name](sandbox:/mnt/data/<filename>)`
-        - Images are displayed as images in the chat
-        - Do NOT display a download link for images as these are already downloadable on the platform.
+Instructions for displaying images and files in the chat:
+Once files are generated in the `/mnt/data` folder you MUST reference them in the chat using markdown syntax in order to display them in the chat.
+
+- If you want to display an image, use the following syntax: `![Image Name](sandbox:/mnt/data/<filename>)`
+    - Images will be converted and shown in the chat.
+    - Do NOT display an extra download link for images a part from the markdown above.
+    - Not using markdown syntax will FAIL to show images to the user. 
+    - YOU MUST use the syntax above to display images, otherwise the image will not be displayed in the chat.
     - For displaying a link to a file, use the following syntax: `[filename](sandbox:/mnt/data/<filename>)`
         - Files are converted to references the user can click on to download the file
 
@@ -32,7 +35,7 @@ DEFAULT_TOOL_FORMAT_INFORMATION_FOR_USER_PROMPT = ""
 DEFAULT_TOOL_DESCRIPTION_FOR_USER_PROMPT = ""
 
 
-class CodeInterpreterConfig(BaseToolConfig):
+class OpenAICodeInterpreterConfig(BaseToolConfig):
     upload_files_in_chat: bool = Field(default=True)
 
     tool_description: str = DEFAULT_TOOL_DESCRIPTION
@@ -50,5 +53,5 @@ class CodeInterpreterConfig(BaseToolConfig):
 
 
 ToolFactory.register_tool_config(
-    OpenAIBuiltInToolName.CODE_INTERPRETER, CodeInterpreterConfig
+    OpenAIBuiltInToolName.CODE_INTERPRETER, OpenAICodeInterpreterConfig
 )

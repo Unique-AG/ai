@@ -6,7 +6,7 @@ from unique_toolkit.agentic.tools.openai_builtin.base import (
     OpenAIBuiltInToolName,
 )
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter import (
-    CodeInterpreterConfig,
+    OpenAICodeInterpreterConfig,
     OpenAICodeInterpreterTool,
 )
 from unique_toolkit.content.schemas import Content
@@ -32,7 +32,7 @@ class OpenAIBuiltInToolManager:
 
     async def _build_tool(self, tool_config: ToolBuildConfig) -> OpenAIBuiltInTool:
         if tool_config.name == OpenAIBuiltInToolName.CODE_INTERPRETER:
-            assert isinstance(tool_config.configuration, CodeInterpreterConfig)
+            assert isinstance(tool_config.configuration, OpenAICodeInterpreterConfig)
             tool = await OpenAICodeInterpreterTool.build_tool(
                 config=tool_config.configuration,
                 uploaded_files=self._uploaded_files,

@@ -13,7 +13,7 @@ from unique_toolkit.agentic.tools.openai_builtin.base import (
     OpenAIBuiltInToolName,
 )
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import (
-    CodeInterpreterConfig,
+    OpenAICodeInterpreterConfig,
 )
 from unique_toolkit.agentic.tools.schemas import ToolPrompts
 from unique_toolkit.content.schemas import (
@@ -127,7 +127,7 @@ async def _upload_files_to_container(
             )
             file_content = content_service.download_content_to_bytes(
                 content_id=file.id, chat_id=chat_id
-            ) # TODO: Use async version when available
+            )  # TODO: Use async version when available
 
             openai_file = await client.containers.files.create(
                 container_id=container_id,
@@ -143,7 +143,7 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
 
     def __init__(
         self,
-        config: CodeInterpreterConfig,
+        config: OpenAICodeInterpreterConfig,
         container_id: str | None,
     ):
         self._config = config
@@ -171,7 +171,7 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
     @classmethod
     async def build_tool(
         cls,
-        config: CodeInterpreterConfig,
+        config: OpenAICodeInterpreterConfig,
         uploaded_files: list[Content],
         client: AsyncOpenAI,
         content_service: ContentService,

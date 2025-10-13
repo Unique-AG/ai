@@ -1,8 +1,8 @@
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import (
-    CodeInterpreterConfig,
+    OpenAICodeInterpreterConfig,
 )
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.service import (
     OpenAICodeInterpreterTool,
 )
 
-__all__ = ["CodeInterpreterConfig", "OpenAICodeInterpreterTool"]
+__all__ = ["OpenAICodeInterpreterConfig", "OpenAICodeInterpreterTool"]
