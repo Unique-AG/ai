@@ -161,15 +161,6 @@ class LanguageModelFunction(BaseModel):
             )
 
 
-# class ResponsesLanguageModelFunction(LanguageModelFunction):
-#     @field_validator("id", mode="before")
-#     def randomize_id(cls, value: Any):
-#         return value  # Don't randomize id for responses
-
-
-# ToolCallType = TypeVar("ToolCallType", bound=LanguageModelFunction, covariant=True)
-
-
 class LanguageModelStreamResponse(BaseModel):
     model_config = model_config
 
