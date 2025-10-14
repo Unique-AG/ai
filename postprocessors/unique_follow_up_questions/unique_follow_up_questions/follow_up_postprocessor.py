@@ -84,7 +84,7 @@ class FollowUpPostprocessor(Postprocessor):
             history: The message history to clean
         """
         for message in history.root:
-            if message.role != "user" and message.content:
+            if message.content:
                 # Check if message.content is a list and remove dictionaries with 'type': 'image_url'
                 if isinstance(message.content, list):
                     message.content = [
