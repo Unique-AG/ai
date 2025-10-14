@@ -535,10 +535,7 @@ def remove_up_to_last_ai_message(messages: list[BaseMessage]) -> list[BaseMessag
     for i in range(len(messages) - 1, -1, -1):
         message_subset.insert(0, messages[i])
         if isinstance(messages[i], AIMessage):
-            # Return everything up to (but not including) the last AI message
             break
-    if len(message_subset) == len(messages) + 2:
-        return messages
 
     # Keep first two messages (system + initial task) and truncation notice with middle messages removed
     return [messages[0], messages[1], truncation_notice] + message_subset
