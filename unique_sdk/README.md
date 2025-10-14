@@ -682,6 +682,26 @@ message = unique_sdk.Message.create(
 )
 ```
 
+#### `unique_sdk.Message.create_event`
+
+Create a new message event in a chat. Updating the text of a message in the chat UI is possible by creating a message update event. This function can be used for custom streaming to the chat. (Compatible with release >.42)
+
+The event only changes the text in the UI, it *does not* update the database.
+
+```python
+message = unique_sdk.Message.create_event(
+    user_id=user_id,
+    company_id=company_id,
+    messageId="msg_l4ushn85yqbewpf6tllh2cl7",
+    chatId="chat_kc8p3kgkn7393qhgmv5js5nt",
+    text="Hello.",                  #optional
+    originalText="Hello.",          #optional
+    references=[],                  #optional
+    gptRequest={}                   #optional
+    debugInfo={  "hello": "test" }, #optional
+)
+```
+
 #### `unique_sdk.Message.modify`
 
 Modify an existing chat message.
@@ -807,7 +827,7 @@ unique_sdk.Integrated.responses_stream(
 
 #### `unique_sdk.MessageLog.create`
 
-Create a message log for a provided `messageId`.
+Function to update the steps section of a message in the chat UI. This is possible by creating a message log record during a message execution.
 
 ```python
 msg_log = unique_sdk.MessageLog.create(
@@ -816,10 +836,10 @@ msg_log = unique_sdk.MessageLog.create(
     messageId="msg_a0jgnt1jrqv1d3uzr450waxw",
     text="Create message log text",
     order=1,
-    status="RUNNING",                               # one of "RUNNING", "COMPLETED", "FAILED"
-    details=None,                                   # optional, details dictionary
-    uncitedReferences=None,                         # optional, references dictionary
-    references=None,                                # optional, list of references
+    status="RUNNING",                             # one of "RUNNING", "COMPLETED", "FAILED"
+    details={},                                   # optional, details dictionary
+    uncitedReferences={},                         # optional, references dictionary
+    references=[],                                # optional, list of references
 )
 ```
 
@@ -832,12 +852,12 @@ msg_log = unique_sdk.MessageLog.update(
     user_id=user_id,
     company_id=company_id,
     message_log_id="message_log_fd7z7gjljo1z2wu5g6l9q7r9",
-    text="Update a message log text",               # optional
-    order=1,                                        # optional
-    status="RUNNING",                               # one of "RUNNING", "COMPLETED", "FAILED"
-    details=None,                                   # optional, details dictionary
-    uncitedReferences=None,                         # optional, references dictionary
-    references=None,                              
+    text="Update a message log text",             # optional
+    order=1,                                      # optional
+    status="RUNNING",                             # one of "RUNNING", "COMPLETED", "FAILED"
+    details={},                                   # optional, details dictionary
+    uncitedReferences={},                         # optional, references dictionary
+    references=[],                                # optional, list of references
 )
 ```
 
@@ -853,9 +873,9 @@ msg_execution = unique_sdk.MessageExecution.create(
     company_id=company_id,
     messageId="msg_a0jgnt1jrqv143uzr750waxw",
     chatId="chat_nx21havszl1skchd7544oykh",
-    type="DEEP_RESEARCH"
-    secondsRemaining=None                       # optional, number defining the seconds remaining
-    percentageCompleted=None                    # optional, number defining the percentage completed
+    type="DEEP_RESEARCH",
+    secondsRemaining=None,                       # optional, number defining the seconds remaining
+    percentageCompleted=None,                    # optional, number defining the percentage completed
 )
 ```
 
@@ -880,9 +900,9 @@ msg_execution = unique_sdk.MessageExecution.update(
     user_id=user_id,
     company_id=company_id,
     messageId="msg_a0jgnt1jrqv143uzr750waxw",
-    status="COMPLETED",                       # one of: COMPLETED, FAILED
-    secondsRemaining=55                       # optional, number defining the seconds remaining
-    percentageCompleted=10                    # optional, number defining the percentage completed
+    status="COMPLETED",                        # one of: COMPLETED, FAILED
+    secondsRemaining=55,                       # optional, number defining the seconds remaining
+    percentageCompleted=10,                    # optional, number defining the percentage completed
 )
 ```
 
