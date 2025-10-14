@@ -45,9 +45,17 @@ class ReportGenerationConfig(BaseModel):
 
     model_config = get_configuration_dict()
 
-    language_model: LMI = get_LMI_default_field(_DEFAULT_LANGUAGE_MODEL)
-    batch_size: int = Field(default=_DEFAULT_BATCH_SIZE)
-    max_tokens_per_batch: int = Field(default=_DEFAULT_MAX_TOKENS_PER_BATCH)
+    language_model: LMI = get_LMI_default_field(
+        _DEFAULT_LANGUAGE_MODEL, description="The language model to use for generation"
+    )
+    batch_size: int = Field(
+        default=_DEFAULT_BATCH_SIZE,
+        description="Number of sources to process in each batch",
+    )
+    max_tokens_per_batch: int = Field(
+        default=_DEFAULT_MAX_TOKENS_PER_BATCH,
+        description="Maximum tokens allowed per batch to prevent overflow",
+    )
 
 
 # Generic type variable for ReportGenerationOutputModel subclasses
@@ -100,6 +108,7 @@ class ReportGenerationContext(BaseModel, Generic[T]):
         sources: List of data sources to analyze
         output_model: The Pydantic model class for structured output
     """
+
     model_config = ConfigDict(frozen=True)
 
     step_name: str
@@ -181,6 +190,7 @@ class ReportModifyContext(BaseModel, Generic[T]):
         structured_report: The existing report to be modified
         sources: List of new data sources to incorporate
     """
+
     model_config = ConfigDict(frozen=True)
 
     step_name: str

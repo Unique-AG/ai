@@ -12,7 +12,7 @@ class StrengthItem(BaseModel):
     chunk_ids: list[int] = Field(description="The chunk IDs of the strength")
 
 
-class StrengthsAnalysis(ReportGenerationOutputModel):
+class StrengthsAnalysis(ReportGenerationOutputModel["StrengthsAnalysis"]):
     model_config = ConfigDict(extra="forbid")
 
     strengths: list[StrengthItem] = Field(
@@ -22,7 +22,7 @@ class StrengthsAnalysis(ReportGenerationOutputModel):
     @classmethod
     def group_batches(
         cls, batches: Sequence["StrengthsAnalysis"]
-    ) -> "StrengthsAnalysis":  # type: ignore[override]
+    ) -> "StrengthsAnalysis": 
         """Combine multiple StrengthsAnalysis batches into a single analysis."""
         all_strengths = []
         for batch in batches:

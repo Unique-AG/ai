@@ -1,8 +1,11 @@
+from logging import getLogger
+
 from unique_toolkit import KnowledgeBaseService
 from unique_toolkit.content.schemas import Content
 
 from unique_swot.services.schemas import Source, SourceType
 
+_LOGGER = getLogger(__name__)
 
 def collect_knowledge_base(
     *, knowledge_base_service: KnowledgeBaseService, where_clause: dict
