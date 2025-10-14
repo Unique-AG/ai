@@ -29,6 +29,7 @@ from unique_swot.services.schemas import (
     ExecutedSWOTPlan,
     ExecutedSwotStep,
     Source,
+    SWOTOperation,
     SWOTPlan,
 )
 
@@ -65,10 +66,10 @@ class SWOTExecutionManager:
             short_term_memory_service: Service for managing analysis state
             notifier: Service for sending progress notifications
         """
-        self.configuration = configuration
-        self.language_model_service = language_model_service
-        self.notifier = notifier
-        self.memory_service = SwotMemoryService(short_term_memory_service) # TODO: Check compatibility with short term memory manager from toolkit
+        self._configuration = configuration
+        self._language_model_service = language_model_service
+        self._notifier = notifier
+        self._memory_service = SwotMemoryService(short_term_memory_service) # TODO: Check compatibility with short term memory manager from toolkit
 
     async def run(self, *, plan: SWOTPlan, sources: list[Source]) -> ExecutedSWOTPlan:
         """
@@ -94,7 +95,7 @@ class SWOTExecutionManager:
         )
         for step in plan.steps:
             match step.operation:
-                case "generate":
+                case SWOTOperation.GENERATE:
                     analysis = await self.run_generation_function(
                         component=step.component,
                         sources=sources,
@@ -105,7 +106,7 @@ class SWOTExecutionManager:
                             result=analysis,
                         )
                     )
-                case "modify":
+                case SWOTOperation.MODIFY:
                     analysis = await self.run_modify_function(
                         component=step.component,
                         sources=sources,
@@ -117,7 +118,7 @@ class SWOTExecutionManager:
                             result=analysis,
                         )
                     )
-                case "retrieve":
+                case SWOTOperation.RETRIEVE:
                     analysis = await self.get_analysis(
                         component=step.component,
                         sources=sources,
@@ -159,7 +160,7 @@ class SWOTExecutionManager:
         Returns:
             The modified or newly generated SWOT analysis
         """
-        saved_analysis = self.memory_service.get(get_analysis_model(component))
+        saved_analysis = self._memory_service.get(get_analysis_model(component))
 
         if not saved_analysis:
             _LOGGER.warning(
@@ -229,20 +230,20 @@ class SWOTExecutionManager:
         )
         result = await generate_report(
             context=context,
-            configuration=self.configuration,
-            language_model_service=self.language_model_service,
-            notifier=self.notifier,
+            configuration=self._configuration,
+            language_model_service=self._language_model_service,
+            notifier=self._notifier,
             batch_parser=batch_parser,
         )
 
-        self.memory_service.set(result)
+        self._memory_service.set(result)
 
         return result
 
     async def get_analysis(
-        self, component: SWOTComponent, sources: list[Source]
+        self, *, component: SWOTComponent, sources: list[Source]
     ) -> SWOTAnalysisModels:
-        saved_analysis = self.memory_service.get(get_analysis_model(component))
+        saved_analysis = self._memory_service.get(get_analysis_model(component))
 
         # If we have a saved analysis, return it
         if saved_analysis:

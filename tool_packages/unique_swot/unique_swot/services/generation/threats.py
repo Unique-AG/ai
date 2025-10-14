@@ -12,7 +12,7 @@ class ThreatItem(BaseModel):
     chunk_ids: list[int] = Field(description="The chunk IDs of the threat")
 
 
-class ThreatsAnalysis(ReportGenerationOutputModel):
+class ThreatsAnalysis(ReportGenerationOutputModel["ThreatsAnalysis"]):
     model_config = ConfigDict(extra="forbid")
 
     threats: list[ThreatItem] = Field(
@@ -20,7 +20,7 @@ class ThreatsAnalysis(ReportGenerationOutputModel):
     )
 
     @classmethod
-    def group_batches(cls, batches: Sequence["ThreatsAnalysis"]) -> "ThreatsAnalysis":  # type: ignore[override]
+    def group_batches(cls, batches: Sequence["ThreatsAnalysis"]) -> "ThreatsAnalysis": 
         """Combine multiple ThreatsAnalysis batches into a single analysis."""
         all_threats = []
         for batch in batches:
