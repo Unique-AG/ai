@@ -836,10 +836,10 @@ msg_log = unique_sdk.MessageLog.create(
     messageId="msg_a0jgnt1jrqv1d3uzr450waxw",
     text="Create message log text",
     order=1,
-    status="RUNNING",                               # one of "RUNNING", "COMPLETED", "FAILED"
-    details=None,                                   # optional, details dictionary
-    uncitedReferences=None,                         # optional, references dictionary
-    references=None,                                # optional, list of references
+    status="RUNNING",                             # one of "RUNNING", "COMPLETED", "FAILED"
+    details={},                                   # optional, details dictionary
+    uncitedReferences={},                         # optional, references dictionary
+    references=[],                                # optional, list of references
 )
 ```
 
@@ -852,12 +852,12 @@ msg_log = unique_sdk.MessageLog.update(
     user_id=user_id,
     company_id=company_id,
     message_log_id="message_log_fd7z7gjljo1z2wu5g6l9q7r9",
-    text="Update a message log text",               # optional
-    order=1,                                        # optional
-    status="RUNNING",                               # one of "RUNNING", "COMPLETED", "FAILED"
-    details=None,                                   # optional, details dictionary
-    uncitedReferences=None,                         # optional, references dictionary
-    references=None,                              
+    text="Update a message log text",             # optional
+    order=1,                                      # optional
+    status="RUNNING",                             # one of "RUNNING", "COMPLETED", "FAILED"
+    details={},                                   # optional, details dictionary
+    uncitedReferences={},                         # optional, references dictionary
+    references=[],                                # optional, list of references
 )
 ```
 
@@ -873,9 +873,9 @@ msg_execution = unique_sdk.MessageExecution.create(
     company_id=company_id,
     messageId="msg_a0jgnt1jrqv143uzr750waxw",
     chatId="chat_nx21havszl1skchd7544oykh",
-    type="DEEP_RESEARCH"
-    secondsRemaining=None                       # optional, number defining the seconds remaining
-    percentageCompleted=None                    # optional, number defining the percentage completed
+    type="DEEP_RESEARCH",
+    secondsRemaining=None,                       # optional, number defining the seconds remaining
+    percentageCompleted=None,                    # optional, number defining the percentage completed
 )
 ```
 
@@ -900,9 +900,9 @@ msg_execution = unique_sdk.MessageExecution.update(
     user_id=user_id,
     company_id=company_id,
     messageId="msg_a0jgnt1jrqv143uzr750waxw",
-    status="COMPLETED",                       # one of: COMPLETED, FAILED
-    secondsRemaining=55                       # optional, number defining the seconds remaining
-    percentageCompleted=10                    # optional, number defining the percentage completed
+    status="COMPLETED",                        # one of: COMPLETED, FAILED
+    secondsRemaining=55,                       # optional, number defining the seconds remaining
+    percentageCompleted=10,                    # optional, number defining the percentage completed
 )
 ```
 
