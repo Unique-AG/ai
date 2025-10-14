@@ -70,6 +70,7 @@ class UniqueAI:
         self._postprocessor_manager = postprocessor_manager
         self._latest_assistant_id: str = event.payload.assistant_message.id
         self._mcp_servers = mcp_servers
+        self._tool_took_control = False
 
     ############################################################
     # Override of base methods
@@ -125,8 +126,9 @@ class UniqueAI:
                 loop_response
             )
 
+        # Only set completed_at if no tool took control
         await self._chat_service.modify_assistant_message_async(
-            set_completed_at=True,
+            set_completed_at=not self._tool_took_control,
         )
 
     # @track()
@@ -352,7 +354,10 @@ class UniqueAI:
         self._reference_manager.extract_referenceable_chunks(tool_call_responses)
         self._debug_info_manager.extract_tool_debug_info(tool_call_responses)
 
-        return self._tool_manager.does_a_tool_take_control(tool_calls)
+        self._tool_took_control = self._tool_manager.does_a_tool_take_control(
+            tool_calls
+        )
+        return self._tool_took_control
 
     async def _create_new_assistant_message_if_loop_response_contains_content(
         self, loop_response: LanguageModelStreamResponse
