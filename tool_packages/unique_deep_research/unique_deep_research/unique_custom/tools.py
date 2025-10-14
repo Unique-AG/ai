@@ -224,22 +224,22 @@ async def web_fetch(
     citation = await citation_manager.register_source(
         source_id=url, source_type="web", name=title or url, url=url
     )
-
-    write_tool_message_log(
-        config,
-        "**Reading website**",
-        uncited_references=MessageLogUncitedReferences(
-            data=[
-                ContentReference(
-                    name=title or url,
-                    url=url,
-                    sequence_number=0,
-                    source="web",
-                    source_id=url,
-                )
-            ]
-        ),
-    )
+    if title:
+        write_tool_message_log(
+            config,
+            "**Reading website**",
+            uncited_references=MessageLogUncitedReferences(
+                data=[
+                    ContentReference(
+                        name=title,
+                        url=url,
+                        sequence_number=0,
+                        source="web",
+                        source_id=url,
+                    )
+                ]
+            ),
+        )
 
     # Apply offset and character limit
     original_content_length = len(content)
