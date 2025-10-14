@@ -58,7 +58,6 @@ from .markdown_utils import (
 from .unique_custom.agents import custom_agent
 from .unique_custom.citation import GlobalCitationManager
 from .unique_custom.utils import (
-    cleanup_request_counter,
     create_message_log_entry,
     get_next_message_order,
 )
@@ -397,8 +396,6 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             }
 
             result = await custom_agent.ainvoke(initial_state, config=config)  # type: ignore[arg-type]
-
-            cleanup_request_counter(self.event.payload.assistant_message.id)
 
             # Extract final report (citations already refined by agents.py)
             research_result = result.get("final_report", "")
