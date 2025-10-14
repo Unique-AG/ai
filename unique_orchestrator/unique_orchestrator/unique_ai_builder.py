@@ -155,7 +155,10 @@ def build_unique_ai(
             )
         )
 
-    if config.agent.services.follow_up_questions_config:
+    if (
+        config.agent.services.follow_up_questions_config
+        and config.agent.services.follow_up_questions_config.number_of_questions > 0
+    ):
         postprocessor_manager.add_postprocessor(
             FollowUpPostprocessor(
                 logger=logger,
@@ -175,12 +178,9 @@ def build_unique_ai(
         postprocessor_manager.add_postprocessor(sub_agent_responses_postprocessor)
 
         sub_agent_evaluation = None
-        if (
-            config.agent.services.evaluation_config is not None
-            and config.agent.services.evaluation_config.sub_agents_config is not None
-        ):
+        if config.agent.experimental.sub_agents_config.evaluation_config is not None:
             sub_agent_evaluation = SubAgentEvaluationService(
-                config=config.agent.services.evaluation_config.sub_agents_config,
+                config=config.agent.experimental.sub_agents_config.evaluation_config,
                 language_model_service=LanguageModelService.from_event(event),
             )
             evaluation_manager.add_evaluation(sub_agent_evaluation)
