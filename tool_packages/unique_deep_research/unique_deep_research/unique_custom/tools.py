@@ -21,7 +21,7 @@ from unique_toolkit.chat.schemas import (
     MessageLogUncitedReferences,
 )
 from unique_toolkit.content import ContentReference
-from unique_toolkit.content.schemas import ContentSearchType
+from unique_toolkit.content.schemas import ContentChunk, ContentSearchType
 from unique_web_search.client_settings import get_google_search_settings
 from unique_web_search.services.search_engine.google import GoogleConfig, GoogleSearch
 
@@ -274,6 +274,15 @@ async def web_fetch(
     )
 
 
+def _get_internal_data_title(result: ContentChunk) -> str:
+    """Get the title of the internal data."""
+    return (
+        f"{result.key} : {result.start_page},{result.end_page}"
+        if result.key
+        else result.title or result.id
+    )
+
+
 @tool(args_schema=InternalSearchArgs)
 async def internal_search(query: str, config: RunnableConfig, limit: int = 50) -> str:
     """
@@ -316,7 +325,7 @@ async def internal_search(query: str, config: RunnableConfig, limit: int = 50) -
         citation = await citation_manager.register_source(
             source_id=f"{result.id}_{result.chunk_id}",
             source_type="node-ingestion-chunks",
-            name=result.title or result.key or result.id,
+            name=_get_internal_data_title(result),
             url=result.url or f"unique://content/{result.id}",
         )
         formatted_results += f"{result.title}\n"
@@ -380,7 +389,7 @@ async def internal_fetch(
         citation = await citation_manager.register_source(
             source_id=f"{result.id}_{result.chunk_id}",
             source_type="node-ingestion-chunks",
-            name=result.title or result.key or result.id,
+            name=_get_internal_data_title(result),
             url=result.url or f"unique://content/{result.id}",
         )
         formatted_results += f"{result.title}\n"
@@ -403,7 +412,7 @@ async def internal_fetch(
                     name=search_results[0].title or search_results[0].key or content_id,
                     url=result.url or f"unique://content/{result.id}",
                     sequence_number=0,
-                    source="deep-research-citations",
+                    source="node-ingestion-chunks",
                     source_id=f"{result.id}_{result.chunk_id}",
                 )
             ]
