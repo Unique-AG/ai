@@ -436,7 +436,7 @@ def prepare_messages_for_model(
     model_info: LanguageModelInfo,
 ) -> List[BaseMessage]:
     """
-    Simple proactive message filtering - keep system (first message) + recent messages up to specified ratio of limit.
+    Smart message filtering that keeps first two messages (system + initial task) and recent messages.
     Ensures tool messages are not orphaned from their AI message calls.
 
     Args:
@@ -449,67 +449,99 @@ def prepare_messages_for_model(
     if not messages:
         return messages
 
+    if len(messages) <= 2:
+        return messages
+
     # Use specified ratio of input limit to leave buffer
     token_budget = model_info.token_limits.token_limit_input
 
+    # Always keep first two messages (system + initial task)
     system_msg = messages[0]
-    other_messages = messages[1:]
+    first_msg = messages[1]
+    other_messages = messages[2:]
 
-    # Count system message tokens
-    system_tokens = count_message_tokens(system_msg, model_info) if system_msg else 0
+    # Count tokens for messages we always keep
+    system_tokens = count_message_tokens(system_msg, model_info)
+    first_msg_tokens = count_message_tokens(first_msg, model_info)
+
+    # Reserve tokens for truncation message if needed
+    truncation_msg_tokens = 50  # Approximate tokens for truncation notice
 
     # Calculate remaining budget
-    remaining_budget = token_budget - system_tokens
+    remaining_budget = (
+        token_budget - system_tokens - first_msg_tokens - truncation_msg_tokens
+    )
 
     # Keep most recent messages that fit
-    result = []
+    message_subset = []
     total_tokens = 0
 
     for message in reversed(other_messages):
         msg_tokens = count_message_tokens(message, model_info)
         if total_tokens + msg_tokens <= remaining_budget:
-            result.insert(0, message)
+            message_subset.insert(0, message)
             total_tokens += msg_tokens
         else:
             break
 
     # Remove orphaned tool messages at the start (tool messages without their AI message)
     # Tool messages should always come after an AI message with tool_calls
-    while result and isinstance(result[0], ToolMessage):
+    while message_subset and isinstance(message_subset[0], ToolMessage):
         _LOGGER.info("Removing orphaned tool message at start of context")
-        result.pop(0)
+        message_subset.pop(0)
 
-    # Combine system + recent messages
-    if system_msg:
-        result.insert(0, system_msg)
+    # Build final message list
+    final_messages = [system_msg, first_msg]
 
-    if len(result) < len(messages):
+    # Add truncation notice if we removed messages
+    if len(message_subset) < len(other_messages):
+        truncation_notice = AIMessage(
+            content="[Previous conversation history truncated to fit context window]"
+        )
+        final_messages.append(truncation_notice)
         _LOGGER.info(
-            f"Trimmed {len(messages) - len(result)} messages to fit token limit"
+            f"Trimmed {len(other_messages) - len(message_subset)} messages from middle of conversation"
         )
 
-    return result
+    final_messages.extend(message_subset)
+    return final_messages
 
 
 def remove_up_to_last_ai_message(messages: list[BaseMessage]) -> list[BaseMessage]:
-    """Truncate message history by removing up to the last AI message.
+    """Truncate message history by removing middle messages, keeping first two and most recent.
 
-    This is useful for handling token limit exceeded errors by removing recent context.
+    Keeps:
+    - First message (system)
+    - Second message (initial task)
+    - Adds truncation notice
+    - Removes everything up to the last AI message
 
     Args:
         messages: List of message objects to truncate
 
     Returns:
-        Truncated message list up to (but not including) the last AI message
+        Truncated message list with first two messages + truncation notice and from last AI message and up
     """
+    if len(messages) <= 2:
+        return messages
+
+    # Keep first two messages (system + initial task)
+    # Add truncation notice as AI message
+    truncation_notice = AIMessage(
+        content="[Conversation history truncated due to token limits - retrying with minimal context]"
+    )
+    message_subset = []
     # Search backwards through messages to find the last AI message
     for i in range(len(messages) - 1, -1, -1):
+        message_subset.insert(0, messages[i])
         if isinstance(messages[i], AIMessage):
             # Return everything up to (but not including) the last AI message
-            return messages[:i]
+            break
+    if len(message_subset) == len(messages) + 2:
+        return messages
 
-    # No AI messages found, return original list
-    return messages
+    # Keep first two messages (system + initial task) and truncation notice with middle messages removed
+    return [messages[0], messages[1], truncation_notice] + message_subset
 
 
 async def ainvoke_with_token_handling(
