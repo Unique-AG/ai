@@ -34,7 +34,7 @@ class ToolSelectionPolicy(StrEnum):
     BY_USER = "ByUser"
 
 
-def handle_undefinded_icon(value: Any) -> ToolIcon:
+def handle_undefined_icon(value: Any) -> ToolIcon:
     try:
         if isinstance(value, str):
             return ToolIcon(value)
@@ -51,7 +51,7 @@ class ToolBuildConfig(BaseModel):
     name: str
     configuration: BaseToolConfig
     display_name: str = ""
-    icon: Annotated[ToolIcon, BeforeValidator(handle_undefinded_icon)] = Field(
+    icon: Annotated[ToolIcon, BeforeValidator(handle_undefined_icon)] = Field(
         default=ToolIcon.BOOK,
         description="The icon name that will be used to display the tool in the user interface.",
     )
