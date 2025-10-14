@@ -4,8 +4,6 @@ from mimetypes import guess_type
 from typing import override
 
 from openai import AsyncOpenAI
-from openai.types.responses.response_output_item import ResponseOutputItem
-from openai.types.responses.response_output_text import AnnotationContainerFileCitation
 from pydantic import BaseModel
 from unique_sdk import Content
 
@@ -41,7 +39,9 @@ class DisplayCodeInterpreterFilesPostProcessor(
     @override
     async def run(self, loop_response: ResponsesLanguageModelStreamResponse) -> None:
         logger.info("Fetching and adding code interpreter files to the response")
-        container_files = _extract_container_files(loop_response.output)
+
+        container_files = loop_response.container_files
+        logger.info("Found %s container files", len(container_files))
 
         self._content_map = {}
         for container_file in container_files:
@@ -100,24 +100,6 @@ class DisplayCodeInterpreterFilesPostProcessor(
     @override
     async def remove_from_text(self, text) -> str:
         return text
-
-
-def _extract_container_files(
-    output: list[ResponseOutputItem],
-) -> list[AnnotationContainerFileCitation]:
-    container_files = []
-    for output_item in output:
-        if output_item.type == "message":
-            for content in output_item.content:
-                if content.type == "output_text":
-                    for annotation in content.annotations:
-                        if annotation.type == "container_file_citation":
-                            logger.info(
-                                "Found container file citation: %s"
-                                % annotation.filename
-                            )
-                            container_files.append(annotation)
-    return container_files
 
 
 def _get_next_ref_number(references: list[ContentReference]) -> int:

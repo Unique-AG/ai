@@ -47,9 +47,8 @@ class ShowExecutedCodePostprocessor(
         self, loop_response: ResponsesLanguageModelStreamResponse
     ) -> bool:
         prepended_text = ""
-        for output in loop_response.output:
-            if output.type == "code_interpreter_call":
-                prepended_text += _TEMPLATE.format(code=output.code)
+        for output in loop_response.code_interpreter_calls:
+            prepended_text += _TEMPLATE.format(code=output.code)
 
         loop_response.message.text = prepended_text + loop_response.message.text
 

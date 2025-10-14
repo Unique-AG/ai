@@ -1,7 +1,7 @@
 import json
 import math
 from enum import StrEnum
-from typing import Any, Literal, Self
+from typing import Any, Literal, Self, TypeVar
 from uuid import uuid4
 
 from humps import camelize
@@ -19,10 +19,13 @@ from openai.types.chat.chat_completion_tool_param import ChatCompletionToolParam
 from openai.types.responses import (
     EasyInputMessageParam,
     FunctionToolParam,
+    ResponseCodeInterpreterToolCall,
     ResponseFunctionToolCallParam,
     ResponseOutputItem,
+    ResponseOutputMessage,
 )
 from openai.types.responses.response_input_param import FunctionCallOutput
+from openai.types.responses.response_output_text import AnnotationContainerFileCitation
 from openai.types.shared_params.function_definition import FunctionDefinition
 from pydantic import (
     BaseModel,
@@ -191,8 +194,30 @@ class LanguageModelStreamResponse(BaseModel):
         )
 
 
+OutputItemType = TypeVar("OutputItemType", bound=ResponseOutputItem)
+
+
 class ResponsesLanguageModelStreamResponse(LanguageModelStreamResponse):
     output: list[ResponseOutputItem]
+
+    def filter_output(self, type: type[OutputItemType]) -> list[OutputItemType]:
+        return [item for item in self.output if isinstance(item, type)]
+
+    @property
+    def code_interpreter_calls(self) -> list[ResponseCodeInterpreterToolCall]:
+        return self.filter_output(ResponseCodeInterpreterToolCall)
+
+    @property
+    def container_files(self) -> list[AnnotationContainerFileCitation]:
+        container_files = []
+        messages = self.filter_output(ResponseOutputMessage)
+        for message in messages:
+            for content in message.content:
+                if content.type == "output_text":
+                    for annotation in content.annotations:
+                        if annotation.type == "container_file_citation":
+                            container_files.append(annotation)
+        return container_files
 
 
 class LanguageModelFunctionCall(BaseModel):
