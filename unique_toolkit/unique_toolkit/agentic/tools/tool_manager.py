@@ -60,11 +60,9 @@ class BaseToolManager(ABC):
 
     @abstractmethod
     def get_tool_by_name(self, name: str) -> Tool | None:
-        pass
+        raise NotImplementedError()
 
     def does_a_tool_take_control(self, tool_calls: list[LanguageModelFunction]) -> bool:
-        pass
-
         for tool_call in tool_calls:
             tool_instance = self.get_tool_by_name(tool_call.name)
             if tool_instance and tool_instance.takes_control():
