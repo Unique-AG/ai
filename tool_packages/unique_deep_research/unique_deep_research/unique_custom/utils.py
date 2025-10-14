@@ -11,8 +11,10 @@ from typing import Any, Dict, List, Optional, Union
 
 import tiktoken
 from langchain_core.messages import (
+    AIMessage,
     BaseMessage,
     MessageLikeRepresentation,
+    ToolMessage,
     filter_messages,
 )
 from langchain_core.runnables import Runnable, RunnableConfig
@@ -371,6 +373,8 @@ def is_token_error(exception: Exception) -> bool:
             "prompt is too long",
             "input too long",
             "maximum context",
+            "context_length_exceeded",
+            "invalid_request_error",
         ]
     )
 
@@ -400,10 +404,31 @@ def count_tokens(text: str, model_info: LanguageModelInfo) -> int:
         return 0
     try:
         encoder = tiktoken.get_encoding(model_info.encoder_name)
-        return len(encoder.encode(str(text)))
+        return len(encoder.encode(text))
     except Exception as e:
         _LOGGER.warning(f"Error counting tokens: {e}")
         return len(str(text)) // 4  # Rough fallback
+
+
+def count_message_tokens(message: BaseMessage, model_info: LanguageModelInfo) -> int:
+    """Count tokens in a message including content, tool calls, and tool responses."""
+    total_tokens = 4  # Base overhead per message
+
+    # Count content
+    if message.content:
+        total_tokens += count_tokens(str(message.content), model_info)
+
+    # Count tool calls (AIMessage with tool_calls)
+    if isinstance(message, AIMessage) and message.tool_calls:
+        for tool_call in message.tool_calls:
+            # Count tool name and arguments
+            if isinstance(tool_call, dict):
+                total_tokens += count_tokens(str(tool_call), model_info)
+            else:
+                total_tokens += count_tokens(str(tool_call), model_info)
+            total_tokens += 4  # Base overhead per tool call
+
+    return total_tokens
 
 
 def prepare_messages_for_model(
@@ -412,6 +437,7 @@ def prepare_messages_for_model(
 ) -> List[BaseMessage]:
     """
     Simple proactive message filtering - keep system (first message) + recent messages up to specified ratio of limit.
+    Ensures tool messages are not orphaned from their AI message calls.
 
     Args:
         messages: List of messages to prepare
@@ -430,9 +456,7 @@ def prepare_messages_for_model(
     other_messages = messages[1:]
 
     # Count system message tokens
-    system_tokens = (
-        count_tokens(str(system_msg.content), model_info) + 4 if system_msg else 0
-    )
+    system_tokens = count_message_tokens(system_msg, model_info) if system_msg else 0
 
     # Calculate remaining budget
     remaining_budget = token_budget - system_tokens
@@ -442,25 +466,50 @@ def prepare_messages_for_model(
     total_tokens = 0
 
     for message in reversed(other_messages):
-        msg_tokens = (
-            count_tokens(str(message.content), model_info) + 4
-        )  # +4 for message overhead
+        msg_tokens = count_message_tokens(message, model_info)
         if total_tokens + msg_tokens <= remaining_budget:
             result.insert(0, message)
             total_tokens += msg_tokens
         else:
             break
 
+    # Remove orphaned tool messages at the start (tool messages without their AI message)
+    # Tool messages should always come after an AI message with tool_calls
+    while result and isinstance(result[0], ToolMessage):
+        _LOGGER.info("Removing orphaned tool message at start of context")
+        result.pop(0)
+
     # Combine system + recent messages
     if system_msg:
         result.insert(0, system_msg)
 
     if len(result) < len(messages):
-        _LOGGER.debug(
+        _LOGGER.info(
             f"Trimmed {len(messages) - len(result)} messages to fit token limit"
         )
 
     return result
+
+
+def remove_up_to_last_ai_message(messages: list[BaseMessage]) -> list[BaseMessage]:
+    """Truncate message history by removing up to the last AI message.
+
+    This is useful for handling token limit exceeded errors by removing recent context.
+
+    Args:
+        messages: List of message objects to truncate
+
+    Returns:
+        Truncated message list up to (but not including) the last AI message
+    """
+    # Search backwards through messages to find the last AI message
+    for i in range(len(messages) - 1, -1, -1):
+        if isinstance(messages[i], AIMessage):
+            # Return everything up to (but not including) the last AI message
+            return messages[:i]
+
+    # No AI messages found, return original list
+    return messages
 
 
 async def ainvoke_with_token_handling(
@@ -471,6 +520,8 @@ async def ainvoke_with_token_handling(
     """
     Invoke model with proactive token filtering and retry logic with exponential backoff.
 
+    Handles token limit errors by progressively truncating message history.
+
     Args:
         model: The model to invoke
         messages: List of messages to send
@@ -479,11 +530,8 @@ async def ainvoke_with_token_handling(
     Returns:
         Model response
     """
-
-    messages = prepare_messages_for_model(
-        messages,
-        model_info,
-    )
+    # Prepare messages with token filtering
+    prepared_messages = prepare_messages_for_model(messages, model_info)
 
     # Retry configuration
     max_retries = 3
@@ -491,12 +539,17 @@ async def ainvoke_with_token_handling(
 
     for attempt in range(max_retries + 1):
         try:
-            return await model.ainvoke(messages)
+            return await model.ainvoke(prepared_messages)
         except Exception as e:
-            # Don't retry on token errors - these are handled by token filtering
+            # Handle token errors by truncating history and retrying
             if is_token_error(e):
-                _LOGGER.warning(f"Token limit error in model invocation: {str(e)}")
-                raise
+                # Filtering is not perfect, so in unlikely case we need to truncate the message history to the last AI message
+                _LOGGER.warning(
+                    f"Token limit error: {str(e)}. Truncating message history to last AI message and retrying..."
+                )
+                messages = remove_up_to_last_ai_message(messages)
+                prepared_messages = prepare_messages_for_model(messages, model_info)
+                continue
 
             # For other errors, retry with exponential backoff
             if attempt < max_retries:
