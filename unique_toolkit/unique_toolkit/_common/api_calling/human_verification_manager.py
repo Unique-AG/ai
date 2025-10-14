@@ -162,7 +162,20 @@ class HumanVerificationManagerForApiCalling(
         return confirmation.payload_hash in last_assistant_message.content
 
     def _create_next_user_message(self, payload: PayloadType) -> str:
-        modifiable_params = self._modifiable_params_model.model_validate(payload)
+        # Extract only the modifiable fields from the payload
+        payload_dict = payload.model_dump()
+        if self._environment_params is not None:
+            # Remove environment params from payload to avoid validation errors
+            environment_fields = set(type(self._environment_params).model_fields.keys())
+            modifiable_dict = {
+                k: v for k, v in payload_dict.items() if k not in environment_fields
+            }
+        else:
+            modifiable_dict = payload_dict
+
+        modifiable_params = self._modifiable_params_model.model_validate(
+            modifiable_dict
+        )
         api_call = self._verification_model(
             modifiable_params=modifiable_params,
             confirmation=HumanConfirmation(

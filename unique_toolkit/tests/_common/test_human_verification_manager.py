@@ -590,3 +590,30 @@ def test_create_assistant_confirmation_message__escapes_special_chars__with_spec
     assert "true" in message  # JSON booleans are lowercase
     assert "false" in message
     assert "```json" not in message  # Should be markdown table, not JSON in main body
+
+
+@pytest.mark.ai
+def test_create_next_user_message__works_with_environment_params__and_full_payload_AI(
+    manager_with_env_params: TestManager,
+) -> None:
+    """
+    Purpose: Verify _create_next_user_message handles full payload correctly when environment params are configured.
+    Why this matters: Previously caused Pydantic validation errors when payload contained environment fields.
+    Setup summary: Manager with environment params, full payload including both modifiable and environment fields.
+    """
+    # Arrange
+    # Create a full payload that includes both modifiable and environment fields
+    full_payload = ApiPayload(
+        include_profile=True, include_posts=True
+    )  # include_posts is in environment params
+
+    # Act
+    # This should not raise a validation error anymore
+    user_message = manager_with_env_params._create_next_user_message(full_payload)
+
+    # Assert
+    assert user_message is not None
+    assert "I confirm the api call" in user_message
+    assert "```json" in user_message
+    # The generated message should only contain the modifiable fields in the verification model
+    # But the full payload should be accepted as input
