@@ -53,6 +53,25 @@ def simple_config_dict() -> dict[str, Any]:
     return {"param_one": "test", "param_two": 200}
 
 
+@pytest.fixture(autouse=True, scope="module")
+def clean_factory_state():
+    """
+    Autouse fixture to ensure ToolFactory is completely clean before and after this test module.
+
+    This prevents test pollution from affecting other test modules.
+    Runs once per module.
+    """
+    # Clean state before module tests start
+    ToolFactory.tool_map.clear()
+    ToolFactory.tool_config_map.clear()
+
+    yield
+
+    # After all tests in module complete, clean up thoroughly again
+    ToolFactory.tool_map.clear()
+    ToolFactory.tool_config_map.clear()
+
+
 @pytest.fixture
 def register_simple_tool():
     """
@@ -93,10 +112,19 @@ def register_simple_tool():
 
     yield
 
-    # Cleanup - restore original state
-    ToolFactory.tool_map.clear()
+    # Cleanup - remove all tools we registered
+    for tool_name in test_tool_names:
+        ToolFactory.tool_map.pop(tool_name, None)
+        ToolFactory.tool_config_map.pop(tool_name, None)
+
+    # Also remove any other tools that might have been registered during tests
+    ToolFactory.tool_map.pop("extended_tool", None)
+    ToolFactory.tool_config_map.pop("extended_tool", None)
+    ToolFactory.tool_map.pop("detailed_tool", None)
+    ToolFactory.tool_config_map.pop("detailed_tool", None)
+
+    # Finally restore original state (in case tests need pre-existing tools)
     ToolFactory.tool_map.update(original_tool_map)
-    ToolFactory.tool_config_map.clear()
     ToolFactory.tool_config_map.update(original_config_map)
 
 
@@ -967,3 +995,95 @@ def test_tool_build_config__handles_all_selection_policies__in_serialization(
             selection_policy=parsed["selection_policy"],
         )
         assert restored_config.selection_policy == policy
+
+
+# ============================================================================
+# model_serializer Tests - Verifying Polymorphic Serialization
+# ============================================================================
+
+
+@pytest.mark.ai
+def test_tool_build_config__serializes_subclass_fields__with_model_serializer(
+    register_simple_tool,
+) -> None:
+    """
+    Purpose: Verify model_serializer properly serializes subclass configuration fields.
+    Why this matters: Ensures polymorphic serialization works without custom methods.
+    Setup summary: Create config with subclass, serialize, assert all fields present.
+    """
+
+    # Arrange
+    class ExtendedConfig(BaseToolConfig):
+        """Extended configuration with additional fields."""
+
+        base_field: str = "base"
+        extra_field: int = 999
+        another_field: bool = True
+
+    # Register the extended config
+    ToolFactory.tool_config_map["extended_tool"] = ExtendedConfig
+
+    extended_config = ExtendedConfig(
+        base_field="custom_base", extra_field=12345, another_field=False
+    )
+
+    config = ToolBuildConfig(name="extended_tool", configuration=extended_config)
+
+    # Act
+    serialized = config.model_dump()
+
+    # Assert - All subclass fields should be present
+    assert "configuration" in serialized
+    assert isinstance(serialized["configuration"], dict)
+    assert serialized["configuration"]["base_field"] == "custom_base"
+    assert serialized["configuration"]["extra_field"] == 12345
+    assert serialized["configuration"]["another_field"] is False
+
+    # Cleanup
+    ToolFactory.tool_config_map.pop("extended_tool", None)
+
+
+@pytest.mark.ai
+def test_tool_build_config__serializes_to_json_with_subclass__using_model_serializer(
+    register_simple_tool,
+) -> None:
+    """
+    Purpose: Verify model_dump_json serializes subclass fields correctly.
+    Why this matters: Ensures JSON serialization preserves all configuration data.
+    Setup summary: Create config, serialize to JSON, parse, assert fields intact.
+    """
+
+    # Arrange
+    class DetailedConfig(BaseToolConfig):
+        """Configuration with various field types."""
+
+        string_field: str = "test"
+        int_field: int = 42
+        bool_field: bool = True
+        list_field: list[str] = ["a", "b", "c"]
+
+    # Register the config
+    ToolFactory.tool_config_map["detailed_tool"] = DetailedConfig
+
+    detailed_config = DetailedConfig(
+        string_field="custom",
+        int_field=100,
+        bool_field=False,
+        list_field=["x", "y"],
+    )
+
+    config = ToolBuildConfig(name="detailed_tool", configuration=detailed_config)
+
+    # Act
+    json_str = config.model_dump_json()
+    parsed = json.loads(json_str)
+
+    # Assert
+    assert parsed["name"] == "detailed_tool"
+    assert parsed["configuration"]["string_field"] == "custom"
+    assert parsed["configuration"]["int_field"] == 100
+    assert parsed["configuration"]["bool_field"] is False
+    assert parsed["configuration"]["list_field"] == ["x", "y"]
+
+    # Cleanup
+    ToolFactory.tool_config_map.pop("detailed_tool", None)
