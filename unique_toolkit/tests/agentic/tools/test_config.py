@@ -4,7 +4,7 @@ Tests for unique_toolkit.agentic.tools.config module.
 This module tests the configuration components for tools including:
 - ToolIcon enum
 - ToolSelectionPolicy enum
-- handle_undefinded_icon validator function
+- handle_undefined_icon validator function
 - ToolBuildConfig model with validation and serialization
 """
 
@@ -17,7 +17,7 @@ from unique_toolkit.agentic.tools.config import (
     ToolBuildConfig,
     ToolIcon,
     ToolSelectionPolicy,
-    handle_undefinded_icon,
+    handle_undefined_icon,
 )
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
@@ -228,14 +228,14 @@ def test_tool_selection_policy__can_be_instantiated__from_string() -> None:
 
 
 # ============================================================================
-# handle_undefinded_icon Tests
+# handle_undefined_icon Tests
 # ============================================================================
 
 
 @pytest.mark.ai
-def test_handle_undefinded_icon__returns_icon__with_valid_string() -> None:
+def test_handle_undefined_icon__returns_icon__with_valid_string() -> None:
     """
-    Purpose: Verify handle_undefinded_icon returns correct icon for valid string.
+    Purpose: Verify handle_undefined_icon returns correct icon for valid string.
     Why this matters: Ensures valid icon strings are properly converted.
     Setup summary: Pass valid icon string and assert correct enum returned.
     """
@@ -243,7 +243,7 @@ def test_handle_undefinded_icon__returns_icon__with_valid_string() -> None:
     valid_icon = "IconAnalytics"
 
     # Act
-    result = handle_undefinded_icon(valid_icon)
+    result = handle_undefined_icon(valid_icon)
 
     # Assert
     assert result == ToolIcon.ANALYTICS
@@ -251,9 +251,9 @@ def test_handle_undefinded_icon__returns_icon__with_valid_string() -> None:
 
 
 @pytest.mark.ai
-def test_handle_undefinded_icon__returns_book__with_invalid_string() -> None:
+def test_handle_undefined_icon__returns_book__with_invalid_string() -> None:
     """
-    Purpose: Verify handle_undefinded_icon returns BOOK icon for invalid string.
+    Purpose: Verify handle_undefined_icon returns BOOK icon for invalid string.
     Why this matters: Provides safe fallback for unknown icon values.
     Setup summary: Pass invalid icon string and assert BOOK icon returned.
     """
@@ -261,7 +261,7 @@ def test_handle_undefinded_icon__returns_book__with_invalid_string() -> None:
     invalid_icon = "InvalidIconName"
 
     # Act
-    result = handle_undefinded_icon(invalid_icon)
+    result = handle_undefined_icon(invalid_icon)
 
     # Assert
     assert result == ToolIcon.BOOK
@@ -269,9 +269,9 @@ def test_handle_undefinded_icon__returns_book__with_invalid_string() -> None:
 
 
 @pytest.mark.ai
-def test_handle_undefinded_icon__returns_book__with_non_string() -> None:
+def test_handle_undefined_icon__returns_book__with_non_string() -> None:
     """
-    Purpose: Verify handle_undefinded_icon returns BOOK icon for non-string input.
+    Purpose: Verify handle_undefined_icon returns BOOK icon for non-string input.
     Why this matters: Handles unexpected input types gracefully.
     Setup summary: Pass non-string value and assert BOOK icon returned.
     """
@@ -279,7 +279,7 @@ def test_handle_undefinded_icon__returns_book__with_non_string() -> None:
     non_string_value = 123
 
     # Act
-    result = handle_undefinded_icon(non_string_value)
+    result = handle_undefined_icon(non_string_value)
 
     # Assert
     assert result == ToolIcon.BOOK
@@ -287,9 +287,9 @@ def test_handle_undefinded_icon__returns_book__with_non_string() -> None:
 
 
 @pytest.mark.ai
-def test_handle_undefinded_icon__returns_book__with_empty_string() -> None:
+def test_handle_undefined_icon__returns_book__with_empty_string() -> None:
     """
-    Purpose: Verify handle_undefinded_icon returns BOOK icon for empty string.
+    Purpose: Verify handle_undefined_icon returns BOOK icon for empty string.
     Why this matters: Handles edge case of empty string input.
     Setup summary: Pass empty string and assert BOOK icon returned.
     """
@@ -297,16 +297,16 @@ def test_handle_undefinded_icon__returns_book__with_empty_string() -> None:
     empty_string = ""
 
     # Act
-    result = handle_undefinded_icon(empty_string)
+    result = handle_undefined_icon(empty_string)
 
     # Assert
     assert result == ToolIcon.BOOK
 
 
 @pytest.mark.ai
-def test_handle_undefinded_icon__returns_book__with_none() -> None:
+def test_handle_undefined_icon__returns_book__with_none() -> None:
     """
-    Purpose: Verify handle_undefinded_icon returns BOOK icon for None.
+    Purpose: Verify handle_undefined_icon returns BOOK icon for None.
     Why this matters: Handles missing icon values gracefully.
     Setup summary: Pass None and assert BOOK icon returned.
     """
@@ -314,16 +314,16 @@ def test_handle_undefinded_icon__returns_book__with_none() -> None:
     none_value = None
 
     # Act
-    result = handle_undefinded_icon(none_value)
+    result = handle_undefined_icon(none_value)
 
     # Assert
     assert result == ToolIcon.BOOK
 
 
 @pytest.mark.ai
-def test_handle_undefinded_icon__returns_icon__with_toolicon_enum() -> None:
+def test_handle_undefined_icon__returns_icon__with_toolicon_enum() -> None:
     """
-    Purpose: Verify handle_undefinded_icon handles ToolIcon enum input.
+    Purpose: Verify handle_undefined_icon handles ToolIcon enum input.
     Why this matters: Ensures idempotent behavior when icon already correct type.
     Setup summary: Pass ToolIcon enum and assert same enum returned.
     """
@@ -331,7 +331,7 @@ def test_handle_undefinded_icon__returns_icon__with_toolicon_enum() -> None:
     icon_enum = ToolIcon.TELESCOPE
 
     # Act
-    result = handle_undefinded_icon(icon_enum)
+    result = handle_undefined_icon(icon_enum)
 
     # Assert
     assert result == ToolIcon.TELESCOPE
