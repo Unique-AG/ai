@@ -70,6 +70,8 @@ class UniqueAI:
         self._postprocessor_manager = postprocessor_manager
         self._latest_assistant_id: str = event.payload.assistant_message.id
         self._mcp_servers = mcp_servers
+
+        # Helper variable to support control loop
         self._tool_took_control = False
 
     ############################################################
@@ -126,7 +128,7 @@ class UniqueAI:
                 loop_response
             )
 
-        # Only set completed_at if no tool took control
+        # Only set completed_at if no tool took control. Tools that take control will set the message state to completed themselves.
         await self._chat_service.modify_assistant_message_async(
             set_completed_at=not self._tool_took_control,
         )
