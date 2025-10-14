@@ -32,6 +32,11 @@ from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 from unique_web_search.config import WebSearchConfig
 from unique_web_search.service import WebSearchTool
 
+DeactivatedNone = Annotated[
+    None,
+    Field(title="Deactivated", description="None"),
+]
+
 
 class SpaceType(StrEnum):
     UNIQUE_CUSTOM = "unique_custom"
@@ -121,9 +126,6 @@ class EvaluationConfig(BaseModel):
     model_config = get_configuration_dict()
     max_review_steps: int = 3
     hallucination_config: HallucinationConfig = HallucinationConfig()
-    sub_agents_config: SubAgentEvaluationServiceConfig | None = (
-        SubAgentEvaluationServiceConfig()
-    )
 
 
 # ------------------------------------------------------------
@@ -147,12 +149,6 @@ class UniqueAIPromptConfig(BaseModel):
         ).read_text(),
         description="The user message prompt template as a Jinja2 template string.",
     )
-
-
-DeactivatedNone = Annotated[
-    None,
-    Field(title="Deactivated", description="None"),
-]
 
 
 class UniqueAIServices(BaseModel):
@@ -205,12 +201,9 @@ class InputTokenDistributionConfig(BaseModel):
         return int(self.percent_for_history * max_input_token)
 
 
-class SubAgentsConfig(BaseModel):
+class SubAgentsReferencingConfig(BaseModel):
     model_config = get_configuration_dict()
-    use_sub_agent_references: bool = Field(
-        default=True,
-        description="Whether to use sub agent references in the main agent's response. Only has an effect if sub agents are used.",
-    )
+
     referencing_instructions_for_system_prompt: str = Field(
         default=REFERENCING_INSTRUCTIONS_FOR_SYSTEM_PROMPT,
         description="Referencing instructions for the main agent's system prompt.",
@@ -219,6 +212,18 @@ class SubAgentsConfig(BaseModel):
         default=REFERENCING_INSTRUCTIONS_FOR_USER_PROMPT,
         description="Referencing instructions for the main agent's user prompt. Should correspond to a short reminder.",
     )
+
+
+class SubAgentsConfig(BaseModel):
+    model_config = get_configuration_dict()
+
+    referencing_config: (
+        Annotated[SubAgentsReferencingConfig, Field(title="Active")] | DeactivatedNone
+    ) = SubAgentsReferencingConfig()
+    evaluation_config: (
+        Annotated[SubAgentEvaluationServiceConfig, Field(title="Active")]
+        | DeactivatedNone
+    ) = SubAgentEvaluationServiceConfig()
 
 
 class ExperimentalConfig(BaseModel):
@@ -282,5 +287,5 @@ class UniqueAIConfig(BaseModel):
     @model_validator(mode="after")
     def disable_sub_agent_referencing_if_not_used(self) -> "UniqueAIConfig":
         if not any(tool.is_sub_agent for tool in self.space.tools):
-            self.agent.experimental.sub_agents_config.use_sub_agent_references = False
+            self.agent.experimental.sub_agents_config.referencing_config = None
         return self

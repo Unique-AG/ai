@@ -260,10 +260,15 @@ class UniqueAI:
 
         query = self._event.payload.user_message.text
 
-        use_sub_agent_references = (
-            self._config.agent.experimental.sub_agents_config.use_sub_agent_references
-        )
-        sub_agent_referencing_instructions = self._config.agent.experimental.sub_agents_config.referencing_instructions_for_user_prompt
+        if (
+            self._config.agent.experimental.sub_agents_config.referencing_config
+            is not None
+        ):
+            use_sub_agent_references = True
+            sub_agent_referencing_instructions = self._config.agent.experimental.sub_agents_config.referencing_config.referencing_instructions_for_user_prompt
+        else:
+            use_sub_agent_references = False
+            sub_agent_referencing_instructions = None
 
         user_msg = user_message_template.render(
             query=query,
@@ -294,10 +299,15 @@ class UniqueAI:
             mcp_server.system_prompt for mcp_server in self._mcp_servers
         ]
 
-        use_sub_agent_references = (
-            self._config.agent.experimental.sub_agents_config.use_sub_agent_references
-        )
-        sub_agent_referencing_instructions = self._config.agent.experimental.sub_agents_config.referencing_instructions_for_system_prompt
+        if (
+            self._config.agent.experimental.sub_agents_config.referencing_config
+            is not None
+        ):
+            use_sub_agent_references = True
+            sub_agent_referencing_instructions = self._config.agent.experimental.sub_agents_config.referencing_config.referencing_instructions_for_system_prompt
+        else:
+            use_sub_agent_references = False
+            sub_agent_referencing_instructions = None
 
         system_message = system_prompt_template.render(
             model_info=self._config.space.language_model.model_dump(mode="json"),
