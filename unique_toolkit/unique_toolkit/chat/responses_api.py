@@ -32,7 +32,9 @@ from unique_toolkit.language_model.infos import (
 )
 from unique_toolkit.language_model.schemas import (
     LanguageModelAssistantMessage,
+    LanguageModelMessage,
     LanguageModelMessageOptions,
+    LanguageModelMessageRole,
     LanguageModelMessages,
     LanguageModelSystemMessage,
     LanguageModelToolDescription,
@@ -70,8 +72,24 @@ def _convert_message_to_openai(
         ):
             return [message.to_openai(mode="responses")]
         case _:
-            return _convert_message_to_openai(message.to_specific_message())
+            return _convert_message_to_openai(_convert_to_specific_message(message))
     return res
+
+
+def _convert_to_specific_message(
+    message: LanguageModelMessage,
+) -> "LanguageModelSystemMessage | LanguageModelUserMessage | LanguageModelAssistantMessage":
+    match message.role:
+        case LanguageModelMessageRole.SYSTEM:
+            return LanguageModelSystemMessage(content=message.content)
+        case LanguageModelMessageRole.USER:
+            return LanguageModelUserMessage(content=message.content)
+        case LanguageModelMessageRole.ASSISTANT:
+            return LanguageModelAssistantMessage(content=message.content)
+        case LanguageModelMessageRole.TOOL:
+            raise ValueError(
+                "Cannot convert message with role `tool`. Please use `LanguageModelToolMessage` instead."
+            )
 
 
 def _convert_messages_to_openai(

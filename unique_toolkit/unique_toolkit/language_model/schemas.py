@@ -261,21 +261,6 @@ class LanguageModelMessage(BaseModel):
 
         return format_message(self.role.capitalize(), message=message, num_tabs=1)
 
-    def to_specific_message(
-        self,
-    ) -> "LanguageModelSystemMessage | LanguageModelUserMessage | LanguageModelAssistantMessage":
-        match self.role:
-            case LanguageModelMessageRole.SYSTEM:
-                return LanguageModelSystemMessage(content=self.content)
-            case LanguageModelMessageRole.USER:
-                return LanguageModelUserMessage(content=self.content)
-            case LanguageModelMessageRole.ASSISTANT:
-                return LanguageModelAssistantMessage(content=self.content)
-            case LanguageModelMessageRole.TOOL:
-                raise ValueError(
-                    "Cannot convert message with role `tool`. Please use `LanguageModelToolMessage` instead."
-                )
-
 
 class LanguageModelSystemMessage(LanguageModelMessage):
     role: LanguageModelMessageRole = LanguageModelMessageRole.SYSTEM
