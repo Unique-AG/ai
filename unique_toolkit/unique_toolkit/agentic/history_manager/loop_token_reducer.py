@@ -266,7 +266,9 @@ class LoopTokenReducer:
         selected_messages = []
         token_count = 0
         for msg in messages[::-1]:
-            msg_token_count = self._count_message_tokens(LanguageModelMessages(root=[msg]))
+            msg_token_count = self._count_message_tokens(
+                LanguageModelMessages(root=[msg])
+            )
             if token_count + msg_token_count > token_limit:
                 break
             selected_messages.append(msg)

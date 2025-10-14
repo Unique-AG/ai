@@ -79,7 +79,7 @@ class FollowUpPostprocessor(Postprocessor):
     def _remove_image_urls_from_history(self, history: LanguageModelMessages) -> None:
         """
         Remove image_url content from message history.
-        
+
         Args:
             history: The message history to clean
         """
@@ -88,8 +88,11 @@ class FollowUpPostprocessor(Postprocessor):
                 # Check if message.content is a list and remove dictionaries with 'type': 'image_url'
                 if isinstance(message.content, list):
                     message.content = [
-                        item for item in message.content 
-                        if not (isinstance(item, dict) and item.get('type') == 'image_url')
+                        item
+                        for item in message.content
+                        if not (
+                            isinstance(item, dict) and item.get("type") == "image_url"
+                        )
                     ]
 
     async def _get_follow_up_question_suggestion(
