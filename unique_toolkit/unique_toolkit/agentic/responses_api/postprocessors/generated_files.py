@@ -7,7 +7,9 @@ from openai import AsyncOpenAI
 from pydantic import BaseModel
 from unique_sdk import Content
 
-from unique_toolkit.agentic.postprocessor.postprocessor_manager import Postprocessor
+from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
+    ResponsesApiPostprocessor,
+)
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 from unique_toolkit.content.schemas import ContentReference
 from unique_toolkit.content.service import ContentService
@@ -22,7 +24,7 @@ class DisplayCodeInterpreterFilesPostProcessorConfig(BaseModel):
 
 
 class DisplayCodeInterpreterFilesPostProcessor(
-    Postprocessor[ResponsesLanguageModelStreamResponse]
+    ResponsesApiPostprocessor,
 ):
     def __init__(
         self,

@@ -4,7 +4,9 @@ from typing import override
 
 from pydantic import BaseModel, Field
 
-from unique_toolkit.agentic.postprocessor.postprocessor_manager import Postprocessor
+from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
+    ResponsesApiPostprocessor,
+)
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 from unique_toolkit.language_model.schemas import ResponsesLanguageModelStreamResponse
 
@@ -31,9 +33,7 @@ class ShowExecutedCodePostprocessorConfig(BaseModel):
     )
 
 
-class ShowExecutedCodePostprocessor(
-    Postprocessor[ResponsesLanguageModelStreamResponse]
-):
+class ShowExecutedCodePostprocessor(ResponsesApiPostprocessor):
     def __init__(self, config: ShowExecutedCodePostprocessorConfig):
         super().__init__(self.__class__.__name__)
         self._config = config
