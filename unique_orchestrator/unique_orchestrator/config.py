@@ -248,6 +248,11 @@ class ResponsesApiConfig(BaseModel):
         description="Temporary",
     )
 
+    generated_files_scope_id: str = Field(
+        default="<SCOPE_ID_PLACEHOLDER>",
+        description="Scope ID for the responses API.",
+    )
+
 
 class ExperimentalConfig(BaseModel):
     """Experimental features this part of the configuration might evolve in the future continuously"""
@@ -281,11 +286,6 @@ class ExperimentalConfig(BaseModel):
     )
 
     sub_agents_config: SubAgentsConfig = SubAgentsConfig()
-
-    scope_id_responses_api: str = Field(
-        default="<SCOPE_ID_PLACEHOLDER>",
-        description="Scope ID for the responses API.",
-    )
 
     responses_api_config: ResponsesApiConfig = ResponsesApiConfig()
 

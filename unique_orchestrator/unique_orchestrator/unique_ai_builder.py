@@ -284,7 +284,7 @@ async def _build_responses(
             client=client,
             content_service=common_components.content_service,
             config=DisplayCodeInterpreterFilesPostProcessorConfig(
-                upload_scope_id=config.agent.experimental.scope_id_responses_api,
+                upload_scope_id=config.agent.experimental.responses_api_config.generated_files_scope_id,
             ),
         )
     )
