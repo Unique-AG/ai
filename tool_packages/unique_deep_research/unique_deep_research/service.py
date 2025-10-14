@@ -580,6 +580,11 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                                     f"Failed to crawl URL: {event.item.action.url} but openai still opened the page"
                                 )
                                 continue
+                            if not title:
+                                self.logger.info(
+                                    f"No title found for URL: {event.item.action.url}"
+                                )
+                                continue
                             self.chat_service.create_message_log(
                                 message_id=self.event.payload.assistant_message.id,
                                 text="**Reading website**",
