@@ -12,7 +12,7 @@ class WeaknessItem(BaseModel):
     chunk_ids: list[int] = Field(description="The chunk IDs of the weakness")
 
 
-class WeaknessesAnalysis(ReportGenerationOutputModel):
+class WeaknessesAnalysis(ReportGenerationOutputModel["WeaknessesAnalysis"]):
     model_config = ConfigDict(extra="forbid")
 
     weaknesses: list[WeaknessItem] = Field(
@@ -22,7 +22,7 @@ class WeaknessesAnalysis(ReportGenerationOutputModel):
     @classmethod
     def group_batches(
         cls, batches: Sequence["WeaknessesAnalysis"]
-    ) -> "WeaknessesAnalysis":  # type: ignore[override]
+    ) -> "WeaknessesAnalysis":
         """Combine multiple WeaknessesAnalysis batches into a single analysis."""
         all_weaknesses = []
         for batch in batches:

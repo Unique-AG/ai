@@ -12,7 +12,7 @@ class OpportunityItem(BaseModel):
     chunk_ids: list[int] = Field(description="The chunk IDs of the opportunity")
 
 
-class OpportunitiesAnalysis(ReportGenerationOutputModel):
+class OpportunitiesAnalysis(ReportGenerationOutputModel["OpportunitiesAnalysis"]):
     model_config = ConfigDict(extra="forbid")
 
     opportunities: list[OpportunityItem] = Field(
@@ -22,7 +22,7 @@ class OpportunitiesAnalysis(ReportGenerationOutputModel):
     @classmethod
     def group_batches(
         cls, batches: Sequence["OpportunitiesAnalysis"]
-    ) -> "OpportunitiesAnalysis":  # type: ignore[override]
+    ) -> "OpportunitiesAnalysis": 
         """Combine multiple OpportunitiesAnalysis batches into a single analysis."""
         all_opportunities = []
         for batch in batches:

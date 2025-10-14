@@ -7,7 +7,7 @@ analysis steps, and results.
 """
 
 from enum import StrEnum
-from typing import Generic, Literal, TypeVar
+from typing import Generic, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -16,8 +16,14 @@ from unique_swot.services.generation import (
     SWOTComponent,
 )
 
+
 # Type definitions for SWOT operations
-SWOTOperation = Literal["generate", "modify", "retrieve"]
+class SWOTOperation(StrEnum):
+    GENERATE = "generate"
+    MODIFY = "modify"
+    RETRIEVE = "retrieve"
+
+
 TStep = TypeVar("TStep", bound="PlannedSWOTStep")
 
 

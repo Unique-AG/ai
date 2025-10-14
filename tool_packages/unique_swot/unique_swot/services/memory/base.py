@@ -14,12 +14,12 @@ _LOGGER = getLogger(__name__)
 
 class SwotMemoryService:
     def __init__(self, short_term_memory_service: ShortTermMemoryService):
-        self.short_term_memory_service = short_term_memory_service
+        self._short_term_memory_service = short_term_memory_service
 
     def get(self, input: type[SWOTAnalysisModels]) -> SWOTAnalysisModels | None:
         key = input.__name__
         try:
-            memory = self.short_term_memory_service.find_latest_memory(key)
+            memory = self._short_term_memory_service.find_latest_memory(key)
             if not memory.data:
                 raise MemoryEmptyException(f"Memory {key} is empty")
 
@@ -30,4 +30,4 @@ class SwotMemoryService:
 
     def set(self, input: SWOTAnalysisModels) -> None:
         key = input.__class__.__name__
-        self.short_term_memory_service.create_memory(key, input.model_dump())
+        self._short_term_memory_service.create_memory(key, input.model_dump())

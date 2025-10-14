@@ -6,7 +6,7 @@ or as a complete analysis. Each component (Strengths, Weaknesses, Opportunities,
 can be generated separately with specialized prompts and schemas for better precision.
 """
 
-from typing import Literal
+from enum import StrEnum
 
 from unique_swot.services.generation.base import (
     ReportGenerationConfig,
@@ -33,7 +33,12 @@ from unique_swot.services.generation.weaknesses import (
     WeaknessesAnalysis,
 )
 
-SWOTComponent = Literal["strengths", "weaknesses", "opportunities", "threats"]
+
+class SWOTComponent(StrEnum):
+    STRENGTHS = "strengths"
+    WEAKNESSES = "weaknesses"
+    OPPORTUNITIES = "opportunities"
+    THREATS = "threats"
 
 SWOTAnalysisModels = (
     StrengthsAnalysis | WeaknessesAnalysis | OpportunitiesAnalysis | ThreatsAnalysis
@@ -41,13 +46,13 @@ SWOTAnalysisModels = (
 
 
 def get_generation_system_prompt(component: SWOTComponent) -> str:
-    if component == "strengths":
+    if component == SWOTComponent.STRENGTHS:
         return STRENGTHS_SYSTEM_PROMPT
-    elif component == "weaknesses":
+    elif component == SWOTComponent.WEAKNESSES:
         return WEAKNESSES_SYSTEM_PROMPT
-    elif component == "opportunities":
+    elif component == SWOTComponent.OPPORTUNITIES:
         return OPPORTUNITIES_SYSTEM_PROMPT
-    elif component == "threats":
+    elif component == SWOTComponent.THREATS:
         return THREATS_SYSTEM_PROMPT
     else:
         raise ValueError(f"Invalid component: {component}")
