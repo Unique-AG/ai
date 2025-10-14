@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Search results from multiple queries are now interleaved for better diversity
 - Updated tool parameter from `search_string` to `search_strings` (list)
 
+## [1.0.1] - 2025-09-30
+- Fix bug in metadata filter in the search method.
+
 ## [1.0.0] - 2025-09-18
 - Bump toolkit version to allow for both patch and minor updates
 
