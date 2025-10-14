@@ -19,6 +19,7 @@ from unique_toolkit.agentic.tools.tool_manager import (
 from unique_toolkit.app.schemas import ChatEvent, McpServer
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.service import ContentService
+from unique_toolkit.language_model import LanguageModelAssistantMessage
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
     LanguageModelStreamResponse,
@@ -405,6 +406,12 @@ class UniqueAI:
         # the new message must have an id that is valid else we use the old one
         self._latest_assistant_id = (
             new_assistant_message.id or self._latest_assistant_id
+        )
+
+        self._history_manager.add_assistant_message(
+            LanguageModelAssistantMessage(
+                content=loop_response.message.original_text or "",
+            )
         )
 
 
