@@ -82,8 +82,27 @@ class HumanVerificationManagerForApiCalling(
         ],
         requestor_type: RequestorType = RequestorType.REQUESTS,
         environment_params: BaseModel | None = None,
+        modifiable_params_model: type[BaseModel] | None = None,
         **kwargs: dict[str, Any],
     ):
+        """
+        Manages human verification for api calling.
+
+        Args:
+            logger: The logger to use for logging.
+            operation: The operation to use for the api calling.
+            requestor_type: The requestor type to use for the api calling.
+            environment_params: The environment params to use for the api calling.
+                If None, the modifiable params model will be the operation payload model.
+                This can be useful for parameters in the payload that should not be modified by the user.
+            modifiable_params_model: The modifiable params model to use for the api calling.
+                If None, a complement model will be created using the operation payload model
+                and the environment params.
+                If provided, it will be used instead of the complement model.
+                This is necessary if the modifiable params model is required
+                to use custom validators or serializers.
+            **kwargs: Additional keyword arguments to pass to the requestor.
+        """
         self._logger = logger
         self._operation = operation
         self._environment_params = environment_params
@@ -97,9 +116,22 @@ class HumanVerificationManagerForApiCalling(
         if self._environment_params is None:
             self._modifiable_params_model = self._operation.payload_model()
         else:
-            self._modifiable_params_model = create_complement_model(
-                model_type_a=self._operation.payload_model(),
-                model_type_b=type(self._environment_params),
+            if modifiable_params_model is None:
+                self._modifiable_params_model = create_complement_model(
+                    model_type_a=self._operation.payload_model(),
+                    model_type_b=type(self._environment_params),
+                )
+            else:
+                # This is necessary if the modifiable params model is required
+                # to use custom validators or serializers.
+                self._modifiable_params_model = modifiable_params_model
+
+        if (
+            self._modifiable_params_model.model_fields.keys()
+            != self._operation.payload_model().model_fields.keys()
+        ):
+            self._logger.error(
+                "The modifiable params model has different fields than the operation payload model."
             )
 
         class VerificationModel(BaseModel):
