@@ -81,8 +81,8 @@ class HumanVerificationManagerForApiCalling(
             ]
         ],
         requestor_type: RequestorType = RequestorType.REQUESTS,
-        environment_params: BaseModel | None = None,
-        modifiable_params_model: type[BaseModel] | None = None,
+        environment_payload_params: BaseModel | None = None,
+        modifiable_payload_params_model: type[BaseModel] | None = None,
         **kwargs: dict[str, Any],
     ):
         """
@@ -92,12 +92,12 @@ class HumanVerificationManagerForApiCalling(
             logger: The logger to use for logging.
             operation: The operation to use for the api calling.
             requestor_type: The requestor type to use for the api calling.
-            environment_params: The environment params to use for the api calling.
+            environment_payload_params: The environment payload params to use for the api calling.
                 If None, the modifiable params model will be the operation payload model.
                 This can be useful for parameters in the payload that should not be modified by the user.
-            modifiable_params_model: The modifiable params model to use for the api calling.
+            modifiable_payload_params_model: The modifiable payload params model to use for the api calling.
                 If None, a complement model will be created using the operation payload model
-                and the environment params.
+                and the environment payload params.
                 If provided, it will be used instead of the complement model.
                 This is necessary if the modifiable params model is required
                 to use custom validators or serializers.
@@ -105,42 +105,43 @@ class HumanVerificationManagerForApiCalling(
         """
         self._logger = logger
         self._operation = operation
-        self._environment_params = environment_params
+        self._environment_payload_params = environment_payload_params
         # Create internal models for this manager instance
 
-        self._combined_params_model = create_union_model(
-            model_type_a=self._operation.path_params_model(),
-            model_type_b=self._operation.payload_model(),
-        )
-
-        if self._environment_params is None:
-            self._modifiable_params_model = self._operation.payload_model()
+        if self._environment_payload_params is None:
+            self._modifiable_payload_params_model = self._operation.payload_model()
         else:
-            if modifiable_params_model is None:
-                self._modifiable_params_model = create_complement_model(
+            if modifiable_payload_params_model is None:
+                self._modifiable_payload_params_model = create_complement_model(
                     model_type_a=self._operation.payload_model(),
-                    model_type_b=type(self._environment_params),
+                    model_type_b=type(self._environment_payload_params),
                 )
             else:
                 # This is necessary if the modifiable params model is required
                 # to use custom validators or serializers.
-                self._modifiable_params_model = modifiable_params_model
+                self._modifiable_payload_params_model = modifiable_payload_params_model
 
-        if (
-            self._modifiable_params_model.model_fields.keys()
-            != self._operation.payload_model().model_fields.keys()
-        ):
-            self._logger.error(
-                "The modifiable params model has different fields than the operation payload model."
-            )
+        if self._environment_payload_params is not None:
+            combined_keys = set(
+                self._modifiable_payload_params_model.model_fields.keys()
+            ) | set(type(self._environment_payload_params).model_fields.keys())
+            payload_keys = set(self._operation.payload_model().model_fields.keys())
+            if not payload_keys.issubset(combined_keys):
+                raise ValueError(
+                    "The modifiable params model + the environment parameters do not have all the keys of the operation payload model."
+                )
 
         class VerificationModel(BaseModel):
             confirmation: HumanConfirmation
-            modifiable_params: self._modifiable_params_model  # type: ignore
+            modifiable_params: self._modifiable_payload_params_model  # type: ignore
 
         self._verification_model = VerificationModel
 
         self._requestor_type = requestor_type
+        self._combined_params_model = create_union_model(
+            model_type_a=self._operation.path_params_model(),
+            model_type_b=self._operation.payload_model(),
+        )
         self._requestor = build_requestor(
             requestor_type=requestor_type,
             operation_type=operation,
@@ -169,8 +170,10 @@ class HumanVerificationManagerForApiCalling(
                     verfication_data.confirmation, last_assistant_message
                 ):
                     payload_dict = verfication_data.modifiable_params.model_dump()
-                    if self._environment_params is not None:
-                        payload_dict.update(self._environment_params.model_dump())
+                    if self._environment_payload_params is not None:
+                        payload_dict.update(
+                            self._environment_payload_params.model_dump()
+                        )
 
                     return self._operation.payload_model().model_validate(payload_dict)
 
@@ -196,16 +199,18 @@ class HumanVerificationManagerForApiCalling(
     def _create_next_user_message(self, payload: PayloadType) -> str:
         # Extract only the modifiable fields from the payload
         payload_dict = payload.model_dump()
-        if self._environment_params is not None:
+        if self._environment_payload_params is not None:
             # Remove environment params from payload to avoid validation errors
-            environment_fields = set(type(self._environment_params).model_fields.keys())
+            environment_fields = set(
+                type(self._environment_payload_params).model_fields.keys()
+            )
             modifiable_dict = {
                 k: v for k, v in payload_dict.items() if k not in environment_fields
             }
         else:
             modifiable_dict = payload_dict
 
-        modifiable_params = self._modifiable_params_model.model_validate(
+        modifiable_params = self._modifiable_payload_params_model.model_validate(
             modifiable_dict
         )
         api_call = self._verification_model(

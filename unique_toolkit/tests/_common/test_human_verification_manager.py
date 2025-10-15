@@ -112,7 +112,7 @@ def manager_with_env_params(
         logger=logger,
         operation=test_operation,
         requestor_type=RequestorType.FAKE,
-        environment_params=env_params,
+        environment_payload_params=env_params,
         return_value={"id": 100, "name": "John Doe"},
     )
 
@@ -153,7 +153,7 @@ def test_init__creates_verification_model__with_basic_setup_AI(
 
     # Assert
     assert base_manager._verification_model is not None
-    assert base_manager._modifiable_params_model == ApiPayload
+    assert base_manager._modifiable_payload_params_model == ApiPayload
     assert base_manager._combined_params_model is not None
 
 
@@ -171,7 +171,9 @@ def test_init__creates_complement_model__with_environment_params_AI(
 
     # Assert
     # Modifiable params should exclude fields in environment params
-    modifiable_fields = manager_with_env_params._modifiable_params_model.model_fields
+    modifiable_fields = (
+        manager_with_env_params._modifiable_payload_params_model.model_fields
+    )
     assert "include_profile" in modifiable_fields
     # include_posts should be excluded as it's in environment params
     assert "include_posts" not in modifiable_fields
@@ -497,7 +499,7 @@ def test_detect_api_calls__merges_environment_params__with_user_confirmation_AI(
     """
     # Arrange
     # Create verification data manually since we need to exclude env params
-    modifiable_params = manager_with_env_params._modifiable_params_model(
+    modifiable_params = manager_with_env_params._modifiable_payload_params_model(
         include_profile=True
     )
 
