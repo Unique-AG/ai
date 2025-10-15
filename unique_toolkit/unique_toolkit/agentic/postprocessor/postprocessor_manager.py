@@ -122,10 +122,12 @@ class PostprocessorManager:
         ]
         postprocessor_results = await asyncio.gather(*tasks)
 
-        for i, result in enumerate(postprocessor_results):
+        for postprocessor, result in zip(postprocessors, postprocessor_results):
             if not result.success:
                 self._logger.warning(
-                    f"Postprocessor {self._postprocessors[i].get_name()} failed to run."
+                    "Postprocessor %s failed to run.",
+                    postprocessor.get_name(),
+                    exc_info=result.exception,
                 )
 
         modification_results = [
