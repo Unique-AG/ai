@@ -1,7 +1,8 @@
 import json
+from typing import Any
 
 from humps import camelize
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 model_config = ConfigDict(
     alias_generator=camelize,
@@ -17,7 +18,18 @@ class ShortTermMemory(BaseModel):
     key: str = Field(alias="object")
     chat_id: str | None
     message_id: str | None
-    data: str | dict | int | float | bool | list | None
+    data: str | dict | int | float | bool | list | None = Field(deprecated=True)
+    value: str | dict[str, Any]
+
+    @model_validator(mode="after")
+    def _data_to_value(self) -> "ShortTermMemory":
+        if isinstance(self.data, dict):
+            self.value = self.data
+        elif isinstance(self.data, str):
+            self.value = json.loads(self.data)
+        else:
+            self.value = str(self.data)
+        return self
 
     @field_validator("chat_id", "message_id", mode="before")
     def validate_chat_id_or_message_id(cls, v, info):
