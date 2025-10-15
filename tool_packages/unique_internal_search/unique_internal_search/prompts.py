@@ -9,9 +9,9 @@ DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT = (
     "- Employee Directory and Contact Information: Utilize the internal search to locate contact details or organizational charts to facilitate communication and collaboration within the company.\n"
     "- Confidential and Proprietary Information: When dealing with sensitive topics that require proprietary knowledge or confidential data, use the internal search to ensure the information is sourced from secure and authorized company documents.\n\n"
     "**Instruction Query Splitting**\n"
-    'You should split the user question into multiple search strings when the user\'s question needs to be decomposed / rewritten to find different facts. Perform for each search string an individual tool call. Avoid short queries that are extremely broad and will return unrelated results. Strip the search string of any extraneous details, e.g. instructions or unnecessary context. However, you must fill in relevant context from the rest of the conversation to make the question complete. E.g. "What was their age?" => "What was Kevin\'s age?" because the preceding conversation makes it clear that the user is talking about Kevin.\n\n'
+    'You should split the user question into multiple search strings when the user\'s question needs to be decomposed / rewritten to find different facts. Perform one tool call with all the search strings. Avoid short queries that are extremely broad and will return unrelated results. Strip the search string of any extraneous details, e.g. instructions or unnecessary context. However, you must fill in relevant context from the rest of the conversation to make the question complete. E.g. "What was their age?" => "What was Kevin\'s age?" because the preceding conversation makes it clear that the user is talking about Kevin.\n\n'
     "Here are some examples of how to use the InternalSearch tool:\n"
-    'User: What was the GDP of France and Italy in the 1970s? => search strings: ["france gdp 1970", "italy gdp 1970"] # Splitting of the query into 2 queries and perform 2 tool calls\n'
+    'User: What was the GDP of France and Italy in the 1970s? => search strings: ["france gdp 1970", "italy gdp 1970"] # Splitting of the query into 2 queries and perform 1 tool call with all the search strings\n'
     'User: What does the report say about the GPT4 performance on MMLU? => search strings: ["GPT4 performance on MMLU?"] # Simplify the query'
 )
 
@@ -59,5 +59,5 @@ DEFAULT_TOOL_DESCRIPTION = (
     "Search in the company knowledge base for information on policies, procedures, benefits, groups, financial information or specific people. "
     "This should be your go-to tool if no other tools are applicable."
 )
-DEFAULT_SEARCH_STRING_PARAM_DESCRIPTION = "An expanded term that is optimized for vector and full text search based on the users query it must be in english"
-DEFAULT_LANGUAGE_PARAM_DESCRIPTION = "The language that the user was the query in"
+DEFAULT_SEARCH_STRINGS_PARAM_DESCRIPTION = "List of search queries optimized for vector and full text search. Each query will be searched separately and results interleaved for better diversity. All queries must be in English."
+DEFAULT_LANGUAGE_PARAM_DESCRIPTION = "The language that the user wrote the query in"
