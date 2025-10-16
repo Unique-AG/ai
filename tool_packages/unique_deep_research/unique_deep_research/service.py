@@ -58,7 +58,6 @@ from .markdown_utils import (
 from .unique_custom.agents import custom_agent
 from .unique_custom.citation import GlobalCitationManager
 from .unique_custom.utils import (
-    cleanup_request_counter,
     create_message_log_entry,
     get_next_message_order,
 )
@@ -247,11 +246,12 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             # Handle success/failure status updates centrally
             if not processed_result:
                 await self._update_execution_status(MessageExecutionUpdateStatus.FAILED)
-                await self.chat_service.modify_assistant_message_async(
-                    content="Deep Research failed to complete for an unknown reason",
-                )
                 self.write_message_log_text_message(
                     "**Research failed for an unknown reason**"
+                )
+                await self.chat_service.modify_assistant_message_async(
+                    content="Deep Research failed to complete for an unknown reason",
+                    set_completed_at=True,
                 )
                 return DeepResearchToolResponse(
                     id=tool_call.id or "",
@@ -259,6 +259,10 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                     content=processed_result or "Failed to complete research",
                     error_message="Research process failed or returned empty results",
                 )
+
+            await self.chat_service.modify_assistant_message_async(
+                set_completed_at=True,
+            )
 
             await self._update_execution_status(MessageExecutionUpdateStatus.COMPLETED)
 
@@ -272,6 +276,9 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
 
         # Ask followup questions
         followup_question_message = await self.clarify_user_request()
+        await self.chat_service.modify_assistant_message_async(
+            set_completed_at=True,
+        )
         # put message in short term memory to remember that we asked the followup questions
         await self.memory_service.save_async(
             MemorySchema(message_id=self.event.payload.assistant_message.id),
@@ -390,8 +397,6 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
 
             result = await custom_agent.ainvoke(initial_state, config=config)  # type: ignore[arg-type]
 
-            cleanup_request_counter(self.event.payload.assistant_message.id)
-
             # Extract final report (citations already refined by agents.py)
             research_result = result.get("final_report", "")
 
@@ -408,7 +413,6 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             await self.chat_service.modify_assistant_message_async(
                 content=processed_result,
                 references=references,
-                set_completed_at=True,
             )
             self.logger.info(
                 f"Custom research completed with {len(references)} validated citations"
@@ -479,7 +483,6 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         await self.chat_service.modify_assistant_message_async(
             content=processed_result,
             references=link_references,
-            set_completed_at=True,
         )
 
         return processed_result, content_chunks
@@ -575,6 +578,11 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                             if not success:
                                 self.logger.info(
                                     f"Failed to crawl URL: {event.item.action.url} but openai still opened the page"
+                                )
+                                continue
+                            if not title:
+                                self.logger.info(
+                                    f"No title found for URL: {event.item.action.url}"
                                 )
                                 continue
                             self.chat_service.create_message_log(
