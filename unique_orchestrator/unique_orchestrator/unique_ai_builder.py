@@ -52,6 +52,7 @@ from unique_toolkit.agentic.tools.a2a import (
 )
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
 from unique_toolkit.agentic.tools.mcp.manager import MCPManager
+from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolName
 from unique_toolkit.agentic.tools.tool_manager import (
     OpenAIBuiltInToolManager,
     ResponsesApiToolManager,
@@ -257,6 +258,25 @@ async def _build_responses(
     debug_info_manager: DebugInfoManager,
 ) -> UniqueAIResponsesApi:
     client = _get_openai_client_from_env(config, use_v1=True)
+    code_interpreter_config = (
+        config.agent.experimental.responses_api_config.code_interpreter
+    )
+
+    tool_names = [tool.name for tool in config.space.tools]
+    if (
+        code_interpreter_config is not None
+        and OpenAIBuiltInToolName.CODE_INTERPRETER not in tool_names
+    ):
+        logger.info("Automatically adding code interpreter to the tools")
+        config = config.model_copy(deep=True)
+        config.space.tools.append(
+            ToolBuildConfig(
+                name=OpenAIBuiltInToolName.CODE_INTERPRETER,
+                configuration=code_interpreter_config,
+            )
+        )
+        common_components.tool_manager_config.tools = config.space.tools
+
     builtin_tool_manager = OpenAIBuiltInToolManager(
         uploaded_files=common_components.uploaded_documents,
         chat_id=event.payload.chat_id,
