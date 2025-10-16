@@ -375,7 +375,9 @@ def _build_completions(
     common_components: _CommonComponents,
     debug_info_manager: DebugInfoManager,
 ) -> UniqueAI:
-    if len(common_components.uploaded_documents) > 0:
+    UPLOADED_DOCUMENTS = len(common_components.uploaded_documents) > 0
+    TOOL_CHOICES = len(event.payload.tool_choices) > 0
+    if UPLOADED_DOCUMENTS:
         logger.info(
             f"Adding UploadedSearchTool with {len(common_components.uploaded_documents)} documents"
         )
@@ -386,6 +388,7 @@ def _build_completions(
                 configuration=UploadedSearchConfig(),
             ),
         )
+    if TOOL_CHOICES and UPLOADED_DOCUMENTS:
         event.payload.tool_choices.append(str(UploadedSearchTool.name))
 
     tool_manager = ToolManager(
@@ -396,6 +399,8 @@ def _build_completions(
         mcp_manager=common_components.mcp_manager,
         a2a_manager=common_components.a2a_manager,
     )
+    if not TOOL_CHOICES and UPLOADED_DOCUMENTS:
+        tool_manager.add_forced_tool(UploadedSearchTool.name)
 
     postprocessor_manager = PostprocessorManager(
         logger=logger,
