@@ -375,18 +375,22 @@ def _build_completions(
     common_components: _CommonComponents,
     debug_info_manager: DebugInfoManager,
 ) -> UniqueAI:
+    # Uploaded content behavior is always to force uploaded search tool:
+    # 1. Add it to forced tools if there are tool choices.
+    # 2. Simply force it if there are no tool choices.
+    # 3. Not available if not uploaded documents.
     UPLOADED_DOCUMENTS = len(common_components.uploaded_documents) > 0
     TOOL_CHOICES = len(event.payload.tool_choices) > 0
     if UPLOADED_DOCUMENTS:
         logger.info(
             f"Adding UploadedSearchTool with {len(common_components.uploaded_documents)} documents"
         )
-        config.space.tools.append(
+        common_components.tool_manager_config.tools.append(
             ToolBuildConfig(
                 name=UploadedSearchTool.name,
                 display_name=UploadedSearchTool.name,
                 configuration=UploadedSearchConfig(),
-            ),
+            )
         )
     if TOOL_CHOICES and UPLOADED_DOCUMENTS:
         event.payload.tool_choices.append(str(UploadedSearchTool.name))
