@@ -245,7 +245,15 @@ class ResponsesApiConfig(BaseModel):
 
     use_direct_azure_client: SkipJsonSchema[bool] = Field(
         default=True,
-        description="Temporary",
+        description="[TEMPORARY] Whether to use the direct Azure client instead of the responses API.",
+    )
+    direct_azure_client_api_base_env_var: SkipJsonSchema[str] = Field(
+        default="OPENAI_BASE_URL",
+        description="[TEMPORARY] The environment variable that contains the API base for the direct Azure client.",
+    )
+    direct_azure_client_api_key_env_var: SkipJsonSchema[str] = Field(
+        default="OPENAI_API_KEY",
+        description="[TEMPORARY] The environment variable that contains the API key for the direct Azure client.",
     )
 
     generated_files_scope_id: str = Field(
