@@ -35,6 +35,7 @@ class TestLanguageModelInfos:
             LanguageModelName.AZURE_o4_MINI_2025_0416,
             LanguageModelName.ANTHROPIC_CLAUDE_3_7_SONNET,
             LanguageModelName.ANTHROPIC_CLAUDE_3_7_SONNET_THINKING,
+            LanguageModelName.ANTHROPIC_CLAUDE_HAIKU_4_5,
             LanguageModelName.ANTHROPIC_CLAUDE_SONNET_4,
             LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4,
             LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4_1,
