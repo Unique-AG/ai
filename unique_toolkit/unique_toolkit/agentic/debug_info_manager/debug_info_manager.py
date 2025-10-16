@@ -15,7 +15,7 @@ class DebugInfoManager:
         for tool_call_response in tool_call_responses:
             tool_info = {
                 "name": tool_call_response.name,
-                "info": {**tool_call_response.debug_info},
+                "info": tool_call_response.debug_info,
             }
             if loop_iteration_index is not None:
                 tool_info["info"]["loop_iteration"] = loop_iteration_index
