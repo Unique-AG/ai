@@ -183,6 +183,7 @@ This streamlined process ensures efficient, accurate, and manageable tool execut
 async def execute_selected_tools(
     self,
     tool_calls: list[LanguageModelFunction],
+    loop_iteration: int,
 ) -> list[ToolCallResponse]:
     tool_calls = tool_calls
 
@@ -203,7 +204,8 @@ async def execute_selected_tools(
         )
         tool_calls = tool_calls[: self._config.max_tool_calls]
 
-    tool_call_responses = await self._execute_parallelized(tool_calls)
+    tool_call_responses = await self._execute_parallelized(
+        tool_calls=tool_calls, loop_iteration=loop_iteration)
     return tool_call_responses
 ```
 

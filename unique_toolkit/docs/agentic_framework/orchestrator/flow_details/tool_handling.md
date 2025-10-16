@@ -51,7 +51,7 @@ Code:
 
         # Execute tool calls
         tool_call_responses = await self._tool_manager.execute_selected_tools(
-              tool_calls
+            tool_calls=tool_calls, loop_iteration=loop_iteration
         )
 
         # Process results with error handling

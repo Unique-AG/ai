@@ -356,7 +356,8 @@ class UniqueAI:
 
         # Execute tool calls
         tool_call_responses = await self._tool_manager.execute_selected_tools(
-            tool_calls
+            tool_calls=tool_calls,
+            loop_iteration=self.current_iteration_index,
         )
 
         # Process results with error handling

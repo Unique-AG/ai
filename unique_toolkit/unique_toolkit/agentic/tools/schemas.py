@@ -14,6 +14,9 @@ from unique_toolkit.content.schemas import ContentChunk
 class ToolCallResponse(BaseModel):
     id: str
     name: str
+    loop_iteration: int | None = None
+    is_forced: bool | None = None
+    is_exclusive: bool | None = None
     content: str = ""
     debug_info: Optional[dict] = None  # TODO: Make the default {}
     content_chunks: Optional[list[ContentChunk]] = None  # TODO: Make the default []

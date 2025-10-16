@@ -80,6 +80,9 @@ class ToolManager:
         self._tools = []
         self._tool_choices = event.payload.tool_choices
         self._disabled_tools = event.payload.disabled_tools
+        self._exclusive_tools = [
+            tool.name for tool in self._config.tools if tool.is_exclusive
+        ]
         # this needs to be a set of strings to avoid duplicates
         self._tool_evaluation_check_list: set[EvaluationMetricName] = set()
         self._mcp_manager = mcp_manager
@@ -184,6 +187,7 @@ class ToolManager:
     async def execute_selected_tools(
         self,
         tool_calls: list[LanguageModelFunction],
+        loop_iteration: int,
     ) -> list[ToolCallResponse]:
         tool_calls = tool_calls
 
@@ -204,12 +208,15 @@ class ToolManager:
             )
             tool_calls = tool_calls[: self._config.max_tool_calls]
 
-        tool_call_responses = await self._execute_parallelized(tool_calls)
+        tool_call_responses = await self._execute_parallelized(
+            tool_calls=tool_calls, loop_iteration=loop_iteration
+        )
         return tool_call_responses
 
     async def _execute_parallelized(
         self,
         tool_calls: list[LanguageModelFunction],
+        loop_iteration: int,
     ) -> list[ToolCallResponse]:
         self._logger.info("Execute tool calls")
 
@@ -233,6 +240,9 @@ class ToolManager:
             unpacked_tool_call_result = self._create_tool_call_response(
                 result, tool_calls[i]
             )
+            unpacked_tool_call_result.loop_iteration = loop_iteration
+            unpacked_tool_call_result.is_forced = tool_calls[i].name in self._tool_choices
+            unpacked_tool_call_result.is_exclusive = tool_calls[i].name in self._exclusive_tools
             tool_call_results_unpacked.append(unpacked_tool_call_result)
 
         return tool_call_results_unpacked
