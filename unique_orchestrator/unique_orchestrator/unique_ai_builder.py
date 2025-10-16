@@ -217,7 +217,18 @@ def _build_common(
     )
 
 
-def _get_openai_client_from_env(config: UniqueAIConfig) -> AsyncOpenAI:
+def _prepare_base_url(url: str, use_v1: bool) -> str:
+    url = url.rstrip("/") + "/openai"
+
+    if use_v1:
+        url += "/v1"
+
+    return url
+
+
+def _get_openai_client_from_env(
+    config: UniqueAIConfig, use_v1: bool = False
+) -> AsyncOpenAI:
     use_direct_azure_client = (
         config.agent.experimental.responses_api_config.use_direct_azure_client
     )
@@ -228,7 +239,7 @@ def _get_openai_client_from_env(config: UniqueAIConfig) -> AsyncOpenAI:
         # TODO: (for testing only), remove when v1 endpoint is working
         return AsyncOpenAI(
             api_key=os.environ[api_key_env_var],
-            base_url=os.environ[api_base_env_var],
+            base_url=_prepare_base_url(os.environ[api_base_env_var], use_v1=use_v1),
         )
     else:
         return get_async_openai_client().copy(
@@ -245,7 +256,7 @@ async def _build_responses(
     common_components: _CommonComponents,
     debug_info_manager: DebugInfoManager,
 ) -> UniqueAIResponsesApi:
-    client = _get_openai_client_from_env(config)
+    client = _get_openai_client_from_env(config, use_v1=True)
     builtin_tool_manager = OpenAIBuiltInToolManager(
         uploaded_files=common_components.uploaded_documents,
         chat_id=event.payload.chat_id,
