@@ -12,14 +12,21 @@ from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
 )
 from unique_toolkit.agentic.reference_manager.reference_manager import ReferenceManager
 from unique_toolkit.agentic.thinking_manager.thinking_manager import ThinkingManager
-from unique_toolkit.agentic.tools.tool_manager import ToolManager
+from unique_toolkit.agentic.tools.tool_manager import (
+    ResponsesApiToolManager,
+    ToolManager,
+)
 from unique_toolkit.app.schemas import ChatEvent, McpServer
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.service import ContentService
+from unique_toolkit.language_model import LanguageModelAssistantMessage
 from unique_toolkit.language_model.schemas import (
-    LanguageModelAssistantMessage,
     LanguageModelMessages,
     LanguageModelStreamResponse,
+)
+from unique_toolkit.protocols.support import (
+    ResponsesSupportCompleteWithReferences,
+    SupportCompleteWithReferences,
 )
 
 from unique_orchestrator.config import UniqueAIConfig
@@ -45,6 +52,7 @@ class UniqueAI:
         chat_service: ChatService,
         content_service: ContentService,
         debug_info_manager: DebugInfoManager,
+        streaming_handler: SupportCompleteWithReferences,
         reference_manager: ReferenceManager,
         thinking_manager: ThinkingManager,
         tool_manager: ToolManager,
@@ -70,6 +78,7 @@ class UniqueAI:
         self._postprocessor_manager = postprocessor_manager
         self._latest_assistant_id: str = event.payload.assistant_message.id
         self._mcp_servers = mcp_servers
+        self._streaming_handler = streaming_handler
 
         # Helper variable to support control loop
         self._tool_took_control = False
@@ -148,7 +157,7 @@ class UniqueAI:
             self._logger.info("Its needs forced tool calls.")
             self._logger.info(f"Forced tools: {self._tool_manager.get_forced_tools()}")
             responses = [
-                await self._chat_service.complete_with_references_async(
+                await self._streaming_handler.complete_with_references_async(
                     messages=messages,
                     model_name=self._config.space.language_model.name,
                     tools=self._tool_manager.get_tool_definitions(),
@@ -156,8 +165,8 @@ class UniqueAI:
                     start_text=self.start_text,
                     debug_info=self._debug_info_manager.get(),
                     temperature=self._config.agent.experimental.temperature,
-                    other_options=self._config.agent.experimental.additional_llm_options
-                    | {"toolChoice": opt},
+                    tool_choice=opt,
+                    other_options=self._config.agent.experimental.additional_llm_options,
                 )
                 for opt in self._tool_manager.get_forced_tools()
             ]
@@ -178,7 +187,7 @@ class UniqueAI:
                 "we are in the last iteration we need to produce an answer now"
             )
             # No tool calls in last iteration
-            stream_response = await self._chat_service.complete_with_references_async(
+            stream_response = await self._streaming_handler.complete_with_references_async(
                 messages=messages,
                 model_name=self._config.space.language_model.name,
                 content_chunks=self._reference_manager.get_chunks(),
@@ -192,7 +201,7 @@ class UniqueAI:
             self._logger.info(
                 f"we are in the iteration {self.current_iteration_index} asking the model to tell if we should use tools or if it will just stream"
             )
-            stream_response = await self._chat_service.complete_with_references_async(
+            stream_response = await self._streaming_handler.complete_with_references_async(
                 messages=messages,
                 model_name=self._config.space.language_model.name,
                 tools=self._tool_manager.get_tool_definitions(),
@@ -351,7 +360,7 @@ class UniqueAI:
 
         tool_calls = loop_response.tool_calls or []
 
-        # Append function call to history
+        # Append function calls to history
         self._history_manager._append_tool_calls_to_history(tool_calls)
 
         # Execute tool calls
@@ -403,4 +412,40 @@ class UniqueAI:
             LanguageModelAssistantMessage(
                 content=loop_response.message.original_text or "",
             )
+        )
+
+
+class UniqueAIResponsesApi(UniqueAI):
+    def __init__(
+        self,
+        logger: Logger,
+        event: ChatEvent,
+        config: UniqueAIConfig,
+        chat_service: ChatService,
+        content_service: ContentService,
+        debug_info_manager: DebugInfoManager,
+        streaming_handler: ResponsesSupportCompleteWithReferences,
+        reference_manager: ReferenceManager,
+        thinking_manager: ThinkingManager,
+        tool_manager: ResponsesApiToolManager,
+        history_manager: HistoryManager,
+        evaluation_manager: EvaluationManager,
+        postprocessor_manager: PostprocessorManager,
+        mcp_servers: list[McpServer],
+    ) -> None:
+        super().__init__(
+            logger,
+            event=event,
+            config=config,
+            chat_service=chat_service,
+            content_service=content_service,
+            debug_info_manager=debug_info_manager,
+            streaming_handler=streaming_handler,  # type: ignore
+            reference_manager=reference_manager,
+            thinking_manager=thinking_manager,
+            tool_manager=tool_manager,  # type: ignore
+            history_manager=history_manager,
+            evaluation_manager=evaluation_manager,
+            postprocessor_manager=postprocessor_manager,
+            mcp_servers=mcp_servers,
         )

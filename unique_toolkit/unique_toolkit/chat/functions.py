@@ -1,13 +1,17 @@
 import logging
 import re
-from typing import Any
+from typing import Any, Sequence
 
 import unique_sdk
+from openai.types.chat import ChatCompletionToolChoiceOptionParam
+from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
 from typing_extensions import deprecated
 from unique_sdk._list_object import ListObject
 
 from unique_toolkit._common import _time_utils
-from unique_toolkit.chat.constants import DEFAULT_MAX_MESSAGES
+from unique_toolkit.chat.constants import (
+    DEFAULT_MAX_MESSAGES,
+)
 from unique_toolkit.chat.schemas import (
     ChatMessage,
     ChatMessageAssessment,
@@ -30,10 +34,11 @@ from unique_toolkit.language_model.constants import (
     DEFAULT_COMPLETE_TIMEOUT,
 )
 from unique_toolkit.language_model.functions import (
-    ChatCompletionMessageParam,
     _prepare_all_completions_params_util,
 )
-from unique_toolkit.language_model.infos import LanguageModelName
+from unique_toolkit.language_model.infos import (
+    LanguageModelName,
+)
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
     LanguageModelStreamResponse,
@@ -761,8 +766,9 @@ def stream_complete_with_references(
     debug_info: dict | None = None,
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
     timeout: int = DEFAULT_COMPLETE_TIMEOUT,
-    tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
+    tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
     start_text: str | None = None,
+    tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
     other_options: dict | None = None,
 ) -> LanguageModelStreamResponse:
     """Streams a completion synchronously.
@@ -795,6 +801,7 @@ def stream_complete_with_references(
             temperature=temperature,
             tools=tools,
             other_options=other_options,
+            tool_choice=tool_choice,
             content_chunks=content_chunks or [],
         )
     )
@@ -871,7 +878,8 @@ async def stream_complete_with_references_async(
     debug_info: dict | None = None,
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
     timeout: int = DEFAULT_COMPLETE_TIMEOUT,
-    tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
+    tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
+    tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
     start_text: str | None = None,
     other_options: dict | None = None,
 ) -> LanguageModelStreamResponse:
@@ -889,6 +897,7 @@ async def stream_complete_with_references_async(
             model_name=model_name,
             temperature=temperature,
             tools=tools,
+            tool_choice=tool_choice,
             other_options=other_options,
             content_chunks=content_chunks or [],
         )

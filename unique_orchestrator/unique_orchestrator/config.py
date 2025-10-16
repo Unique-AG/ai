@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Annotated, Any, Generic, Literal, TypeVar
 
 from pydantic import BaseModel, Field, ValidationInfo, field_validator, model_validator
+from pydantic.json_schema import SkipJsonSchema
 from unique_deep_research.config import DeepResearchToolConfig
 from unique_deep_research.service import DeepResearchTool
 from unique_follow_up_questions.config import FollowUpQuestionsConfig
@@ -21,6 +22,7 @@ from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.history_manager.history_manager import (
     UploadedContentConfig,
 )
+from unique_toolkit.agentic.responses_api import ShowExecutedCodePostprocessorConfig
 from unique_toolkit.agentic.tools.a2a import (
     REFERENCING_INSTRUCTIONS_FOR_SYSTEM_PROMPT,
     REFERENCING_INSTRUCTIONS_FOR_USER_PROMPT,
@@ -226,6 +228,32 @@ class SubAgentsConfig(BaseModel):
     ) = SubAgentEvaluationServiceConfig()
 
 
+class ResponsesApiConfig(BaseModel):
+    model_config = get_configuration_dict(frozen=True)
+
+    use_responses_api: bool = Field(
+        default=False,
+        description="Whether to use the responses API instead of the completions API.",
+    )
+    code_interpreter_display_config: (
+        Annotated[
+            ShowExecutedCodePostprocessorConfig,
+            Field(title="Active"),
+        ]
+        | DeactivatedNone
+    ) = ShowExecutedCodePostprocessorConfig()
+
+    use_direct_azure_client: SkipJsonSchema[bool] = Field(
+        default=True,
+        description="Temporary",
+    )
+
+    generated_files_scope_id: str = Field(
+        default="<SCOPE_ID_PLACEHOLDER>",
+        description="Scope ID for the responses API.",
+    )
+
+
 class ExperimentalConfig(BaseModel):
     """Experimental features this part of the configuration might evolve in the future continuously"""
 
@@ -258,6 +286,8 @@ class ExperimentalConfig(BaseModel):
     )
 
     sub_agents_config: SubAgentsConfig = SubAgentsConfig()
+
+    responses_api_config: ResponsesApiConfig = ResponsesApiConfig()
 
 
 class UniqueAIAgentConfig(BaseModel):
