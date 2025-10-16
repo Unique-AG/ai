@@ -15,7 +15,7 @@ python-dotenv = "^1.0.1"
 pytest = "^8.4.1"
 unique-sdk = "^0.10.24"
 
-unique-toolkit = "^1.16.0"
+unique-toolkit = "^1.16.1"
 unique-stock-ticker = "^1.0.2"
 unique-follow-up-questions = "^1.1.2"
 unique-internal-search = "^1.0.1"
