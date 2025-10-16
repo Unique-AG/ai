@@ -29,6 +29,9 @@ from unique_toolkit.agentic.tools.a2a import (
 )
 from unique_toolkit.agentic.tools.a2a.evaluation import SubAgentEvaluationServiceConfig
 from unique_toolkit.agentic.tools.config import get_configuration_dict
+from unique_toolkit.agentic.tools.openai_builtin.manager import (
+    OpenAICodeInterpreterConfig,
+)
 from unique_toolkit.agentic.tools.tool import ToolBuildConfig
 from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 from unique_web_search.config import WebSearchConfig
@@ -255,6 +258,9 @@ class ResponsesApiConfig(BaseModel):
         default="OPENAI_API_KEY",
         description="[TEMPORARY] The environment variable that contains the API key for the direct Azure client.",
     )
+    code_interpreter: (
+        Annotated[OpenAICodeInterpreterConfig, Field(title="Active")] | DeactivatedNone
+    ) = Field(default=None, description="Config for openai code interpreter")
 
     generated_files_scope_id: str = Field(
         default="<SCOPE_ID_PLACEHOLDER>",
