@@ -935,6 +935,7 @@ class TestChatServiceUnit:
             debug_info={},
             temperature=0.0,
             timeout=240000,
+            tool_choice=None,
             tools=None,
             start_text=None,
             other_options=None,
@@ -976,6 +977,7 @@ class TestChatServiceUnit:
             temperature=0.0,
             timeout=240000,
             tools=None,
+            tool_choice=None,
             start_text=None,
             other_options=None,
         )
