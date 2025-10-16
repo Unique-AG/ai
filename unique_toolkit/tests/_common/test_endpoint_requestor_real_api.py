@@ -81,7 +81,7 @@ def test_fake_requestor():
     # Create API operation for getting a post
     GetPostEndpoint = build_api_operation(
         method=HttpMethods.GET,
-        url_template=Template("https://jsonplaceholder.typicode.com/posts/${post_id}"),
+        path_template=Template("/posts/${post_id}"),
         path_params_constructor=PostPathParams,
         payload_constructor=PostQueryParams,
         response_model_type=PostResponse,
@@ -101,7 +101,10 @@ def test_fake_requestor():
 
     # Test the fake requestor
     response = FakePostRequestor.request(
-        context=RequestContext(headers={"Content-Type": "application/json"}),
+        context=RequestContext(
+            base_url="https://jsonplaceholder.typicode.com",
+            headers={"Content-Type": "application/json"},
+        ),
         post_id=1,
         _limit=10,
         _page=1,
@@ -118,9 +121,9 @@ def test_fake_requestor():
 def test_requests_requestor():
     """Test the requests-based requestor with real API."""
     # Create API operation for getting a post (simplified - no query params for now)
-    GetPostEndpoint = build_api_operation(
+    GetPostApiOperation = build_api_operation(
         method=HttpMethods.GET,
-        url_template=Template("https://jsonplaceholder.typicode.com/posts/${post_id}"),
+        path_template=Template("/posts/${post_id}"),
         path_params_constructor=PostPathParams,
         payload_constructor=PostPathParams,  # Use same model for both path and payload for GET
         response_model_type=PostResponse,
@@ -128,13 +131,17 @@ def test_requests_requestor():
 
     # Create requests requestor
     RequestsPostRequestor = build_request_requestor(
-        operation_type=GetPostEndpoint,
+        operation_type=GetPostApiOperation,
         combined_model=PostPathParams,  # Simplified combined model
     )
 
     # Test the requests requestor
     response = RequestsPostRequestor.request(
-        context=RequestContext(headers={"Content-Type": "application/json"}), post_id=1
+        context=RequestContext(
+            base_url="https://jsonplaceholder.typicode.com",
+            headers={"Content-Type": "application/json"},
+        ),
+        post_id=1,
     )
 
     # Assertions
@@ -152,7 +159,7 @@ def test_httpx_requestor():
     # Create API operation for getting a post
     GetPostEndpoint = build_api_operation(
         method=HttpMethods.GET,
-        url_template=Template("https://jsonplaceholder.typicode.com/posts/${post_id}"),
+        path_template=Template("/posts/${post_id}"),
         path_params_constructor=PostPathParams,
         payload_constructor=PostPathParams,  # Use same model for both
         response_model_type=PostResponse,
@@ -166,7 +173,11 @@ def test_httpx_requestor():
 
     # Test the httpx requestor (sync)
     response = HttpxPostRequestor.request(
-        context=RequestContext(headers={"Content-Type": "application/json"}), post_id=2
+        context=RequestContext(
+            base_url="https://jsonplaceholder.typicode.com",
+            headers={"Content-Type": "application/json"},
+        ),
+        post_id=2,
     )
 
     # Assertions
@@ -184,7 +195,7 @@ async def test_httpx_async_requestor():
     # Create API operation for getting a post
     GetPostEndpoint = build_api_operation(
         method=HttpMethods.GET,
-        url_template=Template("https://jsonplaceholder.typicode.com/posts/${post_id}"),
+        path_template=Template("/posts/${post_id}"),
         path_params_constructor=PostPathParams,
         payload_constructor=PostPathParams,  # Use same model
         response_model_type=PostResponse,
@@ -198,7 +209,11 @@ async def test_httpx_async_requestor():
 
     # Test the httpx requestor (async)
     response = await HttpxPostRequestor.request_async(
-        context=RequestContext(headers={"Content-Type": "application/json"}), post_id=3
+        context=RequestContext(
+            base_url="https://jsonplaceholder.typicode.com",
+            headers={"Content-Type": "application/json"},
+        ),
+        post_id=3,
     )
 
     # Assertions
@@ -246,9 +261,9 @@ async def test_httpx_async_requestor():
 def test_post_request():
     """Test a POST request with real API."""
     # Create API operation for creating a post
-    CreatePostEndpoint = build_api_operation(
+    CreatePostApiOperation = build_api_operation(
         method=HttpMethods.POST,
-        url_template=Template("https://jsonplaceholder.typicode.com/posts"),
+        path_template=Template("/posts"),
         path_params_constructor=PostPathParams,  # Not used for POST
         payload_constructor=CreatePostPayload,
         response_model_type=CreatePostResponse,
@@ -256,13 +271,16 @@ def test_post_request():
 
     # Create requests requestor for POST
     CreatePostRequestor = build_request_requestor(
-        operation_type=CreatePostEndpoint,
+        operation_type=CreatePostApiOperation,
         combined_model=CombinedCreatePostParams,
     )
 
     # Test the POST request
     response = CreatePostRequestor.request(
-        context=RequestContext(headers={"Content-Type": "application/json"}),
+        context=RequestContext(
+            base_url="https://jsonplaceholder.typicode.com",
+            headers={"Content-Type": "application/json"},
+        ),
         post_id=0,  # Not used for POST
         title="Test Post Title",
         body="This is a test post body created via the endpoint requestor.",
@@ -282,9 +300,9 @@ def test_post_request():
 def test_build_requestor_factory():
     """Test the build_requestor factory function."""
     # Create API operation
-    GetPostEndpoint = build_api_operation(
+    GetPostApiOperation = build_api_operation(
         method=HttpMethods.GET,
-        url_template=Template("https://jsonplaceholder.typicode.com/posts/${post_id}"),
+        path_template=Template("/posts/${post_id}"),
         path_params_constructor=PostPathParams,
         payload_constructor=PostQueryParams,
         response_model_type=PostResponse,
@@ -293,12 +311,16 @@ def test_build_requestor_factory():
     # Test factory with requests type
     FactoryRequestor = build_requestor(
         requestor_type=RequestorType.REQUESTS,
-        operation_type=GetPostEndpoint,
+        operation_type=GetPostApiOperation,
         combined_model=PostPathParams,  # Simplified
     )
 
     response = FactoryRequestor.request(
-        context=RequestContext(headers={"Content-Type": "application/json"}), post_id=5
+        context=RequestContext(
+            base_url="https://jsonplaceholder.typicode.com",
+            headers={"Content-Type": "application/json"},
+        ),
+        post_id=5,
     )
 
     # Assertions for requests factory
@@ -313,7 +335,7 @@ def test_build_requestor_factory():
     # Test factory with fake type
     FactoryFakeRequestor = build_requestor(
         requestor_type=RequestorType.FAKE,
-        operation_type=GetPostEndpoint,
+        operation_type=GetPostApiOperation,
         combined_model=PostPathParams,  # Simplified
         return_value={
             "id": 999,
@@ -324,7 +346,10 @@ def test_build_requestor_factory():
     )
 
     response = FactoryFakeRequestor.request(
-        context=RequestContext(headers={"Content-Type": "application/json"}),
+        context=RequestContext(
+            base_url="https://jsonplaceholder.typicode.com",
+            headers={"Content-Type": "application/json"},
+        ),
         post_id=999,
     )
 

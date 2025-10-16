@@ -280,9 +280,9 @@ if __name__ == "__main__":
     class CombinedParams(GetUserPathParams, GetUserRequestBody):
         pass
 
-    UserEndpoint = build_api_operation(
+    UserApiOperation = build_api_operation(
         method=EndpointMethods.GET,
-        url_template=Template("https://api.example.com/users/{user_id}"),
+        path_template=Template("/users/{user_id}"),
         path_params_constructor=GetUserPathParams,
         payload_constructor=GetUserRequestBody,
         response_model_type=UserResponse,
@@ -290,7 +290,7 @@ if __name__ == "__main__":
 
     human_verification_manager = HumanVerificationManagerForApiCalling(
         logger=logging.getLogger(__name__),
-        operation=UserEndpoint,
+        operation=UserApiOperation,
         requestor_type=RequestorType.FAKE,
         return_value={"id": 100, "name": "John Doe"},
     )

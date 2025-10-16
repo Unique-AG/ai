@@ -2,7 +2,7 @@ from enum import StrEnum
 from typing import Any, Callable, Generic, Protocol, TypeVar
 from urllib.parse import urljoin, urlparse
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing_extensions import ParamSpec
 
 from unique_toolkit._common.endpoint_builder import (
@@ -25,25 +25,15 @@ CombinedParamsType = TypeVar("CombinedParamsType", bound=BaseModel)
 ResponseT_co = TypeVar("ResponseT_co", bound=BaseModel, covariant=True)
 
 
-def _construct_full_url(base_url: str, url: str) -> str:
-    """
-    Construct full URL from base_url and url.
-    If base_url is provided and url is absolute, strip the scheme/netloc from url.
-    """
-    if not base_url:
-        return url
-
-    parsed = urlparse(url)
-    if parsed.scheme:
-        # URL is absolute, extract only path + query + fragment
-        url = parsed._replace(scheme="", netloc="").geturl()
-
-    return urljoin(base_url, url)
-
-
 class RequestContext(BaseModel):
-    base_url: str = ""
-    headers: dict[str, str] | None = None
+    base_url: str
+    headers: dict[str, str] = Field(default_factory=dict)
+
+
+def _verify_url(url: str) -> None:
+    parse_result = urlparse(url)
+    if not (parse_result.netloc and parse_result.scheme):
+        raise ValueError("Scheme and netloc are required for url")
 
 
 class EndpointRequestorProtocol(Protocol, Generic[CombinedParamsSpec, ResponseT_co]):
@@ -142,12 +132,15 @@ def build_request_requestor(
                 combined=kwargs
             )
 
-            url = cls._operation.create_url_from_model(path_params)
+            path = cls._operation.create_path_from_model(path_params)
+            url = urljoin(context.base_url, path)
+            _verify_url(url)
+
             payload = cls._operation.create_payload_from_model(payload_model)
 
             response = requests.request(
                 method=cls._operation.request_method(),
-                url=_construct_full_url(context.base_url, url),
+                url=url,
                 headers=context.headers,
                 json=payload,
             )
@@ -198,13 +191,13 @@ def build_httpx_requestor(
                 combined=kwargs
             )
 
+            path = cls._operation.create_path_from_model(path_params)
+            url = urljoin(context.base_url, path)
+            _verify_url(url)
             with httpx.Client() as client:
                 response = client.request(
                     method=cls._operation.request_method(),
-                    url=_construct_full_url(
-                        base_url=context.base_url,
-                        url=cls._operation.create_url_from_model(path_params),
-                    ),
+                    url=url,
                     headers=headers,
                     json=cls._operation.create_payload_from_model(payload_model),
                 )
@@ -223,13 +216,13 @@ def build_httpx_requestor(
                 combined=kwargs
             )
 
+            path = cls._operation.create_path_from_model(path_params)
+            url = urljoin(context.base_url, path)
+            _verify_url(url)
             async with httpx.AsyncClient() as client:
                 response = await client.request(
                     method=cls._operation.request_method(),
-                    url=_construct_full_url(
-                        base_url=context.base_url,
-                        url=cls._operation.create_url_from_model(path_params),
-                    ),
+                    url=url,
                     headers=headers,
                     json=cls._operation.create_payload_from_model(payload_model),
                 )
@@ -279,14 +272,14 @@ def build_aiohttp_requestor(
             path_params, payload_model = cls._operation.models_from_combined(
                 combined=kwargs
             )
+            path = cls._operation.create_path_from_model(path_params)
+            url = urljoin(context.base_url, path)
+            _verify_url(url)
 
             async with aiohttp.ClientSession() as session:
                 response = await session.request(
                     method=cls._operation.request_method(),
-                    url=_construct_full_url(
-                        base_url=context.base_url,
-                        url=cls._operation.create_url_from_model(path_params),
-                    ),
+                    url=url,
                     headers=headers,
                     json=cls._operation.create_payload_from_model(payload_model),
                 )
@@ -360,7 +353,7 @@ if __name__ == "__main__":
 
     UserEndpoint = build_api_operation(
         method=HttpMethods.GET,
-        url_template=Template("https://api.example.com/users/{user_id}"),
+        path_template=Template("/users/{user_id}"),
         path_params_constructor=GetUserPathParams,
         payload_constructor=GetUserRequestBody,
         response_model_type=UserResponse,

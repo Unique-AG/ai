@@ -52,6 +52,7 @@ from unique_toolkit.agentic.tools.a2a import (
 )
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
 from unique_toolkit.agentic.tools.mcp.manager import MCPManager
+from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolName
 from unique_toolkit.agentic.tools.tool_manager import (
     OpenAIBuiltInToolManager,
     ResponsesApiToolManager,
@@ -217,7 +218,18 @@ def _build_common(
     )
 
 
-def _get_openai_client_from_env(config: UniqueAIConfig) -> AsyncOpenAI:
+def _prepare_base_url(url: str, use_v1: bool) -> str:
+    url = url.rstrip("/") + "/openai"
+
+    if use_v1:
+        url += "/v1"
+
+    return url
+
+
+def _get_openai_client_from_env(
+    config: UniqueAIConfig, use_v1: bool = False
+) -> AsyncOpenAI:
     use_direct_azure_client = (
         config.agent.experimental.responses_api_config.use_direct_azure_client
     )
@@ -228,7 +240,7 @@ def _get_openai_client_from_env(config: UniqueAIConfig) -> AsyncOpenAI:
         # TODO: (for testing only), remove when v1 endpoint is working
         return AsyncOpenAI(
             api_key=os.environ[api_key_env_var],
-            base_url=os.environ[api_base_env_var],
+            base_url=_prepare_base_url(os.environ[api_base_env_var], use_v1=use_v1),
         )
     else:
         return get_async_openai_client().copy(
@@ -245,7 +257,26 @@ async def _build_responses(
     common_components: _CommonComponents,
     debug_info_manager: DebugInfoManager,
 ) -> UniqueAIResponsesApi:
-    client = _get_openai_client_from_env(config)
+    client = _get_openai_client_from_env(config, use_v1=True)
+    code_interpreter_config = (
+        config.agent.experimental.responses_api_config.code_interpreter
+    )
+
+    tool_names = [tool.name for tool in config.space.tools]
+    if (
+        code_interpreter_config is not None
+        and OpenAIBuiltInToolName.CODE_INTERPRETER not in tool_names
+    ):
+        logger.info("Automatically adding code interpreter to the tools")
+        config = config.model_copy(deep=True)
+        config.space.tools.append(
+            ToolBuildConfig(
+                name=OpenAIBuiltInToolName.CODE_INTERPRETER,
+                configuration=code_interpreter_config,
+            )
+        )
+        common_components.tool_manager_config.tools = config.space.tools
+
     builtin_tool_manager = OpenAIBuiltInToolManager(
         uploaded_files=common_components.uploaded_documents,
         chat_id=event.payload.chat_id,
