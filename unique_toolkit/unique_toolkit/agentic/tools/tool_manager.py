@@ -129,6 +129,14 @@ class BaseToolManager(ABC):
             unpacked_tool_call_result = self._create_tool_call_response(
                 result, tool_calls[i]
             )
+            if unpacked_tool_call_result.debug_info is None:
+                unpacked_tool_call_result.debug_info = {}
+            unpacked_tool_call_result.debug_info["is_exclusive"] = (
+                tool_calls[i].name in self.get_exclusive_tools()
+            )
+            unpacked_tool_call_result.debug_info["is_forced"] = (
+                tool_calls[i].name in self.get_tool_choices()
+            )
             tool_call_results_unpacked.append(unpacked_tool_call_result)
 
         return tool_call_results_unpacked
