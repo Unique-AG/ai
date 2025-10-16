@@ -221,11 +221,14 @@ def _get_openai_client_from_env(config: UniqueAIConfig) -> AsyncOpenAI:
     use_direct_azure_client = (
         config.agent.experimental.responses_api_config.use_direct_azure_client
     )
+    api_key_env_var = config.agent.experimental.responses_api_config.direct_azure_client_api_key_env_var
+    api_base_env_var = config.agent.experimental.responses_api_config.direct_azure_client_api_base_env_var
+
     if use_direct_azure_client:
         # TODO: (for testing only), remove when v1 endpoint is working
         return AsyncOpenAI(
-            api_key=os.environ["OPENAI_API_KEY"],
-            base_url=os.environ["OPENAI_BASE_URL"],
+            api_key=os.environ[api_key_env_var],
+            base_url=os.environ[api_base_env_var],
         )
     else:
         return get_async_openai_client().copy(
