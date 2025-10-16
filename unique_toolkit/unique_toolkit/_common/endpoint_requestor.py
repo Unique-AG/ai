@@ -279,7 +279,7 @@ def build_aiohttp_requestor(
             async with aiohttp.ClientSession() as session:
                 response = await session.request(
                     method=cls._operation.request_method(),
-                    url=urljoin(context.base_url, path),
+                    url=url,
                     headers=headers,
                     json=cls._operation.create_payload_from_model(payload_model),
                 )
