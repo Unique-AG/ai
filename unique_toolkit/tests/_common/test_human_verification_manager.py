@@ -72,7 +72,7 @@ def test_operation():
     """
     return build_api_operation(
         method=EndpointMethods.GET,
-        url_template=Template("https://api.example.com/users/{user_id}"),
+        path_template=Template("/users/{user_id}"),
         path_params_constructor=ApiPathParams,
         payload_constructor=ApiPayload,
         response_model_type=ApiResponse,
