@@ -1,5 +1,6 @@
 from typing import Any, Optional
 
+from httpx import AsyncClient
 from langchain_core.messages import HumanMessage
 from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
 from openai.types.responses import ResponseFunctionWebSearch, ResponseReasoningItem
@@ -42,6 +43,8 @@ from unique_toolkit.language_model.schemas import (
 )
 from unique_toolkit.short_term_memory.service import ShortTermMemoryService
 
+from unique_deep_research.unique_custom.tools import crawl_url
+
 from .config import (
     RESPONSES_API_TIMEOUT_SECONDS,
     TEMPLATE_ENV,
@@ -55,7 +58,6 @@ from .markdown_utils import (
 from .unique_custom.agents import custom_agent
 from .unique_custom.citation import GlobalCitationManager
 from .unique_custom.utils import (
-    cleanup_request_counter,
     create_message_log_entry,
     get_next_message_order,
 )
@@ -220,8 +222,9 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         # Question answer and message execution will have the same message id, so we need to check if it is a message execution
         if await self.is_followup_question_answer() and not self.is_message_execution():
             self.logger.info("This is a follow-up question answer")
-            # TODO: Should we also write a message to the user?
-            self.write_message_log_text_message("Waiting for deep research to start")
+            self.write_message_log_text_message(
+                "**Waiting for deep research to start**"
+            )
             self.chat_service.create_message_execution(
                 message_id=self.event.payload.assistant_message.id,
                 type=MessageExecutionType.DEEP_RESEARCH,
@@ -234,7 +237,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         if self.is_message_execution():
             self.logger.info("Starting research")
             # Run research
-            self.write_message_log_text_message("Generating research plan")
+            self.write_message_log_text_message("**Generating research plan**")
             research_brief = await self.generate_research_brief_from_dict(
                 self.get_visible_history_messages()
             )
@@ -243,11 +246,12 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             # Handle success/failure status updates centrally
             if not processed_result:
                 await self._update_execution_status(MessageExecutionUpdateStatus.FAILED)
+                self.write_message_log_text_message(
+                    "**Research failed for an unknown reason**"
+                )
                 await self.chat_service.modify_assistant_message_async(
                     content="Deep Research failed to complete for an unknown reason",
-                )
-                self.write_message_log_text_message(
-                    "Research failed for an unknown reason"
+                    set_completed_at=True,
                 )
                 return DeepResearchToolResponse(
                     id=tool_call.id or "",
@@ -255,6 +259,10 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                     content=processed_result or "Failed to complete research",
                     error_message="Research process failed or returned empty results",
                 )
+
+            await self.chat_service.modify_assistant_message_async(
+                set_completed_at=True,
+            )
 
             await self._update_execution_status(MessageExecutionUpdateStatus.COMPLETED)
 
@@ -268,6 +276,9 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
 
         # Ask followup questions
         followup_question_message = await self.clarify_user_request()
+        await self.chat_service.modify_assistant_message_async(
+            set_completed_at=True,
+        )
         # put message in short term memory to remember that we asked the followup questions
         await self.memory_service.save_async(
             MemorySchema(message_id=self.event.payload.assistant_message.id),
@@ -338,13 +349,16 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         Returns a tuple of (processed_result, content_chunks)
         """
         try:
+            result = "", []
             match self.config.engine.get_type():
                 case DeepResearchEngine.OPENAI:
                     self.logger.info("Running OpenAI research")
-                    return await self.openai_research(research_brief)
+                    result = await self.openai_research(research_brief)
                 case DeepResearchEngine.UNIQUE:
                     self.logger.info("Running Custom research")
-                    return await self.custom_research(research_brief)
+                    result = await self.custom_research(research_brief)
+            self.write_message_log_text_message("**Research done**")
+            return result
         except Exception as e:
             self.logger.error(f"Research failed: {e}")
             return "", []
@@ -383,8 +397,6 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
 
             result = await custom_agent.ainvoke(initial_state, config=config)  # type: ignore[arg-type]
 
-            cleanup_request_counter(self.event.payload.assistant_message.id)
-
             # Extract final report (citations already refined by agents.py)
             research_result = result.get("final_report", "")
 
@@ -397,13 +409,10 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                 research_result, citation_registry
             )
 
-            self.write_message_log_text_message("**Research done**")
-
             # Update the assistant message with the results
             await self.chat_service.modify_assistant_message_async(
                 content=processed_result,
                 references=references,
-                set_completed_at=True,
             )
             self.logger.info(
                 f"Custom research completed with {len(references)} validated citations"
@@ -469,13 +478,11 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         link_references = self._convert_annotations_to_references(
             annotations or [], message_id=""
         )
-        self.write_message_log_text_message("Research done")
 
         # Update the assistant message with the results
         await self.chat_service.modify_assistant_message_async(
             content=processed_result,
             references=link_references,
-            set_completed_at=True,
         )
 
         return processed_result, content_chunks
@@ -540,6 +547,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                                 ),
                             )
                     elif isinstance(event.item, ResponseFunctionWebSearch):
+                        self.logger.info("OpenAI web search")
                         if isinstance(event.item.action, ActionSearch) and isinstance(
                             event.item.action.query, str
                         ):
@@ -563,6 +571,20 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                                 ),
                             )
                         elif isinstance(event.item.action, ActionOpenPage):
+                            self.logger.info("OpenAI reading web page")
+                            _, title, success = await crawl_url(
+                                AsyncClient(), event.item.action.url
+                            )
+                            if not success:
+                                self.logger.info(
+                                    f"Failed to crawl URL: {event.item.action.url} but openai still opened the page"
+                                )
+                                continue
+                            if not title:
+                                self.logger.info(
+                                    f"No title found for URL: {event.item.action.url}"
+                                )
+                                continue
                             self.chat_service.create_message_log(
                                 message_id=self.event.payload.assistant_message.id,
                                 text="**Reading website**",
@@ -573,7 +595,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                                 uncited_references=MessageLogUncitedReferences(
                                     data=[
                                         ContentReference(
-                                            name=event.item.action.url,
+                                            name=title or event.item.action.url,
                                             url=event.item.action.url,
                                             sequence_number=0,
                                             source="web",
@@ -617,7 +639,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         Returns:
             The post-processed research result with improved formatting
         """
-        self.write_message_log_text_message("Synthesizing final research report")
+        self.write_message_log_text_message("**Synthesizing final research report**")
 
         response = await self.client.chat.completions.create(
             model=self.config.engine.large_model.name,
@@ -666,7 +688,9 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         messages: list[ChatCompletionMessageParam] = [
             {
                 "role": "system",
-                "content": self.env.get_template("clarifying_agent.j2").render(),
+                "content": self.env.get_template("clarifying_agent.j2").render(
+                    engine_type=self.config.engine.get_type().value
+                ),
             },
             *relevant_interactions,
         ]
@@ -689,7 +713,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                 "role": "system",
                 "content": self.env.get_template(
                     "research_instructions_agent.j2"
-                ).render(),
+                ).render(engine_type=self.config.engine.get_type().value),
             }
         ] + messages
 

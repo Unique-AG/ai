@@ -71,6 +71,9 @@ class UniqueAI:
         self._latest_assistant_id: str = event.payload.assistant_message.id
         self._mcp_servers = mcp_servers
 
+        # Helper variable to support control loop
+        self._tool_took_control = False
+
     ############################################################
     # Override of base methods
     ############################################################
@@ -125,8 +128,9 @@ class UniqueAI:
                 loop_response
             )
 
+        # Only set completed_at if no tool took control. Tools that take control will set the message state to completed themselves.
         await self._chat_service.modify_assistant_message_async(
-            set_completed_at=True,
+            set_completed_at=not self._tool_took_control,
         )
 
     # @track()
@@ -256,10 +260,15 @@ class UniqueAI:
 
         query = self._event.payload.user_message.text
 
-        use_sub_agent_references = (
-            self._config.agent.experimental.sub_agents_config.use_sub_agent_references
-        )
-        sub_agent_referencing_instructions = self._config.agent.experimental.sub_agents_config.referencing_instructions_for_user_prompt
+        if (
+            self._config.agent.experimental.sub_agents_config.referencing_config
+            is not None
+        ):
+            use_sub_agent_references = True
+            sub_agent_referencing_instructions = self._config.agent.experimental.sub_agents_config.referencing_config.referencing_instructions_for_user_prompt
+        else:
+            use_sub_agent_references = False
+            sub_agent_referencing_instructions = None
 
         user_msg = user_message_template.render(
             query=query,
@@ -290,10 +299,15 @@ class UniqueAI:
             mcp_server.system_prompt for mcp_server in self._mcp_servers
         ]
 
-        use_sub_agent_references = (
-            self._config.agent.experimental.sub_agents_config.use_sub_agent_references
-        )
-        sub_agent_referencing_instructions = self._config.agent.experimental.sub_agents_config.referencing_instructions_for_system_prompt
+        if (
+            self._config.agent.experimental.sub_agents_config.referencing_config
+            is not None
+        ):
+            use_sub_agent_references = True
+            sub_agent_referencing_instructions = self._config.agent.experimental.sub_agents_config.referencing_config.referencing_instructions_for_system_prompt
+        else:
+            use_sub_agent_references = False
+            sub_agent_referencing_instructions = None
 
         system_message = system_prompt_template.render(
             model_info=self._config.space.language_model.model_dump(mode="json"),
@@ -352,7 +366,10 @@ class UniqueAI:
         self._reference_manager.extract_referenceable_chunks(tool_call_responses)
         self._debug_info_manager.extract_tool_debug_info(tool_call_responses)
 
-        return self._tool_manager.does_a_tool_take_control(tool_calls)
+        self._tool_took_control = self._tool_manager.does_a_tool_take_control(
+            tool_calls
+        )
+        return self._tool_took_control
 
     async def _create_new_assistant_message_if_loop_response_contains_content(
         self, loop_response: LanguageModelStreamResponse

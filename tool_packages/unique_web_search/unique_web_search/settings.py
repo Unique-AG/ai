@@ -7,7 +7,7 @@ from typing import Literal
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ProxyAuthMode = Literal["none", "username_password", "ssl_tls"]
-
+ProxyProtocol = Literal["http", "https"]
 logger = logging.getLogger(__name__)
 
 
@@ -45,6 +45,7 @@ class Base(BaseSettings):
     # Proxy settings
     ## Shared settings
     proxy_auth_mode: ProxyAuthMode = "none"
+    proxy_protocol: ProxyProtocol = "http"
     proxy_host: str | None = None
     proxy_port: int | None = None
     proxy_headers: dict[str, str] = {}

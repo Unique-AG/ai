@@ -36,12 +36,12 @@ def _build_proxy_url_with_username_password() -> str:
         "Proxy username and password are required"
     )
 
-    return f"https://{proxy_username}:{proxy_password}@{proxy_host}:{proxy_port}"
+    return f"{env_settings.proxy_protocol}://{proxy_username}:{proxy_password}@{proxy_host}:{proxy_port}"
 
 
 def _build_proxy_url_with_tls() -> str:
     proxy_host, proxy_port = _get_proxy_host_and_port()
-    return f"https://{proxy_host}:{proxy_port}"
+    return f"{env_settings.proxy_protocol}://{proxy_host}:{proxy_port}"
 
 
 def _get_cert_args() -> tuple[str, str] | str:
@@ -65,6 +65,8 @@ def _get_none_proxy_kwargs() -> ProxyConfig:
         proxy=None,
         headers=None,
         verify=True,
+        trust_env=True,
+        cert=None,
     )
 
 
