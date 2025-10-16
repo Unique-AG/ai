@@ -1,8 +1,8 @@
 from enum import StrEnum
 from typing import Any, Callable, Generic, Protocol, TypeVar
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing_extensions import ParamSpec
 
 from unique_toolkit._common.endpoint_builder import (
@@ -26,8 +26,14 @@ ResponseT_co = TypeVar("ResponseT_co", bound=BaseModel, covariant=True)
 
 
 class RequestContext(BaseModel):
-    base_url: str = ""
-    headers: dict[str, str] | None = None
+    base_url: str
+    headers: dict[str, str] = Field(default_factory=dict)
+
+
+def _verify_url(url: str) -> None:
+    parse_result = urlparse(url)
+    if not (parse_result.netloc and parse_result.scheme):
+        raise ValueError("Scheme and netloc are required for url")
 
 
 class EndpointRequestorProtocol(Protocol, Generic[CombinedParamsSpec, ResponseT_co]):
@@ -127,12 +133,14 @@ def build_request_requestor(
             )
 
             path = cls._operation.create_path_from_model(path_params)
+            url = urljoin(context.base_url, path)
+            _verify_url(url)
 
             payload = cls._operation.create_payload_from_model(payload_model)
 
             response = requests.request(
                 method=cls._operation.request_method(),
-                url=urljoin(context.base_url, path),
+                url=url,
                 headers=context.headers,
                 json=payload,
             )
@@ -184,11 +192,12 @@ def build_httpx_requestor(
             )
 
             path = cls._operation.create_path_from_model(path_params)
-
+            url = urljoin(context.base_url, path)
+            _verify_url(url)
             with httpx.Client() as client:
                 response = client.request(
                     method=cls._operation.request_method(),
-                    url=urljoin(context.base_url, path),
+                    url=url,
                     headers=headers,
                     json=cls._operation.create_payload_from_model(payload_model),
                 )
@@ -208,11 +217,12 @@ def build_httpx_requestor(
             )
 
             path = cls._operation.create_path_from_model(path_params)
-
+            url = urljoin(context.base_url, path)
+            _verify_url(url)
             async with httpx.AsyncClient() as client:
                 response = await client.request(
                     method=cls._operation.request_method(),
-                    url=urljoin(context.base_url, path),
+                    url=url,
                     headers=headers,
                     json=cls._operation.create_payload_from_model(payload_model),
                 )
@@ -262,8 +272,9 @@ def build_aiohttp_requestor(
             path_params, payload_model = cls._operation.models_from_combined(
                 combined=kwargs
             )
-
             path = cls._operation.create_path_from_model(path_params)
+            url = urljoin(context.base_url, path)
+            _verify_url(url)
 
             async with aiohttp.ClientSession() as session:
                 response = await session.request(
