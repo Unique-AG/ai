@@ -62,6 +62,14 @@ class BaseToolManager(ABC):
     def get_tool_by_name(self, name: str) -> Tool | None:
         raise NotImplementedError()
 
+    @abstractmethod
+    def get_tool_choices(self) -> list[str]:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def get_exclusive_tools(self) -> list[str]:
+        raise NotImplementedError()
+
     def does_a_tool_take_control(self, tool_calls: list[LanguageModelFunction]) -> bool:
         for tool_call in tool_calls:
             tool_instance = self.get_tool_by_name(tool_call.name)
@@ -120,6 +128,14 @@ class BaseToolManager(ABC):
         for i, result in enumerate(tool_call_results):
             unpacked_tool_call_result = self._create_tool_call_response(
                 result, tool_calls[i]
+            )
+            if unpacked_tool_call_result.debug_info is None:
+                unpacked_tool_call_result.debug_info = {}
+            unpacked_tool_call_result.debug_info["is_exclusive"] = (
+                tool_calls[i].name in self.get_exclusive_tools()
+            )
+            unpacked_tool_call_result.debug_info["is_forced"] = (
+                tool_calls[i].name in self.get_tool_choices()
             )
             tool_call_results_unpacked.append(unpacked_tool_call_result)
 
@@ -230,6 +246,9 @@ class ToolManager(BaseToolManager):
         self._tools = []
         self._tool_choices = event.payload.tool_choices
         self._disabled_tools = event.payload.disabled_tools
+        self._exclusive_tools = [
+            tool.name for tool in self._config.tools if tool.is_exclusive
+        ]
         # this needs to be a set of strings to avoid duplicates
         self._tool_evaluation_check_list: set[EvaluationMetricName] = set()
         self._mcp_manager = mcp_manager
@@ -298,6 +317,14 @@ class ToolManager(BaseToolManager):
             if tool.name == name:
                 return tool
         return None
+
+    @override
+    def get_tool_choices(self) -> list[str]:
+        return self._tool_choices
+
+    @override
+    def get_exclusive_tools(self) -> list[str]:
+        return self._exclusive_tools
 
     def get_tools(self) -> list[Tool]:
         return self._tools  # type: ignore
@@ -392,6 +419,14 @@ class ResponsesApiToolManager(BaseToolManager):
     @override
     def get_tool_by_name(self, name: str) -> Tool | None:
         return self._tool_manager.get_tool_by_name(name)
+
+    @override
+    def get_tool_choices(self) -> list[str]:
+        return self._tool_manager._tool_choices
+
+    @override
+    def get_exclusive_tools(self) -> list[str]:
+        return self._tool_manager._exclusive_tools
 
     @property
     def sub_agents(self) -> list[SubAgentTool]:
