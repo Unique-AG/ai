@@ -16,7 +16,6 @@ from typing import (
 )
 
 from pydantic import BaseModel
-from typing_extensions import deprecated
 
 # Paramspecs
 PayloadParamSpec = ParamSpec("PayloadParamSpec")
@@ -73,21 +72,6 @@ class ApiOperationProtocol(
 
     @staticmethod
     def create_path_from_model(path_params: PathParamsType) -> str: ...
-
-    @deprecated(
-        "Use create_path instead to create a path and then combine with base url to create a full url."
-    )
-    @staticmethod
-    def create_url(
-        *args: PathParamsSpec.args, **kwargs: PathParamsSpec.kwargs
-    ) -> str: ...
-
-    @deprecated(
-        "Use create_path instead to create a path and then combine with base url to create a full url."
-    )
-    @staticmethod
-    def create_url_from_model(path_params: PathParamsType) -> str: ...
-
     @staticmethod
     def create_payload(
         *args: PayloadParamSpec.args, **kwargs: PayloadParamSpec.kwargs
