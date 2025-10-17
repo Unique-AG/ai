@@ -367,7 +367,7 @@ if __name__ == "__main__":
 
     # Note that the return value is a pydantic UserResponse object
     response = FakeUserRequestor().request(
-        context=RequestContext(headers={"a": "b"}),
+        context=RequestContext(base_url="https://api.example.com", headers={"a": "b"}),
         user_id=123,
         include_profile=True,
     )
@@ -379,7 +379,9 @@ if __name__ == "__main__":
 
     # Check type hints
     response = RequestRequestor().request(
-        context=RequestContext(headers={"a": "b"}), user_id=123, include_profile=True
+        context=RequestContext(base_url="https://api.example.com", headers={"a": "b"}),
+        user_id=123,
+        include_profile=True,
     )
 
     print(response.model_dump())
