@@ -73,10 +73,6 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
     def tool_description_for_system_prompt(self) -> str:
         documents = self._content_service.get_documents_uploaded_to_chat()
         list_all_documents = "".join([f"- {doc.title or doc.key}" for doc in documents])
-
-        print("whats my output do I have all I need?")
-        print(self._config.tool_description_for_system_prompt + list_all_documents)
-
         return self._config.tool_description_for_system_prompt + list_all_documents
 
     def tool_format_information_for_system_prompt(self) -> str:
