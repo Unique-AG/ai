@@ -110,18 +110,18 @@ class UniqueApi(BaseSettings):
 
     def base_path(self) -> tuple[ParseResult, str]:
         parsed = urlparse(self.base_url)
-        base_path = "/public/chat/"
+        base_path = "/public/chat"
 
         if parsed.hostname and (
             "gateway.qa.unique" in parsed.hostname
             or "gateway.unique" in parsed.hostname
         ):
-            base_path = "/public/chat-gen2/"
+            base_path = "/public/chat-gen2"
 
         if parsed.hostname and (
             "localhost" in parsed.hostname or "svc.cluster.local" in parsed.hostname
         ):
-            base_path = "/public/"
+            base_path = "/public"
 
         return parsed, base_path
 
@@ -131,7 +131,7 @@ class UniqueApi(BaseSettings):
 
     def openai_proxy_url(self) -> str:
         parsed, base_path = self.base_path()
-        path = base_path + "openai-proxy/"
+        path = base_path + "/openai-proxy"
         return urlunparse(parsed._replace(path=path, query=None, fragment=None))
 
 
