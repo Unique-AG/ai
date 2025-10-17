@@ -174,7 +174,7 @@ async def web_search(query: str, config: RunnableConfig, limit: int = 50) -> str
         uncited_references=MessageLogUncitedReferences(
             data=[
                 ContentReference(
-                    name=query,
+                    name=result.title,
                     sequence_number=idx,
                     source="web",
                     source_id=result.url,
