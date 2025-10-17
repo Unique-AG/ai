@@ -155,11 +155,6 @@ async def web_search(query: str, config: RunnableConfig, limit: int = 50) -> str
     from across the internet. Only returns snippets of the results.
     Should be followed up by web_fetch to get the complete content of the results.
     """
-    write_tool_message_log(
-        config,
-        "**Searching the web**",
-        details=MessageLogDetails(data=[MessageLogEvent(type="WebSearch", text=query)]),
-    )
     google_settings = get_google_search_settings()
 
     if not google_settings.is_configured:
@@ -172,6 +167,23 @@ async def web_search(query: str, config: RunnableConfig, limit: int = 50) -> str
 
     # Perform the search
     search_results = await google_search.search(query)
+    write_tool_message_log(
+        config,
+        f"**Searching the web for query: {query}**",
+        details=MessageLogDetails(data=[MessageLogEvent(type="WebSearch", text=query)]),
+        uncited_references=MessageLogUncitedReferences(
+            data=[
+                ContentReference(
+                    name=query,
+                    sequence_number=idx,
+                    source="web",
+                    source_id=result.url,
+                    url=result.url,
+                )
+                for idx, result in enumerate(search_results)
+            ]
+        ),
+    )
 
     if not search_results:
         _LOGGER.warning("No search results found for query")
@@ -283,6 +295,19 @@ def _get_internal_data_title(result: ContentChunk) -> str:
     )
 
 
+def _get_internal_data_citation(
+    result: ContentChunk, sequence_number: int
+) -> ContentReference:
+    """Get the citation of the internal data."""
+    return ContentReference(
+        name=_get_internal_data_title(result),
+        url=result.url or f"unique://content/{result.id}",
+        sequence_number=sequence_number,
+        source="node-ingestion-chunks",
+        source_id=f"{result.id}_{result.chunk_id}",
+    )
+
+
 @tool(args_schema=InternalSearchArgs)
 async def internal_search(query: str, config: RunnableConfig, limit: int = 50) -> str:
     """
@@ -296,13 +321,6 @@ async def internal_search(query: str, config: RunnableConfig, limit: int = 50) -
     - Employee Directory and Contact Information: Utilize the internal search to locate contact details or organizational charts to facilitate communication and collaboration within the company.
     - Confidential and Proprietary Information: When dealing with sensitive topics that require proprietary knowledge or confidential data, use the internal search to ensure the information is sourced from secure and authorized company documents.
     """
-    write_tool_message_log(
-        config,
-        "**Searching the internal knowledge base**",
-        details=MessageLogDetails(
-            data=[MessageLogEvent(type="InternalSearch", text=query)]
-        ),
-    )
     content_service = get_content_service_from_config(config)
 
     # Use ContentService to search internal content
@@ -321,17 +339,25 @@ async def internal_search(query: str, config: RunnableConfig, limit: int = 50) -
     citation_manager = get_citation_manager(config)
 
     formatted_results = ""
-    for result in search_results:
-        citation = await citation_manager.register_source(
-            source_id=f"{result.id}_{result.chunk_id}",
-            source_type="node-ingestion-chunks",
-            name=_get_internal_data_title(result),
-            url=result.url or f"unique://content/{result.id}",
+    content_references = []
+    for idx, result in enumerate(search_results):
+        content_reference = _get_internal_data_citation(result, idx)
+        content_references.append(content_reference)
+        citation = await citation_manager.register_source_from_content_reference(
+            content_reference
         )
-        formatted_results += f"{result.title}\n"
+        formatted_results += f"{citation.name}\n"
         formatted_results += f"Content ID: {result.id}\n"
         formatted_results += f"Citations: <sup>{citation.number}</sup>\n"
         formatted_results += f"Content: {result.text}\n\n"
+    write_tool_message_log(
+        config,
+        "**Searching the internal knowledge base**",
+        details=MessageLogDetails(
+            data=[MessageLogEvent(type="InternalSearch", text=query)]
+        ),
+        uncited_references=MessageLogUncitedReferences(data=content_references),
+    )
 
     return (
         f"Internal search results for '{query}':\n\n"
@@ -385,14 +411,15 @@ async def internal_fetch(
         return f"No more results for content ID: {content_id}\n\n<END_OF_CONTENT>\n\nNote: Offset {offset} is at or beyond total results ({total_results:,})"
 
     formatted_results = f"Content ID: {content_id}\n"
+    content_references = []
     for result in paginated_results:
-        citation = await citation_manager.register_source(
-            source_id=f"{result.id}_{result.chunk_id}",
-            source_type="node-ingestion-chunks",
-            name=_get_internal_data_title(result),
-            url=result.url or f"unique://content/{result.id}",
+        content_reference = _get_internal_data_citation(result, 0)
+        content_references.append(content_reference)
+        citation = await citation_manager.register_source_from_content_reference(
+            content_reference
         )
-        formatted_results += f"{result.title}\n"
+        formatted_results += f"{citation.name}\n"
+        formatted_results += f"Content ID: {result.id}\n"
         formatted_results += f"Citations: <sup>{citation.number}</sup>\n"
         formatted_results += f"Content: {result.text}\n\n"
 
@@ -406,17 +433,7 @@ async def internal_fetch(
     write_tool_message_log(
         config,
         "**Reading internal knowledge base document**",
-        uncited_references=MessageLogUncitedReferences(
-            data=[
-                ContentReference(
-                    name=search_results[0].title or search_results[0].key or content_id,
-                    url=result.url or f"unique://content/{result.id}",
-                    sequence_number=0,
-                    source="node-ingestion-chunks",
-                    source_id=f"{result.id}_{result.chunk_id}",
-                )
-            ]
-        ),
+        uncited_references=MessageLogUncitedReferences(data=content_references),
     )
     return formatted_results
 

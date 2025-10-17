@@ -10,6 +10,7 @@ import asyncio
 from typing import Dict, Optional
 
 from pydantic import BaseModel, Field
+from unique_toolkit.content import ContentReference
 
 
 class CitationMetadata(BaseModel):
@@ -95,6 +96,19 @@ class GlobalCitationManager:
             self._registry[source_id] = citation
 
             return citation
+
+    async def register_source_from_content_reference(
+        self, content_reference: ContentReference
+    ) -> CitationMetadata:
+        """
+        Register a source from a content chunk and return its citation metadata.
+        """
+        return await self.register_source(
+            source_id=content_reference.source_id,
+            source_type=content_reference.source,
+            name=content_reference.name,
+            url=content_reference.url,
+        )
 
     def get_all_citations(self) -> Dict[str, CitationMetadata]:
         """
