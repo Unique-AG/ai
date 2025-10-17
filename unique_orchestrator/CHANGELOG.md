@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.1] - 2025-10-17
+- revert behavior of unique ai upload and chat to 
+1. Add upload and chat tool to forced tools if there are tool choices
+2. Simply force it if there are no tool choices.
+3. Tool not available when no uploaded documents
+
 ## [1.5.0] - 2025-10-16
 - Make code interpreter configurable through spaces 2.0.
 
