@@ -663,9 +663,10 @@ class LanguageModelToolDescription(BaseModel):
         ...,
         description="Description of what the tool is doing the tool",
     )
-    parameters: type[BaseModel] = Field(
+    parameters: type[BaseModel] | dict[str, Any] = Field(
         ...,
         description="Pydantic model for the tool parameters",
+        union_mode="left_to_right",
     )
 
     # TODO: This should be default `True` but if this is the case the parameter_model needs to include additional properties
@@ -675,8 +676,10 @@ class LanguageModelToolDescription(BaseModel):
     )
 
     @field_serializer("parameters")
-    def serialize_parameters(self, parameters: type[BaseModel]):
-        return parameters.model_json_schema()
+    def serialize_parameters(
+        self, parameters: type[BaseModel] | dict[str, Any]
+    ) -> dict[str, Any]:
+        return _parameters_as_json_schema(parameters)
 
     @overload
     def to_openai(
@@ -694,7 +697,7 @@ class LanguageModelToolDescription(BaseModel):
                 function=FunctionDefinition(
                     name=self.name,
                     description=self.description,
-                    parameters=self.parameters.model_json_schema(),
+                    parameters=_parameters_as_json_schema(self.parameters),
                     strict=self.strict,
                 ),
                 type="function",
@@ -703,7 +706,16 @@ class LanguageModelToolDescription(BaseModel):
             return FunctionToolParam(
                 type="function",
                 name=self.name,
-                parameters=self.parameters.model_json_schema(),
+                parameters=_parameters_as_json_schema(self.parameters),
                 strict=self.strict,
                 description=self.description,
             )
+
+
+def _parameters_as_json_schema(
+    parameters: type[BaseModel] | dict[str, Any],
+) -> dict[str, Any]:
+    if isinstance(parameters, dict):
+        return parameters
+
+    return parameters.model_json_schema()

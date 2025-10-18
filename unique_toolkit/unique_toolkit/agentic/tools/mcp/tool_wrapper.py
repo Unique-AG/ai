@@ -3,7 +3,6 @@ import logging
 from typing import Any, Dict
 
 import unique_sdk
-from pydantic import BaseModel, Field, create_model
 
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.tools.mcp.models import MCPToolConfig
@@ -45,43 +44,12 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
         logger.info(
             "MCP tool %s schema %s", self._mcp_tool.name, self._mcp_tool.input_schema
         )
-        parameters_model = self._create_parameters_model()
-        logger.info(
-            "MCP tool %s contructed params %s",
-            self._mcp_tool.name,
-            parameters_model.model_json_schema(),
-        )
 
         return LanguageModelToolDescription(
             name=self.name,
             description=self._mcp_tool.description or "",
-            parameters=parameters_model,
+            parameters=self._mcp_tool.input_schema,
         )
-
-    def _create_parameters_model(self) -> type[BaseModel]:
-        """Create a Pydantic model from MCP tool's input schema"""
-        properties = self._mcp_tool.input_schema.get("properties", {})
-        required_fields = self._mcp_tool.input_schema.get("required", [])
-
-        # Convert JSON schema properties to Pydantic fields
-        fields = {}
-        for prop_name, prop_schema in properties.items():
-            field_type = self._json_schema_to_python_type(prop_schema)
-            field_description = prop_schema.get("description", "")
-
-            if prop_name in required_fields:
-                fields[prop_name] = (
-                    field_type,
-                    Field(description=field_description),
-                )
-            else:
-                fields[prop_name] = (
-                    field_type,
-                    Field(default=None, description=field_description),
-                )
-
-        # Create dynamic model
-        return create_model(f"{self.name}Parameters", **fields)
 
     def _json_schema_to_python_type(self, schema: Dict[str, Any]) -> type:
         """Convert JSON schema type to Python type"""
