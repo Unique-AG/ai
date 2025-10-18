@@ -1,4 +1,5 @@
 import json
+import logging
 from typing import Any, Dict
 
 import unique_sdk
@@ -18,6 +19,8 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelToolDescription,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class MCPToolWrapper(Tool[MCPToolConfig]):
@@ -39,7 +42,9 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
     def tool_description(self) -> LanguageModelToolDescription:
         """Convert MCP tool schema to LanguageModelToolDescription"""
         # Create a Pydantic model from the MCP tool's input schema
+        logger.info("MCP tool %s schema %s", self._mcp_tool.name, self._mcp_tool.input_schema)
         parameters_model = self._create_parameters_model()
+        logger.info("MCP tool %s contructed params %s", self._mcp_tool.name, parameters_model.model_json_schema())
 
         return LanguageModelToolDescription(
             name=self.name,
