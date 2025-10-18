@@ -42,9 +42,15 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
     def tool_description(self) -> LanguageModelToolDescription:
         """Convert MCP tool schema to LanguageModelToolDescription"""
         # Create a Pydantic model from the MCP tool's input schema
-        logger.info("MCP tool %s schema %s", self._mcp_tool.name, self._mcp_tool.input_schema)
+        logger.info(
+            "MCP tool %s schema %s", self._mcp_tool.name, self._mcp_tool.input_schema
+        )
         parameters_model = self._create_parameters_model()
-        logger.info("MCP tool %s contructed params %s", self._mcp_tool.name, parameters_model.model_json_schema())
+        logger.info(
+            "MCP tool %s contructed params %s",
+            self._mcp_tool.name,
+            parameters_model.model_json_schema(),
+        )
 
         return LanguageModelToolDescription(
             name=self.name,
