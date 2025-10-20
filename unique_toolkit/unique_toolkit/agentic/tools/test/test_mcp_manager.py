@@ -13,6 +13,8 @@ from unique_toolkit.agentic.tools.config import (
 )
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.mcp.manager import MCPManager
+from unique_toolkit.agentic.tools.mcp.models import MCPToolConfig
+from unique_toolkit.agentic.tools.mcp.tool_wrapper import MCPToolWrapper
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.agentic.tools.tool_manager import ToolManager, ToolManagerConfig
@@ -114,11 +116,22 @@ class TestMCPManager:
             name="mcp_test_tool",
             description="Test MCP tool",
             input_schema={
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
                 "type": "object",
                 "properties": {
-                    "query": {"type": "string", "description": "Search query"}
+                    "folder": {
+                        "description": "Mail folder to read mails from",
+                        "default": "inbox",
+                        "type": "string",
+                    },
+                    "limit": {
+                        "description": "Number of emails to retrieve",
+                        "default": 10,
+                        "type": "number",
+                        "minimum": 1,
+                        "maximum": 50,
+                    },
                 },
-                "required": ["query"],
             },
             output_schema=None,
             annotations=None,
@@ -446,3 +459,76 @@ class TestMCPManager:
         assert "internal_search" not in tool_names
         assert "mcp_test_tool" in tool_names
         assert len(tools) == 1
+
+    def test_mcp_tool_wrapper_generates_correct_parameters(
+        self, mcp_tools, mcp_servers, tool_progress_reporter
+    ):
+        """Test that MCPToolWrapper correctly generates parameters field from MCP tool input schema"""
+        # Get the first MCP tool and server from fixtures
+        mcp_tool = mcp_tools[0]
+        mcp_server = mcp_servers[0]
+
+        # Create MCPToolConfig
+        config = MCPToolConfig(
+            server_id="test_server_id",
+            server_name="test_server",
+            mcp_source_id="test_server_id",
+        )
+
+        # Initialize the MCPToolWrapper
+        tool_wrapper = MCPToolWrapper(
+            mcp_server=mcp_server,
+            mcp_tool=mcp_tool,
+            config=config,
+            event=self.event,
+            tool_progress_reporter=tool_progress_reporter,
+        )
+
+        # Call tool_description to get the LanguageModelToolDescription
+        tool_description = tool_wrapper.tool_description()
+
+        # Verify the basic properties
+        assert tool_description.name == "mcp_test_tool"
+        assert tool_description.description == "Test MCP tool"
+
+        # Verify that parameters field is correctly set to the input_schema
+        expected_parameters = {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+                "folder": {
+                    "description": "Mail folder to read mails from",
+                    "default": "inbox",
+                    "type": "string",
+                },
+                "limit": {
+                    "description": "Number of emails to retrieve",
+                    "default": 10,
+                    "type": "number",
+                    "minimum": 1,
+                    "maximum": 50,
+                },
+            },
+        }
+
+        assert tool_description.parameters == expected_parameters
+
+        # Verify specific parameter properties
+        parameters = tool_description.parameters
+        assert isinstance(parameters, dict)
+        assert parameters["type"] == "object"
+        assert "properties" in parameters
+
+        # Check folder parameter
+        folder_prop = parameters["properties"]["folder"]
+        assert folder_prop["type"] == "string"
+        assert folder_prop["description"] == "Mail folder to read mails from"
+        assert folder_prop["default"] == "inbox"
+
+        # Check limit parameter
+        limit_prop = parameters["properties"]["limit"]
+        assert limit_prop["type"] == "number"
+        assert limit_prop["description"] == "Number of emails to retrieve"
+        assert limit_prop["default"] == 10
+        assert limit_prop["minimum"] == 1
+        assert limit_prop["maximum"] == 50
