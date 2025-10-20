@@ -12,3 +12,5 @@ mkdocs.yaml @klcd
 
 # All other changes require data science team review
 * @Unique-AG/data-science
+unique_sdk/ @Unique-AG/data-science @irina-unique
+tutorials/ @Unique-AG/data-science @irina-unique
