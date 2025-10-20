@@ -11,4 +11,6 @@ unique_toolkit/docs.subproject.mkdocs.yaml @klcd
 mkdocs.yaml @klcd
 
 # All other changes require data science team review
+unique_sdk/ @Unique-AG/data-science @Unique-AG/Data-Flow
+tutorials/ @Unique-AG/data-science @Unique-AG/Data-Flow
 * @Unique-AG/data-science
