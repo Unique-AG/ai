@@ -1,3 +1,4 @@
+import regex as re
 from unique_toolkit.unique_toolkit.content.schemas import ContentChunk
 
 from unique_toolkit.agentic.evaluation.evaluation_manager import Evaluation
@@ -43,13 +44,17 @@ class HallucinationEvaluation(Evaluation):
         self, loop_response: LanguageModelStreamResponse
     ) -> EvaluationMetricResult:  # type: ignore
         all_chunks = self._reference_manager.get_chunks()
-        referenced_chunks = self._reference_manager.get_latest_referenced_chunks()
+        original_text = loop_response.message.original_text
 
-        # Merge chunks with the same id, start_page, and end_page
-        referenced_chunks = self._append_chunks_by_page_range(
-            referenced_chunks, all_chunks
-        )
+        source_numbers = []
+        if original_text:
+            source_numbers = self._extract_source_numbers(original_text)
 
+        referenced_chunks: list[ContentChunk] = []
+        for source in source_numbers:
+            referenced_chunks.append(all_chunks[source])
+
+        # referenced_chunks = self._reference_manager.get_latest_referenced_chunks()
         evaluation_result: EvaluationMetricResult = await check_hallucination(
             company_id=self._company_id,
             input=EvaluationMetricInput(
@@ -66,6 +71,21 @@ class HallucinationEvaluation(Evaluation):
             score_to_label.get(evaluation_result.value.upper(), "RED") != "RED"
         )
         return evaluation_result
+
+    def _extract_source_numbers(self, text: str) -> set[int]:
+        """
+        Extract all source numbers from text citations in the format [sourceX].
+        
+        Args:
+            text: Text containing source citations like [source0], [source1], etc.
+            
+        Returns:
+            Set of source numbers found in the text
+        """
+        # Match patterns like [source0], [source1], etc.
+        pattern = r'\[source(\d+)\]'
+        matches = re.findall(pattern, text, re.IGNORECASE)
+        return {int(num) for num in matches}
 
     def get_assessment_type(self) -> ChatMessageAssessmentType:
         return ChatMessageAssessmentType.HALLUCINATION
@@ -102,33 +122,3 @@ class HallucinationEvaluation(Evaluation):
             label=label,
             type=self.get_assessment_type(),
         )
-
-    def _merge_chunks_by_page_range(
-        self,
-        referenced_chunks: list[ContentChunk],
-        all_chunks: list[ContentChunk],
-    ) -> list[ContentChunk]:
-        """
-        Append chunks from all_chunks into referenced_chunks based on matching
-        id, start_page, and end_page.
-
-        Args:
-            referenced_chunks: List of initially referenced chunks
-            all_chunks: List of all available chunks
-
-        Returns:
-            List of chunks with additional matching chunks from all_chunks
-        """
-        # Create a set of tuples for fast lookup of referenced chunk keys
-        referenced_chunk_keys = {
-            (chunk.id, chunk.start_page, chunk.end_page) for chunk in referenced_chunks
-        }
-
-        # Add matching chunks that aren't already in the list
-        merged_chunks = referenced_chunks.copy()
-        for chunk in all_chunks:
-            chunk_key = (chunk.id, chunk.start_page, chunk.end_page)
-            if chunk_key in referenced_chunk_keys and chunk not in merged_chunks:
-                merged_chunks.append(chunk)
-
-        return merged_chunks
