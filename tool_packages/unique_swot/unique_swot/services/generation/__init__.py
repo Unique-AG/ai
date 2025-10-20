@@ -17,20 +17,24 @@ from unique_swot.services.generation.base import (
 )
 from unique_swot.services.generation.helpers import batch_parser
 from unique_swot.services.generation.opportunities import (
-    OPPORTUNITIES_SYSTEM_PROMPT,
     OpportunitiesAnalysis,
+    OpportunitiesReport,
 )
-from unique_swot.services.generation.strengths import (
-    STRENGTHS_SYSTEM_PROMPT,
-    StrengthsAnalysis,
+from unique_swot.services.generation.prompts import (
+    OPPORTUNITIES_EXTRACTION_TEMPLATE,
+    OPPORTUNITIES_SUMMARIZATION_TEMPLATE,
+    STRENGTHS_EXTRACTION_TEMPLATE,
+    STRENGTHS_SUMMARIZATION_TEMPLATE,
+    THREATS_EXTRACTION_TEMPLATE,
+    THREATS_SUMMARIZATION_TEMPLATE,
+    WEAKNESSES_EXTRACTION_TEMPLATE,
+    WEAKNESSES_SUMMARIZATION_TEMPLATE,
 )
-from unique_swot.services.generation.threats import (
-    THREATS_SYSTEM_PROMPT,
-    ThreatsAnalysis,
-)
+from unique_swot.services.generation.strengths import StrengthsAnalysis, StrengthsReport
+from unique_swot.services.generation.threats import ThreatsAnalysis, ThreatsReport
 from unique_swot.services.generation.weaknesses import (
-    WEAKNESSES_SYSTEM_PROMPT,
     WeaknessesAnalysis,
+    WeaknessesReport,
 )
 
 
@@ -40,37 +44,45 @@ class SWOTComponent(StrEnum):
     OPPORTUNITIES = "opportunities"
     THREATS = "threats"
 
-SWOTAnalysisModels = (
+
+SWOTAnalysisModel = (
     StrengthsAnalysis | WeaknessesAnalysis | OpportunitiesAnalysis | ThreatsAnalysis
 )
 
+SWOTAnalysisReportModel = (
+    StrengthsReport | WeaknessesReport | OpportunitiesReport | ThreatsReport
+)
 
-def get_generation_system_prompt(component: SWOTComponent) -> str:
+
+def get_swot_generation_system_prompt(component: SWOTComponent) -> tuple[str, str]:
     if component == SWOTComponent.STRENGTHS:
-        return STRENGTHS_SYSTEM_PROMPT
+        return (STRENGTHS_EXTRACTION_TEMPLATE, STRENGTHS_SUMMARIZATION_TEMPLATE)
     elif component == SWOTComponent.WEAKNESSES:
-        return WEAKNESSES_SYSTEM_PROMPT
+        return WEAKNESSES_EXTRACTION_TEMPLATE, WEAKNESSES_SUMMARIZATION_TEMPLATE
     elif component == SWOTComponent.OPPORTUNITIES:
-        return OPPORTUNITIES_SYSTEM_PROMPT
+        return OPPORTUNITIES_EXTRACTION_TEMPLATE, OPPORTUNITIES_SUMMARIZATION_TEMPLATE
     elif component == SWOTComponent.THREATS:
-        return THREATS_SYSTEM_PROMPT
+        return THREATS_EXTRACTION_TEMPLATE, THREATS_SUMMARIZATION_TEMPLATE
     else:
         raise ValueError(f"Invalid component: {component}")
 
 
-def get_analysis_model(
+def get_analysis_models(
     component: SWOTComponent,
-) -> type[
-    StrengthsAnalysis | WeaknessesAnalysis | OpportunitiesAnalysis | ThreatsAnalysis
+) -> tuple[
+    type[
+        StrengthsAnalysis | WeaknessesAnalysis | OpportunitiesAnalysis | ThreatsAnalysis
+    ],
+    type[StrengthsReport | WeaknessesReport | OpportunitiesReport | ThreatsReport],
 ]:
     if component == "strengths":
-        return StrengthsAnalysis
+        return (StrengthsAnalysis, StrengthsReport)
     elif component == "weaknesses":
-        return WeaknessesAnalysis
+        return (WeaknessesAnalysis, WeaknessesReport)
     elif component == "opportunities":
-        return OpportunitiesAnalysis
+        return (OpportunitiesAnalysis, OpportunitiesReport)
     elif component == "threats":
-        return ThreatsAnalysis
+        return (ThreatsAnalysis, ThreatsReport)
     else:
         raise ValueError(f"Invalid component: {component}")
 
@@ -81,13 +93,9 @@ __all__ = [
     "WeaknessesAnalysis",
     "OpportunitiesAnalysis",
     "ThreatsAnalysis",
-    "STRENGTHS_SYSTEM_PROMPT",
-    "WEAKNESSES_SYSTEM_PROMPT",
-    "OPPORTUNITIES_SYSTEM_PROMPT",
-    "THREATS_SYSTEM_PROMPT",
     "SWOTComponent",
-    "get_generation_system_prompt",
-    "get_analysis_model",
+    "get_swot_generation_system_prompt",
+    "get_analysis_models",
     "generate_report",
     "ReportGenerationConfig",
     "ReportGenerationContext",

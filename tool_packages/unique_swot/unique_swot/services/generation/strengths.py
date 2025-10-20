@@ -2,71 +2,101 @@ from typing import Sequence
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from unique_swot.services.generation.base import ReportGenerationOutputModel
+from unique_swot.services.generation.base import (
+    ReportGenerationOutputModel,
+    ReportGenerationSummaryModel,
+)
+
+# ============================================================================
+# Extraction Models - Used for initial extraction from source data
+# ============================================================================
 
 
 class StrengthItem(BaseModel):
+    """Individual strength identified during extraction phase."""
+
     model_config = ConfigDict(extra="forbid")
-    description: str = Field(description="The description of the strength")
-    context: str = Field(description="The context of the strength")
-    chunk_ids: list[int] = Field(description="The chunk IDs of the strength")
+
+    title: str = Field(
+        description="Concise title capturing the essence of the strength"
+    )
+    justification: str = Field(
+        description="Comprehensive context and analysis explaining why this is a strength, including competitive advantages and benefits"
+    )
+    reference_chunk_ids: list[str] = Field(
+        description="Chunk IDs that support this strength (format: [chunk_x][chunk_y])"
+    )
 
 
 class StrengthsAnalysis(ReportGenerationOutputModel["StrengthsAnalysis"]):
+    """
+    Extraction phase output: Raw strengths identified from source documents.
+    This is used during the initial extraction from batches of source data.
+    """
+
     model_config = ConfigDict(extra="forbid")
 
     strengths: list[StrengthItem] = Field(
-        description="The strengths identified in the analysis"
+        description="List of strengths extracted from the sources"
     )
 
     @classmethod
     def group_batches(
         cls, batches: Sequence["StrengthsAnalysis"]
-    ) -> "StrengthsAnalysis": 
-        """Combine multiple StrengthsAnalysis batches into a single analysis."""
+    ) -> "StrengthsAnalysis":
+        """Combine multiple extraction batches by concatenating all strengths."""
         all_strengths = []
         for batch in batches:
             all_strengths.extend(batch.strengths)
         return cls(strengths=all_strengths)
 
 
-STRENGTHS_SYSTEM_PROMPT = """Extract Strengths insights from a document, ensuring a detailed and structured analysis. Focus on identifying internal positive attributes, capabilities, or advantages that benefit the subject and contribute to achieving goals.
+# ============================================================================
+# Report/Summary Models - Used for final aggregated output
+# ============================================================================
 
-# Steps
 
-1. **Extracting Strengths (S):**
-   - **Title of Insight:** Clearly state each strength as a concise title.
-   - **Justification:** Provide a detailed explanation of how each strength benefits the subject and contributes to achieving goals. Focus on:
-     - Internal capabilities and resources
-     - Competitive advantages
-     - Unique assets or competencies
-     - Proven track records or achievements
-   - **References:** Cite the relevant chunk IDs immediately after mentioning the supporting facts (e.g., [chunk_x][chunk_y]).
+class StrengthCategory(BaseModel):
+    """
+    A thematic grouping of related strengths for better organization.
+    Examples: Financial Resources, Brand & Reputation, Innovation Capabilities
+    """
 
-# Output Format
+    model_config = ConfigDict(extra="forbid")
 
-The output should focus specifically on strengths with the following structure:
+    category_name: str = Field(
+        description="Name of the strength category (e.g., 'Financial Strength', 'Operational Excellence', 'Human Capital')"
+    )
+    summary: str = Field(
+        description="Brief overview of this category and why these strengths are important. Include chunk references [chunk_x][chunk_y]."
+    )
+    strengths: list[StrengthItem] = Field(
+        description="Deduplicated and refined strengths belonging to this category"
+    )
 
-### Strengths
-1. **[Title of Strength]:**
-   - **Justification:** [Detailed explanation of the strength and its benefits, with references to chunk IDs close to the relevant information.]
 
-2. **[Title of Strength]:**
-   - **Justification:** [Detailed explanation of the strength and its benefits, with references to chunk IDs close to the relevant information.]
+class StrengthsReport(ReportGenerationSummaryModel["StrengthsReport"]):
+    """
+    Final consolidated report after summarization phase.
+    Contains deduplicated, categorized, and strategically organized strengths.
+    """
 
-# Examples
+    model_config = ConfigDict(extra="forbid")
 
-### Strengths
-1. **Strong Market Position:**
-   - **Justification:** The company has a dominant market position in its sector, as evidenced by its high market share and strong brand recognition [chunk_12][chunk_15]. This provides pricing power and customer loyalty advantages.
-
-2. **Robust Financial Performance:**
-   - **Justification:** The organization demonstrates consistent revenue growth and strong profit margins, indicating efficient operations and effective cost management [chunk_8][chunk_11].
-
-# Notes
-
-- Focus exclusively on internal positive factors and capabilities
-- Ensure all references are clearly linked to the corresponding chunk IDs and appear immediately after the information they support
-- Provide comprehensive context explaining why each factor constitutes a strength
-- Maintain objectivity and support claims with evidence from the source material
-"""
+    executive_summary: str = Field(
+        description="High-level strategic overview of key strengths and their competitive advantages. Include chunk references [chunk_x][chunk_y]."
+    )
+    categories: list[StrengthCategory] = Field(
+        description="Strengths organized by thematic categories for clarity and strategic insight"
+    )
+    key_insights: list[str] = Field(
+        description="Key strategic insights about how strengths create competitive advantage",
+    )
+    
+    @classmethod
+    def create_from_failed(cls):
+        return cls(
+            executive_summary="Not available",
+            categories=[],
+            key_insights=[]
+        )

@@ -2,73 +2,99 @@ from typing import Sequence
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from unique_swot.services.generation.base import ReportGenerationOutputModel
+from unique_swot.services.generation.base import (
+    ReportGenerationOutputModel,
+    ReportGenerationSummaryModel,
+)
+
+# ============================================================================
+# Extraction Models - Used for initial extraction from source data
+# ============================================================================
 
 
 class WeaknessItem(BaseModel):
+    """Individual weakness identified during extraction phase."""
+
     model_config = ConfigDict(extra="forbid")
-    description: str = Field(description="The description of the weakness")
-    context: str = Field(description="The context of the weakness")
-    chunk_ids: list[int] = Field(description="The chunk IDs of the weakness")
+
+    title: str = Field(
+        description="Concise title capturing the essence of the weakness"
+    )
+    justification: str = Field(
+        description="Comprehensive context and analysis explaining why this is a weakness, including disadvantages and challenges"
+    )
+    reference_chunk_ids: list[str] = Field(
+        description="Chunk IDs that support this weakness (format: [chunk_x][chunk_y])"
+    )
 
 
 class WeaknessesAnalysis(ReportGenerationOutputModel["WeaknessesAnalysis"]):
+    """
+    Extraction phase output: Raw weaknesses identified from source documents.
+    This is used during the initial extraction from batches of source data.
+    """
+
     model_config = ConfigDict(extra="forbid")
 
     weaknesses: list[WeaknessItem] = Field(
-        description="The weaknesses identified in the analysis"
+        description="List of weaknesses extracted from the sources"
     )
 
     @classmethod
     def group_batches(
         cls, batches: Sequence["WeaknessesAnalysis"]
     ) -> "WeaknessesAnalysis":
-        """Combine multiple WeaknessesAnalysis batches into a single analysis."""
+        """Combine multiple extraction batches by concatenating all weaknesses."""
         all_weaknesses = []
         for batch in batches:
             all_weaknesses.extend(batch.weaknesses)
         return cls(weaknesses=all_weaknesses)
 
 
-WEAKNESSES_SYSTEM_PROMPT = """Extract Weaknesses insights from a document, ensuring a detailed and structured analysis. Focus on identifying internal negative factors, limitations, or disadvantages that create challenges or hinder performance.
+# ============================================================================
+# Report/Summary Models - Used for final aggregated output
+# ============================================================================
 
-# Steps
 
-1. **Extracting Weaknesses (W):**
-   - **Title of Insight:** Clearly state each weakness as a concise title.
-   - **Justification:** Explain how each weakness creates a disadvantage or poses challenges to the subject. Focus on:
-     - Internal limitations or deficiencies
-     - Resource constraints
-     - Operational inefficiencies
-     - Competitive disadvantages
-     - Areas needing improvement
-   - **References:** Cite the relevant chunk IDs immediately after mentioning the supporting facts (e.g., [chunk_x][chunk_y]).
+class WeaknessCategory(BaseModel):
+    """
+    A thematic grouping of related weaknesses for better organization.
+    Examples: Resource Constraints, Operational Inefficiencies, Market Position
+    """
 
-# Output Format
+    model_config = ConfigDict(extra="forbid")
 
-The output should focus specifically on weaknesses with the following structure:
+    category_name: str = Field(
+        description="Name of the weakness category (e.g., 'Resource Limitations', 'Process Inefficiencies', 'Capability Gaps')"
+    )
+    summary: str = Field(
+        description="Brief overview of this category and why these weaknesses are challenging. Include chunk references [chunk_x][chunk_y]."
+    )
+    weaknesses: list[WeaknessItem] = Field(
+        description="Deduplicated and refined weaknesses belonging to this category"
+    )
 
-### Weaknesses
-1. **[Title of Weakness]:**
-   - **Justification:** [Detailed explanation of the weakness and its challenges, with references to chunk IDs close to the relevant information.]
 
-2. **[Title of Weakness]:**
-   - **Justification:** [Detailed explanation of the weakness and its challenges, with references to chunk IDs close to the relevant information.]
+class WeaknessesReport(ReportGenerationSummaryModel["WeaknessesReport"]):
+    """
+    Final consolidated report after summarization phase.
+    Contains deduplicated, categorized, and constructively organized weaknesses.
+    """
 
-# Examples
+    model_config = ConfigDict(extra="forbid")
 
-### Weaknesses
-1. **Limited R&D Investment:**
-   - **Justification:** The organization allocates a smaller percentage of revenue to R&D compared to competitors, which could hinder innovation and long-term growth [chunk_8][chunk_11]. This may result in falling behind in technological advancement.
+    executive_summary: str = Field(
+        description="High-level strategic overview of key weaknesses and their impact on performance. Include chunk references [chunk_x][chunk_y]."
+    )
+    categories: list[WeaknessCategory] = Field(
+        description="Weaknesses organized by thematic categories for clarity and strategic insight"
+    )
+    improvement_priorities: list[str] = Field(
+        description="Priority areas for improvement and remediation based on identified weaknesses",
+    )
 
-2. **High Employee Turnover:**
-   - **Justification:** The company experiences above-industry-average employee turnover rates, particularly in key technical roles [chunk_15][chunk_18]. This leads to increased recruitment costs and loss of institutional knowledge.
-
-# Notes
-
-- Focus exclusively on internal negative factors and limitations
-- Ensure all references are clearly linked to the corresponding chunk IDs and appear immediately after the information they support
-- Provide comprehensive context explaining why each factor constitutes a weakness
-- Maintain objectivity and support claims with evidence from the source material
-- Avoid external factors (those belong in threats analysis)
-"""
+    @classmethod
+    def create_from_failed(cls):
+        return cls(
+            executive_summary="Not available", categories=[], improvement_priorities=[]
+        )

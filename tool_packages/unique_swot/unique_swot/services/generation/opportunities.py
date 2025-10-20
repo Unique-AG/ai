@@ -2,19 +2,28 @@ from typing import Sequence
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from unique_swot.services.generation.base import ReportGenerationOutputModel
+from unique_swot.services.generation.base import (
+    ReportGenerationOutputModel,
+    ReportGenerationSummaryModel,
+)
+
+# ============================================================================
+# Extraction Models - Used for initial extraction from source data
+# ============================================================================
 
 
 class OpportunityItem(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    description: str = Field(description="The description of the opportunity")
-    context: str = Field(description="The context of the opportunity")
-    chunk_ids: list[int] = Field(description="The chunk IDs of the opportunity")
+    title: str = Field(description="The title of the opportunity")
+    justification: str = Field(
+        description="A comprehensive context and analysis of the opportunity, explaining why it is significant."
+    )
+    reference_chunk_ids: list[str] = Field(
+        description="The chunk IDs of the references that support the opportunity"
+    )
 
 
 class OpportunitiesAnalysis(ReportGenerationOutputModel["OpportunitiesAnalysis"]):
-    model_config = ConfigDict(extra="forbid")
-
     opportunities: list[OpportunityItem] = Field(
         description="The opportunities identified in the analysis"
     )
@@ -22,7 +31,7 @@ class OpportunitiesAnalysis(ReportGenerationOutputModel["OpportunitiesAnalysis"]
     @classmethod
     def group_batches(
         cls, batches: Sequence["OpportunitiesAnalysis"]
-    ) -> "OpportunitiesAnalysis": 
+    ) -> "OpportunitiesAnalysis":
         """Combine multiple OpportunitiesAnalysis batches into a single analysis."""
         all_opportunities = []
         for batch in batches:
@@ -30,46 +39,54 @@ class OpportunitiesAnalysis(ReportGenerationOutputModel["OpportunitiesAnalysis"]
         return cls(opportunities=all_opportunities)
 
 
-OPPORTUNITIES_SYSTEM_PROMPT = """Extract Opportunities insights from a document, ensuring a detailed and structured analysis. Focus on identifying external positive factors, trends, or conditions that could provide advantages or growth potential.
+# ============================================================================
+# Report/Summary Models - Used for final aggregated output
+# ============================================================================
 
-# Steps
 
-1. **Extracting Opportunities (O):**
-   - **Title of Insight:** Clearly state each opportunity as a concise title.
-   - **Justification:** Provide a deep and comprehensive context for each opportunity. Explain why it is considered an opportunity by analyzing external factors and their potential impact. Focus on:
-     - Emerging trends or market conditions
-     - New technologies or innovations
-     - Regulatory changes that create advantages
-     - Market gaps or unmet needs
-     - Economic or demographic shifts
-     - Partnership or expansion possibilities
-   - **References:** Cite the relevant chunk IDs immediately after mentioning the supporting facts (e.g., [chunk_x][chunk_y]). Ensure references are close to the relevant information.
+class OpportunityCategory(BaseModel):
+    """
+    A thematic grouping of related opportunities for better organization.
+    Examples: Market Expansion, Technological Innovation, Strategic Partnerships
+    """
 
-# Output Format
+    model_config = ConfigDict(extra="forbid")
 
-The output should focus specifically on opportunities with the following structure:
+    category_name: str = Field(
+        description="Name of the opportunity category (e.g., 'Market Expansion Opportunities', 'Emerging Technologies')"
+    )
+    summary: str = Field(
+        description="Brief overview of this category and why these opportunities matter. Include chunk references [chunk_x][chunk_y]."
+    )
+    opportunities: list[OpportunityItem] = Field(
+        description="Deduplicated and refined opportunities belonging to this category"
+    )
 
-### Opportunities
-1. **[Title of Opportunity]:**
-   - **Justification:** [Comprehensive context and analysis of the opportunity, explaining why it is significant, with references to chunk IDs close to the relevant information.]
 
-2. **[Title of Opportunity]:**
-   - **Justification:** [Comprehensive context and analysis of the opportunity, explaining why it is significant, with references to chunk IDs close to the relevant information.]
+class OpportunitiesReport(ReportGenerationSummaryModel["OpportunitiesReport"]):
+    """
+    Final consolidated report after summarization phase.
+    Contains deduplicated, categorized, and strategically organized opportunities.
+    """
 
-# Examples
+    model_config = ConfigDict(extra="forbid")
 
-### Opportunities
-1. **Emerging Market Expansion:**
-   - **Justification:** The growing middle-class population in emerging markets presents a significant opportunity for revenue growth. For instance, the demand for affordable consumer goods is expected to rise sharply in these regions [chunk_20][chunk_23]. Additionally, the company's existing distribution networks could be leveraged to quickly enter these markets [chunk_24], providing first-mover advantages in underserved territories.
+    executive_summary: str = Field(
+        description="High-level strategic overview of key opportunities and their implications. Include chunk references [chunk_x][chunk_y]."
+    )
+    categories: list[OpportunityCategory] = Field(
+        description="Opportunities organized by thematic categories for clarity and strategic insight"
+    )
+    key_recommendations: list[str] = Field(
+        description="Actionable strategic recommendations for capitalizing on identified opportunities",
+    )
+    
+    @classmethod
+    def create_from_failed(cls):
+        return cls(
+            executive_summary="Not available",
+            categories=[],
+            key_recommendations=[]
+        )
+        
 
-2. **Digital Transformation Trend:**
-   - **Justification:** The accelerating shift toward digital solutions across industries creates substantial growth opportunities [chunk_12]. Companies are increasingly seeking cloud-based services and automation tools [chunk_15], which aligns perfectly with the organization's core competencies and could drive significant revenue expansion.
-
-# Notes
-
-- Focus exclusively on external positive factors and potential advantages
-- Opportunities should be analyzed deeply, providing comprehensive context and clearly explaining their potential value or impact
-- Ensure all references are clearly linked to the corresponding chunk IDs and appear immediately after the information they support
-- Maintain objectivity and support claims with evidence from the source material
-- Distinguish from strengths (internal factors) by focusing on external conditions and trends
-"""

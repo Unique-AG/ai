@@ -2,72 +2,98 @@ from typing import Sequence
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from unique_swot.services.generation.base import ReportGenerationOutputModel
+from unique_swot.services.generation.base import (
+    ReportGenerationOutputModel,
+    ReportGenerationSummaryModel,
+)
+
+# ============================================================================
+# Extraction Models - Used for initial extraction from source data
+# ============================================================================
 
 
 class ThreatItem(BaseModel):
+    """Individual threat identified during extraction phase."""
+
     model_config = ConfigDict(extra="forbid")
-    description: str = Field(description="The description of the threat")
-    context: str = Field(description="The context of the threat")
-    chunk_ids: list[int] = Field(description="The chunk IDs of the threat")
+
+    title: str = Field(description="Concise title capturing the essence of the threat")
+    justification: str = Field(
+        description="Comprehensive context and analysis explaining why this is a threat, including potential risks and impact"
+    )
+    reference_chunk_ids: list[str] = Field(
+        description="Chunk IDs that support this threat (format: [chunk_x][chunk_y])"
+    )
 
 
 class ThreatsAnalysis(ReportGenerationOutputModel["ThreatsAnalysis"]):
+    """
+    Extraction phase output: Raw threats identified from source documents.
+    This is used during the initial extraction from batches of source data.
+    """
+
     model_config = ConfigDict(extra="forbid")
 
     threats: list[ThreatItem] = Field(
-        description="The threats identified in the analysis"
+        description="List of threats extracted from the sources"
     )
 
     @classmethod
-    def group_batches(cls, batches: Sequence["ThreatsAnalysis"]) -> "ThreatsAnalysis": 
-        """Combine multiple ThreatsAnalysis batches into a single analysis."""
+    def group_batches(cls, batches: Sequence["ThreatsAnalysis"]) -> "ThreatsAnalysis":
+        """Combine multiple extraction batches by concatenating all threats."""
         all_threats = []
         for batch in batches:
             all_threats.extend(batch.threats)
         return cls(threats=all_threats)
 
 
-THREATS_SYSTEM_PROMPT = """Extract Threats insights from a document, ensuring a detailed and structured analysis. Focus on identifying external negative factors, risks, or challenges that could hinder performance or create disadvantages.
+# ============================================================================
+# Report/Summary Models - Used for final aggregated output
+# ============================================================================
 
-# Steps
 
-1. **Extracting Threats (T):**
-   - **Title of Insight:** Clearly state each threat as a concise title.
-   - **Justification:** Explain the potential impact of each threat and how it could hinder performance or create risks. Focus on:
-     - Competitive pressures or new entrants
-     - Regulatory changes or compliance risks
-     - Economic downturns or market volatility
-     - Technological disruptions
-     - Supply chain vulnerabilities
-     - Environmental or social risks
-   - **References:** Cite the relevant chunk IDs immediately after mentioning the supporting facts (e.g., [chunk_x][chunk_y]).
+class ThreatCategory(BaseModel):
+    """
+    A thematic grouping of related threats for better organization.
+    Examples: Competitive Pressures, Regulatory Risks, Market Challenges
+    """
 
-# Output Format
+    model_config = ConfigDict(extra="forbid")
 
-The output should focus specifically on threats with the following structure:
+    category_name: str = Field(
+        description="Name of the threat category (e.g., 'Competitive Threats', 'Regulatory Risks', 'Economic Challenges')"
+    )
+    summary: str = Field(
+        description="Brief overview of this category and why these threats are concerning. Include chunk references [chunk_x][chunk_y]."
+    )
+    threats: list[ThreatItem] = Field(
+        description="Deduplicated and refined threats belonging to this category"
+    )
 
-### Threats
-1. **[Title of Threat]:**
-   - **Justification:** [Detailed explanation of the threat and its risks, with references to chunk IDs close to the relevant information.]
 
-2. **[Title of Threat]:**
-   - **Justification:** [Detailed explanation of the threat and its risks, with references to chunk IDs close to the relevant information.]
+class ThreatsReport(ReportGenerationSummaryModel["ThreatsReport"]):
+    """
+    Final consolidated report after summarization phase.
+    Contains deduplicated, categorized, and strategically organized threats.
+    """
 
-# Examples
+    model_config = ConfigDict(extra="forbid")
 
-### Threats
-1. **Regulatory Changes:**
-   - **Justification:** New regulations in the sector impose stricter compliance requirements, potentially increasing operational costs [chunk_9][chunk_14]. Non-compliance could result in significant penalties and reputational damage, affecting market position.
+    executive_summary: str = Field(
+        description="High-level strategic overview of key threats and their potential impact. Include chunk references [chunk_x][chunk_y]."
+    )
+    categories: list[ThreatCategory] = Field(
+        description="Threats organized by thematic categories for clarity and strategic insight"
+    )
+    mitigation_strategies: list[str] = Field(
+        description="Suggested strategies to mitigate or respond to identified threats",
+    )
 
-2. **Intensifying Competition:**
-   - **Justification:** The entry of well-funded new competitors with innovative technologies poses a significant threat to market share [chunk_22][chunk_25]. These competitors are offering similar services at lower prices, potentially eroding profit margins.
-
-# Notes
-
-- Focus exclusively on external negative factors and risks
-- Ensure all references are clearly linked to the corresponding chunk IDs and appear immediately after the information they support
-- Provide comprehensive context explaining why each factor constitutes a threat
-- Maintain objectivity and support claims with evidence from the source material
-- Distinguish from weaknesses (internal factors) by focusing on external risks and challenges
-"""
+    
+    @classmethod
+    def create_from_failed(cls):
+        return cls(
+            executive_summary="Not available",
+            categories=[],
+            mitigation_strategies=[]
+        )
