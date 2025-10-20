@@ -44,15 +44,10 @@ class HallucinationEvaluation(Evaluation):
         self, loop_response: LanguageModelStreamResponse
     ) -> EvaluationMetricResult:  # type: ignore
         all_chunks = self._reference_manager.get_chunks()
-        original_text = loop_response.message.original_text
-
-        source_numbers = []
-        if original_text:
-            source_numbers = self._extract_source_numbers(original_text)
-
-        referenced_chunks: list[ContentChunk] = []
-        for source in source_numbers:
-            referenced_chunks.append(all_chunks[source])
+        referenced_source_numbers = self._extract_source_numbers(
+            loop_response.message.original_text or ""
+        )
+        referenced_chunks = [all_chunks[source] for source in referenced_source_numbers]
 
         # referenced_chunks = self._reference_manager.get_latest_referenced_chunks()
         evaluation_result: EvaluationMetricResult = await check_hallucination(
