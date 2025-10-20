@@ -1,3 +1,5 @@
+from unique_toolkit.unique_toolkit.content.schemas import ContentChunk
+
 from unique_toolkit.agentic.evaluation.evaluation_manager import Evaluation
 from unique_toolkit.agentic.evaluation.hallucination.constants import (
     HallucinationConfig,
@@ -40,13 +42,19 @@ class HallucinationEvaluation(Evaluation):
     async def run(
         self, loop_response: LanguageModelStreamResponse
     ) -> EvaluationMetricResult:  # type: ignore
-        chunks = self._reference_manager.get_latest_referenced_chunks()
+        all_chunks = self._reference_manager.get_chunks()
+        referenced_chunks = self._reference_manager.get_latest_referenced_chunks()
+
+        # Merge chunks with the same id, start_page, and end_page
+        referenced_chunks = self._append_chunks_by_page_range(
+            referenced_chunks, all_chunks
+        )
 
         evaluation_result: EvaluationMetricResult = await check_hallucination(
             company_id=self._company_id,
             input=EvaluationMetricInput(
                 input_text=self._user_message,
-                context_texts=[context.text for context in chunks],
+                context_texts=[context.text for context in referenced_chunks],
                 history_messages=[],  # TODO include loop_history messages
                 output_text=loop_response.message.text,
             ),
@@ -94,3 +102,33 @@ class HallucinationEvaluation(Evaluation):
             label=label,
             type=self.get_assessment_type(),
         )
+
+    def _merge_chunks_by_page_range(
+        self,
+        referenced_chunks: list[ContentChunk],
+        all_chunks: list[ContentChunk],
+    ) -> list[ContentChunk]:
+        """
+        Append chunks from all_chunks into referenced_chunks based on matching
+        id, start_page, and end_page.
+
+        Args:
+            referenced_chunks: List of initially referenced chunks
+            all_chunks: List of all available chunks
+
+        Returns:
+            List of chunks with additional matching chunks from all_chunks
+        """
+        # Create a set of tuples for fast lookup of referenced chunk keys
+        referenced_chunk_keys = {
+            (chunk.id, chunk.start_page, chunk.end_page) for chunk in referenced_chunks
+        }
+
+        # Add matching chunks that aren't already in the list
+        merged_chunks = referenced_chunks.copy()
+        for chunk in all_chunks:
+            chunk_key = (chunk.id, chunk.start_page, chunk.end_page)
+            if chunk_key in referenced_chunk_keys and chunk not in merged_chunks:
+                merged_chunks.append(chunk)
+
+        return merged_chunks
