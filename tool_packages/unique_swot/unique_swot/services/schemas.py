@@ -12,7 +12,7 @@ from typing import Generic, TypeVar
 from pydantic import BaseModel, ConfigDict, Field
 
 from unique_swot.services.generation import (
-    SWOTAnalysisModels,
+    SWOTAnalysisReportModel,
     SWOTComponent,
 )
 
@@ -25,29 +25,6 @@ class SWOTOperation(StrEnum):
 
 
 TStep = TypeVar("TStep", bound="PlannedSWOTStep")
-
-
-class SourceType(StrEnum):
-    """Enumeration of supported data source types for SWOT analysis."""
-
-    WEB_SEARCH = "web_search"
-    INTERNAL_DOCUMENT = "internal_document"
-    EARNINGS_CALL = "earnings_call"
-
-
-class Source(BaseModel):
-    """
-    Represents a data source used in SWOT analysis.
-
-    Attributes:
-        source_id: Unique identifier for the source
-        type: The type of data source (web search, internal document, etc.)
-        content: The actual content/text from the source
-    """
-
-    type: SourceType
-    source_id: str
-    content: str
 
 
 class PlannedSWOTStep(BaseModel):
@@ -83,11 +60,11 @@ class ExecutedSwotStep(PlannedSWOTStep):
         result: The generated SWOT analysis results for this step
     """
 
-    result: SWOTAnalysisModels
+    result: SWOTAnalysisReportModel
 
     @classmethod
     def from_step_and_result(
-        cls, *, step: PlannedSWOTStep, result: SWOTAnalysisModels
+        cls, *, step: PlannedSWOTStep, result: SWOTAnalysisReportModel
     ) -> "ExecutedSwotStep":
         """
         Factory method to create an ExecutedSwotStep from a plan step and its results.
@@ -120,8 +97,11 @@ class SWOTPlanBase(BaseModel, Generic[TStep]):
     """
 
     model_config = ConfigDict(extra="forbid")
-    objective: str = Field(description="The objective that the user wants to achieve")
+    objective: str = Field(description="The objective of the plan to be executed")
     steps: list[TStep]
+    expected_output: str = Field(
+        description="The expected output of the plan to be executed"
+    )
 
 
 class SWOTPlan(SWOTPlanBase[PlannedSWOTStep]):
@@ -153,3 +133,14 @@ class ExecutedSWOTPlan(SWOTPlanBase[ExecutedSwotStep]):
     """
 
     ...
+
+    @classmethod
+    def init_from_plan(cls, *, plan: SWOTPlan) -> "ExecutedSWOTPlan":
+        """
+        Initialize an ExecutedSWOTPlan from a SWOTPlan.
+        """
+        return cls(
+            objective=plan.objective,
+            expected_output=plan.expected_output,
+            steps=[],
+        )
