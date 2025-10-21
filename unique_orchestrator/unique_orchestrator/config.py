@@ -2,14 +2,14 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Annotated, Any, Generic, Literal, TypeVar
 
-from pydantic import BaseModel, Field, ValidationInfo, field_validator
+from pydantic import BaseModel, Field, ValidationInfo, field_validator, model_validator
+from pydantic.json_schema import SkipJsonSchema
 from unique_deep_research.config import DeepResearchToolConfig
 from unique_deep_research.service import DeepResearchTool
 from unique_follow_up_questions.config import FollowUpQuestionsConfig
 from unique_internal_search.config import InternalSearchConfig
 from unique_internal_search.service import InternalSearchTool
 from unique_stock_ticker.config import StockTickerConfig
-from unique_toolkit._common.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit._common.validators import (
     LMI,
     ClipInt,
@@ -22,11 +22,25 @@ from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.history_manager.history_manager import (
     UploadedContentConfig,
 )
-from unique_toolkit.agentic.tools.a2a.evaluation import SubAgentEvaluationConfig
+from unique_toolkit.agentic.responses_api import ShowExecutedCodePostprocessorConfig
+from unique_toolkit.agentic.tools.a2a import (
+    REFERENCING_INSTRUCTIONS_FOR_SYSTEM_PROMPT,
+    REFERENCING_INSTRUCTIONS_FOR_USER_PROMPT,
+)
+from unique_toolkit.agentic.tools.a2a.evaluation import SubAgentEvaluationServiceConfig
 from unique_toolkit.agentic.tools.config import get_configuration_dict
+from unique_toolkit.agentic.tools.openai_builtin.manager import (
+    OpenAICodeInterpreterConfig,
+)
 from unique_toolkit.agentic.tools.tool import ToolBuildConfig
+from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 from unique_web_search.config import WebSearchConfig
 from unique_web_search.service import WebSearchTool
+
+DeactivatedNone = Annotated[
+    None,
+    Field(title="Deactivated", description="None"),
+]
 
 
 class SpaceType(StrEnum):
@@ -117,7 +131,6 @@ class EvaluationConfig(BaseModel):
     model_config = get_configuration_dict()
     max_review_steps: int = 3
     hallucination_config: HallucinationConfig = HallucinationConfig()
-    sub_agents_config: SubAgentEvaluationConfig = SubAgentEvaluationConfig()
 
 
 # ------------------------------------------------------------
@@ -141,12 +154,6 @@ class UniqueAIPromptConfig(BaseModel):
         ).read_text(),
         description="The user message prompt template as a Jinja2 template string.",
     )
-
-
-DeactivatedNone = Annotated[
-    None,
-    Field(title="Deactivated", description="None"),
-]
 
 
 class UniqueAIServices(BaseModel):
@@ -199,6 +206,68 @@ class InputTokenDistributionConfig(BaseModel):
         return int(self.percent_for_history * max_input_token)
 
 
+class SubAgentsReferencingConfig(BaseModel):
+    model_config = get_configuration_dict()
+
+    referencing_instructions_for_system_prompt: str = Field(
+        default=REFERENCING_INSTRUCTIONS_FOR_SYSTEM_PROMPT,
+        description="Referencing instructions for the main agent's system prompt.",
+    )
+    referencing_instructions_for_user_prompt: str = Field(
+        default=REFERENCING_INSTRUCTIONS_FOR_USER_PROMPT,
+        description="Referencing instructions for the main agent's user prompt. Should correspond to a short reminder.",
+    )
+
+
+class SubAgentsConfig(BaseModel):
+    model_config = get_configuration_dict()
+
+    referencing_config: (
+        Annotated[SubAgentsReferencingConfig, Field(title="Active")] | DeactivatedNone
+    ) = SubAgentsReferencingConfig()
+    evaluation_config: (
+        Annotated[SubAgentEvaluationServiceConfig, Field(title="Active")]
+        | DeactivatedNone
+    ) = SubAgentEvaluationServiceConfig()
+
+
+class ResponsesApiConfig(BaseModel):
+    model_config = get_configuration_dict(frozen=True)
+
+    use_responses_api: bool = Field(
+        default=False,
+        description="Whether to use the responses API instead of the completions API.",
+    )
+    code_interpreter_display_config: (
+        Annotated[
+            ShowExecutedCodePostprocessorConfig,
+            Field(title="Active"),
+        ]
+        | DeactivatedNone
+    ) = ShowExecutedCodePostprocessorConfig()
+
+    use_direct_azure_client: SkipJsonSchema[bool] = Field(
+        default=True,
+        description="[TEMPORARY] Whether to use the direct Azure client instead of the responses API.",
+    )
+    direct_azure_client_api_base_env_var: SkipJsonSchema[str] = Field(
+        default="OPENAI_BASE_URL",
+        description="[TEMPORARY] The environment variable that contains the API base for the direct Azure client.",
+    )
+    direct_azure_client_api_key_env_var: SkipJsonSchema[str] = Field(
+        default="OPENAI_API_KEY",
+        description="[TEMPORARY] The environment variable that contains the API key for the direct Azure client.",
+    )
+    code_interpreter: (
+        Annotated[OpenAICodeInterpreterConfig, Field(title="Active")] | DeactivatedNone
+    ) = Field(default=None, description="Config for openai code interpreter")
+
+    generated_files_scope_id: str = Field(
+        default="<SCOPE_ID_PLACEHOLDER>",
+        description="Scope ID for the responses API.",
+    )
+
+
 class ExperimentalConfig(BaseModel):
     """Experimental features this part of the configuration might evolve in the future continuously"""
 
@@ -230,6 +299,10 @@ class ExperimentalConfig(BaseModel):
         max_tool_calls_per_iteration=5
     )
 
+    sub_agents_config: SubAgentsConfig = SubAgentsConfig()
+
+    responses_api_config: ResponsesApiConfig = ResponsesApiConfig()
+
 
 class UniqueAIAgentConfig(BaseModel):
     model_config = get_configuration_dict(frozen=True)
@@ -254,3 +327,9 @@ class UniqueAIConfig(BaseModel):
     space: UniqueAISpaceConfig = UniqueAISpaceConfig()
 
     agent: UniqueAIAgentConfig = UniqueAIAgentConfig()
+
+    @model_validator(mode="after")
+    def disable_sub_agent_referencing_if_not_used(self) -> "UniqueAIConfig":
+        if not any(tool.is_sub_agent for tool in self.space.tools):
+            self.agent.experimental.sub_agents_config.referencing_config = None
+        return self

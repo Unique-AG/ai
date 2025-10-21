@@ -31,26 +31,27 @@ from .state import (
     SupervisorState,
 )
 from .tools import (
+    format_tools_for_prompt,
     get_research_tools,
     get_supervisor_tools,
     get_today_str,
     internal_fetch,
     internal_search,
     research_complete,
+    research_complete_tool_called,
     think_tool,
     web_fetch,
     web_search,
 )
 from .utils import (
+    ainvoke_with_token_handling,
     execute_tool_safely,
     get_engine_config,
     get_notes_from_tool_calls,
-    is_token_error,
-    remove_up_to_last_ai_message,
     write_state_message_log,
 )
 
-logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 
 # Pre-configured model for all agents with OpenAI settings
@@ -73,7 +74,7 @@ async def setup_research_supervisor(
     The research brief was already generated in the main service flow,
     so we just need to initialize the supervisor state.
     """
-    logger.info("Initializing research supervisor...")
+    _LOGGER.info("Initializing research supervisor...")
 
     # Get the pre-generated research brief from state
     research_brief = state.get("research_brief")
@@ -81,14 +82,24 @@ async def setup_research_supervisor(
 
     # Initialize supervisor state with config values
     max_concurrent = UniqueCustomEngineConfig.max_parallel_researchers
-    max_iterations = UniqueCustomEngineConfig.max_research_iterations
+    max_iterations = UniqueCustomEngineConfig.max_research_iterations_lead_researcher
+
+    # Get supervisor tools and format their descriptions
+    supervisor_tools = get_supervisor_tools()
+    tools_description = format_tools_for_prompt(supervisor_tools)
+
+    # Get research tools and format their descriptions for template
+    research_tools = get_research_tools(config)
+    research_tools_description = format_tools_for_prompt(research_tools)
 
     supervisor_system_prompt = TEMPLATE_ENV.get_template(
         "unique/lead_agent_system.j2"
     ).render(
         date=get_today_str(),
+        tools=tools_description,
         max_concurrent_research_units=max_concurrent,
         max_researcher_iterations=max_iterations,
+        research_tools_description=research_tools_description,
     )
 
     return Command(
@@ -112,28 +123,46 @@ async def research_supervisor(
     """
     Lead research supervisor that plans research strategy and delegates to researchers.
     """
-    logger.info("Research supervisor determining next steps")
+    _LOGGER.info("Research supervisor determining next steps")
 
     # Configure the supervisor model with tools
     custom_config = get_engine_config(config)
 
     model_config = {
         "model": custom_config.research_model.name,
-        "max_tokens": 8000,
-        "temperature": 0.1,
+        "max_tokens": min(
+            10_000,
+            int(custom_config.research_model.token_limits.token_limit_output * 0.9),
+        ),
     }
 
     # Available tools for the supervisor
     supervisor_tools = get_supervisor_tools()
 
-    # Configure model with tools
-    model_with_tools = configurable_model.bind_tools(supervisor_tools)
-    research_model = model_with_tools.with_config(model_config)  # type: ignore[arg-type]
+    # Check if we should force tool usage
+    research_iterations = state.get("research_iterations", 0)
+    max_iterations = UniqueCustomEngineConfig.max_research_iterations_lead_researcher
+    should_force_complete = research_iterations >= max_iterations
 
-    # Generate supervisor response with token limit awareness
+    if should_force_complete:
+        _LOGGER.info(
+            f"Forcing research_complete at iteration {research_iterations}/{max_iterations}"
+        )
+        model_with_tools = configurable_model.bind_tools(
+            supervisor_tools,
+            tool_choice={"type": "function", "function": {"name": "research_complete"}},
+        )
+    else:
+        model_with_tools = configurable_model.bind_tools(supervisor_tools)
+
+    research_model = model_with_tools.with_config(model_config)
+
+    # Generate supervisor response with comprehensive token limit handling
     supervisor_messages = state.get("supervisor_messages", [])
 
-    response = await research_model.ainvoke(supervisor_messages)
+    response = await ainvoke_with_token_handling(
+        research_model, supervisor_messages, model_info=custom_config.research_model
+    )
 
     return Command(
         goto="supervisor_tools",
@@ -150,12 +179,13 @@ async def supervisor_tools(
     """
     Execute tools called by the supervisor.
     """
+    _LOGGER.info("Supervisor tool processing")
     supervisor_messages = state.get("supervisor_messages", [])
     research_iterations = state.get("research_iterations", 0)
     most_recent_message = supervisor_messages[-1] if supervisor_messages else None
 
     # Check exit conditions
-    max_iterations = UniqueCustomEngineConfig.max_research_iterations
+    max_iterations = UniqueCustomEngineConfig.max_research_iterations_lead_researcher
     exceeded_iterations = research_iterations > max_iterations
 
     # Extract tool calls if available
@@ -163,15 +193,10 @@ async def supervisor_tools(
     if most_recent_message and isinstance(most_recent_message, AIMessage):
         tool_calls = most_recent_message.tool_calls or []
 
-    # Early exit if no tool calls at all
     if not tool_calls:
-        notes = get_notes_from_tool_calls(supervisor_messages)
+        _LOGGER.info("Supervisor has no tool calls - will go back to supervisor")
         return Command(
-            goto="__end__",
-            update={
-                "notes": notes,
-                "research_brief": state.get("research_brief", ""),
-            },
+            goto="research_supervisor",
         )
 
     # TOOL CALL HANDLERS
@@ -191,11 +216,11 @@ async def supervisor_tools(
         all_tool_messages.extend(research_tool_messages)
 
     except Exception as e:
-        logger.error(f"Research execution failed: {e}")
+        _LOGGER.error(f"Research execution failed: {e}")
         return Command(
             goto="__end__",
             update={
-                "supervisor_messages": all_tool_messages,  # Include any tool messages created so far
+                "supervisor_messages": all_tool_messages,
                 "notes": [f"Research failed due to error: {e}"],
                 "research_brief": state.get("research_brief", ""),
             },
@@ -204,9 +229,10 @@ async def supervisor_tools(
         await _handle_tool_call_batch(remaining_tool_calls, config)
     )
 
-    if exceeded_iterations or any(
-        tc.get("name") == "research_complete" for tc in tool_calls
-    ):
+    if exceeded_iterations or research_complete_tool_called(tool_calls):
+        _LOGGER.info(
+            "Supervisor has reached the maximum number of iterations or has a research complete tool call. Ending supervisor"
+        )
         # Extract notes including the new tool messages we just created
         notes = get_notes_from_tool_calls(supervisor_messages + all_tool_messages)
 
@@ -233,35 +259,41 @@ async def researcher(
     """
     Individual researcher that conducts focused research on specific topics.
     """
-    research_tools = get_research_tools()
+    _LOGGER.info("Research agent determining next steps")
+    research_tools = get_research_tools(config)
 
     # Configure the researcher model
     custom_config = get_engine_config(config)
     model_config = {
         "model": custom_config.research_model.name,
-        "max_tokens": 10000,
-        "temperature": 0.1,
+        "max_tokens": min(
+            10_000,
+            int(custom_config.research_model.token_limits.token_limit_output * 0.9),
+        ),
     }
 
-    # Prepare system prompt
+    # Prepare system prompt with dynamic tool descriptions
+    tools_description = format_tools_for_prompt(research_tools)
     researcher_prompt = TEMPLATE_ENV.get_template(
         "unique/research_agent_system.j2"
-    ).render(date=get_today_str())
+    ).render(date=get_today_str(), tools=tools_description)
 
     # Configure model with research tools
     model_with_tools = configurable_model.bind_tools(research_tools)
     research_model = model_with_tools.with_config(model_config)  # type: ignore[arg-type]
 
-    # Generate researcher response with token limit awareness
+    # Generate researcher response with comprehensive token limit handling
     researcher_messages = state.get("researcher_messages", [])
     messages = [SystemMessage(content=researcher_prompt)] + researcher_messages
-    response = await research_model.ainvoke(messages)
+    response = await ainvoke_with_token_handling(
+        research_model, messages, model_info=custom_config.research_model
+    )
 
     return Command(
         goto="researcher_tools",
         update={
             "researcher_messages": [response],
-            "tool_call_iterations": state.get("tool_call_iterations", 0) + 1,
+            "research_iterations": state.get("research_iterations", 0) + 1,
         },
     )
 
@@ -281,7 +313,7 @@ async def _handle_tool_call(tool_call: ToolCall, config: RunnableConfig) -> Tool
     if tool_name in tool_map:
         result = await execute_tool_safely(tool_map[tool_name], args, config)
     else:
-        logger.error(f"Unknown tool: {tool_name}")
+        _LOGGER.error(f"Unknown tool: {tool_name}")
         result = f"Unknown tool: {tool_name}"
     return ToolMessage(
         content=result,
@@ -305,24 +337,37 @@ async def researcher_tools(
     """
     Execute tools called by the researcher.
     """
-
+    _LOGGER.info("Research agent executing tools")
     researcher_messages = state.get("researcher_messages", [])
     most_recent_message = researcher_messages[-1] if researcher_messages else None
 
+    # Check iteration limit
+    research_iterations = state.get("research_iterations", 0)
+    max_iterations = UniqueCustomEngineConfig.max_research_iterations_sub_researcher
+    exceeded_iterations = research_iterations >= max_iterations
+
     # Check if any tool calls were made
     if not most_recent_message or not isinstance(most_recent_message, AIMessage):
+        _LOGGER.info(
+            f"Research agent has no tool calls. Ending researcher after {len(researcher_messages)} messages"
+        )
         return Command(goto="compress_research")
 
     tool_calls = most_recent_message.tool_calls or []
     if not tool_calls:
+        _LOGGER.info(
+            f"Research agent has no tool calls. Ending researcher after {len(researcher_messages)} messages"
+        )
         return Command(goto="compress_research")
 
     # Execute actual tool calls safely
     tool_outputs = await _handle_tool_call_batch(tool_calls, config)
 
     # Check if we should continue or finish
-    max_iterations = UniqueCustomEngineConfig.max_tool_calls_per_researcher
-    if state.get("tool_call_iterations", 0) >= max_iterations:
+    if exceeded_iterations or research_complete_tool_called(tool_calls):
+        _LOGGER.info(
+            f"Research agent has reached the maximum number of tool calls or has a research complete tool call. Ending researcher after {len(researcher_messages)} messages"
+        )
         return Command(
             goto="compress_research", update={"researcher_messages": tool_outputs}
         )
@@ -345,8 +390,10 @@ async def compress_research(
     # Prepare synthesis model
     model_config = {
         "model": custom_config.large_model.name,
-        "max_tokens": 8192,
-        "temperature": 0.1,
+        "max_tokens": min(
+            15_000,
+            int(custom_config.large_model.token_limits.token_limit_output * 0.9),
+        ),
     }
 
     # PROMPTS
@@ -379,43 +426,14 @@ async def compress_research(
     # Configure compression model
     compression_model = configurable_model.with_config(model_config)  # type: ignore[arg-type]
 
-    # Synthesis with retry logic for token limit issues
-    max_retries = 3
-    iteration = 0
+    # Use proactive token handling instead of retry logic
+    response = await ainvoke_with_token_handling(
+        compression_model, compression_messages, model_info=custom_config.large_model
+    )
 
-    while iteration <= max_retries:
-        iteration += 1
-        try:
-            response = await compression_model.ainvoke(compression_messages)
-            compressed_research = (
-                str(response.content)
-                if response.content
-                else "No synthesis content generated"
-            )
-            # Success! Break out of retry loop
-            break
-
-        except Exception as e:
-            # Handle token limit exceeded by removing older messages (like reference)
-            if is_token_error(e):
-                # Remove older messages to reduce token usage
-                researcher_messages = remove_up_to_last_ai_message(researcher_messages)
-
-                # Rebuild messages with system prompt + truncated researcher messages
-                compression_messages = [
-                    SystemMessage(content=compression_system_prompt)
-                ] + researcher_messages
-                continue
-            else:
-                logger.error(f"Error compressing research: {e}")
-                # For other errors, continue retrying
-                continue
-
-    # If all attempts failed, use fallback
-    if iteration > max_retries:
-        compressed_research = (
-            "Error synthesizing research report: Maximum retries exceeded"
-        )
+    compressed_research = (
+        str(response.content) if response.content else "No synthesis content generated"
+    )
 
     return {
         "compressed_research": compressed_research,
@@ -431,96 +449,52 @@ async def final_report_generation(
     This implementation follows the open_deep_research pattern with sophisticated
     token limit handling and progressive truncation strategies.
     """
-    write_state_message_log(state, "Synthesizing final research report")
+    write_state_message_log(state, "**Synthesizing final research report**")
 
     # Step 1: Extract research findings and prepare state cleanup
     notes = state.get("notes", [])
     cleared_state = {"notes": {"type": "override", "value": []}}
     findings = "\n".join(notes)
+    research_brief = state.get("research_brief", "")
+
+    message = f"# Research Brief\n{research_brief}"
+    message += f"\n\n# Research Findings\n{findings}"
 
     # Step 2: Configure the final report generation model
     custom_config = get_engine_config(config)
     model_config = {
         "model": custom_config.large_model.name,
-        "max_tokens": 10000,
-        "temperature": 0.1,
+        "max_tokens": min(
+            30_000, int(custom_config.large_model.token_limits.token_limit_output * 0.9)
+        ),
     }
+    llm = configurable_model.with_config(model_config)
+    report_writer_prompt = TEMPLATE_ENV.get_template(
+        "unique/report_writer_system_open_deep_research.j2"
+    ).render(
+        date=get_today_str(),
+    )
+    messages = [
+        SystemMessage(content=report_writer_prompt),
+        HumanMessage(content=message),
+    ]
+    raw_report = await ainvoke_with_token_handling(
+        llm, messages, model_info=custom_config.large_model
+    )
 
-    # Step 3: Attempt report generation with token limit retry logic
-    max_retries = 3
-    iteration = 0
-    findings_char_limit = None
+    refinement_prompt = TEMPLATE_ENV.get_template("report_cleanup_prompt.j2").render()
+    messages = [
+        SystemMessage(content=refinement_prompt),
+        HumanMessage(content=raw_report.content),
+    ]
+    refined_report = await ainvoke_with_token_handling(
+        llm, messages, model_info=custom_config.large_model
+    )
 
-    while iteration <= max_retries:
-        iteration += 1
-        try:
-            # Use our existing report writer template
-            report_writer_prompt = TEMPLATE_ENV.get_template(
-                "unique/report_writer_system_open_deep_research.j2"
-            ).render(
-                research_brief=state.get("research_brief", ""),
-                date=get_today_str(),
-            )
-
-            # Generate the final report
-            report_model = configurable_model.with_config(model_config)  # type: ignore[arg-type]
-            final_report = await report_model.ainvoke(
-                [
-                    SystemMessage(content=report_writer_prompt),
-                    AIMessage(content=findings),
-                    HumanMessage(
-                        content="Remember to cite sources inline in the final report, not at the end. Please generate the final report. Do not mention these instructions"
-                    ),
-                ]
-            )
-
-            # Return successful report generation
-            return {
-                "final_report": final_report.content,
-                "messages": [final_report],
-                **cleared_state,
-            }
-
-        except Exception as e:
-            # Handle token limit exceeded errors with progressive truncation
-            if is_token_error(e):
-                model_token_limit = (
-                    custom_config.large_model.token_limits.token_limit_input
-                )
-
-                if iteration == 1:
-                    # Reserve space for prompt and use ~4 characters per token approximation
-                    # Use 70% of token limit to leave room for prompt, then convert to characters
-                    available_tokens = int(model_token_limit * 0.7)
-                    findings_char_limit = available_tokens * 4  # ~4 chars per token
-                else:
-                    # Subsequent retries: reduce by 10% each time
-
-                    fallback_char_limit = int(model_token_limit * 0.7) * 4
-                    findings_char_limit = int(
-                        (findings_char_limit or fallback_char_limit) * 0.9
-                    )
-
-                # Truncate findings and retry
-                findings = findings[:findings_char_limit]
-                continue
-            else:
-                logger.error(f"Error generating final report: {e}")
-                # Non-token-limit error: return error immediately
-                return {
-                    "final_report": f"Error generating final report: {e}",
-                    "messages": [
-                        AIMessage(content="Report generation failed due to an error")
-                    ],
-                    **cleared_state,
-                }
-
-    # Step 4: Return failure result if all retries exhausted
+    # Return successful report generation
     return {
-        "final_report": "Error generating final report: Maximum retries exceeded",
-        "messages": [
-            AIMessage(content="Report generation failed after maximum retries")
-        ],
+        "final_report": refined_report.content,
+        "messages": [refined_report],
         **cleared_state,
     }
 
@@ -537,11 +511,12 @@ async def _handle_conduct_research_batch(
     if not conduct_research_calls:
         return []
 
-    logger.info(f"Delegating {len(conduct_research_calls)} research tasks...")
+    _LOGGER.info(f"Delegating {len(conduct_research_calls)} research tasks...")
 
     # Limit concurrent research tasks to prevent resource exhaustion
     max_concurrent = UniqueCustomEngineConfig.max_parallel_researchers
     allowed_calls = conduct_research_calls[:max_concurrent]
+    skipped_calls = conduct_research_calls[max_concurrent:]
 
     # Execute research tasks in parallel
     research_tasks = [
@@ -551,7 +526,7 @@ async def _handle_conduct_research_batch(
                     HumanMessage(content=tool_call["args"]["research_topic"])
                 ],
                 "research_topic": tool_call["args"]["research_topic"],
-                "tool_call_iterations": 0,
+                "research_iterations": 0,
                 "chat_service": state["chat_service"],
                 "message_id": state["message_id"],
             },
@@ -560,17 +535,44 @@ async def _handle_conduct_research_batch(
         for tool_call in allowed_calls
     ]
 
-    tool_results = await asyncio.gather(*research_tasks)
+    # Use return_exceptions=True to handle partial failures gracefully
+    tool_results = await asyncio.gather(*research_tasks, return_exceptions=True)
 
-    # Create tool messages with compressed research results
-    tool_messages = [
-        ToolMessage(
-            content=observation.get("compressed_research", "No research results"),
-            name=tool_call["name"],
-            tool_call_id=tool_call["id"],
+    # Create tool messages with compressed research results or error messages
+    tool_messages = []
+    for observation, tool_call in zip(tool_results, allowed_calls):
+        if isinstance(observation, Exception):
+            _LOGGER.error(f"Research task failed: {str(observation)}")
+            error_content = f"Research task failed: {str(observation)}"
+            tool_messages.append(
+                ToolMessage(
+                    content=error_content,
+                    name=tool_call["name"],
+                    tool_call_id=tool_call["id"],
+                )
+            )
+        else:
+            # Handle successful task
+            content = "No research results"
+            if isinstance(observation, dict):
+                content = observation.get("compressed_research", "No research results")
+            tool_messages.append(
+                ToolMessage(
+                    content=content,
+                    name=tool_call["name"],
+                    tool_call_id=tool_call["id"],
+                )
+            )
+
+    # Add "research not started" responses for skipped calls
+    for tool_call in skipped_calls:
+        tool_messages.append(
+            ToolMessage(
+                content=f"Research not started - exceeded concurrent research limit of {max_concurrent}. Please try again in the next iteration.",
+                name=tool_call["name"],
+                tool_call_id=tool_call["id"],
+            )
         )
-        for observation, tool_call in zip(tool_results, allowed_calls)
-    ]
 
     return tool_messages
 
@@ -585,8 +587,6 @@ researcher_builder.add_node("researcher_tools", researcher_tools)
 researcher_builder.add_node("compress_research", compress_research)
 
 researcher_builder.add_edge(START, "researcher")
-researcher_builder.add_edge("researcher", "researcher_tools")
-researcher_builder.add_edge("researcher_tools", "compress_research")
 researcher_builder.add_edge("compress_research", END)
 
 researcher_subgraph = researcher_builder.compile()

@@ -1,11 +1,18 @@
+import base64
+import mimetypes
 from collections.abc import Iterable
-from typing import Self
+from pathlib import Path
+from typing import Self, overload
 
 from openai.types.chat.chat_completion_assistant_message_param import (
     Audio,
     ChatCompletionAssistantMessageParam,
     ContentArrayOfContentPart,
     FunctionCall,
+)
+from openai.types.chat.chat_completion_content_part_image_param import (
+    ChatCompletionContentPartImageParam,
+    ImageURL,
 )
 from openai.types.chat.chat_completion_content_part_param import (
     ChatCompletionContentPartParam,
@@ -32,6 +39,83 @@ from openai.types.chat.chat_completion_tool_message_param import (
 from openai.types.chat.chat_completion_user_message_param import (
     ChatCompletionUserMessageParam,
 )
+from typing_extensions import Literal
+
+
+class OpenAIUserMessageBuilder:
+    def __init__(
+        self,
+    ) -> None:
+        self._messages: list[ChatCompletionContentPartParam] = []
+
+    def append_text(self, content: str) -> Self:
+        part = ChatCompletionContentPartTextParam(
+            type="text",
+            text=content,
+        )
+        self._messages.append(part)
+        return self
+
+    @overload
+    def append_image(
+        self, *, url: str, detail: Literal["auto", "low", "high"] = "auto"
+    ) -> Self: ...
+
+    @overload
+    def append_image(
+        self, *, path: Path, detail: Literal["auto", "low", "high"] = "auto"
+    ) -> Self: ...
+
+    @overload
+    def append_image(
+        self,
+        *,
+        content: bytes,
+        mime_type: str,
+        detail: Literal["auto", "low", "high"] = "auto",
+    ) -> Self: ...
+
+    def append_image(
+        self,
+        *,
+        url: str | None = None,
+        path: Path | None = None,
+        content: bytes | None = None,
+        mime_type: str | None = None,
+        detail: Literal["auto", "low", "high"] = "auto",
+    ) -> Self:
+        if url is None and path is None and (content is None or mime_type is None):
+            raise ValueError("Either url or path must be provided")
+
+        if path is not None:
+            # Read image file and encode as base64 data URI
+            image_data = path.read_bytes()
+            base64_image = base64.b64encode(image_data).decode("utf-8")
+            mime_type = mimetypes.guess_type(str(path))[0] or "image/jpeg"
+            url = f"data:{mime_type};base64,{base64_image}"
+
+        if content is not None and mime_type is not None:
+            base64_image = base64.b64encode(content).decode("utf-8")
+            url = f"data:{mime_type};base64,{base64_image}"
+
+        image_url = ImageURL(url=url or "", detail=detail)
+        part = ChatCompletionContentPartImageParam(
+            type="image_url",
+            image_url=image_url,
+        )
+        self._messages.append(part)
+        return self
+
+    @property
+    def user_message(self) -> ChatCompletionUserMessageParam:
+        return ChatCompletionUserMessageParam(
+            content=self._messages,
+            role="user",
+        )
+
+    @property
+    def iterable_content(self) -> Iterable[ChatCompletionContentPartParam]:
+        return self._messages
 
 
 class OpenAIMessageBuilder:

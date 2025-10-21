@@ -5,6 +5,54 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.5] - 2025-10-17
+- Add all reviewed sources to message log
+
+## [3.0.4] - 2025-10-14
+- Fix ordering issue of messages in unique implementation with too early cleanup
+- Don't include the visited websites without a nice title in message log
+
+## [3.0.3] - 2025-10-13
+- Fix potential error in open website logic if response not defined
+- Better token limit handeling
+- Internal knowledge base page referencing
+
+## [3.0.2] - 2025-10-10
+- Get website title for OpenAI agent
+- Bolding of message logs
+- Clarifying questions and research brief dependent on engine type
+
+## [3.0.1] - 2025-10-08
+- Improved citation logic supporting internal search documents
+- Fixed bug in referencing of internal sources not giving the correct title of sources
+- OpenAI engine converted to async processing to not be blocking
+- Prompt improvements
+- Small changes to message logs
+- Improve success rate of website title extraction
+- Web_fetch tool improvements on error handeling for llm
+
+## [3.0.0] - 2025-10-07
+- Simplification and better descriptions of configuration
+- Dynamic tool descriptions and improved prompts
+- Reduce OpenAI engine logging 
+
+## [2.1.3] - 2025-10-06
+- Error handeling on context window limits
+
+## [2.1.2] - 2025-10-02
+- Remove temperature param to allow for more models used in unique custom
+- Research prompt improvements
+- Citation rendering improvements with extra llm call
+- Additional logging for openai and custom agent
+
+## [2.1.1] - 2025-10-01
+- bugfix of langgraph state issue
+- more logging
+
+## [2.1.0] - 2025-10-01
+Prompt improvements
+- Pushing agent for deeper analysis and including tool descriptions
+
 ## [2.0.0] - 2025-09-26
 Simplification, bugfixes, and performance improvements
 - Improve lead and research agent prompts

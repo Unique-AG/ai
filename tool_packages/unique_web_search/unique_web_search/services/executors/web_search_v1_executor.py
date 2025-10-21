@@ -32,7 +32,7 @@ from unique_web_search.utils import (
     query_params_to_human_string,
 )
 
-logger = logging.getLogger(f"PythonAssistantCoreBundle.{__name__}")
+logger = logging.getLogger(__name__)
 
 
 class RefineQueryMode(StrEnum):
@@ -65,7 +65,7 @@ async def query_generation_agent(
     language_model: LMI,
     system_prompt: str,
     mode: Literal[RefineQueryMode.BASIC],
-) -> RefinedQueries: ...
+) -> RefinedQuery: ...
 
 
 @overload
@@ -75,7 +75,7 @@ async def query_generation_agent(
     language_model: LMI,
     system_prompt: str,
     mode: Literal[RefineQueryMode.ADVANCED],
-) -> RefinedQuery: ...
+) -> RefinedQueries: ...
 
 
 async def query_generation_agent(
@@ -94,9 +94,9 @@ async def query_generation_agent(
     )
 
     if mode == RefineQueryMode.BASIC:
-        structured_output_model = RefinedQueries
-    else:
         structured_output_model = RefinedQuery
+    else:
+        structured_output_model = RefinedQueries
 
     response = await language_model_service.complete_async(
         messages,

@@ -1,8 +1,8 @@
 # Unique Python SDK
 
-Unique Unique AI is a tailored solution for the financial industry, designed to increase productivity by automating manual workloads through AI and ChatGPT solutions.
+Unique AI is a tailored solution for the financial industry, designed to increase productivity by automating manual workloads through AI and ChatGPT solutions.
 
-The Unique Python SDK provides access to the public API of Unique Unique AI. It also enables verification of Webhook signatures to ensure the authenticity of incoming Webhook requests.
+The Unique Python SDK provides access to the public API of Unique AI. It also enables verification of Webhook signatures to ensure the authenticity of incoming Webhook requests.
 
 ## Table of Contents
 
@@ -13,6 +13,8 @@ The Unique Python SDK provides access to the public API of Unique Unique AI. It 
 5. [Available API Resources](#available-api-resources)
    - [Content](#content)
    - [Message](#message)
+   - [Message Log](#message-log)
+   - [Message Execution](#message-execution)
    - [Chat Completion](#chat-completion)
    - [Embeddings](#embeddings)
    - [Acronyms](#acronyms)
@@ -208,7 +210,7 @@ This trigger can be used in combination with assistants marked as `external`. Th
 }
 ```
 
-This Webhook is triggered when the Unique Unique AI AI selects an external module as the best response to a user message. The module must be marked as `external` and available for the assistant used in the chat to be selected by the AI.
+This Webhook is triggered when the Unique AI selects an external module as the best response to a user message. The module must be marked as `external` and available for the assistant used in the chat to be selected by the AI.
 
 Unique's UI will create an empty `assistantMessage` below the user message and update this message with status updates.
 
@@ -228,6 +230,8 @@ unique_sdk.Message.modify(
 
 - [Content](#content)
 - [Message](#message)
+- [Message Log](#message-log)
+- [Message Execution](#message-execution)
 - [Chat Completion](#chat-completion)
 - [Embeddings](#embeddings)
 - [Acronyms](#acronyms)
@@ -555,7 +559,7 @@ Move the file to a different folder. This can be done by specifying either the `
 - `parentFolderPath` optional, allows moving the file to a different folder. Represents the path new folder for the file.
 
 Metadata update:
-- `metadata` optional, allows updating the metadata of the file. Default metadata can not be ovrriden. (Available with release >.40)
+- `metadata` optional, allows updating the metadata of the file. Default metadata can not be overridden. (Available with release >.40)
 
 Example of updating the title of a file specified by its path.
 
@@ -675,6 +679,26 @@ message = unique_sdk.Message.create(
     assistantId=assistant_id,
     text="Hello.",
     role="ASSISTANT",
+)
+```
+
+#### `unique_sdk.Message.create_event`
+
+Create a new message event in a chat. Updating the text of a message in the chat UI is possible by creating a message update event. This function can be used for custom streaming to the chat. (Compatible with release >.42)
+
+The event only changes the text in the UI, it *does not* update the database.
+
+```python
+message = unique_sdk.Message.create_event(
+    user_id=user_id,
+    company_id=company_id,
+    messageId="msg_l4ushn85yqbewpf6tllh2cl7",
+    chatId="chat_kc8p3kgkn7393qhgmv5js5nt",
+    text="Hello.",                  #optional
+    originalText="Hello.",          #optional
+    references=[],                  #optional
+    gptRequest={}                   #optional
+    debugInfo={  "hello": "test" }, #optional
 )
 ```
 
@@ -799,17 +823,100 @@ unique_sdk.Integrated.responses_stream(
 
 **Warning:** Currently, the deletion of a chat message does not automatically sync with the user UI. Users must refresh the chat page to view the updated state. This issue will be addressed in a future update of our API.
 
+### Message Log
+
+#### `unique_sdk.MessageLog.create`
+
+Function to update the steps section of a message in the chat UI. This is possible by creating a message log record during a message execution.
+
+```python
+msg_log = unique_sdk.MessageLog.create(
+    user_id=user_id,
+    company_id=company_id,
+    messageId="msg_a0jgnt1jrqv1d3uzr450waxw",
+    text="Create message log text",
+    order=1,
+    status="RUNNING",                             # one of "RUNNING", "COMPLETED", "FAILED"
+    details={},                                   # optional, details dictionary
+    uncitedReferences={},                         # optional, references dictionary
+    references=[],                                # optional, list of references
+)
+```
+
+#### `unique_sdk.MessageLog.update`
+
+Update a message log for a provided `messageId`.
+
+```python
+msg_log = unique_sdk.MessageLog.update(
+    user_id=user_id,
+    company_id=company_id,
+    message_log_id="message_log_fd7z7gjljo1z2wu5g6l9q7r9",
+    text="Update a message log text",             # optional
+    order=1,                                      # optional
+    status="RUNNING",                             # one of "RUNNING", "COMPLETED", "FAILED"
+    details={},                                   # optional, details dictionary
+    uncitedReferences={},                         # optional, references dictionary
+    references=[],                                # optional, list of references
+)
+```
+
+### Message Execution
+
+#### `unique_sdk.MessageExecution.create`
+
+Create a message execution for a provided `messageId` and `chatId`.
+
+```python
+msg_execution = unique_sdk.MessageExecution.create(
+    user_id=user_id,
+    company_id=company_id,
+    messageId="msg_a0jgnt1jrqv143uzr750waxw",
+    chatId="chat_nx21havszl1skchd7544oykh",
+    type="DEEP_RESEARCH",
+    secondsRemaining=None,                       # optional, number defining the seconds remaining
+    percentageCompleted=None,                    # optional, number defining the percentage completed
+)
+```
+
+#### `unique_sdk.MessageExecution.get`
+
+Get a message execution for a provided `messageId`.
+
+```python
+msg_execution = unique_sdk.MessageExecution.get(
+    user_id=user_id,
+    company_id=company_id,
+    messageId="msg_a0jgnt1jrqv143uzr750waxw",
+)
+```
+
+#### `unique_sdk.MessageExecution.update`
+
+Update a message execution for a provided `messageId`.
+
+```python
+msg_execution = unique_sdk.MessageExecution.update(
+    user_id=user_id,
+    company_id=company_id,
+    messageId="msg_a0jgnt1jrqv143uzr750waxw",
+    status="COMPLETED",                        # one of: COMPLETED, FAILED
+    secondsRemaining=55,                       # optional, number defining the seconds remaining
+    percentageCompleted=10,                    # optional, number defining the percentage completed
+)
+```
+
 ### Chat Completion
 
 #### `unique_sdk.ChatCompletion.create`
 
-Send a prompt to an AI model supported by Unique Unique AI and receive a result. The `messages` attribute must follow the [OpenAI API format](https://platform.openai.com/docs/api-reference/chat).
+Send a prompt to an AI model supported by Unique AI and receive a result. The `messages` attribute must follow the [OpenAI API format](https://platform.openai.com/docs/api-reference/chat).
 
 ```python
 chat_completion = unique_sdk.ChatCompletion.create(
     company_id=company_id,
     user_id=user_id
-    model="AZURE_GPT_35_TURBO",
+    model="AZURE_GPT_4o_2024_1120",
     messages=[
         {"role": "system", "content": "You are a helpful assistant."},
         {"role": "user", "content": "Hello!"},
@@ -853,7 +960,7 @@ print(result)
 
 #### `unique_sdk.Search.create`
 
-Search the Unique Unique AI Knowledge database for RAG (Retrieval-Augmented Generation). The API supports vector search and a `searchType` that combines vector and full-text search, enhancing the precision of search results.
+Search the Unique AI Knowledge database for RAG (Retrieval-Augmented Generation). The API supports vector search and a `searchType` that combines vector and full-text search, enhancing the precision of search results.
 
 These are the options are available for `searchType`:
 

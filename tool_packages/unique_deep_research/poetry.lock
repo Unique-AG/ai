@@ -1377,6 +1377,7 @@ files = [
     {file = "fastuuid-0.12.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:b9b31dd488d0778c36f8279b306dc92a42f16904cba54acca71e107d65b60b0c"},
     {file = "fastuuid-0.12.0-cp313-cp313-manylinux_2_34_x86_64.whl", hash = "sha256:b19361ee649365eefc717ec08005972d3d1eb9ee39908022d98e3bfa9da59e37"},
     {file = "fastuuid-0.12.0-cp313-cp313-win_amd64.whl", hash = "sha256:8fc66b11423e6f3e1937385f655bedd67aebe56a3dcec0cb835351cfe7d358c9"},
+    {file = "fastuuid-0.12.0-cp38-cp38-macosx_10_12_x86_64.whl", hash = "sha256:2925f67b88d47cb16aa3eb1ab20fdcf21b94d74490e0818c91ea41434b987493"},
     {file = "fastuuid-0.12.0-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:7b15c54d300279ab20a9cc0579ada9c9f80d1bc92997fc61fb7bf3103d7cb26b"},
     {file = "fastuuid-0.12.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:458f1bc3ebbd76fdb89ad83e6b81ccd3b2a99fa6707cd3650b27606745cfb170"},
     {file = "fastuuid-0.12.0-cp38-cp38-manylinux_2_34_x86_64.whl", hash = "sha256:a8f0f83fbba6dc44271a11b22e15838641b8c45612cdf541b4822a5930f6893c"},
@@ -3972,6 +3973,26 @@ pygments = ">=2.7.2"
 dev = ["argcomplete", "attrs (>=19.2)", "hypothesis (>=3.56)", "mock", "requests", "setuptools", "xmlschema"]
 
 [[package]]
+name = "pytest-asyncio"
+version = "1.2.0"
+description = "Pytest support for asyncio"
+optional = false
+python-versions = ">=3.9"
+groups = ["main", "dev"]
+files = [
+    {file = "pytest_asyncio-1.2.0-py3-none-any.whl", hash = "sha256:8e17ae5e46d8e7efe51ab6494dd2010f4ca8dae51652aa3c8d55acf50bfb2e99"},
+    {file = "pytest_asyncio-1.2.0.tar.gz", hash = "sha256:c609a64a2a8768462d0c99811ddb8bd2583c33fd33cf7f21af1c142e824ffb57"},
+]
+
+[package.dependencies]
+pytest = ">=8.2,<9"
+typing-extensions = {version = ">=4.12", markers = "python_version < \"3.13\""}
+
+[package.extras]
+docs = ["sphinx (>=5.3)", "sphinx-rtd-theme (>=1)"]
+testing = ["coverage (>=6.2)", "hypothesis (>=5.7.1)"]
+
+[[package]]
 name = "python-dateutil"
 version = "2.9.0.post0"
 description = "Extensions to the standard Python datetime module"
@@ -5114,7 +5135,7 @@ files = [
 
 [[package]]
 name = "unique-sdk"
-version = "0.10.26"
+version = "0.10.32"
 description = ""
 optional = false
 python-versions = "^3.11"
@@ -5135,7 +5156,7 @@ url = "../../unique_sdk"
 
 [[package]]
 name = "unique-toolkit"
-version = "1.1.3"
+version = "1.16.2"
 description = ""
 optional = false
 python-versions = "^3.12"
@@ -5159,7 +5180,7 @@ regex = "^2024.5.15"
 sseclient = "^0.0.27"
 tiktoken = "^0.7.0"
 typing-extensions = "^4.9.0"
-unique-sdk = "^0.10.0"
+unique-sdk = "^0.10.28"
 
 [package.source]
 type = "directory"
@@ -5167,7 +5188,7 @@ url = "../../unique_toolkit"
 
 [[package]]
 name = "unique-web-search"
-version = "1.0.3"
+version = "1.3.3"
 description = ""
 optional = false
 python-versions = "^3.12"
@@ -5187,13 +5208,14 @@ pandas = "2.2.3"
 pydantic = "^2.8.2"
 pydantic-settings = "^2.10.1"
 pytest = "^8.4.1"
+pytest-asyncio = "^1.2.0"
 python-dotenv = "^1.0.1"
 tavily-python = "^0.7.11"
 timeout-decorator = "^0.5.0"
 typing-extensions = "^4.9.0"
 unidecode = "^1.4.0"
-unique-sdk = "^0.10.23"
-unique-toolkit = "^1.0.0"
+unique-sdk = "^0.10.31"
+unique-toolkit = "^1.14.10"
 
 [package.source]
 type = "directory"

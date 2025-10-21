@@ -10,7 +10,8 @@ from unique_toolkit.agentic.reference_manager.reference_manager import Reference
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.app.schemas import ChatEvent
-from unique_toolkit.language_model.infos import LanguageModelInfo, LanguageModelName
+from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
+from unique_toolkit.language_model.infos import LanguageModelInfo
 from unique_toolkit.language_model.schemas import (
     LanguageModelAssistantMessage,
     LanguageModelFunction,
@@ -61,9 +62,7 @@ class HistoryManagerConfig(BaseModel):
         description="The fraction of the max input tokens that will be reserved for the history.",
     )
 
-    language_model: LMI = LanguageModelInfo.from_name(
-        LanguageModelName.AZURE_GPT_4o_2024_1120
-    )
+    language_model: LMI = LanguageModelInfo.from_name(DEFAULT_GPT_4o)
 
     @property
     def max_history_tokens(self) -> int:
@@ -215,3 +214,25 @@ class HistoryManager:
             remove_from_text=remove_from_text,
         )
         return messages
+
+    async def get_user_visible_chat_history(
+        self,
+        assistant_message_text: str | None = None,
+        remove_from_text: Callable[[str], Awaitable[str]] | None = None,
+    ) -> LanguageModelMessages:
+        """Get the user visible chat history.
+
+        Args:
+            assistant_message_text (str | None): The latest assistant message to append to the history, as this is not extracted from the history.
+            If None, the history will be returned without the latest assistant message.
+            remove_from_text (Callable[[str], Awaitable[str]] | None): A function to remove text from the history before returning it.
+
+        Returns:
+            LanguageModelMessages: The user visible chat history.
+        """
+        history = await self._token_reducer.get_history_from_db(remove_from_text)
+        if assistant_message_text:
+            history.append(
+                LanguageModelAssistantMessage(content=assistant_message_text)
+            )
+        return LanguageModelMessages(history)

@@ -44,11 +44,18 @@ class FollowUpPostprocessor(Postprocessor):
         self._llm_service = llm_service
 
     async def run(self, loop_response: LanguageModelStreamResponse) -> None:
-        # data:LanguageModelMessages = await self._historyManager.get_history_for_model_call()
+        history = await self._historyManager.get_user_visible_chat_history(
+            loop_response.message.text,
+            self.remove_from_text,
+        )
+
+        # TODO: Include history as separate messages and not as part of the user message. This allows to include images again for follow-up questions.
+        self._remove_image_urls_from_history(history)
+
         self._text = await self._get_follow_up_question_suggestion(
             language=self._language,
             language_model_service=self._llm_service,
-            history=[],  # TODO: History must get here!
+            history=history.root,
         )
 
     def apply_postprocessing_to_response(
@@ -68,6 +75,25 @@ class FollowUpPostprocessor(Postprocessor):
             text,
             flags=re.DOTALL,
         )
+
+    def _remove_image_urls_from_history(self, history: LanguageModelMessages) -> None:
+        """
+        Remove image_url content from message history.
+
+        Args:
+            history: The message history to clean
+        """
+        for message in history.root:
+            if message.content:
+                # Check if message.content is a list and remove dictionaries with 'type': 'image_url'
+                if isinstance(message.content, list):
+                    message.content = [
+                        item
+                        for item in message.content
+                        if not (
+                            isinstance(item, dict) and item.get("type") == "image_url"
+                        )
+                    ]
 
     async def _get_follow_up_question_suggestion(
         self,

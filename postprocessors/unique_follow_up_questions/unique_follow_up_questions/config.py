@@ -1,11 +1,11 @@
 from logging import getLogger
 
-from pydantic import BaseModel, Field, field_validator
-from unique_toolkit._common.default_language_model import (
-    DEFAULT_GPT_4o_STRUCTURED_OUTPUT,
-)
+from pydantic import AliasChoices, BaseModel, Field, field_validator
 from unique_toolkit._common.validators import LMI
 from unique_toolkit.agentic.tools.config import get_configuration_dict
+from unique_toolkit.language_model.default_language_model import (
+    DEFAULT_GPT_4o,
+)
 from unique_toolkit.language_model.infos import LanguageModelInfo, ModelCapabilities
 
 from unique_follow_up_questions.prompts.params import (
@@ -22,7 +22,7 @@ logger = getLogger(__name__)
 class FollowUpQuestionsConfig(BaseModel):
     model_config = get_configuration_dict()
     language_model: LMI = Field(
-        default=LanguageModelInfo.from_name(DEFAULT_GPT_4o_STRUCTURED_OUTPUT),
+        default=LanguageModelInfo.from_name(DEFAULT_GPT_4o),
         description="The language model to be used for the follow-up question.",
     )
 
@@ -46,6 +46,11 @@ class FollowUpQuestionsConfig(BaseModel):
         ge=0,
         default=3,
         description="The number of questions to be used for the follow-up question.",
+        validation_alias=AliasChoices(
+            "numberOfQuestions",
+            "number_of_follow_up_questions",
+            "numberOfFollowUpQuestions",
+        ),
     )
     adapt_to_language: bool = Field(
         default=True,

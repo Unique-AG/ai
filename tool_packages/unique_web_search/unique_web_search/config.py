@@ -5,7 +5,6 @@ from pydantic.json_schema import SkipJsonSchema
 from unique_toolkit._common.chunk_relevancy_sorter.config import (
     ChunkRelevancySortConfig,
 )
-from unique_toolkit._common.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit._common.feature_flags.schema import (
     FeatureExtendedSourceSerialization,
 )
@@ -13,6 +12,7 @@ from unique_toolkit._common.validators import LMI, get_LMI_default_field
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
+from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit.language_model.infos import ModelCapabilities
 
 from unique_web_search.prompts import (
@@ -26,13 +26,13 @@ from unique_web_search.services.content_processing.config import (
     ContentProcessorConfig,
 )
 from unique_web_search.services.crawlers import (
-    BasicCrawlerConfig,
-    CrawlerConfigTypes,
+    get_crawler_config_types_from_names,
+    get_default_crawler_config,
 )
 from unique_web_search.services.executors.web_search_v1_executor import RefineQueryMode
 from unique_web_search.services.search_engine import (
-    get_config_types_from_names,
     get_default_search_engine_config,
+    get_search_engine_config_types_from_names,
 )
 from unique_web_search.settings import env_settings
 
@@ -40,10 +40,15 @@ logger = getLogger(__name__)
 
 DEFAULT_MODEL_NAME = DEFAULT_GPT_4o
 
-ActivatedSearchEngine = get_config_types_from_names(env_settings.active_search_engines)
+ActivatedSearchEngine = get_search_engine_config_types_from_names(
+    env_settings.active_search_engines
+)
 DefaultSearchEngine = get_default_search_engine_config(
     env_settings.active_search_engines
 )
+
+ActivatedCrawler = get_crawler_config_types_from_names(env_settings.active_crawlers)
+DefaultCrawler = get_default_crawler_config(env_settings.active_crawlers)
 
 
 class AnswerGenerationConfig(BaseModel):
@@ -165,15 +170,15 @@ class WebSearchConfig(BaseToolConfig):
         description="Language model maximum input tokens",
     )
 
-    search_engine_config: ActivatedSearchEngine = Field(  # type: ignore
-        default_factory=DefaultSearchEngine,  # type: ignore
+    search_engine_config: ActivatedSearchEngine = Field(  # type: ignore (This type is computed at runtime so pyright is not able to infer it)
+        default_factory=DefaultSearchEngine,  # type: ignore (This type is computed at runtime so pyright is not able to infer it)
         description="Search Engine Configuration",
         discriminator="search_engine_name",
         title="Search Engine Configuration",
     )
 
-    crawler_config: CrawlerConfigTypes = Field(
-        default_factory=BasicCrawlerConfig,
+    crawler_config: ActivatedCrawler = Field(  # type: ignore (This type is computed at runtime so pyright is not able to infer it)
+        default_factory=DefaultCrawler,  # type: ignore (This type is computed at runtime so pyright is not able to infer it)
         title="Crawler Configuration",
         description="Crawler configuration.",
         discriminator="crawler_type",

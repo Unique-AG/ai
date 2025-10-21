@@ -24,6 +24,7 @@ from unique_toolkit.chat.schemas import (
 )
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.schemas import ContentChunk, ContentReference
+from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit.language_model.infos import LanguageModelName
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessage,
@@ -900,7 +901,7 @@ class TestChatServiceUnit:
         assert service.assistant_id == "test_assistant"
         assert service.user_message_text == "Hello user"
 
-    @patch("unique_toolkit.chat.service.stream_complete_with_references")
+    @patch("unique_toolkit.services.chat_service.stream_complete_with_references")
     def test_stream_complete_to_chat(self, mock_stream_complete):
         """Test stream_complete method delegates correctly to function"""
         mock_stream_complete.return_value = LanguageModelStreamResponse(
@@ -934,13 +935,14 @@ class TestChatServiceUnit:
             debug_info={},
             temperature=0.0,
             timeout=240000,
+            tool_choice=None,
             tools=None,
             start_text=None,
             other_options=None,
         )
 
     @pytest.mark.asyncio
-    @patch("unique_toolkit.chat.service.stream_complete_with_references_async")
+    @patch("unique_toolkit.services.chat_service.stream_complete_with_references_async")
     async def test_stream_complete_to_chat_async(self, mock_stream_complete_async):
         """Test stream_complete_async method delegates correctly to function"""
         mock_stream_complete_async.return_value = LanguageModelStreamResponse(
@@ -975,6 +977,7 @@ class TestChatServiceUnit:
             temperature=0.0,
             timeout=240000,
             tools=None,
+            tool_choice=None,
             start_text=None,
             other_options=None,
         )
@@ -1150,7 +1153,7 @@ class TestChatServiceUnit:
 
         response = self.service.stream_complete(
             messages=messages,
-            model_name=LanguageModelName.AZURE_GPT_35_TURBO_0125,
+            model_name=DEFAULT_GPT_4o,
             tools=[mock_tool],
         )
 
@@ -1263,7 +1266,7 @@ class TestChatServiceUnit:
 
         response = await self.service.stream_complete_async(
             messages=messages,
-            model_name=LanguageModelName.AZURE_GPT_35_TURBO_0125,
+            model_name=DEFAULT_GPT_4o,
             tools=[mock_tool],
         )
 

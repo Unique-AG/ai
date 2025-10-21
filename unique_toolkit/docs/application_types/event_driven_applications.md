@@ -49,7 +49,7 @@ Once you have an event, you can initialize services directly from it:
 ```{.python #init_services_from_event}
 # Initialize services from event
 chat_service = ChatService(event)
-content_service = ContentService.from_event(event)
+kb_service= KnowledgeBaseService.from_event(event)
 ```
 
 <!--

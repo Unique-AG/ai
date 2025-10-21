@@ -13,8 +13,12 @@ from unique_toolkit.content.constants import DEFAULT_SEARCH_LANGUAGE
 from unique_toolkit.content.schemas import (
     Content,
     ContentChunk,
+    ContentInfo,
     ContentRerankerConfig,
     ContentSearchType,
+    DeleteContentResponse,
+    FolderInfo,
+    PaginatedContentInfos,
 )
 from unique_toolkit.content.utils import map_contents, map_to_content_chunks
 
@@ -429,7 +433,7 @@ def _trigger_upload_content(
             scope_id=scope_id,
         )  # type: ignore
 
-    return Content(**created_content)
+    return Content.model_validate(created_content, by_alias=True, by_name=True)
 
 
 def request_content_by_id(
@@ -577,3 +581,114 @@ def download_content(
         raise Exception(error_msg)
 
     return content_path
+
+
+def get_content_info(
+    user_id: str,
+    company_id: str,
+    *,
+    metadata_filter: dict[str, Any] | None = None,
+    skip: int | None = None,
+    take: int | None = None,
+    file_path: str | None = None,
+):
+    """Gets the info of a content."""
+
+    get_info_params = unique_sdk.Content.ContentInfoParams(
+        metadataFilter=metadata_filter or None,  # Dict cannot be empty
+    )
+    if skip:
+        get_info_params["skip"] = skip
+    if take:
+        get_info_params["take"] = take
+    if file_path:
+        get_info_params["filePath"] = file_path
+
+    content_info = unique_sdk.Content.get_infos(
+        user_id=user_id, company_id=company_id, **get_info_params
+    )
+    return PaginatedContentInfos.model_validate(
+        content_info, by_alias=True, by_name=True
+    )
+
+
+def get_folder_info(user_id: str, company_id: str, *, scope_id: str) -> FolderInfo:
+    info = unique_sdk.Folder.get_info(
+        user_id=user_id, company_id=company_id, scopeId=scope_id
+    )
+
+    return FolderInfo.model_validate(info, by_alias=True, by_name=True)
+
+
+def update_content(
+    user_id: str,
+    company_id: str,
+    *,
+    content_id: str,
+    metadata: dict[str, Any],
+    file_path: str | None = None,
+    owner_id: str | None = None,
+    parent_folder_path: str | None = None,
+    title: str | None = None,
+) -> ContentInfo:
+    """Updates the metadata of a content."""
+
+    update_params = unique_sdk.Content.UpdateParams(
+        contentId=content_id, metadata=metadata
+    )
+
+    if file_path:
+        update_params["filePath"] = file_path
+    if owner_id:
+        update_params["ownerId"] = owner_id
+    if parent_folder_path:
+        update_params["parentFolderPath"] = parent_folder_path
+    if title:
+        update_params["title"] = title
+
+    content_info = unique_sdk.Content.update(
+        user_id=user_id, company_id=company_id, **update_params
+    )
+    return ContentInfo.model_validate(content_info, by_alias=True, by_name=True)
+
+
+def delete_content(
+    user_id: str,
+    company_id: str,
+    *,
+    content_id: str | None = None,
+    file_path: str | None = None,
+) -> DeleteContentResponse:
+    if content_id:
+        resp = unique_sdk.Content.delete(
+            user_id=user_id, company_id=company_id, contentId=content_id
+        )
+    elif file_path:
+        resp = unique_sdk.Content.delete(
+            user_id=user_id, company_id=company_id, filePath=file_path
+        )
+    else:
+        raise ValueError("content_id or file_path must be provided")
+
+    return DeleteContentResponse.model_validate(resp, by_alias=True, by_name=True)
+
+
+async def delete_content_async(
+    user_id: str,
+    company_id: str,
+    *,
+    content_id: str | None = None,
+    file_path: str | None = None,
+) -> DeleteContentResponse:
+    if content_id:
+        resp = await unique_sdk.Content.delete_async(
+            user_id=user_id, company_id=company_id, contentId=content_id
+        )
+    elif file_path:
+        resp = await unique_sdk.Content.delete_async(
+            user_id=user_id, company_id=company_id, filePath=file_path
+        )
+    else:
+        raise ValueError("content_id or file_path must be provided")
+
+    return DeleteContentResponse.model_validate(resp, by_alias=True, by_name=True)

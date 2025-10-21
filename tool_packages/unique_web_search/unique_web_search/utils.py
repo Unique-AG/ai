@@ -122,6 +122,7 @@ class WebSearchDebugInfo(BaseModel):
         if not with_debug_details:
             # Build an exclude structure that applies to all steps
             exclude = {
-                "steps": {i: {"extra"} for i in range(len(self.steps))}
+                "steps": {i: {"extra"} for i in range(len(self.steps))},
+                "web_page_chunks": True,
             } | exclude
         return super().model_dump(exclude=exclude, **kwargs)

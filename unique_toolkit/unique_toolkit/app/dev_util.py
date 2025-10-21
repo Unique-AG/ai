@@ -11,6 +11,7 @@ from typing import (
 
 from sseclient import SSEClient
 
+from unique_toolkit._common.exception import ConfigurationException
 from unique_toolkit.app import BaseEvent, ChatEvent, EventName
 from unique_toolkit.app.init_sdk import init_unique_sdk
 from unique_toolkit.app.unique_settings import UniqueSettings
@@ -79,6 +80,9 @@ def get_event_generator(
 
             yield parsed_event
 
+        except ConfigurationException as e:
+            # Re-raise ConfigurationException from filter_event (configuration errors)
+            raise e
         except Exception as e:
             LOGGER.error(f"Could not parse SSE event data as JSON: {e}")
             continue

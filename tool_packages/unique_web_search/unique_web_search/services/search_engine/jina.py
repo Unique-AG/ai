@@ -16,7 +16,7 @@ from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
 
-logger = logging.getLogger(f"PythonAssistantCoreBundle.{__name__}")
+logger = logging.getLogger(__name__)
 
 
 class JinaSearchOptionalParams(BaseModel):

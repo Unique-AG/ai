@@ -1,7 +1,7 @@
 # default schema follows logic in node-ingestion-worker: https://github.com/Unique-AG/monorepo/blob/76b4923611199a80abf9304639b3aa0538ec41ed/node/apps/node-ingestion-worker/src/ingestors/lib/text-manipulations.ts#L181C17-L181C28
 from pydantic import BaseModel
 
-from unique_toolkit.agentic.tools.config import get_configuration_dict
+from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 
 SOURCE_TEMPLATE = "<source${index}>${document}${info}${text}</source${index}>"
 SECTIONS = {

@@ -1,10 +1,7 @@
 import pytest
 from pydantic import ValidationError
 from schema import FollowUpCategory, FollowUpQuestion
-from unique_toolkit._common.default_language_model import (
-    DEFAULT_GPT_4o_STRUCTURED_OUTPUT,
-)
-from unique_toolkit.language_model import LanguageModelName
+from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
 from unique_follow_up_questions.config import FollowUpQuestionsConfig
@@ -18,7 +15,7 @@ def valid_config():
 
 def test_default_config_values(valid_config):
     """Test that default values are set correctly."""
-    assert valid_config.language_model.name == DEFAULT_GPT_4o_STRUCTURED_OUTPUT
+    assert valid_config.language_model.name == DEFAULT_GPT_4o
     assert valid_config.number_of_questions == 3
     assert valid_config.adapt_to_language is True
     assert isinstance(valid_config.examples, list)
@@ -34,7 +31,7 @@ def test_use_structured_output_property(valid_config):
     # Test with a model that doesn't support structured output
     config_without_structured = FollowUpQuestionsConfig(
         language_model=LanguageModelInfo.from_name(
-            LanguageModelName.AZURE_GPT_35_TURBO_0125
+            DEFAULT_GPT_4o,
         )  # This model doesn't support structured output  # noqa: F821
     )
     assert config_without_structured.use_structured_output is False

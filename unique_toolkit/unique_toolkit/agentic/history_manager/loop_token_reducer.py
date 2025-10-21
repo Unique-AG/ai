@@ -150,7 +150,7 @@ class LoopTokenReducer:
         rendered_system_message_string: str,
         remove_from_text: Callable[[str], Awaitable[str]],
     ) -> list[LanguageModelMessage]:
-        history_from_db = await self._get_history_from_db(remove_from_text)
+        history_from_db = await self.get_history_from_db(remove_from_text)
         history_from_db = self._replace_user_message(
             history_from_db, original_user_message, rendered_user_message_string
         )
@@ -222,8 +222,8 @@ class LoopTokenReducer:
             ]
         return history
 
-    async def _get_history_from_db(
-        self, remove_from_text: Callable[[str], Awaitable[str]]
+    async def get_history_from_db(
+        self, remove_from_text: Callable[[str], Awaitable[str]] | None = None
     ) -> list[LanguageModelMessage]:
         """
         Get the history of the conversation. The function will retrieve a subset of the full history based on the configuration.
@@ -242,10 +242,10 @@ class LoopTokenReducer:
                 else FileContentSerialization.FILE_NAME
             ),
         )
-
-        full_history.root = await self._clean_messages(
-            full_history.root, remove_from_text
-        )
+        if remove_from_text is not None:
+            full_history.root = await self._clean_messages(
+                full_history.root, remove_from_text
+            )
 
         limited_history_messages = self._limit_to_token_window(
             full_history.root, self._max_history_tokens
@@ -266,7 +266,9 @@ class LoopTokenReducer:
         selected_messages = []
         token_count = 0
         for msg in messages[::-1]:
-            msg_token_count = self._count_tokens(str(msg.content))
+            msg_token_count = self._count_message_tokens(
+                LanguageModelMessages(root=[msg])
+            )
             if token_count + msg_token_count > token_limit:
                 break
             selected_messages.append(msg)
@@ -292,9 +294,6 @@ class LoopTokenReducer:
                     f"Skipping message with unsupported content type: {type(message.content)}"
                 )
         return messages
-
-    def _count_tokens(self, text: str) -> int:
-        return len(self._encoder.encode(text))
 
     def ensure_last_message_is_user_message(self, limited_history_messages):
         """

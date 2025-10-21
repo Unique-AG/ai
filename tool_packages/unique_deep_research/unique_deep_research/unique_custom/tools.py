@@ -10,24 +10,28 @@ import timeout_decorator
 from bs4 import BeautifulSoup
 from fake_useragent import UserAgent
 from httpx import AsyncClient
+from langchain_core.messages import ToolCall
 from langchain_core.runnables import RunnableConfig
-from langchain_core.tools import tool
+from langchain_core.tools import Tool, tool
 from markdownify import markdownify
 from pydantic import BaseModel, Field
-from unique_toolkit.agentic.history_manager.utils import transform_chunks_to_string
 from unique_toolkit.chat.schemas import (
     MessageLogDetails,
     MessageLogEvent,
     MessageLogUncitedReferences,
 )
 from unique_toolkit.content import ContentReference
-from unique_toolkit.content.schemas import ContentSearchType
+from unique_toolkit.content.schemas import ContentChunk, ContentSearchType
 from unique_web_search.client_settings import get_google_search_settings
 from unique_web_search.services.search_engine.google import GoogleConfig, GoogleSearch
 
-from .utils import get_content_service_from_config, write_tool_message_log
+from .utils import (
+    get_citation_manager,
+    get_content_service_from_config,
+    write_tool_message_log,
+)
 
-logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 
 def get_today_str() -> str:
@@ -40,15 +44,16 @@ class ConductResearchArgs(BaseModel):
     """Arguments for delegating research to a specialized research agent."""
 
     research_topic: str = Field(
-        description="The specific research topic or question to investigate"
+        description="The specific research instructions for the research agent to investigate"
     )
 
 
 class ResearchCompleteArgs(BaseModel):
-    """Arguments for signaling that research is complete."""
+    """Arguments for signaling that research is complete and providing the final analysis."""
 
-    summary: str = Field(description="Final summary of research findings")
-    sources: List[str] = Field(default_factory=list, description="List of sources used")
+    final_report: str = Field(
+        description="The comprehensive final research report in markdown format, answering the user's research brief with all findings synthesized"
+    )
 
 
 class WebSearchArgs(BaseModel):
@@ -107,7 +112,7 @@ class ThinkArgs(BaseModel):
         description="Detailed reflection on research progress, findings, gaps, and next steps"
     )
     short_progress_update: str = Field(
-        description="A 1-2 sentence highlevel summary of new findings, and next steps to be displayed to the user that initiated the research so they can understand the progress of the research"
+        description="The progress update and findings of the research"
     )
 
 
@@ -126,21 +131,23 @@ def conduct_research(research_topic: str) -> str:
 
 
 @tool(args_schema=ResearchCompleteArgs)
-def research_complete(summary: str, sources: List[str] = []) -> str:
+def research_complete(final_report: str) -> str:
     """
-    Signal that research is complete and provide a comprehensive summary.
+    Signal that research is complete and provide the comprehensive final report / analysis.
 
-    Use this tool when you have gathered sufficient information to answer
-    the research question comprehensively.
+    Use this tool when you have gathered sufficient information to answer the research brief.
+    The final_report should synthesize all research findings
     """
-    content = f"Research completed with summary: {summary}"
-    if sources:
-        content += f"\nSources: {', '.join(sources)}"
-    return content
+    return final_report
+
+
+def research_complete_tool_called(tool_calls: list[ToolCall]) -> bool:
+    """Check if the research complete tool was called."""
+    return any(tc.get("name") == "research_complete" for tc in tool_calls)
 
 
 @tool(args_schema=WebSearchArgs)
-async def web_search(query: str, config: RunnableConfig, limit: int = 10) -> str:
+async def web_search(query: str, config: RunnableConfig, limit: int = 50) -> str:
     """
     Search the web for comprehensive, accurate, and trusted results.
 
@@ -148,15 +155,10 @@ async def web_search(query: str, config: RunnableConfig, limit: int = 10) -> str
     from across the internet. Only returns snippets of the results.
     Should be followed up by web_fetch to get the complete content of the results.
     """
-    write_tool_message_log(
-        config,
-        "Searching the web",
-        details=MessageLogDetails(data=[MessageLogEvent(type="WebSearch", text=query)]),
-    )
     google_settings = get_google_search_settings()
 
     if not google_settings.is_configured:
-        logger.error("Google Search not configured")
+        _LOGGER.error("Google Search not configured")
         raise ValueError("Google Search not configured")
 
     # Create Google search configuration and service
@@ -165,17 +167,49 @@ async def web_search(query: str, config: RunnableConfig, limit: int = 10) -> str
 
     # Perform the search
     search_results = await google_search.search(query)
+    write_tool_message_log(
+        config,
+        f"**Searching the web for query: {query}**",
+        details=MessageLogDetails(data=[MessageLogEvent(type="WebSearch", text=query)]),
+        uncited_references=MessageLogUncitedReferences(
+            data=[
+                ContentReference(
+                    name=result.title,
+                    sequence_number=idx,
+                    source="web",
+                    source_id=result.url,
+                    url=result.url,
+                )
+                for idx, result in enumerate(search_results)
+            ]
+        ),
+    )
 
     if not search_results:
-        logger.warning("No search results found for query")
+        _LOGGER.warning("No search results found for query")
         return f"No search results found for query: '{query}'"
 
-    # Format results for LangGraph
+    # Register all search result sources and format with citation info
+    citation_manager = get_citation_manager(config)
     formatted_results = []
-    for i, result in enumerate(search_results[:limit], 1):
-        formatted_results.append(
-            f"{i}. {result.title}\n   URL: {result.url}\n   Snippet: {result.snippet}\n"
+
+    for result in search_results:
+        # Register this search result as a source
+        citation = await citation_manager.register_source(
+            source_id=result.url,
+            source_type="web",
+            name=result.title,
+            url=result.url,
         )
+
+        # Format result with citation number
+        formatted_results.append(
+            f"{result.title}\n"
+            f"URL: {result.url}\n"
+            f"Citations: <sup>{citation.number}</sup>\n"
+            f"content: {result.snippet}\n"
+        )
+
     return f"Web search results for '{query}':\n\n" + "\n".join(formatted_results)
 
 
@@ -190,28 +224,34 @@ async def web_fetch(
     that were found through search or are known to contain relevant content.
     """
 
-    content, title = await crawl_url(AsyncClient(), url)
+    content, title, success = await crawl_url(AsyncClient(), url)
 
     # Crawl the URL
-    if not content:
-        logger.info(f"Unable to fetch content from: {url}")
+    if not success:
+        _LOGGER.info(f"Unable to fetch content from: {url}")
         return f"Unable to fetch content from URL: {url}"
 
-    write_tool_message_log(
-        config,
-        "Reading website",
-        uncited_references=MessageLogUncitedReferences(
-            data=[
-                ContentReference(
-                    name=title or url,
-                    url=url,
-                    sequence_number=0,
-                    source="deep-research-citations",
-                    source_id=url,
-                )
-            ]
-        ),
+    # Register citation and get metadata
+    citation_manager = get_citation_manager(config)
+    citation = await citation_manager.register_source(
+        source_id=url, source_type="web", name=title or url, url=url
     )
+    if title:
+        write_tool_message_log(
+            config,
+            "**Reading website**",
+            uncited_references=MessageLogUncitedReferences(
+                data=[
+                    ContentReference(
+                        name=title,
+                        url=url,
+                        sequence_number=0,
+                        source="web",
+                        source_id=url,
+                    )
+                ]
+            ),
+        )
 
     # Apply offset and character limit
     original_content_length = len(content)
@@ -222,7 +262,7 @@ async def web_fetch(
         tail_start = max(0, original_content_length - character_limit)
         tail_content = content[tail_start:]
         tail_content = f"[Showing tail of content from position {tail_start:,}]\n\n{tail_content}\n\n<END_OF_CONTENT>"
-        return f"Content from {url}:\n\n{tail_content}"
+        return f"Content from {url} with citation <sup>{citation.number}</sup>:\n\n{tail_content}"
 
     # Apply normal offset
     if offset > 0:
@@ -241,7 +281,31 @@ async def web_fetch(
         # We're showing all available content (either from offset or from start)
         content = content + "\n\n<END_OF_CONTENT>"
 
-    return f"Content from {url}:\n\n{content}"
+    return (
+        f"Content from {url} with citation <sup>{citation.number}</sup>:\n\n{content}"
+    )
+
+
+def _get_internal_data_title(result: ContentChunk) -> str:
+    """Get the title of the internal data."""
+    return (
+        f"{result.key} : {result.start_page},{result.end_page}"
+        if result.key
+        else result.title or result.id
+    )
+
+
+def _get_internal_data_citation(
+    result: ContentChunk, sequence_number: int
+) -> ContentReference:
+    """Get the citation of the internal data."""
+    return ContentReference(
+        name=_get_internal_data_title(result),
+        url=result.url or f"unique://content/{result.id}",
+        sequence_number=sequence_number,
+        source="node-ingestion-chunks",
+        source_id=f"{result.id}_{result.chunk_id}",
+    )
 
 
 @tool(args_schema=InternalSearchArgs)
@@ -257,13 +321,6 @@ async def internal_search(query: str, config: RunnableConfig, limit: int = 50) -
     - Employee Directory and Contact Information: Utilize the internal search to locate contact details or organizational charts to facilitate communication and collaboration within the company.
     - Confidential and Proprietary Information: When dealing with sensitive topics that require proprietary knowledge or confidential data, use the internal search to ensure the information is sourced from secure and authorized company documents.
     """
-    write_tool_message_log(
-        config,
-        "Searching the internal knowledge base",
-        details=MessageLogDetails(
-            data=[MessageLogEvent(type="InternalSearch", text=query)]
-        ),
-    )
     content_service = get_content_service_from_config(config)
 
     # Use ContentService to search internal content
@@ -273,13 +330,41 @@ async def internal_search(query: str, config: RunnableConfig, limit: int = 50) -
         limit=limit,
         score_threshold=0,
     )
-    logger.info(f"Found {len(search_results)} internal results")
+    _LOGGER.info(f"Found {len(search_results)} internal results")
     if not search_results:
-        logger.info("No internal results found")
+        _LOGGER.info("No internal results found")
         return f"No internal search results found for query: '{query}'"
 
-    formatted_results, _ = transform_chunks_to_string(search_results, limit, None, True)
-    return formatted_results
+    # Register all search result sources
+    citation_manager = get_citation_manager(config)
+
+    formatted_results = ""
+    content_references = []
+    for idx, result in enumerate(search_results):
+        content_reference = _get_internal_data_citation(result, idx)
+        content_references.append(content_reference)
+        citation = await citation_manager.register_source_from_content_reference(
+            content_reference
+        )
+        formatted_results += f"{citation.name}\n"
+        formatted_results += f"Content ID: {result.id}\n"
+        formatted_results += f"Citations: <sup>{citation.number}</sup>\n"
+        formatted_results += f"Content: {result.text}\n\n"
+    write_tool_message_log(
+        config,
+        "**Searching the internal knowledge base**",
+        details=MessageLogDetails(
+            data=[MessageLogEvent(type="InternalSearch", text=query)]
+        ),
+        uncited_references=MessageLogUncitedReferences(data=content_references),
+    )
+
+    return (
+        f"Internal search results for '{query}':\n\n"
+        + formatted_results
+        + "\n\nNote: Each result has been registered with a citation number. "
+        "Use internal_fetch with the Content ID to get full content, or cite directly using the citation numbers shown."
+    )
 
 
 @tool(args_schema=InternalFetchArgs)
@@ -292,7 +377,7 @@ async def internal_fetch(
 
     This tool supports the internal search tool to get the full content of a specific internal document or knowledge base entry discovered by the internal search tool
     """
-    logger.info("Reading internal knowledge base document")
+    _LOGGER.info("**Reading internal document**")
     content_service = get_content_service_from_config(config)
 
     temp_metadata_filter = content_service._metadata_filter
@@ -307,8 +392,11 @@ async def internal_fetch(
     content_service._metadata_filter = temp_metadata_filter
 
     if not search_results:
-        logger.info("No internal results found")
+        _LOGGER.info("No internal results found")
         return f"No internal fetch results found for content ID: '{content_id}'"
+
+    # Register citation and get metadata
+    citation_manager = get_citation_manager(config)
 
     # Apply offset and limit to results
     total_results = len(search_results)
@@ -320,9 +408,20 @@ async def internal_fetch(
     is_at_end = offset + len(paginated_results) >= total_results
 
     if len(paginated_results) == 0 and offset >= total_results:
-        return f"No more results for content ID: '{content_id}'\n\n<END_OF_CONTENT>\n\nNote: Offset {offset} is at or beyond total results ({total_results:,})"
+        return f"No more results for content ID: {content_id}\n\n<END_OF_CONTENT>\n\nNote: Offset {offset} is at or beyond total results ({total_results:,})"
 
-    formatted_results, _ = transform_chunks_to_string(paginated_results, 0, None, True)
+    formatted_results = f"Content ID: {content_id}\n"
+    content_references = []
+    for result in paginated_results:
+        content_reference = _get_internal_data_citation(result, 0)
+        content_references.append(content_reference)
+        citation = await citation_manager.register_source_from_content_reference(
+            content_reference
+        )
+        formatted_results += f"{citation.name}\n"
+        formatted_results += f"Content ID: {result.id}\n"
+        formatted_results += f"Citations: <sup>{citation.number}</sup>\n"
+        formatted_results += f"Content: {result.text}\n\n"
 
     if is_at_end:
         formatted_results += "\n\n<END_OF_CONTENT>"
@@ -330,20 +429,11 @@ async def internal_fetch(
         remaining_results = total_results - (offset + len(paginated_results))
         if remaining_results > 0:
             formatted_results += f"\n\n[{remaining_results:,} more results available - use offset {offset + len(paginated_results)} to continue]"
+
     write_tool_message_log(
         config,
-        "Reading internal knowledge base document",
-        uncited_references=MessageLogUncitedReferences(
-            data=[
-                ContentReference(
-                    name=search_results[0].title or content_id,
-                    url=search_results[0].url or "",
-                    sequence_number=0,
-                    source="deep-research-citations",
-                    source_id=search_results[0].id,
-                )
-            ]
-        ),
+        "**Reading internal knowledge base document**",
+        uncited_references=MessageLogUncitedReferences(data=content_references),
     )
     return formatted_results
 
@@ -370,24 +460,44 @@ def think_tool(
     3. Quality evaluation - Do I have sufficient evidence/examples for a good answer?
     4. Strategic decision - Should I continue searching or provide my answer?
 
+    The short_progress_update is for the user to understand the progress of the research and should be a 1-2 sentence highlevel summary of new findings,
+    and next steps to be displayed to the user that initiated the research so they can understand the progress of the research.
+    Make sure it's valid markdown with a **bold** header and a short paragraph of text. Don't mention the deployment of the research tool in the short_progress_update.
+    make it about what will be done. Keep it short and concise. Also don't directly reference technical stuff such as delegating to a research agent.
+
+    Important reminder: Make sure to bold the header of the short_progress_update!
+
+    Example:
+
+    **Analyzing recent developments in crypto**
+    I'm noticing that tokenized US Treasuries on public chains have surged in 2024-2025, surpassing $1B and later $2B, according to sources like 21.co and RWA trackers.
+    There's also the launch of spot Bitcoin ETFs in the US in January 2024, marking a significant step in institutional adoption.
+
     Args:
         reflection: Your detailed reflection on research progress, findings, gaps, and next steps
-        short_progress_update: A 1-2 sentence highlevel summary of new findings, and next steps to be displayed to the user that initiated the research so they can understand the progress of the research
+        short_progress_update: The progress update and findings of the research. Valid markdown with a **bold** header and a short paragraph of text!
     Returns:
         Confirmation that reflection has been recorded
     """
-    if config.get("metadata", {}).get("langgraph_node", "") == "supervisor_tools":
-        write_tool_message_log(
-            config,
-            short_progress_update,
-        )
+    write_tool_message_log(
+        config,
+        short_progress_update,
+    )
     return f"Reflection recorded: {reflection}"
 
 
 # Helper function to get all available tools
-def get_research_tools() -> List[Any]:
+def get_research_tools(config: RunnableConfig) -> List[Any]:
     """Get all research tools available to individual researchers."""
-    return [web_search, web_fetch, internal_search, internal_fetch, think_tool]
+    tools = [
+        think_tool,
+        research_complete,
+    ]
+    # TODO: set tools that are enabled from the configuration
+    tools.extend([web_search, web_fetch])
+    tools.extend([internal_search, internal_fetch])
+
+    return tools
 
 
 def get_supervisor_tools() -> List[Any]:
@@ -408,29 +518,39 @@ unwanted_types = {
 }
 
 
-async def crawl_url(client: AsyncClient, url: str) -> tuple[str, str | None]:
+async def crawl_url(client: AsyncClient, url: str) -> tuple[str, str | None, bool]:
+    """Crawl a URL and return the content and title.
+
+    Args:
+        client (AsyncClient): The HTTP client to use to crawl the URL
+        url (str): The URL to crawl
+
+    Returns:
+        tuple[str, str | None, bool]: The content and title of the URL and if the URL was crawled successfully
+    """
     headers = {"User-Agent": UserAgent().random}
 
     try:
         response = await client.get(url, headers=headers)
         response.raise_for_status()
-    except Exception:
-        logger.warning(f"Site returned error {response.status_code}")
-        return "Unable to crawl URL", None
+    except Exception as e:
+        _LOGGER.warning(f"Failed to crawl URL: {str(e)}")
+        return "Unable to crawl URL in web_fetch", None, False
 
     content_type = response.headers.get("content-type", "").lower().split(";")[0]
 
     if content_type in unwanted_types:
-        return f"Content type {content_type} is not allowed", None
+        _LOGGER.info(f"Content type {content_type} is not allowed in web_fetch")
+        return f"Content type {content_type} is not allowed", None, False
 
     content = response.text
 
-    markdown = _markdownify_html_with_timeout(content, 10)
+    markdown, success = _markdownify_html_with_timeout(content, 10)
 
-    return markdown, get_title(content)
+    return markdown, get_title(content), success
 
 
-def _markdownify_html_with_timeout(content: str, timeout: float) -> str:
+def _markdownify_html_with_timeout(content: str, timeout: float) -> tuple[str, bool]:
     @timeout_decorator.timeout(timeout)
     def _markdownify_html(content: str) -> str:
         markdown = markdownify(
@@ -440,12 +560,103 @@ def _markdownify_html_with_timeout(content: str, timeout: float) -> str:
         return markdown
 
     try:
-        return _markdownify_html(content)
+        return _markdownify_html(content), True
     except Exception:
-        return "Unable to markdownify HTML"
+        _LOGGER.info("Unable to markdownify HTML")
+        return "Unable to markdownify HTML", False
 
 
 def get_title(text: str) -> str | None:
+    """
+    Extract website title using BeautifulSoup.
+
+    Tries multiple strategies in order:
+    1. og:title (OpenGraph title - most reliable)
+    2. twitter:title (Twitter card title)
+    3. HTML <title> tag (standard)
+    4. meta[name=title] (alternative meta tag)
+    5. og:site_name (site name as last resort)
+    """
     soup = BeautifulSoup(text, "html.parser")
-    title_tag = soup.title
-    return title_tag.string.strip() if title_tag and title_tag.string else None
+
+    # Strategy 1: OpenGraph title (og:title)
+    og_title = soup.find("meta", property="og:title")
+    if og_title and og_title.get("content"):
+        content = og_title.get("content")
+        if isinstance(content, str) and content.strip():
+            return content.strip()
+
+    # Strategy 2: Twitter title (twitter:title)
+    twitter_title = soup.find("meta", attrs={"name": "twitter:title"})
+    if twitter_title and twitter_title.get("content"):
+        content = twitter_title.get("content")
+        if isinstance(content, str) and content.strip():
+            return content.strip()
+
+    # Strategy 3: HTML title tag (get all text, not just .string)
+    title_tag = soup.find("title")
+    if title_tag:
+        # Use get_text() instead of .string to handle nested elements
+        title_text = title_tag.get_text(strip=True)
+        if title_text:
+            return title_text
+
+    # Strategy 4: Check for property="title" meta tag
+    meta_title = soup.find("meta", attrs={"name": "title"})
+    if meta_title and meta_title.get("content"):
+        content = meta_title.get("content")
+        if isinstance(content, str) and content.strip():
+            return content.strip()
+
+    # Strategy 5: OpenGraph site name as last resort (better than nothing)
+    og_site_name = soup.find("meta", property="og:site_name")
+    if og_site_name and og_site_name.get("content"):
+        content = og_site_name.get("content")
+        if isinstance(content, str) and content.strip():
+            return content.strip()
+
+    _LOGGER.info("No title found using any strategy")
+    return None
+
+
+def format_tools_for_prompt(tools: list[Tool]) -> str:
+    """
+    Extract complete tool information for prompt injection.
+
+    Returns formatted markdown string with:
+    - Tool name
+    - Full description
+    - Parameter details with types and descriptions
+
+    Args:
+        tools: List of LangChain tool objects
+
+    Returns:
+        Formatted string ready for template injection
+    """
+    lines = []
+
+    for tool_obj in tools:
+        # Tool name (bold)
+        lines.append(f"**{tool_obj.name}**")
+
+        # Full description (preserve multi-line formatting)
+        lines.append(tool_obj.description)
+
+        # Extract parameter details using built-in .args property
+        properties = tool_obj.args
+
+        if properties:
+            lines.append("Parameters:")
+            for param_name, param_info in properties.items():
+                param_type = param_info.get("type", "any")
+                param_desc = param_info.get("description", "")
+
+                if param_desc:
+                    lines.append(f"  - `{param_name}` ({param_type}): {param_desc}")
+                else:
+                    lines.append(f"  - `{param_name}` ({param_type})")
+
+        lines.append("")  # Blank line between tools
+
+    return "\n".join(lines)

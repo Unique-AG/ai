@@ -58,7 +58,7 @@ Code:
         self._reference_manager.extract_referenceable_chunks(
               tool_call_responses
         )
-        self._debug_info_manager.extract_tool_debug_info(tool_call_responses)
+        self._debug_info_manager.extract_tool_debug_info(tool_call_responses, self.current_iteration_index)
         self._history_manager.add_tool_call_results(tool_call_responses)
 
         return self._tool_manager.does_a_tool_take_control(tool_calls)

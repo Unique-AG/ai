@@ -12,6 +12,10 @@ class ToolFactory:
     tool_config_map: dict[str, Callable] = {}
 
     @classmethod
+    def register_tool_config(cls, tool_name: str, tool_config: type[BaseToolConfig]):
+        cls.tool_config_map[tool_name] = tool_config
+
+    @classmethod
     def register_tool(
         cls,
         tool: type[Tool],

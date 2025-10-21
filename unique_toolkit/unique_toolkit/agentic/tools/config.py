@@ -1,9 +1,10 @@
 import json
 from enum import StrEnum
-from typing import Any, Dict
+from typing import Annotated, Any, Dict
 
 from pydantic import (
     BaseModel,
+    BeforeValidator,
     Field,
     ValidationInfo,
     model_validator,
@@ -33,6 +34,16 @@ class ToolSelectionPolicy(StrEnum):
     BY_USER = "ByUser"
 
 
+def handle_undefined_icon(value: Any) -> ToolIcon:
+    try:
+        if isinstance(value, str):
+            return ToolIcon(value)
+        else:
+            return ToolIcon.BOOK
+    except ValueError:
+        return ToolIcon.BOOK
+
+
 class ToolBuildConfig(BaseModel):
     model_config = get_configuration_dict()
     """Main tool configuration"""
@@ -40,7 +51,10 @@ class ToolBuildConfig(BaseModel):
     name: str
     configuration: BaseToolConfig
     display_name: str = ""
-    icon: ToolIcon = ToolIcon.BOOK
+    icon: Annotated[ToolIcon, BeforeValidator(handle_undefined_icon)] = Field(
+        default=ToolIcon.BOOK,
+        description="The icon name that will be used to display the tool in the user interface.",
+    )
     selection_policy: ToolSelectionPolicy = Field(
         default=ToolSelectionPolicy.BY_USER,
     )
@@ -85,9 +99,9 @@ class ToolBuildConfig(BaseModel):
         configuration = value.get("configuration", {})
 
         if is_sub_agent_tool:
-            from unique_toolkit.agentic.tools.a2a.config import SubAgentToolConfig
+            from unique_toolkit.agentic.tools.a2a import ExtendedSubAgentToolConfig
 
-            config = SubAgentToolConfig.model_validate(configuration)
+            config = ExtendedSubAgentToolConfig.model_validate(configuration)
         elif isinstance(configuration, dict):
             # Local import to avoid circular import at module import time
             from unique_toolkit.agentic.tools.factory import ToolFactory

@@ -156,9 +156,11 @@ class InternalSearchService:
         and that the search service is hardcoded to use the metadata_filter 
         from the event if set to None
         """
+        # Take a backup of the metadata filter
+        metadata_filter_copy = self.content_service._metadata_filter
+
         if metadata_filter is None:
             metadata_filter = self.content_service._metadata_filter
-            metadata_filter_copy = self.content_service._metadata_filter
         if chat_only and metadata_filter:
             # if this is not set to none search_content_chunks_async will overwrite it inside its call thats why it needs to stay.
             self.content_service._metadata_filter = None

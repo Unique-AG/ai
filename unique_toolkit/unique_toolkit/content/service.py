@@ -1,6 +1,4 @@
 import logging
-import mimetypes
-from enum import StrEnum
 from pathlib import Path
 from typing import Any, overload
 
@@ -8,6 +6,7 @@ import unique_sdk
 from requests import Response
 from typing_extensions import deprecated
 
+from unique_toolkit._common.utils.files import is_file_content, is_image_content
 from unique_toolkit._common.validate_required_values import validate_required_values
 from unique_toolkit.app.schemas import BaseEvent, ChatEvent, Event
 from unique_toolkit.app.unique_settings import UniqueSettings
@@ -35,29 +34,7 @@ from unique_toolkit.content.schemas import (
 logger = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
 
 
-class FileMimeType(StrEnum):
-    PDF = "application/pdf"
-    DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    DOC = "application/msword"
-    XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    XLS = "application/vnd.ms-excel"
-    PPTX = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-    CSV = "text/csv"
-    HTML = "text/html"
-    MD = "text/markdown"
-    TXT = "text/plain"
-
-
-class ImageMimeType(StrEnum):
-    JPEG = "image/jpeg"
-    PNG = "image/png"
-    GIF = "image/gif"
-    BMP = "image/bmp"
-    WEBP = "image/webp"
-    TIFF = "image/tiff"
-    SVG = "image/svg+xml"
-
-
+@deprecated("Use KnowledgeBaseService instead")
 class ContentService:
     """
     Provides methods for searching, downloading and uploading content in the knowledge base.
@@ -337,6 +314,7 @@ class ContentService:
             logger.error(f"Error while searching content chunks: {e}")
             raise e
 
+    @deprecated("Use search_chunks_async instead")
     async def search_content_chunks_async(
         self,
         search_string: str,
@@ -694,17 +672,7 @@ class ContentService:
         return content
 
     def is_file_content(self, filename: str) -> bool:
-        mimetype, _ = mimetypes.guess_type(filename)
-
-        if not mimetype:
-            return False
-
-        return mimetype in FileMimeType.__members__.values()
+        return is_file_content(filename=filename)
 
     def is_image_content(self, filename: str) -> bool:
-        mimetype, _ = mimetypes.guess_type(filename)
-
-        if not mimetype:
-            return False
-
-        return mimetype in ImageMimeType.__members__.values()
+        return is_image_content(filename=filename)

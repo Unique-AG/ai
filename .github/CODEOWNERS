@@ -3,4 +3,14 @@
 # All changes must be approved by internal reviewers before being merged to main branch.
 #
 
+# Documentation - owned by klcd
+docs/ @klcd
+unique_toolkit/docs/ @klcd
+unique_toolkit/mkdocs.yaml @klcd
+unique_toolkit/docs.subproject.mkdocs.yaml @klcd
+mkdocs.yaml @klcd
+
+# All other changes require data science team review
+unique_sdk/ @Unique-AG/data-science @Unique-AG/Data-Flow
+tutorials/ @Unique-AG/data-science @Unique-AG/Data-Flow
 * @Unique-AG/data-science

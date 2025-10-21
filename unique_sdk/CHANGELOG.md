@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.32] - 2025-10-14
+- Add function to stream to chat frontend.
+
+## [0.10.31] - 2025-10-13
+- Add readme for message log and execution.
+
+## [0.10.30] - 2025-10-07
+- Improve types for content get infos.
+
+## [0.10.29] - 2025-10-06
+- Switch default model used from `GPT-3.5-turbo (0125)` to `GPT-4o (1120)`
+
+## [0.10.28] - 2025-10-03
+- Use non blocking versions of `Space.get_latest_message` and `Message.retrieve` in `send_message_and_wait_for_completion`.
+
 ## [0.10.27] - 2025-09-24
 - Improve readme to use Unique AI.
 

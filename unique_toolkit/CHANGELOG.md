@@ -5,6 +5,131 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.16.5] - 2025-10-16
+- Adding litellm models `litellm:anthropic-claude-haiku-4-5`
+
+## [1.16.4] - 2025-10-18
+- Fix bug with MCP tool parameters schema
+
+## [1.16.3] - 2025-10-18
+- Add logging of MCP tool schema and constructed parameters
+
+## [1.16.2] - 2025-10-16
+- Reduce operation dependency on path instead of full url
+
+## [1.16.1] - 2025-10-16
+- Update debug info for better tool call tracking
+
+## [1.16.0] - 2025-10-16
+- Add responses api support.
+- Add utilities for code execution.
+
+## [1.15.0] - 2025-10-15
+- Enable to distinguish between environment and modifiable payload parameters in human verification
+
+## [1.14.11] - 2025-10-13
+- Introduce testing guidelines for AI
+- Add AI tests to `tool_config` and `tool_factory.py`
+
+## [1.14.10] - 2025-10-13
+- Fix token counter if images in history
+
+## [1.14.9] - 2025-10-13
+- Fix removal of metadata
+
+## [1.14.8] - 2025-10-13
+- Use default tool icon on validation error
+
+## [1.14.7] - 2025-10-13
+- Update of token_limit parameters for Claude models
+
+## [1.14.6] - 2025-10-10
+- Fix circular import appearing in orchestrator
+
+## [1.14.5] - 2025-10-09
+- Move `DEFAULT_GPT_4o` constant from `_common/default_language_model.py` to `language_model/constants.py` and deprecate old import path
+
+## [1.14.4] - 2025-10-09
+- Small fixes when deleting content
+- Fixes in documentation
+
+## [1.14.3] - 2025-10-08
+- Reorganizes documentation 
+- All service interface towards a single folder
+- Add main imports to __init__
+
+## [1.14.2] - 2025-10-08
+- Add utilities for testing and fix external import issue
+
+## [1.14.1] - 2025-10-08
+- Add utilities for testing
+
+## [1.14.0] - 2025-10-07
+- Manipulate Metadata with knowledge base service
+
+## [1.13.0] - 2025-10-07
+- Delete contents with knowledge base service
+
+## [1.12.1] - 2025-10-07
+- Fix bug where failed evaluations did not show an error to the user.
+
+## [1.12.0] - 2026-10-07
+- Add the `OpenAIUserMessageBuilder` for complex user messages with images
+- More examples with documents/images on the chat
+
+## [1.11.4] - 2026-10-07
+- Make newer `MessageExecution` and `MessageLog` method keyword only
+
+## [1.11.3] - 2026-10-07
+- Move smart rules to content
+- Add to documentation
+
+## [1.11.2] - 2025-10-07
+- Fix for empty metadata filter at info retrieval
+
+## [1.11.1] - 2025-10-07
+- Fix bug where hallucination check was taking all of the chunks as input instead of only the referenced ones.
+
+## [1.11.0] - 2025-10-07
+- Add sub-agent response referencing.
+
+## [1.10.0] - 2025-10-07
+- Introduce future proof knowledgebase service decoupled from chat
+- Extend chat service to download contents in the chat
+- Update documentation
+
+## [1.9.1] - 2025-10-06
+- Switch default model used in evaluation service from `GPT-3.5-turbo (0125)` to `GPT-4o (1120)`
+
+
+## [1.9.0] - 2026-10-04
+- Define the RequestContext and add aihttp/httpx requestors
+
+## [1.8.1] - 2026-10-03
+- Fix bug where sub agent evaluation config variable `include_evaluation` did not include aliases for previous names.
+
+## [1.8.0] - 2026-10-03
+- Sub Agents now block when executing the same sub-agent multiple times with `reuse_chat` set to `True`.
+- Sub Agents tool, evaluation and post-processing refactored and tests added.
+
+## [1.7.0] - 2025-10-01
+- Add functionality to remove text in `get_user_visible_chat_history`
+
+## [1.6.0] - 2025-10-01
+- revert and simplify 1.5.0 
+
+## [1.5.1] - 2025-10-01
+- Fix filtering logic to raise a ConfigurationException if chat event filters are not specified
+
+## [1.5.0] - 2025-10-01
+- Allow history manager to fetch only ui visible text
+
+## [1.4.4] - 2025-09-30
+- Fix bugs with display of sub-agent answers and evaluations when multiple sub-agent from the same assistant run concurrently.
+
+## [1.4.3] - 2025-09-30
+- Fix bug with sub-agent post-processing reference numbers.
+
 ## [1.4.2] - 2025-09-30
 - Adding litellm models `litellm:anthropic-claude-sonnet-4-5` and `litellm:anthropic-claude-opus-4-1`
 

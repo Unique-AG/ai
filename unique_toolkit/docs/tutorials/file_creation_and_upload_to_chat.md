@@ -35,11 +35,11 @@ content_bytes = b"Hello, world!"
 Use the content service to upload the bytes with proper metadata. The `skip_ingestion=True` parameter prevents automatic content processing, which is useful for simple file sharing:
 
 ```{.python #upload_with_reference_upload_document}
-uploaded_content = content_service.upload_content_from_bytes(
+uploaded_content = kb_service.upload_content_from_bytes(
         content=content_bytes,
         content_name="document.txt",
         mime_type="text/plain",
-        chat_id=event.payload.chat_id,
+        scope_id=scope_id,
         skip_ingestion=True,
     )
 ```
@@ -77,10 +77,12 @@ chat_service.free_user_input()
 
 
 <!--
-```{.python file=docs/.python_files/upload_to_chat.py}
+```{.python file=docs/.python_files/chat_upload_to_chat.py}
 <<full_sse_setup>>
     settings.update_from_event(event)
     <<init_services_from_event>>
+    <<load_demo_variables>>
+    <<env_scope_id>>
     <<upload_with_reference_initial_message>>
     <<upload_with_reference_document_creation>>
     <<upload_with_reference_upload_document>>
@@ -93,7 +95,7 @@ chat_service.free_user_input()
 ??? example "Full Examples (Click to expand)"
     
     <!--codeinclude-->
-    [File Upload to Chat with Reference](../examples_from_docs/upload_to_chat.py)
+    [File Upload to Chat with Reference](../examples_from_docs/chat_upload_to_chat.py)
     <!--/codeinclude-->
 
 

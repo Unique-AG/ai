@@ -11,7 +11,7 @@ from unique_web_search.services.crawlers.base import (
     CrawlerType,
 )
 
-logger = logging.getLogger(f"PythonAssistantCoreBundle.{__name__}")
+logger = logging.getLogger(__name__)
 
 
 class DisplayMode(StrEnum):

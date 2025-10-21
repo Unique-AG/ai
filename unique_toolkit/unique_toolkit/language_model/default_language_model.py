@@ -1,0 +1,3 @@
+from unique_toolkit.language_model.infos import LanguageModelName
+
+DEFAULT_GPT_4o = LanguageModelName.AZURE_GPT_4o_2024_1120

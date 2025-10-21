@@ -40,7 +40,7 @@ class HallucinationEvaluation(Evaluation):
     async def run(
         self, loop_response: LanguageModelStreamResponse
     ) -> EvaluationMetricResult:  # type: ignore
-        chunks = self._reference_manager.get_chunks()
+        chunks = self._reference_manager.get_latest_referenced_chunks()
 
         evaluation_result: EvaluationMetricResult = await check_hallucination(
             company_id=self._company_id,
@@ -78,11 +78,19 @@ class HallucinationEvaluation(Evaluation):
             if not evaluation_result.error
             else ChatMessageAssessmentStatus.ERROR
         )
+        explanation = evaluation_result.reason
+
+        if status == ChatMessageAssessmentStatus.ERROR:
+            title = "Hallucination Check Error"
+            label = ChatMessageAssessmentLabel.RED
+            explanation = (
+                "An unrecoverable error occurred while evaluating the response."
+            )
 
         return EvaluationAssessmentMessage(
             status=status,
             title=title,
-            explanation=evaluation_result.reason,
+            explanation=explanation,
             label=label,
             type=self.get_assessment_type(),
         )

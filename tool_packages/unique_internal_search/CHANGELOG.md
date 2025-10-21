@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add automatic deduplication of chunks by `chunk_id` when using multiple search queries
   - Prevents duplicate content from appearing in results when multiple related queries return the same chunks
   - Preserves first occurrence and logs number of duplicates removed
+## [1.0.2] - 2025-10-17
+- Remove print statements originating from tool refactor
 
 ## [1.0.1] - 2025-09-30
 - Fix bug in metadata filter in the search method.

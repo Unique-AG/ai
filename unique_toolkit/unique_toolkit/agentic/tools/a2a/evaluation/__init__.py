@@ -1,6 +1,13 @@
-from unique_toolkit.agentic.tools.a2a.evaluation.config import SubAgentEvaluationConfig
+from unique_toolkit.agentic.tools.a2a.evaluation.config import (
+    SubAgentEvaluationConfig,
+    SubAgentEvaluationServiceConfig,
+)
 from unique_toolkit.agentic.tools.a2a.evaluation.evaluator import (
-    SubAgentsEvaluation,
+    SubAgentEvaluationService,
 )
 
-__all__ = ["SubAgentsEvaluation", "SubAgentEvaluationConfig"]
+__all__ = [
+    "SubAgentEvaluationService",
+    "SubAgentEvaluationServiceConfig",
+    "SubAgentEvaluationConfig",
+]

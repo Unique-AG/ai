@@ -2,7 +2,6 @@ from typing import Any
 
 from pydantic import Field
 
-from unique_toolkit._common.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit._common.validators import LMI
 from unique_toolkit.agentic.evaluation.config import EvaluationMetricConfig
 from unique_toolkit.agentic.evaluation.hallucination.prompts import (
@@ -15,6 +14,7 @@ from unique_toolkit.agentic.evaluation.schemas import (
     EvaluationMetricInputFieldName,
     EvaluationMetricName,
 )
+from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
 SYSTEM_MSG_KEY = "systemPrompt"
