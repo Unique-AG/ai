@@ -375,7 +375,10 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
         if (
             tool_call.arguments is None
             or not isinstance(tool_call.arguments, dict)
-            or "search_strings" not in tool_call.arguments
+            or (
+                "search_strings" not in tool_call.arguments
+                and "search_string" not in tool_call.arguments  # Backwards compatibility
+            )
         ):
             self.logger.error("Tool call arguments are missing or invalid")
             return ToolCallResponse(
@@ -385,9 +388,16 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
                 debug_info={},
             )
 
-        # Extract the search strings and user message language
-        search_strings_data = tool_call.arguments["search_strings"]
-        await self.post_progress_message(f"{', '.join(search_strings_data)}", tool_call)
+        # Extract the search strings (handle both new and old parameter names)
+        search_strings_data = tool_call.arguments.get(
+            "search_strings", tool_call.arguments.get("search_string")
+        )
+        # Ensure it's always a list for the progress message
+        if isinstance(search_strings_data, str):
+            search_strings_list = [search_strings_data]
+        else:
+            search_strings_list = search_strings_data
+        await self.post_progress_message(f"{', '.join(search_strings_list)}", tool_call)
 
         selected_chunks = await self.search(
             **tool_call.arguments,
@@ -405,7 +415,7 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             await self.tool_progress_reporter.notify_from_tool_call(
                 tool_call=tool_call,
                 name=f"**{self.tool_execution_message_name}**",
-                message=f"{', '.join(search_strings_data)}",
+                message=f"{', '.join(search_strings_list)}",
                 state=ProgressState.FINISHED,
             )
 
