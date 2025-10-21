@@ -6,6 +6,7 @@ from unique_toolkit.agentic.tools.utils.execution.execution import SafeTaskExecu
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.language_model.schemas import (
     LanguageModelStreamResponse,
+    ResponsesLanguageModelStreamResponse,
 )
 
 
@@ -26,7 +27,30 @@ class Postprocessor(ABC):
             "Subclasses must implement this method to apply post-processing to the response."
         )
 
-    async def remove_from_text(self, text) -> str:
+    async def remove_from_text(self, text: str) -> str:
+        raise NotImplementedError(
+            "Subclasses must implement this method to remove post-processing from the message."
+        )
+
+
+class ResponsesApiPostprocessor(ABC):
+    def __init__(self, name: str):
+        self.name = name
+
+    def get_name(self) -> str:
+        return self.name
+
+    async def run(self, loop_response: ResponsesLanguageModelStreamResponse) -> None:
+        raise NotImplementedError("Subclasses must implement this method.")
+
+    def apply_postprocessing_to_response(
+        self, loop_response: ResponsesLanguageModelStreamResponse
+    ) -> bool:
+        raise NotImplementedError(
+            "Subclasses must implement this method to apply post-processing to the response."
+        )
+
+    async def remove_from_text(self, text: str) -> str:
         raise NotImplementedError(
             "Subclasses must implement this method to remove post-processing from the message."
         )
@@ -59,12 +83,16 @@ class PostprocessorManager:
     ):
         self._logger = logger
         self._chat_service = chat_service
-        self._postprocessors: list[Postprocessor] = []
+        self._postprocessors: list[Postprocessor | ResponsesApiPostprocessor] = []
 
-    def add_postprocessor(self, postprocessor: Postprocessor):
+    def add_postprocessor(
+        self, postprocessor: Postprocessor | ResponsesApiPostprocessor
+    ):
         self._postprocessors.append(postprocessor)
 
-    def get_postprocessors(self, name: str) -> list[Postprocessor]:
+    def get_postprocessors(
+        self, name: str
+    ) -> list[Postprocessor | ResponsesApiPostprocessor]:
         return self._postprocessors
 
     async def run_postprocessors(
@@ -75,25 +103,36 @@ class PostprocessorManager:
             logger=self._logger,
         )
 
+        if isinstance(loop_response, ResponsesLanguageModelStreamResponse):
+            postprocessors = self._postprocessors
+        else:
+            postprocessors = [
+                postprocessor
+                for postprocessor in self._postprocessors
+                if isinstance(postprocessor, Postprocessor)
+            ]
+
         tasks = [
             task_executor.execute_async(
                 self.execute_postprocessors,
                 loop_response=loop_response,
                 postprocessor_instance=postprocessor,
             )
-            for postprocessor in self._postprocessors
+            for postprocessor in postprocessors
         ]
         postprocessor_results = await asyncio.gather(*tasks)
 
-        for i, result in enumerate(postprocessor_results):
+        for postprocessor, result in zip(postprocessors, postprocessor_results):
             if not result.success:
                 self._logger.warning(
-                    f"Postprocessor {self._postprocessors[i].get_name()} failed to run."
+                    "Postprocessor %s failed to run.",
+                    postprocessor.get_name(),
+                    exc_info=result.exception,
                 )
 
         modification_results = [
-            postprocessor.apply_postprocessing_to_response(loop_response)
-            for postprocessor in self._postprocessors
+            postprocessor.apply_postprocessing_to_response(loop_response)  # type: ignore
+            for postprocessor in postprocessors
         ]
 
         has_been_modified = any(modification_results)
@@ -108,9 +147,9 @@ class PostprocessorManager:
     async def execute_postprocessors(
         self,
         loop_response: LanguageModelStreamResponse,
-        postprocessor_instance: Postprocessor,
+        postprocessor_instance: Postprocessor | ResponsesApiPostprocessor,
     ) -> None:
-        await postprocessor_instance.run(loop_response)
+        await postprocessor_instance.run(loop_response)  # type: ignore
 
     async def remove_from_text(
         self,

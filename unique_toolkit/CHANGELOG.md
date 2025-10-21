@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.16.5] - 2025-10-16
+- Adding litellm models `litellm:anthropic-claude-haiku-4-5`
+
+## [1.16.4] - 2025-10-18
+- Fix bug with MCP tool parameters schema
+
+## [1.16.3] - 2025-10-18
+- Add logging of MCP tool schema and constructed parameters
+
+## [1.16.2] - 2025-10-16
+- Reduce operation dependency on path instead of full url
+
+## [1.16.1] - 2025-10-16
+- Update debug info for better tool call tracking
+
+## [1.16.0] - 2025-10-16
+- Add responses api support.
+- Add utilities for code execution.
+
+## [1.15.0] - 2025-10-15
+- Enable to distinguish between environment and modifiable payload parameters in human verification
+
+## [1.14.11] - 2025-10-13
+- Introduce testing guidelines for AI
+- Add AI tests to `tool_config` and `tool_factory.py`
+
 ## [1.14.10] - 2025-10-13
 - Fix token counter if images in history
 

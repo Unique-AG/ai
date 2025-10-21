@@ -12,14 +12,21 @@ from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
 )
 from unique_toolkit.agentic.reference_manager.reference_manager import ReferenceManager
 from unique_toolkit.agentic.thinking_manager.thinking_manager import ThinkingManager
-from unique_toolkit.agentic.tools.tool_manager import ToolManager
+from unique_toolkit.agentic.tools.tool_manager import (
+    ResponsesApiToolManager,
+    ToolManager,
+)
 from unique_toolkit.app.schemas import ChatEvent, McpServer
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.service import ContentService
+from unique_toolkit.language_model import LanguageModelAssistantMessage
 from unique_toolkit.language_model.schemas import (
-    LanguageModelAssistantMessage,
     LanguageModelMessages,
     LanguageModelStreamResponse,
+)
+from unique_toolkit.protocols.support import (
+    ResponsesSupportCompleteWithReferences,
+    SupportCompleteWithReferences,
 )
 
 from unique_orchestrator.config import UniqueAIConfig
@@ -45,6 +52,7 @@ class UniqueAI:
         chat_service: ChatService,
         content_service: ContentService,
         debug_info_manager: DebugInfoManager,
+        streaming_handler: SupportCompleteWithReferences,
         reference_manager: ReferenceManager,
         thinking_manager: ThinkingManager,
         tool_manager: ToolManager,
@@ -70,6 +78,10 @@ class UniqueAI:
         self._postprocessor_manager = postprocessor_manager
         self._latest_assistant_id: str = event.payload.assistant_message.id
         self._mcp_servers = mcp_servers
+        self._streaming_handler = streaming_handler
+
+        # Helper variable to support control loop
+        self._tool_took_control = False
 
     ############################################################
     # Override of base methods
@@ -125,8 +137,9 @@ class UniqueAI:
                 loop_response
             )
 
+        # Only set completed_at if no tool took control. Tools that take control will set the message state to completed themselves.
         await self._chat_service.modify_assistant_message_async(
-            set_completed_at=True,
+            set_completed_at=not self._tool_took_control,
         )
 
     # @track()
@@ -144,7 +157,7 @@ class UniqueAI:
             self._logger.info("Its needs forced tool calls.")
             self._logger.info(f"Forced tools: {self._tool_manager.get_forced_tools()}")
             responses = [
-                await self._chat_service.complete_with_references_async(
+                await self._streaming_handler.complete_with_references_async(
                     messages=messages,
                     model_name=self._config.space.language_model.name,
                     tools=self._tool_manager.get_tool_definitions(),
@@ -152,8 +165,8 @@ class UniqueAI:
                     start_text=self.start_text,
                     debug_info=self._debug_info_manager.get(),
                     temperature=self._config.agent.experimental.temperature,
-                    other_options=self._config.agent.experimental.additional_llm_options
-                    | {"toolChoice": opt},
+                    tool_choice=opt,
+                    other_options=self._config.agent.experimental.additional_llm_options,
                 )
                 for opt in self._tool_manager.get_forced_tools()
             ]
@@ -174,7 +187,7 @@ class UniqueAI:
                 "we are in the last iteration we need to produce an answer now"
             )
             # No tool calls in last iteration
-            stream_response = await self._chat_service.complete_with_references_async(
+            stream_response = await self._streaming_handler.complete_with_references_async(
                 messages=messages,
                 model_name=self._config.space.language_model.name,
                 content_chunks=self._reference_manager.get_chunks(),
@@ -188,7 +201,7 @@ class UniqueAI:
             self._logger.info(
                 f"we are in the iteration {self.current_iteration_index} asking the model to tell if we should use tools or if it will just stream"
             )
-            stream_response = await self._chat_service.complete_with_references_async(
+            stream_response = await self._streaming_handler.complete_with_references_async(
                 messages=messages,
                 model_name=self._config.space.language_model.name,
                 tools=self._tool_manager.get_tool_definitions(),
@@ -256,10 +269,15 @@ class UniqueAI:
 
         query = self._event.payload.user_message.text
 
-        use_sub_agent_references = (
-            self._config.agent.experimental.sub_agents_config.use_sub_agent_references
-        )
-        sub_agent_referencing_instructions = self._config.agent.experimental.sub_agents_config.referencing_instructions_for_user_prompt
+        if (
+            self._config.agent.experimental.sub_agents_config.referencing_config
+            is not None
+        ):
+            use_sub_agent_references = True
+            sub_agent_referencing_instructions = self._config.agent.experimental.sub_agents_config.referencing_config.referencing_instructions_for_user_prompt
+        else:
+            use_sub_agent_references = False
+            sub_agent_referencing_instructions = None
 
         user_msg = user_message_template.render(
             query=query,
@@ -290,10 +308,15 @@ class UniqueAI:
             mcp_server.system_prompt for mcp_server in self._mcp_servers
         ]
 
-        use_sub_agent_references = (
-            self._config.agent.experimental.sub_agents_config.use_sub_agent_references
-        )
-        sub_agent_referencing_instructions = self._config.agent.experimental.sub_agents_config.referencing_instructions_for_system_prompt
+        if (
+            self._config.agent.experimental.sub_agents_config.referencing_config
+            is not None
+        ):
+            use_sub_agent_references = True
+            sub_agent_referencing_instructions = self._config.agent.experimental.sub_agents_config.referencing_config.referencing_instructions_for_system_prompt
+        else:
+            use_sub_agent_references = False
+            sub_agent_referencing_instructions = None
 
         system_message = system_prompt_template.render(
             model_info=self._config.space.language_model.model_dump(mode="json"),
@@ -337,7 +360,7 @@ class UniqueAI:
 
         tool_calls = loop_response.tool_calls or []
 
-        # Append function call to history
+        # Append function calls to history
         self._history_manager._append_tool_calls_to_history(tool_calls)
 
         # Execute tool calls
@@ -350,9 +373,14 @@ class UniqueAI:
         # then extract referenceable chunks and debug info
         self._history_manager.add_tool_call_results(tool_call_responses)
         self._reference_manager.extract_referenceable_chunks(tool_call_responses)
-        self._debug_info_manager.extract_tool_debug_info(tool_call_responses)
+        self._debug_info_manager.extract_tool_debug_info(
+            tool_call_responses, self.current_iteration_index
+        )
 
-        return self._tool_manager.does_a_tool_take_control(tool_calls)
+        self._tool_took_control = self._tool_manager.does_a_tool_take_control(
+            tool_calls
+        )
+        return self._tool_took_control
 
     async def _create_new_assistant_message_if_loop_response_contains_content(
         self, loop_response: LanguageModelStreamResponse
@@ -386,4 +414,40 @@ class UniqueAI:
             LanguageModelAssistantMessage(
                 content=loop_response.message.original_text or "",
             )
+        )
+
+
+class UniqueAIResponsesApi(UniqueAI):
+    def __init__(
+        self,
+        logger: Logger,
+        event: ChatEvent,
+        config: UniqueAIConfig,
+        chat_service: ChatService,
+        content_service: ContentService,
+        debug_info_manager: DebugInfoManager,
+        streaming_handler: ResponsesSupportCompleteWithReferences,
+        reference_manager: ReferenceManager,
+        thinking_manager: ThinkingManager,
+        tool_manager: ResponsesApiToolManager,
+        history_manager: HistoryManager,
+        evaluation_manager: EvaluationManager,
+        postprocessor_manager: PostprocessorManager,
+        mcp_servers: list[McpServer],
+    ) -> None:
+        super().__init__(
+            logger,
+            event=event,
+            config=config,
+            chat_service=chat_service,
+            content_service=content_service,
+            debug_info_manager=debug_info_manager,
+            streaming_handler=streaming_handler,  # type: ignore
+            reference_manager=reference_manager,
+            thinking_manager=thinking_manager,
+            tool_manager=tool_manager,  # type: ignore
+            history_manager=history_manager,
+            evaluation_manager=evaluation_manager,
+            postprocessor_manager=postprocessor_manager,
+            mcp_servers=mcp_servers,
         )

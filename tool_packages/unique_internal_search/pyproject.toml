@@ -7,6 +7,7 @@ authors = [
     "Sadique Sheik <sadique@unique.ch>",
     "Fabian Schläpfer <fabian@unique.ch>",
     "Pascal Hauri <pascal@unique.ch>",
+    "Lucio Ineichen <lucio@unique.ch>",
 ]
 readme = ["README.md", "CHANGELOG.md"]
 license = "Proprietary"
