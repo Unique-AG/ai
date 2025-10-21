@@ -84,9 +84,9 @@ def _get_chunks_from_content(
 
     chunks = []
     for chunk in sorted(contents[0].chunks, key=lambda x: x.order):
-        cleaned_chunk = _clean_up_content_chunk(chunk)
-        chunk_id = chunk_registry.add(cleaned_chunk)
-        chunks.append(SourceChunk(id=chunk_id, text=chunk.text))
+        text = chunk.text
+        chunk_id = chunk_registry.add(chunk)
+        chunks.append(SourceChunk(id=chunk_id, text=text))
 
     return chunks
 
