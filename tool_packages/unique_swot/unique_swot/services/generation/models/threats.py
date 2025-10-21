@@ -1,11 +1,9 @@
 from typing import Sequence
 
 from pydantic import BaseModel, ConfigDict, Field
+from unique_toolkit.content import ContentChunk
 
-from unique_swot.services.generation.base import (
-    ReportGenerationOutputModel,
-    ReportGenerationSummaryModel,
-)
+from unique_swot.services.collection.registry import ContentChunkRegistry
 
 # ============================================================================
 # Extraction Models - Used for initial extraction from source data
@@ -26,7 +24,8 @@ class ThreatItem(BaseModel):
     )
 
 
-class ThreatsAnalysis(ReportGenerationOutputModel["ThreatsAnalysis"]):
+class ThreatsExtraction(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     """
     Extraction phase output: Raw threats identified from source documents.
     This is used during the initial extraction from batches of source data.
@@ -39,7 +38,9 @@ class ThreatsAnalysis(ReportGenerationOutputModel["ThreatsAnalysis"]):
     )
 
     @classmethod
-    def group_batches(cls, batches: Sequence["ThreatsAnalysis"]) -> "ThreatsAnalysis":
+    def group_batches(
+        cls, batches: Sequence["ThreatsExtraction"]
+    ) -> "ThreatsExtraction":
         """Combine multiple extraction batches by concatenating all threats."""
         all_threats = []
         for batch in batches:
@@ -71,7 +72,7 @@ class ThreatCategory(BaseModel):
     )
 
 
-class ThreatsReport(ReportGenerationSummaryModel["ThreatsReport"]):
+class ThreatsReport(BaseModel):
     """
     Final consolidated report after summarization phase.
     Contains deduplicated, categorized, and strategically organized threats.
@@ -89,11 +90,20 @@ class ThreatsReport(ReportGenerationSummaryModel["ThreatsReport"]):
         description="Suggested strategies to mitigate or respond to identified threats",
     )
 
-    
     @classmethod
     def create_from_failed(cls):
         return cls(
-            executive_summary="Not available",
-            categories=[],
-            mitigation_strategies=[]
+            executive_summary="Not available", categories=[], mitigation_strategies=[]
         )
+
+    def get_referenced_chunks(
+        self, chunk_registry: ContentChunkRegistry
+    ) -> list[ContentChunk]:
+        chunks = []
+        for category in self.categories:
+            for threat in category.threats:
+                for chunk_id in threat.reference_chunk_ids:
+                    chunk = chunk_registry.retrieve(chunk_id)
+                    if chunk is not None:
+                        chunks.append(chunk)
+        return chunks
