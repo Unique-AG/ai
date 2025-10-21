@@ -11,26 +11,29 @@ from logging import getLogger
 from unique_toolkit import KnowledgeBaseService
 from unique_toolkit.language_model import LanguageModelService
 
+from unique_swot.services.citations import CitationManager
+from unique_swot.services.collection.registry import ContentChunkRegistry
 from unique_swot.services.collection.schema import Source
 from unique_swot.services.generation import (
     ReportGenerationConfig,
     ReportGenerationContext,
-    ReportModifyContext,
-    SWOTAnalysisReportModel,
+    ReportModificationContext,
+    ReportSummarizationContext,
     SWOTComponent,
     batch_parser,
-    generate_report,
-    get_analysis_models,
-    get_swot_generation_system_prompt,
+    extract_swot_from_sources,
+    get_swot_extraction_model,
+    get_swot_extraction_system_prompt,
+    get_swot_summarization_system_prompt,
     modify_report,
+    summarize_swot_extraction,
 )
 from unique_swot.services.memory import SwotMemoryService
 from unique_swot.services.notifier import Notifier
 from unique_swot.services.schemas import (
-    ExecutedSWOTPlan,
-    ExecutedSwotStep,
     SWOTOperation,
     SWOTPlan,
+    SWOTResult,
 )
 
 _LOGGER = getLogger(__name__)
@@ -56,7 +59,9 @@ class SWOTExecutionManager:
         language_model_service: LanguageModelService,
         memory_service: SwotMemoryService,
         knowledge_base_service: KnowledgeBaseService,
+        content_chunk_registry: ContentChunkRegistry,
         cache_scope_id: str,
+        citation_manager: CitationManager,
         notifier: Notifier,
     ):
         """
@@ -72,8 +77,10 @@ class SWOTExecutionManager:
         self._language_model_service = language_model_service
         self._notifier = notifier
         self._memory_service = memory_service
+        self._content_chunk_registry = content_chunk_registry
+        self._citation_manager = citation_manager
 
-    async def run(self, *, plan: SWOTPlan, sources: list[Source]) -> ExecutedSWOTPlan:
+    async def run(self, *, plan: SWOTPlan, sources: list[Source]) -> SWOTResult:
         """
         Execute a complete SWOT analysis plan.
 
@@ -91,44 +98,31 @@ class SWOTExecutionManager:
         Raises:
             ValueError: If an invalid operation is encountered in the plan
         """
-        executed_plan = ExecutedSWOTPlan.init_from_plan(plan=plan)
-        for step in plan.steps:
-            _LOGGER.info(f"Running step: {step.component} {step.operation}")
+        executed_plan = SWOTResult.init_from_plan(plan=plan)
+        for component in [
+            SWOTComponent.STRENGTHS,
+            SWOTComponent.WEAKNESSES,
+            SWOTComponent.OPPORTUNITIES,
+            SWOTComponent.THREATS,
+        ]:
+            step = plan.get_step_result(component)
+            _LOGGER.info(f"Running step: {component} {step.operation}")
             match step.operation:
                 case SWOTOperation.GENERATE:
                     analysis = await self.run_generation_function(
-                        component=step.component,
+                        component=component,
                         sources=sources,
                     )
-                    executed_plan.steps.append(
-                        ExecutedSwotStep.from_step_and_result(
-                            step=step,
-                            result=analysis,
-                        )
-                    )
+                    executed_plan.assign_result(component, analysis)
                 case SWOTOperation.MODIFY:
                     analysis = await self.run_modify_function(
-                        component=step.component,
+                        component=component,
                         sources=sources,
                         modify_instruction=step.modify_instruction,
                     )
-                    executed_plan.steps.append(
-                        ExecutedSwotStep.from_step_and_result(
-                            step=step,
-                            result=analysis,
-                        )
-                    )
-                case SWOTOperation.RETRIEVE:
-                    analysis = await self.get_analysis(
-                        component=step.component,
-                        sources=sources,
-                    )
-                    executed_plan.steps.append(
-                        ExecutedSwotStep.from_step_and_result(
-                            step=step,
-                            result=analysis,
-                        )
-                    )
+                    executed_plan.assign_result(component, analysis)
+                case SWOTOperation.NOT_REQUESTED:
+                    continue
                 case _:
                     raise ValueError(f"Invalid operation: {step.operation}")
 
@@ -140,7 +134,7 @@ class SWOTExecutionManager:
         component: SWOTComponent,
         sources: list[Source],
         modify_instruction: str | None,
-    ) -> SWOTAnalysisReportModel:
+    ) -> str:
         """
         Execute a modify operation for a SWOT analysis component.
 
@@ -160,8 +154,8 @@ class SWOTExecutionManager:
         Returns:
             The modified or newly generated SWOT analysis
         """
-        _, summarization_output_model = get_analysis_models(component)
-        saved_analysis = self._memory_service.get(summarization_output_model)
+        extraction_output_model = get_swot_extraction_model(component)
+        saved_analysis = self._memory_service.get(extraction_output_model)
 
         if not saved_analysis:
             _LOGGER.warning(
@@ -187,10 +181,10 @@ class SWOTExecutionManager:
         # to request the modify instruction if modify operation is requested
         assert modify_instruction is not None, "Modify instruction is required"
 
-        context = ReportModifyContext(
+        context = ReportModificationContext(
             step_name=component,
             sources=sources,
-            system_prompt=get_swot_generation_system_prompt(component),
+            system_prompt=get_swot_extraction_system_prompt(component),
             modify_instruction=modify_instruction,
             structured_report=saved_analysis,
         )
@@ -207,7 +201,7 @@ class SWOTExecutionManager:
 
     async def run_generation_function(
         self, *, component: SWOTComponent, sources: list[Source]
-    ) -> SWOTAnalysisReportModel:
+    ) -> str:
         """
         Execute a generation operation for a SWOT analysis component.
 
@@ -223,21 +217,16 @@ class SWOTExecutionManager:
         Returns:
             The generated SWOT analysis for the specified component
         """
-        extraction_system_prompt, summarization_system_prompt = (
-            get_swot_generation_system_prompt(component)
-        )
-        extraction_output_model, summarization_output_model = get_analysis_models(
-            component
-        )
+        extraction_system_prompt = get_swot_extraction_system_prompt(component)
+
+        extraction_output_model = get_swot_extraction_model(component)
         context = ReportGenerationContext(
             step_name=component,
             sources=sources,
             extraction_system_prompt=extraction_system_prompt,
-            summarization_system_prompt=summarization_system_prompt,
             extraction_output_model=extraction_output_model,
-            summarization_output_model=summarization_output_model,
         )
-        aggregated_report, result = await generate_report(
+        aggregated_extraction_result = await extract_swot_from_sources(
             context=context,
             configuration=self._configuration,
             language_model_service=self._language_model_service,
@@ -245,27 +234,41 @@ class SWOTExecutionManager:
             batch_parser=batch_parser,
         )
 
-        self._memory_service.set(result)
-        self._memory_service.set(aggregated_report)
-        
-        return result
+        self._memory_service.set(aggregated_extraction_result)
 
-    async def get_analysis(
-        self, *, component: SWOTComponent, sources: list[Source]
-    ) -> SWOTAnalysisReportModel:
-        _, summarization_output_model = get_analysis_models(component)
-        saved_analysis = self._memory_service.get(summarization_output_model)
-
-        # If we have a saved analysis, return it
-        if saved_analysis:
-            return saved_analysis
-
-        # If we don't have a saved analysis, generate a new one
-        _LOGGER.warning(
-            "No SWOT analysis found in memory for component: %s. Falling back to generation",
-            component,
+        context = ReportSummarizationContext(
+            step_name=component,
+            summarization_system_prompt=get_swot_summarization_system_prompt(component),
+            extraction_results=aggregated_extraction_result,
         )
-        return await self.run_generation_function(
-            component=component,
-            sources=sources,
+
+        summarized_result = await summarize_swot_extraction(
+            context=context,
+            configuration=self._configuration,
+            language_model_service=self._language_model_service,
+            notifier=self._notifier,
         )
+
+        processed_result = self._citation_manager.process_result(summarized_result)
+
+        return processed_result
+
+    # async def get_analysis(
+    #     self, *, component: SWOTComponent, sources: list[Source]
+    # ) -> SWOTExtractionModel:
+    #     extraction_output_model = get_swot_extraction_model(component)
+    #     saved_analysis = self._memory_service.get(extraction_output_model)
+
+    #     # If we have a saved analysis, return it
+    #     if saved_analysis:
+    #         return saved_analysis
+
+    #     # If we don't have a saved analysis, generate a new one
+    #     _LOGGER.warning(
+    #         "No SWOT analysis found in memory for component: %s. Falling back to generation",
+    #         component,
+    #     )
+    #     return await self.run_generation_function(
+    #         component=component,
+    #         sources=sources,
+    #     )

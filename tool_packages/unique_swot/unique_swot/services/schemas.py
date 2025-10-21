@@ -9,138 +9,104 @@ analysis steps, and results.
 from enum import StrEnum
 from typing import Generic, TypeVar
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 
-from unique_swot.services.generation import (
-    SWOTAnalysisReportModel,
-    SWOTComponent,
-)
+from unique_swot.services.generation import SWOTComponent
 
 
 # Type definitions for SWOT operations
 class SWOTOperation(StrEnum):
     GENERATE = "generate"
     MODIFY = "modify"
-    RETRIEVE = "retrieve"
+    NOT_REQUESTED = "not_requested"
 
 
-TStep = TypeVar("TStep", bound="PlannedSWOTStep")
-
-
-class PlannedSWOTStep(BaseModel):
-    """
-    Represents a single step in a SWOT analysis plan.
-
-    This is the schema that the LLM will use when generating SWOT analysis plans.
-    Each step defines what SWOT component to analyze and what operation to perform.
-
-    Attributes:
-        component: The SWOT component to analyze (Strengths, Weaknesses, Opportunities, Threats)
-        operation: The operation to perform (generate new analysis or modify existing)
-        modify_instruction: Optional custom instruction for modify operations
-    """
-
-    model_config = ConfigDict(extra="forbid")
-
-    component: SWOTComponent
+class SWOTStepPlan(BaseModel):
     operation: SWOTOperation
     modify_instruction: str | None = Field(
         description="Custom instruction for the modify operation. This is only used if the operation is modify."
     )
 
 
-class ExecutedSwotStep(PlannedSWOTStep):
-    """
-    Represents a SWOT analysis step that has been executed with results.
-
-    Extends SWOTStep to include the actual analysis results. This is used to track
-    completed steps in the SWOT analysis workflow.
-
-    Attributes:
-        result: The generated SWOT analysis results for this step
-    """
-
-    result: SWOTAnalysisReportModel
-
-    @classmethod
-    def from_step_and_result(
-        cls, *, step: PlannedSWOTStep, result: SWOTAnalysisReportModel
-    ) -> "ExecutedSwotStep":
-        """
-        Factory method to create an ExecutedSwotStep from a plan step and its results.
-
-        Args:
-            step: The original SWOT step from the plan
-            result: The analysis results generated for this step
-
-        Returns:
-            ExecutedSwotStep with the step details and results
-        """
-        return cls(
-            component=step.component,
-            operation=step.operation,
-            modify_instruction=step.modify_instruction,
-            result=result,
-        )
+class SWOTStepResult(SWOTStepPlan):
+    result: str
 
 
-class SWOTPlanBase(BaseModel, Generic[TStep]):
-    """
-    Base class for SWOT analysis plans.
+TStep = TypeVar("TStep", bound=SWOTStepPlan)
 
-    This generic base class allows for both planned steps (SWOTStep) and executed steps
-    (ExecutedSwotStep) to be used in the same plan structure.
 
-    Attributes:
-        objective: The overall objective/goal of the SWOT analysis
-        steps: List of steps to execute in the analysis
-    """
-
-    model_config = ConfigDict(extra="forbid")
+class SWOT(BaseModel, Generic[TStep]):
     objective: str = Field(description="The objective of the plan to be executed")
-    steps: list[TStep]
-    expected_output: str = Field(
-        description="The expected output of the plan to be executed"
-    )
+
+    strengths: TStep = Field(description="The step to analyze the strengths")
+    weaknesses: TStep = Field(description="The step to analyze the weaknesses")
+    opportunities: TStep = Field(description="The step to analyze the opportunities")
+    threats: TStep = Field(description="The step to analyze the threats")
 
 
-class SWOTPlan(SWOTPlanBase[PlannedSWOTStep]):
-    """
-    Represents a planned SWOT analysis before execution.
-
-    This schema is used when the LLM generates a plan for SWOT analysis.
-    It contains the objective and the steps to be executed, but no results yet.
-    """
-
+class SWOTPlan(SWOT[SWOTStepPlan]):
     def validate_swot_plan(self) -> None:
-        """
-        Validates a SWOT analysis plan.
-
-        Args:
-            plan: The SWOT analysis plan to validate
-        """
-        for step in self.steps:
-            if step.operation == "modify" and step.modify_instruction is None:
+        for step in [self.strengths, self.weaknesses, self.opportunities, self.threats]:
+            if (
+                step.operation == SWOTOperation.MODIFY
+                and step.modify_instruction is None
+            ):
                 raise ValueError("Modify instruction is required for modify operations")
 
+    def get_step_result(self, component: SWOTComponent) -> SWOTStepPlan:
+        match component:
+            case SWOTComponent.STRENGTHS:
+                return self.strengths
+            case SWOTComponent.WEAKNESSES:
+                return self.weaknesses
+            case SWOTComponent.OPPORTUNITIES:
+                return self.opportunities
+            case SWOTComponent.THREATS:
+                return self.threats
+            case _:
+                raise ValueError(f"Invalid component: {component}")
 
-class ExecutedSWOTPlan(SWOTPlanBase[ExecutedSwotStep]):
-    """
-    Represents a SWOT analysis plan that has been executed with results.
 
-    This schema is used to track the completed SWOT analysis workflow,
-    including all executed steps and their corresponding results.
-    """
-
-    ...
-
+class SWOTResult(SWOT[SWOTStepResult]):
     @classmethod
-    def init_from_plan(cls, *, plan: SWOTPlan) -> "ExecutedSWOTPlan":
-        """
-        Initialize an ExecutedSWOTPlan from a SWOTPlan.
-        """
+    def init_from_plan(cls, *, plan: SWOTPlan) -> "SWOTResult":
+        strengths_result = SWOTStepResult(
+            operation=plan.strengths.operation,
+            modify_instruction=plan.strengths.modify_instruction,
+            result="",
+        )
+        weaknesses_result = SWOTStepResult(
+            operation=plan.weaknesses.operation,
+            modify_instruction=plan.weaknesses.modify_instruction,
+            result="",
+        )
+        opportunities_result = SWOTStepResult(
+            operation=plan.opportunities.operation,
+            modify_instruction=plan.opportunities.modify_instruction,
+            result="",
+        )
+        threats_result = SWOTStepResult(
+            operation=plan.threats.operation,
+            modify_instruction=plan.threats.modify_instruction,
+            result="",
+        )
         return cls(
             objective=plan.objective,
-            expected_output=plan.expected_output,
-            steps=[],
+            strengths=strengths_result,
+            weaknesses=weaknesses_result,
+            opportunities=opportunities_result,
+            threats=threats_result,
         )
+
+    def assign_result(self, component: SWOTComponent, result: str) -> None:
+        match component:
+            case SWOTComponent.STRENGTHS:
+                self.strengths.result = result
+            case SWOTComponent.WEAKNESSES:
+                self.weaknesses.result = result
+            case SWOTComponent.OPPORTUNITIES:
+                self.opportunities.result = result
+            case SWOTComponent.THREATS:
+                self.threats.result = result
+            case _:
+                raise ValueError(f"Invalid component: {component}")

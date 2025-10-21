@@ -24,11 +24,13 @@ from unique_toolkit.language_model.schemas import LanguageModelToolDescription
 from unique_toolkit.services.knowledge_base import KnowledgeBaseService
 
 from unique_swot.config import SwotConfig
+from unique_swot.services.citations import CitationManager
 from unique_swot.services.collection import CollectionContext, SourceCollectionManager
 from unique_swot.services.collection.registry import ContentChunkRegistry
 from unique_swot.services.executor import SWOTExecutionManager
 from unique_swot.services.memory.base import SwotMemoryService
 from unique_swot.services.notifier import LoggerNotifier
+from unique_swot.services.report import REPORT_TEMPLATE
 from unique_swot.services.schemas import SWOTPlan
 
 mock_metadata_filter = {
@@ -94,6 +96,10 @@ class SwotTool(Tool[SwotConfig]):
                 metadata_filter=mock_metadata_filter,
             ),
             knowledge_base_service=self._knowledge_base_service,
+            content_chunk_registry=self._content_chunk_registry,
+        )
+
+        self._citation_manager = CitationManager(
             content_chunk_registry=self._content_chunk_registry,
         )
 
@@ -167,13 +173,28 @@ class SwotTool(Tool[SwotConfig]):
             memory_service=self._memory_service,
             knowledge_base_service=self._knowledge_base_service,
             cache_scope_id=self.config.cache_scope_id,
+            content_chunk_registry=self._content_chunk_registry,
+            citation_manager=self._citation_manager,
         )
         result = await executor.run(plan=plan, sources=sources)
+        report = REPORT_TEMPLATE.render(**result.model_dump())
+
+        references = self._citation_manager.get_references(
+            message_id=self._event.payload.assistant_message.id
+        )
+        content_chunks = self._citation_manager.get_referenced_content_chunks()
+
+        self._chat_service.modify_assistant_message(
+            message_id=self._event.payload.assistant_message.id,
+            content=report,
+            references=references,
+        )
 
         return ToolCallResponse(
             id=tool_call.id,  # type: ignore
             name=self.name,
-            content=result.model_dump_json(indent=2),
+            content=report,
+            content_chunks=content_chunks,
         )
 
     @override
@@ -196,6 +217,15 @@ class SwotTool(Tool[SwotConfig]):
             role=LanguageModelMessageRole.TOOL,
             content=tool_response.content,
         )
+
+    @override
+    def takes_control(self) -> bool:
+        """
+        Some tools require to take control of the conversation with the user and do not want the orchestrator to intervene.
+        this function indicates whether the tool takes control or not. It yanks the control away from the orchestrator.
+        A typical use-case is deep-research.
+        """
+        return True
 
 
 ToolFactory.register_tool(tool=SwotTool, tool_config=SwotConfig)
