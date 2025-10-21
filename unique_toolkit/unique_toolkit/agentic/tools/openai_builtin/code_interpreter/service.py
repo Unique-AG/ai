@@ -8,6 +8,7 @@ from unique_toolkit import ContentService, ShortTermMemoryService
 from unique_toolkit.agentic.short_term_memory_manager.persistent_short_term_memory_manager import (
     PersistentShortMemoryManager,
 )
+from unique_toolkit.agentic.tools.config import ToolIcon, ToolSelectionPolicy
 from unique_toolkit.agentic.tools.openai_builtin.base import (
     OpenAIBuiltInTool,
     OpenAIBuiltInToolName,
@@ -140,12 +141,17 @@ async def _upload_files_to_container(
 
 class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
     DISPLAY_NAME = "Code Interpreter"
+    name: str = OpenAIBuiltInToolName.CODE_INTERPRETER
 
     def __init__(
         self,
         config: OpenAICodeInterpreterConfig,
         container_id: str | None,
-    ):
+        is_exclusive: bool = False,
+        is_enabled: bool = True,
+        selection_policy: ToolSelectionPolicy = ToolSelectionPolicy.BY_USER,
+        icon: ToolIcon = ToolIcon.BOOK,
+    ) -> None:
         self._config = config
 
         if not config.use_auto_container and container_id is None:
@@ -153,10 +159,10 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
 
         self._container_id = container_id
 
-    @property
-    @override
-    def name(self) -> OpenAIBuiltInToolName:
-        return OpenAIBuiltInToolName.CODE_INTERPRETER
+        self._is_exclusive = is_exclusive
+        self._is_enabled = is_enabled
+        self._selection_policy = selection_policy
+        self._icon = icon
 
     @override
     def tool_description(self) -> CodeInterpreter:
@@ -178,6 +184,10 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
         company_id: str,
         user_id: str,
         chat_id: str,
+        is_exclusive: bool = False,
+        is_enabled: bool = True,
+        selection_policy: ToolSelectionPolicy = ToolSelectionPolicy.BY_USER,
+        icon: ToolIcon = ToolIcon.BOOK,
     ) -> "OpenAICodeInterpreterTool":
         if config.use_auto_container:
             logger.info("Using `auto` container setting")
@@ -188,9 +198,7 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
             user_id=user_id,
             chat_id=chat_id,
         )
-
         memory = await memory_manager.load_async()
-
         memory = await _create_container_if_not_exists(
             client=client,
             memory=memory,
@@ -199,7 +207,6 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
             company_id=company_id,
             expires_after_minutes=config.expires_after_minutes,
         )
-
         memory = await _upload_files_to_container(
             client=client,
             uploaded_files=uploaded_files,
@@ -209,11 +216,15 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
         )
 
         await memory_manager.save_async(memory)
-
         assert memory.container_id is not None
 
         return OpenAICodeInterpreterTool(
-            config=config, container_id=memory.container_id
+            config=config,
+            container_id=memory.container_id,
+            is_exclusive=is_exclusive,
+            is_enabled=is_enabled,
+            selection_policy=selection_policy,
+            icon=icon,
         )
 
     @override
@@ -228,3 +239,23 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
             tool_format_information_for_user_prompt=self._config.tool_format_information_for_user_prompt,
             input_model={},
         )
+
+    @override
+    def display_name(self) -> str:
+        return self.DISPLAY_NAME
+
+    @override
+    def icon(self) -> str:
+        return self._icon
+
+    @override
+    def selection_policy(self) -> ToolSelectionPolicy:
+        return self._selection_policy
+
+    @override
+    def is_exclusive(self) -> bool:
+        return self._is_exclusive
+
+    @override
+    def is_enabled(self) -> bool:
+        return self._is_enabled

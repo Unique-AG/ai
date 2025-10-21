@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from logging import getLogger
-from typing import Any, Generic, TypeVar, cast
+from typing import Any, Generic, Protocol, TypeVar, cast
 
 from typing_extensions import deprecated
 
@@ -29,7 +29,30 @@ ConfigType = TypeVar("ConfigType", bound=BaseToolConfig)
 ToolBuildConfig.model_rebuild()
 
 
-class Tool(ABC, Generic[ConfigType]):
+class HasPromptsProtocol(Protocol):
+    def get_tool_prompts(self) -> ToolPrompts: ...
+
+
+class HasSettingsProtocol(Protocol):
+    name: str
+
+    def display_name(self) -> str: ...
+
+    def icon(self) -> str: ...
+
+    def selection_policy(self) -> ToolSelectionPolicy: ...
+
+    def is_exclusive(self) -> bool: ...
+
+    def is_enabled(self) -> bool: ...
+
+
+class Tool(
+    HasSettingsProtocol,
+    HasPromptsProtocol,
+    ABC,
+    Generic[ConfigType],
+):
     name: str
     settings: ToolBuildConfig
 
