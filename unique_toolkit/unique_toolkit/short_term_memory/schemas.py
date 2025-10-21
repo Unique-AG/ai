@@ -26,7 +26,12 @@ class ShortTermMemory(BaseModel):
         if isinstance(self.data, dict):
             self.value = self.data
         elif isinstance(self.data, str):
-            self.value = json.loads(self.data)
+            try:
+                self.value = json.loads(self.data)
+            except json.JSONDecodeError:
+                self.value = self.data
+        elif not self.data:
+            self.value = ""
         else:
             self.value = str(self.data)
         return self

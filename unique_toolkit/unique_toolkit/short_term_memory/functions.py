@@ -80,7 +80,7 @@ def find_latest_memory(
             chatId=chat_id,
             messageId=message_id,
         )
-        return ShortTermMemory(**stm)
+        return ShortTermMemory.model_validate(stm, by_alias=True, by_name=True)
     except Exception as e:
         logger.error(f"Error finding latest short term memory: {e}")
         raise e
@@ -125,7 +125,7 @@ async def create_memory_async(
             messageId=message_id,
             data=value,
         )
-        return ShortTermMemory(**stm)
+        return ShortTermMemory.model_validate(stm, by_alias=True, by_name=True)
     except Exception as e:
         logger.error(f"Error creating short term memory: {e}")
         raise e
@@ -171,7 +171,7 @@ def create_memory(
             messageId=message_id,
             data=value,
         )
-        return ShortTermMemory(**stm)
+        return ShortTermMemory.model_validate(stm, by_alias=True, by_name=True)
     except Exception as e:
         logger.error(f"Error creating short term memory: {e}")
         raise e
@@ -281,7 +281,7 @@ async def create_chat_memory_async(
     user_id: str,
     company_id: str,
     key: str,
-    value: dict[str, Any],
+    value: dict[str, Any] | str,
     chat_id: str,
 ) -> ShortTermMemory:
     """
