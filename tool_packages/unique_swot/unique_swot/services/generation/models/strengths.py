@@ -1,11 +1,9 @@
 from typing import Sequence
 
 from pydantic import BaseModel, ConfigDict, Field
+from unique_toolkit.content import ContentChunk
 
-from unique_swot.services.generation.base import (
-    ReportGenerationOutputModel,
-    ReportGenerationSummaryModel,
-)
+from unique_swot.services.collection.registry import ContentChunkRegistry
 
 # ============================================================================
 # Extraction Models - Used for initial extraction from source data
@@ -28,7 +26,9 @@ class StrengthItem(BaseModel):
     )
 
 
-class StrengthsAnalysis(ReportGenerationOutputModel["StrengthsAnalysis"]):
+class StrengthsExtraction(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     """
     Extraction phase output: Raw strengths identified from source documents.
     This is used during the initial extraction from batches of source data.
@@ -42,8 +42,8 @@ class StrengthsAnalysis(ReportGenerationOutputModel["StrengthsAnalysis"]):
 
     @classmethod
     def group_batches(
-        cls, batches: Sequence["StrengthsAnalysis"]
-    ) -> "StrengthsAnalysis":
+        cls, batches: Sequence["StrengthsExtraction"]
+    ) -> "StrengthsExtraction":
         """Combine multiple extraction batches by concatenating all strengths."""
         all_strengths = []
         for batch in batches:
@@ -75,7 +75,9 @@ class StrengthCategory(BaseModel):
     )
 
 
-class StrengthsReport(ReportGenerationSummaryModel["StrengthsReport"]):
+class StrengthsReport(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     """
     Final consolidated report after summarization phase.
     Contains deduplicated, categorized, and strategically organized strengths.
@@ -92,11 +94,19 @@ class StrengthsReport(ReportGenerationSummaryModel["StrengthsReport"]):
     key_insights: list[str] = Field(
         description="Key strategic insights about how strengths create competitive advantage",
     )
-    
+
     @classmethod
     def create_from_failed(cls):
-        return cls(
-            executive_summary="Not available",
-            categories=[],
-            key_insights=[]
-        )
+        return cls(executive_summary="Not available", categories=[], key_insights=[])
+
+    def get_referenced_chunks(
+        self, chunk_registry: ContentChunkRegistry
+    ) -> list[ContentChunk]:
+        chunks = []
+        for category in self.categories:
+            for strength in category.strengths:
+                for chunk_id in strength.reference_chunk_ids:
+                    chunk = chunk_registry.retrieve(chunk_id)
+                    if chunk is not None:
+                        chunks.append(chunk)
+        return chunks

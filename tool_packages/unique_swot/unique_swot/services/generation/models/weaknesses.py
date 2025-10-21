@@ -1,11 +1,9 @@
 from typing import Sequence
 
 from pydantic import BaseModel, ConfigDict, Field
+from unique_toolkit.content import ContentChunk
 
-from unique_swot.services.generation.base import (
-    ReportGenerationOutputModel,
-    ReportGenerationSummaryModel,
-)
+from unique_swot.services.collection.registry import ContentChunkRegistry
 
 # ============================================================================
 # Extraction Models - Used for initial extraction from source data
@@ -28,7 +26,8 @@ class WeaknessItem(BaseModel):
     )
 
 
-class WeaknessesAnalysis(ReportGenerationOutputModel["WeaknessesAnalysis"]):
+class WeaknessesExtraction(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     """
     Extraction phase output: Raw weaknesses identified from source documents.
     This is used during the initial extraction from batches of source data.
@@ -42,8 +41,8 @@ class WeaknessesAnalysis(ReportGenerationOutputModel["WeaknessesAnalysis"]):
 
     @classmethod
     def group_batches(
-        cls, batches: Sequence["WeaknessesAnalysis"]
-    ) -> "WeaknessesAnalysis":
+        cls, batches: Sequence["WeaknessesExtraction"]
+    ) -> "WeaknessesExtraction":
         """Combine multiple extraction batches by concatenating all weaknesses."""
         all_weaknesses = []
         for batch in batches:
@@ -75,7 +74,7 @@ class WeaknessCategory(BaseModel):
     )
 
 
-class WeaknessesReport(ReportGenerationSummaryModel["WeaknessesReport"]):
+class WeaknessesReport(BaseModel):
     """
     Final consolidated report after summarization phase.
     Contains deduplicated, categorized, and constructively organized weaknesses.
@@ -98,3 +97,15 @@ class WeaknessesReport(ReportGenerationSummaryModel["WeaknessesReport"]):
         return cls(
             executive_summary="Not available", categories=[], improvement_priorities=[]
         )
+
+    def get_referenced_chunks(
+        self, chunk_registry: ContentChunkRegistry
+    ) -> list[ContentChunk]:
+        chunks = []
+        for category in self.categories:
+            for weakness in category.weaknesses:
+                for chunk_id in weakness.reference_chunk_ids:
+                    chunk = chunk_registry.retrieve(chunk_id)
+                    if chunk is not None:
+                        chunks.append(chunk)
+        return chunks

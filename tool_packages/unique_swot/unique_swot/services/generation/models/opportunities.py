@@ -1,11 +1,9 @@
-from typing import Sequence
+from typing import Self, Sequence
 
 from pydantic import BaseModel, ConfigDict, Field
+from unique_toolkit.content import ContentChunk
 
-from unique_swot.services.generation.base import (
-    ReportGenerationOutputModel,
-    ReportGenerationSummaryModel,
-)
+from unique_swot.services.collection.registry import ContentChunkRegistry
 
 # ============================================================================
 # Extraction Models - Used for initial extraction from source data
@@ -23,15 +21,15 @@ class OpportunityItem(BaseModel):
     )
 
 
-class OpportunitiesAnalysis(ReportGenerationOutputModel["OpportunitiesAnalysis"]):
+class OpportunitiesExtraction(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     opportunities: list[OpportunityItem] = Field(
         description="The opportunities identified in the analysis"
     )
 
     @classmethod
-    def group_batches(
-        cls, batches: Sequence["OpportunitiesAnalysis"]
-    ) -> "OpportunitiesAnalysis":
+    def group_batches(cls, batches: Sequence[Self]) -> Self:
         """Combine multiple OpportunitiesAnalysis batches into a single analysis."""
         all_opportunities = []
         for batch in batches:
@@ -63,7 +61,9 @@ class OpportunityCategory(BaseModel):
     )
 
 
-class OpportunitiesReport(ReportGenerationSummaryModel["OpportunitiesReport"]):
+class OpportunitiesReport(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     """
     Final consolidated report after summarization phase.
     Contains deduplicated, categorized, and strategically organized opportunities.
@@ -80,13 +80,21 @@ class OpportunitiesReport(ReportGenerationSummaryModel["OpportunitiesReport"]):
     key_recommendations: list[str] = Field(
         description="Actionable strategic recommendations for capitalizing on identified opportunities",
     )
-    
+
     @classmethod
     def create_from_failed(cls):
         return cls(
-            executive_summary="Not available",
-            categories=[],
-            key_recommendations=[]
+            executive_summary="Not available", categories=[], key_recommendations=[]
         )
-        
 
+    def get_referenced_chunks(
+        self, chunk_registry: ContentChunkRegistry
+    ) -> list[ContentChunk]:
+        chunks = []
+        for category in self.categories:
+            for opportunity in category.opportunities:
+                for chunk_id in opportunity.reference_chunk_ids:
+                    chunk = chunk_registry.retrieve(chunk_id)
+                    if chunk is not None:
+                        chunks.append(chunk)
+        return chunks
