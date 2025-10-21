@@ -204,4 +204,4 @@ class WebSearchTool(Tool[WebSearchConfig]):
         return evaluation_check_list
 
 
-ToolFactory.register_tool(tool=WebSearchTool, tool_config=WebSearchConfig)
+ToolFactory.register_tool(WebSearchTool, WebSearchConfig)
