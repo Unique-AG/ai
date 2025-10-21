@@ -39,7 +39,7 @@ class ProgressNotifier(Notifier):
         self._processed_steps = 0
         self._chat_service.create_message_execution(
             message_id=self._chat_service._assistant_message_id,
-            type=MessageExecutionType.SWOT_ANALYSIS,
+            type=MessageExecutionType.DEEP_RESEARCH,
             percentage_completed=0,
         )
 
