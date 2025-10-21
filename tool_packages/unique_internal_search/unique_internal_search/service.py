@@ -77,11 +77,39 @@ class InternalSearchService:
 
     async def search(
         self,
-        search_strings: list[str],
+        search_strings: str | list[str] | None = None,
         content_ids: list[str] | None = None,
         metadata_filter: dict | None = None,
+        search_string: str | None = None,  # Deprecated: use search_strings instead
         **kwargs,
     ) -> list[ContentChunk]:
+        """
+        Perform a search with one or more search strings.
+        
+        Args:
+            search_strings: Single search string or list of search strings (preferred)
+            search_string: Deprecated. Single search string (for backwards compatibility)
+        """
+        
+        # Handle backwards compatibility with deprecated search_string parameter
+        if search_string is not None:
+            if search_strings is not None:
+                raise ValueError(
+                    "Cannot specify both 'search_string' (deprecated) and 'search_strings'. "
+                    "Please use 'search_strings' only."
+                )
+            self.logger.warning(
+                "Parameter 'search_string' is deprecated. Please use 'search_strings' instead."
+            )
+            search_strings = search_string
+        
+        if search_strings is None:
+            raise ValueError("Either 'search_strings' or 'search_string' must be provided")
+        
+        # Convert single string to list
+        if isinstance(search_strings, str):
+            search_strings = [search_strings]
+
         """
         Perform a search in the Vector DB based on the user's message and generate a response.
         """
@@ -157,6 +185,10 @@ class InternalSearchService:
                 if i < len(result['chunks']):
                     chunk = result['chunks'][i]
                     found_chunks_all.append(chunk)
+        
+        # Deduplicate chunks by chunk_id
+        found_chunks_all = self._deduplicate_chunks(found_chunks_all)
+        
         await self.post_progress_message(
             f"{', '.join(search_strings)} (_Postprocessing search results_)",
             **kwargs,
@@ -196,6 +228,33 @@ class InternalSearchService:
             self.logger.warning(f"Error while sorting chunks: {e.error_message}")
         finally:
             return found_chunks
+
+    def _deduplicate_chunks(self, chunks: list[ContentChunk]) -> list[ContentChunk]:
+        """
+        Remove duplicate chunks based on chunk_id, preserving order and keeping first occurrence.
+        
+        Args:
+            chunks: List of content chunks that may contain duplicates
+            
+        Returns:
+            List of unique chunks (by chunk_id) in original order
+        """
+        seen_chunk_ids: set[str] = set()
+        deduplicated_chunks: list[ContentChunk] = []
+        
+        for chunk in chunks:
+            if chunk.chunk_id not in seen_chunk_ids:
+                seen_chunk_ids.add(chunk.chunk_id)
+                deduplicated_chunks.append(chunk)
+        
+        duplicates_removed_count = len(chunks) - len(deduplicated_chunks)
+        if duplicates_removed_count > 0:
+            self.logger.info(
+                f"Removed {duplicates_removed_count} duplicate chunks. "
+                f"Unique chunks: {len(deduplicated_chunks)}/{len(chunks)}"
+            )
+        
+        return deduplicated_chunks
 
     def _get_max_tokens(self) -> int:
         if self.config.language_model_max_input_tokens is not None:

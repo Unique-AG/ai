@@ -107,8 +107,13 @@ class InternalSearchConfig(BaseToolConfig):
         DEFAULT_TOOL_DESCRIPTION,
         description="Tool description.",
     )
-    param_description_search_strings: str = get_string_field_with_pattern_validation(
-        DEFAULT_SEARCH_STRINGS_PARAM_DESCRIPTION,
+    # Backwards compatible field: accepts both param_description_search_strings and param_description_search_string
+    param_description_search_strings: str = Field(
+        default=DEFAULT_SEARCH_STRINGS_PARAM_DESCRIPTION,
+        validation_alias=AliasChoices(
+            "param_description_search_strings",
+            "param_description_search_string",  # Deprecated: for backwards compatibility
+        ),
         description="`search_strings` parameter description.",
     )
     param_description_language: str = get_string_field_with_pattern_validation(
