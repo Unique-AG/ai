@@ -27,7 +27,7 @@ class ContentChunkRegistry:
         else:
             _LOGGER.info("Initializing a new collection registry from scratch.")
             self._store = RegistryStore(items={})
-            
+
     @property
     def store(self) -> RegistryStore:
         return self._store
@@ -47,7 +47,7 @@ class ContentChunkRegistry:
 
     def _generate_unique_id(self) -> str:
         for _ in range(_MAX_RETRIES):
-            id = uuid4().hex[:8]
+            id = f"chunk_{uuid4().hex[:8]}"
             if id not in self._store.items:
                 return id
             _LOGGER.warning(f"Registry ID collision detected for ID: {id}. Retrying...")
