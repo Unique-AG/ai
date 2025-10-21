@@ -41,10 +41,13 @@ The following properties are documented for each model:
 | [AZURE_o3_2025_0416](models/model_AZURE_o3_2025_0416.md) | AZURE | 200,000 | 100,000 | 300,000 |
 | [AZURE_o3_MINI_2025_0131](models/model_AZURE_o3_MINI_2025_0131.md) | AZURE | 200,000 | 100,000 | 300,000 |
 | [AZURE_o4_MINI_2025_0416](models/model_AZURE_o4_MINI_2025_0416.md) | AZURE | 200,000 | 100,000 | 300,000 |
-| [litellm:anthropic-claude-3-7-sonnet](models/model_litellm:anthropic-claude-3-7-sonnet.md) | LITELLM | 180,000 | 128,000 | 308,000 |
-| [litellm:anthropic-claude-3-7-sonnet-thinking](models/model_litellm:anthropic-claude-3-7-sonnet-thinking.md) | LITELLM | 180,000 | 128,000 | 308,000 |
+| [litellm:anthropic-claude-3-7-sonnet](models/model_litellm:anthropic-claude-3-7-sonnet.md) | LITELLM | 180,000 | 64,000 | 244,000 |
+| [litellm:anthropic-claude-3-7-sonnet-thinking](models/model_litellm:anthropic-claude-3-7-sonnet-thinking.md) | LITELLM | 180,000 | 64,000 | 244,000 |
+| [litellm:anthropic-claude-haiku-4-5](models/model_litellm:anthropic-claude-haiku-4-5.md) | LITELLM | 180,000 | 64,000 | 244,000 |
 | [litellm:anthropic-claude-opus-4](models/model_litellm:anthropic-claude-opus-4.md) | LITELLM | 180,000 | 32,000 | 212,000 |
+| [litellm:anthropic-claude-opus-4-1](models/model_litellm:anthropic-claude-opus-4-1.md) | LITELLM | 180,000 | 32,000 | 212,000 |
 | [litellm:anthropic-claude-sonnet-4](models/model_litellm:anthropic-claude-sonnet-4.md) | LITELLM | 180,000 | 64,000 | 244,000 |
+| [litellm:anthropic-claude-sonnet-4-5](models/model_litellm:anthropic-claude-sonnet-4-5.md) | LITELLM | 180,000 | 64,000 | 244,000 |
 | [litellm:deepseek-r1](models/model_litellm:deepseek-r1.md) | LITELLM | 64,000 | 4,000 | 68,000 |
 | [litellm:deepseek-v3-1](models/model_litellm:deepseek-v3-1.md) | LITELLM | 128,000 | 4,000 | 132,000 |
 | [litellm:gemini-2-0-flash](models/model_litellm:gemini-2-0-flash.md) | LITELLM | 1,048,576 | 8,192 | 1,056,768 |
@@ -96,8 +99,11 @@ The following properties are documented for each model:
 | [AZURE_o4_MINI_2025_0416](models/model_AZURE_o4_MINI_2025_0416.md) | ✅ | ✅ | ✅ | ✅ |
 | [litellm:anthropic-claude-3-7-sonnet](models/model_litellm:anthropic-claude-3-7-sonnet.md) | ✅ | ✅ | ❌ | ❌ |
 | [litellm:anthropic-claude-3-7-sonnet-thinking](models/model_litellm:anthropic-claude-3-7-sonnet-thinking.md) | ✅ | ✅ | ❌ | ✅ |
+| [litellm:anthropic-claude-haiku-4-5](models/model_litellm:anthropic-claude-haiku-4-5.md) | ✅ | ✅ | ❌ | ✅ |
 | [litellm:anthropic-claude-opus-4](models/model_litellm:anthropic-claude-opus-4.md) | ✅ | ✅ | ❌ | ✅ |
+| [litellm:anthropic-claude-opus-4-1](models/model_litellm:anthropic-claude-opus-4-1.md) | ✅ | ✅ | ❌ | ✅ |
 | [litellm:anthropic-claude-sonnet-4](models/model_litellm:anthropic-claude-sonnet-4.md) | ✅ | ✅ | ❌ | ✅ |
+| [litellm:anthropic-claude-sonnet-4-5](models/model_litellm:anthropic-claude-sonnet-4-5.md) | ✅ | ✅ | ❌ | ✅ |
 | [litellm:deepseek-r1](models/model_litellm:deepseek-r1.md) | ✅ | ✅ | ✅ | ✅ |
 | [litellm:deepseek-v3-1](models/model_litellm:deepseek-v3-1.md) | ❌ | ✅ | ✅ | ✅ |
 | [litellm:gemini-2-0-flash](models/model_litellm:gemini-2-0-flash.md) | ✅ | ✅ | ✅ | ✅ |
@@ -137,23 +143,6 @@ info = LanguageModelInfo.from_name(model_name)
 # ... your code here
 ```
 
-## Model Selection Guide
-
-### For High-Volume Applications
-- **Cost-effective**: GPT-4o Mini, GPT-5 Mini, Claude 3.7 Sonnet
-- **Balanced**: GPT-4o, GPT-5, Claude Sonnet 4
-
-### For Complex Reasoning
-- **Advanced**: o1, o3, Claude 3.7 Sonnet Thinking
-- **Research**: o3 Deep Research, o4 Mini Deep Research
-
-### For Function Calling
-- **Reliable**: GPT-4o, GPT-5, Claude Sonnet 4
-- **Fast**: GPT-4o Mini, GPT-5 Mini
-
-### For Structured Output
-- **All modern models** support structured output capabilities
-
 ---
 
-*Last updated: 2025-09-05*
+*Last updated: 2025-10-21*

@@ -41,15 +41,13 @@ nav:
   - Application Types:
     - Standalone Application: application_types/standalone_application.md
     - Event Driven Applications: application_types/event_driven_applications.md
-  - Examples:
+  - Tutorials:
     - Chat:
       - Basic Service: modules/examples/chat/chat_service.md
       - Document Handling: modules/examples/chat/chat_document_handling.md
     - Knowledge Base:
       - Base Service: modules/examples/content/kb_service.md
       - Smart Rules: modules/examples/content/smart_rules.md
-  - Tutorials:
-    - File Creation with Upload to Chat: tutorials/file_creation_and_upload_to_chat.md
   - Agentic Framework:
     - Overview: agentic_framework/framework.md
     - Orchestrator: agentic_framework/orchestrator/unqiue_ai_how-it-works.md
@@ -63,6 +61,8 @@ nav:
     - History Manager: agentic_framework/history_manager.md
   - Platforms:
     - OpenAI: plattforms/openai/openai.md
+  - Supported Models: ./modules/language_models/language_model_overview.md
+  
   - API Reference: api.md
   - Readme: readme.md
 
