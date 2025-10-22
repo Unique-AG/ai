@@ -210,7 +210,9 @@ def test_wrap_with_details_tag__includes_summary__when_provided() -> None:
     result = _wrap_with_details_tag(text, mode="closed", summary_name=summary_name)
 
     # Assert
-    expected = "<details>\n<summary>\nClick to expand\n</summary>\nContent here\n</details>"
+    expected = (
+        "<details>\n<summary>\nClick to expand\n</summary>\nContent here\n</details>"
+    )
     assert result == expected
 
 
@@ -250,7 +252,9 @@ def test_wrap_with_quote_border__adds_styled_div__with_left_border() -> None:
     result = _wrap_with_quote_border(text)
 
     # Assert
-    assert result.startswith("<div style='margin-left: 20px; border-left: 2px solid #ccc;")
+    assert result.startswith(
+        "<div style='margin-left: 20px; border-left: 2px solid #ccc;"
+    )
     assert "Quoted content" in result
     assert result.endswith("\n</div>")
 
@@ -1057,7 +1061,9 @@ def test_remove_sub_agent_answer__removes_with_both_borders__from_text() -> None
 
 
 @pytest.mark.ai
-def test_remove_sub_agent_answer__preserves_other_content__with_multiple_displays() -> None:
+def test_remove_sub_agent_answer__preserves_other_content__with_multiple_displays() -> (
+    None
+):
     """
     Purpose: Verify removal only affects specified assistant_id.
     Why this matters: Must not remove content from different assistants.
@@ -1271,4 +1277,3 @@ def test_remove_sub_agent_answer__no_op_when_assistant_not_found() -> None:
     assert result == original_text
     assert "Present answer" in result
     assert "Present Agent" in result
-
