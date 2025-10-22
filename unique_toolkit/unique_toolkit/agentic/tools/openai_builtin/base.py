@@ -4,7 +4,7 @@ from typing import Generic, TypeVar
 
 from openai.types.responses.tool_param import CodeInterpreter
 
-from unique_toolkit.agentic.tools.schemas import ToolPrompts
+from unique_toolkit.agentic.tools.tool import HasPromptsProtocol, HasSettingsProtocol
 
 
 class OpenAIBuiltInToolName(StrEnum):
@@ -15,16 +15,11 @@ BuiltInToolType = CodeInterpreter  # Add other tool types when needed
 ToolType = TypeVar("ToolType", bound=BuiltInToolType)
 
 
-class OpenAIBuiltInTool(ABC, Generic[ToolType]):
-    @property
-    @abstractmethod
-    def name(self) -> OpenAIBuiltInToolName:
-        raise NotImplementedError()
+class OpenAIBuiltInTool(
+    HasPromptsProtocol, HasSettingsProtocol, ABC, Generic[ToolType]
+):
+    name: str
 
     @abstractmethod
     def tool_description(self) -> BuiltInToolType:
-        raise NotImplementedError()
-
-    @abstractmethod
-    def get_tool_prompts(self) -> ToolPrompts:
         raise NotImplementedError()

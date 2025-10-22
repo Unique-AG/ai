@@ -41,6 +41,10 @@ class OpenAIBuiltInToolManager:
                 chat_id=self._chat_id,
                 content_service=self._content_service,
                 client=self._client,
+                is_enabled=tool_config.is_enabled,
+                is_exclusive=tool_config.is_exclusive,
+                icon=tool_config.icon,
+                selection_policy=tool_config.selection_policy,
             )
             return tool
         else:

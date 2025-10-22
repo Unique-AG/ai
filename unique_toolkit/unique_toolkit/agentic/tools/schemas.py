@@ -24,6 +24,11 @@ class ToolCallResponse(BaseModel):
     def successful(self) -> bool:
         return self.error_message == ""
 
+    def update_debug_info(self, key: str, value: Any) -> None:
+        if self.debug_info is None:
+            self.debug_info = {}
+        self.debug_info[key] = value
+
 
 class BaseToolConfig(BaseModel):
     model_config = get_configuration_dict()

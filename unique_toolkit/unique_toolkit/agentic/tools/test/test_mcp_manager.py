@@ -50,10 +50,13 @@ class MockInternalSearchTool(Tool[BaseToolConfig]):
     def tool_format_information_for_system_prompt(self) -> str:
         return "Use this tool to search for content"
 
-    def get_tool_call_result_for_loop_history(self, tool_response):
-        from unique_toolkit.language_model.schemas import LanguageModelMessage
+    def get_tool_call_result_for_loop_history(self, tool_response, agent_chunks_handler=None):
+        from unique_toolkit.language_model.schemas import (
+            LanguageModelMessage,
+            LanguageModelMessageRole,
+        )
 
-        return LanguageModelMessage(role="tool", content="Mock search result")
+        return LanguageModelMessage(role=LanguageModelMessageRole.TOOL, content="Mock search result")
 
     def evaluation_check_list(self):
         return []
@@ -64,7 +67,16 @@ class MockInternalSearchTool(Tool[BaseToolConfig]):
     def get_tool_prompts(self):
         from unique_toolkit.agentic.tools.schemas import ToolPrompts
 
-        return ToolPrompts()
+        return ToolPrompts(
+            name="internal_search",
+            display_name="Internal Search",
+            tool_system_prompt="System prompt",
+            tool_format_information_for_system_prompt="Format info",
+            tool_user_prompt="User prompt",
+            tool_format_information_for_user_prompt="Format info",
+            tool_description="Internal search tool for testing",
+            input_model={},
+        )
 
     async def run(self, tool_call):
         from unique_toolkit.agentic.tools.schemas import ToolCallResponse
@@ -112,7 +124,6 @@ class TestMCPManager:
     def mcp_tools(self):
         """Create mock MCP tools fixture"""
         mcp_tool = McpTool(
-            id="mcp_test_tool_id",
             name="mcp_test_tool",
             description="Test MCP tool",
             input_schema={
@@ -149,11 +160,9 @@ class TestMCPManager:
         server = McpServer(
             id="test_server_id",
             name="test_server",
-            description="Test MCP server",
             tools=mcp_tools,
             system_prompt="Test system prompt",
             user_prompt="Test user prompt",
-            is_connected=True,
         )
         return [server]
 
@@ -182,33 +191,34 @@ class TestMCPManager:
 
     @pytest.fixture
     def a2a_manager(self, tool_progress_reporter):
-        """Create MCP manager fixture"""
+        """Create A2A manager fixture"""
         return A2AManager(
             logger=self.logger,
             tool_progress_reporter=tool_progress_reporter,
         )
 
     @pytest.fixture
-    def tool_manager_config(self, internal_tools):
+    def tool_manager_config(self):
         """Create tool manager configuration fixture"""
-        return ToolManagerConfig(tools=internal_tools, max_tool_calls=10)
+        return ToolManagerConfig(max_tool_calls=10)
 
     @pytest.fixture
-    def tool_manager(
-        self, tool_manager_config, mcp_manager, a2a_manager, tool_progress_reporter
+    async def tool_manager(
+        self, internal_tools, tool_manager_config, mcp_manager, a2a_manager, tool_progress_reporter
     ):
         """Create tool manager fixture"""
 
-        return ToolManager(
-            logger=self.logger,
+        return await ToolManager.build_manager(
+            tool_configs=internal_tools,
             config=tool_manager_config,
-            event=self.event,
             tool_progress_reporter=tool_progress_reporter,
+            event=self.event,
             mcp_manager=mcp_manager,
             a2a_manager=a2a_manager,
         )
 
-    def test_tool_manager_initialization(self, tool_manager):
+    @pytest.mark.asyncio
+    async def test_tool_manager_initialization(self, tool_manager):
         """Test tool manager is initialized correctly"""
         assert tool_manager is not None
 
@@ -216,7 +226,8 @@ class TestMCPManager:
             len(tool_manager.get_tools()) >= 2
         )  # Should have both internal and MCP tools
 
-    def test_tool_manager_has_both_tool_types(self, tool_manager):
+    @pytest.mark.asyncio
+    async def test_tool_manager_has_both_tool_types(self, tool_manager):
         """Test that tool manager contains both MCP and internal tools"""
         tools = tool_manager.get_tools()
         tool_names = [tool.name for tool in tools]
@@ -230,7 +241,8 @@ class TestMCPManager:
         # Should have at least 2 tools total
         assert len(tools) >= 2
 
-    def test_tool_manager_can_get_tools_by_name(self, tool_manager):
+    @pytest.mark.asyncio
+    async def test_tool_manager_can_get_tools_by_name(self, tool_manager):
         """Test that tool manager can retrieve tools by name"""
         # Test getting internal tool
         internal_tool = tool_manager.get_tool_by_name("internal_search")
@@ -242,10 +254,11 @@ class TestMCPManager:
         assert mcp_tool is not None
         assert mcp_tool.name == "mcp_test_tool"
 
-    def test_tool_manager_tools_property_contains_both_types(self, tool_manager):
-        """Test that the _tools property contains both internal and MCP tools"""
-        # Access the private _tools attribute directly to verify integration
-        tools = tool_manager._tools
+    @pytest.mark.asyncio
+    async def test_tool_manager_tools_property_contains_both_types(self, tool_manager):
+        """Test that the _available_tools property contains both internal and MCP tools"""
+        # Access the private _available_tools attribute directly to verify integration
+        tools = tool_manager._available_tools
         tool_names = [tool.name for tool in tools]
 
         # Verify both tool types are present
@@ -259,7 +272,8 @@ class TestMCPManager:
         # Verify we have the expected number of tools
         assert len(tools) == 2, f"Expected 2 tools, got {len(tools)}: {tool_names}"
 
-    def test_tool_manager_logs_loaded_tools(self, tool_manager, caplog):
+    @pytest.mark.asyncio
+    async def test_tool_manager_logs_loaded_tools(self, tool_manager, caplog):
         """Test that tool manager logs the loaded tools correctly"""
         with caplog.at_level(logging.INFO):
             tool_manager.log_loaded_tools()
@@ -269,7 +283,8 @@ class TestMCPManager:
         assert "internal_search" in log_output
         assert "mcp_test_tool" in log_output
 
-    def test_tool_manager_gets_tool_definitions(self, tool_manager):
+    @pytest.mark.asyncio
+    async def test_tool_manager_gets_tool_definitions(self, tool_manager):
         """Test that tool manager returns tool definitions for both tool types"""
         definitions = tool_manager.get_tool_definitions()
 
@@ -280,23 +295,18 @@ class TestMCPManager:
         assert "internal_search" in definition_names
         assert "mcp_test_tool" in definition_names
 
-    def test_init_tools_method(
-        self, tool_manager_config, mcp_manager, tool_progress_reporter
+    @pytest.mark.asyncio
+    async def test_init_tools_method(
+        self, internal_tools, tool_manager_config, mcp_manager, a2a_manager, tool_progress_reporter
     ):
         """Test the _init__tools method behavior with different scenarios"""
 
         # Test 1: Normal initialization with both tool types
-
-        a2a_manager = A2AManager(
-            logger=self.logger,
-            tool_progress_reporter=tool_progress_reporter,
-        )
-
-        tool_manager = ToolManager(
-            logger=self.logger,
+        tool_manager = await ToolManager.build_manager(
+            tool_configs=internal_tools,
             config=tool_manager_config,
-            event=self.event,
             tool_progress_reporter=tool_progress_reporter,
+            event=self.event,
             mcp_manager=mcp_manager,
             a2a_manager=a2a_manager,
         )
@@ -308,8 +318,9 @@ class TestMCPManager:
         assert "mcp_test_tool" in tool_names
         assert len(tools) == 2
 
-    def test_init_tools_with_disabled_tools(
-        self, tool_manager_config, mcp_manager, tool_progress_reporter
+    @pytest.mark.asyncio
+    async def test_init_tools_with_disabled_tools(
+        self, internal_tools, tool_manager_config, mcp_manager, a2a_manager, tool_progress_reporter
     ):
         """Test _init__tools method when some tools are disabled"""
 
@@ -323,16 +334,11 @@ class TestMCPManager:
         event_with_disabled.payload.tool_choices = ["internal_search", "mcp_test_tool"]
         event_with_disabled.payload.disabled_tools = ["internal_search"]
 
-        a2a_manager = A2AManager(
-            logger=self.logger,
-            tool_progress_reporter=tool_progress_reporter,
-        )
-
-        tool_manager = ToolManager(
-            logger=self.logger,
+        tool_manager = await ToolManager.build_manager(
+            tool_configs=internal_tools,
             config=tool_manager_config,
-            event=event_with_disabled,
             tool_progress_reporter=tool_progress_reporter,
+            event=event_with_disabled,
             mcp_manager=mcp_manager,
             a2a_manager=a2a_manager,
         )
@@ -344,8 +350,9 @@ class TestMCPManager:
         assert "mcp_test_tool" in tool_names
         assert len(tools) == 1
 
-    def test_init_tools_with_limited_tool_choices(
-        self, tool_manager_config, mcp_manager, tool_progress_reporter
+    @pytest.mark.asyncio
+    async def test_init_tools_with_limited_tool_choices(
+        self, internal_tools, tool_manager_config, mcp_manager, a2a_manager, tool_progress_reporter
     ):
         """Test _init__tools method when only specific tools are chosen"""
 
@@ -359,16 +366,11 @@ class TestMCPManager:
         event_with_limited_choices.payload.tool_choices = ["internal_search"]
         event_with_limited_choices.payload.disabled_tools = []
 
-        a2a_manager = A2AManager(
-            logger=self.logger,
-            tool_progress_reporter=tool_progress_reporter,
-        )
-
-        tool_manager = ToolManager(
-            logger=self.logger,
+        tool_manager = await ToolManager.build_manager(
+            tool_configs=internal_tools,
             config=tool_manager_config,
-            event=event_with_limited_choices,
             tool_progress_reporter=tool_progress_reporter,
+            event=event_with_limited_choices,
             mcp_manager=mcp_manager,
             a2a_manager=a2a_manager,
         )
@@ -380,7 +382,8 @@ class TestMCPManager:
         assert "mcp_test_tool" not in tool_names
         assert len(tools) == 1
 
-    def test_init_tools_with_exclusive_tool(self, mcp_manager, tool_progress_reporter):
+    @pytest.mark.asyncio
+    async def test_init_tools_with_exclusive_tool(self, mcp_manager, a2a_manager, tool_progress_reporter):
         """Test _init__tools method when an exclusive tool is present"""
 
         # Create an exclusive tool configuration
@@ -394,20 +397,13 @@ class TestMCPManager:
             is_enabled=True,
         )
 
-        config_with_exclusive = ToolManagerConfig(
-            tools=[exclusive_tool_config], max_tool_calls=10
-        )
+        config_with_exclusive = ToolManagerConfig(max_tool_calls=10)
 
-        a2a_manager = A2AManager(
-            logger=self.logger,
-            tool_progress_reporter=tool_progress_reporter,
-        )
-
-        tool_manager = ToolManager(
-            logger=self.logger,
+        tool_manager = await ToolManager.build_manager(
+            tool_configs=[exclusive_tool_config],
             config=config_with_exclusive,
-            event=self.event,
             tool_progress_reporter=tool_progress_reporter,
+            event=self.event,
             mcp_manager=mcp_manager,
             a2a_manager=a2a_manager,
         )
@@ -419,8 +415,9 @@ class TestMCPManager:
         assert "mcp_test_tool" not in tool_names
         assert len(tools) == 1
 
-    def test_init_tools_with_disabled_tool_config(
-        self, mcp_manager, tool_progress_reporter
+    @pytest.mark.asyncio
+    async def test_init_tools_with_disabled_tool_config(
+        self, mcp_manager, a2a_manager, tool_progress_reporter
     ):
         """Test _init__tools method when a tool is disabled in its configuration"""
 
@@ -435,20 +432,13 @@ class TestMCPManager:
             is_enabled=False,  # Disable the tool
         )
 
-        config_with_disabled = ToolManagerConfig(
-            tools=[disabled_tool_config], max_tool_calls=10
-        )
+        config_with_disabled = ToolManagerConfig(max_tool_calls=10)
 
-        a2a_manager = A2AManager(
-            logger=self.logger,
-            tool_progress_reporter=tool_progress_reporter,
-        )
-
-        tool_manager = ToolManager(
-            logger=self.logger,
+        tool_manager = await ToolManager.build_manager(
+            tool_configs=[disabled_tool_config],
             config=config_with_disabled,
-            event=self.event,
             tool_progress_reporter=tool_progress_reporter,
+            event=self.event,
             mcp_manager=mcp_manager,
             a2a_manager=a2a_manager,
         )
