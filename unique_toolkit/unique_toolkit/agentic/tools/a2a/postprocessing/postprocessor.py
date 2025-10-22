@@ -107,6 +107,8 @@ class SubAgentResponsesPostprocessor(Postprocessor):
                         assistant_id=assistant_id,
                         display_mode=display_mode,
                         answer=message["text"],
+                        add_quote_border=tool_info["display_config"].add_quote_border,
+                        add_block_border=tool_info["display_config"].add_block_border,
                     )
                 )
 
@@ -122,7 +124,9 @@ class SubAgentResponsesPostprocessor(Postprocessor):
                     for ref in message["references"]
                 )
 
-        loop_response.message.text = "\n".join(answers) + loop_response.message.text
+        loop_response.message.text = (
+            "\n\n".join(answers) + "<br>\n\n" + loop_response.message.text.strip()
+        )
 
         return True
 
@@ -135,6 +139,8 @@ class SubAgentResponsesPostprocessor(Postprocessor):
                     display_mode=display_config.mode,
                     text=text,
                     assistant_id=assistant_id,
+                    add_quote_border=display_config.add_quote_border,
+                    add_block_border=display_config.add_block_border,
                 )
         return text
 
