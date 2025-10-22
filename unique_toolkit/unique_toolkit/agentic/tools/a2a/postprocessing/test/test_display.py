@@ -13,9 +13,9 @@ from unique_toolkit.agentic.tools.a2a.postprocessing._display import (
     _remove_sub_agent_answer_from_text,
     _wrap_hidden_div,
     _wrap_strong,
+    _wrap_text,
     _wrap_with_block_border,
     _wrap_with_details_tag,
-    _wrap_text,
     _wrap_with_quote_border,
 )
 from unique_toolkit.agentic.tools.a2a.postprocessing.config import (
