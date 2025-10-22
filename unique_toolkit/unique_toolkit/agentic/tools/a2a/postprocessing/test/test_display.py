@@ -656,7 +656,7 @@ def test_get_display_removal_re__includes_assistant_id__in_pattern() -> None:
     )
 
     # Assert
-    assert assistant_id in result.pattern
+    assert re.escape(assistant_id) in result.pattern
 
 
 @pytest.mark.ai
