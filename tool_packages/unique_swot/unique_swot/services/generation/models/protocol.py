@@ -1,11 +1,4 @@
-from logging import getLogger
 from typing import Protocol, Self, Sequence
-
-from unique_toolkit.content import ContentChunk
-
-from unique_swot.services.collection.registry import ContentChunkRegistry
-
-_LOGGER = getLogger(__name__)
 
 
 class ReportGenerationOutputModel(Protocol):
@@ -25,12 +18,3 @@ class ReportGenerationOutputModel(Protocol):
             A single combined instance of the same type
         """
         ...
-
-
-class ReportGenerationSummaryModel(Protocol):
-    @classmethod
-    def create_from_failed(cls) -> Self: ...
-
-    def get_referenced_chunks(
-        self, chunk_registry: ContentChunkRegistry
-    ) -> list[ContentChunk]: ...

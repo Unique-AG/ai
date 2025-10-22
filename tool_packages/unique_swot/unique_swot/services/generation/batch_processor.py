@@ -146,33 +146,3 @@ async def summarize_swot_extraction_results(
     except Exception as e:
         _LOGGER.exception(f"Error summarizing report: {e}")
         return f"Unavailable summary due to error: {e}"
-
-
-# async def _summarize_report(
-#     *,
-#     system_prompt: str,
-#     language_model_service: LanguageModelService,
-#     language_model: LMI,
-#     report: T,  # type: ignore
-#     output_model: type[R],
-# ) -> R | None:
-#     """
-#     Summarize a SWOT analysis report for a single batch of sources.
-#     """
-#     try:
-#         _LOGGER.info(f"Summarizing report with {output_model.__name__}")
-#         messages = (
-#             MessagesBuilder()
-#             .system_message_append(system_prompt)
-#             .user_message_append(report.model_dump_json())
-#             .build()
-#         )
-#         response = await language_model_service.complete_async(
-#             model_name=language_model.name,
-#             messages=messages,
-#             structured_output_model=output_model,
-#             structured_output_enforce_schema=True,
-#         )
-#         return output_model.model_validate(response.choices[0].message.parsed)
-#     except Exception as e:
-#         _LOGGER.exception(f"Error summarizing report: {e}")
