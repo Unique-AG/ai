@@ -1,122 +1,172 @@
 import re
-from abc import ABC, abstractmethod
-from typing import Literal, override
+from typing import Literal
 
 from unique_toolkit.agentic.tools.a2a.postprocessing.config import (
     SubAgentResponseDisplayMode,
 )
 
 
-class _ResponseDisplayHandler(ABC):
-    @abstractmethod
-    def build_response_display(
-        self, display_name: str, assistant_id: str, answer: str
-    ) -> str:
-        raise NotImplementedError()
+def _wrap_with_html_block(text: str, start_tag: str, end_tag: str) -> str:
+    text = text.strip()
+    start_tag = start_tag.strip()
+    end_tag = end_tag.strip()
 
-    @abstractmethod
-    def remove_response_display(self, assistant_id: str, text: str) -> str:
-        raise NotImplementedError()
+    if start_tag != "":
+        start_tag = f"{start_tag}\n"
+
+    if end_tag != "":
+        end_tag = f"\n{end_tag}"
+
+    return f"{start_tag}{text}{end_tag}"
 
 
-class _DetailsResponseDisplayHandler(_ResponseDisplayHandler):
-    def __init__(self, mode: Literal["open", "closed"]) -> None:
-        self._mode = mode
+def _join_html_blocks(*blocks: str) -> str:
+    return "\n".join(block.strip() for block in blocks)
 
-    DETAILS_CLOSED_TEMPLATE = (
-        "<details><summary>{display_name}</summary>\n"
-        "\n"
-        '<div style="display: none;">{assistant_id}</div>\n'
-        "\n"
-        "{answer}\n"
-        "</details>\n"
-        "<br>\n"
-        "\n"
+
+def _wrap_with_details_tag(
+    text, mode: Literal["open", "closed"], summary_name: str | None = None
+) -> str:
+    if summary_name is not None:
+        summary_tag = _wrap_with_html_block(summary_name, "<summary>", "</summary>")
+        text = _join_html_blocks(summary_tag, text)
+
+    if mode == "open":
+        text = _wrap_with_html_block(text, "<details open>", "</details>")
+    else:
+        text = _wrap_with_html_block(text, "<details>", "</details>")
+
+    return text
+
+
+_BLOCK_BORDER_STYLE = (
+    "overflow-y: auto; border: 1px solid #ccc; padding: 8px; margin-top: 8px;"
+)
+
+
+def _wrap_with_block_border(text: str) -> str:
+    return _wrap_with_html_block(text, f"<div style='{_BLOCK_BORDER_STYLE}'>", "</div>")
+
+
+_QUOTE_BORDER_STYLE = (
+    "margin-left: 20px; border-left: 2px solid #ccc; padding-left: 10px;"
+)
+
+
+def _wrap_with_quote_border(text: str) -> str:
+    return _wrap_with_html_block(text, f"<div style='{_QUOTE_BORDER_STYLE}'>", "</div>")
+
+
+def _wrap_strong(text: str) -> str:
+    return _wrap_with_html_block(text, "<strong>", "</strong>")
+
+
+def _wrap_hidden_div(text: str) -> str:
+    return _wrap_with_html_block(text, '<div style="display: none;">', "</div>")
+
+
+def _add_line_break(text: str, before: bool = True, after: bool = True) -> str:
+    start_tag = ""
+    if before:
+        start_tag = "<br>"
+
+    end_tag = ""
+    if after:
+        end_tag = "<br>"
+
+    return _wrap_with_html_block(text, start_tag, end_tag)
+
+
+def _get_display_template(
+    mode: SubAgentResponseDisplayMode,
+    add_quote_border: bool,
+    add_block_border: bool,
+    answer_placeholder: str = "answer",
+    assistant_id_placeholder: str = "assistant_id",
+    display_name_placeholder: str = "display_name",
+) -> str:
+    if mode == SubAgentResponseDisplayMode.HIDDEN:
+        return ""
+
+    assistant_id_placeholder = _wrap_hidden_div("{%s}" % assistant_id_placeholder)
+    display_name_placeholder = _wrap_strong("{%s}" % display_name_placeholder)
+    template = _join_html_blocks(assistant_id_placeholder, "{%s}" % answer_placeholder)
+
+    if add_quote_border:
+        template = _wrap_with_quote_border(template)
+
+    match mode:
+        case SubAgentResponseDisplayMode.DETAILS_OPEN:
+            template = _wrap_with_details_tag(
+                template, "open", display_name_placeholder
+            )
+        case SubAgentResponseDisplayMode.DETAILS_CLOSED:
+            template = _wrap_with_details_tag(
+                template, "closed", display_name_placeholder
+            )
+        case SubAgentResponseDisplayMode.PLAIN:
+            display_name_placeholder = _add_line_break(
+                display_name_placeholder, before=False, after=True
+            )
+            template = _join_html_blocks(display_name_placeholder, template)
+            # Add a hidden block border to seperate sub agent answers from the rest of the text.
+            hidden_block_border = _wrap_hidden_div("sub_agent_answer_block")
+            template = _join_html_blocks(template, hidden_block_border)
+
+    if add_block_border:
+        template = _wrap_with_block_border(template)
+
+    return template
+
+
+def _get_display_removal_re(
+    assistant_id: str,
+    mode: SubAgentResponseDisplayMode,
+    add_quote_border: bool,
+    add_block_border: bool,
+) -> re.Pattern[str]:
+    template = _get_display_template(
+        mode=mode,
+        add_quote_border=add_quote_border,
+        add_block_border=add_block_border,
     )
 
-    DETAILS_OPEN_TEMPLATE = (
-        "<details open><summary>{display_name}</summary>\n"
-        "\n"
-        '<div style="display: none;">{assistant_id}</div>\n'
-        "\n"
-        "{answer}\n"
-        "\n"
-        "</details>\n"
-        "<br>\n"
-        "\n"
+    pattern = template.format(
+        assistant_id=assistant_id, answer=r"(.*?)", display_name=r"(.*?)"
     )
 
-    def _get_detect_re(self, assistant_id: str) -> str:
-        if self._mode == "open":
-            return (
-                r"(?s)<details open>\s*"
-                r"<summary>(.*?)</summary>\s*"
-                rf"<div style=\"display: none;\">{re.escape(assistant_id)}</div>\s*"
-                r"(.*?)\s*"
-                r"</details>\s*"
-                r"<br>\s*"
-            )
-        else:
-            return (
-                r"(?s)<details>\s*"
-                r"<summary>(.*?)</summary>\s*"
-                rf"<div style=\"display: none;\">{re.escape(assistant_id)}</div>\s*"
-                r"(.*?)\s*"
-                r"</details>\s*"
-                r"<br>\s*"
-            )
-
-    def _get_template(self) -> str:
-        if self._mode == "open":
-            return self.DETAILS_OPEN_TEMPLATE
-        else:
-            return self.DETAILS_CLOSED_TEMPLATE
-
-    @override
-    def build_response_display(
-        self, display_name: str, assistant_id: str, answer: str
-    ) -> str:
-        return self._get_template().format(
-            assistant_id=assistant_id, display_name=display_name, answer=answer
-        )
-
-    @override
-    def remove_response_display(self, assistant_id: str, text: str) -> str:
-        return re.sub(self._get_detect_re(assistant_id=assistant_id), "", text)
-
-
-_DISPLAY_HANDLERS = {
-    SubAgentResponseDisplayMode.DETAILS_OPEN: _DetailsResponseDisplayHandler(
-        mode="open"
-    ),
-    SubAgentResponseDisplayMode.DETAILS_CLOSED: _DetailsResponseDisplayHandler(
-        mode="closed"
-    ),
-}
+    return re.compile(pattern, flags=re.DOTALL)
 
 
 def _build_sub_agent_answer_display(
     display_name: str,
     display_mode: SubAgentResponseDisplayMode,
+    add_quote_border: bool,
+    add_block_border: bool,
     answer: str,
     assistant_id: str,
 ) -> str:
-    if display_mode not in _DISPLAY_HANDLERS:
-        return ""
-
-    display_f = _DISPLAY_HANDLERS[display_mode]
-
-    return display_f.build_response_display(
+    template = _get_display_template(
+        mode=display_mode,
+        add_quote_border=add_quote_border,
+        add_block_border=add_block_border,
+    )
+    return template.format(
         display_name=display_name, answer=answer, assistant_id=assistant_id
     )
 
 
 def _remove_sub_agent_answer_from_text(
-    display_mode: SubAgentResponseDisplayMode, text: str, assistant_id: str
+    display_mode: SubAgentResponseDisplayMode,
+    add_quote_border: bool,
+    add_block_border: bool,
+    text: str,
+    assistant_id: str,
 ) -> str:
-    if display_mode not in _DISPLAY_HANDLERS:
-        return text
-
-    display_f = _DISPLAY_HANDLERS[display_mode]
-
-    return display_f.remove_response_display(assistant_id=assistant_id, text=text)
+    pattern = _get_display_removal_re(
+        assistant_id=assistant_id,
+        mode=display_mode,
+        add_quote_border=add_quote_border,
+        add_block_border=add_block_border,
+    )
+    return re.sub(pattern, "", text)
