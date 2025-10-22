@@ -13,6 +13,7 @@ from openai.types.responses import (
     response_create_params,
 )
 from openai.types.shared_params import Metadata, Reasoning
+from pydantic import BaseModel
 from typing_extensions import deprecated
 
 from unique_toolkit._common.utils.files import is_file_content, is_image_content
@@ -92,6 +93,13 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelToolDescription,
     ResponsesLanguageModelStreamResponse,
 )
+from unique_toolkit.short_term_memory.functions import (
+    create_memory,
+    create_memory_async,
+    find_latest_memory,
+    find_latest_memory_async,
+)
+from unique_toolkit.short_term_memory.schemas import ShortTermMemory
 
 logger = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
 
@@ -1628,3 +1636,86 @@ class ChatService(ChatServiceDeprecated):
             if is_image_content(filename=c.key):
                 images.append(c)
         return images, files
+
+    # Short Term Memories
+    ############################################################################
+
+    def create_short_term_memory(self, *, id: str, key: str, value: BaseModel):
+        if id.startswith("msg_"):
+            return create_memory(
+                user_id=self._user_id,
+                company_id=self._company_id,
+                key=key,
+                value=value.model_dump_json(),
+                message_id=id,
+            )
+        elif id.startswith("chat_"):
+            return create_memory(
+                user_id=self._user_id,
+                company_id=self._company_id,
+                key=key,
+                value=value.model_dump_json(),
+                chat_id=id,
+            )
+        else:
+            raise ValueError(f"Invalid id: {id}, id must start with 'msg_' or 'chat_'")
+
+    async def create_short_term_memory_async(
+        self, *, id: str, key: str, value: BaseModel
+    ) -> ShortTermMemory:
+        if id.startswith("msg_"):
+            return await create_memory_async(
+                user_id=self._user_id,
+                company_id=self._company_id,
+                key=key,
+                value=value.model_dump_json(),
+                message_id=id,
+            )
+        elif id.startswith("chat_"):
+            return await create_memory_async(
+                user_id=self._user_id,
+                company_id=self._company_id,
+                key=key,
+                value=value.model_dump_json(),
+                chat_id=id,
+            )
+        else:
+            raise ValueError(f"Invalid id: {id}, id must start with 'msg_' or 'chat_'")
+
+    def find_latest_short_term_memory(self, *, id: str, key: str) -> ShortTermMemory:
+        if id.startswith("msg_"):
+            return find_latest_memory(
+                user_id=self._user_id,
+                company_id=self._company_id,
+                key=key,
+                message_id=id,
+            )
+        elif id.startswith("chat_"):
+            return find_latest_memory(
+                user_id=self._user_id,
+                company_id=self._company_id,
+                key=key,
+                chat_id=id,
+            )
+        else:
+            raise ValueError(f"Invalid id: {id}, id must start with 'msg_' or 'chat_'")
+
+    async def find_latest_short_term_memory_async(
+        self, *, id: str, key: str
+    ) -> ShortTermMemory:
+        if id.startswith("msg_"):
+            return await find_latest_memory_async(
+                user_id=self._user_id,
+                company_id=self._company_id,
+                key=key,
+                message_id=id,
+            )
+        elif id.startswith("chat_"):
+            return await find_latest_memory_async(
+                user_id=self._user_id,
+                company_id=self._company_id,
+                key=key,
+                chat_id=id,
+            )
+        else:
+            raise ValueError(f"Invalid id: {id}, id must start with 'msg_' or 'chat_'")
