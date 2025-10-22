@@ -132,7 +132,7 @@ def _get_display_removal_re(
     )
 
     pattern = template.format(
-        assistant_id=assistant_id, answer=r"(.*?)", display_name=r"(.*?)"
+        assistant_id=re.escape(assistant_id), answer=r"(.*?)", display_name=r"(.*?)"
     )
 
     return re.compile(pattern, flags=re.DOTALL)
