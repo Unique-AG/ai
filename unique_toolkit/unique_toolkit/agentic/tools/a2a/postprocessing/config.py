@@ -25,9 +25,9 @@ class SubAgentDisplayConfig(BaseModel):
     )
     add_quote_border: bool = Field(
         default=True,
-        description="If set, the sub agent response will be displayed as a quote.",
+        description="If set, a quote border is added to the left of the sub agent response.",
     )
     add_block_border: bool = Field(
         default=False,
-        description="If set, the sub agent response will be displayed as a quote.",
+        description="If set, a block border is added around the sub agent response.",
     )
