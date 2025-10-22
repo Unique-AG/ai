@@ -9,13 +9,13 @@ from unique_toolkit.agentic.tools.a2a.postprocessing._display import (
     _build_sub_agent_answer_display,
     _get_display_removal_re,
     _get_display_template,
-    _join_html_blocks,
+    _join_text_blocks,
     _remove_sub_agent_answer_from_text,
     _wrap_hidden_div,
     _wrap_strong,
     _wrap_with_block_border,
     _wrap_with_details_tag,
-    _wrap_with_html_block,
+    _wrap_text,
     _wrap_with_quote_border,
 )
 from unique_toolkit.agentic.tools.a2a.postprocessing.config import (
@@ -38,7 +38,7 @@ def test_wrap_with_html_block__wraps_text__with_start_and_end_tags() -> None:
     end_tag = "</div>"
 
     # Act
-    result = _wrap_with_html_block(text, start_tag, end_tag)
+    result = _wrap_text(text, start_tag, end_tag)
 
     # Assert
     assert result == "<div>\nHello World\n</div>"
@@ -57,7 +57,7 @@ def test_wrap_with_html_block__strips_whitespace__from_text_and_tags() -> None:
     end_tag = "  </div>  "
 
     # Act
-    result = _wrap_with_html_block(text, start_tag, end_tag)
+    result = _wrap_text(text, start_tag, end_tag)
 
     # Assert
     assert result == "<div>\nHello World\n</div>"
@@ -76,7 +76,7 @@ def test_wrap_with_html_block__handles_empty_tags__no_newlines() -> None:
     end_tag = ""
 
     # Act
-    result = _wrap_with_html_block(text, start_tag, end_tag)
+    result = _wrap_text(text, start_tag, end_tag)
 
     # Assert
     assert result == "Hello World"
@@ -95,7 +95,7 @@ def test_wrap_with_html_block__handles_mixed_empty_tags__partial_newlines() -> N
     end_tag = ""
 
     # Act
-    result = _wrap_with_html_block(text, start_tag, end_tag)
+    result = _wrap_text(text, start_tag, end_tag)
 
     # Assert
     assert result == "<div>\nHello World"
@@ -117,7 +117,7 @@ def test_join_html_blocks__joins_multiple_blocks__with_newlines() -> None:
     block3 = "<div>Block 3</div>"
 
     # Act
-    result = _join_html_blocks(block1, block2, block3)
+    result = _join_text_blocks(block1, block2, block3)
 
     # Assert
     assert result == "<div>Block 1</div>\n<div>Block 2</div>\n<div>Block 3</div>"
@@ -135,7 +135,7 @@ def test_join_html_blocks__strips_whitespace__from_each_block() -> None:
     block2 = "  <div>Block 2</div>  "
 
     # Act
-    result = _join_html_blocks(block1, block2)
+    result = _join_text_blocks(block1, block2)
 
     # Assert
     assert result == "<div>Block 1</div>\n<div>Block 2</div>"
@@ -152,7 +152,7 @@ def test_join_html_blocks__handles_single_block__no_extra_newlines() -> None:
     block = "<div>Single Block</div>"
 
     # Act
-    result = _join_html_blocks(block)
+    result = _join_text_blocks(block)
 
     # Assert
     assert result == "<div>Single Block</div>"

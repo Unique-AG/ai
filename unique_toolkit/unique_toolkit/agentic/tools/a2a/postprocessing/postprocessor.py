@@ -124,7 +124,9 @@ class SubAgentResponsesPostprocessor(Postprocessor):
                     for ref in message["references"]
                 )
 
-        loop_response.message.text = "\n".join(answers) + loop_response.message.text
+        loop_response.message.text = (
+            "\n\n".join(answers) + "<br>\n\n" + loop_response.message.text.strip()
+        )
 
         return True
 

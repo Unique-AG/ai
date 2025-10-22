@@ -6,35 +6,35 @@ from unique_toolkit.agentic.tools.a2a.postprocessing.config import (
 )
 
 
-def _wrap_with_html_block(text: str, start_tag: str, end_tag: str) -> str:
+def _wrap_text(text: str, start_text: str, end_text: str) -> str:
     text = text.strip()
-    start_tag = start_tag.strip()
-    end_tag = end_tag.strip()
+    start_text = start_text.strip()
+    end_text = end_text.strip()
 
-    if start_tag != "":
-        start_tag = f"{start_tag}\n"
+    if start_text != "":
+        start_text = f"{start_text}\n"
 
-    if end_tag != "":
-        end_tag = f"\n{end_tag}"
+    if end_text != "":
+        end_text = f"\n{end_text}"
 
-    return f"{start_tag}{text}{end_tag}"
+    return f"{start_text}{text}{end_text}"
 
 
-def _join_html_blocks(*blocks: str) -> str:
-    return "\n".join(block.strip() for block in blocks)
+def _join_text_blocks(*blocks: str, sep: str = "\n") -> str:
+    return sep.join(block.strip() for block in blocks)
 
 
 def _wrap_with_details_tag(
     text, mode: Literal["open", "closed"], summary_name: str | None = None
 ) -> str:
     if summary_name is not None:
-        summary_tag = _wrap_with_html_block(summary_name, "<summary>", "</summary>")
-        text = _join_html_blocks(summary_tag, text)
+        summary_tag = _wrap_text(summary_name, "<summary>", "</summary>")
+        text = _join_text_blocks(summary_tag, text)
 
     if mode == "open":
-        text = _wrap_with_html_block(text, "<details open>", "</details>")
+        text = _wrap_text(text, "<details open>", "</details>")
     else:
-        text = _wrap_with_html_block(text, "<details>", "</details>")
+        text = _wrap_text(text, "<details>", "</details>")
 
     return text
 
@@ -45,7 +45,7 @@ _BLOCK_BORDER_STYLE = (
 
 
 def _wrap_with_block_border(text: str) -> str:
-    return _wrap_with_html_block(text, f"<div style='{_BLOCK_BORDER_STYLE}'>", "</div>")
+    return _wrap_text(text, f"<div style='{_BLOCK_BORDER_STYLE}'>", "</div>")
 
 
 _QUOTE_BORDER_STYLE = (
@@ -54,15 +54,15 @@ _QUOTE_BORDER_STYLE = (
 
 
 def _wrap_with_quote_border(text: str) -> str:
-    return _wrap_with_html_block(text, f"<div style='{_QUOTE_BORDER_STYLE}'>", "</div>")
+    return _wrap_text(text, f"<div style='{_QUOTE_BORDER_STYLE}'>", "</div>")
 
 
 def _wrap_strong(text: str) -> str:
-    return _wrap_with_html_block(text, "<strong>", "</strong>")
+    return _wrap_text(text, "<strong>", "</strong>")
 
 
 def _wrap_hidden_div(text: str) -> str:
-    return _wrap_with_html_block(text, '<div style="display: none;">', "</div>")
+    return _wrap_text(text, '<div style="display: none;">', "</div>")
 
 
 def _add_line_break(text: str, before: bool = True, after: bool = True) -> str:
@@ -74,7 +74,7 @@ def _add_line_break(text: str, before: bool = True, after: bool = True) -> str:
     if after:
         end_tag = "<br>"
 
-    return _wrap_with_html_block(text, start_tag, end_tag)
+    return _wrap_text(text, start_tag, end_tag)
 
 
 def _get_display_template(
@@ -90,7 +90,9 @@ def _get_display_template(
 
     assistant_id_placeholder = _wrap_hidden_div("{%s}" % assistant_id_placeholder)
     display_name_placeholder = _wrap_strong("{%s}" % display_name_placeholder)
-    template = _join_html_blocks(assistant_id_placeholder, "{%s}" % answer_placeholder)
+    template = _join_text_blocks(
+        assistant_id_placeholder, "{%s}" % answer_placeholder, sep="\n\n"
+    )  # Double line break is needed for markdown formatting
 
     if add_quote_border:
         template = _wrap_with_quote_border(template)
@@ -108,10 +110,10 @@ def _get_display_template(
             display_name_placeholder = _add_line_break(
                 display_name_placeholder, before=False, after=True
             )
-            template = _join_html_blocks(display_name_placeholder, template)
+            template = _join_text_blocks(display_name_placeholder, template)
             # Add a hidden block border to seperate sub agent answers from the rest of the text.
             hidden_block_border = _wrap_hidden_div("sub_agent_answer_block")
-            template = _join_html_blocks(template, hidden_block_border)
+            template = _join_text_blocks(template, hidden_block_border)
 
     if add_block_border:
         template = _wrap_with_block_border(template)
