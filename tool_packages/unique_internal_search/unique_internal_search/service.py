@@ -1,6 +1,6 @@
 from logging import Logger
 
-from pydantic import Field, create_model
+from pydantic import BaseModel, Field, create_model
 from typing_extensions import override
 from unique_toolkit._common.chunk_relevancy_sorter.exception import (
     ChunkRelevancySorterException,
@@ -29,6 +29,12 @@ from unique_toolkit.language_model.schemas import (
 )
 
 from unique_internal_search.config import InternalSearchConfig
+from unique_internal_search.utils import interleave_search_results_round_robin
+
+
+class SearchStringResult(BaseModel):
+    query: str
+    chunks: list[ContentChunk]
 
 
 class InternalSearchService:
@@ -77,38 +83,25 @@ class InternalSearchService:
 
     async def search(
         self,
-        search_strings: str | list[str] | None = None,
+        search_string: str | list[str],
         content_ids: list[str] | None = None,
         metadata_filter: dict | None = None,
-        search_string: str | None = None,  # Deprecated: use search_strings instead
         **kwargs,
     ) -> list[ContentChunk]:
         """
         Perform a search with one or more search strings.
-        
+
         Args:
-            search_strings: Single search string or list of search strings (preferred)
-            search_string: Deprecated. Single search string (for backwards compatibility)
+            search_string: List of search strings or single search string
+            content_ids: List of content IDs
+            metadata_filter: Metadata filter
         """
-        
-        # Handle backwards compatibility with deprecated search_string parameter
-        if search_string is not None:
-            if search_strings is not None:
-                raise ValueError(
-                    "Cannot specify both 'search_string' (deprecated) and 'search_strings'. "
-                    "Please use 'search_strings' only."
-                )
-            self.logger.warning(
-                "Parameter 'search_string' is deprecated. Please use 'search_strings' instead."
-            )
-            search_strings = search_string
-        
-        if search_strings is None:
-            raise ValueError("Either 'search_strings' or 'search_string' must be provided")
-        
+
         # Convert single string to list
-        if isinstance(search_strings, str):
-            search_strings = [search_strings]
+        if isinstance(search_string, str):
+            search_strings = [search_string]
+        else:
+            search_strings = search_string
 
         """
         Perform a search in the Vector DB based on the user's message and generate a response.
@@ -134,12 +127,13 @@ class InternalSearchService:
             self.content_service._metadata_filter = None
             metadata_filter = None
 
-        found_chunks_per_query = []
+        found_chunks_per_search_string: list[SearchStringResult] = []
         for i, search_string in enumerate(search_strings):
-            search_string_data = search_string
             try:
-                found_chunks = await self.content_service.search_content_chunks_async(
-                    search_string=search_string_data,  # type: ignore
+                found_chunks: list[
+                    ContentChunk
+                ] = await self.content_service.search_content_chunks_async(
+                    search_string=search_string,  # type: ignore
                     search_type=self.config.search_type,
                     limit=self.config.limit,
                     reranker_config=self.config.reranker_config,
@@ -151,50 +145,50 @@ class InternalSearchService:
                     content_ids=content_ids,
                     score_threshold=self.config.score_threshold,
                 )
-                self.logger.info(f"Found {len(found_chunks)} chunks (Query {i + 1}/{len(search_strings)})")
+                self.logger.info(
+                    f"Found {len(found_chunks)} chunks (Query {i + 1}/{len(search_strings)})"
+                )
             except Exception as e:
                 self.logger.error(f"Error in search_document_chunks call: {e}")
                 raise e
 
-            found_chunks_per_query.append({"query": search_string_data, "chunks": found_chunks})
+            found_chunks_per_search_string.append(
+                SearchStringResult(
+                    query=search_string,
+                    chunks=found_chunks,
+                )
+            )
 
         # Reset the metadata filter in case it was disabled
         self.content_service._metadata_filter = metadata_filter_copy
 
         # Apply chunk relevancy sorter if enabled
         if self.config.chunk_relevancy_sort_config.enabled:
-            for i, result in enumerate(found_chunks_per_query):
+            for i, result in enumerate(found_chunks_per_search_string):
                 await self.post_progress_message(
-                    f"{result['query']} (_Resorting {len(result['chunks'])} search results_ 🔄 in query {i + 1}/{len(search_strings)})",
+                    f"{result.query} (_Resorting {len(result.chunks)} search results_ 🔄 in query {i + 1}/{len(search_strings)})",
                     **kwargs,
                 )
-                result['chunks'] = await self._resort_found_chunks_if_enabled(
-                    found_chunks=result['chunks'],
-                    search_string=result["query"],  # type: ignore
+                result.chunks = await self._resort_found_chunks_if_enabled(
+                    found_chunks=result.chunks,
+                    search_string=result.query,
                 )
 
         ###
         # 3. Pick a subset of the search results
         ###
-        """ Make certain chunks from each query end up in the final result """
-        found_chunks_all = []
-        max_chunks = max(len(result['chunks']) for result in found_chunks_per_query) if found_chunks_per_query else 0
+        if self.config.experimental_features.enable_multiple_search_strings_execution:
+            found_chunks_per_search_string = interleave_search_results_round_robin(
+                found_chunks_per_search_string
+            )
 
-        for i in range(max_chunks):
-            for result in found_chunks_per_query:
-                if i < len(result['chunks']):
-                    chunk = result['chunks'][i]
-                    found_chunks_all.append(chunk)
-        
-        # Deduplicate chunks by chunk_id
-        found_chunks_all = self._deduplicate_chunks(found_chunks_all)
-        
         await self.post_progress_message(
             f"{', '.join(search_strings)} (_Postprocessing search results_)",
             **kwargs,
         )
+        found_chunks = [result.chunks for result in found_chunks_per_search_string]
         selected_chunks = pick_content_chunks_for_token_window(
-            found_chunks_all, self._get_max_tokens()
+            found_chunks, self._get_max_tokens()
         )
 
         ###
@@ -228,33 +222,6 @@ class InternalSearchService:
             self.logger.warning(f"Error while sorting chunks: {e.error_message}")
         finally:
             return found_chunks
-
-    def _deduplicate_chunks(self, chunks: list[ContentChunk]) -> list[ContentChunk]:
-        """
-        Remove duplicate chunks based on chunk_id, preserving order and keeping first occurrence.
-        
-        Args:
-            chunks: List of content chunks that may contain duplicates
-            
-        Returns:
-            List of unique chunks (by chunk_id) in original order
-        """
-        seen_chunk_ids: set[str] = set()
-        deduplicated_chunks: list[ContentChunk] = []
-        
-        for chunk in chunks:
-            if chunk.chunk_id not in seen_chunk_ids:
-                seen_chunk_ids.add(chunk.chunk_id)
-                deduplicated_chunks.append(chunk)
-        
-        duplicates_removed_count = len(chunks) - len(deduplicated_chunks)
-        if duplicates_removed_count > 0:
-            self.logger.info(
-                f"Removed {duplicates_removed_count} duplicate chunks. "
-                f"Unique chunks: {len(deduplicated_chunks)}/{len(chunks)}"
-            )
-        
-        return deduplicated_chunks
 
     def _get_max_tokens(self) -> int:
         if self.config.language_model_max_input_tokens is not None:
@@ -377,7 +344,8 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             or not isinstance(tool_call.arguments, dict)
             or (
                 "search_strings" not in tool_call.arguments
-                and "search_string" not in tool_call.arguments  # Backwards compatibility
+                and "search_string"
+                not in tool_call.arguments  # Backwards compatibility
             )
         ):
             self.logger.error("Tool call arguments are missing or invalid")
@@ -393,11 +361,15 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             "search_strings", tool_call.arguments.get("search_string")
         )
         # Ensure it's always a list for the progress message
+        search_strings_list: list[str] = []
         if isinstance(search_strings_data, str):
             search_strings_list = [search_strings_data]
-        else:
+        elif isinstance(search_strings_data, list):
             search_strings_list = search_strings_data
-        await self.post_progress_message(f"{', '.join(search_strings_list)}", tool_call)
+        else:
+            raise ValueError("Invalid search strings data")
+
+        await self.post_progress_message(f"{'; '.join(search_strings_list)}", tool_call)
 
         selected_chunks = await self.search(
             **tool_call.arguments,
@@ -415,7 +387,7 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             await self.tool_progress_reporter.notify_from_tool_call(
                 tool_call=tool_call,
                 name=f"**{self.tool_execution_message_name}**",
-                message=f"{', '.join(search_strings_list)}",
+                message=f"{'; '.join(search_strings_list)}",
                 state=ProgressState.FINISHED,
             )
 

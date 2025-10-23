@@ -22,7 +22,7 @@ from unique_toolkit.content.schemas import (
 
 from unique_internal_search.prompts import (
     DEFAULT_LANGUAGE_PARAM_DESCRIPTION,
-    DEFAULT_SEARCH_STRINGS_PARAM_DESCRIPTION,
+    DEFAULT_SEARCH_STRING_PARAM_DESCRIPTION,
     DEFAULT_TOOL_DESCRIPTION,
     DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
     DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT,
@@ -30,7 +30,11 @@ from unique_internal_search.prompts import (
 from unique_internal_search.validators import get_string_field_with_pattern_validation
 
 
-class ExperimentalFeatures(FeatureExtendedSourceSerialization): ...
+class ExperimentalFeatures(FeatureExtendedSourceSerialization):
+    enable_multiple_search_strings_execution: bool = Field(
+        default=False,
+        description="Whether allow multiple search strings execution in a single tool call. If set to True, an individual search will be performed for each search string in the list and search results will then be merged into a single response.",
+    )
 
 
 DEFAULT_LIMIT_CHUNK_RELEVANCY_SORT_ENABLED = 200
@@ -109,7 +113,7 @@ class InternalSearchConfig(BaseToolConfig):
     )
     # Backwards compatible field: accepts both param_description_search_strings and param_description_search_string
     param_description_search_strings: str = Field(
-        default=DEFAULT_SEARCH_STRINGS_PARAM_DESCRIPTION,
+        default=DEFAULT_SEARCH_STRING_PARAM_DESCRIPTION,
         validation_alias=AliasChoices(
             "param_description_search_strings",
             "param_description_search_string",  # Deprecated: for backwards compatibility
