@@ -403,6 +403,8 @@ def _build_completions(
         mcp_manager=common_components.mcp_manager,
         a2a_manager=common_components.a2a_manager,
     )
+    if not TOOL_CHOICES and UPLOADED_DOCUMENTS:
+        tool_manager.add_forced_tool(UploadedSearchTool.name)
 
     postprocessor_manager = PostprocessorManager(
         logger=logger,
@@ -440,6 +442,7 @@ def _build_completions(
         postprocessor_manager=postprocessor_manager,
         debug_info_manager=debug_info_manager,
         mcp_servers=event.payload.mcp_servers,
+        uploaded_documents=common_components.uploaded_documents,
     )
 
 
