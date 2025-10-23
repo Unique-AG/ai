@@ -381,7 +381,6 @@ Search for complete content files (not chunks) by metadata. This is useful when 
 contents = kb_service.search_contents(
     where={"title": {"contains": "manual"}},
 )
-
 ```
 <!--
 ```{.python file=./docs/.python_files/kb_service_search_content.py }

@@ -25,6 +25,7 @@ from unique_toolkit.framework_utilities.openai.message_builder import (
 )
 from pydantic import Field
 from unique_toolkit import LanguageModelToolDescription
+from unique_toolkit.chat.rendering import create_prompt_button_string
 # ~/~ end
 # ~/~ begin <<docs/plattforms/openai/openai.md#toolkit_language_model>>[init]
 model = LanguageModelName.AZURE_GPT_4o_2024_1120

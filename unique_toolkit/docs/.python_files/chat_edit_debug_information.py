@@ -27,6 +27,7 @@ from unique_toolkit.framework_utilities.openai.message_builder import (
 )
 from pydantic import Field
 from unique_toolkit import LanguageModelToolDescription
+from unique_toolkit.chat.rendering import create_prompt_button_string
 # ~/~ end
 # ~/~ begin <<docs/application_types/event_driven_applications.md#unique_setup_settings_sdk_from_env>>[init]
 settings = UniqueSettings.from_env_auto_with_sdk_init()

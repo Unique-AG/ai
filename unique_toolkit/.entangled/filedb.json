@@ -2,896 +2,893 @@
   "files": [
     {
       "deps": [
+        "docs/modules/examples/chat/chat_service.md",
         "docs/application_types/event_driven_applications.md",
-        "docs/setup/_common_imports.md",
-        "docs/modules/examples/chat/chat_service.md"
+        "docs/setup/_common_imports.md"
       ],
-      "hexdigest": "a414e9e740d0275f035fe4dfd3dc11881d36a57fb9fbe0a0d6b77b74138481b3",
-      "modified": "2025-10-09T08:14:08.229818",
+      "hexdigest": "88d39d8c25d12ccc222550aa6cc88f49d6521ae87c78d1f6e6fec757418121cb",
+      "modified": "2025-10-23T10:16:20.989686",
       "path": "docs/.python_files/chat_app_minimal.py",
-      "size": 2777
+      "size": 2847
     },
     {
       "deps": [
+        "docs/modules/examples/chat/chat_service.md",
         "docs/application_types/event_driven_applications.md",
-        "docs/setup/_common_imports.md",
-        "docs/modules/examples/chat/chat_service.md"
+        "docs/setup/_common_imports.md"
       ],
-      "hexdigest": "8119c25e96faeabccd3b5aa6c5ac699f23e53a9c2bb97dffdfb8e14f084a01d0",
-      "modified": "2025-10-09T08:14:08.314507",
+      "hexdigest": "d52f1e5e46939e02704b420e95bd26ca30b16b509a19852ca658fbcd69b1d58d",
+      "modified": "2025-10-23T10:16:20.983995",
       "path": "docs/.python_files/chat_edit_debug_information.py",
-      "size": 3244
+      "size": 3314
+    },
+    {
+      "deps": [
+        "docs/modules/examples/chat/avanced_rendering.md",
+        "docs/application_types/event_driven_applications.md",
+        "docs/setup/_common_imports.md"
+      ],
+      "hexdigest": "e81dc85e008104d2b47346ce798525e959bf9c6941f71510bf703c344fb4d7ec",
+      "modified": "2025-10-23T10:16:20.991745",
+      "path": "docs/.python_files/chat_prompt_button.py",
+      "size": 2599
     },
     {
       "deps": [
         "docs/tutorials/file_creation_and_upload_to_chat.md",
-        "docs/modules/examples/content/kb_service.md",
         "docs/application_types/event_driven_applications.md",
+        "docs/modules/examples/content/kb_service.md",
         "docs/setup/_common_imports.md"
       ],
-      "hexdigest": "93544856dd745f5a63297e112df0c07937ebd881f8d584323a1c5cff13e5e1f6",
-      "modified": "2025-10-09T08:14:08.259990",
+      "hexdigest": "e790d63c3d399e9476084ad23867aaf706b468e7ae2aed3b1fc9cec896d016e8",
+      "modified": "2025-10-23T10:16:20.973771",
       "path": "docs/.python_files/chat_upload_to_chat.py",
-      "size": 4174
+      "size": 4244
     },
     {
       "deps": [
         "docs/application_types/event_driven_applications.md",
-        "docs/setup/_common_imports.md",
-        "docs/modules/examples/chat/chat_document_handling.md"
+        "docs/modules/examples/chat/chat_document_handling.md",
+        "docs/setup/_common_imports.md"
       ],
-      "hexdigest": "67a8c3c2ec91bdb0320605f4af5fb1c1b99b1a41763cfe530419050113b94eaf",
-      "modified": "2025-10-09T08:14:08.311583",
+      "hexdigest": "aa5265ccc79d29b62ebcd2575e8f98a1865bcac4eb42f68f6dd0ac73af47b624",
+      "modified": "2025-10-23T10:16:21.008891",
       "path": "docs/.python_files/chat_with_document_app.py",
-      "size": 3715
+      "size": 3785
     },
     {
       "deps": [
+        "docs/modules/examples/chat/chat_service.md",
         "docs/application_types/event_driven_applications.md",
-        "docs/setup/_common_imports.md",
-        "docs/modules/examples/chat/chat_service.md"
+        "docs/setup/_common_imports.md"
       ],
-      "hexdigest": "b18057d5e36817cf5ff6d0c8e9df0d70ccb781bdb3442622f1b7e76486c2126a",
-      "modified": "2025-10-09T08:14:08.227469",
+      "hexdigest": "d0fe98a5cd03fe6668cb46ad3fc8c60cafe799fb5b9b41ab79a11549433c9cf7",
+      "modified": "2025-10-23T10:16:20.958967",
       "path": "docs/.python_files/chat_with_manual_message_and_reference.py",
-      "size": 2978
+      "size": 3048
     },
     {
       "deps": [
+        "docs/modules/examples/chat/chat_service.md",
         "docs/application_types/event_driven_applications.md",
-        "docs/setup/_common_imports.md",
-        "docs/modules/examples/chat/chat_service.md"
+        "docs/setup/_common_imports.md"
       ],
-      "hexdigest": "5501dd4fd502fa32a63c22d82c671d305d2ad01ca468b3caccb8545608c60eb9",
-      "modified": "2025-10-09T08:14:08.308506",
+      "hexdigest": "c261c878cae234a82a5ee0f2189e45206e7a9e5e7e9ce3678ddbea613b5713c4",
+      "modified": "2025-10-23T10:16:21.012277",
       "path": "docs/.python_files/chat_with_manual_message_create.py",
-      "size": 2422
+      "size": 2492
     },
     {
       "deps": [
+        "docs/modules/examples/chat/chat_service.md",
         "docs/application_types/event_driven_applications.md",
-        "docs/setup/_common_imports.md",
-        "docs/modules/examples/chat/chat_service.md"
+        "docs/setup/_common_imports.md"
       ],
-      "hexdigest": "8dbcd1ac2acf6e5ca655bfdf7ab49920c9cf0ca0b6b2e31807edaaa76a8faaf9",
-      "modified": "2025-10-09T08:14:08.268098",
+      "hexdigest": "381ab029a363b4b9408e09f18ffef4db0c29743602208d244ba16bc355d7c708",
+      "modified": "2025-10-23T10:16:20.987878",
       "path": "docs/.python_files/chat_with_manual_message_create_and_modification.py",
-      "size": 2702
+      "size": 2772
     },
     {
       "deps": [
+        "docs/modules/examples/chat/chat_service.md",
         "docs/application_types/event_driven_applications.md",
-        "docs/setup/_common_imports.md",
-        "docs/modules/examples/chat/chat_service.md"
+        "docs/setup/_common_imports.md"
       ],
-      "hexdigest": "38f99ea917202fabab9104a1a1cb08fe77a7e7b6af2e878d3709749d5be034c2",
-      "modified": "2025-10-09T08:14:08.296724",
+      "hexdigest": "82f53319164fde461e0f2d40b3b7df9adf35581dd7d1744d95fc4a8f34c72d40",
+      "modified": "2025-10-23T10:16:20.998905",
       "path": "docs/.python_files/chat_with_manual_message_create_free_user_input.py",
-      "size": 2848
+      "size": 2918
     },
     {
       "deps": [
+        "docs/modules/examples/chat/chat_service.md",
         "docs/application_types/event_driven_applications.md",
-        "docs/setup/_common_imports.md",
-        "docs/modules/examples/chat/chat_service.md"
+        "docs/setup/_common_imports.md"
       ],
-      "hexdigest": "18fd9b6a2aaee595832cf928b393d9d84579ad4592ea25b9bbfdac36621ac0cf",
-      "modified": "2025-10-09T08:14:08.292704",
+      "hexdigest": "38e5ebd0f78ca9f56a74d0a9c0a8614a73579e25e9df07edd420d63e25a7871c",
+      "modified": "2025-10-23T10:16:20.953027",
       "path": "docs/.python_files/chat_with_message_assessment.py",
-      "size": 4808
+      "size": 4948
     },
     {
       "deps": [
+        "docs/modules/examples/chat/chat_service.md",
         "docs/application_types/event_driven_applications.md",
-        "docs/setup/_common_imports.md",
-        "docs/modules/examples/chat/chat_service.md"
+        "docs/setup/_common_imports.md"
       ],
-      "hexdigest": "4ff54af980a841b707a67f724c84ccb6d4625c0eb5152e92188b0de1ea132338",
-      "modified": "2025-10-09T08:14:08.285207",
+      "hexdigest": "a541549613b25fb0356a8239a709bda266b5822c424a56e2799b719a355028dc",
+      "modified": "2025-10-23T10:16:21.007212",
       "path": "docs/.python_files/chat_with_streamed_references.py",
-      "size": 4940
+      "size": 5010
     },
     {
       "deps": [
+        "docs/modules/examples/content/smart_rules.md",
         "docs/modules/examples/content/kb_service.md",
-        "docs/setup/_common_imports.md",
-        "docs/modules/examples/content/smart_rules.md"
+        "docs/setup/_common_imports.md"
       ],
-      "hexdigest": "db8e46afc2d1004d7b02437488d630f5e77b49bddb8ba7eb3c11032dad47d328",
-      "modified": "2025-10-09T08:14:08.247212",
+      "hexdigest": "4710ccfbd4716691ff573d28eeca899e6660eaa19d4217843b151e818b7f7023",
+      "modified": "2025-10-23T10:16:21.013925",
       "path": "docs/.python_files/kb_content_chunk_search_with_smart_rule_on_folders.py",
-      "size": 2932
+      "size": 3002
     },
     {
       "deps": [
+        "docs/modules/examples/content/smart_rules.md",
         "docs/modules/examples/content/kb_service.md",
-        "docs/setup/_common_imports.md",
-        "docs/modules/examples/content/smart_rules.md"
+        "docs/setup/_common_imports.md"
       ],
-      "hexdigest": "8cb90141e72b1a58d789d8bf8952165372c738ae71bf7ba51857c59c7e482e98",
-      "modified": "2025-10-09T08:14:08.302828",
+      "hexdigest": "70d79c2dacaf9d079e889476f2af0c3dac59fbe714b87641bd4837104c522c7b",
+      "modified": "2025-10-23T10:16:21.005350",
       "path": "docs/.python_files/kb_content_search_with_smart_rule_on_folders.py",
-      "size": 2800
+      "size": 2870
     },
     {
       "deps": [
+        "docs/modules/examples/content/smart_rules.md",
         "docs/modules/examples/content/kb_service.md",
-        "docs/setup/_common_imports.md",
-        "docs/modules/examples/content/smart_rules.md"
+        "docs/setup/_common_imports.md"
       ],
-      "hexdigest": "c966d4dbd09e2b66d8433f5cdfc6258484b91f24e991772be30785553a60b7db",
-      "modified": "2025-10-09T08:14:08.236538",
+      "hexdigest": "532aaac294a3689ee89b8bbf32b3a80925565fbd1712150140ac4254e486bf61",
+      "modified": "2025-10-23T10:16:20.986033",
       "path": "docs/.python_files/kb_deletion_with_smart_rule_on_folders.py",
-      "size": 4211
+      "size": 4281
     },
     {
       "deps": [
+        "docs/modules/examples/content/smart_rules.md",
         "docs/modules/examples/content/kb_service.md",
-        "docs/setup/_common_imports.md",
-        "docs/modules/examples/content/smart_rules.md"
+        "docs/setup/_common_imports.md"
       ],
-      "hexdigest": "07e87bd251bca13e4d7ae1053537424ed09e00bcd5471d831a2332bc63252583",
-      "modified": "2025-10-09T08:14:08.241818",
+      "hexdigest": "fc74a84db661a2a6bdfc43cf34eb33d69ef1f0afd0da46928287cac4490d668c",
+      "modified": "2025-10-23T10:16:21.003610",
       "path": "docs/.python_files/kb_remove_metadata_with_smart_rule.py",
-      "size": 3005
+      "size": 3075
     },
     {
       "deps": [
         "docs/modules/examples/content/kb_service.md",
         "docs/setup/_common_imports.md"
       ],
-      "hexdigest": "802525519cec5ab90ce86a7e131850f7088c26ad4b2d6bc8cc0af07b6abd12e6",
-      "modified": "2025-10-09T08:14:08.286749",
+      "hexdigest": "644032c2de965fa377478d38ed8c7dd66f831526adc876c747ed7bd3ba84e7e4",
+      "modified": "2025-10-23T10:16:20.995436",
       "path": "docs/.python_files/kb_service_combined_search_content_chunks.py",
-      "size": 2544
+      "size": 2614
     },
     {
       "deps": [
         "docs/modules/examples/content/kb_service.md",
         "docs/setup/_common_imports.md"
       ],
-      "hexdigest": "7e464b1da39fad0ae0be35d5000426146a17ae324b52909fd8f5516997a7d9ff",
-      "modified": "2025-10-09T08:14:08.256411",
+      "hexdigest": "db7b9ad41981cbf8849aff1fa03876f8a8c9476c1cc23c4707c8700bf98033d6",
+      "modified": "2025-10-23T10:16:20.997150",
       "path": "docs/.python_files/kb_service_delete.py",
-      "size": 2576
+      "size": 2646
     },
     {
       "deps": [
         "docs/modules/examples/content/kb_service.md",
         "docs/setup/_common_imports.md"
       ],
-      "hexdigest": "0f21a73d40ac5f53e5eb6e531550def1eed03e2a77afbc87907121933bf2a83a",
-      "modified": "2025-10-09T08:14:08.274198",
+      "hexdigest": "5149bb3b4df87a1652d084b82f1870c5deec6e7ac75d376c544207f6b93c1f96",
+      "modified": "2025-10-23T10:16:20.993455",
       "path": "docs/.python_files/kb_service_download_to_file.py",
-      "size": 2747
+      "size": 2817
     },
     {
       "deps": [
         "docs/modules/examples/content/kb_service.md",
         "docs/setup/_common_imports.md"
       ],
-      "hexdigest": "053df8ae7ced3915cba2917f5a1ba615ab3f425aa890fcd8ab92337dd74a053e",
-      "modified": "2025-10-09T08:14:08.264175",
+      "hexdigest": "c9bc4ac9b0e13ac550e52c18a312b08ab5ead17bbc21ded584a521bcdda18b62",
+      "modified": "2025-10-23T10:16:20.972016",
       "path": "docs/.python_files/kb_service_download_to_memory.py",
-      "size": 2432
+      "size": 2502
     },
     {
       "deps": [
         "docs/modules/examples/content/kb_service.md",
         "docs/setup/_common_imports.md"
       ],
-      "hexdigest": "536995c26992d17e25f227d736c3c34314aa0b63aa7d7778956f6587d3c0ab89",
-      "modified": "2025-10-09T08:14:08.289721",
+      "hexdigest": "c670b3ef86935d90addbddd71c08df21e0f3dd8a8f9bb9c52fb04ffe27cb3f63",
+      "modified": "2025-10-23T10:16:21.002031",
       "path": "docs/.python_files/kb_service_search_content.py",
-      "size": 2287
+      "size": 2357
     },
     {
       "deps": [
         "docs/modules/examples/content/kb_service.md",
         "docs/setup/_common_imports.md"
       ],
-      "hexdigest": "6933456b444f2f055d37cd4b1c83917caff38d5f2ad9451e92673d65c7551d07",
-      "modified": "2025-10-09T08:14:08.261232",
+      "hexdigest": "7aed63ad388c9bdba3ebc4a38d936245d3e44c1feb0710909c453bb4107e6ea0",
+      "modified": "2025-10-23T10:16:20.962765",
       "path": "docs/.python_files/kb_service_upload_from_file.py",
-      "size": 2541
+      "size": 2611
     },
     {
       "deps": [
         "docs/modules/examples/content/kb_service.md",
         "docs/setup/_common_imports.md"
       ],
-      "hexdigest": "2801852ecb674cbec23032c572ce508af83b638fec28250cb9e9b543eaa01154",
-      "modified": "2025-10-09T08:14:08.305571",
+      "hexdigest": "002b4b3259023cced29f1139c1a455c1db4f7c5ba491eacbdfdc9dd851b61075",
+      "modified": "2025-10-23T10:16:20.960634",
       "path": "docs/.python_files/kb_service_upload_from_memory.py",
-      "size": 2407
+      "size": 2477
     },
     {
       "deps": [
         "docs/modules/examples/content/kb_service.md",
         "docs/setup/_common_imports.md"
       ],
-      "hexdigest": "ad61d20a327530eed1869d06381e968ce22c781d730782517210b98fa1199e2b",
-      "modified": "2025-10-09T08:14:08.277890",
+      "hexdigest": "0c1460d28d37ba46e113c1772b74fccce426c4734b680ab0d3ba38da4151bfd1",
+      "modified": "2025-10-23T10:16:20.967346",
       "path": "docs/.python_files/kb_service_vector_search_content_chunks.py",
-      "size": 2607
+      "size": 2677
     },
     {
       "deps": [
+        "docs/modules/examples/content/smart_rules.md",
         "docs/modules/examples/content/kb_service.md",
-        "docs/setup/_common_imports.md",
-        "docs/modules/examples/content/smart_rules.md"
+        "docs/setup/_common_imports.md"
       ],
-      "hexdigest": "d85d51d8e02d674f8c474957e24ed8be087ccbb4129b8a0f805487b91965e48b",
-      "modified": "2025-10-09T08:14:08.252056",
+      "hexdigest": "66ff1affab15a3dc380595c93dfddb9afe2d9fdb076281b866ab04122c6b09d7",
+      "modified": "2025-10-23T10:16:20.956476",
       "path": "docs/.python_files/kb_update_metadata_with_smart_rule.py",
-      "size": 3074
+      "size": 3144
     },
     {
       "deps": [
         "docs/plattforms/openai/openai.md",
         "docs/setup/_common_imports.md"
       ],
-      "hexdigest": "0701eadf555a57475d4f7b1d75cd5f545a7f1132c390b09fb41aaa6556e1446a",
-      "modified": "2025-10-09T08:14:08.280918",
+      "hexdigest": "09a8ebb49790bae1f3d7a5157fa0017f3375c9d0d574370389f4d005628c8128",
+      "modified": "2025-10-23T10:16:20.965549",
       "path": "docs/.python_files/openai_completions.py",
-      "size": 3996
+      "size": 4066
     },
     {
       "deps": [
         "docs/application_types/event_driven_applications.md",
         "docs/setup/_common_imports.md"
       ],
-      "hexdigest": "183b2fb0a79fbc6fe258f9803ae04032efc5c42cdaef6153625961d32a9505fe",
-      "modified": "2025-10-09T08:14:08.231467",
+      "hexdigest": "c7f041708a8e81f214b3ce9a9e446bc6ba2a579ce2b6de675abcee690560b392",
+      "modified": "2025-10-23T10:16:20.969321",
       "path": "docs/.python_files/sse_setup_with_services.py",
-      "size": 2058
+      "size": 2128
     },
     {
       "deps": [
-        "docs/setup/_common_imports.md",
-        "docs/application_types/standalone_application.md"
+        "docs/application_types/standalone_application.md",
+        "docs/setup/_common_imports.md"
       ],
-      "hexdigest": "3ee5f8079c4ba260a5b1223ecd99da90ca028de627c9a16681bacacaec8038a0",
-      "modified": "2025-10-09T08:14:08.299668",
+      "hexdigest": "4c036c372bef73ed7fb2ebcb8a66a38095e0955be12cac7559de6272f96cecc1",
+      "modified": "2025-10-23T10:16:21.010677",
       "path": "docs/.python_files/standalone_setup.py",
-      "size": 1877
+      "size": 1947
     },
     {
       "deps": [
-        "docs/setup/_common_imports.md",
-        "docs/application_types/standalone_application.md"
+        "docs/application_types/standalone_application.md",
+        "docs/setup/_common_imports.md"
       ],
-      "hexdigest": "4ad4634c8c05ca1eb0186250228b7603032512e19077e7452d1c20f94d2cbfae",
-      "modified": "2025-10-09T08:14:08.271003",
+      "hexdigest": "350c45a562edbcee6c70dc6abd489e799a503b6efc97f703e9b901abaf5a0c5e",
+      "modified": "2025-10-23T10:16:21.000628",
       "path": "docs/.python_files/standalone_setup_auto.py",
-      "size": 1663
+      "size": 1733
     },
     {
       "deps": null,
-      "hexdigest": "dc4660237643f9a5a01630529c24bfe8323851ebd46ba30a59f550afcd1c28e0",
-      "modified": "2025-09-29T17:11:16.425304",
+      "hexdigest": "d76a40c2a24a631f07407c92d0ad7d0fd8f203b18c5f0b56e5b11202d774666a",
+      "modified": "2025-10-21T22:24:43.563253",
       "path": "docs/agentic_framework/debug_manager.md",
-      "size": 1973
+      "size": 2287
     },
     {
       "deps": null,
       "hexdigest": "fcaa9df013dbf6415df4784c4e4b58ea0e72829019b2a2cd4ed4c07f2384bbf1",
-      "modified": "2025-09-29T17:11:16.431778",
+      "modified": "2025-10-13T13:07:34.762220",
       "path": "docs/agentic_framework/evaluation_manager.md",
       "size": 7964
     },
     {
       "deps": null,
       "hexdigest": "90e62a4d15e3afa80e440b0d64e5aac6b67bfe549dfd88023ed4b16838fec4bf",
-      "modified": "2025-10-08T22:15:08.091857",
+      "modified": "2025-10-13T13:07:34.762522",
       "path": "docs/agentic_framework/framework.md",
       "size": 5175
     },
     {
       "deps": null,
       "hexdigest": "c38c0ee801788057614c2d920bec8fd641f53772279198aa0baf28d2973693ed",
-      "modified": "2025-09-29T17:11:16.436495",
+      "modified": "2025-10-13T13:07:34.762726",
       "path": "docs/agentic_framework/history_manager.md",
       "size": 9830
     },
     {
       "deps": null,
       "hexdigest": "d3391f268e1478cab4955d875d7fa9a3f2c3ecdbdca66e4a64cf86d7f3f7870e",
-      "modified": "2025-09-29T17:11:16.445642",
+      "modified": "2025-10-13T13:07:34.764107",
       "path": "docs/agentic_framework/orchestrator/flow_details/finalization_path.md",
       "size": 1641
     },
     {
       "deps": null,
       "hexdigest": "a37a74aeb21f2efb8162f950755c97ffbb12720acf1df026593e6b7a5c04d040",
-      "modified": "2025-09-29T17:11:16.447799",
+      "modified": "2025-10-13T13:07:34.764275",
       "path": "docs/agentic_framework/orchestrator/flow_details/history_construction_and_prompts.md",
       "size": 10204
     },
     {
       "deps": null,
       "hexdigest": "3cf380e71d3f3d341b0364aff28ae8e8583dfb27c1add509fdd57be419f11425",
-      "modified": "2025-10-08T22:45:40.171081",
+      "modified": "2025-10-21T22:24:43.563578",
       "path": "docs/agentic_framework/orchestrator/flow_details/plan_processing.md",
       "size": 1548
     },
     {
       "deps": null,
       "hexdigest": "3e0500574d3360c4bf0686508ee11e9c8a9ff257485e0cb620a09c5435307c87",
-      "modified": "2025-10-08T22:45:40.171753",
+      "modified": "2025-10-21T22:24:43.563876",
       "path": "docs/agentic_framework/orchestrator/flow_details/planning_vs_executing.md",
       "size": 4944
     },
     {
       "deps": null,
-      "hexdigest": "98348b5133410b356df968017372c23d78d5adcc07fcc1849fa90049c62ae8f2",
-      "modified": "2025-09-29T17:11:16.452967",
+      "hexdigest": "dde85927c1e5f39130ce4363d0d028fa7a8a1b1d9e13cae3b6b6feabaa0416e7",
+      "modified": "2025-10-21T22:24:43.564147",
       "path": "docs/agentic_framework/orchestrator/flow_details/tool_handling.md",
-      "size": 3750
+      "size": 3780
     },
     {
       "deps": null,
       "hexdigest": "01d1470a75efedda2ad2785ceea0ac84363d308f5feafa886415e0bfc74084d4",
-      "modified": "2025-09-29T17:11:16.458666",
+      "modified": "2025-10-13T13:07:34.765808",
       "path": "docs/agentic_framework/orchestrator/unqiue_ai_how-it-works.md",
       "size": 15790
     },
     {
       "deps": null,
       "hexdigest": "da72938d60ecdd70b5ab54f629472c63a454f2c2b403b498d0ddc15db5584ee9",
-      "modified": "2025-09-29T17:11:16.462715",
+      "modified": "2025-10-13T13:07:34.766314",
       "path": "docs/agentic_framework/postprocessor_manager.md",
       "size": 5703
     },
     {
       "deps": null,
       "hexdigest": "dad1aefbcb0ced8b5151aa39fd26cb7ceae177bd3682055cfdf69bd067f91292",
-      "modified": "2025-09-29T17:11:16.464630",
+      "modified": "2025-10-13T13:07:34.766636",
       "path": "docs/agentic_framework/reference_manager.md",
       "size": 6537
     },
     {
       "deps": null,
-      "hexdigest": "f79b8a2754335fed0645a02c12b57cc1837a3fb2f2f24c1590f588976ffaa40a",
-      "modified": "2025-10-08T20:59:48.079453",
-      "path": "docs/agentic_framework/state_management.md",
-      "size": 18623
-    },
-    {
-      "deps": null,
-      "hexdigest": "0c2b1d75e9e72e7688d38bba5e8ee6ce43b21034c26ddcc0232b46cc3f442d2f",
-      "modified": "2025-10-08T14:35:48.533237",
-      "path": "docs/agentic_framework/state_management_diagram.md",
-      "size": 10937
-    },
-    {
-      "deps": null,
-      "hexdigest": "45f1635e95ffd67f8c92ce189102d3be54d6f59cf82511e233f3a4fcb68d4e83",
-      "modified": "2025-10-08T14:35:48.658981",
-      "path": "docs/agentic_framework/state_management_quick_reference.md",
-      "size": 8975
-    },
-    {
-      "deps": null,
       "hexdigest": "a656caaf2858f4b232396247ef48ed06f3fda4391afcc4710f770c1e9ec28985",
-      "modified": "2025-09-29T17:11:16.466511",
+      "modified": "2025-10-13T13:07:34.766810",
       "path": "docs/agentic_framework/tool.md",
       "size": 9287
     },
     {
       "deps": null,
       "hexdigest": "65faea8fe191c6283fe70a981e4ff84ad97f14247dded373e33213dce0b1b846",
-      "modified": "2025-09-29T17:11:16.468368",
+      "modified": "2025-10-13T13:07:34.766930",
       "path": "docs/agentic_framework/tool_call_response.md",
       "size": 2148
     },
     {
       "deps": null,
-      "hexdigest": "cc2559201d2a864f6f3b1091b68fa84a54e5600a079c64e50efb0b678664a205",
-      "modified": "2025-09-29T17:11:16.471589",
+      "hexdigest": "24a3ba7d379f4841bf12b13507dc323f3c3be246bad8ed2a51fd5d16f2b8d6e7",
+      "modified": "2025-10-21T22:24:43.564533",
       "path": "docs/agentic_framework/tool_manager.md",
-      "size": 13124
+      "size": 13175
     },
     {
       "deps": null,
       "hexdigest": "fb17a2652a863537c29ae634efc1541b039984965441f2c73d141e768ba28b9f",
-      "modified": "2025-10-08T22:45:40.172617",
+      "modified": "2025-10-21T22:24:43.564786",
       "path": "docs/api.md",
       "size": 715
     },
     {
       "deps": null,
       "hexdigest": "df88bff93a38915faf5aad6371069ce456b42918b38cf3890405bd99969f2350",
-      "modified": "2025-10-08T22:45:40.173265",
+      "modified": "2025-10-21T22:24:43.565073",
       "path": "docs/application_types/event_driven_applications.md",
       "size": 3454
     },
     {
       "deps": null,
       "hexdigest": "9de36023b8ae54b548d14c2715b3512b91845004add0ec47d28382dd9a78a99e",
-      "modified": "2025-10-08T22:45:40.174028",
+      "modified": "2025-10-21T22:24:43.565337",
       "path": "docs/application_types/standalone_application.md",
       "size": 1999
     },
     {
       "deps": null,
       "hexdigest": "435e14a75e06736190b90c988b1f02897463f368d450d7e018be3167bf6409a6",
-      "modified": "2025-10-09T05:35:51.573282",
+      "modified": "2025-10-21T22:24:43.565483",
       "path": "docs/architectural.md",
       "size": 3138
     },
     {
       "deps": null,
       "hexdigest": "dc51c9facf38a36670c082b415c7b762a006396b58dc43eb59fb43d7a5277a60",
-      "modified": "2025-10-08T22:14:57.574466",
+      "modified": "2025-10-13T13:07:34.782509",
       "path": "docs/index.md",
       "size": 569
     },
     {
       "deps": null,
       "hexdigest": "58269fdce2e9e890a59325c78e24d6ba9a60dd6f22cc0110ce92beecb055b6e2",
-      "modified": "2025-09-12T18:34:13.733927",
+      "modified": "2025-10-13T13:07:34.782666",
       "path": "docs/modules/chat.md",
       "size": 100
     },
     {
       "deps": null,
       "hexdigest": "63565f03916d52b011b6b5f16db82268fb84d6214a9d2c20b11f2df06ee31345",
-      "modified": "2025-09-12T18:34:13.733951",
+      "modified": "2025-10-13T13:07:34.782784",
       "path": "docs/modules/content.md",
       "size": 46
     },
     {
       "deps": null,
       "hexdigest": "92f56afcb8d0702d3827cf1174a4767c148fcc8c2e7a8352e0a5f83491574bd9",
-      "modified": "2025-09-12T18:34:13.734486",
+      "modified": "2025-10-13T13:07:34.782911",
       "path": "docs/modules/embedding.md",
       "size": 36
     },
     {
       "deps": null,
+      "hexdigest": "b5e50cf0ca76305b03078409d679aa438af22e87056b3f989d7f6525b2d6b220",
+      "modified": "2025-10-23T10:12:00.735466",
+      "path": "docs/modules/examples/chat/avanced_rendering.md",
+      "size": 445
+    },
+    {
+      "deps": null,
       "hexdigest": "c2c6822a27fd2a17066f486e524d843c30c635d81c40c9e3b480564dab20fd76",
-      "modified": "2025-10-08T22:45:40.182784",
+      "modified": "2025-10-21T22:24:43.570829",
       "path": "docs/modules/examples/chat/chat_document_handling.md",
       "size": 4322
     },
     {
       "deps": null,
       "hexdigest": "a711fa83648632feada1682afaec8116d2c4dc6f0c72e527222d591b82115dd7",
-      "modified": "2025-10-08T22:45:40.183520",
+      "modified": "2025-10-21T22:24:43.571200",
       "path": "docs/modules/examples/chat/chat_service.md",
       "size": 13180
     },
     {
       "deps": null,
-      "hexdigest": "a567843c3742390da85534c7617797a60f2f4924adc5bbaf6d2d48d4a2f897b3",
-      "modified": "2025-10-08T22:45:40.184515",
+      "hexdigest": "10252d6916d4475bdccc9b9a2be7460000e776f2a641e64a11130adf32697ce7",
+      "modified": "2025-10-23T10:06:29.966143",
       "path": "docs/modules/examples/content/kb_service.md",
-      "size": 12997
+      "size": 12996
     },
     {
       "deps": null,
       "hexdigest": "27047849c07c81c5ad71aabf5bf32abae388e9c1d2cc142d6ded3b7b3de54138",
-      "modified": "2025-10-08T22:45:40.185489",
+      "modified": "2025-10-21T22:24:43.573791",
       "path": "docs/modules/examples/content/smart_rules.md",
       "size": 11510
     },
     {
       "deps": null,
       "hexdigest": "6ee5805b400b98cd5e79ddae6713c36cccc4a563d9776242d63fef559418f3a7",
-      "modified": "2025-09-12T18:34:13.734530",
+      "modified": "2025-10-13T13:07:34.789946",
       "path": "docs/modules/language_model.md",
       "size": 53
     },
     {
       "deps": null,
       "hexdigest": "4afd5546d444dec79a993d0c56a9a9897a8f9ef6fe9bc80021d93f92e1079117",
-      "modified": "2025-09-29T17:11:16.499925",
+      "modified": "2025-10-21T22:24:38.112143",
       "path": "docs/modules/language_models/language_model_overview.md",
       "size": 12274
     },
     {
       "deps": null,
       "hexdigest": "e103359495fd67e3e714a191603e96241fdaedb8fe0cf737372287aadadeefaa",
-      "modified": "2025-09-29T17:11:16.500496",
+      "modified": "2025-10-21T14:47:16.829137",
       "path": "docs/modules/language_models/models/model_AZURE_GPT_35_TURBO_0125.md",
       "size": 405
     },
     {
       "deps": null,
       "hexdigest": "52879975df25dd4ef665045c2282d5646764986717c0f0a83d9499d10fa42cd7",
-      "modified": "2025-09-29T17:11:16.500645",
+      "modified": "2025-10-21T14:47:16.888478",
       "path": "docs/modules/language_models/models/model_AZURE_GPT_41_2025_0414.md",
       "size": 406
     },
     {
       "deps": null,
       "hexdigest": "bfc7fbb3a7354e6640afbe90ed4762757723656736d670ea7a1dd0a08c96df0c",
-      "modified": "2025-09-29T17:11:16.500780",
+      "modified": "2025-10-21T14:47:16.891106",
       "path": "docs/modules/language_models/models/model_AZURE_GPT_41_MINI_2025_0414.md",
       "size": 416
     },
     {
       "deps": null,
       "hexdigest": "d95315f709605e0842bc873d74e38d5ca4199e6366248104dbddb22dc6a2bba5",
-      "modified": "2025-09-29T17:11:16.500911",
+      "modified": "2025-10-21T14:47:16.893635",
       "path": "docs/modules/language_models/models/model_AZURE_GPT_41_NANO_2025_0414.md",
       "size": 416
     },
     {
       "deps": null,
       "hexdigest": "b64b0e16bdf021491be6629908751dd4e0a2666bd392b1bd40d48a2518eac8f3",
-      "modified": "2025-09-29T17:11:16.501052",
+      "modified": "2025-10-21T14:47:16.884992",
       "path": "docs/modules/language_models/models/model_AZURE_GPT_45_PREVIEW_2025_0227.md",
       "size": 418
     },
     {
       "deps": null,
       "hexdigest": "9f43a425110f61fcc7637fd637cef6a85d2c29ea8adf00b2740ee68bb2b8448a",
-      "modified": "2025-09-29T17:11:16.501181",
+      "modified": "2025-10-21T14:47:16.834551",
       "path": "docs/modules/language_models/models/model_AZURE_GPT_4_0613.md",
       "size": 351
     },
     {
       "deps": null,
       "hexdigest": "26a139cf1546650367d6c6dbd1e2107cb1d92ed90bea736cf5f5367d2204ec43",
-      "modified": "2025-09-29T17:11:16.501318",
+      "modified": "2025-10-21T14:47:16.839362",
       "path": "docs/modules/language_models/models/model_AZURE_GPT_4_32K_0613.md",
       "size": 370
     },
     {
       "deps": null,
       "hexdigest": "25366672c527e0bcc8091f1433c5186943973ebe3e6ca74c5d210b7dbdfff7f1",
-      "modified": "2025-09-29T17:11:16.501453",
+      "modified": "2025-10-21T14:47:16.843096",
       "path": "docs/modules/language_models/models/model_AZURE_GPT_4_TURBO_2024_0409.md",
       "size": 426
     },
     {
       "deps": null,
       "hexdigest": "da108571f3b108b3739b774143a05f027994cce1f1d762f4a1266145160bfd3c",
-      "modified": "2025-09-29T17:11:16.501596",
+      "modified": "2025-10-21T14:47:16.863299",
       "path": "docs/modules/language_models/models/model_AZURE_GPT_4o_2024_0513.md",
       "size": 409
     },
     {
       "deps": null,
       "hexdigest": "4202d266337f086de3131245b874735f0977361a4725ea89e12b57e5bc16e5d4",
-      "modified": "2025-09-29T17:11:16.501727",
+      "modified": "2025-10-21T14:47:16.866777",
       "path": "docs/modules/language_models/models/model_AZURE_GPT_4o_2024_0806.md",
       "size": 430
     },
     {
       "deps": null,
       "hexdigest": "c251e4de0f3c054add8cc61ce07c2ef319bb940559b5ce213e9614fa0bcee92f",
-      "modified": "2025-09-29T17:11:16.502024",
+      "modified": "2025-10-21T14:47:16.869360",
       "path": "docs/modules/language_models/models/model_AZURE_GPT_4o_2024_1120.md",
       "size": 430
     },
     {
       "deps": null,
       "hexdigest": "cac7a6e7c907a7754857a4f6b5daf6412b21b3b0cb6c33ef16b3f522073198f9",
-      "modified": "2025-09-29T17:11:16.502156",
+      "modified": "2025-10-21T14:47:16.872255",
       "path": "docs/modules/language_models/models/model_AZURE_GPT_4o_MINI_2024_0718.md",
       "size": 420
     },
     {
       "deps": null,
       "hexdigest": "57a540364776cae3bfe7a60603beb97d1639b13c471dd80b814a780b72c89bc4",
-      "modified": "2025-09-29T17:11:16.502283",
+      "modified": "2025-10-21T14:47:16.846305",
       "path": "docs/modules/language_models/models/model_AZURE_GPT_5_2025_0807.md",
       "size": 450
     },
     {
       "deps": null,
       "hexdigest": "9158273edf699fb4bcaaea1dfae30f2a45a7ecd0f4e2eeada9fbeca3566798fc",
-      "modified": "2025-09-29T17:11:16.502415",
+      "modified": "2025-10-21T14:47:16.860385",
       "path": "docs/modules/language_models/models/model_AZURE_GPT_5_CHAT_2025_0807.md",
       "size": 371
     },
     {
       "deps": null,
       "hexdigest": "32418afddac916491e751c2866d7a1497f86141a63193f7991586876fad0f609",
-      "modified": "2025-09-29T17:11:16.502549",
+      "modified": "2025-10-21T14:47:16.850055",
       "path": "docs/modules/language_models/models/model_AZURE_GPT_5_MINI_2025_0807.md",
       "size": 460
     },
     {
       "deps": null,
       "hexdigest": "dde0b5fc5ecf3be8acb2b9554dfa235f943a59c44841f8204f111800ee8d9aca",
-      "modified": "2025-09-29T17:11:16.502678",
+      "modified": "2025-10-21T14:47:16.855359",
       "path": "docs/modules/language_models/models/model_AZURE_GPT_5_NANO_2025_0807.md",
       "size": 460
     },
     {
       "deps": null,
       "hexdigest": "2098f536139aa46ff145799230200d9139a9032ddbc30a4a28f1fc384c17520f",
-      "modified": "2025-09-29T17:11:16.502817",
+      "modified": "2025-10-21T14:47:16.877429",
       "path": "docs/modules/language_models/models/model_AZURE_o1_2024_1217.md",
       "size": 416
     },
     {
       "deps": null,
       "hexdigest": "fa9670559ae4e0446552fa5e7b83ac43908ea90a3a0873076f3122f21d50fb26",
-      "modified": "2025-09-29T17:11:16.502958",
+      "modified": "2025-10-21T14:47:16.874740",
       "path": "docs/modules/language_models/models/model_AZURE_o1_MINI_2024_0912.md",
       "size": 425
     },
     {
       "deps": null,
       "hexdigest": "423702ca9a1bf98bcd71ab02febdd691823edc104f27ed78151dff3d6813c1a5",
-      "modified": "2025-09-29T17:11:16.503208",
+      "modified": "2025-10-21T14:47:16.896165",
       "path": "docs/modules/language_models/models/model_AZURE_o3_2025_0416.md",
       "size": 416
     },
     {
       "deps": null,
       "hexdigest": "acb81bac5c7d144b37c3d1f7da28a2d2208db68e22e7ba62be5adec8d70bed91",
-      "modified": "2025-09-29T17:11:16.503352",
+      "modified": "2025-10-21T14:47:16.881805",
       "path": "docs/modules/language_models/models/model_AZURE_o3_MINI_2025_0131.md",
       "size": 417
     },
     {
       "deps": null,
       "hexdigest": "ff23e0e80d9025bf8c3d6fb436f3ec48e619e92b2d25a78f6232325335941d6e",
-      "modified": "2025-09-29T17:11:16.503488",
+      "modified": "2025-10-21T14:47:16.900523",
       "path": "docs/modules/language_models/models/model_AZURE_o4_MINI_2025_0416.md",
       "size": 426
     },
     {
       "deps": null,
       "hexdigest": "eb63d9c191f6172d0184a210ec0547d1d1c0281ec2e116830b2b8219003a4aeb",
-      "modified": "2025-09-29T17:11:16.503629",
+      "modified": "2025-10-21T22:24:38.112505",
       "path": "docs/modules/language_models/models/model_litellm:anthropic-claude-3-7-sonnet-thinking.md",
       "size": 457
     },
     {
       "deps": null,
       "hexdigest": "f2f05252503ad99149a56c3e15f234ee262297d9d90e5c5891c8bfdacb12c183",
-      "modified": "2025-09-29T17:11:16.503761",
+      "modified": "2025-10-21T22:24:38.112805",
       "path": "docs/modules/language_models/models/model_litellm:anthropic-claude-3-7-sonnet.md",
       "size": 418
     },
     {
       "deps": null,
       "hexdigest": "d3a39bbc0f097a9f64b56ba8d218e80d84e8a9584a2ed13ba7a8ca0da96aff93",
-      "modified": "2025-09-29T17:11:16.503901",
+      "modified": "2025-10-21T14:47:16.918674",
       "path": "docs/modules/language_models/models/model_litellm:anthropic-claude-opus-4.md",
       "size": 417
     },
     {
       "deps": null,
       "hexdigest": "12c6b3619efb4aed35eace70e9eeee61691b8ede3762a958bad405d613fad3b9",
-      "modified": "2025-09-29T17:11:16.504036",
+      "modified": "2025-10-21T14:47:16.912239",
       "path": "docs/modules/language_models/models/model_litellm:anthropic-claude-sonnet-4.md",
       "size": 423
     },
     {
       "deps": null,
       "hexdigest": "bf1fbc8c8e0083bcc2022a95e8e523848a86fd5f23b99791f0a2ecaad1b1e6da",
-      "modified": "2025-09-29T17:11:16.504168",
+      "modified": "2025-10-21T14:47:17.005260",
       "path": "docs/modules/language_models/models/model_litellm:deepseek-r1.md",
       "size": 400
     },
     {
       "deps": null,
       "hexdigest": "da3e22f198fc7a066ae520b2758f575d447022ac3247b783f9657e0f2e3a879a",
-      "modified": "2025-09-29T17:11:16.504293",
+      "modified": "2025-10-21T14:47:17.007836",
       "path": "docs/modules/language_models/models/model_litellm:deepseek-v3-1.md",
       "size": 396
     },
     {
       "deps": null,
       "hexdigest": "f18701641643fe144cc58a056d2bd73e46d680c5d0dfbac30eb50f71ac2be969",
-      "modified": "2025-09-29T17:11:16.504423",
+      "modified": "2025-10-21T14:47:16.924467",
       "path": "docs/modules/language_models/models/model_litellm:gemini-2-0-flash.md",
       "size": 429
     },
     {
       "deps": null,
       "hexdigest": "81a6c235d92e9275204e2bd46082dbd8f239c701d201c4433dd65f0bba65d972",
-      "modified": "2025-09-29T17:11:16.504692",
+      "modified": "2025-10-21T14:47:16.929896",
       "path": "docs/modules/language_models/models/model_litellm:gemini-2-5-flash-lite-preview-06-17.md",
       "size": 487
     },
     {
       "deps": null,
       "hexdigest": "3c37d5eafdf58b2e490e6da04f18a6913766ea9c192878e96aff00249564c692",
-      "modified": "2025-09-29T17:11:16.504830",
+      "modified": "2025-10-21T14:47:16.933553",
       "path": "docs/modules/language_models/models/model_litellm:gemini-2-5-flash-preview-05-20.md",
       "size": 472
     },
     {
       "deps": null,
       "hexdigest": "3e72620cc69e37cd0bdae54cbc0429340b12cf6f623ac281afa764326de46622",
-      "modified": "2025-09-29T17:11:16.504949",
+      "modified": "2025-10-21T14:47:16.927129",
       "path": "docs/modules/language_models/models/model_litellm:gemini-2-5-flash.md",
       "size": 430
     },
     {
       "deps": null,
       "hexdigest": "55f74ae898a3c924d302cf3b769258f5927df543640dd1808ded0d0e89478d59",
-      "modified": "2025-09-29T17:11:16.505213",
+      "modified": "2025-10-21T14:47:16.942712",
       "path": "docs/modules/language_models/models/model_litellm:gemini-2-5-pro-exp-03-25.md",
       "size": 453
     },
     {
       "deps": null,
       "hexdigest": "0acb3b840d48dd8a0843b1ba753ba7613237c6418b80301d73d04728323e684e",
-      "modified": "2025-09-29T17:11:16.505353",
+      "modified": "2025-10-21T14:47:16.945541",
       "path": "docs/modules/language_models/models/model_litellm:gemini-2-5-pro-preview-06-05.md",
       "size": 466
     },
     {
       "deps": null,
       "hexdigest": "10971196c7f7775a2703a35ae6baf79c330f8917cc1d996869e635852b510b3a",
-      "modified": "2025-09-29T17:11:16.505655",
+      "modified": "2025-10-21T14:47:16.938424",
       "path": "docs/modules/language_models/models/model_litellm:gemini-2-5-pro.md",
       "size": 424
     },
     {
       "deps": null,
       "hexdigest": "06c64d226ab22727e973b98aa72e5b645b02e4ddfab9ee3b1c887ef7951e8ce0",
-      "modified": "2025-09-29T17:11:16.505819",
+      "modified": "2025-10-21T14:47:16.999658",
       "path": "docs/modules/language_models/models/model_litellm:openai-gpt-4-1-mini.md",
       "size": 409
     },
     {
       "deps": null,
       "hexdigest": "22674e8ebf6c71ad6acceb0c07fbecf5c89802e30e1430d028b38b81e86dadb1",
-      "modified": "2025-09-29T17:11:16.505967",
+      "modified": "2025-10-21T14:47:17.002531",
       "path": "docs/modules/language_models/models/model_litellm:openai-gpt-4-1-nano.md",
       "size": 409
     },
     {
       "deps": null,
       "hexdigest": "c93bdc92b387988241e10cecbddbb8035ea4e3adb67bec0aadc2d222ce18ad24",
-      "modified": "2025-09-29T17:11:16.506116",
+      "modified": "2025-10-21T14:47:16.957675",
       "path": "docs/modules/language_models/models/model_litellm:openai-gpt-5-chat.md",
       "size": 371
     },
     {
       "deps": null,
       "hexdigest": "1d0a2ffc60743ba0e010852246021a9ebf51766bbc6d31885be0c9293fb89014",
-      "modified": "2025-09-29T17:11:16.506245",
+      "modified": "2025-10-21T14:47:16.952168",
       "path": "docs/modules/language_models/models/model_litellm:openai-gpt-5-mini.md",
       "size": 460
     },
     {
       "deps": null,
       "hexdigest": "bb674fbe861db00bd2d7d131fc2ec3b644a9b96c9c448ed4d9d379991fca5b47",
-      "modified": "2025-09-29T17:11:16.506376",
+      "modified": "2025-10-21T14:47:16.954894",
       "path": "docs/modules/language_models/models/model_litellm:openai-gpt-5-nano.md",
       "size": 460
     },
     {
       "deps": null,
       "hexdigest": "cfbdfb715d2f8ad0f37c50f48df88739f7cb14b2b6e1a262c61e1f755b7ed733",
-      "modified": "2025-09-29T17:11:16.506510",
+      "modified": "2025-10-21T14:47:16.949018",
       "path": "docs/modules/language_models/models/model_litellm:openai-gpt-5.md",
       "size": 445
     },
     {
       "deps": null,
       "hexdigest": "8fa783f780ab3792f3444ee7bfb553a15df7c388eca178ecaa1bf8542e0de2d1",
-      "modified": "2025-09-29T17:11:16.506636",
+      "modified": "2025-10-21T14:47:16.960229",
       "path": "docs/modules/language_models/models/model_litellm:openai-o1.md",
       "size": 416
     },
     {
       "deps": null,
       "hexdigest": "e017078ce874b0f24c5a8e2c455243b746c90bf3f7685eac4995ae10688350c8",
-      "modified": "2025-09-29T17:11:16.506763",
+      "modified": "2025-10-21T14:47:16.966700",
       "path": "docs/modules/language_models/models/model_litellm:openai-o3-deep-research.md",
       "size": 375
     },
     {
       "deps": null,
       "hexdigest": "2b8210fde602117f3846929c7bfcc25d4b0af247531dbed81ada8b264838706f",
-      "modified": "2025-09-29T17:11:16.506947",
+      "modified": "2025-10-21T14:47:16.969428",
       "path": "docs/modules/language_models/models/model_litellm:openai-o3-pro.md",
       "size": 394
     },
     {
       "deps": null,
       "hexdigest": "07870843043587ac3be20b751d7e5d58a8e4fdf6f53535888795335c18c142be",
-      "modified": "2025-09-29T17:11:16.507107",
+      "modified": "2025-10-21T14:47:16.963302",
       "path": "docs/modules/language_models/models/model_litellm:openai-o3.md",
       "size": 407
     },
     {
       "deps": null,
       "hexdigest": "06b039545a4f0166945eb635f81e63d7a4470e01639a46193d415ece19aa744a",
-      "modified": "2025-09-29T17:11:16.507370",
+      "modified": "2025-10-21T14:47:16.995312",
       "path": "docs/modules/language_models/models/model_litellm:openai-o4-mini-deep-research.md",
       "size": 385
     },
     {
       "deps": null,
       "hexdigest": "3c4ec8b66fd950b1ce0d54b0c2583b45e6f97ed4f169507e9b515e7ba26c4f4a",
-      "modified": "2025-09-29T17:11:16.507661",
+      "modified": "2025-10-21T14:47:16.972304",
       "path": "docs/modules/language_models/models/model_litellm:openai-o4-mini.md",
       "size": 405
     },
     {
       "deps": null,
       "hexdigest": "d82e67dafa97bfb50db250c6dc3b0a49320e66a12590e291aea52d26ade96284",
-      "modified": "2025-09-29T17:11:16.507886",
+      "modified": "2025-10-21T14:47:17.012930",
       "path": "docs/modules/language_models/models/model_litellm:qwen-3-235B-A22B-thinking.md",
       "size": 435
     },
     {
       "deps": null,
       "hexdigest": "645bf4d566f7ff51d2c79aab2458c770cb52fa7e95b7f03e3f9c272805113ed5",
-      "modified": "2025-09-29T17:11:16.508116",
+      "modified": "2025-10-21T14:47:17.010478",
       "path": "docs/modules/language_models/models/model_litellm:qwen-3-235B-A22B.md",
       "size": 408
     },
     {
       "deps": null,
       "hexdigest": "0d1ab2f342773bf7b1da6ea21a3884ebcac1892dc855038a759d4954ac8eb56f",
-      "modified": "2025-09-12T18:34:13.734546",
+      "modified": "2025-10-13T13:07:34.797230",
       "path": "docs/modules/openai.md",
       "size": 64
     },
     {
       "deps": null,
       "hexdigest": "dd3f1f83150c1867b6f12b92b1a8238df5409a300dbcb4664290aa193597ecf0",
-      "modified": "2025-09-12T18:34:13.734413",
+      "modified": "2025-10-13T13:07:34.797331",
       "path": "docs/modules/short_term_memory.md",
       "size": 57
     },
     {
       "deps": null,
       "hexdigest": "6c80e8e6036581ad5eb52f2d95804a28da1036667a8d9438b88b90d5569e59c8",
-      "modified": "2025-09-12T10:56:09.860899",
+      "modified": "2025-10-13T13:07:34.798239",
       "path": "docs/plattforms/openai/openai.md",
       "size": 5509
     },
     {
       "deps": null,
       "hexdigest": "1beca67aaa2bb0907b1d23820f31560a20cf283fb671ebdccd8e2fd3e412efad",
-      "modified": "2025-09-12T10:56:09.861006",
+      "modified": "2025-10-13T13:07:34.798447",
       "path": "docs/readme.md",
       "size": 41
     },
     {
       "deps": null,
-      "hexdigest": "295bd408f5b0cbed0738261f903760f6ae28083e8afc0f096046effac90ee042",
-      "modified": "2025-10-07T22:39:36.969750",
+      "hexdigest": "0e6e58223a5a4d8060b4ce4b70c79dc5e40338661a2e153b4514c06bf8b27760",
+      "modified": "2025-10-23T10:16:01.137139",
       "path": "docs/setup/_common_imports.md",
-      "size": 1306
+      "size": 1376
     },
     {
       "deps": null,
       "hexdigest": "b389cd353d5bc424b0e703c5a6238b3ca8986543c2481db7f17aa848f48c453c",
-      "modified": "2025-09-29T17:11:16.525800",
+      "modified": "2025-10-13T13:07:34.802614",
       "path": "docs/setup/getting_started.md",
       "size": 3966
     },
     {
       "deps": null,
       "hexdigest": "01c5782ebd90019dacd670c283d821dca0955497294ef59948b4a67ea9f75cdd",
-      "modified": "2025-10-09T08:13:13.566891",
+      "modified": "2025-10-21T22:24:43.574345",
       "path": "docs/tutorials/file_creation_and_upload_to_chat.md",
       "size": 3058
     }
@@ -900,6 +897,7 @@
   "target": [
     "docs/.python_files/chat_app_minimal.py",
     "docs/.python_files/chat_edit_debug_information.py",
+    "docs/.python_files/chat_prompt_button.py",
     "docs/.python_files/chat_upload_to_chat.py",
     "docs/.python_files/chat_with_document_app.py",
     "docs/.python_files/chat_with_manual_message_and_reference.py",
