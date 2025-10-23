@@ -18,6 +18,7 @@ from unique_toolkit.agentic.tools.tool_manager import (
 )
 from unique_toolkit.app.schemas import ChatEvent, McpServer
 from unique_toolkit.chat.service import ChatService
+from unique_toolkit.content import Content
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model import LanguageModelAssistantMessage
 from unique_toolkit.language_model.schemas import (
@@ -60,13 +61,14 @@ class UniqueAI:
         evaluation_manager: EvaluationManager,
         postprocessor_manager: PostprocessorManager,
         mcp_servers: list[McpServer],
+        uploaded_documents: list[Content] = [],
     ):
         self._logger = logger
         self._event = event
         self._config = config
         self._chat_service = chat_service
         self._content_service = content_service
-
+        self._uploaded_documents = uploaded_documents
         self._debug_info_manager = debug_info_manager
         self._reference_manager = reference_manager
         self._thinking_manager = thinking_manager
@@ -82,6 +84,10 @@ class UniqueAI:
 
         # Helper variable to support control loop
         self._tool_took_control = False
+        # Upload and chat tool is always forced i
+        self.uploaded_search_tool_has_been_forced = (
+            "UploadedSearch" in self._tool_manager.get_tool_choices()
+        )
 
     ############################################################
     # Override of base methods
@@ -150,10 +156,7 @@ class UniqueAI:
         self._logger.info("Done composing message plan execution.")
 
         # Forces tool calls only in first iteration
-        if (
-            len(self._tool_manager.get_forced_tools()) > 0
-            and self.current_iteration_index == 0
-        ):
+        if len(self._tool_manager.get_forced_tools()) > 0:
             self._logger.info("Its needs forced tool calls.")
             self._logger.info(f"Forced tools: {self._tool_manager.get_forced_tools()}")
             responses = [
@@ -182,6 +185,8 @@ class UniqueAI:
             stream_response = responses[0]
             stream_response.tool_calls = tool_calls if len(tool_calls) > 0 else None
             stream_response.message.references = references
+            self._tool_manager.clear_forced_tools()
+
         elif self.current_iteration_index == self._config.agent.max_loop_iterations - 1:
             self._logger.info(
                 "we are in the last iteration we need to produce an answer now"
@@ -380,6 +385,15 @@ class UniqueAI:
         self._tool_took_control = self._tool_manager.does_a_tool_take_control(
             tool_calls
         )
+
+        # Upload and search should always be forced ONCE if another tool has been used and there are uploaded documents
+        if (
+            not self.uploaded_search_tool_has_been_forced
+            and len(self._uploaded_documents) > 0
+        ):
+            self._tool_manager.add_forced_tool("UploadedSearch")
+            self.uploaded_search_tool_has_been_forced = True
+
         return self._tool_took_control
 
     async def _create_new_assistant_message_if_loop_response_contains_content(
