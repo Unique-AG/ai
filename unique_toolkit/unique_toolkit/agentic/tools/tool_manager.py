@@ -354,6 +354,17 @@ class ToolManager(BaseToolManager):
         if tool.name not in self._tool_choices:
             self._tool_choices.append(tool.name)
 
+    def remove_forced_tool(self, name):
+        tool = self.get_tool_by_name(name)
+        if not tool:
+            raise ValueError(f"Tool {name} not found")
+
+        if tool.name in self._tool_choices:
+            self._tool_choices.remove(tool.name)
+
+    def clear_forced_tools(self):
+        self._tool_choices = []
+
     def _convert_to_forced_tool(
         self, tool_name: str
     ) -> ChatCompletionNamedToolChoiceParam:
