@@ -7,14 +7,6 @@ from unique_toolkit.agentic.tools.tool import (
     EvaluationMetricName,
     Tool,
 )
-
-# from unique_toolkit.chat.schemas import (
-#     MessageExecutionType,
-#     MessageLogDetails,
-#     MessageLogEvent,
-#     MessageLogStatus,
-#     MessageLogUncitedReferences,
-# )
 from unique_toolkit.language_model import (
     LanguageModelFunction,
     LanguageModelMessage,
@@ -136,31 +128,12 @@ class SwotTool(Tool[SwotConfig]):
         plan = SWOTPlan.model_validate(tool_call.arguments)
         # Ensure the plan is semantically valid for execution, as Pydantic validation may accept plans that
         # are structurally correct but logically invalid (e.g., missing required modify instructions)
-        # self._chat_service.create_message_log(
-        #     message_id=self._event.payload.assistant_message.id,
-        #     text="Running SWOT plan",
-        #     status=MessageLogStatus.RUNNING,
-        #     order=0,
-        #     details=MessageLogDetails(
-        #         data=[MessageLogEvent(type="SWOTAnalysis", text=plan.objective)]
-        #     ),
-        #     uncited_references=MessageLogUncitedReferences(data=[]),
-        # )
-        # self._chat_service.create_message_execution(
-        #     message_id=self._event.payload.assistant_message.id,
-        #     type=MessageExecutionType.DEEP_RESEARCH,
-        #     seconds_remaining=60 * 60 * 24, # 24 hours
-        #     percentage_completed=50,
-        # )
-        # await sleep(10)
         plan.validate_swot_plan()
 
         self.logger.info(f"Running SWOT plan: {plan.model_dump_json(indent=2)}")
 
         # Get Sources
         sources = self.source_collection_manager.collect_sources()
-
-        # Save Registry
 
         self.logger.info(f"Collected {len(sources)} sources!")
 
