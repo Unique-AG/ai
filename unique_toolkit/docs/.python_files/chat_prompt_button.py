@@ -1,4 +1,4 @@
-# ~/~ begin <<docs/modules/examples/chat/chat_service.md#docs/.python_files/chat_with_manual_message_create.py>>[init]
+# ~/~ begin <<docs/modules/examples/chat/avanced_rendering.md#docs/.python_files/chat_prompt_button.py>>[init]
 # ~/~ begin <<docs/application_types/event_driven_applications.md#full_sse_setup_with_services>>[init]
 # ~/~ begin <<docs/application_types/event_driven_applications.md#full_sse_setup>>[init]
 # ~/~ begin <<docs/setup/_common_imports.md#common_imports>>[init]
@@ -40,9 +40,10 @@ for event in get_event_generator(unique_settings=settings, event_type=ChatEvent)
     kb_service= KnowledgeBaseService.from_event(event)
     # ~/~ end
 # ~/~ end
-    # ~/~ begin <<docs/modules/examples/chat/chat_service.md#chat_service_create_assistant_message>>[init]
-    assistant_message = chat_service.create_assistant_message(
-            content="Hello from Unique",
-        )
+    # ~/~ begin <<docs/modules/examples/chat/avanced_rendering.md#rendering_prompt_buttons>>[init]
+    prompt_button_string = create_prompt_button_string(button_text="Click me", next_user_message="Next user message")
+    chat_service.create_assistant_message(
+        content=f"Here is a prompt button:\n {prompt_button_string}",
+    )
     # ~/~ end
 # ~/~ end

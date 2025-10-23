@@ -1,3 +1,5 @@
+import regex as re
+
 from unique_toolkit.agentic.evaluation.evaluation_manager import Evaluation
 from unique_toolkit.agentic.evaluation.hallucination.constants import (
     HallucinationConfig,
@@ -40,13 +42,20 @@ class HallucinationEvaluation(Evaluation):
     async def run(
         self, loop_response: LanguageModelStreamResponse
     ) -> EvaluationMetricResult:  # type: ignore
-        chunks = self._reference_manager.get_latest_referenced_chunks()
+        all_chunks = self._reference_manager.get_chunks()
+        # source numbers from original text
+        ref_pattern = r"\[source(\d+)\]"
+        original_text = loop_response.message.original_text
+        source_number_matches = re.findall(ref_pattern, original_text)
+        source_numbers = {int(num) for num in source_number_matches}
+
+        referenced_chunks = [all_chunks[idx] for idx in source_numbers]
 
         evaluation_result: EvaluationMetricResult = await check_hallucination(
             company_id=self._company_id,
             input=EvaluationMetricInput(
                 input_text=self._user_message,
-                context_texts=[context.text for context in chunks],
+                context_texts=[context.text for context in referenced_chunks],
                 history_messages=[],  # TODO include loop_history messages
                 output_text=loop_response.message.text,
             ),
