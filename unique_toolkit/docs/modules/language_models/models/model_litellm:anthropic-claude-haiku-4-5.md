@@ -1,9 +1,9 @@
-# litellm:anthropic-claude-3-7-sonnet
+# litellm:anthropic-claude-haiku-4-5
 
 ## Basic Information
-- **Name**: litellm:anthropic-claude-3-7-sonnet
+- **Name**: litellm:anthropic-claude-haiku-4-5
 - **Provider**: LITELLM
-- **Version**: claude-3-7-sonnet
+- **Version**: claude-haiku-4-5
 - **Encoder**: o200k_base
 
 ## Token Limits
@@ -15,6 +15,7 @@
 - function_calling
 - streaming
 - vision
+- reasoning
 
 
 ## Temperature Bounds
