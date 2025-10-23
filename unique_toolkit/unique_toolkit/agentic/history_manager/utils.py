@@ -1,6 +1,7 @@
 import json
 import logging
 from copy import deepcopy
+import re
 
 from unique_toolkit.agentic.tools.schemas import Source
 from unique_toolkit.agentic.tools.utils.source_handling.schema import (
@@ -103,7 +104,7 @@ def transform_chunks_to_string(
         sources = [
             {
                 "source_number": max_source_number + i,
-                "content": chunk.text,
+                "content": _update_metadata_in_chunk(chunk.text, chunk.metadata, cfg),
                 **(
                     {"metadata": meta}
                     if (
@@ -130,6 +131,32 @@ def load_sources_from_string(
         logger.warning("Failed to parse source string")
         return None
 
+def _update_metadata_in_chunk(
+    chunk_text: str,
+    metadata: ContentMetadata,
+    cfg: SourceFormatConfig) -> ContentChunk:
+    """
+    Update the metadata in the chunk text
+    """
+    ## Remove all metadata from the original chunk text. Keep the text. Metadata are between <|key|> and <|/key|>. Ignore the key s
+    text = re.sub(r'<\|[^|]+\|>(.*?)<\|/[^|]+\|>', '', chunk_text)
+
+    ## Remove leading and trailing new lines
+    text = text.strip()
+
+    ## Create new metadata dictionary with the new metadata
+    meta_dict = metadata.model_dump(exclude_none=True, by_alias=True)
+    sections = cfg.sections
+
+    parts: list[str] = []
+    for key, template in sections.items():
+        if key in meta_dict:
+            parts.append(template.format(meta_dict[key]))
+
+    ## Add the new metadata to the chunk text
+    text_with_metadata = "\n".join(parts) + "\n" + text
+
+    return text_with_metadata
 
 def _format_metadata(
     metadata: ContentMetadata | None,
@@ -155,6 +182,10 @@ def _format_metadata(
     for key, template in sections.items():
         if key in meta_dict:
             parts.append(template.format(meta_dict[key]))
+
+    ## Add here that we remove any metadata from the original chunk and add only the new one
+    ## Add that document, title to metadata
+    ## Add are parameters in the secion parameter again
 
     return "".join(parts)
 

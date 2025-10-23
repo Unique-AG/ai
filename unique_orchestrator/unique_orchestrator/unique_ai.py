@@ -371,7 +371,7 @@ class UniqueAI:
         # Process results with error handling
         # Add tool call results to history first to stabilize source numbering,
         # then extract referenceable chunks and debug info
-        self._history_manager.add_tool_call_results(tool_call_responses)
+        self._history_manager.add_tool_call_results(tool_call_responses, self._config.space.tools)
         self._reference_manager.extract_referenceable_chunks(tool_call_responses)
         self._debug_info_manager.extract_tool_debug_info(
             tool_call_responses, self.current_iteration_index
