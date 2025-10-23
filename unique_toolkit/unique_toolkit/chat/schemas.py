@@ -53,9 +53,9 @@ class Function(BaseModel):
 class ToolCall(BaseModel):
     model_config = model_config
 
-    id: str
-    type: str
-    function: Function
+    id: str = Field(description="The id of the tool call")
+    type: str = Field(description="The type of the tool call")
+    function: Function = Field(description="The function of the tool call")
 
     def to_openai_param(self) -> ChatCompletionMessageFunctionToolCallParam:
         return ChatCompletionMessageFunctionToolCallParam(
@@ -76,7 +76,10 @@ class ChatMessage(BaseModel):
     content: str | None = Field(default=None, alias="text")
     original_content: str | None = Field(default=None, alias="originalText")
     role: ChatMessageRole
-    gpt_request: list[dict] | None = None
+    gpt_request: list[dict] | None = Field(
+        default=None,
+        description="The that have been sent to the LLM as a request which resulted in this messsage. Only `None` if role is 'assistant'",
+    )
     tool_calls: list[ToolCall] | None = None
     tool_call_id: str | None = None
     debug_info: dict | None = {}
