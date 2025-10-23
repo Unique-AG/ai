@@ -19,6 +19,7 @@ class LanguageModelName(StrEnum):
     AZURE_GPT_5_MINI_2025_0807 = "AZURE_GPT_5_MINI_2025_0807"
     AZURE_GPT_5_NANO_2025_0807 = "AZURE_GPT_5_NANO_2025_0807"
     AZURE_GPT_5_CHAT_2025_0807 = "AZURE_GPT_5_CHAT_2025_0807"
+    AZURE_GPT_5_PRO_2025_1006 = "AZURE_GPT_5_PRO_2025_1006"
     AZURE_GPT_4o_2024_0513 = "AZURE_GPT_4o_2024_0513"
     AZURE_GPT_4o_2024_0806 = "AZURE_GPT_4o_2024_0806"
     AZURE_GPT_4o_2024_1120 = "AZURE_GPT_4o_2024_1120"
@@ -91,6 +92,7 @@ def get_encoder_name(model_name: LanguageModelName) -> EncoderName:
             | LMN.AZURE_GPT_5_MINI_2025_0807
             | LMN.AZURE_GPT_5_NANO_2025_0807
             | LMN.AZURE_GPT_5_CHAT_2025_0807
+            | LMN.AZURE_GPT_5_PRO_2025_1006
             | LMN.LITELLM_OPENAI_GPT_5
             | LMN.LITELLM_OPENAI_GPT_5_MINI
             | LMN.LITELLM_OPENAI_GPT_5_NANO
@@ -333,6 +335,27 @@ class LanguageModelInfo(BaseModel):
                     published_at=date(2025, 8, 7),
                     deprecated_at=date(2026, 8, 7),
                     retirement_at=date(2026, 8, 7),
+                )
+            case LanguageModelName.AZURE_GPT_5_PRO_2025_1006:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.AZURE,
+                    version="2025-10-06",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=272000, token_limit_output=128000
+                    ),
+                    info_cutoff_at=date(2024, 10, 30),
+                    published_at=date(2025, 10, 6),
+                    temperature_bounds=TemperatureBounds(
+                        min_temperature=1.0, max_temperature=1.0
+                    ),
                 )
             case LanguageModelName.AZURE_GPT_4_TURBO_2024_0409:
                 return cls(
