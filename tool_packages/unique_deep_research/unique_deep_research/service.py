@@ -5,6 +5,7 @@ from langchain_core.messages import HumanMessage
 from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
 from openai.types.responses import ResponseFunctionWebSearch, ResponseReasoningItem
 from openai.types.responses.response_function_web_search import (
+    ActionFind,
     ActionOpenPage,
     ActionSearch,
 )
@@ -547,10 +548,10 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                                 ),
                             )
                     elif isinstance(event.item, ResponseFunctionWebSearch):
-                        self.logger.info("OpenAI web search")
                         if isinstance(event.item.action, ActionSearch) and isinstance(
                             event.item.action.query, str
                         ):
+                            self.logger.info("OpenAI web search")
                             self.chat_service.create_message_log(
                                 message_id=self.event.payload.assistant_message.id,
                                 text="**Searching the web**",
@@ -570,10 +571,16 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                                     ],
                                 ),
                             )
-                        elif isinstance(event.item.action, ActionOpenPage):
+                        elif isinstance(
+                            event.item.action, ActionOpenPage
+                        ) or isinstance(event.item.action, ActionFind):
                             self.logger.info("OpenAI reading web page")
+                            if "https://" not in event.item.action.url:
+                                continue
+
                             _, title, success = await crawl_url(
-                                AsyncClient(), event.item.action.url
+                                AsyncClient(follow_redirects=True),
+                                event.item.action.url,
                             )
                             if not success:
                                 self.logger.info(
@@ -606,6 +613,10 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                                 details=MessageLogDetails(
                                     data=[],
                                 ),
+                            )
+                        else:
+                            self.logger.info(
+                                f"OpenAI web action unexpected type: {type(event.item)}"
                             )
                 case "response.failed":
                     self.chat_service.create_message_log(
