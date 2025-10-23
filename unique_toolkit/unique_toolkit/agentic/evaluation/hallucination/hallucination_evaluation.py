@@ -44,7 +44,7 @@ class HallucinationEvaluation(Evaluation):
     ) -> EvaluationMetricResult:  # type: ignore
         all_chunks = self._reference_manager.get_chunks()
         # source numbers from original text
-        ref_pattern = r'\[source(\d+)\]'
+        ref_pattern = r"\[source(\d+)\]"
         original_text = loop_response.message.original_text
         source_number_matches = re.findall(ref_pattern, original_text)
         source_numbers = {int(num) for num in source_number_matches}
