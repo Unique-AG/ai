@@ -76,34 +76,6 @@ class InternalSearchService:
                 return True
         return False
 
-    def _clean_search_string(self, search_string: str) -> str:
-        """
-        Remove QDF (QueryDeservedFreshness) and boost operators from search string.
-        
-        Examples:
-            '+(GPT4) performance on +(MMLU) benchmark --QDF=1' 
-            -> 'GPT4 performance on MMLU benchmark'
-            
-            'Best practices for +(security) and +(privacy) for +(cloud storage) --QDF=2'
-            -> 'Best practices for security and privacy for cloud storage'
-        
-        Args:
-            search_string: Raw search string that may contain operators
-            
-        Returns:
-            Cleaned search string without operators
-        """
-        # Remove --QDF=<number> operator (at the end of the string)
-        cleaned = re.sub(r'\s*--QDF=\d+\s*$', '', search_string)
-        
-        # Remove +(...) boost operators - replace with just the content inside parentheses
-        cleaned = re.sub(r'\+\(([^)]+)\)', r'\1', cleaned)
-        
-        # Clean up any extra whitespace
-        cleaned = ' '.join(cleaned.split())
-        
-        return cleaned.strip()
-
     async def search(
         self,
         search_string: str,
@@ -260,6 +232,34 @@ class InternalSearchService:
                 "language model input context size is not set, using default max tokens"
             )
             return self.config.max_tokens_for_sources
+
+    def _clean_search_string(self, search_string: str) -> str:
+        """
+        Remove QDF (QueryDeservedFreshness) and boost operators from search string.
+        
+        Examples:
+            '+(GPT4) performance on +(MMLU) benchmark --QDF=1' 
+            -> 'GPT4 performance on MMLU benchmark'
+            
+            'Best practices for +(security) and +(privacy) for +(cloud storage) --QDF=2'
+            -> 'Best practices for security and privacy for cloud storage'
+        
+        Args:
+            search_string: Raw search string that may contain operators
+            
+        Returns:
+            Cleaned search string without operators
+        """
+        # Remove --QDF=<number> operator (at the end of the string)
+        cleaned = re.sub(r'\s*--QDF=\d+\s*$', '', search_string)
+        
+        # Remove +(...) boost operators - replace with just the content inside parentheses
+        cleaned = re.sub(r'\+\(([^)]+)\)', r'\1', cleaned)
+        
+        # Clean up any extra whitespace
+        cleaned = ' '.join(cleaned.split())
+        
+        return cleaned.strip()
 
 
 class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
