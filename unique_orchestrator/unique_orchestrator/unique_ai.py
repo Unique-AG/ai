@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime
 from logging import Logger
 
@@ -14,6 +15,7 @@ from unique_toolkit.agentic.reference_manager.reference_manager import Reference
 from unique_toolkit.agentic.thinking_manager.thinking_manager import ThinkingManager
 from unique_toolkit.agentic.tools.tool_manager import (
     ResponsesApiToolManager,
+    SafeTaskExecutor,
     ToolManager,
 )
 from unique_toolkit.app.schemas import ChatEvent, McpServer
@@ -338,14 +340,31 @@ class UniqueAI:
         self, loop_response: LanguageModelStreamResponse
     ) -> bool:
         """Handle the case where no tool calls are returned."""
-        selected_evaluation_names = self._tool_manager.get_evaluation_check_list()
-        evaluation_results = await self._evaluation_manager.run_evaluations(
-            selected_evaluation_names, loop_response, self._latest_assistant_id
+        task_executor = SafeTaskExecutor(
+            logger=self._logger,
         )
 
-        await self._postprocessor_manager.run_postprocessors(loop_response)
+        selected_evaluation_names = self._tool_manager.get_evaluation_check_list()
+        evaluation_results = task_executor.execute_async(
+            self._evaluation_manager.run_evaluations,
+            selected_evaluation_names,
+            loop_response,
+            self._latest_assistant_id,
+        )
 
-        if not all(result.is_positive for result in evaluation_results):
+        postprocessor_result = task_executor.execute_async(
+            self._postprocessor_manager.run_postprocessors,
+            loop_response.model_copy(deep=True),
+        )
+
+        _, evaluation_results = await asyncio.gather(
+            postprocessor_result,
+            evaluation_results,
+        )
+
+        if evaluation_results.success and not all(
+            result.is_positive for result in evaluation_results.unpack()
+        ):
             self._logger.warning(
                 "we should add here the retry counter add an instruction and retry the loop for now we just exit the loop"
             )  # TODO: add retry counter and instruction
