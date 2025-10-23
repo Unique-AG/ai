@@ -390,6 +390,7 @@ class UniqueAI:
         if (
             not self.uploaded_search_tool_has_been_forced
             and len(self._uploaded_documents) > 0
+            and "UploadedSearch" not in [tool.name for tool in tool_calls]
         ):
             self._tool_manager.add_forced_tool("UploadedSearch")
             self.uploaded_search_tool_has_been_forced = True
