@@ -27,7 +27,7 @@ from unique_toolkit.framework_utilities.openai.message_builder import (
 )
 from pydantic import Field
 from unique_toolkit import LanguageModelToolDescription
-from unique_toolkit.chat.rendering import create_prompt_button_string
+from unique_toolkit.chat.rendering import create_prompt_button_string, create_latex_formula_string
 # ~/~ end
 # ~/~ begin <<docs/application_types/event_driven_applications.md#unique_setup_settings_sdk_from_env>>[init]
 settings = UniqueSettings.from_env_auto_with_sdk_init()
@@ -45,5 +45,8 @@ for event in get_event_generator(unique_settings=settings, event_type=ChatEvent)
     chat_service.create_assistant_message(
         content=f"Here is a prompt button:\n {prompt_button_string}",
     )
+    # ~/~ end
+    # ~/~ begin <<docs/tutorials/file_creation_and_upload_to_chat.md#free_user_input>>[init]
+    chat_service.free_user_input()
     # ~/~ end
 # ~/~ end

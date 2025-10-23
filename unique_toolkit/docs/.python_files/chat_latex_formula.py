@@ -1,4 +1,4 @@
-# ~/~ begin <<docs/modules/examples/chat/chat_service.md#docs/.python_files/chat_app_minimal.py>>[init]
+# ~/~ begin <<docs/modules/examples/chat/avanced_rendering.md#docs/.python_files/chat_latex_formula.py>>[init]
 # ~/~ begin <<docs/application_types/event_driven_applications.md#full_sse_setup_with_services>>[init]
 # ~/~ begin <<docs/application_types/event_driven_applications.md#full_sse_setup>>[init]
 # ~/~ begin <<docs/setup/_common_imports.md#common_imports>>[init]
@@ -40,17 +40,15 @@ for event in get_event_generator(unique_settings=settings, event_type=ChatEvent)
     kb_service= KnowledgeBaseService.from_event(event)
     # ~/~ end
 # ~/~ end
-    # ~/~ begin <<docs/modules/examples/chat/chat_service.md#trivial_message_from_user>>[init]
-    messages = (
-            OpenAIMessageBuilder()
-            .system_message_append(content="You are a helpful assistant")
-            .user_message_append(content=event.payload.user_message.text)
-            .messages
-        )
+    # ~/~ begin <<docs/modules/examples/chat/avanced_rendering.md#rendering_latex_formula>>[init]
+    latex_formula_string = create_latex_formula_string(
+        latex_expression=r"\int_{a}^{b} f(x) \, dx"
+    )
+    chat_service.create_assistant_message(
+        content=f"Here is a latex formula: {latex_formula_string}",
+    )
     # ~/~ end
-    # ~/~ begin <<docs/modules/examples/chat/chat_service.md#chat_service_complete_with_references>>[init]
-    chat_service.complete_with_references(
-            messages = messages,
-            model_name = LanguageModelName.AZURE_GPT_4o_2024_1120)
+    # ~/~ begin <<docs/tutorials/file_creation_and_upload_to_chat.md#free_user_input>>[init]
+    chat_service.free_user_input()
     # ~/~ end
 # ~/~ end
