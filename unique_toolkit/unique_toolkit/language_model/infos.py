@@ -53,6 +53,7 @@ class LanguageModelName(StrEnum):
     LITELLM_OPENAI_GPT_5_MINI = "litellm:openai-gpt-5-mini"
     LITELLM_OPENAI_GPT_5_NANO = "litellm:openai-gpt-5-nano"
     LITELLM_OPENAI_GPT_5_CHAT = "litellm:openai-gpt-5-chat"
+    LITELLM_OPENAI_GPT_5_PRO = "litellm:openai-gpt-5-pro"
     LITELLM_OPENAI_O1 = "litellm:openai-o1"
     LITELLM_OPENAI_O3 = "litellm:openai-o3"
     LITELLM_OPENAI_O3_DEEP_RESEARCH = "litellm:openai-o3-deep-research"
@@ -97,6 +98,7 @@ def get_encoder_name(model_name: LanguageModelName) -> EncoderName:
             | LMN.LITELLM_OPENAI_GPT_5_MINI
             | LMN.LITELLM_OPENAI_GPT_5_NANO
             | LMN.LITELLM_OPENAI_GPT_5_CHAT
+            | LMN.LITELLM_OPENAI_GPT_5_PRO
             | LMN.LITELLM_OPENAI_O1
             | LMN.LITELLM_OPENAI_O3
             | LMN.LITELLM_OPENAI_O3_DEEP_RESEARCH
@@ -1003,6 +1005,27 @@ class LanguageModelInfo(BaseModel):
                     published_at=date(2025, 8, 7),
                     deprecated_at=date(2026, 8, 7),
                     retirement_at=date(2026, 8, 7),
+                )
+            case LanguageModelName.LITELLM_OPENAI_GPT_5_PRO:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    version="2025-10-06",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=272000, token_limit_output=128000
+                    ),
+                    info_cutoff_at=date(2024, 10, 30),
+                    published_at=date(2025, 10, 6),
+                    temperature_bounds=TemperatureBounds(
+                        min_temperature=1.0, max_temperature=1.0
+                    ),
                 )
             case LanguageModelName.LITELLM_OPENAI_O1:
                 return cls(

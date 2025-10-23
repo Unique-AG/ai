@@ -56,6 +56,7 @@ class TestLanguageModelInfos:
             LanguageModelName.LITELLM_OPENAI_GPT_5_MINI,
             LanguageModelName.LITELLM_OPENAI_GPT_5_NANO,
             LanguageModelName.LITELLM_OPENAI_GPT_5_CHAT,
+            LanguageModelName.LITELLM_OPENAI_GPT_5_PRO,
             LanguageModelName.LITELLM_DEEPSEEK_R1,
             LanguageModelName.LITELLM_DEEPSEEK_V3,
             LanguageModelName.LITELLM_QWEN_3,
