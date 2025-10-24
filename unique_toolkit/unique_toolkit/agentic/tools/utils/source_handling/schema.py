@@ -1,19 +1,19 @@
 # default schema follows logic in node-ingestion-worker: https://github.com/Unique-AG/monorepo/blob/76b4923611199a80abf9304639b3aa0538ec41ed/node/apps/node-ingestion-worker/src/ingestors/lib/text-manipulations.ts#L181C17-L181C28
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 
-SOURCE_TEMPLATE = "<source${index}>${document}${info}${text}</source${index}>"
 SECTIONS = {
     "document": "<|document|>{}<|/document|>\n",
-    "info": "<|info|>{}<|/info|>\n",
 }
 
 
 class SourceFormatConfig(BaseModel):
     model_config = get_configuration_dict()
-    source_template: str = SOURCE_TEMPLATE
-    sections: dict[str, str] = SECTIONS
+    sections: dict[str, str] = Field(
+        default=SECTIONS,
+        description="Metadata sections to add to the chunks. Each entry is a key-value pair where the key is the metadata key and the value is the template to format the metadata in the chunk text.",
+    )
 
     @staticmethod
     def template_to_pattern(template: str) -> str:

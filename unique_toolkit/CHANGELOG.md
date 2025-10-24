@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.17.3] - 2025-10-24
+- Removed unused `source_template` from `SourceFormatConfig`
+
 ## [1.17.2] - 2025-10-23
 - Adding model `AZURE_GPT_5_PRO_2025_1006` and `litellm:openai-gpt-5-pro` to `language_model/info.py`
 

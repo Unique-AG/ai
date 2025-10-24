@@ -29,6 +29,7 @@ from unique_toolkit.language_model.schemas import (
 )
 
 from unique_internal_search.config import InternalSearchConfig
+from unique_internal_search.utils import modify_metadata_in_chunks
 
 
 class InternalSearchService:
@@ -319,6 +320,11 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
         selected_chunks = await self.search(
             **tool_call.arguments,
             tool_call=tool_call,  # Need to pass tool_call to post_progress_message
+        )
+
+        ## Modify metadata in chunks
+        selected_chunks = modify_metadata_in_chunks(
+            chunks=selected_chunks, config=self.config
         )
 
         tool_response = ToolCallResponse(
