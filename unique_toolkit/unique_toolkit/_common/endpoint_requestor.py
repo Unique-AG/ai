@@ -161,9 +161,11 @@ def build_request_requestor(
                 json=payload,
             )
 
+            response_json = response.json()
+
             try:
                 return cls._operation.handle_response(
-                    response.json(),
+                    response_json,
                     model_validate_options=cls._operation.response_validate_options(),
                 )
             except ValidationError as e:
@@ -173,7 +175,7 @@ def build_request_requestor(
                     "pydantic ValidationError:\n"
                     f"{e}\n\n"
                     "The obtained response is:\n"
-                    f"{response.json()}"
+                    f"{response_json}"
                 )
 
         @classmethod
@@ -236,9 +238,10 @@ def build_httpx_requestor(
                         model_dump_options=cls._operation.payload_dump_options(),
                     ),
                 )
+                response_json = response.json()
                 try:
                     return cls._operation.handle_response(
-                        response.json(),
+                        response_json,
                         model_validate_options=cls._operation.response_validate_options(),
                     )
                 except ValidationError as e:
@@ -247,7 +250,7 @@ def build_httpx_requestor(
                         "raised pydantic ValidationError:\n"
                         f"{e}\n\n"
                         "The obtained response is:\n"
-                        f"{response.json()}"
+                        f"{response_json}"
                     )
 
         @classmethod
@@ -278,9 +281,10 @@ def build_httpx_requestor(
                         model_dump_options=cls._operation.payload_dump_options(),
                     ),
                 )
+                response_json = response.json()
                 try:
                     return cls._operation.handle_response(
-                        response.json(),
+                        response_json,
                         model_validate_options=cls._operation.response_validate_options(),
                     )
                 except ValidationError as e:
@@ -289,7 +293,7 @@ def build_httpx_requestor(
                         "raised pydantic ValidationError:\n"
                         f"{e}\n\n"
                         "The obtained response is:\n"
-                        f"{response.json()}"
+                        f"{response_json}"
                     )
 
     return HttpxRequestor
@@ -352,9 +356,10 @@ def build_aiohttp_requestor(
                         model_dump_options=cls._operation.payload_dump_options(),
                     ),
                 )
+                response_json = await response.json()
                 try:
                     return cls._operation.handle_response(
-                        await response.json(),
+                        response_json,
                         model_validate_options=cls._operation.response_validate_options(),
                     )
                 except ValidationError as e:
@@ -363,7 +368,7 @@ def build_aiohttp_requestor(
                         "raised pydantic ValidationError:\n"
                         f"{e}\n\n"
                         "The obtained response is:\n"
-                        f"{await response.json()}"
+                        f"{response_json}"
                     )
 
     return AiohttpRequestor
