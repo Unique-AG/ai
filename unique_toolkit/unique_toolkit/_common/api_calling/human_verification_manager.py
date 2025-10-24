@@ -45,7 +45,7 @@ ASSISTANT_CONFIRMATION_MESSAGE_JINJA2_TEMPLATE = jinja2.Template("""I would like
 
 {{ api_call_as_markdown_table }}
 
-[{{ button_text }}](https://prompt={{ next_user_message | urlencode }})""")
+Please confirm the call by pressing this button: [{{ button_text }}](https://prompt={{ next_user_message | urlencode }})""")
 
 
 class HumanVerificationManagerForApiCalling(
