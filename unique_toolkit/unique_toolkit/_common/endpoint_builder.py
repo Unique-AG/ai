@@ -77,8 +77,10 @@ class ResponseValidationException(Exception):
         return self._pydantic_error
 
     def __str__(self):
-        return f"Response validation failed for {self._operation_name}\n"
-        f"Response: {self._response}"
+        return (
+            f"Response validation failed for {self._operation_name}\n"
+            + f"Response: {self._response}"
+        )
 
 
 class ApiOperationProtocol(
