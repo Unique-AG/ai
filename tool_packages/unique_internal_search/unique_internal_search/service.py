@@ -1,5 +1,5 @@
 from logging import Logger
-import regex as re
+
 from pydantic import Field, create_model
 from typing_extensions import override
 from unique_toolkit._common.chunk_relevancy_sorter.exception import (
@@ -29,6 +29,7 @@ from unique_toolkit.language_model.schemas import (
 )
 
 from unique_internal_search.config import InternalSearchConfig
+from unique_internal_search.utils import modify_metadata_in_chunks
 
 
 class InternalSearchService:
@@ -322,7 +323,9 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
         )
 
         ## Modify metadata in chunks
-        selected_chunks = self._modify_metadata_in_chunks(selected_chunks)
+        selected_chunks = modify_metadata_in_chunks(
+            chunks=selected_chunks, config=self.config
+        )
 
         tool_response = ToolCallResponse(
             id=tool_call.id,  # type: ignore
@@ -340,30 +343,6 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             )
 
         return tool_response
-
-    def _modify_metadata_in_chunks(self, chunks: list[ContentChunk]) -> list[ContentChunk]:
-        for chunk in chunks:
-            ## Remove all metadata from the original chunk text. Keep the text. Metadata are between <|key|> and <|/key|>.
-            text = re.sub(r'<\|[^|]+\|>(.*?)<\|/[^|]+\|>', '', chunk.text)
-
-            ## Remove leading and trailing new lines
-            text = text.strip()
-
-            ## Create new metadata dictionary with the new metadata
-            metadata = chunk.metadata
-            meta_dict = metadata.model_dump(exclude_none=True, by_alias=True)
-            sections = self.config.source_format_config.sections
-
-            parts: list[str] = []
-            for key, template in sections.items():
-                if key in meta_dict:
-                    parts.append(template.format(meta_dict[key]))
-
-            ## Add the new metadata to the chunk text
-            text_with_metadata = "\n".join(parts) + "\n" + text
-            chunk.text = text_with_metadata
-
-        return chunks
 
     def get_tool_call_result_for_loop_history(
         self,
