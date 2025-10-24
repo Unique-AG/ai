@@ -29,7 +29,7 @@ from unique_swot.services.generation import (
     summarize_swot_extraction,
 )
 from unique_swot.services.memory import SwotMemoryService
-from unique_swot.services.notifier import Notifier
+from unique_swot.services.notifier import ProgressNotifier
 from unique_swot.services.schemas import (
     SWOTOperation,
     SWOTPlan,
@@ -62,7 +62,7 @@ class SWOTExecutionManager:
         content_chunk_registry: ContentChunkRegistry,
         cache_scope_id: str,
         citation_manager: CitationManager,
-        notifier: Notifier,
+        notifier: ProgressNotifier,
     ):
         """
         Initialize the SWOT orchestrator with required services.
@@ -221,7 +221,7 @@ class SWOTExecutionManager:
 
         extraction_output_model = get_swot_extraction_model(component)
         context = ReportGenerationContext(
-            step_name=component,
+            component=component,
             sources=sources,
             extraction_system_prompt=extraction_system_prompt,
             extraction_output_model=extraction_output_model,
@@ -237,7 +237,7 @@ class SWOTExecutionManager:
         self._memory_service.set(aggregated_extraction_result)
 
         context = ReportSummarizationContext(
-            step_name=component,
+            component=component,
             summarization_system_prompt=get_swot_summarization_system_prompt(component),
             extraction_results=aggregated_extraction_result,
         )

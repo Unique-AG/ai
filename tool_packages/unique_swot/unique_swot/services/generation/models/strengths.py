@@ -46,3 +46,7 @@ class StrengthsExtraction(BaseModel):
         for batch in batches:
             all_strengths.extend(batch.strengths)
         return cls(strengths=all_strengths)
+
+    @property
+    def number_of_items(self) -> int:
+        return len(self.strengths)

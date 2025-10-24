@@ -1,7 +1,16 @@
+from enum import StrEnum
+
 from pydantic import BaseModel, ConfigDict
 
 from unique_swot.services.collection.schema import Source
 from unique_swot.services.generation.models import SWOTExtractionModel
+
+
+class SWOTComponent(StrEnum):
+    STRENGTHS = "Strengths"
+    WEAKNESSES = "Weaknesses"
+    OPPORTUNITIES = "Opportunities"
+    THREATS = "Threats"
 
 
 class ReportGenerationContext(BaseModel):
@@ -20,7 +29,7 @@ class ReportGenerationContext(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    step_name: str
+    component: SWOTComponent
     extraction_system_prompt: str
     sources: list[Source]
     extraction_output_model: type[SWOTExtractionModel]
@@ -35,7 +44,7 @@ class ReportSummarizationContext(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    step_name: str
+    component: SWOTComponent
     summarization_system_prompt: str
     extraction_results: SWOTExtractionModel
 

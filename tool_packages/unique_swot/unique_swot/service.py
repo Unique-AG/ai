@@ -21,7 +21,7 @@ from unique_swot.services.collection import CollectionContext, SourceCollectionM
 from unique_swot.services.collection.registry import ContentChunkRegistry
 from unique_swot.services.executor import SWOTExecutionManager
 from unique_swot.services.memory.base import SwotMemoryService
-from unique_swot.services.notifier import LoggerNotifier
+from unique_swot.services.notifier import ProgressNotifier
 from unique_swot.services.report import REPORT_TEMPLATE
 from unique_swot.services.schemas import SWOTPlan
 
@@ -39,19 +39,19 @@ mock_metadata_filter = {
     ]
 }
 
-mock_metadata_filter = {
-    "and": [
-        {
-            "or": [
-                {
-                    "operator": "in",
-                    "path": ["contentId"],
-                    "value": ["cont_fzj2je28tj5eexqxjz2s1pqf"],
-                }
-            ]
-        }
-    ]
-}
+# mock_metadata_filter = {
+#     "and": [
+#         {
+#             "or": [
+#                 {
+#                     "operator": "in",
+#                     "path": ["contentId"],
+#                     "value": ["cont_fzj2je28tj5eexqxjz2s1pqf"],
+#                 }
+#             ]
+#         }
+#     ]
+# }
 
 
 class SwotTool(Tool[SwotConfig]):
@@ -62,7 +62,10 @@ class SwotTool(Tool[SwotConfig]):
 
         self._knowledge_base_service = KnowledgeBaseService.from_event(self._event)
 
-        self._notifier = LoggerNotifier()
+        self._notifier = ProgressNotifier(
+            chat_service=self._chat_service,
+            message_id=self._event.payload.assistant_message.id,
+        )
 
         _short_term_memory_service = ShortTermMemoryService(
             company_id=self._event.company_id,
@@ -89,6 +92,7 @@ class SwotTool(Tool[SwotConfig]):
             ),
             knowledge_base_service=self._knowledge_base_service,
             content_chunk_registry=self._content_chunk_registry,
+            notifier=self._notifier,
         )
 
         self._citation_manager = CitationManager(
@@ -130,6 +134,12 @@ class SwotTool(Tool[SwotConfig]):
         # are structurally correct but logically invalid (e.g., missing required modify instructions)
         plan.validate_swot_plan()
 
+        number_of_executions = (
+            plan.get_number_of_executions() + 1
+        )  # +1 for Collecting sources step
+
+        self._notifier.start_progress(number_of_executions)
+
         self.logger.info(f"Running SWOT plan: {plan.model_dump_json(indent=2)}")
 
         # Get Sources
@@ -137,31 +147,43 @@ class SwotTool(Tool[SwotConfig]):
 
         self.logger.info(f"Collected {len(sources)} sources!")
 
-        # TODO: Estimate number of steps based on the plan and the number of sources
+        total_steps = self._calculate_total_steps(plan, len(sources))
+        self.logger.info(f"Total steps: {total_steps}")
+        try:
+            executor = SWOTExecutionManager(
+                configuration=self.config.report_generation_config,
+                language_model_service=self._language_model_service,
+                notifier=self._notifier,
+                memory_service=self._memory_service,
+                knowledge_base_service=self._knowledge_base_service,
+                cache_scope_id=self.config.cache_scope_id,
+                content_chunk_registry=self._content_chunk_registry,
+                citation_manager=self._citation_manager,
+            )
+            result = await executor.run(plan=plan, sources=sources)
+            report = REPORT_TEMPLATE.render(**result.model_dump())
 
-        executor = SWOTExecutionManager(
-            configuration=self.config.report_generation_config,
-            language_model_service=self._language_model_service,
-            notifier=self._notifier,
-            memory_service=self._memory_service,
-            knowledge_base_service=self._knowledge_base_service,
-            cache_scope_id=self.config.cache_scope_id,
-            content_chunk_registry=self._content_chunk_registry,
-            citation_manager=self._citation_manager,
-        )
-        result = await executor.run(plan=plan, sources=sources)
-        report = REPORT_TEMPLATE.render(**result.model_dump())
+            references = self._citation_manager.get_references(
+                message_id=self._event.payload.assistant_message.id
+            )
+            content_chunks = self._citation_manager.get_referenced_content_chunks()
 
-        references = self._citation_manager.get_references(
-            message_id=self._event.payload.assistant_message.id
-        )
-        content_chunks = self._citation_manager.get_referenced_content_chunks()
+            self._chat_service.modify_assistant_message(
+                message_id=self._event.payload.assistant_message.id,
+                content=report,
+                references=references,
+            )
+        except Exception as e:
+            self._notifier.end_progress(success=False)
+            self.logger.exception(f"Error running SWOT plan: {e}")
+            return ToolCallResponse(
+                id=tool_call.id,  # type: ignore
+                name=self.name,
+                content=f"Error running SWOT plan: {e}",
+                content_chunks=[],
+            )
 
-        self._chat_service.modify_assistant_message(
-            message_id=self._event.payload.assistant_message.id,
-            content=report,
-            references=references,
-        )
+        self._notifier.end_progress(success=True)
 
         return ToolCallResponse(
             id=tool_call.id,  # type: ignore
@@ -192,13 +214,19 @@ class SwotTool(Tool[SwotConfig]):
         )
 
     @override
-    def takes_control(self) -> bool:
+    def takes_control(self) -> bool:  # type: ignore
         """
         Some tools require to take control of the conversation with the user and do not want the orchestrator to intervene.
         this function indicates whether the tool takes control or not. It yanks the control away from the orchestrator.
         A typical use-case is deep-research.
         """
         return True
+
+    def _calculate_total_steps(self, plan: SWOTPlan, number_of_sources: int) -> int:
+        number_of_executions = plan.get_number_of_executions()
+        num_steps_per_execution = number_of_sources + 1  # +1 for the summarization step
+
+        return number_of_executions * num_steps_per_execution
 
 
 ToolFactory.register_tool(tool=SwotTool, tool_config=SwotConfig)

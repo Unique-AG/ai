@@ -1,10 +1,9 @@
-from enum import StrEnum
-
 from unique_swot.services.generation.config import ReportGenerationConfig
 from unique_swot.services.generation.contexts import (
     ReportGenerationContext,
     ReportModificationContext,
     ReportSummarizationContext,
+    SWOTComponent,
 )
 from unique_swot.services.generation.generator import (
     extract_swot_from_sources,
@@ -37,13 +36,6 @@ from unique_swot.services.generation.prompts import (
 from unique_swot.services.generation.utils import batch_parser
 
 
-class SWOTComponent(StrEnum):
-    STRENGTHS = "strengths"
-    WEAKNESSES = "weaknesses"
-    OPPORTUNITIES = "opportunities"
-    THREATS = "threats"
-
-
 def get_swot_extraction_system_prompt(component: SWOTComponent) -> str:
     if component == SWOTComponent.STRENGTHS:
         return STRENGTHS_EXTRACTION_TEMPLATE
@@ -73,13 +65,13 @@ def get_swot_summarization_system_prompt(component: SWOTComponent) -> str:
 def get_swot_extraction_model(
     component: SWOTComponent,
 ) -> type[SWOTExtractionModel]:
-    if component == "strengths":
+    if component == SWOTComponent.STRENGTHS:
         return StrengthsExtraction
-    elif component == "weaknesses":
+    elif component == SWOTComponent.WEAKNESSES:
         return WeaknessesExtraction
-    elif component == "opportunities":
+    elif component == SWOTComponent.OPPORTUNITIES:
         return OpportunitiesExtraction
-    elif component == "threats":
+    elif component == SWOTComponent.THREATS:
         return ThreatsExtraction
     else:
         raise ValueError(f"Invalid component: {component}")

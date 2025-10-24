@@ -45,3 +45,7 @@ class WeaknessesExtraction(BaseModel):
         for batch in batches:
             all_weaknesses.extend(batch.weaknesses)
         return cls(weaknesses=all_weaknesses)
+
+    @property
+    def number_of_items(self) -> int:
+        return len(self.weaknesses)

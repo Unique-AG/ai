@@ -32,3 +32,7 @@ class OpportunitiesExtraction(BaseModel):
         for batch in batches:
             all_opportunities.extend(batch.opportunities)
         return cls(opportunities=all_opportunities)
+
+    @property
+    def number_of_items(self) -> int:
+        return len(self.opportunities)

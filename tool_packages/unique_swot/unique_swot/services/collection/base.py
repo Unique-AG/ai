@@ -10,6 +10,11 @@ from unique_swot.services.collection.sources import (
     collect_knowledge_base,
     collect_web_sources,
 )
+from unique_swot.services.notifier import (
+    MessageLogEvent,
+    MessageLogStatus,
+    ProgressNotifier,
+)
 
 _LOGGER = getLogger(__name__)
 
@@ -28,12 +33,22 @@ class SourceCollectionManager:
         context: CollectionContext,
         knowledge_base_service: KnowledgeBaseService,
         content_chunk_registry: ContentChunkRegistry,
+        notifier: ProgressNotifier,
     ):
         self._context = context
         self._knowledge_base_service = knowledge_base_service
         self._content_chunk_registry = content_chunk_registry
+        self._notifier = notifier
 
     def collect_sources(self) -> list[Source]:
+        self._notifier.notify(
+            notification_title="Collecting Sources",
+            status=MessageLogStatus.RUNNING,
+            message_log_event=MessageLogEvent(
+                type="InternalSearch",
+                text=self._get_message_log_event_text(),
+            ),
+        )
         sources = self.collect_internal_documents(
             metadata_filter=self._context.metadata_filter,
             chunk_registry=self._content_chunk_registry,
@@ -54,6 +69,8 @@ class SourceCollectionManager:
 
         # Save Registry Store in Memory Service
         self._content_chunk_registry.save()
+
+        self._notifier.update_progress(step_precentage_increment=1)
 
         return sources
 
@@ -90,3 +107,13 @@ class SourceCollectionManager:
             metadata_filter=metadata_filter,
             chunk_registry=chunk_registry,
         )
+
+    def _get_message_log_event_text(self) -> str:
+        notification_prefix = "Collecting Sources from: "
+        if self._context.metadata_filter is not None:
+            notification_prefix += "Internal Documents"
+        if self._context.use_earnings_calls:
+            notification_prefix += "Earnings Calls"
+        if self._context.use_web_sources:
+            notification_prefix += "Web Sources"
+        return notification_prefix
