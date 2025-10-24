@@ -230,10 +230,12 @@ class HumanVerificationManagerForApiCalling(
             api_call_as_json=api_call.model_dump_json(indent=2)
         )
 
-    def create_assistant_confirmation_message(self, *, payload: PayloadType) -> str:
+    def create_assistant_confirmation_message(
+        self, *, payload: PayloadType, button_text: str = "Confirm"
+    ) -> str:
         return ASSISTANT_CONFIRMATION_MESSAGE_JINJA2_TEMPLATE.render(
             api_call_as_markdown_table=dict_to_markdown_table(payload.model_dump()),
-            button_text="Please confirm the call by pressing this button.",
+            button_text=button_text,
             next_user_message=self._create_next_user_message(payload),
         )
 
