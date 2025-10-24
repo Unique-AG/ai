@@ -42,7 +42,8 @@ NEXT_USER_MESSAGE_JINJA2_TEMPLATE = jinja2.Template("""I confirm the api call wi
 
 
 ASSISTANT_CONFIRMATION_MESSAGE_JINJA2_TEMPLATE = jinja2.Template(
-    """<h3>I would like to call the api with the following data:</h3>
+    """
+\n
 {{ api_call_as_markdown_table }}
 \n\n
 [{{ button_text }}](https://prompt={{ next_user_message | urlencode }})"""
