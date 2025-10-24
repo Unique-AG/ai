@@ -2,7 +2,7 @@ from enum import StrEnum
 from typing import Any, Callable, Generic, Protocol, TypeVar
 from urllib.parse import urljoin, urlparse
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 from typing_extensions import ParamSpec
 
 from unique_toolkit._common.endpoint_builder import (
@@ -86,10 +86,16 @@ def build_fake_requestor(
                     f"Invalid parameters passed to combined model {combined_model.__name__}: {e}"
                 )
 
-            return cls._operation.handle_response(
-                return_value,
-                model_validate_options=cls._operation.response_validate_options(),
-            )
+            try:
+                return cls._operation.handle_response(
+                    return_value,
+                    model_validate_options=cls._operation.response_validate_options(),
+                )
+            except ValidationError as e:
+                raise ValueError(
+                    f"Invalid response from endpoint {cls._operation.__name__}: {e}"
+                    f"Response: {return_value}"
+                )
 
         @classmethod
         async def request_async(
@@ -151,10 +157,17 @@ def build_request_requestor(
                 headers=context.headers,
                 json=payload,
             )
-            return cls._operation.handle_response(
-                response.json(),
-                model_validate_options=cls._operation.response_validate_options(),
-            )
+
+            try:
+                return cls._operation.handle_response(
+                    response.json(),
+                    model_validate_options=cls._operation.response_validate_options(),
+                )
+            except ValidationError as e:
+                raise ValueError(
+                    f"Invalid response from endpoint {cls._operation.__name__}: {e}"
+                    f"Response: {response.json()}"
+                )
 
         @classmethod
         async def request_async(
@@ -216,10 +229,16 @@ def build_httpx_requestor(
                         model_dump_options=cls._operation.payload_dump_options(),
                     ),
                 )
-                return cls._operation.handle_response(
-                    response.json(),
-                    model_validate_options=cls._operation.response_validate_options(),
-                )
+                try:
+                    return cls._operation.handle_response(
+                        response.json(),
+                        model_validate_options=cls._operation.response_validate_options(),
+                    )
+                except ValidationError as e:
+                    raise ValueError(
+                        f"Invalid response from endpoint {cls._operation.__name__}: {e}"
+                        f"Response: {response.json()}"
+                    )
 
         @classmethod
         async def request_async(
@@ -249,10 +268,16 @@ def build_httpx_requestor(
                         model_dump_options=cls._operation.payload_dump_options(),
                     ),
                 )
-                return cls._operation.handle_response(
-                    response.json(),
-                    model_validate_options=cls._operation.response_validate_options(),
-                )
+                try:
+                    return cls._operation.handle_response(
+                        response.json(),
+                        model_validate_options=cls._operation.response_validate_options(),
+                    )
+                except ValidationError as e:
+                    raise ValueError(
+                        f"Invalid response from endpoint {cls._operation.__name__}: {e}"
+                        f"Response: {response.json()}"
+                    )
 
     return HttpxRequestor
 
@@ -314,7 +339,13 @@ def build_aiohttp_requestor(
                         model_dump_options=cls._operation.payload_dump_options(),
                     ),
                 )
-            return cls._operation.handle_response(await response.json())
+                try:
+                    return cls._operation.handle_response(await response.json())
+                except ValidationError as e:
+                    raise ValueError(
+                        f"Invalid response from endpoint {cls._operation.__name__}: {e}"
+                        f"Response: {await response.json()}"
+                    )
 
     return AiohttpRequestor
 
