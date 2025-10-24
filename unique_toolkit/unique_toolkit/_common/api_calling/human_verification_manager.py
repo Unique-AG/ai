@@ -175,7 +175,9 @@ class HumanVerificationManagerForApiCalling(
                             self._environment_payload_params.model_dump()
                         )
 
-                    return self._operation.payload_model().model_validate(payload_dict)
+                    return self._operation.payload_model().model_validate(
+                        payload_dict, by_alias=True, by_name=True
+                    )
 
             except Exception as e:
                 self._logger.error(f"Error detecting api calls from user message: {e}")
@@ -211,7 +213,9 @@ class HumanVerificationManagerForApiCalling(
             modifiable_dict = payload_dict
 
         modifiable_params = self._modifiable_payload_params_model.model_validate(
-            modifiable_dict
+            modifiable_dict,
+            by_alias=True,
+            by_name=True,
         )
         api_call = self._verification_model(
             modifiable_params=modifiable_params,
