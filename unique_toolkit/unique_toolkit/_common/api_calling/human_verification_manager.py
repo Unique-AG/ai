@@ -4,7 +4,7 @@ from logging import Logger
 from typing import Any, Generic
 
 import jinja2
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from unique_toolkit._common.endpoint_builder import (
     ApiOperationProtocol,
@@ -261,7 +261,11 @@ class HumanVerificationManagerForApiCalling(
             context=context,
             **params,
         )
-        return self._operation.handle_response(response)
+        try:
+            return self._operation.handle_response(response)
+        except ValidationError as e:
+            self._logger.error(f"Error calling api: {e}. Response: {response}")
+            raise e
 
 
 if __name__ == "__main__":
