@@ -86,7 +86,10 @@ def build_fake_requestor(
                     f"Invalid parameters passed to combined model {combined_model.__name__}: {e}"
                 )
 
-            return cls._operation.handle_response(return_value)
+            return cls._operation.handle_response(
+                return_value,
+                model_validate_options=cls._operation.response_validate_options(),
+            )
 
         @classmethod
         async def request_async(
@@ -132,11 +135,15 @@ def build_request_requestor(
                 combined=kwargs
             )
 
-            path = cls._operation.create_path_from_model(path_params)
+            path = cls._operation.create_path_from_model(
+                path_params, model_dump_options=cls._operation.path_dump_options()
+            )
             url = urljoin(context.base_url, path)
             _verify_url(url)
 
-            payload = cls._operation.create_payload_from_model(payload_model)
+            payload = cls._operation.create_payload_from_model(
+                payload_model, model_dump_options=cls._operation.payload_dump_options()
+            )
 
             response = requests.request(
                 method=cls._operation.request_method(),
@@ -144,7 +151,10 @@ def build_request_requestor(
                 headers=context.headers,
                 json=payload,
             )
-            return cls._operation.handle_response(response.json())
+            return cls._operation.handle_response(
+                response.json(),
+                model_validate_options=cls._operation.response_validate_options(),
+            )
 
         @classmethod
         async def request_async(
@@ -191,7 +201,9 @@ def build_httpx_requestor(
                 combined=kwargs
             )
 
-            path = cls._operation.create_path_from_model(path_params)
+            path = cls._operation.create_path_from_model(
+                path_params, model_dump_options=cls._operation.path_dump_options()
+            )
             url = urljoin(context.base_url, path)
             _verify_url(url)
             with httpx.Client() as client:
@@ -199,9 +211,15 @@ def build_httpx_requestor(
                     method=cls._operation.request_method(),
                     url=url,
                     headers=headers,
-                    json=cls._operation.create_payload_from_model(payload_model),
+                    json=cls._operation.create_payload_from_model(
+                        payload_model,
+                        model_dump_options=cls._operation.payload_dump_options(),
+                    ),
                 )
-                return cls._operation.handle_response(response.json())
+                return cls._operation.handle_response(
+                    response.json(),
+                    model_validate_options=cls._operation.response_validate_options(),
+                )
 
         @classmethod
         async def request_async(
@@ -216,7 +234,9 @@ def build_httpx_requestor(
                 combined=kwargs
             )
 
-            path = cls._operation.create_path_from_model(path_params)
+            path = cls._operation.create_path_from_model(
+                path_params, model_dump_options=cls._operation.path_dump_options()
+            )
             url = urljoin(context.base_url, path)
             _verify_url(url)
             async with httpx.AsyncClient() as client:
@@ -224,9 +244,15 @@ def build_httpx_requestor(
                     method=cls._operation.request_method(),
                     url=url,
                     headers=headers,
-                    json=cls._operation.create_payload_from_model(payload_model),
+                    json=cls._operation.create_payload_from_model(
+                        payload_model,
+                        model_dump_options=cls._operation.payload_dump_options(),
+                    ),
                 )
-                return cls._operation.handle_response(response.json())
+                return cls._operation.handle_response(
+                    response.json(),
+                    model_validate_options=cls._operation.response_validate_options(),
+                )
 
     return HttpxRequestor
 
@@ -272,7 +298,9 @@ def build_aiohttp_requestor(
             path_params, payload_model = cls._operation.models_from_combined(
                 combined=kwargs
             )
-            path = cls._operation.create_path_from_model(path_params)
+            path = cls._operation.create_path_from_model(
+                path_params, model_dump_options=cls._operation.path_dump_options()
+            )
             url = urljoin(context.base_url, path)
             _verify_url(url)
 
@@ -281,7 +309,10 @@ def build_aiohttp_requestor(
                     method=cls._operation.request_method(),
                     url=url,
                     headers=headers,
-                    json=cls._operation.create_payload_from_model(payload_model),
+                    json=cls._operation.create_payload_from_model(
+                        payload_model,
+                        model_dump_options=cls._operation.payload_dump_options(),
+                    ),
                 )
             return cls._operation.handle_response(await response.json())
 
@@ -367,7 +398,7 @@ if __name__ == "__main__":
 
     # Note that the return value is a pydantic UserResponse object
     response = FakeUserRequestor().request(
-        context=RequestContext(headers={"a": "b"}),
+        context=RequestContext(base_url="https://example.com", headers={"a": "b"}),
         user_id=123,
         include_profile=True,
     )
@@ -379,7 +410,9 @@ if __name__ == "__main__":
 
     # Check type hints
     response = RequestRequestor().request(
-        context=RequestContext(headers={"a": "b"}), user_id=123, include_profile=True
+        context=RequestContext(base_url="https://example.com", headers={"a": "b"}),
+        user_id=123,
+        include_profile=True,
     )
 
     print(response.model_dump())
