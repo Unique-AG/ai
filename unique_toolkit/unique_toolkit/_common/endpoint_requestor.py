@@ -315,13 +315,13 @@ def build_aiohttp_requestor(
                     url=url,
                     headers=headers,
                     json=cls._operation.create_payload_from_model(
-                        payload_model,
+                        payload=payload_model,
                         model_dump_options=cls._operation.payload_dump_options(),
                     ),
                 )
                 response_json = await response.json()
                 return cls._operation.handle_response(
-                    response_json,
+                    response=response_json,
                     model_validate_options=cls._operation.response_validate_options(),
                 )
 
