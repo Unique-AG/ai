@@ -43,3 +43,7 @@ class ThreatsExtraction(BaseModel):
         for batch in batches:
             all_threats.extend(batch.threats)
         return cls(threats=all_threats)
+
+    @property
+    def number_of_items(self) -> int:
+        return len(self.threats)

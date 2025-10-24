@@ -18,3 +18,10 @@ class ReportGenerationOutputModel(Protocol):
             A single combined instance of the same type
         """
         ...
+
+    @property
+    def number_of_items(self) -> int:
+        """
+        Get the number of items in the output model.
+        """
+        ...

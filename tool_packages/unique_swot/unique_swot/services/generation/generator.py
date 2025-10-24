@@ -16,7 +16,11 @@ from unique_swot.services.generation.contexts import (
     ReportSummarizationContext,
 )
 from unique_swot.services.generation.models import SWOTExtractionModel
-from unique_swot.services.notifier import Notifier
+from unique_swot.services.notifier import (
+    MessageLogEvent,
+    MessageLogStatus,
+    ProgressNotifier,
+)
 
 
 async def extract_swot_from_sources(
@@ -24,7 +28,7 @@ async def extract_swot_from_sources(
     context: ReportGenerationContext,
     configuration: ReportGenerationConfig,
     language_model_service: LanguageModelService,
-    notifier: Notifier,
+    notifier: ProgressNotifier,
     batch_parser: Callable[[list[SourceChunk]], str],
 ) -> SWOTExtractionModel:
     """
@@ -46,7 +50,7 @@ async def extract_swot_from_sources(
     Returns:
         The generated SWOT analysis report
     """
-    batches = split_context_into_batches(
+    source_batches = split_context_into_batches(
         sources=context.sources,
         batch_size=configuration.batch_size,
         max_tokens_per_batch=configuration.max_tokens_per_batch,
@@ -54,37 +58,44 @@ async def extract_swot_from_sources(
     )
 
     report_batches = []
-    for i, batch in tqdm(
-        enumerate(batches),
-        total=len(batches),
-        desc=f"Generating report {context.step_name}",
+    notification_title = f"Extracting {context.component.value} from collection"
+
+    for source_batch in tqdm(
+        source_batches,
+        total=len(source_batches),
+        desc=f"Generating report {context.component}",
     ):
-        report_batch = await extract_swot_from_source_batch(
-            system_prompt=context.extraction_system_prompt,
-            batch_parser=batch_parser,
-            language_model_service=language_model_service,
-            language_model=configuration.language_model,
-            output_model=context.extraction_output_model,
-            batch=batch,
-        )
         notifier.notify(
-            step_name=context.step_name,
-            progress=i / len(batches),
+            notification_title=notification_title,
+            status=MessageLogStatus.RUNNING,
+            message_log_event=MessageLogEvent(
+                type="InternalSearch",
+                text=f"Processing {source_batch.source.title}",
+            ),
         )
-        if report_batch is None:
-            continue
-        report_batches.append(report_batch)
 
-    # Make sure to notify the progress to 1.0
-    notifier.notify(
-        step_name=context.step_name,
-        progress=1.0,
-    )
-    aggregated_extraction_result = context.extraction_output_model.group_batches(
-        report_batches
-    )
+        step_precentage_increment = 1 / (
+            len(source_batch.batches) * len(source_batches)
+        )
 
-    return aggregated_extraction_result
+        for batch in source_batch.batches:
+            report_batch = await extract_swot_from_source_batch(
+                system_prompt=context.extraction_system_prompt,
+                batch_parser=batch_parser,
+                language_model_service=language_model_service,
+                language_model=configuration.language_model,
+                output_model=context.extraction_output_model,
+                batch=batch,
+            )
+            if report_batch is None:
+                continue
+
+            report_batches.append(report_batch)
+            notifier.update_progress(
+                step_precentage_increment=step_precentage_increment
+            )
+
+    return context.extraction_output_model.group_batches(report_batches)
 
 
 async def summarize_swot_extraction(
@@ -92,20 +103,24 @@ async def summarize_swot_extraction(
     context: ReportSummarizationContext,
     configuration: ReportGenerationConfig,
     language_model_service: LanguageModelService,
-    notifier: Notifier,
+    notifier: ProgressNotifier,
 ) -> str:
     """
     Summarize a SWOT extraction report.
     """
+    notifier.notify(
+        notification_title=f"Generating {context.component.value} report",
+        status=MessageLogStatus.RUNNING,
+        message_log_event=MessageLogEvent(
+            type="InternalSearch",
+            text=f"Synthesizing {context.extraction_results.number_of_items} extracted items",
+        ),
+    )
     summary = await summarize_swot_extraction_results(
         system_prompt=context.summarization_system_prompt,
         language_model_service=language_model_service,
         language_model=configuration.language_model,
         extraction_output_model=context.extraction_results,
-    )
-    notifier.notify(
-        step_name=context.step_name,
-        progress=1.0,
     )
     return summary
 
@@ -115,7 +130,7 @@ async def modify_report(
     context: ReportModificationContext,
     configuration: ReportGenerationConfig,
     language_model_service: LanguageModelService,
-    notifier: Notifier,
+    notifier: ProgressNotifier,
 ) -> SWOTExtractionModel:
     """
     Modify an existing SWOT analysis report.

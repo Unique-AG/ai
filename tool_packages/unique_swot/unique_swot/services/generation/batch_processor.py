@@ -1,6 +1,7 @@
 from logging import getLogger
 from typing import Callable
 
+from pydantic import BaseModel, Field
 from tiktoken import get_encoding
 from unique_toolkit import LanguageModelService
 from unique_toolkit._common.validators import LMI
@@ -12,13 +13,18 @@ from unique_swot.services.generation.models import SWOTExtractionModel
 _LOGGER = getLogger(__name__)
 
 
+class SourceBatchs(BaseModel):
+    source: Source
+    batches: list[list[SourceChunk]] = Field(default_factory=list)
+
+
 def split_context_into_batches(
     *,
     sources: list[Source],
     batch_size: int,
     max_tokens_per_batch: int,
     language_model: LMI,
-) -> list[list[SourceChunk]]:
+) -> list[SourceBatchs]:
     """
     Split sources into batches based on token limits and batch size.
 
@@ -35,35 +41,38 @@ def split_context_into_batches(
     Returns:
         List of source batches, each containing sources that fit within token limits
     """
-    groups: list[list[SourceChunk]] = []
+    source_batches: list[SourceBatchs] = []
     encoding = get_encoding(language_model.encoder_name)
 
     for source in sources:
-        current_group: list[SourceChunk] = []
-        current_group_size = 0
+        current_source = SourceBatchs(source=source)
+        current_batch: list[SourceChunk] = []
+        current_batch_size = 0
         for chunk in source.chunks:
             chunk_size = len(encoding.encode(chunk.text))
 
             # If adding this chunk would exceed the limit, finalize current group and start a new one
             if (
-                current_group_size + chunk_size > max_tokens_per_batch
-                or len(current_group) >= batch_size
+                current_batch_size + chunk_size > max_tokens_per_batch
+                or len(current_batch) >= batch_size
             ):
-                groups.append(current_group)
-                current_group = [chunk]
-                current_group_size = chunk_size
+                current_source.batches.append(current_batch)
+                current_batch = [chunk]
+                current_batch_size = chunk_size
             else:
-                current_group.append(chunk)
-                current_group_size += chunk_size
+                current_batch.append(chunk)
+                current_batch_size += chunk_size
 
         # Add any remaining chunks in the current group
-        if current_group:
-            groups.append(current_group)
+        if current_batch:
+            current_source.batches.append(current_batch)
+
+        source_batches.append(current_source)
 
     _LOGGER.info(
-        f"Split sources into {len(groups)} batches out of {len(sources)} sources"
+        f"Split sources into {len(source_batches)} batches out of {len(sources)} sources"
     )
-    return groups
+    return source_batches
 
 
 async def extract_swot_from_source_batch(

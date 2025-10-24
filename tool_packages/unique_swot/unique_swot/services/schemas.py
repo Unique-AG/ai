@@ -45,6 +45,8 @@ class SWOT(BaseModel, Generic[TStep]):
 
 
 class SWOTPlan(SWOT[SWOTStepPlan]):
+    # from unique_swot.services.generation import SWOTComponent
+
     def validate_swot_plan(self) -> None:
         for step in [self.strengths, self.weaknesses, self.opportunities, self.threats]:
             if (
@@ -54,6 +56,8 @@ class SWOTPlan(SWOT[SWOTStepPlan]):
                 raise ValueError("Modify instruction is required for modify operations")
 
     def get_step_result(self, component: SWOTComponent) -> SWOTStepPlan:
+        # from unique_swot.services.generation import SWOTComponent
+
         match component:
             case SWOTComponent.STRENGTHS:
                 return self.strengths
@@ -66,8 +70,24 @@ class SWOTPlan(SWOT[SWOTStepPlan]):
             case _:
                 raise ValueError(f"Invalid component: {component}")
 
+    def get_number_of_executions(self) -> int:
+        return len(
+            [
+                step
+                for step in [
+                    self.strengths,
+                    self.weaknesses,
+                    self.opportunities,
+                    self.threats,
+                ]
+                if step.operation != SWOTOperation.NOT_REQUESTED
+            ]
+        )
+
 
 class SWOTResult(SWOT[SWOTStepResult]):
+    # from unique_swot.services.generation import SWOTComponent
+
     @classmethod
     def init_from_plan(cls, *, plan: SWOTPlan) -> "SWOTResult":
         strengths_result = SWOTStepResult(
@@ -99,6 +119,8 @@ class SWOTResult(SWOT[SWOTStepResult]):
         )
 
     def assign_result(self, component: SWOTComponent, result: str) -> None:
+        # from unique_swot.services.generation import SWOTComponent
+
         match component:
             case SWOTComponent.STRENGTHS:
                 self.strengths.result = result
