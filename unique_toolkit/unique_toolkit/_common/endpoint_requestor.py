@@ -2,7 +2,7 @@ from enum import StrEnum
 from typing import Any, Callable, Generic, Protocol, TypeVar
 from urllib.parse import urljoin, urlparse
 
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field
 from typing_extensions import ParamSpec
 
 from unique_toolkit._common.endpoint_builder import (
@@ -86,19 +86,10 @@ def build_fake_requestor(
                     f"Invalid parameters passed to combined model {combined_model.__name__}: {e}"
                 )
 
-            try:
-                return cls._operation.handle_response(
-                    return_value,
-                    model_validate_options=cls._operation.response_validate_options(),
-                )
-            except ValidationError as e:
-                raise ValueError(
-                    f"Invalid response validation for {cls._operation.__name__}\n"
-                    "raised pydantic ValidationError:\n"
-                    f"{e}\n\n"
-                    "The obtained response is:\n"
-                    f"Response: {return_value}"
-                )
+            return cls._operation.handle_response(
+                return_value,
+                model_validate_options=cls._operation.response_validate_options(),
+            )
 
         @classmethod
         async def request_async(
@@ -163,20 +154,10 @@ def build_request_requestor(
 
             response_json = response.json()
 
-            try:
-                return cls._operation.handle_response(
-                    response_json,
-                    model_validate_options=cls._operation.response_validate_options(),
-                )
-            except ValidationError as e:
-                raise ValueError(
-                    f"Invalid response validation for {cls._operation.__name__}\n"
-                    "raised pydantic ValidationError:\n"
-                    "pydantic ValidationError:\n"
-                    f"{e}\n\n"
-                    "The obtained response is:\n"
-                    f"{response_json}"
-                )
+            return cls._operation.handle_response(
+                response_json,
+                model_validate_options=cls._operation.response_validate_options(),
+            )
 
         @classmethod
         async def request_async(
@@ -239,19 +220,10 @@ def build_httpx_requestor(
                     ),
                 )
                 response_json = response.json()
-                try:
-                    return cls._operation.handle_response(
-                        response_json,
-                        model_validate_options=cls._operation.response_validate_options(),
-                    )
-                except ValidationError as e:
-                    raise ValueError(
-                        f"Invalid response validation for {cls._operation.__name__}\n"
-                        "raised pydantic ValidationError:\n"
-                        f"{e}\n\n"
-                        "The obtained response is:\n"
-                        f"{response_json}"
-                    )
+                return cls._operation.handle_response(
+                    response_json,
+                    model_validate_options=cls._operation.response_validate_options(),
+                )
 
         @classmethod
         async def request_async(
@@ -282,19 +254,10 @@ def build_httpx_requestor(
                     ),
                 )
                 response_json = response.json()
-                try:
-                    return cls._operation.handle_response(
-                        response_json,
-                        model_validate_options=cls._operation.response_validate_options(),
-                    )
-                except ValidationError as e:
-                    raise ValueError(
-                        f"Invalid response validation for {cls._operation.__name__}\n"
-                        "raised pydantic ValidationError:\n"
-                        f"{e}\n\n"
-                        "The obtained response is:\n"
-                        f"{response_json}"
-                    )
+                return cls._operation.handle_response(
+                    response_json,
+                    model_validate_options=cls._operation.response_validate_options(),
+                )
 
     return HttpxRequestor
 
@@ -357,19 +320,10 @@ def build_aiohttp_requestor(
                     ),
                 )
                 response_json = await response.json()
-                try:
-                    return cls._operation.handle_response(
-                        response_json,
-                        model_validate_options=cls._operation.response_validate_options(),
-                    )
-                except ValidationError as e:
-                    raise ValueError(
-                        f"Invalid response validation for {cls._operation.__name__}\n"
-                        "raised pydantic ValidationError:\n"
-                        f"{e}\n\n"
-                        "The obtained response is:\n"
-                        f"{response_json}"
-                    )
+                return cls._operation.handle_response(
+                    response_json,
+                    model_validate_options=cls._operation.response_validate_options(),
+                )
 
     return AiohttpRequestor
 
