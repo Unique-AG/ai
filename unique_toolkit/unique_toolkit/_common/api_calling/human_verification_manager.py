@@ -41,11 +41,12 @@ NEXT_USER_MESSAGE_JINJA2_TEMPLATE = jinja2.Template("""I confirm the api call wi
 ```""")
 
 
-ASSISTANT_CONFIRMATION_MESSAGE_JINJA2_TEMPLATE = jinja2.Template("""I would like to call the api with the following data:
-
+ASSISTANT_CONFIRMATION_MESSAGE_JINJA2_TEMPLATE = jinja2.Template(
+    """<h3>I would like to call the api with the following data:</h3>
 {{ api_call_as_markdown_table }}
-
-Please confirm the call by pressing this button: [{{ button_text }}](https://prompt={{ next_user_message | urlencode }})""")
+\n\n
+[{{ button_text }}](https://prompt={{ next_user_message | urlencode }})"""
+)
 
 
 class HumanVerificationManagerForApiCalling(
