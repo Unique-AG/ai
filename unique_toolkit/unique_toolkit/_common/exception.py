@@ -35,3 +35,23 @@ class CommonException(Exception):
 
 class ConfigurationException(Exception):
     pass
+
+
+class InfoExceptionForAi(Exception):
+    """
+    This exception is raised as information to the AI.
+    Such that it can be used to inform the user about the error.
+    In a meaningful way.
+    """
+
+    def __init__(
+        self,
+        error_message: str,
+        message_for_ai: str,
+    ):
+        super().__init__(error_message)
+        self._message_for_ai = message_for_ai
+
+    @property
+    def message_for_ai(self):
+        return self._message_for_ai

@@ -16,7 +16,7 @@ from typing import (
     cast,
 )
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 # Paramspecs
 PayloadParamSpec = ParamSpec("PayloadParamSpec")
@@ -45,6 +45,40 @@ class HttpMethods(StrEnum):
 
 # Backward compatibility TODO: Remove in 2.0.0.
 EndpointMethods = HttpMethods
+
+
+class ResponseValidationException(Exception):
+    """
+    This exception is raised when the response validation fails.
+    """
+
+    def __init__(
+        self, operation_name: str, response: dict[str, Any], pydantic_error: str
+    ):
+        super().__init__(
+            f"Response validation failed for operation {operation_name}\n"
+            f"Response: {response}\n"
+            f"Pydantic error: {pydantic_error}"
+        )
+        self._operation_name = operation_name
+        self._response = response
+        self._pydantic_error = pydantic_error
+
+    @property
+    def operation_name(self) -> str:
+        return self._operation_name
+
+    @property
+    def response(self) -> dict[str, Any]:
+        return self._response
+
+    @property
+    def pydantic_error(self) -> str:
+        return self._pydantic_error
+
+    def __str__(self):
+        return f"Response validation failed for {self._operation_name}\n"
+        f"Response: {self._response}"
 
 
 class ApiOperationProtocol(
@@ -239,9 +273,16 @@ def build_api_operation(
                     model_validate_options = {}
                 else:
                     model_validate_options = response_validate_options
-            return Operation.response_model().model_validate(
-                response, **model_validate_options
-            )
+            try:
+                return Operation.response_model().model_validate(
+                    response, **model_validate_options
+                )
+            except ValidationError as e:
+                raise ResponseValidationException(
+                    operation_name=Operation.__name__,
+                    response=response,
+                    pydantic_error=str(e),
+                ) from e
 
         @staticmethod
         def request_method() -> HttpMethods:
