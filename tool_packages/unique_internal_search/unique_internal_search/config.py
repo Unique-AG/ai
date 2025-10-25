@@ -138,7 +138,7 @@ class InternalSearchConfig(BaseToolConfig):
 
     metadata_sections: list[ChunkMetadataSection] = Field(
         default=[],
-        description="Metadata sections to add to the chunks. Each entry is a key-value pair.",
+        description="Metadata sections to add to the search results chunks.",
     )
 
     score_threshold: float = Field(

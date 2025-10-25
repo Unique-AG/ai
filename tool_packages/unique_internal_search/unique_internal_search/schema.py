@@ -6,9 +6,9 @@ class ChunkMetadataSection(BaseModel):
     model_config = get_configuration_dict()
     """Represents a metadata section with its key and template value."""
 
-    key: str = Field(description="Metadata key to extract from the source")
+    key: str = Field(description="Metadata key")
     template: str = Field(
-        description="Template to format the metadata in the chunk text. Use {} as a placeholder in the template for the metadata value."
+        description="Template to format the metadata in the search results chunk text. Use {} as a placeholder in the template for the metadata value."
     )
 
     @staticmethod
