@@ -5,9 +5,6 @@ from pydantic import (
     Field,
 )
 from pydantic.json_schema import SkipJsonSchema
-from unique_internal_search.schema import (
-    ChunkMetadataSection,
-)
 from unique_toolkit._common.chunk_relevancy_sorter.config import (
     ChunkRelevancySortConfig,
 )
@@ -136,9 +133,14 @@ class InternalSearchConfig(BaseToolConfig):
 
     source_format_config: SkipJsonSchema[SourceFormatConfig] = SourceFormatConfig()
 
-    metadata_sections: list[ChunkMetadataSection] = Field(
-        default=[],
-        description="Metadata sections to add to the search results chunks.",
+    metadata_sections: dict[str, str] = Field(
+        default={},
+        description=(
+            "Metadata sections to add to the search result chunk text. "
+            "Keys are metadata field names (e.g. 'metadata_key'), values are "
+            "template strings where {} is used as a placeholder for the "
+            "metadata value (e.g., '<|metadata_key|>{}<|/metadata_key|>')."
+        ),
     )
 
     score_threshold: float = Field(

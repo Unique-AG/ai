@@ -1,43 +1,41 @@
 from unique_toolkit.content.schemas import ContentChunk
 
-from unique_internal_search.config import InternalSearchConfig
-from unique_internal_search.schema import ChunkMetadataSection
-
 
 def append_metadata_in_chunks(
     chunks: list[ContentChunk],
-    config: InternalSearchConfig,
+    metadata_sections: dict[str, str] | None = None,
 ) -> list[ContentChunk]:
+    if metadata_sections is None:
+        return chunks
     for chunk in chunks:
-        meta_dict = chunk.metadata.model_dump(exclude_none=True, by_alias=True)
+        if chunk.metadata is None:
+            continue
 
-        # Format metadata according to sections config and prepend to text
-        formatted_text = _append_metadata_in_chunk(chunk.text, meta_dict, config)
-        chunk.text = formatted_text
-
+        chunk = _append_metadata_in_chunk(chunk, metadata_sections=metadata_sections)
     return chunks
 
 
 def _append_metadata_in_chunk(
-    text: str, meta_dict: dict[str, str], config: InternalSearchConfig
-) -> str:
+    chunk: ContentChunk, metadata_sections: dict[str, str]
+) -> ContentChunk:
     """
     Format chunk text by prepending metadata according to sections config.
     Args:
-        text: The main content text (without metadata tags)
-        meta_dict: Dictionary of metadata key-value pairs
+        chunk: ContentChunk object
+        metadata_sections: Dictionary of metadata sections to add to the chunk text
     Returns:
         Formatted text with metadata prepended
     """
-    metadata_sections: list[ChunkMetadataSection] = config.metadata_sections
+    meta_dict = chunk.metadata.model_dump(exclude_none=True, by_alias=True)
 
     parts: list[str] = []
-    for section in metadata_sections:
-        if section.key in meta_dict:
-            section_pattern = ChunkMetadataSection.pattern_from_template(section.template)
-            parts.append(section_pattern.format(meta_dict[section.key]))
+    for key, template in metadata_sections.items():
+        if key in meta_dict:
+            formatted_section = template.format(meta_dict[key])
+            parts.append(formatted_section)
 
     # Combine metadata parts with the main text
     if parts:
-        return "\n".join(parts) + "\n" + text
-    return text
+        chunk.text = "\n".join(parts) + "\n" + chunk.text
+
+    return chunk
