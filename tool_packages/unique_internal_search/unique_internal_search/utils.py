@@ -5,13 +5,22 @@ def append_metadata_in_chunks(
     chunks: list[ContentChunk],
     metadata_sections: dict[str, str] | None = None,
 ) -> list[ContentChunk]:
+    """
+    Append metadata to chunks.
+    Args:
+        chunks: List of ContentChunk objects
+        metadata_sections: Dictionary of metadata sections to add to the chunk text
+    Returns:
+        List of ContentChunk objects with metadata appended
+    """
     if metadata_sections is None:
         return chunks
     for chunk in chunks:
         if chunk.metadata is None:
             continue
-
-        chunk = _append_metadata_in_chunk(chunk, metadata_sections=metadata_sections)
+        chunk = _append_metadata_in_chunk(
+            chunk=chunk, metadata_sections=metadata_sections
+        )
     return chunks
 
 
