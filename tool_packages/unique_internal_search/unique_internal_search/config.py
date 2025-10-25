@@ -134,7 +134,7 @@ class InternalSearchConfig(BaseToolConfig):
     )
     experimental_features: ExperimentalFeatures = ExperimentalFeatures()
 
-    source_format_config: SourceFormatConfig = SourceFormatConfig()
+    source_format_config: SkipJsonSchema[SourceFormatConfig] = SourceFormatConfig()
 
     metadata_sections: list[ChunkMetadataSection] = Field(
         default=[],
