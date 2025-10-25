@@ -51,7 +51,7 @@ class MessageLog(APIResource["MessageLog"]):
     uncitedReferences: dict
     order: int
     createdAt: str
-    updatedAt: str | None
+    updatedAt: str
 
     @classmethod
     def create(
