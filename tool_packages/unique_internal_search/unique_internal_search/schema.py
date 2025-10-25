@@ -8,7 +8,7 @@ class ChunkMetadataSection(BaseModel):
 
     key: str = Field(description="Metadata key to extract from the source")
     template: str = Field(
-        description="Template to format the metadata in the chunk text."
+        description="Template to format the metadata in the chunk text. Use {} as a placeholder in the template for the metadata value."
     )
 
     @staticmethod
