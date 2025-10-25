@@ -7,7 +7,7 @@ from unique_toolkit._common.validators import LMI
 from unique_toolkit.agentic.history_manager.loop_token_reducer import LoopTokenReducer
 from unique_toolkit.agentic.history_manager.utils import transform_chunks_to_string
 from unique_toolkit.agentic.reference_manager.reference_manager import ReferenceManager
-from unique_toolkit.agentic.tools.config import get_configuration_dict
+from unique_toolkit.agentic.tools.config import BaseToolConfig, get_configuration_dict
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
@@ -127,7 +127,7 @@ class HistoryManager:
     def has_no_loop_messages(self) -> bool:
         return len(self._loop_history) == 0
 
-    def add_tool_call_results(self, tool_call_results: list[ToolCallResponse]):
+    def add_tool_call_results(self, tool_call_results: list[ToolCallResponse], tool_configs: list[BaseToolConfig]):
         for tool_response in tool_call_results:
             if not tool_response.successful:
                 self._loop_history.append(
@@ -138,20 +138,30 @@ class HistoryManager:
                     )
                 )
                 continue
-            self._append_tool_call_result_to_history(tool_response)
+            tool_config = None
+            for tool_config in tool_configs:
+                if tool_config.name == tool_response.name:
+                    tool_config = tool_config.configuration
+                    break
+            print(tool_config)    
+
+            self._append_tool_call_result_to_history(tool_response, tool_config)
 
     def _append_tool_call_result_to_history(
         self,
         tool_response: ToolCallResponse,
+        tool_config: BaseToolConfig | None,
     ) -> None:
         tool_call_result_for_history = self._get_tool_call_result_for_loop_history(
-            tool_response=tool_response
+            tool_response=tool_response,
+            tool_config=tool_config
         )
         self._loop_history.append(tool_call_result_for_history)
 
     def _get_tool_call_result_for_loop_history(
         self,
         tool_response: ToolCallResponse,
+        tool_config: BaseToolConfig | None,
     ) -> LanguageModelMessage:
         self._logger.debug(
             f"Appending tool call result to history: {tool_response.name}"
@@ -168,11 +178,16 @@ class HistoryManager:
             tool_response.content_chunks or []
         )  # it can be that the tool response does not have content chunks
 
+        # Check if tool_config contains a source_format_config
+        source_format_config = None
+        if tool_config and isinstance(tool_config, BaseToolConfig) and hasattr(tool_config, 'source_format_config'):
+            source_format_config = tool_config.source_format_config
+
         # Transform content chunks into sources to be appended to tool result
         stringified_sources, sources = transform_chunks_to_string(
             content_chunks,
             self._source_enumerator,
-            None,  # Use None for SourceFormatConfig
+            source_format_config,
             self._config.experimental_features.full_sources_serialize_dump,
         )
 
