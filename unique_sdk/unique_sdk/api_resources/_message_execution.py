@@ -8,16 +8,16 @@ class MessageExecution(APIResource["MessageExecution"]):
     OBJECT_NAME: ClassVar[Literal["message_execution"]] = "message_execution"
     RESOURCE_URL = "/message-execution"
 
+    TypeLiteral = Literal["DEEP_RESEARCH"]
+    StatusLiteral = Literal["PENDING", "RUNNING", "COMPLETED", "FAILED"]
+
     class CreateMessageExecutionParams(RequestOptions):
         """
         Parameters for creating a message execution.
         """
 
         messageId: str
-        chatId: str
-        type: Literal["DEEP_RESEARCH"]
-        secondsRemaining: NotRequired[int | None]
-        percentageCompleted: NotRequired[int | None]
+        type: "MessageExecution.TypeLiteral"
 
     class GetMessageExecutionParams(RequestOptions):
         """
@@ -32,18 +32,18 @@ class MessageExecution(APIResource["MessageExecution"]):
         """
 
         messageId: str
-        status: Literal["COMPLETED", "FAILED"]
+        status: NotRequired["MessageExecution.StatusLiteral | None"]
         secondsRemaining: NotRequired[int | None]
         percentageCompleted: NotRequired[int | None]
 
-    messageExecutionId: str | None
-    messageId: str | None
-    status: Literal["PENDING", "RUNNING", "COMPLETED", "FAILED"]
-    type: Literal["DEEP_RESEARCH"] = "DEEP_RESEARCH"
+    messageId: str
+    status: "MessageExecution.StatusLiteral"
+    type: "MessageExecution.TypeLiteral"
     secondsRemaining: int | None
     percentageCompleted: int | None
+    positionInQueue: int | None
     createdAt: str
-    updatedAt: str | None
+    updatedAt: str
 
     @classmethod
     def create(
