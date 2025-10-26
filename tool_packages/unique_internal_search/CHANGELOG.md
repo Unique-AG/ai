@@ -7,11 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.1.0] - 2025-10-21
 - Add support for multiple search strings in a single tool call
-- Search results from multiple queries are now interleaved for better diversity
-- Updated tool parameter from `search_string` to `search_strings` (accepts both string and list)
-- **BREAKING (with backwards compatibility):** Renamed parameter `search_string` to `search_strings` in search method
-  - Old `search_string` parameter still works with deprecation warning for backwards compatibility
-  - Config parameter `param_description_search_string` renamed to `param_description_search_strings` (old name still supported)
+- Search results from multiple queries are interleaved for better diversity
 - Add automatic deduplication of chunks by `chunk_id` when using multiple search queries
   - Prevents duplicate content from appearing in results when multiple related queries return the same chunks
   - Preserves first occurrence and logs number of duplicates removed
