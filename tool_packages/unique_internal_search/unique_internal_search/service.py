@@ -1,3 +1,4 @@
+import re
 from logging import Logger
 
 from pydantic import Field, create_model
@@ -82,6 +83,36 @@ class InternalSearchService:
         metadata_filter: dict | None = None,
         **kwargs,
     ) -> list[ContentChunk]:
+        """
+        Perform a search with one or more search strings.
+        
+        Args:
+            search_strings: Single search string or list of search strings (preferred)
+            search_string: Deprecated. Single search string (for backwards compatibility)
+        """
+        
+        # Handle backwards compatibility with deprecated search_string parameter
+        if search_string is not None:
+            if search_strings is not None:
+                raise ValueError(
+                    "Cannot specify both 'search_string' (deprecated) and 'search_strings'. "
+                    "Please use 'search_strings' only."
+                )
+            self.logger.warning(
+                "Parameter 'search_string' is deprecated. Please use 'search_strings' instead."
+            )
+            search_strings = search_string
+        
+        if search_strings is None:
+            raise ValueError("Either 'search_strings' or 'search_string' must be provided")
+        
+        # Convert single string to list
+        if isinstance(search_strings, str):
+            search_strings = [search_strings]
+
+        # Clean search strings by removing QDF and boost operators
+        search_strings = [self._clean_search_string(s) for s in search_strings]
+
         """
         Perform a search in the Vector DB based on the user's message and generate a response.
         """
@@ -201,6 +232,34 @@ class InternalSearchService:
                 "language model input context size is not set, using default max tokens"
             )
             return self.config.max_tokens_for_sources
+
+    def _clean_search_string(self, search_string: str) -> str:
+        """
+        Remove QDF (QueryDeservedFreshness) and boost operators from search string.
+        
+        Examples:
+            '+(GPT4) performance on +(MMLU) benchmark --QDF=1' 
+            -> 'GPT4 performance on MMLU benchmark'
+            
+            'Best practices for +(security) and +(privacy) for +(cloud storage) --QDF=2'
+            -> 'Best practices for security and privacy for cloud storage'
+        
+        Args:
+            search_string: Raw search string that may contain operators
+            
+        Returns:
+            Cleaned search string without operators
+        """
+        # Remove --QDF=<number> operator (at the end of the string)
+        cleaned = re.sub(r'\s*--QDF=\d+\s*$', '', search_string)
+        
+        # Remove +(...) boost operators - replace with just the content inside parentheses
+        cleaned = re.sub(r'\+\(([^)]+)\)', r'\1', cleaned)
+        
+        # Clean up any extra whitespace
+        cleaned = ' '.join(cleaned.split())
+        
+        return cleaned.strip()
 
 
 class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
