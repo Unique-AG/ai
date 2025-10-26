@@ -30,7 +30,11 @@ from unique_internal_search.prompts import (
 from unique_internal_search.validators import get_string_field_with_pattern_validation
 
 
-class ExperimentalFeatures(FeatureExtendedSourceSerialization): ...
+class ExperimentalFeatures(FeatureExtendedSourceSerialization):
+    enable_multiple_search_strings_execution: bool = Field(
+        default=False,
+        description="Whether allow multiple search strings execution in a single tool call. If set to True, an individual search will be performed for each search string in the list and search results will then be merged into a single response.",
+    )
 
 
 DEFAULT_LIMIT_CHUNK_RELEVANCY_SORT_ENABLED = 200
@@ -107,8 +111,8 @@ class InternalSearchConfig(BaseToolConfig):
         DEFAULT_TOOL_DESCRIPTION,
         description="Tool description.",
     )
-    param_description_search_string: str = get_string_field_with_pattern_validation(
-        DEFAULT_SEARCH_STRING_PARAM_DESCRIPTION,
+    param_description_search_string: str = Field(
+        default=DEFAULT_SEARCH_STRING_PARAM_DESCRIPTION,
         description="`search_string` parameter description.",
     )
     param_description_language: str = get_string_field_with_pattern_validation(

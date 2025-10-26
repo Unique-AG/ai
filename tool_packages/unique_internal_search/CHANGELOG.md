@@ -5,8 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.2] - 2025-10-17
-- Remove print statements originating from tool refactor
+## [1.1.0] - 2025-10-21
+- Add support for multiple search strings in a single tool call
+- Search results from multiple queries are interleaved for better diversity
+- Add automatic deduplication of chunks by `chunk_id` when using multiple search queries
+  - Prevents duplicate content from appearing in results when multiple related queries return the same chunks
+  - Preserves first occurrence and logs number of duplicates removed
+- Add automatic parsing and cleaning of search query operators1
+  - Removes QDF (QueryDeservedFreshness) operators: `--QDF=0` to `--QDF=5` (freshness ratings)
+  - Removes boost operators: `+(term)` and `+(multi word phrase)` for query term boosting
 
 ## [1.0.1] - 2025-09-30
 - Fix bug in metadata filter in the search method.
