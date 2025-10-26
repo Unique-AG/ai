@@ -29,7 +29,7 @@ from unique_toolkit.language_model.schemas import (
 )
 
 from unique_internal_search.config import InternalSearchConfig
-from unique_internal_search.utils import interleave_search_results_round_robin, SearchStringResult
+from unique_internal_search.utils import interleave_search_results_round_robin, SearchStringResult, clean_search_string
 
 
 
@@ -107,6 +107,9 @@ class InternalSearchService:
         """
         Perform a search in the Vector DB based on the user's message and generate a response.
         """
+
+        # Clean search strings by removing QDF and boost operators
+        search_strings = [clean_search_string(s) for s in search_strings]
 
         ###
         # 2. Search for context in the Vector DB

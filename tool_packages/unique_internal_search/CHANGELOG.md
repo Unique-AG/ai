@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add automatic deduplication of chunks by `chunk_id` when using multiple search queries
   - Prevents duplicate content from appearing in results when multiple related queries return the same chunks
   - Preserves first occurrence and logs number of duplicates removed
+- Add automatic parsing and cleaning of search query operators1
+  - Removes QDF (QueryDeservedFreshness) operators: `--QDF=0` to `--QDF=5` (freshness ratings)
+  - Removes boost operators: `+(term)` and `+(multi word phrase)` for query term boosting
 
 ## [1.0.1] - 2025-09-30
 - Fix bug in metadata filter in the search method.
