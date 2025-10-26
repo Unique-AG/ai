@@ -1,9 +1,12 @@
 import logging
-
-from unique_internal_search.service import SearchStringResult
+from pydantic import BaseModel
+from unique_toolkit.content.schemas import ContentChunk
 
 _LOGGER = logging.getLogger(__name__)
 
+class SearchStringResult(BaseModel):
+    query: str
+    chunks: list[ContentChunk]
 
 def interleave_search_results_round_robin(
     search_results: list[SearchStringResult],

@@ -1,6 +1,6 @@
 from logging import Logger
 
-from pydantic import BaseModel, Field, create_model
+from pydantic import Field, create_model
 from typing_extensions import override
 from unique_toolkit._common.chunk_relevancy_sorter.exception import (
     ChunkRelevancySorterException,
@@ -29,12 +29,8 @@ from unique_toolkit.language_model.schemas import (
 )
 
 from unique_internal_search.config import InternalSearchConfig
-from unique_internal_search.utils import interleave_search_results_round_robin
+from unique_internal_search.utils import interleave_search_results_round_robin, SearchStringResult
 
-
-class SearchStringResult(BaseModel):
-    query: str
-    chunks: list[ContentChunk]
 
 
 class InternalSearchService:
@@ -96,6 +92,11 @@ class InternalSearchService:
             content_ids: List of content IDs
             metadata_filter: Metadata filter
         """
+        print("")
+        print("--------------------------------")
+        print(f"search_string: {search_string}")
+        print("--------------------------------")
+        print("")
 
         # Convert single string to list
         if isinstance(search_string, str):
@@ -186,7 +187,7 @@ class InternalSearchService:
             f"{', '.join(search_strings)} (_Postprocessing search results_)",
             **kwargs,
         )
-        found_chunks = [result.chunks for result in found_chunks_per_search_string]
+        found_chunks = [chunk for result in found_chunks_per_search_string for chunk in result.chunks]
         selected_chunks = pick_content_chunks_for_token_window(
             found_chunks, self._get_max_tokens()
         )
@@ -299,9 +300,9 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
     def tool_description(self) -> LanguageModelToolDescription:
         internal_search_tool_input = create_model(
             "InternalSearchToolInput",
-            search_strings=(
-                list[str],
-                Field(description=self.config.param_description_search_strings),
+            search_string=(
+                str | list[str],
+                Field(description=self.config.param_description_search_string),
             ),
             language=(
                 str,
