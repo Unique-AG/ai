@@ -20,6 +20,7 @@ from unique_toolkit.chat.schemas import (
     ChatMessageAssessmentStatus,
     ChatMessageAssessmentType,
 )
+from unique_toolkit.language_model.reference import _preprocess_message
 from unique_toolkit.language_model.schemas import (
     LanguageModelStreamResponse,
 )
@@ -43,10 +44,15 @@ class HallucinationEvaluation(Evaluation):
         self, loop_response: LanguageModelStreamResponse
     ) -> EvaluationMetricResult:  # type: ignore
         all_chunks = self._reference_manager.get_chunks()
+
         # source numbers from original text
-        ref_pattern = r"\[source(\d+)\]"
+        ref_pattern = r"\[(\d+)\]"
         original_text = loop_response.message.original_text
-        source_number_matches = re.findall(ref_pattern, original_text)
+
+        # preprocess original text to deal with different source patterns
+        original_text_preprocessed = _preprocess_message(original_text)
+
+        source_number_matches = re.findall(ref_pattern, original_text_preprocessed)
         source_numbers = {int(num) for num in source_number_matches}
 
         referenced_chunks = [all_chunks[idx] for idx in source_numbers]

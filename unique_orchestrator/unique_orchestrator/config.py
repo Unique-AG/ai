@@ -230,6 +230,11 @@ class SubAgentsConfig(BaseModel):
         | DeactivatedNone
     ) = SubAgentEvaluationServiceConfig()
 
+    sleep_time_before_update: float = Field(
+        default=0.5,
+        description="Time to sleep before updating the main agent message to display the sub agent responses. Temporary fix to avoid rendering issues.",
+    )
+
 
 class ResponsesApiConfig(BaseModel):
     model_config = get_configuration_dict(frozen=True)
