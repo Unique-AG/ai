@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add config option `tool_choices` to `SubAgentToolConfig`
 - Make sub agent evaluation use the name of the sub agent name if only one assessment is valid
 
+## [1.17.3] - 2025-10-27
+- Update Hallucination check citation regex parsing pattern
+
 ## [1.17.2] - 2025-10-23
 - Adding model `AZURE_GPT_5_PRO_2025_1006` and `litellm:openai-gpt-5-pro` to `language_model/info.py`
 
