@@ -65,72 +65,6 @@ class ToolCall(BaseModel):
         )
 
 
-class ChatMessage(BaseModel):
-    # TODO: The below seems not to be True anymore @irina-unique. To be checked in separate PR
-    # This model should strictly meets https://github.com/Unique-AG/monorepo/blob/master/node/apps/node-chat/src/public-api/2023-12-06/dtos/message/public-message.dto.ts
-    model_config = model_config
-
-    id: str | None = None
-    chat_id: str
-    object: str | None = None
-    content: str | None = Field(default=None, alias="text")
-    original_content: str | None = Field(default=None, alias="originalText")
-    role: ChatMessageRole
-    gpt_request: list[dict] | None = None
-    tool_calls: list[ToolCall] | None = None
-    tool_call_id: str | None = None
-    debug_info: dict | None = {}
-    created_at: datetime | None = None
-    completed_at: datetime | None = None
-    updated_at: datetime | None = None
-    references: list[ContentReference] | None = None
-
-    # TODO make sdk return role consistently in lowercase
-    # Currently needed as sdk returns role in uppercase
-    @field_validator("role", mode="before")
-    def set_role(cls, value: str):
-        return value.lower()
-
-    # Ensure tool_call_ids is required if role is 'tool'
-    @model_validator(mode="after")
-    def check_tool_call_ids_for_tool_role(self):
-        if self.role == ChatMessageRole.TOOL and not self.tool_call_id:
-            raise ValueError("tool_call_ids is required when role is 'tool'")
-        return self
-
-    def to_openai_param(self) -> ChatCompletionMessageParam:
-        match self.role:
-            case ChatMessageRole.USER:
-                return ChatCompletionUserMessageParam(
-                    role="user",
-                    content=self.content or "",
-                )
-
-            case ChatMessageRole.ASSISTANT:
-                if self.tool_calls:
-                    assistant_message = ChatCompletionAssistantMessageParam(
-                        role="assistant",
-                        audio=None,
-                        content=self.content or "",
-                        function_call=None,
-                        refusal=None,
-                        tool_calls=[t.to_openai_param() for t in self.tool_calls],
-                    )
-                else:
-                    assistant_message = ChatCompletionAssistantMessageParam(
-                        role="assistant",
-                        audio=None,
-                        content=self.content or "",
-                        function_call=None,
-                        refusal=None,
-                    )
-
-                return assistant_message
-
-            case ChatMessageRole.TOOL:
-                raise NotImplementedError
-
-
 class ChatMessageAssessmentStatus(StrEnum):
     PENDING = "PENDING"
     DONE = "DONE"
@@ -231,3 +165,116 @@ class MessageExecution(BaseModel):
     percentage_completed: int | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
+
+
+class ChatMessage(BaseModel):
+    # TODO: The below seems not to be True anymore @irina-unique. To be checked in separate PR
+    # This model should strictly meets https://github.com/Unique-AG/monorepo/blob/master/node/apps/node-chat/src/public-api/2023-12-06/dtos/message/public-message.dto.ts
+    model_config = model_config
+
+    id: str | None = Field(description="The id of the message.", default=None)
+
+    # Stream response can return a null previous_message_id if an assisstant message is manually added
+    previous_message_id: str | None = Field(
+        default=None, description="The id of the previous message in the chat."
+    )
+    chat_id: str = Field(description="The id of the chat that the message belongs to.")
+
+    object: str | None = Field(
+        default=None, description="The object of the message", examples=["message"]
+    )
+    text: str | None = Field(default=None, description="The text of the message")
+    original_text: str | None = Field(
+        default=None,
+        description="The original text of the message. This is the text that a user or assistant originally entered before eventual modifications by the platform",
+    )
+
+    role: ChatMessageRole
+
+    gpt_request: list[dict] | None = Field(
+        default=None,
+        description="The GPT request send to the model that resulted in this message. Only relevant for assistant messages.",
+    )
+    debug_info: dict | None = Field(
+        default=None, description="The debug information of the message."
+    )
+    created_at: datetime | None = Field(
+        default=None, description="The date and time the message was created."
+    )
+    updated_at: datetime | None = Field(
+        default=None, description="The date and time the message was last updated."
+    )
+    completed_at: datetime | None = Field(
+        default=None, description="The date and time the message was completed."
+    )
+
+    references: list[ContentReference] = Field(
+        default=[], description="The references made within the message"
+    )
+    assessments: list[ChatMessageAssessment] = Field(
+        default=[], description="The assessments made on the message in post-processing"
+    )
+
+    # Deprecated fields
+    content: str | None = Field(
+        deprecated="Use text instead", default=None, alias="text"
+    )
+    original_content: str | None = Field(
+        deprecated="Use original_text instead", default=None, alias="originalText"
+    )
+    tool_calls: list[ToolCall] | None = Field(
+        default=None,
+        deprecated="Currently unused and will be removed in a future version",
+        description="The tool calls of the message",
+    )
+    tool_call_id: str | None = Field(
+        default=None,
+        deprecated="Currently unused and will be removed in a future version",
+        description="The tool call id of the message",
+    )
+
+    # TODO make sdk return role consistently in lowercase
+    # Currently needed as sdk returns role in uppercase
+    @field_validator("role", mode="before")
+    def set_role(cls, value: str):
+        return value.lower()
+
+    # TODO: Deprecate the tool roles should be removed in separate PR
+    # Ensure tool_call_ids is required if role is 'tool'
+    @model_validator(mode="after")
+    def check_tool_call_ids_for_tool_role(self):
+        if self.role == ChatMessageRole.TOOL and not self.tool_call_id:
+            raise ValueError("tool_call_ids is required when role is 'tool'")
+        return self
+
+    def to_openai_param(self) -> ChatCompletionMessageParam:
+        match self.role:
+            case ChatMessageRole.USER:
+                return ChatCompletionUserMessageParam(
+                    role="user",
+                    content=self.content or "",
+                )
+
+            case ChatMessageRole.ASSISTANT:
+                if self.tool_calls:
+                    assistant_message = ChatCompletionAssistantMessageParam(
+                        role="assistant",
+                        audio=None,
+                        content=self.content or "",
+                        function_call=None,
+                        refusal=None,
+                        tool_calls=[t.to_openai_param() for t in self.tool_calls],
+                    )
+                else:
+                    assistant_message = ChatCompletionAssistantMessageParam(
+                        role="assistant",
+                        audio=None,
+                        content=self.content or "",
+                        function_call=None,
+                        refusal=None,
+                    )
+
+                return assistant_message
+
+            case ChatMessageRole.TOOL:
+                raise NotImplementedError

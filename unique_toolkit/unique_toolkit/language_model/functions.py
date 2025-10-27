@@ -10,13 +10,11 @@ from openai.types.chat.chat_completion_message_param import ChatCompletionMessag
 from pydantic import BaseModel
 
 from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
-from unique_toolkit.content.schemas import ContentChunk, ContentReference
+from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.language_model import (
-    LanguageModelMessageRole,
     LanguageModelMessages,
     LanguageModelResponse,
     LanguageModelStreamResponse,
-    LanguageModelStreamResponseMessage,
     LanguageModelTool,
     LanguageModelToolDescription,
 )
@@ -493,21 +491,10 @@ def _create_language_model_stream_response_with_references(
         search_context=content_chunks,
     )
 
-    stream_response_message = LanguageModelStreamResponseMessage(
-        id="stream_unknown",
-        previous_message_id=None,
-        role=LanguageModelMessageRole.ASSISTANT,
-        text=message.content or "",
-        original_text=content,
-        references=[
-            ContentReference(**u.model_dump()) for u in message.references or []
-        ],
-    )
-
     tool_calls = [r.function for r in response.choices[0].message.tool_calls or []]
     tool_calls = tool_calls if len(tool_calls) > 0 else None
 
     return LanguageModelStreamResponse(
-        message=stream_response_message,
+        message=message,
         tool_calls=tool_calls,
     )

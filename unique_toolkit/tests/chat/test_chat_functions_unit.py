@@ -396,6 +396,7 @@ def test_stream_complete_basic(mock_stream):
         "message": {
             "id": "test_message",
             "previousMessageId": "test_previous_message",
+            "chatId": "test_chat",
             "role": "ASSISTANT",
             "text": "Streamed response",
             "originalText": "Streamed response original",
@@ -425,6 +426,7 @@ async def test_stream_complete_async_basic(mock_stream):
         "message": {
             "id": "test_message",
             "previousMessageId": "test_previous_message",
+            "chatId": "test_chat",
             "role": "ASSISTANT",
             "text": "Streamed response",
             "originalText": "Streamed response original",

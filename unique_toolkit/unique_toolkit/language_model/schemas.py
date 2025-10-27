@@ -40,6 +40,7 @@ from pydantic import (
 )
 from typing_extensions import deprecated, overload
 
+from unique_toolkit.chat.schemas import ChatMessage
 from unique_toolkit.content.schemas import ContentReference
 from unique_toolkit.language_model.utils import format_message
 
@@ -53,6 +54,9 @@ model_config = ConfigDict(
 
 # Equivalent to
 # from openai.types.chat.chat_completion_role import ChatCompletionRole
+
+
+@deprecated("Use ChatMessageRole instead")
 class LanguageModelMessageRole(StrEnum):
     USER = "user"
     SYSTEM = "system"
@@ -61,13 +65,12 @@ class LanguageModelMessageRole(StrEnum):
 
 
 # This is tailored to the unique backend
+@deprecated("Use ChatMessage instead")
 class LanguageModelStreamResponseMessage(BaseModel):
     model_config = model_config
 
     id: str
-    previous_message_id: (
-        str | None
-    )  # Stream response can return a null previous_message_id if an assisstant message is manually added
+    previous_message_id: str | None
     role: LanguageModelMessageRole
     text: str
     original_text: str | None = None
@@ -164,7 +167,7 @@ class LanguageModelFunction(BaseModel):
 class LanguageModelStreamResponse(BaseModel):
     model_config = model_config
 
-    message: LanguageModelStreamResponseMessage
+    message: ChatMessage
     tool_calls: list[LanguageModelFunction] | None = None
 
     def is_empty(self) -> bool:
