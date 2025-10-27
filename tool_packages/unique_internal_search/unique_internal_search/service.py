@@ -29,8 +29,11 @@ from unique_toolkit.language_model.schemas import (
 )
 
 from unique_internal_search.config import InternalSearchConfig
-from unique_internal_search.utils import interleave_search_results_round_robin, SearchStringResult, clean_search_string
-
+from unique_internal_search.utils import (
+    interleave_search_results_round_robin,
+    SearchStringResult,
+    clean_search_string,
+)
 
 
 class InternalSearchService:
@@ -92,11 +95,6 @@ class InternalSearchService:
             content_ids: List of content IDs
             metadata_filter: Metadata filter
         """
-        print("")
-        print("--------------------------------")
-        print(f"search_string: {search_string}")
-        print("--------------------------------")
-        print("")
 
         # Convert single string to list
         if isinstance(search_string, str):
@@ -190,7 +188,11 @@ class InternalSearchService:
             f"{', '.join(search_strings)} (_Postprocessing search results_)",
             **kwargs,
         )
-        found_chunks = [chunk for result in found_chunks_per_search_string for chunk in result.chunks]
+        found_chunks = [
+            chunk
+            for result in found_chunks_per_search_string
+            for chunk in result.chunks
+        ]
         selected_chunks = pick_content_chunks_for_token_window(
             found_chunks, self._get_max_tokens()
         )

@@ -3,11 +3,14 @@ from pydantic import BaseModel
 from unique_toolkit.content.schemas import ContentChunk
 import re
 
+
 _LOGGER = logging.getLogger(__name__)
+
 
 class SearchStringResult(BaseModel):
     query: str
     chunks: list[ContentChunk]
+
 
 def interleave_search_results_round_robin(
     search_results: list[SearchStringResult],
@@ -55,30 +58,31 @@ def _deduplicate_search_results(
 
     return deduplicated_search_results
 
+
 def clean_search_string(search_string: str) -> str:
     """
     Remove QDF (QueryDeservedFreshness) and boost operators from search string.
-    
+
     Examples:
-        '+(GPT4) performance on +(MMLU) benchmark --QDF=1' 
+        '+(GPT4) performance on +(MMLU) benchmark --QDF=1'
         -> 'GPT4 performance on MMLU benchmark'
-        
+
         'Best practices for +(security) and +(privacy) for +(cloud storage) --QDF=2'
         -> 'Best practices for security and privacy for cloud storage'
-    
+
     Args:
         search_string: Raw search string that may contain operators
-        
+
     Returns:
         Cleaned search string without operators
     """
     # Remove --QDF=<number> operator (at the end of the string)
-    cleaned = re.sub(r'\s*--QDF=\d+\s*$', '', search_string)
-    
+    cleaned = re.sub(r"\s*--QDF=\d+\s*$", "", search_string)
+
     # Remove +(...) boost operators - replace with just the content inside parentheses
-    cleaned = re.sub(r'\+\(([^)]+)\)', r'\1', cleaned)
-    
+    cleaned = re.sub(r"\+\(([^)]+)\)", r"\1", cleaned)
+
     # Clean up any extra whitespace
-    cleaned = ' '.join(cleaned.split())
-    
+    cleaned = " ".join(cleaned.split())
+
     return cleaned.strip()
