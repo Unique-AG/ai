@@ -8,6 +8,8 @@ class MessageLog(APIResource["MessageLog"]):
     OBJECT_NAME: ClassVar[Literal["message_log"]] = "message_log"
     RESOURCE_URL = "/message-log"
 
+    StatusLiteral = Literal["RUNNING", "COMPLETED", "FAILED"]
+
     class Reference(TypedDict):
         name: str
         url: str | None
@@ -23,7 +25,7 @@ class MessageLog(APIResource["MessageLog"]):
 
         messageId: str
         text: str
-        status: Literal["RUNNING", "COMPLETED", "FAILED"]
+        status: "MessageLog.StatusLiteral"
         order: int
         details: NotRequired[dict | None]
         uncitedReferences: NotRequired[dict | None]
@@ -35,21 +37,21 @@ class MessageLog(APIResource["MessageLog"]):
         """
 
         text: NotRequired[str | None]
-        status: NotRequired[Literal["RUNNING", "COMPLETED", "FAILED"] | None]
+        status: NotRequired["MessageLog.StatusLiteral | None"]
         order: NotRequired[int | None]
         details: NotRequired[dict | None]
         uncitedReferences: NotRequired[dict | None]
         references: NotRequired[list["MessageLog.Reference"] | None]
 
-    messageLogId: str | None
-    messageId: str | None
-    status: Literal["RUNNING", "COMPLETED", "FAILED"]
-    text: str | None
+    id: str
+    messageId: str
+    status: "MessageLog.StatusLiteral"
+    text: str
     details: dict
     uncitedReferences: dict
     order: int
     createdAt: str
-    updatedAt: str | None
+    updatedAt: str
 
     @classmethod
     def create(

@@ -872,10 +872,7 @@ msg_execution = unique_sdk.MessageExecution.create(
     user_id=user_id,
     company_id=company_id,
     messageId="msg_a0jgnt1jrqv143uzr750waxw",
-    chatId="chat_nx21havszl1skchd7544oykh",
     type="DEEP_RESEARCH",
-    secondsRemaining=None,                       # optional, number defining the seconds remaining
-    percentageCompleted=None,                    # optional, number defining the percentage completed
 )
 ```
 
@@ -900,7 +897,7 @@ msg_execution = unique_sdk.MessageExecution.update(
     user_id=user_id,
     company_id=company_id,
     messageId="msg_a0jgnt1jrqv143uzr750waxw",
-    status="COMPLETED",                        # one of: COMPLETED, FAILED
+    status="COMPLETED",                        # optional, one of: COMPLETED, FAILED - not specifying the status will have no effect over the status
     secondsRemaining=55,                       # optional, number defining the seconds remaining
     percentageCompleted=10,                    # optional, number defining the percentage completed
 )
