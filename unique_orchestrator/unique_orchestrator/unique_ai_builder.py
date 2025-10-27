@@ -50,6 +50,9 @@ from unique_toolkit.agentic.tools.a2a import (
     SubAgentEvaluationService,
     SubAgentResponsesPostprocessor,
 )
+from unique_toolkit.agentic.tools.a2a.postprocessing.postprocessor import (
+    SubAgentResponsesPostprocessorConfig,
+)
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
 from unique_toolkit.agentic.tools.mcp.manager import MCPManager
 from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolName
@@ -342,6 +345,7 @@ async def _build_responses(
         user_id=event.user_id,
         company_id=event.company_id,
         chat_id=event.payload.chat_id,
+        sleep_time_before_update=config.agent.experimental.sub_agents_config.sleep_time_before_update,
     )
     _add_sub_agents_evaluation(
         evaluation_manager=common_components.evaluation_manager,
@@ -419,6 +423,7 @@ def _build_completions(
         user_id=event.user_id,
         company_id=event.company_id,
         chat_id=event.payload.chat_id,
+        sleep_time_before_update=config.agent.experimental.sub_agents_config.sleep_time_before_update,
     )
     _add_sub_agents_evaluation(
         evaluation_manager=common_components.evaluation_manager,
@@ -451,6 +456,7 @@ def _add_sub_agents_postprocessor(
     user_id: str,
     company_id: str,
     chat_id: str,
+    sleep_time_before_update: float,
 ) -> None:
     sub_agents = tool_manager.sub_agents
     if len(sub_agents) > 0:
@@ -458,6 +464,9 @@ def _add_sub_agents_postprocessor(
             user_id=user_id,
             main_agent_chat_id=chat_id,
             company_id=company_id,
+            config=SubAgentResponsesPostprocessorConfig(
+                sleep_time_before_update=sleep_time_before_update,
+            ),
         )
         postprocessor_manager.add_postprocessor(sub_agent_responses_postprocessor)
 
