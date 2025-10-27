@@ -26,6 +26,7 @@ from unique_toolkit.language_model.schemas import (
 
 from unique_toolkit.language_model.reference import _preprocess_message
 
+
 class HallucinationEvaluation(Evaluation):
     def __init__(
         self,
@@ -46,7 +47,7 @@ class HallucinationEvaluation(Evaluation):
         all_chunks = self._reference_manager.get_chunks()
 
         # source numbers from original text
-        ref_pattern =r"\[(\d+)\]"
+        ref_pattern = r"\[(\d+)\]"
         original_text = loop_response.message.original_text
 
         # preprocess original text to deal with different source patterns
