@@ -20,11 +20,10 @@ from unique_toolkit.chat.schemas import (
     ChatMessageAssessmentStatus,
     ChatMessageAssessmentType,
 )
+from unique_toolkit.language_model.reference import _preprocess_message
 from unique_toolkit.language_model.schemas import (
     LanguageModelStreamResponse,
 )
-
-from unique_toolkit.language_model.reference import _preprocess_message
 
 
 class HallucinationEvaluation(Evaluation):
