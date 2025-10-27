@@ -38,7 +38,19 @@ class _SubAgentToolInfo(TypedDict):
     display_name: str
 
 
-NO_ASSESSMENTS_FOUND = "NO_ASSESSMENTS_FOUND"
+_NO_ASSESSMENTS_FOUND = "NO_ASSESSMENTS_FOUND"
+
+
+def _format_single_assessment_found(name: str, explanation: str) -> str:
+    return f"SINGLE_ASSESSMENT_FOUND:{name}:{explanation}"
+
+
+def _is_single_assessment_found(value: str) -> bool:
+    return value.startswith("SINGLE_ASSESSMENT_FOUND:")
+
+
+def _parse_single_assessment_found(value: str) -> list[str]:
+    return value.split(":", maxsplit=2)[1:]
 
 
 class SubAgentEvaluationService(Evaluation):
@@ -99,13 +111,34 @@ class SubAgentEvaluationService(Evaluation):
 
                 sub_agents_display_data.append(data)
 
+        # No valid assessments found
         if len(sub_agents_display_data) == 0:
             logger.warning("No valid sub agent assessments found")
 
             return EvaluationMetricResult(
                 name=self.get_name(),
-                value=NO_ASSESSMENTS_FOUND,
+                # This is a trick to be able to indicate to `evaluation_metric_to_assessment`
+                # that no valid assessments were found
+                value=_NO_ASSESSMENTS_FOUND,
                 reason="No sub agents assessments found",
+            )
+
+        # Only one valid assessment found, no need to perform summarization
+        if (
+            len(sub_agents_display_data) == 1
+            and len(sub_agents_display_data[0]["assessments"]) == 1
+        ):
+            assessment = sub_agents_display_data[0]["assessments"][0]
+            explanation = assessment["explanation"] or ""
+            name = sub_agents_display_data[0]["name"]
+            label = assessment["label"]
+
+            return EvaluationMetricResult(
+                name=self.get_name(),
+                value=label,
+                # This is a trick to be able to pass the display name to the UI in `evaluation_metric_to_assessment`
+                reason=_format_single_assessment_found(name, explanation),
+                is_positive=label == ChatMessageAssessmentLabel.GREEN,
             )
 
         reason = await self._get_reason(sub_agents_display_data)
@@ -121,12 +154,22 @@ class SubAgentEvaluationService(Evaluation):
     async def evaluation_metric_to_assessment(
         self, evaluation_result: EvaluationMetricResult
     ) -> EvaluationAssessmentMessage:
-        if evaluation_result.value == NO_ASSESSMENTS_FOUND:
+        if evaluation_result.value == _NO_ASSESSMENTS_FOUND:
             return EvaluationAssessmentMessage(
                 status=ChatMessageAssessmentStatus.DONE,
                 explanation="No valid sub agents assessments found to consolidate.",
                 title=self.DISPLAY_NAME,
                 label=ChatMessageAssessmentLabel.GREEN,
+                type=self.get_assessment_type(),
+            )
+
+        if _is_single_assessment_found(evaluation_result.reason):
+            name, reason = _parse_single_assessment_found(evaluation_result.reason)
+            return EvaluationAssessmentMessage(
+                status=ChatMessageAssessmentStatus.DONE,
+                explanation=reason,
+                title=name,
+                label=evaluation_result.value,  # type: ignore
                 type=self.get_assessment_type(),
             )
 
@@ -182,12 +225,6 @@ class SubAgentEvaluationService(Evaluation):
         )
 
     async def _get_reason(self, sub_agents_display_data: list[dict]) -> str:
-        if (
-            len(sub_agents_display_data) == 1
-            and len(sub_agents_display_data[0]["assessments"]) == 1
-        ):
-            return sub_agents_display_data[0]["assessments"][0]["explanation"] or ""
-
         messages = (
             MessagesBuilder()
             .system_message_append(self._config.summarization_system_message)

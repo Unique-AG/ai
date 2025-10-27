@@ -1,9 +1,12 @@
+import asyncio
 import logging
 import re
 from typing import TypedDict, override
 
 import unique_sdk
+from pydantic import BaseModel, Field
 
+from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import Postprocessor
 from unique_toolkit.agentic.tools.a2a.postprocessing._display import (
     _build_sub_agent_answer_display,
@@ -37,12 +40,21 @@ class _SubAgentToolInfo(TypedDict):
     responses: dict[int, _SubAgentMessageInfo]
 
 
+class SubAgentResponsesPostprocessorConfig(BaseModel):
+    model_config = get_configuration_dict()
+
+    sleep_time_before_update: float = Field(
+        default=0.5, description="Time to sleep before updating the main agent message."
+    )
+
+
 class SubAgentResponsesPostprocessor(Postprocessor):
     def __init__(
         self,
         user_id: str,
         company_id: str,
         main_agent_chat_id: str,
+        config: SubAgentResponsesPostprocessorConfig | None = None,
     ) -> None:
         super().__init__(name=self.__class__.__name__)
 
@@ -52,6 +64,7 @@ class SubAgentResponsesPostprocessor(Postprocessor):
 
         self._assistant_id_to_tool_info: dict[str, _SubAgentToolInfo] = {}
         self._main_agent_message: SpaceMessage | None = None
+        self._config = config or SubAgentResponsesPostprocessorConfig()
 
     @override
     async def run(self, loop_response: LanguageModelStreamResponse) -> None:
@@ -60,6 +73,9 @@ class SubAgentResponsesPostprocessor(Postprocessor):
             company_id=self._company_id,
             chat_id=self._main_agent_chat_id,
         )
+        await asyncio.sleep(
+            self._config.sleep_time_before_update
+        )  # Frontend rendering issues
 
     @override
     def apply_postprocessing_to_response(
@@ -125,7 +141,7 @@ class SubAgentResponsesPostprocessor(Postprocessor):
                 )
 
         loop_response.message.text = (
-            "\n\n".join(answers) + "<br>\n\n" + loop_response.message.text.strip()
+            "<br>\n\n".join(answers) + "<br>\n\n" + loop_response.message.text.strip()
         )
 
         return True

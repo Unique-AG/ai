@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import Field
 
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
@@ -26,6 +28,10 @@ class SubAgentToolConfig(BaseToolConfig):
     use_sub_agent_references: bool = Field(
         default=True,
         description="Whether this sub agent's references should be used in the main agent's response.",
+    )
+    forced_tools: list[str] | None = Field(
+        default=None,
+        description="The list of tool names that will be forced to be called for this sub-agent.",
     )
 
     tool_description_for_system_prompt: str = Field(
@@ -60,4 +66,8 @@ class SubAgentToolConfig(BaseToolConfig):
     max_wait: float = Field(
         default=120.0,
         description="Maximum time in seconds to wait for the sub-agent response before timing out.",
+    )
+    stop_condition: Literal["stoppedStreamingAt", "completedAt"] = Field(
+        default="completedAt",
+        description="The condition that will be used to stop the polling for the sub-agent response.",
     )
