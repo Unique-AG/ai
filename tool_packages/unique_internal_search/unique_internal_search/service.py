@@ -324,7 +324,8 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
 
         ## Modify metadata in chunks
         selected_chunks = append_metadata_in_chunks(
-            chunks=selected_chunks, metadata_sections=self.config.metadata_sections
+            chunks=selected_chunks,
+            metadata_chunk_sections=self.config.metadata_chunk_sections,
         )
 
         tool_response = ToolCallResponse(

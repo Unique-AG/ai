@@ -133,13 +133,10 @@ class InternalSearchConfig(BaseToolConfig):
 
     source_format_config: SkipJsonSchema[SourceFormatConfig] = SourceFormatConfig()
 
-    metadata_sections: dict[str, str] = Field(
+    metadata_chunk_sections: dict[str, str] = Field(
         default={},
         description=(
-            "Metadata sections to add to the search result chunk text. "
-            "Keys are metadata field names (e.g. 'metadata_key'), values are "
-            "template strings where {} is used as a placeholder for the "
-            "metadata value (e.g., '<|metadata_key|>{}<|/metadata_key|>')."
+            "Metadata sections to be appended to each search result chunk’s text. The keys represent metadata field names (e.g., 'metadata_key'), and the values are template strings that define how the metadata should be embedded, using {} as a placeholder for the actual value (e.g., '<|metadata_key|>{}<|/metadata_key|>')."
         ),
     )
 

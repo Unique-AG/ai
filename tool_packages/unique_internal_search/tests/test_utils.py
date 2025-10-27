@@ -10,7 +10,7 @@ class TestAppendMetadataInChunks:
     """Tests for append_metadata_in_chunks function"""
 
     def test_append_metadata_with_none_metadata_sections(self):
-        """Test that chunks are returned unchanged when metadata_sections is None"""
+        """Test that chunks are returned unchanged when metadata_chunk_sections is None"""
         chunks = [
             ContentChunk(
                 id="cont_123",
@@ -20,13 +20,13 @@ class TestAppendMetadataInChunks:
             )
         ]
 
-        result = append_metadata_in_chunks(chunks, metadata_sections=None)
+        result = append_metadata_in_chunks(chunks, metadata_chunk_sections=None)
 
         assert len(result) == 1
         assert result[0].text == "Original text"
 
     def test_append_metadata_with_empty_metadata_sections(self):
-        """Test that chunks are returned unchanged when metadata_sections is empty"""
+        """Test that chunks are returned unchanged when metadata_chunk_sections is empty"""
         chunks = [
             ContentChunk(
                 id="cont_123",
@@ -36,7 +36,7 @@ class TestAppendMetadataInChunks:
             )
         ]
 
-        result = append_metadata_in_chunks(chunks, metadata_sections={})
+        result = append_metadata_in_chunks(chunks, metadata_chunk_sections={})
 
         assert len(result) == 1
         assert result[0].text == "Original text"
@@ -52,7 +52,9 @@ class TestAppendMetadataInChunks:
             )
         ]
 
-        result = append_metadata_in_chunks(chunks, metadata_sections={"key": "Key: {}"})
+        result = append_metadata_in_chunks(
+            chunks, metadata_chunk_sections={"key": "Key: {}"}
+        )
 
         assert len(result) == 1
         assert result[0].text == "Original text"
@@ -69,7 +71,7 @@ class TestAppendMetadataInChunks:
         ]
 
         result = append_metadata_in_chunks(
-            chunks, metadata_sections={"key": "Document: {}"}
+            chunks, metadata_chunk_sections={"key": "Document: {}"}
         )
 
         assert len(result) == 1
@@ -88,7 +90,7 @@ class TestAppendMetadataInChunks:
 
         result = append_metadata_in_chunks(
             chunks,
-            metadata_sections={
+            metadata_chunk_sections={
                 "key": "File: {}",
                 "mimeType": "Type: {}",
             },
@@ -110,7 +112,7 @@ class TestAppendMetadataInChunks:
         ]
 
         result = append_metadata_in_chunks(
-            chunks, metadata_sections={"nonexistent": "Value: {}"}
+            chunks, metadata_chunk_sections={"nonexistent": "Value: {}"}
         )
 
         assert len(result) == 1
@@ -134,7 +136,7 @@ class TestAppendMetadataInChunks:
         ]
 
         result = append_metadata_in_chunks(
-            chunks, metadata_sections={"key": "Document: {}"}
+            chunks, metadata_chunk_sections={"key": "Document: {}"}
         )
 
         assert len(result) == 2
@@ -165,7 +167,7 @@ class TestAppendMetadataInChunks:
         ]
 
         result = append_metadata_in_chunks(
-            chunks, metadata_sections={"key": "Document: {}"}
+            chunks, metadata_chunk_sections={"key": "Document: {}"}
         )
 
         assert len(result) == 3
@@ -187,7 +189,9 @@ class TestAppendMetadataInChunk:
             metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf"),
         )
 
-        result = _append_metadata_in_chunk(chunk, metadata_sections={"key": "File: {}"})
+        result = _append_metadata_in_chunk(
+            chunk, metadata_chunk_sections={"key": "File: {}"}
+        )
 
         assert result.text == "File: doc.pdf\nOriginal text"
 
@@ -203,7 +207,7 @@ class TestAppendMetadataInChunk:
         )
 
         result = _append_metadata_in_chunk(
-            chunk, metadata_sections={"key": "### Filename: {}\n---"}
+            chunk, metadata_chunk_sections={"key": "### Filename: {}\n---"}
         )
 
         assert result.text == "### Filename: doc.pdf\n---\nOriginal text"
@@ -222,7 +226,9 @@ class TestAppendMetadataInChunk:
             metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf"),
         )
 
-        result = _append_metadata_in_chunk(chunk, metadata_sections={"key": "File: {}"})
+        result = _append_metadata_in_chunk(
+            chunk, metadata_chunk_sections={"key": "File: {}"}
+        )
 
         assert result.id == "cont_123"
         assert result.order == 5
@@ -242,7 +248,7 @@ class TestAppendMetadataInChunk:
             metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf"),
         )
 
-        result = _append_metadata_in_chunk(chunk, metadata_sections={})
+        result = _append_metadata_in_chunk(chunk, metadata_chunk_sections={})
 
         assert result.text == "Original text"
 
@@ -257,7 +263,9 @@ class TestAppendMetadataInChunk:
             metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf"),
         )
 
-        result = _append_metadata_in_chunk(chunk, metadata_sections={"key": "File: {}"})
+        result = _append_metadata_in_chunk(
+            chunk, metadata_chunk_sections={"key": "File: {}"}
+        )
 
         assert isinstance(result, ContentChunk)
 
@@ -273,7 +281,7 @@ class TestAppendMetadataInChunk:
         )
 
         result = _append_metadata_in_chunk(
-            chunk, metadata_sections={"mimeType": "MIME Type: {}"}
+            chunk, metadata_chunk_sections={"mimeType": "MIME Type: {}"}
         )
 
         assert result.text == "MIME Type: application/pdf\nOriginal text"
