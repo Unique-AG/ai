@@ -1,12 +1,10 @@
 import json
 import logging
 from copy import deepcopy
+from typing import Any
 
 from unique_toolkit.agentic.tools.schemas import Source
-from unique_toolkit.agentic.tools.utils.source_handling.schema import (
-    SourceFormatConfig,
-)
-from unique_toolkit.content.schemas import ContentChunk, ContentMetadata
+from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.language_model.schemas import (
     LanguageModelAssistantMessage,
     LanguageModelMessage,
@@ -62,58 +60,25 @@ def _convert_tool_call_response_to_content(
 def transform_chunks_to_string(
     content_chunks: list[ContentChunk],
     max_source_number: int,
-    cfg: SourceFormatConfig | None,
-    full_sources_serialize_dump: bool = False,
-) -> tuple[str, list[Source]]:
+) -> tuple[str, list[dict[str, Any]]]:
     """Transform content chunks into a string of sources.
 
     Args:
         content_chunks (list[ContentChunk]): The content chunks to transform
         max_source_number (int): The maximum source number to use
-        feature_full_sources (bool, optional): Whether to include the full source object. Defaults to False which is the old format.
 
     Returns:
         str: String for the tool call response
     """
     if not content_chunks:
         return "No relevant sources found.", []
-    if full_sources_serialize_dump:
-        sources = [
-            Source(
-                source_number=max_source_number + i,
-                key=chunk.key,
-                id=chunk.id,
-                order=chunk.order,
-                content=chunk.text,
-                chunk_id=chunk.chunk_id,
-                metadata=(
-                    _format_metadata(chunk.metadata, cfg) or None
-                    if chunk.metadata
-                    else None
-                ),
-                url=chunk.url,
-            ).model_dump(
-                exclude_none=True,
-                exclude_defaults=True,
-                by_alias=True,
-            )
-            for i, chunk in enumerate(content_chunks)
-        ]
-    else:
-        sources = [
-            {
-                "source_number": max_source_number + i,
-                "content": chunk.text,
-                **(
-                    {"metadata": meta}
-                    if (
-                        meta := _format_metadata(chunk.metadata, cfg)
-                    )  # only add when not empty
-                    else {}
-                ),
-            }
-            for i, chunk in enumerate(content_chunks)
-        ]
+    sources: list[dict[str, Any]] = [
+        {
+            "source_number": max_source_number + i,
+            "content": chunk.text,
+        }
+        for i, chunk in enumerate(content_chunks)
+    ]
     return json.dumps(sources), sources
 
 
@@ -129,45 +94,3 @@ def load_sources_from_string(
     except (json.JSONDecodeError, ValueError):
         logger.warning("Failed to parse source string")
         return None
-
-
-def _format_metadata(
-    metadata: ContentMetadata | None,
-    cfg: SourceFormatConfig | None,
-) -> str:
-    """
-    Build the concatenated tag string from the chunk's metadata
-    and the templates found in cfg.sections.
-    Example result:
-      "<|topic|>GenAI<|/topic|>\n<|date|>This document is from: 2025-04-29<|/date|>\n"
-    """
-    if metadata is None:
-        return ""
-
-    if cfg is None or not cfg.sections:
-        # If no configuration is provided, return empty string
-        return ""
-
-    meta_dict = metadata.model_dump(exclude_none=True, by_alias=True)
-    sections = cfg.sections
-
-    parts: list[str] = []
-    for key, template in sections.items():
-        if key in meta_dict:
-            parts.append(template.format(meta_dict[key]))
-
-    return "".join(parts)
-
-
-### In case we do not want any formatting of metadata we could use this function
-# def _filtered_metadata(
-#     meta: ContentMetadata | None,
-#     cfg: SourceFormatConfig,
-# ) -> dict[str, str] | None:
-#     if meta is None:
-#         return None
-
-#     allowed = set(cfg.sections)
-#     raw = meta.model_dump(exclude_none=True, by_alias=True)
-#     pruned = {k: v for k, v in raw.items() if k in allowed}
-#     return pruned or None

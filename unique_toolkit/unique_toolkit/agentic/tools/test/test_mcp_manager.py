@@ -50,11 +50,6 @@ class MockInternalSearchTool(Tool[BaseToolConfig]):
     def tool_format_information_for_system_prompt(self) -> str:
         return "Use this tool to search for content"
 
-    def get_tool_call_result_for_loop_history(self, tool_response):
-        from unique_toolkit.language_model.schemas import LanguageModelMessage
-
-        return LanguageModelMessage(role="tool", content="Mock search result")
-
     def evaluation_check_list(self):
         return []
 

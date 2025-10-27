@@ -3,16 +3,12 @@ from time import time
 from typing_extensions import override
 from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
-from unique_toolkit.agentic.history_manager.utils import transform_chunks_to_string
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import (
-    AgentChunksHandler,
-    LanguageModelMessage,
     Tool,
 )
 from unique_toolkit.agentic.tools.tool_progress_reporter import ProgressState
-from unique_toolkit.language_model import LanguageModelToolMessage
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelToolDescription,
@@ -195,47 +191,6 @@ class WebSearchTool(Tool[WebSearchConfig]):
             )
         else:
             raise ValueError(f"Invalid parameters: {parameters}")
-
-    def get_tool_call_result_for_loop_history(
-        self,
-        tool_response: ToolCallResponse,
-        agent_chunks_handler: AgentChunksHandler,
-    ) -> LanguageModelMessage:
-        """Process the results of the tool.
-
-        Args:
-        ----
-            tool_response: The tool response.
-            loop_history: The loop history.
-
-        Returns:
-        -------
-            The tool result to append to the loop history.
-
-        """
-        self.logger.debug(
-            f"Appending tool call result to history: {tool_response.name}"
-        )
-        # Initialize content_chunks if None
-        content_chunks = tool_response.content_chunks or []
-
-        # Get the maximum source number in the loop history
-        max_source_number = len(agent_chunks_handler.chunks)
-
-        # Transform content chunks into sources to be appended to tool result
-        sources, _ = transform_chunks_to_string(
-            content_chunks,
-            max_source_number,
-            None,  # Use None for SourceFormatConfig
-            self.config.experimental_features.full_sources_serialize_dump,
-        )
-
-        # Append the result to the history
-        return LanguageModelToolMessage(
-            content=sources,
-            tool_call_id=tool_response.id,  # type: ignore
-            name=tool_response.name,
-        )
 
     def get_evaluation_checks_based_on_tool_response(
         self,
