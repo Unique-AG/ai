@@ -1,20 +1,21 @@
-# litellm:anthropic-claude-3-7-sonnet
+# litellm:anthropic-claude-opus-4-1
 
 ## Basic Information
-- **Name**: litellm:anthropic-claude-3-7-sonnet
+- **Name**: litellm:anthropic-claude-opus-4-1
 - **Provider**: LITELLM
-- **Version**: claude-3-7-sonnet
+- **Version**: claude-opus-4
 - **Encoder**: o200k_base
 
 ## Token Limits
 - **Input Limit**: 180,000 tokens
-- **Output Limit**: 64,000 tokens
-- **Total Limit**: 244,000 tokens
+- **Output Limit**: 32,000 tokens
+- **Total Limit**: 212,000 tokens
 
 ## Capabilities
 - function_calling
 - streaming
 - vision
+- reasoning
 
 
 ## Temperature Bounds

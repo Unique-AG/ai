@@ -8,8 +8,8 @@
 
 ## Token Limits
 - **Input Limit**: 180,000 tokens
-- **Output Limit**: 128,000 tokens
-- **Total Limit**: 308,000 tokens
+- **Output Limit**: 64,000 tokens
+- **Total Limit**: 244,000 tokens
 
 ## Capabilities
 - function_calling
