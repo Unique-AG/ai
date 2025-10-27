@@ -3,6 +3,7 @@ from typing import override
 
 import unique_sdk
 from jinja2 import Template
+from pydantic import BaseModel
 from typing_extensions import TypedDict
 
 from unique_toolkit.agentic.evaluation.evaluation_manager import Evaluation
@@ -21,6 +22,7 @@ from unique_toolkit.agentic.tools.a2a.evaluation.config import (
     SubAgentEvaluationServiceConfig,
 )
 from unique_toolkit.agentic.tools.a2a.tool import SubAgentTool
+from unique_toolkit.agentic.tools.utils import failsafe
 from unique_toolkit.chat.schemas import (
     ChatMessageAssessmentLabel,
     ChatMessageAssessmentStatus,
@@ -41,16 +43,24 @@ class _SubAgentToolInfo(TypedDict):
 _NO_ASSESSMENTS_FOUND = "NO_ASSESSMENTS_FOUND"
 
 
+class _SingleAssessmentData(BaseModel):
+    name: str
+    explanation: str
+
+
 def _format_single_assessment_found(name: str, explanation: str) -> str:
-    return f"SINGLE_ASSESSMENT_FOUND:{name}:{explanation}"
+    return _SingleAssessmentData(name=name, explanation=explanation).model_dump_json()
 
 
+@failsafe(failure_return_value=False)
 def _is_single_assessment_found(value: str) -> bool:
-    return value.startswith("SINGLE_ASSESSMENT_FOUND:")
+    _ = _SingleAssessmentData.model_validate_json(value)
+    return True
 
 
-def _parse_single_assessment_found(value: str) -> list[str]:
-    return value.split(":", maxsplit=2)[1:]
+def _parse_single_assessment_found(value: str) -> tuple[str, str]:
+    data = _SingleAssessmentData.model_validate_json(value)
+    return data.name, data.explanation
 
 
 class SubAgentEvaluationService(Evaluation):
