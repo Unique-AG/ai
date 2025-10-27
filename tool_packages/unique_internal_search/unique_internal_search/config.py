@@ -129,9 +129,16 @@ class InternalSearchConfig(BaseToolConfig):
         default=[EvaluationMetricName.HALLUCINATION],
         description="The list of evaluation metrics to check.",
     )
-    experimental_features: ExperimentalFeatures = ExperimentalFeatures()
+    experimental_features: SkipJsonSchema[ExperimentalFeatures] = ExperimentalFeatures()
 
-    source_format_config: SourceFormatConfig = SourceFormatConfig()
+    source_format_config: SkipJsonSchema[SourceFormatConfig] = SourceFormatConfig()
+
+    metadata_chunk_sections: dict[str, str] = Field(
+        default={},
+        description=(
+            "Metadata sections to be appended to each search result chunk’s text. The keys represent metadata field names (e.g., 'metadata_key'), and the values are template strings that define how the metadata should be embedded, using {} as a placeholder for the actual value (e.g., '<|metadata_key|>{}<|/metadata_key|>')."
+        ),
+    )
 
     score_threshold: float = Field(
         default=0.0,
