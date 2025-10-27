@@ -10,8 +10,8 @@ class MessageExecution(APIResource["MessageExecution"]):
 
     TypeLiteral = Literal["DEEP_RESEARCH"]
     StatusLiteral = Literal["PENDING", "RUNNING", "COMPLETED", "FAILED"]
-    # Only PENDING and FAILED statuses are allowed for update
-    UpdateStatusLiteral = Literal["PENDING", "FAILED"]
+    # Only COMPLETED and FAILED statuses are allowed for update
+    UpdateStatusLiteral = Literal["COMPLETED", "FAILED"]
 
     class CreateMessageExecutionParams(RequestOptions):
         """
