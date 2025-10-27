@@ -94,13 +94,17 @@ def _get_display_template(
         assistant_id_placeholder, "{%s}" % answer_placeholder, sep="\n\n"
     )  # Double line break is needed for markdown formatting
 
+    template = _add_line_break(template, before=True, after=False)
+
     if add_quote_border:
         template = _wrap_with_quote_border(template)
 
     match mode:
         case SubAgentResponseDisplayMode.DETAILS_OPEN:
             template = _wrap_with_details_tag(
-                template, "open", display_name_placeholder
+                template,
+                "open",
+                display_name_placeholder,
             )
         case SubAgentResponseDisplayMode.DETAILS_CLOSED:
             template = _wrap_with_details_tag(

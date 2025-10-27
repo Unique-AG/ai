@@ -282,8 +282,9 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                 text=tool_user_message,
                 chat_id=chat_id,
                 poll_interval=self.config.poll_interval,
+                tool_choices=self.config.forced_tools,
                 max_wait=self.config.max_wait,
-                stop_condition="completedAt",
+                stop_condition=self.config.stop_condition,
             )
         except TimeoutError as e:
             await self._notify_progress(
