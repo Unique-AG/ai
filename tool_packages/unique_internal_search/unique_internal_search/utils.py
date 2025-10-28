@@ -47,7 +47,7 @@ def _deduplicate_search_results(
 
     for result in search_results:
         for chunk in result.chunks:
-            if chunk.chunk_id not in seen_chunk_ids:
+            if chunk.chunk_id and chunk.chunk_id not in seen_chunk_ids:
                 seen_chunk_ids.add(chunk.chunk_id)
                 deduplicated_search_results.append(result)
 
