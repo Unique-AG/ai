@@ -94,6 +94,11 @@ async def extract_swot_from_sources(
             notifier.update_progress(
                 step_precentage_increment=step_precentage_increment
             )
+            
+        notifier.notify(
+            notification_title=notification_title,
+            status=MessageLogStatus.COMPLETED,
+        )
 
     return context.extraction_output_model.group_batches(report_batches)
 
@@ -108,8 +113,9 @@ async def summarize_swot_extraction(
     """
     Summarize a SWOT extraction report.
     """
+    notification_title = f"Generating {context.component.value} report"
     notifier.notify(
-        notification_title=f"Generating {context.component.value} report",
+        notification_title=notification_title,
         status=MessageLogStatus.RUNNING,
         message_log_event=MessageLogEvent(
             type="InternalSearch",
@@ -121,6 +127,10 @@ async def summarize_swot_extraction(
         language_model_service=language_model_service,
         language_model=configuration.language_model,
         extraction_output_model=context.extraction_results,
+    )
+    notifier.notify(
+        notification_title=notification_title,
+        status=MessageLogStatus.COMPLETED
     )
     return summary
 

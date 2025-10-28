@@ -41,8 +41,9 @@ class SourceCollectionManager:
         self._notifier = notifier
 
     def collect_sources(self) -> list[Source]:
+        notification_title = "Collecting Sources"
         self._notifier.notify(
-            notification_title="Collecting Sources",
+            notification_title=notification_title,
             status=MessageLogStatus.RUNNING,
             message_log_event=MessageLogEvent(
                 type="InternalSearch",
@@ -65,6 +66,14 @@ class SourceCollectionManager:
                 use_web_sources=self._context.use_web_sources,
                 chunk_registry=self._content_chunk_registry,
             )
+        )
+        self._notifier.notify(
+            notification_title=notification_title,
+            status=MessageLogStatus.COMPLETED,
+            message_log_event=MessageLogEvent(
+                type="InternalSearch",
+                text=f"Completed collecting {len(sources)} sources",
+            ),
         )
 
         # Save Registry Store in Memory Service

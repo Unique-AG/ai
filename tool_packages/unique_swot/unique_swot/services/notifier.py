@@ -30,14 +30,19 @@ class MessageLogRegistry(BaseModel):
         notification_title: str,
         order: int,
         status: MessageLogStatus,
-        message_log_event: MessageLogEvent,
+        message_log_event: MessageLogEvent | None = None,
     ) -> Self:
+        if message_log_event is not None:
+            data = [message_log_event]
+        else:
+            data = []
+        details = MessageLogDetails(data=data)
         message_log = chat_service.create_message_log(
             message_id=message_id,
             text=notification_title,
             status=status,
             order=order,
-            details=MessageLogDetails(data=[message_log_event]),
+            details=details,
             uncited_references=MessageLogUncitedReferences(data=[]),
             references=[],
         )
@@ -48,28 +53,29 @@ class MessageLogRegistry(BaseModel):
             message_log_id=message_log.message_log_id,
             order=order,
             status=status,
-            message_log_events=[message_log_event],
+            message_log_events=data,
         )
 
     def update(
         self,
         chat_service: ChatService,
         status: MessageLogStatus,
-        message_log_event: MessageLogEvent,
+        message_log_event: MessageLogEvent | None = None,
     ) -> Self:
         self.status = status
-        self.message_log_events.append(message_log_event)
+        if message_log_event is not None:
+            self.message_log_events.append(message_log_event)
+        details = MessageLogDetails(data=self.message_log_events)
         chat_service.update_message_log(
             message_log_id=self.message_log_id,
             text=self.text,
             order=self.order,
             status=self.status,
-            details=MessageLogDetails(data=self.message_log_events),
+            details=details,
             uncited_references=MessageLogUncitedReferences(data=[]),
             references=[],
         )
         return self
-
 
 def _calculate_percentage_completed(current_step: float, total_steps: float) -> int:
     return int(current_step / total_steps * 100)
@@ -84,13 +90,14 @@ class ProgressNotifier:
         self._step_increment = 0
 
     def start_progress(self, total_steps: int):
+        _LOGGER.info(f"Starting progress with total steps: {total_steps}")
         self._total_steps = total_steps
 
-        self._chat_service.create_message_execution(
-            message_id=self._message_id,
-            type=MessageExecutionType.DEEP_RESEARCH,
-            percentage_completed=0,
-        )
+        # self._chat_service.create_message_execution(
+        #     message_id=self._message_id,
+        #     type=MessageExecutionType.DEEP_RESEARCH,
+        #     percentage_completed=0,
+        # )
 
     def update_progress(
         self,
@@ -111,30 +118,34 @@ class ProgressNotifier:
             )
             _LOGGER.info(f"Percentage completed: {percentage_completed}")
 
-        self._chat_service.update_message_execution(
-            message_id=self._message_id,
-            status=MessageExecutionUpdateStatus.RUNNING,
-            percentage_completed=percentage_completed,
-            seconds_remaining=seconds_remaining,
-        )
+        _LOGGER.info(f"Updating progress to: {percentage_completed}")
+        # self._chat_service.update_message_execution(
+        #     message_id=self._message_id,
+        #     status=MessageExecutionUpdateStatus.RUNNING,
+        #     percentage_completed=percentage_completed,
+        #     seconds_remaining=seconds_remaining,
+        # )
 
     def notify(
         self,
         notification_title: str,
         status: MessageLogStatus,
-        message_log_event: MessageLogEvent,
+        message_log_event: MessageLogEvent | None = None,
     ):
-        self._add_message_log(
-            notification_title=notification_title,
-            message_log_event=message_log_event,
-            status=status,
-        )
+        _LOGGER.info(f"Notifying: {notification_title} with status: {status}")
+        if message_log_event is not None:
+            _LOGGER.info(f"Message log event: {message_log_event}")
+        # self._add_message_log(
+        #     notification_title=notification_title,
+        #     message_log_event=message_log_event,
+        #     status=status,
+        # )
 
     def _add_message_log(
         self,
         notification_title: str,
-        message_log_event: MessageLogEvent,
         status: MessageLogStatus,
+        message_log_event: MessageLogEvent | None = None,
     ):
         key = notification_title
         if key not in self._execution_registery:
@@ -155,21 +166,23 @@ class ProgressNotifier:
             )
 
     def _update_progress(self, percentage_completed: int):
-        self._chat_service.update_message_execution(
-            message_id=self._message_id,
-            status=MessageExecutionUpdateStatus.RUNNING,
-            percentage_completed=percentage_completed,
-        )
+        _LOGGER.info(f"Updating progress to: {percentage_completed}")
+        # self._chat_service.update_message_execution(
+        #     message_id=self._message_id,
+        #     status=MessageExecutionUpdateStatus.RUNNING,
+        #     percentage_completed=percentage_completed,
+        # )
 
     def end_progress(self, success: bool = True):
+        _LOGGER.info(f"Ending progress with success: {success}")
         status = (
             MessageExecutionUpdateStatus.COMPLETED
             if success
             else MessageExecutionUpdateStatus.FAILED
         )
-        self._chat_service.update_message_execution(
-            message_id=self._message_id,
-            status=status,
-            percentage_completed=100,
-            seconds_remaining=0,
-        )
+        # self._chat_service.update_message_execution(
+        #     message_id=self._message_id,
+        #     status=status,
+        #     percentage_completed=100,
+        #     seconds_remaining=0,
+        # )

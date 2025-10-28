@@ -1,6 +1,6 @@
 """Tests for SWOT configuration module."""
 
-from unique_swot.config import TOOL_DESCRIPTION, SwotConfig
+from unique_swot.config import TOOL_DESCRIPTION, SwotAnalysisToolConfig
 from unique_swot.services.generation import ReportGenerationConfig
 
 
@@ -9,7 +9,7 @@ class TestSwotConfig:
 
     def test_swot_config_default_values(self):
         """Test that SwotConfig initializes with correct default values."""
-        config = SwotConfig()
+        config = SwotAnalysisToolConfig()
 
         assert config.cache_scope_id == "swot_analysis"
         assert isinstance(config.report_generation_config, ReportGenerationConfig)
@@ -29,7 +29,7 @@ class TestSwotConfig:
     def test_swot_config_custom_cache_scope_id(self):
         """Test SwotConfig with custom cache_scope_id."""
         custom_scope = "custom_swot_scope"
-        config = SwotConfig(cache_scope_id=custom_scope)
+        config = SwotAnalysisToolConfig(cache_scope_id=custom_scope)
 
         assert config.cache_scope_id == custom_scope
 
@@ -39,7 +39,7 @@ class TestSwotConfig:
             batch_size=5,
             max_tokens_per_batch=2000,
         )
-        config = SwotConfig(report_generation_config=custom_report_config)
+        config = SwotAnalysisToolConfig(report_generation_config=custom_report_config)
 
         assert config.report_generation_config.batch_size == 5
         assert config.report_generation_config.max_tokens_per_batch == 2000
@@ -47,7 +47,7 @@ class TestSwotConfig:
     def test_swot_config_custom_descriptions(self):
         """Test SwotConfig with custom description fields."""
         custom_desc = "Custom description"
-        config = SwotConfig(
+        config = SwotAnalysisToolConfig(
             tool_description=custom_desc,
             tool_description_for_system_prompt=custom_desc,
             tool_format_information_for_system_prompt=custom_desc,
@@ -68,11 +68,11 @@ class TestSwotConfig:
 
     def test_swot_config_serialization(self):
         """Test that SwotConfig can be serialized and deserialized."""
-        config = SwotConfig(cache_scope_id="test_scope")
+        config = SwotAnalysisToolConfig(cache_scope_id="test_scope")
         config_dict = config.model_dump()
 
         assert config_dict["cache_scope_id"] == "test_scope"
 
         # Recreate from dict
-        config_restored = SwotConfig.model_validate(config_dict)
+        config_restored = SwotAnalysisToolConfig.model_validate(config_dict)
         assert config_restored.cache_scope_id == "test_scope"

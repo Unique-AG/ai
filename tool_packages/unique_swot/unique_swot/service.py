@@ -15,7 +15,7 @@ from unique_toolkit.language_model import (
 from unique_toolkit.language_model.schemas import LanguageModelToolDescription
 from unique_toolkit.services.knowledge_base import KnowledgeBaseService
 
-from unique_swot.config import SwotConfig
+from unique_swot.config import SwotAnalysisToolConfig
 from unique_swot.services.citations import CitationManager
 from unique_swot.services.collection import CollectionContext, SourceCollectionManager
 from unique_swot.services.collection.registry import ContentChunkRegistry
@@ -25,40 +25,14 @@ from unique_swot.services.notifier import ProgressNotifier
 from unique_swot.services.report import REPORT_TEMPLATE
 from unique_swot.services.schemas import SWOTPlan
 
-mock_metadata_filter = {
-    "and": [
-        {
-            "or": [
-                {
-                    "operator": "contains",
-                    "path": ["folderIdPath"],
-                    "value": "scope_xfmvf7vx68xj1y33e1gfmz9b",
-                }
-            ]
-        }
-    ]
-}
 
-# mock_metadata_filter = {
-#     "and": [
-#         {
-#             "or": [
-#                 {
-#                     "operator": "in",
-#                     "path": ["contentId"],
-#                     "value": ["cont_fzj2je28tj5eexqxjz2s1pqf"],
-#                 }
-#             ]
-#         }
-#     ]
-# }
+class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
+    name = "SwotAnalysis"
 
-
-class SwotTool(Tool[SwotConfig]):
-    name = "SWOT"
-
-    def __init__(self, configuration: SwotConfig, *args, **kwargs):
+    def __init__(self, configuration: SwotAnalysisToolConfig, *args, **kwargs):
         super().__init__(configuration, *args, **kwargs)
+        
+        metadata_filter = self._event.payload.metadata_filter
 
         self._knowledge_base_service = KnowledgeBaseService.from_event(self._event)
 
@@ -88,7 +62,7 @@ class SwotTool(Tool[SwotConfig]):
             context=CollectionContext(
                 use_earnings_calls=False,
                 use_web_sources=False,
-                metadata_filter=mock_metadata_filter,
+                metadata_filter=metadata_filter,
             ),
             knowledge_base_service=self._knowledge_base_service,
             content_chunk_registry=self._content_chunk_registry,
@@ -229,4 +203,4 @@ class SwotTool(Tool[SwotConfig]):
         return number_of_executions * num_steps_per_execution
 
 
-ToolFactory.register_tool(tool=SwotTool, tool_config=SwotConfig)
+ToolFactory.register_tool(tool=SwotAnalysisTool, tool_config=SwotAnalysisToolConfig)

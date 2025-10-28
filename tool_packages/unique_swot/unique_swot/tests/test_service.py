@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 from unique_toolkit.language_model.schemas import LanguageModelToolDescription
 
-from unique_swot.config import SwotConfig
-from unique_swot.service import SwotTool
+from unique_swot.config import SwotAnalysisToolConfig
+from unique_swot.service import SwotAnalysisTool
 from unique_swot.services.schemas import SWOTPlan
 
 
@@ -16,7 +16,7 @@ class TestSwotTool:
     @pytest.fixture
     def swot_config(self):
         """Create a SwotConfig for testing."""
-        return SwotConfig(cache_scope_id="test_scope")
+        return SwotAnalysisToolConfig(cache_scope_id="test_scope")
 
     @pytest.fixture
     def mock_event(self):
@@ -30,7 +30,7 @@ class TestSwotTool:
 
     def test_swot_tool_name(self):
         """Test SwotTool name attribute."""
-        assert SwotTool.name == "SWOT"
+        assert SwotAnalysisTool.name == "SWOT"
 
     def test_swot_tool_initialization(self, swot_config, mock_event):
         """Test SwotTool initialization."""
@@ -46,7 +46,7 @@ class TestSwotTool:
             ),
             patch("unique_swot.service.ShortTermMemoryService", return_value=Mock()),
         ):
-            tool = SwotTool(configuration=swot_config, event=mock_event)
+            tool = SwotAnalysisTool(configuration=swot_config, event=mock_event)
 
             assert tool.config == swot_config
             assert tool._notifier is not None
@@ -65,7 +65,7 @@ class TestSwotTool:
             ),
             patch("unique_swot.service.ShortTermMemoryService", return_value=Mock()),
         ):
-            tool = SwotTool(configuration=swot_config, event=mock_event)
+            tool = SwotAnalysisTool(configuration=swot_config, event=mock_event)
 
             description = tool.tool_description()
 
@@ -87,7 +87,7 @@ class TestSwotTool:
             ),
             patch("unique_swot.service.ShortTermMemoryService", return_value=Mock()),
         ):
-            tool = SwotTool(configuration=swot_config, event=mock_event)
+            tool = SwotAnalysisTool(configuration=swot_config, event=mock_event)
 
             assert isinstance(tool.tool_description_for_system_prompt(), str)
             assert isinstance(tool.tool_format_information_for_system_prompt(), str)
@@ -109,7 +109,7 @@ class TestSwotTool:
             ),
             patch("unique_swot.service.ShortTermMemoryService", return_value=Mock()),
         ):
-            tool = SwotTool(configuration=swot_config, event=mock_event)
+            tool = SwotAnalysisTool(configuration=swot_config, event=mock_event)
 
             assert tool.takes_control() is True
 
@@ -129,7 +129,7 @@ class TestSwotTool:
             patch("unique_swot.service.ShortTermMemoryService", return_value=Mock()),
             patch("unique_swot.service.SWOTExecutionManager") as mock_executor_class,
         ):
-            tool = SwotTool(configuration=swot_config, event=mock_event)
+            tool = SwotAnalysisTool(configuration=swot_config, event=mock_event)
 
             # Mock the executor
             mock_executor = Mock()
@@ -176,7 +176,7 @@ class TestSwotTool:
             ),
             patch("unique_swot.service.ShortTermMemoryService", return_value=Mock()),
         ):
-            tool = SwotTool(configuration=swot_config, event=mock_event)
+            tool = SwotAnalysisTool(configuration=swot_config, event=mock_event)
 
             mock_response = Mock()
             checks = tool.get_evaluation_checks_based_on_tool_response(mock_response)
@@ -204,7 +204,7 @@ class TestSwotTool:
             ),
             patch("unique_swot.service.ShortTermMemoryService", return_value=Mock()),
         ):
-            tool = SwotTool(configuration=swot_config, event=mock_event)
+            tool = SwotAnalysisTool(configuration=swot_config, event=mock_event)
 
             mock_response = Mock()
             mock_response.content = "Test content"
