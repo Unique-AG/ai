@@ -95,17 +95,29 @@ class SubAgentResponsesPostprocessor(Postprocessor):
                 "Main agent message is not set, the `run` method must be called first"
             )
 
+        _add_sub_agent_references_in_place(
+            loop_response=loop_response,
+            sub_agent_infos=list(self._assistant_id_to_tool_info.values()),
+        )
+
         existing_refs = {
             ref.source_id: ref.sequence_number
             for ref in loop_response.message.references
         }
 
+        displayed_sub_agent_infos = dict(
+            (assistant_id, sub_agent_info)
+            for assistant_id, sub_agent_info in self._assistant_id_to_tool_info.items()
+            if sub_agent_info["display_config"].mode
+            != SubAgentResponseDisplayMode.HIDDEN
+        )
+
         _consolidate_references_in_place(
-            list(self._assistant_id_to_tool_info.values()), existing_refs, loop_response
+            list(displayed_sub_agent_infos.values()), existing_refs
         )
 
         answers = []
-        for assistant_id in self._assistant_id_to_tool_info.keys():
+        for assistant_id in displayed_sub_agent_infos.keys():
             messages = self._assistant_id_to_tool_info[assistant_id]["responses"]
 
             for sequence_number in sorted(messages):
@@ -140,9 +152,12 @@ class SubAgentResponsesPostprocessor(Postprocessor):
                     for ref in message["references"]
                 )
 
-        loop_response.message.text = (
-            "<br>\n\n".join(answers) + "<br>\n\n" + loop_response.message.text.strip()
-        )
+        if len(answers) > 0:
+            loop_response.message.text = (
+                "<br>\n\n".join(answers)
+                + "<br>\n\n"
+                + loop_response.message.text.strip()
+            )
 
         return True
 
@@ -163,13 +178,6 @@ class SubAgentResponsesPostprocessor(Postprocessor):
     def register_sub_agent_tool(
         self, tool: SubAgentTool, display_config: SubAgentDisplayConfig
     ) -> None:
-        if display_config.mode == SubAgentResponseDisplayMode.HIDDEN:
-            logger.info(
-                "Sub agent tool %s has display mode `hidden`, responses will be ignored.",
-                tool.config.assistant_id,
-            )
-            return
-
         if tool.config.assistant_id not in self._assistant_id_to_tool_info:
             tool.subscribe(self)
             self._assistant_id_to_tool_info[tool.config.assistant_id] = (
@@ -216,10 +224,73 @@ class SubAgentResponsesPostprocessor(Postprocessor):
         }
 
 
+def _add_sub_agent_references_in_place(
+    loop_response: LanguageModelStreamResponse,
+    sub_agent_infos: list[_SubAgentToolInfo],
+) -> None:
+    message_text = loop_response.message.text
+
+    existing_refs = {
+        ref.source_id: ref.sequence_number
+        for ref in loop_response.message.references or []
+    }
+    start_index = max(existing_refs.values(), default=0) + 1
+
+    for sub_agent_info in sub_agent_infos:
+        sub_agent_name = sub_agent_info["name"]
+        for sequence_number in sorted(sub_agent_info["responses"]):
+            sub_agent_response = sub_agent_info["responses"][sequence_number]
+
+            for reference in sorted(
+                sub_agent_response["references"], key=lambda r: r["sequenceNumber"]
+            ):
+                ref_num = reference["sequenceNumber"]
+                source_id = reference["sourceId"]
+
+                reference_str = SubAgentTool.get_sub_agent_reference_format(
+                    name=sub_agent_name,
+                    sequence_number=sequence_number,
+                    reference_number=ref_num,
+                )
+
+                if reference_str not in message_text:
+                    # Reference not used
+                    continue
+
+                if source_id in existing_refs:
+                    new_ref_num = existing_refs[source_id]
+
+                else:
+                    new_ref_num = start_index
+                    existing_refs[source_id] = new_ref_num
+                    start_index += 1
+
+                    loop_response.message.references.append(
+                        ContentReference(
+                            name=reference["name"],
+                            url=reference["url"] or "",
+                            sequence_number=new_ref_num,
+                            source_id=source_id,
+                            source=reference["source"],
+                        )
+                    )
+
+                message_text = re.sub(
+                    rf"\s*{re.escape(reference_str)}",
+                    f" <sup>{new_ref_num}</sup>",
+                    message_text,
+                )
+
+    loop_response.message.text = message_text
+    # Remove spaces between consecutive references
+    loop_response.message.text = re.sub(
+        r"</sup>\s*<sup>", "</sup><sup>", loop_response.message.text
+    )
+
+
 def _consolidate_references_in_place(
     messages: list[_SubAgentToolInfo],
     existing_refs: dict[str, int],
-    loop_response: LanguageModelStreamResponse,
 ) -> None:
     start_index = max(existing_refs.values(), default=0) + 1
 
@@ -253,29 +324,5 @@ def _consolidate_references_in_place(
                 ref_map[reference["sequenceNumber"]] = reference_num
                 reference["sequenceNumber"] = reference_num
 
-            loop_response.message.text = (
-                _replace_sub_agent_references_in_main_agent_message(
-                    loop_response.message.text,
-                    assistant_tool_info["name"],
-                    sequence_number,
-                    ref_map,
-                )
-            )
             message["text"] = _replace_references_in_text(message["text"], ref_map)
             message["references"] = message_new_refs
-
-
-def _replace_sub_agent_references_in_main_agent_message(
-    message: str, sub_agent_name: str, sequence_number: int, ref_map: dict[int, int]
-) -> str:
-    for old_seq_num, new_seq_num in ref_map.items():
-        reference = SubAgentTool.get_sub_agent_reference_format(
-            name=sub_agent_name,
-            sequence_number=sequence_number,
-            reference_number=old_seq_num,
-        )
-        message = re.sub(rf"\s*{reference}", f" <sup>{new_seq_num}</sup>", message)
-
-    # Remove spaces between consecutive references
-    message = re.sub(r"</sup>\s*<sup>", "</sup><sup>", message)
-    return message
