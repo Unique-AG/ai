@@ -22,9 +22,8 @@ class TestConsolidateReferencesInPlace:
         """Test with empty messages list."""
         messages = []
         existing_refs = {}
-        loop_response = self._create_mock_loop_response()
 
-        _consolidate_references_in_place(messages, existing_refs, loop_response)
+        _consolidate_references_in_place(messages, existing_refs)
 
         assert existing_refs == {}
 
@@ -53,9 +52,8 @@ class TestConsolidateReferencesInPlace:
             }
         ]
         existing_refs = {}
-        loop_response = self._create_mock_loop_response()
 
-        _consolidate_references_in_place(messages, existing_refs, loop_response)  # type: ignore
+        _consolidate_references_in_place(messages, existing_refs)  # type: ignore
 
         # Should start from index 1 since existing_refs is empty
         assert existing_refs == {"source1": 1}
@@ -90,9 +88,8 @@ class TestConsolidateReferencesInPlace:
             }
         ]
         existing_refs = {"existing_source": 5}
-        loop_response = self._create_mock_loop_response()
 
-        _consolidate_references_in_place(messages, existing_refs, loop_response)  # type: ignore
+        _consolidate_references_in_place(messages, existing_refs)  # type: ignore
 
         # Should start from 6 (max existing + 1)
         assert existing_refs == {"existing_source": 5, "new_source": 6}
@@ -141,8 +138,7 @@ class TestConsolidateReferencesInPlace:
         ]
         existing_refs = {}
 
-        loop_response = self._create_mock_loop_response()
-        _consolidate_references_in_place(messages, existing_refs, loop_response)  # type: ignore
+        _consolidate_references_in_place(messages, existing_refs)  # type: ignore
 
         # Both should map to the same consolidated reference number
         assert existing_refs == {"shared_source": 1}
@@ -187,8 +183,7 @@ class TestConsolidateReferencesInPlace:
         ]
         existing_refs = {}
 
-        loop_response = self._create_mock_loop_response()
-        _consolidate_references_in_place(messages, existing_refs, loop_response)  # type: ignore
+        _consolidate_references_in_place(messages, existing_refs)  # type: ignore
 
         assert existing_refs == {"source1": 1, "source2": 2}
         # Both references should be in the message since they're unique
@@ -240,8 +235,7 @@ class TestConsolidateReferencesInPlace:
         ]
         existing_refs = {}
 
-        loop_response = self._create_mock_loop_response()
-        _consolidate_references_in_place(messages, existing_refs, loop_response)  # type: ignore
+        _consolidate_references_in_place(messages, existing_refs)  # type: ignore
 
         # Should be processed in order 1, 2, 3 and assigned consecutive numbers
         assert existing_refs == {"source1": 1, "source2": 2, "source3": 3}
@@ -262,8 +256,7 @@ class TestConsolidateReferencesInPlace:
         ]
         existing_refs = {}
 
-        loop_response = self._create_mock_loop_response()
-        _consolidate_references_in_place(messages, existing_refs, loop_response)  # type: ignore
+        _consolidate_references_in_place(messages, existing_refs)  # type: ignore
 
         assert existing_refs == {}
         assert messages[0]["responses"][1]["text"] == "Text with no references"
@@ -314,8 +307,7 @@ class TestConsolidateReferencesInPlace:
         ]
         existing_refs = {}
 
-        loop_response = self._create_mock_loop_response()
-        _consolidate_references_in_place(messages, existing_refs, loop_response)  # type: ignore
+        _consolidate_references_in_place(messages, existing_refs)  # type: ignore
 
         assert existing_refs == {"source1": 1, "source2": 2}
         assert messages[0]["responses"][1]["text"] == "Assistant 1 text <sup>1</sup>"
@@ -368,8 +360,7 @@ class TestConsolidateReferencesInPlace:
         ]
         existing_refs = {"existing": 10}  # Start from 11
 
-        loop_response = self._create_mock_loop_response()
-        _consolidate_references_in_place(messages, existing_refs, loop_response)  # type: ignore
+        _consolidate_references_in_place(messages, existing_refs)  # type: ignore
 
         # sourceB gets 11 (first in sorted order), sourceA gets 12
         assert existing_refs == {"existing": 10, "sourceB": 11, "sourceA": 12}
@@ -416,8 +407,7 @@ class TestConsolidateReferencesInPlace:
         ]
         existing_refs = {}
 
-        loop_response = self._create_mock_loop_response()
-        _consolidate_references_in_place(messages, existing_refs, loop_response)  # type: ignore
+        _consolidate_references_in_place(messages, existing_refs)  # type: ignore
 
         # Should call _replace_references_in_text with the original text and ref mapping
         mock_replace.assert_called_once_with("Original text <sup>1</sup>", {1: 1})
@@ -446,8 +436,7 @@ class TestConsolidateReferencesInPlace:
         ]
         existing_refs = {}
 
-        loop_response = self._create_mock_loop_response()
-        _consolidate_references_in_place(messages, existing_refs, loop_response)  # type: ignore
+        _consolidate_references_in_place(messages, existing_refs)  # type: ignore
 
         # The original reference object should be modified in place
         assert original_ref["sequenceNumber"] == 1
@@ -488,8 +477,7 @@ class TestConsolidateReferencesInPlace:
         ]
 
         existing_refs_copy = existing_refs.copy()
-        loop_response = self._create_mock_loop_response()
-        _consolidate_references_in_place(messages, existing_refs_copy, loop_response)  # type: ignore
+        _consolidate_references_in_place(messages, existing_refs_copy)  # type: ignore
 
         assert existing_refs_copy["new_source"] == expected_start
 
@@ -505,8 +493,7 @@ class TestConsolidateReferencesInPlace:
         ]
         existing_refs = {}
 
-        loop_response = self._create_mock_loop_response()
-        _consolidate_references_in_place(messages, existing_refs, loop_response)  # type: ignore
+        _consolidate_references_in_place(messages, existing_refs)  # type: ignore
 
         assert existing_refs == {}
 
@@ -550,8 +537,7 @@ class TestConsolidateReferencesInPlace:
         ]
         existing_refs = {}
 
-        loop_response = self._create_mock_loop_response()
-        _consolidate_references_in_place(messages, existing_refs, loop_response)  # type: ignore
+        _consolidate_references_in_place(messages, existing_refs)  # type: ignore
 
         # Only valid messages should be processed
         assert existing_refs == {"source1": 1, "source3": 2}
@@ -611,8 +597,7 @@ class TestConsolidateReferencesInPlace:
         ]
         existing_refs = {}
 
-        loop_response = self._create_mock_loop_response()
-        _consolidate_references_in_place(messages, existing_refs, loop_response)  # type: ignore
+        _consolidate_references_in_place(messages, existing_refs)  # type: ignore
 
         # Should be processed in order 1, 2, 3 based on response sequence numbers
         assert existing_refs == {"source1": 1, "source2": 2, "source3": 3}
@@ -646,8 +631,7 @@ class TestConsolidateReferencesInPlace:
         ]
         existing_refs = {"existing_source": 99}
 
-        loop_response = self._create_mock_loop_response()
-        _consolidate_references_in_place(messages, existing_refs, loop_response)  # type: ignore
+        _consolidate_references_in_place(messages, existing_refs)  # type: ignore
 
         # Should use existing reference number and not add to new refs
         assert existing_refs == {"existing_source": 99}
@@ -685,8 +669,7 @@ class TestConsolidateReferencesInPlace:
         ]
         existing_refs = {"zero": 0, "negative": -5, "positive": 3}
 
-        loop_response = self._create_mock_loop_response()
-        _consolidate_references_in_place(messages, existing_refs, loop_response)  # type: ignore
+        _consolidate_references_in_place(messages, existing_refs)  # type: ignore
 
         # Should start from max(0, -5, 3) + 1 = 4
         assert existing_refs["new_source"] == 4
