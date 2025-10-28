@@ -22,7 +22,11 @@ else:
     raise OpenAINotInstalledError()
 
 
-def get_openai_client(unique_settings: UniqueSettings | None = None) -> OpenAI:
+def get_openai_client(
+    *,
+    unique_settings: UniqueSettings | None = None,
+    additional_headers: dict[str, str] | None = None,
+) -> OpenAI:
     """Get an OpenAI client instance.
 
     Args:
@@ -38,6 +42,8 @@ def get_openai_client(unique_settings: UniqueSettings | None = None) -> OpenAI:
         unique_settings = UniqueSettings.from_env_auto()
 
     default_headers = get_default_headers(unique_settings.app, unique_settings.auth)
+    if additional_headers is not None:
+        default_headers.update(additional_headers)
 
     return OpenAI(
         api_key="dummy_key",
@@ -47,7 +53,9 @@ def get_openai_client(unique_settings: UniqueSettings | None = None) -> OpenAI:
 
 
 def get_async_openai_client(
+    *,
     unique_settings: UniqueSettings | None = None,
+    additional_headers: dict[str, str] | None = None,
 ) -> AsyncOpenAI:
     """Get an async OpenAI client instance.
 
@@ -64,6 +72,9 @@ def get_async_openai_client(
         unique_settings = UniqueSettings.from_env_auto()
 
     default_headers = get_default_headers(unique_settings.app, unique_settings.auth)
+
+    if additional_headers is not None:
+        default_headers.update(additional_headers)
 
     return AsyncOpenAI(
         api_key="dummy_key",
