@@ -132,7 +132,7 @@ class InternalSearchConfig(BaseToolConfig):
         default=[EvaluationMetricName.HALLUCINATION],
         description="The list of evaluation metrics to check.",
     )
-    experimental_features: SkipJsonSchema[ExperimentalFeatures] = ExperimentalFeatures()
+    experimental_features: ExperimentalFeatures = ExperimentalFeatures()
 
     metadata_chunk_sections: dict[str, str] = Field(
         default={},
