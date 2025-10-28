@@ -12,11 +12,11 @@ class WeaknessItem(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    title: str = Field(
-        description="Concise title capturing the essence of the weakness"
-    )
     justification: str = Field(
         description="Comprehensive context and analysis explaining why this is a weakness, including disadvantages and challenges"
+    )
+    title: str = Field(
+        description="Concise title capturing the essence of the weakness"
     )
     reference_chunk_ids: list[str] = Field(
         description="Chunk IDs that support this weakness (format: [chunk_x][chunk_y])"

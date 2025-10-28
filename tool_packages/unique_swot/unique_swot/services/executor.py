@@ -171,6 +171,7 @@ class SWOTExecutionManager:
             "Modify function not implemented, Falling back to generation for component: %s",
             component,
         )
+        # TODO: Implement modify function
 
         return await self.run_generation_function(
             component=component,
@@ -252,23 +253,3 @@ class SWOTExecutionManager:
         processed_result = self._citation_manager.process_result(summarized_result)
 
         return processed_result
-
-    # async def get_analysis(
-    #     self, *, component: SWOTComponent, sources: list[Source]
-    # ) -> SWOTExtractionModel:
-    #     extraction_output_model = get_swot_extraction_model(component)
-    #     saved_analysis = self._memory_service.get(extraction_output_model)
-
-    #     # If we have a saved analysis, return it
-    #     if saved_analysis:
-    #         return saved_analysis
-
-    #     # If we don't have a saved analysis, generate a new one
-    #     _LOGGER.warning(
-    #         "No SWOT analysis found in memory for component: %s. Falling back to generation",
-    #         component,
-    #     )
-    #     return await self.run_generation_function(
-    #         component=component,
-    #         sources=sources,
-    #     )

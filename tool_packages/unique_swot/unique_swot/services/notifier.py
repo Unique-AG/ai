@@ -77,6 +77,7 @@ class MessageLogRegistry(BaseModel):
         )
         return self
 
+
 def _calculate_percentage_completed(current_step: float, total_steps: float) -> int:
     return int(current_step / total_steps * 100)
 

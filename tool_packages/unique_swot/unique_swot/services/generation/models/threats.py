@@ -12,10 +12,10 @@ class ThreatItem(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    title: str = Field(description="Concise title capturing the essence of the threat")
     justification: str = Field(
         description="Comprehensive context and analysis explaining why this is a threat, including potential risks and impact"
     )
+    title: str = Field(description="Concise title capturing the essence of the threat")
     reference_chunk_ids: list[str] = Field(
         description="Chunk IDs that support this threat (format: [chunk_x][chunk_y])"
     )

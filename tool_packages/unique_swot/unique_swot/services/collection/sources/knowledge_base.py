@@ -52,7 +52,7 @@ def _convert_content_to_sources(
 
         sources.append(
             Source(
-                type=SourceType.INTERNAL_DOCUMENT,
+                type=SourceType.KNOWLEDGE_BASE,
                 url=url,
                 title=title,
                 chunks=chunks,
@@ -85,7 +85,7 @@ def _get_chunks_from_content(
     chunks = []
     for chunk in sorted(contents[0].chunks, key=lambda x: x.order):
         text = chunk.text
-        chunk_id = chunk_registry.add(chunk)
+        chunk_id = chunk_registry.register_and_generate_id(chunk)
         chunks.append(SourceChunk(id=chunk_id, text=text))
 
     return chunks

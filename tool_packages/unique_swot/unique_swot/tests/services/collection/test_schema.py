@@ -15,14 +15,14 @@ class TestSourceType:
 
     def test_source_type_values(self):
         """Test that SourceType has expected values."""
-        assert SourceType.WEB_SEARCH == "web_search"
-        assert SourceType.INTERNAL_DOCUMENT == "internal_document"
+        assert SourceType.WEB == "web_search"
+        assert SourceType.KNOWLEDGE_BASE == "internal_document"
         assert SourceType.EARNINGS_CALL == "earnings_call"
 
     def test_source_type_from_string(self):
         """Test creating SourceType from string."""
-        assert SourceType("web_search") == SourceType.WEB_SEARCH
-        assert SourceType("internal_document") == SourceType.INTERNAL_DOCUMENT
+        assert SourceType("web_search") == SourceType.WEB
+        assert SourceType("internal_document") == SourceType.KNOWLEDGE_BASE
         assert SourceType("earnings_call") == SourceType.EARNINGS_CALL
 
 
@@ -55,7 +55,7 @@ class TestSource:
     def test_source_creation_internal_document(self):
         """Test creating a Source with internal document type."""
         source = Source(
-            type=SourceType.INTERNAL_DOCUMENT,
+            type=SourceType.KNOWLEDGE_BASE,
             url="https://example.com/doc.pdf",
             title="Internal Report",
             chunks=[
@@ -64,7 +64,7 @@ class TestSource:
             ],
         )
 
-        assert source.type == SourceType.INTERNAL_DOCUMENT
+        assert source.type == SourceType.KNOWLEDGE_BASE
         assert source.url == "https://example.com/doc.pdf"
         assert source.title == "Internal Report"
         assert len(source.chunks) == 2
@@ -72,13 +72,13 @@ class TestSource:
     def test_source_creation_web_search(self):
         """Test creating a Source with web search type."""
         source = Source(
-            type=SourceType.WEB_SEARCH,
+            type=SourceType.WEB,
             url="https://example.com/article",
             title="Web Article",
             chunks=[SourceChunk(id="chunk_1", text="Web content")],
         )
 
-        assert source.type == SourceType.WEB_SEARCH
+        assert source.type == SourceType.WEB
         assert source.url == "https://example.com/article"
 
     def test_source_creation_earnings_call(self):
@@ -95,7 +95,7 @@ class TestSource:
     def test_source_with_no_url(self):
         """Test creating a Source without URL."""
         source = Source(
-            type=SourceType.INTERNAL_DOCUMENT,
+            type=SourceType.KNOWLEDGE_BASE,
             url=None,
             title="Local Document",
             chunks=[SourceChunk(id="chunk_1", text="Content")],
@@ -107,7 +107,7 @@ class TestSource:
     def test_source_with_empty_chunks(self):
         """Test creating a Source with empty chunks list."""
         source = Source(
-            type=SourceType.WEB_SEARCH,
+            type=SourceType.WEB,
             url="https://example.com",
             title="Empty Source",
             chunks=[],
@@ -128,7 +128,7 @@ class TestSource:
     def test_source_serialization(self):
         """Test Source serialization."""
         source = Source(
-            type=SourceType.INTERNAL_DOCUMENT,
+            type=SourceType.KNOWLEDGE_BASE,
             url="https://example.com/doc",
             title="Test Doc",
             chunks=[SourceChunk(id="chunk_1", text="Content")],
@@ -150,7 +150,7 @@ class TestSource:
         chunks = [SourceChunk(id=f"chunk_{i}", text=f"Content {i}") for i in range(10)]
 
         source = Source(
-            type=SourceType.WEB_SEARCH,
+            type=SourceType.WEB,
             url="https://example.com",
             title="Multi-chunk Source",
             chunks=chunks,

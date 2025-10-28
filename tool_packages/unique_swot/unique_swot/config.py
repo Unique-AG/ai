@@ -14,7 +14,7 @@ If the user simply says RUN, It means that he expects the tool to generate a new
 
 class SwotAnalysisToolConfig(BaseToolConfig):
     cache_scope_id: str = Field(
-        default="swot_analysis",
+        default="scope_id",
         description="The scope id for the SWOT analysis cache.",
     )
     report_generation_config: ReportGenerationConfig = Field(
@@ -30,18 +30,18 @@ class SwotAnalysisToolConfig(BaseToolConfig):
         description="The system prompt for the SWOT analysis tool.",
     )
     tool_format_information_for_system_prompt: str = Field(
-        default=TOOL_DESCRIPTION,
+        default="",
         description="The format information for the SWOT analysis tool.",
     )
     tool_description_for_user_prompt: str = Field(
-        default="The user prompt for the SWOT analysis tool.",
+        default="",
         description="The user prompt for the SWOT analysis tool.",
     )
     tool_format_information_for_user_prompt: str = Field(
-        default=TOOL_DESCRIPTION,
+        default="",
         description="The format information for the SWOT analysis tool.",
     )
     tool_format_reminder_for_user_prompt: str = Field(
-        default="The format reminder for the SWOT analysis tool.",
+        default="",
         description="The format reminder for the SWOT analysis tool.",
     )

@@ -35,7 +35,7 @@ class ContentChunkRegistry:
     def save(self):
         self._memory_service.set(self._store)
 
-    def add(self, item: ContentChunk) -> str:
+    def register_and_generate_id(self, item: ContentChunk) -> str:
         """Add an item and return its unique ID."""
         id = self._generate_unique_id()
         self._store.items[id] = item

@@ -1,3 +1,5 @@
+from logging import getLogger
+
 from typing_extensions import override
 from unique_toolkit import ShortTermMemoryService
 from unique_toolkit.agentic.tools.factory import ToolFactory
@@ -25,13 +27,15 @@ from unique_swot.services.notifier import ProgressNotifier
 from unique_swot.services.report import REPORT_TEMPLATE
 from unique_swot.services.schemas import SWOTPlan
 
+_LOGGER = getLogger(__name__)
+
 
 class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
     name = "SwotAnalysis"
 
     def __init__(self, configuration: SwotAnalysisToolConfig, *args, **kwargs):
         super().__init__(configuration, *args, **kwargs)
-        
+
         metadata_filter = self._event.payload.metadata_filter
 
         self._knowledge_base_service = KnowledgeBaseService.from_event(self._event)
@@ -58,7 +62,7 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
             memory_service=self._memory_service
         )
 
-        self.source_collection_manager = SourceCollectionManager(
+        self._source_collection_manager = SourceCollectionManager(
             context=CollectionContext(
                 use_earnings_calls=False,
                 use_web_sources=False,
@@ -114,15 +118,13 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
 
         self._notifier.start_progress(number_of_executions)
 
-        self.logger.info(f"Running SWOT plan: {plan.model_dump_json(indent=2)}")
-
         # Get Sources
-        sources = self.source_collection_manager.collect_sources()
+        sources = self._source_collection_manager.collect_sources()
 
-        self.logger.info(f"Collected {len(sources)} sources!")
+        _LOGGER.info(f"Collected {len(sources)} sources!")
 
         total_steps = self._calculate_total_steps(plan, len(sources))
-        self.logger.info(f"Total steps: {total_steps}")
+        _LOGGER.info(f"Total steps: {total_steps}")
         try:
             executor = SWOTExecutionManager(
                 configuration=self.config.report_generation_config,
@@ -149,7 +151,7 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
             )
         except Exception as e:
             self._notifier.end_progress(success=False)
-            self.logger.exception(f"Error running SWOT plan: {e}")
+            _LOGGER.exception(f"Error running SWOT plan: {e}")
             return ToolCallResponse(
                 id=tool_call.id,  # type: ignore
                 name=self.name,

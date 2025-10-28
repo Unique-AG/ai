@@ -94,7 +94,7 @@ async def extract_swot_from_sources(
             notifier.update_progress(
                 step_precentage_increment=step_precentage_increment
             )
-            
+
         notifier.notify(
             notification_title=notification_title,
             status=MessageLogStatus.COMPLETED,
@@ -129,8 +129,7 @@ async def summarize_swot_extraction(
         extraction_output_model=context.extraction_results,
     )
     notifier.notify(
-        notification_title=notification_title,
-        status=MessageLogStatus.COMPLETED
+        notification_title=notification_title, status=MessageLogStatus.COMPLETED
     )
     return summary
 

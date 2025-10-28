@@ -67,7 +67,7 @@ def sample_content_chunk():
 def sample_source():
     """Create a sample Source for testing."""
     return Source(
-        type=SourceType.INTERNAL_DOCUMENT,
+        type=SourceType.KNOWLEDGE_BASE,
         url="https://example.com/doc",
         title="Test Source",
         chunks=[
@@ -83,7 +83,7 @@ def sample_sources(sample_source):
     return [
         sample_source,
         Source(
-            type=SourceType.WEB_SEARCH,
+            type=SourceType.WEB,
             url="https://example.com/web",
             title="Web Source",
             chunks=[

@@ -145,7 +145,7 @@ class TestSwotTool:
             mock_executor_class.return_value = mock_executor
 
             # Mock the source collection
-            tool.source_collection_manager.collect_sources = Mock(return_value=[])
+            tool._source_collection_manager.collect_sources = Mock(return_value=[])
 
             # Mock citation manager
             tool._citation_manager.get_references = Mock(return_value=[])

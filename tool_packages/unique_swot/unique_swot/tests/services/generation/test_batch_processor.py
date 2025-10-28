@@ -24,7 +24,7 @@ class TestSplitContextIntoBatches:
         """Test splitting a single source with one small chunk."""
         sources = [
             Source(
-                type=SourceType.INTERNAL_DOCUMENT,
+                type=SourceType.KNOWLEDGE_BASE,
                 url="https://example.com",
                 title="Test Source",
                 chunks=[SourceChunk(id="chunk_1", text="Short content.")],
@@ -49,7 +49,7 @@ class TestSplitContextIntoBatches:
         ]
         sources = [
             Source(
-                type=SourceType.INTERNAL_DOCUMENT,
+                type=SourceType.KNOWLEDGE_BASE,
                 url="https://example.com",
                 title="Test Source",
                 chunks=chunks,
@@ -71,7 +71,7 @@ class TestSplitContextIntoBatches:
         chunks = [SourceChunk(id=f"chunk_{i}", text="Short text.") for i in range(10)]
         sources = [
             Source(
-                type=SourceType.INTERNAL_DOCUMENT,
+                type=SourceType.KNOWLEDGE_BASE,
                 url="https://example.com",
                 title="Test Source",
                 chunks=chunks,
@@ -93,13 +93,13 @@ class TestSplitContextIntoBatches:
         """Test splitting multiple sources."""
         sources = [
             Source(
-                type=SourceType.INTERNAL_DOCUMENT,
+                type=SourceType.KNOWLEDGE_BASE,
                 url="https://example.com/1",
                 title="Source 1",
                 chunks=[SourceChunk(id="chunk_1", text="Content 1.")],
             ),
             Source(
-                type=SourceType.WEB_SEARCH,
+                type=SourceType.WEB,
                 url="https://example.com/2",
                 title="Source 2",
                 chunks=[SourceChunk(id="chunk_2", text="Content 2.")],
@@ -130,7 +130,7 @@ class TestSplitContextIntoBatches:
         """Test splitting a source with no chunks."""
         sources = [
             Source(
-                type=SourceType.INTERNAL_DOCUMENT,
+                type=SourceType.KNOWLEDGE_BASE,
                 url="https://example.com",
                 title="Empty Source",
                 chunks=[],

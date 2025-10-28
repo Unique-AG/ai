@@ -12,11 +12,11 @@ class StrengthItem(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    title: str = Field(
-        description="Concise title capturing the essence of the strength"
-    )
     justification: str = Field(
         description="Comprehensive context and analysis explaining why this is a strength, including competitive advantages and benefits"
+    )
+    title: str = Field(
+        description="Concise title capturing the essence of the strength"
     )
     reference_chunk_ids: list[str] = Field(
         description="Chunk IDs that support this strength (format: [chunk_x][chunk_y])"

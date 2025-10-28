@@ -50,19 +50,19 @@ class SourceCollectionManager:
                 text=self._get_message_log_event_text(),
             ),
         )
-        sources = self.collect_internal_documents(
+        sources = self._collect_internal_documents(
             metadata_filter=self._context.metadata_filter,
             chunk_registry=self._content_chunk_registry,
         )
 
         sources.extend(
-            self.collect_earnings_calls(
+            self._collect_earnings_calls(
                 use_earnings_calls=self._context.use_earnings_calls,
                 chunk_registry=self._content_chunk_registry,
             )
         )
         sources.extend(
-            self.collect_web_sources(
+            self._collect_web_sources(
                 use_web_sources=self._context.use_web_sources,
                 chunk_registry=self._content_chunk_registry,
             )
@@ -83,7 +83,7 @@ class SourceCollectionManager:
 
         return sources
 
-    def collect_earnings_calls(
+    def _collect_earnings_calls(
         self, *, use_earnings_calls: bool, chunk_registry: ContentChunkRegistry
     ) -> list[Source]:
         if not use_earnings_calls:
@@ -92,7 +92,7 @@ class SourceCollectionManager:
         _LOGGER.info("Collecting earnings calls!")
         return collect_earnings_calls()
 
-    def collect_web_sources(
+    def _collect_web_sources(
         self, *, use_web_sources: bool, chunk_registry: ContentChunkRegistry
     ) -> list[Source]:
         if not use_web_sources:
@@ -101,7 +101,7 @@ class SourceCollectionManager:
         _LOGGER.info("Collecting web sources!")
         return collect_web_sources()
 
-    def collect_internal_documents(
+    def _collect_internal_documents(
         self, *, metadata_filter: dict | None, chunk_registry: ContentChunkRegistry
     ) -> list[Source]:
         if metadata_filter is None:
@@ -110,7 +110,7 @@ class SourceCollectionManager:
             )
             return []
         _LOGGER.info("Collecting internal documents!")
-        _LOGGER.info(f"Metadata filter: {metadata_filter}")
+
         return collect_knowledge_base(
             knowledge_base_service=self._knowledge_base_service,
             metadata_filter=metadata_filter,

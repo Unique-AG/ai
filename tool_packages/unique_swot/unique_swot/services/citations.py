@@ -65,9 +65,9 @@ def _convert_content_chunk_to_content_reference(
     )
 
 
-def _get_pages(strat_page: int | None, end_page: int | None) -> str:
-    if strat_page is None:
+def _get_pages(start_page: int | None, end_page: int | None) -> str:
+    if start_page is None:
         return ""
     if end_page is None:
-        return f": {strat_page}"
-    return f": {strat_page}, {end_page}"
+        return f": {start_page}"
+    return f": {start_page}, {end_page}"

@@ -6,8 +6,8 @@ from pydantic import BaseModel
 class SourceType(StrEnum):
     """Enumeration of supported data source types for SWOT analysis."""
 
-    WEB_SEARCH = "web_search"
-    INTERNAL_DOCUMENT = "internal_document"
+    WEB = "web"
+    KNOWLEDGE_BASE = "knowledge_base"
     EARNINGS_CALL = "earnings_call"
 
 

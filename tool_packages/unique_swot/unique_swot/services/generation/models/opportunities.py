@@ -9,10 +9,10 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class OpportunityItem(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    title: str = Field(description="The title of the opportunity")
     justification: str = Field(
         description="A comprehensive context and analysis of the opportunity, explaining why it is significant."
     )
+    title: str = Field(description="The title of the opportunity")
     reference_chunk_ids: list[str] = Field(
         description="The chunk IDs of the references that support the opportunity"
     )
