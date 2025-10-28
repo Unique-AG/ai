@@ -231,7 +231,9 @@ def _prepare_base_url(url: str, use_v1: bool) -> str:
 
 
 def _get_openai_client_from_env(
-    config: UniqueAIConfig, use_v1: bool = False
+    config: UniqueAIConfig,
+    use_v1: bool = False,
+    additional_headers: dict[str, str] | None = None,
 ) -> AsyncOpenAI:
     use_direct_azure_client = (
         config.agent.experimental.responses_api_config.use_direct_azure_client
@@ -244,12 +246,19 @@ def _get_openai_client_from_env(
         return AsyncOpenAI(
             api_key=os.environ[api_key_env_var],
             base_url=_prepare_base_url(os.environ[api_base_env_var], use_v1=use_v1),
+            default_headers=additional_headers,
         )
     else:
-        return get_async_openai_client().copy(
-            default_headers={
-                "x-model": config.space.language_model.name
-            }  # Backend requires a model name
+        if additional_headers is None:
+            additional_headers = {}
+
+        additional_headers.update(
+            {
+                "x-model": config.space.language_model.name,
+            }
+        )
+        return get_async_openai_client(
+            additional_headers=additional_headers,
         )
 
 
@@ -260,7 +269,15 @@ async def _build_responses(
     common_components: _CommonComponents,
     debug_info_manager: DebugInfoManager,
 ) -> UniqueAIResponsesApi:
-    client = _get_openai_client_from_env(config, use_v1=True)
+    client = _get_openai_client_from_env(
+        config,
+        use_v1=True,
+        additional_headers={
+            "x-assistant-id": event.payload.assistant_message.id,
+            "x-chat-id": event.payload.chat_id,
+        },
+    )
+
     code_interpreter_config = (
         config.agent.experimental.responses_api_config.code_interpreter
     )
