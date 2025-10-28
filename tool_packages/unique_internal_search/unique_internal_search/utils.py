@@ -1,7 +1,8 @@
 import logging
+import re
+
 from pydantic import BaseModel
 from unique_toolkit.content.schemas import ContentChunk
-import re
 
 
 _LOGGER = logging.getLogger(__name__)

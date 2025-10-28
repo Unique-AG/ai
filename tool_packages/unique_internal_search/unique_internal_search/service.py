@@ -30,9 +30,9 @@ from unique_toolkit.language_model.schemas import (
 
 from unique_internal_search.config import InternalSearchConfig
 from unique_internal_search.utils import (
-    interleave_search_results_round_robin,
     SearchStringResult,
     clean_search_string,
+    interleave_search_results_round_robin,
 )
 
 
