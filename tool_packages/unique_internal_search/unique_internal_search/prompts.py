@@ -99,5 +99,7 @@ DEFAULT_TOOL_DESCRIPTION = (
     "Search in the company knowledge base for information on policies, procedures, benefits, groups, financial information or specific people. "
     "This should be your go-to tool if no other tools are applicable."
 )
-DEFAULT_SEARCH_STRING_PARAM_DESCRIPTION = "Search queries, each representing a different information need."
+DEFAULT_SEARCH_STRING_PARAM_DESCRIPTION = (
+    "Search queries, each representing a different information need."
+)
 DEFAULT_LANGUAGE_PARAM_DESCRIPTION = "The language that the user wrote the query in"

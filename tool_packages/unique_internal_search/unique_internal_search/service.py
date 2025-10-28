@@ -139,7 +139,9 @@ class InternalSearchService:
                     search_language=self.config.search_language,
                     scope_ids=self.config.scope_ids,
                     metadata_filter=metadata_filter,
-                    chat_id=self.chat_id if self.config.exclude_uploaded_files and self.chat_id else "",
+                    chat_id=self.chat_id
+                    if self.config.exclude_uploaded_files and self.chat_id
+                    else "",
                     chat_only=chat_only,
                     content_ids=content_ids,
                     score_threshold=self.config.score_threshold,
