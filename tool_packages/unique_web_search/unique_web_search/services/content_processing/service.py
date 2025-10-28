@@ -40,6 +40,12 @@ class ContentProcessor:
         self.encoder_name = language_model.encoder_name or DEFAULT_ENCODER_MODEL
         self.chunk_size = 1000  # Default chunk size
         self.chunking_max_workers = 10  # Default max workers
+        self.client = get_async_openai_client(
+            additional_headers={
+                "x-assistant-id": event.payload.assistant_message.id,
+                "x-chat-id": event.payload.chat_id,
+            }
+        )
 
     async def run(self, query: str, pages: list[WebSearchResult]) -> list[WebPageChunk]:
         """
@@ -116,14 +122,13 @@ class ContentProcessor:
         )
         token_count = len(encoder.encode(content))
 
-        client = get_async_openai_client()
         logger.info(f"Summarizing webpage ({page.url}) with {token_count} tokens")
 
         messages: list[ChatCompletionMessageParam] = [
             {"role": "system", "content": self.config.summarization_prompt},
             {"role": "user", "content": f"Query: {query}\nWebpage: {content}".strip()},
         ]
-        response = await client.chat.completions.create(
+        response = await self.client.chat.completions.create(
             model=self.config.language_model.name,
             messages=messages,
             max_tokens=1000,
