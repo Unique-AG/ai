@@ -20,6 +20,7 @@ from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.short_term_memory_manager.persistent_short_term_memory_manager import (
     PersistentShortMemoryManager,
 )
+from unique_toolkit.agentic.tools.agent_chunks_hanlder import AgentChunksHandler
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
@@ -71,10 +72,6 @@ class DeepResearchToolInput(BaseModel):
         description="Whether to start research",
         default=False,
     )
-
-
-class DeepResearchToolResponse(ToolCallResponse):
-    content: str | None = None
 
 
 class MemorySchema(BaseModel):
@@ -215,7 +212,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                 content="Deep Research failed to complete for an unknown reason",
                 set_completed_at=True,
             )
-        return DeepResearchToolResponse(
+        return ToolCallResponse(
             id=tool_call.id or "",
             name=self.name,
             content="Failed to complete research",
@@ -235,7 +232,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                 message_id=self.event.payload.assistant_message.id,
                 type=MessageExecutionType.DEEP_RESEARCH,
             )
-            return DeepResearchToolResponse(
+            return ToolCallResponse(
                 id=tool_call.id or "",
                 name=self.name,
                 content="",
@@ -259,7 +256,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                     content="Deep Research failed to complete for an unknown reason",
                     set_completed_at=True,
                 )
-                return DeepResearchToolResponse(
+                return ToolCallResponse(
                     id=tool_call.id or "",
                     name=self.name,
                     content=processed_result or "Failed to complete research",
@@ -273,7 +270,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             await self._update_execution_status(MessageExecutionUpdateStatus.COMPLETED)
 
             # Return the results
-            return DeepResearchToolResponse(
+            return ToolCallResponse(
                 id=tool_call.id or "",
                 name=self.name,
                 content=processed_result,
@@ -289,7 +286,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         await self.memory_service.save_async(
             MemorySchema(message_id=self.event.payload.assistant_message.id),
         )
-        return DeepResearchToolResponse(
+        return ToolCallResponse(
             id=tool_call.id or "",
             name=self.name,
             content=followup_question_message,
@@ -783,9 +780,9 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
 
     def get_tool_call_result_for_loop_history(
         self,
-        tool_response: DeepResearchToolResponse,
-        agent_chunks_handler=None,
-    ) -> LanguageModelMessage:
+        tool_response: ToolCallResponse,
+        agent_chunks_handler: AgentChunksHandler | None = None,
+    ) -> LanguageModelToolMessage:
         """
         Process the results of the tool.
 
@@ -796,6 +793,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         Returns:
             The tool result to append to the loop history.
         """
+
         self.logger.debug(
             f"Appending tool call result to history: {tool_response.name}"
         )

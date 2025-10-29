@@ -27,6 +27,7 @@ langchain = "^0.3.0"
 langchain-core = "^0.3.0"
 unique-web-search = "^1.0.0"
 langchain-openai = "^0.3.32"
+tiktoken = "^0.7.0"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -35,6 +36,7 @@ unique-toolkit = { path = "../../unique_toolkit" }
 unique-web-search = { path = "../unique_web_search" }
 ruff = "^0.12.10"
 opik = "^1.8.42"
+pytest-cov = "^7.0.0"
 
 
 [build-system]
