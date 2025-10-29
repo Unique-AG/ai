@@ -172,8 +172,8 @@ def mock_language_model_function_list() -> list[LanguageModelFunction]:
 class TestForcedToolOption:
     """Test suite for ForcedToolOption class."""
 
-    @pytest.mark.ai
-    def test_init__sets_name_and_type__with_valid_name_AI(self) -> None:
+
+    def test_init__sets_name_and_type__with_valid_name(self) -> None:
         """
         Purpose: Verify ForcedToolOption initializes with correct name and type.
         Why this matters: ForcedToolOption is used to force tool selection in the agent.
@@ -193,8 +193,8 @@ class TestForcedToolOption:
 class TestToolManagerConfig:
     """Test suite for ToolManagerConfig Pydantic model."""
 
-    @pytest.mark.ai
-    def test_default_values__creates_config__with_empty_tools_AI(self) -> None:
+
+    def test_default_values__creates_config__with_empty_tools(self) -> None:
         """
         Purpose: Verify ToolManagerConfig uses default values when not provided.
         Why this matters: Default configuration should work without explicit parameters.
@@ -207,8 +207,8 @@ class TestToolManagerConfig:
         assert config.tools == []
         assert config.max_tool_calls == 10
 
-    @pytest.mark.ai
-    def test_custom_values__creates_config__with_provided_values_AI(
+
+    def test_custom_values__creates_config__with_provided_values(
         self, mock_tool_build_config: ToolBuildConfig
     ) -> None:
         """
@@ -227,8 +227,8 @@ class TestToolManagerConfig:
         assert config.tools[0] == mock_tool_build_config
         assert config.max_tool_calls == 5
 
-    @pytest.mark.ai
-    def test_validation__raises_error__with_invalid_max_tool_calls_AI(self) -> None:
+
+    def test_validation__raises_error__with_invalid_max_tool_calls(self) -> None:
         """
         Purpose: Verify ToolManagerConfig validates max_tool_calls >= 1.
         Why this matters: Invalid configuration should be caught early to prevent runtime errors.
@@ -245,8 +245,8 @@ class TestToolManagerConfig:
 class TestBaseToolManager:
     """Test suite for BaseToolManager abstract base class."""
 
-    @pytest.mark.ai
-    def test_init__initializes_state__with_config_AI(
+
+    def test_init__initializes_state__with_config(
         self, tool_manager_config: ToolManagerConfig
     ) -> None:
         """
@@ -272,8 +272,8 @@ class TestBaseToolManager:
         assert manager._config == tool_manager_config
         assert manager._tool_evaluation_check_list == set()
 
-    @pytest.mark.ai
-    def test_does_a_tool_take_control__returns_true__when_tool_takes_control_AI(
+
+    def test_does_a_tool_take_control__returns_true__when_tool_takes_control(
         self, tool_manager_config: ToolManagerConfig
     ) -> None:
         """
@@ -306,8 +306,8 @@ class TestBaseToolManager:
         # Assert
         assert result is True
 
-    @pytest.mark.ai
-    def test_does_a_tool_take_control__returns_false__when_no_tool_takes_control_AI(
+
+    def test_does_a_tool_take_control__returns_false__when_no_tool_takes_control(
         self, tool_manager_config: ToolManagerConfig
     ) -> None:
         """
@@ -338,8 +338,8 @@ class TestBaseToolManager:
         # Assert
         assert result is False
 
-    @pytest.mark.ai
-    def test_filter_duplicate_tool_calls__removes_duplicates__with_identical_calls_AI(
+
+    def test_filter_duplicate_tool_calls__removes_duplicates__with_identical_calls(
         self, tool_manager_config: ToolManagerConfig
     ) -> None:
         """
@@ -374,8 +374,8 @@ class TestBaseToolManager:
         # Assert
         assert len(unique_calls) == 2
 
-    @pytest.mark.ai
-    def test_get_evaluation_check_list__returns_list__from_set_AI(
+
+    def test_get_evaluation_check_list__returns_list__from_set(
         self, tool_manager_config: ToolManagerConfig
     ) -> None:
         """
@@ -415,8 +415,8 @@ class TestBaseToolManager:
 class TestToolManager:
     """Test suite for ToolManager concrete implementation."""
 
-    @pytest.mark.ai
-    def test_init__initializes_tools__with_empty_config_AI(
+
+    def test_init__initializes_tools__with_empty_config(
         self,
         mock_logger: Logger,
         tool_manager_config: ToolManagerConfig,
@@ -449,8 +449,8 @@ class TestToolManager:
         assert manager._tool_choices == []
         assert manager._disabled_tools == []
 
-    @pytest.mark.ai
-    def test_init__filters_disabled_tools__with_disabled_list_AI(
+
+    def test_init__filters_disabled_tools__with_disabled_list(
         self,
         mock_logger: Logger,
         tool_manager_config_with_tools: ToolManagerConfig,
@@ -491,8 +491,8 @@ class TestToolManager:
         assert "test_tool" in manager._disabled_tools
         assert len(manager._tools) == 0
 
-    @pytest.mark.ai
-    def test_init__only_loads_chosen_tools__with_tool_choices_AI(
+
+    def test_init__only_loads_chosen_tools__with_tool_choices(
         self,
         mock_logger: Logger,
         tool_manager_config_with_tools: ToolManagerConfig,
@@ -532,8 +532,8 @@ class TestToolManager:
         assert len(manager._tools) == 1
         assert manager._tools[0].name == "test_tool"
 
-    @pytest.mark.ai
-    def test_get_tool_by_name__returns_tool__when_exists_AI(
+
+    def test_get_tool_by_name__returns_tool__when_exists(
         self,
         mock_logger: Logger,
         tool_manager_config_with_tools: ToolManagerConfig,
@@ -573,8 +573,8 @@ class TestToolManager:
         assert result is not None
         assert result.name == "test_tool"
 
-    @pytest.mark.ai
-    def test_get_tool_by_name__returns_none__when_not_exists_AI(
+
+    def test_get_tool_by_name__returns_none__when_not_exists(
         self,
         mock_logger: Logger,
         tool_manager_config: ToolManagerConfig,
@@ -607,9 +607,9 @@ class TestToolManager:
         # Assert
         assert result is None
 
-    @pytest.mark.ai
+
     @pytest.mark.asyncio
-    async def test_execute_tool_call__returns_response__for_valid_tool_AI(
+    async def test_execute_tool_call__returns_response__for_valid_tool(
         self,
         mock_logger: Logger,
         tool_manager_config_with_tools: ToolManagerConfig,
@@ -660,9 +660,9 @@ class TestToolManager:
         assert response.name == "test_tool"
         assert response.content == "Test response"
 
-    @pytest.mark.ai
+
     @pytest.mark.asyncio
-    async def test_execute_tool_call__returns_error__for_missing_tool_AI(
+    async def test_execute_tool_call__returns_error__for_missing_tool(
         self,
         mock_logger: Logger,
         tool_manager_config: ToolManagerConfig,
@@ -701,9 +701,9 @@ class TestToolManager:
         assert response.name == "nonexistent_tool"
         assert "not found" in response.error_message
 
-    @pytest.mark.ai
+
     @pytest.mark.asyncio
-    async def test_execute_selected_tools__limits_calls__when_exceeds_max_AI(
+    async def test_execute_selected_tools__limits_calls__when_exceeds_max(
         self,
         mock_logger: Logger,
         tool_manager_config: ToolManagerConfig,
@@ -747,8 +747,8 @@ class TestToolManager:
         # Assert
         assert len(responses) == 2
 
-    @pytest.mark.ai
-    def test_get_tool_definitions__returns_descriptions__for_all_tools_AI(
+
+    def test_get_tool_definitions__returns_descriptions__for_all_tools(
         self,
         mock_logger: Logger,
         tool_manager_config_with_tools: ToolManagerConfig,
@@ -791,8 +791,8 @@ class TestToolManager:
         assert len(definitions) == 1
         assert definitions[0] == mock_description
 
-    @pytest.mark.ai
-    def test_add_forced_tool__adds_to_choices__when_tool_exists_AI(
+
+    def test_add_forced_tool__adds_to_choices__when_tool_exists(
         self,
         mock_logger: Logger,
         tool_manager_config_with_tools: ToolManagerConfig,
@@ -831,8 +831,8 @@ class TestToolManager:
         # Assert
         assert "test_tool" in manager._tool_choices
 
-    @pytest.mark.ai
-    def test_add_forced_tool__raises_error__when_tool_not_found_AI(
+
+    def test_add_forced_tool__raises_error__when_tool_not_found(
         self,
         mock_logger: Logger,
         tool_manager_config: ToolManagerConfig,
@@ -870,9 +870,9 @@ class TestToolManager:
 class TestResponsesApiToolManager:
     """Test suite for ResponsesApiToolManager."""
 
-    @pytest.mark.ai
+
     @pytest.mark.asyncio
-    async def test_build_manager__creates_instance__with_dependencies_AI(
+    async def test_build_manager__creates_instance__with_dependencies(
         self,
         mock_logger: Logger,
         tool_manager_config: ToolManagerConfig,
@@ -910,8 +910,8 @@ class TestResponsesApiToolManager:
         assert isinstance(manager, ResponsesApiToolManager)
         assert manager._config == tool_manager_config
 
-    @pytest.mark.ai
-    def test_get_tool_definitions__excludes_builtin__with_tool_choices_AI(
+
+    def test_get_tool_definitions__excludes_builtin__with_tool_choices(
         self,
         mock_logger: Logger,
         tool_manager_config: ToolManagerConfig,
@@ -951,8 +951,8 @@ class TestResponsesApiToolManager:
         assert len(definitions) == 1
         assert definitions[0] == mock_description
 
-    @pytest.mark.ai
-    def test_get_tool_definitions__includes_builtin__without_tool_choices_AI(
+
+    def test_get_tool_definitions__includes_builtin__without_tool_choices(
         self,
         mock_logger: Logger,
         tool_manager_config: ToolManagerConfig,
