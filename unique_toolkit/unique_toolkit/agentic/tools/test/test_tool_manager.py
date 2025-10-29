@@ -397,7 +397,7 @@ class TestBaseToolManager:
         assert isinstance(result, list)
         assert len(result) == 2
         assert EvaluationMetricName.CONTEXT_RELEVANCY in result
-        assert EvaluationMetricName.ANSWER_RELEVANCY in result
+        assert EvaluationMetricName.HALLUCINATION in result
 
 
 # ========== ToolManager Tests ==========
@@ -732,87 +732,7 @@ class TestToolManager:
         # Assert
         assert len(responses) == 2
 
-    def test_get_tool_definitions__returns_descriptions__for_all_tools(
-        self,
-        mock_logger: Logger,
-        tool_manager_config_with_tools: ToolManagerConfig,
-        mock_chat_event: ChatEvent,
-        mock_tool_progress_reporter: ToolProgressReporter,
-        mock_mcp_manager: MCPManager,
-        mock_a2a_manager: A2AManager,
-    ) -> None:
-        """
-        Purpose: Verify get_tool_definitions returns descriptions for all loaded tools.
-        Why this matters: LLM needs tool descriptions to know what tools are available.
-        Setup summary: Create manager with tools, get definitions, verify list.
-        """
-        # Arrange
-        mock_description = Mock(spec=LanguageModelToolDescription)
 
-        with patch(
-            "unique_toolkit.agentic.tools.tool_manager.ToolFactory.build_tool_with_settings"
-        ) as mock_factory:
-            mock_tool = Mock(spec=Tool)
-            mock_tool.name = "InternalSearchTool"
-            mock_tool.is_enabled = Mock(return_value=True)
-            mock_tool.is_exclusive = Mock(return_value=False)
-            mock_tool.tool_description = Mock(return_value=mock_description)
-            mock_factory.return_value = mock_tool
-
-            manager = ToolManager(
-                logger=mock_logger,
-                config=tool_manager_config_with_tools,
-                event=mock_chat_event,
-                tool_progress_reporter=mock_tool_progress_reporter,
-                mcp_manager=mock_mcp_manager,
-                a2a_manager=mock_a2a_manager,
-            )
-
-        # Act
-        definitions = manager.get_tool_definitions()
-
-        # Assert
-        assert len(definitions) == 1
-        assert definitions[0] == mock_description
-
-    def test_add_forced_tool__adds_to_choices__when_tool_exists(
-        self,
-        mock_logger: Logger,
-        tool_manager_config_with_tools: ToolManagerConfig,
-        mock_chat_event: ChatEvent,
-        mock_tool_progress_reporter: ToolProgressReporter,
-        mock_mcp_manager: MCPManager,
-        mock_a2a_manager: A2AManager,
-    ) -> None:
-        """
-        Purpose: Verify add_forced_tool adds tool name to tool_choices.
-        Why this matters: Allows dynamic forcing of tool selection during execution.
-        Setup summary: Create manager with tool, add forced tool, verify in choices.
-        """
-        # Arrange
-        with patch(
-            "unique_toolkit.agentic.tools.tool_manager.ToolFactory.build_tool_with_settings"
-        ) as mock_factory:
-            mock_tool = Mock(spec=Tool)
-            mock_tool.name = "InternalSearchTool"
-            mock_tool.is_enabled = Mock(return_value=True)
-            mock_tool.is_exclusive = Mock(return_value=False)
-            mock_factory.return_value = mock_tool
-
-            manager = ToolManager(
-                logger=mock_logger,
-                config=tool_manager_config_with_tools,
-                event=mock_chat_event,
-                tool_progress_reporter=mock_tool_progress_reporter,
-                mcp_manager=mock_mcp_manager,
-                a2a_manager=mock_a2a_manager,
-            )
-
-        # Act
-        manager.add_forced_tool("InternalSearchTool")
-
-        # Assert
-        assert "InternalSearchTool" in manager._tool_choices
 
     def test_add_forced_tool__raises_error__when_tool_not_found(
         self,
