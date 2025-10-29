@@ -231,9 +231,6 @@ async def main(max_concurrent: int = 1, limit: int | None = None):
     logger.info("=" * 80)
     logger.info(f"Processing {len(remaining)} remaining queries")
     logger.info(f"Concurrency: {max_concurrent} parallel tasks")
-    logger.info(
-        f"⚠️  Estimated time: ~{12 / max_concurrent:.1f}-{17 / max_concurrent:.1f} hours | Cost: ~$200-500"
-    )
     logger.info("=" * 80)
 
     # Process with concurrency control
