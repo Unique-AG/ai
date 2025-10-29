@@ -213,7 +213,6 @@ class TestHistoryManager:
         assert len(history_manager._loop_history) == 1
         message = history_manager._loop_history[0]
         assert isinstance(message, LanguageModelToolMessage)
-        assert "" == message.content
         assert "Tool execution failed" == message.content
         assert message.tool_call_id == "tool_2"
         assert message.name == "failed_tool"
