@@ -35,6 +35,10 @@ def _append_metadata_in_chunk(
     Returns:
         Formatted text with metadata prepended
     """
+
+    if chunk.metadata is None:
+        return chunk
+
     meta_dict = chunk.metadata.model_dump(exclude_none=True, by_alias=True)
 
     parts: list[str] = []

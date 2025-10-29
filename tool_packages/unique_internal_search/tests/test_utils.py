@@ -235,6 +235,7 @@ class TestAppendMetadataInChunk:
         assert result.title == "Test Title"
         assert result.start_page == 10
         assert result.end_page == 15
+        assert result.metadata is not None
         assert result.metadata.key == "doc.pdf"
 
     def test_append_metadata_with_empty_sections(self):
