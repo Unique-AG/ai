@@ -5,7 +5,6 @@ import pytest
 from unique_toolkit._common.chunk_relevancy_sorter.exception import (
     ChunkRelevancySorterException,
 )
-from unique_toolkit.agentic.tools.agent_chunks_hanlder import AgentChunksHandler
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.content.service import ContentService
@@ -1548,58 +1547,3 @@ class TestInternalSearchTool:
             # Since we can't easily check the exact state value due to ProgressState enum,
             # verify that multiple calls were made (at least one should be FINISHED)
             assert mock_tool_progress_reporter.notify_from_tool_call.call_count >= 2
-
-    @pytest.mark.ai
-    def test_get_tool_call_result_for_loop_history__raises_not_implemented_error(
-        self,
-        base_internal_search_config: InternalSearchConfig,
-        mock_chat_event: Any,
-        mock_logger: Any,
-        mock_tool_call_response: ToolCallResponse,
-        mock_agent_chunks_handler: AgentChunksHandler,
-        sample_content_chunks: list[ContentChunk],
-    ) -> None:
-        """
-        Purpose: Verify get_tool_call_result_for_loop_history raises NotImplementedError.
-        Why this matters: Method is deprecated and not implemented, should raise error when called.
-        Setup summary: Create tool, call method, verify NotImplementedError is raised.
-        """
-        # Arrange
-        mock_tool_call_response.content_chunks = sample_content_chunks
-        mock_tool_call_response.id = "response_123"
-        mock_tool_call_response.name = "InternalSearch"
-        setattr(mock_agent_chunks_handler, "chunks", [])
-
-        with (
-            patch(
-                "unique_internal_search.service.ContentService"
-            ) as mock_content_service_class,
-            patch(
-                "unique_internal_search.service.ChunkRelevancySorter"
-            ) as mock_sorter_class,
-        ):
-            mock_content_service = Mock(spec=ContentService)
-            mock_content_service._metadata_filter = None
-            mock_content_service_class.from_event.return_value = mock_content_service
-            mock_sorter_class.from_event.return_value = Mock()
-
-            def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set _event attribute that Tool base class expects
-                setattr(self, "_event", event)
-                setattr(self, "logger", mock_logger)
-
-            with patch("unique_internal_search.service.Tool.__init__", setup_tool):
-                tool = InternalSearchTool(
-                    configuration=base_internal_search_config,
-                    event=mock_chat_event,
-                )
-                setattr(tool, "_event", mock_chat_event)
-
-            # Act & Assert
-            with pytest.raises(
-                NotImplementedError, match="This method is not implemented"
-            ):
-                tool.get_tool_call_result_for_loop_history(
-                    mock_tool_call_response,
-                    mock_agent_chunks_handler,
-                )

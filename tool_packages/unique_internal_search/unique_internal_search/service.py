@@ -1,13 +1,12 @@
 from logging import Logger
 
 from pydantic import Field, create_model
-from typing_extensions import deprecated, override
+from typing_extensions import override
 from unique_toolkit._common.chunk_relevancy_sorter.exception import (
     ChunkRelevancySorterException,
 )
 from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
-from unique_toolkit.agentic.tools.agent_chunks_hanlder import AgentChunksHandler
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
@@ -23,7 +22,6 @@ from unique_toolkit.content.utils import (
 )
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
-    LanguageModelToolMessage,
 )
 
 from unique_internal_search.config import InternalSearchConfig
@@ -342,14 +340,6 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             )
 
         return tool_response
-
-    @deprecated("Do not use as is bound to loop agent only")
-    def get_tool_call_result_for_loop_history(
-        self,
-        tool_response: ToolCallResponse,
-        agent_chunks_handler: AgentChunksHandler,
-    ) -> LanguageModelToolMessage:
-        raise NotImplementedError("This method is not implemented")
 
 
 ToolFactory.register_tool(InternalSearchTool, InternalSearchConfig)
