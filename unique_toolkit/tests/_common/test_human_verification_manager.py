@@ -198,7 +198,6 @@ def test_create_assistant_confirmation_message__returns_formatted_message__with_
 
     # Assert
     assert "| include_profile | true |" in message  # JSON booleans are lowercase
-    assert "Please confirm the call by pressing this button" in message
     assert "https://prompt=" in message
 
 

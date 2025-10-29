@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.19.1] - 2025-10-29
+- Make api operations more flexible
+- Make verification button text adaptable
+
+
+## [1.19.0] - 2025-10-28
+- Enable additional headers on openai and langchain client
+
 ## [1.18.1] - 2025-10-28
 - Fix bug where sub agent references were not properly displayed in the main agent response when the sub agent response was hidden.
 
