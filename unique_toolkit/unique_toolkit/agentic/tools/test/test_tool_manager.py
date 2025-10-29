@@ -155,12 +155,12 @@ def mock_language_model_function_list() -> list[LanguageModelFunction]:
     return [
         LanguageModelFunction(
             id="call_1",
-            name="test_tool",
+            name="InternalSearchTool",
             arguments='{"test_param": "value1"}',
         ),
         LanguageModelFunction(
             id="call_2",
-            name="test_tool",
+            name="InternalSearchTool",
             arguments='{"test_param": "value2"}',
         ),
     ]
@@ -447,7 +447,7 @@ class TestToolManager:
         mock_tool_progress_reporter: ToolProgressReporter,
         mock_mcp_manager: MCPManager,
         mock_a2a_manager: A2AManager,
-        test_tool_class: type[Tool],
+        InternalSearchTool_class: type[Tool],
     ) -> None:
         """
         Purpose: Verify ToolManager excludes tools that are in the disabled list.
@@ -455,13 +455,13 @@ class TestToolManager:
         Setup summary: Create manager with disabled tool, verify tool is not loaded.
         """
         # Arrange
-        mock_chat_event.payload.disabled_tools = ["test_tool"]
+        mock_chat_event.payload.disabled_tools = ["InternalSearchTool"]
 
         with patch(
             "unique_toolkit.agentic.tools.tool_manager.ToolFactory.build_tool_with_settings"
         ) as mock_factory:
             mock_tool = Mock(spec=Tool)
-            mock_tool.name = "test_tool"
+            mock_tool.name = "InternalSearchTool"
             mock_tool.is_enabled = Mock(return_value=True)
             mock_tool.is_exclusive = Mock(return_value=False)
             mock_factory.return_value = mock_tool
@@ -477,7 +477,7 @@ class TestToolManager:
             )
 
         # Assert
-        assert "test_tool" in manager._disabled_tools
+        assert "InternalSearchTool" in manager._disabled_tools
         assert len(manager._tools) == 0
 
     def test_init__only_loads_chosen_tools__with_tool_choices(
@@ -495,13 +495,13 @@ class TestToolManager:
         Setup summary: Set tool_choices to specific tool, verify only that tool loads.
         """
         # Arrange
-        mock_chat_event.payload.tool_choices = ["test_tool"]
+        mock_chat_event.payload.tool_choices = ["InternalSearchTool"]
 
         with patch(
             "unique_toolkit.agentic.tools.tool_manager.ToolFactory.build_tool_with_settings"
         ) as mock_factory:
             mock_tool = Mock(spec=Tool)
-            mock_tool.name = "test_tool"
+            mock_tool.name = "InternalSearchTool"
             mock_tool.is_enabled = Mock(return_value=True)
             mock_tool.is_exclusive = Mock(return_value=False)
             mock_factory.return_value = mock_tool
@@ -518,7 +518,7 @@ class TestToolManager:
 
         # Assert
         assert len(manager._tools) == 1
-        assert manager._tools[0].name == "test_tool"
+        assert manager._tools[0].name == "InternalSearchTool"
 
     def test_get_tool_by_name__returns_tool__when_exists(
         self,
@@ -539,7 +539,7 @@ class TestToolManager:
             "unique_toolkit.agentic.tools.tool_manager.ToolFactory.build_tool_with_settings"
         ) as mock_factory:
             mock_tool = Mock(spec=Tool)
-            mock_tool.name = "test_tool"
+            mock_tool.name = "InternalSearchTool"
             mock_tool.is_enabled = Mock(return_value=True)
             mock_tool.is_exclusive = Mock(return_value=False)
             mock_factory.return_value = mock_tool
@@ -554,11 +554,11 @@ class TestToolManager:
             )
 
         # Act
-        result = manager.get_tool_by_name("test_tool")
+        result = manager.get_tool_by_name("InternalSearchTool")
 
         # Assert
         assert result is not None
-        assert result.name == "test_tool"
+        assert result.name == "InternalSearchTool"
 
     def test_get_tool_by_name__returns_none__when_not_exists(
         self,
@@ -611,7 +611,7 @@ class TestToolManager:
         # Arrange
         expected_response = ToolCallResponse(
             id="call_1",
-            name="test_tool",
+            name="InternalSearchTool",
             content="Test response",
         )
 
@@ -619,7 +619,7 @@ class TestToolManager:
             "unique_toolkit.agentic.tools.tool_manager.ToolFactory.build_tool_with_settings"
         ) as mock_factory:
             mock_tool = Mock(spec=Tool)
-            mock_tool.name = "test_tool"
+            mock_tool.name = "InternalSearchTool"
             mock_tool.is_enabled = Mock(return_value=True)
             mock_tool.is_exclusive = Mock(return_value=False)
             mock_tool.run = AsyncMock(return_value=expected_response)
@@ -635,14 +635,14 @@ class TestToolManager:
                 a2a_manager=mock_a2a_manager,
             )
 
-        tool_call = LanguageModelFunction(id="call_1", name="test_tool", arguments="{}")
+        tool_call = LanguageModelFunction(id="call_1", name="InternalSearchTool", arguments="{}")
 
         # Act
         response = await manager.execute_tool_call(tool_call)
 
         # Assert
         assert response.id == "call_1"
-        assert response.name == "test_tool"
+        assert response.name == "InternalSearchTool"
         assert response.content == "Test response"
 
     @pytest.mark.asyncio
@@ -751,7 +751,7 @@ class TestToolManager:
             "unique_toolkit.agentic.tools.tool_manager.ToolFactory.build_tool_with_settings"
         ) as mock_factory:
             mock_tool = Mock(spec=Tool)
-            mock_tool.name = "test_tool"
+            mock_tool.name = "InternalSearchTool"
             mock_tool.is_enabled = Mock(return_value=True)
             mock_tool.is_exclusive = Mock(return_value=False)
             mock_tool.tool_description = Mock(return_value=mock_description)
@@ -792,7 +792,7 @@ class TestToolManager:
             "unique_toolkit.agentic.tools.tool_manager.ToolFactory.build_tool_with_settings"
         ) as mock_factory:
             mock_tool = Mock(spec=Tool)
-            mock_tool.name = "test_tool"
+            mock_tool.name = "InternalSearchTool"
             mock_tool.is_enabled = Mock(return_value=True)
             mock_tool.is_exclusive = Mock(return_value=False)
             mock_factory.return_value = mock_tool
@@ -807,10 +807,10 @@ class TestToolManager:
             )
 
         # Act
-        manager.add_forced_tool("test_tool")
+        manager.add_forced_tool("InternalSearchTool")
 
         # Assert
-        assert "test_tool" in manager._tool_choices
+        assert "InternalSearchTool" in manager._tool_choices
 
     def test_add_forced_tool__raises_error__when_tool_not_found(
         self,
@@ -905,8 +905,8 @@ class TestResponsesApiToolManager:
         mock_tool.tool_description = Mock(return_value=mock_description)
 
         mock_tool_manager = Mock(spec=ToolManager)
-        mock_tool_manager.tool_choices = Mock(return_value=["test_tool"])
-        mock_tool_manager._tool_choices = ["test_tool"]
+        mock_tool_manager.tool_choices = Mock(return_value=["InternalSearchTool"])
+        mock_tool_manager._tool_choices = ["InternalSearchTool"]
         mock_tool_manager._exclusive_tools = []
         mock_tool_manager.get_tools = Mock(return_value=[mock_tool])
 
