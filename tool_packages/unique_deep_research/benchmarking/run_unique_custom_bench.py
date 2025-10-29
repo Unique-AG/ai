@@ -249,7 +249,7 @@ async def main(max_concurrent: int = 1, limit: int | None = None):
 
         total_done = len(completed_ids) + completed
         elapsed = (datetime.now() - start_time).total_seconds()
-        log_progress(total_done, len(queries), elapsed / completed * total_done)
+        log_progress(total_done, len(queries), elapsed)
 
     total_time = (datetime.now() - start_time).total_seconds()
     logger.info("=" * 80)
