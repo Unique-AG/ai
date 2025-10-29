@@ -341,7 +341,7 @@ class ToolManager(BaseToolManager):
             self._used_tools.append(tool)
 
     def get_used_tools(self) -> list[LanguageModelFunction]:
-        """ 
+        """
         Returns the tools that have been used/called by the orchestrator in this chat interaction.
         """
         return self._used_tools
