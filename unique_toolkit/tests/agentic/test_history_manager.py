@@ -340,8 +340,8 @@ class TestHistoryManager:
         
         result = await history_manager.get_user_visible_chat_history()
         
-        assert len(result) == 1
-        assert result[0].content == "Previous message"
+        assert len(result.root) == 1
+        assert result.root[0].content == "Previous message"
         history_manager._token_reducer.get_history_from_db.assert_called_once()
 
     @pytest.mark.unit
@@ -361,9 +361,9 @@ class TestHistoryManager:
             assistant_message_text="New assistant message"
         )
         
-        assert len(result) == 2
-        assert result[0].content == "Previous message"
-        assert result[1].content == "New assistant message"
+        assert len(result.root) == 2
+        assert result.root[0].content == "Previous message"
+        assert result.root[1].content == "New assistant message"
 
     @pytest.mark.unit
     @pytest.mark.asyncio
