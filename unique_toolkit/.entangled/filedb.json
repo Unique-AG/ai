@@ -24,7 +24,7 @@
     },
     {
       "deps": [
-        "docs/modules/examples/chat/avanced_rendering.md",
+        "docs/modules/examples/chat/advanced_rendering.md",
         "docs/setup/_common_imports.md",
         "docs/application_types/event_driven_applications.md",
         "docs/tutorials/file_creation_and_upload_to_chat.md"
@@ -36,7 +36,7 @@
     },
     {
       "deps": [
-        "docs/modules/examples/chat/avanced_rendering.md",
+        "docs/modules/examples/chat/advanced_rendering.md",
         "docs/setup/_common_imports.md",
         "docs/application_types/event_driven_applications.md",
         "docs/tutorials/file_creation_and_upload_to_chat.md"
@@ -475,7 +475,7 @@
       "deps": null,
       "hexdigest": "f3dffaa59cd8c19ae5f9d4ef324759648f89a6d8de8e87fc9e6ab4116eeb2833",
       "modified": "2025-10-23T10:44:45.011024",
-      "path": "docs/modules/examples/chat/avanced_rendering.md",
+      "path": "docs/modules/examples/chat/advanced_rendering.md",
       "size": 1640
     },
     {

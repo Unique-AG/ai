@@ -45,7 +45,7 @@ nav:
     - Chat:
       - Basic Service: modules/examples/chat/chat_service.md
       - Document Handling: modules/examples/chat/chat_document_handling.md
-      - Advanced Rendering: modules/examples/chat/avanced_rendering.md
+      - Advanced Rendering: modules/examples/chat/advanced_rendering.md
     - Knowledge Base:
       - Base Service: modules/examples/content/kb_service.md
       - Smart Rules: modules/examples/content/smart_rules.md

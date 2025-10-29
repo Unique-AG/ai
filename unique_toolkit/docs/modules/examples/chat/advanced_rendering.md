@@ -5,7 +5,7 @@ In this section we will learn how to use specialy formatted strings to create ar
 
 ## Prompt Buttons
 
-Prompt buttons allow to create a proposition to the user for the next prompt
+Prompt buttons allow the user to easily add follow-up prompts suggested by the agent to their prompt field 
 
 ```{.python #rendering_prompt_buttons}
 prompt_button_string = create_prompt_button_string(button_text="Click me", next_user_message="Next user message")
