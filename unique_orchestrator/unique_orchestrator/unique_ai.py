@@ -274,6 +274,7 @@ class UniqueAI:
         if (
             self._config.agent.experimental.sub_agents_config.referencing_config
             is not None
+            and len(self._history_manager.get_sub_agent_calls()) > 0
         ):
             use_sub_agent_references = True
             sub_agent_referencing_instructions = self._config.agent.experimental.sub_agents_config.referencing_config.referencing_instructions_for_user_prompt
@@ -313,6 +314,7 @@ class UniqueAI:
         if (
             self._config.agent.experimental.sub_agents_config.referencing_config
             is not None
+            and len(self._history_manager.get_sub_agent_calls()) > 0
         ):
             use_sub_agent_references = True
             sub_agent_referencing_instructions = self._config.agent.experimental.sub_agents_config.referencing_config.referencing_instructions_for_system_prompt
@@ -380,9 +382,14 @@ class UniqueAI:
         tool_calls = loop_response.tool_calls or []
         for tool_call in tool_calls:
             self._history_manager.add_tool_call(tool_call)
-
-        # Append function calls to history
-        self._history_manager._append_tool_calls_to_history(tool_calls)
+            if tool_call.name in [t.name for t in self._tool_manager.internal_tools]:
+                self._history_manager.add_internal_tool_call(tool_call)
+            elif tool_call.name in [t.name for t in self._tool_manager.mcp_tools]:
+                self._history_manager.add_mcp_tool_call(tool_call)
+            elif tool_call.name in [a.name for a in self._tool_manager.sub_agents]:
+                self._history_manager.add_sub_agent_call(tool_call)
+            else:
+                self._logger.warning(f"Tool call {tool_call.name} is neither an internal tool, an mcp tool nor a sub agent")
 
         # Execute tool calls
         tool_call_responses = await self._tool_manager.execute_selected_tools(

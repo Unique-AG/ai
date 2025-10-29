@@ -266,7 +266,7 @@ class ToolManager(BaseToolManager):
         )
 
         # Build internal tools from configurations
-        internal_tools = [
+        self._internal_tools = [
             ToolFactory.build_tool_with_settings(
                 t.name,
                 t,
@@ -278,9 +278,9 @@ class ToolManager(BaseToolManager):
         ]
 
         # Get MCP tools (these are already properly instantiated)
-        mcp_tools = self._mcp_manager.get_all_mcp_tools()
+        self._mcp_tools = self._mcp_manager.get_all_mcp_tools()
         # Combine both types of tools
-        self.available_tools = internal_tools + mcp_tools + sub_agents
+        self.available_tools = self._internal_tools + self._mcp_tools + sub_agents
         self._sub_agents = sub_agents
 
         for t in self.available_tools:
@@ -304,6 +304,14 @@ class ToolManager(BaseToolManager):
     @property
     def sub_agents(self) -> list[SubAgentTool]:
         return self._sub_agents
+
+    @property
+    def internal_tools(self) -> list[Tool]:
+        return self._internal_tools
+
+    @property
+    def mcp_tools(self) -> list[Tool]:
+        return self._mcp_tools
 
     def get_evaluation_check_list(self) -> list[EvaluationMetricName]:
         return list(self._tool_evaluation_check_list)
