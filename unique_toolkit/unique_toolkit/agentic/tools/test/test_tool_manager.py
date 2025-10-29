@@ -388,7 +388,7 @@ class TestBaseToolManager:
 
         manager = ConcreteToolManager(tool_manager_config)
         manager._tool_evaluation_check_list.add(EvaluationMetricName.CONTEXT_RELEVANCY)
-        manager._tool_evaluation_check_list.add(EvaluationMetricName.ANSWER_RELEVANCY)
+        manager._tool_evaluation_check_list.add(EvaluationMetricName.HALLUCINATION)
 
         # Act
         result = manager.get_evaluation_check_list()
@@ -731,8 +731,6 @@ class TestToolManager:
 
         # Assert
         assert len(responses) == 2
-
-
 
     def test_add_forced_tool__raises_error__when_tool_not_found(
         self,
