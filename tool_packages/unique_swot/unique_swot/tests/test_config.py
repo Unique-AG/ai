@@ -11,7 +11,7 @@ class TestSwotConfig:
         """Test that SwotConfig initializes with correct default values."""
         config = SwotAnalysisToolConfig()
 
-        assert config.cache_scope_id == "swot_analysis"
+        assert config.cache_scope_id == "scope_id"
         assert isinstance(config.report_generation_config, ReportGenerationConfig)
         assert config.tool_description == TOOL_DESCRIPTION
         assert config.tool_description_for_system_prompt == TOOL_DESCRIPTION

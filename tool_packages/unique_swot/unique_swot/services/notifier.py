@@ -94,38 +94,32 @@ class ProgressNotifier:
         _LOGGER.info(f"Starting progress with total steps: {total_steps}")
         self._total_steps = total_steps
 
-        # self._chat_service.create_message_execution(
-        #     message_id=self._message_id,
-        #     type=MessageExecutionType.DEEP_RESEARCH,
-        #     percentage_completed=0,
-        # )
+        self._chat_service.create_message_execution(
+            message_id=self._message_id,
+            type=MessageExecutionType.DEEP_RESEARCH,
+            percentage_completed=0,
+        )
 
     def update_progress(
         self,
-        step_precentage_increment: float | None = None,
+        step_precentage_increment: float,
         seconds_remaining: int | None = None,
     ):
-        if seconds_remaining is None and step_precentage_increment is None:
-            _LOGGER.warning(
-                "No step increment or seconds remaining provided. Skipping progress update."
-            )
-            return
-
-        percentage_completed = None
-        if step_precentage_increment is not None:
-            self._step_increment += step_precentage_increment
-            percentage_completed = _calculate_percentage_completed(
-                self._step_increment, self._total_steps
-            )
-            _LOGGER.info(f"Percentage completed: {percentage_completed}")
+  
+        self._step_increment += step_precentage_increment
+        percentage_completed = _calculate_percentage_completed(
+            self._step_increment, self._total_steps
+        )
+        if percentage_completed > 100:
+            _LOGGER.warning(f"Percentage completed is greater than 100: {percentage_completed}. Maxing out at 100% to prevent error. Check your code!")
+            percentage_completed = 100
 
         _LOGGER.info(f"Updating progress to: {percentage_completed}")
-        # self._chat_service.update_message_execution(
-        #     message_id=self._message_id,
-        #     status=MessageExecutionUpdateStatus.RUNNING,
-        #     percentage_completed=percentage_completed,
-        #     seconds_remaining=seconds_remaining,
-        # )
+        self._chat_service.update_message_execution(
+            message_id=self._message_id,
+            percentage_completed=percentage_completed,
+            seconds_remaining=seconds_remaining,
+        )
 
     def notify(
         self,
@@ -136,11 +130,11 @@ class ProgressNotifier:
         _LOGGER.info(f"Notifying: {notification_title} with status: {status}")
         if message_log_event is not None:
             _LOGGER.info(f"Message log event: {message_log_event}")
-        # self._add_message_log(
-        #     notification_title=notification_title,
-        #     message_log_event=message_log_event,
-        #     status=status,
-        # )
+        self._add_message_log(
+            notification_title=notification_title,
+            message_log_event=message_log_event,
+            status=status,
+        )
 
     def _add_message_log(
         self,
@@ -168,11 +162,10 @@ class ProgressNotifier:
 
     def _update_progress(self, percentage_completed: int):
         _LOGGER.info(f"Updating progress to: {percentage_completed}")
-        # self._chat_service.update_message_execution(
-        #     message_id=self._message_id,
-        #     status=MessageExecutionUpdateStatus.RUNNING,
-        #     percentage_completed=percentage_completed,
-        # )
+        self._chat_service.update_message_execution(
+            message_id=self._message_id,
+            percentage_completed=percentage_completed,
+        )
 
     def end_progress(self, success: bool = True):
         _LOGGER.info(f"Ending progress with success: {success}")
@@ -181,9 +174,9 @@ class ProgressNotifier:
             if success
             else MessageExecutionUpdateStatus.FAILED
         )
-        # self._chat_service.update_message_execution(
-        #     message_id=self._message_id,
-        #     status=status,
-        #     percentage_completed=100,
-        #     seconds_remaining=0,
-        # )
+        self._chat_service.update_message_execution(
+            message_id=self._message_id,
+            status=status,
+            percentage_completed=100,
+            seconds_remaining=0,
+        )

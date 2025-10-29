@@ -107,25 +107,26 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
 
     @override
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
-        plan = SWOTPlan.model_validate(tool_call.arguments)
-        # Ensure the plan is semantically valid for execution, as Pydantic validation may accept plans that
-        # are structurally correct but logically invalid (e.g., missing required modify instructions)
-        plan.validate_swot_plan()
-
-        number_of_executions = (
-            plan.get_number_of_executions() + 1
-        )  # +1 for Collecting sources step
-
-        self._notifier.start_progress(number_of_executions)
-
-        # Get Sources
-        sources = self._source_collection_manager.collect_sources()
-
-        _LOGGER.info(f"Collected {len(sources)} sources!")
-
-        total_steps = self._calculate_total_steps(plan, len(sources))
-        _LOGGER.info(f"Total steps: {total_steps}")
         try:
+            plan = SWOTPlan.model_validate(tool_call.arguments)
+            # Ensure the plan is semantically valid for execution, as Pydantic validation may accept plans that
+            # are structurally correct but logically invalid (e.g., missing required modify instructions)
+
+            plan.validate_swot_plan()
+
+            number_of_executions = (
+                plan.get_number_of_executions() + 1
+            )  # +1 for Collecting sources step
+
+            self._notifier.start_progress(number_of_executions)
+
+            # Get Sources
+            sources = self._source_collection_manager.collect_sources()
+
+            _LOGGER.info(f"Collected {len(sources)} sources!")
+
+            total_steps = self._calculate_total_steps(plan, len(sources))
+            _LOGGER.info(f"Total steps: {total_steps}")
             executor = SWOTExecutionManager(
                 configuration=self.config.report_generation_config,
                 language_model_service=self._language_model_service,
