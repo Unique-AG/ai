@@ -635,7 +635,9 @@ class TestToolManager:
                 a2a_manager=mock_a2a_manager,
             )
 
-        tool_call = LanguageModelFunction(id="call_1", name="InternalSearchTool", arguments="{}")
+        tool_call = LanguageModelFunction(
+            id="call_1", name="InternalSearchTool", arguments="{}"
+        )
 
         # Act
         response = await manager.execute_tool_call(tool_call)
