@@ -3,6 +3,7 @@ This module provides a minimal framework for building endpoint classes such that
 the endpoints without having to know the details of the endpoints.
 """
 
+import warnings
 from enum import StrEnum
 from string import Template
 from typing import (
@@ -15,7 +16,7 @@ from typing import (
     cast,
 )
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 # Paramspecs
 PayloadParamSpec = ParamSpec("PayloadParamSpec")
@@ -46,6 +47,42 @@ class HttpMethods(StrEnum):
 EndpointMethods = HttpMethods
 
 
+class ResponseValidationException(Exception):
+    """
+    This exception is raised when the response validation fails.
+    """
+
+    def __init__(
+        self, operation_name: str, response: dict[str, Any], pydantic_error: str
+    ):
+        super().__init__(
+            f"Response validation failed for operation {operation_name}\n"
+            f"Response: {response}\n"
+            f"Pydantic error: {pydantic_error}"
+        )
+        self._operation_name = operation_name
+        self._response = response
+        self._pydantic_error = pydantic_error
+
+    @property
+    def operation_name(self) -> str:
+        return self._operation_name
+
+    @property
+    def response(self) -> dict[str, Any]:
+        return self._response
+
+    @property
+    def pydantic_error(self) -> str:
+        return self._pydantic_error
+
+    def __str__(self):
+        return (
+            f"Response validation failed for {self._operation_name}\n"
+            + f"Response: {self._response}"
+        )
+
+
 class ApiOperationProtocol(
     Protocol,
     Generic[
@@ -57,10 +94,19 @@ class ApiOperationProtocol(
     ],
 ):
     @staticmethod
+    def path_dump_options() -> dict[str, Any]: ...
+
+    @staticmethod
     def path_params_model() -> type[PathParamsType]: ...
 
     @staticmethod
+    def payload_dump_options() -> dict[str, Any]: ...
+
+    @staticmethod
     def payload_model() -> type[PayloadType]: ...
+
+    @staticmethod
+    def response_validate_options() -> dict[str, Any]: ...
 
     @staticmethod
     def response_model() -> type[ResponseType]: ...
@@ -71,17 +117,24 @@ class ApiOperationProtocol(
     ) -> str: ...
 
     @staticmethod
-    def create_path_from_model(path_params: PathParamsType) -> str: ...
+    def create_path_from_model(
+        path_params: PathParamsType, *, model_dump_options: dict | None = None
+    ) -> str: ...
+
     @staticmethod
     def create_payload(
         *args: PayloadParamSpec.args, **kwargs: PayloadParamSpec.kwargs
     ) -> dict[str, Any]: ...
 
     @staticmethod
-    def create_payload_from_model(payload: PayloadType) -> dict[str, Any]: ...
+    def create_payload_from_model(
+        payload: PayloadType, *, model_dump_options: dict | None = None
+    ) -> dict[str, Any]: ...
 
     @staticmethod
-    def handle_response(response: dict[str, Any]) -> ResponseType: ...
+    def handle_response(
+        response: dict[str, Any], *, model_validate_options: dict | None = None
+    ) -> ResponseType: ...
 
     @staticmethod
     def request_method() -> EndpointMethods: ...
@@ -100,7 +153,10 @@ def build_api_operation(
     path_params_constructor: Callable[PathParamsSpec, PathParamsType],
     payload_constructor: Callable[PayloadParamSpec, PayloadType],
     response_model_type: type[ResponseType],
-    dump_options: dict | None = None,
+    payload_dump_options: dict | None = None,
+    path_dump_options: dict | None = None,
+    response_validate_options: dict | None = None,
+    dump_options: dict | None = None,  # Deprecated
 ) -> type[
     ApiOperationProtocol[
         PathParamsSpec,
@@ -126,15 +182,32 @@ def build_api_operation(
             "by_alias": True,
             "exclude_defaults": True,
         }
+    else:
+        warnings.warn(
+            "dump_options is deprecated. Use payload_dump_options instead.",
+            DeprecationWarning,
+        )
 
     class Operation(ApiOperationProtocol):
+        @staticmethod
+        def path_dump_options() -> dict[str, Any]:
+            return path_dump_options or {}
+
         @staticmethod
         def path_params_model() -> type[PathParamsType]:
             return cast(type[PathParamsType], path_params_constructor)
 
         @staticmethod
+        def payload_dump_options() -> dict[str, Any]:
+            return payload_dump_options or {}
+
+        @staticmethod
         def payload_model() -> type[PayloadType]:
             return cast(type[PayloadType], payload_constructor)
+
+        @staticmethod
+        def response_validate_options() -> dict[str, Any]:
+            return response_validate_options or {}
 
         @staticmethod
         def response_model() -> type[ResponseType]:
@@ -145,8 +218,18 @@ def build_api_operation(
             return path_template
 
         @staticmethod
-        def create_path_from_model(path_params: PathParamsType) -> str:
-            return path_template.substitute(**path_params.model_dump(**dump_options))
+        def create_path_from_model(
+            path_params: PathParamsType, *, model_dump_options: dict | None = None
+        ) -> str:
+            if model_dump_options is None:
+                if path_dump_options is None:
+                    model_dump_options = dump_options
+                else:
+                    model_dump_options = path_dump_options
+
+            return path_template.substitute(
+                **path_params.model_dump(**model_dump_options)
+            )
 
         @staticmethod
         def create_path(
@@ -157,19 +240,51 @@ def build_api_operation(
 
         @staticmethod
         def create_payload(
-            *args: PayloadParamSpec.args, **kwargs: PayloadParamSpec.kwargs
+            *args: PayloadParamSpec.args,
+            **kwargs: PayloadParamSpec.kwargs,
         ) -> dict[str, Any]:
             """Create request body payload."""
+            if payload_dump_options is None:
+                model_dump_options = dump_options
+            else:
+                model_dump_options = payload_dump_options
+
             request_model = Operation.payload_model()(*args, **kwargs)
-            return request_model.model_dump(**dump_options)
+            return request_model.model_dump(**model_dump_options)
 
         @staticmethod
-        def create_payload_from_model(payload: PayloadType) -> dict[str, Any]:
-            return payload.model_dump(**dump_options)
+        def create_payload_from_model(
+            payload: PayloadType, *, model_dump_options: dict | None = None
+        ) -> dict[str, Any]:
+            if model_dump_options is None:
+                if payload_dump_options is None:
+                    model_dump_options = dump_options
+                else:
+                    model_dump_options = payload_dump_options
+
+            return payload.model_dump(**model_dump_options)
 
         @staticmethod
-        def handle_response(response: dict[str, Any]) -> ResponseType:
-            return Operation.response_model().model_validate(response)
+        def handle_response(
+            response: dict[str, Any],
+            *,
+            model_validate_options: dict[str, Any] | None = None,
+        ) -> ResponseType:
+            if model_validate_options is None:
+                if response_validate_options is None:
+                    model_validate_options = {}
+                else:
+                    model_validate_options = response_validate_options
+            try:
+                return Operation.response_model().model_validate(
+                    response, **model_validate_options
+                )
+            except ValidationError as e:
+                raise ResponseValidationException(
+                    operation_name=Operation.__name__,
+                    response=response,
+                    pydantic_error=str(e),
+                ) from e
 
         @staticmethod
         def request_method() -> HttpMethods:

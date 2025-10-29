@@ -4,7 +4,7 @@ from logging import Logger
 from typing import Any, Generic
 
 import jinja2
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from unique_toolkit._common.endpoint_builder import (
     ApiOperationProtocol,
@@ -41,11 +41,13 @@ NEXT_USER_MESSAGE_JINJA2_TEMPLATE = jinja2.Template("""I confirm the api call wi
 ```""")
 
 
-ASSISTANT_CONFIRMATION_MESSAGE_JINJA2_TEMPLATE = jinja2.Template("""I would like to call the api with the following data:
-
+ASSISTANT_CONFIRMATION_MESSAGE_JINJA2_TEMPLATE = jinja2.Template(
+    """
+\n
 {{ api_call_as_markdown_table }}
-
-[{{ button_text }}](https://prompt={{ next_user_message | urlencode }})""")
+\n\n
+[{{ button_text }}](https://prompt={{ next_user_message | urlencode }})"""
+)
 
 
 class HumanVerificationManagerForApiCalling(
@@ -175,7 +177,9 @@ class HumanVerificationManagerForApiCalling(
                             self._environment_payload_params.model_dump()
                         )
 
-                    return self._operation.payload_model().model_validate(payload_dict)
+                    return self._operation.payload_model().model_validate(
+                        payload_dict, by_alias=True, by_name=True
+                    )
 
             except Exception as e:
                 self._logger.error(f"Error detecting api calls from user message: {e}")
@@ -211,7 +215,9 @@ class HumanVerificationManagerForApiCalling(
             modifiable_dict = payload_dict
 
         modifiable_params = self._modifiable_payload_params_model.model_validate(
-            modifiable_dict
+            modifiable_dict,
+            by_alias=True,
+            by_name=True,
         )
         api_call = self._verification_model(
             modifiable_params=modifiable_params,
@@ -226,10 +232,12 @@ class HumanVerificationManagerForApiCalling(
             api_call_as_json=api_call.model_dump_json(indent=2)
         )
 
-    def create_assistant_confirmation_message(self, *, payload: PayloadType) -> str:
+    def create_assistant_confirmation_message(
+        self, *, payload: PayloadType, button_text: str = "Confirm"
+    ) -> str:
         return ASSISTANT_CONFIRMATION_MESSAGE_JINJA2_TEMPLATE.render(
             api_call_as_markdown_table=dict_to_markdown_table(payload.model_dump()),
-            button_text="Please confirm the call by pressing this button.",
+            button_text=button_text,
             next_user_message=self._create_next_user_message(payload),
         )
 
@@ -255,7 +263,11 @@ class HumanVerificationManagerForApiCalling(
             context=context,
             **params,
         )
-        return self._operation.handle_response(response)
+        try:
+            return self._operation.handle_response(response)
+        except ValidationError as e:
+            self._logger.error(f"Error calling api: {e}. Response: {response}")
+            raise e
 
 
 if __name__ == "__main__":
