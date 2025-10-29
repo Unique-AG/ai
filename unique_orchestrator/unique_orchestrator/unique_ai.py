@@ -380,16 +380,28 @@ class UniqueAI:
         self._logger.info("Processing tool calls")
 
         tool_calls = loop_response.tool_calls or []
+
+        # Append function calls to history
+        self._history_manager._append_tool_calls_to_history(tool_calls)
+
+        internal_tool_names = {t.name for t in self._tool_manager.internal_tools}
+        mcp_tool_names = {t.name for t in self._tool_manager.mcp_tools}
+        sub_agent_names = {a.name for a in self._tool_manager.sub_agents}
+
         for tool_call in tool_calls:
             self._history_manager.add_tool_call(tool_call)
-            if tool_call.name in [t.name for t in self._tool_manager.internal_tools]:
+
+            if tool_call.name in internal_tool_names:
                 self._history_manager.add_internal_tool_call(tool_call)
-            elif tool_call.name in [t.name for t in self._tool_manager.mcp_tools]:
+            elif tool_call.name in mcp_tool_names:
                 self._history_manager.add_mcp_tool_call(tool_call)
-            elif tool_call.name in [a.name for a in self._tool_manager.sub_agents]:
+            elif tool_call.name in sub_agent_names:
                 self._history_manager.add_sub_agent_call(tool_call)
             else:
-                self._logger.warning(f"Tool call {tool_call.name} is neither an internal tool, an mcp tool nor a sub agent")
+                self._logger.warning(
+                    f"Tool call {tool_call.name} is neither an internal tool, "
+                    "an mcp tool nor a sub agent"
+                )
 
         # Execute tool calls
         tool_call_responses = await self._tool_manager.execute_selected_tools(
