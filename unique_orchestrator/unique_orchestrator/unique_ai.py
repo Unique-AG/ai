@@ -261,7 +261,7 @@ class UniqueAI:
             for prompts in self._tool_manager.get_tool_prompts()
         ]
 
-        used_tools = [m.name for m in self._tool_manager.get_tools()]
+        used_tools = [m.name for m in self._tool_manager.get_used_tools()]
 
         mcp_server_user_prompts = [
             mcp_server.user_prompt for mcp_server in self._mcp_servers
@@ -298,7 +298,7 @@ class UniqueAI:
         # TODO: Collect tool information here and adapt to system prompt
         tool_descriptions = self._tool_manager.get_tool_prompts()
 
-        used_tools = [m.name for m in self._tool_manager.get_tools()]
+        used_tools = [m.name for m in self._tool_manager.get_used_tools()]
 
         system_prompt_template = jinja2.Template(
             self._config.agent.prompt_config.system_prompt_template
@@ -378,6 +378,8 @@ class UniqueAI:
         self._logger.info("Processing tool calls")
 
         tool_calls = loop_response.tool_calls or []
+        for tool_call in tool_calls:
+            self._tool_manager.add_used_tool(tool_call)
 
         # Append function calls to history
         self._history_manager._append_tool_calls_to_history(tool_calls)

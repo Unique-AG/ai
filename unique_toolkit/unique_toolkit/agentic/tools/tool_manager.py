@@ -244,6 +244,7 @@ class ToolManager(BaseToolManager):
         self._config = config
         self._tool_progress_reporter = tool_progress_reporter
         self._tools = []
+        self._used_tools = []
         self._tool_choices = event.payload.tool_choices
         self._disabled_tools = event.payload.disabled_tools
         self._exclusive_tools = [
@@ -327,7 +328,23 @@ class ToolManager(BaseToolManager):
         return self._exclusive_tools
 
     def get_tools(self) -> list[Tool]:
+        """
+        Returns all the tools that are available to the orchestrator.
+        """
         return self._tools  # type: ignore
+
+    def add_used_tool(self, tool: Tool) -> None:
+        """
+        Adds a tool to the list of used tools.
+        """
+        if not any(t.name == tool.name for t in self._used_tools):
+            self._used_tools.append(tool)
+
+    def get_used_tools(self) -> list[str]:
+        """ 
+        Returns the tools that have been used/called by the orchestrator in this chat interaction.
+        """
+        return self._used_tools
 
     def get_forced_tools(
         self,
@@ -438,7 +455,22 @@ class ResponsesApiToolManager(BaseToolManager):
         )
 
     def get_tools(self) -> list[Tool]:
+        """
+        Returns all the tools that are available to the orchestrator.
+        """
         return self._tool_manager.get_tools()
+
+    def add_used_tool(self, tool: Tool) -> None:
+        """
+        Adds a tool to the list of used tools.
+        """
+        self._tool_manager.add_used_tool(tool)
+
+    def get_used_tools(self) -> list[str]:
+        """
+        Returns the tools that have been used/called by the orchestrator in this chat interaction.
+        """
+        return self._tool_manager.get_used_tools()
 
     def get_forced_tools(
         self,
