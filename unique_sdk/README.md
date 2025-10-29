@@ -24,6 +24,7 @@ The Unique Python SDK provides access to the public API of Unique AI. It also en
    - [Message Assessment](#message-assessment)
    - [Folder](#folder)
    - [Space](#space)
+   - [Agentic Table](#agentic-table)
 6. [UniqueQL](#uniqueql)
    - [Query Structure](#uniqueql-query-structure)
    - [Metadata Filtering](#metadata-filtering)
@@ -241,6 +242,7 @@ unique_sdk.Message.modify(
 - [Message Assessment](#message-assessment)
 - [Folder](#folder)
 - [Space](#space)
+- [Agentic Table](#agentic-table)
 
 Most of the API services provide an asynchronous version of the method. The async methods are suffixed with `_async`.
 
@@ -1348,6 +1350,214 @@ unique_sdk.Space.delete_chat(
     user_id=user_id,
     company_id=company_id,
     chat_id="chat_dejfhe729br398",
+)
+```
+
+### Agentic Table
+
+The Agentic Table (Magic Table) API provides functionality for managing interactive tables with AI-powered cells, activity tracking, and metadata management.
+
+#### `unique_sdk.AgenticTable.set_cell`
+
+Set the content of a specific cell in the magic table. This method allows you to update cell text and optionally add log entries to track changes.
+
+```python
+cell = await unique_sdk.AgenticTable.set_cell(
+    user_id=user_id,
+    company_id=company_id,
+    tableId="sheet_abc123",
+    rowOrder=0,
+    columnOrder=1,
+    text="Updated cell content",
+    logEntries=[  # optional
+        {
+            "text": "Cell updated by automation",
+            "createdAt": "2024-01-01T00:00:00.000Z",
+            "actorType": "SYSTEM",  # One of: "USER", "SYSTEM", "ASSISTANT", "TOOL"
+            "messageId": "msg_123",  # optional
+            "details": [  # optional
+                {
+                    "text": "Processing completed",
+                    "messageId": "msg_456"  # optional
+                }
+            ]
+        }
+    ]
+)
+```
+
+#### `unique_sdk.AgenticTable.get_cell`
+
+Retrieve the content and metadata of a specific cell.
+
+```python
+cell = await unique_sdk.AgenticTable.get_cell(
+    user_id=user_id,
+    company_id=company_id,
+    tableId="sheet_abc123",
+    rowOrder=0, #TODO CHECK IF USED!
+    columnOrder=1, #TODO CHECK IF USED!
+)
+```
+
+#### `unique_sdk.AgenticTable.set_multiple_cells`
+
+Bulk update multiple cells in a single operation for better performance.
+
+```python
+result = await unique_sdk.AgenticTable.set_multiple_cells(
+    user_id=user_id,
+    company_id=company_id,
+    tableId="sheet_abc123",
+    cells=[
+        {
+            "rowOrder": 0,
+            "columnOrder": 0,
+            "text": "Cell A1"
+        },
+        {
+            "rowOrder": 0,
+            "columnOrder": 1,
+            "text": "Cell B1"
+        },
+        {
+            "rowOrder": 1,
+            "columnOrder": 0,
+            "text": "Cell A2"
+        }
+    ]
+)
+```
+
+#### `unique_sdk.AgenticTable.get_sheet_data`
+
+Retrieve comprehensive data about a magic table sheet, including cells, log history, and metadata.
+
+```python
+sheet = await unique_sdk.AgenticTable.get_sheet_data(
+    user_id=user_id,
+    company_id=company_id,
+    tableId="sheet_abc123",
+    includeCells=True,             # optional
+    includeLogHistory=True,        # optional
+    includeRowCount=True,          # optional
+    includeCellMetaData=True,      # optional
+    startRow=0,                    # optional: specify row range
+    endRow=10                      # optional: specify row range
+)
+```
+
+#### `unique_sdk.AgenticTable.get_sheet_state`
+
+Get the current state of a magic table sheet.
+
+```python
+state = await unique_sdk.AgenticTable.get_sheet_state(
+    user_id=user_id,
+    company_id=company_id,
+    tableId="sheet_abc123"
+)
+# Returns: "PROCESSING", "IDLE", or "STOPPED_BY_USER"
+```
+
+#### `unique_sdk.AgenticTable.update_sheet_state`
+
+Update the name or state of a magic table sheet.
+
+```python
+result = await unique_sdk.AgenticTable.update_sheet_state(
+    user_id=user_id,
+    company_id=company_id,
+    tableId="sheet_abc123",
+    name="Updated Sheet Name",  # optional
+    state="IDLE"  # optional, one of: "PROCESSING", "IDLE", "STOPPED_BY_USER"
+)
+```
+
+#### `unique_sdk.AgenticTable.set_activity`
+
+Set the status of an activity on the magic table sheet. This is useful for tracking long-running operations.
+
+```python
+result = await unique_sdk.AgenticTable.set_activity(
+    user_id=user_id,
+    company_id=company_id,
+    tableId="sheet_abc123",
+    activity="UpdateCell",
+    # activity: one of "DeleteRow", "DeleteColumn", "UpdateCell", "AddQuestionText", 
+    # "AddMetaData", "GenerateArtifact", "SheetCompleted", "LibrarySheetRowVerified"
+    status="IN_PROGRESS",
+    # status: one of "IN_PROGRESS", "COMPLETED", "FAILED"
+    text="Updating cells with AI-generated content"
+)
+```
+
+#### `unique_sdk.AgenticTable.set_artifact`
+
+Attach an artifact (such as a generated document) to the magic table sheet.
+
+```python
+result = await unique_sdk.AgenticTable.set_artifact(
+    user_id=user_id,
+    company_id=company_id,
+    tableId="sheet_abc123",
+    name="Generated Report",
+    contentId="cont_xyz789",
+    mimeType="application/pdf",
+    artifactType="FULL_REPORT"  # One of: "QUESTIONS", "FULL_REPORT"
+)
+```
+
+#### `unique_sdk.AgenticTable.set_column_metadata`
+
+Configure metadata for a specific column, including width, filters, and cell renderers.
+
+```python
+result = await unique_sdk.AgenticTable.set_column_metadata(
+    user_id=user_id,
+    company_id=company_id,
+    tableId="sheet_abc123",
+    columnOrder=2,
+    columnWidth=200,  # optional
+    filter="ValueMatchFilter",  # optional
+    # filter: one of "ValueMatchFilter", "PartialMatchFilter", "ReferenceFilter", 
+    # "HallucinationFilter", "ReviewStatusFilter", "AssigneeFilter"
+    cellRenderer="CheckboxLockCellRenderer",  # optional
+    # cellRenderer: one of "CheckboxLockCellRenderer", "CollaboratorDropdown", 
+    # "ReviewStatusDropdown", "CustomCellRenderer", "SelectableCellRenderer"
+    editable=True  # optional
+)
+```
+
+#### `unique_sdk.AgenticTable.set_cell_metadata`
+
+Set metadata for a specific cell, including selection status and agreement status.
+
+```python
+result = await unique_sdk.AgenticTable.set_cell_metadata(
+    user_id=user_id,
+    company_id=company_id,
+    tableId="sheet_abc123",
+    rowOrder=0,
+    columnOrder=1,
+    selected=True,                # optional
+    selectionMethod="MANUAL",     # optional, one of: "DEFAULT", "MANUAL"
+    agreementStatus="MATCH"       # optional, one of: "MATCH", "NO_MATCH"
+)
+```
+
+#### `unique_sdk.AgenticTable.bulk_update_status`
+
+Update the verification status of multiple rows at once.
+
+```python
+result = await unique_sdk.AgenticTable.bulk_update_status(
+    user_id=user_id,
+    company_id=company_id,
+    tableId="sheet_abc123",
+    rowOrders=[0, 1, 2, 3, 4],
+    status="VERIFIED"
+    # status: one of "NEED_REVIEW", "READY_FOR_VERIFICATION", "VERIFIED"
 )
 ```
 
