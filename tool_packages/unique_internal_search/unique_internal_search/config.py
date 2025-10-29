@@ -14,7 +14,6 @@ from unique_toolkit._common.feature_flags.schema import (
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.history_manager.history_manager import DeactivatedNone
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
-from unique_toolkit.agentic.tools.utils.source_handling.schema import SourceFormatConfig
 from unique_toolkit.content.schemas import (
     ContentRerankerConfig,
     ContentSearchType,
@@ -130,8 +129,6 @@ class InternalSearchConfig(BaseToolConfig):
         description="The list of evaluation metrics to check.",
     )
     experimental_features: SkipJsonSchema[ExperimentalFeatures] = ExperimentalFeatures()
-
-    source_format_config: SkipJsonSchema[SourceFormatConfig] = SourceFormatConfig()
 
     metadata_chunk_sections: dict[str, str] = Field(
         default={},

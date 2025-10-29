@@ -786,34 +786,6 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
 
         return references
 
-    def get_tool_call_result_for_loop_history(
-        self,
-        tool_response: DeepResearchToolResponse,
-        agent_chunks_handler=None,
-    ) -> LanguageModelMessage:
-        """
-        Process the results of the tool.
-
-        Args:
-            tool_response: The tool response.
-            loop_history: The loop history.
-
-        Returns:
-            The tool result to append to the loop history.
-        """
-        self.logger.debug(
-            f"Appending tool call result to history: {tool_response.name}"
-        )
-        # Give final report to the user
-        # ensure chunks are passed back to the user
-
-        # Append the result to the history
-        return LanguageModelToolMessage(
-            content=tool_response.content,
-            tool_call_id=tool_response.id,  # type: ignore
-            name=tool_response.name,
-        )
-
 
 # Register the tool with the ToolFactory
 ToolFactory.register_tool(DeepResearchTool, DeepResearchToolConfig)

@@ -2,7 +2,6 @@ from pydantic import Field, create_model
 from typing_extensions import override
 from unique_toolkit import ContentService
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
-from unique_toolkit.agentic.tools.agent_chunks_hanlder import AgentChunksHandler
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
@@ -14,7 +13,6 @@ from unique_toolkit.app.schemas import BaseEvent
 from unique_toolkit.chat.service import LanguageModelToolDescription
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
-    LanguageModelMessage,
 )
 
 from unique_internal_search.service import InternalSearchTool
@@ -101,15 +99,6 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
             )
         tool_response.name = self.name
         return tool_response
-
-    def get_tool_call_result_for_loop_history(
-        self,
-        tool_response: ToolCallResponse,
-        agent_chunks_handler: AgentChunksHandler,
-    ) -> LanguageModelMessage:
-        return self._internal_search_tool.get_tool_call_result_for_loop_history(
-            tool_response, agent_chunks_handler
-        )
 
 
 ToolFactory.register_tool(UploadedSearchTool, UploadedSearchConfig)

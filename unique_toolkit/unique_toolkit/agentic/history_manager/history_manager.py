@@ -3,6 +3,9 @@ from typing import Annotated, Awaitable, Callable
 
 from pydantic import BaseModel, Field
 
+from unique_toolkit._common.feature_flags.schema import (
+    FeatureExtendedSourceSerialization,
+)
 from unique_toolkit._common.validators import LMI
 from unique_toolkit.agentic.history_manager.loop_token_reducer import LoopTokenReducer
 from unique_toolkit.agentic.history_manager.utils import transform_chunks_to_string
@@ -42,11 +45,7 @@ class UploadedContentConfig(BaseModel):
     )
 
 
-class ExperimentalFeatures(BaseModel):
-    full_sources_serialize_dump: bool = Field(
-        default=False,
-        description="If True, the sources will be serialized in full, otherwise only the content will be serialized.",
-    )
+class ExperimentalFeatures(FeatureExtendedSourceSerialization): ...
 
 
 class HistoryManagerConfig(BaseModel):
@@ -172,8 +171,6 @@ class HistoryManager:
         stringified_sources, sources = transform_chunks_to_string(
             content_chunks,
             self._source_enumerator,
-            None,  # Use None for SourceFormatConfig
-            self._config.experimental_features.full_sources_serialize_dump,
         )
 
         self._source_enumerator += len(
