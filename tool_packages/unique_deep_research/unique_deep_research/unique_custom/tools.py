@@ -493,9 +493,19 @@ def get_research_tools(config: RunnableConfig) -> List[Any]:
         think_tool,
         research_complete,
     ]
-    # TODO: set tools that are enabled from the configuration
-    tools.extend([web_search, web_fetch])
-    tools.extend([internal_search, internal_fetch])
+
+    # Get tool configuration from the config
+    configurable = config.get("configurable", {})
+    enable_web_tools = configurable.get("enable_web_tools", True)
+    enable_internal_tools = configurable.get("enable_internal_tools", True)
+
+    # Add web tools if enabled
+    if enable_web_tools:
+        tools.extend([web_search, web_fetch])
+
+    # Add internal tools if enabled
+    if enable_internal_tools:
+        tools.extend([internal_search, internal_fetch])
 
     return tools
 
