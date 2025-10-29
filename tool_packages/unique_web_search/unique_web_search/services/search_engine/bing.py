@@ -68,7 +68,7 @@ class BingSearch(SearchEngine[BingSearchConfig]):
 
     async def search(self, query: str, **kwargs) -> list[WebSearchResult]:
         project = AIProjectClient(
-            credential=DefaultAzureCredential(),
+            credential=self.credentials,
             endpoint=self.config.endpoint,
         )
 
