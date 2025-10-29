@@ -16,7 +16,7 @@ P = ParamSpec("P")
 R = TypeVar("R")
 
 
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 
 
 class Result(Generic[R]):
@@ -87,7 +87,7 @@ class SafeTaskExecutor:
         self._ignored_exceptions = tuple(ignored_exceptions)
         self._log_exceptions = log_exceptions
         self._log_exc_info = log_exc_info
-        self._logger = logger
+        self._logger = logger or _logger
 
     def execute(
         self, f: Callable[P, R], *args: P.args, **kwargs: P.kwargs
@@ -98,7 +98,9 @@ class SafeTaskExecutor:
             if isinstance(e, self._ignored_exceptions):
                 raise e
             if self._log_exceptions:
-                logger.error(f"Error in {f.__name__}: {e}", exc_info=self._log_exc_info)
+                self._logger.error(
+                    f"Error in {f.__name__}: {e}", exc_info=self._log_exc_info
+                )
             return Result(False, exception=e)
 
     async def execute_async(
@@ -110,7 +112,9 @@ class SafeTaskExecutor:
             if isinstance(e, self._ignored_exceptions):
                 raise e
             if self._log_exceptions:
-                logger.error(f"Error in {f.__name__}: {e}", exc_info=self._log_exc_info)
+                self._logger.error(
+                    f"Error in {f.__name__}: {e}", exc_info=self._log_exc_info
+                )
             return Result(False, exception=e)
 
 
