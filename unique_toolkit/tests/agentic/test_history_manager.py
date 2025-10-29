@@ -1,5 +1,5 @@
 import logging
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
@@ -53,7 +53,9 @@ def mock_reference_manager():
 
 
 @pytest.fixture
-def history_manager(mock_logger, chat_event, history_manager_config, mock_reference_manager):
+def history_manager(
+    mock_logger, chat_event, history_manager_config, mock_reference_manager
+):
     return HistoryManager(
         logger=mock_logger,
         event=chat_event,
@@ -67,7 +69,7 @@ class TestHistoryManagerConfig:
     @pytest.mark.unit
     def test_default_config_values(self):
         config = HistoryManagerConfig()
-        
+
         assert config.percent_of_max_tokens_for_history == 0.2
         assert config.language_model is not None
         assert isinstance(config.uploaded_content_config, UploadedContentConfig)
@@ -78,7 +80,7 @@ class TestHistoryManagerConfig:
             percent_of_max_tokens_for_history=0.3,
             language_model=LanguageModelInfo.from_name(DEFAULT_GPT_4o),
         )
-        
+
         expected_max_tokens = int(
             config.language_model.token_limits.token_limit_input * 0.3
         )
@@ -87,9 +89,12 @@ class TestHistoryManagerConfig:
     @pytest.mark.unit
     def test_uploaded_content_config_defaults(self):
         config = UploadedContentConfig()
-        
+
         assert config.percent_for_uploaded_content == 0.6
-        assert "uploaded content is too large" in config.user_context_window_limit_warning.lower()
+        assert (
+            "uploaded content is too large"
+            in config.user_context_window_limit_warning.lower()
+        )
 
 
 class TestHistoryManager:
@@ -112,9 +117,9 @@ class TestHistoryManager:
             name="test_tool",
             arguments='{"arg": "value"}',
         )
-        
+
         history_manager.add_tool_call(tool_call)
-        
+
         assert len(history_manager.get_tool_calls()) == 1
         assert history_manager.get_tool_calls()[0] == tool_call
 
@@ -125,9 +130,9 @@ class TestHistoryManager:
             name="internal_tool",
             arguments='{"arg": "value"}',
         )
-        
+
         history_manager.add_internal_tool_call(tool_call)
-        
+
         assert len(history_manager.get_internal_tool_calls()) == 1
         assert history_manager.get_internal_tool_calls()[0] == tool_call
 
@@ -138,9 +143,9 @@ class TestHistoryManager:
             name="mcp_tool",
             arguments='{"arg": "value"}',
         )
-        
+
         history_manager.add_mcp_tool_call(tool_call)
-        
+
         assert len(history_manager.get_mcp_tool_calls()) == 1
         assert history_manager.get_mcp_tool_calls()[0] == tool_call
 
@@ -151,9 +156,9 @@ class TestHistoryManager:
             name="sub_agent",
             arguments='{"arg": "value"}',
         )
-        
+
         history_manager.add_sub_agent_call(tool_call)
-        
+
         assert len(history_manager.get_sub_agent_calls()) == 1
         assert history_manager.get_sub_agent_calls()[0] == tool_call
 
@@ -165,15 +170,15 @@ class TestHistoryManager:
     def test_has_no_loop_messages_false_after_adding(self, history_manager):
         message = LanguageModelAssistantMessage(content="test")
         history_manager.add_assistant_message(message)
-        
+
         assert history_manager.has_no_loop_messages() is False
 
     @pytest.mark.unit
     def test_add_assistant_message(self, history_manager):
         message = LanguageModelAssistantMessage(content="Assistant response")
-        
+
         history_manager.add_assistant_message(message)
-        
+
         assert len(history_manager._loop_history) == 1
         assert history_manager._loop_history[0] == message
 
@@ -184,9 +189,9 @@ class TestHistoryManager:
             name="test_tool",
             content="Tool result content",
         )
-        
+
         history_manager.add_tool_call_results([tool_response])
-        
+
         assert len(history_manager._loop_history) == 1
         message = history_manager._loop_history[0]
         assert isinstance(message, LanguageModelToolMessage)
@@ -202,9 +207,9 @@ class TestHistoryManager:
             content="",
             error_message="Tool execution failed",
         )
-        
+
         history_manager.add_tool_call_results([tool_response])
-        
+
         assert len(history_manager._loop_history) == 1
         message = history_manager._loop_history[0]
         assert isinstance(message, LanguageModelToolMessage)
@@ -231,7 +236,7 @@ class TestHistoryManager:
                 text="Chunk content 2",
             ),
         ]
-        
+
         tool_response = ToolCallResponse(
             id="tool_3",
             name="search_tool",
@@ -239,9 +244,9 @@ class TestHistoryManager:
             content_chunks=content_chunks,
             error_message="",
         )
-        
+
         history_manager.add_tool_call_results([tool_response])
-        
+
         assert len(history_manager._loop_history) == 1
         message = history_manager._loop_history[0]
         assert isinstance(message, LanguageModelToolMessage)
@@ -270,9 +275,9 @@ class TestHistoryManager:
                 error_message="Error 3",
             ),
         ]
-        
+
         history_manager.add_tool_call_results(responses)
-        
+
         assert len(history_manager._loop_history) == 3
         assert history_manager._loop_history[0].content == "Result 1"
         assert history_manager._loop_history[1].content == "Result 2"
@@ -293,9 +298,9 @@ class TestHistoryManager:
                 arguments='{"arg": "value2"}',
             ),
         ]
-        
+
         history_manager._append_tool_calls_to_history(tool_calls)
-        
+
         assert len(history_manager._loop_history) == 1
         message = history_manager._loop_history[0]
         assert isinstance(message, LanguageModelAssistantMessage)
@@ -305,23 +310,23 @@ class TestHistoryManager:
     @pytest.mark.asyncio
     async def test_get_history_for_model_call(self, history_manager):
         # Mock the token reducer's method
-        mock_messages = LanguageModelMessages([
-            LanguageModelAssistantMessage(content="test")
-        ])
+        mock_messages = LanguageModelMessages(
+            [LanguageModelAssistantMessage(content="test")]
+        )
         history_manager._token_reducer.get_history_for_model_call = AsyncMock(
             return_value=mock_messages
         )
-        
+
         async def mock_remove_from_text(text: str) -> str:
             return text.replace("remove", "")
-        
+
         result = await history_manager.get_history_for_model_call(
             original_user_message="Original message",
             rendered_user_message_string="Rendered message",
             rendered_system_message_string="System message",
             remove_from_text=mock_remove_from_text,
         )
-        
+
         assert result == mock_messages
         history_manager._token_reducer.get_history_for_model_call.assert_called_once()
 
@@ -331,15 +336,13 @@ class TestHistoryManager:
         self, history_manager
     ):
         # Mock the token reducer's method
-        mock_history = [
-            LanguageModelAssistantMessage(content="Previous message")
-        ]
+        mock_history = [LanguageModelAssistantMessage(content="Previous message")]
         history_manager._token_reducer.get_history_from_db = AsyncMock(
             return_value=mock_history
         )
-        
+
         result = await history_manager.get_user_visible_chat_history()
-        
+
         assert len(result.root) == 1
         assert result.root[0].content == "Previous message"
         history_manager._token_reducer.get_history_from_db.assert_called_once()
@@ -350,17 +353,15 @@ class TestHistoryManager:
         self, history_manager
     ):
         # Mock the token reducer's method
-        mock_history = [
-            LanguageModelAssistantMessage(content="Previous message")
-        ]
+        mock_history = [LanguageModelAssistantMessage(content="Previous message")]
         history_manager._token_reducer.get_history_from_db = AsyncMock(
             return_value=mock_history
         )
-        
+
         result = await history_manager.get_user_visible_chat_history(
             assistant_message_text="New assistant message"
         )
-        
+
         assert len(result.root) == 2
         assert result.root[0].content == "Previous message"
         assert result.root[1].content == "New assistant message"
@@ -377,17 +378,19 @@ class TestHistoryManager:
         history_manager._token_reducer.get_history_from_db = AsyncMock(
             return_value=mock_history
         )
-        
+
         async def mock_remove_from_text(text: str) -> str:
             return text.replace("removable", "cleaned")
-        
+
         result = await history_manager.get_user_visible_chat_history(
             remove_from_text=mock_remove_from_text
         )
-        
+
         history_manager._token_reducer.get_history_from_db.assert_called_once_with(
             mock_remove_from_text
         )
+
+        assert result == mock_history  # Add assertion to verify the return value
 
     @pytest.mark.unit
     def test_source_enumerator_increments_correctly(self, history_manager):
@@ -401,7 +404,7 @@ class TestHistoryManager:
                 text="Text 1",
             ),
         ]
-        
+
         content_chunks_2 = [
             ContentChunk(
                 id="chunk_2",
@@ -418,7 +421,7 @@ class TestHistoryManager:
                 text="Text 3",
             ),
         ]
-        
+
         tool_response_1 = ToolCallResponse(
             id="tool_1",
             name="tool_1",
@@ -426,7 +429,7 @@ class TestHistoryManager:
             content_chunks=content_chunks_1,
             error_message="",
         )
-        
+
         tool_response_2 = ToolCallResponse(
             id="tool_2",
             name="tool_2",
@@ -434,10 +437,10 @@ class TestHistoryManager:
             content_chunks=content_chunks_2,
             error_message="",
         )
-        
+
         history_manager.add_tool_call_results([tool_response_1])
         assert history_manager._source_enumerator == 1
-        
+
         history_manager.add_tool_call_results([tool_response_2])
         assert history_manager._source_enumerator == 3
 
@@ -451,9 +454,9 @@ class TestHistoryManager:
             content="Content",
             error_message="",
         )
-        
+
         history_manager.add_tool_call_results([tool_response])
-        
+
         # Verify logger.debug was called
         mock_logger.debug.assert_called()
         debug_call_args = mock_logger.debug.call_args[0][0]
@@ -467,23 +470,21 @@ class TestHistoryManager:
         internal_tool = LanguageModelFunction(
             id="internal", name="internal_tool", arguments="{}"
         )
-        mcp_tool = LanguageModelFunction(
-            id="mcp", name="mcp_tool", arguments="{}"
-        )
+        mcp_tool = LanguageModelFunction(id="mcp", name="mcp_tool", arguments="{}")
         agent_tool = LanguageModelFunction(
             id="agent", name="agent_tool", arguments="{}"
         )
-        
+
         history_manager.add_tool_call(regular_tool)
         history_manager.add_internal_tool_call(internal_tool)
         history_manager.add_mcp_tool_call(mcp_tool)
         history_manager.add_sub_agent_call(agent_tool)
-        
+
         assert len(history_manager.get_tool_calls()) == 1
         assert len(history_manager.get_internal_tool_calls()) == 1
         assert len(history_manager.get_mcp_tool_calls()) == 1
         assert len(history_manager.get_sub_agent_calls()) == 1
-        
+
         assert history_manager.get_tool_calls()[0].name == "regular_tool"
         assert history_manager.get_internal_tool_calls()[0].name == "internal_tool"
         assert history_manager.get_mcp_tool_calls()[0].name == "mcp_tool"
@@ -500,9 +501,9 @@ class TestHistoryManagerEdgeCases:
             content_chunks=[],
             error_message="",
         )
-        
+
         history_manager.add_tool_call_results([tool_response])
-        
+
         assert len(history_manager._loop_history) == 1
         message = history_manager._loop_history[0]
         assert isinstance(message, LanguageModelToolMessage)
@@ -516,23 +517,23 @@ class TestHistoryManagerEdgeCases:
             content_chunks=None,
             error_message="",
         )
-        
+
         history_manager.add_tool_call_results([tool_response])
-        
+
         assert len(history_manager._loop_history) == 1
 
     @pytest.mark.unit
     def test_empty_tool_call_results_list(self, history_manager):
         history_manager.add_tool_call_results([])
-        
+
         assert len(history_manager._loop_history) == 0
 
     @pytest.mark.unit
-    def test_config_without_uploaded_content(self, mock_logger, chat_event, mock_reference_manager):
-        config = HistoryManagerConfig(
-            uploaded_content_config=None
-        )
-        
+    def test_config_without_uploaded_content(
+        self, mock_logger, chat_event, mock_reference_manager
+    ):
+        config = HistoryManagerConfig(uploaded_content_config=None)
+
         manager = HistoryManager(
             logger=mock_logger,
             event=chat_event,
@@ -540,5 +541,5 @@ class TestHistoryManagerEdgeCases:
             language_model=LanguageModelInfo.from_name(DEFAULT_GPT_4o),
             reference_manager=mock_reference_manager,
         )
-        
+
         assert manager._config.uploaded_content_config is None
