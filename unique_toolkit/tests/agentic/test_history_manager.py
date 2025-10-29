@@ -17,6 +17,7 @@ from unique_toolkit.language_model.infos import LanguageModelInfo
 from unique_toolkit.language_model.schemas import (
     LanguageModelAssistantMessage,
     LanguageModelFunction,
+    LanguageModelFunctionCall,
     LanguageModelMessages,
     LanguageModelToolMessage,
 )
@@ -213,7 +214,10 @@ class TestHistoryManager:
         assert len(history_manager._loop_history) == 1
         message = history_manager._loop_history[0]
         assert isinstance(message, LanguageModelToolMessage)
-        assert "Tool execution failed" == message.content
+        assert (
+            "Tool call failed_tool failed with error: Tool execution failed"
+            == message.content
+        )
         assert message.tool_call_id == "tool_2"
         assert message.name == "failed_tool"
 
@@ -303,7 +307,14 @@ class TestHistoryManager:
         assert len(history_manager._loop_history) == 1
         message = history_manager._loop_history[0]
         assert isinstance(message, LanguageModelAssistantMessage)
-        assert message.tool_calls == tool_calls
+        assert message.tool_calls == [
+            LanguageModelFunctionCall(
+                id=tool_call.id,
+                type="function",
+                function=tool_call,
+            )
+            for tool_call in tool_calls
+        ]
 
     @pytest.mark.unit
     @pytest.mark.asyncio
@@ -389,7 +400,7 @@ class TestHistoryManager:
             mock_remove_from_text
         )
 
-        assert result == mock_history  # Add assertion to verify the return value
+        assert result.root == mock_history  # Add assertion to verify the return value
 
     @pytest.mark.unit
     def test_source_enumerator_increments_correctly(self, history_manager):
