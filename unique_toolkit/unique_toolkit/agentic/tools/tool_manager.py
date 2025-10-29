@@ -333,14 +333,14 @@ class ToolManager(BaseToolManager):
         """
         return self._tools  # type: ignore
 
-    def add_used_tool(self, tool: Tool) -> None:
+    def add_used_tool(self, tool: LanguageModelFunction) -> None:
         """
         Adds a tool to the list of used tools.
         """
         if not any(t.name == tool.name for t in self._used_tools):
             self._used_tools.append(tool)
 
-    def get_used_tools(self) -> list[Tool]:
+    def get_used_tools(self) -> list[LanguageModelFunction]:
         """ 
         Returns the tools that have been used/called by the orchestrator in this chat interaction.
         """
@@ -460,13 +460,13 @@ class ResponsesApiToolManager(BaseToolManager):
         """
         return self._tool_manager.get_tools()
 
-    def add_used_tool(self, tool: Tool) -> None:
+    def add_used_tool(self, tool: LanguageModelFunction) -> None:
         """
         Adds a tool to the list of used tools.
         """
         self._tool_manager.add_used_tool(tool)
 
-    def get_used_tools(self) -> list[Tool]:
+    def get_used_tools(self) -> list[LanguageModelFunction]:
         """
         Returns the tools that have been used/called by the orchestrator in this chat interaction.
         """
