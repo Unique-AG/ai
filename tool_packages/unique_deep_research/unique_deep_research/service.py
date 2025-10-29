@@ -105,12 +105,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         self.company_id = event.company_id
         self.user_id = event.user_id
 
-        self.client = get_async_openai_client(
-            additional_headers={
-                "x-assistant-id": event.payload.assistant_message.id,
-                "x-chat-id": event.payload.chat_id,
-            }
-        )
+        self.client = get_async_openai_client()
 
         self.logger.info(f"Using async OpenAI client pointed to {self.client.base_url}")
 
