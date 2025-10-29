@@ -11,7 +11,6 @@ import pytest
 from pydantic import BaseModel
 
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
-from unique_toolkit.agentic.tools.agent_chunks_hanlder import AgentChunksHandler
 from unique_toolkit.agentic.tools.config import (
     ToolBuildConfig,
     ToolIcon,
@@ -22,8 +21,6 @@ from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
-    LanguageModelMessage,
-    LanguageModelMessageRole,
     LanguageModelToolDescription,
 )
 
@@ -79,16 +76,6 @@ class MockTool(Tool[MockToolConfig]):
             content="Test tool response",
             debug_info={"test": "debug_info"},
             error_message="",
-        )
-
-    def get_tool_call_result_for_loop_history(
-        self,
-        tool_response: ToolCallResponse,
-        agent_chunks_handler: AgentChunksHandler,
-    ) -> LanguageModelMessage:
-        """Mock implementation for deprecated method."""
-        return LanguageModelMessage(
-            role=LanguageModelMessageRole.ASSISTANT, content=tool_response.content
         )
 
     def evaluation_check_list(self) -> list[EvaluationMetricName]:

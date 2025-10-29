@@ -5,7 +5,6 @@ from typing import Any, Generic, TypeVar, cast
 from typing_extensions import deprecated
 
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
-from unique_toolkit.agentic.tools.agent_chunks_hanlder import AgentChunksHandler
 from unique_toolkit.agentic.tools.config import ToolBuildConfig, ToolSelectionPolicy
 from unique_toolkit.agentic.tools.schemas import (
     BaseToolConfig,
@@ -20,7 +19,6 @@ from unique_toolkit.chat.service import (
 from unique_toolkit.language_model import LanguageModelToolDescription
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
-    LanguageModelMessage,
 )
 from unique_toolkit.language_model.service import LanguageModelService
 
@@ -99,15 +97,6 @@ class Tool(ABC, Generic[ConfigType]):
         You can use this if the LLM fails to follow the formatting rules.
         """
         return ""
-
-    @deprecated("Do not use as is bound to loop agent only")
-    @abstractmethod
-    def get_tool_call_result_for_loop_history(
-        self,
-        tool_response: ToolCallResponse,
-        agent_chunks_handler: AgentChunksHandler,
-    ) -> LanguageModelMessage:
-        raise NotImplementedError
 
     @deprecated(
         "Do not use. The tool should not determine how"

@@ -13,7 +13,6 @@ from unique_toolkit.agentic.tools.tool_progress_reporter import (
     ToolProgressReporter,
 )
 from unique_toolkit.app.schemas import ChatEvent, McpServer, McpTool
-from unique_toolkit.language_model import LanguageModelMessage
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelToolDescription,
@@ -98,12 +97,6 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
     ) -> list[EvaluationMetricName]:
         """Return evaluation checks based on tool response"""
         return []
-
-    def get_tool_call_result_for_loop_history(
-        self,
-        tool_response: ToolCallResponse,
-    ) -> LanguageModelMessage:
-        raise NotImplementedError("function is not supported")
 
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
         """Execute the MCP tool using SDK to call public API"""

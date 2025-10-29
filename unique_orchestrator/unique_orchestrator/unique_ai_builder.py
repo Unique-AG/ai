@@ -141,9 +141,7 @@ def _build_common(
     reference_manager = ReferenceManager()
 
     history_manager_config = HistoryManagerConfig(
-        experimental_features=history_manager_module.ExperimentalFeatures(
-            full_sources_serialize_dump=False,
-        ),
+        experimental_features=history_manager_module.ExperimentalFeatures(),
         percent_of_max_tokens_for_history=config.agent.input_token_distribution.percent_for_history,
         language_model=config.space.language_model,
         uploaded_content_config=config.agent.services.uploaded_content_config,

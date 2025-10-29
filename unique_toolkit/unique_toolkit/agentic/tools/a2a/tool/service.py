@@ -18,7 +18,6 @@ from unique_toolkit.agentic.tools.a2a.tool._schema import (
 from unique_toolkit.agentic.tools.a2a.tool.config import (
     SubAgentToolConfig,
 )
-from unique_toolkit.agentic.tools.agent_chunks_hanlder import AgentChunksHandler
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
@@ -31,7 +30,6 @@ from unique_toolkit.language_model import (
     LanguageModelFunction,
     LanguageModelToolDescription,
 )
-from unique_toolkit.language_model.schemas import LanguageModelMessage
 
 
 class SubAgentResponseSubscriber(Protocol):
@@ -198,13 +196,6 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                 name=tool_call.name,
                 content=response_text_with_references,
             )
-
-    @override
-    def get_tool_call_result_for_loop_history(
-        self,
-        tool_response: ToolCallResponse,
-        agent_chunks_handler: AgentChunksHandler,
-    ) -> LanguageModelMessage: ...  # Empty as method is deprecated
 
     async def _get_chat_id(self) -> str | None:
         if not self.config.reuse_chat:
