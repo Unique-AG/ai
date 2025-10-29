@@ -340,7 +340,7 @@ class ToolManager(BaseToolManager):
         if not any(t.name == tool.name for t in self._used_tools):
             self._used_tools.append(tool)
 
-    def get_used_tools(self) -> list[str]:
+    def get_used_tools(self) -> list[Tool]:
         """ 
         Returns the tools that have been used/called by the orchestrator in this chat interaction.
         """
@@ -466,7 +466,7 @@ class ResponsesApiToolManager(BaseToolManager):
         """
         self._tool_manager.add_used_tool(tool)
 
-    def get_used_tools(self) -> list[str]:
+    def get_used_tools(self) -> list[Tool]:
         """
         Returns the tools that have been used/called by the orchestrator in this chat interaction.
         """
