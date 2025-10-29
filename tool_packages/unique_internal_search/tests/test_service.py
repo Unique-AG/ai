@@ -9,7 +9,6 @@ from unique_toolkit.agentic.tools.agent_chunks_hanlder import AgentChunksHandler
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.content.service import ContentService
-from unique_toolkit.language_model.schemas import LanguageModelToolMessage
 
 from unique_internal_search.config import InternalSearchConfig
 from unique_internal_search.service import InternalSearchService, InternalSearchTool
@@ -1551,7 +1550,7 @@ class TestInternalSearchTool:
             assert mock_tool_progress_reporter.notify_from_tool_call.call_count >= 2
 
     @pytest.mark.ai
-    def test_get_tool_call_result_for_loop_history__transforms_chunks_to_message(
+    def test_get_tool_call_result_for_loop_history__raises_not_implemented_error(
         self,
         base_internal_search_config: InternalSearchConfig,
         mock_chat_event: Any,
@@ -1561,9 +1560,9 @@ class TestInternalSearchTool:
         sample_content_chunks: list[ContentChunk],
     ) -> None:
         """
-        Purpose: Verify get_tool_call_result_for_loop_history transforms chunks to LanguageModelMessage.
-        Why this matters: Ensures tool results are properly formatted for inclusion in conversation history.
-        Setup summary: Mock transform_chunks_to_string, call method, verify LanguageModelToolMessage returned.
+        Purpose: Verify get_tool_call_result_for_loop_history raises NotImplementedError.
+        Why this matters: Method is deprecated and not implemented, should raise error when called.
+        Setup summary: Create tool, call method, verify NotImplementedError is raised.
         """
         # Arrange
         mock_tool_call_response.content_chunks = sample_content_chunks
@@ -1578,10 +1577,6 @@ class TestInternalSearchTool:
             patch(
                 "unique_internal_search.service.ChunkRelevancySorter"
             ) as mock_sorter_class,
-            patch(
-                "unique_internal_search.service.transform_chunks_to_string",
-                return_value=("transformed sources", []),
-            ),
         ):
             mock_content_service = Mock(spec=ContentService)
             mock_content_service._metadata_filter = None
@@ -1600,85 +1595,11 @@ class TestInternalSearchTool:
                 )
                 setattr(tool, "_event", mock_chat_event)
 
-            # Act
-            result = tool.get_tool_call_result_for_loop_history(
-                mock_tool_call_response,
-                mock_agent_chunks_handler,
-            )
-
-            # Assert
-            # LanguageModelToolMessage should have these attributes
-            assert hasattr(result, "tool_call_id") or hasattr(result, "toolCallId")
-            tool_call_id = getattr(
-                result, "tool_call_id", getattr(result, "toolCallId", None)
-            )
-            assert tool_call_id == "response_123"
-            assert hasattr(result, "name")
-            assert getattr(result, "name", None) == "InternalSearch"  # type: ignore
-            assert hasattr(result, "content")
-            assert getattr(result, "content", None) == "transformed sources"  # type: ignore
-
-    @pytest.mark.ai
-    def test_get_tool_call_result_for_loop_history__handles_none_chunks(
-        self,
-        base_internal_search_config: InternalSearchConfig,
-        mock_chat_event: Any,
-        mock_logger: Any,
-        mock_tool_call_response: ToolCallResponse,
-        mock_agent_chunks_handler: AgentChunksHandler,
-    ) -> None:
-        """
-        Purpose: Verify get_tool_call_result_for_loop_history handles None content_chunks gracefully.
-        Why this matters: Ensures robust handling when tool response has no chunks.
-        Setup summary: Set content_chunks to None, call method, verify empty list used.
-        """
-        # Arrange
-        mock_tool_call_response.content_chunks = None
-        mock_tool_call_response.id = "response_123"
-        mock_tool_call_response.name = "InternalSearch"
-        setattr(mock_agent_chunks_handler, "chunks", [])
-
-        with (
-            patch(
-                "unique_internal_search.service.ContentService"
-            ) as mock_content_service_class,
-            patch(
-                "unique_internal_search.service.ChunkRelevancySorter"
-            ) as mock_sorter_class,
-            patch(
-                "unique_internal_search.service.transform_chunks_to_string",
-                return_value=("", []),
-            ),
-        ):
-            mock_content_service = Mock(spec=ContentService)
-            mock_content_service._metadata_filter = None
-            mock_content_service_class.from_event.return_value = mock_content_service
-            mock_sorter_class.from_event.return_value = Mock()
-
-            def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set _event attribute that Tool base class expects
-                setattr(self, "_event", event)
-                setattr(self, "logger", mock_logger)
-
-            with patch("unique_internal_search.service.Tool.__init__", setup_tool):
-                tool = InternalSearchTool(
-                    configuration=base_internal_search_config,
-                    event=mock_chat_event,
+            # Act & Assert
+            with pytest.raises(
+                NotImplementedError, match="This method is not implemented"
+            ):
+                tool.get_tool_call_result_for_loop_history(
+                    mock_tool_call_response,
+                    mock_agent_chunks_handler,
                 )
-                setattr(tool, "_event", mock_chat_event)
-
-            # Act
-            result = tool.get_tool_call_result_for_loop_history(
-                mock_tool_call_response,
-                mock_agent_chunks_handler,
-            )
-
-            # Assert
-            # LanguageModelToolMessage should have these attributes
-            assert hasattr(result, "tool_call_id") or hasattr(result, "toolCallId")
-            tool_call_id = getattr(
-                result, "tool_call_id", getattr(result, "toolCallId", None)
-            )
-            assert tool_call_id == "response_123"
-            assert isinstance(result, LanguageModelToolMessage)
-            assert result.name == "InternalSearch"
