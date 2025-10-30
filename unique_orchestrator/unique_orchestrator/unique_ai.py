@@ -261,7 +261,10 @@ class UniqueAI:
             for prompts in self._tool_manager.get_tool_prompts()
         ]
 
-        used_tools = [m.name for m in self._tool_manager.get_tools()]
+        used_tools = [t.name for t in self._history_manager.get_tool_calls()]
+        sub_agent_calls = self._tool_manager.filter_tool_calls(
+            self._history_manager.get_tool_calls(), ["subagent"]
+        )
 
         mcp_server_user_prompts = [
             mcp_server.user_prompt for mcp_server in self._mcp_servers
@@ -274,6 +277,7 @@ class UniqueAI:
         if (
             self._config.agent.experimental.sub_agents_config.referencing_config
             is not None
+            and len(sub_agent_calls) > 0
         ):
             use_sub_agent_references = True
             sub_agent_referencing_instructions = self._config.agent.experimental.sub_agents_config.referencing_config.referencing_instructions_for_user_prompt
@@ -298,7 +302,10 @@ class UniqueAI:
         # TODO: Collect tool information here and adapt to system prompt
         tool_descriptions = self._tool_manager.get_tool_prompts()
 
-        used_tools = [m.name for m in self._tool_manager.get_tools()]
+        used_tools = [t.name for t in self._history_manager.get_tool_calls()]
+        sub_agent_calls = self._tool_manager.filter_tool_calls(
+            self._history_manager.get_tool_calls(), ["subagent"]
+        )
 
         system_prompt_template = jinja2.Template(
             self._config.agent.prompt_config.system_prompt_template
@@ -313,6 +320,7 @@ class UniqueAI:
         if (
             self._config.agent.experimental.sub_agents_config.referencing_config
             is not None
+            and len(sub_agent_calls) > 0
         ):
             use_sub_agent_references = True
             sub_agent_referencing_instructions = self._config.agent.experimental.sub_agents_config.referencing_config.referencing_instructions_for_system_prompt
@@ -381,6 +389,9 @@ class UniqueAI:
 
         # Append function calls to history
         self._history_manager._append_tool_calls_to_history(tool_calls)
+
+        for tool_call in tool_calls:
+            self._history_manager.add_tool_call(tool_call)
 
         # Execute tool calls
         tool_call_responses = await self._tool_manager.execute_selected_tools(
