@@ -346,14 +346,6 @@ class ToolManager(BaseToolManager):
     def sub_agents(self) -> list[SubAgentTool]:
         return self._sub_agents
 
-    @property
-    def internal_tools(self) -> list[Tool]:
-        return self._internal_tools
-
-    @property
-    def mcp_tools(self) -> list[Tool]:
-        return self._mcp_tools
-
     def get_evaluation_check_list(self) -> list[EvaluationMetricName]:
         return list(self._tool_evaluation_check_list)
 
