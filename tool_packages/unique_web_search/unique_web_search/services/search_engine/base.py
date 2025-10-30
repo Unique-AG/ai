@@ -1,4 +1,3 @@
-import logging
 from abc import ABC, abstractmethod
 from enum import StrEnum
 from typing import Generic, TypeVar
@@ -17,9 +16,6 @@ from unique_web_search.services.search_engine.schema import (
 ENCODER_MODEL = "cl100k_base"
 
 encoder = tiktoken.get_encoding(ENCODER_MODEL)
-
-
-logger = logging.getLogger(f"WebSearch.{__name__}")
 
 
 class SearchEngineType(StrEnum):

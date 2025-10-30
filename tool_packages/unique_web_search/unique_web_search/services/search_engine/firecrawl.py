@@ -15,7 +15,7 @@ from unique_web_search.services.search_engine.schema import (
 )
 from unique_web_search.settings import env_settings
 
-logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 
 class FirecrawlSearchSettings(BaseModel):
@@ -33,11 +33,11 @@ class FirecrawlSearchSettings(BaseModel):
             missing_settings.append("API Key")
 
         if missing_settings:
-            logger.warning(
+            _LOGGER.warning(
                 f"Firecrawl Search API missing required settings: {', '.join(missing_settings)}"
             )
         else:
-            logger.info("Firecrawl Search API is properly configured")
+            _LOGGER.info("Firecrawl Search API is properly configured")
 
         return cls(
             api_key=env_settings.firecrawl_api_key,
@@ -99,7 +99,7 @@ class FireCrawlSearch(SearchEngine[FireCrawlConfig]):
 
         search_results = []
         if not response.web:
-            logger.info("No web results found for the searched query.")
+            _LOGGER.info("No web results found for the searched query.")
         else:
             for result in response.web:
                 if isinstance(result, Document):
@@ -110,7 +110,7 @@ class FireCrawlSearch(SearchEngine[FireCrawlConfig]):
                         search_results.append(web_search_result)
 
         if not response.news:
-            logger.info("No news results found for the searched query.")
+            _LOGGER.info("No news results found for the searched query.")
         else:
             for result in response.news:
                 if isinstance(result, Document):
@@ -138,5 +138,5 @@ class FireCrawlSearch(SearchEngine[FireCrawlConfig]):
                 content=document.markdown,
             )
         except Exception as e:
-            logger.error(f"Unexpected missing attributes in document: {e}")
+            _LOGGER.error(f"Unexpected missing attributes in document: {e}")
             return None

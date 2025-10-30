@@ -6,7 +6,7 @@ from unique_toolkit.language_model.infos import LanguageModelInfo
 
 from unique_web_search.services.content_processing import WebPageChunk
 
-logger = getLogger(__name__)
+_LOGGER = getLogger(__name__)
 
 
 def query_params_to_human_string(query: str, date_restrict: str | None) -> str:
@@ -50,7 +50,7 @@ def _get_max_tokens(
         max_tokens = int(
             language_model_max_input_tokens * percentage_of_input_tokens_for_sources
         )
-        logger.debug(
+        _LOGGER.debug(
             "Using %s of max tokens %s as token limit: %s",
             percentage_of_input_tokens_for_sources,
             language_model_max_input_tokens,
@@ -58,7 +58,7 @@ def _get_max_tokens(
         )
         return max_tokens
     else:
-        logger.debug(
+        _LOGGER.debug(
             "language model input context size is not set, using default max tokens"
         )
         return (

@@ -26,7 +26,7 @@ class TavilyCrawler(BaseCrawler[TavilyCrawlerConfig]):
     # )
     async def crawl(self, urls: list[str]) -> list[str]:
         api_key = get_tavily_search_settings().api_key
-        assert api_key is not None
+        assert api_key is not None, "Tavily API key is not configured"
 
         client = AsyncTavilyClient(api_key=api_key)
 

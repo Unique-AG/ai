@@ -29,7 +29,7 @@ from unique_web_search.services.search_engine.schema import (
 )
 from unique_web_search.utils import StepDebugInfo, WebSearchDebugInfo
 
-logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 step_type_to_name = {
     StepType.SEARCH: "**Searching Web**",
@@ -109,7 +109,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
 
         for result in results_nested:
             if isinstance(result, BaseException):
-                logger.exception(f"Error executing step: {result}")
+                _LOGGER.exception(f"Error executing step: {result}")
             else:
                 results.extend(result)
 
@@ -128,7 +128,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
             self.tool_parameters.objective, results
         )
 
-        if self.chunk_relevancy_sorter:
+        if self.chunk_relevancy_sort_config.enabled:
             self.notify_name = "**Resorting Sources**"
             self.notify_message = self.tool_parameters.objective
             await self.notify_callback()
@@ -158,7 +158,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
         )
 
         time_start = time()
-        logger.info(f"Company {self.company_id} Searching with {self.search_service}")
+        _LOGGER.info(f"Company {self.company_id} Searching with {self.search_service}")
 
         results = await self.search_service.search(step.query_or_url)
         delta_time = time() - time_start
@@ -176,13 +176,13 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
             )
         )
 
-        logger.info(
+        _LOGGER.info(
             f"Searched with {self.search_service} completed in {delta_time} seconds"
         )
 
         if self.search_service.requires_scraping:
             time_start = time()
-            logger.info(
+            _LOGGER.info(
                 f"Company {self.company_id} Crawling with {self.crawler_service}"
             )
             crawl_results = await self.crawler_service.crawl(
@@ -203,7 +203,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
                     },
                 )
             )
-            logger.info(
+            _LOGGER.info(
                 f"Crawled {len(results)} pages with {self.crawler_service} completed in {delta_time} seconds"
             )
         return results
@@ -218,10 +218,10 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
             )
         )
         time_start = time()
-        logger.info(f"Company {self.company_id} Crawling with {self.crawler_service}")
+        _LOGGER.info(f"Company {self.company_id} Crawling with {self.crawler_service}")
         results = await self.crawler_service.crawl([step.query_or_url])
         delta_time = time() - time_start
-        logger.info(
+        _LOGGER.debug(
             f"Crawled {step.query_or_url} with {self.crawler_service} completed in {delta_time} seconds"
         )
 
@@ -244,10 +244,10 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
 
     async def _enforce_max_steps(self) -> None:
         if len(self.tool_parameters.steps) > self.max_steps:
-            logger.warning(
+            _LOGGER.warning(
                 f"Number of steps is greater than the maximum number of steps: {len(self.tool_parameters.steps)} > {self.max_steps}"
             )
-            logger.info(f"Reducing number of steps to {self.max_steps}")
+            _LOGGER.info(f"Reducing number of steps to {self.max_steps}")
             self.tool_parameters.steps = self.tool_parameters.steps[: self.max_steps]
             self.debug_info.steps.append(
                 StepDebugInfo(

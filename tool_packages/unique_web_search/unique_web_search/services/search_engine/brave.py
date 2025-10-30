@@ -14,7 +14,7 @@ from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
 
-logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 HEADERS = {
     "Accept": "application/json",
@@ -101,7 +101,7 @@ class BraveSearch(SearchEngine[BraveSearchConfig]):
         if "news" in brave_response and brave_response["news"] is not None:
             search_results.extend(brave_response["news"]["results"])
         if not search_results:
-            logger.warning("No search results found in Brave search response")
+            _LOGGER.warning("No search results found in Brave search response")
             return []
 
         return [
@@ -118,5 +118,5 @@ class BraveSearch(SearchEngine[BraveSearchConfig]):
         try:
             return brave_response[key]
         except KeyError:
-            logger.warning(f"Key {key} not found in Brave search response")
+            _LOGGER.warning(f"Key {key} not found in Brave search response")
             return default

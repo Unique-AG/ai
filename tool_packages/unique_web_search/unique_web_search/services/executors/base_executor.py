@@ -25,7 +25,7 @@ from unique_web_search.services.search_engine.schema import (
 )
 from unique_web_search.utils import StepDebugInfo, WebSearchDebugInfo
 
-logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 
 class BaseWebSearchExecutor(ABC):
@@ -63,7 +63,7 @@ class BaseWebSearchExecutor(ABC):
         self.debug_info = debug_info
 
         async def notify_callback() -> None:
-            logger.info(f"{self.notify_name}: {self.notify_message}")
+            _LOGGER.debug(f"{self.notify_name}: {self.notify_message}")
             if self.tool_progress_reporter:
                 await self.tool_progress_reporter.notify_from_tool_call(
                     tool_call=tool_call,
@@ -100,7 +100,7 @@ class BaseWebSearchExecutor(ABC):
         self, objective: str, web_search_results: list[WebSearchResult]
     ) -> list[WebPageChunk]:
         start_time = time()
-        logger.info(
+        _LOGGER.info(
             f"Company {self.company_id} Content processing with {self.content_processor.config.strategy}"
         )
         content_results = await self.content_processor.run(
@@ -108,7 +108,7 @@ class BaseWebSearchExecutor(ABC):
         )
         end_time = time()
         delta_time = end_time - start_time
-        logger.info(
+        _LOGGER.info(
             f"Content processed with {self.content_processor.config.strategy} completed in {delta_time} seconds"
         )
         self.debug_info.steps.append(
@@ -143,7 +143,7 @@ class BaseWebSearchExecutor(ABC):
                 chunks=content,
                 config=self.chunk_relevancy_sort_config,
             )
-            logger.info(f"Sorting chunks message: {sorted_chunks.user_message}")
+            _LOGGER.info(f"Sorting chunks message: {sorted_chunks.user_message}")
             return sorted_chunks.content_chunks
         else:
             return content

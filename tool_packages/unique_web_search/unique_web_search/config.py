@@ -36,7 +36,7 @@ from unique_web_search.services.search_engine import (
 )
 from unique_web_search.settings import env_settings
 
-logger = getLogger(__name__)
+_LOGGER = getLogger(__name__)
 
 DEFAULT_MODEL_NAME = DEFAULT_GPT_4o
 
@@ -240,7 +240,7 @@ class WebSearchConfig(BaseToolConfig):
     def disable_query_refinement_if_no_structured_output(self):
         if ModelCapabilities.STRUCTURED_OUTPUT not in self.language_model.capabilities:
             self.query_refinement_config.enabled = False
-            logger.warning(
+            _LOGGER.warning(
                 "The language model does not support structured output. Query refinement is disabled."
             )
         return self

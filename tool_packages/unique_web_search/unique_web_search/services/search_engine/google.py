@@ -19,7 +19,7 @@ from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
 
-logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 # Pagingation size fixed to 10 because of the Google Search API limit
 PAGINATION_SIZE = 10
@@ -104,7 +104,7 @@ class GoogleSearch(SearchEngine[GoogleConfig]):
 
         for start_index in range(1, fetch_size + 1, PAGINATION_SIZE):
             effective_num_fetch = min(fetch_size - start_index + 1, PAGINATION_SIZE)
-            logger.info(
+            _LOGGER.info(
                 f"Fetching {effective_num_fetch} URLs from {start_index} to {start_index + effective_num_fetch - 1}"
             )
             self._update_pagination_params(
@@ -124,10 +124,10 @@ class GoogleSearch(SearchEngine[GoogleConfig]):
 
         try:
             search_results = await self._paginated_url_extraction(query=query, **kwargs)
-            logger.info(f"Found {len(search_results)} URLs")
+            _LOGGER.info(f"Found {len(search_results)} URLs")
 
         except Exception as e:
-            logger.exception(f"Failed to extract URLs from search response: {e}")
+            _LOGGER.exception(f"Failed to extract URLs from search response: {e}")
             search_results = []
 
         return search_results
