@@ -32,7 +32,7 @@ from unique_internal_search.validators import get_string_field_with_pattern_vali
 class ExperimentalFeatures(FeatureExtendedSourceSerialization):
     enable_multiple_search_strings_execution: bool = Field(
         default=False,
-        description="Whether allow multiple search strings execution in a single tool call. If set to True, an individual search will be performed for each search string in the list and search results will then be merged into a single response.",
+        description="Allow execution of multiple search strings in one call. When set to True, each string is searched individually and results are merged into a single response.",
     )
 
 
