@@ -16,7 +16,7 @@ from unique_web_search.services.crawlers.base import (
     CrawlerType,
 )
 
-logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 unwanted_types = {
     "application/octet-stream",
@@ -115,5 +115,5 @@ def _markdownify_html_with_timeout(content: str, timeout: float) -> str:
     try:
         return _markdownify_html(content)
     except Exception:
-        logger.exception("Error markdownifying HTML")
+        _LOGGER.exception("Error markdownifying HTML")
         return "Unable to markdownify HTML"

@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 from unique_web_search.settings import env_settings
 
-logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 
 class ProxyConfig(BaseModel):
@@ -51,7 +51,7 @@ def _get_cert_args() -> tuple[str, str] | str:
     proxy_ssl_key_path = env_settings.proxy_ssl_key_path
 
     if proxy_ssl_key_path is None:
-        logger.warning(
+        _LOGGER.warning(
             "Proxy SSL key path is not set. Assuming cert path includes key path"
         )
         return proxy_ssl_cert_path
@@ -60,7 +60,7 @@ def _get_cert_args() -> tuple[str, str] | str:
 
 
 def _get_none_proxy_kwargs() -> ProxyConfig:
-    logger.info("Proxy auth mode: none. Using no proxy")
+    _LOGGER.info("Proxy auth mode: none. Using no proxy")
     return ProxyConfig(
         proxy=None,
         headers=None,
@@ -72,7 +72,7 @@ def _get_none_proxy_kwargs() -> ProxyConfig:
 
 def _get_username_password_proxy_kwargs() -> ProxyConfig:
     proxy_url = _build_proxy_url_with_username_password()
-    logger.info(
+    _LOGGER.info(
         "Proxy auth mode: username_password. Using proxy with username and password"
     )
     return ProxyConfig(
@@ -85,7 +85,7 @@ def _get_username_password_proxy_kwargs() -> ProxyConfig:
 def _get_ssl_tls_proxy_kwargs() -> ProxyConfig:
     proxy_url = _build_proxy_url_with_tls()
     cert_args = _get_cert_args()
-    logger.info("Proxy auth mode: ssl_tls. Using proxy with SSL/TLS")
+    _LOGGER.info("Proxy auth mode: ssl_tls. Using proxy with SSL/TLS")
     return ProxyConfig(
         proxy=proxy_url,
         cert=cert_args,

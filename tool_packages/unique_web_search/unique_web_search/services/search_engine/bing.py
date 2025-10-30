@@ -1,4 +1,3 @@
-import logging
 from typing import Literal
 
 from azure.ai.agents.models import ListSortOrder
@@ -18,8 +17,6 @@ from unique_web_search.services.search_engine.base import (
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
-
-logger = logging.getLogger(__name__)
 
 
 class BingSearchOptionalQueryParams(BaseModel):

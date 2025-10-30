@@ -11,7 +11,7 @@ from unique_web_search.services.crawlers.base import (
     CrawlerType,
 )
 
-logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 
 class DisplayMode(StrEnum):
@@ -232,13 +232,13 @@ class Crawl4AiCrawler(BaseCrawler[Crawl4AiCrawlerConfig]):
             rate_limiter=rate_limiter,
         )
 
-        logger.info(f"Crawling {len(urls)} URLs with Crawl4AiCrawler")
+        _LOGGER.info(f"Crawling {len(urls)} URLs with Crawl4AiCrawler")
         async with AsyncWebCrawler(config=browser_config) as crawler:
             crawler_results = await crawler.arun_many(
                 urls, config=run_config, dispatcher=dispatcher
             )
 
-        logger.info(
+        _LOGGER.info(
             f"Crawled {len(crawler_results)} URLs with Crawl4AiCrawler"  # type: ignore
         )
 
@@ -247,7 +247,7 @@ class Crawl4AiCrawler(BaseCrawler[Crawl4AiCrawlerConfig]):
                 try:
                     return str(crawl_result.markdown)
                 except Exception as e:
-                    logger.error(f"Failed to get markdown from crawl result: {e}")
+                    _LOGGER.error(f"Failed to get markdown from crawl result: {e}")
                     return "Failed to get markdown from crawl result"
             else:
                 return "Failed to Scrape"

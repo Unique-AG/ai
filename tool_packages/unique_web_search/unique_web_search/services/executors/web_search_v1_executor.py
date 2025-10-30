@@ -32,7 +32,7 @@ from unique_web_search.utils import (
     query_params_to_human_string,
 )
 
-logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 
 class RefineQueryMode(StrEnum):
@@ -199,7 +199,7 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
 
         content_results = await self._content_processing(objective, web_search_results)
 
-        if self.chunk_relevancy_sorter:
+        if self.chunk_relevancy_sort_config.enabled:
             self.notify_name = "**Resorting Sources**"
             self.notify_message = objective
             await self.notify_callback()
@@ -249,13 +249,13 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
         self, query: str, date_restrict: str | None
     ) -> list[WebSearchResult]:
         start_time = time()
-        logger.info(f"Company {self.company_id} Searching with {self.search_service}")
+        _LOGGER.info(f"Company {self.company_id} Searching with {self.search_service}")
         search_results = await self.search_service.search(
             query, date_restrict=date_restrict
         )
         end_time = time()
         delta_time = end_time - start_time
-        logger.info(
+        _LOGGER.info(
             f"Searched with {self.search_service} completed in {delta_time} seconds"
         )
         self.debug_info.steps.append(
@@ -275,13 +275,13 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
 
     async def _crawl(self, web_search_results: list[WebSearchResult]) -> list[str]:
         start_time = time()
-        logger.info(f"Company {self.company_id} Crawling with {self.crawler_service}")
+        _LOGGER.info(f"Company {self.company_id} Crawling with {self.crawler_service}")
         crawl_results = await self.crawler_service.crawl(
             [result.url for result in web_search_results]
         )
         end_time = time()
         delta_time = end_time - start_time
-        logger.info(
+        _LOGGER.info(
             f"Crawled {len(web_search_results)} pages with {self.crawler_service} completed in {delta_time} seconds"
         )
         self.debug_info.steps.append(
@@ -299,7 +299,7 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
 
     def _enforce_max_queries(self, list_of_queries: list[str]) -> list[str]:
         if len(list_of_queries) > self.max_queries:
-            logger.info(
+            _LOGGER.info(
                 f"Company {self.company_id} Reducing number of queries to {self.max_queries}"
             )
             list_of_queries = list_of_queries[: self.max_queries]

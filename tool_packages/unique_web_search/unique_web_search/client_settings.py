@@ -4,7 +4,7 @@ from pydantic import BaseModel
 
 from unique_web_search.settings import env_settings
 
-logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 
 class GoogleSearchSettings(BaseModel):
@@ -30,11 +30,11 @@ class GoogleSearchSettings(BaseModel):
             missing_settings.append("API Endpoint")
 
         if missing_settings:
-            logger.warning(
+            _LOGGER.warning(
                 f"Google Search API missing required settings: {', '.join(missing_settings)}"
             )
         else:
-            logger.info("Google Search API is properly configured")
+            _LOGGER.info("Google Search API is properly configured")
 
         return cls(
             api_key=env_settings.google_search_api_key,
@@ -68,11 +68,11 @@ class FirecrawlSearchSettings(BaseModel):
             missing_settings.append("API Key")
 
         if missing_settings:
-            logger.warning(
+            _LOGGER.warning(
                 f"Firecrawl Search API missing required settings: {', '.join(missing_settings)}"
             )
         else:
-            logger.info("Firecrawl Search API is properly configured")
+            _LOGGER.info("Firecrawl Search API is properly configured")
 
         return cls(
             api_key=env_settings.firecrawl_api_key,
@@ -106,11 +106,11 @@ class JinaSearchSettings(BaseModel):
             missing_settings.append("API Key")
 
         if missing_settings:
-            logger.warning(
+            _LOGGER.warning(
                 f"Jina Search API missing required settings: {', '.join(missing_settings)}"
             )
         else:
-            logger.info("Jina Search API is properly configured")
+            _LOGGER.info("Jina Search API is properly configured")
 
         return cls(
             api_key=env_settings.jina_api_key,
@@ -142,11 +142,11 @@ class TavilySearchSettings(BaseModel):
             missing_settings.append("API Key")
 
         if missing_settings:
-            logger.warning(
+            _LOGGER.warning(
                 f"Tavily Search API missing required settings: {', '.join(missing_settings)}"
             )
         else:
-            logger.info("Tavily Search API is properly configured")
+            _LOGGER.info("Tavily Search API is properly configured")
 
         return cls(api_key=env_settings.tavily_api_key)
 
@@ -179,12 +179,12 @@ class BraveSearchSettings(BaseModel):
             missing_settings.append("API Endpoint")
 
         if missing_settings:
-            logger.warning(
+            _LOGGER.warning(
                 f"Brave Search API missing required settings: {', '.join(missing_settings)}"
             )
 
         else:
-            logger.info("Brave Search API is properly configured")
+            _LOGGER.info("Brave Search API is properly configured")
 
         return cls(
             api_key=env_settings.brave_search_api_key,

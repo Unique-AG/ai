@@ -2,7 +2,7 @@ import re
 from datetime import datetime
 from enum import StrEnum
 from functools import wraps
-from typing import Protocol
+from typing import Protocol, TypedDict
 
 from pydantic import BaseModel, Field
 
@@ -33,39 +33,37 @@ class ToolExecutionStatus(BaseModel):
     timestamp: datetime = Field(default_factory=datetime.now)
 
 
-_DEFAULT_STATE_TO_DISPLAY_TEMPLATE = {
-    ProgressState.FINISHED: "{arrow}**{{tool_name}}** 🟢: {{message}}".format(
-        arrow=ARROW
-    ),
-    ProgressState.RUNNING: "{arrow}**{{tool_name}}** 🟡: {{message}}".format(
-        arrow=ARROW
-    ),
-    ProgressState.FAILED: "{arrow}**{{tool_name}}** 🔴: {{message}}".format(
-        arrow=ARROW
-    ),
-    ProgressState.STARTED: "{arrow}**{{tool_name}}** ⚪: {{message}}".format(
-        arrow=ARROW
-    ),
+class StateToDisplayTemplate(TypedDict):
+    started: str
+    running: str
+    failed: str
+    finished: str
+
+
+_DEFAULT_STATE_TO_DISPLAY_TEMPLATE: StateToDisplayTemplate = {
+    "started": "{arrow}**{{tool_name}}** ⚪: {{message}}".format(arrow=ARROW),
+    "running": "{arrow}**{{tool_name}}** 🟡: {{message}}".format(arrow=ARROW),
+    "finished": "{arrow}**{{tool_name}}** 🟢: {{message}}".format(arrow=ARROW),
+    "failed": "{arrow}**{{tool_name}}** 🔴: {{message}}".format(arrow=ARROW),
 }
 
 
 state_to_display_template_description = """
-A mapping progress states to display templates.
-The display template is a string that will be used to display the progress status.
-The template can contain the following placeholders:
+Display templates for the different progress states.
+The template is a string that will be used to display the progress status.
+It can contain the following placeholders:
 - `{tool_name}`: The name of the tool
 - `{message}`: The message to display (sent by the tool)
-
-If a state is not present in the mapping, then updates for that state will not be displayed.
 """.strip()
 
 
 class ToolProgressReporterConfig(BaseModel):
     model_config = get_configuration_dict()
 
-    state_to_display_template: dict[ProgressState, str] = Field(
+    state_to_display_template: StateToDisplayTemplate = Field(
         default=_DEFAULT_STATE_TO_DISPLAY_TEMPLATE,
         description=state_to_display_template_description,
+        title="Display Templates",
     )
 
 
@@ -188,12 +186,15 @@ class ToolProgressReporter:
     def _get_tool_status_display_message(
         self, name: str, message: str, state: ProgressState
     ) -> str | None:
-        if state in self._config.state_to_display_template:
-            return self._config.state_to_display_template[state].format(
-                tool_name=name,
-                message=message,
-            )
-        return None
+        display_message = self._config.state_to_display_template[state.value].format(
+            tool_name=name,
+            message=message,
+        )
+        # Don't display empty messages
+        if display_message.strip() == "":
+            return None
+
+        return display_message
 
 
 class ToolWithToolProgressReporter(Protocol):

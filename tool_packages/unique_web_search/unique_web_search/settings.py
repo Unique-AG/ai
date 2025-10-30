@@ -6,9 +6,10 @@ from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+_LOGGER = logging.getLogger(__name__)
+
 ProxyAuthMode = Literal["none", "username_password", "ssl_tls"]
 ProxyProtocol = Literal["http", "https"]
-logger = logging.getLogger(__name__)
 
 
 class Base(BaseSettings):
