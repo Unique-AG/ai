@@ -201,8 +201,6 @@ class TestAppendMetadataInChunk:
 
     def test_append_metadata_with_custom_template(self):
         """Test with custom formatting templates"""
-        from unique_internal_search.utils import _append_metadata_in_chunk
-
         chunk = ContentChunk(
             id="cont_123",
             text="Original text",
@@ -218,8 +216,6 @@ class TestAppendMetadataInChunk:
 
     def test_append_metadata_preserves_other_fields(self):
         """Test that other chunk fields are preserved"""
-        from unique_internal_search.utils import _append_metadata_in_chunk
-
         chunk = ContentChunk(
             id="cont_123",
             text="Original text",
@@ -243,8 +239,6 @@ class TestAppendMetadataInChunk:
 
     def test_append_metadata_with_empty_sections(self):
         """Test that empty metadata sections leave text unchanged"""
-        from unique_internal_search.utils import _append_metadata_in_chunk
-
         chunk = ContentChunk(
             id="cont_123",
             text="Original text",
@@ -258,8 +252,6 @@ class TestAppendMetadataInChunk:
 
     def test_append_metadata_returns_chunk(self):
         """Test that function returns a ContentChunk object"""
-        from unique_internal_search.utils import _append_metadata_in_chunk
-
         chunk = ContentChunk(
             id="cont_123",
             text="Original text",
@@ -275,8 +267,6 @@ class TestAppendMetadataInChunk:
 
     def test_append_metadata_with_camel_case_key(self):
         """Test that camelCase keys (from model_dump by_alias) work correctly"""
-        from unique_internal_search.utils import _append_metadata_in_chunk
-
         chunk = ContentChunk(
             id="cont_123",
             text="Original text",
@@ -498,8 +488,8 @@ class TestInterleaveSearchResultsRoundRobin:
         assert result[1].chunks[0].id == "B"
         assert result[2].chunks[0].id == "C"
 
-    def test_chunks_without_chunk_id(self):
-        """Test handling of chunks without chunk_id (None)"""
+    def test_chunks_without_id(self):
+        """Test handling of chunks without id (None)"""
         chunks = [
             ContentChunk(
                 id=None,
@@ -512,7 +502,7 @@ class TestInterleaveSearchResultsRoundRobin:
 
         result = interleave_search_results_round_robin(search_results)
 
-        # Should skip chunks without chunk_id during deduplication
+        # Should skip chunks without id during deduplication
         assert len(result) == 0
 
 
@@ -589,8 +579,8 @@ class TestDeduplicateSearchResults:
         assert len(result) == 1
         assert result[0].chunks[0].id == "A"
 
-    def test_none_chunk_id(self):
-        """Test handling of chunks with None as chunk_id"""
+    def test_none_id(self):
+        """Test handling of chunks with None as id"""
         chunk_none = ContentChunk(
             id=None, text="No ID", order=1, metadata=ContentMetadata(key="doc.pdf")
         )
@@ -601,11 +591,11 @@ class TestDeduplicateSearchResults:
 
         result = _deduplicate_search_results(search_results)
 
-        # Chunks without chunk_id should be skipped
+        # Chunks without id should be skipped
         assert len(result) == 0
 
-    def test_mixed_none_and_valid_chunk_ids(self):
-        """Test mix of chunks with and without chunk_ids"""
+    def test_mixed_none_and_valid_ids(self):
+        """Test mix of chunks with and without ids"""
         chunk_with_id = ContentChunk(
             id="A", text="A", order=1, metadata=ContentMetadata(key="doc.pdf")
         )

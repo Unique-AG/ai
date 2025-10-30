@@ -16,20 +16,38 @@ def interleave_search_results_round_robin(
     search_results: list[SearchStringResult],
 ) -> list[SearchStringResult]:
     """
-    Interleave search results from multiple search queries using round-robin strategy. Search results with duplicate chunks are removed (keeping first occurrence).
+    Interleave chunks from multiple search queries using a round-robin strategy.
+    Each result in the output contains a single chunk. Duplicate chunks are removed, 
+    keeping the first occurrence.
 
     Example:
-        Query 1: [SearchStringResult(query="query1", chunks=[ContentChunk(chunk_id="A"), ContentChunk(chunk_id="B"), ContentChunk(chunk_id="C")])]
-        Query 2: [SearchStringResult(query="query2", chunks=[ContentChunk(chunk_id="D"), ContentChunk(chunk_id="E")])]
-        Query 3: [SearchStringResult(query="query3", chunks=[ContentChunk(chunk_id="F"), ContentChunk(chunk_id="G"), ContentChunk(chunk_id="H"), ContentChunk(chunk_id="I")])]
-        Result: [SearchStringResult(query="query1", chunks=[ContentChunk(chunk_id="A"), ContentChunk(chunk_id="D"), ContentChunk(chunk_id="F")]), SearchStringResult(query="query2", chunks=[ContentChunk(chunk_id="B"), ContentChunk(chunk_id="E")]), SearchStringResult(query="query3", chunks=[ContentChunk(chunk_id="C"), ContentChunk(chunk_id="G"), ContentChunk(chunk_id="H"), ContentChunk(chunk_id="I")])]
+        Input:
+            Query 1: SearchStringResult(query="query1", chunks=[A, B, C])
+            Query 2: SearchStringResult(query="query2", chunks=[D, E])
+            Query 3: SearchStringResult(query="query3", chunks=[F, G, H, I])
+
+        Output (interleaved by position, then deduplicated):
+            [
+                SearchStringResult(query="query1", chunks=[A]),  # pos 0, query 1
+                SearchStringResult(query="query2", chunks=[D]),  # pos 0, query 2
+                SearchStringResult(query="query3", chunks=[F]),  # pos 0, query 3
+                SearchStringResult(query="query1", chunks=[B]),  # pos 1, query 1
+                SearchStringResult(query="query2", chunks=[E]),  # pos 1, query 2
+                SearchStringResult(query="query3", chunks=[G]),  # pos 1, query 3
+                SearchStringResult(query="query1", chunks=[C]),  # pos 2, query 1
+                SearchStringResult(query="query3", chunks=[H]),  # pos 2, query 3
+                SearchStringResult(query="query3", chunks=[I]),  # pos 3, query 3
+            ]
     """
     if not search_results:
         return []
 
     max_chunks = max(len(result.chunks) for result in search_results)
     interleaved_search_results: list[SearchStringResult] = [
-        result
+        SearchStringResult(
+            query=result.query,
+            chunks=[result.chunks[i]]
+        )
         for i in range(max_chunks)
         for result in search_results
         if i < len(result.chunks)
@@ -41,20 +59,40 @@ def interleave_search_results_round_robin(
 def _deduplicate_search_results(
     search_results: list[SearchStringResult],
 ) -> list[SearchStringResult]:
-    """Remove duplicate chunks by chunk_id, preserving order (keeping first occurrence)."""
+    """
+    Remove duplicate chunks from the search results based on their `chunk_id`.
+
+    This function preserves the order of occurrences, keeping the first occurrence
+    of each unique `chunk_id`. If a chunk has no `chunk_id`, it will be ignored.
+    Duplicate chunks share the same `chunk_id`.
+
+    Args:
+        search_results (list[SearchStringResult]): A list of search results, where each
+            result contains chunks with potential duplicate `chunk_id`s.
+
+    Returns:
+        list[SearchStringResult]: A deduplicated list of search results with unique `chunk_id` chunks.
+    """
     seen_chunk_ids: set[str] = set()
     deduplicated_search_results: list[SearchStringResult] = []
 
+    counter_chunks = 0
     for result in search_results:
         for chunk in result.chunks:
             if chunk.chunk_id and chunk.chunk_id not in seen_chunk_ids:
+                counter_chunks += 1
                 seen_chunk_ids.add(chunk.chunk_id)
-                deduplicated_search_results.append(result)
+                deduplicated_search_results.append(
+                    SearchStringResult(
+                        query=result.query,
+                        chunks=[chunk]
+                    )
+                )
 
-        if removed := len(result.chunks) - len(deduplicated_search_results):
-            _LOGGER.info(
-                f"Removed {removed} duplicate chunks ({len(deduplicated_search_results)}/{len(result.chunks)} unique)"
-            )
+    if removed := counter_chunks - len(deduplicated_search_results):
+        _LOGGER.info(
+            f"Removed {removed} duplicate chunks ({len(deduplicated_search_results)}/{counter_chunks} unique)"
+        )
 
     return deduplicated_search_results
 
