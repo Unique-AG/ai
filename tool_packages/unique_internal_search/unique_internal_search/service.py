@@ -149,9 +149,6 @@ class InternalSearchService:
                 self.logger.info(
                     f"Found {len(found_chunks)} chunks (Query {i + 1}/{len(search_strings)})"
                 )
-                self.logger.info(
-                    f"Found {len(found_chunks)} chunks (Query {i + 1}/{len(search_strings)})"
-                )
             except Exception as e:
                 self.logger.error(f"Error in search_document_chunks call: {e}")
                 raise e
