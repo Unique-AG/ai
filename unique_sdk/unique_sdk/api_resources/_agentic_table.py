@@ -104,8 +104,8 @@ class AgenticTable(APIResource["AgenticTable"]):
 
     class GetCell(RequestOptions):
         tableId: str
-        rowOrder: int  # TODO CHECK IF USED!
-        columnOrder: int  # TODO CHECK IF USED!
+        rowOrder: int
+        columnOrder: int
 
     class SetActivityStatus(RequestOptions):
         tableId: str
