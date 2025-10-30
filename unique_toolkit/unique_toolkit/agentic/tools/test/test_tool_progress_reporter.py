@@ -252,8 +252,10 @@ class TestToolProgressReporterConfig:
         # Arrange
         custom_config = ToolProgressReporterConfig(
             state_to_display_template={
-                ProgressState.RUNNING: "⏳ {tool_name}: {message}",
-                ProgressState.FINISHED: "✅ {tool_name}: {message}",
+                "started": "⚪ {tool_name}: {message}",
+                "running": "⏳ {tool_name}: {message}",
+                "finished": "✅ {tool_name}: {message}",
+                "failed": "❌ {tool_name}: {message}",
             }
         )
         reporter = ToolProgressReporter(chat_service, config=custom_config)
@@ -275,19 +277,21 @@ class TestToolProgressReporterConfig:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_config__skips_states_not_in_template__when_state_excluded(
+    async def test_config__skips_states_with_empty_template__when_state_hidden(
         self, chat_service, tool_call
     ) -> None:
         """
-        Purpose: Verify that states not in the config mapping are not displayed.
+        Purpose: Verify that states with empty string templates are not displayed.
         Why this matters: Allows selective display of only certain states (e.g., hide STARTED).
-        Setup summary: Create config excluding RUNNING state, verify message is not displayed.
+        Setup summary: Create config with empty string for RUNNING state, verify message is not displayed.
         """
         # Arrange
         custom_config = ToolProgressReporterConfig(
             state_to_display_template={
-                ProgressState.FINISHED: "✅ {tool_name}: {message}",
-                # RUNNING state is intentionally excluded
+                "started": "",
+                "running": "",  # Empty string hides RUNNING state
+                "finished": "✅ {tool_name}: {message}",
+                "failed": "❌ {tool_name}: {message}",
             }
         )
         reporter = ToolProgressReporter(chat_service, config=custom_config)
@@ -304,7 +308,7 @@ class TestToolProgressReporterConfig:
         chat_service.modify_assistant_message_async.assert_called()
         call_args = chat_service.modify_assistant_message_async.call_args
         content = call_args.kwargs["content"]
-        # Content should not contain the message since RUNNING is excluded
+        # Content should not contain the message since RUNNING template is empty
         assert "Processing" not in content
         assert "Test Tool" not in content
 
@@ -321,8 +325,10 @@ class TestToolProgressReporterConfig:
         # Arrange
         custom_config = ToolProgressReporterConfig(
             state_to_display_template={
-                ProgressState.RUNNING: "▶️ {tool_name} - {message}",
-                ProgressState.FINISHED: "✓ {tool_name} - {message}",
+                "started": "○ {tool_name} - {message}",
+                "running": "▶️ {tool_name} - {message}",
+                "finished": "✓ {tool_name} - {message}",
+                "failed": "✗ {tool_name} - {message}",
             }
         )
         reporter = ToolProgressReporter(chat_service, config=custom_config)
@@ -355,14 +361,17 @@ class TestToolProgressReporterConfig:
         self, chat_service, tool_call
     ) -> None:
         """
-        Purpose: Verify selective state display shows only FINISHED when it's the only state configured.
+        Purpose: Verify selective state display shows only FINISHED when other states use empty templates.
         Why this matters: Use case where user only wants final results, not intermediate steps.
-        Setup summary: Configure only FINISHED state, send STARTED and FINISHED, verify only FINISHED appears.
+        Setup summary: Configure only FINISHED with content, send STARTED and FINISHED, verify only FINISHED appears.
         """
         # Arrange
         custom_config = ToolProgressReporterConfig(
             state_to_display_template={
-                ProgressState.FINISHED: "Done: {tool_name} - {message}",
+                "started": "",  # Empty template hides STARTED
+                "running": "",  # Empty template hides RUNNING
+                "finished": "Done: {tool_name} - {message}",
+                "failed": "Failed: {tool_name} - {message}",
             }
         )
         reporter = ToolProgressReporter(chat_service, config=custom_config)
@@ -399,16 +408,23 @@ class TestToolProgressReporterConfig:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_config__handles_empty_template_dict__when_all_states_excluded(
+    async def test_config__handles_all_empty_templates__when_all_states_hidden(
         self, chat_service, tool_call
     ) -> None:
         """
-        Purpose: Verify that an empty template dict results in no messages being displayed.
+        Purpose: Verify that all empty string templates result in no messages being displayed.
         Why this matters: Edge case handling and allows disabling all progress display.
-        Setup summary: Create config with empty dict, verify no tool messages appear.
+        Setup summary: Create config with all empty templates, verify no tool messages appear.
         """
         # Arrange
-        custom_config = ToolProgressReporterConfig(state_to_display_template={})
+        custom_config = ToolProgressReporterConfig(
+            state_to_display_template={
+                "started": "",
+                "running": "",
+                "finished": "",
+                "failed": "",
+            }
+        )
         reporter = ToolProgressReporter(chat_service, config=custom_config)
 
         # Act
