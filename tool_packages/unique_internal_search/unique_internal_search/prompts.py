@@ -59,5 +59,6 @@ DEFAULT_TOOL_DESCRIPTION = (
     "Search in the company knowledge base for information on policies, procedures, benefits, groups, financial information or specific people. "
     "This should be your go-to tool if no other tools are applicable."
 )
-DEFAULT_SEARCH_STRING_PARAM_DESCRIPTION = "An expanded term that is optimized for vector and full text search based on the users query it must be in english"
-DEFAULT_LANGUAGE_PARAM_DESCRIPTION = "The language that the user was the query in"
+DEFAULT_SEARCH_STRING_PARAM_DESCRIPTION = "An expanded term that is optimized for vector and full text search based on the users query it must be in english."
+
+DEFAULT_LANGUAGE_PARAM_DESCRIPTION = "The language that the user wrote the query in"

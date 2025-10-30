@@ -29,7 +29,11 @@ from unique_internal_search.prompts import (
 from unique_internal_search.validators import get_string_field_with_pattern_validation
 
 
-class ExperimentalFeatures(FeatureExtendedSourceSerialization): ...
+class ExperimentalFeatures(FeatureExtendedSourceSerialization):
+    enable_multiple_search_strings_execution: bool = Field(
+        default=False,
+        description="Allow execution of multiple search strings in one call. When set to True, each string is searched individually and results are merged into a single response.",
+    )
 
 
 DEFAULT_LIMIT_CHUNK_RELEVANCY_SORT_ENABLED = 200
@@ -106,8 +110,8 @@ class InternalSearchConfig(BaseToolConfig):
         DEFAULT_TOOL_DESCRIPTION,
         description="Tool description.",
     )
-    param_description_search_string: str = get_string_field_with_pattern_validation(
-        DEFAULT_SEARCH_STRING_PARAM_DESCRIPTION,
+    param_description_search_string: str = Field(
+        default=DEFAULT_SEARCH_STRING_PARAM_DESCRIPTION,
         description="`search_string` parameter description.",
     )
     param_description_language: str = get_string_field_with_pattern_validation(
@@ -128,7 +132,7 @@ class InternalSearchConfig(BaseToolConfig):
         default=[EvaluationMetricName.HALLUCINATION],
         description="The list of evaluation metrics to check.",
     )
-    experimental_features: SkipJsonSchema[ExperimentalFeatures] = ExperimentalFeatures()
+    experimental_features: ExperimentalFeatures = ExperimentalFeatures()
 
     metadata_chunk_sections: dict[str, str] = Field(
         default={},
