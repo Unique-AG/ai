@@ -16,7 +16,7 @@ from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
 
-logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 
 class JinaSearchOptionalParams(BaseModel):
@@ -219,13 +219,13 @@ class JinaSearch(SearchEngine[JinaConfig]):
 
             # Handle error responses
             if response.status_code != 200:
-                logger.error(f"Jina API error: {results}")
+                _LOGGER.error(f"Jina API error: {results}")
                 return []
 
             # Extract data from Jina API response
             data = results.get("data", [])
             if not data:
-                logger.warning("No search results found in Jina API response")
+                _LOGGER.warning("No search results found in Jina API response")
                 return []
 
             extracted_results = []
@@ -239,16 +239,16 @@ class JinaSearch(SearchEngine[JinaConfig]):
                     )
                     extracted_results.append(search_result)
                 except KeyError as e:
-                    logger.warning(f"Missing required field in search result: {e}")
+                    _LOGGER.warning(f"Missing required field in search result: {e}")
                     continue
                 except Exception as e:
-                    logger.warning(f"Error processing search result: {e}")
+                    _LOGGER.warning(f"Error processing search result: {e}")
                     continue
 
             return extracted_results
 
         except Exception as e:
-            logger.error(f"Failed to parse Jina API response: {e}")
+            _LOGGER.error(f"Failed to parse Jina API response: {e}")
             return []
 
     async def _perform_web_search_request(self, query: str, **kwargs) -> Response:
@@ -276,10 +276,10 @@ class JinaSearch(SearchEngine[JinaConfig]):
         try:
             response = await self._perform_web_search_request(query=query, **kwargs)
             search_results = self._extract_urls(response=response)
-            logger.info(f"Found {len(search_results)} URLs")
+            _LOGGER.info(f"Found {len(search_results)} URLs")
 
         except Exception as e:
-            logger.exception(f"Failed to extract URLs from Jina search response: {e}")
+            _LOGGER.exception(f"Failed to extract URLs from Jina search response: {e}")
             search_results = []
 
         return search_results

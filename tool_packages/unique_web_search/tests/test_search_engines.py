@@ -3,8 +3,8 @@ from unittest.mock import Mock
 import pytest
 
 from unique_web_search.services.search_engine import (
-    get_config_types_from_names,
     get_default_search_engine_config,
+    get_search_engine_config_types_from_names,
     get_search_engine_service,
 )
 from unique_web_search.services.search_engine.base import SearchEngineType
@@ -36,7 +36,7 @@ class TestSearchEngineFactory:
 
     def test_get_config_types_from_names_single(self):
         """Test getting config types from single engine name."""
-        config_type = get_config_types_from_names(["google"])
+        config_type = get_search_engine_config_types_from_names(["google"])
         assert config_type == GoogleConfig
 
     def test_get_default_search_engine_config(self):

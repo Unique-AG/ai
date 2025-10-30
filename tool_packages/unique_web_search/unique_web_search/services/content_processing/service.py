@@ -21,7 +21,7 @@ from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
 
-logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 
 DEFAULT_ENCODER_MODEL = "cl100k_base"
@@ -54,7 +54,7 @@ class ContentProcessor:
 
         pages_chunks = self._split_pages_to_chunks(pages)
 
-        logger.info(f"Number of chunks total: {len(pages_chunks)}")
+        _LOGGER.info(f"Number of chunks total: {len(pages_chunks)}")
 
         return pages_chunks
 
@@ -62,9 +62,9 @@ class ContentProcessor:
         self, query: str, pages: list[WebSearchResult]
     ) -> list[WebSearchResult]:
         # Apply processing strategy with regex preprocessing as baseline
-        logger.info(f"Processing pages with strategy: {self.config.strategy}")
+        _LOGGER.info(f"Processing pages with strategy: {self.config.strategy}")
 
-        safe_task_executor = SafeTaskExecutor(logger=logger)
+        safe_task_executor = SafeTaskExecutor(logger=_LOGGER)
 
         results = await asyncio.gather(
             *[
@@ -117,7 +117,7 @@ class ContentProcessor:
         token_count = len(encoder.encode(content))
 
         client = get_async_openai_client()
-        logger.info(f"Summarizing webpage ({page.url}) with {token_count} tokens")
+        _LOGGER.info(f"Summarizing webpage ({page.url}) with {token_count} tokens")
 
         messages: list[ChatCompletionMessageParam] = [
             {"role": "system", "content": self.config.summarization_prompt},

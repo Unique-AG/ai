@@ -55,7 +55,7 @@ class JinaCrawler(BaseCrawler[JinaCrawlerConfig]):
     async def crawl(self, urls: list[str]) -> list[str]:
         jina_settings = get_jina_search_settings()
         api_key = jina_settings.api_key
-        assert api_key is not None
+        assert api_key is not None, "Jina API key is not configured"
         reader_api_endpoint = jina_settings.reader_api_endpoint
 
         headers = {
