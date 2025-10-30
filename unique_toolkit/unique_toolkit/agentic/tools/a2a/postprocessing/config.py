@@ -1,4 +1,5 @@
 from enum import StrEnum
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -30,4 +31,15 @@ class SubAgentDisplayConfig(BaseModel):
     add_block_border: bool = Field(
         default=False,
         description="If set, a block border is added around the sub agent response.",
+    )
+    display_title_template: str = Field(
+        default="Answer from <strong>{}</strong>",
+        description=(
+            "The template to use for the display title of the sub agent response."
+            "If a placeholder '{}' is present, it will be replaced with the display name of the sub agent."
+        ),
+    )
+    position: Literal["before", "after"] = Field(
+        default="before",
+        description="The position of the sub agent response in the main agent response.",
     )

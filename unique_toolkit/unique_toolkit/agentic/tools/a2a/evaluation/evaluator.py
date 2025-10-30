@@ -52,7 +52,7 @@ def _format_single_assessment_found(name: str, explanation: str) -> str:
     return _SingleAssessmentData(name=name, explanation=explanation).model_dump_json()
 
 
-@failsafe(failure_return_value=False)
+@failsafe(failure_return_value=False, log_exceptions=False)
 def _is_single_assessment_found(value: str) -> bool:
     _ = _SingleAssessmentData.model_validate_json(value)
     return True

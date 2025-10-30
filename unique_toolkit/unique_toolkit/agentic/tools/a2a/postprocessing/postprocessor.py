@@ -116,7 +116,9 @@ class SubAgentResponsesPostprocessor(Postprocessor):
             list(displayed_sub_agent_infos.values()), existing_refs
         )
 
-        answers = []
+        answers_displayed_before = []
+        answers_displayed_after = []
+
         for assistant_id in displayed_sub_agent_infos.keys():
             messages = self._assistant_id_to_tool_info[assistant_id]["responses"]
 
@@ -129,16 +131,22 @@ class SubAgentResponsesPostprocessor(Postprocessor):
                 if len(messages) > 1:
                     display_name += f" {sequence_number}"
 
-                answers.append(
-                    _build_sub_agent_answer_display(
-                        display_name=display_name,
-                        assistant_id=assistant_id,
-                        display_mode=display_mode,
-                        answer=message["text"],
-                        add_quote_border=tool_info["display_config"].add_quote_border,
-                        add_block_border=tool_info["display_config"].add_block_border,
-                    )
+                answer = _build_sub_agent_answer_display(
+                    display_name=display_name,
+                    display_mode=display_mode,
+                    add_quote_border=tool_info["display_config"].add_quote_border,
+                    add_block_border=tool_info["display_config"].add_block_border,
+                    answer=message["text"],
+                    assistant_id=assistant_id,
+                    display_title_template=tool_info[
+                        "display_config"
+                    ].display_title_template,
                 )
+
+                if tool_info["display_config"].position == "before":
+                    answers_displayed_before.append(answer)
+                else:
+                    answers_displayed_after.append(answer)
 
                 loop_response.message.references.extend(
                     ContentReference(
@@ -152,11 +160,18 @@ class SubAgentResponsesPostprocessor(Postprocessor):
                     for ref in message["references"]
                 )
 
-        if len(answers) > 0:
+        if len(answers_displayed_before) > 0:
             loop_response.message.text = (
-                "<br>\n\n".join(answers)
+                "<br>\n\n".join(answers_displayed_before)
                 + "<br>\n\n"
                 + loop_response.message.text.strip()
+            )
+
+        if len(answers_displayed_after) > 0:
+            loop_response.message.text = (
+                loop_response.message.text.strip()
+                + "<br>\n\n"
+                + "<br>\n\n".join(answers_displayed_after)
             )
 
         return True
@@ -172,6 +187,7 @@ class SubAgentResponsesPostprocessor(Postprocessor):
                     assistant_id=assistant_id,
                     add_quote_border=display_config.add_quote_border,
                     add_block_border=display_config.add_block_border,
+                    display_title_template=display_config.display_title_template,
                 )
         return text
 
