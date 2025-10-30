@@ -221,7 +221,7 @@ class TestToolProgressReporterConfig:
         """
         # Arrange
         reporter = ToolProgressReporter(chat_service)
-        
+
         # Act
         await reporter.notify_from_tool_call(
             tool_call=tool_call,
@@ -229,7 +229,7 @@ class TestToolProgressReporterConfig:
             message="Processing data",
             state=ProgressState.RUNNING,
         )
-        
+
         # Assert
         assert tool_call.id in reporter.tool_statuses
         chat_service.modify_assistant_message_async.assert_called()
@@ -257,7 +257,7 @@ class TestToolProgressReporterConfig:
             }
         )
         reporter = ToolProgressReporter(chat_service, config=custom_config)
-        
+
         # Act
         await reporter.notify_from_tool_call(
             tool_call=tool_call,
@@ -265,7 +265,7 @@ class TestToolProgressReporterConfig:
             message="Working on it",
             state=ProgressState.RUNNING,
         )
-        
+
         # Assert
         chat_service.modify_assistant_message_async.assert_called()
         call_args = chat_service.modify_assistant_message_async.call_args
@@ -291,7 +291,7 @@ class TestToolProgressReporterConfig:
             }
         )
         reporter = ToolProgressReporter(chat_service, config=custom_config)
-        
+
         # Act
         await reporter.notify_from_tool_call(
             tool_call=tool_call,
@@ -299,7 +299,7 @@ class TestToolProgressReporterConfig:
             message="Processing",
             state=ProgressState.RUNNING,
         )
-        
+
         # Assert
         chat_service.modify_assistant_message_async.assert_called()
         call_args = chat_service.modify_assistant_message_async.call_args
@@ -328,7 +328,7 @@ class TestToolProgressReporterConfig:
         reporter = ToolProgressReporter(chat_service, config=custom_config)
         tool_call_1 = LanguageModelFunction(id="tool_1", name="search")
         tool_call_2 = LanguageModelFunction(id="tool_2", name="analyze")
-        
+
         # Act
         await reporter.notify_from_tool_call(
             tool_call=tool_call_1,
@@ -342,7 +342,7 @@ class TestToolProgressReporterConfig:
             message="Analyzing results",
             state=ProgressState.FINISHED,
         )
-        
+
         # Assert
         call_args = chat_service.modify_assistant_message_async.call_args
         content = call_args.kwargs["content"]
@@ -366,7 +366,7 @@ class TestToolProgressReporterConfig:
             }
         )
         reporter = ToolProgressReporter(chat_service, config=custom_config)
-        
+
         # Act - Send STARTED state (should not appear)
         await reporter.notify_from_tool_call(
             tool_call=tool_call,
@@ -374,11 +374,11 @@ class TestToolProgressReporterConfig:
             message="Starting",
             state=ProgressState.STARTED,
         )
-        
+
         # Get first call content
         first_call_args = chat_service.modify_assistant_message_async.call_args
         first_content = first_call_args.kwargs["content"]
-        
+
         # Act - Update to FINISHED state (should appear)
         await reporter.notify_from_tool_call(
             tool_call=tool_call,
@@ -386,14 +386,14 @@ class TestToolProgressReporterConfig:
             message="Completed successfully",
             state=ProgressState.FINISHED,
         )
-        
+
         # Assert
         final_call_args = chat_service.modify_assistant_message_async.call_args
         final_content = final_call_args.kwargs["content"]
-        
+
         # STARTED state should not appear in first call
         assert "Starting" not in first_content
-        
+
         # FINISHED state should appear in final call
         assert "Done: Test Tool - Completed successfully" in final_content
 
@@ -408,11 +408,9 @@ class TestToolProgressReporterConfig:
         Setup summary: Create config with empty dict, verify no tool messages appear.
         """
         # Arrange
-        custom_config = ToolProgressReporterConfig(
-            state_to_display_template={}
-        )
+        custom_config = ToolProgressReporterConfig(state_to_display_template={})
         reporter = ToolProgressReporter(chat_service, config=custom_config)
-        
+
         # Act
         await reporter.notify_from_tool_call(
             tool_call=tool_call,
@@ -420,12 +418,12 @@ class TestToolProgressReporterConfig:
             message="Processing",
             state=ProgressState.RUNNING,
         )
-        
+
         # Assert
         chat_service.modify_assistant_message_async.assert_called()
         call_args = chat_service.modify_assistant_message_async.call_args
         content = call_args.kwargs["content"]
-        
+
         # Should only have the progress start text and newlines, no actual messages
         assert "Test Tool" not in content
         assert "Processing" not in content
