@@ -262,6 +262,9 @@ class UniqueAI:
         ]
 
         used_tools = [t.name for t in self._history_manager.get_tool_calls()]
+        sub_agent_calls = self._tool_manager.filter_tool_calls(
+            self._history_manager.get_tool_calls(), ["subagent"]
+        )
 
         mcp_server_user_prompts = [
             mcp_server.user_prompt for mcp_server in self._mcp_servers
@@ -274,7 +277,7 @@ class UniqueAI:
         if (
             self._config.agent.experimental.sub_agents_config.referencing_config
             is not None
-            and len(self._history_manager.get_sub_agent_calls()) > 0
+            and len(sub_agent_calls) > 0
         ):
             use_sub_agent_references = True
             sub_agent_referencing_instructions = self._config.agent.experimental.sub_agents_config.referencing_config.referencing_instructions_for_user_prompt
@@ -300,6 +303,9 @@ class UniqueAI:
         tool_descriptions = self._tool_manager.get_tool_prompts()
 
         used_tools = [t.name for t in self._history_manager.get_tool_calls()]
+        sub_agent_calls = self._tool_manager.filter_tool_calls(
+            self._history_manager.get_tool_calls(), ["subagent"]
+        )
 
         system_prompt_template = jinja2.Template(
             self._config.agent.prompt_config.system_prompt_template
@@ -314,7 +320,7 @@ class UniqueAI:
         if (
             self._config.agent.experimental.sub_agents_config.referencing_config
             is not None
-            and len(self._history_manager.get_sub_agent_calls()) > 0
+            and len(sub_agent_calls) > 0
         ):
             use_sub_agent_references = True
             sub_agent_referencing_instructions = self._config.agent.experimental.sub_agents_config.referencing_config.referencing_instructions_for_system_prompt
@@ -384,24 +390,8 @@ class UniqueAI:
         # Append function calls to history
         self._history_manager._append_tool_calls_to_history(tool_calls)
 
-        internal_tool_names = {t.name for t in self._tool_manager.internal_tools}
-        mcp_tool_names = {t.name for t in self._tool_manager.mcp_tools}
-        sub_agent_names = {a.name for a in self._tool_manager.sub_agents}
-
         for tool_call in tool_calls:
             self._history_manager.add_tool_call(tool_call)
-
-            if tool_call.name in internal_tool_names:
-                self._history_manager.add_internal_tool_call(tool_call)
-            elif tool_call.name in mcp_tool_names:
-                self._history_manager.add_mcp_tool_call(tool_call)
-            elif tool_call.name in sub_agent_names:
-                self._history_manager.add_sub_agent_call(tool_call)
-            else:
-                self._logger.warning(
-                    f"Tool call {tool_call.name} is neither an internal tool, "
-                    "an mcp tool nor a sub agent"
-                )
 
         # Execute tool calls
         tool_call_responses = await self._tool_manager.execute_selected_tools(

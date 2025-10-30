@@ -1,7 +1,7 @@
 import asyncio
 from abc import ABC, abstractmethod
 from logging import Logger, getLogger
-from typing import override
+from typing import Literal, override
 
 from openai.types.chat import (
     ChatCompletionNamedToolChoiceParam,
@@ -68,6 +68,24 @@ class BaseToolManager(ABC):
 
     @abstractmethod
     def get_exclusive_tools(self) -> list[str]:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def filter_tool_calls(
+        self,
+        tool_calls: list[LanguageModelFunction],
+        tool_types: list[Literal["mcp", "internal", "subagent"]],
+    ) -> list[LanguageModelFunction]:
+        """
+        Filter tool calls by their types.
+
+        Args:
+            tool_calls: List of tool calls to filter
+            tool_types: List of tool types to include (e.g., ["mcp", "internal", "subagent"])
+
+        Returns:
+            Filtered list of tool calls matching the specified types
+        """
         raise NotImplementedError()
 
     def does_a_tool_take_control(self, tool_calls: list[LanguageModelFunction]) -> bool:
@@ -301,6 +319,29 @@ class ToolManager(BaseToolManager):
 
             self._tools.append(t)
 
+    @override
+    def filter_tool_calls(
+        self,
+        tool_calls: list[LanguageModelFunction],
+        tool_types: list[Literal["mcp", "internal", "subagent"]],
+    ) -> list[LanguageModelFunction]:
+        filtered_calls = []
+
+        # Build sets for efficient lookup
+        internal_tool_names = {tool.name for tool in self._internal_tools}
+        mcp_tool_names = {tool.name for tool in self._mcp_tools}
+        sub_agent_names = {tool.name for tool in self._sub_agents}
+
+        for tool_call in tool_calls:
+            if "internal" in tool_types and tool_call.name in internal_tool_names:
+                filtered_calls.append(tool_call)
+            elif "mcp" in tool_types and tool_call.name in mcp_tool_names:
+                filtered_calls.append(tool_call)
+            elif "subagent" in tool_types and tool_call.name in sub_agent_names:
+                filtered_calls.append(tool_call)
+
+        return filtered_calls
+
     @property
     def sub_agents(self) -> list[SubAgentTool]:
         return self._sub_agents
@@ -423,6 +464,15 @@ class ResponsesApiToolManager(BaseToolManager):
             tool_manager=completions_tool_manager,
             builtin_tools=builtin_tools,
         )
+
+    @override
+    def filter_tool_calls(
+        self,
+        tool_calls: list[LanguageModelFunction],
+        tool_types: list[Literal["mcp", "internal", "subagent"]],
+    ) -> list[LanguageModelFunction]:
+        """Delegate filtering to the underlying tool manager."""
+        return self._tool_manager.filter_tool_calls(tool_calls, tool_types)
 
     @override
     def get_tool_by_name(self, name: str) -> Tool | None:

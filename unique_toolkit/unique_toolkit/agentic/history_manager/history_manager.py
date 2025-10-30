@@ -121,35 +121,11 @@ class HistoryManager:
         )
         self._tool_call_result_history: list[ToolCallResponse] = []
         self._tool_calls: list[LanguageModelFunction] = []
-        self._internal_tool_calls: list[LanguageModelFunction] = []
-        self._mcp_tool_calls: list[LanguageModelFunction] = []
-        self._sub_agent_calls: list[LanguageModelFunction] = []
         self._loop_history: list[LanguageModelMessage] = []
         self._source_enumerator = 0
 
     def add_tool_call(self, tool_call: LanguageModelFunction) -> None:
         self._tool_calls.append(tool_call)
-
-    def add_internal_tool_call(self, tool_call: LanguageModelFunction) -> None:
-        self._internal_tool_calls.append(tool_call)
-
-    def add_mcp_tool_call(self, tool_call: LanguageModelFunction) -> None:
-        self._mcp_tool_calls.append(tool_call)
-
-    def add_sub_agent_call(self, tool_call: LanguageModelFunction) -> None:
-        self._sub_agent_calls.append(tool_call)
-
-    def get_tool_calls(self) -> list[LanguageModelFunction]:
-        return self._tool_calls
-
-    def get_internal_tool_calls(self) -> list[LanguageModelFunction]:
-        return self._internal_tool_calls
-
-    def get_mcp_tool_calls(self) -> list[LanguageModelFunction]:
-        return self._mcp_tool_calls
-
-    def get_sub_agent_calls(self) -> list[LanguageModelFunction]:
-        return self._sub_agent_calls
 
     def has_no_loop_messages(self) -> bool:
         return len(self._loop_history) == 0
