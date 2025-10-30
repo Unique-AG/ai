@@ -17,7 +17,7 @@ def interleave_search_results_round_robin(
 ) -> list[SearchStringResult]:
     """
     Interleave chunks from multiple search queries using a round-robin strategy.
-    Each result in the output contains a single chunk. Duplicate chunks are removed, 
+    Each result in the output contains a single chunk. Duplicate chunks are removed,
     keeping the first occurrence.
 
     Example:
@@ -44,10 +44,7 @@ def interleave_search_results_round_robin(
 
     max_chunks = max(len(result.chunks) for result in search_results)
     interleaved_search_results: list[SearchStringResult] = [
-        SearchStringResult(
-            query=result.query,
-            chunks=[result.chunks[i]]
-        )
+        SearchStringResult(query=result.query, chunks=[result.chunks[i]])
         for i in range(max_chunks)
         for result in search_results
         if i < len(result.chunks)
@@ -83,10 +80,7 @@ def _deduplicate_search_results(
                 counter_chunks += 1
                 seen_chunk_ids.add(chunk.chunk_id)
                 deduplicated_search_results.append(
-                    SearchStringResult(
-                        query=result.query,
-                        chunks=[chunk]
-                    )
+                    SearchStringResult(query=result.query, chunks=[chunk])
                 )
 
     if removed := counter_chunks - len(deduplicated_search_results):
