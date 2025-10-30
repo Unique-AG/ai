@@ -384,7 +384,14 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
         else:
             raise ValueError("Invalid search strings data")
 
-        await self.post_progress_message(f"{'; '.join(search_strings_list)}", tool_call)
+        cleaned_search_strings_list = search_strings_list
+        if self.config.experimental_features.enable_multiple_search_strings_execution:
+            cleaned_search_strings_list = [
+                clean_search_string(s) for s in search_strings_list
+            ]
+        await self.post_progress_message(
+            "; ".join(cleaned_search_strings_list), tool_call
+        )
 
         selected_chunks = await self.search(
             **tool_call.arguments,
