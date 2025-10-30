@@ -127,6 +127,9 @@ class HistoryManager:
     def add_tool_call(self, tool_call: LanguageModelFunction) -> None:
         self._tool_calls.append(tool_call)
 
+    def get_tool_calls(self) -> list[LanguageModelFunction]:
+        return self._tool_calls
+
     def has_no_loop_messages(self) -> bool:
         return len(self._loop_history) == 0
 
