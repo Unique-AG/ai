@@ -95,7 +95,7 @@ class LanguageModelFunction(BaseModel):
 
     @field_validator("id", mode="before")
     def randomize_id(cls, value: Any) -> Any:
-        if value is None:
+        if value is None or value == "":
             return uuid4().hex
         return value
 
