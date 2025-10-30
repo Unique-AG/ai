@@ -31,7 +31,6 @@ from unique_toolkit.agentic.history_manager.history_manager import (
     HistoryManagerConfig,
 )
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
-    Postprocessor,
     PostprocessorManager,
 )
 from unique_toolkit.agentic.reference_manager.reference_manager import ReferenceManager
@@ -107,13 +106,13 @@ class _CommonComponents(NamedTuple):
     reference_manager: ReferenceManager
     history_manager: HistoryManager
     evaluation_manager: EvaluationManager
+    postprocessor_manager: PostprocessorManager
     # Tool Manager Components
     tool_progress_reporter: ToolProgressReporter
     tool_manager_config: ToolManagerConfig
     mcp_manager: MCPManager
     a2a_manager: A2AManager
     mcp_servers: list[McpServer]
-    postprocessors: list[Postprocessor]
 
 
 def _build_common(
@@ -127,7 +126,10 @@ def _build_common(
 
     uploaded_documents = content_service.get_documents_uploaded_to_chat()
 
-    tool_progress_reporter = ToolProgressReporter(chat_service=chat_service)
+    tool_progress_reporter = ToolProgressReporter(
+        chat_service=chat_service,
+        config=config.agent.services.tool_progress_reporter_config,
+    )
     thinking_manager_config = ThinkingManagerConfig(
         thinking_steps_display=config.agent.experimental.thinking_steps_display
     )
@@ -178,10 +180,13 @@ def _build_common(
         max_tool_calls=config.agent.experimental.loop_configuration.max_tool_calls_per_iteration,
     )
 
-    postprocessors = []
+    postprocessor_manager = PostprocessorManager(
+        logger=logger,
+        chat_service=chat_service,
+    )
 
-    if config.agent.services.stock_ticker_config:
-        postprocessors.append(
+    if config.agent.services.stock_ticker_config is not None:
+        postprocessor_manager.add_postprocessor(
             StockTickerPostprocessor(
                 config=config.agent.services.stock_ticker_config,
                 event=event,
@@ -192,7 +197,8 @@ def _build_common(
         config.agent.services.follow_up_questions_config
         and config.agent.services.follow_up_questions_config.number_of_questions > 0
     ):
-        postprocessors.append(
+        # Should run last to make sure the follow up questions are displayed last.
+        postprocessor_manager.set_last_postprocessor(
             FollowUpPostprocessor(
                 logger=logger,
                 config=config.agent.services.follow_up_questions_config,
@@ -215,7 +221,7 @@ def _build_common(
         a2a_manager=a2a_manager,
         tool_manager_config=tool_manager_config,
         mcp_servers=event.payload.mcp_servers,
-        postprocessors=postprocessors,
+        postprocessor_manager=postprocessor_manager,
     )
 
 
@@ -297,12 +303,7 @@ async def _build_responses(
         builtin_tool_manager=builtin_tool_manager,
     )
 
-    postprocessor_manager = PostprocessorManager(
-        logger=logger,
-        chat_service=common_components.chat_service,
-    )
-    for postprocessor in common_components.postprocessors:
-        postprocessor_manager.add_postprocessor(postprocessor)
+    postprocessor_manager = common_components.postprocessor_manager
 
     if (
         config.agent.experimental.responses_api_config.code_interpreter_display_config
@@ -408,12 +409,7 @@ def _build_completions(
     if not TOOL_CHOICES and UPLOADED_DOCUMENTS:
         tool_manager.add_forced_tool(UploadedSearchTool.name)
 
-    postprocessor_manager = PostprocessorManager(
-        logger=logger,
-        chat_service=common_components.chat_service,
-    )
-    for postprocessor in common_components.postprocessors:
-        postprocessor_manager.add_postprocessor(postprocessor)
+    postprocessor_manager = common_components.postprocessor_manager
 
     _add_sub_agents_postprocessor(
         postprocessor_manager=postprocessor_manager,
