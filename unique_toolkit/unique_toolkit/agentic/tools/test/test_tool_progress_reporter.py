@@ -7,6 +7,7 @@ from unique_toolkit.agentic.tools.tool_progress_reporter import (
     ProgressState,
     ToolExecutionStatus,
     ToolProgressReporter,
+    ToolProgressReporterConfig,
     ToolWithToolProgressReporter,
     track_tool_progress,
 )
@@ -203,3 +204,228 @@ class TestToolProgressDecorator:
 
         status = tool_progress_reporter.tool_statuses[tool_call.id]
         assert status.state == ProgressState.FAILED
+
+
+class TestToolProgressReporterConfig:
+    """Tests for ToolProgressReporterConfig and custom display configuration."""
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_config__uses_default_templates__when_no_config_provided(
+        self, chat_service, tool_call
+    ) -> None:
+        """
+        Purpose: Verify that default state-to-display templates are used when no config is provided.
+        Why this matters: Ensures backward compatibility and default behavior.
+        Setup summary: Create reporter without config, add status, verify default template is used.
+        """
+        # Arrange
+        reporter = ToolProgressReporter(chat_service)
+        
+        # Act
+        await reporter.notify_from_tool_call(
+            tool_call=tool_call,
+            name="Test Tool",
+            message="Processing data",
+            state=ProgressState.RUNNING,
+        )
+        
+        # Assert
+        assert tool_call.id in reporter.tool_statuses
+        chat_service.modify_assistant_message_async.assert_called()
+        call_args = chat_service.modify_assistant_message_async.call_args
+        content = call_args.kwargs["content"]
+        assert "Test Tool" in content
+        assert "🟡" in content  # Default emoji for RUNNING state
+        assert "Processing data" in content
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_config__uses_custom_templates__when_config_provided(
+        self, chat_service, tool_call
+    ) -> None:
+        """
+        Purpose: Verify that custom templates are used when provided via config.
+        Why this matters: Enables customization of progress display format.
+        Setup summary: Create reporter with custom template, verify custom format is used.
+        """
+        # Arrange
+        custom_config = ToolProgressReporterConfig(
+            state_to_display_template={
+                ProgressState.RUNNING: "⏳ {tool_name}: {message}",
+                ProgressState.FINISHED: "✅ {tool_name}: {message}",
+            }
+        )
+        reporter = ToolProgressReporter(chat_service, config=custom_config)
+        
+        # Act
+        await reporter.notify_from_tool_call(
+            tool_call=tool_call,
+            name="My Tool",
+            message="Working on it",
+            state=ProgressState.RUNNING,
+        )
+        
+        # Assert
+        chat_service.modify_assistant_message_async.assert_called()
+        call_args = chat_service.modify_assistant_message_async.call_args
+        content = call_args.kwargs["content"]
+        assert "⏳ My Tool: Working on it" in content
+        assert "🟡" not in content  # Default emoji should not appear
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_config__skips_states_not_in_template__when_state_excluded(
+        self, chat_service, tool_call
+    ) -> None:
+        """
+        Purpose: Verify that states not in the config mapping are not displayed.
+        Why this matters: Allows selective display of only certain states (e.g., hide STARTED).
+        Setup summary: Create config excluding RUNNING state, verify message is not displayed.
+        """
+        # Arrange
+        custom_config = ToolProgressReporterConfig(
+            state_to_display_template={
+                ProgressState.FINISHED: "✅ {tool_name}: {message}",
+                # RUNNING state is intentionally excluded
+            }
+        )
+        reporter = ToolProgressReporter(chat_service, config=custom_config)
+        
+        # Act
+        await reporter.notify_from_tool_call(
+            tool_call=tool_call,
+            name="Test Tool",
+            message="Processing",
+            state=ProgressState.RUNNING,
+        )
+        
+        # Assert
+        chat_service.modify_assistant_message_async.assert_called()
+        call_args = chat_service.modify_assistant_message_async.call_args
+        content = call_args.kwargs["content"]
+        # Content should not contain the message since RUNNING is excluded
+        assert "Processing" not in content
+        assert "Test Tool" not in content
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_config__formats_placeholders_correctly__with_multiple_tools(
+        self, chat_service
+    ) -> None:
+        """
+        Purpose: Verify that {tool_name} and {message} placeholders are replaced correctly for multiple tools.
+        Why this matters: Ensures template formatting works correctly in multi-tool scenarios.
+        Setup summary: Add multiple tool statuses with different names/messages, verify formatting.
+        """
+        # Arrange
+        custom_config = ToolProgressReporterConfig(
+            state_to_display_template={
+                ProgressState.RUNNING: "▶️ {tool_name} - {message}",
+                ProgressState.FINISHED: "✓ {tool_name} - {message}",
+            }
+        )
+        reporter = ToolProgressReporter(chat_service, config=custom_config)
+        tool_call_1 = LanguageModelFunction(id="tool_1", name="search")
+        tool_call_2 = LanguageModelFunction(id="tool_2", name="analyze")
+        
+        # Act
+        await reporter.notify_from_tool_call(
+            tool_call=tool_call_1,
+            name="Search Tool",
+            message="Searching database",
+            state=ProgressState.RUNNING,
+        )
+        await reporter.notify_from_tool_call(
+            tool_call=tool_call_2,
+            name="Analysis Tool",
+            message="Analyzing results",
+            state=ProgressState.FINISHED,
+        )
+        
+        # Assert
+        call_args = chat_service.modify_assistant_message_async.call_args
+        content = call_args.kwargs["content"]
+        assert "▶️ Search Tool - Searching database" in content
+        assert "✓ Analysis Tool - Analyzing results" in content
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_config__shows_only_finished_state__when_only_finished_configured(
+        self, chat_service, tool_call
+    ) -> None:
+        """
+        Purpose: Verify selective state display shows only FINISHED when it's the only state configured.
+        Why this matters: Use case where user only wants final results, not intermediate steps.
+        Setup summary: Configure only FINISHED state, send STARTED and FINISHED, verify only FINISHED appears.
+        """
+        # Arrange
+        custom_config = ToolProgressReporterConfig(
+            state_to_display_template={
+                ProgressState.FINISHED: "Done: {tool_name} - {message}",
+            }
+        )
+        reporter = ToolProgressReporter(chat_service, config=custom_config)
+        
+        # Act - Send STARTED state (should not appear)
+        await reporter.notify_from_tool_call(
+            tool_call=tool_call,
+            name="Test Tool",
+            message="Starting",
+            state=ProgressState.STARTED,
+        )
+        
+        # Get first call content
+        first_call_args = chat_service.modify_assistant_message_async.call_args
+        first_content = first_call_args.kwargs["content"]
+        
+        # Act - Update to FINISHED state (should appear)
+        await reporter.notify_from_tool_call(
+            tool_call=tool_call,
+            name="Test Tool",
+            message="Completed successfully",
+            state=ProgressState.FINISHED,
+        )
+        
+        # Assert
+        final_call_args = chat_service.modify_assistant_message_async.call_args
+        final_content = final_call_args.kwargs["content"]
+        
+        # STARTED state should not appear in first call
+        assert "Starting" not in first_content
+        
+        # FINISHED state should appear in final call
+        assert "Done: Test Tool - Completed successfully" in final_content
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_config__handles_empty_template_dict__when_all_states_excluded(
+        self, chat_service, tool_call
+    ) -> None:
+        """
+        Purpose: Verify that an empty template dict results in no messages being displayed.
+        Why this matters: Edge case handling and allows disabling all progress display.
+        Setup summary: Create config with empty dict, verify no tool messages appear.
+        """
+        # Arrange
+        custom_config = ToolProgressReporterConfig(
+            state_to_display_template={}
+        )
+        reporter = ToolProgressReporter(chat_service, config=custom_config)
+        
+        # Act
+        await reporter.notify_from_tool_call(
+            tool_call=tool_call,
+            name="Test Tool",
+            message="Processing",
+            state=ProgressState.RUNNING,
+        )
+        
+        # Assert
+        chat_service.modify_assistant_message_async.assert_called()
+        call_args = chat_service.modify_assistant_message_async.call_args
+        content = call_args.kwargs["content"]
+        
+        # Should only have the progress start text and newlines, no actual messages
+        assert "Test Tool" not in content
+        assert "Processing" not in content
