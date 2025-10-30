@@ -119,27 +119,13 @@ class ToolProgressReporter:
             references (list[ContentReference], optional): List of content references. Defaults to [].
             requires_new_assistant_message (bool, optional): Whether a new assistant message is needed when tool call is finished.
             Defaults to False. If yes, the agentic steps will remain in chat history and will be overwritten by the stream response.
-
-        Raises:
-            AssertionError: If tool_call.id is None
         """
-        assert tool_call.id is not None
-
-        """
-        Keep the same timestamp if the tool call is already in the statuses.
-        This ensures the display order stays consistent.
-        """
-        if tool_call.id in self.tool_statuses:
-            timestamp = self.tool_statuses[tool_call.id].timestamp
-        else:
-            timestamp = datetime.now()
-
         self.tool_statuses[tool_call.id] = ToolExecutionStatus(
             name=name,
             message=message,
             state=state,
             references=references,
-            timestamp=timestamp,
+            timestamp=self._get_timestamp_for_tool_call(tool_call),
         )
         self.requires_new_assistant_message = (
             self.requires_new_assistant_message or requires_new_assistant_message
@@ -156,13 +142,11 @@ class ToolProgressReporter:
             references = self._correct_reference_sequence(references, start_number)
             all_references.extend(references)
 
-            if item.state in self._config.state_to_display_template:
-                messages.append(
-                    self._config.state_to_display_template[item.state].format(
-                        tool_name=item.name,
-                        message=message,
-                    )
-                )
+            display_message = self._get_tool_status_display_message(
+                name=item.name, message=message, state=item.state
+            )
+            if display_message is not None:
+                messages.append(display_message)
 
         await self.chat_service.modify_assistant_message_async(
             content=self._progress_start_text + "\n\n" + "\n\n".join(messages),
@@ -188,6 +172,28 @@ class ToolProgressReporter:
         for i, reference in enumerate(references, start_number):
             reference.sequence_number = i
         return references
+
+    def _get_timestamp_for_tool_call(
+        self, tool_call: LanguageModelFunction
+    ) -> datetime:
+        """
+        Keep the same timestamp if the tool call is already in the statuses.
+        This ensures the display order stays consistent.
+        """
+        if tool_call.id in self.tool_statuses:
+            return self.tool_statuses[tool_call.id].timestamp
+
+        return datetime.now()
+
+    def _get_tool_status_display_message(
+        self, name: str, message: str, state: ProgressState
+    ) -> str | None:
+        if state in self._config.state_to_display_template:
+            return self._config.state_to_display_template[state].format(
+                tool_name=name,
+                message=message,
+            )
+        return None
 
 
 class ToolWithToolProgressReporter(Protocol):
