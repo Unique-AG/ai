@@ -38,6 +38,7 @@ class MessageExecution(APIResource["MessageExecution"]):
         secondsRemaining: NotRequired[int | None]
         percentageCompleted: NotRequired[int | None]
 
+    id: str
     messageId: str
     status: "MessageExecution.StatusLiteral"
     type: "MessageExecution.TypeLiteral"

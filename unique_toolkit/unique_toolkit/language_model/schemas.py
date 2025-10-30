@@ -83,22 +83,21 @@ class LanguageModelStreamResponseMessage(BaseModel):
 class LanguageModelFunction(BaseModel):
     model_config = model_config
 
-    id: str | None = None
+    id: str = Field(default_factory=lambda: uuid4().hex)
     name: str
-    arguments: dict[str, Any] | str | None = None  # type: ignore
+    arguments: dict[str, Any] | None = None
 
     @field_validator("arguments", mode="before")
-    def set_arguments(cls, value):
+    def set_arguments(cls, value: Any) -> Any:
         if isinstance(value, str):
             return json.loads(value)
         return value
 
     @field_validator("id", mode="before")
-    def randomize_id(cls, value):
-        if not value:
+    def randomize_id(cls, value: Any) -> Any:
+        if value is None or value == "":
             return uuid4().hex
-        else:
-            return value
+        return value
 
     @model_serializer()
     def serialize_model(self):
@@ -108,7 +107,7 @@ class LanguageModelFunction(BaseModel):
             seralization["arguments"] = json.dumps(self.arguments)
         return seralization
 
-    def __eq__(self, other: Self) -> bool:
+    def __eq__(self, other: object) -> bool:
         """Compare two tool calls based on name and arguments."""
         if not isinstance(other, LanguageModelFunction):
             return False
