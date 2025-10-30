@@ -310,7 +310,7 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
     def tool_description(self) -> LanguageModelToolDescription:
         # Conditionally set the type based on config
         search_string_type = (
-            list[str] if self.config.allow_multiple_search_strings else str
+            list[str] if self.config.experimental_features.enable_multiple_search_strings_execution else str
         )
 
         internal_search_tool_input = create_model(
