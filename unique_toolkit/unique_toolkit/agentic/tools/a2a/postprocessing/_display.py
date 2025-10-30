@@ -77,10 +77,17 @@ def _add_line_break(text: str, before: bool = True, after: bool = True) -> str:
     return _wrap_text(text, start_tag, end_tag)
 
 
+def _prepare_title_template(
+    display_title_template: str, display_name_placeholder: str
+) -> str:
+    return display_title_template.replace("{}", "{%s}" % display_name_placeholder)
+
+
 def _get_display_template(
     mode: SubAgentResponseDisplayMode,
     add_quote_border: bool,
     add_block_border: bool,
+    display_title_template: str,
     answer_placeholder: str = "answer",
     assistant_id_placeholder: str = "assistant_id",
     display_name_placeholder: str = "display_name",
@@ -89,7 +96,9 @@ def _get_display_template(
         return ""
 
     assistant_id_placeholder = _wrap_hidden_div("{%s}" % assistant_id_placeholder)
-    display_name_placeholder = _wrap_strong("{%s}" % display_name_placeholder)
+    title_template = _prepare_title_template(
+        display_title_template, display_name_placeholder
+    )
     template = _join_text_blocks(
         assistant_id_placeholder, "{%s}" % answer_placeholder, sep="\n\n"
     )  # Double line break is needed for markdown formatting
@@ -104,20 +113,14 @@ def _get_display_template(
             template = _wrap_with_details_tag(
                 template,
                 "open",
-                display_name_placeholder,
+                title_template,
             )
         case SubAgentResponseDisplayMode.DETAILS_CLOSED:
-            template = _wrap_with_details_tag(
-                template, "closed", display_name_placeholder
-            )
+            template = _wrap_with_details_tag(template, "closed", title_template)
         case SubAgentResponseDisplayMode.PLAIN:
-            display_name_placeholder = _add_line_break(
-                display_name_placeholder, before=False, after=True
-            )
-            template = _join_text_blocks(display_name_placeholder, template)
             # Add a hidden block border to seperate sub agent answers from the rest of the text.
             hidden_block_border = _wrap_hidden_div("sub_agent_answer_block")
-            template = _join_text_blocks(template, hidden_block_border)
+            template = _join_text_blocks(title_template, template, hidden_block_border)
 
     if add_block_border:
         template = _wrap_with_block_border(template)
@@ -130,11 +133,13 @@ def _get_display_removal_re(
     mode: SubAgentResponseDisplayMode,
     add_quote_border: bool,
     add_block_border: bool,
+    display_title_template: str,
 ) -> re.Pattern[str]:
     template = _get_display_template(
         mode=mode,
         add_quote_border=add_quote_border,
         add_block_border=add_block_border,
+        display_title_template=display_title_template,
     )
 
     pattern = template.format(
@@ -147,6 +152,7 @@ def _get_display_removal_re(
 def _build_sub_agent_answer_display(
     display_name: str,
     display_mode: SubAgentResponseDisplayMode,
+    display_title_template: str,
     add_quote_border: bool,
     add_block_border: bool,
     answer: str,
@@ -156,6 +162,7 @@ def _build_sub_agent_answer_display(
         mode=display_mode,
         add_quote_border=add_quote_border,
         add_block_border=add_block_border,
+        display_title_template=display_title_template,
     )
     return template.format(
         display_name=display_name, answer=answer, assistant_id=assistant_id
@@ -168,11 +175,13 @@ def _remove_sub_agent_answer_from_text(
     add_block_border: bool,
     text: str,
     assistant_id: str,
+    display_title_template: str,
 ) -> str:
     pattern = _get_display_removal_re(
         assistant_id=assistant_id,
         mode=display_mode,
         add_quote_border=add_quote_border,
         add_block_border=add_block_border,
+        display_title_template=display_title_template,
     )
     return re.sub(pattern, "", text)

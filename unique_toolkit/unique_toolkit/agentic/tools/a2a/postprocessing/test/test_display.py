@@ -379,7 +379,10 @@ def test_get_display_template__returns_empty__when_hidden_mode() -> None:
 
     # Act
     result = _get_display_template(
-        mode=mode, add_quote_border=False, add_block_border=False
+        mode=mode,
+        add_quote_border=False,
+        add_block_border=False,
+        display_title_template="Answer from <strong>{}</strong>",
     )
 
     # Assert
@@ -403,7 +406,10 @@ def test_get_display_template__includes_placeholders__for_all_modes() -> None:
     for mode in modes:
         # Act
         result = _get_display_template(
-            mode=mode, add_quote_border=False, add_block_border=False
+            mode=mode,
+            add_quote_border=False,
+            add_block_border=False,
+            display_title_template="Answer from <strong>{}</strong>",
         )
 
         # Assert
@@ -424,7 +430,10 @@ def test_get_display_template__wraps_assistant_id__as_hidden_div() -> None:
 
     # Act
     result = _get_display_template(
-        mode=mode, add_quote_border=False, add_block_border=False
+        mode=mode,
+        add_quote_border=False,
+        add_block_border=False,
+        display_title_template="Answer from <strong>{}</strong>",
     )
 
     # Assert
@@ -444,7 +453,10 @@ def test_get_display_template__wraps_display_name__as_strong() -> None:
 
     # Act
     result = _get_display_template(
-        mode=mode, add_quote_border=False, add_block_border=False
+        mode=mode,
+        add_quote_border=False,
+        add_block_border=False,
+        display_title_template="Answer from <strong>{}</strong>",
     )
 
     # Assert
@@ -465,7 +477,10 @@ def test_get_display_template__adds_details_open__when_details_open_mode() -> No
 
     # Act
     result = _get_display_template(
-        mode=mode, add_quote_border=False, add_block_border=False
+        mode=mode,
+        add_quote_border=False,
+        add_block_border=False,
+        display_title_template="Answer from <strong>{}</strong>",
     )
 
     # Assert
@@ -487,7 +502,10 @@ def test_get_display_template__adds_details_closed__when_details_closed_mode() -
 
     # Act
     result = _get_display_template(
-        mode=mode, add_quote_border=False, add_block_border=False
+        mode=mode,
+        add_quote_border=False,
+        add_block_border=False,
+        display_title_template="Answer from <strong>{}</strong>",
     )
 
     # Assert
@@ -510,7 +528,10 @@ def test_get_display_template__adds_line_break_after_name__in_plain_mode() -> No
 
     # Act
     result = _get_display_template(
-        mode=mode, add_quote_border=False, add_block_border=False
+        mode=mode,
+        add_quote_border=False,
+        add_block_border=False,
+        display_title_template="Answer from <strong>{}</strong>",
     )
 
     # Assert
@@ -530,7 +551,10 @@ def test_get_display_template__adds_quote_border__when_flag_true() -> None:
 
     # Act
     result = _get_display_template(
-        mode=mode, add_quote_border=True, add_block_border=False
+        mode=mode,
+        add_quote_border=True,
+        add_block_border=False,
+        display_title_template="Answer from <strong>{}</strong>",
     )
 
     # Assert
@@ -550,7 +574,10 @@ def test_get_display_template__adds_block_border__when_flag_true() -> None:
 
     # Act
     result = _get_display_template(
-        mode=mode, add_quote_border=False, add_block_border=True
+        mode=mode,
+        add_quote_border=False,
+        add_block_border=True,
+        display_title_template="Answer from <strong>{}</strong>",
     )
 
     # Assert
@@ -570,7 +597,10 @@ def test_get_display_template__adds_both_borders__when_both_flags_true() -> None
 
     # Act
     result = _get_display_template(
-        mode=mode, add_quote_border=True, add_block_border=True
+        mode=mode,
+        add_quote_border=True,
+        add_block_border=True,
+        display_title_template="Answer from <strong>{}</strong>",
     )
 
     # Assert
@@ -601,6 +631,7 @@ def test_get_display_removal_re__returns_pattern__for_plain_mode() -> None:
         mode=mode,
         add_quote_border=False,
         add_block_border=False,
+        display_title_template="Answer from <strong>{}</strong>",
     )
 
     # Assert
@@ -629,6 +660,7 @@ def test_get_display_removal_re__returns_pattern__for_details_modes() -> None:
             mode=mode,
             add_quote_border=False,
             add_block_border=False,
+            display_title_template="Answer from <strong>{}</strong>",
         )
 
         # Assert
@@ -653,6 +685,7 @@ def test_get_display_removal_re__includes_assistant_id__in_pattern() -> None:
         mode=mode,
         add_quote_border=False,
         add_block_border=False,
+        display_title_template="Answer from <strong>{}</strong>",
     )
 
     # Assert
@@ -676,6 +709,7 @@ def test_get_display_removal_re__has_capture_groups__for_answer_and_name() -> No
         mode=mode,
         add_quote_border=False,
         add_block_border=False,
+        display_title_template="Answer from <strong>{}</strong>",
     )
 
     # Assert
@@ -707,6 +741,7 @@ def test_build_sub_agent_answer_display__creates_html__for_plain_mode() -> None:
         add_block_border=False,
         answer=answer,
         assistant_id=assistant_id,
+        display_title_template="Answer from <strong>{}</strong>",
     )
 
     # Assert
@@ -738,6 +773,7 @@ def test_build_sub_agent_answer_display__creates_details__for_details_open() -> 
         add_block_border=False,
         answer=answer,
         assistant_id=assistant_id,
+        display_title_template="Answer from <strong>{}</strong>",
     )
 
     # Assert
@@ -769,6 +805,7 @@ def test_build_sub_agent_answer_display__creates_details__for_details_closed() -
         add_block_border=False,
         answer=answer,
         assistant_id=assistant_id,
+        display_title_template="Answer from <strong>{}</strong>",
     )
 
     # Assert
@@ -800,6 +837,7 @@ def test_build_sub_agent_answer_display__returns_empty__for_hidden_mode() -> Non
         add_block_border=False,
         answer=answer,
         assistant_id=assistant_id,
+        display_title_template="Answer from <strong>{}</strong>",
     )
 
     # Assert
@@ -830,6 +868,7 @@ def test_remove_sub_agent_answer__removes_plain_display__from_text() -> None:
         add_block_border=False,
         answer=answer,
         assistant_id=assistant_id,
+        display_title_template="Answer from <strong>{}</strong>",
     )
 
     text_with_display = f"Before content\n{display}\nAfter content"
@@ -841,6 +880,7 @@ def test_remove_sub_agent_answer__removes_plain_display__from_text() -> None:
         add_block_border=False,
         text=text_with_display,
         assistant_id=assistant_id,
+        display_title_template="Answer from <strong>{}</strong>",
     )
 
     # Assert
@@ -871,6 +911,7 @@ def test_remove_sub_agent_answer__removes_details_open__from_text() -> None:
         add_block_border=False,
         answer=answer,
         assistant_id=assistant_id,
+        display_title_template="Answer from <strong>{}</strong>",
     )
 
     text_with_display = f"Start\n{display}\nEnd"
@@ -882,6 +923,7 @@ def test_remove_sub_agent_answer__removes_details_open__from_text() -> None:
         add_block_border=False,
         text=text_with_display,
         assistant_id=assistant_id,
+        display_title_template="Answer from <strong>{}</strong>",
     )
 
     # Assert
@@ -913,6 +955,7 @@ def test_remove_sub_agent_answer__removes_details_closed__from_text() -> None:
         add_block_border=False,
         answer=answer,
         assistant_id=assistant_id,
+        display_title_template="Answer from <strong>{}</strong>",
     )
 
     text_with_display = f"Beginning\n{display}\nEnding"
@@ -924,6 +967,7 @@ def test_remove_sub_agent_answer__removes_details_closed__from_text() -> None:
         add_block_border=False,
         text=text_with_display,
         assistant_id=assistant_id,
+        display_title_template="Answer from <strong>{}</strong>",
     )
 
     # Assert
@@ -955,6 +999,7 @@ def test_remove_sub_agent_answer__removes_with_quote_border__from_text() -> None
         add_block_border=False,
         answer=answer,
         assistant_id=assistant_id,
+        display_title_template="Answer from <strong>{}</strong>",
     )
 
     text_with_display = f"Before\n{display}\nAfter"
@@ -966,6 +1011,7 @@ def test_remove_sub_agent_answer__removes_with_quote_border__from_text() -> None
         add_block_border=False,
         text=text_with_display,
         assistant_id=assistant_id,
+        display_title_template="Answer from <strong>{}</strong>",
     )
 
     # Assert
@@ -997,6 +1043,7 @@ def test_remove_sub_agent_answer__removes_with_block_border__from_text() -> None
         add_block_border=True,
         answer=answer,
         assistant_id=assistant_id,
+        display_title_template="Answer from <strong>{}</strong>",
     )
 
     text_with_display = f"Start\n{display}\nFinish"
@@ -1008,6 +1055,7 @@ def test_remove_sub_agent_answer__removes_with_block_border__from_text() -> None
         add_block_border=True,
         text=text_with_display,
         assistant_id=assistant_id,
+        display_title_template="Answer from <strong>{}</strong>",
     )
 
     # Assert
@@ -1039,6 +1087,7 @@ def test_remove_sub_agent_answer__removes_with_both_borders__from_text() -> None
         add_block_border=True,
         answer=answer,
         assistant_id=assistant_id,
+        display_title_template="Answer from <strong>{}</strong>",
     )
 
     text_with_display = f"Prefix\n{display}\nSuffix"
@@ -1050,6 +1099,7 @@ def test_remove_sub_agent_answer__removes_with_both_borders__from_text() -> None
         add_block_border=True,
         text=text_with_display,
         assistant_id=assistant_id,
+        display_title_template="Answer from <strong>{}</strong>",
     )
 
     # Assert
@@ -1082,6 +1132,7 @@ def test_remove_sub_agent_answer__preserves_other_content__with_multiple_display
         add_block_border=False,
         answer="Answer from agent 1",
         assistant_id=assistant_id_1,
+        display_title_template="Answer from <strong>{}</strong>",
     )
 
     display_2 = _build_sub_agent_answer_display(
@@ -1091,6 +1142,7 @@ def test_remove_sub_agent_answer__preserves_other_content__with_multiple_display
         add_block_border=False,
         answer="Answer from agent 2",
         assistant_id=assistant_id_2,
+        display_title_template="Answer from <strong>{}</strong>",
     )
 
     text_with_displays = f"Start\n{display_1}\nMiddle\n{display_2}\nEnd"
@@ -1102,6 +1154,7 @@ def test_remove_sub_agent_answer__preserves_other_content__with_multiple_display
         add_block_border=False,
         text=text_with_displays,
         assistant_id=assistant_id_1,
+        display_title_template="Answer from <strong>{}</strong>",
     )
 
     # Assert
@@ -1135,6 +1188,7 @@ def test_remove_sub_agent_answer__handles_multiline_answer__with_dotall_flag() -
         add_block_border=False,
         answer=answer,
         assistant_id=assistant_id,
+        display_title_template="Answer from <strong>{}</strong>",
     )
 
     text_with_display = f"Before\n{display}\nAfter"
@@ -1146,6 +1200,7 @@ def test_remove_sub_agent_answer__handles_multiline_answer__with_dotall_flag() -
         add_block_border=False,
         text=text_with_display,
         assistant_id=assistant_id,
+        display_title_template="Answer from <strong>{}</strong>",
     )
 
     # Assert
@@ -1179,6 +1234,7 @@ def test_remove_sub_agent_answer__handles_special_regex_chars__in_answer() -> No
         add_block_border=False,
         answer=answer,
         assistant_id=assistant_id,
+        display_title_template="Answer from <strong>{}</strong>",
     )
 
     text_with_display = f"Start\n{display}\nEnd"
@@ -1190,6 +1246,7 @@ def test_remove_sub_agent_answer__handles_special_regex_chars__in_answer() -> No
         add_block_border=False,
         text=text_with_display,
         assistant_id=assistant_id,
+        display_title_template="Answer from <strong>{}</strong>",
     )
 
     # Assert
@@ -1220,6 +1277,7 @@ def test_remove_sub_agent_answer__handles_empty_answer__successfully() -> None:
         add_block_border=False,
         answer=answer,
         assistant_id=assistant_id,
+        display_title_template="Answer from <strong>{}</strong>",
     )
 
     text_with_display = f"Beginning\n{display}\nEnding"
@@ -1231,6 +1289,7 @@ def test_remove_sub_agent_answer__handles_empty_answer__successfully() -> None:
         add_block_border=False,
         text=text_with_display,
         assistant_id=assistant_id,
+        display_title_template="Answer from <strong>{}</strong>",
     )
 
     # Assert
@@ -1259,6 +1318,7 @@ def test_remove_sub_agent_answer__no_op_when_assistant_not_found() -> None:
         add_block_border=False,
         answer="Present answer",
         assistant_id=assistant_id_present,
+        display_title_template="Answer from <strong>{}</strong>",
     )
 
     text_with_display = f"Start\n{display}\nEnd"
@@ -1271,6 +1331,7 @@ def test_remove_sub_agent_answer__no_op_when_assistant_not_found() -> None:
         add_block_border=False,
         text=text_with_display,
         assistant_id=assistant_id_absent,
+        display_title_template="Answer from <strong>{}</strong>",
     )
 
     # Assert

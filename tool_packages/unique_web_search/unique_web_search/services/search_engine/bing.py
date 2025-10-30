@@ -1,9 +1,8 @@
-import json
 import logging
 from typing import Literal
 
+from azure.ai.agents.models import ListSortOrder
 from azure.ai.projects import AIProjectClient
-from azure.ai.projects.models import MessageTextContent
 from azure.identity import DefaultAzureCredential
 from pydantic import BaseModel, Field
 from unique_toolkit import LanguageModelService
@@ -30,9 +29,9 @@ class BingSearchOptionalQueryParams(BaseModel):
         default="",
         description="The ID of the agent to use for the search.",
     )
-    conn_str: str = Field(
+    endpoint: str = Field(
         default="",
-        description="The connection string to use for the search.",
+        description="The endpoint to use for the search.",
     )
     requires_scraping: bool = Field(
         default=False,
@@ -40,12 +39,10 @@ class BingSearchOptionalQueryParams(BaseModel):
     )
 
 
-class BingSearchConfig(BaseSearchEngineConfig[SearchEngineType.BING]):
+class BingSearchConfig(
+    BaseSearchEngineConfig[SearchEngineType.BING], BingSearchOptionalQueryParams
+):
     search_engine_name: Literal[SearchEngineType.BING] = SearchEngineType.BING
-
-    custom_search_config: BingSearchOptionalQueryParams = (
-        BingSearchOptionalQueryParams()
-    )
 
 
 class BingSearch(SearchEngine[BingSearchConfig]):
@@ -63,51 +60,57 @@ class BingSearch(SearchEngine[BingSearchConfig]):
 
     @property
     def requires_scraping(self) -> bool:
-        return self.config.custom_search_config.requires_scraping
+        return self.config.requires_scraping
 
     def _authenticate(self):
         credentials = DefaultAzureCredential()
         return credentials
 
     async def search(self, query: str, **kwargs) -> list[WebSearchResult]:
-        project_client = AIProjectClient.from_connection_string(
+        project = AIProjectClient(
             credential=self.credentials,
-            conn_str=self.config.custom_search_config.conn_str,
+            endpoint=self.config.endpoint,
         )
 
-        agent = project_client.agents.get_agent(
-            self.config.custom_search_config.agent_id
-        )
+        agent = project.agents.get_agent(self.config.agent_id)
 
-        thread = project_client.agents.create_thread()
+        thread = project.agents.threads.create()
 
-        project_client.agents.create_message(
+        message = project.agents.messages.create(
             thread_id=thread.id,
             role="user",
             content=query,
         )
 
-        project_client.agents.create_and_process_run(
+        run = project.agents.runs.create_and_process(
             thread_id=thread.id, agent_id=agent.id
         )
 
-        messages = project_client.agents.list_messages(thread_id=thread.id)
-        messages = messages.text_messages
+        if run.status == "failed":
+            raise Exception(f"Run failed: {run.last_error}")
 
-        return await self._structured_output(messages)
+        messages = project.agents.messages.list(
+            thread_id=thread.id, order=ListSortOrder.ASCENDING
+        )
+
+        messages_list = []
+        for message in messages:
+            if message.text_messages:
+                messages_list.append(
+                    f"{message.role}: {message.text_messages[-1].text.value}"
+                )
+
+        return await self._structured_output(messages_list)
 
     async def _structured_output(
-        self, messages: list[MessageTextContent]
+        self, messages_list: list[str]
     ) -> list[WebSearchResult]:
-        messages_dict = json.dumps(
-            [message.as_dict() for message in messages], indent=4
-        )
         llm_messages = (
             MessagesBuilder()
             .system_message_append(
                 "You are a helpful assistant that can structure results from a referenced response to web page content."
             )
-            .user_message_append(messages_dict)
+            .user_message_append("\n".join(messages_list))
             .build()
         )
 

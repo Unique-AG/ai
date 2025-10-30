@@ -25,7 +25,7 @@ from unique_toolkit.framework_utilities.openai.message_builder import (
 )
 from pydantic import Field
 from unique_toolkit import LanguageModelToolDescription
-from unique_toolkit.chat.rendering import create_prompt_button_string
+from unique_toolkit.chat.rendering import create_prompt_button_string, create_latex_formula_string
 # ~/~ end
 # ~/~ begin <<docs/application_types/standalone_application.md#unique_init_service_standalone_auto>>[init]
 kb_service = KnowledgeBaseService.from_settings()

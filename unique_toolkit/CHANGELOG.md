@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+## [1.20.0] - 2025-10-30
+- Fix bug where async tasks executed with `SafeTaskExecutor` did not log exceptions.
+- Add option to customize sub agent response display title.
+- Add option to display sub agent responses after the main agent response.
+- Add option to specify postprocessors to run before or after the others in the `PostprocessorManager`.
+
+## [1.19.3] - 2025-10-29
+- More documentation on advanced rendering
+
 ## [1.19.2] - 2025-10-29
 - Removing unused tool specific `get_tool_call_result_for_loop_history` function
 - Removing unused experimental config `full_sources_serialize_dump` in `history_manager`
@@ -15,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.19.0] - 2025-10-28
 - Enable additional headers on openai and langchain client
+
 
 ## [1.18.1] - 2025-10-28
 - Fix bug where sub agent references were not properly displayed in the main agent response when the sub agent response was hidden.
