@@ -1,14 +1,16 @@
 [project]
-name = "unique-mcp"
+name = "mcp-sql-demo"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-authors = [
-    { name = "Cedric Klinkert", email = "cedric@unique.ch" }
-]
+authors = [{ name = "Cedric Klinkert", email = "cedric@unique.ch" }]
 requires-python = ">=3.12"
 dependencies = [
+    "fastapi>=0.120.2",
+    "fastmcp>=2.13.0.2",
+    "psycopg2>=2.9.11",
     "pydantic>=2.12.3",
+    "unique-toolkit>=1.20.0",
 ]
 
 [project.scripts]
