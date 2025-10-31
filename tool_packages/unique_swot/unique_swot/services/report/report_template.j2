@@ -1,31 +1,29 @@
-# SWOT Analysis Report
-
-{% if strengths.result %}
-## Strengths
+{% if strengths.result |length > 0 %}
+# Strengths
 
 {{ strengths.result }}
 
 ---
 
 {% endif %}
-{% if weaknesses.result %}
-## Weaknesses
+{% if weaknesses.result |length > 0 %}
+# Weaknesses
 
 {{ weaknesses.result }}
 
 ---
 
 {% endif %}
-{% if opportunities.result %}
-## Opportunities
+{% if opportunities.result |length > 0 %}
+# Opportunities
 
 {{ opportunities.result }}
 
 ---
 
 {% endif %}
-{% if threats.result %}
-## Threats
+{% if threats.result |length > 0 %}
+# Threats
 
 {{ threats.result }}
 
