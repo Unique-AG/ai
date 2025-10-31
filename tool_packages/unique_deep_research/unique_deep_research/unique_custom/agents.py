@@ -92,6 +92,10 @@ async def setup_research_supervisor(
     research_tools = get_research_tools(config)
     research_tools_description = format_tools_for_prompt(research_tools)
 
+    # Get tool configuration for template
+    configurable = config.get("configurable", {})
+    enable_internal_tools = configurable.get("enable_internal_tools", True)
+
     supervisor_system_prompt = TEMPLATE_ENV.get_template(
         "unique/lead_agent_system.j2"
     ).render(
@@ -100,6 +104,7 @@ async def setup_research_supervisor(
         max_concurrent_research_units=max_concurrent,
         max_researcher_iterations=max_iterations,
         research_tools_description=research_tools_description,
+        enable_internal_tools=enable_internal_tools,
     )
 
     return Command(
@@ -274,9 +279,18 @@ async def researcher(
 
     # Prepare system prompt with dynamic tool descriptions
     tools_description = format_tools_for_prompt(research_tools)
+
+    # Get tool configuration for template
+    configurable = config.get("configurable", {})
+    enable_internal_tools = configurable.get("enable_internal_tools", True)
+
     researcher_prompt = TEMPLATE_ENV.get_template(
         "unique/research_agent_system.j2"
-    ).render(date=get_today_str(), tools=tools_description)
+    ).render(
+        date=get_today_str(),
+        tools=tools_description,
+        enable_internal_tools=enable_internal_tools,
+    )
 
     # Configure model with research tools
     model_with_tools = configurable_model.bind_tools(research_tools)
