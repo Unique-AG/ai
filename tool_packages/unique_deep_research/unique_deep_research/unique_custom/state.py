@@ -10,7 +10,6 @@ from typing import Annotated, List, Optional, Required, TypedDict
 
 from langchain_core.messages import MessageLikeRepresentation
 from langgraph.graph import MessagesState
-from unique_toolkit.agentic.tools.tool import ToolProgressReporter
 from unique_toolkit.chat.service import ChatService
 
 
@@ -47,9 +46,6 @@ class AgentState(MessagesState):
     # Essential services (required for functionality)
     chat_service: Required[ChatService]  # ChatService instance for message logging
     message_id: Required[str]  # Assistant message ID for logging
-    tool_progress_reporter: Optional[
-        ToolProgressReporter
-    ]  # Tool progress reporter instance
 
 
 class SupervisorState(TypedDict, total=False):
