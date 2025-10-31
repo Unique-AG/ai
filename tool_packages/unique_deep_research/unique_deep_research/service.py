@@ -112,7 +112,9 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         self.logger.info(f"Using async OpenAI client pointed to {self.client.base_url}")
 
         self.content_service = ContentService(
-            company_id=self.company_id, user_id=self.user_id
+            company_id=self.company_id,
+            user_id=self.user_id,
+            metadata_filter=event.payload.metadata_filter,
         )
         self.memory_service = PersistentShortMemoryManager(
             short_term_memory_service=ShortTermMemoryService(
@@ -382,7 +384,6 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                 "final_report": "",
                 "chat_service": self.chat_service,
                 "message_id": self.event.payload.assistant_message.id,
-                "tool_progress_reporter": self.tool_progress_reporter,
             }
 
             # Prepare configuration for LangGraph
