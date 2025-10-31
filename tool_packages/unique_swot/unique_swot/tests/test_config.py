@@ -36,13 +36,13 @@ class TestSwotConfig:
     def test_swot_config_custom_report_generation_config(self):
         """Test SwotConfig with custom report generation config."""
         custom_report_config = ReportGenerationConfig(
-            batch_size=5,
-            max_tokens_per_batch=2000,
+            extraction_batch_size=5,
+            max_tokens_per_extraction_batch=2000,
         )
         config = SwotAnalysisToolConfig(report_generation_config=custom_report_config)
 
-        assert config.report_generation_config.batch_size == 5
-        assert config.report_generation_config.max_tokens_per_batch == 2000
+        assert config.report_generation_config.extraction_batch_size == 5
+        assert config.report_generation_config.max_tokens_per_extraction_batch == 2000
 
     def test_swot_config_custom_descriptions(self):
         """Test SwotConfig with custom description fields."""
