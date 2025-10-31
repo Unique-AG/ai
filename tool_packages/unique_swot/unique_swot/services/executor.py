@@ -99,12 +99,7 @@ class SWOTExecutionManager:
             ValueError: If an invalid operation is encountered in the plan
         """
         executed_plan = SWOTResult.init_from_plan(plan=plan)
-        for component in [
-            SWOTComponent.STRENGTHS,
-            SWOTComponent.WEAKNESSES,
-            SWOTComponent.OPPORTUNITIES,
-            SWOTComponent.THREATS,
-        ]:
+        for component in SWOTComponent.__members__.values():
             step = plan.get_step_result(component)
             _LOGGER.info(f"Running step: {component} {step.operation}")
             match step.operation:
@@ -218,7 +213,9 @@ class SWOTExecutionManager:
         Returns:
             The generated SWOT analysis for the specified component
         """
-        extraction_system_prompt = get_swot_extraction_system_prompt(component)
+        extraction_system_prompt = get_swot_extraction_system_prompt(
+            component, self._configuration.extraction_prompt_config
+        )
 
         extraction_output_model = get_swot_extraction_model(component)
         context = ReportGenerationContext(
@@ -239,7 +236,9 @@ class SWOTExecutionManager:
 
         context = ReportSummarizationContext(
             component=component,
-            summarization_system_prompt=get_swot_summarization_system_prompt(component),
+            summarization_system_prompt=get_swot_summarization_system_prompt(
+                component, self._configuration.summarization_prompt_config
+            ),
             extraction_results=aggregated_extraction_result,
         )
 
@@ -250,6 +249,4 @@ class SWOTExecutionManager:
             notifier=self._notifier,
         )
 
-        processed_result = self._citation_manager.process_result(summarized_result)
-
-        return processed_result
+        return summarized_result
