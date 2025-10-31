@@ -114,6 +114,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         self.content_service = ContentService(
             company_id=self.company_id,
             user_id=self.user_id,
+            chat_id=self.chat_id,
             metadata_filter=event.payload.metadata_filter,
         )
         self.memory_service = PersistentShortMemoryManager(
