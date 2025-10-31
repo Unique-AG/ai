@@ -7,7 +7,10 @@ from typing_extensions import deprecated
 from unique_toolkit._common.validate_required_values import (
     validate_required_values,
 )
-from unique_toolkit.agentic.evaluation.config import EvaluationMetricConfig
+from unique_toolkit.agentic.evaluation.config import (
+    CustomPrompts,
+    EvaluationMetricConfig,
+)
 from unique_toolkit.agentic.evaluation.context_relevancy.schema import (
     EvaluationSchemaStructuredOutput,
 )
@@ -50,10 +53,10 @@ default_config = EvaluationMetricConfig(
     enabled=False,
     name=EvaluationMetricName.CONTEXT_RELEVANCY,
     language_model=LanguageModelInfo.from_name(DEFAULT_GPT_4o),
-    custom_prompts={
-        SYSTEM_MSG_KEY: CONTEXT_RELEVANCY_METRIC_SYSTEM_MSG,
-        USER_MSG_KEY: CONTEXT_RELEVANCY_METRIC_USER_MSG,
-    },
+    custom_prompts=CustomPrompts(
+        system_prompt=CONTEXT_RELEVANCY_METRIC_SYSTEM_MSG,
+        user_prompt=CONTEXT_RELEVANCY_METRIC_USER_MSG,
+    ),
 )
 
 relevancy_required_input_fields = [
@@ -201,7 +204,9 @@ class ContextRelevancyEvaluator:
         result = await self.language_model_service.complete_async(
             messages=msgs,
             model_name=config.language_model.name,
-            other_options=config.additional_llm_options,
+            other_options=config.additional_llm_options.model_dump()
+            if config.additional_llm_options
+            else None,
         )
 
         result_content = result.choices[0].message.content
@@ -240,34 +245,30 @@ class ContextRelevancyEvaluator:
         self,
         config: EvaluationMetricConfig,
         enable_structured_output: bool,
-    ):
+    ) -> str:
         if (
             enable_structured_output
             and ModelCapabilities.STRUCTURED_OUTPUT
             in config.language_model.capabilities
         ):
-            return config.custom_prompts.setdefault(
-                SYSTEM_MSG_KEY,
-                CONTEXT_RELEVANCY_METRIC_SYSTEM_MSG_STRUCTURED_OUTPUT,
+            config.custom_prompts.system_prompt = (
+                CONTEXT_RELEVANCY_METRIC_SYSTEM_MSG_STRUCTURED_OUTPUT
             )
         else:
-            return config.custom_prompts.setdefault(
-                SYSTEM_MSG_KEY,
-                CONTEXT_RELEVANCY_METRIC_SYSTEM_MSG,
-            )
+            config.custom_prompts.system_prompt = CONTEXT_RELEVANCY_METRIC_SYSTEM_MSG
+
+        return config.custom_prompts.system_prompt
 
     def _get_user_prompt(
         self,
         config: EvaluationMetricConfig,
         enable_structured_output: bool,
-    ):
+    ) -> str:
         if enable_structured_output:
-            return config.custom_prompts.setdefault(
-                USER_MSG_KEY,
-                CONTEXT_RELEVANCY_METRIC_USER_MSG_STRUCTURED_OUTPUT,
+            config.custom_prompts.user_prompt = (
+                CONTEXT_RELEVANCY_METRIC_USER_MSG_STRUCTURED_OUTPUT
             )
         else:
-            return config.custom_prompts.setdefault(
-                USER_MSG_KEY,
-                CONTEXT_RELEVANCY_METRIC_USER_MSG,
-            )
+            config.custom_prompts.user_prompt = CONTEXT_RELEVANCY_METRIC_USER_MSG
+
+        return config.custom_prompts.user_prompt

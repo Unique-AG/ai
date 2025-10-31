@@ -1,7 +1,3 @@
-from typing import Any
-
-from pydantic import Field
-
 from unique_toolkit._common.validators import LMI
 from unique_toolkit.agentic.evaluation.config import EvaluationMetricConfig
 from unique_toolkit.agentic.evaluation.hallucination.prompts import (
@@ -29,10 +25,7 @@ class HallucinationConfig(EvaluationMetricConfig):
     language_model: LMI = LanguageModelInfo.from_name(
         DEFAULT_GPT_4o,
     )
-    additional_llm_options: dict[str, Any] = Field(
-        default={},
-        description="Additional options to pass to the language model.",
-    )
+
     custom_prompts: dict = {
         SYSTEM_MSG_KEY: HALLUCINATION_METRIC_SYSTEM_MSG,
         USER_MSG_KEY: HALLUCINATION_METRIC_USER_MSG,
@@ -59,3 +52,16 @@ hallucination_required_input_fields = [
     EvaluationMetricInputFieldName.HISTORY_MESSAGES,
     EvaluationMetricInputFieldName.OUTPUT_TEXT,
 ]
+
+if __name__ == "__main__":
+    import json
+    from pathlib import Path
+
+    filel = Path("hallucination_config.json")
+
+    with filel.open("w") as f:
+        f.write(
+            json.dumps(
+                hallucination_metric_default_config.model_json_schema(), indent=4
+            )
+        )

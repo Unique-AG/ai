@@ -19,10 +19,6 @@ from unique_toolkit.language_model.schemas import (
 from unique_toolkit.language_model.service import LanguageModelService
 
 from .constants import (
-    SYSTEM_MSG_DEFAULT_KEY,
-    SYSTEM_MSG_KEY,
-    USER_MSG_DEFAULT_KEY,
-    USER_MSG_KEY,
     hallucination_required_input_fields,
 )
 from .prompts import (
@@ -173,31 +169,23 @@ def _compose_msgs_default(
 
 
 def _get_system_prompt_with_contexts(config: EvaluationMetricConfig):
-    return config.custom_prompts.setdefault(
-        SYSTEM_MSG_KEY,
-        HALLUCINATION_METRIC_SYSTEM_MSG,
-    )
+    config.custom_prompts.system_prompt = HALLUCINATION_METRIC_SYSTEM_MSG
+    return config.custom_prompts.system_prompt
 
 
 def _get_user_prompt_with_contexts(config: EvaluationMetricConfig):
-    return config.custom_prompts.setdefault(
-        USER_MSG_KEY,
-        HALLUCINATION_METRIC_USER_MSG,
-    )
+    config.custom_prompts.user_prompt = HALLUCINATION_METRIC_USER_MSG
+    return config.custom_prompts.user_prompt
 
 
 def _get_system_prompt_default(config: EvaluationMetricConfig):
-    return config.custom_prompts.setdefault(
-        SYSTEM_MSG_DEFAULT_KEY,
-        HALLUCINATION_METRIC_SYSTEM_MSG_DEFAULT,
-    )
+    config.custom_prompts.system_prompt = HALLUCINATION_METRIC_SYSTEM_MSG_DEFAULT
+    return config.custom_prompts.system_prompt
 
 
 def _get_user_prompt_default(config: EvaluationMetricConfig):
-    return config.custom_prompts.setdefault(
-        USER_MSG_DEFAULT_KEY,
-        HALLUCINATION_METRIC_USER_MSG_DEFAULT,
-    )
+    config.custom_prompts.user_prompt = HALLUCINATION_METRIC_USER_MSG_DEFAULT
+    return config.custom_prompts.user_prompt
 
 
 def context_text_from_stream_response(
