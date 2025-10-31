@@ -40,7 +40,6 @@ from unique_toolkit.framework_utilities.openai.client import get_async_openai_cl
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelMessage,
-    LanguageModelToolMessage,
 )
 from unique_toolkit.short_term_memory.service import ShortTermMemoryService
 
@@ -219,6 +218,8 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
 
     async def _run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
         self.logger.info("Starting Deep Research tool run")
+
+        await self._clear_original_message()
 
         # Question answer and message execution will have the same message id, so we need to check if it is a message execution
         if await self.is_followup_question_answer() and not self.is_message_execution():
@@ -785,6 +786,14 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             references.append(reference)
 
         return references
+
+    async def _clear_original_message(self) -> None:
+        """
+        Clear the original message.
+        """
+        await self.chat_service.modify_assistant_message_async(
+            original_content="",
+        )
 
 
 # Register the tool with the ToolFactory
