@@ -71,16 +71,19 @@ class SwotMemoryService(Generic[T]):
             file_name = f"{key}_{uuid4().hex}.json"
 
         # Store in knowledge base
-        content = self._knowledge_base_service.upload_content_from_bytes(
-            content=input.model_dump_json(indent=1).encode("utf-8"),
-            content_name=file_name,
-            mime_type="text/plain",
-            scope_id=self._cache_scope_id,
-            skip_ingestion=True,
-        )
+        try:
+            content = self._knowledge_base_service.upload_content_from_bytes(
+                content=input.model_dump_json(indent=1).encode("utf-8"),
+                content_name=file_name,
+                mime_type="text/plain",
+                scope_id=self._cache_scope_id,
+                skip_ingestion=True,
+            )
 
-        memory = Memory(id=content.id, file_name=file_name)
-        self._short_term_memory_service.create_memory(key, memory.model_dump())
+            memory = Memory(id=content.id, file_name=file_name)
+            self._short_term_memory_service.create_memory(key, memory.model_dump())
+        except Exception as e:
+            self._log_memory_error(key, e, "Failed to upload content to knowledge base")
 
     def _find_latest_memory(self, key):
         try:
@@ -100,8 +103,3 @@ class SwotMemoryService(Generic[T]):
     def _log_memory_error(self, key: str, error: Exception, message: str) -> None:
         """Log memory operation errors with consistent formatting."""
         _LOGGER.warning(f"{message} for key '{key}'. Returning None.")
-        # _LOGGER.debug(
-        #     f"Memory retrieval error for key '{key}': {error!r}",
-        #     exc_info=True,
-        #     extra={"key": key, "cache_scope_id": self._cache_scope_id},
-        # )
