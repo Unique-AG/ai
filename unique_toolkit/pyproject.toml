@@ -31,6 +31,7 @@ unique-sdk = "^0.10.28"
 jambo = "^0.1.2"
 mkdocs-multirepo-plugin = "^0.8.3"
 mkdocs-mermaid2-plugin = "^1.2.2"
+docxtpl = "^0.20.1"
 
 [tool.poetry.group.langchain]
 optional = true

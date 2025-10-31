@@ -5,6 +5,7 @@ from typing import Any, Sequence
 import unique_sdk
 from openai.types.chat import ChatCompletionToolChoiceOptionParam
 from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
+from pydantic import BaseModel
 from typing_extensions import deprecated
 from unique_sdk._list_object import ListObject
 
@@ -925,6 +926,12 @@ async def stream_complete_with_references_async(
         raise e
 
 
+def _get_model_dump_or_none(model: BaseModel | None) -> dict | None:
+    if model is None:
+        return None
+    return model.model_dump()
+
+
 def create_message_log(
     user_id: str,
     company_id: str,
@@ -957,6 +964,9 @@ def create_message_log(
 
     """
     try:
+        references_list = (
+            map_references_with_original_index(references) if references else None
+        )
         message_log = unique_sdk.MessageLog.create(
             user_id=user_id,
             company_id=company_id,
@@ -964,13 +974,9 @@ def create_message_log(
             text=text,
             status=status.value,
             order=order,
-            details=details.model_dump() if details else None,
-            uncitedReferences=uncited_references.model_dump()
-            if uncited_references
-            else None,
-            references=map_references_with_original_index(references)
-            if references
-            else [],  # type: ignore
+            details=_get_model_dump_or_none(details),
+            uncitedReferences=_get_model_dump_or_none(uncited_references),
+            references=references_list,  # type: ignore
         )
         return MessageLog(**message_log)
     except Exception as e:
@@ -1010,6 +1016,9 @@ async def create_message_log_async(
 
     """
     try:
+        references_list = (
+            map_references_with_original_index(references) if references else None
+        )
         message_log = await unique_sdk.MessageLog.create_async(
             user_id=user_id,
             company_id=company_id,
@@ -1017,13 +1026,9 @@ async def create_message_log_async(
             text=text,
             status=status.value,
             order=order,
-            details=details.model_dump() if details else None,
-            uncitedReferences=uncited_references.model_dump()
-            if uncited_references
-            else None,
-            references=map_references_with_original_index(references)
-            if references
-            else [],  # type: ignore
+            details=_get_model_dump_or_none(details),
+            uncitedReferences=_get_model_dump_or_none(uncited_references),
+            references=references_list,  # type: ignore
         )
         return MessageLog(**message_log)
     except Exception as e:
@@ -1063,6 +1068,9 @@ def update_message_log(
 
     """
     try:
+        references_list = (
+            map_references_with_original_index(references) if references else None
+        )
         message_log = unique_sdk.MessageLog.update(
             user_id=user_id,
             company_id=company_id,
@@ -1070,13 +1078,9 @@ def update_message_log(
             text=text,
             status=status.value if status else None,
             order=order,
-            details=details.model_dump() if details else None,
-            uncitedReferences=uncited_references.model_dump()
-            if uncited_references
-            else None,
-            references=map_references_with_original_index(references)
-            if references
-            else [],  # type: ignore
+            details=_get_model_dump_or_none(details),
+            uncitedReferences=_get_model_dump_or_none(uncited_references),
+            references=references_list,  # type: ignore
         )
         return MessageLog(**message_log)
     except Exception as e:
@@ -1116,6 +1120,9 @@ async def update_message_log_async(
 
     """
     try:
+        references_list = (
+            map_references_with_original_index(references) if references else None
+        )
         message_log = await unique_sdk.MessageLog.update_async(
             user_id=user_id,
             company_id=company_id,
@@ -1123,13 +1130,9 @@ async def update_message_log_async(
             text=text,
             status=status.value if status else None,
             order=order,
-            details=details.model_dump() if details else None,
-            uncitedReferences=uncited_references.model_dump()
-            if uncited_references
-            else None,
-            references=map_references_with_original_index(references)
-            if references
-            else [],  # type: ignore
+            details=_get_model_dump_or_none(details),
+            uncitedReferences=_get_model_dump_or_none(uncited_references),
+            references=references_list,  # type: ignore
         )
         return MessageLog(**message_log)
     except Exception as e:
@@ -1289,7 +1292,7 @@ def update_message_execution(
     user_id: str,
     company_id: str,
     message_id: str,
-    status: MessageExecutionUpdateStatus,
+    status: MessageExecutionUpdateStatus | None = None,
     seconds_remaining: int | None = None,
     percentage_completed: int | None = None,
 ) -> MessageExecution:
@@ -1299,7 +1302,7 @@ def update_message_execution(
         user_id (str): The user ID.
         company_id (str): The company ID.
         message_id (str): The ID of the message to update execution for.
-        status (MessageExecutionUpdateStatus): The updated status (COMPLETED or FAILED).
+        status (MessageExecutionUpdateStatus | None): The updated status (COMPLETED or FAILED). Defaults to None.
         seconds_remaining (int | None): Updated estimated seconds remaining.
         percentage_completed (int | None): Updated percentage of completion (0-100).
 
@@ -1311,11 +1314,12 @@ def update_message_execution(
 
     """
     try:
+        status_value = status.value if status else None
         message_execution = unique_sdk.MessageExecution.update(
             user_id=user_id,
             company_id=company_id,
             messageId=message_id,
-            status=status.value,
+            status=status_value,
             secondsRemaining=seconds_remaining,
             percentageCompleted=percentage_completed,
         )
@@ -1329,7 +1333,7 @@ async def update_message_execution_async(
     user_id: str,
     company_id: str,
     message_id: str,
-    status: MessageExecutionUpdateStatus,
+    status: MessageExecutionUpdateStatus | None = None,
     seconds_remaining: int | None = None,
     percentage_completed: int | None = None,
 ) -> MessageExecution:
@@ -1339,7 +1343,7 @@ async def update_message_execution_async(
         user_id (str): The user ID.
         company_id (str): The company ID.
         message_id (str): The ID of the message to update execution for.
-        status (MessageExecutionUpdateStatus): The updated status (COMPLETED or FAILED).
+        status (MessageExecutionUpdateStatus | None): The updated status (COMPLETED or FAILED). Defaults to None.
         seconds_remaining (int | None): Updated estimated seconds remaining.
         percentage_completed (int | None): Updated percentage of completion (0-100).
 
@@ -1351,11 +1355,12 @@ async def update_message_execution_async(
 
     """
     try:
+        status_value = status.value if status else None
         message_execution = await unique_sdk.MessageExecution.update_async(
             user_id=user_id,
             company_id=company_id,
             messageId=message_id,
-            status=status.value,
+            status=status_value,
             secondsRemaining=seconds_remaining,
             percentageCompleted=percentage_completed,
         )
