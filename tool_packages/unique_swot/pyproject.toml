@@ -10,15 +10,17 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = "^3.12"
 pydantic = "^2.8.2"
-ruff = "^0.12.10"
+ruff = "^0.11.7"
 jinja2 = "^3.1.0"
+python-docx = "^1.2.0"
+beautifulsoup4 = "^4.14.2"
 
 [tool.poetry.group.dev.dependencies]
 python = "^3.12"
 pydantic = "^2.8.2"
-unique-web-search = { path = "../unique_web_search" , develop = true}
-unique-sdk = { path = "../../unique_sdk" , develop = true}
-unique-toolkit = { path = "../../unique_toolkit" , develop = true}
+unique-web-search = { path = "../unique_web_search",  develop = true}
+unique-sdk = { path = "../../unique_sdk",  develop = true}
+unique-toolkit = { path = "../../unique_toolkit",  develop = true}
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
