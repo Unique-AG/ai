@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [3.0.9] - 2025-10-31
 - Clear original response message when starting new run
 - Forced tool calls fix for setting research completed at max iterations
-- Reduce web search results to 10 to improve rate limit handeling
+- Reduce web search results returned to 10 to reduce api load
 
 ## [3.0.8] - 2025-10-29
 - Include DeepResearch Bench results
