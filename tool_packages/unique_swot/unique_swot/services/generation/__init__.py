@@ -24,40 +24,38 @@ from unique_swot.services.generation.models.weaknesses import (
     WeaknessesExtraction,
 )
 from unique_swot.services.generation.prompts import (
-    OPPORTUNITIES_EXTRACTION_TEMPLATE,
-    OPPORTUNITIES_SUMMARIZATION_TEMPLATE,
-    STRENGTHS_EXTRACTION_TEMPLATE,
-    STRENGTHS_SUMMARIZATION_TEMPLATE,
-    THREATS_EXTRACTION_TEMPLATE,
-    THREATS_SUMMARIZATION_TEMPLATE,
-    WEAKNESSES_EXTRACTION_TEMPLATE,
-    WEAKNESSES_SUMMARIZATION_TEMPLATE,
+    ExtractionPromptConfig,
+    SummarizationPromptConfig,
 )
 from unique_swot.services.generation.utils import batch_parser
 
 
-def get_swot_extraction_system_prompt(component: SWOTComponent) -> str:
+def get_swot_extraction_system_prompt(
+    component: SWOTComponent, extraction_prompt_config: ExtractionPromptConfig
+) -> str:
     if component == SWOTComponent.STRENGTHS:
-        return STRENGTHS_EXTRACTION_TEMPLATE
+        return extraction_prompt_config.strengths
     elif component == SWOTComponent.WEAKNESSES:
-        return WEAKNESSES_EXTRACTION_TEMPLATE
+        return extraction_prompt_config.weaknesses
     elif component == SWOTComponent.OPPORTUNITIES:
-        return OPPORTUNITIES_EXTRACTION_TEMPLATE
+        return extraction_prompt_config.opportunities
     elif component == SWOTComponent.THREATS:
-        return THREATS_EXTRACTION_TEMPLATE
+        return extraction_prompt_config.threats
     else:
         raise ValueError(f"Invalid component: {component}")
 
 
-def get_swot_summarization_system_prompt(component: SWOTComponent) -> str:
+def get_swot_summarization_system_prompt(
+    component: SWOTComponent, summarization_prompt_config: SummarizationPromptConfig
+) -> str:
     if component == SWOTComponent.STRENGTHS:
-        return STRENGTHS_SUMMARIZATION_TEMPLATE
+        return summarization_prompt_config.strengths
     elif component == SWOTComponent.WEAKNESSES:
-        return WEAKNESSES_SUMMARIZATION_TEMPLATE
+        return summarization_prompt_config.weaknesses
     elif component == SWOTComponent.OPPORTUNITIES:
-        return OPPORTUNITIES_SUMMARIZATION_TEMPLATE
+        return summarization_prompt_config.opportunities
     elif component == SWOTComponent.THREATS:
-        return THREATS_SUMMARIZATION_TEMPLATE
+        return summarization_prompt_config.threats
     else:
         raise ValueError(f"Invalid component: {component}")
 

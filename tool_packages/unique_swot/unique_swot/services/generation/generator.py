@@ -52,8 +52,8 @@ async def extract_swot_from_sources(
     """
     source_batches = split_context_into_batches(
         sources=context.sources,
-        batch_size=configuration.batch_size,
-        max_tokens_per_batch=configuration.max_tokens_per_batch,
+        batch_size=configuration.extraction_batch_size,
+        max_tokens_per_batch=configuration.max_tokens_per_extraction_batch,
         language_model=configuration.language_model,
     )
 
