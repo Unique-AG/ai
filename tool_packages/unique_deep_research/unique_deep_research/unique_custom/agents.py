@@ -155,7 +155,7 @@ async def research_supervisor(
         )
         model_with_tools = configurable_model.bind_tools(
             supervisor_tools,
-            tool_choice={"type": "function", "function": {"name": "research_complete"}},
+            tool_choice="research_complete",
         )
     else:
         model_with_tools = configurable_model.bind_tools(supervisor_tools)
@@ -168,6 +168,8 @@ async def research_supervisor(
     response = await ainvoke_with_token_handling(
         research_model, supervisor_messages, model_info=custom_config.research_model
     )
+    if should_force_complete and not response.tool_calls:
+        _LOGGER.error("Failed to force research_complete tool call")
 
     return Command(
         goto="supervisor_tools",
@@ -191,7 +193,7 @@ async def supervisor_tools(
 
     # Check exit conditions
     max_iterations = UniqueCustomEngineConfig.max_research_iterations_lead_researcher
-    exceeded_iterations = research_iterations > max_iterations
+    exceeded_iterations = research_iterations >= max_iterations
 
     # Extract tool calls if available
     tool_calls = []
