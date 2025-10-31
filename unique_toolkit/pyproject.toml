@@ -9,6 +9,7 @@ authors = [
     "Fabian Schläpfer <fabian@unique.ch>",
     "Pascal Hauri <pascal@unique.ch>",
     "Ejiroghene Oki-Peter<oki-peter.ejiroghene@unique.ai>",
+    "Rami Azouz <rami.ext@unique.ch>",
 ]
 readme = ["README.md", "CHANGELOG.md"]
 license = "Proprietary"

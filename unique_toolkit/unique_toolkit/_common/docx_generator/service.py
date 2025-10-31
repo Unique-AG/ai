@@ -23,6 +23,7 @@ generator_dir_path = Path(__file__).resolve().parent
 
 _LOGGER = logging.getLogger(__name__)
 
+
 class DocxGeneratorService:
     def __init__(
         self,
@@ -47,9 +48,7 @@ class DocxGeneratorService:
         markdown = re.sub(r"(?m)^\s*## ", "#### ", markdown)
         markdown = re.sub(r"(?m)^\s*### ", "##### ", markdown)
         markdown = markdown.replace("# Relevant sources", "")
-        markdown = markdown.replace(
-            "# Proposed answer", "#### Proposed answer"
-        )
+        markdown = markdown.replace("# Proposed answer", "#### Proposed answer")
 
         tokens = md.parse(markdown)
 
@@ -88,9 +87,7 @@ class DocxGeneratorService:
 
             if token.type == "heading_open":
                 # Heading start, token.tag gives the level (e.g., 'h1', 'h2', etc.)
-                header_lvl = int(
-                    token.tag[1]
-                )  # Extract the level number from tag
+                header_lvl = int(token.tag[1])  # Extract the level number from tag
                 current_section = {
                     "type": HeadingField,
                     "text": "",
@@ -107,9 +104,7 @@ class DocxGeneratorService:
                     current_section = {"type": RunsField, "runs": []}
 
             elif token.type == "paragraph_close":
-                if (
-                    not in_list and current_section
-                ):  # Only append if not in a list
+                if not in_list and current_section:  # Only append if not in a list
                     elements.append(current_section)
                     current_section = {}
 
@@ -180,9 +175,7 @@ class DocxGeneratorService:
                         style = "List Bullet " + str(level)
                     else:
                         style = "List Bullet"
-                    contents.append(
-                        RunsField(style=style, runs=element["runs"])
-                    )
+                    contents.append(RunsField(style=style, runs=element["runs"]))
                 else:
                     contents.append(RunsField(runs=element["runs"]))
 
@@ -228,11 +221,12 @@ class DocxGeneratorService:
             _LOGGER.error(f"Error generating docx: {e}")
             return None
 
-
     def _get_template(self, template_content_id: str):
         try:
             if template_content_id:
-                _LOGGER.info(f"Downloading template from content ID: {template_content_id}")
+                _LOGGER.info(
+                    f"Downloading template from content ID: {template_content_id}"
+                )
                 file_content = self._knowledge_base_service.download_content_to_bytes(
                     content_id=template_content_id
                 )
