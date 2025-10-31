@@ -1,11 +1,13 @@
+from datetime import datetime
 from logging import getLogger
 
 from typing_extensions import override
 from unique_toolkit import ShortTermMemoryService
+from unique_toolkit._common.docx_generator import DocxGeneratorService
+from unique_toolkit.agentic.tools.agent_chunks_hanlder import AgentChunksHandler
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import (
-    AgentChunksHandler,
     EvaluationMetricName,
     Tool,
 )
@@ -24,7 +26,7 @@ from unique_swot.services.collection.registry import ContentChunkRegistry
 from unique_swot.services.executor import SWOTExecutionManager
 from unique_swot.services.memory.base import SwotMemoryService
 from unique_swot.services.notifier import ProgressNotifier
-from unique_swot.services.report import REPORT_TEMPLATE
+from unique_swot.services.report import ReportDeliveryService
 from unique_swot.services.schemas import SWOTPlan
 
 _LOGGER = getLogger(__name__)
@@ -75,6 +77,21 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
 
         self._citation_manager = CitationManager(
             content_chunk_registry=self._content_chunk_registry,
+        )
+
+        self._docx_renderer = DocxGeneratorService(
+            chat_service=self._chat_service,
+            knowledge_base_service=self._knowledge_base_service,
+            config=self.config.report_renderer_config.docx_renderer_config,
+        )
+
+        self._report_delivery_service = ReportDeliveryService(
+            chat_service=self._chat_service,
+            template_name=self.config.report_renderer_config.report_template,
+            docx_renderer=self._docx_renderer,
+            citation_manager=self._citation_manager,
+            renderer_type=self.config.report_renderer_config.renderer_type,
+            message_id=self._event.payload.assistant_message.id,
         )
 
     @override
@@ -137,19 +154,29 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
                 content_chunk_registry=self._content_chunk_registry,
                 citation_manager=self._citation_manager,
             )
+            # Generate markdown report
             result = await executor.run(plan=plan, sources=sources)
-            report = REPORT_TEMPLATE.render(**result.model_dump())
 
-            references = self._citation_manager.get_references(
-                message_id=self._event.payload.assistant_message.id
-            )
-            content_chunks = self._citation_manager.get_referenced_content_chunks()
+            # Store the result in memory
+            self._memory_service.set(result)
 
-            self._chat_service.modify_assistant_message(
-                message_id=self._event.payload.assistant_message.id,
-                content=report,
-                references=references,
+            # Deliver the report to the chat
+            markdown_report = self._report_delivery_service.deliver_report(
+                result=result,
+                docx_template_fields={
+                    "title": "SWOT Analysis Report",
+                    "date": datetime.now().strftime("%Y-%m-%d"),
+                },
             )
+            self._notifier.end_progress(success=True)
+
+            return ToolCallResponse(
+                id=tool_call.id,  # type: ignore
+                name=self.name,
+                content=markdown_report,
+                content_chunks=self._citation_manager.get_referenced_content_chunks(),
+            )
+
         except Exception as e:
             self._notifier.end_progress(success=False)
             _LOGGER.exception(f"Error running SWOT plan: {e}")
@@ -159,15 +186,6 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
                 content=f"Error running SWOT plan: {e}",
                 content_chunks=[],
             )
-
-        self._notifier.end_progress(success=True)
-
-        return ToolCallResponse(
-            id=tool_call.id,  # type: ignore
-            name=self.name,
-            content=report,
-            content_chunks=content_chunks,
-        )
 
     @override
     def get_evaluation_checks_based_on_tool_response(
@@ -180,7 +198,7 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
         return []
 
     @override
-    def get_tool_call_result_for_loop_history(
+    def get_tool_call_result_for_loop_history(  # type: ignore
         self,
         tool_response: ToolCallResponse,
         agent_chunks_handler: AgentChunksHandler,
