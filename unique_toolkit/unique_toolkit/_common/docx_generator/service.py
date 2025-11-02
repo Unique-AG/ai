@@ -199,7 +199,7 @@ class DocxGeneratorService:
         doc = DocxTemplate(io.BytesIO(docx_template_object))
 
         try:
-            content = self._config.template_fields
+            content = {}
             content["body"] = ContentField(contents=subdoc_content)
 
             if fields:

@@ -1,5 +1,3 @@
-from typing import Optional
-
 from docx.document import Document as DocumentObject
 from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
 from docxtpl import DocxTemplate
@@ -22,7 +20,7 @@ class HeadingField(BaseModel):
 
 class ParagraphField(BaseModel):
     text: str
-    style: Optional[str] = None
+    style: str | None = None
     alignment: WD_PARAGRAPH_ALIGNMENT = WD_PARAGRAPH_ALIGNMENT.LEFT
 
     def add(self, doc: DocumentObject):
@@ -36,8 +34,8 @@ class ParagraphField(BaseModel):
 
 class RunField(BaseModel):
     text: str
-    italic: Optional[bool] = False
-    bold: Optional[bool] = False
+    italic: bool | None = False
+    bold: bool | None = False
     alignment: WD_PARAGRAPH_ALIGNMENT = WD_PARAGRAPH_ALIGNMENT.LEFT
 
     def __str__(self):
@@ -46,7 +44,7 @@ class RunField(BaseModel):
 
 class RunsField(BaseModel):
     runs: list[RunField]
-    style: Optional[str] = None
+    style: str | None = None
     alignment: WD_PARAGRAPH_ALIGNMENT = WD_PARAGRAPH_ALIGNMENT.LEFT
 
     def add(self, doc: DocumentObject):

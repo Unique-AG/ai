@@ -215,7 +215,9 @@ class TestContentField:
 
     def test_content_field_str(self):
         """Test ContentField string representation."""
-        contents: list[HeadingField | ParagraphField | RunsField] = [HeadingField(text="Test")]
+        contents: list[HeadingField | ParagraphField | RunsField] = [
+            HeadingField(text="Test")
+        ]
         content_field = ContentField(contents=contents)
         str_repr = str(content_field)
         assert "ContentField" in str_repr
@@ -246,16 +248,13 @@ class TestDocxGeneratorConfig:
         """Test DocxGeneratorConfig with default values."""
         config = DocxGeneratorConfig()
         assert config.template_content_id == ""
-        assert config.template_fields == {}
 
     def test_config_custom_values(self):
         """Test DocxGeneratorConfig with custom values."""
         config = DocxGeneratorConfig(
             template_content_id="content-123",
-            template_fields={"title": "Test Document", "author": "Test Author"},
         )
         assert config.template_content_id == "content-123"
-        assert config.template_fields == {"title": "Test Document", "author": "Test Author"}
 
 
 class TestDocxGeneratorServiceMarkdownParsing:
@@ -449,7 +448,12 @@ class TestDocxGeneratorServiceGeneration:
 
     def test_get_default_template_file_exists(self, docx_service):
         """Test that default template file exists."""
-        generator_dir = Path(__file__).resolve().parent.parent.parent / "unique_toolkit" / "_common" / "docx_generator"
+        generator_dir = (
+            Path(__file__).resolve().parent.parent.parent
+            / "unique_toolkit"
+            / "_common"
+            / "docx_generator"
+        )
         template_path = generator_dir / "template" / "Doc Template.docx"
 
         assert template_path.exists()
@@ -466,9 +470,13 @@ class TestDocxGeneratorServiceGeneration:
         assert result == b"default template bytes"
 
     @patch.object(DocxGeneratorService, "_get_default_template")
-    def test_get_template_with_content_id(self, mock_get_default, docx_service, mock_kb_service):
+    def test_get_template_with_content_id(
+        self, mock_get_default, docx_service, mock_kb_service
+    ):
         """Test getting template with content ID."""
-        mock_kb_service.download_content_to_bytes.return_value = b"custom template bytes"
+        mock_kb_service.download_content_to_bytes.return_value = (
+            b"custom template bytes"
+        )
         docx_service._config.template_content_id = "content-123"
 
         result = docx_service._get_template("content-123")
@@ -479,9 +487,13 @@ class TestDocxGeneratorServiceGeneration:
         assert result == b"custom template bytes"
 
     @patch.object(DocxGeneratorService, "_get_default_template")
-    def test_get_template_fallback_on_error(self, mock_get_default, docx_service, mock_kb_service):
+    def test_get_template_fallback_on_error(
+        self, mock_get_default, docx_service, mock_kb_service
+    ):
         """Test template fallback to default on download error."""
-        mock_kb_service.download_content_to_bytes.side_effect = Exception("Download failed")
+        mock_kb_service.download_content_to_bytes.side_effect = Exception(
+            "Download failed"
+        )
         mock_get_default.return_value = b"default template bytes"
         docx_service._config.template_content_id = "invalid-id"
 
@@ -648,4 +660,3 @@ More content with **bold** formatting.
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
-
