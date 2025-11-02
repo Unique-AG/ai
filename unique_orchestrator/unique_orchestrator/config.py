@@ -10,6 +10,7 @@ from unique_follow_up_questions.config import FollowUpQuestionsConfig
 from unique_internal_search.config import InternalSearchConfig
 from unique_internal_search.service import InternalSearchTool
 from unique_stock_ticker.config import StockTickerConfig
+from unique_swot import SwotAnalysisTool, SwotAnalysisToolConfig
 from unique_toolkit._common.validators import (
     LMI,
     ClipInt,
@@ -89,6 +90,10 @@ class SpaceConfigBase(BaseModel, Generic[T]):
             ToolBuildConfig(
                 name=DeepResearchTool.name,
                 configuration=DeepResearchToolConfig(),
+            ),
+            ToolBuildConfig(
+                name=SwotAnalysisTool.name,
+                configuration=SwotAnalysisToolConfig(),
             ),
         ],
     )
