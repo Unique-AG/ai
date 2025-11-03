@@ -342,6 +342,21 @@ typing-extensions = ">=4.6.0"
 aio = ["azure-core[aio] (>=1.30.0)"]
 
 [[package]]
+name = "babel"
+version = "2.17.0"
+description = "Internationalization utilities"
+optional = false
+python-versions = ">=3.8"
+groups = ["main", "dev"]
+files = [
+    {file = "babel-2.17.0-py3-none-any.whl", hash = "sha256:4d0b53093fdfb4b21c92b5213dba5a1b23885afa8383709427046b21c366e5f2"},
+    {file = "babel-2.17.0.tar.gz", hash = "sha256:0c54cffb19f690cdcc52a3b50bcbf71e07a808d1c80d549f2459b9d2cf0afb9d"},
+]
+
+[package.extras]
+dev = ["backports.zoneinfo", "freezegun (>=1.0,<2.0)", "jinja2 (>=3.0)", "pytest (>=6.0)", "pytest-cov", "pytz", "setuptools", "tzdata"]
+
+[[package]]
 name = "beautifulsoup4"
 version = "4.14.2"
 description = "Screen-scraping library"
@@ -958,6 +973,49 @@ doq = ["aioquic (>=1.2.0)"]
 idna = ["idna (>=3.10)"]
 trio = ["trio (>=0.30)"]
 wmi = ["wmi (>=1.5.1)"]
+
+[[package]]
+name = "docxcompose"
+version = "1.4.0"
+description = "Compose .docx documents"
+optional = false
+python-versions = "*"
+groups = ["main", "dev"]
+files = [
+    {file = "docxcompose-1.4.0.tar.gz", hash = "sha256:bcf2799a0b63c29eb77a3d799a2f28443ae0f69f8691ff3d753f706be515c3e9"},
+]
+
+[package.dependencies]
+babel = "*"
+lxml = "*"
+python-docx = ">=0.8.8"
+setuptools = "*"
+six = "*"
+
+[package.extras]
+test = ["pytest"]
+tests = ["pytest"]
+
+[[package]]
+name = "docxtpl"
+version = "0.20.1"
+description = "Python docx template engine"
+optional = false
+python-versions = "*"
+groups = ["main", "dev"]
+files = [
+    {file = "docxtpl-0.20.1-py3-none-any.whl", hash = "sha256:8c4c63c5505373cb1624e969ea85a47d7cb61be18008a03f5271c1be4bbe501c"},
+    {file = "docxtpl-0.20.1.tar.gz", hash = "sha256:5bab05a2c60b225c730ce18e9e2d40d748b4a12f599e150badbcb659088a51d4"},
+]
+
+[package.dependencies]
+docxcompose = "*"
+jinja2 = "*"
+lxml = "*"
+python-docx = ">=1.1.1"
+
+[package.extras]
+docs = ["Sphinx", "sphinxcontrib-napoleon"]
 
 [[package]]
 name = "editorconfig"
@@ -2337,7 +2395,7 @@ version = "4.0.0"
 description = "Python port of markdown-it. Markdown parsing, done right!"
 optional = false
 python-versions = ">=3.10"
-groups = ["main"]
+groups = ["main", "dev"]
 files = [
     {file = "markdown_it_py-4.0.0-py3-none-any.whl", hash = "sha256:87327c59b172c5011896038353a81343b6754500a08cd7a4973bb48c6d578147"},
     {file = "markdown_it_py-4.0.0.tar.gz", hash = "sha256:cb0a2b4aa34f932c007117b194e945bd74e0ec24133ceb5bac59009cda1cb9f3"},
@@ -2496,7 +2554,7 @@ version = "0.1.2"
 description = "Markdown URL utilities"
 optional = false
 python-versions = ">=3.7"
-groups = ["main"]
+groups = ["main", "dev"]
 files = [
     {file = "mdurl-0.1.2-py3-none-any.whl", hash = "sha256:84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8"},
     {file = "mdurl-0.1.2.tar.gz", hash = "sha256:bb413d29f5eea38f31dd4754dd7377d4465116fb207585f97bf925588687c1ba"},
@@ -3905,7 +3963,7 @@ version = "1.2.0"
 description = "Create, read, and update Microsoft Word .docx files."
 optional = false
 python-versions = ">=3.9"
-groups = ["dev"]
+groups = ["main", "dev"]
 files = [
     {file = "python_docx-1.2.0-py3-none-any.whl", hash = "sha256:3fd478f3250fbbbfd3b94fe1e985955737c145627498896a8a6bf81f4baf66c7"},
     {file = "python_docx-1.2.0.tar.gz", hash = "sha256:7bc9d7b7d8a69c9c02ca09216118c86552704edc23bac179283f2e38f86220ce"},
@@ -4377,7 +4435,7 @@ version = "0.11.13"
 description = "An extremely fast Python linter and code formatter, written in Rust."
 optional = false
 python-versions = ">=3.7"
-groups = ["dev"]
+groups = ["main", "dev"]
 files = [
     {file = "ruff-0.11.13-py3-none-linux_armv6l.whl", hash = "sha256:4bdfbf1240533f40042ec00c9e09a3aade6f8c10b6414cf11b519488d2635d46"},
     {file = "ruff-0.11.13-py3-none-macosx_10_12_x86_64.whl", hash = "sha256:aef9c9ed1b5ca28bb15c7eac83b8670cf3b20b478195bd49c8d756ba0a36cf48"},
@@ -4912,7 +4970,7 @@ url = "../postprocessors/unique_follow_up_questions"
 
 [[package]]
 name = "unique-internal-search"
-version = "1.0.4"
+version = "1.1.0"
 description = ""
 optional = false
 python-versions = "^3.12"
@@ -4985,10 +5043,10 @@ url = "../postprocessors/unique_stock_ticker"
 [[package]]
 name = "unique-swot"
 version = "0.1.0"
-description = "Unique Swot package is a tool that takes care of conducting swot analysis based on documents and external data from the web"
+description = "Unique Swot package is a tool that for conducting a swot analysis based on internal and external documents"
 optional = false
 python-versions = "^3.12"
-groups = ["dev"]
+groups = ["main", "dev"]
 files = []
 develop = true
 
@@ -4998,6 +5056,7 @@ jinja2 = "^3.1.0"
 pydantic = "^2.8.2"
 python-docx = "^1.2.0"
 ruff = "^0.11.7"
+unique-toolkit = "^1.22.1"
 
 [package.source]
 type = "directory"
@@ -5005,7 +5064,7 @@ url = "../tool_packages/unique_swot"
 
 [[package]]
 name = "unique-toolkit"
-version = "1.21.2"
+version = "1.22.1"
 description = ""
 optional = false
 python-versions = "^3.12"
@@ -5014,7 +5073,9 @@ files = []
 develop = true
 
 [package.dependencies]
+docxtpl = "^0.20.1"
 jambo = "^0.1.2"
+markdown-it-py = "^4.0.0"
 mkdocs-mermaid2-plugin = "^1.2.2"
 mkdocs-multirepo-plugin = "^0.8.3"
 numpy = "^1.26.4"
@@ -5753,4 +5814,4 @@ cffi = ["cffi (>=1.17,<2.0)", "cffi (>=2.0.0b)"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "c06d8fa557680d24c8ae81f5975803b9ac479af94bb33a2c2c3805729554ccc2"
+content-hash = "59fa85970167cdc55fda555f24d210fc3d28ca38f54673ad531aa8736746813b"
