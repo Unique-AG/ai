@@ -1086,7 +1086,7 @@ class ChatService(ChatServiceDeprecated):
         self,
         *,
         message_id: str,
-        status: MessageExecutionUpdateStatus,
+        status: MessageExecutionUpdateStatus | None = None,
         seconds_remaining: int | None = None,
         percentage_completed: int | None = None,
     ) -> MessageExecution:
@@ -1094,7 +1094,7 @@ class ChatService(ChatServiceDeprecated):
 
         Args:
             message_id (str): The ID of the message to update execution for
-            status (MessageExecutionUpdateStatus): The updated status (COMPLETED or FAILED)
+            status (MessageExecutionUpdateStatus | None): The updated status (COMPLETED or FAILED). Defaults to None
             seconds_remaining (int | None): Updated estimated seconds remaining
             percentage_completed (int | None): Updated percentage of completion (0-100)
 
@@ -1118,7 +1118,7 @@ class ChatService(ChatServiceDeprecated):
         self,
         *,
         message_id: str,
-        status: MessageExecutionUpdateStatus,
+        status: MessageExecutionUpdateStatus | None = None,
         seconds_remaining: int | None = None,
         percentage_completed: int | None = None,
     ) -> MessageExecution:
@@ -1126,7 +1126,7 @@ class ChatService(ChatServiceDeprecated):
 
         Args:
             message_id (str): The ID of the message to update execution for
-            status (MessageExecutionUpdateStatus): The updated status (COMPLETED or FAILED)
+            status (MessageExecutionUpdateStatus | None): The updated status (COMPLETED or FAILED). Defaults to None
             seconds_remaining (int | None): Updated estimated seconds remaining
             percentage_completed (int | None): Updated percentage of completion (0-100)
 
@@ -1239,7 +1239,7 @@ class ChatService(ChatServiceDeprecated):
     def update_assistant_message_execution(
         self,
         *,
-        status: MessageExecutionUpdateStatus,
+        status: MessageExecutionUpdateStatus | None = None,
         seconds_remaining: int | None = None,
         percentage_completed: int | None = None,
     ) -> MessageExecution:
@@ -1248,7 +1248,7 @@ class ChatService(ChatServiceDeprecated):
         This is a convenience method that uses the current assistant message ID.
 
         Args:
-            status (MessageExecutionUpdateStatus): The updated status (COMPLETED or FAILED)
+            status (MessageExecutionUpdateStatus | None): The updated status (COMPLETED or FAILED). Defaults to None
             seconds_remaining (int | None): Updated estimated seconds remaining
             percentage_completed (int | None): Updated percentage of completion (0-100)
 
@@ -1269,7 +1269,7 @@ class ChatService(ChatServiceDeprecated):
     async def update_assistant_message_execution_async(
         self,
         *,
-        status: MessageExecutionUpdateStatus,
+        status: MessageExecutionUpdateStatus | None = None,
         seconds_remaining: int | None = None,
         percentage_completed: int | None = None,
     ) -> MessageExecution:
@@ -1278,7 +1278,7 @@ class ChatService(ChatServiceDeprecated):
         This is a convenience method that uses the current assistant message ID.
 
         Args:
-            status (MessageExecutionUpdateStatus): The updated status (COMPLETED or FAILED)
+            status (MessageExecutionUpdateStatus | None): The updated status (COMPLETED or FAILED). Defaults to None
             seconds_remaining (int | None): Updated estimated seconds remaining
             percentage_completed (int | None): Updated percentage of completion (0-100)
 
