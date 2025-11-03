@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.3] - 2025-11-03
+- Fixed an issue where new assistant messages were not properly generated during streaming outputs with tool calls; the orchestrator now correctly creates messages via `_create_new_assistant_message_if_loop_response_contains_content` when loop_response includes text and tool invocations.
+
 ## [1.7.2] - 2025-11-03
 - Add Swot tool to the orchestrator
 

@@ -135,9 +135,6 @@ class UniqueAI:
             self.start_text = self._thinking_manager.update_start_text(
                 self.start_text, loop_response
             )
-            await self._create_new_assistant_message_if_loop_response_contains_content(
-                loop_response
-            )
 
         # Only set completed_at if no tool took control. Tools that take control will set the message state to completed themselves.
         await self._chat_service.modify_assistant_message_async(
@@ -231,6 +228,7 @@ class UniqueAI:
             self._logger.debug(
                 "Tools were called we process them and do not exit the loop"
             )
+            await self._create_new_assistant_message_if_loop_response_contains_content(loop_response)
 
             return await self._handle_tool_calls(loop_response)
 
