@@ -6,8 +6,8 @@ from unique_swot.services.generation import ReportGenerationConfig
 from unique_swot.services.report import ReportRendererConfig
 
 TOOL_DESCRIPTION = """
-The SWOT analysis tool. This tool is used to analyze the strengths, weaknesses, opportunities, and threats of a company.\n
-The user can either generate a new SWOT analysis or modify an existing one.\n
+This tool is used to perfom a SWOT analysis of a company by analyzing its strengths, weaknesses, opportunities, and threats.
+The user can either generate a new SWOT analysis or modify an existing one.
 If the user simply says RUN, the tool will generate a new SWOT analysis.
 
 If the user simply says RUN, It means that he expects the tool to generate a new SWOT analysis.

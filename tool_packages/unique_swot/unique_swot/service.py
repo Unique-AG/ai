@@ -180,6 +180,10 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
         except Exception as e:
             self._notifier.end_progress(success=False)
             _LOGGER.exception(f"Error running SWOT plan: {e}")
+            self._chat_service.modify_assistant_message(
+                message_id=self._event.payload.assistant_message.id,
+                content="Unexpected error occurred while running SWOT plan ❌",
+            )
             return ToolCallResponse(
                 id=tool_call.id,  # type: ignore
                 name=self.name,
