@@ -22,7 +22,6 @@ class ThreatItem(BaseModel):
 
 
 class ThreatsExtraction(BaseModel):
-    model_config = ConfigDict(extra="forbid")
     """
     Extraction phase output: Raw threats identified from source documents.
     This is used during the initial extraction from batches of source data.

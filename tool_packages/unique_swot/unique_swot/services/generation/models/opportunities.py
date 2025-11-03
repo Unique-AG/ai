@@ -19,6 +19,11 @@ class OpportunityItem(BaseModel):
 
 
 class OpportunitiesExtraction(BaseModel):
+    """
+    Extraction phase output: Raw opportunities identified from source documents.
+    This is used during the initial extraction from batches of source data.
+    """
+
     model_config = ConfigDict(extra="forbid")
 
     opportunities: list[OpportunityItem] = Field(

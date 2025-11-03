@@ -24,7 +24,6 @@ class WeaknessItem(BaseModel):
 
 
 class WeaknessesExtraction(BaseModel):
-    model_config = ConfigDict(extra="forbid")
     """
     Extraction phase output: Raw weaknesses identified from source documents.
     This is used during the initial extraction from batches of source data.

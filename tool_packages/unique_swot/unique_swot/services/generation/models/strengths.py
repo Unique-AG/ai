@@ -24,8 +24,6 @@ class StrengthItem(BaseModel):
 
 
 class StrengthsExtraction(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
     """
     Extraction phase output: Raw strengths identified from source documents.
     This is used during the initial extraction from batches of source data.
