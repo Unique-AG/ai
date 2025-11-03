@@ -60,7 +60,7 @@ messages = (
 
 ## Using the client
 
-Now we are ready to create our first completion using the OpenAI client
+Now we are ready to create our first completion using the OpenAI client via the completion API
 
 ```{.python #openai_chat_completion_simple_completion}
 # Simple Completion
@@ -71,6 +71,37 @@ response = client.chat.completions.create(
 for c in response:
     print(c)
 ```
+
+or via the responses API
+
+```{.python #openai_response_simple}
+
+response = client.responses.create(
+    model=model,
+    input="Write a one-sentence bedtime story about a unicorn."
+)
+```
+
+<!--
+```{.python file=docs/.python_files/openai_simple_completion.py}
+<<common_imports>>
+<<toolkit_language_model>>
+<<get_openai_client>>
+<<openai_chat_completion_messages>>
+<<openai_chat_completion_simple_completion>>
+```
+-->
+
+<!--
+```{.python file=docs/.python_files/openai_simple_response.py}
+<<common_imports>>
+<<toolkit_language_model>>
+<<get_openai_client>>
+<<openai_chat_completion_messages>>
+<<openai_response_simple>>
+```
+-->
+
 
 ### Structured Output
 Structured output from the large language model can be obtained via pydantic models.
@@ -92,6 +123,44 @@ completion = client.beta.chat.completions.parse(
 )
 completion.choices[0].message.content
 ```
+
+or via the response API
+
+```{.python #openai_responses_structured_output}
+class CalendarEvent(BaseModel):
+    name: str
+    date: str
+    participants: list[str]
+
+
+response = client.responses.parse(
+    model=model,
+    input=messages, # type: ignore
+    text_format=CalendarEvent,
+)
+```
+
+<!--
+```{.python file=docs/.python_files/openai_structured_completion.py}
+<<common_imports>>
+<<toolkit_language_model>>
+<<get_openai_client>>
+<<openai_chat_completion_messages>>
+<<openai_chat_completion_structured_output>>
+```
+-->
+
+<!--
+```{.python file=docs/.python_files/openai_responses_structured_output.py}
+<<common_imports>>
+<<toolkit_language_model>>
+<<get_openai_client>>
+<<openai_chat_completion_messages>>
+<<openai_responses_structured_output>>
+```
+-->
+
+
 
 ### Function calling
 Function calling enables agents and workflows to use tools. The below 
@@ -122,7 +191,7 @@ weather_tool_description_openai = ChatCompletionToolParam(
 -->
 
 
-```{.python #openai_chat_completion_function_calling}
+```{.python #openai_tool_description}
 from pydantic import Field
 from unique_toolkit import LanguageModelToolDescription
 
@@ -138,7 +207,9 @@ weather_tool_description = LanguageModelToolDescription(
 )
 
 weather_tool_description_toolkit= weather_tool_description.to_openai()
+```
 
+```{.python #openai_chat_completion_function_calling}
 messages = (
     OpenAIMessageBuilder()
     .system_message_append(content="You are a helpful assistant")
@@ -153,6 +224,45 @@ completion = client.chat.completions.create(
 
 completion.choices[0].message.tool_calls
 ```
+<!--
+```{.python file=docs/.python_files/openai_completion_function_call.py}
+<<common_imports>>
+<<toolkit_language_model>>
+<<get_openai_client>>
+<<openai_tool_description>>
+<<openai_chat_completion_function_calling>>
+```
+-->
+
+
+or with the response API
+
+```{.python #openai_responses_function_calling}
+messages = (
+    OpenAIMessageBuilder()
+    .system_message_append(content="You are a helpful assistant")
+    .user_message_append(content="What is the weather like in Paris today?")
+).messages
+
+weather_tool_description_toolkit = weather_tool_description.to_openai(mode="responses")
+
+response = client.responses.create(
+    model=model,
+    tools=[weather_tool_description_toolkit], # type: ignore
+    input=messages, # type: ignore
+
+)
+```
+
+<!--
+```{.python file=docs/.python_files/openai_responses_function_call.py}
+<<common_imports>>
+<<toolkit_language_model>>
+<<get_openai_client>>
+<<openai_tool_description>>
+<<openai_responses_function_calling>>
+```
+-->
 
 ### Roles
 Newer models support the different kind of message roles `system`, `user`, `assistant` and `developer`. 
@@ -184,16 +294,18 @@ completion = client.chat.completions.create(
 print(completion.choices[0].message.content)
 ```
 
+??? example "Full Examples Completions API (Click to expand)"
+    
+    <!--codeinclude-->
+    [Simple Completion](../../../docs/examples_from_docs/openai_simple_completion.py)
+    [Structured Output](../../../docs/examples_from_docs/openai_structured_completion.py)
+    [Function Calling](../../../docs/examples_from_docs/openai_completion_function_call.py)
+    <!--/codeinclude-->
 
-<!--
-```{.python file=docs/.python_files/openai_completions.py}
-<<common_imports>>
-<<toolkit_language_model>>
-<<get_openai_client>>
-<<openai_chat_completion_messages>>
-<<openai_chat_completion_simple_completion>>
-<<openai_chat_completion_structured_output>>
-<<openai_chat_completion_function_calling>>
-<<openai_chat_completion_developer_message>>
-```
--->
+??? example "Full Examples Responses API (Click to expand)"
+    
+    <!--codeinclude-->
+    [Simple Completion](../../../docs/examples_from_docs/openai_simple_response.py)
+    [Structured Output](../../../docs/examples_from_docs/openai_responses_structured_output.py)
+    [Function Calling](../../../docs/examples_from_docs/openai_responses_function_call.py)
+    <!--/codeinclude-->

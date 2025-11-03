@@ -42,6 +42,7 @@ nav:
     - Standalone Application: application_types/standalone_application.md
     - Event Driven Applications: application_types/event_driven_applications.md
   - Examples:
+    - OpenAI: plattforms/openai/openai.md
     - Chat:
       - Basic Service: modules/examples/chat/chat_service.md
       - Document Handling: modules/examples/chat/chat_document_handling.md
@@ -62,8 +63,6 @@ nav:
     - Evaluation Manager: agentic_framework/evaluation_manager.md
     - Reference Manager: agentic_framework/reference_manager.md
     - History Manager: agentic_framework/history_manager.md
-  - Platforms:
-    - OpenAI: plattforms/openai/openai.md
   - API Reference: api.md
   - Readme: readme.md
 
