@@ -1,5 +1,5 @@
 ## 📌 Overview
-This document describes a production-ready, HTTP-streamable MCP server built with FastMCP. It focuses on:
+This document describes a HTTP-streamable MCP server built with FastMCP. It focuses on:
 - Authentication and authorization via OAuth2/JWT (using Zitadel as IAM, swappable to other IdPs)
 - FastMCP setup (tools, identify, metadata)
 - Combining MCP with standard HTTP routes (FastAPI/Starlette-style)
@@ -59,7 +59,6 @@ You can define classic HTTP routes alongside MCP tools:
 ## 🌐 CORS & Inspectors
 - CORS is required when testing via MCP Inspector running on localhost or using browser-based clients
 - The provided `CORSMiddleware` allows all origins/headers/methods for simplicity
-- In production, tighten CORS to known origins
 
 ## 🚀 Running the Server
 - Ensure your server is reachable at a public `BASE_URL` (e.g., via ngrok, a domain, or a reverse proxy)
@@ -135,7 +134,7 @@ auth = OAuthProxy(
     redirect_path=None,                 # Use default or specify
     issuer_url=None,                    # Optional override
     service_documentation_url=None,     # Optional
-    allowed_client_redirect_uris=None,  # Lock down in prod
+    allowed_client_redirect_uris=None,  
     valid_scopes=[
         "mcp:tools",
         "mcp:prompts",
@@ -163,7 +162,7 @@ custom_middleware = [
     Middleware(
         CORSMiddleware,
         allow_credentials=True,
-        allow_origins=["*"],   # tighten in production
+        allow_origins=["*"],   
         allow_methods=["*"],
         allow_headers=["*"],
     )
@@ -267,4 +266,8 @@ if __name__ == "__main__":
 ## ✅ Quick Notes
 - This is an HTTP-streamable MCP server (not local) so web clients can authenticate and call tools.
 - Keep `openid`, `email`, `profile` in scopes; adjust or register `mcp:*` scopes in your IdP as needed.
-- In production: restrict CORS origins, set `algorithm` and `audience` for JWT verification, and lock `allowed_client_redirect_uris`.
+
+
+## Zitadel Setup
+
+In order to have a 
