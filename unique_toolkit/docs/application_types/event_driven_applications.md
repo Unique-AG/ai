@@ -60,8 +60,9 @@ for event in get_event_generator(unique_settings=settings, event_type=ChatEvent)
 ```
 -->
 
-```
+
 <!--
+```
 ```{.python #full_sse_setup_with_services file=docs/.python_files/sse_setup_with_services.py}
 <<full_sse_setup>>
     <<init_services_from_event>>

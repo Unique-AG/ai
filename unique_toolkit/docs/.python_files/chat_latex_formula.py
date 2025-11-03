@@ -1,4 +1,4 @@
-# ~/~ begin <<docs/modules/examples/chat/avanced_rendering.md#docs/.python_files/chat_latex_formula.py>>[init]
+# ~/~ begin <<docs/modules/examples/chat/advanced_rendering.md#docs/.python_files/chat_latex_formula.py>>[init]
 # ~/~ begin <<docs/application_types/event_driven_applications.md#full_sse_setup_with_services>>[init]
 # ~/~ begin <<docs/application_types/event_driven_applications.md#full_sse_setup>>[init]
 # ~/~ begin <<docs/setup/_common_imports.md#common_imports>>[init]
@@ -40,7 +40,7 @@ for event in get_event_generator(unique_settings=settings, event_type=ChatEvent)
     kb_service= KnowledgeBaseService.from_event(event)
     # ~/~ end
 # ~/~ end
-    # ~/~ begin <<docs/modules/examples/chat/avanced_rendering.md#rendering_latex_formula>>[init]
+    # ~/~ begin <<docs/modules/examples/chat/advanced_rendering.md#rendering_latex_formula>>[init]
     latex_formula_string = create_latex_formula_string(
         latex_expression=r"\int_{a}^{b} f(x) \, dx"
     )

@@ -92,6 +92,10 @@ async def setup_research_supervisor(
     research_tools = get_research_tools(config)
     research_tools_description = format_tools_for_prompt(research_tools)
 
+    # Get tool configuration for template
+    configurable = config.get("configurable", {})
+    enable_internal_tools = configurable.get("enable_internal_tools", True)
+
     supervisor_system_prompt = TEMPLATE_ENV.get_template(
         "unique/lead_agent_system.j2"
     ).render(
@@ -100,6 +104,7 @@ async def setup_research_supervisor(
         max_concurrent_research_units=max_concurrent,
         max_researcher_iterations=max_iterations,
         research_tools_description=research_tools_description,
+        enable_internal_tools=enable_internal_tools,
     )
 
     return Command(
@@ -150,7 +155,7 @@ async def research_supervisor(
         )
         model_with_tools = configurable_model.bind_tools(
             supervisor_tools,
-            tool_choice={"type": "function", "function": {"name": "research_complete"}},
+            tool_choice="research_complete",
         )
     else:
         model_with_tools = configurable_model.bind_tools(supervisor_tools)
@@ -163,6 +168,8 @@ async def research_supervisor(
     response = await ainvoke_with_token_handling(
         research_model, supervisor_messages, model_info=custom_config.research_model
     )
+    if should_force_complete and not response.tool_calls:
+        _LOGGER.error("Failed to force research_complete tool call")
 
     return Command(
         goto="supervisor_tools",
@@ -186,7 +193,7 @@ async def supervisor_tools(
 
     # Check exit conditions
     max_iterations = UniqueCustomEngineConfig.max_research_iterations_lead_researcher
-    exceeded_iterations = research_iterations > max_iterations
+    exceeded_iterations = research_iterations >= max_iterations
 
     # Extract tool calls if available
     tool_calls = []
@@ -274,9 +281,18 @@ async def researcher(
 
     # Prepare system prompt with dynamic tool descriptions
     tools_description = format_tools_for_prompt(research_tools)
+
+    # Get tool configuration for template
+    configurable = config.get("configurable", {})
+    enable_internal_tools = configurable.get("enable_internal_tools", True)
+
     researcher_prompt = TEMPLATE_ENV.get_template(
         "unique/research_agent_system.j2"
-    ).render(date=get_today_str(), tools=tools_description)
+    ).render(
+        date=get_today_str(),
+        tools=tools_description,
+        enable_internal_tools=enable_internal_tools,
+    )
 
     # Configure model with research tools
     model_with_tools = configurable_model.bind_tools(research_tools)

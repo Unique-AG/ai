@@ -40,7 +40,6 @@ from unique_toolkit.framework_utilities.openai.client import get_async_openai_cl
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelMessage,
-    LanguageModelToolMessage,
 )
 from unique_toolkit.short_term_memory.service import ShortTermMemoryService
 
@@ -113,7 +112,10 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         self.logger.info(f"Using async OpenAI client pointed to {self.client.base_url}")
 
         self.content_service = ContentService(
-            company_id=self.company_id, user_id=self.user_id
+            company_id=self.company_id,
+            user_id=self.user_id,
+            chat_id=self.chat_id,
+            metadata_filter=event.payload.metadata_filter,
         )
         self.memory_service = PersistentShortMemoryManager(
             short_term_memory_service=ShortTermMemoryService(
@@ -219,6 +221,8 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
 
     async def _run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
         self.logger.info("Starting Deep Research tool run")
+
+        await self._clear_original_message()
 
         # Question answer and message execution will have the same message id, so we need to check if it is a message execution
         if await self.is_followup_question_answer() and not self.is_message_execution():
@@ -381,7 +385,6 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                 "final_report": "",
                 "chat_service": self.chat_service,
                 "message_id": self.event.payload.assistant_message.id,
-                "tool_progress_reporter": self.tool_progress_reporter,
             }
 
             # Prepare configuration for LangGraph
@@ -785,6 +788,14 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             references.append(reference)
 
         return references
+
+    async def _clear_original_message(self) -> None:
+        """
+        Clear the original message.
+        """
+        await self.chat_service.modify_assistant_message_async(
+            original_content="",
+        )
 
 
 # Register the tool with the ToolFactory

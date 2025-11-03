@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.22.1] - 2025-11-03
+- Add missing package required markdown-it-py 
+
+## [1.22.0] - 2025-10-31
+- Add `DocxGeneratorService` for generating Word documents from markdown with template support
+- Fix documentation for `update_message_execution`, `update_message_execution_async`, `update_assistant_message_execution`, and `update_assistant_message_execution_async` functions to correctly reflect that the `status` parameter is now optional
+
 ## [1.21.2] - 2025-10-30
 - Fixing that system format info is only appended to system prompt if tool is called
 
