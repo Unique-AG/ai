@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_toolkit"
-version = "1.22.0"
+version = "1.22.1"
 description = ""
 authors = [
     "Cedric Klinkert <cedric.klinkert@unique.ch>",
@@ -33,6 +33,7 @@ jambo = "^0.1.2"
 mkdocs-multirepo-plugin = "^0.8.3"
 mkdocs-mermaid2-plugin = "^1.2.2"
 docxtpl = "^0.20.1"
+markdown-it-py = "^4.0.0"
 
 [tool.poetry.group.langchain]
 optional = true
