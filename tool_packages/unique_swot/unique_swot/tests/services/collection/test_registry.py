@@ -68,7 +68,7 @@ class TestContentChunkRegistry:
 
     def test_registry_add_item(self, registry, sample_content_chunk):
         """Test adding an item to the registry."""
-        chunk_id = registry.add(sample_content_chunk)
+        chunk_id = registry.register_and_generate_id(sample_content_chunk)
 
         assert chunk_id.startswith("chunk_")
         assert chunk_id in registry.store.items
@@ -91,15 +91,15 @@ class TestContentChunkRegistry:
             text="Content 2",
         )
 
-        id1 = registry.add(chunk1)
-        id2 = registry.add(chunk2)
+        id1 = registry.register_and_generate_id(chunk1)
+        id2 = registry.register_and_generate_id(chunk2)
 
         assert id1 != id2
         assert len(registry.store.items) == 2
 
     def test_registry_retrieve_existing_item(self, registry, sample_content_chunk):
         """Test retrieving an existing item from the registry."""
-        chunk_id = registry.add(sample_content_chunk)
+        chunk_id = registry.register_and_generate_id(sample_content_chunk)
 
         retrieved = registry.retrieve(chunk_id)
 
@@ -113,7 +113,7 @@ class TestContentChunkRegistry:
 
     def test_registry_save(self, registry, mock_memory_service, sample_content_chunk):
         """Test saving the registry."""
-        registry.add(sample_content_chunk)
+        registry.register_and_generate_id(sample_content_chunk)
         registry.save()
 
         mock_memory_service.set.assert_called_once_with(registry.store)
@@ -130,7 +130,7 @@ class TestContentChunkRegistry:
                 key="test.pdf",
                 text="Content",
             )
-            chunk_id = registry.add(chunk)
+            chunk_id = registry.register_and_generate_id(chunk)
             ids.add(chunk_id)
 
         # All IDs should be unique
@@ -138,7 +138,7 @@ class TestContentChunkRegistry:
 
     def test_registry_id_format(self, registry, sample_content_chunk):
         """Test that generated IDs have correct format."""
-        chunk_id = registry.add(sample_content_chunk)
+        chunk_id = registry.register_and_generate_id(sample_content_chunk)
 
         assert chunk_id.startswith("chunk_")
         # The hex part should be 8 characters
@@ -165,7 +165,7 @@ class TestContentChunkRegistry:
                 text=f"Content {i}",
             )
             chunks.append(chunk)
-            ids.append(registry.add(chunk))
+            ids.append(registry.register_and_generate_id(chunk))
 
         # Verify all chunks can be retrieved
         for i, chunk_id in enumerate(ids):

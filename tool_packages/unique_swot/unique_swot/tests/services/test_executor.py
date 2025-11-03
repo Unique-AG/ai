@@ -35,7 +35,7 @@ class TestSWOTExecutionManager:
 
         content_chunk_registry = Mock(spec=ContentChunkRegistry)
         citation_manager = Mock(spec=CitationManager)
-        citation_manager.process_result.return_value = "Processed result"
+        citation_manager.add_citations_to_report.return_value = "Processed result"
 
         config = ReportGenerationConfig()
 
@@ -167,7 +167,7 @@ class TestSWOTExecutionManager:
                 sources=sample_sources,
             )
 
-            assert result == "Processed result"
+            assert result == "Summarized result"
             mock_extract.assert_called_once()
             mock_summarize.assert_called_once()
             execution_manager._memory_service.set.assert_called_once()

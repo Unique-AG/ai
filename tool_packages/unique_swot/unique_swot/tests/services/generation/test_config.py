@@ -10,7 +10,7 @@ class TestReportGenerationConfig:
         """Test that ReportGenerationConfig initializes with correct defaults."""
         config = ReportGenerationConfig()
 
-        assert config.extraction_batch_size == 3
+        assert config.extraction_batch_size == 30
         assert config.max_tokens_per_extraction_batch == 30_000
         assert config.language_model is not None
 
@@ -41,7 +41,8 @@ class TestReportGenerationConfig:
         config = ReportGenerationConfig(extraction_batch_size=7)
         config_dict = config.model_dump()
 
-        assert config_dict["batch_size"] == 7
+        assert config_dict["extraction_batch_size"] == 7
+        assert "max_tokens_per_extraction_batch" in config_dict
 
         # Recreate from dict
         config_restored = ReportGenerationConfig.model_validate(config_dict)

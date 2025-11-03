@@ -26,11 +26,12 @@ class TestSwotTool:
         event.user_id = "test_user"
         event.payload.chat_id = "test_chat"
         event.payload.assistant_message = Mock(id="test_message")
+        event.payload.metadata_filter = None
         return event
 
     def test_swot_tool_name(self):
         """Test SwotTool name attribute."""
-        assert SwotAnalysisTool.name == "SWOT"
+        assert SwotAnalysisTool.name == "SwotAnalysis"
 
     def test_swot_tool_initialization(self, swot_config, mock_event):
         """Test SwotTool initialization."""
@@ -70,7 +71,7 @@ class TestSwotTool:
             description = tool.tool_description()
 
             assert isinstance(description, LanguageModelToolDescription)
-            assert description.name == "SWOT"
+            assert description.name == "SwotAnalysis"
             assert description.parameters == SWOTPlan
 
     def test_swot_tool_description_methods(self, swot_config, mock_event):
@@ -159,7 +160,7 @@ class TestSwotTool:
             result = await tool.run(tool_call)
 
             assert result is not None
-            assert result.name == "SWOT"
+            assert result.name == "SwotAnalysis"
             assert result.id == "call_123"
 
     def test_swot_tool_evaluation_checks(self, swot_config, mock_event):

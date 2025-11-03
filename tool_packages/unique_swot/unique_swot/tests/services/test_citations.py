@@ -1,4 +1,4 @@
-"""Tests for citation management."""
+"""Comprehensive tests for citation management."""
 
 from unittest.mock import Mock
 
@@ -11,6 +11,7 @@ from unique_swot.services.citations import (
     _get_pages,
 )
 from unique_swot.services.collection.registry import ContentChunkRegistry
+from unique_swot.services.report.config import DocxRendererType
 
 
 class TestCitationManager:
@@ -31,82 +32,142 @@ class TestCitationManager:
     def test_citation_manager_initialization(self, citation_manager):
         """Test CitationManager initialization."""
         assert citation_manager._citations_map == {}
+        assert citation_manager._inline_citations_map == {}
         assert citation_manager._content_chunks == []
 
-    def test_process_result_single_citation(
+    def test_add_citations_with_inline_and_consolidated(
         self, citation_manager, mock_registry, sample_content_chunk
     ):
-        """Test processing a report with a single citation."""
-        report = "This is a report with [chunk_abc123] citation."
+        """Test processing report with both inline and consolidated citations."""
+        report = """
+- Strong brand [bullet_chunk_abc]
+- Market leader [bullet_chunk_def]
 
-        processed = citation_manager.process_result(report)
+**References:** [chunk_abc], [chunk_def]
+"""
+        processed = citation_manager.add_citations_to_report(
+            report, DocxRendererType.DOCX
+        )
 
-        assert "[chunk_abc123]" not in processed
-        assert "<sup>1</sup>" in processed
-        mock_registry.retrieve.assert_called_once_with("chunk_abc123")
+        # Inline citations should be numbered
+        assert "[1]" in processed
+        assert "[2]" in processed
 
-    def test_process_result_multiple_citations(
+        # Original placeholders should be gone
+        assert "[bullet_chunk_abc]" not in processed
+        assert "[chunk_abc]" not in processed
+
+        # Should have document title in consolidated references
+        assert "Test Document" in processed
+
+    def test_add_citations_chat_mode(
         self, citation_manager, mock_registry, sample_content_chunk
     ):
-        """Test processing a report with multiple different citations."""
-        report = "First [chunk_abc123] and second [chunk_def456] citations."
+        """Test citations in chat mode with superscripts."""
+        report = """
+- Strong brand [bullet_chunk_abc]
+- Market leader [bullet_chunk_def]
 
-        processed = citation_manager.process_result(report)
+**References:** [chunk_abc], [chunk_def]
+"""
+        processed = citation_manager.add_citations_to_report(
+            report, DocxRendererType.CHAT
+        )
 
-        assert "[chunk_abc123]" not in processed
-        assert "[chunk_def456]" not in processed
-        assert "<sup>1</sup>" in processed
-        assert "<sup>2</sup>" in processed
+        # Inline citations should be numbered
+        assert "[1]" in processed
+        assert "[2]" in processed
 
-    def test_process_result_duplicate_citations(
+        # Consolidated citations should have superscripts
+        assert "<sup>" in processed
+
+    def test_add_citations_duplicate_inline(
         self, citation_manager, mock_registry, sample_content_chunk
     ):
-        """Test processing a report with duplicate citations."""
-        report = "First [chunk_abc123] and duplicate [chunk_abc123] citations."
+        """Test that duplicate inline citations reuse the same number."""
+        report = """
+- Point one [bullet_chunk_abc]
+- Point two [bullet_chunk_abc]
 
-        processed = citation_manager.process_result(report)
+**References:** [chunk_abc]
+"""
+        processed = citation_manager.add_citations_to_report(
+            report, DocxRendererType.DOCX
+        )
 
-        # Both should be replaced with the same superscript
-        assert processed.count("<sup>1</sup>") == 2
-        assert "<sup>2</sup>" not in processed
+        # Both inline citations should have [1]
+        assert processed.count("[1]") >= 2
 
-    def test_process_result_missing_chunk(self, citation_manager, mock_registry):
-        """Test processing a report with a citation that doesn't exist in registry."""
+    def test_add_citations_missing_chunk(self, citation_manager, mock_registry):
+        """Test handling of missing chunks in registry."""
         mock_registry.retrieve.return_value = None
-        report = "Report with missing [chunk_missing] citation."
 
-        processed = citation_manager.process_result(report)
+        report = "Content [bullet_chunk_missing]\n\n**References:** [chunk_missing]"
 
-        # Should keep the original citation tag
+        processed = citation_manager.add_citations_to_report(
+            report, DocxRendererType.DOCX
+        )
+
+        # Should have numbered inline citation
+        assert "[1]" in processed
+
+        # Consolidated citation should remain as placeholder (chunk not found)
         assert "[chunk_missing]" in processed
-        assert "<sup>" not in processed
 
-    def test_process_result_no_citations(self, citation_manager):
-        """Test processing a report with no citations."""
+    def test_add_citations_no_citations(self, citation_manager):
+        """Test processing report with no citations."""
         report = "This is a plain report without any citations."
 
-        processed = citation_manager.process_result(report)
+        processed = citation_manager.add_citations_to_report(
+            report, DocxRendererType.DOCX
+        )
 
         assert processed == report
         assert citation_manager._citations_map == {}
+        assert citation_manager._inline_citations_map == {}
 
-    def test_process_result_citation_with_hyphens(
+    def test_add_citations_invalid_renderer_type(self, citation_manager):
+        """Test that invalid renderer type raises error."""
+        report = "Content [bullet_chunk_abc]"
+
+        with pytest.raises(ValueError, match="Invalid renderer type"):
+            citation_manager.add_citations_to_report(report, "invalid_type")  # type: ignore
+
+    def test_citation_docx_format(
         self, citation_manager, mock_registry, sample_content_chunk
     ):
-        """Test processing citations with hyphens in UUID."""
-        report = "Citation with UUID [chunk_abc-123-def-456]."
+        """Test DOCX citation format includes title and pages."""
+        report = "Content [bullet_chunk_abc]\n\n**References:** [chunk_abc]"
 
-        processed = citation_manager.process_result(report)
+        processed = citation_manager.add_citations_to_report(
+            report, DocxRendererType.DOCX
+        )
 
-        assert "[chunk_abc-123-def-456]" not in processed
+        # Should include document title
+        assert "Test Document" in processed
+
+        # Should include page numbers
+        assert "1" in processed  # start_page
+
+    def test_citation_chat_format_superscripts(
+        self, citation_manager, mock_registry, sample_content_chunk
+    ):
+        """Test Chat citation format uses superscripts."""
+        report = "Content [bullet_chunk_abc]\n\n**References:** [chunk_abc]"
+
+        processed = citation_manager.add_citations_to_report(
+            report, DocxRendererType.CHAT
+        )
+
+        # Should have superscript tags
         assert "<sup>1</sup>" in processed
 
     def test_get_references(
         self, citation_manager, mock_registry, sample_content_chunk
     ):
         """Test getting content references."""
-        report = "Report with [chunk_abc123] citation."
-        citation_manager.process_result(report)
+        report = "Content [bullet_chunk_abc]\n\n**References:** [chunk_abc]"
+        citation_manager.add_citations_to_report(report, DocxRendererType.DOCX)
 
         references = citation_manager.get_references("message_123")
 
@@ -114,32 +175,82 @@ class TestCitationManager:
         assert references[0].message_id == "message_123"
         assert references[0].sequence_number == 0
         assert references[0].source == "SWOT-TOOL"
+        assert "Test Document" in references[0].name
 
     def test_get_referenced_content_chunks(
         self, citation_manager, mock_registry, sample_content_chunk
     ):
         """Test getting referenced content chunks."""
-        report = "Report with [chunk_abc123] and [chunk_def456] citations."
-        citation_manager.process_result(report)
+        report = """
+Content [bullet_chunk_abc] and [bullet_chunk_def]
+
+**References:** [chunk_abc], [chunk_def]
+"""
+        citation_manager.add_citations_to_report(report, DocxRendererType.DOCX)
 
         chunks = citation_manager.get_referenced_content_chunks()
 
         assert len(chunks) == 2
+        assert all(isinstance(chunk, ContentChunk) for chunk in chunks)
 
-    def test_citation_numbering_order(
+    def test_citation_numbering_sequential(
         self, citation_manager, mock_registry, sample_content_chunk
     ):
-        """Test that citations are numbered in order of first appearance."""
-        report = "First [chunk_aaa], then [chunk_bbb], then [chunk_aaa] again."
+        """Test that citations are numbered sequentially."""
+        report = """
+- First [bullet_chunk_a]
+- Second [bullet_chunk_b]
+- Third [bullet_chunk_c]
 
-        processed = citation_manager.process_result(report)
+**References:** [chunk_a], [chunk_b], [chunk_c]
+"""
+        processed = citation_manager.add_citations_to_report(
+            report, DocxRendererType.DOCX
+        )
 
-        # First appearance of chunk_aaa should be <sup>1</sup>
-        first_sup = processed.find("<sup>1</sup>")
-        second_sup = processed.find("<sup>2</sup>")
-        third_sup = processed.find("<sup>1</sup>", first_sup + 1)
+        # Should have sequential numbers
+        assert "[1]" in processed
+        assert "[2]" in processed
+        assert "[3]" in processed
 
-        assert first_sup < second_sup < third_sup
+        # Numbers should appear in order
+        pos_1 = processed.find("[1]")
+        pos_2 = processed.find("[2]")
+        pos_3 = processed.find("[3]")
+        assert pos_1 < pos_2 < pos_3
+
+    def test_citation_with_hyphens_in_id(
+        self, citation_manager, mock_registry, sample_content_chunk
+    ):
+        """Test citations with hyphens in chunk IDs."""
+        report = (
+            "Content [bullet_chunk_abc-123-def]\n\n**References:** [chunk_abc-123-def]"
+        )
+
+        processed = citation_manager.add_citations_to_report(
+            report, DocxRendererType.DOCX
+        )
+
+        assert "[1]" in processed
+        assert "[bullet_chunk_abc-123-def]" not in processed
+
+    def test_multiple_inline_references_same_chunk(
+        self, citation_manager, mock_registry, sample_content_chunk
+    ):
+        """Test multiple inline references to the same chunk."""
+        report = """
+- Point A [bullet_chunk_abc]
+- Point B [bullet_chunk_abc]
+- Point C [bullet_chunk_abc]
+
+**References:** [chunk_abc]
+"""
+        processed = citation_manager.add_citations_to_report(
+            report, DocxRendererType.DOCX
+        )
+
+        # All three should reference [1]
+        assert processed.count("[1]") >= 3
 
 
 class TestConvertContentChunkToContentReference:
@@ -186,14 +297,14 @@ class TestGetPages:
     def test_get_pages_only_start(self):
         """Test getting pages with only start page."""
         result = _get_pages(5, None)
-        assert result == ": 5"
+        assert result == "5"
 
     def test_get_pages_both_pages(self):
         """Test getting pages with both start and end."""
         result = _get_pages(5, 10)
-        assert result == ": 5, 10"
+        assert result == "5, 10"
 
     def test_get_pages_same_page(self):
         """Test getting pages when start and end are same."""
         result = _get_pages(7, 7)
-        assert result == ": 7, 7"
+        assert result == "7"

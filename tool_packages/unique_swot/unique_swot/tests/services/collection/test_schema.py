@@ -15,14 +15,14 @@ class TestSourceType:
 
     def test_source_type_values(self):
         """Test that SourceType has expected values."""
-        assert SourceType.WEB == "web_search"
-        assert SourceType.KNOWLEDGE_BASE == "internal_document"
+        assert SourceType.WEB == "web"
+        assert SourceType.KNOWLEDGE_BASE == "knowledge_base"
         assert SourceType.EARNINGS_CALL == "earnings_call"
 
     def test_source_type_from_string(self):
         """Test creating SourceType from string."""
-        assert SourceType("web_search") == SourceType.WEB
-        assert SourceType("internal_document") == SourceType.KNOWLEDGE_BASE
+        assert SourceType("web") == SourceType.WEB
+        assert SourceType("knowledge_base") == SourceType.KNOWLEDGE_BASE
         assert SourceType("earnings_call") == SourceType.EARNINGS_CALL
 
 
@@ -136,7 +136,7 @@ class TestSource:
 
         source_dict = source.model_dump()
 
-        assert source_dict["type"] == "internal_document"
+        assert source_dict["type"] == "knowledge_base"
         assert source_dict["title"] == "Test Doc"
         assert len(source_dict["chunks"]) == 1
 

@@ -2,6 +2,7 @@
 
 from unique_swot.config import TOOL_DESCRIPTION, SwotAnalysisToolConfig
 from unique_swot.services.generation import ReportGenerationConfig
+from unique_swot.services.report import ReportRendererConfig
 
 
 class TestSwotConfig:
@@ -11,20 +12,14 @@ class TestSwotConfig:
         """Test that SwotConfig initializes with correct default values."""
         config = SwotAnalysisToolConfig()
 
-        assert config.cache_scope_id == "scope_id"
+        assert config.cache_scope_id == ""
         assert isinstance(config.report_generation_config, ReportGenerationConfig)
         assert config.tool_description == TOOL_DESCRIPTION
         assert config.tool_description_for_system_prompt == TOOL_DESCRIPTION
-        assert config.tool_format_information_for_system_prompt == TOOL_DESCRIPTION
-        assert (
-            config.tool_description_for_user_prompt
-            == "The user prompt for the SWOT analysis tool."
-        )
-        assert config.tool_format_information_for_user_prompt == TOOL_DESCRIPTION
-        assert (
-            config.tool_format_reminder_for_user_prompt
-            == "The format reminder for the SWOT analysis tool."
-        )
+        assert config.tool_format_information_for_system_prompt == ""
+        assert config.tool_description_for_user_prompt == ""
+        assert config.tool_format_information_for_user_prompt == ""
+        assert config.tool_format_reminder_for_user_prompt == ""
 
     def test_swot_config_custom_cache_scope_id(self):
         """Test SwotConfig with custom cache_scope_id."""
@@ -50,12 +45,10 @@ class TestSwotConfig:
         config = SwotAnalysisToolConfig(
             tool_description=custom_desc,
             tool_description_for_system_prompt=custom_desc,
-            tool_format_information_for_system_prompt=custom_desc,
         )
 
         assert config.tool_description == custom_desc
         assert config.tool_description_for_system_prompt == custom_desc
-        assert config.tool_format_information_for_system_prompt == custom_desc
 
     def test_tool_description_contains_key_information(self):
         """Test that TOOL_DESCRIPTION contains expected key information."""
@@ -68,10 +61,16 @@ class TestSwotConfig:
 
     def test_swot_config_serialization(self):
         """Test that SwotConfig can be serialized and deserialized."""
-        config = SwotAnalysisToolConfig(cache_scope_id="test_scope")
+        config = SwotAnalysisToolConfig(
+            cache_scope_id="test_scope",
+            report_generation_config=ReportGenerationConfig(),
+            report_renderer_config=ReportRendererConfig(),
+        )
         config_dict = config.model_dump()
 
         assert config_dict["cache_scope_id"] == "test_scope"
+        assert "report_generation_config" in config_dict
+        assert "report_renderer_config" in config_dict
 
         # Recreate from dict
         config_restored = SwotAnalysisToolConfig.model_validate(config_dict)
