@@ -35,19 +35,19 @@ class SwotAnalysisToolConfig(BaseToolConfig):
         default=TOOL_DESCRIPTION,
         description="The system prompt for the SWOT analysis tool.",
     )
-    tool_format_information_for_system_prompt: SkipJsonSchema = Field(
+    tool_format_information_for_system_prompt: SkipJsonSchema[str] = Field(
         default="",
         description="The format information for the SWOT analysis tool.",
     )
-    tool_description_for_user_prompt: SkipJsonSchema = Field(
+    tool_description_for_user_prompt: SkipJsonSchema[str] = Field(
         default="",
         description="The user prompt for the SWOT analysis tool.",
     )
-    tool_format_information_for_user_prompt: SkipJsonSchema = Field(
+    tool_format_information_for_user_prompt: SkipJsonSchema[str] = Field(
         default="",
         description="The format information for the SWOT analysis tool.",
     )
-    tool_format_reminder_for_user_prompt: SkipJsonSchema = Field(
+    tool_format_reminder_for_user_prompt: SkipJsonSchema[str] = Field(
         default="",
         description="The format reminder for the SWOT analysis tool.",
     )
