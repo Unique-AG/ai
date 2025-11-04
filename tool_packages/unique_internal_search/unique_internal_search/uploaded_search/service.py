@@ -9,7 +9,7 @@ from unique_toolkit.agentic.tools.tool_progress_reporter import (
     ProgressState,
     ToolProgressReporter,
 )
-from unique_toolkit.app.schemas import ChatEvent
+from unique_toolkit.app.schemas import BaseEvent, ChatEvent
 from unique_toolkit.chat.service import LanguageModelToolDescription
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
@@ -25,7 +25,7 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
     def __init__(
         self,
         config: UploadedSearchConfig,
-        event: ChatEvent,
+        event: BaseEvent,
         tool_progress_reporter: ToolProgressReporter,
         *args,
         **kwargs,
@@ -37,7 +37,10 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
         self._internal_search_tool = InternalSearchTool(
             config, event, None, *args, **kwargs
         )
-        self._user_query = event.payload.user_message.text
+        if isinstance(event, ChatEvent):
+            self._user_query = event.payload.user_message.text
+        else:
+            self._user_query = None
 
     async def post_progress_message(
         self, message: str, tool_call: LanguageModelFunction, **kwargs
