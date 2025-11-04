@@ -91,10 +91,13 @@ def test_folder__get_infos__returns_list(
     # Assert
     # Type annotation says get_infos returns List[Folder.FolderInfo]
     # We assume the type annotation is correct - if it's not, this will fail naturally
-    assert isinstance(result, list)
+    assert isinstance(result, dict)
+    assert isinstance(result["totalCount"], int)
+    assert isinstance(result["folderInfos"], list)
+
     # If folders exist, verify structure
-    if len(result) > 0:
-        folder = result[0]
+    if len(result["folderInfos"]) > 0:
+        folder = result["folderInfos"][0]
         assert isinstance(folder, dict)
         assert "id" in folder
         assert "name" in folder
@@ -122,8 +125,8 @@ def test_folder__get_infos__with_pagination(
     # Assert
     # Type annotation says get_infos returns List[Folder.FolderInfo]
     # We assume the type annotation is correct - if it's not, this will fail naturally
-    assert isinstance(result, list)
-    assert len(result) <= 5
+    assert isinstance(result["totalCount"], int)
+    assert isinstance(result["folderInfos"], list)
 
 
 @pytest.mark.ai
@@ -385,7 +388,11 @@ async def test_folder__get_infos_async__returns_list(
     # Assert
     # Type annotation says get_infos returns List[Folder.FolderInfo]
     # We assume the type annotation is correct - if it's not, this will fail naturally
-    assert isinstance(result, list)
+    assert isinstance(result, dict)
+    assert "totalCount" in result
+    assert "folderInfos" in result
+    assert isinstance(result["totalCount"], int)
+    assert isinstance(result["folderInfos"], list)
 
 
 @pytest.mark.ai

@@ -216,12 +216,12 @@ class Folder(APIResource["Folder"]):
     @classmethod
     def get_infos(
         cls, user_id: str, company_id: str, **params: Unpack["Folder.GetInfosParams"]
-    ) -> "List[Folder.FolderInfos]":
+    ) -> "Folder.FolderInfos":
         """
         Get paginated folders based on parentId. If the parentId is not defined, the root folders will be returned.
         """
         return cast(
-            "List[Folder.FolderInfo]",
+            "Folder.FolderInfos",
             cls._static_request(
                 "get",
                 "/folder/infos",
@@ -234,12 +234,12 @@ class Folder(APIResource["Folder"]):
     @classmethod
     async def get_infos_async(
         cls, user_id: str, company_id: str, **params: Unpack["Folder.GetInfosParams"]
-    ) -> "List[Folder.FolderInfos]":
+    ) -> "Folder.FolderInfos":
         """
         Async get paginated folders based on parentId. If the parentId is not defined, the root folders will be returned.
         """
         return cast(
-            "List[Folder.FolderInfo]",
+            "Folder.FolderInfos",
             await cls._static_request_async(
                 "get",
                 "/folder/infos",

@@ -10,9 +10,8 @@ import pytest
 from dotenv import dotenv_values
 
 import unique_sdk
+from tests.test_config import IntegrationTestConfig
 from unique_sdk.api_resources._folder import Folder
-
-from .test_config import IntegrationTestConfig
 
 
 @pytest.fixture(scope="session")
