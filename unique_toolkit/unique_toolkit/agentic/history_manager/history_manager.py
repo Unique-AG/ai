@@ -111,7 +111,6 @@ class HistoryManager:
         self._config = config
         self._logger = logger
         self._language_model = language_model
-        self._event = event
         self._token_reducer = LoopTokenReducer(
             logger=self._logger,
             event=event,
