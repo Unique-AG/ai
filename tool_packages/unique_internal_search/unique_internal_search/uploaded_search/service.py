@@ -102,9 +102,7 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
                 state=ProgressState.FINISHED,
             )
         tool_response.name = self.name
-        tool_response.tool_call_response_system_reminder = (
-            self._get_tool_call_response_system_reminder()
-        )
+        tool_response.system_reminder = self._get_tool_call_response_system_reminder()
         return tool_response
 
     def _get_tool_call_response_system_reminder(self) -> str:

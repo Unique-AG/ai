@@ -180,8 +180,8 @@ class HistoryManager:
                 sources
             )  # To make sure all sources have unique source numbers
 
-        if tool_response.tool_call_response_system_reminder:
-            content += f"\n\n{tool_response.tool_call_response_system_reminder}"
+        if tool_response.system_reminder:
+            content += f"\n\n{tool_response.system_reminder}"
 
         # Append the result to the history
         return LanguageModelToolMessage(
