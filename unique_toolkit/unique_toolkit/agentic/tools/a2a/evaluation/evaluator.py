@@ -1,10 +1,9 @@
 import logging
-from typing import override
+from typing import NamedTuple, override
 
 import unique_sdk
 from jinja2 import Template
 from pydantic import BaseModel
-from typing_extensions import TypedDict
 
 from unique_toolkit.agentic.evaluation.evaluation_manager import Evaluation
 from unique_toolkit.agentic.evaluation.schemas import (
@@ -13,15 +12,18 @@ from unique_toolkit.agentic.evaluation.schemas import (
     EvaluationMetricResult,
 )
 from unique_toolkit.agentic.tools.a2a.evaluation._utils import (
-    _get_valid_assessments,
-    _sort_assessments,
-    _worst_label,
+    get_valid_assessments,
+    get_worst_label,
+    sort_assessments,
 )
 from unique_toolkit.agentic.tools.a2a.evaluation.config import (
     SubAgentEvaluationConfig,
     SubAgentEvaluationServiceConfig,
 )
-from unique_toolkit.agentic.tools.a2a.tool import SubAgentTool
+from unique_toolkit.agentic.tools.a2a.response_watcher import (
+    SubAgentResponse,
+    SubAgentResponseWatcher,
+)
 from unique_toolkit.agentic.tools.utils import failsafe
 from unique_toolkit.chat.schemas import (
     ChatMessageAssessmentLabel,
@@ -35,9 +37,10 @@ from unique_toolkit.language_model.service import LanguageModelService
 logger = logging.getLogger(__name__)
 
 
-class _SubAgentToolInfo(TypedDict):
-    assessments: dict[int, list[unique_sdk.Space.Assessment]]
+class SubAgentEvaluationSpec(NamedTuple):
     display_name: str
+    assistant_id: str
+    config: SubAgentEvaluationConfig
 
 
 _NO_ASSESSMENTS_FOUND = "NO_ASSESSMENTS_FOUND"
@@ -52,15 +55,22 @@ def _format_single_assessment_found(name: str, explanation: str) -> str:
     return _SingleAssessmentData(name=name, explanation=explanation).model_dump_json()
 
 
-@failsafe(failure_return_value=False, log_exceptions=False)
-def _is_single_assessment_found(value: str) -> bool:
-    _ = _SingleAssessmentData.model_validate_json(value)
-    return True
+@failsafe(failure_return_value=None, log_exceptions=False)
+def _parse_single_assesment_found(value: str) -> _SingleAssessmentData | None:
+    return _SingleAssessmentData.model_validate_json(value)
 
 
-def _parse_single_assessment_found(value: str) -> tuple[str, str]:
-    data = _SingleAssessmentData.model_validate_json(value)
-    return data.name, data.explanation
+def _find_single_assessment(
+    responses: dict[str, list[SubAgentResponse]],
+) -> unique_sdk.Space.Assessment | None:
+    if len(responses) == 1:
+        sub_agent_responses = next(iter(responses.values()))
+        if len(sub_agent_responses) == 1:
+            response = sub_agent_responses[0].message
+            if response["assessment"] is not None and len(response["assessment"]) == 1:
+                return response["assessment"][0]
+
+    return None
 
 
 class SubAgentEvaluationService(Evaluation):
@@ -70,16 +80,66 @@ class SubAgentEvaluationService(Evaluation):
         self,
         config: SubAgentEvaluationServiceConfig,
         language_model_service: LanguageModelService,
-    ):
+        response_watcher: SubAgentResponseWatcher,
+        evaluation_specs: list[SubAgentEvaluationSpec],
+    ) -> None:
         super().__init__(EvaluationMetricName.SUB_AGENT)
         self._config = config
 
-        self._assistant_id_to_tool_info: dict[str, _SubAgentToolInfo] = {}
+        self._response_watcher = response_watcher
         self._language_model_service = language_model_service
+
+        self._evaluation_specs: dict[str, SubAgentEvaluationSpec] = {
+            spec.assistant_id: spec
+            for spec in evaluation_specs
+            if spec.config.include_evaluation
+        }
 
     @override
     def get_assessment_type(self) -> ChatMessageAssessmentType:
         return self._config.assessment_type
+
+    def _get_included_sub_agent_responses(
+        self,
+    ) -> dict[str, list[SubAgentResponse]]:
+        responses = {}
+        for assistant_id, eval_spec in self._evaluation_specs.items():
+            sub_agent_responses = self._response_watcher.get_responses(
+                eval_spec.assistant_id
+            )
+            if len(sub_agent_responses) == 0:
+                logger.debug(
+                    "No responses for sub agent %s (%s)",
+                    eval_spec.display_name,
+                    eval_spec.assistant_id,
+                )
+                continue
+
+            responses_with_assessment = []
+            for response in sub_agent_responses:
+                assessments = response.message["assessment"]
+
+                if assessments is None or len(assessments) == 0:
+                    logger.debug(
+                        "No assessment for sub agent %s (%s) response with sequence number %s",
+                        eval_spec.display_name,
+                        eval_spec.assistant_id,
+                        response.sequence_number,
+                    )
+                    continue
+
+                assessments = get_valid_assessments(
+                    assessments=assessments,
+                    display_name=eval_spec.display_name,
+                    sequence_number=response.sequence_number,
+                )
+
+                if len(assessments) > 0:
+                    responses_with_assessment.append(response)
+
+            responses[assistant_id] = responses_with_assessment
+
+        return responses
 
     @override
     async def run(
@@ -89,40 +149,10 @@ class SubAgentEvaluationService(Evaluation):
 
         sub_agents_display_data = []
 
-        value = ChatMessageAssessmentLabel.GREEN
-
-        for tool_info in self._assistant_id_to_tool_info.values():
-            sub_agent_assessments = tool_info["assessments"] or []
-            display_name = tool_info["display_name"]
-
-            for sequence_number in sorted(sub_agent_assessments):
-                assessments = sub_agent_assessments[sequence_number]
-
-                valid_assessments = _get_valid_assessments(
-                    assessments, display_name, sequence_number
-                )
-                if len(valid_assessments) == 0:
-                    logger.info(
-                        "No valid assessment found for assistant %s (sequence number: %s)",
-                        display_name,
-                        sequence_number,
-                    )
-                    continue
-
-                assessments = _sort_assessments(valid_assessments)
-                value = _worst_label(value, assessments[0]["label"])  # type: ignore
-
-                data = {
-                    "name": tool_info["display_name"],
-                    "assessments": assessments,
-                }
-                if len(sub_agent_assessments) > 1:
-                    data["name"] += f" {sequence_number}"
-
-                sub_agents_display_data.append(data)
+        responses = self._get_included_sub_agent_responses()
 
         # No valid assessments found
-        if len(sub_agents_display_data) == 0:
+        if len(responses) == 0:
             logger.warning("No valid sub agent assessments found")
 
             return EvaluationMetricResult(
@@ -133,15 +163,13 @@ class SubAgentEvaluationService(Evaluation):
                 reason="No sub agents assessments found",
             )
 
+        single_assessment = _find_single_assessment(responses)
         # Only one valid assessment found, no need to perform summarization
-        if (
-            len(sub_agents_display_data) == 1
-            and len(sub_agents_display_data[0]["assessments"]) == 1
-        ):
-            assessment = sub_agents_display_data[0]["assessments"][0]
-            explanation = assessment["explanation"] or ""
-            name = sub_agents_display_data[0]["name"]
-            label = assessment["label"]
+        if single_assessment is not None:
+            assistant_id = next(iter(responses))
+            explanation = single_assessment["explanation"] or ""
+            name = self._evaluation_specs[assistant_id].display_name
+            label = single_assessment["label"] or ""
 
             return EvaluationMetricResult(
                 name=self.get_name(),
@@ -150,6 +178,26 @@ class SubAgentEvaluationService(Evaluation):
                 reason=_format_single_assessment_found(name, explanation),
                 is_positive=label == ChatMessageAssessmentLabel.GREEN,
             )
+
+        sub_agents_display_data = []
+
+        # Multiple Assessments found
+        value = ChatMessageAssessmentLabel.GREEN
+        for assistant_id, sub_agent_responses in responses.items():
+            display_name = self._evaluation_specs[assistant_id].display_name
+
+            for response in sub_agent_responses:
+                assessments = sort_assessments(response.message["assessment"])  #  type:ignore
+                value = get_worst_label(value, assessments[0]["label"])  # type: ignore
+
+                data = {
+                    "name": display_name,
+                    "assessments": assessments,
+                }
+                if len(sub_agent_responses) > 1:
+                    data["name"] += f" {response.sequence_number}"
+
+                sub_agents_display_data.append(data)
 
         reason = await self._get_reason(sub_agents_display_data)
 
@@ -173,12 +221,12 @@ class SubAgentEvaluationService(Evaluation):
                 type=self.get_assessment_type(),
             )
 
-        if _is_single_assessment_found(evaluation_result.reason):
-            name, reason = _parse_single_assessment_found(evaluation_result.reason)
+        single_assessment_data = _parse_single_assesment_found(evaluation_result.reason)
+        if single_assessment_data is not None:
             return EvaluationAssessmentMessage(
                 status=ChatMessageAssessmentStatus.DONE,
-                explanation=reason,
-                title=name,
+                explanation=single_assessment_data.explanation,
+                title=single_assessment_data.name,
                 label=evaluation_result.value,  # type: ignore
                 type=self.get_assessment_type(),
             )
@@ -189,49 +237,6 @@ class SubAgentEvaluationService(Evaluation):
             title=self.DISPLAY_NAME,
             label=evaluation_result.value,  # type: ignore
             type=self.get_assessment_type(),
-        )
-
-    def register_sub_agent_tool(
-        self, tool: SubAgentTool, evaluation_config: SubAgentEvaluationConfig
-    ) -> None:
-        if not evaluation_config.include_evaluation:
-            logger.warning(
-                "Sub agent tool %s has evaluation config `include_evaluation` set to False, responses will be ignored.",
-                tool.config.assistant_id,
-            )
-            return
-
-        if tool.config.assistant_id not in self._assistant_id_to_tool_info:
-            tool.subscribe(self)
-            self._assistant_id_to_tool_info[tool.config.assistant_id] = (
-                _SubAgentToolInfo(
-                    display_name=tool.display_name(),
-                    assessments={},
-                )
-            )
-
-    def notify_sub_agent_response(
-        self,
-        response: unique_sdk.Space.Message,
-        sub_agent_assistant_id: str,
-        sequence_number: int,
-    ) -> None:
-        if sub_agent_assistant_id not in self._assistant_id_to_tool_info:
-            logger.warning(
-                "Unknown assistant id %s received, assessment will be ignored.",
-                sub_agent_assistant_id,
-            )
-            return
-
-        sub_agent_assessments = self._assistant_id_to_tool_info[sub_agent_assistant_id][
-            "assessments"
-        ]
-        sub_agent_assessments[sequence_number] = (
-            response[
-                "assessment"
-            ].copy()  # Shallow copy as we don't modify individual assessments
-            if response["assessment"] is not None
-            else []
         )
 
     async def _get_reason(self, sub_agents_display_data: list[dict]) -> str:

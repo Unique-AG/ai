@@ -16,7 +16,7 @@ _ASSESSMENT_LABEL_COMPARISON_DICT: dict[str, int] = {
 }
 
 
-def _sort_assessments(
+def sort_assessments(
     assessments: list[unique_sdk.Space.Assessment],
 ) -> list[unique_sdk.Space.Assessment]:
     return sorted(
@@ -25,7 +25,7 @@ def _sort_assessments(
     )
 
 
-def _worst_label(
+def get_worst_label(
     *labels: str,
 ) -> str:
     return min(
@@ -34,7 +34,7 @@ def _worst_label(
     )
 
 
-def _get_valid_assessments(
+def get_valid_assessments(
     assessments: list[unique_sdk.Space.Assessment],
     display_name: str,
     sequence_number: int,
