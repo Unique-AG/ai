@@ -35,7 +35,7 @@ class SubAgentResponseWatcher:
     """
 
     def __init__(self) -> None:
-        self._responses: dict[str, list[SubAgentResponse]] = {}
+        self._response_registry: dict[str, list[SubAgentResponse]] = {}
 
     def notify_response(
         self,
@@ -45,12 +45,12 @@ class SubAgentResponseWatcher:
         response: unique_sdk.Space.Message,
         timestamp: datetime.datetime,
     ) -> None:
-        if assistant_id not in self._responses:
-            self._responses[assistant_id] = []
+        if assistant_id not in self._response_registry:
+            self._response_registry[assistant_id] = []
 
         response = _clone_message(response)
 
-        self._responses[assistant_id].append(
+        self._response_registry[assistant_id].append(
             SubAgentResponse(
                 assistant_id=assistant_id,
                 name=name,
@@ -62,14 +62,14 @@ class SubAgentResponseWatcher:
 
     def get_responses(self, assistant_id: str) -> list[SubAgentResponse]:
         return _sort_responses(  # Always return a consistent order
-            [response.clone() for response in self._responses.get(assistant_id, [])],
+            [response.clone() for response in self._response_registry.get(assistant_id, [])],
         )
 
     def get_all_responses(self) -> list[SubAgentResponse]:
         return _sort_responses(
             [
                 response.clone()
-                for sub_agent_responses in self._responses.values()
+                for sub_agent_responses in self._response_registry.values()
                 for response in sub_agent_responses
             ],
         )
