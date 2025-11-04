@@ -102,7 +102,32 @@ def replace_in_text(
     text: str, repls: Sequence[tuple[str | re.Pattern[str], str]]
 ) -> str:
     """
-    Replace patterns in a text with their corresponding replacements, making sure to handle overlapping replacements.
+    Replace multiple patterns in text without replacement interference.
+
+    This function performs all replacements independently, preventing cases where
+    a replacement value matches another pattern, which would cause unintended
+    cascading replacements.
+
+    Why this is needed:
+    - Naive sequential replacements can interfere with each other
+    - Example: replacing "foo" -> "bar" and "bar" -> "baz" would incorrectly
+      turn "foo" into "baz" if done sequentially
+    - This function uses a two-phase approach with UUID placeholders to ensure
+      each pattern is replaced exactly once with its intended value
+
+    Args:
+        text: The input text to perform replacements on
+        repls: Sequence of (pattern, replacement) tuples where pattern can be
+               a string or compiled regex pattern
+
+    Returns:
+        Text with all patterns replaced by their corresponding replacements
+
+    Example:
+        >>> text = "foo and bar"
+        >>> repls = [("foo", "bar"), ("bar", "baz")]
+        >>> replace_in_text(text, repls)
+        "bar and baz"  # Both replacements applied independently
     """
     if len(repls) == 0:
         return text
