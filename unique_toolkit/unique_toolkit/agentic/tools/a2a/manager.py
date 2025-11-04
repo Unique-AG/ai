@@ -1,5 +1,6 @@
 from logging import Logger
 
+from unique_toolkit.agentic.tools.a2a.response_watcher import SubAgentResponseWatcher
 from unique_toolkit.agentic.tools.a2a.tool import SubAgentTool, SubAgentToolConfig
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
 from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
@@ -11,12 +12,16 @@ class A2AManager:
         self,
         logger: Logger,
         tool_progress_reporter: ToolProgressReporter,
+        sub_agent_response_watcher: SubAgentResponseWatcher,
     ):
         self._logger = logger
         self._tool_progress_reporter = tool_progress_reporter
+        self._sub_agent_response_watcher = sub_agent_response_watcher
 
     def get_all_sub_agents(
-        self, tool_configs: list[ToolBuildConfig], event: ChatEvent
+        self,
+        tool_configs: list[ToolBuildConfig],
+        event: ChatEvent,
     ) -> tuple[list[ToolBuildConfig], list[SubAgentTool]]:
         sub_agents = []
 
@@ -39,6 +44,7 @@ class A2AManager:
                     tool_progress_reporter=self._tool_progress_reporter,
                     name=tool_config.name,
                     display_name=tool_config.display_name,
+                    response_watcher=self._sub_agent_response_watcher,
                 )
             )
 
