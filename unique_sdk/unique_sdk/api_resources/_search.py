@@ -28,7 +28,8 @@ class Search(APIResource["Search"]):
     updatedAt: str
     url: Optional[str]
     title: Optional[str]
-    key: Optional[str]
+    key: str
+    internallyStoredAt: Optional[str]
     order: int
     startPage: int
     endPage: int

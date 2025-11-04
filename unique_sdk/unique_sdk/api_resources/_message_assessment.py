@@ -1,6 +1,8 @@
 from typing import (
     ClassVar,
     Literal,
+    NotRequired,
+    Optional,
     Unpack,
 )
 
@@ -14,20 +16,19 @@ class MessageAssessment(APIResource["MessageAssessment"]):
 
     class CreateParams(RequestOptions):
         messageId: str
-        status: Literal["PENDING", "DONE", "ERROR"]
-        type: Literal["HALLUCINATION", "COMPLIANCE"]
-        isVisible: bool
-        title: str | None
-        explanation: str | None
-        label: Literal["RED", "YELLOW", "GREEN"] | None
+        status: str
+        type: NotRequired[Optional[str]]
+        isVisible: NotRequired[Optional[bool]]
+        explanation: Optional[str]
+        label: NotRequired[Optional[str]]
 
     class ModifyParams(RequestOptions):
         messageId: str
-        type: Literal["HALLUCINATION", "COMPLIANCE"]
-        status: Literal["PENDING", "DONE", "ERROR"] | None
-        title: str | None
-        explanation: str | None
-        label: Literal["RED", "YELLOW", "GREEN"] | None
+        type: str
+        status: NotRequired[Optional[str]]
+        explanation: Optional[str]
+        label: NotRequired[Optional[str]]
+        isVisible: NotRequired[Optional[bool]]
 
     @classmethod
     def create(

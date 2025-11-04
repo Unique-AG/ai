@@ -73,7 +73,7 @@ class Content(APIResource["Content"]):
 
     class SearchParams(RequestOptions):
         where: "Content.ContentWhereInput"
-        chatId: NotRequired[str | None]
+        chatId: NotRequired[Optional[str]]
         includeFailedContent: NotRequired[bool]
 
     class ContentInfoParams(TypedDict):
@@ -83,11 +83,11 @@ class Content(APIResource["Content"]):
         """
 
         metadataFilter: NotRequired[dict[str, Any] | None]
-        skip: NotRequired[int | None]
+        skip: NotRequired[Optional[int]]
         take: NotRequired[int | None]
-        filePath: NotRequired[str | None]
-        contentId: NotRequired[str | None]
-        chatId: NotRequired[str | None]
+        filePath: NotRequired[Optional[str]]
+        contentId: NotRequired[Optional[str]]
+        chatId: NotRequired[Optional[str]]
 
     class ContentInfosParams(TypedDict):
         """
@@ -95,10 +95,10 @@ class Content(APIResource["Content"]):
         This is used to retrieve information about contents based on various filters.
         """
 
-        metadataFilter: NotRequired[dict[str, Any] | None]
-        skip: NotRequired[int | None]
-        take: NotRequired[int | None]
-        parentId: NotRequired[str | None]
+        metadataFilter: NotRequired[Optional[dict[str, Any]]]
+        skip: NotRequired[Optional[int]]
+        take: NotRequired[Optional[int]]
+        parentId: NotRequired[Optional[str]]
 
     class CustomApiOptions(TypedDict):
         apiIdentifier: str
@@ -125,19 +125,17 @@ class Content(APIResource["Content"]):
 
     class Input(TypedDict):
         key: str
-        title: Optional[str]
+        title: str
         mimeType: str
-        ownerType: NotRequired[str | None]
-        ownerId: NotRequired[str | None]
-        byteSize: NotRequired[int | None]
-        ingestionConfig: NotRequired["Content.IngestionConfig | None"]
-        metadata: NotRequired[dict[str, Any] | None]
+        byteSize: NotRequired[Optional[int]]
+        url: NotRequired[Optional[str]]
+        ingestionConfig: NotRequired[Optional["Content.IngestionConfig"]]
+        metadata: NotRequired[Optional[dict[str, Any]]]
 
     class UpsertParams(RequestOptions):
         input: "Content.Input"
         scopeId: NotRequired[str | None]
         chatId: NotRequired[str | None]
-        sourceOwnerType: NotRequired[str | None]
         storeInternally: NotRequired[bool | None]
         fileUrl: NotRequired[str | None]
 
@@ -167,14 +165,12 @@ class Content(APIResource["Content"]):
         url: str | None
         title: str | None
         metadata: Dict[str, Any] | None
-        mimeType: str
-        byteSize: int
-        ownerId: str
+        mimeType: Optional[str]
+        byteSize: Optional[int]
+        ownerId: Optional[str]
+        ingestionState: Optional[str]
         createdAt: str
         updatedAt: str
-        expiresAt: str | None
-        deletedAt: str | None
-        expiredAt: str | None
 
     class PaginatedContentInfo(TypedDict):
         contentInfo: List["Content.ContentInfo"]
