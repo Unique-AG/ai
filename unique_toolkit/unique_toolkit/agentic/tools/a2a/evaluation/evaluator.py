@@ -13,8 +13,8 @@ from unique_toolkit.agentic.evaluation.schemas import (
 )
 from unique_toolkit.agentic.tools.a2a.evaluation._utils import (
     get_valid_assessments,
-    sort_assessments,
     get_worst_label,
+    sort_assessments,
 )
 from unique_toolkit.agentic.tools.a2a.evaluation.config import (
     SubAgentEvaluationConfig,
