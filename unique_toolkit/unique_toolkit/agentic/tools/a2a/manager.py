@@ -12,11 +12,11 @@ class A2AManager:
         self,
         logger: Logger,
         tool_progress_reporter: ToolProgressReporter,
-        sub_agent_response_watcher: SubAgentResponseWatcher,
+        response_watcher: SubAgentResponseWatcher,
     ):
         self._logger = logger
         self._tool_progress_reporter = tool_progress_reporter
-        self._sub_agent_response_watcher = sub_agent_response_watcher
+        self._response_watcher = response_watcher
 
     def get_all_sub_agents(
         self,
@@ -44,7 +44,7 @@ class A2AManager:
                     tool_progress_reporter=self._tool_progress_reporter,
                     name=tool_config.name,
                     display_name=tool_config.display_name,
-                    response_watcher=self._sub_agent_response_watcher,
+                    response_watcher=self._response_watcher,
                 )
             )
 

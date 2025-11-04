@@ -182,7 +182,7 @@ class TestMCPManager:
         return A2AManager(
             logger=self.logger,
             tool_progress_reporter=tool_progress_reporter,
-            sub_agent_response_watcher=SubAgentResponseWatcher(),
+            response_watcher=SubAgentResponseWatcher(),
         )
 
     @pytest.fixture
@@ -287,7 +287,7 @@ class TestMCPManager:
         a2a_manager = A2AManager(
             logger=self.logger,
             tool_progress_reporter=tool_progress_reporter,
-            sub_agent_response_watcher=SubAgentResponseWatcher(),
+            response_watcher=SubAgentResponseWatcher(),
         )
 
         tool_manager = ToolManager(
@@ -324,7 +324,7 @@ class TestMCPManager:
         a2a_manager = A2AManager(
             logger=self.logger,
             tool_progress_reporter=tool_progress_reporter,
-            sub_agent_response_watcher=SubAgentResponseWatcher(),
+            response_watcher=SubAgentResponseWatcher(),
         )
 
         tool_manager = ToolManager(
@@ -361,7 +361,7 @@ class TestMCPManager:
         a2a_manager = A2AManager(
             logger=self.logger,
             tool_progress_reporter=tool_progress_reporter,
-            sub_agent_response_watcher=SubAgentResponseWatcher(),
+            response_watcher=SubAgentResponseWatcher(),
         )
 
         tool_manager = ToolManager(
@@ -401,7 +401,7 @@ class TestMCPManager:
         a2a_manager = A2AManager(
             logger=self.logger,
             tool_progress_reporter=tool_progress_reporter,
-            sub_agent_response_watcher=SubAgentResponseWatcher(),
+            response_watcher=SubAgentResponseWatcher(),
         )
 
         tool_manager = ToolManager(
@@ -443,7 +443,7 @@ class TestMCPManager:
         a2a_manager = A2AManager(
             logger=self.logger,
             tool_progress_reporter=tool_progress_reporter,
-            sub_agent_response_watcher=SubAgentResponseWatcher(),
+            response_watcher=SubAgentResponseWatcher(),
         )
 
         tool_manager = ToolManager(
