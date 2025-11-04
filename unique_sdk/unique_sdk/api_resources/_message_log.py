@@ -1,4 +1,4 @@
-from typing import ClassVar, Literal, NotRequired, TypedDict, Unpack, cast
+from typing import ClassVar, Literal, NotRequired, Optional, TypedDict, Unpack, cast
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
@@ -12,9 +12,11 @@ class MessageLog(APIResource["MessageLog"]):
 
     class Reference(TypedDict):
         name: str
-        url: str | None
+        title: Optional[str]
+        description: Optional[str]
+        url: Optional[str]
         sequenceNumber: int
-        originalIndex: list[int] | None
+        originalIndex: Optional[list[int]]
         sourceId: str
         source: str
 
