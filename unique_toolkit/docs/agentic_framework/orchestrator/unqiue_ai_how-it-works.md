@@ -286,9 +286,6 @@ Code:
             self.start_text = self._thinking_manager.update_start_text(
                   self.start_text, loop_response
             )
-            await self._create_new_assistant_message_if_loop_response_contains_content(
-                  loop_response
-            )
 
         await self._chat_service.modify_assistant_message_async(
               set_completed_at=True,
