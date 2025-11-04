@@ -9,7 +9,7 @@ from unique_toolkit.agentic.tools.tool_progress_reporter import (
     ProgressState,
     ToolProgressReporter,
 )
-from unique_toolkit.app.schemas import BaseEvent
+from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.chat.service import LanguageModelToolDescription
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
@@ -25,7 +25,7 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
     def __init__(
         self,
         config: UploadedSearchConfig,
-        event: BaseEvent,
+        event: ChatEvent,
         tool_progress_reporter: ToolProgressReporter,
         *args,
         **kwargs,
@@ -37,6 +37,7 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
         self._internal_search_tool = InternalSearchTool(
             config, event, None, *args, **kwargs
         )
+        self._user_query = event.payload.user_message.text
 
     async def post_progress_message(
         self, message: str, tool_call: LanguageModelFunction, **kwargs
@@ -108,7 +109,6 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
         When using the upload and search tool, unique AI agent is loosing the overview of the original user message and request
         This likely due to the amount of tokens included and as since it's a forced tool not necessarily relevant to the user's request.
         """
-        query = self._event.payload.user_message.text
         return f"""
             <system_reminder>
             This tool call was automatically executed to retrieve the user's uploaded documents. You did not initiate this call.
@@ -117,7 +117,7 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
             - You must evaluate their relevance independently
             - You are free to make additional tool calls as needed
             - Focus on addressing the user's original request
-            {f"Original user message: {query}" if query else ""}
+            {f"Original user message: {self._user_query}" if self._user_query else ""}
             </system_reminder>"""
 
 
