@@ -1,21 +1,8 @@
 from typing import Callable, Iterable, Mapping, Sequence
 
-import unique_sdk
-
 from unique_toolkit._common.referencing import get_reference_pattern
 from unique_toolkit._common.string_utilities import replace_in_text
 from unique_toolkit.content import ContentReference
-
-
-def to_content_ref(ref: unique_sdk.Space.Reference) -> ContentReference:
-    return ContentReference(
-        name=ref["name"],
-        url=ref["url"] or "",
-        sequence_number=ref["sequenceNumber"],
-        source_id=ref["sourceId"],
-        source=ref["source"],
-    )
-
 
 SourceId = str
 SequenceNumber = int

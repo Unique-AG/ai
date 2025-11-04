@@ -9,13 +9,13 @@ from unique_toolkit._common.referencing import (
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import Postprocessor
 from unique_toolkit.agentic.tools.a2a.postprocessing._ref_utils import (
     add_content_refs_and_replace_in_text,
-    to_content_ref,
 )
 from unique_toolkit.agentic.tools.a2a.response_watcher import (
     SubAgentResponse,
     SubAgentResponseWatcher,
 )
 from unique_toolkit.agentic.tools.a2a.tool import SubAgentTool
+from unique_toolkit.content import ContentReference
 from unique_toolkit.language_model.schemas import LanguageModelStreamResponse
 
 logger = logging.getLogger(__name__)
@@ -82,7 +82,7 @@ def _add_sub_agent_references_in_place(
                 # Reference not used
                 continue
 
-            sub_agent_refs.append(to_content_ref(reference))
+            sub_agent_refs.append(ContentReference.from_sdk_reference(reference))
 
         text, refs = add_content_refs_and_replace_in_text(
             message_text=text,

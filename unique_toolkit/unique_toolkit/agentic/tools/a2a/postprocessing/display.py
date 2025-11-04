@@ -14,7 +14,6 @@ from unique_toolkit.agentic.tools.a2a.postprocessing._display_utils import (
 )
 from unique_toolkit.agentic.tools.a2a.postprocessing._ref_utils import (
     add_content_refs_and_replace_in_text,
-    to_content_ref,
 )
 from unique_toolkit.agentic.tools.a2a.postprocessing.config import (
     SubAgentDisplayConfig,
@@ -24,6 +23,7 @@ from unique_toolkit.agentic.tools.a2a.response_watcher import (
     SubAgentResponse,
     SubAgentResponseWatcher,
 )
+from unique_toolkit.content import ContentReference
 from unique_toolkit.language_model.schemas import LanguageModelStreamResponse
 
 logger = logging.getLogger(__name__)
@@ -154,7 +154,7 @@ def _add_response_references_to_message_in_place(
     if references is None or len(references) == 0 or text is None:
         return
 
-    content_refs = [to_content_ref(ref) for ref in references]
+    content_refs = [ContentReference.from_sdk_reference(ref) for ref in references]
 
     text, refs = add_content_refs_and_replace_in_text(
         message_text=text,
