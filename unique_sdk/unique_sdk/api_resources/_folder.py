@@ -83,6 +83,10 @@ class Folder(APIResource["Folder"]):
         parentId: str | None
         externalId: str | None
 
+    class FolderInfos(TypedDict):
+        folderInfos: List["Folder.FolderInfo"]
+        totalCount: int
+
     id: str
     name: str
     scopeAccess: List[ScopeAccess]
@@ -212,7 +216,7 @@ class Folder(APIResource["Folder"]):
     @classmethod
     def get_infos(
         cls, user_id: str, company_id: str, **params: Unpack["Folder.GetInfosParams"]
-    ) -> "List[Folder.FolderInfo]":
+    ) -> "List[Folder.FolderInfos]":
         """
         Get paginated folders based on parentId. If the parentId is not defined, the root folders will be returned.
         """
@@ -230,7 +234,7 @@ class Folder(APIResource["Folder"]):
     @classmethod
     async def get_infos_async(
         cls, user_id: str, company_id: str, **params: Unpack["Folder.GetInfosParams"]
-    ) -> "List[Folder.FolderInfo]":
+    ) -> "List[Folder.FolderInfos]":
         """
         Async get paginated folders based on parentId. If the parentId is not defined, the root folders will be returned.
         """
