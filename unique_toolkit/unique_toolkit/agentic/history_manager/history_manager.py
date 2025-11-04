@@ -185,7 +185,7 @@ class HistoryManager:
 
         # Append the result to the history
         return LanguageModelToolMessage(
-            content=stringified_sources,
+            content=content,
             tool_call_id=tool_response.id,  # type: ignore
             name=tool_response.name,
         )
