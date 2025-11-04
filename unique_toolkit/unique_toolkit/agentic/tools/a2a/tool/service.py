@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import logging
 import re
 from datetime import datetime
 from typing import override
@@ -37,6 +38,8 @@ from unique_toolkit.language_model import (
     LanguageModelFunction,
     LanguageModelToolDescription,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class SubAgentTool(Tool[SubAgentToolConfig]):
@@ -262,6 +265,12 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                 sequence_number=sequence_number,
                 response=response,
                 timestamp=timestamp,
+            )
+        else:
+            logger.warning(
+                "No response watcher found for sub agent %s (assistant_id: %s)",
+                self.name,
+                self.config.assistant_id,
             )
 
     async def _execute_and_handle_timeout(
