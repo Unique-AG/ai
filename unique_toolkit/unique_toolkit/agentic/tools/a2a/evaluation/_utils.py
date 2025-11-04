@@ -25,7 +25,7 @@ def sort_assessments(
     )
 
 
-def worst_label(
+def get_worst_label(
     *labels: str,
 ) -> str:
     return min(

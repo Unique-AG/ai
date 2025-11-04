@@ -14,7 +14,7 @@ from unique_toolkit.agentic.evaluation.schemas import (
 from unique_toolkit.agentic.tools.a2a.evaluation._utils import (
     get_valid_assessments,
     sort_assessments,
-    worst_label,
+    get_worst_label,
 )
 from unique_toolkit.agentic.tools.a2a.evaluation.config import (
     SubAgentEvaluationConfig,
@@ -188,7 +188,7 @@ class SubAgentEvaluationService(Evaluation):
 
             for response in sub_agent_responses:
                 assessments = sort_assessments(response.message["assessment"])  #  type:ignore
-                value = worst_label(value, assessments[0]["label"])  # type: ignore
+                value = get_worst_label(value, assessments[0]["label"])  # type: ignore
 
                 data = {
                     "name": display_name,
