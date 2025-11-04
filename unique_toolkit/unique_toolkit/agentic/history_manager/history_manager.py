@@ -111,6 +111,7 @@ class HistoryManager:
         self._config = config
         self._logger = logger
         self._language_model = language_model
+        self._event = event
         self._token_reducer = LoopTokenReducer(
             logger=self._logger,
             event=event,
@@ -179,6 +180,21 @@ class HistoryManager:
             content_chunks,
             self._source_enumerator,
         )
+
+        # When using the upload and search tool the agent is loosing the overview of the original user message and request
+        # This likely due to the amount of tokens included and as it's a forced tool not necessarily relevant to the user's request.
+        if tool_response.name == "UploadedSearch":
+            query = self._event.payload.user_message.text
+            stringified_sources += f"""
+            <system_reminder>
+            This tool call was automatically executed to retrieve the user's uploaded documents. You did not initiate this call.
+            IMPORTANT CONTEXT:
+            - The retrieved documents may or may not be relevant to the user's actual query
+            - You must evaluate their relevance independently
+            - You are free to make additional tool calls as needed
+            - Focus on addressing the user's original request
+            {f"Original user message: {query}" if query else ""}
+            </system_reminder>"""
 
         self._source_enumerator += len(
             sources
