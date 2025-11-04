@@ -98,7 +98,27 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
                 state=ProgressState.FINISHED,
             )
         tool_response.name = self.name
+        tool_response.tool_call_response_system_reminder = (
+            self._get_tool_call_response_system_reminder()
+        )
         return tool_response
+
+    def _get_tool_call_response_system_reminder(self) -> str:
+        """
+        When using the upload and search tool, unique AI agent is loosing the overview of the original user message and request
+        This likely due to the amount of tokens included and as since it's a forced tool not necessarily relevant to the user's request.
+        """
+        query = self._event.payload.user_message.text
+        return f"""
+            <system_reminder>
+            This tool call was automatically executed to retrieve the user's uploaded documents. You did not initiate this call.
+            IMPORTANT CONTEXT:
+            - The retrieved documents may or may not be relevant to the user's actual query
+            - You must evaluate their relevance independently
+            - You are free to make additional tool calls as needed
+            - Focus on addressing the user's original request
+            {f"Original user message: {query}" if query else ""}
+            </system_reminder>"""
 
 
 ToolFactory.register_tool(UploadedSearchTool, UploadedSearchConfig)

@@ -164,41 +164,25 @@ class HistoryManager:
             f"Appending tool call result to history: {tool_response.name}"
         )
 
-        if tool_response.content != "":
-            return LanguageModelToolMessage(
-                content=tool_response.content,
-                tool_call_id=tool_response.id,  # type: ignore
-                name=tool_response.name,
+        content = tool_response.content
+        if content == "":
+            content_chunks = (
+                tool_response.content_chunks or []
+            )  # it can be that the tool response does not have content chunks
+
+            # Transform content chunks into sources to be appended to tool result
+            stringified_sources, sources = transform_chunks_to_string(
+                content_chunks,
+                self._source_enumerator,
             )
+            content = stringified_sources
 
-        content_chunks = (
-            tool_response.content_chunks or []
-        )  # it can be that the tool response does not have content chunks
+            self._source_enumerator += len(
+                sources
+            )  # To make sure all sources have unique source numbers
 
-        # Transform content chunks into sources to be appended to tool result
-        stringified_sources, sources = transform_chunks_to_string(
-            content_chunks,
-            self._source_enumerator,
-        )
-
-        # When using the upload and search tool the agent is loosing the overview of the original user message and request
-        # This likely due to the amount of tokens included and as it's a forced tool not necessarily relevant to the user's request.
-        if tool_response.name == "UploadedSearch":
-            query = self._event.payload.user_message.text
-            stringified_sources += f"""
-            <system_reminder>
-            This tool call was automatically executed to retrieve the user's uploaded documents. You did not initiate this call.
-            IMPORTANT CONTEXT:
-            - The retrieved documents may or may not be relevant to the user's actual query
-            - You must evaluate their relevance independently
-            - You are free to make additional tool calls as needed
-            - Focus on addressing the user's original request
-            {f"Original user message: {query}" if query else ""}
-            </system_reminder>"""
-
-        self._source_enumerator += len(
-            sources
-        )  # To make sure all sources have unique source numbers
+        if tool_response.tool_call_response_system_reminder:
+            content += f"\n\n{tool_response.tool_call_response_system_reminder}"
 
         # Append the result to the history
         return LanguageModelToolMessage(
