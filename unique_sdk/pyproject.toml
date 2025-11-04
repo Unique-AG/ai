@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_sdk"
-version = "0.10.35"
+version = "0.10.36"
 description = ""
 authors = [
     "Martin Fadler <martin.fadler@unique.ch>",
@@ -28,6 +28,7 @@ pyright = "^1.1.341"
 pytest-cov = "^4.1.0"
 pytest-asyncio = "^0.24.0"
 python-dotenv = "^1.1.0"
+httpx = "^0.28.1"
 
 [tool.poetry.extras]
 openai = ["openai"]

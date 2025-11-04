@@ -32,4 +32,4 @@ jobs:
 
     - name: Run tests
       working-directory: ${{ env.PACKAGE }}
-      run: poetry run pytest
+      run: poetry run pytest -m "not integration"
