@@ -1,6 +1,6 @@
 import os
 from logging import Logger
-from typing import NamedTuple
+from typing import NamedTuple, cast
 
 from openai import AsyncOpenAI
 from unique_follow_up_questions.follow_up_postprocessor import (
@@ -46,11 +46,13 @@ from unique_toolkit.agentic.thinking_manager.thinking_manager import (
 from unique_toolkit.agentic.tools.a2a import (
     A2AManager,
     ExtendedSubAgentToolConfig,
+    SubAgentDisplaySpec,
     SubAgentEvaluationService,
-    SubAgentResponsesPostprocessor,
-)
-from unique_toolkit.agentic.tools.a2a.postprocessing.postprocessor import (
+    SubAgentEvaluationSpec,
+    SubAgentReferencesPostprocessor,
+    SubAgentResponsesDisplayPostprocessor,
     SubAgentResponsesPostprocessorConfig,
+    SubAgentResponseWatcher,
 )
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
 from unique_toolkit.agentic.tools.mcp.manager import MCPManager
@@ -107,6 +109,7 @@ class _CommonComponents(NamedTuple):
     history_manager: HistoryManager
     evaluation_manager: EvaluationManager
     postprocessor_manager: PostprocessorManager
+    response_watcher: SubAgentResponseWatcher
     # Tool Manager Components
     tool_progress_reporter: ToolProgressReporter
     tool_manager_config: ToolManagerConfig
@@ -125,6 +128,8 @@ def _build_common(
     content_service = ContentService.from_event(event)
 
     uploaded_documents = content_service.get_documents_uploaded_to_chat()
+
+    response_watcher = SubAgentResponseWatcher()
 
     tool_progress_reporter = ToolProgressReporter(
         chat_service=chat_service,
@@ -174,7 +179,9 @@ def _build_common(
     a2a_manager = A2AManager(
         logger=logger,
         tool_progress_reporter=tool_progress_reporter,
+        response_watcher=response_watcher,
     )
+
     tool_manager_config = ToolManagerConfig(
         tools=config.space.tools,
         max_tool_calls=config.agent.experimental.loop_configuration.max_tool_calls_per_iteration,
@@ -222,6 +229,7 @@ def _build_common(
         tool_manager_config=tool_manager_config,
         mcp_servers=event.payload.mcp_servers,
         postprocessor_manager=postprocessor_manager,
+        response_watcher=response_watcher,
     )
 
 
@@ -341,16 +349,15 @@ async def _build_responses(
     _add_sub_agents_postprocessor(
         postprocessor_manager=postprocessor_manager,
         tool_manager=tool_manager,
-        user_id=event.user_id,
-        company_id=event.company_id,
-        chat_id=event.payload.chat_id,
-        sleep_time_before_update=config.agent.experimental.sub_agents_config.sleep_time_before_update,
+        config=config,
+        response_watcher=common_components.response_watcher,
     )
     _add_sub_agents_evaluation(
         evaluation_manager=common_components.evaluation_manager,
         tool_manager=tool_manager,
         config=config,
         event=event,
+        response_watcher=common_components.response_watcher,
     )
 
     return UniqueAIResponsesApi(
@@ -414,16 +421,15 @@ def _build_completions(
     _add_sub_agents_postprocessor(
         postprocessor_manager=postprocessor_manager,
         tool_manager=tool_manager,
-        user_id=event.user_id,
-        company_id=event.company_id,
-        chat_id=event.payload.chat_id,
-        sleep_time_before_update=config.agent.experimental.sub_agents_config.sleep_time_before_update,
+        config=config,
+        response_watcher=common_components.response_watcher,
     )
     _add_sub_agents_evaluation(
         evaluation_manager=common_components.evaluation_manager,
         tool_manager=tool_manager,
         config=config,
         event=event,
+        response_watcher=common_components.response_watcher,
     )
 
     return UniqueAI(
@@ -447,28 +453,37 @@ def _build_completions(
 def _add_sub_agents_postprocessor(
     postprocessor_manager: PostprocessorManager,
     tool_manager: ToolManager | ResponsesApiToolManager,
-    user_id: str,
-    company_id: str,
-    chat_id: str,
-    sleep_time_before_update: float,
+    config: UniqueAIConfig,
+    response_watcher: SubAgentResponseWatcher,
 ) -> None:
     sub_agents = tool_manager.sub_agents
     if len(sub_agents) > 0:
-        sub_agent_responses_postprocessor = SubAgentResponsesPostprocessor(
-            user_id=user_id,
-            main_agent_chat_id=chat_id,
-            company_id=company_id,
-            config=SubAgentResponsesPostprocessorConfig(
-                sleep_time_before_update=sleep_time_before_update,
-            ),
+        display_config = SubAgentResponsesPostprocessorConfig(
+            sleep_time_before_update=config.agent.experimental.sub_agents_config.sleep_time_before_update,
         )
-        postprocessor_manager.add_postprocessor(sub_agent_responses_postprocessor)
+        display_specs = []
+        for tool in sub_agents:
+            tool_config = cast(
+                ExtendedSubAgentToolConfig, tool.settings.configuration
+            )  # (BeforeValidator of ToolBuildConfig)
 
-        for tool in tool_manager.sub_agents:
-            assert isinstance(tool.config, ExtendedSubAgentToolConfig)
-            sub_agent_responses_postprocessor.register_sub_agent_tool(
-                tool, tool.config.response_display_config
+            display_specs.append(
+                SubAgentDisplaySpec(
+                    assistant_id=tool_config.assistant_id,
+                    display_name=tool.display_name(),
+                    display_config=tool_config.response_display_config,
+                )
             )
+        reference_postprocessor = SubAgentReferencesPostprocessor(
+            response_watcher=response_watcher,
+        )
+        sub_agent_responses_postprocessor = SubAgentResponsesDisplayPostprocessor(
+            config=display_config,
+            response_watcher=response_watcher,
+            display_specs=display_specs,
+        )
+        postprocessor_manager.add_postprocessor(reference_postprocessor)
+        postprocessor_manager.add_postprocessor(sub_agent_responses_postprocessor)
 
 
 def _add_sub_agents_evaluation(
@@ -476,18 +491,31 @@ def _add_sub_agents_evaluation(
     tool_manager: ToolManager | ResponsesApiToolManager,
     config: UniqueAIConfig,
     event: ChatEvent,
+    response_watcher: SubAgentResponseWatcher,
 ) -> None:
     sub_agents = tool_manager.sub_agents
-    if len(sub_agents) > 0:
-        sub_agent_evaluation = None
-        if config.agent.experimental.sub_agents_config.evaluation_config is not None:
-            sub_agent_evaluation = SubAgentEvaluationService(
-                config=config.agent.experimental.sub_agents_config.evaluation_config,
-                language_model_service=LanguageModelService.from_event(event),
-            )
-            evaluation_manager.add_evaluation(sub_agent_evaluation)
-            for tool in tool_manager.sub_agents:
-                assert isinstance(tool.config, ExtendedSubAgentToolConfig)
-                sub_agent_evaluation.register_sub_agent_tool(
-                    tool, tool.config.evaluation_config
+    if (
+        len(sub_agents) > 0
+        and config.agent.experimental.sub_agents_config.evaluation_config is not None
+    ):
+        evaluation_specs = []
+        for tool in sub_agents:
+            tool_config = cast(
+                ExtendedSubAgentToolConfig, tool.settings.configuration
+            )  # (BeforeValidator of ToolBuildConfig)
+
+            evaluation_specs.append(
+                SubAgentEvaluationSpec(
+                    assistant_id=tool_config.assistant_id,
+                    display_name=tool.display_name(),
+                    config=tool_config.evaluation_config,
                 )
+            )
+
+        sub_agent_evaluation = SubAgentEvaluationService(
+            config=config.agent.experimental.sub_agents_config.evaluation_config,
+            language_model_service=LanguageModelService.from_event(event),
+            evaluation_specs=evaluation_specs,
+            response_watcher=response_watcher,
+        )
+        evaluation_manager.add_evaluation(sub_agent_evaluation)
