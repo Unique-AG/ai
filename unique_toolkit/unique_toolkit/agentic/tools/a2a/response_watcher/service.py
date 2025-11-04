@@ -62,7 +62,10 @@ class SubAgentResponseWatcher:
 
     def get_responses(self, assistant_id: str) -> list[SubAgentResponse]:
         return _sort_responses(  # Always return a consistent order
-            [response.clone() for response in self._response_registry.get(assistant_id, [])],
+            [
+                response.clone()
+                for response in self._response_registry.get(assistant_id, [])
+            ],
         )
 
     def get_all_responses(self) -> list[SubAgentResponse]:
