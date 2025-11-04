@@ -1,0 +1,19 @@
+name: 'Validate Changelog and Version Bump'
+description: 'Validates that a package has updated its CHANGELOG.md and version in pyproject.toml'
+inputs:
+  package_name:
+    description: 'Name of the package to validate'
+    required: true
+  base_ref:
+    description: 'Base reference for comparison'
+    required: true
+    default: ${{ github.base_ref }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Validate CHANGELOG.md and version bump
+      shell: bash
+      run: |
+        chmod +x .github/scripts/validate-changelog.sh
+        ./.github/scripts/validate-changelog.sh ${{ inputs.package_name }} ${{ inputs.base_ref }}
