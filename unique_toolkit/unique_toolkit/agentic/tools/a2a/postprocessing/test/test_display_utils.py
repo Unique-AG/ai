@@ -4,21 +4,22 @@ import re
 
 import pytest
 
-from unique_toolkit.agentic.tools.a2a.postprocessing._display import (
+from unique_toolkit.agentic.tools.a2a.postprocessing._display_utils import (
     _add_line_break,
-    _build_sub_agent_answer_display,
     _get_display_removal_re,
     _get_display_template,
     _join_text_blocks,
-    _remove_sub_agent_answer_from_text,
     _wrap_hidden_div,
     _wrap_strong,
     _wrap_text,
     _wrap_with_block_border,
     _wrap_with_details_tag,
     _wrap_with_quote_border,
+    get_sub_agent_answer_display,
+    remove_sub_agent_answer_from_text,
 )
 from unique_toolkit.agentic.tools.a2a.postprocessing.config import (
+    SubAgentDisplayConfig,
     SubAgentResponseDisplayMode,
 )
 
@@ -731,17 +732,19 @@ def test_build_sub_agent_answer_display__creates_html__for_plain_mode() -> None:
     display_name = "Test Agent"
     answer = "This is the answer"
     assistant_id = "agent-123"
-    mode = SubAgentResponseDisplayMode.PLAIN
-
-    # Act
-    result = _build_sub_agent_answer_display(
-        display_name=display_name,
-        display_mode=mode,
+    config = SubAgentDisplayConfig(
+        mode=SubAgentResponseDisplayMode.PLAIN,
         add_quote_border=False,
         add_block_border=False,
+        display_title_template="Answer from <strong>{}</strong>",
+    )
+
+    # Act
+    result = get_sub_agent_answer_display(
+        display_name=display_name,
+        display_config=config,
         answer=answer,
         assistant_id=assistant_id,
-        display_title_template="Answer from <strong>{}</strong>",
     )
 
     # Assert
@@ -763,17 +766,19 @@ def test_build_sub_agent_answer_display__creates_details__for_details_open() -> 
     display_name = "Test Agent"
     answer = "This is the answer"
     assistant_id = "agent-123"
-    mode = SubAgentResponseDisplayMode.DETAILS_OPEN
-
-    # Act
-    result = _build_sub_agent_answer_display(
-        display_name=display_name,
-        display_mode=mode,
+    config = SubAgentDisplayConfig(
+        mode=SubAgentResponseDisplayMode.DETAILS_OPEN,
         add_quote_border=False,
         add_block_border=False,
+        display_title_template="Answer from <strong>{}</strong>",
+    )
+
+    # Act
+    result = get_sub_agent_answer_display(
+        display_name=display_name,
+        display_config=config,
         answer=answer,
         assistant_id=assistant_id,
-        display_title_template="Answer from <strong>{}</strong>",
     )
 
     # Assert
@@ -795,17 +800,19 @@ def test_build_sub_agent_answer_display__creates_details__for_details_closed() -
     display_name = "Test Agent"
     answer = "This is the answer"
     assistant_id = "agent-123"
-    mode = SubAgentResponseDisplayMode.DETAILS_CLOSED
-
-    # Act
-    result = _build_sub_agent_answer_display(
-        display_name=display_name,
-        display_mode=mode,
+    config = SubAgentDisplayConfig(
+        mode=SubAgentResponseDisplayMode.DETAILS_CLOSED,
         add_quote_border=False,
         add_block_border=False,
+        display_title_template="Answer from <strong>{}</strong>",
+    )
+
+    # Act
+    result = get_sub_agent_answer_display(
+        display_name=display_name,
+        display_config=config,
         answer=answer,
         assistant_id=assistant_id,
-        display_title_template="Answer from <strong>{}</strong>",
     )
 
     # Assert
@@ -827,17 +834,19 @@ def test_build_sub_agent_answer_display__returns_empty__for_hidden_mode() -> Non
     display_name = "Test Agent"
     answer = "This is the answer"
     assistant_id = "agent-123"
-    mode = SubAgentResponseDisplayMode.HIDDEN
-
-    # Act
-    result = _build_sub_agent_answer_display(
-        display_name=display_name,
-        display_mode=mode,
+    config = SubAgentDisplayConfig(
+        mode=SubAgentResponseDisplayMode.HIDDEN,
         add_quote_border=False,
         add_block_border=False,
+        display_title_template="Answer from <strong>{}</strong>",
+    )
+
+    # Act
+    result = get_sub_agent_answer_display(
+        display_name=display_name,
+        display_config=config,
         answer=answer,
         assistant_id=assistant_id,
-        display_title_template="Answer from <strong>{}</strong>",
     )
 
     # Assert
@@ -858,29 +867,28 @@ def test_remove_sub_agent_answer__removes_plain_display__from_text() -> None:
     assistant_id = "agent-123"
     display_name = "Test Agent"
     answer = "This is the answer"
-    mode = SubAgentResponseDisplayMode.PLAIN
-
-    # Build the display
-    display = _build_sub_agent_answer_display(
-        display_name=display_name,
-        display_mode=mode,
+    config = SubAgentDisplayConfig(
+        mode=SubAgentResponseDisplayMode.PLAIN,
         add_quote_border=False,
         add_block_border=False,
+        display_title_template="Answer from <strong>{}</strong>",
+    )
+
+    # Build the display
+    display = get_sub_agent_answer_display(
+        display_name=display_name,
+        display_config=config,
         answer=answer,
         assistant_id=assistant_id,
-        display_title_template="Answer from <strong>{}</strong>",
     )
 
     text_with_display = f"Before content\n{display}\nAfter content"
 
     # Act
-    result = _remove_sub_agent_answer_from_text(
-        display_mode=mode,
-        add_quote_border=False,
-        add_block_border=False,
+    result = remove_sub_agent_answer_from_text(
+        display_config=config,
         text=text_with_display,
         assistant_id=assistant_id,
-        display_title_template="Answer from <strong>{}</strong>",
     )
 
     # Assert
@@ -901,29 +909,28 @@ def test_remove_sub_agent_answer__removes_details_open__from_text() -> None:
     assistant_id = "agent-456"
     display_name = "Research Agent"
     answer = "Research findings here"
-    mode = SubAgentResponseDisplayMode.DETAILS_OPEN
-
-    # Build the display
-    display = _build_sub_agent_answer_display(
-        display_name=display_name,
-        display_mode=mode,
+    config = SubAgentDisplayConfig(
+        mode=SubAgentResponseDisplayMode.DETAILS_OPEN,
         add_quote_border=False,
         add_block_border=False,
+        display_title_template="Answer from <strong>{}</strong>",
+    )
+
+    # Build the display
+    display = get_sub_agent_answer_display(
+        display_name=display_name,
+        display_config=config,
         answer=answer,
         assistant_id=assistant_id,
-        display_title_template="Answer from <strong>{}</strong>",
     )
 
     text_with_display = f"Start\n{display}\nEnd"
 
     # Act
-    result = _remove_sub_agent_answer_from_text(
-        display_mode=mode,
-        add_quote_border=False,
-        add_block_border=False,
+    result = remove_sub_agent_answer_from_text(
+        display_config=config,
         text=text_with_display,
         assistant_id=assistant_id,
-        display_title_template="Answer from <strong>{}</strong>",
     )
 
     # Assert
@@ -945,29 +952,28 @@ def test_remove_sub_agent_answer__removes_details_closed__from_text() -> None:
     assistant_id = "agent-789"
     display_name = "Analysis Agent"
     answer = "Analysis results"
-    mode = SubAgentResponseDisplayMode.DETAILS_CLOSED
-
-    # Build the display
-    display = _build_sub_agent_answer_display(
-        display_name=display_name,
-        display_mode=mode,
+    config = SubAgentDisplayConfig(
+        mode=SubAgentResponseDisplayMode.DETAILS_CLOSED,
         add_quote_border=False,
         add_block_border=False,
+        display_title_template="Answer from <strong>{}</strong>",
+    )
+
+    # Build the display
+    display = get_sub_agent_answer_display(
+        display_name=display_name,
+        display_config=config,
         answer=answer,
         assistant_id=assistant_id,
-        display_title_template="Answer from <strong>{}</strong>",
     )
 
     text_with_display = f"Beginning\n{display}\nEnding"
 
     # Act
-    result = _remove_sub_agent_answer_from_text(
-        display_mode=mode,
-        add_quote_border=False,
-        add_block_border=False,
+    result = remove_sub_agent_answer_from_text(
+        display_config=config,
         text=text_with_display,
         assistant_id=assistant_id,
-        display_title_template="Answer from <strong>{}</strong>",
     )
 
     # Assert
@@ -989,29 +995,28 @@ def test_remove_sub_agent_answer__removes_with_quote_border__from_text() -> None
     assistant_id = "agent-quote"
     display_name = "Quote Agent"
     answer = "Quoted answer"
-    mode = SubAgentResponseDisplayMode.PLAIN
-
-    # Build with quote border
-    display = _build_sub_agent_answer_display(
-        display_name=display_name,
-        display_mode=mode,
+    config = SubAgentDisplayConfig(
+        mode=SubAgentResponseDisplayMode.PLAIN,
         add_quote_border=True,
         add_block_border=False,
+        display_title_template="Answer from <strong>{}</strong>",
+    )
+
+    # Build with quote border
+    display = get_sub_agent_answer_display(
+        display_name=display_name,
+        display_config=config,
         answer=answer,
         assistant_id=assistant_id,
-        display_title_template="Answer from <strong>{}</strong>",
     )
 
     text_with_display = f"Before\n{display}\nAfter"
 
     # Act
-    result = _remove_sub_agent_answer_from_text(
-        display_mode=mode,
-        add_quote_border=True,
-        add_block_border=False,
+    result = remove_sub_agent_answer_from_text(
+        display_config=config,
         text=text_with_display,
         assistant_id=assistant_id,
-        display_title_template="Answer from <strong>{}</strong>",
     )
 
     # Assert
@@ -1033,29 +1038,28 @@ def test_remove_sub_agent_answer__removes_with_block_border__from_text() -> None
     assistant_id = "agent-block"
     display_name = "Block Agent"
     answer = "Block answer"
-    mode = SubAgentResponseDisplayMode.PLAIN
-
-    # Build with block border
-    display = _build_sub_agent_answer_display(
-        display_name=display_name,
-        display_mode=mode,
+    config = SubAgentDisplayConfig(
+        mode=SubAgentResponseDisplayMode.PLAIN,
         add_quote_border=False,
         add_block_border=True,
+        display_title_template="Answer from <strong>{}</strong>",
+    )
+
+    # Build with block border
+    display = get_sub_agent_answer_display(
+        display_name=display_name,
+        display_config=config,
         answer=answer,
         assistant_id=assistant_id,
-        display_title_template="Answer from <strong>{}</strong>",
     )
 
     text_with_display = f"Start\n{display}\nFinish"
 
     # Act
-    result = _remove_sub_agent_answer_from_text(
-        display_mode=mode,
-        add_quote_border=False,
-        add_block_border=True,
+    result = remove_sub_agent_answer_from_text(
+        display_config=config,
         text=text_with_display,
         assistant_id=assistant_id,
-        display_title_template="Answer from <strong>{}</strong>",
     )
 
     # Assert
@@ -1077,29 +1081,28 @@ def test_remove_sub_agent_answer__removes_with_both_borders__from_text() -> None
     assistant_id = "agent-both"
     display_name = "Both Borders Agent"
     answer = "Answer with borders"
-    mode = SubAgentResponseDisplayMode.DETAILS_OPEN
-
-    # Build with both borders
-    display = _build_sub_agent_answer_display(
-        display_name=display_name,
-        display_mode=mode,
+    config = SubAgentDisplayConfig(
+        mode=SubAgentResponseDisplayMode.DETAILS_OPEN,
         add_quote_border=True,
         add_block_border=True,
+        display_title_template="Answer from <strong>{}</strong>",
+    )
+
+    # Build with both borders
+    display = get_sub_agent_answer_display(
+        display_name=display_name,
+        display_config=config,
         answer=answer,
         assistant_id=assistant_id,
-        display_title_template="Answer from <strong>{}</strong>",
     )
 
     text_with_display = f"Prefix\n{display}\nSuffix"
 
     # Act
-    result = _remove_sub_agent_answer_from_text(
-        display_mode=mode,
-        add_quote_border=True,
-        add_block_border=True,
+    result = remove_sub_agent_answer_from_text(
+        display_config=config,
         text=text_with_display,
         assistant_id=assistant_id,
-        display_title_template="Answer from <strong>{}</strong>",
     )
 
     # Assert
@@ -1122,39 +1125,35 @@ def test_remove_sub_agent_answer__preserves_other_content__with_multiple_display
     # Arrange
     assistant_id_1 = "agent-1"
     assistant_id_2 = "agent-2"
-    mode = SubAgentResponseDisplayMode.PLAIN
-
-    # Build displays for two different assistants
-    display_1 = _build_sub_agent_answer_display(
-        display_name="Agent 1",
-        display_mode=mode,
+    config = SubAgentDisplayConfig(
+        mode=SubAgentResponseDisplayMode.PLAIN,
         add_quote_border=False,
         add_block_border=False,
-        answer="Answer from agent 1",
-        assistant_id=assistant_id_1,
         display_title_template="Answer from <strong>{}</strong>",
     )
 
-    display_2 = _build_sub_agent_answer_display(
+    # Build displays for two different assistants
+    display_1 = get_sub_agent_answer_display(
+        display_name="Agent 1",
+        display_config=config,
+        answer="Answer from agent 1",
+        assistant_id=assistant_id_1,
+    )
+
+    display_2 = get_sub_agent_answer_display(
         display_name="Agent 2",
-        display_mode=mode,
-        add_quote_border=False,
-        add_block_border=False,
+        display_config=config,
         answer="Answer from agent 2",
         assistant_id=assistant_id_2,
-        display_title_template="Answer from <strong>{}</strong>",
     )
 
     text_with_displays = f"Start\n{display_1}\nMiddle\n{display_2}\nEnd"
 
     # Act - Remove only agent-1's display
-    result = _remove_sub_agent_answer_from_text(
-        display_mode=mode,
-        add_quote_border=False,
-        add_block_border=False,
+    result = remove_sub_agent_answer_from_text(
+        display_config=config,
         text=text_with_displays,
         assistant_id=assistant_id_1,
-        display_title_template="Answer from <strong>{}</strong>",
     )
 
     # Assert
@@ -1178,29 +1177,28 @@ def test_remove_sub_agent_answer__handles_multiline_answer__with_dotall_flag() -
     assistant_id = "agent-multiline"
     display_name = "Multiline Agent"
     answer = "Line 1\nLine 2\nLine 3\nWith many\nnewlines"
-    mode = SubAgentResponseDisplayMode.PLAIN
-
-    # Build the display
-    display = _build_sub_agent_answer_display(
-        display_name=display_name,
-        display_mode=mode,
+    config = SubAgentDisplayConfig(
+        mode=SubAgentResponseDisplayMode.PLAIN,
         add_quote_border=False,
         add_block_border=False,
+        display_title_template="Answer from <strong>{}</strong>",
+    )
+
+    # Build the display
+    display = get_sub_agent_answer_display(
+        display_name=display_name,
+        display_config=config,
         answer=answer,
         assistant_id=assistant_id,
-        display_title_template="Answer from <strong>{}</strong>",
     )
 
     text_with_display = f"Before\n{display}\nAfter"
 
     # Act
-    result = _remove_sub_agent_answer_from_text(
-        display_mode=mode,
-        add_quote_border=False,
-        add_block_border=False,
+    result = remove_sub_agent_answer_from_text(
+        display_config=config,
         text=text_with_display,
         assistant_id=assistant_id,
-        display_title_template="Answer from <strong>{}</strong>",
     )
 
     # Assert
@@ -1224,29 +1222,28 @@ def test_remove_sub_agent_answer__handles_special_regex_chars__in_answer() -> No
     assistant_id = "agent-special"
     display_name = "Special Chars"
     answer = "Answer with $pecial ch@rs: .* + ? [ ] { } ( ) | \\"
-    mode = SubAgentResponseDisplayMode.PLAIN
-
-    # Build the display
-    display = _build_sub_agent_answer_display(
-        display_name=display_name,
-        display_mode=mode,
+    config = SubAgentDisplayConfig(
+        mode=SubAgentResponseDisplayMode.PLAIN,
         add_quote_border=False,
         add_block_border=False,
+        display_title_template="Answer from <strong>{}</strong>",
+    )
+
+    # Build the display
+    display = get_sub_agent_answer_display(
+        display_name=display_name,
+        display_config=config,
         answer=answer,
         assistant_id=assistant_id,
-        display_title_template="Answer from <strong>{}</strong>",
     )
 
     text_with_display = f"Start\n{display}\nEnd"
 
     # Act
-    result = _remove_sub_agent_answer_from_text(
-        display_mode=mode,
-        add_quote_border=False,
-        add_block_border=False,
+    result = remove_sub_agent_answer_from_text(
+        display_config=config,
         text=text_with_display,
         assistant_id=assistant_id,
-        display_title_template="Answer from <strong>{}</strong>",
     )
 
     # Assert
@@ -1267,29 +1264,28 @@ def test_remove_sub_agent_answer__handles_empty_answer__successfully() -> None:
     assistant_id = "agent-empty"
     display_name = "Empty Answer Agent"
     answer = ""
-    mode = SubAgentResponseDisplayMode.PLAIN
-
-    # Build the display
-    display = _build_sub_agent_answer_display(
-        display_name=display_name,
-        display_mode=mode,
+    config = SubAgentDisplayConfig(
+        mode=SubAgentResponseDisplayMode.PLAIN,
         add_quote_border=False,
         add_block_border=False,
+        display_title_template="Answer from <strong>{}</strong>",
+    )
+
+    # Build the display
+    display = get_sub_agent_answer_display(
+        display_name=display_name,
+        display_config=config,
         answer=answer,
         assistant_id=assistant_id,
-        display_title_template="Answer from <strong>{}</strong>",
     )
 
     text_with_display = f"Beginning\n{display}\nEnding"
 
     # Act
-    result = _remove_sub_agent_answer_from_text(
-        display_mode=mode,
-        add_quote_border=False,
-        add_block_border=False,
+    result = remove_sub_agent_answer_from_text(
+        display_config=config,
         text=text_with_display,
         assistant_id=assistant_id,
-        display_title_template="Answer from <strong>{}</strong>",
     )
 
     # Assert
@@ -1308,30 +1304,29 @@ def test_remove_sub_agent_answer__no_op_when_assistant_not_found() -> None:
     # Arrange
     assistant_id_present = "agent-present"
     assistant_id_absent = "agent-absent"
-    mode = SubAgentResponseDisplayMode.PLAIN
-
-    # Build display for present assistant
-    display = _build_sub_agent_answer_display(
-        display_name="Present Agent",
-        display_mode=mode,
+    config = SubAgentDisplayConfig(
+        mode=SubAgentResponseDisplayMode.PLAIN,
         add_quote_border=False,
         add_block_border=False,
+        display_title_template="Answer from <strong>{}</strong>",
+    )
+
+    # Build display for present assistant
+    display = get_sub_agent_answer_display(
+        display_name="Present Agent",
+        display_config=config,
         answer="Present answer",
         assistant_id=assistant_id_present,
-        display_title_template="Answer from <strong>{}</strong>",
     )
 
     text_with_display = f"Start\n{display}\nEnd"
     original_text = text_with_display
 
     # Act - Try to remove absent assistant
-    result = _remove_sub_agent_answer_from_text(
-        display_mode=mode,
-        add_quote_border=False,
-        add_block_border=False,
+    result = remove_sub_agent_answer_from_text(
+        display_config=config,
         text=text_with_display,
         assistant_id=assistant_id_absent,
-        display_title_template="Answer from <strong>{}</strong>",
     )
 
     # Assert

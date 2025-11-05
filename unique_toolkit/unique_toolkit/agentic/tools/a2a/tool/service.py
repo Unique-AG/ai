@@ -1,13 +1,21 @@
 import asyncio
 import contextlib
+import logging
 import re
-from typing import Protocol, override
+from datetime import datetime
+from typing import override
 
 import unique_sdk
 from pydantic import Field, create_model
 from unique_sdk.utils.chat_in_space import send_message_and_wait_for_completion
 
+from unique_toolkit._common.referencing import (
+    get_all_ref_numbers,
+    remove_all_refs,
+    replace_ref_number,
+)
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
+from unique_toolkit.agentic.tools.a2a.response_watcher import SubAgentResponseWatcher
 from unique_toolkit.agentic.tools.a2a.tool._memory import (
     get_sub_agent_short_term_memory_manager,
 )
@@ -31,20 +39,7 @@ from unique_toolkit.language_model import (
     LanguageModelToolDescription,
 )
 
-
-class SubAgentResponseSubscriber(Protocol):
-    def notify_sub_agent_response(
-        self,
-        response: unique_sdk.Space.Message,
-        sub_agent_assistant_id: str,
-        sequence_number: int,
-    ) -> None: ...
-
-    """
-    Notify the subscriber that a sub agent response has been received.
-    Important: The subscriber should NOT modify the response in place.
-    The sequence number is a 1-indexed counter that is incremented for each concurrent run of the same sub agent.
-    """
+logger = logging.getLogger(__name__)
 
 
 class SubAgentTool(Tool[SubAgentToolConfig]):
@@ -57,6 +52,7 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
         tool_progress_reporter: ToolProgressReporter | None = None,
         name: str = "SubAgentTool",
         display_name: str = "SubAgentTool",
+        response_watcher: SubAgentResponseWatcher | None = None,
     ):
         super().__init__(configuration, event, tool_progress_reporter)
         self._user_id = event.user_id
@@ -71,8 +67,9 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
             chat_id=event.payload.chat_id,
             assistant_id=self.config.assistant_id,
         )
-        self._subscribers: list[SubAgentResponseSubscriber] = []
         self._should_run_evaluation = False
+
+        self._response_watcher = response_watcher
 
         # Synchronization state
         self._sequence_number = 1
@@ -84,8 +81,11 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
     ) -> str:
         return f"<sup><name>{name} {sequence_number}</name>{reference_number}</sup>"
 
-    def subscribe(self, subscriber: SubAgentResponseSubscriber) -> None:
-        self._subscribers.append(subscriber)
+    @staticmethod
+    def get_sub_agent_reference_re(
+        name: str, sequence_number: int, reference_number: int
+    ) -> str:
+        return rf"<sup>\s*<name>\s*{re.escape(name)}\s*{sequence_number}\s*</name>\s*{reference_number}\s*</sup>"
 
     @override
     def display_name(self) -> str:
@@ -137,6 +137,7 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
     @override
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
         tool_input = SubAgentToolInput.model_validate(tool_call.arguments)
+        timestamp = datetime.now()
 
         if self._lock.locked():
             await self._notify_progress(
@@ -172,7 +173,7 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                 response["assessment"] is not None and len(response["assessment"]) > 0
             )  # Run evaluation if any sub agent returned an assessment
 
-            self._notify_subscribers(response, sequence_number)
+            self._notify_watcher(response, sequence_number, timestamp)
 
             if chat_id is None:
                 await self._save_chat_id(response["chatId"])
@@ -215,16 +216,18 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
     def _prepare_response_references(self, response: str, sequence_number: int) -> str:
         if not self.config.use_sub_agent_references:
             # Remove all references from the response
-            response = re.sub(r"<sup>\s*\d+\s*</sup>", "", response)
+            response = remove_all_refs(response)
             return response
 
-        for ref_number in re.findall(r"<sup>(\d+)</sup>", response):
+        for ref_number in get_all_ref_numbers(response):
             reference = self.get_sub_agent_reference_format(
                 name=self.name,
                 sequence_number=sequence_number,
                 reference_number=ref_number,
             )
-            response = response.replace(f"<sup>{ref_number}</sup>", reference)
+            response = replace_ref_number(
+                text=response, ref_number=ref_number, replacement=reference
+            )
         return response
 
     async def _save_chat_id(self, chat_id: str) -> None:
@@ -249,14 +252,25 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                 state=state,
             )
 
-    def _notify_subscribers(
-        self, response: unique_sdk.Space.Message, sequence_number: int
+    def _notify_watcher(
+        self,
+        response: unique_sdk.Space.Message,
+        sequence_number: int,
+        timestamp: datetime,
     ) -> None:
-        for subsciber in self._subscribers:
-            subsciber.notify_sub_agent_response(
-                sub_agent_assistant_id=self.config.assistant_id,
-                response=response,
+        if self._response_watcher is not None:
+            self._response_watcher.notify_response(
+                assistant_id=self.config.assistant_id,
+                name=self.name,
                 sequence_number=sequence_number,
+                response=response,
+                timestamp=timestamp,
+            )
+        else:
+            logger.warning(
+                "No response watcher found for sub agent %s (assistant_id: %s)",
+                self.name,
+                self.config.assistant_id,
             )
 
     async def _execute_and_handle_timeout(

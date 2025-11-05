@@ -163,30 +163,29 @@ class HistoryManager:
             f"Appending tool call result to history: {tool_response.name}"
         )
 
-        if tool_response.content != "":
-            return LanguageModelToolMessage(
-                content=tool_response.content,
-                tool_call_id=tool_response.id,  # type: ignore
-                name=tool_response.name,
+        content = tool_response.content
+        if content == "":
+            content_chunks = (
+                tool_response.content_chunks or []
+            )  # it can be that the tool response does not have content chunks
+
+            # Transform content chunks into sources to be appended to tool result
+            stringified_sources, sources = transform_chunks_to_string(
+                content_chunks,
+                self._source_enumerator,
             )
+            content = stringified_sources
 
-        content_chunks = (
-            tool_response.content_chunks or []
-        )  # it can be that the tool response does not have content chunks
+            self._source_enumerator += len(
+                sources
+            )  # To make sure all sources have unique source numbers
 
-        # Transform content chunks into sources to be appended to tool result
-        stringified_sources, sources = transform_chunks_to_string(
-            content_chunks,
-            self._source_enumerator,
-        )
-
-        self._source_enumerator += len(
-            sources
-        )  # To make sure all sources have unique source numbers
+        if tool_response.system_reminder:
+            content += f"\n\n{tool_response.system_reminder}"
 
         # Append the result to the history
         return LanguageModelToolMessage(
-            content=stringified_sources,
+            content=content,
             tool_call_id=tool_response.id,  # type: ignore
             name=tool_response.name,
         )

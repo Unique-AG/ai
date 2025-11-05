@@ -5,6 +5,7 @@ import pytest
 from pydantic import BaseModel
 
 from tests.test_obj_factory import get_event_obj
+from unique_toolkit.agentic.tools.a2a import SubAgentResponseWatcher
 from unique_toolkit.agentic.tools.a2a.manager import A2AManager
 from unique_toolkit.agentic.tools.config import (
     ToolBuildConfig,
@@ -181,6 +182,7 @@ class TestMCPManager:
         return A2AManager(
             logger=self.logger,
             tool_progress_reporter=tool_progress_reporter,
+            response_watcher=SubAgentResponseWatcher(),
         )
 
     @pytest.fixture
@@ -285,6 +287,7 @@ class TestMCPManager:
         a2a_manager = A2AManager(
             logger=self.logger,
             tool_progress_reporter=tool_progress_reporter,
+            response_watcher=SubAgentResponseWatcher(),
         )
 
         tool_manager = ToolManager(
@@ -321,6 +324,7 @@ class TestMCPManager:
         a2a_manager = A2AManager(
             logger=self.logger,
             tool_progress_reporter=tool_progress_reporter,
+            response_watcher=SubAgentResponseWatcher(),
         )
 
         tool_manager = ToolManager(
@@ -357,6 +361,7 @@ class TestMCPManager:
         a2a_manager = A2AManager(
             logger=self.logger,
             tool_progress_reporter=tool_progress_reporter,
+            response_watcher=SubAgentResponseWatcher(),
         )
 
         tool_manager = ToolManager(
@@ -396,6 +401,7 @@ class TestMCPManager:
         a2a_manager = A2AManager(
             logger=self.logger,
             tool_progress_reporter=tool_progress_reporter,
+            response_watcher=SubAgentResponseWatcher(),
         )
 
         tool_manager = ToolManager(
@@ -437,6 +443,7 @@ class TestMCPManager:
         a2a_manager = A2AManager(
             logger=self.logger,
             tool_progress_reporter=tool_progress_reporter,
+            response_watcher=SubAgentResponseWatcher(),
         )
 
         tool_manager = ToolManager(

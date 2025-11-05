@@ -2,6 +2,7 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Any, Optional
 
+import unique_sdk
 from humps import camelize
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -113,6 +114,22 @@ class ContentReference(BaseModel):
         default=[],
         description="List of indices in the ChatMessage original_content this reference refers to. This is usually the id in the functionCallResponse. List type due to implementation in node-chat",
     )
+
+    @classmethod
+    def from_sdk_reference(
+        cls, reference: unique_sdk.Message.Reference | unique_sdk.Space.Reference
+    ) -> "ContentReference":
+        kwargs = {
+            "name": reference["name"],
+            "url": reference["url"],
+            "sequence_number": reference["sequenceNumber"],
+            "source": reference["source"],
+            "source_id": reference["sourceId"],
+        }
+        if "originalIndex" in reference:
+            kwargs["original_index"] = reference["originalIndex"]
+
+        return cls.model_validate(kwargs)
 
 
 class ContentSearchType(StrEnum):

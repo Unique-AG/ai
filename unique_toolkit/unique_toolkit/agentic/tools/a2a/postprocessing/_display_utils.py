@@ -2,6 +2,7 @@ import re
 from typing import Literal
 
 from unique_toolkit.agentic.tools.a2a.postprocessing.config import (
+    SubAgentDisplayConfig,
     SubAgentResponseDisplayMode,
 )
 
@@ -149,39 +150,36 @@ def _get_display_removal_re(
     return re.compile(pattern, flags=re.DOTALL)
 
 
-def _build_sub_agent_answer_display(
+def get_sub_agent_answer_display(
     display_name: str,
-    display_mode: SubAgentResponseDisplayMode,
-    display_title_template: str,
-    add_quote_border: bool,
-    add_block_border: bool,
+    display_config: SubAgentDisplayConfig,
     answer: str,
     assistant_id: str,
 ) -> str:
     template = _get_display_template(
-        mode=display_mode,
-        add_quote_border=add_quote_border,
-        add_block_border=add_block_border,
-        display_title_template=display_title_template,
+        mode=display_config.mode,
+        add_quote_border=display_config.add_quote_border,
+        add_block_border=display_config.add_block_border,
+        display_title_template=display_config.display_title_template,
     )
     return template.format(
         display_name=display_name, answer=answer, assistant_id=assistant_id
     )
 
 
-def _remove_sub_agent_answer_from_text(
-    display_mode: SubAgentResponseDisplayMode,
-    add_quote_border: bool,
-    add_block_border: bool,
+def remove_sub_agent_answer_from_text(
+    display_config: SubAgentDisplayConfig,
     text: str,
     assistant_id: str,
-    display_title_template: str,
 ) -> str:
+    if not display_config.remove_from_history:
+        return text
+
     pattern = _get_display_removal_re(
         assistant_id=assistant_id,
-        mode=display_mode,
-        add_quote_border=add_quote_border,
-        add_block_border=add_block_border,
-        display_title_template=display_title_template,
+        mode=display_config.mode,
+        add_quote_border=display_config.add_quote_border,
+        add_block_border=display_config.add_block_border,
+        display_title_template=display_config.display_title_template,
     )
     return re.sub(pattern, "", text)

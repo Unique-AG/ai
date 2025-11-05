@@ -19,6 +19,10 @@ class ToolCallResponse(BaseModel):
     content_chunks: Optional[list[ContentChunk]] = None  # TODO: Make the default []
     reasoning_result: Optional[dict] = None  # TODO: Make the default {}
     error_message: str = ""
+    system_reminder: str = Field(
+        default="",
+        description="A reminder for the agent to consider when using the tool that will be appended to the tool call response",
+    )
 
     @property
     def successful(self) -> bool:
