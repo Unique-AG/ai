@@ -23,11 +23,11 @@ class Space(APIResource["Space"]):
         Parameters for querying the assistant for a message.
         """
 
-        chatId: NotRequired[str | None]
+        chatId: NotRequired[Optional[str]]
         assistantId: str
-        text: NotRequired[str | None]
-        toolChoices: NotRequired[List[str] | None]
-        scopeRules: NotRequired[dict | None]
+        text: NotRequired[Optional[str]]
+        toolChoices: NotRequired[Optional[List[str]]]
+        scopeRules: NotRequired[Optional[dict]]
 
     class Reference(TypedDict):
         """
@@ -35,9 +35,11 @@ class Space(APIResource["Space"]):
         """
 
         name: str
-        url: str | None
+        title: Optional[str]
+        description: Optional[str]
+        url: Optional[str]
         sequenceNumber: int
-        originalIndex: List[int] | None
+        originalIndex: Optional[List[int]]
         sourceId: str
         source: str
 
@@ -51,14 +53,13 @@ class Space(APIResource["Space"]):
         updatedAt: str
         messageId: str
         status: str
-        explanation: str | None
-        label: str | None
-        type: str | None
-        title: str | None
+        explanation: Optional[str]
+        label: Optional[str]
+        type: Optional[str]
+        title: Optional[str]
         companyId: str
         userId: str
         isVisible: bool
-        createdBy: str | None
 
     class Message(TypedDict):
         """
@@ -67,14 +68,14 @@ class Space(APIResource["Space"]):
 
         id: str
         chatId: str
-        text: str | None
-        originalText: str | None
+        text: Optional[str]
+        originalText: Optional[str]
         role: Literal["SYSTEM", "USER", "ASSISTANT"]
         debugInfo: Optional[Dict[str, Any]]
-        completedAt: str | None
-        createdAt: str | None
-        updatedAt: str | None
-        stoppedStreamingAt: str | None
+        completedAt: Optional[str]
+        createdAt: Optional[str]
+        updatedAt: Optional[str]
+        stoppedStreamingAt: Optional[str]
         references: Optional[List["Space.Reference"]]
         assessment: Optional[List["Space.Assessment"]]
 

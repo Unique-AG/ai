@@ -1,4 +1,13 @@
-from typing import ClassVar, Literal, NotRequired, TypedDict, Unpack, cast
+from typing import (
+    ClassVar,
+    List,
+    Literal,
+    NotRequired,
+    Optional,
+    TypedDict,
+    Unpack,
+    cast,
+)
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
@@ -12,9 +21,11 @@ class MessageLog(APIResource["MessageLog"]):
 
     class Reference(TypedDict):
         name: str
-        url: str | None
+        title: Optional[str]
+        description: Optional[str]
+        url: Optional[str]
         sequenceNumber: int
-        originalIndex: list[int] | None
+        originalIndex: Optional[List[int]]
         sourceId: str
         source: str
 
@@ -27,21 +38,21 @@ class MessageLog(APIResource["MessageLog"]):
         text: str
         status: "MessageLog.StatusLiteral"
         order: int
-        details: NotRequired[dict | None]
-        uncitedReferences: NotRequired[dict | None]
-        references: NotRequired[list["MessageLog.Reference"] | None]
+        details: NotRequired[Optional[dict]]
+        uncitedReferences: NotRequired[Optional[dict]]
+        references: NotRequired[Optional[list["MessageLog.Reference"]]]
 
     class UpdateMessageLogParams(RequestOptions):
         """
         Parameters for updating a message log.
         """
 
-        text: NotRequired[str | None]
-        status: NotRequired["MessageLog.StatusLiteral | None"]
-        order: NotRequired[int | None]
-        details: NotRequired[dict | None]
-        uncitedReferences: NotRequired[dict | None]
-        references: NotRequired[list["MessageLog.Reference"] | None]
+        text: NotRequired[Optional[str]]
+        status: NotRequired[Optional["MessageLog.StatusLiteral"]]
+        order: NotRequired[Optional[int]]
+        details: NotRequired[Optional[dict]]
+        uncitedReferences: NotRequired[Optional[dict]]
+        references: NotRequired[Optional[list["MessageLog.Reference"]]]
 
     id: str
     messageId: str

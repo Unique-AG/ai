@@ -25,7 +25,6 @@ class Folder(APIResource["Folder"]):
         entityId: str
         type: Literal["READ", "WRITE"]
         entityType: Literal["USER", "GROUP"]
-        createdAt: NotRequired[str]
 
     class Children(TypedDict):
         """
@@ -37,26 +36,26 @@ class Folder(APIResource["Folder"]):
 
     class CustomApiOptions(TypedDict):
         apiIdentifier: str
-        apiPayload: str | None
+        apiPayload: Optional[str]
         customisationType: str
 
     class VttConfig(TypedDict):
-        languageModel: str | None
+        languageModel: Optional[str]
 
     class IngestionConfig(TypedDict):
-        chunkMaxTokens: NotRequired[int | None]
-        chunkMaxTokensOnePager: NotRequired[int | None]
-        chunkMinTokens: NotRequired[int | None]
-        chunkStrategy: NotRequired[str | None]
-        customApiOptions: NotRequired[List["Folder.CustomApiOptions"] | None]
-        documentMinTokens: NotRequired[int | None]
-        excelReadMode: NotRequired[str | None]
-        jpgReadMode: NotRequired[str | None]
-        pdfReadMode: NotRequired[str | None]
-        pptReadMode: NotRequired[str | None]
+        chunkMaxTokens: NotRequired[Optional[int]]
+        chunkMaxTokensOnePager: NotRequired[Optional[int]]
+        chunkMinTokens: NotRequired[Optional[int]]
+        chunkStrategy: NotRequired[Optional[str]]
+        customApiOptions: NotRequired[Optional[List["Folder.CustomApiOptions"]]]
+        documentMinTokens: NotRequired[Optional[int]]
+        excelReadMode: NotRequired[Optional[str]]
+        jpgReadMode: NotRequired[Optional[str]]
+        pdfReadMode: NotRequired[Optional[str]]
+        pptReadMode: NotRequired[Optional[str]]
         uniqueIngestionMode: str
-        vttConfig: NotRequired["Folder.VttConfig | None"]
-        wordReadMode: NotRequired[str | None]
+        vttConfig: NotRequired[Optional["Folder.VttConfig"]]
+        wordReadMode: NotRequired[Optional[str]]
 
     class CreatedFolder(TypedDict):
         id: str
@@ -78,10 +77,10 @@ class Folder(APIResource["Folder"]):
         id: str
         name: str
         ingestionConfig: "Folder.IngestionConfig"
-        createdAt: str | None
-        updatedAt: str | None
-        parentId: str | None
-        externalId: str | None
+        createdAt: str
+        updatedAt: str
+        parentId: Optional[str]
+        externalId: Optional[str]
 
     class FolderInfos(TypedDict):
         folderInfos: List["Folder.FolderInfo"]
@@ -97,8 +96,8 @@ class Folder(APIResource["Folder"]):
         Parameters for updating folder ingestion config.
         """
 
-        scopeId: NotRequired[str | None]
-        folderPath: NotRequired[str | None]
+        scopeId: NotRequired[Optional[str]]
+        folderPath: NotRequired[Optional[str]]
         ingestionConfig: "Folder.IngestionConfig"
         applyToSubScopes: bool
 
@@ -107,8 +106,8 @@ class Folder(APIResource["Folder"]):
         Parameters for adding access to a folder.
         """
 
-        scopeId: NotRequired[str | None]
-        folderPath: NotRequired[str | None]
+        scopeId: NotRequired[Optional[str]]
+        folderPath: NotRequired[Optional[str]]
         scopeAccesses: List["Folder.ScopeAccess"]
         applyToSubScopes: bool
 
@@ -117,8 +116,8 @@ class Folder(APIResource["Folder"]):
         Parameters for removing access from a folder.
         """
 
-        scopeId: NotRequired[str | None]
-        folderPath: NotRequired[str | None]
+        scopeId: NotRequired[Optional[str]]
+        folderPath: NotRequired[Optional[str]]
         scopeAccesses: List["Folder.ScopeAccess"]
         applyToSubScopes: bool
 

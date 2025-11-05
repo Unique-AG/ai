@@ -29,24 +29,31 @@ class Message(APIResource["Message"]):
 
     class Reference(TypedDict):
         name: str
+        title: Optional[str]
+        description: Optional[str]
         url: Optional[str]
         sequenceNumber: int
+        originalIndex: Optional[List[int]]
         sourceId: str
         source: str
 
     class CreateParams(RequestOptions):
         chatId: str
         assistantId: str
-        role: Literal["ASSISTANT"]
+        role: Literal["ASSISTANT", "USER"]
+        originalText: NotRequired[Optional["str"]]
         text: NotRequired[Optional["str"]]
         references: Optional[List["Message.Reference"]]
+        gptRequest: NotRequired[Optional[Dict[str, Any]]]
         debugInfo: Optional[Dict[str, Any]]
         completedAt: Optional[datetime]
 
     class ModifyParams(RequestOptions):
         chatId: str
+        originalText: NotRequired[Optional["str"]]
         text: NotRequired[Optional["str"]]
         references: Optional[List["Message.Reference"]]
+        gptRequest: NotRequired[Optional[Dict[str, Any]]]
         debugInfo: Optional[Dict[str, Any]]
         completedAt: Optional[datetime]
 
@@ -62,12 +69,12 @@ class Message(APIResource["Message"]):
     class CreateEventParams(RequestOptions):
         messageId: str
         chatId: str
-        originalText: NotRequired[str | None]
-        text: NotRequired[str | None]
-        references: NotRequired[List["Message.Reference"] | None]
-        gptRequest: NotRequired[Dict[str, Any] | None]
-        debugInfo: NotRequired[Dict[str, Any] | None]
-        completedAt: NotRequired[datetime | None]
+        originalText: NotRequired[Optional[str]]
+        text: NotRequired[Optional[str]]
+        references: NotRequired[Optional[List["Message.Reference"]]]
+        gptRequest: NotRequired[Optional[Dict[str, Any]]]
+        debugInfo: NotRequired[Optional[Dict[str, Any]]]
+        completedAt: NotRequired[Optional[datetime]]
 
     chatId: str
     text: Optional[str]

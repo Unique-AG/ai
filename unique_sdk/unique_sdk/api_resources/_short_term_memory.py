@@ -21,10 +21,9 @@ class ShortTermMemory(APIResource["ShortTermMemory"]):
         messageId: NotRequired[Optional[str]]
 
     id: str
-    memoryName: str
     chatId: Optional[str]
     messageId: Optional[str]
-    data: Optional[str]
+    data: str
 
     @classmethod
     def create(
