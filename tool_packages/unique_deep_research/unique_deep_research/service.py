@@ -391,6 +391,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             additional_openai_proxy_headers = {
                 "x-user-id": self.user_id,
                 "x-chat-id": self.chat_id,
+                "x-assistant-id": self.event.payload.assistant_id,
             }
             config = {
                 "configurable": {
