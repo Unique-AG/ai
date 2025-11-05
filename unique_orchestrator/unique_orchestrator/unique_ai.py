@@ -299,7 +299,7 @@ class UniqueAI:
         )
         return user_msg
 
-    async def _render_system_prompt(self, h) -> str:
+    async def _render_system_prompt(self) -> str:
         # TODO: Collect tool information here and adapt to system prompt
         tool_descriptions = self._tool_manager.get_tool_prompts()
 
