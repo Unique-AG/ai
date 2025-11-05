@@ -29,7 +29,6 @@ class Message(APIResource["Message"]):
 
     class Reference(TypedDict):
         name: str
-        title: Optional[str]
         description: Optional[str]
         url: Optional[str]
         sequenceNumber: int
