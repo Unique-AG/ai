@@ -388,6 +388,11 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             }
 
             # Prepare configuration for LangGraph
+            additional_openai_proxy_headers = {
+                "x-user-id": self.user_id,
+                "x-chat-id": self.chat_id,
+                "x-assistant-id": self.event.payload.assistant_id,
+            }
             config = {
                 "configurable": {
                     "engine_config": self.config.engine,
@@ -396,6 +401,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                     "content_service": self.content_service,
                     "message_id": self.event.payload.assistant_message.id,
                     "citation_manager": citation_manager,
+                    "additional_openai_proxy_headers": additional_openai_proxy_headers,
                 },
             }
 
