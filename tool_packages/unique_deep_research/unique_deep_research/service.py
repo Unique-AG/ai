@@ -21,6 +21,7 @@ from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.short_term_memory_manager.persistent_short_term_memory_manager import (
     PersistentShortMemoryManager,
 )
+from unique_toolkit.agentic.tools.agent_chunks_hanlder import AgentChunksHandler
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
@@ -40,6 +41,7 @@ from unique_toolkit.framework_utilities.openai.client import get_async_openai_cl
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelMessage,
+    LanguageModelMessageRole,
 )
 from unique_toolkit.short_term_memory.service import ShortTermMemoryService
 
@@ -71,10 +73,6 @@ class DeepResearchToolInput(BaseModel):
         description="Whether to start research",
         default=False,
     )
-
-
-class DeepResearchToolResponse(ToolCallResponse):
-    content: str | None = None
 
 
 class MemorySchema(BaseModel):
@@ -109,6 +107,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         self.user_id = event.user_id
 
         self.client = get_async_openai_client()
+
         self.logger.info(f"Using async OpenAI client pointed to {self.client.base_url}")
 
         self.content_service = ContentService(
@@ -212,7 +211,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                 content="Deep Research failed to complete for an unknown reason",
                 set_completed_at=True,
             )
-        return DeepResearchToolResponse(
+        return ToolCallResponse(
             id=tool_call.id or "",
             name=self.name,
             content="Failed to complete research",
@@ -234,7 +233,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                 message_id=self.event.payload.assistant_message.id,
                 type=MessageExecutionType.DEEP_RESEARCH,
             )
-            return DeepResearchToolResponse(
+            return ToolCallResponse(
                 id=tool_call.id or "",
                 name=self.name,
                 content="",
@@ -258,7 +257,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                     content="Deep Research failed to complete for an unknown reason",
                     set_completed_at=True,
                 )
-                return DeepResearchToolResponse(
+                return ToolCallResponse(
                     id=tool_call.id or "",
                     name=self.name,
                     content=processed_result or "Failed to complete research",
@@ -272,7 +271,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             await self._update_execution_status(MessageExecutionUpdateStatus.COMPLETED)
 
             # Return the results
-            return DeepResearchToolResponse(
+            return ToolCallResponse(
                 id=tool_call.id or "",
                 name=self.name,
                 content=processed_result,
@@ -288,7 +287,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         await self.memory_service.save_async(
             MemorySchema(message_id=self.event.payload.assistant_message.id),
         )
-        return DeepResearchToolResponse(
+        return ToolCallResponse(
             id=tool_call.id or "",
             name=self.name,
             content=followup_question_message,
@@ -388,6 +387,11 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             }
 
             # Prepare configuration for LangGraph
+            additional_openai_proxy_headers = {
+                "x-user-id": self.user_id,
+                "x-chat-id": self.chat_id,
+                "x-assistant-id": self.event.payload.assistant_id,
+            }
             config = {
                 "configurable": {
                     "engine_config": self.config.engine,
@@ -396,6 +400,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                     "content_service": self.content_service,
                     "message_id": self.event.payload.assistant_message.id,
                     "citation_manager": citation_manager,
+                    "additional_openai_proxy_headers": additional_openai_proxy_headers,
                 },
             }
 
@@ -681,7 +686,23 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             self.logger.warning("Post-processing returned empty result, using original")
             return research_result
 
-    def get_user_request(self) -> str | None:
+    def get_tool_call_result_for_loop_history(
+        self,
+        tool_response: ToolCallResponse,
+        agent_chunks_handler: AgentChunksHandler,  # noqa: ARG002
+    ) -> LanguageModelMessage:
+        """
+        Convert tool response to message format for conversation history.
+
+        Since DeepResearch writes directly to message logs and takes control,
+        we return the content without additional processing.
+        """
+        return LanguageModelMessage(
+            role=LanguageModelMessageRole.TOOL,
+            content=tool_response.content,
+        )
+
+    def get_user_request(self) -> str:
         """
         Get the user's request.
         """

@@ -20,6 +20,16 @@ from unique_sdk._request_options import RequestOptions
 class Content(APIResource["Content"]):
     OBJECT_NAME: ClassVar[Literal["content.search"]] = "content.search"
 
+    id: str
+    key: str
+    url: Optional[str]
+    title: Optional[str]
+    updatedAt: str
+    chunks: Optional[List["Content.Chunk"]]
+    metadata: Optional[Dict[str, Any]]
+    writeUrl: Optional[str]
+    readUrl: Optional[str]
+
     class QueryMode(Enum):
         Default = "default"
         Insensitive = "insensitive"
@@ -193,16 +203,6 @@ class Content(APIResource["Content"]):
 
     class DeleteResponse(TypedDict):
         id: str
-
-    id: str
-    key: str
-    url: Optional[str]
-    title: Optional[str]
-    updatedAt: str
-    chunks: List[Chunk]
-    metadata: Optional[Dict[str, Any]]
-    writeUrl: str
-    readUrl: str
 
     class MagicTableSheetTableColumn(TypedDict):
         columnId: str

@@ -5,8 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.38] - 2025-11-06
+- Add description property to Reference and Content.
+
 ## [0.10.37] - 2025-11-04
-- Add title and description properties to the Reference.
+- Introduce local integration tests for Content API Resource
 
 ## [0.10.36] - 2025-11-04
 - Introduce local integration tests for Folder API Resource

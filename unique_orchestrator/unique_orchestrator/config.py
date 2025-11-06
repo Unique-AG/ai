@@ -163,6 +163,12 @@ class UniqueAIPromptConfig(BaseModel):
         description="The user message prompt template as a Jinja2 template string.",
     )
 
+    user_metadata: list[str] = Field(
+        default=[],
+        title="User Metadata",
+        description="User metadata fields to be ingested in the system prompt.",
+    )
+
 
 class UniqueAIServices(BaseModel):
     """Determine the services the agent is using
