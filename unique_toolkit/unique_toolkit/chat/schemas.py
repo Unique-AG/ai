@@ -208,7 +208,7 @@ class MessageLogDetails(BaseModel):
 class MessageLog(BaseModel):
     model_config = model_config
 
-    message_log_id: str | None = None
+    message_log_id: str | None = Field(default=None, validation_alias="id")
     message_id: str | None = None
     status: MessageLogStatus
     text: str | None = None

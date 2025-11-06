@@ -5,6 +5,7 @@
 
 - If tool calls are present → handle tools via `_handle_tool_calls()` and return whether a tool took control (if so, exit loop).
   - A tool can take control if its an agent itself and takes over the communication with the user e.g. the DeepResearch tool.
+  - When the loop_response contains text and tools have been called—meaning the orchestrator triggers tool calls and generated a response—a new assistant message is created via `_create_new_assistant_message_if_loop_response_contains_content` for following assistant outputs.
 - If no tool calls → handle finalization via `_handle_no_tool_calls()` and exit the loop.
 
 - If the model response is empty → warn the user and exit the loop. This case normally never happens in LLMs, it is more of a precaution.
@@ -35,6 +36,7 @@ Code:
             self._logger.debug(
                   "Tools were called we process them and do not exit the loop"
             )
+            await self._create_new_assistant_message_if_loop_response_contains_content(loop_response)
 
             return await self._handle_tool_calls(loop_response)
 

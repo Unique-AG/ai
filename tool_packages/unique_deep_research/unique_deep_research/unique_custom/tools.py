@@ -60,9 +60,6 @@ class WebSearchArgs(BaseModel):
     """Arguments for web search tool."""
 
     query: str = Field(description="Search query to find relevant information")
-    limit: int = Field(
-        description="Limit of results to fetch from web", default=50, le=100, ge=1
-    )
 
 
 class WebFetchArgs(BaseModel):
@@ -147,12 +144,13 @@ def research_complete_tool_called(tool_calls: list[ToolCall]) -> bool:
 
 
 @tool(args_schema=WebSearchArgs)
-async def web_search(query: str, config: RunnableConfig, limit: int = 50) -> str:
+async def web_search(query: str, config: RunnableConfig) -> str:
     """
     Search the web for comprehensive, accurate, and trusted results.
 
     Useful for finding current information, news, and general knowledge
-    from across the internet. Only returns snippets of the results.
+    from across the internet. Only returns snippets of the results and only returns the first 10 results.
+    You can search again with a new query if you need more results.
     Should be followed up by web_fetch to get the complete content of the results.
     """
     google_settings = get_google_search_settings()
@@ -162,7 +160,7 @@ async def web_search(query: str, config: RunnableConfig, limit: int = 50) -> str
         raise ValueError("Google Search not configured")
 
     # Create Google search configuration and service
-    google_config = GoogleConfig(fetch_size=limit)
+    google_config = GoogleConfig(fetch_size=10)
     google_search = GoogleSearch(google_config)
 
     # Perform the search
@@ -493,9 +491,19 @@ def get_research_tools(config: RunnableConfig) -> List[Any]:
         think_tool,
         research_complete,
     ]
-    # TODO: set tools that are enabled from the configuration
-    tools.extend([web_search, web_fetch])
-    tools.extend([internal_search, internal_fetch])
+
+    # Get tool configuration from the config
+    configurable = config.get("configurable", {})
+    enable_web_tools = configurable.get("enable_web_tools", True)
+    enable_internal_tools = configurable.get("enable_internal_tools", True)
+
+    # Add web tools if enabled
+    if enable_web_tools:
+        tools.extend([web_search, web_fetch])
+
+    # Add internal tools if enabled
+    if enable_internal_tools:
+        tools.extend([internal_search, internal_fetch])
 
     return tools
 

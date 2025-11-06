@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.11] - 2025-11-05
+- Include chat_id and user_id in headers sent to openai proxy endpoint
+
+## [3.0.10] - 2025-10-31
+- Make agent aware of limitation in data access
+- Apply metadata filter to agent
+
+## [3.0.9] - 2025-10-31
+- Clear original response message when starting new run
+- Forced tool calls fix for setting research completed at max iterations
+- Reduce web search results returned to 10 to reduce api load
+
+## [3.0.8] - 2025-10-29
+- Include DeepResearch Bench results
+
 ## [3.0.7] - 2025-10-28
 - Removing unused tool specific `get_tool_call_result_for_loop_history` function
 

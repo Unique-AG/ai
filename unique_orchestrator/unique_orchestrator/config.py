@@ -10,6 +10,7 @@ from unique_follow_up_questions.config import FollowUpQuestionsConfig
 from unique_internal_search.config import InternalSearchConfig
 from unique_internal_search.service import InternalSearchTool
 from unique_stock_ticker.config import StockTickerConfig
+from unique_swot import SwotAnalysisTool, SwotAnalysisToolConfig
 from unique_toolkit._common.validators import (
     LMI,
     ClipInt,
@@ -90,6 +91,10 @@ class SpaceConfigBase(BaseModel, Generic[T]):
                 name=DeepResearchTool.name,
                 configuration=DeepResearchToolConfig(),
             ),
+            ToolBuildConfig(
+                name=SwotAnalysisTool.name,
+                configuration=SwotAnalysisToolConfig(),
+            ),
         ],
     )
 
@@ -156,6 +161,12 @@ class UniqueAIPromptConfig(BaseModel):
             Path(__file__).parent / "prompts" / "user_message_prompt.jinja2"
         ).read_text(),
         description="The user message prompt template as a Jinja2 template string.",
+    )
+
+    user_metadata: list[str] = Field(
+        default=[],
+        title="User Metadata",
+        description="User metadata fields to be ingested in the system prompt.",
     )
 
 

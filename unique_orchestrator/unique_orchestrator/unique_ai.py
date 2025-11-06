@@ -135,9 +135,6 @@ class UniqueAI:
             self.start_text = self._thinking_manager.update_start_text(
                 self.start_text, loop_response
             )
-            await self._create_new_assistant_message_if_loop_response_contains_content(
-                loop_response
-            )
 
         # Only set completed_at if no tool took control. Tools that take control will set the message state to completed themselves.
         await self._chat_service.modify_assistant_message_async(
@@ -231,6 +228,9 @@ class UniqueAI:
             self._logger.debug(
                 "Tools were called we process them and do not exit the loop"
             )
+            await self._create_new_assistant_message_if_loop_response_contains_content(
+                loop_response
+            )
 
             return await self._handle_tool_calls(loop_response)
 
@@ -270,6 +270,8 @@ class UniqueAI:
             mcp_server.user_prompt for mcp_server in self._mcp_servers
         ]
 
+        user_metadata = self._get_filtered_user_metadata()
+
         tool_descriptions = self._tool_manager.get_tool_prompts()
 
         query = self._event.payload.user_message.text
@@ -293,12 +295,11 @@ class UniqueAI:
             tool_descriptions_with_user_prompts=tool_descriptions_with_user_prompts,
             use_sub_agent_references=use_sub_agent_references,
             sub_agent_referencing_instructions=sub_agent_referencing_instructions,
+            user_metadata=user_metadata,
         )
         return user_msg
 
-    async def _render_system_prompt(
-        self,
-    ) -> str:
+    async def _render_system_prompt(self) -> str:
         # TODO: Collect tool information here and adapt to system prompt
         tool_descriptions = self._tool_manager.get_tool_prompts()
 
@@ -312,6 +313,8 @@ class UniqueAI:
         )
 
         date_string = datetime.now().strftime("%A %B %d, %Y")
+
+        user_metadata = self._get_filtered_user_metadata()
 
         mcp_server_system_prompts = [
             mcp_server.system_prompt for mcp_server in self._mcp_servers
@@ -341,6 +344,7 @@ class UniqueAI:
             mcp_server_system_prompts=mcp_server_system_prompts,
             use_sub_agent_references=use_sub_agent_references,
             sub_agent_referencing_instructions=sub_agent_referencing_instructions,
+            user_metadata=user_metadata,
         )
         return system_message
 
@@ -445,6 +449,26 @@ class UniqueAI:
                 content=loop_response.message.original_text or "",
             )
         )
+
+    def _get_filtered_user_metadata(self) -> dict[str, str]:
+        """
+        Filter user metadata to only include keys specified in the agent's prompt config.
+
+        Returns:
+            Dictionary containing only the metadata keys that are configured to be included.
+        """
+        user_metadata = {}
+        if (
+            self._config.agent.prompt_config.user_metadata
+            and self._event.payload.user_metadata is not None
+        ):
+            # Filter metadata to only include selected keys
+            user_metadata = {
+                k: str(v)
+                for k, v in self._event.payload.user_metadata.items()
+                if k in self._config.agent.prompt_config.user_metadata
+            }
+        return user_metadata
 
 
 class UniqueAIResponsesApi(UniqueAI):

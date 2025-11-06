@@ -563,8 +563,8 @@ async def ainvoke_with_token_handling(
     prepared_messages = prepare_messages_for_model(messages, model_info)
 
     # Retry configuration
-    max_retries = 3
-    base_delay = 4.0  # Base delay in seconds
+    max_retries = 4
+    base_delay = 5.0  # Base delay in seconds
 
     for attempt in range(max_retries + 1):
         try:

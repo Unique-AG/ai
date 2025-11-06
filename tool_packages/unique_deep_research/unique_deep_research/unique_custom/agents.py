@@ -54,15 +54,42 @@ from .utils import (
 _LOGGER = logging.getLogger(__name__)
 
 
-# Pre-configured model for all agents with OpenAI settings
-unique_settings = UniqueSettings.from_env_auto()
-configurable_model = init_chat_model(
-    model_provider="openai",
-    openai_api_key=unique_settings.app.key.get_secret_value(),
-    openai_api_base=unique_settings.api.openai_proxy_url(),
-    default_headers=get_default_headers(unique_settings.app, unique_settings.auth),
-    configurable_fields=("model", "max_tokens", "temperature"),
-)
+# Settings for OpenAI model initialization
+_unique_settings = UniqueSettings.from_env_auto()
+
+
+def get_configurable_model(config: RunnableConfig):
+    """
+    Get the configurable model with additional headers merged from config.
+
+    Args:
+        config: RunnableConfig that contains additional_openai_proxy_headers
+
+    Returns:
+        The configurable model with merged headers
+    """
+    # Get base default headers
+    base_default_headers = get_default_headers(
+        _unique_settings.app, _unique_settings.auth
+    )
+
+    # Get additional headers from config
+    configurable = config.get("configurable", {})
+    additional_openai_proxy_headers = configurable.get(
+        "additional_openai_proxy_headers", {}
+    )
+
+    # Merge additional headers with base headers
+    merged_headers = {**base_default_headers, **additional_openai_proxy_headers}
+
+    # Create and return a new model instance with merged headers
+    return init_chat_model(
+        model_provider="openai",
+        openai_api_key=_unique_settings.app.key.get_secret_value(),
+        openai_api_base=_unique_settings.api.openai_proxy_url(),
+        default_headers=merged_headers,
+        configurable_fields=("model", "max_tokens", "temperature"),
+    )
 
 
 async def setup_research_supervisor(
@@ -92,6 +119,10 @@ async def setup_research_supervisor(
     research_tools = get_research_tools(config)
     research_tools_description = format_tools_for_prompt(research_tools)
 
+    # Get tool configuration for template
+    configurable = config.get("configurable", {})
+    enable_internal_tools = configurable.get("enable_internal_tools", True)
+
     supervisor_system_prompt = TEMPLATE_ENV.get_template(
         "unique/lead_agent_system.j2"
     ).render(
@@ -100,6 +131,7 @@ async def setup_research_supervisor(
         max_concurrent_research_units=max_concurrent,
         max_researcher_iterations=max_iterations,
         research_tools_description=research_tools_description,
+        enable_internal_tools=enable_internal_tools,
     )
 
     return Command(
@@ -144,16 +176,19 @@ async def research_supervisor(
     max_iterations = UniqueCustomEngineConfig.max_research_iterations_lead_researcher
     should_force_complete = research_iterations >= max_iterations
 
+    # Get model with additional headers from config
+    model = get_configurable_model(config)
+
     if should_force_complete:
         _LOGGER.info(
             f"Forcing research_complete at iteration {research_iterations}/{max_iterations}"
         )
-        model_with_tools = configurable_model.bind_tools(
+        model_with_tools = model.bind_tools(
             supervisor_tools,
-            tool_choice={"type": "function", "function": {"name": "research_complete"}},
+            tool_choice="research_complete",
         )
     else:
-        model_with_tools = configurable_model.bind_tools(supervisor_tools)
+        model_with_tools = model.bind_tools(supervisor_tools)
 
     research_model = model_with_tools.with_config(model_config)
 
@@ -163,6 +198,8 @@ async def research_supervisor(
     response = await ainvoke_with_token_handling(
         research_model, supervisor_messages, model_info=custom_config.research_model
     )
+    if should_force_complete and not response.tool_calls:
+        _LOGGER.error("Failed to force research_complete tool call")
 
     return Command(
         goto="supervisor_tools",
@@ -186,7 +223,7 @@ async def supervisor_tools(
 
     # Check exit conditions
     max_iterations = UniqueCustomEngineConfig.max_research_iterations_lead_researcher
-    exceeded_iterations = research_iterations > max_iterations
+    exceeded_iterations = research_iterations >= max_iterations
 
     # Extract tool calls if available
     tool_calls = []
@@ -274,12 +311,24 @@ async def researcher(
 
     # Prepare system prompt with dynamic tool descriptions
     tools_description = format_tools_for_prompt(research_tools)
+
+    # Get tool configuration for template
+    configurable = config.get("configurable", {})
+    enable_internal_tools = configurable.get("enable_internal_tools", True)
+
     researcher_prompt = TEMPLATE_ENV.get_template(
         "unique/research_agent_system.j2"
-    ).render(date=get_today_str(), tools=tools_description)
+    ).render(
+        date=get_today_str(),
+        tools=tools_description,
+        enable_internal_tools=enable_internal_tools,
+    )
+
+    # Get model with additional headers from config
+    model = get_configurable_model(config)
 
     # Configure model with research tools
-    model_with_tools = configurable_model.bind_tools(research_tools)
+    model_with_tools = model.bind_tools(research_tools)
     research_model = model_with_tools.with_config(model_config)  # type: ignore[arg-type]
 
     # Generate researcher response with comprehensive token limit handling
@@ -423,8 +472,11 @@ async def compress_research(
         SystemMessage(content=compression_system_prompt)
     ] + researcher_messages
 
+    # Get model with additional headers from config
+    model = get_configurable_model(config)
+
     # Configure compression model
-    compression_model = configurable_model.with_config(model_config)  # type: ignore[arg-type]
+    compression_model = model.with_config(model_config)  # type: ignore[arg-type]
 
     # Use proactive token handling instead of retry logic
     response = await ainvoke_with_token_handling(
@@ -468,7 +520,9 @@ async def final_report_generation(
             30_000, int(custom_config.large_model.token_limits.token_limit_output * 0.9)
         ),
     }
-    llm = configurable_model.with_config(model_config)
+    # Get model with additional headers from config
+    model = get_configurable_model(config)
+    llm = model.with_config(model_config)
     report_writer_prompt = TEMPLATE_ENV.get_template(
         "unique/report_writer_system_open_deep_research.j2"
     ).render(

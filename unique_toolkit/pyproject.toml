@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_toolkit"
-version = "1.21.2"
+version = "1.24.1" 
 description = ""
 authors = [
     "Cedric Klinkert <cedric.klinkert@unique.ch>",
@@ -9,6 +9,7 @@ authors = [
     "Fabian Schläpfer <fabian@unique.ch>",
     "Pascal Hauri <pascal@unique.ch>",
     "Ejiroghene Oki-Peter<oki-peter.ejiroghene@unique.ai>",
+    "Rami Azouz <rami.ext@unique.ch>",
 ]
 readme = ["README.md", "CHANGELOG.md"]
 license = "Proprietary"
@@ -31,6 +32,8 @@ unique-sdk = "^0.10.28"
 jambo = "^0.1.2"
 mkdocs-multirepo-plugin = "^0.8.3"
 mkdocs-mermaid2-plugin = "^1.2.2"
+docxtpl = "^0.20.1"
+markdown-it-py = "^4.0.0"
 
 [tool.poetry.group.langchain]
 optional = true

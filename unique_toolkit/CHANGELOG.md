@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.24.1] - 2025-11-06
+- Add IconChartBar Icon to ToolIcon
+
+## [1.24.0] - 2025-11-04
+- Introduce ability to include system reminders in tools to be appended when the response is included in the tool call history
+
+## [1.23.0] - 2025-11-04
+- Refactor sub agent tools implementation for clarity and testability.
+
+## [1.22.2] - 2025-11-03
+- Updated `unique_ai_how-it-works.md` and `plan_processing.md` to document how new assistant messages are generated when the orchestrator produces output text and triggers tool calls within the same loop iteration.
+
+## [1.22.1] - 2025-11-03
+- Add missing package required markdown-it-py 
+
+## [1.22.0] - 2025-10-31
+- Add `DocxGeneratorService` for generating Word documents from markdown with template support
+- Fix documentation for `update_message_execution`, `update_message_execution_async`, `update_assistant_message_execution`, and `update_assistant_message_execution_async` functions to correctly reflect that the `status` parameter is now optional
+
 ## [1.21.2] - 2025-10-30
 - Fixing that system format info is only appended to system prompt if tool is called
 

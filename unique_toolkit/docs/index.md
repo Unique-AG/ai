@@ -5,7 +5,7 @@ Unique Toolkit enables python developers access to the unique platform through i
 # Table of Contents
 
 - [Environment Setup](setup/getting_started.md)
-- Application Types
+- [Application Types](application_types/application_types.md)
   - [Standalone Application](application_types/standalone_application.md)
   - [Event Driven Applications](application_types/event_driven_applications.md)
 - [Supported Models](modules/language_models/language_model_overview.md)

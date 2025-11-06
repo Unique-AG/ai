@@ -266,8 +266,3 @@ if __name__ == "__main__":
 ## ✅ Quick Notes
 - This is an HTTP-streamable MCP server (not local) so web clients can authenticate and call tools.
 - Keep `openid`, `email`, `profile` in scopes; adjust or register `mcp:*` scopes in your IdP as needed.
-
-
-## Zitadel Setup
-
-In order to have a 
