@@ -127,6 +127,7 @@ class Content(APIResource["Content"]):
         key: str
         title: Optional[str]
         mimeType: str
+        description: NotRequired[str | None]
         ownerType: NotRequired[str | None]
         ownerId: NotRequired[str | None]
         byteSize: NotRequired[int | None]
@@ -168,6 +169,7 @@ class Content(APIResource["Content"]):
         title: str | None
         metadata: Dict[str, Any] | None
         mimeType: str
+        description: str | None
         byteSize: int
         ownerId: str
         createdAt: str
