@@ -1,5 +1,5 @@
 from enum import StrEnum
-from typing import Any, Generic, Protocol, TypeVar
+from typing import Any, Callable, Generic, Protocol, TypeVar
 from urllib.parse import urljoin, urlparse
 
 from pydantic import BaseModel, Field
@@ -64,6 +64,7 @@ def build_fake_requestor(
             ResponseType,
         ]
     ],
+    combined_model: Callable[CombinedParamsSpec, CombinedParamsType],
     return_value: dict[str, Any],
 ) -> type[EndpointRequestorProtocol[CombinedParamsSpec, ResponseType]]:
     class FakeRequestor(EndpointRequestorProtocol):
@@ -81,7 +82,9 @@ def build_fake_requestor(
                     combined=kwargs
                 )
             except Exception as e:
-                raise ValueError(f"Invalid parameters passed to combined model {e}")
+                raise ValueError(
+                    f"Invalid parameters passed to combined model {combined_model.__name__}: {e}"
+                )
 
             return cls._operation.handle_response(
                 return_value,
@@ -113,6 +116,7 @@ def build_request_requestor(
             ResponseType,
         ]
     ],
+    combined_model: Callable[CombinedParamsSpec, CombinedParamsType],
 ) -> type[EndpointRequestorProtocol[CombinedParamsSpec, ResponseType]]:
     import requests
 
@@ -180,6 +184,7 @@ def build_httpx_requestor(
             ResponseType,
         ]
     ],
+    combined_model: Callable[CombinedParamsSpec, CombinedParamsType],
 ) -> type[EndpointRequestorProtocol[CombinedParamsSpec, ResponseType]]:
     import httpx
 
@@ -267,6 +272,7 @@ def build_aiohttp_requestor(
             ResponseType,
         ]
     ],
+    combined_model: Callable[CombinedParamsSpec, CombinedParamsType],
 ) -> type[EndpointRequestorProtocol[CombinedParamsSpec, ResponseType]]:
     import aiohttp
 
@@ -340,23 +346,31 @@ def build_requestor(
             ResponseType,
         ]
     ],
+    combined_model: Callable[CombinedParamsSpec, CombinedParamsType],
     return_value: dict[str, Any] | None = None,
     **kwargs: Any,
 ) -> type[EndpointRequestorProtocol[CombinedParamsSpec, ResponseType]]:
     match requestor_type:
         case RequestorType.REQUESTS:
-            return build_request_requestor(operation_type=operation_type)
+            return build_request_requestor(
+                operation_type=operation_type, combined_model=combined_model
+            )
         case RequestorType.FAKE:
             if return_value is None:
                 raise ValueError("return_value is required for fake requestor")
             return build_fake_requestor(
                 operation_type=operation_type,
+                combined_model=combined_model,
                 return_value=return_value,
             )
         case RequestorType.HTTPIX:
-            return build_httpx_requestor(operation_type=operation_type)
+            return build_httpx_requestor(
+                operation_type=operation_type, combined_model=combined_model
+            )
         case RequestorType.AIOHTTP:
-            return build_aiohttp_requestor(operation_type=operation_type)
+            return build_aiohttp_requestor(
+                operation_type=operation_type, combined_model=combined_model
+            )
 
 
 if __name__ == "__main__":
@@ -387,11 +401,12 @@ if __name__ == "__main__":
 
     FakeUserRequestor = build_fake_requestor(
         operation_type=UserEndpoint,
+        combined_model=CombinedParams,
         return_value={"id": 100, "name": "John Doe"},
     )
 
     # Note that the return value is a pydantic UserResponse object
-    response = FakeUserRequestor.request(
+    response = FakeUserRequestor().request(
         context=RequestContext(base_url="https://example.com", headers={"a": "b"}),
         user_id=123,
         include_profile=True,
@@ -399,10 +414,11 @@ if __name__ == "__main__":
 
     RequestRequestor = build_request_requestor(
         operation_type=UserEndpoint,
+        combined_model=CombinedParams,
     )
 
     # Check type hints
-    response = RequestRequestor.request(
+    response = RequestRequestor().request(
         context=RequestContext(base_url="https://example.com", headers={"a": "b"}),
         user_id=123,
         include_profile=True,

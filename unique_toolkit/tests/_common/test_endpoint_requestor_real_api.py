@@ -90,6 +90,7 @@ def test_fake_requestor():
     # Create fake requestor
     FakePostRequestor = build_fake_requestor(
         operation_type=GetPostEndpoint,
+        combined_model=CombinedGetPostParams,
         return_value={
             "id": 1,
             "title": "Fake Post Title",
@@ -131,6 +132,7 @@ def test_requests_requestor():
     # Create requests requestor
     RequestsPostRequestor = build_request_requestor(
         operation_type=GetPostApiOperation,
+        combined_model=PostPathParams,  # Simplified combined model
     )
 
     # Test the requests requestor
@@ -166,6 +168,7 @@ def test_httpx_requestor():
     # Create httpx requestor
     HttpxPostRequestor = build_httpx_requestor(
         operation_type=GetPostEndpoint,
+        combined_model=PostPathParams,  # Simplified
     )
 
     # Test the httpx requestor (sync)
@@ -201,6 +204,7 @@ async def test_httpx_async_requestor():
     # Create httpx requestor
     HttpxPostRequestor = build_httpx_requestor(
         operation_type=GetPostEndpoint,
+        combined_model=PostPathParams,  # Simplified
     )
 
     # Test the httpx requestor (async)
@@ -268,6 +272,7 @@ def test_post_request():
     # Create requests requestor for POST
     CreatePostRequestor = build_request_requestor(
         operation_type=CreatePostApiOperation,
+        combined_model=CombinedCreatePostParams,
     )
 
     # Test the POST request
@@ -331,6 +336,7 @@ def test_build_requestor_factory():
     FactoryFakeRequestor = build_requestor(
         requestor_type=RequestorType.FAKE,
         operation_type=GetPostApiOperation,
+        combined_model=PostPathParams,  # Simplified
         return_value={
             "id": 999,
             "title": "Factory Fake Post",
