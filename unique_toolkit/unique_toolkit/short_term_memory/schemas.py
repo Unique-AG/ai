@@ -19,7 +19,7 @@ class ShortTermMemory(BaseModel):
     chat_id: str | None
     message_id: str | None
     data: str | dict | int | float | bool | list | None = Field(deprecated=True)
-    value: str | dict[str, Any]
+    value: str | dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def _data_to_value(self) -> "ShortTermMemory":
