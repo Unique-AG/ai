@@ -41,6 +41,7 @@ from unique_toolkit.framework_utilities.openai.client import get_async_openai_cl
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelMessage,
+    LanguageModelMessageRole,
 )
 from unique_toolkit.short_term_memory.service import ShortTermMemoryService
 
@@ -685,7 +686,23 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             self.logger.warning("Post-processing returned empty result, using original")
             return research_result
 
-    def get_user_request(self) -> str | None:
+    def get_tool_call_result_for_loop_history(
+        self,
+        tool_response: ToolCallResponse,
+        agent_chunks_handler: AgentChunksHandler,  # noqa: ARG002
+    ) -> LanguageModelMessage:
+        """
+        Convert tool response to message format for conversation history.
+
+        Since DeepResearch writes directly to message logs and takes control,
+        we return the content without additional processing.
+        """
+        return LanguageModelMessage(
+            role=LanguageModelMessageRole.TOOL,
+            content=tool_response.content,
+        )
+
+    def get_user_request(self) -> str:
         """
         Get the user's request.
         """

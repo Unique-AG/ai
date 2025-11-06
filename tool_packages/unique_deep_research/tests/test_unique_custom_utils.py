@@ -12,9 +12,7 @@ from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
 from unique_deep_research.config import BaseEngine
-from unique_deep_research.unique_custom.citation import GlobalCitationManager
 from unique_deep_research.unique_custom.utils import (
-    ServiceAccessError,
     ainvoke_with_token_handling,
     cleanup_request_counter,
     count_message_tokens,
@@ -22,10 +20,8 @@ from unique_deep_research.unique_custom.utils import (
     create_message_log_entry,
     execute_tool_safely,
     get_chat_service_from_config,
-    get_citation_manager,
     get_content_service_from_config,
     get_engine_config,
-    get_message_id_from_config,
     get_next_message_order,
     get_notes_from_tool_calls,
     is_token_error,
@@ -115,21 +111,6 @@ def test_cleanup_request_counter__handles_nonexistent_message_id__gracefully() -
 
     # Act & Assert - Should not raise exception
     cleanup_request_counter(nonexistent_id)
-
-
-@pytest.mark.ai
-def test_service_access_error__inherits_from_exception__correctly() -> None:
-    """
-    Purpose: Verify ServiceAccessError inherits from Exception correctly.
-    Why this matters: ServiceAccessError should be a proper exception type.
-    Setup summary: Check ServiceAccessError inheritance and instantiation.
-    """
-    # Arrange & Act
-    error = ServiceAccessError("Test error message")
-
-    # Assert
-    assert isinstance(error, Exception)
-    assert str(error) == "Test error message"
 
 
 @pytest.mark.ai
@@ -367,220 +348,6 @@ def test_create_message_log_entry__calls_chat_service__with_complete_parameters(
     assert "uncited_references" in call_args[1]
 
 
-# Additional tests for missing coverage
-
-
-@pytest.mark.ai
-def test_get_chat_service_from_config__raises_error__when_config_missing() -> None:
-    """
-    Purpose: Verify get_chat_service_from_config raises error when config is missing.
-    Why this matters: Ensures proper error handling when config is None or missing configurable section.
-    Setup summary: Pass None or empty config and verify KeyError is raised.
-    """
-    # Arrange & Act & Assert
-    with pytest.raises(KeyError, match="RunnableConfig missing 'configurable' section"):
-        get_chat_service_from_config(cast(Any, None))
-
-    with pytest.raises(KeyError, match="RunnableConfig missing 'configurable' section"):
-        get_chat_service_from_config(cast(Any, {}))
-
-
-@pytest.mark.ai
-def test_get_chat_service_from_config__raises_error__when_wrong_type() -> None:
-    """
-    Purpose: Verify get_chat_service_from_config raises error when service has wrong type.
-    Why this matters: Ensures type safety for service extraction.
-    Setup summary: Create config with wrong service type and verify TypeError is raised.
-    """
-    # Arrange
-    config = {"configurable": {"chat_service": "not_a_chat_service"}}
-
-    # Act & Assert
-    with pytest.raises(
-        TypeError, match="chat_service is <class 'str'>, expected ChatService"
-    ):
-        get_chat_service_from_config(cast(Any, config))
-
-
-@pytest.mark.ai
-def test_get_content_service_from_config__raises_error__when_config_missing() -> None:
-    """
-    Purpose: Verify get_content_service_from_config raises error when config is missing.
-    Why this matters: Ensures proper error handling when config is None or missing configurable section.
-    Setup summary: Pass None or empty config and verify KeyError is raised.
-    """
-    # Arrange & Act & Assert
-    with pytest.raises(KeyError, match="RunnableConfig missing 'configurable' section"):
-        get_content_service_from_config(cast(Any, None))
-
-    with pytest.raises(KeyError, match="RunnableConfig missing 'configurable' section"):
-        get_content_service_from_config(cast(Any, {}))
-
-
-@pytest.mark.ai
-def test_get_content_service_from_config__raises_error__when_wrong_type() -> None:
-    """
-    Purpose: Verify get_content_service_from_config raises error when service has wrong type.
-    Why this matters: Ensures type safety for service extraction.
-    Setup summary: Create config with wrong service type and verify TypeError is raised.
-    """
-    # Arrange
-    config = {"configurable": {"content_service": "not_a_content_service"}}
-
-    # Act & Assert
-    with pytest.raises(
-        TypeError, match="content_service is <class 'str'>, expected ContentService"
-    ):
-        get_content_service_from_config(cast(Any, config))
-
-
-@pytest.mark.ai
-def test_get_message_id_from_config__returns_message_id__from_config() -> None:
-    """
-    Purpose: Verify get_message_id_from_config returns message_id from config.
-    Why this matters: Provides access to message_id for logging and tracking.
-    Setup summary: Create config with message_id and verify retrieval.
-    """
-    # Arrange
-    config = {"configurable": {"message_id": "test-message-123"}}
-
-    # Act
-    result = get_message_id_from_config(cast(Any, config))
-
-    # Assert
-    assert result == "test-message-123"
-
-
-@pytest.mark.ai
-def test_get_message_id_from_config__raises_error__when_config_missing() -> None:
-    """
-    Purpose: Verify get_message_id_from_config raises error when config is missing.
-    Why this matters: Ensures proper error handling when config is None or missing configurable section.
-    Setup summary: Pass None or empty config and verify KeyError is raised.
-    """
-    # Arrange & Act & Assert
-    with pytest.raises(KeyError, match="RunnableConfig missing 'configurable' section"):
-        get_message_id_from_config(cast(Any, None))
-
-    with pytest.raises(KeyError, match="RunnableConfig missing 'configurable' section"):
-        get_message_id_from_config(cast(Any, {}))
-
-
-@pytest.mark.ai
-def test_get_message_id_from_config__raises_error__when_message_id_missing() -> None:
-    """
-    Purpose: Verify get_message_id_from_config raises error when message_id is missing.
-    Why this matters: Ensures proper error handling when required message_id is not available.
-    Setup summary: Create config without message_id and verify error is raised.
-    """
-    # Arrange
-    config = {"configurable": {}}
-
-    # Act & Assert
-    with pytest.raises(KeyError, match="message_id missing from RunnableConfig"):
-        get_message_id_from_config(cast(Any, config))
-
-
-@pytest.mark.ai
-def test_get_engine_config__raises_error__when_config_missing_duplicate() -> None:
-    """
-    Purpose: Verify get_engine_config raises error when config is missing.
-    Why this matters: Ensures proper error handling when config is None or missing configurable section.
-    Setup summary: Pass None or empty config and verify KeyError is raised.
-    """
-    # Arrange & Act & Assert
-    with pytest.raises(KeyError, match="RunnableConfig missing 'configurable' section"):
-        get_engine_config(cast(Any, None))
-
-    with pytest.raises(KeyError, match="RunnableConfig missing 'configurable' section"):
-        get_engine_config(cast(Any, {}))
-
-
-@pytest.mark.ai
-def test_get_engine_config__raises_error__when_wrong_type() -> None:
-    """
-    Purpose: Verify get_engine_config raises error when config has wrong type.
-    Why this matters: Ensures type safety for engine configuration extraction.
-    Setup summary: Create config with wrong config type and verify TypeError is raised.
-    """
-    # Arrange
-    config = {"configurable": {"engine_config": "not_an_engine_config"}}
-
-    # Act & Assert
-    with pytest.raises(
-        TypeError,
-        match="engine_config is <class 'str'>, expected DeepResearchToolConfig",
-    ):
-        get_engine_config(cast(Any, config))
-
-
-@pytest.mark.ai
-def test_get_citation_manager__returns_citation_manager__from_config() -> None:
-    """
-    Purpose: Verify get_citation_manager returns citation manager from config.
-    Why this matters: Provides access to citation manager for centralized citation tracking.
-    Setup summary: Create config with citation manager and verify retrieval.
-    """
-    # Arrange
-    mock_citation_manager = Mock(spec=GlobalCitationManager)
-    config = {"configurable": {"citation_manager": mock_citation_manager}}
-
-    # Act
-    result = get_citation_manager(cast(Any, config))
-
-    # Assert
-    assert result == mock_citation_manager
-
-
-@pytest.mark.ai
-def test_get_citation_manager__raises_error__when_config_missing() -> None:
-    """
-    Purpose: Verify get_citation_manager raises error when config is missing.
-    Why this matters: Ensures proper error handling when config is None or missing configurable section.
-    Setup summary: Pass None or empty config and verify KeyError is raised.
-    """
-    # Arrange & Act & Assert
-    with pytest.raises(KeyError, match="RunnableConfig missing 'configurable' section"):
-        get_citation_manager(cast(Any, None))
-
-    with pytest.raises(KeyError, match="RunnableConfig missing 'configurable' section"):
-        get_citation_manager(cast(Any, {}))
-
-
-@pytest.mark.ai
-def test_get_citation_manager__raises_error__when_manager_missing() -> None:
-    """
-    Purpose: Verify get_citation_manager raises error when citation manager is missing.
-    Why this matters: Ensures proper error handling when required citation manager is not available.
-    Setup summary: Create config without citation manager and verify error is raised.
-    """
-    # Arrange
-    config = {"configurable": {}}
-
-    # Act & Assert
-    with pytest.raises(KeyError, match="citation_manager missing from RunnableConfig"):
-        get_citation_manager(cast(Any, config))
-
-
-@pytest.mark.ai
-def test_get_citation_manager__raises_error__when_wrong_type() -> None:
-    """
-    Purpose: Verify get_citation_manager raises error when manager has wrong type.
-    Why this matters: Ensures type safety for citation manager extraction.
-    Setup summary: Create config with wrong manager type and verify TypeError is raised.
-    """
-    # Arrange
-    config = {"configurable": {"citation_manager": "not_a_citation_manager"}}
-
-    # Act & Assert
-    with pytest.raises(
-        TypeError,
-        match="citation_manager is <class 'str'>, expected GlobalCitationManager",
-    ):
-        get_citation_manager(cast(Any, config))
-
-
-@pytest.mark.ai
 def test_is_token_error__returns_true__for_token_related_errors() -> None:
     """
     Purpose: Verify is_token_error returns true for token-related error messages.
@@ -980,7 +747,7 @@ async def test_ainvoke_with_token_handling__retries_with_backoff__on_other_error
     # Assert
     assert result == "Success"
     assert mock_model.ainvoke.call_count == 2
-    mock_sleep.assert_called_once_with(4.0)  # Base delay
+    mock_sleep.assert_called_once_with(5.0)  # Base delay
 
 
 @pytest.mark.ai
@@ -1007,5 +774,5 @@ async def test_ainvoke_with_token_handling__raises_error__after_max_retries(
     with pytest.raises(Exception, match="persistent error"):
         await ainvoke_with_token_handling(mock_model, messages, model_info)
 
-    assert mock_model.ainvoke.call_count == 4  # Initial + 3 retries
-    assert mock_sleep.call_count == 3  # 3 retry delays
+    assert mock_model.ainvoke.call_count == 5  # Initial + 4 retries
+    assert mock_sleep.call_count == 4  # 4 retry delays

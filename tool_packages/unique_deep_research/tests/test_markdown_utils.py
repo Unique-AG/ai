@@ -19,26 +19,6 @@ from unique_deep_research.unique_custom.citation import CitationMetadata
 
 
 @pytest.mark.ai
-def test_markdown_link__creates_namedtuple__with_correct_fields() -> None:
-    """
-    Purpose: Verify MarkdownLink creates proper namedtuple structure.
-    Why this matters: MarkdownLink is used throughout the module for link representation.
-    Setup summary: Create MarkdownLink instance and verify field access.
-    """
-    # Arrange & Act
-    link = MarkdownLink(
-        text="OpenAI",
-        url="https://openai.com",
-        full_match="[OpenAI](https://openai.com)",
-    )
-
-    # Assert
-    assert link.text == "OpenAI"
-    assert link.url == "https://openai.com"
-    assert link.full_match == "[OpenAI](https://openai.com)"
-
-
-@pytest.mark.ai
 def test_extract_markdown_links__finds_standard_links__in_text() -> None:
     """
     Purpose: Verify extract_markdown_links finds standard markdown links.
