@@ -250,7 +250,6 @@ class Space(APIResource["Space"]):
         """
         Async get available LLM models.
         """
-        print("params", params)
         return cast(
             "Space.LLMModels",
             await cls._static_request_async(
