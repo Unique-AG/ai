@@ -24,6 +24,7 @@ class ToolIcon(StrEnum):
     QUICK_REPLY = "IconQuickReply"
     CHAT_PLUS = "IconChatPlus"
     TELESCOPE = "IconTelescope"
+    CHART_BAR = "IconChartBar"
 
 
 class ToolSelectionPolicy(StrEnum):

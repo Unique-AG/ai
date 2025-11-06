@@ -10,6 +10,7 @@ from unique_swot.services.collection.sources import (
     collect_knowledge_base,
     collect_web_sources,
 )
+from unique_swot.services.collection.sources.quartr.schemas import CompanyDto
 from unique_swot.services.notifier import (
     MessageLogEvent,
     MessageLogStatus,
@@ -22,6 +23,7 @@ _LOGGER = getLogger(__name__)
 class CollectionContext(BaseModel):
     model_config = ConfigDict(frozen=True)
     use_earnings_calls: bool
+    quartr_company: CompanyDto
     use_web_sources: bool
     metadata_filter: dict | None
 
@@ -58,6 +60,7 @@ class SourceCollectionManager:
         sources.extend(
             self._collect_earnings_calls(
                 use_earnings_calls=self._context.use_earnings_calls,
+                quartr_company=self._context.quartr_company,
                 chunk_registry=self._content_chunk_registry,
             )
         )
@@ -84,13 +87,13 @@ class SourceCollectionManager:
         return sources
 
     def _collect_earnings_calls(
-        self, *, use_earnings_calls: bool, chunk_registry: ContentChunkRegistry
+        self, *, use_earnings_calls: bool, quartr_company: CompanyDto, chunk_registry: ContentChunkRegistry
     ) -> list[Source]:
         if not use_earnings_calls:
             _LOGGER.warning("No earnings calls will be collected.")
             return []
         _LOGGER.info("Collecting earnings calls!")
-        return collect_earnings_calls()
+        return collect_earnings_calls(quartr_company=quartr_company)
 
     def _collect_web_sources(
         self, *, use_web_sources: bool, chunk_registry: ContentChunkRegistry

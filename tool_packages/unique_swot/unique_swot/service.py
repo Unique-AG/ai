@@ -150,7 +150,6 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
                 notifier=self._notifier,
                 memory_service=self._memory_service,
                 knowledge_base_service=self._knowledge_base_service,
-                cache_scope_id=self.config.cache_scope_id,
                 content_chunk_registry=self._content_chunk_registry,
                 citation_manager=self._citation_manager,
             )

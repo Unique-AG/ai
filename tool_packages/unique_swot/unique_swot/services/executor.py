@@ -60,7 +60,6 @@ class SWOTExecutionManager:
         memory_service: SwotMemoryService,
         knowledge_base_service: KnowledgeBaseService,
         content_chunk_registry: ContentChunkRegistry,
-        cache_scope_id: str,
         citation_manager: CitationManager,
         notifier: ProgressNotifier,
     ):
