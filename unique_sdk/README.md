@@ -1353,7 +1353,7 @@ unique_sdk.Space.delete_chat(
 )
 ```
 
-#### `unique_sdk.Space.get_llm_models`
+#### `unique_sdk.Space.get_llm_models` (Compatible with release >.46)
 
 Get available LLM models. You can optionally filter by module and skip cache to fetch fresh data.
 
