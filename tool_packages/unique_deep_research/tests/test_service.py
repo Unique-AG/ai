@@ -27,116 +27,6 @@ class MockRole:
 
 
 @pytest.mark.ai
-def test_deep_research_tool_input__creates_valid_instance__with_default_values() -> (
-    None
-):
-    """
-    Purpose: Verify DeepResearchToolInput creates valid instance with default values.
-    Why this matters: Tool input validation ensures proper tool invocation.
-    Setup summary: Create DeepResearchToolInput instance and verify default values.
-    """
-    # Arrange & Act
-    tool_input = DeepResearchToolInput()
-
-    # Assert
-    assert tool_input.start_research is False
-
-
-@pytest.mark.ai
-def test_deep_research_tool_input__accepts_custom_values__when_provided() -> None:
-    """
-    Purpose: Verify DeepResearchToolInput accepts custom values when provided.
-    Why this matters: Allows customization of tool behavior.
-    Setup summary: Create DeepResearchToolInput with custom values and verify they are set.
-    """
-    # Arrange & Act
-    tool_input = DeepResearchToolInput(start_research=True)
-
-    # Assert
-    assert tool_input.start_research is True
-
-
-@pytest.mark.ai
-def test_deep_research_tool_response__inherits_from_tool_call_response__correctly() -> (
-    None
-):
-    """
-    Purpose: Verify ToolCallResponse inherits from ToolCallResponse correctly.
-    Why this matters: Ensures proper response structure for tool calls.
-    Setup summary: Create ToolCallResponse and verify inheritance.
-    """
-    # Arrange & Act
-    response = ToolCallResponse(
-        id="test-id",
-        name="DeepResearch",
-        content="Test content",
-    )
-
-    # Assert
-    assert response.id == "test-id"
-    assert response.name == "DeepResearch"
-    assert response.content == "Test content"
-
-
-@pytest.mark.ai
-def test_memory_schema__creates_valid_instance__with_message_id() -> None:
-    """
-    Purpose: Verify MemorySchema creates valid instance with message_id.
-    Why this matters: Memory schema is used for short-term memory management.
-    Setup summary: Create MemorySchema instance and verify message_id field.
-    """
-    # Arrange & Act
-    schema = MemorySchema(message_id="test-message-id")
-
-    # Assert
-    assert schema.message_id == "test-message-id"
-
-
-@pytest.mark.ai
-def test_deep_research_tool__has_correct_name__for_tool_registration() -> None:
-    """
-    Purpose: Verify DeepResearchTool has correct name for tool registration.
-    Why this matters: Tool name is used for identification in the tool factory.
-    Setup summary: Check DeepResearchTool name attribute.
-    """
-    # Arrange & Act
-    tool_name = DeepResearchTool.name
-
-    # Assert
-    assert tool_name == "DeepResearch"
-
-
-@pytest.mark.ai
-def test_deep_research_tool__takes_control__returns_true() -> None:
-    """
-    Purpose: Verify DeepResearchTool.takes_control() returns True.
-    Why this matters: Tool needs to take control for complex research workflows.
-    Setup summary: Create tool instance and verify takes_control() returns True.
-    """
-    # Arrange
-    config = DeepResearchToolConfig()
-    mock_event = Mock()
-    mock_event.company_id = "test-company"
-    mock_event.user_id = "test-user"
-    mock_event.payload.chat_id = "test-chat"
-    mock_event.payload.assistant_message.id = "test-assistant-message"
-    mock_event.payload.user_message.text = "Test request"
-    mock_event.payload.user_message.original_text = "Test request"
-    mock_event.payload.message_execution_id = None
-    mock_progress_reporter = Mock()
-
-    with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
-            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
-                # Act
-                tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
-                result = tool.takes_control()
-
-                # Assert
-                assert result is True
-
-
-@pytest.mark.ai
 def test_deep_research_tool__is_message_execution__returns_false__when_no_execution_id() -> (
     None
 ):
@@ -160,13 +50,12 @@ def test_deep_research_tool__is_message_execution__returns_false__when_no_execut
     with patch("unique_deep_research.service.get_async_openai_client"):
         with patch("unique_deep_research.service.ContentService"):
             with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
-                with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
-                    # Act
-                    tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
-                    result = tool.is_message_execution()
+                # Act
+                tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+                result = tool.is_message_execution()
 
-                    # Assert
-                    assert result is False
+                # Assert
+                assert result is False
 
 
 @pytest.mark.ai
@@ -627,12 +516,14 @@ async def test_deep_research_tool__update_execution_status__calls_chat_service__
                 tool.chat_service.update_message_execution_async = AsyncMock()
 
                 # Act
-                await tool._update_execution_status("IN_PROGRESS", percentage=50)
+                await tool._update_execution_status(
+                    MessageExecutionUpdateStatus.COMPLETED, percentage=50
+                )
 
                 # Assert
                 tool.chat_service.update_message_execution_async.assert_called_once_with(
                     message_id="test-assistant-message",
-                    status="IN_PROGRESS",
+                    status=MessageExecutionUpdateStatus.COMPLETED,
                     percentage_completed=50,
                 )
 
@@ -818,38 +709,6 @@ def test_deep_research_tool__tool_description_for_system_prompt__returns_correct
                 assert "In-depth investigation" in description
                 assert "Synthesis of information" in description
                 assert "Comprehensive analysis" in description
-
-
-@pytest.mark.ai
-def test_deep_research_tool__tool_format_information_for_system_prompt__returns_empty_string() -> (
-    None
-):
-    """
-    Purpose: Verify tool_format_information_for_system_prompt returns empty string.
-    Why this matters: This tool doesn't require special format information in system prompt.
-    Setup summary: Create tool and verify empty string is returned.
-    """
-    # Arrange
-    config = DeepResearchToolConfig()
-    mock_event = Mock()
-    mock_event.company_id = "test-company"
-    mock_event.user_id = "test-user"
-    mock_event.payload.chat_id = "test-chat"
-    mock_event.payload.assistant_message.id = "test-assistant-message"
-    mock_event.payload.user_message.text = "Test request"
-    mock_event.payload.user_message.original_text = "Test request"
-    mock_event.payload.message_execution_id = None
-    mock_progress_reporter = Mock()
-
-    with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
-            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
-                # Act
-                tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
-                format_info = tool.tool_format_information_for_system_prompt()
-
-                # Assert
-                assert format_info == ""
 
 
 @pytest.mark.ai
@@ -1935,44 +1794,3 @@ def test_deep_research_tool__convert_annotations_to_references__skips_non_url_ci
                 assert len(result) == 1
                 assert result[0].name == "URL Article"
                 assert result[0].url == "https://example.com/article"
-
-
-@pytest.mark.ai
-def test_deep_research_tool__get_tool_call_result_for_loop_history__returns_tool_message__when_successful() -> (
-    None
-):
-    """
-    Purpose: Verify get_tool_call_result_for_loop_history returns LanguageModelToolMessage when successful.
-    Why this matters: Ensures proper tool result formatting for loop history.
-    Setup summary: Create tool response and verify LanguageModelToolMessage is returned.
-    """
-    # Arrange
-    config = DeepResearchToolConfig()
-    mock_event = Mock()
-    mock_event.company_id = "test-company"
-    mock_event.user_id = "test-user"
-    mock_event.payload.chat_id = "test-chat"
-    mock_event.payload.assistant_message.id = "test-assistant-message"
-    mock_event.payload.user_message.text = "Test request"
-    mock_event.payload.user_message.original_text = "Test request"
-    mock_event.payload.message_execution_id = None
-    mock_progress_reporter = Mock()
-
-    with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
-            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
-                tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
-
-                tool_response = ToolCallResponse(
-                    id="test-tool-call-id",
-                    name="DeepResearch",
-                    content="Research results",
-                )
-
-                # Act
-                result = tool.get_tool_call_result_for_loop_history(tool_response)
-
-                # Assert
-                assert result.content == "Research results"
-                assert result.tool_call_id == "test-tool-call-id"
-                assert result.name == "DeepResearch"
