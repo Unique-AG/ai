@@ -18,6 +18,14 @@ from unique_sdk._request_options import RequestOptions
 class Space(APIResource["Space"]):
     OBJECT_NAME: ClassVar[Literal["space"]] = "space"
 
+    class GetLLMModelsParams(RequestOptions):
+        """
+        Parameters for getting available LLM models.
+        """
+
+        module: NotRequired[str | None]
+        skipCache: NotRequired[bool | None]
+
     class CreateMessageParams(RequestOptions):
         """
         Parameters for querying the assistant for a message.
@@ -84,6 +92,14 @@ class Space(APIResource["Space"]):
         """
 
         chat_id: str
+
+    class LLMModels(TypedDict):
+        """
+        Response for getting available LLM models.
+        """
+
+        llmModels: List[str]
+        object: Literal["llm-models"]
 
     @classmethod
     def create_message(
@@ -200,5 +216,48 @@ class Space(APIResource["Space"]):
                 f"/space/chat/{chat_id}",
                 user_id,
                 company_id,
+            ),
+        )
+
+    @classmethod
+    def get_llm_models(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Space.GetLLMModelsParams"],
+    ) -> "Space.LLMModels":
+        """
+        Get available LLM models.
+        """
+        return cast(
+            "Space.LLMModels",
+            cls._static_request(
+                "get",
+                "/space/llm-models",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    async def get_llm_models_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Space.GetLLMModelsParams"],
+    ) -> "Space.LLMModels":
+        """
+        Async get available LLM models.
+        """
+        print("params", params)
+        return cast(
+            "Space.LLMModels",
+            await cls._static_request_async(
+                "get",
+                "/space/llm-models",
+                user_id,
+                company_id,
+                params=params,
             ),
         )
