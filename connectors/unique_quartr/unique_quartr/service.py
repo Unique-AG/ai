@@ -84,22 +84,14 @@ class QuartrService:
             ticker (str): Company ticker symbol (e.g. 'AMZN', 'AAPL')
             exchange (str): Exchange code (e.g. 'BASE', 'NasdaqGS')
             country (str): Country code (e.g. 'US')
+            event_ids (list[int]): List of event IDs to retrieve events for
             start_date (str | None): Optional start date to retrieve events from in ISO format (e.g. '2024-01-01')
             end_date (str | None): Optional end date to retrieve events from in ISO format (e.g. '2024-01-01')
+            limit (int): Maximum number of events to retrieve per request. Defaults to 500.
+            max_iteration (int): Maximum number of iterations to retrieve events. Defaults to 20.
 
         Returns:
-            pd.DataFrame: DataFrame containing earnings call events with columns:
-                - company_id (float): Quartr company ID
-                - date (datetime): ChatEvent date
-                - id (float): ChatEvent ID
-                - title (str): ChatEvent title (e.g. 'Q1 2024')
-                - type_id (float): ChatEvent type ID
-                - fiscal_year (float): Fiscal year
-                - fiscal_period (str): Fiscal period (e.g. 'Q1')
-                - backlink_url (str): URL to event page on Quartr
-                - updated_at (datetime): Last update timestamp
-                - created_at (datetime): Creation timestamp
-                - passed (bool): Whether the event has passed
+            list[EventDto]: List of EventDto objects
         """
 
         events = []
@@ -135,20 +127,13 @@ class QuartrService:
         """Retrieve documents for a list of events from Quartr API.
 
         Args:
-            event_ids (list[str]): List of event IDs to retrieve documents for
-            document_type_ids (list[str]): List of document type IDs to filter by
-            limit (int, optional): Maximum number of documents to retrieve per request. Defaults to 500.
+            event_ids (list[int]): List of event IDs to retrieve documents for
+            document_ids (list[int]): List of document IDs to retrieve documents for
+            limit (int): Maximum number of documents to retrieve per request. Defaults to 500.
+            max_iteration (int): Maximum number of iterations to retrieve documents. Defaults to 20.
 
         Returns:
-            pd.DataFrame: DataFrame containing event documents with columns:
-                - company_id (float): Quartr company ID
-                - event_id (float): ChatEvent ID
-                - file_url (str): URL to document file
-                - id (float): Document ID
-                - type_id (float): Document type ID
-                - updated_at (datetime): Last update timestamp
-                - created_at (datetime): Creation timestamp
-                - document_type (str): Document type name
+            list[DocumentDto]: List of DocumentDto objects
         """
 
         documents = []

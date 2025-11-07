@@ -5,7 +5,7 @@ on:
   push:
     # Both conditions must be met (AND logic):
     # 1. Push must be to main branch
-    # 2. Push must include changes to follow_up_questions/** files
+    # 2. Push must include changes to unique_quartr/** files
     paths:
       - 'connectors/unique_quartr/**'
     branches:
@@ -27,7 +27,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.11'
+        python-version: '3.12'
 
     - name: Install Poetry
       run: |
