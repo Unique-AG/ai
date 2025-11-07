@@ -42,6 +42,7 @@ class TestLanguageModelInfos:
             LanguageModelName.ANTHROPIC_CLAUDE_SONNET_4_5,
             LanguageModelName.GEMINI_2_0_FLASH,
             LanguageModelName.GEMINI_2_5_FLASH,
+            LanguageModelName.GEMINI_2_5_FLASH_LITE,
             LanguageModelName.GEMINI_2_5_FLASH_LITE_PREVIEW_0617,
             LanguageModelName.GEMINI_2_5_FLASH_PREVIEW_0520,
             LanguageModelName.GEMINI_2_5_PRO,

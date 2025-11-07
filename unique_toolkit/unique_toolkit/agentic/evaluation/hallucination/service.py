@@ -55,5 +55,8 @@ class HallucinationEvaluator:
             return None
 
         return await check_hallucination(
-            company_id=self.event.company_id, input=input, config=config
+            company_id=self.event.company_id,
+            user_id=self.event.user_id,
+            input=input,
+            config=config,
         )
