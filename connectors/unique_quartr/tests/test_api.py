@@ -3,10 +3,10 @@ from unittest.mock import Mock, patch
 import pytest
 
 from unique_quartr.endpoints.api import (
+    QuartrDocumentsApiOperation,
+    QuartrDocumentsTypesApiOperation,
+    QuartrEventsApiOperation,
     get_quartr_context,
-    quartr_documents_api_operation,
-    quartr_documents_types_api_operation,
-    quartr_events_api_operation,
 )
 from unique_quartr.endpoints.schemas import (
     PublicV3DocumentsGetParametersQuery,
@@ -61,41 +61,15 @@ class TestQuartrApiOperations:
     def test_quartr_events_api_operation_callable(self):
         """Test quartr_events_api_operation is callable."""
         # build_api_operation returns a callable class/type
-        assert callable(quartr_events_api_operation)
+        assert callable(QuartrEventsApiOperation)
 
     def test_quartr_documents_api_operation_callable(self):
         """Test quartr_documents_api_operation is callable."""
-        assert callable(quartr_documents_api_operation)
+        assert callable(QuartrDocumentsApiOperation)
 
     def test_quartr_documents_types_api_operation_callable(self):
         """Test quartr_documents_types_api_operation is callable."""
-        assert callable(quartr_documents_types_api_operation)
-
-    def test_api_operations_in_dict(self):
-        """Test that API operations are properly registered in quartr_api_operations dict."""
-        from unique_quartr.endpoints.api import quartr_api_operations
-
-        assert "quartr_events_api" in quartr_api_operations
-        assert "quartr_documents_api" in quartr_api_operations
-        assert "quartr_documents_types_api" in quartr_api_operations
-
-        # Check structure
-        assert "api_operation" in quartr_api_operations["quartr_events_api"]
-        assert "combined_model" in quartr_api_operations["quartr_events_api"]
-
-        # Verify combined models
-        assert (
-            quartr_api_operations["quartr_events_api"]["combined_model"]
-            == PublicV3EventsGetParametersQuery
-        )
-        assert (
-            quartr_api_operations["quartr_documents_api"]["combined_model"]
-            == PublicV3DocumentsGetParametersQuery
-        )
-        assert (
-            quartr_api_operations["quartr_documents_types_api"]["combined_model"]
-            == PublicV3DocumentTypesGetParametersQuery
-        )
+        assert callable(QuartrDocumentsTypesApiOperation)
 
 
 class TestApiSchemas:

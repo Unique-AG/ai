@@ -12,10 +12,10 @@ from unique_quartr.constants.event_types import (
     EventType,
 )
 from unique_quartr.endpoints.api import (
+    QuartrDocumentsApiOperation,
+    QuartrDocumentsTypesApiOperation,
+    QuartrEventsApiOperation,
     get_quartr_context,
-    quartr_documents_api_operation,
-    quartr_documents_types_api_operation,
-    quartr_events_api_operation,
 )
 from unique_quartr.endpoints.schemas import (
     Direction,
@@ -38,17 +38,17 @@ class QuartrService:
 
         self.events_requestor = build_requestor(
             requestor_type,
-            quartr_events_api_operation,
+            QuartrEventsApiOperation,
             PublicV3EventsGetParametersQuery,
         )
         self.documents_requestor = build_requestor(
             requestor_type,
-            quartr_documents_api_operation,
+            QuartrDocumentsApiOperation,
             PublicV3DocumentsGetParametersQuery,
         )
         self.documents_types_requestor = build_requestor(
             requestor_type,
-            quartr_documents_types_api_operation,
+            QuartrDocumentsTypesApiOperation,
             PublicV3DocumentTypesGetParametersQuery,
         )
 

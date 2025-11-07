@@ -18,8 +18,8 @@ from .schemas import (
 )
 
 
-class EmptyModel(BaseModel):
-    ...
+class EmptyModel(BaseModel): ...
+
 
 def get_quartr_context(*, company_id: str):
     if quartr_settings.quartr_api_creds is None:
@@ -37,7 +37,7 @@ def get_quartr_context(*, company_id: str):
     )
 
 
-quartr_events_api_operation = build_api_operation(
+QuartrEventsApiOperation = build_api_operation(
     method=HttpMethods.GET,
     path_template=Template("/public/v3/events"),
     path_params_constructor=EmptyModel,
@@ -45,7 +45,7 @@ quartr_events_api_operation = build_api_operation(
     response_model_type=PaginatedEventResponseDto,
 )
 
-quartr_documents_api_operation = build_api_operation(
+QuartrDocumentsApiOperation = build_api_operation(
     method=HttpMethods.GET,
     path_template=Template("/public/v3/documents"),
     path_params_constructor=EmptyModel,
@@ -53,25 +53,10 @@ quartr_documents_api_operation = build_api_operation(
     response_model_type=PaginatedDocumentResponseDto,
 )
 
-quartr_documents_types_api_operation = build_api_operation(
+QuartrDocumentsTypesApiOperation = build_api_operation(
     method=HttpMethods.GET,
     path_template=Template("/public/v3/document-types"),
     path_params_constructor=EmptyModel,
     payload_constructor=PublicV3DocumentTypesGetParametersQuery,
     response_model_type=PaginatedDocumentTypeResponseDto,
 )
-
-quartr_api_operations = {
-    "quartr_events_api": {
-        "api_operation": quartr_events_api_operation,
-        "combined_model": PublicV3EventsGetParametersQuery,
-    },
-    "quartr_documents_api": {
-        "api_operation": quartr_documents_api_operation,
-        "combined_model": PublicV3DocumentsGetParametersQuery,
-    },
-    "quartr_documents_types_api": {
-        "api_operation": quartr_documents_types_api_operation,
-        "combined_model": PublicV3DocumentTypesGetParametersQuery,
-    },
-}
