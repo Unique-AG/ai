@@ -83,6 +83,7 @@ from unique_sdk.api_resources._short_term_memory import (
 from unique_sdk.api_resources._folder import Folder as Folder
 from unique_sdk.api_resources._embedding import Embeddings as Embeddings
 from unique_sdk.api_resources._acronyms import Acronyms as Acronyms
+from unique_sdk.api_resources._llm_models import LLMModels as LLMModels
 from unique_sdk.api_resources._message_assessment import (
     MessageAssessment as MessageAssessment,
 )
