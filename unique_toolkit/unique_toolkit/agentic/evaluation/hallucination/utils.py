@@ -35,6 +35,7 @@ from .prompts import (
 
 async def check_hallucination(
     company_id: str,
+    user_id: str,
     input: EvaluationMetricInput,
     config: EvaluationMetricConfig,
 ) -> EvaluationMetricResult:
@@ -79,7 +80,7 @@ async def check_hallucination(
     try:
         msgs = _get_msgs(input, config, logger)
         result = await LanguageModelService.complete_async_util(
-            company_id=company_id, messages=msgs, model_name=model_name
+            company_id=company_id, user_id=user_id, messages=msgs, model_name=model_name
         )
         result_content = result.choices[0].message.content
         if not result_content:

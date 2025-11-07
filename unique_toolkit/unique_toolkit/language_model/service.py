@@ -62,19 +62,16 @@ class LanguageModelService:
     ):
         if isinstance(event, (ChatEvent, Event)):
             self._event = event
-            self._chat_id: str | None = event.payload.chat_id
-            self._assistant_id: str | None = event.payload.assistant_id
+            self._chat_id = event.payload.chat_id
+            self._assistant_id = event.payload.assistant_id
             self._company_id = event.company_id
             self._user_id = event.user_id
-            if isinstance(event, (ChatEvent, Event)):
-                self._chat_id = event.payload.chat_id
-                self._assistant_id = event.payload.assistant_id
         elif isinstance(event, BaseEvent):
             self._event = event
             self._company_id = event.company_id
             self._user_id = event.user_id
-            self._chat_id: str | None = None
-            self._assistant_id: str | None = None
+            self._chat_id = None
+            self._assistant_id = None
         else:
             [company_id, user_id] = validate_required_values([company_id, user_id])
             self._event = None
@@ -239,6 +236,7 @@ class LanguageModelService:
 
         return complete(
             company_id=self._company_id,
+            user_id=self._user_id,
             messages=messages,
             model_name=model_name,
             temperature=temperature,
@@ -323,6 +321,7 @@ class LanguageModelService:
     ) -> LanguageModelStreamResponse:
         return complete_with_references(
             company_id=self._company_id,
+            user_id=self._user_id,
             messages=messages,
             model_name=model_name,
             content_chunks=content_chunks,
@@ -347,6 +346,7 @@ class LanguageModelService:
     ) -> LanguageModelStreamResponse:
         return await complete_with_references_async(
             company_id=self._company_id,
+            user_id=self._user_id,
             messages=messages,
             model_name=model_name,
             content_chunks=content_chunks,
