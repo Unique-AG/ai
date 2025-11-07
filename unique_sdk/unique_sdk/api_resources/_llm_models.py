@@ -19,11 +19,10 @@ class LLMModels(APIResource["LLMModels"]):
         Response for getting available LLM models.
         """
 
-        llmModels: List[str]
-        object: Literal["llm-models"]
+        models: List[str]
 
     @classmethod
-    def get(
+    def get_models(
         cls,
         user_id: str,
         company_id: str,
@@ -44,7 +43,7 @@ class LLMModels(APIResource["LLMModels"]):
         )
 
     @classmethod
-    async def get_async(
+    async def get_models_async(
         cls,
         user_id: str,
         company_id: str,
