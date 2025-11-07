@@ -824,7 +824,7 @@ class LanguageModelInfo(BaseModel):
                     version="gemini-2-5-flash-lite",
                     encoder_name=EncoderName.O200K_BASE,  # TODO:Replace with LLM tokenizer
                     token_limits=LanguageModelTokenLimits(
-                        token_limit_input=1_048_576, token_limit_output=65_53
+                        token_limit_input=1_048_576, token_limit_output=65_536
                     ),
                     info_cutoff_at=date(2025, 1, day=1),
                     published_at=date(2025, 7, 1),
