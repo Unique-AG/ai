@@ -18,8 +18,8 @@ from .schemas import (
 )
 
 
-class DummyModel(BaseModel):
-    dummy: str = "dummy"
+class EmptyModel(BaseModel):
+    ...
 
 def get_quartr_context(*, company_id: str):
     if quartr_settings.quartr_api_creds is None:
@@ -40,7 +40,7 @@ def get_quartr_context(*, company_id: str):
 quartr_events_api_operation = build_api_operation(
     method=HttpMethods.GET,
     path_template=Template("/public/v3/events"),
-    path_params_constructor=DummyModel,
+    path_params_constructor=EmptyModel,
     payload_constructor=PublicV3EventsGetParametersQuery,
     response_model_type=PaginatedEventResponseDto,
 )
@@ -48,7 +48,7 @@ quartr_events_api_operation = build_api_operation(
 quartr_documents_api_operation = build_api_operation(
     method=HttpMethods.GET,
     path_template=Template("/public/v3/documents"),
-    path_params_constructor=DummyModel,
+    path_params_constructor=EmptyModel,
     payload_constructor=PublicV3DocumentsGetParametersQuery,
     response_model_type=PaginatedDocumentResponseDto,
 )
@@ -56,7 +56,7 @@ quartr_documents_api_operation = build_api_operation(
 quartr_documents_types_api_operation = build_api_operation(
     method=HttpMethods.GET,
     path_template=Template("/public/v3/document-types"),
-    path_params_constructor=DummyModel,
+    path_params_constructor=EmptyModel,
     payload_constructor=PublicV3DocumentTypesGetParametersQuery,
     response_model_type=PaginatedDocumentTypeResponseDto,
 )
