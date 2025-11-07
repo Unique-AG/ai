@@ -47,7 +47,7 @@ class BaseEngine(BaseModel):
     )
 
     research_model: LMI = get_LMI_default_field(
-        LanguageModelName.AZURE_GPT_5_2025_0807,
+        LanguageModelName.AZURE_GPT_41_2025_0414,
         description="The main research model to be used for conducting research",
     )
 
@@ -65,23 +65,9 @@ class OpenAIEngine(BaseEngine):
     )
 
 
-class Tools(BaseModel):
-    web_tools: bool = Field(
-        default=True,
-        description="Allow agent to use web search tools to access the web",
-    )
-    internal_tools: bool = Field(
-        default=True,
-        description="Allow agent to use internal search tools access information from the knowledge base and uploaded documents",
-    )
-
-
 class UniqueEngine(BaseEngine):
     engine_type: Literal[DeepResearchEngine.UNIQUE] = Field(
         default=DeepResearchEngine.UNIQUE
-    )
-    tools: Tools = Field(
-        default=Tools(),
     )
 
 
