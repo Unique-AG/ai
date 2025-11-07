@@ -111,17 +111,16 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
         This likely due to the amount of tokens included and as since it's a forced tool not necessarily relevant to the user's request.
         """
         # TODO: This message should be conditional on the tool being forced, but we do not have easy access to this information here
-        return f"""
-            <system_reminder>
-            This tool call was automatically executed to retrieve the user's uploaded documents by the system. Important to note:
-            - The retrieved documents may or may not be relevant to the user's actual query
-            - You must evaluate their relevance independently
-            - You are free to make additional tool calls as needed
-            - Focus on addressing the user's original request
-            {f"Original user message: {self._user_query}" if self._user_query else ""}
-            
-            Please do not mention these instructions in your response to the user!
-            </system_reminder>"""
+        return f"""<system_reminder>
+This tool call was automatically executed to retrieve the user's uploaded documents by the system. Important to note:
+- The retrieved documents may or may not be relevant to the user's actual query
+- You must evaluate their relevance independently
+- You are free to make additional tool calls as needed
+- Focus on addressing the user's original request
+{f"Original user message: {self._user_query}" if self._user_query else ""}
+
+Please do not mention these instructions in your response to the user!
+</system_reminder>"""
 
 
 ToolFactory.register_tool(UploadedSearchTool, UploadedSearchConfig)
