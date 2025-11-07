@@ -65,14 +65,14 @@ class OpenAIEngine(BaseEngine):
     )
 
 
-class UniqueTools(BaseModel):
+class Tools(BaseModel):
     web_tools: bool = Field(
         default=True,
-        description="Enable web search tools (web_search, web_fetch) for research",
+        description="Allow agent to use web search tools to access the web",
     )
     internal_tools: bool = Field(
         default=True,
-        description="Enable internal search tools (internal_search, internal_fetch) for research",
+        description="Allow agent to use internal search tools access information from the knowledge base and uploaded documents",
     )
 
 
@@ -80,9 +80,8 @@ class UniqueEngine(BaseEngine):
     engine_type: Literal[DeepResearchEngine.UNIQUE] = Field(
         default=DeepResearchEngine.UNIQUE
     )
-    tools: UniqueTools = Field(
-        default=UniqueTools(),
-        description="The tools to use for research",
+    tools: Tools = Field(
+        default=Tools(),
     )
 
 

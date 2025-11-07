@@ -19,7 +19,7 @@ from unique_toolkit.framework_utilities.openai.client import get_openai_client
 from unique_toolkit.language_model import LanguageModelName
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
-from unique_deep_research.config import UniqueEngine, UniqueTools
+from unique_deep_research.config import Tools, UniqueEngine
 from unique_deep_research.markdown_utils import validate_and_map_citations
 from unique_deep_research.unique_custom.agents import custom_agent
 from unique_deep_research.unique_custom.citation import GlobalCitationManager
@@ -123,7 +123,7 @@ async def run_single_research(query: dict) -> dict:
         citation_manager = GlobalCitationManager()
         engine_config = UniqueEngine(
             research_model=MODEL,
-            tools=UniqueTools(
+            tools=Tools(
                 web_tools=True,  # Enable web search
                 internal_tools=False,  # Disable internal tools
             ),
