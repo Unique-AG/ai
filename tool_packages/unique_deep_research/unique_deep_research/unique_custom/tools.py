@@ -167,7 +167,7 @@ async def web_search(query: str, config: RunnableConfig) -> str:
     search_results = await google_search.search(query)
     write_tool_message_log(
         config,
-        f"**Searching the web for query: {query}**",
+        "**Searching the web**",
         details=MessageLogDetails(data=[MessageLogEvent(type="WebSearch", text=query)]),
         uncited_references=MessageLogUncitedReferences(
             data=[

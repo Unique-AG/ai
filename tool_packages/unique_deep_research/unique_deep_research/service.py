@@ -52,6 +52,7 @@ from .config import (
     TEMPLATE_ENV,
     DeepResearchEngine,
     DeepResearchToolConfig,
+    UniqueEngine,
 )
 from .markdown_utils import (
     postprocess_research_result_with_chunks,
@@ -392,6 +393,13 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                 "x-chat-id": self.chat_id,
                 "x-assistant-id": self.event.payload.assistant_id,
             }
+            # Extract tool enablement settings from engine config if it's a UniqueEngine
+            enable_web_tools = True
+            enable_internal_tools = True
+            if isinstance(self.config.engine, UniqueEngine):
+                enable_web_tools = self.config.engine.tools.web_tools
+                enable_internal_tools = self.config.engine.tools.internal_tools
+
             config = {
                 "configurable": {
                     "engine_config": self.config.engine,
@@ -401,6 +409,8 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                     "message_id": self.event.payload.assistant_message.id,
                     "citation_manager": citation_manager,
                     "additional_openai_proxy_headers": additional_openai_proxy_headers,
+                    "enable_web_tools": enable_web_tools,
+                    "enable_internal_tools": enable_internal_tools,
                 },
             }
 
