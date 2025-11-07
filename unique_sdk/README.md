@@ -1365,8 +1365,7 @@ Get available LLM models. You can optionally filter by module and skip cache to 
 models = unique_sdk.LLMModels.get(
     user_id=user_id,
     company_id=company_id,
-    module="UNIQUE_AI",  # Optional - filter models by module
-    skipCache=False,  # Optional - skip cache and fetch fresh data (default: False)
+    module="UNIQUE_AI",  # Optional - filter models by module, only UNIQUE_AI is supported right now
 )
 ```
 

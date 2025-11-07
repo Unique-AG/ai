@@ -13,7 +13,6 @@ class LLMModels(APIResource["LLMModels"]):
         """
 
         module: NotRequired[str | None]
-        skipCache: NotRequired[bool | None]
 
     class LLMModelsResponse(TypedDict):
         """
