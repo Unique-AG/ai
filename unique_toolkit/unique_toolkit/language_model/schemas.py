@@ -41,6 +41,9 @@ from pydantic import (
 from typing_extensions import deprecated, overload
 
 from unique_toolkit.content.schemas import ContentReference
+from unique_toolkit.language_model._responses_api_utils import (
+    convert_user_message_content_to_responses_api,
+)
 from unique_toolkit.language_model.utils import format_message
 
 # set config to convert camelCase to snake_case
@@ -282,8 +285,6 @@ class LanguageModelSystemMessage(LanguageModelMessage):
 
 # Equivalent to
 # from openai.types.chat.chat_completion_user_message_param import ChatCompletionUserMessageParam
-
-
 class LanguageModelUserMessage(LanguageModelMessage):
     role: LanguageModelMessageRole = LanguageModelMessageRole.USER
 
@@ -302,14 +303,18 @@ class LanguageModelUserMessage(LanguageModelMessage):
     def to_openai(
         self, mode: Literal["completions", "responses"] = "completions"
     ) -> ChatCompletionUserMessageParam | EasyInputMessageParam:
-        content = self.content or ""
-        if not isinstance(content, str):
-            raise ValueError("Content must be a string")
+        if self.content is None:
+            content = ""
+        else:
+            content = self.content
 
         if mode == "completions":
-            return ChatCompletionUserMessageParam(role="user", content=content)
+            return ChatCompletionUserMessageParam(role="user", content=content)  # type: ignore
         elif mode == "responses":
-            return EasyInputMessageParam(role="user", content=content)
+            return EasyInputMessageParam(
+                role="user",
+                content=convert_user_message_content_to_responses_api(content),
+            )
 
 
 # Equivalent to
