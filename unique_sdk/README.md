@@ -24,6 +24,7 @@ The Unique Python SDK provides access to the public API of Unique AI. It also en
    - [Message Assessment](#message-assessment)
    - [Folder](#folder)
    - [Space](#space)
+   - [LLM Models](#llm-models)
    - [Agentic Table](#agentic-table)
 6. [UniqueQL](#uniqueql)
    - [Query Structure](#uniqueql-query-structure)
@@ -242,6 +243,7 @@ unique_sdk.Message.modify(
 - [Message Assessment](#message-assessment)
 - [Folder](#folder)
 - [Space](#space)
+- [LLM Models](#llm-models)
 - [Agentic Table](#agentic-table)
 
 Most of the API services provide an asynchronous version of the method. The async methods are suffixed with `_async`.
@@ -1353,6 +1355,20 @@ unique_sdk.Space.delete_chat(
     user_id=user_id,
     company_id=company_id,
     chat_id="chat_dejfhe729br398",
+)
+```
+
+### LLM Models
+
+#### `unique_sdk.LLMModels.get` (Compatible with release >.46)
+
+Get available LLM models. You can optionally filter by module and skip cache to fetch fresh data.
+
+```python
+models = unique_sdk.LLMModels.get(
+    user_id=user_id,
+    company_id=company_id,
+    module="UNIQUE_AI",  # Optional - filter models by module, only UNIQUE_AI is supported right now
 )
 ```
 

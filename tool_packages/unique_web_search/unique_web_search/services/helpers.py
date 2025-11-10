@@ -11,3 +11,8 @@ def clean_model_title_generator(model: type) -> str:
 def experimental_model_title_generator(model: type) -> str:
     title = clean_model_title_generator(model)
     return title.replace("Config", "").strip() + " (Experimental)"
+
+
+def beta_model_title_generator(model: type) -> str:
+    title = clean_model_title_generator(model)
+    return title.replace("Config", "").strip() + " (Beta)"

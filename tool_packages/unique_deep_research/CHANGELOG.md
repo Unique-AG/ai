@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.14] - 2025-11-10
+- Include a check to ensure that the website provided by OpenAI in the event is not None
+- Wrap OpenAI event processing in try catch block to better handle unexpected types
+
+## [3.0.13] - 2025-11-07
+- Include ability to toogle enabled tools for deep research
+- Standardize web search message log
+
 ## [3.0.12] - 2025-11-06
 - Include pytest test suite
 

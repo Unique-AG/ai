@@ -17,10 +17,6 @@ from unique_toolkit.language_model.infos import ModelCapabilities
 
 from unique_web_search.prompts import (
     DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT,
-    REFINE_QUERY_SYSTEM_PROMPT,
-    RESTRICT_DATE_DESCRIPTION,
-    TOOL_DESCRIPTIONS,
-    TOOL_DESCRIPTIONS_FOR_SYSTEM_PROMPT,
 )
 from unique_web_search.services.content_processing.config import (
     ContentProcessorConfig,
@@ -29,7 +25,12 @@ from unique_web_search.services.crawlers import (
     get_crawler_config_types_from_names,
     get_default_crawler_config,
 )
-from unique_web_search.services.executors.web_search_v1_executor import RefineQueryMode
+from unique_web_search.services.executors.configs import (
+    RefineQueryMode,
+    WebSearchMode,
+    WebSearchModeConfig,
+    get_default_web_search_mode_config,
+)
 from unique_web_search.services.search_engine import (
     get_default_search_engine_config,
     get_search_engine_config_types_from_names,
@@ -50,6 +51,8 @@ DefaultSearchEngine = get_default_search_engine_config(
 ActivatedCrawler = get_crawler_config_types_from_names(env_settings.active_crawlers)
 DefaultCrawler = get_default_crawler_config(env_settings.active_crawlers)
 
+DEFAULT_WEB_SEARCH_MODE_CONFIG = get_default_web_search_mode_config()
+
 
 class AnswerGenerationConfig(BaseModel):
     model_config = get_configuration_dict()
@@ -68,88 +71,7 @@ class AnswerGenerationConfig(BaseModel):
     )
 
 
-class WebSearchV2(BaseModel):
-    model_config = get_configuration_dict()
-
-    enabled: bool = Field(
-        default=False,
-        description="Enable or disable the WebSearch V2 tool. Set to True to activate the step-based web search executor.",
-    )
-    max_steps: int = Field(
-        default=5,
-        description="Maximum number of sequential steps (searches or URL reads) allowed in a single WebSearch V2 plan.",
-    )
-    tool_description: str = Field(
-        default=TOOL_DESCRIPTIONS["v2"],
-        description="Information to help the language model decide when to select this tool; describes the tool's general purpose and when it is relevant.",
-    )
-    tool_description_for_system_prompt: str = Field(
-        default=TOOL_DESCRIPTIONS_FOR_SYSTEM_PROMPT["v2"],
-        description="Description of the tool's capabilities, intended for inclusion in system prompts to inform the language model what the tool can do.",
-    )
-    tool_format_information_for_system_prompt: str = Field(
-        default=DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT,
-        description="Instructions for the language model on how to reference and organize information from the tool in its response.",
-    )
-
-
-class WebSearchV1(BaseModel):
-    model_config = get_configuration_dict()
-
-    refine_query_mode: RefineQueryMode = Field(
-        default=RefineQueryMode.BASIC,
-        description="Query refinement strategy for WebSearch V1. Determines how user queries are improved before searching (e.g., BASIC, ADVANCED).",
-    )
-    max_queries: int = Field(
-        default=5,
-        description="Maximum number of search queries that WebSearch V1 will issue per user request.",
-    )
-
-
-class ExperimentalFeatures(FeatureExtendedSourceSerialization):
-    v1_mode: WebSearchV1 = Field(
-        default_factory=WebSearchV1,
-        description=(
-            "Configuration options for WebSearch V1 mode. "
-            "Controls the behavior and parameters of the original web search tool, "
-            "including query refinement and search limits."
-        ),
-    )
-
-    v2_mode: WebSearchV2 = Field(
-        default_factory=WebSearchV2,
-        description=(
-            "Configuration options for WebSearch V2 mode. "
-            "Enables and customizes the new step-based web search executor, "
-            "allowing for advanced planning and multi-step research workflows."
-        ),
-    )
-
-
-class QueryRefinementConfig(BaseModel):
-    model_config = get_configuration_dict()
-
-    enabled: bool = Field(
-        default=True,
-        description="Whether to enable the refined query",
-    )
-    system_prompt: str = Field(
-        default=REFINE_QUERY_SYSTEM_PROMPT,
-        description="The system prompt to refine the query",
-    )
-
-
-class WebSearchToolParametersConfig(BaseModel):
-    model_config = get_configuration_dict()
-
-    query_description: str = Field(
-        default="The search query to issue to the web.",
-        description="The tool parameter query description",
-    )
-    date_restrict_description: str = Field(
-        default=RESTRICT_DATE_DESCRIPTION,
-        description="The tool parameter date restrict description",
-    )
+class ExperimentalFeatures(FeatureExtendedSourceSerialization): ...
 
 
 class WebSearchConfig(BaseToolConfig):
@@ -168,6 +90,13 @@ class WebSearchConfig(BaseToolConfig):
     language_model_max_input_tokens: SkipJsonSchema[int | None] = Field(
         default=None,
         description="Language model maximum input tokens",
+    )
+
+    web_search_mode_config: WebSearchModeConfig = Field(
+        default_factory=DEFAULT_WEB_SEARCH_MODE_CONFIG,
+        description="Web Search Mode Configuration",
+        title="Web Search Mode Configuration",
+        discriminator="mode",
     )
 
     search_engine_config: ActivatedSearchEngine = Field(  # type: ignore (This type is computed at runtime so pyright is not able to infer it)
@@ -204,29 +133,9 @@ class WebSearchConfig(BaseToolConfig):
         title="Evaluation Check List",
     )
 
-    query_refinement_config: QueryRefinementConfig = Field(
-        default_factory=QueryRefinementConfig,
-        description="The query refinement configuration",
-        title="Query Refinement Configuration",
-    )
-
-    tool_parameters_config: WebSearchToolParametersConfig = Field(
-        default_factory=WebSearchToolParametersConfig,
-        description="Tool parameters configuration",
-        title="Tool Parameters Configuration",
-    )
-
-    tool_description: str = Field(
-        default=TOOL_DESCRIPTIONS["v1"],
-        description="Tool description",
-    )
-
-    tool_description_for_system_prompt: str = Field(
-        default=TOOL_DESCRIPTIONS_FOR_SYSTEM_PROMPT["v1"],
-    )
-
     tool_format_information_for_system_prompt: str = Field(
         default=DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT,
+        description="Tool format information for system prompt. This is used to format the tool response for the system prompt.",
     )
 
     experimental_features: ExperimentalFeatures = ExperimentalFeatures()
@@ -238,8 +147,15 @@ class WebSearchConfig(BaseToolConfig):
 
     @model_validator(mode="after")
     def disable_query_refinement_if_no_structured_output(self):
-        if ModelCapabilities.STRUCTURED_OUTPUT not in self.language_model.capabilities:
-            self.query_refinement_config.enabled = False
+        if (
+            ModelCapabilities.STRUCTURED_OUTPUT not in self.language_model.capabilities
+            and self.web_search_mode_config.mode == WebSearchMode.V1
+            and self.web_search_mode_config.refine_query_mode.mode
+            != RefineQueryMode.DEACTIVATED
+        ):
+            self.web_search_mode_config.refine_query_mode.mode = (
+                RefineQueryMode.DEACTIVATED
+            )
             _LOGGER.warning(
                 "The language model does not support structured output. Query refinement is disabled."
             )
