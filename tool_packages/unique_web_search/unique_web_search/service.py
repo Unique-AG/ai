@@ -83,8 +83,8 @@ class WebSearchTool(Tool[WebSearchConfig]):
 
     def tool_description_for_system_prompt(self) -> str:
         if self.config.web_search_mode_config.mode == WebSearchMode.V2:
-            return self.config.web_search_mode_config.tool_description_for_system_prompt.format(
-                max_steps=self.config.web_search_mode_config.max_steps
+            return self.config.web_search_mode_config.tool_description_for_system_prompt.replace(
+                "$max_steps", str(self.config.web_search_mode_config.max_steps)
             )
         return self.config.web_search_mode_config.tool_description_for_system_prompt
 
