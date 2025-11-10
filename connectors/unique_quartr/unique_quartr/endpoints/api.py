@@ -7,7 +7,7 @@ from unique_toolkit._common.endpoint_requestor import (
 )
 
 from unique_quartr.settings import quartr_settings
-
+from logging import getLogger
 from .schemas import (
     PaginatedDocumentResponseDto,
     PaginatedDocumentTypeResponseDto,
@@ -17,11 +17,13 @@ from .schemas import (
     PublicV3EventsGetParametersQuery,
 )
 
+_LOGGER = getLogger(__name__)
 
 class EmptyModel(BaseModel): ...
 
 
 def get_quartr_context(*, company_id: str):
+    _LOGGER.debug(quartr_settings.model_dump_json(indent=1))
     if quartr_settings.quartr_api_creds is None:
         raise ValueError("Quartr API credentials are not set")
 

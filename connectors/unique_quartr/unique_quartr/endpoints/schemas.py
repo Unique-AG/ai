@@ -15,6 +15,8 @@ class CamelizedModel(BaseModel):
     model_config = ConfigDict(
         alias_generator=to_camel,
         populate_by_name=True,
+        json_encoders={datetime: lambda v: v.isoformat()},
+
     )
 
 

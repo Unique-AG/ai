@@ -115,7 +115,7 @@ class QuartrService:
             if cursor is None:
                 break
 
-        return events
+        return [EventDto.model_validate(event) for event in events]
 
     def fetch_event_documents(
         self,
@@ -151,7 +151,7 @@ class QuartrService:
             if cursor is None:
                 break
 
-        return documents
+        return [DocumentDto.model_validate(document) for document in documents]
 
 
 def _convert_ids_to_str(ids: list[int]) -> str:

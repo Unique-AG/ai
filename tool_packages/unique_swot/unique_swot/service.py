@@ -2,8 +2,11 @@ from datetime import datetime
 from logging import getLogger
 
 from typing_extensions import override
+from unique_quartr.endpoints.schemas import CompanyDto, TickerDto
+from unique_quartr.service import QuartrService
 from unique_toolkit import ShortTermMemoryService
 from unique_toolkit._common.docx_generator import DocxGeneratorService
+from unique_toolkit._common.endpoint_requestor import RequestorType
 from unique_toolkit.agentic.tools.agent_chunks_hanlder import AgentChunksHandler
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
@@ -42,6 +45,18 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
 
         self._knowledge_base_service = KnowledgeBaseService.from_event(self._event)
 
+        quartr_company = CompanyDto(
+            country="US",
+            display_name="Ibotta",
+            name="Ibotta Inc",
+            id=16712,
+            tickers=[TickerDto(ticker="IBTA", exchange="NYSE")],
+            isins=["US4510511060"],
+            updated_at=datetime(2025, 1, 7, 2, 18, 26),
+            created_at=datetime(2024, 4, 19, 12, 6, 0),
+            backlink_url="https://quartr.com/companies/ibotta-inc_16712?utm_source=api&utm_medium=749&utm_campaign=16712",
+        )
+
         self._notifier = ProgressNotifier(
             chat_service=self._chat_service,
             message_id=self._event.payload.assistant_message.id,
@@ -66,13 +81,16 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
 
         self._source_collection_manager = SourceCollectionManager(
             context=CollectionContext(
-                use_earnings_calls=False,
+                use_earnings_calls=True,
                 use_web_sources=False,
                 metadata_filter=metadata_filter,
+                company=quartr_company,
+                upload_scope_id_earnings_calls=self.config.earnings_call_scope_id,
             ),
             knowledge_base_service=self._knowledge_base_service,
             content_chunk_registry=self._content_chunk_registry,
             notifier=self._notifier,
+            quartr_service=self._get_quartr_service(self._event.company_id),
         )
 
         self._citation_manager = CitationManager(
@@ -142,6 +160,7 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
 
             _LOGGER.info(f"Collected {len(sources)} sources!")
 
+            raise Exception("test")
             total_steps = self._calculate_total_steps(plan, len(sources))
             _LOGGER.info(f"Total steps: {total_steps}")
             executor = SWOTExecutionManager(
@@ -225,6 +244,17 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
         num_steps_per_execution = number_of_sources + 1  # +1 for the summarization step
 
         return number_of_executions * num_steps_per_execution
+
+    @staticmethod
+    def _get_quartr_service(company_id: str) -> QuartrService | None:
+        try:
+            return QuartrService(
+                company_id=company_id,
+                requestor_type=RequestorType.REQUESTS,
+            )
+        except Exception as e:
+            _LOGGER.error(f"Error getting Quartr service: {e}")
+            return None
 
 
 ToolFactory.register_tool(tool=SwotAnalysisTool, tool_config=SwotAnalysisToolConfig)

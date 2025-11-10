@@ -106,4 +106,4 @@ class SwotMemoryService(Generic[T]):
     def _log_memory_error(self, key: str, error: Exception, message: str) -> None:
         """Log memory operation errors with consistent formatting."""
         _LOGGER.warning(f"{message} for key '{key}'. Returning None.")
-        _LOGGER.debug(f"Error: {error}", exc_info=True)
+        # _LOGGER.debug(f"Error: {error}", exc_info=True)

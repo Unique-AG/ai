@@ -19,6 +19,10 @@ class SwotAnalysisToolConfig(BaseToolConfig):
         default="",
         description="The scope id for the SWOT analysis cache.",
     )
+    earnings_call_scope_id: str = Field(
+        default="",
+        description="The scope id to use for uploading/reading the earnings calls.",
+    )
     report_generation_config: ReportGenerationConfig = Field(
         default_factory=ReportGenerationConfig,
         description="The configuration for the report generation.",
