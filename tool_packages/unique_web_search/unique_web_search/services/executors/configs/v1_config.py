@@ -17,9 +17,9 @@ from unique_web_search.services.executors.configs.prompts import (
 
 
 class RefineQueryMode(StrEnum):
-    BASIC = "basic"
-    ADVANCED = "advanced"
-    DEACTIVATED = "deactivated"
+    BASIC = "Basic"
+    ADVANCED = "Advanced (Beta)"
+    DEACTIVATED = "Deactivated"
 
 
 class WebSearchToolParametersDescriptionConfig(BaseModel):
