@@ -12,6 +12,7 @@ ProxyAuthMode = Literal["none", "username_password", "ssl_tls"]
 ProxyProtocol = Literal["http", "https"]
 
 WebSearchMode = Literal["v1", "v2"]
+AZURE_IDENTITY_CREDENTIAL_TYPE = Literal["workload", "default"]
 
 
 class Base(BaseSettings):
@@ -66,6 +67,15 @@ class Base(BaseSettings):
     proxy_ssl_cert_path: str | None = None
     proxy_ssl_key_path: str | None = None
 
+    ## For Azure Identity Credential
+    unique_private_endpoint_transport_enabled: bool | None = False
+    default_azure_identity_credential_type: AZURE_IDENTITY_CREDENTIAL_TYPE | None = (
+        "default"
+    )
+    default_azure_identity_credentials_validate_token_url: str | None = (
+        "https://management.azure.com/.default"
+    )
+
     @property
     def active_crawlers(self) -> list[str]:
         "Dynamically determine the active crawlers based on the API keys provided"
@@ -85,6 +95,33 @@ class Base(BaseSettings):
             _LOGGER.warning("No default web search mode set, using v1")
             return "v1"
         return self.web_search_mode
+
+    @property
+    def azure_identity_credential_type(self) -> AZURE_IDENTITY_CREDENTIAL_TYPE:
+        if self.default_azure_identity_credential_type is None:
+            _LOGGER.warning(
+                "No default Azure identity credential type set, using default"
+            )
+            return "default"
+        return self.default_azure_identity_credential_type
+
+    @property
+    def azure_identity_credentials_validate_token_url(self) -> str:
+        if self.default_azure_identity_credentials_validate_token_url is None:
+            _LOGGER.warning(
+                "No default Azure identity credentials validate token url set, using default"
+            )
+            return "https://management.azure.com/.default"
+        return self.default_azure_identity_credentials_validate_token_url
+
+    @property
+    def use_unique_private_endpoint_transport(self) -> bool:
+        if self.unique_private_endpoint_transport_enabled is None:
+            _LOGGER.warning(
+                "No default unique private endpoint transport enabled set, using False"
+            )
+            return False
+        return self.unique_private_endpoint_transport_enabled
 
 
 class Settings(Base):
