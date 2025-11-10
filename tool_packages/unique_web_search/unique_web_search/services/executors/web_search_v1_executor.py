@@ -1,5 +1,4 @@
 import logging
-from enum import StrEnum
 from time import time
 from typing import Callable, Literal, Optional, overload, override
 
@@ -22,6 +21,7 @@ from unique_web_search.schema import WebSearchToolParameters
 from unique_web_search.services.content_processing import ContentProcessor, WebPageChunk
 from unique_web_search.services.crawlers import CrawlerTypes
 from unique_web_search.services.executors.base_executor import BaseWebSearchExecutor
+from unique_web_search.services.executors.configs import RefineQueryMode
 from unique_web_search.services.search_engine import SearchEngineTypes
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
@@ -33,11 +33,6 @@ from unique_web_search.utils import (
 )
 
 _LOGGER = logging.getLogger(__name__)
-
-
-class RefineQueryMode(StrEnum):
-    ADVANCED = "advanced"
-    BASIC = "basic"
 
 
 class RefinedQuery(StructuredOutputModel):
@@ -56,6 +51,16 @@ class RefinedQueries(StructuredOutputModel):
     refined_queries: list[RefinedQuery] = Field(
         description="The refined queries optimized for the search engine."
     )
+
+
+@overload
+async def query_generation_agent(
+    query: str,
+    language_model_service: LanguageModelService,
+    language_model: LMI,
+    system_prompt: str,
+    mode: Literal[RefineQueryMode.DEACTIVATED],
+) -> RefinedQuery: ...
 
 
 @overload
@@ -86,17 +91,29 @@ async def query_generation_agent(
     mode: RefineQueryMode,
 ) -> RefinedQuery | RefinedQueries:
     """Refine the query to be more specific and relevant to the user's question."""
+    match mode:
+        case RefineQueryMode.DEACTIVATED:
+            _LOGGER.info("Query Refinement deactivated")
+            ### Early return for deactivated mode
+            return RefinedQuery(
+                objective=query,
+                refined_query=query,
+            )
+        case RefineQueryMode.BASIC:
+            _LOGGER.info("Query Refinement with basic mode")
+            structured_output_model = RefinedQuery
+        case RefineQueryMode.ADVANCED:
+            _LOGGER.info("Query Refinement with advanced mode")
+            structured_output_model = RefinedQueries
+        case _:
+            raise ValueError(f"Invalid refine query mode: {mode}")
+
     messages = (
         MessagesBuilder()
         .system_message_append(system_prompt)
         .user_message_append(query)
         .build()
     )
-
-    if mode == RefineQueryMode.BASIC:
-        structured_output_model = RefinedQuery
-    else:
-        structured_output_model = RefinedQueries
 
     response = await language_model_service.complete_async(
         messages,
