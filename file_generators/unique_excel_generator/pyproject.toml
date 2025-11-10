@@ -1,0 +1,46 @@
+[tool.poetry]
+name = "unique_excel_generator"
+version = "1.1.4"
+description = ""
+authors = [
+    "Martin Fadler <martin.fadler@unique.ch>",
+    "Sadique Sheik <sadique@unique.ch>",
+    "Fabian Schläpfer <fabian@unique.ch>",
+    "Pascal Hauri <pascal@unique.ch>",
+]
+readme = ["README.md", "CHANGELOG.md"]
+license = "Proprietary"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+typing-extensions = "^4.9.0"
+pydantic = "^2.8.2"
+pydantic-settings = "^2.10.1"
+python-dotenv = "^1.0.1"
+xlsxwriter = "^3.2.0"
+quart = "^0.20.0"
+pandas = "2.2.3"
+numpy = "^1.26.4"
+unique-toolkit = "^1.14.5"
+
+
+[tool.poetry.group.dev.dependencies]
+python = "^3.12"
+typing-extensions = "^4.9.0"
+pydantic = "^2.8.2"
+pydantic-settings = "^2.10.1"
+python-dotenv = "^1.0.1"
+pillow = "^10.4.0"
+unique-toolkit = { path = "../../unique_toolkit" }
+ruff = "^0.12.10"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+target-version = "py311"
+
+[tool.ruff.lint]
+extend-select = ["I"]

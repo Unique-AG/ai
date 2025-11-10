@@ -138,3 +138,8 @@ def replace_in_text(
     # 2 phase replacement, since the map keys and values can overlap
     text = _replace_in_text_non_overlapping(text, zip(orig, placeholders))
     return _replace_in_text_non_overlapping(text, zip(placeholders, repls))
+
+
+def remove_chat_prefix(text):
+    pattern = r"Chat_\d{4}-\d{2}-\d{2}_\d{2}:\d{2}_"
+    return re.sub(pattern, "", text)
