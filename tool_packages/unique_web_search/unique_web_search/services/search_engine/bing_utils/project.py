@@ -7,7 +7,7 @@ from unique_web_search.settings import env_settings
 
 
 def get_project_client(credentials: TokenCredential, endpoint: str) -> AIProjectClient:
-    if env_settings.unique_private_endpoint_transport_enabled:
+    if env_settings.use_unique_private_endpoint_transport:
         transport = RequestsTransport(connection_verify=certifi.where())
         return AIProjectClient(
             credential=credentials,
