@@ -1,10 +1,8 @@
 from enum import StrEnum
 from typing import Any, Literal
 
-from humps import camelize
 from pydantic import (
     BaseModel,
-    ConfigDict,
     Field,
     field_validator,
 )
@@ -14,18 +12,13 @@ from unique_sdk import (
     SelectionMethod,
 )
 
+from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 from unique_toolkit.app.schemas import (
     ChatEvent,
     ChatEventAssistantMessage,
     ChatEventUserMessage,
 )
 from unique_toolkit.language_model.schemas import LanguageModelMessageRole
-
-model_config = ConfigDict(
-    alias_generator=camelize,
-    populate_by_name=True,
-    arbitrary_types_allowed=True,
-)
 
 
 class MagicTableEventTypes(StrEnum):
@@ -63,7 +56,7 @@ class SheetType(StrEnum):
 
 
 class BaseMetadata(BaseModel):
-    model_config = model_config
+    model_config = get_configuration_dict()
 
     sheet_type: SheetType = Field(
         description="The type of the sheet.",
@@ -72,7 +65,7 @@ class BaseMetadata(BaseModel):
 
 
 class DDMetadata(BaseMetadata):
-    model_config = model_config
+    model_config = get_configuration_dict()
 
     question_file_ids: list[str] = Field(
         default_factory=list, description="The IDs of the question files"
@@ -86,7 +79,7 @@ class DDMetadata(BaseMetadata):
 
 
 class MagicTableBasePayload(BaseModel):
-    model_config = model_config
+    model_config = get_configuration_dict()
     name: str = Field(description="The name of the module")
     sheet_name: str
 
@@ -111,12 +104,12 @@ class MagicTableBasePayload(BaseModel):
 
 
 class MagicTableAddMetadataPayload(MagicTableBasePayload):
-    action: Literal[MagicTableAction.ADD_META_DATA]
+    action: Literal[MagicTableAction.ADD_META_DATA]  # type: ignore[assignment]
     metadata: DDMetadata
 
 
 class MagicTableUpdateCellPayload(MagicTableBasePayload):
-    action: Literal[MagicTableAction.UPDATE_CELL]
+    action: Literal[MagicTableAction.UPDATE_CELL]  # type: ignore[assignment]
     column_order: int
     row_order: int
     data: str
@@ -129,12 +122,12 @@ class ArtifactType(StrEnum):
 
 
 class ArtifactData(BaseModel):
-    model_config = model_config
+    model_config = get_configuration_dict()
     artifact_type: ArtifactType
 
 
 class MagicTableGenerateArtifactPayload(MagicTableBasePayload):
-    action: Literal[MagicTableAction.GENERATE_ARTIFACT]
+    action: Literal[MagicTableAction.GENERATE_ARTIFACT]  # type: ignore[assignment]
 
     data: ArtifactData
 
@@ -143,7 +136,7 @@ class MagicTableGenerateArtifactPayload(MagicTableBasePayload):
 
 
 class SheetCompletedMetadata(BaseMetadata):
-    model_config = model_config
+    model_config = get_configuration_dict()
     sheet_id: str = Field(description="The ID of the sheet that was completed.")
     library_sheet_id: str = Field(
         description="The ID of the library corresponding to the sheet."
@@ -151,7 +144,7 @@ class SheetCompletedMetadata(BaseMetadata):
 
 
 class MagicTableSheetCompletedPayload(MagicTableBasePayload):
-    action: Literal[MagicTableAction.SHEET_COMPLETED]
+    action: Literal[MagicTableAction.SHEET_COMPLETED]  # type: ignore[assignment]
     metadata: SheetCompletedMetadata
 
 
@@ -161,7 +154,7 @@ class SheetCreatedMetadata(BaseMetadata):
 
 
 class MagicTableSheetCreatedPayload(MagicTableBasePayload):
-    action: Literal[MagicTableAction.SHEET_CREATED]
+    action: Literal[MagicTableAction.SHEET_CREATED]  # type: ignore[assignment]
     metadata: SheetCreatedMetadata
 
 
@@ -169,12 +162,12 @@ class MagicTableSheetCreatedPayload(MagicTableBasePayload):
 
 
 class LibrarySheetRowVerifiedMetadata(BaseMetadata):
-    model_config = model_config
+    model_config = get_configuration_dict()
     row_order: int = Field(description="The row index of the row that was verified.")
 
 
 class MagicTableLibrarySheetRowVerifiedPayload(MagicTableBasePayload):
-    action: Literal[MagicTableAction.LIBRARY_SHEET_ROW_VERIFIED]
+    action: Literal[MagicTableAction.LIBRARY_SHEET_ROW_VERIFIED]  # type: ignore[assignment]
     metadata: LibrarySheetRowVerifiedMetadata
 
 
@@ -194,13 +187,13 @@ class MagicTableEvent(ChatEvent):
 
 
 class LogDetail(BaseModel):
-    model_config = model_config
+    model_config = get_configuration_dict()
     text: str
     message_id: str | None
 
 
 class LogEntry(BaseModel):
-    model_config = model_config
+    model_config = get_configuration_dict()
 
     text: str
     created_at: str
@@ -219,19 +212,19 @@ class LogEntry(BaseModel):
 
 
 class MagicTableCellMetaData(BaseModel):
-    model_config = model_config
-    row_order: int
-    column_order: int
+    model_config = get_configuration_dict()
+    row_order: int = Field(description="The row index of the cell.")
+    column_order: int = Field(description="The column index of the cell.")
     selected: bool | None = None
     selection_method: SelectionMethod | None = None
     agreement_status: AgreementStatus | None = None
 
 
 class MagicTableCell(BaseModel):
-    model_config = model_config
+    model_config = get_configuration_dict()
     sheet_id: str
-    row_order: int
-    column_order: int
+    row_order: int = Field(description="The row index of the cell.")
+    column_order: int = Field(description="The column index of the cell.")
     row_locked: bool = Field(default=False, description="Lock status of the row.")
     text: str
     log_entries: list[LogEntry] = Field(
@@ -243,7 +236,7 @@ class MagicTableCell(BaseModel):
 
 
 class MagicTableSheet(BaseModel):
-    model_config = model_config
+    model_config = get_configuration_dict()
     sheet_id: str
     name: str
     state: AgenticTableSheetState
