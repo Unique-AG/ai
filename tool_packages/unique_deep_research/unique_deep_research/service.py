@@ -518,141 +518,154 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         """
 
         async for event in stream:
-            match event.type:
-                case "response.completed":
-                    # Extract the final output with annotations
-                    if event.response.output and len(event.response.output) > 0:
-                        final_output = event.response.output[-1]
-                        if not isinstance(final_output, ResponseOutputMessage):
-                            self.logger.warning(
-                                f"Unexpected output type: {type(final_output)}"
-                            )
-                            continue
-                        content_item = final_output.content[0]
-
-                        # Refusal
-                        if isinstance(content_item, ResponseOutputRefusal):
-                            return content_item.refusal, []
-
-                        # Extract final report and references
-                        report_text = content_item.text
-                        annotations = content_item.annotations or []
-                        self.logger.info("Final report extracted from OpenAI stream")
-                        return report_text, annotations
-                    return event.response.output_text or "", []
-                case "response.incomplete":
-                    if event.response.incomplete_details:
-                        return (
-                            event.response.incomplete_details.reason
-                            or "Incomplete due to unknown reason",
-                            [],
-                        )
-                case "response.output_item.done":
-                    # This is where we handle the output items and send to frontend
-                    if isinstance(event.item, ResponseReasoningItem):
-                        for summary in event.item.summary:
-                            self.chat_service.create_message_log(
-                                message_id=self.event.payload.assistant_message.id,
-                                text=summary.text,
-                                status=MessageLogStatus.COMPLETED,
-                                order=get_next_message_order(
-                                    self.event.payload.assistant_message.id
-                                ),
-                                uncited_references=MessageLogUncitedReferences(
-                                    data=[],
-                                ),
-                                details=MessageLogDetails(
-                                    data=[],
-                                ),
-                            )
-                    elif isinstance(event.item, ResponseFunctionWebSearch):
-                        if isinstance(event.item.action, ActionSearch) and isinstance(
-                            event.item.action.query, str
-                        ):
-                            self.logger.info("OpenAI web search")
-                            self.chat_service.create_message_log(
-                                message_id=self.event.payload.assistant_message.id,
-                                text="**Searching the web**",
-                                status=MessageLogStatus.COMPLETED,
-                                order=get_next_message_order(
-                                    self.event.payload.assistant_message.id
-                                ),
-                                uncited_references=MessageLogUncitedReferences(
-                                    data=[],
-                                ),
-                                details=MessageLogDetails(
-                                    data=[
-                                        MessageLogEvent(
-                                            type="WebSearch",
-                                            text=event.item.action.query,
-                                        )
-                                    ],
-                                ),
-                            )
-                        elif isinstance(
-                            event.item.action, ActionOpenPage
-                        ) or isinstance(event.item.action, ActionFind):
-                            self.logger.info("OpenAI reading web page")
-                            if "https://" not in event.item.action.url:
-                                continue
-
-                            _, title, success = await crawl_url(
-                                AsyncClient(follow_redirects=True),
-                                event.item.action.url,
-                            )
-                            if not success:
-                                self.logger.info(
-                                    f"Failed to crawl URL: {event.item.action.url} but openai still opened the page"
+            try:
+                match event.type:
+                    case "response.completed":
+                        # Extract the final output with annotations
+                        if event.response.output and len(event.response.output) > 0:
+                            final_output = event.response.output[-1]
+                            if not isinstance(final_output, ResponseOutputMessage):
+                                self.logger.warning(
+                                    f"Unexpected output type: {type(final_output)}"
                                 )
                                 continue
-                            if not title:
-                                self.logger.info(
-                                    f"No title found for URL: {event.item.action.url}"
-                                )
-                                continue
-                            self.chat_service.create_message_log(
-                                message_id=self.event.payload.assistant_message.id,
-                                text="**Reading website**",
-                                status=MessageLogStatus.COMPLETED,
-                                order=get_next_message_order(
-                                    self.event.payload.assistant_message.id
-                                ),
-                                uncited_references=MessageLogUncitedReferences(
-                                    data=[
-                                        ContentReference(
-                                            name=title or event.item.action.url,
-                                            url=event.item.action.url,
-                                            sequence_number=0,
-                                            source="web",
-                                            source_id=event.item.action.url,
-                                        )
-                                    ],
-                                ),
-                                details=MessageLogDetails(
-                                    data=[],
-                                ),
-                            )
-                        else:
+                            content_item = final_output.content[0]
+
+                            # Refusal
+                            if isinstance(content_item, ResponseOutputRefusal):
+                                return content_item.refusal, []
+
+                            # Extract final report and references
+                            report_text = content_item.text
+                            annotations = content_item.annotations or []
                             self.logger.info(
-                                f"OpenAI web action unexpected type: {type(event.item)}"
+                                "Final report extracted from OpenAI stream"
                             )
-                case "response.failed":
-                    self.chat_service.create_message_log(
-                        message_id=self.event.payload.assistant_message.id,
-                        text=f"Failed to complete research: {event.response.error}",
-                        status=MessageLogStatus.FAILED,
-                        order=get_next_message_order(
-                            self.event.payload.assistant_message.id
-                        ),
-                        uncited_references=MessageLogUncitedReferences(
-                            data=[],
-                        ),
-                        details=MessageLogDetails(
-                            data=[],
-                        ),
-                    )
-                    if event.response.error:
-                        return event.response.error.message, []
+                            return report_text, annotations
+                        return event.response.output_text or "", []
+                    case "response.incomplete":
+                        if event.response.incomplete_details:
+                            return (
+                                event.response.incomplete_details.reason
+                                or "Incomplete due to unknown reason",
+                                [],
+                            )
+                    case "response.output_item.done":
+                        # This is where we handle the output items and send to frontend
+                        if isinstance(event.item, ResponseReasoningItem):
+                            for summary in event.item.summary:
+                                self.chat_service.create_message_log(
+                                    message_id=self.event.payload.assistant_message.id,
+                                    text=summary.text,
+                                    status=MessageLogStatus.COMPLETED,
+                                    order=get_next_message_order(
+                                        self.event.payload.assistant_message.id
+                                    ),
+                                    uncited_references=MessageLogUncitedReferences(
+                                        data=[],
+                                    ),
+                                    details=MessageLogDetails(
+                                        data=[],
+                                    ),
+                                )
+                        elif isinstance(event.item, ResponseFunctionWebSearch):
+                            if isinstance(
+                                event.item.action, ActionSearch
+                            ) and isinstance(event.item.action.query, str):
+                                self.logger.info("OpenAI web search")
+                                self.chat_service.create_message_log(
+                                    message_id=self.event.payload.assistant_message.id,
+                                    text="**Searching the web**",
+                                    status=MessageLogStatus.COMPLETED,
+                                    order=get_next_message_order(
+                                        self.event.payload.assistant_message.id
+                                    ),
+                                    uncited_references=MessageLogUncitedReferences(
+                                        data=[],
+                                    ),
+                                    details=MessageLogDetails(
+                                        data=[
+                                            MessageLogEvent(
+                                                type="WebSearch",
+                                                text=event.item.action.query,
+                                            )
+                                        ],
+                                    ),
+                                )
+                            elif isinstance(
+                                event.item.action, ActionOpenPage
+                            ) or isinstance(event.item.action, ActionFind):
+                                self.logger.info("OpenAI reading web page")
+                                if (
+                                    not event.item.action.url
+                                    or "https://" not in event.item.action.url
+                                ):
+                                    self.logger.warning(
+                                        f"Invalid URL from OpenAI: {event.item.action}"
+                                    )
+                                    continue
+
+                                _, title, success = await crawl_url(
+                                    AsyncClient(follow_redirects=True),
+                                    event.item.action.url,
+                                )
+                                if not success:
+                                    self.logger.info(
+                                        f"Failed to crawl URL: {event.item.action.url} but openai still opened the page"
+                                    )
+                                    continue
+                                if not title:
+                                    self.logger.info(
+                                        f"No title found for URL: {event.item.action.url}"
+                                    )
+                                    continue
+                                self.chat_service.create_message_log(
+                                    message_id=self.event.payload.assistant_message.id,
+                                    text="**Reading website**",
+                                    status=MessageLogStatus.COMPLETED,
+                                    order=get_next_message_order(
+                                        self.event.payload.assistant_message.id
+                                    ),
+                                    uncited_references=MessageLogUncitedReferences(
+                                        data=[
+                                            ContentReference(
+                                                name=title or event.item.action.url,
+                                                url=event.item.action.url,
+                                                sequence_number=0,
+                                                source="web",
+                                                source_id=event.item.action.url,
+                                            )
+                                        ],
+                                    ),
+                                    details=MessageLogDetails(
+                                        data=[],
+                                    ),
+                                )
+                            else:
+                                self.logger.info(
+                                    f"OpenAI web action unexpected type: {type(event.item)} {event.item}"
+                                )
+                    case "response.failed":
+                        self.chat_service.create_message_log(
+                            message_id=self.event.payload.assistant_message.id,
+                            text=f"Failed to complete research: {event.response.error}",
+                            status=MessageLogStatus.FAILED,
+                            order=get_next_message_order(
+                                self.event.payload.assistant_message.id
+                            ),
+                            uncited_references=MessageLogUncitedReferences(
+                                data=[],
+                            ),
+                            details=MessageLogDetails(
+                                data=[],
+                            ),
+                        )
+                        if event.response.error:
+                            return event.response.error.message, []
+            except Exception as e:
+                self.logger.error(
+                    f"Error processing research stream event {event.item}: {e}"
+                )
 
         self.logger.error("Stream ended without completion")
         return "", []
