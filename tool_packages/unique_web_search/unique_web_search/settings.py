@@ -12,6 +12,7 @@ ProxyAuthMode = Literal["none", "username_password", "ssl_tls"]
 ProxyProtocol = Literal["http", "https"]
 
 WebSearchMode = Literal["v1", "v2"]
+AZURE_IDENTITY_CREDENTIAL_TYPE = Literal["workload", "default"]
 
 
 class Base(BaseSettings):
@@ -65,6 +66,13 @@ class Base(BaseSettings):
     ## For SSL/TLS authentication
     proxy_ssl_cert_path: str | None = None
     proxy_ssl_key_path: str | None = None
+
+    ## For Azure Identity Credential
+    azure_identity_credential_type: AZURE_IDENTITY_CREDENTIAL_TYPE = "default"
+    azure_identity_credentials_transport_activate: bool = False
+    azure_identity_credentials_validate_token_url: str = (
+        "https://management.azure.com/.default"
+    )
 
     @property
     def active_crawlers(self) -> list[str]:
