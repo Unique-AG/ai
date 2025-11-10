@@ -167,6 +167,12 @@ class Message(APIResource["Message"]):
         """
         Creates a new message object.
         """
+        # Clean up empty descriptions from references
+        if "references" in params and params["references"]:
+            for ref in params["references"]:
+                if "description" in ref and not ref["description"]:
+                    ref.pop("description")
+
         return cast(
             "Message",
             cls._static_request(
@@ -188,6 +194,12 @@ class Message(APIResource["Message"]):
         """
         Creates a new message object.
         """
+        # Clean up empty descriptions from references
+        if "references" in params and params["references"]:
+            for ref in params["references"]:
+                if "description" in ref and not ref["description"]:
+                    ref.pop("description")
+
         return cast(
             "Message",
             await cls._static_request_async(
@@ -210,6 +222,12 @@ class Message(APIResource["Message"]):
         """
         Updates an existing message object.
         """
+        # Clean up empty descriptions from references
+        if "references" in params and params["references"]:
+            for ref in params["references"]:
+                if "description" in ref and not ref["description"]:
+                    ref.pop("description")
+
         url = "%s/%s" % (cls.class_url(), quote_plus(id))
         return cast(
             "Message",
@@ -233,6 +251,12 @@ class Message(APIResource["Message"]):
         """
         Updates an existing message object.
         """
+        # Clean up empty descriptions from references
+        if "references" in params and params["references"]:
+            for ref in params["references"]:
+                if "description" in ref and not ref["description"]:
+                    ref.pop("description")
+
         url = "%s/%s" % (cls.class_url(), quote_plus(id))
         return cast(
             "Message",
@@ -326,6 +350,12 @@ class Message(APIResource["Message"]):
         """
         Creates a new message event object.
         """
+        # Clean up empty descriptions from references
+        if "references" in params and params["references"]:
+            for ref in params["references"]:
+                if "description" in ref and not ref["description"]:
+                    ref.pop("description")
+
         message_id = params.get("messageId")
         params.pop("messageId", None)
         return cast(
@@ -349,6 +379,12 @@ class Message(APIResource["Message"]):
         """
         Creates a new message event object.
         """
+        # Clean up empty descriptions from references
+        if "references" in params and params["references"]:
+            for ref in params["references"]:
+                if "description" in ref and not ref["description"]:
+                    ref.pop("description")
+
         message_id = params.get("messageId")
         params.pop("messageId", None)
         return cast(
