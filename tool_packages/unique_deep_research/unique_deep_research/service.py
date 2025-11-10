@@ -521,6 +521,10 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             try:
                 match event.type:
                     case "response.completed":
+                        if event.response.usage:
+                            self.logger.info(
+                                f"OpenAI research token usage: {event.response.usage}"
+                            )
                         # Extract the final output with annotations
                         if event.response.output and len(event.response.output) > 0:
                             final_output = event.response.output[-1]
@@ -644,7 +648,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                                 )
                             else:
                                 self.logger.info(
-                                    f"OpenAI web action unexpected type: {type(event.item)} {event.item}"
+                                    f"OpenAI web action unexpected type: {type(event.item)}"
                                 )
                     case "response.failed":
                         self.chat_service.create_message_log(
