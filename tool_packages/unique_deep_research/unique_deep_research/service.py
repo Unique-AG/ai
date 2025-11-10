@@ -598,6 +598,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                                 self.logger.info("OpenAI reading web page")
                                 if (
                                     not event.item.action.url
+                                    or not isinstance(event.item.action.url, str)
                                     or "https://" not in event.item.action.url
                                 ):
                                     self.logger.warning(
