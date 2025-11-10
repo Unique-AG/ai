@@ -23,6 +23,7 @@ from unique_toolkit.content.functions import (
     search_contents_async,
     upload_content,
     upload_content_from_bytes,
+    upload_content_from_bytes_async,
 )
 from unique_toolkit.content.schemas import (
     Content,
@@ -470,6 +471,47 @@ class ContentService:
             mime_type=mime_type,
             scope_id=scope_id,
             chat_id=chat_id,
+            skip_ingestion=skip_ingestion,
+            ingestion_config=ingestion_config,
+            metadata=metadata,
+        )
+
+    async def upload_content_from_bytes_async(
+        self,
+        content: bytes,
+        *,
+        content_name: str,
+        mime_type: str,
+        scope_id: str,
+        skip_ingestion: bool = False,
+        ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
+        metadata: dict | None = None,
+    ) -> Content:
+        """
+        Uploads content to the knowledge base.
+
+        Args:
+            content (bytes): The content to upload.
+            content_name (str): The name of the content.
+            mime_type (str): The MIME type of the content.
+            scope_id (str | None): The scope ID. Defaults to None.
+            skip_ingestion (bool): Whether to skip ingestion. Defaults to False.
+            skip_excel_ingestion (bool): Whether to skip excel ingestion. Defaults to False.
+            ingestion_config (unique_sdk.Content.IngestionConfig | None): The ingestion configuration. Defaults to None.
+            metadata (dict | None): The metadata to associate with the content. Defaults to None.
+
+        Returns:
+            Content: The uploaded content.
+        """
+
+        return await upload_content_from_bytes_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            content=content,
+            content_name=content_name,
+            mime_type=mime_type,
+            scope_id=scope_id,
+            chat_id="",
             skip_ingestion=skip_ingestion,
             ingestion_config=ingestion_config,
             metadata=metadata,
