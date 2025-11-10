@@ -9,12 +9,6 @@ from unique_web_search.settings import env_settings
 
 _LOGGER = getLogger(__name__)
 
-id_transport = RequestsTransport(connection_verify=certifi.where())
-svc_transport = RequestsTransport(connection_verify=certifi.where())
-
-
-credentials = WorkloadIdentityCredential(transport=id_transport)
-
 
 def _get_workload_identity_credentials(
     with_request_transport: bool = False,
@@ -32,7 +26,7 @@ def get_crendentials():
     match env_settings.azure_identity_credential_type:
         case "workload":
             return _get_workload_identity_credentials(
-                env_settings.azure_identity_credentials_transport_activate
+                env_settings.use_unique_private_endpoint_transport
             )
         case "default":
             return DefaultAzureCredential()
