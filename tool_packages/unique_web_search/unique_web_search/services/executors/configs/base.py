@@ -11,7 +11,7 @@ from unique_web_search.services.helpers import (
 
 class WebSearchMode(StrEnum):
     V1 = "v1"
-    V2 = "v2"
+    V2 = "v2 (Beta)"
 
 
 T = TypeVar("T", bound=WebSearchMode)
