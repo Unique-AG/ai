@@ -1,4 +1,5 @@
 from pydantic import Field
+from pydantic.json_schema import SkipJsonSchema
 
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.openai_builtin.base import (
@@ -41,20 +42,45 @@ DEFAULT_TOOL_DESCRIPTION_FOR_USER_PROMPT = ""
 
 
 class OpenAICodeInterpreterConfig(BaseToolConfig):
-    upload_files_in_chat: bool = Field(default=True)
-
-    tool_description: str = DEFAULT_TOOL_DESCRIPTION
-    tool_description_for_system_prompt: str = DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT
-    tool_format_information_for_system_prompt: str = (
-        DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT
-    )
-    tool_description_for_user_prompt: str = DEFAULT_TOOL_DESCRIPTION_FOR_USER_PROMPT
-    tool_format_information_for_user_prompt: str = (
-        DEFAULT_TOOL_FORMAT_INFORMATION_FOR_USER_PROMPT
+    upload_files_in_chat_to_container: bool = Field(
+        default=True,
+        description="If set, the files uploaded to the chat will be uploaded to the container where code is executed.",
     )
 
-    expires_after_minutes: int = 20
-    use_auto_container: bool = False
+    tool_description: str = Field(
+        default=DEFAULT_TOOL_DESCRIPTION,
+        description="The description of the tool that will be sent to the model.",
+    )
+    tool_description_for_system_prompt: str = Field(
+        default=DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
+        description="The description of the tool that will be included in the system prompt.",
+    )
+    tool_format_information_for_system_prompt: SkipJsonSchema[str] = Field(
+        # Since the tool is executed in Azure, it's not always possible to have dynamic format information
+        default=DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT,
+        description="The format information of the tool that will be included in the system prompt.",
+    )
+    tool_description_for_user_prompt: SkipJsonSchema[str] = (
+        Field(  # At the moment, this is not appended to the user prompt
+            default=DEFAULT_TOOL_DESCRIPTION_FOR_USER_PROMPT,
+            description="The description of the tool that will be included in the user prompt.",
+        )
+    )
+    tool_format_information_for_user_prompt: SkipJsonSchema[str] = (
+        Field(  # At the moment, this is not appended to the user prompt
+            default=DEFAULT_TOOL_FORMAT_INFORMATION_FOR_USER_PROMPT,
+            description="The format information of the tool that will be included in the user prompt.",
+        )
+    )
+
+    expires_after_minutes: int = Field(
+        default=20,
+        description="The number of minutes after which the container will be deleted.",
+    )
+    use_auto_container: bool = Field(
+        default=False,
+        description="If set, use the `auto` container setting from OpenAI. Note that this will recreate the container on each call.",
+    )
 
 
 ToolFactory.register_tool_config(

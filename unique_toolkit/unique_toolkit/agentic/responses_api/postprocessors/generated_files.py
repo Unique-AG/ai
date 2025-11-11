@@ -27,7 +27,10 @@ logger = logging.getLogger(__name__)
 
 class DisplayCodeInterpreterFilesPostProcessorConfig(BaseModel):
     model_config = get_configuration_dict()
-    upload_scope_id: str
+    upload_scope_id: str = Field(
+        default="<SCOPE_ID_PLACEHOLDER>",
+        description="The scope ID where the generated files will be uploaded.",
+    )
 
     file_download_failed_message: str = Field(
         default="⚠️ File download failed ...",

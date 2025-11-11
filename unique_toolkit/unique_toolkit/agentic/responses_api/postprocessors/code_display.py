@@ -4,6 +4,7 @@ import re
 from typing import override
 
 from pydantic import BaseModel, Field
+from pydantic.json_schema import SkipJsonSchema
 
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
     ResponsesApiPostprocessor,
@@ -28,13 +29,15 @@ logger = logging.getLogger(__name__)
 
 class ShowExecutedCodePostprocessorConfig(BaseModel):
     model_config = get_configuration_dict()
-    remove_from_history: bool = Field(
-        default=False,
-        description="If set, the code interpreter call will be removed from the history on subsequent calls to the assistant.",
+    remove_from_history: SkipJsonSchema[bool] = (
+        Field(  # At the moment, it's not possible to keep executed code in the history
+            default=True,
+            description="If set, the code interpreter call will be removed from the history on subsequent calls to the assistant.",
+        )
     )
     sleep_time_before_display: float = Field(
-        default=0.7,
-        description="The time to sleep before displaying the code interpreter call. Temporary fix to avoid rendering issues.",
+        default=0.2,
+        description="Time to sleep before displaying the executed code. Please increase this value if you experience rendering issues.",
     )
 
 
