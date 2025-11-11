@@ -1,6 +1,7 @@
 from typing import Literal
 
 from pydantic import Field
+from pydantic.json_schema import SkipJsonSchema
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 
 from unique_web_search.services.executors.configs.base import (
@@ -18,7 +19,7 @@ class WebSearchV2Config(BaseWebSearchModeConfig[WebSearchMode.V2]):
     model_config = get_configuration_dict(
         model_title_generator=beta_model_title_generator
     )
-    mode: Literal[WebSearchMode.V2] = WebSearchMode.V2
+    mode: SkipJsonSchema[Literal[WebSearchMode.V2]] = WebSearchMode.V2
 
     max_steps: int = Field(
         default=5,
