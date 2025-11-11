@@ -351,9 +351,6 @@ class Content(APIResource["Content"]):
         """
         if "input" in params:
             params["input"]["metadata"] = params["input"].get("metadata") or {}
-            if "description" in params["input"] and not params["input"]["description"]:
-                params["input"].pop("description")
-
         return cast(
             "Content",
             cls._static_request(
@@ -377,9 +374,6 @@ class Content(APIResource["Content"]):
         """
         if "input" in params:
             params["input"]["metadata"] = params["input"].get("metadata") or {}
-            if "description" in params["input"] and not params["input"]["description"]:
-                params["input"].pop("description")
-
         return cast(
             "Content",
             await cls._static_request_async(
