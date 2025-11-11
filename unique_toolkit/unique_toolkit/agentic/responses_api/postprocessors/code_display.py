@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import re
 from typing import override
@@ -31,6 +32,10 @@ class ShowExecutedCodePostprocessorConfig(BaseModel):
         default=False,
         description="If set, the code interpreter call will be removed from the history on subsequent calls to the assistant.",
     )
+    sleep_time_before_display: float = Field(
+        default=0.7,
+        description="The time to sleep before displaying the code interpreter call. Temporary fix to avoid rendering issues.",
+    )
 
 
 class ShowExecutedCodePostprocessor(ResponsesApiPostprocessor):
@@ -40,7 +45,7 @@ class ShowExecutedCodePostprocessor(ResponsesApiPostprocessor):
 
     @override
     async def run(self, loop_response: ResponsesLanguageModelStreamResponse) -> None:
-        return None
+        await asyncio.sleep(self._config.sleep_time_before_display)
 
     @override
     def apply_postprocessing_to_response(
