@@ -163,7 +163,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 )
                 changed |= replaced
 
-            if replaced:
+            if replaced and not is_image:
                 loop_response.message.references.append(
                     ContentReference(
                         sequence_number=ref_number,
