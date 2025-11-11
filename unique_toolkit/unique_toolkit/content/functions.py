@@ -5,6 +5,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+import httpx
 import requests
 import unique_sdk
 
@@ -212,6 +213,73 @@ def _upsert_content(
         chatId=chat_id,
         fileUrl=file_url,
     )  # type: ignore
+
+
+async def _upsert_content_async(
+    user_id: str,
+    company_id: str,
+    input_data: dict,
+    scope_id: str | None = None,
+    chat_id: str | None = None,
+    file_url: str | None = None,
+):
+    return await unique_sdk.Content.upsert_async(
+        user_id=user_id,
+        company_id=company_id,
+        input=input_data,  # type: ignore
+        scopeId=scope_id,
+        chatId=chat_id,
+        fileUrl=file_url,
+    )
+
+
+async def upload_content_from_bytes_async(
+    user_id: str,
+    company_id: str,
+    content: bytes,
+    content_name: str,
+    mime_type: str,
+    scope_id: str | None = None,
+    chat_id: str | None = None,
+    skip_ingestion: bool = False,
+    ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
+    metadata: dict[str, Any] | None = None,
+) -> Content:
+    """
+    Asynchronously uploads content to the knowledge base.
+
+    Args:
+        user_id (str): The user ID.
+        company_id (str): The company ID.
+        content (bytes): The content to upload.
+        content_name (str): The name of the content.
+        mime_type (str): The MIME type of the content.
+        scope_id (str | None): The scope ID. Defaults to None.
+        chat_id (str | None): The chat ID. Defaults to None.
+        skip_ingestion (bool): Whether to skip ingestion. Defaults to False.
+        ingestion_config (unique_sdk.Content.IngestionConfig | None): The ingestion configuration. Defaults to None.
+        metadata ( dict[str, Any] | None): The metadata for the content. Defaults to None.
+
+    Returns:
+        Content: The uploaded content.
+    """
+
+    try:
+        return await _trigger_upload_content_async(
+            user_id=user_id,
+            company_id=company_id,
+            content=content,
+            content_name=content_name,
+            mime_type=mime_type,
+            scope_id=scope_id,
+            chat_id=chat_id,
+            skip_ingestion=skip_ingestion,
+            ingestion_config=ingestion_config,
+            metadata=metadata,
+        )
+    except Exception as e:
+        logger.error(f"Error while uploading content: {e}")
+        raise e
 
 
 def upload_content_from_bytes(
@@ -432,6 +500,130 @@ def _trigger_upload_content(
             file_url=read_url,
             scope_id=scope_id,
         )  # type: ignore
+
+    return Content.model_validate(created_content, by_alias=True, by_name=True)
+
+
+async def _trigger_upload_content_async(
+    user_id: str,
+    company_id: str,
+    content: str | Path | bytes,
+    content_name: str,
+    mime_type: str,
+    scope_id: str | None = None,
+    chat_id: str | None = None,
+    skip_ingestion: bool = False,
+    skip_excel_ingestion: bool = False,
+    ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
+    metadata: dict[str, Any] | None = None,
+):
+    """
+    Asynchronously uploads content to the knowledge base.
+
+    Args:
+        user_id (str): The user ID.
+        company_id (str): The company ID.
+        content (str | Path | bytes): The content to upload. If string or Path, file will be read from disk.
+        content_name (str): The name of the content.
+        mime_type (str): The MIME type of the content.
+        scope_id (str | None): The scope ID. Defaults to None.
+        chat_id (str | None): The chat ID. Defaults to None.
+        skip_ingestion (bool): Whether to skip ingestion. Defaults to False.
+        skip_excel_ingestion (bool): Whether to skip excel ingestion. Defaults to False.
+        ingestion_config (unique_sdk.Content.IngestionConfig | None): The ingestion configuration. Defaults to None.
+        metadata (dict[str, Any] | None): The metadata for the content. Defaults to None.
+
+    Returns:
+        Content: The uploaded content.
+    """
+    # TODO: Remove code duplication with _trigger_upload_content
+
+    if not chat_id and not scope_id:
+        raise ValueError("chat_id or scope_id must be provided")
+
+    byte_size = (
+        os.path.getsize(content) if isinstance(content, (Path, str)) else len(content)
+    )
+    created_content = await _upsert_content_async(
+        user_id=user_id,
+        company_id=company_id,
+        input_data={
+            "key": content_name,
+            "title": content_name,
+            "mimeType": mime_type,
+        },
+        scope_id=scope_id,
+        chat_id=chat_id,
+    )
+
+    write_url = created_content["writeUrl"]
+
+    if not write_url:
+        error_msg = "Write url for uploaded content is missing"
+        logger.error(error_msg)
+        raise ValueError(error_msg)
+
+    headers = {
+        "X-Ms-Blob-Content-Type": mime_type,
+        "X-Ms-Blob-Type": "BlockBlob",
+    }
+    # upload to azure blob storage SAS url uploadUrl the pdf file translatedFile make sure it is treated as a application/pdf
+    async with httpx.AsyncClient() as client:
+        if isinstance(content, bytes):
+            response = await client.put(
+                url=write_url,
+                content=content,
+                headers=headers,
+            )
+        else:
+            with open(content, "rb") as file:
+                response = await client.put(
+                    url=write_url,
+                    content=file,
+                    headers=headers,
+                )
+        response.raise_for_status()
+
+    read_url = created_content["readUrl"]
+
+    if not read_url:
+        error_msg = "Read url for uploaded content is missing"
+        logger.error(error_msg)
+        raise ValueError(error_msg)
+
+    if ingestion_config is None:
+        ingestion_config = {}
+
+    if skip_excel_ingestion:
+        ingestion_config["uniqueIngestionMode"] = "SKIP_EXCEL_INGESTION"
+    elif skip_ingestion:
+        ingestion_config["uniqueIngestionMode"] = "SKIP_INGESTION"
+
+    input_dict = {
+        "key": content_name,
+        "title": content_name,
+        "mimeType": mime_type,
+        "byteSize": byte_size,
+        "ingestionConfig": ingestion_config,
+        "metadata": metadata,
+    }
+
+    if chat_id:
+        await _upsert_content_async(
+            user_id=user_id,
+            company_id=company_id,
+            input_data=input_dict,
+            file_url=read_url,
+            chat_id=chat_id,
+        )
+    else:
+        await _upsert_content_async(
+            user_id=user_id,
+            company_id=company_id,
+            input_data=input_dict,
+            file_url=read_url,
+            scope_id=scope_id,
+        )
 
     return Content.model_validate(created_content, by_alias=True, by_name=True)
 
