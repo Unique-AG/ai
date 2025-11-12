@@ -21,18 +21,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-python@v4
-        with:
-          python-version: "3.11"
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
-        with:
-          version: latest
-          virtualenvs-create: true
-          virtualenvs-in-project: true
+      - name: Check out code
+        uses: actions/checkout@v4
+      - name: Setup Python and Poetry
+        uses: ./.github/actions/setup-python-poetry
       - name: Install dependencies
         run: |
           poetry install --with dev

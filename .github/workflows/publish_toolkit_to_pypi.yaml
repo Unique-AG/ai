@@ -27,15 +27,8 @@ jobs:
     - name: Check out code
       uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
-
-    - name: Install Poetry
-      run: |
-            POETRY_VERSION='1.8.3'
-            PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install poetry==$POETRY_VERSION
+    - name: Setup Python and Poetry
+      uses: ./.github/actions/setup-python-poetry
 
     - name: Install dependencies
       working-directory: ${{ env.PACKAGE_DIR }}
