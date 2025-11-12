@@ -40,18 +40,44 @@ jobs:
       run: git fetch origin ${{ github.base_ref }}:${{ github.base_ref }}
 
     - name: Run basedpyright and post review comments
+      working-directory: ${{ env.PACKAGE }}
       env:
         REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         set +e  # Don't fail on basedpyright errors
         
-        # Store repo root
-        REPO_ROOT=$(pwd)
+        # Store repo root (we're in package directory, so go up one level)
+        REPO_ROOT=$(cd .. && pwd)
+        
+        # Debug: Check if basedpyright is available
+        echo "=== Checking basedpyright installation ==="
+        poetry show basedpyright || echo "WARNING: basedpyright not found in poetry dependencies"
+        poetry run which basedpyright || echo "WARNING: basedpyright not in PATH"
+        echo ""
         
         # Run basedpyright from package directory and capture output
-        cd ${{ env.PACKAGE }}
-        poetry run basedpyright 2>&1 > /tmp/basedpyright_output.txt || true
+        echo "=== Running basedpyright ==="
+        poetry run basedpyright 2>&1 | tee /tmp/basedpyright_output.txt || {
+          EXIT_CODE=$?
+          echo "ERROR: basedpyright failed with exit code $EXIT_CODE"
+          echo "Output:"
+          cat /tmp/basedpyright_output.txt || echo "No output captured"
+          # Don't exit - continue to check if we got any output
+        }
         
+        # Check if we got any output
+        if [ ! -f /tmp/basedpyright_output.txt ] || [ ! -s /tmp/basedpyright_output.txt ]; then
+          echo "ERROR: basedpyright output file is empty or not created"
+          echo "File exists: $([ -f /tmp/basedpyright_output.txt ] && echo 'yes' || echo 'no')"
+          echo "File size: $(wc -c < /tmp/basedpyright_output.txt 2>/dev/null || echo '0') bytes"
+          exit 1
+        fi
+        
+        echo "=== Basedpyright output (first 50 lines) ==="
+        head -50 /tmp/basedpyright_output.txt
+        echo ""
+        
+        # Change to repo root for path normalization
         cd "$REPO_ROOT"
         
         # Filter out non-error lines (basedpyright outputs summary info)
