@@ -5,8 +5,7 @@ concurrency:
   cancel-in-progress: true
 
 on:
-  workflow_dispatch:
-  push:
+  pull_request:
     branches:
       - main
     paths:
@@ -15,7 +14,7 @@ on:
       - unique_toolkit/docs.subproject.mkdocs.yaml
       - mkdocs.yaml
       - pyproject.toml
-      - .github/workflows/unique_toolkit/publish_toolkit_docs.deploy.yaml
+      - .github/workflows/publish_toolkit_docs.test.yaml
 
 jobs:
   build:
@@ -39,18 +38,3 @@ jobs:
       - name: Build documentation
         run: |
           poetry run mkdocs build
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: site
-  deploy:
-    needs: build
-    permissions:
-      pages: write
-      id-token: write
-    runs-on: ubuntu-latest
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
