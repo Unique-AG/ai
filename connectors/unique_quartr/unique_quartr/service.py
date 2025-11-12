@@ -1,5 +1,6 @@
 from functools import reduce
 
+from pydantic import BaseModel
 from unique_toolkit._common.endpoint_requestor import (
     RequestorType,
     build_requestor,
@@ -25,6 +26,14 @@ from unique_quartr.endpoints.schemas import (
     PublicV3DocumentTypesGetParametersQuery,
     PublicV3EventsGetParametersQuery,
 )
+
+
+class EventResults(BaseModel):
+    data: list[EventDto]
+
+
+class DocumentResults(BaseModel):
+    data: list[DocumentDto]
 
 
 class QuartrService:
@@ -77,7 +86,7 @@ class QuartrService:
         end_date: str | None = None,
         limit: int = 500,
         max_iteration: int = 20,
-    ) -> list[EventDto]:
+    ) -> EventResults:
         """Retrieve all earnings call events for a given company.
 
         Args:
@@ -115,7 +124,7 @@ class QuartrService:
             if cursor is None:
                 break
 
-        return [EventDto.model_validate(event) for event in events]
+        return EventResults.model_validate({"data": events})
 
     def fetch_event_documents(
         self,
@@ -123,7 +132,7 @@ class QuartrService:
         document_ids: list[int],
         limit: int = 500,
         max_iteration: int = 20,
-    ) -> list[DocumentDto]:
+    ) -> DocumentResults:
         """Retrieve documents for a list of events from Quartr API.
 
         Args:
@@ -151,7 +160,7 @@ class QuartrService:
             if cursor is None:
                 break
 
-        return [DocumentDto.model_validate(document) for document in documents]
+        return DocumentResults.model_validate({"data": documents})
 
 
 def _convert_ids_to_str(ids: list[int]) -> str:

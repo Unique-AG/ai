@@ -1,3 +1,4 @@
+from logging import getLogger
 from string import Template
 
 from pydantic import BaseModel
@@ -7,7 +8,7 @@ from unique_toolkit._common.endpoint_requestor import (
 )
 
 from unique_quartr.settings import quartr_settings
-from logging import getLogger
+
 from .schemas import (
     PaginatedDocumentResponseDto,
     PaginatedDocumentTypeResponseDto,
@@ -19,12 +20,13 @@ from .schemas import (
 
 _LOGGER = getLogger(__name__)
 
+
 class EmptyModel(BaseModel): ...
 
 
 def get_quartr_context(*, company_id: str):
     _LOGGER.debug(quartr_settings.model_dump_json(indent=1))
-    if quartr_settings.quartr_api_creds is None:
+    if quartr_settings.quartr_api_creds_model is None:
         raise ValueError("Quartr API credentials are not set")
 
     if company_id not in quartr_settings.quartr_api_activated_companies:
@@ -34,7 +36,7 @@ def get_quartr_context(*, company_id: str):
         base_url="https://api.quartr.com",
         headers={
             "Content-Type": "application/json",
-            "X-Api-Key": quartr_settings.quartr_api_creds.api_key,
+            "X-Api-Key": quartr_settings.quartr_api_creds_model.api_key,
         },
     )
 
