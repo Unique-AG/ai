@@ -149,16 +149,30 @@ jobs:
           exit 0
         fi
         
+        # Change to repo root for reviewdog (it needs to be in repo root for git diff)
+        cd "$REPO_ROOT"
+        
         # Run reviewdog with the filtered errors
         echo "=== Running reviewdog ==="
+        echo "Current directory: $(pwd)"
+        echo "Git diff files:"
+        git diff origin/${{ github.base_ref }} --name-only | head -10
+        echo ""
+        echo "Errors to post (first 10):"
+        head -10 /tmp/basedpyright_errors.txt
+        echo ""
+        
+        # Try with 'added' filter mode which is less restrictive
         cat /tmp/basedpyright_errors.txt | \
           /tmp/reviewdog \
             -efm="%f:%l:%c - %m" \
             -reporter=github-pr-review \
             -fail-on-error=false \
-            -filter-mode=diff_context \
+            -filter-mode=added \
+            -level=warning \
             -diff="git diff origin/${{ github.base_ref }}" \
             -tee || true
         
+        echo ""
         echo "=== Reviewdog completed ==="
 
