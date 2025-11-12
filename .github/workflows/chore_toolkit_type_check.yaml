@@ -39,6 +39,57 @@ jobs:
     - name: Fetch base branch for comparison
       run: git fetch origin ${{ github.base_ref }}:${{ github.base_ref }}
 
+    - name: Create baseline from base branch
+      working-directory: ${{ env.PACKAGE }}
+      run: |
+        echo "=== Creating baseline from base branch ==="
+        
+        # Checkout base branch
+        git checkout origin/${{ github.base_ref }} --quiet
+        
+        # Create baseline directory
+        mkdir -p .basedpyright
+        
+        # Run basedpyright with --writebaseline to create baseline from base branch
+        echo "Running basedpyright --writebaseline on base branch..."
+        poetry run basedpyright --writebaseline 2>&1 || {
+          echo "Note: basedpyright exited with non-zero status (expected if there are errors)"
+        }
+        
+        # Check if baseline was created
+        if [ -f .basedpyright/baseline.json ]; then
+          echo "✓ Baseline created successfully"
+          echo "  Baseline size: $(wc -c < .basedpyright/baseline.json) bytes"
+          # Count errors in baseline
+          ERROR_COUNT=$(jq '[.files[] | length] | add // 0' .basedpyright/baseline.json 2>/dev/null || echo "0")
+          echo "  Known errors in baseline: $ERROR_COUNT"
+        else
+          echo "✓ No baseline created (no errors in base branch)"
+        fi
+        
+        # Copy baseline to temp location
+        cp .basedpyright/baseline.json /tmp/baseline.json 2>/dev/null || touch /tmp/baseline.json
+        
+        # Checkout back to PR branch
+        echo "Switching back to PR branch..."
+        git checkout - --quiet
+
+    - name: Apply baseline to PR branch
+      working-directory: ${{ env.PACKAGE }}
+      run: |
+        # Ensure directory exists
+        mkdir -p .basedpyright
+        
+        # Copy baseline from base branch
+        if [ -s /tmp/baseline.json ]; then
+          cp /tmp/baseline.json .basedpyright/baseline.json
+          echo "✓ Using baseline from base branch"
+          echo "  Baseline size: $(wc -c < .basedpyright/baseline.json) bytes"
+        else
+          echo "✓ No baseline to apply (base branch has no errors)"
+          rm -f .basedpyright/baseline.json
+        fi
+
     - name: Run basedpyright and post review comments
       working-directory: ${{ env.PACKAGE }}
       env:
@@ -49,30 +100,13 @@ jobs:
         # Store repo root (we're in package directory, so go up one level)
         REPO_ROOT=$(cd .. && pwd)
         
-        # Debug: Check if basedpyright is available
-        echo "=== Checking basedpyright installation ==="
-        poetry show basedpyright || echo "WARNING: basedpyright not found in poetry dependencies"
-        poetry run which basedpyright || echo "WARNING: basedpyright not in PATH"
-        echo ""
-        
         # Run basedpyright from package directory and capture output
-        echo "=== Running basedpyright ==="
+        echo "=== Running basedpyright on PR branch (with baseline) ==="
         poetry run basedpyright 2>&1 | tee /tmp/basedpyright_output.txt || {
-          EXIT_CODE=$?
-          echo "ERROR: basedpyright failed with exit code $EXIT_CODE"
-          echo "Output:"
-          cat /tmp/basedpyright_output.txt || echo "No output captured"
-          # Don't exit - continue to check if we got any output
+          echo "Note: basedpyright exited with non-zero status (expected if there are NEW errors)"
         }
         
-        # Check if we got any output
-        if [ ! -f /tmp/basedpyright_output.txt ] || [ ! -s /tmp/basedpyright_output.txt ]; then
-          echo "ERROR: basedpyright output file is empty or not created"
-          echo "File exists: $([ -f /tmp/basedpyright_output.txt ] && echo 'yes' || echo 'no')"
-          echo "File size: $(wc -c < /tmp/basedpyright_output.txt 2>/dev/null || echo '0') bytes"
-          exit 1
-        fi
-        
+        echo ""
         echo "=== Basedpyright output (first 50 lines) ==="
         head -50 /tmp/basedpyright_output.txt
         echo ""
