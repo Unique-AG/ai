@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.25.2] - 2025-11-12
 - Standardize paths in unique toolkit settings
 
+## [1.25.2] - 2025-11-12
+- Adding tool format information for MCP tools
+
 ## [1.25.1] - 2025-11-12
 - Make pipeline steps reusable
 - Add pipeline checks for type errors
