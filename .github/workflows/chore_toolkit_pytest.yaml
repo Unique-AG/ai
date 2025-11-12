@@ -5,11 +5,11 @@ env:
 
 on: 
   pull_request:
-    # paths:
-    #   - 'unique_toolkit/**'
-    #   - '!unique_toolkit/docs/**'
-    #   - '!unique_toolkit/mkdocs.yaml'
-    #   - '!unique_toolkit/docs.subproject.mkdocs.yaml'
+    paths:
+      - 'unique_toolkit/**'
+      - '!unique_toolkit/docs/**'
+      - '!unique_toolkit/mkdocs.yaml'
+      - '!unique_toolkit/docs.subproject.mkdocs.yaml'
 
 
 jobs:

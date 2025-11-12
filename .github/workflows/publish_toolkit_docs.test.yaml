@@ -8,13 +8,13 @@ on:
   pull_request:
     branches:
       - main
-    # paths:
-    #   - unique_toolkit/docs/**
-    #   - unique_toolkit/mkdocs.yaml
-    #   - unique_toolkit/docs.subproject.mkdocs.yaml
-    #   - mkdocs.yaml
-    #   - pyproject.toml
-    #   - .github/workflows/publish_toolkit_docs.test.yaml
+    paths:
+      - unique_toolkit/docs/**
+      - unique_toolkit/mkdocs.yaml
+      - unique_toolkit/docs.subproject.mkdocs.yaml
+      - mkdocs.yaml
+      - pyproject.toml
+      - .github/workflows/publish_toolkit_docs.test.yaml
 
 jobs:
   build:

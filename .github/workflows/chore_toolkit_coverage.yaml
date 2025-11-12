@@ -6,13 +6,13 @@ env:
 
 on: 
   pull_request:
-    # paths:
-    #   - 'unique_toolkit/**'
-    #   - '!unique_toolkit/docs/**'
-    #   - '!unique_toolkit/**/docs/**'
-    #   - '!unique_toolkit/mkdocs.yaml'
-    #   - '!unique_toolkit/docs.subproject.mkdocs.yaml'
-    #   - '!unique_toolkit/.entangled/**'
+    paths:
+      - 'unique_toolkit/**'
+      - '!unique_toolkit/docs/**'
+      - '!unique_toolkit/**/docs/**'
+      - '!unique_toolkit/mkdocs.yaml'
+      - '!unique_toolkit/docs.subproject.mkdocs.yaml'
+      - '!unique_toolkit/.entangled/**'
 
 jobs:
   coverage-check:
