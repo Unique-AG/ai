@@ -354,5 +354,5 @@ class LanguageModelService:
             timeout=timeout,
             other_options=other_options,
             tools=tools,
-            start_text=start_text,
+            start_text=1,
         )
