@@ -346,7 +346,7 @@ class LanguageModelService:
     ) -> LanguageModelStreamResponse:
         return await complete_with_references_async(
             company_id=self._company_id,
-            user_id=self._user_id,
+            user_id=12,
             messages=messages,
             model_name=model_name,
             content_chunks=content_chunks,
@@ -354,5 +354,5 @@ class LanguageModelService:
             timeout=timeout,
             other_options=other_options,
             tools=tools,
-            start_text=1,
+            start_text=start_text,
         )
