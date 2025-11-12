@@ -293,6 +293,11 @@ class ResponsesApiConfig(BaseModel):
         description="If active, the main agent will have acces to the OpenAI Code Interpreter tool",
     )
 
+    use_responses_api: bool = Field(
+        default=False,
+        description="If set, the main agent will use the Responses API from OpenAI",
+    )
+
 
 class ExperimentalConfig(BaseModel):
     """Experimental features this part of the configuration might evolve in the future continuously"""
@@ -327,12 +332,7 @@ class ExperimentalConfig(BaseModel):
 
     sub_agents_config: SubAgentsConfig = SubAgentsConfig()
 
-    responses_api_config: (
-        Annotated[ResponsesApiConfig, Field(title="Active")] | DeactivatedNone
-    ) = Field(
-        default=None,
-        description="If active, the main agent will use the Responses API from OpenAI",
-    )
+    responses_api_config: ResponsesApiConfig = ResponsesApiConfig()
 
 
 class UniqueAIAgentConfig(BaseModel):
