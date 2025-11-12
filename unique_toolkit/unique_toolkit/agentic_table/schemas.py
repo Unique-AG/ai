@@ -6,6 +6,7 @@ from pydantic import (
     Field,
     field_validator,
 )
+from pydantic.types import enum_values
 from unique_sdk import (
     AgenticTableSheetState,
     AgreementStatus,
@@ -42,6 +43,9 @@ class MagicTableAction(StrEnum):
     SHEET_COMPLETED = "SheetCompleted"
     LIBRARY_SHEET_ROW_VERIFIED = "LibrarySheetRowVerified"
     SHEET_CREATED = "SheetCreated"
+
+
+MagicTableActionLiteral = enum_values(MagicTableAction)
 
 
 class ActivityStatus(StrEnum):
@@ -83,7 +87,7 @@ class MagicTableBasePayload(BaseModel):
     name: str = Field(description="The name of the module")
     sheet_name: str
 
-    action: MagicTableAction
+    action: MagicTableActionLiteral  # type: ignore
     chat_id: str
     assistant_id: str
     table_id: str
@@ -104,12 +108,12 @@ class MagicTableBasePayload(BaseModel):
 
 
 class MagicTableAddMetadataPayload(MagicTableBasePayload):
-    action: Literal[MagicTableAction.ADD_META_DATA]  # type: ignore[assignment]
+    action: Literal[MagicTableAction.ADD_META_DATA]
     metadata: DDMetadata
 
 
 class MagicTableUpdateCellPayload(MagicTableBasePayload):
-    action: Literal[MagicTableAction.UPDATE_CELL]  # type: ignore[assignment]
+    action: Literal[MagicTableAction.UPDATE_CELL]
     column_order: int
     row_order: int
     data: str
@@ -127,7 +131,7 @@ class ArtifactData(BaseModel):
 
 
 class MagicTableGenerateArtifactPayload(MagicTableBasePayload):
-    action: Literal[MagicTableAction.GENERATE_ARTIFACT]  # type: ignore[assignment]
+    action: Literal[MagicTableAction.GENERATE_ARTIFACT]
 
     data: ArtifactData
 
@@ -144,7 +148,7 @@ class SheetCompletedMetadata(BaseMetadata):
 
 
 class MagicTableSheetCompletedPayload(MagicTableBasePayload):
-    action: Literal[MagicTableAction.SHEET_COMPLETED]  # type: ignore[assignment]
+    action: Literal[MagicTableAction.SHEET_COMPLETED]
     metadata: SheetCompletedMetadata
 
 
@@ -154,7 +158,7 @@ class SheetCreatedMetadata(BaseMetadata):
 
 
 class MagicTableSheetCreatedPayload(MagicTableBasePayload):
-    action: Literal[MagicTableAction.SHEET_CREATED]  # type: ignore[assignment]
+    action: Literal[MagicTableAction.SHEET_CREATED]
     metadata: SheetCreatedMetadata
 
 
@@ -167,7 +171,7 @@ class LibrarySheetRowVerifiedMetadata(BaseMetadata):
 
 
 class MagicTableLibrarySheetRowVerifiedPayload(MagicTableBasePayload):
-    action: Literal[MagicTableAction.LIBRARY_SHEET_ROW_VERIFIED]  # type: ignore[assignment]
+    action: Literal[MagicTableAction.LIBRARY_SHEET_ROW_VERIFIED]
     metadata: LibrarySheetRowVerifiedMetadata
 
 
