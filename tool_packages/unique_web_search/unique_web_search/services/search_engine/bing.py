@@ -1,8 +1,7 @@
+import logging
 from typing import Literal
 
 from azure.ai.agents.models import ListSortOrder
-from azure.ai.projects import AIProjectClient
-from azure.identity import DefaultAzureCredential
 from pydantic import BaseModel, Field
 from unique_toolkit import LanguageModelService
 from unique_toolkit._common.validators import LMI
@@ -14,9 +13,16 @@ from unique_web_search.services.search_engine.base import (
     SearchEngine,
     SearchEngineType,
 )
+from unique_web_search.services.search_engine.bing_utils import (
+    credentials_are_valid,
+    get_crendentials,
+    get_project_client,
+)
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class BingSearchOptionalQueryParams(BaseModel):
@@ -52,23 +58,15 @@ class BingSearch(SearchEngine[BingSearchConfig]):
         super().__init__(config)
         self.language_model_service = language_model_service
         self.lmi = lmi
-        self.credentials = self._authenticate()
-        self.is_configured = self.credentials._successful_credential is not None
+        self.credentials = get_crendentials()
+        self.is_configured = credentials_are_valid(self.credentials)
 
     @property
     def requires_scraping(self) -> bool:
         return self.config.requires_scraping
 
-    def _authenticate(self):
-        credentials = DefaultAzureCredential()
-        return credentials
-
     async def search(self, query: str, **kwargs) -> list[WebSearchResult]:
-        project = AIProjectClient(
-            credential=self.credentials,
-            endpoint=self.config.endpoint,
-        )
-
+        project = get_project_client(self.credentials, self.config.endpoint)
         agent = project.agents.get_agent(self.config.agent_id)
 
         thread = project.agents.threads.create()

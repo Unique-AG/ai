@@ -1,8 +1,6 @@
-import os
 from logging import Logger
 from typing import NamedTuple, cast
 
-from openai import AsyncOpenAI
 from unique_follow_up_questions.follow_up_postprocessor import (
     FollowUpPostprocessor,
 )
@@ -36,7 +34,6 @@ from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
 from unique_toolkit.agentic.reference_manager.reference_manager import ReferenceManager
 from unique_toolkit.agentic.responses_api import (
     DisplayCodeInterpreterFilesPostProcessor,
-    DisplayCodeInterpreterFilesPostProcessorConfig,
     ShowExecutedCodePostprocessor,
 )
 from unique_toolkit.agentic.thinking_manager.thinking_manager import (
@@ -237,38 +234,6 @@ def _build_common(
     )
 
 
-def _prepare_base_url(url: str, use_v1: bool) -> str:
-    url = url.rstrip("/") + "/openai"
-
-    if use_v1:
-        url += "/v1"
-
-    return url
-
-
-def _get_openai_client_from_env(
-    config: UniqueAIConfig, use_v1: bool = False
-) -> AsyncOpenAI:
-    use_direct_azure_client = (
-        config.agent.experimental.responses_api_config.use_direct_azure_client
-    )
-    api_key_env_var = config.agent.experimental.responses_api_config.direct_azure_client_api_key_env_var
-    api_base_env_var = config.agent.experimental.responses_api_config.direct_azure_client_api_base_env_var
-
-    if use_direct_azure_client:
-        # TODO: (for testing only), remove when v1 endpoint is working
-        return AsyncOpenAI(
-            api_key=os.environ[api_key_env_var],
-            base_url=_prepare_base_url(os.environ[api_base_env_var], use_v1=use_v1),
-        )
-    else:
-        return get_async_openai_client().copy(
-            default_headers={
-                "x-model": config.space.language_model.name
-            }  # Backend requires a model name
-        )
-
-
 async def _build_responses(
     event: ChatEvent,
     logger: Logger,
@@ -276,25 +241,53 @@ async def _build_responses(
     common_components: _CommonComponents,
     debug_info_manager: DebugInfoManager,
 ) -> UniqueAIResponsesApi:
-    client = _get_openai_client_from_env(config, use_v1=True)
+    client = get_async_openai_client().copy(
+        default_headers={
+            "x-model": config.space.language_model.name,
+            "x-user-id": event.user_id,
+            "x-company-id": event.company_id,
+            "x-assistant-id": event.payload.assistant_id,
+            "x-chat-id": event.payload.chat_id,
+        }
+    )
+
+    assert config.agent.experimental.responses_api_config is not None
+
     code_interpreter_config = (
         config.agent.experimental.responses_api_config.code_interpreter
     )
-
+    postprocessor_manager = common_components.postprocessor_manager
     tool_names = [tool.name for tool in config.space.tools]
-    if (
-        code_interpreter_config is not None
-        and OpenAIBuiltInToolName.CODE_INTERPRETER not in tool_names
-    ):
-        logger.info("Automatically adding code interpreter to the tools")
-        config = config.model_copy(deep=True)
-        config.space.tools.append(
-            ToolBuildConfig(
-                name=OpenAIBuiltInToolName.CODE_INTERPRETER,
-                configuration=code_interpreter_config,
+
+    if code_interpreter_config is not None:
+        if OpenAIBuiltInToolName.CODE_INTERPRETER not in tool_names:
+            logger.info("Automatically adding code interpreter to the tools")
+            config = config.model_copy(deep=True)
+            config.space.tools.append(
+                ToolBuildConfig(
+                    name=OpenAIBuiltInToolName.CODE_INTERPRETER,
+                    configuration=code_interpreter_config.tool_config,
+                )
+            )
+            common_components.tool_manager_config.tools = config.space.tools
+
+        if code_interpreter_config.executed_code_display_config is not None:
+            postprocessor_manager.add_postprocessor(
+                ShowExecutedCodePostprocessor(
+                    config=code_interpreter_config.executed_code_display_config
+                )
+            )
+
+        postprocessor_manager.add_postprocessor(
+            DisplayCodeInterpreterFilesPostProcessor(
+                client=client,
+                content_service=common_components.content_service,
+                config=code_interpreter_config.generated_files_config,
+                user_id=event.user_id,
+                company_id=event.company_id,
+                chat_id=event.payload.chat_id,
             )
         )
-        common_components.tool_manager_config.tools = config.space.tools
 
     builtin_tool_manager = OpenAIBuiltInToolManager(
         uploaded_files=common_components.uploaded_documents,
@@ -316,26 +309,6 @@ async def _build_responses(
     )
 
     postprocessor_manager = common_components.postprocessor_manager
-
-    if (
-        config.agent.experimental.responses_api_config.code_interpreter_display_config
-        is not None
-    ):
-        postprocessor_manager.add_postprocessor(
-            ShowExecutedCodePostprocessor(
-                config=config.agent.experimental.responses_api_config.code_interpreter_display_config
-            )
-        )
-
-    postprocessor_manager.add_postprocessor(
-        DisplayCodeInterpreterFilesPostProcessor(
-            client=client,
-            content_service=common_components.content_service,
-            config=DisplayCodeInterpreterFilesPostProcessorConfig(
-                upload_scope_id=config.agent.experimental.responses_api_config.generated_files_scope_id,
-            ),
-        )
-    )
 
     class ResponsesStreamingHandler(ResponsesSupportCompleteWithReferences):
         def complete_with_references(self, *args, **kwargs):

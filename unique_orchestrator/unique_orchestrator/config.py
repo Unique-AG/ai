@@ -3,7 +3,6 @@ from pathlib import Path
 from typing import Annotated, Any, Generic, Literal, TypeVar
 
 from pydantic import BaseModel, Field, ValidationInfo, field_validator, model_validator
-from pydantic.json_schema import SkipJsonSchema
 from unique_deep_research.config import DeepResearchToolConfig
 from unique_deep_research.service import DeepResearchTool
 from unique_follow_up_questions.config import FollowUpQuestionsConfig
@@ -23,7 +22,10 @@ from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.history_manager.history_manager import (
     UploadedContentConfig,
 )
-from unique_toolkit.agentic.responses_api import ShowExecutedCodePostprocessorConfig
+from unique_toolkit.agentic.responses_api import (
+    DisplayCodeInterpreterFilesPostProcessorConfig,
+    ShowExecutedCodePostprocessorConfig,
+)
 from unique_toolkit.agentic.tools.a2a import (
     REFERENCING_INSTRUCTIONS_FOR_SYSTEM_PROMPT,
     REFERENCING_INSTRUCTIONS_FOR_USER_PROMPT,
@@ -254,40 +256,46 @@ class SubAgentsConfig(BaseModel):
     )
 
 
-class ResponsesApiConfig(BaseModel):
-    model_config = get_configuration_dict(frozen=True)
+class CodeInterpreterExtendedConfig(BaseModel):
+    model_config = get_configuration_dict()
 
-    use_responses_api: bool = Field(
-        default=False,
-        description="Whether to use the responses API instead of the completions API.",
+    generated_files_config: DisplayCodeInterpreterFilesPostProcessorConfig = Field(
+        default=DisplayCodeInterpreterFilesPostProcessorConfig(),
+        title="Generated files config",
+        description="Display config for generated files",
     )
-    code_interpreter_display_config: (
+
+    executed_code_display_config: (
         Annotated[
             ShowExecutedCodePostprocessorConfig,
             Field(title="Active"),
         ]
         | DeactivatedNone
-    ) = ShowExecutedCodePostprocessorConfig()
+    ) = Field(
+        ShowExecutedCodePostprocessorConfig(),
+        description="If active, generated code will be prepended to the LLM answer",
+    )
 
-    use_direct_azure_client: SkipJsonSchema[bool] = Field(
-        default=True,
-        description="[TEMPORARY] Whether to use the direct Azure client instead of the responses API.",
+    tool_config: OpenAICodeInterpreterConfig = Field(
+        default=OpenAICodeInterpreterConfig(),
+        title="Tool config",
     )
-    direct_azure_client_api_base_env_var: SkipJsonSchema[str] = Field(
-        default="OPENAI_BASE_URL",
-        description="[TEMPORARY] The environment variable that contains the API base for the direct Azure client.",
-    )
-    direct_azure_client_api_key_env_var: SkipJsonSchema[str] = Field(
-        default="OPENAI_API_KEY",
-        description="[TEMPORARY] The environment variable that contains the API key for the direct Azure client.",
-    )
+
+
+class ResponsesApiConfig(BaseModel):
+    model_config = get_configuration_dict(frozen=True)
+
     code_interpreter: (
-        Annotated[OpenAICodeInterpreterConfig, Field(title="Active")] | DeactivatedNone
-    ) = Field(default=None, description="Config for openai code interpreter")
+        Annotated[CodeInterpreterExtendedConfig, Field(title="Active")]
+        | DeactivatedNone
+    ) = Field(
+        default=None,
+        description="If active, the main agent will have acces to the OpenAI Code Interpreter tool",
+    )
 
-    generated_files_scope_id: str = Field(
-        default="<SCOPE_ID_PLACEHOLDER>",
-        description="Scope ID for the responses API.",
+    use_responses_api: bool = Field(
+        default=False,
+        description="If set, the main agent will use the Responses API from OpenAI",
     )
 
 

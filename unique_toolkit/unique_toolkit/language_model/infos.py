@@ -44,6 +44,7 @@ class LanguageModelName(StrEnum):
     ANTHROPIC_CLAUDE_OPUS_4_1 = "litellm:anthropic-claude-opus-4-1"
     GEMINI_2_0_FLASH = "litellm:gemini-2-0-flash"
     GEMINI_2_5_FLASH = "litellm:gemini-2-5-flash"
+    GEMINI_2_5_FLASH_LITE = "litellm:gemini-2-5-flash-lite"
     GEMINI_2_5_FLASH_LITE_PREVIEW_0617 = "litellm:gemini-2-5-flash-lite-preview-06-17"
     GEMINI_2_5_FLASH_PREVIEW_0520 = "litellm:gemini-2-5-flash-preview-05-20"
     GEMINI_2_5_PRO = "litellm:gemini-2-5-pro"
@@ -808,6 +809,25 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2025, 1, day=1),
                     published_at=date(2025, 4, 1),
+                )
+            case LanguageModelName.GEMINI_2_5_FLASH_LITE:
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    version="gemini-2-5-flash-lite",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO:Replace with LLM tokenizer
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=1_048_576, token_limit_output=65_536
+                    ),
+                    info_cutoff_at=date(2025, 1, day=1),
+                    published_at=date(2025, 7, 1),
                 )
             case LanguageModelName.GEMINI_2_5_FLASH_LITE_PREVIEW_0617:
                 return cls(

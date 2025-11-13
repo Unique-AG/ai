@@ -12,13 +12,14 @@ import dotenv
 dotenv.load_dotenv(os.getenv("UNIQUE_ENV_PATH"))
 
 from langchain_core.messages import HumanMessage
+from opik.integrations.langchain import OpikTracer
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.framework_utilities.openai.client import get_openai_client
 from unique_toolkit.language_model import LanguageModelName
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
-from unique_deep_research.config import UniqueEngine
+from unique_deep_research.config import Tools, UniqueEngine
 from unique_deep_research.markdown_utils import validate_and_map_citations
 from unique_deep_research.unique_custom.agents import custom_agent
 from unique_deep_research.unique_custom.citation import GlobalCitationManager
@@ -31,9 +32,8 @@ logger = logging.getLogger(__name__)
 
 # CONFIG
 INPUT_FILE = "deep_research_bench/data/prompt_data/query.jsonl"
-OUTPUT_FILE = (
-    "deep_research_bench/data/test_data/raw_data/unique-custom-gpt-5-2025-0807.jsonl"
-)
+MODEL = LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_4o_2024_1120)
+OUTPUT_FILE = f"deep_research_bench/data/test_data/raw_data/{MODEL.display_name}.jsonl"
 base_dir = Path(__file__).parent
 input_file = base_dir / INPUT_FILE
 output_file = base_dir / OUTPUT_FILE
@@ -122,9 +122,14 @@ async def run_single_research(query: dict) -> dict:
         client = get_openai_client()
         citation_manager = GlobalCitationManager()
         engine_config = UniqueEngine(
-            research_model=LanguageModelInfo.from_name(
-                LanguageModelName.AZURE_GPT_5_2025_0807
-            )
+            research_model=MODEL,
+            tools=Tools(
+                web_tools=True,  # Enable web search
+                internal_tools=False,  # Disable internal tools
+            ),
+        )
+        tracer = OpikTracer(
+            tags=[MODEL.display_name], project_name="deep_research_bench"
         )
 
         # Build initial state
@@ -137,10 +142,9 @@ async def run_single_research(query: dict) -> dict:
             "research_iterations": 0,
             "chat_service": CHAT_SERVICE,
             "message_id": f"bench_{query_id}",
-            "tool_progress_reporter": None,  # Optional field
         }
 
-        # Build config with web-only tools
+        # Build config - tool enablement is now set on engine_config
         config = {
             "configurable": {
                 "engine_config": engine_config,
@@ -149,9 +153,8 @@ async def run_single_research(query: dict) -> dict:
                 "content_service": CONTENT_SERVICE,
                 "message_id": f"bench_{query_id}",
                 "citation_manager": citation_manager,
-                "enable_web_tools": True,  # Enable web search
-                "enable_internal_tools": False,  # Disable internal tools
             },
+            "callbacks": [tracer],
         }
 
         # Run research

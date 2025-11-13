@@ -1,5 +1,6 @@
 import copy
 import logging
+import warnings
 from datetime import UTC, datetime
 from typing import Any, Sequence, cast
 
@@ -47,6 +48,7 @@ def complete(
     other_options: dict | None = None,
     structured_output_model: type[BaseModel] | None = None,
     structured_output_enforce_schema: bool = False,
+    user_id: str | None = None,
 ) -> LanguageModelResponse:
     """Call the completion endpoint synchronously without streaming the response.
 
@@ -75,9 +77,16 @@ def complete(
         structured_output_enforce_schema=structured_output_enforce_schema,
     )
 
+    if not user_id:
+        warnings.warn(
+            "The user_id parameter is strongly recommended for tracking purposes.",
+            DeprecationWarning,
+        )
+
     try:
         response = unique_sdk.ChatCompletion.create(
             company_id=company_id,
+            user_id=user_id,
             model=model,
             messages=cast(
                 "list[unique_sdk.Integrated.ChatCompletionRequestMessage]",
@@ -130,6 +139,12 @@ async def complete_async(
         and logged.
 
     """
+    if not user_id:
+        warnings.warn(
+            "The user_id parameter is strongly recommended for tracking purposes.",
+            DeprecationWarning,
+        )
+
     options, model, messages_dict, _ = _prepare_all_completions_params_util(
         messages=messages,
         model_name=model_name,
@@ -408,6 +423,7 @@ def complete_with_references(
     company_id: str,
     messages: LanguageModelMessages,
     model_name: LanguageModelName | str,
+    user_id: str | None = None,
     content_chunks: list[ContentChunk] | None = None,
     debug_dict: dict = {},
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
@@ -417,8 +433,10 @@ def complete_with_references(
     other_options: dict[str, Any] | None = None,
 ) -> LanguageModelStreamResponse:
     # Use toolkit language model functions for chat completion
+
     response = complete(
         company_id=company_id,
+        user_id=user_id,
         model_name=model_name,
         messages=messages,
         temperature=temperature,

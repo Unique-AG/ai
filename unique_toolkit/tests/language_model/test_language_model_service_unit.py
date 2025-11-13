@@ -98,6 +98,7 @@ class TestLanguageModelServiceUnit:
         self.service.complete(messages=messages, model_name=model_name)
 
         mock_complete.assert_called_once_with(
+            user_id="test_user",
             company_id="test_company",
             messages=messages,
             model_name=model_name,

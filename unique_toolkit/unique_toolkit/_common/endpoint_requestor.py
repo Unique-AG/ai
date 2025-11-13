@@ -349,7 +349,7 @@ def build_requestor(
     combined_model: Callable[CombinedParamsSpec, CombinedParamsType],
     return_value: dict[str, Any] | None = None,
     **kwargs: Any,
-) -> type[EndpointRequestorProtocol]:
+) -> type[EndpointRequestorProtocol[CombinedParamsSpec, ResponseType]]:
     match requestor_type:
         case RequestorType.REQUESTS:
             return build_request_requestor(
@@ -407,7 +407,7 @@ if __name__ == "__main__":
 
     # Note that the return value is a pydantic UserResponse object
     response = FakeUserRequestor().request(
-        context=RequestContext(base_url="https://example.com", headers={"a": "b"}),
+        context=RequestContext(base_url="https://api.example.com", headers={"a": "b"}),
         user_id=123,
         include_profile=True,
     )
@@ -419,7 +419,7 @@ if __name__ == "__main__":
 
     # Check type hints
     response = RequestRequestor().request(
-        context=RequestContext(base_url="https://example.com", headers={"a": "b"}),
+        context=RequestContext(base_url="https://api.example.com", headers={"a": "b"}),
         user_id=123,
         include_profile=True,
     )

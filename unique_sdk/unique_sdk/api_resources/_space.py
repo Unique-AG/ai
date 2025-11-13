@@ -35,9 +35,10 @@ class Space(APIResource["Space"]):
         """
 
         name: str
-        url: str | None
+        description: Optional[str]
+        url: Optional[str]
         sequenceNumber: int
-        originalIndex: List[int] | None
+        originalIndex: Optional[list[int]]
         sourceId: str
         source: str
 
