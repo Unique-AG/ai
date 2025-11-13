@@ -79,7 +79,7 @@ async def build_unique_ai(
 ) -> UniqueAI | UniqueAIResponsesApi:
     common_components = _build_common(event, logger, config)
 
-    if config.agent.experimental.responses_api_config is not None:
+    if config.agent.experimental.responses_api_config.use_responses_api:
         return await _build_responses(
             event=event,
             logger=logger,
