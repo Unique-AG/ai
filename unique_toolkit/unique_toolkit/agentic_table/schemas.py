@@ -1,5 +1,5 @@
 from enum import StrEnum
-from typing import Any, Literal
+from typing import Any, Generic, Literal, TypeVar
 
 from pydantic import (
     BaseModel,
@@ -82,7 +82,10 @@ class DDMetadata(BaseMetadata):
     )
 
 
-class MagicTableBasePayload(BaseModel):
+T = TypeVar("T", bound=BaseMetadata)
+
+
+class MagicTableBasePayload(BaseModel, Generic[T]):
     model_config = get_configuration_dict()
     name: str = Field(description="The name of the module")
     sheet_name: str
@@ -100,7 +103,7 @@ class MagicTableBasePayload(BaseModel):
         default=ChatEventAssistantMessage(id="", created_at="")
     )
     configuration: dict[str, Any] = {}
-    metadata: BaseMetadata
+    metadata: T
     metadata_filter: dict[str, Any] | None = None
 
 
