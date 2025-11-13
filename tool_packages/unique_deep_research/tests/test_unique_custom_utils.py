@@ -450,7 +450,7 @@ def test_count_tokens__returns_token_count__for_valid_text(mock_get_encoding) ->
     mock_encoder.encode.return_value = [1, 2, 3, 4, 5]  # 5 tokens
     mock_get_encoding.return_value = mock_encoder
     model_info = Mock(spec=LanguageModelInfo)
-    model_info.encoder_name = "cl100k_base"
+    model_info.encoder_name = "o200k_base"
     text = "Hello world"
 
     # Act
@@ -458,7 +458,7 @@ def test_count_tokens__returns_token_count__for_valid_text(mock_get_encoding) ->
 
     # Assert
     assert count == 5
-    mock_get_encoding.assert_called_once_with("cl100k_base")
+    mock_get_encoding.assert_called_once_with("o200k_base")
     mock_encoder.encode.assert_called_once_with(text)
 
 
@@ -472,7 +472,7 @@ def test_count_tokens__returns_zero__for_empty_text(mock_get_encoding) -> None:
     """
     # Arrange
     model_info = Mock(spec=LanguageModelInfo)
-    model_info.encoder_name = "cl100k_base"
+    model_info.encoder_name = "o200k_base"
 
     # Act
     count = count_tokens("", model_info)
@@ -493,7 +493,7 @@ def test_count_tokens__returns_fallback__when_encoding_fails(mock_get_encoding) 
     # Arrange
     mock_get_encoding.side_effect = Exception("Encoding error")
     model_info = Mock(spec=LanguageModelInfo)
-    model_info.encoder_name = "cl100k_base"
+    model_info.encoder_name = "o200k_base"
     text = "Hello world"  # 11 characters
 
     # Act

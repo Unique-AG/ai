@@ -2,11 +2,13 @@ import re
 
 import tiktoken
 import unique_sdk
+from transformers import AutoTokenizer
 
 from unique_toolkit.content.schemas import (
     Content,
     ContentChunk,
 )
+from unique_toolkit.unique_toolkit.language_model.infos import EncoderName
 
 
 def _map_content_id_to_chunks(content_chunks: list[ContentChunk]):
@@ -138,7 +140,7 @@ def _generate_pages_postfix(chunks: list[ContentChunk]) -> str:
 def pick_content_chunks_for_token_window(
     content_chunks: list[ContentChunk],
     token_limit: int,
-    encoding_model="cl100k_base",
+    encoding_model="o200k_base",
 ):
     """
     Selects and returns a list of search results that fit within a specified token limit.
@@ -173,7 +175,7 @@ def pick_content_chunks_for_token_window(
     return picked_chunks
 
 
-def count_tokens(text: str, encoding_model="cl100k_base") -> int:
+def count_tokens(text: str, encoding_model="o200k_base") -> int:
     """
     Counts the number of tokens in the provided text.
 
@@ -186,8 +188,18 @@ def count_tokens(text: str, encoding_model="cl100k_base") -> int:
     Returns:
     - int: The number of tokens in the text.
     """
-    encoding = tiktoken.get_encoding(encoding_model)
-    return len(encoding.encode(text))
+    num_tokens = 0
+    if encoding_model in [EncoderName.O200K_BASE, EncoderName.CL100K_BASE]:
+        encoding = tiktoken.get_encoding(encoding_model)
+        num_tokens = len(encoding.encode(text))
+    elif encoding_model in [EncoderName.QWEN3]:
+        encoder = AutoTokenizer.from_pretrained(encoding_model)
+        num_tokens = len(encoder.encode(text))
+    else:
+        # Default to tiktoken if not supported
+        encoding = tiktoken.get_encoding(encoding_model)
+        num_tokens = len(encoding.encode(text))
+    return num_tokens
 
 
 def map_content_chunk(content_id: str, content_key: str, content_chunk: dict):
