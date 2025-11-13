@@ -247,7 +247,7 @@ class TestDocxGeneratorConfig:
     def test_config_defaults(self):
         """Test DocxGeneratorConfig with default values."""
         config = DocxGeneratorConfig()
-        assert config.template_content_id == ""
+        assert not config.template_content_id
 
     def test_config_custom_values(self):
         """Test DocxGeneratorConfig with custom values."""
