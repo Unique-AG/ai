@@ -73,6 +73,8 @@ from unique_toolkit.protocols.support import ResponsesSupportCompleteWithReferen
 from unique_orchestrator.config import UniqueAIConfig
 from unique_orchestrator.unique_ai import UniqueAI, UniqueAIResponsesApi
 
+from unique_toolkit.agentic.logger_manager.service import MessageStepLogger
+
 
 async def build_unique_ai(
     event: ChatEvent,
@@ -109,6 +111,7 @@ class _CommonComponents(NamedTuple):
     history_manager: HistoryManager
     evaluation_manager: EvaluationManager
     postprocessor_manager: PostprocessorManager
+    messagesteplogger: MessageStepLogger
     response_watcher: SubAgentResponseWatcher
     # Tool Manager Components
     tool_progress_reporter: ToolProgressReporter
@@ -230,6 +233,7 @@ def _build_common(
         mcp_servers=event.payload.mcp_servers,
         postprocessor_manager=postprocessor_manager,
         response_watcher=response_watcher,
+        messagesteplogger=MessageStepLogger(chat_service, event),
     )
 
 
@@ -374,6 +378,7 @@ async def _build_responses(
         evaluation_manager=common_components.evaluation_manager,
         postprocessor_manager=postprocessor_manager,
         debug_info_manager=debug_info_manager,
+        messagesteplogger=common_components.messagesteplogger,
         mcp_servers=event.payload.mcp_servers,
     )
 
@@ -447,6 +452,7 @@ def _build_completions(
         postprocessor_manager=postprocessor_manager,
         debug_info_manager=debug_info_manager,
         mcp_servers=event.payload.mcp_servers,
+        messagesteplogger=MessageStepLogger(common_components.chat_service, event),
     )
 
 

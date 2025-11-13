@@ -1,3 +1,6 @@
+from unique_toolkit.services.chat_service import ChatService
+
+
 from logging import Logger
 
 from pydantic import Field, create_model
@@ -31,7 +34,9 @@ from unique_internal_search.utils import (
     clean_search_string,
     interleave_search_results_round_robin,
 )
+from unique_toolkit.chat.service import ChatService
 
+from unique_toolkit.agentic.logger_manager.service import MessageStepLogger
 
 class InternalSearchService:
     def __init__(
@@ -48,6 +53,7 @@ class InternalSearchService:
         self.chat_id = chat_id
         self.logger = logger
         self.tool_execution_message_name = "Internal search"
+        
 
     async def post_progress_message(self, message: str, *args, **kwargs):
         pass
@@ -146,6 +152,15 @@ class InternalSearchService:
                     content_ids=content_ids,
                     score_threshold=self.config.score_threshold,
                 )
+
+                ## Here we know the question.
+                message = search_string
+                type = "InternalSearch"
+                source = "internal"
+
+                ## Message logger TODO here
+                self.message_step_logger.create_full_specific_message(message,source,type,found_chunks)
+
                 self.logger.info(
                     f"Found {len(found_chunks)} chunks (Query {i + 1}/{len(search_strings)})"
                 )
@@ -202,6 +217,7 @@ class InternalSearchService:
         ###
         # 4. cache them add index to search results & join them together
         ###
+
         if not self.config.chunked_sources:
             selected_chunks = merge_content_chunks(selected_chunks)
         else:
@@ -278,6 +294,12 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             chat_id=chat_id,
             logger=self.logger,
         )
+        
+        # Initialize MessageStepLogger if event is a ChatEvent
+        #if isinstance(self.event, (ChatEvent, Event)):
+        self.message_step_logger = MessageStepLogger(self._chat_service, self._event)
+        
+        
 
     async def post_progress_message(
         self, message: str, tool_call: LanguageModelFunction, **kwargs
@@ -413,6 +435,5 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             )
 
         return tool_response
-
-
+    
 ToolFactory.register_tool(InternalSearchTool, InternalSearchConfig)
