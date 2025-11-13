@@ -31,6 +31,8 @@ from unique_toolkit.protocols.support import (
     SupportCompleteWithReferences,
 )
 
+from unique_toolkit.agentic.logger_manager.service import MessageStepLogger #write_message_log_text_message
+
 from unique_orchestrator.config import UniqueAIConfig
 
 EMPTY_MESSAGE_WARNING = (
@@ -61,7 +63,8 @@ class UniqueAI:
         history_manager: HistoryManager,
         evaluation_manager: EvaluationManager,
         postprocessor_manager: PostprocessorManager,
-        mcp_servers: list[McpServer],
+        messagesteplogger: MessageStepLogger,
+        mcp_servers: list[McpServer], 
     ):
         self._logger = logger
         self._event = event
@@ -82,6 +85,7 @@ class UniqueAI:
         self._mcp_servers = mcp_servers
         self._streaming_handler = streaming_handler
 
+        self.messagesteplogger = messagesteplogger
         # Helper variable to support control loop
         self._tool_took_control = False
 
@@ -96,6 +100,8 @@ class UniqueAI:
         """
         self._logger.info("Start LoopAgent...")
 
+        self.messagesteplogger.write_message_log_text_message("**Start the AI Agent**")
+
         if self._history_manager.has_no_loop_messages():  # TODO: why do we even need to check its always no loop messages on this when its called.
             self._chat_service.modify_assistant_message(
                 content="Starting agentic loop..."  # TODO: this must be more informative
@@ -103,6 +109,12 @@ class UniqueAI:
 
         ## Loop iteration
         for i in range(self._config.agent.max_loop_iterations):
+            
+            ii = i + 1
+            text_message = "**Starting the agentic round Number %s**" %  ii
+            self.messagesteplogger.write_message_log_text_message(text_message)
+
+
             self.current_iteration_index = i
             self._logger.info(f"Starting iteration {i + 1}...")
 
@@ -135,6 +147,8 @@ class UniqueAI:
             self.start_text = self._thinking_manager.update_start_text(
                 self.start_text, loop_response
             )
+
+        ## Placeholder to set end of process label, if wished.
 
         # Only set completed_at if no tool took control. Tools that take control will set the message state to completed themselves.
         await self._chat_service.modify_assistant_message_async(
@@ -235,6 +249,9 @@ class UniqueAI:
             return await self._handle_tool_calls(loop_response)
 
         self._logger.debug("No tool calls. we might exit the loop")
+
+        ## No tool calls means we wrap it up, at least in my understanding.
+        self.messagesteplogger.write_message_log_text_message("**Final result aggregation**")
 
         return await self._handle_no_tool_calls(loop_response)
 
@@ -395,6 +412,10 @@ class UniqueAI:
         self._history_manager._append_tool_calls_to_history(tool_calls)
 
         for tool_call in tool_calls:
+
+            ## EDITING LABEL TO FIND
+            self.messagesteplogger.write_message_log_text_message("**The Tool %s is starting now**" % tool_call.name)
+
             self._history_manager.add_tool_call(tool_call)
 
         # Execute tool calls
@@ -405,6 +426,7 @@ class UniqueAI:
         # Process results with error handling
         # Add tool call results to history first to stabilize source numbering,
         # then extract referenceable chunks and debug info
+
         self._history_manager.add_tool_call_results(tool_call_responses)
         self._reference_manager.extract_referenceable_chunks(tool_call_responses)
         self._debug_info_manager.extract_tool_debug_info(
@@ -470,7 +492,6 @@ class UniqueAI:
             }
         return user_metadata
 
-
 class UniqueAIResponsesApi(UniqueAI):
     def __init__(
         self,
@@ -487,6 +508,7 @@ class UniqueAIResponsesApi(UniqueAI):
         history_manager: HistoryManager,
         evaluation_manager: EvaluationManager,
         postprocessor_manager: PostprocessorManager,
+        messagesteplogger: MessageStepLogger,
         mcp_servers: list[McpServer],
     ) -> None:
         super().__init__(
@@ -503,5 +525,6 @@ class UniqueAIResponsesApi(UniqueAI):
             history_manager=history_manager,
             evaluation_manager=evaluation_manager,
             postprocessor_manager=postprocessor_manager,
+            messagesteplogger=messagesteplogger,
             mcp_servers=mcp_servers,
         )
