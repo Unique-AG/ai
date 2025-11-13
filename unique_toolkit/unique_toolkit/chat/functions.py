@@ -38,6 +38,7 @@ from unique_toolkit.language_model.functions import (
     _prepare_all_completions_params_util,
 )
 from unique_toolkit.language_model.infos import (
+    LanguageModelInfo,
     LanguageModelName,
 )
 from unique_toolkit.language_model.schemas import (
@@ -426,23 +427,25 @@ def map_to_chat_messages(messages: list[dict]) -> list[ChatMessage]:
 def pick_messages_in_reverse_for_token_window(
     messages: list[ChatMessage],
     limit: int,
+    language_model: LanguageModelInfo,
 ) -> list[ChatMessage]:
     if len(messages) < 1 or limit < 1:
         return []
 
     last_index = len(messages) - 1
-    token_count = count_tokens(messages[last_index].content or "")
+    token_count = count_tokens(text=messages[last_index].content or "", encoding_model=language_model.encoder_name)
     while token_count > limit:
         logger.debug(
             f"Limit too low for the initial message. Last message TokenCount {token_count} available tokens {limit} - cutting message in half until it fits",
         )
         content = messages[last_index].content or ""
         messages[last_index].content = content[: len(content) // 2] + "..."
-        token_count = count_tokens(messages[last_index].content or "")
+        token_count = count_tokens(text=messages[last_index].content or "", encoding_model=language_model.encoder_name)
 
     while token_count <= limit and last_index > 0:
         token_count = count_tokens(
-            "".join([msg.content or "" for msg in messages[:last_index]]),
+            text="".join([msg.content or "" for msg in messages[:last_index]]),
+            encoding_model=language_model.encoder_name,
         )
         if token_count <= limit:
             last_index -= 1

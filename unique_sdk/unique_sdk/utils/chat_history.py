@@ -71,7 +71,7 @@ def load_history(
     return fullHistory, selectedHistory
 
 
-def convert_chat_history_to_injectable_string(history) -> tuple[list[str], int]:
+def convert_chat_history_to_injectable_string(history, encoding_model) -> tuple[list[str], int]:
     chatHistory = []
     for msg in history:
         if msg["role"].lower() == "assistant":
@@ -79,5 +79,5 @@ def convert_chat_history_to_injectable_string(history) -> tuple[list[str], int]:
         else:
             chatHistory.append(f"previous_question: {msg['content']}")
     chatContext = "\n".join(chatHistory)
-    chatContextTokenLength = count_tokens(chatContext)
+    chatContextTokenLength = count_tokens(text=chatContext, encoding_model=encoding_model)
     return chatHistory, chatContextTokenLength

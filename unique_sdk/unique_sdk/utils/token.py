@@ -2,7 +2,7 @@ import tiktoken
 
 
 def pick_search_results_for_token_window(
-    searchResults, tokenLimit, encoding_model="cl100k_base"
+    searchResults, tokenLimit, encoding_model="o200k_base"
 ) -> list[str]:
     """
     Selects and returns a list of search results that fit within a specified token limit.
@@ -37,7 +37,7 @@ def pick_search_results_for_token_window(
     return pickedSearchResults
 
 
-def count_tokens(text, encoding_model="cl100k_base") -> int:
+def count_tokens(text, encoding_model="o200k_base") -> int:
     """
     Counts the number of tokens in the provided text.
 
