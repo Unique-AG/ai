@@ -25,6 +25,7 @@ The Unique Python SDK provides access to the public API of Unique AI. It also en
    - [Folder](#folder)
    - [Space](#space)
    - [LLM Models](#llm-models)
+   - [User](#user)
    - [Agentic Table](#agentic-table)
 6. [UniqueQL](#uniqueql)
    - [Query Structure](#uniqueql-query-structure)
@@ -244,6 +245,7 @@ unique_sdk.Message.modify(
 - [Folder](#folder)
 - [Space](#space)
 - [LLM Models](#llm-models)
+- [User](#user)
 - [Agentic Table](#agentic-table)
 
 Most of the API services provide an asynchronous version of the method. The async methods are suffixed with `_async`.
@@ -1405,6 +1407,23 @@ models = unique_sdk.LLMModels.get(
     user_id=user_id,
     company_id=company_id,
     module="UNIQUE_AI",  # Optional - filter models by module, only UNIQUE_AI is supported right now
+)
+```
+
+### User
+
+#### `unique_sdk.User.get`
+
+Get users in a company. You can filter by email, display name, and use pagination with skip and take parameters.
+
+```python
+users = unique_sdk.User.get(
+    user_id=user_id,
+    company_id=company_id,
+    skip=0,  # Optional - number of records to skip for pagination
+    take=50,  # Optional - number of records to return (max 1000)
+    email="user@example.com",  # Optional - filter by email
+    displayName="John",  # Optional - filter by display name
 )
 ```
 
