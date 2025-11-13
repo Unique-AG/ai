@@ -26,6 +26,7 @@ The Unique Python SDK provides access to the public API of Unique AI. It also en
    - [Space](#space)
    - [LLM Models](#llm-models)
    - [User](#user)
+   - [Group](#group)
    - [Agentic Table](#agentic-table)
 6. [UniqueQL](#uniqueql)
    - [Query Structure](#uniqueql-query-structure)
@@ -246,6 +247,7 @@ unique_sdk.Message.modify(
 - [Space](#space)
 - [LLM Models](#llm-models)
 - [User](#user)
+- [Group](#group)
 - [Agentic Table](#agentic-table)
 
 Most of the API services provide an asynchronous version of the method. The async methods are suffixed with `_async`.
@@ -1424,6 +1426,47 @@ users = unique_sdk.User.get(
     take=50,  # Optional - number of records to return (max 1000)
     email="user@example.com",  # Optional - filter by email
     displayName="John",  # Optional - filter by display name
+)
+```
+
+### Group
+
+#### `unique_sdk.Group.get`
+
+Get groups in a company. You can filter by name and use pagination with skip and take parameters.
+
+```python
+groups = unique_sdk.Group.get(
+    user_id=user_id,
+    company_id=company_id,
+    skip=0,  # Optional - number of records to skip for pagination
+    take=50,  # Optional - number of records to return (max 1000)
+    name="Admin",  # Optional - filter by group name
+)
+```
+
+#### `unique_sdk.Group.update`
+
+Update a group in a company. You can update the group's name.
+
+```python
+updated_group = unique_sdk.Group.update(
+    user_id=user_id,
+    company_id=company_id,
+    group_id="group_id_here",
+    name="New Group Name",  # Optional - update the group name
+)
+```
+
+#### `unique_sdk.Group.delete`
+
+Delete a group in a company by its group ID.
+
+```python
+result = unique_sdk.Group.delete(
+    user_id=user_id,
+    company_id=company_id,
+    group_id="group_id_here",
 )
 ```
 

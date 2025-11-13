@@ -85,6 +85,7 @@ from unique_sdk.api_resources._embedding import Embeddings as Embeddings
 from unique_sdk.api_resources._acronyms import Acronyms as Acronyms
 from unique_sdk.api_resources._llm_models import LLMModels as LLMModels
 from unique_sdk.api_resources._user import User as User
+from unique_sdk.api_resources._group import Group as Group
 from unique_sdk.api_resources._message_assessment import (
     MessageAssessment as MessageAssessment,
 )
