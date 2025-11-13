@@ -10,6 +10,8 @@ from unique_toolkit._common.chunk_relevancy_sorter.exception import (
 )
 from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
+from unique_toolkit.agentic.history_manager.utils import transform_chunks_to_string
+from unique_toolkit.agentic.tools.agent_chunks_hanlder import AgentChunksHandler
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
@@ -25,6 +27,8 @@ from unique_toolkit.content.utils import (
 )
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
+    LanguageModelMessage,
+    LanguageModelToolMessage,
 )
 
 from unique_internal_search.config import InternalSearchConfig
@@ -436,4 +440,42 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
 
         return tool_response
     
+
+    ## Note: This function is only used by the Investment Research Agent and Agentic Search. Once these agents are moved out of the monorepo, this function should be removed.
+    def get_tool_call_result_for_loop_history(
+        self,
+        tool_response: ToolCallResponse,
+        agent_chunks_handler: AgentChunksHandler,
+    ) -> LanguageModelMessage:
+        """
+        Process the results of the tool.
+        Args:
+            tool_response: The tool response.
+            loop_history: The loop history.
+        Returns:
+            The tool result to append to the loop history.
+        """
+        self.logger.debug(
+            f"Appending tool call result to history: {tool_response.name}"
+        )
+        # Initialize content_chunks if None
+        content_chunks = tool_response.content_chunks or []
+
+        # Get the maximum source number in the loop history
+        max_source_number = len(agent_chunks_handler.chunks)
+
+        # Transform content chunks into sources to be appended to tool result
+        sources, _ = transform_chunks_to_string(
+            content_chunks,
+            max_source_number,
+        )
+
+        # Append the result to the history
+        return LanguageModelToolMessage(
+            content=sources,
+            tool_call_id=tool_response.id,  # type: ignore
+            name=tool_response.name,
+        )
+
+
 ToolFactory.register_tool(InternalSearchTool, InternalSearchConfig)

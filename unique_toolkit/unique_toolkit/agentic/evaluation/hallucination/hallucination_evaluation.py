@@ -59,6 +59,7 @@ class HallucinationEvaluation(Evaluation):
 
         evaluation_result: EvaluationMetricResult = await check_hallucination(
             company_id=self._company_id,
+            user_id=self._user_id,
             input=EvaluationMetricInput(
                 input_text=self._user_message,
                 context_texts=[context.text for context in referenced_chunks],
