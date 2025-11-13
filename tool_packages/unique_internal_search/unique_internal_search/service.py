@@ -1,3 +1,6 @@
+from unique_toolkit.services.chat_service import ChatService
+
+
 from logging import Logger
 
 from pydantic import Field, create_model
@@ -39,7 +42,9 @@ from unique_internal_search.utils import (
     clean_search_string,
     interleave_search_results_round_robin,
 )
+from unique_toolkit.chat.service import ChatService
 
+from unique_toolkit.agentic.logger_manager.service import MessageStepLogger
 
 class InternalSearchService:
     def __init__(
@@ -56,6 +61,7 @@ class InternalSearchService:
         self.chat_id = chat_id
         self.logger = logger
         self.tool_execution_message_name = "Internal search"
+        
 
     async def post_progress_message(self, message: str, *args, **kwargs):
         pass
@@ -349,6 +355,12 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             chat_id=chat_id,
             logger=self.logger,
         )
+        
+        # Initialize MessageStepLogger if event is a ChatEvent
+        #if isinstance(self.event, (ChatEvent, Event)):
+        self.message_step_logger = MessageStepLogger(self._chat_service, self._event)
+        
+        
 
     async def post_progress_message(
         self, message: str, tool_call: LanguageModelFunction, **kwargs

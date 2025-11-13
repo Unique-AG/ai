@@ -32,6 +32,8 @@ from unique_toolkit.protocols.support import (
     SupportCompleteWithReferences,
 )
 
+from unique_toolkit.agentic.logger_manager.service import MessageStepLogger #write_message_log_text_message
+
 from unique_orchestrator.config import UniqueAIConfig
 
 EMPTY_MESSAGE_WARNING = (
@@ -412,6 +414,10 @@ class UniqueAI:
         self._history_manager._append_tool_calls_to_history(tool_calls)
 
         for tool_call in tool_calls:
+
+            ## EDITING LABEL TO FIND
+            self.messagesteplogger.write_message_log_text_message("**The Tool %s is starting now**" % tool_call.name)
+
             self._history_manager.add_tool_call(tool_call)
 
         # Execute tool calls
@@ -487,7 +493,6 @@ class UniqueAI:
                 if k in self._config.agent.prompt_config.user_metadata
             }
         return user_metadata
-
 
 class UniqueAIResponsesApi(UniqueAI):
     def __init__(
