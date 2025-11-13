@@ -42,9 +42,9 @@ for event in get_event_generator(unique_settings=settings, event_type=ChatEvent)
     ]
 
     def to_source_table(chunks: list[ContentChunk]) -> str:
-        header = "| Source Number | Title |  URL | \n" + "| --- | --- | --- | --- |\n"
+        header = "| Source ID| Source Number | Title |  URL | Text | \n" + "| --- | --- | --- | --- | --- |\n"
         rows = [
-            f"| {index} | {chunk.title} | {chunk.url} |\n"
+            f"| [source{index}] | {index} | {chunk.title} | {chunk.url} | {chunk.text} |\n"
             for index, chunk in enumerate(chunks)
         ]
         return header + "\n".join(rows)
@@ -70,8 +70,13 @@ for event in get_event_generator(unique_settings=settings, event_type=ChatEvent)
         .messages
     )
 
-    chat_service.complete_with_references(
+    stream_response = chat_service.complete_with_references(
         messages=messages,
         model_name=LanguageModelName.AZURE_GPT_4o_2024_1120,
         content_chunks=chunks,
     )
+
+    stream_response.message.content
+
+
+    a = 0
