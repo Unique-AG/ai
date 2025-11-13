@@ -1,11 +1,13 @@
+from unittest.mock import Mock, AsyncMock
 from typing import Any
-from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from unique_web_search.schema import WebSearchPlan, WebSearchToolParameters
 from unique_web_search.service import WebSearchTool
+from unique_web_search.schema import WebSearchPlan, WebSearchToolParameters
 from unique_web_search.services.executors.base_executor import WebSearchLogEntry
+from unique_web_search.services.executors.configs import WebSearchMode
+from unique_web_search.services.search_engine.schema import WebSearchResult
 
 
 class TestWebSearchToolDescription:
@@ -26,9 +28,7 @@ class TestWebSearchToolDescription:
         mocker.patch("unique_web_search.service.get_crawler_service")
         mocker.patch("unique_web_search.service.ChunkRelevancySorter")
         mocker.patch("unique_web_search.service.ContentProcessor")
-        mocker.patch.object(
-            WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None
-        )
+        mocker.patch.object(WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None)
 
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v1
@@ -57,9 +57,7 @@ class TestWebSearchToolDescription:
         mocker.patch("unique_web_search.service.get_crawler_service")
         mocker.patch("unique_web_search.service.ChunkRelevancySorter")
         mocker.patch("unique_web_search.service.ContentProcessor")
-        mocker.patch.object(
-            WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None
-        )
+        mocker.patch.object(WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None)
 
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v2
@@ -92,9 +90,7 @@ class TestWebSearchToolDescriptionForSystemPrompt:
         mocker.patch("unique_web_search.service.get_crawler_service")
         mocker.patch("unique_web_search.service.ChunkRelevancySorter")
         mocker.patch("unique_web_search.service.ContentProcessor")
-        mocker.patch.object(
-            WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None
-        )
+        mocker.patch.object(WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None)
 
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v1
@@ -119,9 +115,7 @@ class TestWebSearchToolDescriptionForSystemPrompt:
         mocker.patch("unique_web_search.service.get_crawler_service")
         mocker.patch("unique_web_search.service.ChunkRelevancySorter")
         mocker.patch("unique_web_search.service.ContentProcessor")
-        mocker.patch.object(
-            WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None
-        )
+        mocker.patch.object(WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None)
 
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v2
@@ -150,9 +144,7 @@ class TestWebSearchToolFormatInformation:
         mocker.patch("unique_web_search.service.get_crawler_service")
         mocker.patch("unique_web_search.service.ChunkRelevancySorter")
         mocker.patch("unique_web_search.service.ContentProcessor")
-        mocker.patch.object(
-            WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None
-        )
+        mocker.patch.object(WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None)
 
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v1
@@ -181,9 +173,7 @@ class TestWebSearchToolEvaluationCheckList:
         mocker.patch("unique_web_search.service.get_crawler_service")
         mocker.patch("unique_web_search.service.ChunkRelevancySorter")
         mocker.patch("unique_web_search.service.ContentProcessor")
-        mocker.patch.object(
-            WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None
-        )
+        mocker.patch.object(WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None)
 
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v1
@@ -208,17 +198,13 @@ class TestWebSearchToolGetExecutor:
         Why this matters: Ensures correct executor is selected for V2 mode.
         Setup summary: Mock WebSearchTool with V2 config and WebSearchPlan parameters.
         """
-        from unique_web_search.services.executors.web_search_v2_executor import (
-            WebSearchV2Executor,
-        )
+        from unique_web_search.services.executors.web_search_v2_executor import WebSearchV2Executor
 
         mocker.patch("unique_web_search.service.get_search_engine_service")
         mocker.patch("unique_web_search.service.get_crawler_service")
         mocker.patch("unique_web_search.service.ChunkRelevancySorter")
         mocker.patch("unique_web_search.service.ContentProcessor")
-        mocker.patch.object(
-            WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None
-        )
+        mocker.patch.object(WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None)
 
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v2
@@ -234,12 +220,16 @@ class TestWebSearchToolGetExecutor:
 
         tool_call = Mock()
         parameters = WebSearchPlan(
-            objective="test", query_analysis="test", steps=[], expected_outcome="test"
+            objective="test",
+            query_analysis="test",
+            steps=[],
+            expected_outcome="test"
         )
         debug_info = Mock()
 
         result = tool._get_executor(tool_call, parameters, debug_info)
 
+        from unique_web_search.services.executors.web_search_v2_executor import WebSearchV2Executor
         assert isinstance(result, WebSearchV2Executor)
 
     @pytest.mark.ai
@@ -253,17 +243,13 @@ class TestWebSearchToolGetExecutor:
         Why this matters: Ensures correct executor is selected for V1 mode.
         Setup summary: Mock WebSearchTool with V1 config and WebSearchToolParameters.
         """
-        from unique_web_search.services.executors.web_search_v1_executor import (
-            WebSearchV1Executor,
-        )
+        from unique_web_search.services.executors.web_search_v1_executor import WebSearchV1Executor
 
         mocker.patch("unique_web_search.service.get_search_engine_service")
         mocker.patch("unique_web_search.service.get_crawler_service")
         mocker.patch("unique_web_search.service.ChunkRelevancySorter")
         mocker.patch("unique_web_search.service.ContentProcessor")
-        mocker.patch.object(
-            WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None
-        )
+        mocker.patch.object(WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None)
 
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v1
@@ -283,6 +269,7 @@ class TestWebSearchToolGetExecutor:
 
         result = tool._get_executor(tool_call, parameters, debug_info)
 
+        from unique_web_search.services.executors.web_search_v1_executor import WebSearchV1Executor
         assert isinstance(result, WebSearchV1Executor)
 
     @pytest.mark.ai
@@ -300,9 +287,7 @@ class TestWebSearchToolGetExecutor:
         mocker.patch("unique_web_search.service.get_crawler_service")
         mocker.patch("unique_web_search.service.ChunkRelevancySorter")
         mocker.patch("unique_web_search.service.ContentProcessor")
-        mocker.patch.object(
-            WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None
-        )
+        mocker.patch.object(WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None)
 
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v1
@@ -336,15 +321,11 @@ class TestWebSearchToolPrepareMessageLogsEntries:
         mocker.patch("unique_web_search.service.get_crawler_service")
         mocker.patch("unique_web_search.service.ChunkRelevancySorter")
         mocker.patch("unique_web_search.service.ContentProcessor")
-        mocker.patch.object(
-            WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None
-        )
+        mocker.patch.object(WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None)
 
         tool = WebSearchTool.__new__(WebSearchTool)
 
-        details, references = tool._prepare_message_logs_entries(
-            sample_web_search_log_entries
-        )
+        details, references = tool._prepare_message_logs_entries(sample_web_search_log_entries)
 
         assert hasattr(details, "data")
         assert isinstance(references, list)
@@ -373,9 +354,7 @@ class TestWebSearchToolGetEvaluationChecksBasedOnToolResponse:
         mocker.patch("unique_web_search.service.get_crawler_service")
         mocker.patch("unique_web_search.service.ChunkRelevancySorter")
         mocker.patch("unique_web_search.service.ContentProcessor")
-        mocker.patch.object(
-            WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None
-        )
+        mocker.patch.object(WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None)
 
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v1
@@ -404,9 +383,7 @@ class TestWebSearchToolGetEvaluationChecksBasedOnToolResponse:
         mocker.patch("unique_web_search.service.get_crawler_service")
         mocker.patch("unique_web_search.service.ChunkRelevancySorter")
         mocker.patch("unique_web_search.service.ContentProcessor")
-        mocker.patch.object(
-            WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None
-        )
+        mocker.patch.object(WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None)
 
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v1
@@ -439,9 +416,7 @@ class TestWebSearchToolRun:
         Setup summary: Mock WebSearchTool, executor, and all dependencies.
         """
         mock_executor = AsyncMock()
-        mock_executor.run = AsyncMock(
-            return_value=(sample_content_chunks, sample_web_search_log_entries)
-        )
+        mock_executor.run = AsyncMock(return_value=(sample_content_chunks, sample_web_search_log_entries))
         mock_executor.notify_name = "test-name"
         mock_executor.notify_message = "test-message"
 
@@ -450,9 +425,7 @@ class TestWebSearchToolRun:
         mocker.patch("unique_web_search.service.ChunkRelevancySorter")
         mocker.patch("unique_web_search.service.ContentProcessor")
         mocker.patch("unique_web_search.service.WebSearchDebugInfo")
-        mocker.patch.object(
-            WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None
-        )
+        mocker.patch.object(WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None)
         mocker.patch.object(WebSearchTool, "_get_executor", return_value=mock_executor)
 
         tool = WebSearchTool.__new__(WebSearchTool)
@@ -499,9 +472,7 @@ class TestWebSearchToolRun:
         mocker.patch("unique_web_search.service.ChunkRelevancySorter")
         mocker.patch("unique_web_search.service.ContentProcessor")
         mocker.patch("unique_web_search.service.WebSearchDebugInfo")
-        mocker.patch.object(
-            WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None
-        )
+        mocker.patch.object(WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None)
         mocker.patch.object(WebSearchTool, "_get_executor", return_value=mock_executor)
 
         tool = WebSearchTool.__new__(WebSearchTool)
@@ -524,11 +495,7 @@ class TestWebSearchToolRun:
         assert result.name == "WebSearch"
         assert hasattr(result, "error_message")
         assert result.error_message == "Test error"
-        assert (
-            not hasattr(result, "content_chunks")
-            or result.content_chunks is None
-            or len(result.content_chunks) == 0
-        )
+        assert not hasattr(result, "content_chunks") or result.content_chunks is None or len(result.content_chunks) == 0
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -547,9 +514,7 @@ class TestWebSearchToolRun:
         Setup summary: Mock WebSearchTool with progress reporter and successful executor.
         """
         mock_executor = AsyncMock()
-        mock_executor.run = AsyncMock(
-            return_value=(sample_content_chunks, sample_web_search_log_entries)
-        )
+        mock_executor.run = AsyncMock(return_value=(sample_content_chunks, sample_web_search_log_entries))
         mock_executor.notify_name = "test-name"
         mock_executor.notify_message = "test-message"
 
@@ -558,9 +523,7 @@ class TestWebSearchToolRun:
         mocker.patch("unique_web_search.service.ChunkRelevancySorter")
         mocker.patch("unique_web_search.service.ContentProcessor")
         mocker.patch("unique_web_search.service.WebSearchDebugInfo")
-        mocker.patch.object(
-            WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None
-        )
+        mocker.patch.object(WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None)
         mocker.patch.object(WebSearchTool, "_get_executor", return_value=mock_executor)
 
         tool = WebSearchTool.__new__(WebSearchTool)

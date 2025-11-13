@@ -168,6 +168,8 @@ class InternalSearchService:
                 )
             )
 
+        # Updating our logger with the search results for all search strings.
+
         # Reset the metadata filter in case it was disabled
         self.content_service._metadata_filter = metadata_filter_copy
 
@@ -441,7 +443,7 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
         self._message_step_logger.create_message_log_entry(
             text="**Internal Search**",
             details=details,
-            references=message_log_reference_list,
+            data=message_log_reference_list,
         )
 
     async def _define_reference_list_for_message_log(
