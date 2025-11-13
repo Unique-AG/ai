@@ -26,6 +26,7 @@ from unique_web_search.services.executors.configs import WebSearchMode
 from unique_web_search.services.search_engine import get_search_engine_service
 from unique_web_search.utils import WebSearchDebugInfo, reduce_sources_to_token_limit
 
+from unique_toolkit.agentic.logger_manager.service import MessageStepLogger
 
 class WebSearchTool(Tool[WebSearchConfig]):
     name = "WebSearch"
@@ -62,6 +63,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
             )
 
         self.content_reducer = content_reducer
+        self.message_step_logger = MessageStepLogger(self._chat_service, self._event)
 
     @override
     def tool_description(self) -> LanguageModelToolDescription:
@@ -97,10 +99,13 @@ class WebSearchTool(Tool[WebSearchConfig]):
     @override
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
         self.logger.info("Running the WebSearch tool")
+
         start_time = time()
         parameters = self.tool_parameter_calls.model_validate(
             tool_call.arguments,
         )
+
+        #print(parameters)
 
         debug_info = WebSearchDebugInfo(parameters=parameters.model_dump())
         executor = self._get_executor(tool_call, parameters, debug_info)
@@ -109,6 +114,17 @@ class WebSearchTool(Tool[WebSearchConfig]):
             content_chunks = await executor.run()
             debug_info.num_chunks_in_final_prompts = len(content_chunks)
             debug_info.execution_time = time() - start_time
+
+            ## TODO source this out to main method.            
+            ## Write our logs
+            type = "WebSearch"
+            source = "web"
+            self.message_step_logger.create_full_specific_message(
+                message=parameters.query,
+                source="web",
+                search_type="WebSearch",
+                content_chunks=content_chunks,
+            )
 
             if self.tool_progress_reporter:
                 await self.tool_progress_reporter.notify_from_tool_call(
@@ -199,6 +215,5 @@ class WebSearchTool(Tool[WebSearchConfig]):
         if not tool_response.content_chunks:
             return []
         return evaluation_check_list
-
 
 ToolFactory.register_tool(WebSearchTool, WebSearchConfig)
