@@ -1346,6 +1346,42 @@ unique_sdk.Folder.delete(
 
 ### Space
 
+#### `unique_sdk.Space.create_message`
+
+Send a message in a space. You can optionally provide a chat ID to continue an existing conversation, or omit it to start a new chat.
+
+```python
+message = unique_sdk.Space.create_message(
+    user_id=user_id,
+    company_id=company_id,
+    chatId="chat_dejfhe729br398",  # Optional - if not provided, a new chat will be created
+    assistantId="assistant_abc123",
+    text="Hello, how can you help me?",
+    toolChoices=["WebSearch"],  # Optional - list of tools to use
+    scopeRules={  # Optional - scope rules for filtering
+        "or": [
+            {
+                "operator": "contains",
+                "path": ["folderIdPath"],
+                "value": "uniquepathid://scope_123"
+            }
+        ]
+    },
+)
+```
+
+#### `unique_sdk.Space.get_latest_message`
+
+Get the latest message in a space chat.
+
+```python
+message = unique_sdk.Space.get_latest_message(
+    user_id=user_id,
+    company_id=company_id,
+    chat_id="chat_dejfhe729br398",
+)
+```
+
 #### `unique_sdk.Space.delete_chat`
 
 Delete a space chat by id. If the chat does not exist, the function will return an error.
