@@ -33,8 +33,6 @@ python-dotenv = "^1.0.1"
 pytest-asyncio = "^0.24.0"
 #unique-sdk = { path = "../../unique_sdk" }
 #unique-toolkit = { path = "../../unique_toolkit" }
-unique-sdk = { path = "../../unique_sdk" }
-unique-toolkit = { path = "../../unique_toolkit" }
 ruff = "^0.12.10"
 pytest-cov = "^7.0.0"
 
