@@ -2061,7 +2061,7 @@ class TestInternalSearchTool:
         search_strings = ["query1", "query2", "query1", "query3", "query2"]
 
         # Act
-        result = await service.search(search_strings)
+        await service.search(search_strings)
 
         # Assert - only 3 unique searches should be executed
         assert mock_content_service.search_content_chunks_async.call_count == 3
@@ -2104,7 +2104,7 @@ class TestInternalSearchTool:
         search_strings = ["query1", "query2", "query3", "query4", "query5"]
 
         # Act
-        result = await service.search(search_strings)
+        await service.search(search_strings)
 
         # Assert - only max_search_strings (3) should be executed
         assert mock_content_service.search_content_chunks_async.call_count == 3
