@@ -114,7 +114,7 @@ class InternalSearchService:
 
         # Clean search strings by removing QDF and boost operators
         search_strings = [clean_search_string(s) for s in search_strings]
-        search_strings = list(set(search_strings))
+        search_strings = list(dict.fromkeys(search_strings))
         search_strings = search_strings[: self.config.max_search_strings]
 
         ###
