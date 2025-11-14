@@ -108,7 +108,7 @@ class InternalSearchService:
         else:
             search_strings = search_string
 
-        search_strings = search_strings[: self.config.max_search_strings | 10]
+        search_strings = search_strings[: self.config.max_search_strings]
 
         """
         Perform a search in the Vector DB based on the user's message and generate a response.
@@ -329,7 +329,7 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
                 list[str],
                 Field(
                     description=self.config.param_description_search_string,
-                    max_length=self.config.max_search_strings | 10,
+                    max_length=self.config.max_search_strings,
                 ),
             )
         else:
