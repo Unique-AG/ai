@@ -64,12 +64,6 @@ class MessageLog(APIResource["MessageLog"]):
         """
         Create a MessageLog.
         """
-        # Clean up empty descriptions from references
-        if "references" in params and params["references"]:
-            for ref in params["references"]:
-                if "description" in ref and not ref["description"]:
-                    ref.pop("description")
-
         return cast(
             "MessageLog",
             cls._static_request(
@@ -91,12 +85,6 @@ class MessageLog(APIResource["MessageLog"]):
         """
         Async create a MessageLog.
         """
-        # Clean up empty descriptions from references
-        if "references" in params and params["references"]:
-            for ref in params["references"]:
-                if "description" in ref and not ref["description"]:
-                    ref.pop("description")
-
         return cast(
             "MessageLog",
             await cls._static_request_async(
@@ -119,12 +107,6 @@ class MessageLog(APIResource["MessageLog"]):
         """
         Update a MessageLog.
         """
-        # Clean up empty descriptions from references
-        if "references" in params and params["references"]:
-            for ref in params["references"]:
-                if "description" in ref and not ref["description"]:
-                    ref.pop("description")
-
         return cast(
             "MessageLog",
             cls._static_request(
@@ -147,12 +129,6 @@ class MessageLog(APIResource["MessageLog"]):
         """
         Async update a MessageLog.
         """
-        # Clean up empty descriptions from references
-        if "references" in params and params["references"]:
-            for ref in params["references"]:
-                if "description" in ref and not ref["description"]:
-                    ref.pop("description")
-
         return cast(
             "MessageLog",
             await cls._static_request_async(
