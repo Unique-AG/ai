@@ -168,14 +168,26 @@ class InternalSearchService:
                 )
             except Exception as e:
                 self.logger.error(f"Error in search_document_chunks call: {e}")
-                raise e
+                # Re-raise to be caught by asyncio.gather with return_exceptions=True
+                raise
 
-        found_chunks_per_search_string: list[SearchStringResult] = await asyncio.gather(
+        results = await asyncio.gather(
             *[
                 search_single_string(i, search_string)
                 for i, search_string in enumerate(search_strings)
-            ]
+            ],
+            return_exceptions=True,
         )
+
+        # Filter out exceptions and log them
+        found_chunks_per_search_string: list[SearchStringResult] = []
+        for i, result in enumerate(results):
+            if isinstance(result, BaseException):
+                self.logger.error(
+                    f"Search failed for query '{search_strings[i]}': {result}"
+                )
+            elif isinstance(result, SearchStringResult):
+                found_chunks_per_search_string.append(result)
 
         # Reset the metadata filter in case it was disabled
         self.content_service._metadata_filter = metadata_filter_copy
