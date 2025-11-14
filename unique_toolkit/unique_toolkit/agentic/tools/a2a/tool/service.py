@@ -26,6 +26,7 @@ from unique_toolkit.agentic.tools.a2a.tool._schema import (
 from unique_toolkit.agentic.tools.a2a.tool.config import (
     SubAgentToolConfig,
 )
+from unique_toolkit.agentic.tools.config import ToolBuildConfig
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
@@ -53,6 +54,8 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
         name: str = "SubAgentTool",
         display_name: str = "SubAgentTool",
         response_watcher: SubAgentResponseWatcher | None = None,
+        # At the moment necessary to save the tool build config for the tool manager to work properly
+        settings: ToolBuildConfig | None = None,
     ):
         super().__init__(configuration, event, tool_progress_reporter)
         self._user_id = event.user_id
@@ -60,6 +63,9 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
 
         self.name = name
         self._display_name = display_name
+
+        if settings is not None:
+            self.settings = settings
 
         self._short_term_memory_manager = get_sub_agent_short_term_memory_manager(
             company_id=self._company_id,

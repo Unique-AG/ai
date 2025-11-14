@@ -7,6 +7,9 @@ from unique_toolkit._common.feature_flags.schema import (
     FeatureExtendedSourceSerialization,
 )
 from unique_toolkit._common.validators import LMI
+from unique_toolkit.agentic.history_manager.history_construction_with_contents import (
+    ChatMessageFilter,
+)
 from unique_toolkit.agentic.history_manager.loop_token_reducer import LoopTokenReducer
 from unique_toolkit.agentic.history_manager.utils import transform_chunks_to_string
 from unique_toolkit.agentic.reference_manager.reference_manager import ReferenceManager
@@ -107,7 +110,7 @@ class HistoryManager:
         config: HistoryManagerConfig,
         language_model: LMI,
         reference_manager: ReferenceManager,
-    ):
+    ) -> None:
         self._config = config
         self._logger = logger
         self._language_model = language_model
@@ -206,6 +209,7 @@ class HistoryManager:
         rendered_user_message_string: str,
         rendered_system_message_string: str,
         remove_from_text: Callable[[str], Awaitable[str]],
+        chat_message_filter: ChatMessageFilter | None = None,
     ) -> LanguageModelMessages:
         self._logger.info("Getting history for model call -> ")
 
@@ -215,6 +219,7 @@ class HistoryManager:
             rendered_system_message_string=rendered_system_message_string,
             loop_history=self._loop_history,
             remove_from_text=remove_from_text,
+            chat_message_filter=chat_message_filter,
         )
         return messages
 

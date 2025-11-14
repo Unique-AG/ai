@@ -12,6 +12,10 @@ from openai.types.responses import (
 from pydantic import BaseModel, Field
 
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
+from unique_toolkit.agentic.history_manager import (
+    ChatMessageFilter,
+    get_safe_tool_usage_history_filter,
+)
 from unique_toolkit.agentic.tools.a2a import A2AManager, SubAgentTool
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
 from unique_toolkit.agentic.tools.factory import ToolFactory
@@ -98,6 +102,8 @@ class _ToolManager(Generic[_ApiMode]):
         self._a2a_manager = a2a_manager
         self._builtin_tool_manager = builtin_tool_manager
         self._api_mode = api_mode
+        self._user_id = event.user_id
+        self._company_id = event.company_id
         self._init__tools(event)
 
     def _init__tools(self, event: ChatEvent) -> None:
@@ -165,6 +171,19 @@ class _ToolManager(Generic[_ApiMode]):
                 continue
 
             self._tools.append(t)
+
+    def get_tool_usage_history_filter(self) -> ChatMessageFilter | None:
+        for tool in self._tools:
+            if tool.is_history_exclusive():
+                return get_safe_tool_usage_history_filter(
+                    user_id=self._user_id,
+                    company_id=self._company_id,
+                    safe_tool_names=[tool.name],
+                )
+
+    @classmethod
+    def should_store_tool_calls(cls, tools: list[ToolBuildConfig]) -> bool:
+        return any(tool.is_enabled and tool.is_history_exclusive for tool in tools)
 
     def filter_tool_calls(
         self,
