@@ -108,7 +108,7 @@ class _CommonComponents(NamedTuple):
     history_manager: HistoryManager
     evaluation_manager: EvaluationManager
     postprocessor_manager: PostprocessorManager
-    messagesteplogger: MessageStepLogger
+    message_step_logger: MessageStepLogger
     response_watcher: SubAgentResponseWatcher
     # Tool Manager Components
     tool_progress_reporter: ToolProgressReporter
@@ -230,7 +230,7 @@ def _build_common(
         mcp_servers=event.payload.mcp_servers,
         postprocessor_manager=postprocessor_manager,
         response_watcher=response_watcher,
-        messagesteplogger=MessageStepLogger(chat_service, event),
+        message_step_logger=MessageStepLogger(chat_service, event),
     )
 
 
@@ -352,7 +352,7 @@ async def _build_responses(
         evaluation_manager=common_components.evaluation_manager,
         postprocessor_manager=postprocessor_manager,
         debug_info_manager=debug_info_manager,
-        messagesteplogger=common_components.messagesteplogger,
+        message_step_logger=common_components.message_step_logger,
         mcp_servers=event.payload.mcp_servers,
     )
 
@@ -426,7 +426,7 @@ def _build_completions(
         postprocessor_manager=postprocessor_manager,
         debug_info_manager=debug_info_manager,
         mcp_servers=event.payload.mcp_servers,
-        messagesteplogger=MessageStepLogger(common_components.chat_service, event),
+        message_step_logger=MessageStepLogger(common_components.chat_service, event),
     )
 
 
