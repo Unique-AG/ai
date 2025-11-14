@@ -1458,12 +1458,12 @@ updated_group = unique_sdk.Group.update_group(
 )
 ```
 
-#### `unique_sdk.Group.delete`
+#### `unique_sdk.Group.delete_group` (Compatible with release >.48)
 
 Delete a group in a company by its group ID.
 
 ```python
-result = unique_sdk.Group.delete(
+result = unique_sdk.Group.delete_group(
     user_id=user_id,
     company_id=company_id,
     group_id="group_id_here",

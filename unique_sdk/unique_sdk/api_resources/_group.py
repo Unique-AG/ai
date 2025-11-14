@@ -110,7 +110,7 @@ class Group(APIResource["Group"]):
         )
 
     @classmethod
-    def delete(
+    def delete_group(
         cls,
         user_id: str,
         company_id: str,
@@ -130,7 +130,7 @@ class Group(APIResource["Group"]):
         )
 
     @classmethod
-    async def delete_async(
+    async def delete_group_async(
         cls,
         user_id: str,
         company_id: str,
