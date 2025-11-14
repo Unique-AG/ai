@@ -5,9 +5,13 @@ This file demonstrates how to use the MessageStepLogger class for tracking
 message steps in agentic tools.
 """
 
-from unittest.mock import MagicMock, patch
+from typing import TYPE_CHECKING
+from unittest.mock import patch
 
 import pytest
+
+if TYPE_CHECKING:
+    from unittest.mock import Mock
 
 from unique_toolkit.agentic.logger_manager.service import MessageStepLogger
 from unique_toolkit.app import (
@@ -88,7 +92,7 @@ def reset_message_order_counters():
     Why this matters: Prevents test interference from shared module-level state.
     Setup summary: Clear the _request_counters dictionary before each test.
     """
-    from unique_toolkit.agentic.logger_manager.service import _request_counters
+    from unique_toolkit.agentic.logger_manager.service import _request_counters  # type: ignore[attr-defined]
     
     # Clear counters before test
     _request_counters.clear()
@@ -158,8 +162,8 @@ def test_message_step_logger__initializes_chat_service__with_valid_event_AI(
     logger = MessageStepLogger(chat_service, test_event)
 
     # Assert
-    assert isinstance(logger._chat_service, ChatService)
-    assert logger._chat_service == chat_service
+    assert isinstance(logger._chat_service, ChatService)  # type: ignore[attr-defined]
+    assert logger._chat_service == chat_service  # type: ignore[attr-defined]
 
 
 @pytest.mark.ai
@@ -176,8 +180,8 @@ def test_message_step_logger__initializes_event__with_valid_event_AI(
     logger = MessageStepLogger(chat_service, test_event)
 
     # Assert
-    assert logger._event == test_event
-    assert logger._event.payload.assistant_message.id == "assistant_message_id"
+    assert logger._event == test_event  # type: ignore[attr-defined]
+    assert logger._event.payload.assistant_message.id == "assistant_message_id"  # type: ignore[attr-defined]
 
 
 # Message Order Tests
@@ -208,7 +212,7 @@ def test_get_next_message_order__increments_counter__on_subsequent_calls_AI() ->
     """
     # Arrange
     message_id = "test_message_increment"
-    MessageStepLogger.get_next_message_order(message_id)  # First call
+    _ = MessageStepLogger.get_next_message_order(message_id)  # First call
 
     # Act
     order = MessageStepLogger.get_next_message_order(message_id)
@@ -227,7 +231,7 @@ def test_get_next_message_order__starts_from_one__with_different_message_id_AI()
     """
     # Arrange
     first_message_id = "test_message_one"
-    MessageStepLogger.get_next_message_order(first_message_id)  # Increment first
+    _ = MessageStepLogger.get_next_message_order(first_message_id)  # Increment first
     different_message_id = "test_message_two"
 
     # Act
@@ -242,7 +246,7 @@ def test_get_next_message_order__starts_from_one__with_different_message_id_AI()
 @pytest.mark.ai
 @patch.object(ChatService, "create_message_log", spec=True)
 def test_create_message_log_entry__calls_chat_service__with_correct_message_id_AI(
-    mock_create_message_log, chat_service: ChatService
+    mock_create_message_log: "Mock", chat_service: ChatService
 ) -> None:
     """
     Purpose: Verify create_message_log_entry passes message_id to chat service.
@@ -254,7 +258,7 @@ def test_create_message_log_entry__calls_chat_service__with_correct_message_id_A
     text = "Processing search query..."
 
     # Act
-    MessageStepLogger.create_message_log_entry(
+    _ = MessageStepLogger.create_message_log_entry(
         chat_service=chat_service,
         message_id=message_id,
         text=text,
@@ -262,16 +266,16 @@ def test_create_message_log_entry__calls_chat_service__with_correct_message_id_A
     )
 
     # Assert
-    mock_create_message_log.assert_called_once()
-    call_args = mock_create_message_log.call_args
-    assert isinstance(call_args.kwargs["message_id"], str)
-    assert call_args.kwargs["message_id"] == message_id
+    mock_create_message_log.assert_called_once()  # type: ignore[attr-defined]
+    call_args = mock_create_message_log.call_args  # type: ignore[attr-defined]
+    assert isinstance(call_args.kwargs["message_id"], str)  # type: ignore[attr-defined]
+    assert call_args.kwargs["message_id"] == message_id  # type: ignore[attr-defined]
 
 
 @pytest.mark.ai
 @patch.object(ChatService, "create_message_log", spec=True)
 def test_create_message_log_entry__calls_chat_service__with_correct_text_AI(
-    mock_create_message_log, chat_service: ChatService
+    mock_create_message_log: "Mock", chat_service: ChatService
 ) -> None:
     """
     Purpose: Verify create_message_log_entry passes text to chat service.
@@ -283,7 +287,7 @@ def test_create_message_log_entry__calls_chat_service__with_correct_text_AI(
     text = "Processing search query..."
 
     # Act
-    MessageStepLogger.create_message_log_entry(
+    _ = MessageStepLogger.create_message_log_entry(
         chat_service=chat_service,
         message_id=message_id,
         text=text,
@@ -291,16 +295,16 @@ def test_create_message_log_entry__calls_chat_service__with_correct_text_AI(
     )
 
     # Assert
-    mock_create_message_log.assert_called_once()
-    call_args = mock_create_message_log.call_args
-    assert isinstance(call_args.kwargs["text"], str)
-    assert call_args.kwargs["text"] == text
+    mock_create_message_log.assert_called_once()  # type: ignore[attr-defined]
+    call_args = mock_create_message_log.call_args  # type: ignore[attr-defined]
+    assert isinstance(call_args.kwargs["text"], str)  # type: ignore[attr-defined]
+    assert call_args.kwargs["text"] == text  # type: ignore[attr-defined]
 
 
 @pytest.mark.ai
 @patch.object(ChatService, "create_message_log", spec=True)
 def test_create_message_log_entry__calls_chat_service__with_correct_status_AI(
-    mock_create_message_log, chat_service: ChatService
+    mock_create_message_log: "Mock", chat_service: ChatService
 ) -> None:
     """
     Purpose: Verify create_message_log_entry passes status to chat service.
@@ -312,7 +316,7 @@ def test_create_message_log_entry__calls_chat_service__with_correct_status_AI(
     status = MessageLogStatus.RUNNING
 
     # Act
-    MessageStepLogger.create_message_log_entry(
+    _ = MessageStepLogger.create_message_log_entry(
         chat_service=chat_service,
         message_id=message_id,
         text="Test text",
@@ -320,16 +324,16 @@ def test_create_message_log_entry__calls_chat_service__with_correct_status_AI(
     )
 
     # Assert
-    mock_create_message_log.assert_called_once()
-    call_args = mock_create_message_log.call_args
-    assert isinstance(call_args.kwargs["status"], MessageLogStatus)
-    assert call_args.kwargs["status"] == status
+    mock_create_message_log.assert_called_once()  # type: ignore[attr-defined]
+    call_args = mock_create_message_log.call_args  # type: ignore[attr-defined]
+    assert isinstance(call_args.kwargs["status"], MessageLogStatus)  # type: ignore[attr-defined]
+    assert call_args.kwargs["status"] == status  # type: ignore[attr-defined]
 
 
 @pytest.mark.ai
 @patch.object(ChatService, "create_message_log", spec=True)
 def test_create_message_log_entry__calls_chat_service__with_custom_details_AI(
-    mock_create_message_log, chat_service: ChatService
+    mock_create_message_log: "Mock", chat_service: ChatService
 ) -> None:
     """
     Purpose: Verify create_message_log_entry passes custom details to chat service.
@@ -343,7 +347,7 @@ def test_create_message_log_entry__calls_chat_service__with_custom_details_AI(
     )
 
     # Act
-    MessageStepLogger.create_message_log_entry(
+    _ = MessageStepLogger.create_message_log_entry(
         chat_service=chat_service,
         message_id=message_id,
         text="Custom log entry",
@@ -352,16 +356,16 @@ def test_create_message_log_entry__calls_chat_service__with_custom_details_AI(
     )
 
     # Assert
-    mock_create_message_log.assert_called_once()
-    call_args = mock_create_message_log.call_args
-    assert isinstance(call_args.kwargs["details"], MessageLogDetails)
-    assert call_args.kwargs["details"] == custom_details
+    mock_create_message_log.assert_called_once()  # type: ignore[attr-defined]
+    call_args = mock_create_message_log.call_args  # type: ignore[attr-defined]
+    assert isinstance(call_args.kwargs["details"], MessageLogDetails)  # type: ignore[attr-defined]
+    assert call_args.kwargs["details"] == custom_details  # type: ignore[attr-defined]
 
 
 @pytest.mark.ai
 @patch.object(ChatService, "create_message_log", spec=True)
 def test_create_message_log_entry__calls_chat_service__with_custom_references_AI(
-    mock_create_message_log, chat_service: ChatService
+    mock_create_message_log: "Mock", chat_service: ChatService
 ) -> None:
     """
     Purpose: Verify create_message_log_entry passes custom references to chat service.
@@ -373,7 +377,7 @@ def test_create_message_log_entry__calls_chat_service__with_custom_references_AI
     custom_refs = MessageLogUncitedReferences(data=[])
 
     # Act
-    MessageStepLogger.create_message_log_entry(
+    _ = MessageStepLogger.create_message_log_entry(
         chat_service=chat_service,
         message_id=message_id,
         text="Custom log entry",
@@ -382,17 +386,17 @@ def test_create_message_log_entry__calls_chat_service__with_custom_references_AI
     )
 
     # Assert
-    mock_create_message_log.assert_called_once()
-    call_args = mock_create_message_log.call_args
-    assert isinstance(call_args.kwargs["uncited_references"], MessageLogUncitedReferences)
-    assert call_args.kwargs["uncited_references"] == custom_refs
+    mock_create_message_log.assert_called_once()  # type: ignore[attr-defined]
+    call_args = mock_create_message_log.call_args  # type: ignore[attr-defined]
+    assert isinstance(call_args.kwargs["uncited_references"], MessageLogUncitedReferences)  # type: ignore[attr-defined]
+    assert call_args.kwargs["uncited_references"] == custom_refs  # type: ignore[attr-defined]
 
 
 # Instance Method Tests
 @pytest.mark.ai
 @patch.object(ChatService, "create_message_log", spec=True)
 def test_write_message_log_text_message__calls_chat_service__with_text_AI(
-    mock_create_message_log, logger: MessageStepLogger, test_event: ChatEvent
+    mock_create_message_log: "Mock", logger: MessageStepLogger
 ) -> None:
     """
     Purpose: Verify write_message_log_text_message passes text to chat service.
@@ -403,19 +407,19 @@ def test_write_message_log_text_message__calls_chat_service__with_text_AI(
     text = "Starting web search..."
 
     # Act
-    logger.write_message_log_text_message(text)
+    _ = logger.write_message_log_text_message(text)
 
     # Assert
-    mock_create_message_log.assert_called_once()
-    call_args = mock_create_message_log.call_args
-    assert isinstance(call_args.kwargs["text"], str)
-    assert call_args.kwargs["text"] == text
+    mock_create_message_log.assert_called_once()  # type: ignore[attr-defined]
+    call_args = mock_create_message_log.call_args  # type: ignore[attr-defined]
+    assert isinstance(call_args.kwargs["text"], str)  # type: ignore[attr-defined]
+    assert call_args.kwargs["text"] == text  # type: ignore[attr-defined]
 
 
 @pytest.mark.ai
 @patch.object(ChatService, "create_message_log", spec=True)
 def test_write_message_log_text_message__calls_chat_service__with_completed_status_AI(
-    mock_create_message_log, logger: MessageStepLogger
+    mock_create_message_log: "Mock", logger: MessageStepLogger
 ) -> None:
     """
     Purpose: Verify write_message_log_text_message uses COMPLETED status.
@@ -425,19 +429,19 @@ def test_write_message_log_text_message__calls_chat_service__with_completed_stat
     # Arrange
 
     # Act
-    logger.write_message_log_text_message("Test message")
+    _ = logger.write_message_log_text_message("Test message")
 
     # Assert
-    mock_create_message_log.assert_called_once()
-    call_args = mock_create_message_log.call_args
-    assert isinstance(call_args.kwargs["status"], MessageLogStatus)
-    assert call_args.kwargs["status"] == MessageLogStatus.COMPLETED
+    mock_create_message_log.assert_called_once()  # type: ignore[attr-defined]
+    call_args = mock_create_message_log.call_args  # type: ignore[attr-defined]
+    assert isinstance(call_args.kwargs["status"], MessageLogStatus)  # type: ignore[attr-defined]
+    assert call_args.kwargs["status"] == MessageLogStatus.COMPLETED  # type: ignore[attr-defined]
 
 
 @pytest.mark.ai
 @patch.object(ChatService, "create_message_log", spec=True)
 def test_write_message_log_text_message__calls_chat_service__with_message_id_AI(
-    mock_create_message_log, logger: MessageStepLogger, test_event: ChatEvent
+    mock_create_message_log: "Mock", logger: MessageStepLogger, test_event: ChatEvent
 ) -> None:
     """
     Purpose: Verify write_message_log_text_message uses event message ID.
@@ -447,19 +451,19 @@ def test_write_message_log_text_message__calls_chat_service__with_message_id_AI(
     # Arrange
 
     # Act
-    logger.write_message_log_text_message("Test message")
+    _ = logger.write_message_log_text_message("Test message")
 
     # Assert
-    mock_create_message_log.assert_called_once()
-    call_args = mock_create_message_log.call_args
-    assert isinstance(call_args.kwargs["message_id"], str)
-    assert call_args.kwargs["message_id"] == test_event.payload.assistant_message.id
+    mock_create_message_log.assert_called_once()  # type: ignore[attr-defined]
+    call_args = mock_create_message_log.call_args  # type: ignore[attr-defined]
+    assert isinstance(call_args.kwargs["message_id"], str)  # type: ignore[attr-defined]
+    assert call_args.kwargs["message_id"] == test_event.payload.assistant_message.id  # type: ignore[attr-defined]
 
 
 @pytest.mark.ai
 @patch.object(ChatService, "create_message_log", spec=True)
 def test_write_message_log_text_message__increments_order__on_multiple_calls_AI(
-    mock_create_message_log, logger: MessageStepLogger
+    mock_create_message_log: "Mock", logger: MessageStepLogger
 ) -> None:
     """
     Purpose: Verify write_message_log_text_message increments order on multiple calls.
@@ -469,19 +473,19 @@ def test_write_message_log_text_message__increments_order__on_multiple_calls_AI(
     # Arrange
 
     # Act
-    logger.write_message_log_text_message("Step 1")
-    logger.write_message_log_text_message("Step 2")
-    logger.write_message_log_text_message("Step 3")
+    _ = logger.write_message_log_text_message("Step 1")
+    _ = logger.write_message_log_text_message("Step 2")
+    _ = logger.write_message_log_text_message("Step 3")
 
     # Assert
-    assert mock_create_message_log.call_count == 3
-    calls = mock_create_message_log.call_args_list
-    assert isinstance(calls[0].kwargs["order"], int)
-    assert calls[0].kwargs["order"] == 1
-    assert isinstance(calls[1].kwargs["order"], int)
-    assert calls[1].kwargs["order"] == 2
-    assert isinstance(calls[2].kwargs["order"], int)
-    assert calls[2].kwargs["order"] == 3
+    assert mock_create_message_log.call_count == 3  # type: ignore[attr-defined]
+    calls = mock_create_message_log.call_args_list  # type: ignore[attr-defined]
+    assert isinstance(calls[0].kwargs["order"], int)  # type: ignore[attr-defined]
+    assert calls[0].kwargs["order"] == 1  # type: ignore[attr-defined]
+    assert isinstance(calls[1].kwargs["order"], int)  # type: ignore[attr-defined]
+    assert calls[1].kwargs["order"] == 2  # type: ignore[attr-defined]
+    assert isinstance(calls[2].kwargs["order"], int)  # type: ignore[attr-defined]
+    assert calls[2].kwargs["order"] == 3  # type: ignore[attr-defined]
 
 
 # Reference List Tests - Web Search
@@ -780,7 +784,7 @@ def test_define_reference_list_for_internal__sets_empty_url__for_internal_chunks
 @pytest.mark.ai
 @patch.object(ChatService, "create_message_log", spec=True)
 def test_create_full_specific_message__calls_chat_service__with_web_search_AI(
-    mock_create_message_log, logger: MessageStepLogger
+    mock_create_message_log: "Mock", logger: MessageStepLogger
 ) -> None:
     """
     Purpose: Verify create_full_specific_message calls chat service for web search.
@@ -799,13 +803,13 @@ def test_create_full_specific_message__calls_chat_service__with_web_search_AI(
     )
 
     # Assert
-    mock_create_message_log.assert_called_once()
+    mock_create_message_log.assert_called_once()  # type: ignore[attr-defined]
 
 
 @pytest.mark.ai
 @patch.object(ChatService, "create_message_log", spec=True)
 def test_create_full_specific_message__includes_question__in_text_for_web_search_AI(
-    mock_create_message_log, logger: MessageStepLogger
+    mock_create_message_log: "Mock", logger: MessageStepLogger
 ) -> None:
     """
     Purpose: Verify create_full_specific_message includes question in text.
@@ -824,8 +828,8 @@ def test_create_full_specific_message__includes_question__in_text_for_web_search
     )
 
     # Assert
-    call_args = mock_create_message_log.call_args
-    text = call_args.kwargs["text"]
+    call_args = mock_create_message_log.call_args  # type: ignore[attr-defined]
+    text = call_args.kwargs["text"]  # type: ignore[attr-defined]
     assert isinstance(text, str)
     assert "**Web Search**" in text
     assert "**Question asked by the Tool**" in text
@@ -835,7 +839,7 @@ def test_create_full_specific_message__includes_question__in_text_for_web_search
 @pytest.mark.ai
 @patch.object(ChatService, "create_message_log", spec=True)
 def test_create_full_specific_message__includes_web_search_marker__in_text_for_web_search_AI(
-    mock_create_message_log, logger: MessageStepLogger
+    mock_create_message_log: "Mock", logger: MessageStepLogger
 ) -> None:
     """
     Purpose: Verify create_full_specific_message includes web search marker in text.
@@ -854,8 +858,8 @@ def test_create_full_specific_message__includes_web_search_marker__in_text_for_w
     )
 
     # Assert
-    call_args = mock_create_message_log.call_args
-    text = call_args.kwargs["text"]
+    call_args = mock_create_message_log.call_args  # type: ignore[attr-defined]
+    text = call_args.kwargs["text"]  # type: ignore[attr-defined]
     assert isinstance(text, str)
     assert "**Web Search**" in text
 
@@ -863,7 +867,7 @@ def test_create_full_specific_message__includes_web_search_marker__in_text_for_w
 @pytest.mark.ai
 @patch.object(ChatService, "create_message_log", spec=True)
 def test_create_full_specific_message__sets_completed_status__for_web_search_AI(
-    mock_create_message_log, logger: MessageStepLogger
+    mock_create_message_log: "Mock", logger: MessageStepLogger
 ) -> None:
     """
     Purpose: Verify create_full_specific_message uses COMPLETED status for web search.
@@ -882,15 +886,15 @@ def test_create_full_specific_message__sets_completed_status__for_web_search_AI(
     )
 
     # Assert
-    call_args = mock_create_message_log.call_args
-    assert isinstance(call_args.kwargs["status"], MessageLogStatus)
-    assert call_args.kwargs["status"] == MessageLogStatus.COMPLETED
+    call_args = mock_create_message_log.call_args  # type: ignore[attr-defined]
+    assert isinstance(call_args.kwargs["status"], MessageLogStatus)  # type: ignore[attr-defined]
+    assert call_args.kwargs["status"] == MessageLogStatus.COMPLETED  # type: ignore[attr-defined]
 
 
 @pytest.mark.ai
 @patch.object(ChatService, "create_message_log", spec=True)
 def test_create_full_specific_message__creates_web_search_details__for_web_search_AI(
-    mock_create_message_log, logger: MessageStepLogger
+    mock_create_message_log: "Mock", logger: MessageStepLogger
 ) -> None:
     """
     Purpose: Verify create_full_specific_message creates WebSearch details.
@@ -909,9 +913,10 @@ def test_create_full_specific_message__creates_web_search_details__for_web_searc
     )
 
     # Assert
-    call_args = mock_create_message_log.call_args
-    details = call_args.kwargs["details"]
+    call_args = mock_create_message_log.call_args  # type: ignore[attr-defined]
+    details = call_args.kwargs["details"]  # type: ignore[attr-defined]
     assert isinstance(details, MessageLogDetails)
+    assert details.data is not None
     assert len(details.data) == 1
     assert isinstance(details.data[0].type, str)
     assert details.data[0].type == "WebSearch"
@@ -920,7 +925,7 @@ def test_create_full_specific_message__creates_web_search_details__for_web_searc
 @pytest.mark.ai
 @patch.object(ChatService, "create_message_log", spec=True)
 def test_create_full_specific_message__creates_references__for_web_search_AI(
-    mock_create_message_log, logger: MessageStepLogger
+    mock_create_message_log: "Mock", logger: MessageStepLogger
 ) -> None:
     """
     Purpose: Verify create_full_specific_message creates references for web search.
@@ -947,12 +952,12 @@ def test_create_full_specific_message__creates_references__for_web_search_AI(
     )
 
     # Assert
-    call_args = mock_create_message_log.call_args
-    uncited_refs = call_args.kwargs["uncited_references"]
+    call_args = mock_create_message_log.call_args  # type: ignore[attr-defined]
+    uncited_refs = call_args.kwargs["uncited_references"]  # type: ignore[attr-defined]
     assert isinstance(uncited_refs, MessageLogUncitedReferences)
     assert len(uncited_refs.data) == 1
     # Also verify references parameter
-    references = call_args.kwargs["references"]
+    references = call_args.kwargs["references"]  # type: ignore[attr-defined]
     assert isinstance(references, list)
     assert len(references) == 1
 
@@ -960,7 +965,7 @@ def test_create_full_specific_message__creates_references__for_web_search_AI(
 @pytest.mark.ai
 @patch.object(ChatService, "create_message_log", spec=True)
 def test_create_full_specific_message__uses_message_id__from_event_AI(
-    mock_create_message_log, logger: MessageStepLogger, test_event: ChatEvent
+    mock_create_message_log: "Mock", logger: MessageStepLogger, test_event: ChatEvent
 ) -> None:
     """
     Purpose: Verify create_full_specific_message uses message_id from event.
@@ -979,16 +984,16 @@ def test_create_full_specific_message__uses_message_id__from_event_AI(
     )
 
     # Assert
-    call_args = mock_create_message_log.call_args
-    assert isinstance(call_args.kwargs["message_id"], str)
-    assert call_args.kwargs["message_id"] == test_event.payload.assistant_message.id
+    call_args = mock_create_message_log.call_args  # type: ignore[attr-defined]
+    assert isinstance(call_args.kwargs["message_id"], str)  # type: ignore[attr-defined]
+    assert call_args.kwargs["message_id"] == test_event.payload.assistant_message.id  # type: ignore[attr-defined]
 
 
 # Full Message Tests - Internal Search
 @pytest.mark.ai
 @patch.object(ChatService, "create_message_log", spec=True)
 def test_create_full_specific_message__creates_internal_search_details__for_internal_search_AI(
-    mock_create_message_log, logger: MessageStepLogger
+    mock_create_message_log: "Mock", logger: MessageStepLogger
 ) -> None:
     """
     Purpose: Verify create_full_specific_message creates InternalSearch details.
@@ -1007,9 +1012,10 @@ def test_create_full_specific_message__creates_internal_search_details__for_inte
     )
 
     # Assert
-    call_args = mock_create_message_log.call_args
-    details = call_args.kwargs["details"]
+    call_args = mock_create_message_log.call_args  # type: ignore[attr-defined]
+    details = call_args.kwargs["details"]  # type: ignore[attr-defined]
     assert isinstance(details, MessageLogDetails)
+    assert details.data is not None
     assert len(details.data) == 1
     assert isinstance(details.data[0].type, str)
     assert details.data[0].type == "InternalSearch"
@@ -1018,7 +1024,7 @@ def test_create_full_specific_message__creates_internal_search_details__for_inte
 @pytest.mark.ai
 @patch.object(ChatService, "create_message_log", spec=True)
 def test_create_full_specific_message__creates_references__for_internal_search_AI(
-    mock_create_message_log, logger: MessageStepLogger
+    mock_create_message_log: "Mock", logger: MessageStepLogger
 ) -> None:
     """
     Purpose: Verify create_full_specific_message creates references for internal search.
@@ -1045,8 +1051,8 @@ def test_create_full_specific_message__creates_references__for_internal_search_A
     )
 
     # Assert
-    call_args = mock_create_message_log.call_args
-    uncited_refs = call_args.kwargs["uncited_references"]
+    call_args = mock_create_message_log.call_args  # type: ignore[attr-defined]
+    uncited_refs = call_args.kwargs["uncited_references"]  # type: ignore[attr-defined]
     assert isinstance(uncited_refs, MessageLogUncitedReferences)
     assert len(uncited_refs.data) == 1
     assert isinstance(uncited_refs.data[0].name, str)
@@ -1054,6 +1060,6 @@ def test_create_full_specific_message__creates_references__for_internal_search_A
     assert isinstance(uncited_refs.data[0].url, str)
     assert uncited_refs.data[0].url == ""
     # Also verify references parameter
-    references = call_args.kwargs["references"]
+    references = call_args.kwargs["references"]  # type: ignore[attr-defined]
     assert isinstance(references, list)
     assert len(references) == 1
