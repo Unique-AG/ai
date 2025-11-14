@@ -6,7 +6,6 @@ from pydantic import (
     Field,
     field_validator,
 )
-from pydantic.types import enum_values
 from unique_sdk import (
     AgenticTableSheetState,
     AgreementStatus,
@@ -45,9 +44,6 @@ class MagicTableAction(StrEnum):
     SHEET_CREATED = "SheetCreated"
 
 
-MagicTableActionLiteral = enum_values(MagicTableAction)
-
-
 class ActivityStatus(StrEnum):
     IN_PROGRESS = "IN_PROGRESS"
     COMPLETED = "COMPLETED"
@@ -82,15 +78,17 @@ class DDMetadata(BaseMetadata):
     )
 
 
+# Define template types
 T = TypeVar("T", bound=BaseMetadata)
+A = TypeVar("A", bound=MagicTableAction)
 
 
-class MagicTableBasePayload(BaseModel, Generic[T]):
+class MagicTableBasePayload(BaseModel, Generic[T, A]):
     model_config = get_configuration_dict()
     name: str = Field(description="The name of the module")
     sheet_name: str
 
-    action: MagicTableActionLiteral  # type: ignore
+    action: A
     chat_id: str
     assistant_id: str
     table_id: str
@@ -133,9 +131,10 @@ class ArtifactData(BaseModel):
     artifact_type: ArtifactType
 
 
-class MagicTableGenerateArtifactPayload(MagicTableBasePayload):
+class MagicTableGenerateArtifactPayload(
+    MagicTableBasePayload[BaseMetadata, MagicTableAction.GENERATE_ARTIFACT]
+):
     action: Literal[MagicTableAction.GENERATE_ARTIFACT]
-
     data: ArtifactData
 
 
@@ -150,9 +149,10 @@ class SheetCompletedMetadata(BaseMetadata):
     )
 
 
-class MagicTableSheetCompletedPayload(MagicTableBasePayload):
+class MagicTableSheetCompletedPayload(
+    MagicTableBasePayload[SheetCompletedMetadata, MagicTableAction.SHEET_COMPLETED]
+):
     action: Literal[MagicTableAction.SHEET_COMPLETED]
-    metadata: SheetCompletedMetadata
 
 
 ########## Sheet Created Payload ##########
@@ -160,9 +160,10 @@ class SheetCreatedMetadata(BaseMetadata):
     pass
 
 
-class MagicTableSheetCreatedPayload(MagicTableBasePayload):
+class MagicTableSheetCreatedPayload(
+    MagicTableBasePayload[SheetCreatedMetadata, MagicTableAction.SHEET_CREATED]
+):
     action: Literal[MagicTableAction.SHEET_CREATED]
-    metadata: SheetCreatedMetadata
 
 
 ########## Library Sheet Row Verified Payload ##########
@@ -173,9 +174,12 @@ class LibrarySheetRowVerifiedMetadata(BaseMetadata):
     row_order: int = Field(description="The row index of the row that was verified.")
 
 
-class MagicTableLibrarySheetRowVerifiedPayload(MagicTableBasePayload):
+class MagicTableLibrarySheetRowVerifiedPayload(
+    MagicTableBasePayload[
+        LibrarySheetRowVerifiedMetadata, MagicTableAction.LIBRARY_SHEET_ROW_VERIFIED
+    ]
+):
     action: Literal[MagicTableAction.LIBRARY_SHEET_ROW_VERIFIED]
-    metadata: LibrarySheetRowVerifiedMetadata
 
 
 ########### Magic Table Event definition ###########
