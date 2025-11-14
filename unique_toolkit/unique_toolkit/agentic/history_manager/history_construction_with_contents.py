@@ -2,6 +2,7 @@ import base64
 import mimetypes
 from datetime import datetime
 from enum import StrEnum
+from typing import Awaitable, Callable, Iterable
 
 import numpy as np
 import tiktoken
@@ -196,18 +197,26 @@ def file_content_serialization(
             )
 
 
-def get_full_history_with_contents(
+ChatMessageFilter = Callable[[Iterable[ChatMessage]], Awaitable[Iterable[ChatMessage]]]
+
+
+async def get_full_history_with_contents(
     user_message: ChatEventUserMessage,
     chat_id: str,
     chat_service: ChatService,
     content_service: ContentService,
     include_images: ImageContentInclusion = ImageContentInclusion.ALL,
     file_content_serialization_type: FileContentSerialization = FileContentSerialization.FILE_NAME,
+    chat_message_filter: ChatMessageFilter | None = None,
 ) -> LanguageModelMessages:
+    chat_history = await chat_service.get_full_history_async()
+    if chat_message_filter is not None:
+        chat_history = await chat_message_filter(chat_history)
+
     grouped_elements = get_chat_history_with_contents(
         user_message=user_message,
         chat_id=chat_id,
-        chat_history=chat_service.get_full_history(),
+        chat_history=list(chat_history),
         content_service=content_service,
     )
 

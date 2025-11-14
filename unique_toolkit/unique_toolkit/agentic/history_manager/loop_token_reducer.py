@@ -10,6 +10,7 @@ from unique_toolkit._common.token.token_counting import (
 )
 from unique_toolkit._common.validators import LMI
 from unique_toolkit.agentic.history_manager.history_construction_with_contents import (
+    ChatMessageFilter,
     FileContentSerialization,
     get_full_history_with_contents,
 )
@@ -75,6 +76,7 @@ class LoopTokenReducer:
         rendered_system_message_string: str,
         loop_history: list[LanguageModelMessage],
         remove_from_text: Callable[[str], Awaitable[str]],
+        chat_message_filter: ChatMessageFilter | None = None,
     ) -> LanguageModelMessages:
         """Compose the system and user messages for the plan execution step, which is evaluating if any further tool calls are required."""
 
@@ -83,6 +85,7 @@ class LoopTokenReducer:
             rendered_user_message_string,
             rendered_system_message_string,
             remove_from_text,
+            chat_message_filter,
         )
 
         messages = self._construct_history(
@@ -149,8 +152,11 @@ class LoopTokenReducer:
         rendered_user_message_string: str,
         rendered_system_message_string: str,
         remove_from_text: Callable[[str], Awaitable[str]],
+        chat_message_filter: ChatMessageFilter | None = None,
     ) -> list[LanguageModelMessage]:
-        history_from_db = await self.get_history_from_db(remove_from_text)
+        history_from_db = await self.get_history_from_db(
+            remove_from_text, chat_message_filter
+        )
         history_from_db = self._replace_user_message(
             history_from_db, original_user_message, rendered_user_message_string
         )
@@ -223,7 +229,9 @@ class LoopTokenReducer:
         return history
 
     async def get_history_from_db(
-        self, remove_from_text: Callable[[str], Awaitable[str]] | None = None
+        self,
+        remove_from_text: Callable[[str], Awaitable[str]] | None = None,
+        chat_message_filter: ChatMessageFilter | None = None,
     ) -> list[LanguageModelMessage]:
         """
         Get the history of the conversation. The function will retrieve a subset of the full history based on the configuration.
@@ -231,7 +239,7 @@ class LoopTokenReducer:
         Returns:
             list[LanguageModelMessage]: The history
         """
-        full_history = get_full_history_with_contents(
+        full_history = await get_full_history_with_contents(
             user_message=self._user_message,
             chat_id=self._chat_id,
             chat_service=self._chat_service,
@@ -241,6 +249,7 @@ class LoopTokenReducer:
                 if self._has_uploaded_content_config
                 else FileContentSerialization.FILE_NAME
             ),
+            chat_message_filter=chat_message_filter,
         )
         if remove_from_text is not None:
             full_history.root = await self._clean_messages(

@@ -1,7 +1,8 @@
 import json
+from typing import Self
 
 from humps import camelize
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 model_config = ConfigDict(
     alias_generator=camelize,
@@ -19,25 +20,11 @@ class ShortTermMemory(BaseModel):
     message_id: str | None
     data: str | dict | int | float | bool | list | None
 
-    @field_validator("chat_id", "message_id", mode="before")
-    def validate_chat_id_or_message_id(cls, v, info):
-        field_name = info.field_name
-        data = info.data
-
-        # Get the other field's value
-        other_field = "message_id" if field_name == "chat_id" else "chat_id"
-        other_value = data.get(other_field)
-
-        # Check if both are None
-        if v is None and other_value is None:
-            camel_name = camelize(field_name)
-            raise ValueError(
-                f"Either {camel_name} or messageId must be provided"
-                if field_name == "chat_id"
-                else f"Either chatId or {camel_name} must be provided"
-            )
-
-        return v
+    @model_validator(mode="after")
+    def validate_chat_id_or_message_id(self) -> Self:
+        if self.chat_id is None and self.message_id is None:
+            raise ValueError("Either chat_id or message_id must be provided")
+        return self
 
     @field_validator("data", mode="before")
     def validate_data(cls, v):

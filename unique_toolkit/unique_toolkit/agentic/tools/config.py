@@ -1,4 +1,5 @@
 import json
+import logging
 from enum import StrEnum
 from typing import Annotated, Any, Dict
 
@@ -7,11 +8,14 @@ from pydantic import (
     BeforeValidator,
     Field,
     ValidationInfo,
+    field_validator,
     model_validator,
 )
 
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
+
+logger = logging.getLogger(__name__)
 
 
 class ToolIcon(StrEnum):
@@ -62,6 +66,10 @@ class ToolBuildConfig(BaseModel):
     is_exclusive: bool = Field(
         default=False,
         description="This tool must be chosen by the user and no other tools are used for this iteration.",
+    )
+    is_history_exclusive: bool = Field(
+        default=False,
+        description="If `is_exclusive` is enabled and this flag is set, only user-assistant message pairs where no other tool was called will be included in the history.",
     )
     is_sub_agent: bool = False
 
@@ -166,3 +174,15 @@ class ToolBuildConfig(BaseModel):
             "is_enabled": self.is_enabled,
         }
         return json.dumps(data)
+
+    @field_validator("is_history_exclusive", mode="after")
+    @classmethod
+    def disable_is_history_exclusive_if_not_exclusive(
+        cls, value: bool, info: ValidationInfo
+    ) -> bool:
+        if info.data["is_exclusive"] is False:
+            logger.warning(
+                "`is_history_exclusive` is enabled but `is_exclusive` is not. Disabling `is_history_exclusive`."
+            )
+            return False
+        return value

@@ -45,6 +45,7 @@ class A2AManager:
                     name=tool_config.name,
                     display_name=tool_config.display_name,
                     response_watcher=self._response_watcher,
+                    settings=tool_config,
                 )
             )
 
