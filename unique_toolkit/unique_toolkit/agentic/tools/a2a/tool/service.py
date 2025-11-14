@@ -1,12 +1,13 @@
 import asyncio
 import contextlib
+import json
 import logging
 import re
 from datetime import datetime
 from typing import override
 
 import unique_sdk
-from pydantic import Field, create_model
+from pydantic import Field, TypeAdapter, create_model
 from unique_sdk.utils.chat_in_space import send_message_and_wait_for_completion
 
 from unique_toolkit._common.referencing import (
@@ -34,12 +35,15 @@ from unique_toolkit.agentic.tools.tool_progress_reporter import (
     ToolProgressReporter,
 )
 from unique_toolkit.app import ChatEvent
+from unique_toolkit.content import ContentChunk
 from unique_toolkit.language_model import (
     LanguageModelFunction,
     LanguageModelToolDescription,
 )
 
 logger = logging.getLogger(__name__)
+
+_ContentChunkList = TypeAdapter(list[ContentChunk])
 
 
 class SubAgentTool(Tool[SubAgentToolConfig]):
@@ -93,6 +97,13 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
 
     @override
     def tool_description(self) -> LanguageModelToolDescription:
+        if self.config.tool_input_json_schema is not None:
+            return LanguageModelToolDescription(
+                name=self.name,
+                description=self.config.tool_description,
+                parameters=self.config.tool_input_json_schema,
+            )
+
         tool_input_model_with_description = create_model(
             "SubAgentToolInput",
             user_message=(
@@ -136,7 +147,13 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
 
     @override
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
-        tool_input = SubAgentToolInput.model_validate(tool_call.arguments)
+        if self.config.tool_input_json_schema is not None:
+            tool_input = json.dumps(tool_call.arguments)
+        else:
+            tool_input = SubAgentToolInput.model_validate(
+                tool_call.arguments
+            ).user_message
+
         timestamp = datetime.now()
 
         if self._lock.locked():
@@ -156,7 +173,7 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
 
             await self._notify_progress(
                 tool_call=tool_call,
-                message=tool_input.user_message,
+                message=tool_input,
                 state=ProgressState.RUNNING,
             )
 
@@ -164,7 +181,7 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
             chat_id = await self._get_chat_id()
 
             response = await self._execute_and_handle_timeout(
-                tool_user_message=tool_input.user_message,
+                tool_user_message=tool_input,
                 chat_id=chat_id,
                 tool_call=tool_call,
             )
@@ -181,21 +198,27 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
             if response["text"] is None:
                 raise ValueError("No response returned from sub agent")
 
-            response_text_with_references = self._prepare_response_references(
-                response=response["text"],
-                sequence_number=sequence_number,
-            )
+            if self.config.returns_content_chunks:
+                content = ""
+                content_chunks = _ContentChunkList.validate_json(response["text"])
+            else:
+                content = self._prepare_response_references(
+                    response=response["text"],
+                    sequence_number=sequence_number,
+                )
+                content_chunks = None
 
             await self._notify_progress(
                 tool_call=tool_call,
-                message=tool_input.user_message,
+                message=tool_input,
                 state=ProgressState.FINISHED,
             )
 
             return ToolCallResponse(
                 id=tool_call.id,  # type: ignore
                 name=tool_call.name,
-                content=response_text_with_references,
+                content=content,
+                content_chunks=content_chunks,
             )
 
     async def _get_chat_id(self) -> str | None:
