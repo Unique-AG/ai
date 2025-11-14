@@ -1,8 +1,9 @@
 import base64
 import mimetypes
+from collections.abc import Awaitable, Iterable
 from datetime import datetime
 from enum import StrEnum
-from typing import Awaitable, Callable, Iterable
+from typing import Callable
 
 import numpy as np
 import tiktoken

@@ -1,14 +1,14 @@
 import logging
-from typing import Iterable
+from collections.abc import Iterable
 
 from unique_toolkit.agentic.history_manager.history_construction_with_contents import (
     ChatMessageFilter,
-    ChatRole,
 )
-from unique_toolkit.agentic.postprocessor.save_tool_calls_postprocessor import (
+from unique_toolkit.agentic.history_manager.history_filters.tool_usage.postprocessor import (
     SaveToolCallsPostprocessor,
 )
 from unique_toolkit.chat.schemas import ChatMessage
+from unique_toolkit.chat.schemas import ChatMessageRole as ChatRole
 
 logger = logging.getLogger(__name__)
 
