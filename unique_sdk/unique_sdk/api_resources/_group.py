@@ -1,7 +1,5 @@
 from typing import (
-    Any,
     ClassVar,
-    Dict,
     List,
     Literal,
     NotRequired,
@@ -48,7 +46,6 @@ class Group(APIResource["Group"]):
 
         id: str
         name: str
-        configuration: Dict[str, Any]
         externalId: str
         parentId: Optional[str]
         roles: Optional[List[str]]
