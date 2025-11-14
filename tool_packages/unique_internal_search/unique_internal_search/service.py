@@ -1,3 +1,4 @@
+import asyncio
 from logging import Logger
 
 from pydantic import Field, create_model
@@ -107,12 +108,15 @@ class InternalSearchService:
         else:
             search_strings = search_string
 
+        search_strings = search_strings[: self.config.max_search_strings | 10]
+
         """
         Perform a search in the Vector DB based on the user's message and generate a response.
         """
 
         # Clean search strings by removing QDF and boost operators
         search_strings = [clean_search_string(s) for s in search_strings]
+        search_strings = list(set(search_strings))
 
         ###
         # 2. Search for context in the Vector DB
@@ -134,8 +138,10 @@ class InternalSearchService:
             self.content_service._metadata_filter = None
             metadata_filter = None
 
-        found_chunks_per_search_string: list[SearchStringResult] = []
-        for i, search_string in enumerate(search_strings):
+        # Run all searches in parallel
+        async def search_single_string(
+            i: int, search_string: str
+        ) -> SearchStringResult:
             try:
                 found_chunks: list[
                     ContentChunk
@@ -157,16 +163,20 @@ class InternalSearchService:
                 self.logger.info(
                     f"Found {len(found_chunks)} chunks (Query {i + 1}/{len(search_strings)})"
                 )
+                return SearchStringResult(
+                    query=search_string,
+                    chunks=found_chunks,
+                )
             except Exception as e:
                 self.logger.error(f"Error in search_document_chunks call: {e}")
                 raise e
 
-            found_chunks_per_search_string.append(
-                SearchStringResult(
-                    query=search_string,
-                    chunks=found_chunks,
-                )
-            )
+        found_chunks_per_search_string: list[SearchStringResult] = await asyncio.gather(
+            *[
+                search_single_string(i, search_string)
+                for i, search_string in enumerate(search_strings)
+            ]
+        )
 
         # Reset the metadata filter in case it was disabled
         self.content_service._metadata_filter = metadata_filter_copy
@@ -314,18 +324,23 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
     @override
     def tool_description(self) -> LanguageModelToolDescription:
         # Conditionally set the type based on config
-        search_string_type = (
-            list[str]
-            if self.config.experimental_features.enable_multiple_search_strings_execution
-            else str
-        )
+        if self.config.experimental_features.enable_multiple_search_strings_execution:
+            search_string_field = (
+                list[str],
+                Field(
+                    description=self.config.param_description_search_string,
+                    max_length=self.config.max_search_strings | 10,
+                ),
+            )
+        else:
+            search_string_field = (
+                str,
+                Field(description=self.config.param_description_search_string),
+            )
 
         internal_search_tool_input = create_model(
             "InternalSearchToolInput",
-            search_string=(
-                search_string_type,
-                Field(description=self.config.param_description_search_string),
-            ),
+            search_string=search_string_field,
             language=(
                 str,
                 Field(description=self.config.param_description_language),
