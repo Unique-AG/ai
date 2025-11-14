@@ -151,3 +151,7 @@ class InternalSearchConfig(BaseToolConfig):
         default=False,
         description="Whether to exclude uploaded files from the search. Overrides the `chat_only` parameter as it removes the `chat_id` from the search.",
     )
+    max_search_strings: int = Field(
+        default=10,
+        description="The maximum number of search strings to perform in a single tool call.",
+    )
