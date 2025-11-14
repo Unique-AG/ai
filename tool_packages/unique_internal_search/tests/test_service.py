@@ -2007,15 +2007,18 @@ class TestInternalSearchTool:
             chat_id="chat_123",
             logger=mock_logger,
         )
-        
+
         # Track call count to verify parallel execution
         call_count = 0
+
         async def mock_search(*args, **kwargs):
             nonlocal call_count
             call_count += 1
             return sample_content_chunks.copy()
-        
-        mock_content_service.search_content_chunks_async = AsyncMock(side_effect=mock_search)
+
+        mock_content_service.search_content_chunks_async = AsyncMock(
+            side_effect=mock_search
+        )
         search_strings = ["query1", "query2", "query3"]
 
         # Act
@@ -2112,4 +2115,6 @@ class TestInternalSearchTool:
         ]
         assert len(called_strings) == 3
         # Should be the first 3 from the original list
-        assert set(called_strings).issubset({"query1", "query2", "query3", "query4", "query5"})
+        assert set(called_strings).issubset(
+            {"query1", "query2", "query3", "query4", "query5"}
+        )
