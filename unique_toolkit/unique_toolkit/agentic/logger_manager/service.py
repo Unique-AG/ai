@@ -8,6 +8,7 @@ from typing import Literal
 
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.chat.schemas import (
+    MessageLog,
     MessageLogDetails,
     MessageLogStatus,
     MessageLogUncitedReferences,
@@ -49,7 +50,7 @@ class MessageStepLogger:
         status: MessageLogStatus = MessageLogStatus.COMPLETED,
         details: MessageLogDetails | None = None,
         uncited_references: MessageLogUncitedReferences | None = None,
-    ) -> None:
+    ) -> MessageLog:
         """
         Create a message log entry with customizable details and references.
 
@@ -66,7 +67,7 @@ class MessageStepLogger:
         # Use per-request incrementing counter for clean, predictable ordering
         order = MessageStepLogger.get_next_message_order(message_id)
 
-        message_log = chat_service.create_message_log(
+        message_log: MessageLog = chat_service.create_message_log(
             message_id=message_id,
             text=text or "",
             status=status,
@@ -77,7 +78,7 @@ class MessageStepLogger:
         
         return message_log
 
-    def write_message_log_text_message(self, text: str) -> None:
+    def write_message_log_text_message(self, text: str) -> MessageLog:
         """
         Write a simple text message for progress logging.
 
@@ -227,7 +228,7 @@ class MessageStepLogger:
             text=f"{input_string}\n**Question asked by the Tool**\n{message}\n",
             status=MessageLogStatus.COMPLETED,
             order=MessageStepLogger.get_next_message_order(
-                self._event.payload.assistant_message.id
+                    self._event.payload.assistant_message.id
             ),
             details=MessageLogDetails(data=[MessageLogEvent(type=search_type, text="")]),
             uncited_references=MessageLogUncitedReferences(data=data),
