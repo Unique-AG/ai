@@ -465,9 +465,9 @@ class TestInternalSearchService:
         mock_logger: Any,
     ) -> None:
         """
-        Purpose: Verify search logs error and re-raises exception when search fails.
-        Why this matters: Ensures errors are properly logged and propagated.
-        Setup summary: Mock search to raise exception, verify error logged and exception raised.
+        Purpose: Verify search logs error but continues with other searches when one fails.
+        Why this matters: Ensures errors are properly logged and handled gracefully without stopping all searches.
+        Setup summary: Mock search to raise exception, verify error logged and search completes.
         """
         # Arrange
         service = InternalSearchService(
@@ -483,10 +483,13 @@ class TestInternalSearchService:
             side_effect=test_error
         )
 
-        # Act & Assert
-        with pytest.raises(ValueError, match="Search failed"):
-            await service.search("test query")
-        mock_logger.error.assert_called_once()
+        # Act
+        result = await service.search("test query")
+
+        # Assert - error should be logged twice (once in search_single_string, once after gather)
+        assert mock_logger.error.call_count >= 1
+        # Search should complete and return empty results since the search failed
+        assert result == []
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -2118,3 +2121,56 @@ class TestInternalSearchTool:
         assert set(called_strings).issubset(
             {"query1", "query2", "query3", "query4", "query5"}
         )
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_search__continues_with_other_searches__when_one_search_fails(
+        self,
+        base_internal_search_config: InternalSearchConfig,
+        mock_content_service: ContentService,
+        mock_chunk_relevancy_sorter: Any,
+        mock_logger: Any,
+        sample_content_chunks: list[ContentChunk],
+    ) -> None:
+        """
+        Purpose: Verify that when one search fails, other searches still succeed.
+        Why this matters: Ensures resilience - partial failures don't prevent successful results.
+        Setup summary: Mock one search to fail while others succeed, verify mixed results.
+        """
+        # Arrange
+        service = InternalSearchService(
+            config=base_internal_search_config,
+            content_service=mock_content_service,
+            chunk_relevancy_sorter=mock_chunk_relevancy_sorter,
+            chat_id="chat_123",
+            logger=mock_logger,
+        )
+        mock_content_service.search_contents_async = AsyncMock(return_value=[])
+
+        # Make the second search fail, others succeed
+        call_count = 0
+
+        async def side_effect_func(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            if kwargs.get("search_string") == "failing query":
+                raise ValueError("Search failed")
+            return sample_content_chunks
+
+        mock_content_service.search_content_chunks_async = AsyncMock(
+            side_effect=side_effect_func
+        )
+        service.post_progress_message = AsyncMock()
+        search_strings = ["query1", "failing query", "query3"]
+
+        # Act
+        result = await service.search(search_strings)
+
+        # Assert
+        # Should have called search 3 times (once for each query)
+        assert mock_content_service.search_content_chunks_async.call_count == 3
+        # Should have logged an error for the failing query
+        assert mock_logger.error.call_count >= 1
+        # Should have results from the 2 successful queries (not from the failed one)
+        # Each successful query returns sample_content_chunks which has content
+        assert len(result) > 0
