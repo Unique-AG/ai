@@ -18,7 +18,7 @@ from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.agentic.tools.tool_progress_reporter import ProgressState
 from unique_toolkit.app.schemas import BaseEvent, ChatEvent, Event
 from unique_toolkit.chat.service import LanguageModelToolDescription
-from unique_toolkit.content.schemas import Content, ContentChunk
+from unique_toolkit.content.schemas import Content, ContentChunk, ContentReference
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.content.utils import (
     merge_content_chunks,
@@ -137,6 +137,7 @@ class InternalSearchService:
             metadata_filter = None
 
         found_chunks_per_search_string: list[SearchStringResult] = []
+        data: list[ContentReference] = []
         for i, search_string in enumerate(search_strings):
             try:
                 found_chunks: list[
@@ -157,13 +158,9 @@ class InternalSearchService:
                     score_threshold=self.config.score_threshold,
                 )
 
-                ## Here we know the question.
-                message = search_string
-                type = "InternalSearch"
-                source = "internal"
-
-                ## Message logger TODO here
-                self.message_step_logger.create_full_specific_message(message,source,type,found_chunks)
+                data = self.message_step_logger.define_reference_list_for_internal(
+                source="internal", content_chunks=found_chunks,data=[])
+                
 
                 self.logger.info(
                     f"Found {len(found_chunks)} chunks (Query {i + 1}/{len(search_strings)})"
@@ -178,6 +175,12 @@ class InternalSearchService:
                     chunks=found_chunks,
                 )
             )
+
+        #Updating our logger with the search results for all search strings.
+        self.message_step_logger.create_full_specific_message(
+                    query_list=search_strings,
+                    search_type="InternalSearch",
+                    data=data,)
 
         # Reset the metadata filter in case it was disabled
         self.content_service._metadata_filter = metadata_filter_copy

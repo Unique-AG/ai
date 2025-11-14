@@ -40,8 +40,9 @@ class MessageStepLogger:
         self._chat_service: ChatService = chat_service
         self._event: ChatEvent = event
 
-    @staticmethod
+    @classmethod
     def create_message_log_entry(
+        cls,
         chat_service: ChatService,
         message_id: str,
         text: str | None = None,
@@ -59,11 +60,13 @@ class MessageStepLogger:
             status: Log status (default: COMPLETED)
             details: Message details (default: empty)
             uncited_references: Uncited references (default: empty)
+
+        The returns are for futre potential use cases using update.
         """
         # Use per-request incrementing counter for clean, predictable ordering
         order = MessageStepLogger.get_next_message_order(message_id)
 
-        _ = chat_service.create_message_log(
+        message_log = chat_service.create_message_log(
             message_id=message_id,
             text=text or "",
             status=status,
@@ -71,6 +74,8 @@ class MessageStepLogger:
             details=details or MessageLogDetails(data=[]),
             uncited_references=uncited_references or MessageLogUncitedReferences(data=[]),
         )
+        
+        return message_log
 
     def write_message_log_text_message(self, text: str) -> None:
         """
@@ -79,7 +84,8 @@ class MessageStepLogger:
         Args:
             text: The text message to log
         """
-        MessageStepLogger.create_message_log_entry(
+                
+        message_log = MessageStepLogger.create_message_log_entry(
             self._chat_service,
             self._event.payload.assistant_message.id,
             text,
@@ -87,6 +93,8 @@ class MessageStepLogger:
             details=MessageLogDetails(data=[]),
             uncited_references=MessageLogUncitedReferences(data=[]),
         )
+
+        return message_log
 
     @staticmethod
     def get_next_message_order(message_id: str) -> int:
@@ -110,26 +118,46 @@ class MessageStepLogger:
         return _request_counters[message_id]
 
     @staticmethod
-    def define_reference_list(source : str,content_chunks : list[ContentChunk]):
+    def define_reference_list(source : str,content_chunks : list[ContentChunk],data: list[ContentReference]):
+
+        """
+        Create a reference list for web search content chunks.
+
+        Since content keys are different than in web search, this method
+        handles the internal search format.
+
+        Args:
+            source: The source identifier for the references
+            content_chunks: List of ContentChunk objects to convert
+            data: List of ContentReference objects to reference
+        Returns:
+            List of ContentReference objects
+        """
 
         count = 0
         data: list[ContentReference] = []
         for content_chunk in content_chunks:
-            count +=1
-            data.append(              
+
+            content_url = content_chunk.url or ""
+        
+            if(content_url != ""):
+                data.append(              
                     ContentReference(
-                            name=content_chunk.url or "",
+                            name=content_url or "",
                             sequence_number = count,
                             source=source,
-                            url=content_chunk.url or "",
-                            source_id=content_chunk.url or "")
+                            url=content_url or "",
+                            source_id=content_url or "")
                             )
-            
+
+            count +=1
+
+
         return data
 
     @staticmethod
     def define_reference_list_for_internal(
-        source: str, content_chunks: list[ContentChunk]
+        source: str, content_chunks: list[ContentChunk],data: list[ContentReference]
     ) -> list[ContentReference]:
         """
         Create a reference list for internal search content chunks.
@@ -140,14 +168,12 @@ class MessageStepLogger:
         Args:
             source: The source identifier for the references
             content_chunks: List of ContentChunk objects to convert
-
+            data: List of ContentReference objects to reference
         Returns:
             List of ContentReference objects
         """
         count = 0
-        data = []
         for content_chunk in content_chunks:
-            count += 1
 
             reference_name: str
             if content_chunk.title is not None:
@@ -155,51 +181,55 @@ class MessageStepLogger:
             else:
                 reference_name = content_chunk.key or ""
 
-            data.append(
-                ContentReference(
-                    name=reference_name,
-                    sequence_number=count,
-                    source=source,
-                    url="",
-                    source_id=content_chunk.id,
+            if(reference_name != ""):
+                data.append(
+                    ContentReference(
+                        name=reference_name,
+                        sequence_number=count,
+                        source=source,
+                        url="",
+                        source_id=content_chunk.id,
+                    )
                 )
-            )
+
+            count +=1
 
         return data
 
     def create_full_specific_message(
         self,
-        message: str,
-        source: str,
+        query_list: list[str],
         search_type: Literal["WebSearch", "InternalSearch"],
-        content_chunks: list[ContentChunk],
+        data: list[ContentReference],
     ) -> None:
         """
         Create a full message log entry with question, hits, and references.
 
         Args:
             message: The question/message text
-            source: The source identifier ('internal' or other)
             search_type: The type of search ("WebSearch" or "InternalSearch")
-            content_chunks: List of content chunks to reference
-
-        Note:
-            This function is in test mode and not yet fully used in many DS projects.
+            data: List of ContentReference objects to reference
         """
-        if source == "internal":
-            data = MessageStepLogger.define_reference_list_for_internal(
-                source, content_chunks
-            )
-        else:
-            data = MessageStepLogger.define_reference_list(source, content_chunks)
+        
 
+        message = ""
+        for entry in query_list:
+            message += f"{entry}\n"
+        message = message.strip("\n")
+
+        input_string = "**Web Search**"
+        if(search_type == "InternalSearch"):
+            input_string = "**Internal Search**"
+
+        #Creating a new message log entry with the found hits.
         _ = self._chat_service.create_message_log(
             message_id=self._event.payload.assistant_message.id,
-            text=f"**Question asked**\n{message}\n**Found hits**",
+            text=f"{input_string}\n**Question asked by the Tool**\n{message}\n",
             status=MessageLogStatus.COMPLETED,
-            details=MessageLogDetails(data=[MessageLogEvent(type=search_type, text="")]),
             order=MessageStepLogger.get_next_message_order(
                 self._event.payload.assistant_message.id
             ),
+            details=MessageLogDetails(data=[MessageLogEvent(type=search_type, text="")]),
             uncited_references=MessageLogUncitedReferences(data=data),
+            references=data,
         )

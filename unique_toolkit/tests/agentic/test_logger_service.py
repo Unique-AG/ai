@@ -5,7 +5,7 @@ This file demonstrates how to use the MessageStepLogger class for tracking
 message steps in agentic tools.
 """
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -24,7 +24,7 @@ from unique_toolkit.chat.schemas import (
     MessageLogUncitedReferences,
 )
 from unique_toolkit.chat.service import ChatService
-from unique_toolkit.content.schemas import ContentChunk
+from unique_toolkit.content.schemas import ContentChunk, ContentReference
 
 
 # Centralized Fixtures
@@ -496,10 +496,11 @@ def test_define_reference_list__returns_list__with_web_search_chunks_AI(
     """
     # Arrange
     content_chunks = [web_content_chunk]
+    data = []
 
     # Act
     references = MessageStepLogger.define_reference_list(
-        source="web_search", content_chunks=content_chunks
+        source="web_search", content_chunks=content_chunks, data=data
     )
 
     # Assert
@@ -518,15 +519,16 @@ def test_define_reference_list__sets_sequence_number__for_first_chunk_AI(
     """
     # Arrange
     content_chunks = [web_content_chunk]
+    data = []
 
     # Act
     references = MessageStepLogger.define_reference_list(
-        source="web_search", content_chunks=content_chunks
+        source="web_search", content_chunks=content_chunks, data=data
     )
 
     # Assert
     assert isinstance(references[0].sequence_number, int)
-    assert references[0].sequence_number == 1
+    assert references[0].sequence_number == 0
 
 
 @pytest.mark.ai
@@ -540,10 +542,11 @@ def test_define_reference_list__sets_url__from_chunk_url_AI(
     """
     # Arrange
     content_chunks = [web_content_chunk]
+    data = []
 
     # Act
     references = MessageStepLogger.define_reference_list(
-        source="web_search", content_chunks=content_chunks
+        source="web_search", content_chunks=content_chunks, data=data
     )
 
     # Assert
@@ -563,10 +566,11 @@ def test_define_reference_list__sets_source__from_parameter_AI(
     # Arrange
     content_chunks = [web_content_chunk]
     source = "web_search"
+    data = []
 
     # Act
     references = MessageStepLogger.define_reference_list(
-        source=source, content_chunks=content_chunks
+        source=source, content_chunks=content_chunks, data=data
     )
 
     # Assert
@@ -585,10 +589,11 @@ def test_define_reference_list__sets_name__from_chunk_url_AI(
     """
     # Arrange
     content_chunks = [web_content_chunk]
+    data = []
 
     # Act
     references = MessageStepLogger.define_reference_list(
-        source="web_search", content_chunks=content_chunks
+        source="web_search", content_chunks=content_chunks, data=data
     )
 
     # Assert
@@ -618,17 +623,18 @@ def test_define_reference_list__increments_sequence_number__for_multiple_chunks_
             title="Page 2 Title",
         ),
     ]
+    data = []
 
     # Act
     references = MessageStepLogger.define_reference_list(
-        source="web_search", content_chunks=content_chunks
+        source="web_search", content_chunks=content_chunks, data=data
     )
 
     # Assert
     assert isinstance(references[0].sequence_number, int)
-    assert references[0].sequence_number == 1
+    assert references[0].sequence_number == 0
     assert isinstance(references[1].sequence_number, int)
-    assert references[1].sequence_number == 2
+    assert references[1].sequence_number == 1
 
 
 # Reference List Tests - Internal Search
@@ -643,10 +649,11 @@ def test_define_reference_list_for_internal__returns_list__with_internal_chunks_
     """
     # Arrange
     content_chunks = [internal_content_chunk_with_title]
+    data = []
 
     # Act
     references = MessageStepLogger.define_reference_list_for_internal(
-        source="internal", content_chunks=content_chunks
+        source="internal", content_chunks=content_chunks, data=data
     )
 
     # Assert
@@ -659,21 +666,22 @@ def test_define_reference_list_for_internal__sets_sequence_number__for_first_chu
     internal_content_chunk_with_title: ContentChunk,
 ) -> None:
     """
-    Purpose: Verify define_reference_list_for_internal sets sequence_number to 1.
+    Purpose: Verify define_reference_list_for_internal sets sequence_number to 0.
     Why this matters: Sequence numbers order references in display.
-    Setup summary: Create internal content chunk, call define_reference_list_for_internal, verify sequence_number is 1.
+    Setup summary: Create internal content chunk, call define_reference_list_for_internal, verify sequence_number is 0.
     """
     # Arrange
     content_chunks = [internal_content_chunk_with_title]
+    data = []
 
     # Act
     references = MessageStepLogger.define_reference_list_for_internal(
-        source="internal", content_chunks=content_chunks
+        source="internal", content_chunks=content_chunks, data=data
     )
 
     # Assert
     assert isinstance(references[0].sequence_number, int)
-    assert references[0].sequence_number == 1
+    assert references[0].sequence_number == 0
 
 
 @pytest.mark.ai
@@ -687,10 +695,11 @@ def test_define_reference_list_for_internal__sets_source_id__from_chunk_id_AI(
     """
     # Arrange
     content_chunks = [internal_content_chunk_with_title]
+    data = []
 
     # Act
     references = MessageStepLogger.define_reference_list_for_internal(
-        source="internal", content_chunks=content_chunks
+        source="internal", content_chunks=content_chunks, data=data
     )
 
     # Assert
@@ -709,10 +718,11 @@ def test_define_reference_list_for_internal__sets_name__from_chunk_title_AI(
     """
     # Arrange
     content_chunks = [internal_content_chunk_with_title]
+    data = []
 
     # Act
     references = MessageStepLogger.define_reference_list_for_internal(
-        source="internal", content_chunks=content_chunks
+        source="internal", content_chunks=content_chunks, data=data
     )
 
     # Assert
@@ -731,10 +741,11 @@ def test_define_reference_list_for_internal__sets_name__from_chunk_key_when_no_t
     """
     # Arrange
     content_chunks = [internal_content_chunk_without_title]
+    data = []
 
     # Act
     references = MessageStepLogger.define_reference_list_for_internal(
-        source="internal", content_chunks=content_chunks
+        source="internal", content_chunks=content_chunks, data=data
     )
 
     # Assert
@@ -753,10 +764,11 @@ def test_define_reference_list_for_internal__sets_empty_url__for_internal_chunks
     """
     # Arrange
     content_chunks = [internal_content_chunk_with_title]
+    data = []
 
     # Act
     references = MessageStepLogger.define_reference_list_for_internal(
-        source="internal", content_chunks=content_chunks
+        source="internal", content_chunks=content_chunks, data=data
     )
 
     # Assert
@@ -768,7 +780,7 @@ def test_define_reference_list_for_internal__sets_empty_url__for_internal_chunks
 @pytest.mark.ai
 @patch.object(ChatService, "create_message_log", spec=True)
 def test_create_full_specific_message__calls_chat_service__with_web_search_AI(
-    mock_create_message_log, logger: MessageStepLogger, web_content_chunk: ContentChunk
+    mock_create_message_log, logger: MessageStepLogger
 ) -> None:
     """
     Purpose: Verify create_full_specific_message calls chat service for web search.
@@ -776,15 +788,14 @@ def test_create_full_specific_message__calls_chat_service__with_web_search_AI(
     Setup summary: Mock chat service, call create_full_specific_message with web search, verify service called.
     """
     # Arrange
-    message = "What is machine learning?"
-    content_chunks = [web_content_chunk]
+    query_list = ["What is machine learning?"]
+    data = []
 
     # Act
     logger.create_full_specific_message(
-        message=message,
-        source="web",
+        query_list=query_list,
         search_type="WebSearch",
-        content_chunks=content_chunks,
+        data=data,
     )
 
     # Assert
@@ -794,7 +805,7 @@ def test_create_full_specific_message__calls_chat_service__with_web_search_AI(
 @pytest.mark.ai
 @patch.object(ChatService, "create_message_log", spec=True)
 def test_create_full_specific_message__includes_question__in_text_for_web_search_AI(
-    mock_create_message_log, logger: MessageStepLogger, web_content_chunk: ContentChunk
+    mock_create_message_log, logger: MessageStepLogger
 ) -> None:
     """
     Purpose: Verify create_full_specific_message includes question in text.
@@ -802,57 +813,57 @@ def test_create_full_specific_message__includes_question__in_text_for_web_search
     Setup summary: Mock chat service, call create_full_specific_message, verify text contains question marker and message.
     """
     # Arrange
-    message = "What is machine learning?"
-    content_chunks = [web_content_chunk]
+    query_list = ["What is machine learning?"]
+    data = []
 
     # Act
     logger.create_full_specific_message(
-        message=message,
-        source="web",
+        query_list=query_list,
         search_type="WebSearch",
-        content_chunks=content_chunks,
+        data=data,
     )
 
     # Assert
     call_args = mock_create_message_log.call_args
     text = call_args.kwargs["text"]
     assert isinstance(text, str)
-    assert "**Question asked**" in text
-    assert message in text
+    assert "**Web Search**" in text
+    assert "**Question asked by the Tool**" in text
+    assert "What is machine learning?" in text
 
 
 @pytest.mark.ai
 @patch.object(ChatService, "create_message_log", spec=True)
-def test_create_full_specific_message__includes_hits_marker__in_text_for_web_search_AI(
-    mock_create_message_log, logger: MessageStepLogger, web_content_chunk: ContentChunk
+def test_create_full_specific_message__includes_web_search_marker__in_text_for_web_search_AI(
+    mock_create_message_log, logger: MessageStepLogger
 ) -> None:
     """
-    Purpose: Verify create_full_specific_message includes hits marker in text.
-    Why this matters: Hits marker indicates search results section in log.
-    Setup summary: Mock chat service, call create_full_specific_message, verify text contains hits marker.
+    Purpose: Verify create_full_specific_message includes web search marker in text.
+    Why this matters: Web search marker indicates the type of search performed.
+    Setup summary: Mock chat service, call create_full_specific_message, verify text contains web search marker.
     """
     # Arrange
-    content_chunks = [web_content_chunk]
+    query_list = ["Test question"]
+    data = []
 
     # Act
     logger.create_full_specific_message(
-        message="Test question",
-        source="web",
+        query_list=query_list,
         search_type="WebSearch",
-        content_chunks=content_chunks,
+        data=data,
     )
 
     # Assert
     call_args = mock_create_message_log.call_args
     text = call_args.kwargs["text"]
     assert isinstance(text, str)
-    assert "**Found hits**" in text
+    assert "**Web Search**" in text
 
 
 @pytest.mark.ai
 @patch.object(ChatService, "create_message_log", spec=True)
 def test_create_full_specific_message__sets_completed_status__for_web_search_AI(
-    mock_create_message_log, logger: MessageStepLogger, web_content_chunk: ContentChunk
+    mock_create_message_log, logger: MessageStepLogger
 ) -> None:
     """
     Purpose: Verify create_full_specific_message uses COMPLETED status for web search.
@@ -860,14 +871,14 @@ def test_create_full_specific_message__sets_completed_status__for_web_search_AI(
     Setup summary: Mock chat service, call create_full_specific_message, verify status is COMPLETED.
     """
     # Arrange
-    content_chunks = [web_content_chunk]
+    query_list = ["Test question"]
+    data = []
 
     # Act
     logger.create_full_specific_message(
-        message="Test question",
-        source="web",
+        query_list=query_list,
         search_type="WebSearch",
-        content_chunks=content_chunks,
+        data=data,
     )
 
     # Assert
@@ -879,7 +890,7 @@ def test_create_full_specific_message__sets_completed_status__for_web_search_AI(
 @pytest.mark.ai
 @patch.object(ChatService, "create_message_log", spec=True)
 def test_create_full_specific_message__creates_web_search_details__for_web_search_AI(
-    mock_create_message_log, logger: MessageStepLogger, web_content_chunk: ContentChunk
+    mock_create_message_log, logger: MessageStepLogger
 ) -> None:
     """
     Purpose: Verify create_full_specific_message creates WebSearch details.
@@ -887,14 +898,14 @@ def test_create_full_specific_message__creates_web_search_details__for_web_searc
     Setup summary: Mock chat service, call create_full_specific_message with WebSearch, verify details type.
     """
     # Arrange
-    content_chunks = [web_content_chunk]
+    query_list = ["Test question"]
+    data = []
 
     # Act
     logger.create_full_specific_message(
-        message="Test question",
-        source="web",
+        query_list=query_list,
         search_type="WebSearch",
-        content_chunks=content_chunks,
+        data=data,
     )
 
     # Assert
@@ -909,7 +920,7 @@ def test_create_full_specific_message__creates_web_search_details__for_web_searc
 @pytest.mark.ai
 @patch.object(ChatService, "create_message_log", spec=True)
 def test_create_full_specific_message__creates_references__for_web_search_AI(
-    mock_create_message_log, logger: MessageStepLogger, web_content_chunk: ContentChunk
+    mock_create_message_log, logger: MessageStepLogger
 ) -> None:
     """
     Purpose: Verify create_full_specific_message creates references for web search.
@@ -917,14 +928,22 @@ def test_create_full_specific_message__creates_references__for_web_search_AI(
     Setup summary: Mock chat service, call create_full_specific_message, verify uncited_references created.
     """
     # Arrange
-    content_chunks = [web_content_chunk]
+    query_list = ["Test question"]
+    data = [
+        ContentReference(
+            name="https://example.com/page1",
+            sequence_number=0,
+            source="web",
+            url="https://example.com/page1",
+            source_id="https://example.com/page1",
+        )
+    ]
 
     # Act
     logger.create_full_specific_message(
-        message="Test question",
-        source="web",
+        query_list=query_list,
         search_type="WebSearch",
-        content_chunks=content_chunks,
+        data=data,
     )
 
     # Assert
@@ -932,13 +951,44 @@ def test_create_full_specific_message__creates_references__for_web_search_AI(
     uncited_refs = call_args.kwargs["uncited_references"]
     assert isinstance(uncited_refs, MessageLogUncitedReferences)
     assert len(uncited_refs.data) == 1
+    # Also verify references parameter
+    references = call_args.kwargs["references"]
+    assert isinstance(references, list)
+    assert len(references) == 1
+
+
+@pytest.mark.ai
+@patch.object(ChatService, "create_message_log", spec=True)
+def test_create_full_specific_message__uses_message_id__from_event_AI(
+    mock_create_message_log, logger: MessageStepLogger, test_event: ChatEvent
+) -> None:
+    """
+    Purpose: Verify create_full_specific_message uses message_id from event.
+    Why this matters: Message ID is required to associate log with correct message.
+    Setup summary: Mock chat service, call create_full_specific_message, verify message_id parameter.
+    """
+    # Arrange
+    query_list = ["Test question"]
+    data = []
+
+    # Act
+    logger.create_full_specific_message(
+        query_list=query_list,
+        search_type="WebSearch",
+        data=data,
+    )
+
+    # Assert
+    call_args = mock_create_message_log.call_args
+    assert isinstance(call_args.kwargs["message_id"], str)
+    assert call_args.kwargs["message_id"] == test_event.payload.assistant_message.id
 
 
 # Full Message Tests - Internal Search
 @pytest.mark.ai
 @patch.object(ChatService, "create_message_log", spec=True)
 def test_create_full_specific_message__creates_internal_search_details__for_internal_search_AI(
-    mock_create_message_log, logger: MessageStepLogger, internal_content_chunk_with_title: ContentChunk
+    mock_create_message_log, logger: MessageStepLogger
 ) -> None:
     """
     Purpose: Verify create_full_specific_message creates InternalSearch details.
@@ -946,14 +996,14 @@ def test_create_full_specific_message__creates_internal_search_details__for_inte
     Setup summary: Mock chat service, call create_full_specific_message with InternalSearch, verify details type.
     """
     # Arrange
-    content_chunks = [internal_content_chunk_with_title]
+    query_list = ["Find company policies"]
+    data = []
 
     # Act
     logger.create_full_specific_message(
-        message="Find company policies",
-        source="internal",
+        query_list=query_list,
         search_type="InternalSearch",
-        content_chunks=content_chunks,
+        data=data,
     )
 
     # Assert
@@ -968,7 +1018,7 @@ def test_create_full_specific_message__creates_internal_search_details__for_inte
 @pytest.mark.ai
 @patch.object(ChatService, "create_message_log", spec=True)
 def test_create_full_specific_message__creates_references__for_internal_search_AI(
-    mock_create_message_log, logger: MessageStepLogger, internal_content_chunk_with_title: ContentChunk
+    mock_create_message_log, logger: MessageStepLogger
 ) -> None:
     """
     Purpose: Verify create_full_specific_message creates references for internal search.
@@ -976,14 +1026,22 @@ def test_create_full_specific_message__creates_references__for_internal_search_A
     Setup summary: Mock chat service, call create_full_specific_message, verify uncited_references created with internal format.
     """
     # Arrange
-    content_chunks = [internal_content_chunk_with_title]
+    query_list = ["Find company policies"]
+    data = [
+        ContentReference(
+            name="Internal Document Title",
+            sequence_number=0,
+            source="internal",
+            url="",
+            source_id="chunk_internal_1",
+        )
+    ]
 
     # Act
     logger.create_full_specific_message(
-        message="Find company policies",
-        source="internal",
+        query_list=query_list,
         search_type="InternalSearch",
-        content_chunks=content_chunks,
+        data=data,
     )
 
     # Assert
@@ -995,3 +1053,7 @@ def test_create_full_specific_message__creates_references__for_internal_search_A
     assert uncited_refs.data[0].name == "Internal Document Title"
     assert isinstance(uncited_refs.data[0].url, str)
     assert uncited_refs.data[0].url == ""
+    # Also verify references parameter
+    references = call_args.kwargs["references"]
+    assert isinstance(references, list)
+    assert len(references) == 1
