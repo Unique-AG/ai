@@ -43,6 +43,8 @@ from unique_toolkit.chat.service import ChatService
 from unique_toolkit.agentic.logger_manager.service import MessageStepLogger
 
 class InternalSearchService:
+    message_step_logger: MessageStepLogger | None = None
+    
     def __init__(
         self,
         config: InternalSearchConfig,
@@ -158,9 +160,10 @@ class InternalSearchService:
                     score_threshold=self.config.score_threshold,
                 )
 
-                data = self.message_step_logger.define_reference_list_for_internal(
-                source="internal", content_chunks=found_chunks,data=[])
-                
+                if self.message_step_logger:
+                    data = self.message_step_logger.define_reference_list_for_internal(
+                        source="internal", content_chunks=found_chunks, data=data
+                    )
 
                 self.logger.info(
                     f"Found {len(found_chunks)} chunks (Query {i + 1}/{len(search_strings)})"
@@ -177,10 +180,12 @@ class InternalSearchService:
             )
 
         #Updating our logger with the search results for all search strings.
-        self.message_step_logger.create_full_specific_message(
-                    query_list=search_strings,
-                    search_type="InternalSearch",
-                    data=data,)
+        if self.message_step_logger:
+            self.message_step_logger.create_full_specific_message(
+                query_list=search_strings,
+                search_type="InternalSearch",
+                data=data,
+            )
 
         # Reset the metadata filter in case it was disabled
         self.content_service._metadata_filter = metadata_filter_copy
