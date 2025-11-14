@@ -371,26 +371,50 @@ class TestInterleaveSearchResultsRoundRobin:
         """Test interleaving with different numbers of chunks per query"""
         chunks_q1 = [
             ContentChunk(
-                id="A", chunk_id="A", text="A", order=1, metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf")
+                id="A",
+                chunk_id="A",
+                text="A",
+                order=1,
+                metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf"),
             ),
             ContentChunk(
-                id="B", chunk_id="B", text="B", order=2, metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf")
+                id="B",
+                chunk_id="B",
+                text="B",
+                order=2,
+                metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf"),
             ),
             ContentChunk(
-                id="C", chunk_id="C", text="C", order=3, metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf")
+                id="C",
+                chunk_id="C",
+                text="C",
+                order=3,
+                metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf"),
             ),
         ]
         chunks_q2 = [
             ContentChunk(
-                id="D", chunk_id="D", text="D", order=1, metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf")
+                id="D",
+                chunk_id="D",
+                text="D",
+                order=1,
+                metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf"),
             ),
         ]
         chunks_q3 = [
             ContentChunk(
-                id="E", chunk_id="E", text="E", order=1, metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf")
+                id="E",
+                chunk_id="E",
+                text="E",
+                order=1,
+                metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf"),
             ),
             ContentChunk(
-                id="F", chunk_id="F", text="F", order=2, metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf")
+                id="F",
+                chunk_id="F",
+                text="F",
+                order=2,
+                metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf"),
             ),
         ]
 
@@ -415,35 +439,71 @@ class TestInterleaveSearchResultsRoundRobin:
         """Test the example from the function's docstring"""
         chunks_q1 = [
             ContentChunk(
-                id="A", chunk_id="A", text="A", order=1, metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf")
+                id="A",
+                chunk_id="A",
+                text="A",
+                order=1,
+                metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf"),
             ),
             ContentChunk(
-                id="B", chunk_id="B", text="B", order=2, metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf")
+                id="B",
+                chunk_id="B",
+                text="B",
+                order=2,
+                metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf"),
             ),
             ContentChunk(
-                id="C", chunk_id="C", text="C", order=3, metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf")
+                id="C",
+                chunk_id="C",
+                text="C",
+                order=3,
+                metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf"),
             ),
         ]
         chunks_q2 = [
             ContentChunk(
-                id="D", chunk_id="D", text="D", order=1, metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf")
+                id="D",
+                chunk_id="D",
+                text="D",
+                order=1,
+                metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf"),
             ),
             ContentChunk(
-                id="E", chunk_id="E", text="E", order=2, metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf")
+                id="E",
+                chunk_id="E",
+                text="E",
+                order=2,
+                metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf"),
             ),
         ]
         chunks_q3 = [
             ContentChunk(
-                id="F", chunk_id="F", text="F", order=1, metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf")
+                id="F",
+                chunk_id="F",
+                text="F",
+                order=1,
+                metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf"),
             ),
             ContentChunk(
-                id="G", chunk_id="G", text="G", order=2, metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf")
+                id="G",
+                chunk_id="G",
+                text="G",
+                order=2,
+                metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf"),
             ),
             ContentChunk(
-                id="H", chunk_id="H", text="H", order=3, metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf")
+                id="H",
+                chunk_id="H",
+                text="H",
+                order=3,
+                metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf"),
             ),
             ContentChunk(
-                id="I", chunk_id="I", text="I", order=4, metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf")
+                id="I",
+                chunk_id="I",
+                text="I",
+                order=4,
+                metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf"),
             ),
         ]
 
@@ -466,18 +526,34 @@ class TestInterleaveSearchResultsRoundRobin:
         # Create chunks where "B" appears in both queries
         chunks_q1 = [
             ContentChunk(
-                id="A", chunk_id="A", text="A", order=1, metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf")
+                id="A",
+                chunk_id="A",
+                text="A",
+                order=1,
+                metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf"),
             ),
             ContentChunk(
-                id="B", chunk_id="B", text="B", order=2, metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf")
+                id="B",
+                chunk_id="B",
+                text="B",
+                order=2,
+                metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf"),
             ),
         ]
         chunks_q2 = [
             ContentChunk(
-                id="B", chunk_id="B", text="B", order=1, metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf")
+                id="B",
+                chunk_id="B",
+                text="B",
+                order=1,
+                metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf"),
             ),  # Duplicate
             ContentChunk(
-                id="C", chunk_id="C", text="C", order=2, metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf")
+                id="C",
+                chunk_id="C",
+                text="C",
+                order=2,
+                metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf"),
             ),
         ]
 
@@ -520,13 +596,25 @@ class TestDeduplicateSearchResults:
         """Test that unique chunks are all preserved"""
         chunks = [
             ContentChunk(
-                id="A", chunk_id="A", text="A", order=1, metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf")
+                id="A",
+                chunk_id="A",
+                text="A",
+                order=1,
+                metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf"),
             ),
             ContentChunk(
-                id="B", chunk_id="B", text="B", order=2, metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf")
+                id="B",
+                chunk_id="B",
+                text="B",
+                order=2,
+                metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf"),
             ),
             ContentChunk(
-                id="C", chunk_id="C", text="C", order=3, metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf")
+                id="C",
+                chunk_id="C",
+                text="C",
+                order=3,
+                metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf"),
             ),
         ]
         search_results = [
@@ -545,13 +633,25 @@ class TestDeduplicateSearchResults:
     def test_with_duplicates(self):
         """Test that duplicate chunks are removed keeping first occurrence"""
         chunk_a = ContentChunk(
-            id="A", chunk_id="A", text="A", order=1, metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf")
+            id="A",
+            chunk_id="A",
+            text="A",
+            order=1,
+            metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf"),
         )
         chunk_b = ContentChunk(
-            id="B", chunk_id="B", text="B", order=2, metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf")
+            id="B",
+            chunk_id="B",
+            text="B",
+            order=2,
+            metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf"),
         )
         chunk_a_dup = ContentChunk(
-            id="A", chunk_id="A", text="A duplicate", order=1, metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf")
+            id="A",
+            chunk_id="A",
+            text="A duplicate",
+            order=1,
+            metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf"),
         )
 
         search_results = [
@@ -571,7 +671,11 @@ class TestDeduplicateSearchResults:
     def test_all_duplicates(self):
         """Test when all chunks are duplicates after the first"""
         chunk_a = ContentChunk(
-            id="A", chunk_id="A", text="A", order=1, metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf")
+            id="A",
+            chunk_id="A",
+            text="A",
+            order=1,
+            metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf"),
         )
 
         search_results = [
@@ -589,7 +693,10 @@ class TestDeduplicateSearchResults:
     def test_none_id(self):
         """Test handling of chunks with None as chunk_id"""
         chunk_none = ContentChunk(
-            id="content_1", text="No chunk_id", order=1, metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf")
+            id="content_1",
+            text="No chunk_id",
+            order=1,
+            metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf"),
         )
 
         search_results = [
@@ -604,10 +711,17 @@ class TestDeduplicateSearchResults:
     def test_mixed_none_and_valid_ids(self):
         """Test mix of chunks with and without chunk_ids"""
         chunk_with_id = ContentChunk(
-            id="A", chunk_id="A", text="A", order=1, metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf")
+            id="A",
+            chunk_id="A",
+            text="A",
+            order=1,
+            metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf"),
         )
         chunk_no_chunk_id = ContentChunk(
-            id="content_2", text="No chunk_id", order=2, metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf")
+            id="content_2",
+            text="No chunk_id",
+            order=2,
+            metadata=ContentMetadata(key="doc.pdf", mime_type="application/pdf"),
         )
 
         search_results = [
