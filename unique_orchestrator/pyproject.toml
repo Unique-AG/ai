@@ -12,9 +12,8 @@ typing-extensions = "^4.9.0"
 pydantic = "^2.8.2"
 pydantic-settings = "^2.10.1"
 python-dotenv = "^1.0.1"
-pytest = "^8.4.1"
-unique-sdk = "^0.10.34"
 
+unique-sdk = "^0.10.34"
 unique-toolkit = "^1.25.0"
 unique-stock-ticker = "^1.0.2"
 unique-follow-up-questions = "^1.1.2"
@@ -25,13 +24,13 @@ unique-swot = "^0.1.0"
 
 
 [tool.poetry.group.dev.dependencies]
+pytest = "^8.4.1"
 ruff = "^0.11.7"
 python = "^3.12"
 typing-extensions = "^4.9.0"
 pydantic = "^2.8.2"
 pydantic-settings = "^2.10.1"
 python-dotenv = "^1.0.1"
-pytest = "^8.4.1"
 unique-sdk = { path = "../unique_sdk" }
 unique-toolkit = { path = "../unique_toolkit", develop = true }
 unique-stock-ticker = { path = "../postprocessors/unique_stock_ticker", develop = true }

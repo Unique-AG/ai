@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_stock_ticker"
-version = "1.0.2"
+version = "1.0.3"
 description = ""
 authors = [
     "Martin Fadler <martin.fadler@unique.ch>",
@@ -21,7 +21,6 @@ unique-sdk = "^0.10.0"
 unique-toolkit = "^1.14.5"
 plotly = "^5.24.1"
 numerize = "^0.12"
-pytest = "^8.4.1"
 cryptography = "^45.0.6"
 pyopenssl = "^25.1.0"
 
