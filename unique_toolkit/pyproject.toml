@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_toolkit"
-version = "1.25.2" 
+version = "1.25.3" 
 description = ""
 authors = [
     "Cedric Klinkert <cedric.klinkert@unique.ch>",
@@ -10,6 +10,7 @@ authors = [
     "Pascal Hauri <pascal@unique.ch>",
     "Ejiroghene Oki-Peter<oki-peter.ejiroghene@unique.ai>",
     "Rami Azouz <rami.ext@unique.ch>",
+    "Ricardo Visini <ricardo.visini@unique.ch>",
 ]
 readme = ["README.md", "CHANGELOG.md"]
 license = "Proprietary"
