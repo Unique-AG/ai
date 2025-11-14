@@ -65,7 +65,7 @@ class LoopTokenReducer:
         self._chat_id = event.payload.chat_id
 
     def _get_encoder(self, language_model: LMI) -> tiktoken.Encoding:
-        name = language_model.encoder_name or "cl100k_base"
+        name = language_model.encoder_name or "o200k_base"
         return tiktoken.get_encoding(name)
 
     async def get_history_for_model_call(

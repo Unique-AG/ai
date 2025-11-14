@@ -24,7 +24,7 @@ from unique_web_search.services.search_engine.schema import (
 _LOGGER = logging.getLogger(__name__)
 
 
-DEFAULT_ENCODER_MODEL = "cl100k_base"
+DEFAULT_ENCODER_MODEL = "o200k_base"
 
 
 class ContentProcessor:
@@ -112,7 +112,7 @@ class ContentProcessor:
         content = page.content
         # Check token count - hardcoded 2000 token minimum for summarization
         encoder = tiktoken.get_encoding(
-            self.config.language_model.encoder_name or "cl100k_base"
+            self.config.language_model.encoder_name or DEFAULT_ENCODER_MODEL
         )
         token_count = len(encoder.encode(content))
 
@@ -136,7 +136,7 @@ class ContentProcessor:
     async def _truncate_page(self, page: WebSearchResult) -> WebSearchResult:
         """Truncate page content to max tokens."""
         encoder = tiktoken.get_encoding(
-            self.config.language_model.encoder_name or "cl100k_base"
+            self.config.language_model.encoder_name or DEFAULT_ENCODER_MODEL
         )
         tokens = encoder.encode(page.content)
 

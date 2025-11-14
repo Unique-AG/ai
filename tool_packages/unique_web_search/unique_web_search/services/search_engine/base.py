@@ -13,7 +13,7 @@ from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
 
-ENCODER_MODEL = "cl100k_base"
+ENCODER_MODEL = "o200k_base"
 
 encoder = tiktoken.get_encoding(ENCODER_MODEL)
 
