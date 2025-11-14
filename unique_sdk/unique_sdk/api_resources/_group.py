@@ -25,6 +25,16 @@ class Group(APIResource["Group"]):
         take: NotRequired[Optional[int]]
         name: NotRequired[Optional[str]]
 
+    class CreateParams(RequestOptions):
+        """
+        Parameters for creating a group.
+        """
+
+        name: str
+        externalId: NotRequired[Optional[str]]
+        parentId: NotRequired[Optional[str]]
+        roles: NotRequired[Optional[List[str]]]
+
     class UpdateParams(RequestOptions):
         """
         Parameters for updating a group.
@@ -32,12 +42,28 @@ class Group(APIResource["Group"]):
 
         name: NotRequired[Optional[str]]
 
+    class AddUsersParams(RequestOptions):
+        """
+        Parameters for adding users to a group.
+        """
+
+        userIds: List[str]
+
     class GroupMember(TypedDict):
         """
         Represents a member of a group.
         """
 
         entityId: str
+
+    class GroupMembership(TypedDict):
+        """
+        Represents a membership relationship between a user and a group.
+        """
+
+        entityId: str
+        groupId: str
+        createdAt: str
 
     class Group(TypedDict):
         """
@@ -66,6 +92,55 @@ class Group(APIResource["Group"]):
         """
 
         id: str
+
+    class AddUsersToGroupResponse(TypedDict):
+        """
+        Response for adding users to a group.
+        """
+
+        memberships: List["Group.GroupMembership"]
+
+    @classmethod
+    def create_group(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Group.CreateParams"],
+    ) -> "Group.Group":
+        """
+        Create a group in a company.
+        """
+        return cast(
+            "Group.Group",
+            cls._static_request(
+                "post",
+                "/groups",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    async def create_group_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Group.CreateParams"],
+    ) -> "Group.Group":
+        """
+        Async create a group in a company.
+        """
+        return cast(
+            "Group.Group",
+            await cls._static_request_async(
+                "post",
+                "/groups",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
 
     @classmethod
     def get_groups(
@@ -187,6 +262,50 @@ class Group(APIResource["Group"]):
             await cls._static_request_async(
                 "patch",
                 f"/groups/{group_id}",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    def add_users_to_group(
+        cls,
+        user_id: str,
+        company_id: str,
+        group_id: str,
+        **params: Unpack["Group.AddUsersParams"],
+    ) -> "Group.AddUsersToGroupResponse":
+        """
+        Add users to a group in a company.
+        """
+        return cast(
+            "Group.AddUsersToGroupResponse",
+            cls._static_request(
+                "post",
+                f"/groups/{group_id}/users",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    async def add_users_to_group_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        group_id: str,
+        **params: Unpack["Group.AddUsersParams"],
+    ) -> "Group.AddUsersToGroupResponse":
+        """
+        Async add users to a group in a company.
+        """
+        return cast(
+            "Group.AddUsersToGroupResponse",
+            await cls._static_request_async(
+                "post",
+                f"/groups/{group_id}/users",
                 user_id,
                 company_id,
                 params=params,

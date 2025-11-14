@@ -1431,6 +1431,21 @@ users = unique_sdk.User.get_users(
 
 ### Group
 
+#### `unique_sdk.Group.create_group` (Compatible with release >.48)
+
+Create a new group in a company. You can specify the group name (required), external ID, parent group ID, and roles.
+
+```python
+group = unique_sdk.Group.create_group(
+    user_id=user_id,
+    company_id=company_id,
+    name="New Group",  # Required - the name of the group
+    externalId="ext_123",  # Optional - external ID for the group
+    parentId="group_parent123",  # Optional - parent group ID
+    roles=["admin", "editor"],  # Optional - roles associated with the group
+)
+```
+
 #### `unique_sdk.Group.get_groups` (Compatible with release >.48)
 
 Get groups in a company. You can filter by name and use pagination with skip and take parameters.
@@ -1455,6 +1470,19 @@ updated_group = unique_sdk.Group.update_group(
     company_id=company_id,
     group_id="group_id_here",
     name="New Group Name",  # Optional - update the group name
+)
+```
+
+#### `unique_sdk.Group.add_users_to_group` (Compatible with release >.48)
+
+Add users to a group. Provide an array of user IDs to add as members to the specified group.
+
+```python
+result = unique_sdk.Group.add_users_to_group(
+    user_id=user_id,
+    company_id=company_id,
+    group_id="group_abc123",
+    userIds=["user_id1", "user_id2", "user_id3"],  # Required - array of user IDs to add
 )
 ```
 
