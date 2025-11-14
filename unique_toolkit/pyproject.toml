@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_toolkit"
-version = "1.24.5" 
+version = "1.25.2" 
 description = ""
 authors = [
     "Cedric Klinkert <cedric.klinkert@unique.ch>",
@@ -48,6 +48,7 @@ ruff = "0.12.10"
 pytest = "^7.4.3"
 tox = "^4.11.4"
 pyright = "^1.1.341"
+basedpyright = "^1.33.0"
 pytest-cov = "^4.1.0"
 pre-commit = "^3.7.1"
 pytest-asyncio = "^0.23.8"

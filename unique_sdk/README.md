@@ -1414,12 +1414,12 @@ models = unique_sdk.LLMModels.get(
 
 ### User
 
-#### `unique_sdk.User.get`
+#### `unique_sdk.User.get_users` (Compatible with release >.48)
 
 Get users in a company. You can filter by email, display name, and use pagination with skip and take parameters.
 
 ```python
-users = unique_sdk.User.get(
+users = unique_sdk.User.get_users(
     user_id=user_id,
     company_id=company_id,
     skip=0,  # Optional - number of records to skip for pagination
@@ -1431,12 +1431,12 @@ users = unique_sdk.User.get(
 
 ### Group
 
-#### `unique_sdk.Group.get`
+#### `unique_sdk.Group.get_groups` (Compatible with release >.48)
 
 Get groups in a company. You can filter by name and use pagination with skip and take parameters.
 
 ```python
-groups = unique_sdk.Group.get(
+groups = unique_sdk.Group.get_groups(
     user_id=user_id,
     company_id=company_id,
     skip=0,  # Optional - number of records to skip for pagination
@@ -1445,12 +1445,12 @@ groups = unique_sdk.Group.get(
 )
 ```
 
-#### `unique_sdk.Group.update`
+#### `unique_sdk.Group.update_group` (Compatible with release >.48)
 
 Update a group in a company. You can update the group's name.
 
 ```python
-updated_group = unique_sdk.Group.update(
+updated_group = unique_sdk.Group.update_group(
     user_id=user_id,
     company_id=company_id,
     group_id="group_id_here",

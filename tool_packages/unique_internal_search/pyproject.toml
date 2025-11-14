@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_internal_search"
-version = "1.2.2"
+version = "1.2.3"
 description = ""
 authors = [
     "Martin Fadler <martin.fadler@unique.ch>",
@@ -17,22 +17,24 @@ typing-extensions = "^4.9.0"
 pydantic = "^2.8.2"
 pydantic-settings = "^2.10.1"
 python-dotenv = "^1.0.1"
-pytest = "^8.4.1"
+tiktoken = "^0.7.0"
 pillow = "^10.4.0"
 unique-sdk = "^0.10.0"
-unique-toolkit = "^1.18.1"
+unique-toolkit = "^1.19.2"
 
 
 [tool.poetry.group.dev.dependencies]
+pytest = "^8.4.1"
 python = "^3.12"
 typing-extensions = "^4.9.0"
 pydantic = "^2.8.2"
 pydantic-settings = "^2.10.1"
 python-dotenv = "^1.0.1"
-pytest = "^8.4.1"
-unique-sdk = { path = "../../unique_sdk" }
-unique-toolkit = { path = "../../unique_toolkit" }
+pytest-asyncio = "^0.24.0"
+#unique-sdk = { path = "../../unique_sdk" }
+#unique-toolkit = { path = "../../unique_toolkit" }
 ruff = "^0.12.10"
+pytest-cov = "^7.0.0"
 
 
 [build-system]

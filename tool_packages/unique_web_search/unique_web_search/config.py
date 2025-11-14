@@ -29,6 +29,8 @@ from unique_web_search.services.executors.configs import (
     RefineQueryMode,
     WebSearchMode,
     WebSearchModeConfig,
+    WebSearchV1Config,
+    WebSearchV2Config,
     get_default_web_search_mode_config,
 )
 from unique_web_search.services.search_engine import (
@@ -92,11 +94,20 @@ class WebSearchConfig(BaseToolConfig):
         description="Language model maximum input tokens",
     )
 
-    web_search_mode_config: WebSearchModeConfig = Field(
-        default_factory=DEFAULT_WEB_SEARCH_MODE_CONFIG,
-        description="Web Search Mode Configuration",
-        title="Web Search Mode Configuration",
-        discriminator="mode",
+    web_search_active_mode: WebSearchMode = Field(
+        default=WebSearchMode.V1,
+        description="Web Search Active Mode",
+    )
+
+    web_search_mode_config_v1: WebSearchV1Config = Field(
+        default_factory=WebSearchV1Config,
+        description="Web Search Mode Configuration V1",
+        title="Web Search Mode Configuration V1",
+    )
+    web_search_mode_config_v2: WebSearchV2Config = Field(
+        default_factory=WebSearchV2Config,
+        description="Web Search Mode Configuration V2",
+        title="Web Search Mode Configuration V2 (Beta)",
     )
 
     search_engine_config: ActivatedSearchEngine = Field(  # type: ignore (This type is computed at runtime so pyright is not able to infer it)
@@ -149,14 +160,22 @@ class WebSearchConfig(BaseToolConfig):
     def disable_query_refinement_if_no_structured_output(self):
         if (
             ModelCapabilities.STRUCTURED_OUTPUT not in self.language_model.capabilities
-            and self.web_search_mode_config.mode == WebSearchMode.V1
-            and self.web_search_mode_config.refine_query_mode.mode
+            and self.web_search_active_mode == WebSearchMode.V1
+            and self.web_search_mode_config_v1.refine_query_mode.mode
             != RefineQueryMode.DEACTIVATED
         ):
-            self.web_search_mode_config.refine_query_mode.mode = (
+            self.web_search_mode_config_v1.refine_query_mode.mode = (
                 RefineQueryMode.DEACTIVATED
             )
             _LOGGER.warning(
                 "The language model does not support structured output. Query refinement is disabled."
             )
         return self
+
+    @property
+    def web_search_mode_config(self) -> WebSearchModeConfig:
+        return (
+            self.web_search_mode_config_v1
+            if self.web_search_active_mode == WebSearchMode.V1
+            else self.web_search_mode_config_v2
+        )

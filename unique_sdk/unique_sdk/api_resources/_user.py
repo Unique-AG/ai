@@ -1,7 +1,5 @@
 from typing import (
-    Any,
     ClassVar,
-    Dict,
     List,
     NotRequired,
     Optional,
@@ -39,8 +37,6 @@ class User(APIResource["User"]):
         displayName: str
         userName: str
         email: str
-        userConfiguration: Dict[str, Any]
-        source: Optional[str]
         updatedAt: str
         createdAt: str
         active: bool
