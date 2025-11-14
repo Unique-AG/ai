@@ -196,7 +196,7 @@ class InternalSearchService:
         if self.config.chunk_relevancy_sort_config.enabled:
             for i, result in enumerate(found_chunks_per_search_string):
                 await self.post_progress_message(
-                    f"{result.query} (_Resorting {len(result.chunks)} search results_ 🔄 in query {i + 1}/{len(search_strings)})",
+                    f"{result.query} (_Resorting {len(result.chunks)} search results_ 🔄 in query {i + 1}/{len(found_chunks_per_search_string)})",
                     **kwargs,
                 )
                 result.chunks = await self._resort_found_chunks_if_enabled(
