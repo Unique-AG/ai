@@ -104,8 +104,6 @@ class InternalSearchService:
         else:
             search_strings = search_string
 
-        search_strings = search_strings[: self.config.max_search_strings]
-
         """
         Perform a search in the Vector DB based on the user's message and generate a response.
         """
@@ -113,6 +111,7 @@ class InternalSearchService:
         # Clean search strings by removing QDF and boost operators
         search_strings = [clean_search_string(s) for s in search_strings]
         search_strings = list(set(search_strings))
+        search_strings = search_strings[: self.config.max_search_strings]
 
         ###
         # 2. Search for context in the Vector DB
