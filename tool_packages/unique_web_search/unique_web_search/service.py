@@ -1,5 +1,5 @@
 from time import time
-
+from unique_toolkit.content.schemas import ContentReference
 from typing_extensions import override
 from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
@@ -117,12 +117,15 @@ class WebSearchTool(Tool[WebSearchConfig]):
 
 
             # Write entry with found hits, WebSearch V1 has just one call.
-            data = self.message_step_logger.define_reference_list(source="web", content_chunks=content_chunks,data=[])
-            self.message_step_logger.create_full_specific_message(
-                query_list=[parameters.query],
-                search_type="WebSearch",
-                data=data,
-            )
+            data: list[ContentReference] = self.message_step_logger.define_reference_list(source="web", content_chunks=content_chunks,data=[])
+            # Only log for V1 mode (WebSearchToolParameters has query, WebSearchPlan doesn't)
+            if isinstance(parameters, WebSearchToolParameters):
+                query_str: str = parameters.query
+                self.message_step_logger.create_full_specific_message(
+                    query_list=[query_str],
+                    search_type="WebSearch",
+                    data=data,
+                )
 
             if self.tool_progress_reporter:
                 await self.tool_progress_reporter.notify_from_tool_call(
