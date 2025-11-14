@@ -2,6 +2,7 @@ from enum import StrEnum
 from typing import Literal
 
 from pydantic import BaseModel, Field
+from pydantic.json_schema import SkipJsonSchema
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 
 from unique_web_search.services.executors.configs.base import (
@@ -50,7 +51,7 @@ class QueryRefinementConfig(BaseModel):
 
 
 class WebSearchV1Config(BaseWebSearchModeConfig[WebSearchMode.V1]):
-    mode: Literal[WebSearchMode.V1] = WebSearchMode.V1
+    mode: SkipJsonSchema[Literal[WebSearchMode.V1]] = WebSearchMode.V1
 
     refine_query_mode: QueryRefinementConfig = Field(
         default_factory=QueryRefinementConfig,

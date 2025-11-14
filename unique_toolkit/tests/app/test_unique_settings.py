@@ -4,12 +4,15 @@ from pathlib import Path
 import pytest
 from pydantic import SecretStr
 
+from unique_toolkit.app.schemas import BaseEvent
 from unique_toolkit.app.unique_settings import (
+    EnvFileNotFoundError,
     UniqueApi,
     UniqueApp,
     UniqueAuth,
     UniqueChatEventFilterOptions,
     UniqueSettings,
+    warn_about_defaults,
 )
 
 
@@ -512,3 +515,518 @@ UNIQUE_CHAT_EVENT_FILTER_OPTIONS_REFERENCES_IN_CODE=["file-module1", "file-modul
             "file-module1",
             "file-module2",
         ]
+
+
+# AI-authored tests following test_instructions.md guidelines
+
+
+@pytest.mark.ai
+def test_warn_about_defaults__logs_warnings__with_secretstr_defaults(caplog) -> None:
+    """
+    Purpose: Verify warn_about_defaults logs warnings for SecretStr fields using defaults.
+    Why this matters: Ensures users are aware when default values are being used for sensitive fields.
+    Setup summary: Create UniqueApp with defaults, verify warning messages are logged.
+    """
+    # Arrange
+    with caplog.at_level(logging.WARNING):
+        # Act
+        UniqueApp()
+        # Assert
+        assert "Using default value for 'id':" in caplog.text
+        assert "Using default value for 'key':" in caplog.text
+
+
+@pytest.mark.ai
+def test_warn_about_defaults__logs_warnings__with_string_defaults(caplog) -> None:
+    """
+    Purpose: Verify warn_about_defaults logs warnings for string fields using defaults.
+    Why this matters: Ensures users are aware when default values are being used.
+    Setup summary: Create UniqueApi with defaults, verify warning messages are logged.
+    """
+    # Arrange
+    with caplog.at_level(logging.WARNING):
+        # Act
+        UniqueApi()
+        # Assert
+        assert "Using default value for 'base_url':" in caplog.text
+        assert "Using default value for 'version':" in caplog.text
+
+
+@pytest.mark.ai
+def test_warn_about_defaults__returns_instance__with_custom_values() -> None:
+    """
+    Purpose: Verify warn_about_defaults returns the instance unchanged.
+    Why this matters: Ensures the function doesn't modify the instance.
+    Setup summary: Create UniqueAuth with custom values, verify instance is returned unchanged.
+    """
+    # Arrange
+    auth = UniqueAuth(
+        company_id=SecretStr("custom-company"), user_id=SecretStr("custom-user")
+    )
+    # Act
+    result = warn_about_defaults(auth)
+    # Assert
+    assert result is auth
+    assert result.company_id.get_secret_value() == "custom-company"
+
+
+@pytest.mark.ai
+@pytest.mark.parametrize(
+    "subscriptions,expected_query",
+    [
+        (["event1"], "subscriptions=event1"),
+        (["event1", "event2"], "subscriptions=event1,event2"),
+        ([], "subscriptions="),
+    ],
+    ids=["single", "multiple", "empty"],
+)
+def test_unique_api__sse_url__builds_correct_url(
+    subscriptions: list[str], expected_query: str
+) -> None:
+    """
+    Purpose: Verify sse_url constructs correct SSE endpoint URL with subscriptions query parameter.
+    Why this matters: Ensures proper SSE connection setup for event streaming.
+    Setup summary: Create UniqueApi instance, test with various subscription lists, assert URL format.
+    """
+    # Arrange
+    api = UniqueApi(base_url="https://api.example.com/")
+    # Act
+    url = api.sse_url(subscriptions)
+    # Assert
+    assert url.startswith("https://api.example.com")
+    assert "/public/event-socket/events/stream" in url
+    assert expected_query in url
+
+
+@pytest.mark.ai
+def test_unique_api__base_path__returns_default_path__for_standard_hostname() -> None:
+    """
+    Purpose: Verify base_path returns default /public/chat for standard hostnames.
+    Why this matters: Ensures correct API path selection for standard deployments.
+    Setup summary: Create UniqueApi with standard hostname, assert default path.
+    """
+    # Arrange
+    api = UniqueApi(base_url="https://api.example.com/")
+    # Act
+    parsed, base_path = api.base_path()
+    # Assert
+    assert base_path == "/public/chat"
+    assert parsed.hostname == "api.example.com"
+
+
+@pytest.mark.ai
+@pytest.mark.parametrize(
+    "hostname,expected_path",
+    [
+        ("gateway.qa.unique.com", "/public/chat-gen2"),
+        ("gateway.unique.com", "/public/chat-gen2"),
+        ("localhost", "/public"),
+        ("svc.cluster.local", "/public"),
+    ],
+    ids=["qa-gateway", "prod-gateway", "localhost", "cluster-local"],
+)
+def test_unique_api__base_path__returns_special_path__for_special_hostnames(
+    hostname: str, expected_path: str
+) -> None:
+    """
+    Purpose: Verify base_path returns correct path based on hostname patterns.
+    Why this matters: Ensures correct API path selection for different deployment environments.
+    Setup summary: Create UniqueApi with special hostnames, assert correct path returned.
+    """
+    # Arrange
+    api = UniqueApi(base_url=f"https://{hostname}/")
+    # Act
+    _, base_path = api.base_path()
+    # Assert
+    assert base_path == expected_path
+
+
+@pytest.mark.ai
+def test_unique_api__sdk_url__constructs_url__with_base_path() -> None:
+    """
+    Purpose: Verify sdk_url constructs correct SDK URL using base_path.
+    Why this matters: Ensures proper SDK endpoint configuration.
+    Setup summary: Create UniqueApi, call sdk_url, assert correct URL format.
+    """
+    # Arrange
+    api = UniqueApi(base_url="https://api.example.com/")
+    # Act
+    url = api.sdk_url()
+    # Assert
+    assert url == "https://api.example.com/public/chat"
+    assert not url.endswith("/")
+
+
+@pytest.mark.ai
+def test_unique_api__sdk_url__uses_gen2_path__for_gateway_hostname() -> None:
+    """
+    Purpose: Verify sdk_url uses gen2 path for gateway hostnames.
+    Why this matters: Ensures correct SDK endpoint for gateway deployments.
+    Setup summary: Create UniqueApi with gateway hostname, assert gen2 path in URL.
+    """
+    # Arrange
+    api = UniqueApi(base_url="https://gateway.unique.com/")
+    # Act
+    url = api.sdk_url()
+    # Assert
+    assert url == "https://gateway.unique.com/public/chat-gen2"
+
+
+@pytest.mark.ai
+def test_unique_api__openai_proxy_url__constructs_url__with_openai_proxy_suffix() -> (
+    None
+):
+    """
+    Purpose: Verify openai_proxy_url constructs correct OpenAI proxy endpoint URL.
+    Why this matters: Ensures proper OpenAI proxy configuration.
+    Setup summary: Create UniqueApi, call openai_proxy_url, assert correct URL format.
+    """
+    # Arrange
+    api = UniqueApi(base_url="https://api.example.com/")
+    # Act
+    url = api.openai_proxy_url()
+    # Assert
+    assert url == "https://api.example.com/public/chat/openai-proxy"
+
+
+@pytest.mark.ai
+def test_unique_api__openai_proxy_url__uses_gen2_path__for_gateway_hostname() -> None:
+    """
+    Purpose: Verify openai_proxy_url uses gen2 path for gateway hostnames.
+    Why this matters: Ensures correct OpenAI proxy endpoint for gateway deployments.
+    Setup summary: Create UniqueApi with gateway hostname, assert gen2 path in URL.
+    """
+    # Arrange
+    api = UniqueApi(base_url="https://gateway.unique.com/")
+    # Act
+    url = api.openai_proxy_url()
+    # Assert
+    assert url == "https://gateway.unique.com/public/chat-gen2/openai-proxy"
+
+
+@pytest.mark.ai
+def test_unique_auth__from_event__creates_auth__with_event_ids() -> None:
+    """
+    Purpose: Verify from_event creates UniqueAuth instance from BaseEvent.
+    Why this matters: Enables authentication setup from event data.
+    Setup summary: Create BaseEvent with company and user IDs, call from_event, assert correct values.
+    """
+    # Arrange
+    event = BaseEvent(
+        id="event-123",
+        event="test.event",
+        user_id="user-456",
+        company_id="company-789",
+    )
+    # Act
+    auth = UniqueAuth.from_event(event)
+    # Assert
+    assert auth.company_id.get_secret_value() == "company-789"
+    assert auth.user_id.get_secret_value() == "user-456"
+
+
+@pytest.mark.ai
+def test_unique_settings__find_env_file__returns_path__from_env_variable(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """
+    Purpose: Verify _find_env_file prioritizes UNIQUE_ENV_FILE environment variable.
+    Why this matters: Ensures explicit configuration takes precedence.
+    Setup summary: Set UNIQUE_ENV_FILE, create file at that path, assert it's found.
+    """
+    # Arrange
+    env_file = tmp_path / "custom.env"
+    env_file.write_text("TEST=value")
+    monkeypatch.setenv("UNIQUE_ENV_FILE", str(env_file))
+    # Act
+    found_path = UniqueSettings._find_env_file()
+    # Assert
+    assert found_path == env_file
+
+
+@pytest.mark.ai
+def test_unique_settings__find_env_file__returns_path__from_current_directory(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """
+    Purpose: Verify _find_env_file falls back to current working directory.
+    Why this matters: Ensures standard location discovery works.
+    Setup summary: Remove UNIQUE_ENV_FILE, create file in cwd, assert it's found.
+    """
+    # Arrange
+    monkeypatch.delenv("UNIQUE_ENV_FILE", raising=False)
+    env_file = tmp_path / "unique.env"
+    env_file.write_text("TEST=value")
+    monkeypatch.chdir(tmp_path)
+    # Act
+    found_path = UniqueSettings._find_env_file()
+    # Assert
+    assert found_path == env_file
+
+
+@pytest.mark.ai
+def test_unique_settings__find_env_file__raises_error__when_not_found(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """
+    Purpose: Verify _find_env_file raises EnvFileNotFoundError when file doesn't exist.
+    Why this matters: Provides clear error message when configuration is missing.
+    Setup summary: Remove UNIQUE_ENV_FILE, ensure no file exists, assert exception with helpful message.
+    """
+    # Arrange
+    monkeypatch.delenv("UNIQUE_ENV_FILE", raising=False)
+    monkeypatch.chdir(tmp_path)
+    # Act & Assert
+    with pytest.raises(EnvFileNotFoundError) as exc_info:
+        UniqueSettings._find_env_file()
+    assert "not found" in str(exc_info.value)
+    assert "UNIQUE_ENV_FILE" in str(exc_info.value)
+
+
+@pytest.mark.ai
+def test_unique_settings__from_env_auto__loads_from_file__when_found(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """
+    Purpose: Verify from_env_auto loads settings from found environment file.
+    Why this matters: Enables automatic configuration discovery.
+    Setup summary: Create env file with settings, call from_env_auto, assert values loaded.
+    """
+    # Arrange
+    monkeypatch.delenv("UNIQUE_ENV_FILE", raising=False)
+    env_file = tmp_path / "unique.env"
+    env_file.write_text(
+        "UNIQUE_AUTH_COMPANY_ID=auto-company\n"
+        "UNIQUE_AUTH_USER_ID=auto-user\n"
+        "UNIQUE_APP_ID=auto-id\n"
+        "UNIQUE_APP_KEY=auto-key\n"
+    )
+    monkeypatch.chdir(tmp_path)
+    # Act
+    settings = UniqueSettings.from_env_auto()
+    # Assert
+    assert settings.auth.company_id.get_secret_value() == "auto-company"
+    assert settings.auth.user_id.get_secret_value() == "auto-user"
+
+
+@pytest.mark.ai
+def test_unique_settings__from_env_auto__falls_back_to_env__when_file_not_found(
+    monkeypatch,
+) -> None:
+    """
+    Purpose: Verify from_env_auto falls back to environment variables when file not found.
+    Why this matters: Ensures graceful degradation when file doesn't exist.
+    Setup summary: Ensure no env file exists, set env vars, call from_env_auto, assert values from env.
+    """
+    # Arrange
+    monkeypatch.delenv("UNIQUE_ENV_FILE", raising=False)
+    monkeypatch.setenv("UNIQUE_AUTH_COMPANY_ID", "env-company")
+    monkeypatch.setenv("UNIQUE_AUTH_USER_ID", "env-user")
+    # Act
+    settings = UniqueSettings.from_env_auto()
+    # Assert
+    assert settings.auth.company_id.get_secret_value() == "env-company"
+    assert settings.auth.user_id.get_secret_value() == "env-user"
+
+
+@pytest.mark.ai
+def test_unique_settings__init_sdk__configures_global_sdk__with_settings_values(
+    valid_auth: UniqueAuth, valid_app: UniqueApp, valid_api: UniqueApi
+) -> None:
+    """
+    Purpose: Verify init_sdk configures unique_sdk global module with settings values.
+    Why this matters: Ensures SDK is properly initialized for API calls.
+    Setup summary: Create UniqueSettings, call init_sdk, assert unique_sdk globals are set.
+    """
+    # Arrange
+    settings = UniqueSettings(auth=valid_auth, app=valid_app, api=valid_api)
+    # Act
+    settings.init_sdk()
+    # Assert
+    import unique_sdk
+
+    assert unique_sdk.api_key == valid_app.key.get_secret_value()
+    assert unique_sdk.app_id == valid_app.id.get_secret_value()
+    assert unique_sdk.api_base == valid_api.sdk_url()
+
+
+@pytest.mark.ai
+def test_unique_settings__from_env_auto_with_sdk_init__initializes_both__in_one_call(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """
+    Purpose: Verify from_env_auto_with_sdk_init combines initialization and SDK setup.
+    Why this matters: Provides convenient one-call setup for common use case.
+    Setup summary: Create env file, call from_env_auto_with_sdk_init, assert settings and SDK configured.
+    """
+    # Arrange
+    monkeypatch.delenv("UNIQUE_ENV_FILE", raising=False)
+    env_file = tmp_path / "unique.env"
+    env_file.write_text(
+        "UNIQUE_AUTH_COMPANY_ID=init-company\n"
+        "UNIQUE_AUTH_USER_ID=init-user\n"
+        "UNIQUE_APP_ID=init-id\n"
+        "UNIQUE_APP_KEY=init-key\n"
+    )
+    monkeypatch.chdir(tmp_path)
+    # Act
+    settings = UniqueSettings.from_env_auto_with_sdk_init()
+    # Assert
+    import unique_sdk
+
+    assert settings.auth.company_id.get_secret_value() == "init-company"
+    assert unique_sdk.api_key == "init-key"
+    assert unique_sdk.app_id == "init-id"
+
+
+@pytest.mark.ai
+def test_unique_settings__update_from_event__updates_auth__with_event_data(
+    valid_auth: UniqueAuth, valid_app: UniqueApp, valid_api: UniqueApi
+) -> None:
+    """
+    Purpose: Verify update_from_event updates auth settings from event.
+    Why this matters: Enables dynamic authentication updates during event processing.
+    Setup summary: Create UniqueSettings and BaseEvent, call update_from_event, assert auth updated.
+    """
+    # Arrange
+    settings = UniqueSettings(auth=valid_auth, app=valid_app, api=valid_api)
+    event = BaseEvent(
+        id="event-123",
+        event="test.event",
+        user_id="new-user",
+        company_id="new-company",
+    )
+    # Act
+    settings.update_from_event(event)
+    # Assert
+    assert settings.auth.user_id.get_secret_value() == "new-user"
+    assert settings.auth.company_id.get_secret_value() == "new-company"
+
+
+@pytest.mark.ai
+def test_unique_settings__properties__return_correct_values(
+    valid_auth: UniqueAuth, valid_app: UniqueApp, valid_api: UniqueApi
+) -> None:
+    """
+    Purpose: Verify UniqueSettings properties return correct component instances.
+    Why this matters: Ensures proper access to configuration components.
+    Setup summary: Create UniqueSettings, access properties, assert correct instances returned.
+    """
+    # Arrange
+    settings = UniqueSettings(auth=valid_auth, app=valid_app, api=valid_api)
+    # Act & Assert
+    assert settings.api is valid_api
+    assert settings.app is valid_app
+    assert settings.auth is valid_auth
+
+
+@pytest.mark.ai
+def test_unique_settings__auth_setter__updates_auth__with_new_value(
+    valid_auth: UniqueAuth, valid_app: UniqueApp, valid_api: UniqueApi
+) -> None:
+    """
+    Purpose: Verify auth setter updates the auth component.
+    Why this matters: Enables dynamic authentication updates.
+    Setup summary: Create UniqueSettings, set new auth value, assert auth updated.
+    """
+    # Arrange
+    settings = UniqueSettings(auth=valid_auth, app=valid_app, api=valid_api)
+    new_auth = UniqueAuth(
+        company_id=SecretStr("new-company"), user_id=SecretStr("new-user")
+    )
+    # Act
+    settings.auth = new_auth
+    # Assert
+    assert settings.auth is new_auth
+    assert settings.auth.company_id.get_secret_value() == "new-company"
+
+
+@pytest.mark.ai
+def test_unique_settings__chat_event_filter_options__returns_none__when_not_provided(
+    valid_auth: UniqueAuth, valid_app: UniqueApp, valid_api: UniqueApi
+) -> None:
+    """
+    Purpose: Verify chat_event_filter_options returns None when not provided.
+    Why this matters: Ensures optional component handling works correctly.
+    Setup summary: Create UniqueSettings without filter options, assert None returned.
+    """
+    # Arrange
+    settings = UniqueSettings(auth=valid_auth, app=valid_app, api=valid_api)
+    # Act & Assert
+    assert settings.chat_event_filter_options is None
+
+
+@pytest.mark.ai
+def test_unique_settings__chat_event_filter_options__returns_options__when_provided(
+    valid_auth: UniqueAuth,
+    valid_app: UniqueApp,
+    valid_api: UniqueApi,
+) -> None:
+    """
+    Purpose: Verify chat_event_filter_options returns provided filter options.
+    Why this matters: Ensures filter options are properly stored and accessible.
+    Setup summary: Create UniqueSettings with filter options, assert correct instance returned.
+    """
+    # Arrange
+    filter_options = UniqueChatEventFilterOptions(
+        assistant_ids=["assistant1"], references_in_code=["module1"]
+    )
+    settings = UniqueSettings(
+        auth=valid_auth,
+        app=valid_app,
+        api=valid_api,
+        chat_event_filter_options=filter_options,
+    )
+    # Act & Assert
+    assert settings.chat_event_filter_options is filter_options
+    assert settings.chat_event_filter_options.assistant_ids == ["assistant1"]
+
+
+@pytest.mark.ai
+def test_unique_settings__init__stores_env_file__when_exists(
+    valid_auth: UniqueAuth, valid_app: UniqueApp, valid_api: UniqueApi, tmp_path: Path
+) -> None:
+    """
+    Purpose: Verify UniqueSettings stores env_file path when file exists.
+    Why this matters: Enables tracking of configuration source.
+    Setup summary: Create env file, initialize UniqueSettings with it, assert stored.
+    """
+    # Arrange
+    env_file = tmp_path / "test.env"
+    env_file.write_text("TEST=value")
+    # Act
+    settings = UniqueSettings(
+        auth=valid_auth, app=valid_app, api=valid_api, env_file=env_file
+    )
+    # Assert
+    assert settings._env_file == env_file
+
+
+@pytest.mark.ai
+def test_unique_settings__init__ignores_env_file__when_not_exists(
+    valid_auth: UniqueAuth, valid_app: UniqueApp, valid_api: UniqueApi
+) -> None:
+    """
+    Purpose: Verify UniqueSettings ignores env_file path when file doesn't exist.
+    Why this matters: Prevents errors from non-existent file paths.
+    Setup summary: Initialize UniqueSettings with non-existent path, assert None stored.
+    """
+    # Arrange
+    non_existent_file = Path("/nonexistent/path.env")
+    # Act
+    settings = UniqueSettings(
+        auth=valid_auth, app=valid_app, api=valid_api, env_file=non_existent_file
+    )
+    # Assert
+    assert settings._env_file is None
+
+
+@pytest.mark.ai
+def test_env_file_not_found_error__is_file_not_found_error() -> None:
+    """
+    Purpose: Verify EnvFileNotFoundError is a subclass of FileNotFoundError.
+    Why this matters: Ensures proper exception hierarchy for error handling.
+    Setup summary: Assert EnvFileNotFoundError inheritance.
+    """
+    # Assert
+    assert issubclass(EnvFileNotFoundError, FileNotFoundError)

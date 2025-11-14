@@ -34,7 +34,6 @@ from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
 from unique_toolkit.agentic.reference_manager.reference_manager import ReferenceManager
 from unique_toolkit.agentic.responses_api import (
     DisplayCodeInterpreterFilesPostProcessor,
-    DisplayCodeInterpreterFilesPostProcessorConfig,
     ShowExecutedCodePostprocessor,
 )
 from unique_toolkit.agentic.thinking_manager.thinking_manager import (
@@ -80,7 +79,7 @@ async def build_unique_ai(
 ) -> UniqueAI | UniqueAIResponsesApi:
     common_components = _build_common(event, logger, config)
 
-    if config.agent.experimental.responses_api_config is not None:
+    if config.agent.experimental.responses_api_config.use_responses_api:
         return await _build_responses(
             event=event,
             logger=logger,
@@ -263,15 +262,15 @@ async def _build_responses(
             config.space.tools.append(
                 ToolBuildConfig(
                     name=OpenAIBuiltInToolName.CODE_INTERPRETER,
-                    configuration=code_interpreter_config,
+                    configuration=code_interpreter_config.tool_config,
                 )
             )
             common_components.tool_manager_config.tools = config.space.tools
 
-        if code_interpreter_config.display_config is not None:
+        if code_interpreter_config.executed_code_display_config is not None:
             postprocessor_manager.add_postprocessor(
                 ShowExecutedCodePostprocessor(
-                    config=code_interpreter_config.display_config
+                    config=code_interpreter_config.executed_code_display_config
                 )
             )
 
@@ -279,9 +278,10 @@ async def _build_responses(
             DisplayCodeInterpreterFilesPostProcessor(
                 client=client,
                 content_service=common_components.content_service,
-                config=DisplayCodeInterpreterFilesPostProcessorConfig(
-                    upload_scope_id=code_interpreter_config.generated_files_scope_id,
-                ),
+                config=code_interpreter_config.generated_files_config,
+                user_id=event.user_id,
+                company_id=event.company_id,
+                chat_id=event.payload.chat_id,
             )
         )
 

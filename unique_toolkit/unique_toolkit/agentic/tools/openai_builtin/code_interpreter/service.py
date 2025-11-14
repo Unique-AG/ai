@@ -200,13 +200,14 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
             expires_after_minutes=config.expires_after_minutes,
         )
 
-        memory = await _upload_files_to_container(
-            client=client,
-            uploaded_files=uploaded_files,
-            content_service=content_service,
-            chat_id=chat_id,
-            memory=memory,
-        )
+        if config.upload_files_in_chat_to_container:
+            memory = await _upload_files_to_container(
+                client=client,
+                uploaded_files=uploaded_files,
+                content_service=content_service,
+                chat_id=chat_id,
+                memory=memory,
+            )
 
         await memory_manager.save_async(memory)
 

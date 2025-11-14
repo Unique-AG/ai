@@ -258,7 +258,8 @@ class TestWebSearchConfig:
 
         config = WebSearchConfig(
             language_model=mock_language_model_info,
-            web_search_mode_config=v1_config,
+            web_search_active_mode=WebSearchMode.V1,
+            web_search_mode_config_v1=v1_config,
         )
 
         assert config.web_search_mode_config.mode == WebSearchMode.V1
@@ -274,7 +275,8 @@ class TestWebSearchConfig:
 
         config = WebSearchConfig(
             language_model=mock_language_model_info,
-            web_search_mode_config=v2_config,
+            web_search_active_mode=WebSearchMode.V2,
+            web_search_mode_config_v2=v2_config,
         )
 
         assert config.web_search_mode_config.mode == WebSearchMode.V2
@@ -286,7 +288,8 @@ class TestWebSearchConfig:
         """Test that query refinement is disabled for models without structured output."""
         config = WebSearchConfig(
             language_model=mock_language_model_info_no_structured_output,
-            web_search_mode_config=WebSearchV1Config(
+            web_search_active_mode=WebSearchMode.V1,
+            web_search_mode_config_v1=WebSearchV1Config(
                 refine_query_mode=QueryRefinementConfig(mode=RefineQueryMode.BASIC)
             ),
         )
@@ -304,7 +307,8 @@ class TestWebSearchConfig:
         """Test that query refinement remains enabled for models with structured output."""
         config = WebSearchConfig(
             language_model=mock_language_model_info,
-            web_search_mode_config=WebSearchV1Config(
+            web_search_active_mode=WebSearchMode.V1,
+            web_search_mode_config_v1=WebSearchV1Config(
                 refine_query_mode=QueryRefinementConfig(mode=RefineQueryMode.BASIC)
             ),
         )
@@ -362,7 +366,8 @@ class TestWebSearchConfig:
         )
         config = WebSearchConfig(
             language_model=mock_language_model_info,
-            web_search_mode_config=v1_config,
+            web_search_active_mode=WebSearchMode.V1,
+            web_search_mode_config_v1=v1_config,
         )
 
         assert (
@@ -383,7 +388,9 @@ class TestWebSearchConfig:
         assert "language_model" in config_dict
         assert "search_engine_config" in config_dict
         assert "crawler_config" in config_dict
-        assert "web_search_mode_config" in config_dict
+        assert "web_search_active_mode" in config_dict
+        assert "web_search_mode_config_v1" in config_dict
+        assert "web_search_mode_config_v2" in config_dict
         assert "experimental_features" in config_dict
         assert config_dict["debug"] is True
 
@@ -406,7 +413,8 @@ class TestWebSearchConfig:
             limit_token_sources=80_000,
             percentage_of_input_tokens_for_sources=0.35,
             language_model_max_input_tokens=120_000,
-            web_search_mode_config=v1_config,
+            web_search_active_mode=WebSearchMode.V1,
+            web_search_mode_config_v1=v1_config,
             search_engine_config=GoogleConfig(
                 search_engine_name=SearchEngineType.GOOGLE,
             ),
@@ -447,7 +455,8 @@ class TestWebSearchConfig:
             limit_token_sources=80_000,
             percentage_of_input_tokens_for_sources=0.35,
             language_model_max_input_tokens=120_000,
-            web_search_mode_config=v2_config,
+            web_search_active_mode=WebSearchMode.V2,
+            web_search_mode_config_v2=v2_config,
             search_engine_config=GoogleConfig(
                 search_engine_name=SearchEngineType.GOOGLE,
             ),

@@ -508,13 +508,7 @@ class ResponsesApiToolManager(BaseToolManager):
     def get_tool_definitions(
         self,
     ) -> list[LanguageModelToolDescription | ToolParam]:
-        if len(self._tool_manager.tool_choices()) > 0:
-            # We cannot send a builtin tool in this case (api error)
-            return [tool.tool_description() for tool in self._tools]
-        else:
-            return [
-                tool.tool_description() for tool in self._tools + self._builtin_tools
-            ]
+        return [tool.tool_description() for tool in self._tools + self._builtin_tools]
 
     def get_tool_prompts(self) -> list[ToolPrompts]:
         return [tool.get_tool_prompts() for tool in self._tools + self._builtin_tools]
