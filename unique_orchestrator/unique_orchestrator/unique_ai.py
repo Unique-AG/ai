@@ -31,7 +31,7 @@ from unique_toolkit.protocols.support import (
     SupportCompleteWithReferences,
 )
 
-from unique_toolkit.agentic.logger_manager.service import MessageStepLogger #write_message_log_text_message
+from unique_toolkit.agentic.logger_manager.service import MessageStepLogger
 
 from unique_orchestrator.config import UniqueAIConfig
 
@@ -63,7 +63,7 @@ class UniqueAI:
         history_manager: HistoryManager,
         evaluation_manager: EvaluationManager,
         postprocessor_manager: PostprocessorManager,
-        messagesteplogger: MessageStepLogger,
+        message_step_logger: MessageStepLogger,
         mcp_servers: list[McpServer], 
     ):
         self._logger = logger
@@ -85,7 +85,7 @@ class UniqueAI:
         self._mcp_servers = mcp_servers
         self._streaming_handler = streaming_handler
 
-        self.messagesteplogger = messagesteplogger
+        self._message_step_logger = message_step_logger
         # Helper variable to support control loop
         self._tool_took_control = False
 
@@ -100,7 +100,7 @@ class UniqueAI:
         """
         self._logger.info("Start LoopAgent...")
 
-        self.messagesteplogger.write_message_log_text_message("**Start the AI Agent**")
+        _ = self._message_step_logger.write_message_log_text_message(text="**Start Unique AI**")
 
         if self._history_manager.has_no_loop_messages():  # TODO: why do we even need to check its always no loop messages on this when its called.
             self._chat_service.modify_assistant_message(
@@ -110,9 +110,7 @@ class UniqueAI:
         ## Loop iteration
         for i in range(self._config.agent.max_loop_iterations):
             
-            ii = i + 1
-            text_message = "**Starting the agentic round Number %s**" %  ii
-            self.messagesteplogger.write_message_log_text_message(text_message)
+            _ = self._message_step_logger.write_message_log_text_message(text="**Loop iteration %s**" % str(i+1))
 
 
             self.current_iteration_index = i
@@ -250,8 +248,7 @@ class UniqueAI:
 
         self._logger.debug("No tool calls. we might exit the loop")
 
-        ## No tool calls means we wrap it up, at least in my understanding.
-        self.messagesteplogger.write_message_log_text_message("**Final result aggregation**")
+        _ = self._message_step_logger.write_message_log_text_message(text="**Answer Generation**")
 
         return await self._handle_no_tool_calls(loop_response)
 
@@ -413,9 +410,6 @@ class UniqueAI:
 
         for tool_call in tool_calls:
 
-            ## EDITING LABEL TO FIND
-            self.messagesteplogger.write_message_log_text_message("**The Tool %s is starting now**" % tool_call.name)
-
             self._history_manager.add_tool_call(tool_call)
 
         # Execute tool calls
@@ -508,7 +502,7 @@ class UniqueAIResponsesApi(UniqueAI):
         history_manager: HistoryManager,
         evaluation_manager: EvaluationManager,
         postprocessor_manager: PostprocessorManager,
-        messagesteplogger: MessageStepLogger,
+        message_step_logger: MessageStepLogger,
         mcp_servers: list[McpServer],
     ) -> None:
         super().__init__(
@@ -525,6 +519,6 @@ class UniqueAIResponsesApi(UniqueAI):
             history_manager=history_manager,
             evaluation_manager=evaluation_manager,
             postprocessor_manager=postprocessor_manager,
-            messagesteplogger=messagesteplogger,
+            message_step_logger=message_step_logger,
             mcp_servers=mcp_servers,
         )

@@ -22,6 +22,7 @@ from unique_web_search.services.executors import (
     WebSearchV1Executor,
     WebSearchV2Executor,
 )
+
 from unique_web_search.services.executors.configs import WebSearchMode
 from unique_web_search.services.search_engine import get_search_engine_service
 from unique_web_search.utils import WebSearchDebugInfo, reduce_sources_to_token_limit
@@ -105,7 +106,6 @@ class WebSearchTool(Tool[WebSearchConfig]):
             tool_call.arguments,
         )
 
-        #print(parameters)
 
         debug_info = WebSearchDebugInfo(parameters=parameters.model_dump())
         executor = self._get_executor(tool_call, parameters, debug_info)
@@ -115,15 +115,13 @@ class WebSearchTool(Tool[WebSearchConfig]):
             debug_info.num_chunks_in_final_prompts = len(content_chunks)
             debug_info.execution_time = time() - start_time
 
-            ## TODO source this out to main method.            
-            ## Write our logs
-            type = "WebSearch"
-            source = "web"
+
+            # Write entry with found hits, WebSearch V1 has just one call.
+            data = self.message_step_logger.define_reference_list(source="web", content_chunks=content_chunks,data=[])
             self.message_step_logger.create_full_specific_message(
-                message=parameters.query,
-                source="web",
+                query_list=[parameters.query],
                 search_type="WebSearch",
-                content_chunks=content_chunks,
+                data=data,
             )
 
             if self.tool_progress_reporter:
