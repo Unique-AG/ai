@@ -1,4 +1,4 @@
-from typing import Callable, Set, override
+from typing import Callable, override
 
 from pydantic import RootModel
 
@@ -54,7 +54,7 @@ class SaveToolCallsPostprocessor(Postprocessor):
     @classmethod
     async def get_assistant_message_used_tool_calls(
         cls, company_id: str, user_id: str, assistant_message_id: str
-    ) -> Set[str] | None:
+    ) -> set[str] | None:
         """
         Retrieves the names of tools called by the model from short-term memory.
         A None value indicates that the tool calls used are unknown.
@@ -74,7 +74,7 @@ class SaveToolCallsPostprocessor(Postprocessor):
 
 
 _TOOL_CALLS_SHORT_TERM_MEMORY_KEY = "assistant_message_used_tool_calls"
-_ToolCallsShortTermMemorySchema = RootModel[Set[str]]
+_ToolCallsShortTermMemorySchema = RootModel[set[str]]
 
 
 def _get_short_term_memory_manager(
