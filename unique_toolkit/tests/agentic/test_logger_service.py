@@ -93,12 +93,12 @@ def reset_message_order_counters():
     Setup summary: Clear the _request_counters dictionary before each test.
     """
     from unique_toolkit.agentic.logger_manager.service import _request_counters  # type: ignore[attr-defined]
-    
+
     # Clear counters before test
     _request_counters.clear()
-    
+
     yield
-    
+
     # Clear counters after test
     _request_counters.clear()
 
@@ -223,7 +223,9 @@ def test_get_next_message_order__increments_counter__on_subsequent_calls_AI() ->
 
 
 @pytest.mark.ai
-def test_get_next_message_order__starts_from_one__with_different_message_id_AI() -> None:
+def test_get_next_message_order__starts_from_one__with_different_message_id_AI() -> (
+    None
+):
     """
     Purpose: Verify message order counter is independent per message ID.
     Why this matters: Each message should have its own independent order sequence.
@@ -388,7 +390,9 @@ def test_create_message_log_entry__calls_chat_service__with_custom_references_AI
     # Assert
     mock_create_message_log.assert_called_once()  # type: ignore[attr-defined]
     call_args = mock_create_message_log.call_args  # type: ignore[attr-defined]
-    assert isinstance(call_args.kwargs["uncited_references"], MessageLogUncitedReferences)  # type: ignore[attr-defined]
+    assert isinstance(
+        call_args.kwargs["uncited_references"], MessageLogUncitedReferences
+    )  # type: ignore[attr-defined]
     assert call_args.kwargs["uncited_references"] == custom_refs  # type: ignore[attr-defined]
 
 
@@ -606,7 +610,9 @@ def test_define_reference_list__sets_name__from_chunk_url_AI(
 
 
 @pytest.mark.ai
-def test_define_reference_list__increments_sequence_number__for_multiple_chunks_AI() -> None:
+def test_define_reference_list__increments_sequence_number__for_multiple_chunks_AI() -> (
+    None
+):
     """
     Purpose: Verify define_reference_list increments sequence_number for multiple chunks.
     Why this matters: Multiple references must be ordered correctly.
