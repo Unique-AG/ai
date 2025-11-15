@@ -47,6 +47,10 @@ class Tool(ABC, Generic[ConfigType]):
         """Whether the tool is exclusive or not."""
         return self.settings.is_exclusive
 
+    def is_history_exclusive(self) -> bool:
+        """Whether the tool is history exclusive or not."""
+        return self.settings.is_history_exclusive
+
     def is_enabled(self) -> bool:
         """Whether the tool is enabled or not."""
         return self.settings.is_enabled

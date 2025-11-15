@@ -10,6 +10,10 @@ from openai.types.responses import ToolParam, response_create_params
 from pydantic import BaseModel, Field
 
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
+from unique_toolkit.agentic.history_manager import (
+    ChatMessageFilter,
+    get_safe_tool_usage_history_filter,
+)
 from unique_toolkit.agentic.tools.a2a import A2AManager, SubAgentTool
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
 from unique_toolkit.agentic.tools.factory import ToolFactory
@@ -69,6 +73,14 @@ class BaseToolManager(ABC):
     @abstractmethod
     def get_exclusive_tools(self) -> list[str]:
         raise NotImplementedError()
+
+    @abstractmethod
+    def get_tool_usage_history_filter(self) -> ChatMessageFilter | None:
+        raise NotImplementedError()
+
+    @classmethod
+    def should_store_tool_calls(cls, tools: list[ToolBuildConfig]) -> bool:
+        return any(tool.is_enabled and tool.is_history_exclusive for tool in tools)
 
     @abstractmethod
     def filter_tool_calls(
@@ -264,6 +276,9 @@ class ToolManager(BaseToolManager):
         self._tools = []
         self._tool_choices = event.payload.tool_choices
         self._disabled_tools = event.payload.disabled_tools
+        self._user_id = event.user_id
+        self._company_id = event.company_id
+
         self._exclusive_tools = [
             tool.name for tool in self._config.tools if tool.is_exclusive
         ]
@@ -366,6 +381,17 @@ class ToolManager(BaseToolManager):
     @override
     def get_exclusive_tools(self) -> list[str]:
         return self._exclusive_tools
+
+    @override
+    def get_tool_usage_history_filter(self) -> ChatMessageFilter | None:
+        for tool in self._tools:
+            if tool.is_history_exclusive():
+                return get_safe_tool_usage_history_filter(
+                    user_id=self._user_id,
+                    company_id=self._company_id,
+                    safe_tool_names=[tool.name],
+                )
+        return None
 
     def get_tools(self) -> list[Tool]:
         return self._tools  # type: ignore
@@ -477,6 +503,10 @@ class ResponsesApiToolManager(BaseToolManager):
     @override
     def get_exclusive_tools(self) -> list[str]:
         return self._tool_manager._exclusive_tools
+
+    @override
+    def get_tool_usage_history_filter(self) -> ChatMessageFilter | None:
+        return self._tool_manager.get_tool_usage_history_filter()
 
     @property
     def sub_agents(self) -> list[SubAgentTool]:

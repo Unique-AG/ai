@@ -22,14 +22,17 @@ from unique_toolkit.agentic.evaluation.hallucination.hallucination_evaluation im
     HallucinationEvaluation,
 )
 from unique_toolkit.agentic.history_manager import (
-    history_manager as history_manager_module,
-)
-from unique_toolkit.agentic.history_manager.history_manager import (
     HistoryManager,
     HistoryManagerConfig,
 )
+from unique_toolkit.agentic.history_manager import (
+    history_manager as history_manager_module,
+)
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
     PostprocessorManager,
+)
+from unique_toolkit.agentic.postprocessor.save_tool_calls_postprocessor import (
+    SaveToolCallsPostprocessor,
 )
 from unique_toolkit.agentic.reference_manager.reference_manager import ReferenceManager
 from unique_toolkit.agentic.responses_api import (
@@ -194,6 +197,18 @@ def _build_common(
             StockTickerPostprocessor(
                 config=config.agent.services.stock_ticker_config,
                 event=event,
+            )
+        )
+
+    if ToolManager.should_store_tool_calls(config.space.tools):
+        logger.info("Saving used tools calls in short-term memory")
+        postprocessor_manager.add_postprocessor(
+            SaveToolCallsPostprocessor(
+                company_id=event.company_id,
+                user_id=event.user_id,
+                get_tool_calls=lambda: [
+                    t.name for t in history_manager.get_tool_calls()
+                ],
             )
         )
 

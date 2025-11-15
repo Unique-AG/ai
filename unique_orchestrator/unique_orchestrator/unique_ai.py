@@ -247,7 +247,8 @@ class UniqueAI:
             original_user_message,
             rendered_user_message_string,
             rendered_system_message_string,
-            self._postprocessor_manager.remove_from_text,
+            remove_from_text=self._postprocessor_manager.remove_from_text,
+            chat_message_filter=self._tool_manager.get_tool_usage_history_filter(),
         )
         return messages
 
