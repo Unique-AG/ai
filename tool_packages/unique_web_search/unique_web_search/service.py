@@ -3,12 +3,14 @@ from time import time
 from typing_extensions import override
 from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
+from unique_toolkit.agentic.logger_manager.service import MessageStepLogger
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import (
     Tool,
 )
 from unique_toolkit.agentic.tools.tool_progress_reporter import ProgressState
+from unique_toolkit.content.schemas import ContentReference
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelToolDescription,
@@ -62,6 +64,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
             )
 
         self.content_reducer = content_reducer
+        self.message_step_logger = MessageStepLogger(self._chat_service, self._event)
 
     @override
     def tool_description(self) -> LanguageModelToolDescription:
@@ -97,10 +100,12 @@ class WebSearchTool(Tool[WebSearchConfig]):
     @override
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
         self.logger.info("Running the WebSearch tool")
+
         start_time = time()
         parameters = self.tool_parameter_calls.model_validate(
             tool_call.arguments,
         )
+
 
         debug_info = WebSearchDebugInfo(parameters=parameters.model_dump())
         executor = self._get_executor(tool_call, parameters, debug_info)
@@ -109,6 +114,18 @@ class WebSearchTool(Tool[WebSearchConfig]):
             content_chunks = await executor.run()
             debug_info.num_chunks_in_final_prompts = len(content_chunks)
             debug_info.execution_time = time() - start_time
+
+
+            # Write entry with found hits, WebSearch V1 has just one call.
+            data: list[ContentReference] = self.message_step_logger.define_reference_list(source="web", content_chunks=content_chunks,data=[])
+            # Only log for V1 mode (WebSearchToolParameters has query, WebSearchPlan doesn't)
+            if isinstance(parameters, WebSearchToolParameters):
+                query_str: str = parameters.query
+                self.message_step_logger.create_full_specific_message(
+                    query_list=[query_str],
+                    search_type="WebSearch",
+                    data=data,
+                )
 
             if self.tool_progress_reporter:
                 await self.tool_progress_reporter.notify_from_tool_call(
@@ -199,6 +216,5 @@ class WebSearchTool(Tool[WebSearchConfig]):
         if not tool_response.content_chunks:
             return []
         return evaluation_check_list
-
 
 ToolFactory.register_tool(WebSearchTool, WebSearchConfig)

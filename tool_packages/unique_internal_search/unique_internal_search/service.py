@@ -8,6 +8,7 @@ from unique_toolkit._common.chunk_relevancy_sorter.exception import (
 from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.history_manager.utils import transform_chunks_to_string
+from unique_toolkit.agentic.logger_manager.service import MessageStepLogger
 from unique_toolkit.agentic.tools.agent_chunks_hanlder import AgentChunksHandler
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
@@ -15,7 +16,7 @@ from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.agentic.tools.tool_progress_reporter import ProgressState
 from unique_toolkit.app.schemas import BaseEvent, ChatEvent, Event
 from unique_toolkit.chat.service import LanguageModelToolDescription
-from unique_toolkit.content.schemas import Content, ContentChunk
+from unique_toolkit.content.schemas import Content, ContentChunk, ContentReference
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.content.utils import (
     merge_content_chunks,
@@ -38,6 +39,8 @@ from unique_internal_search.utils import (
 
 
 class InternalSearchService:
+    message_step_logger: MessageStepLogger | None = None
+
     def __init__(
         self,
         config: InternalSearchConfig,
@@ -131,6 +134,7 @@ class InternalSearchService:
             metadata_filter = None
 
         found_chunks_per_search_string: list[SearchStringResult] = []
+        data: list[ContentReference] = []
         for i, search_string in enumerate(search_strings):
             try:
                 found_chunks: list[
@@ -150,6 +154,12 @@ class InternalSearchService:
                     content_ids=content_ids,
                     score_threshold=self.config.score_threshold,
                 )
+
+                if self.message_step_logger:
+                    data = self.message_step_logger.define_reference_list_for_internal(
+                        source="internal", content_chunks=found_chunks, data=data
+                    )
+
                 self.logger.info(
                     f"Found {len(found_chunks)} chunks (Query {i + 1}/{len(search_strings)})"
                 )
@@ -162,6 +172,14 @@ class InternalSearchService:
                     query=search_string,
                     chunks=found_chunks,
                 )
+            )
+
+        # Updating our logger with the search results for all search strings.
+        if self.message_step_logger:
+            self.message_step_logger.create_full_specific_message(
+                query_list=search_strings,
+                search_type="InternalSearch",
+                data=data,
             )
 
         # Reset the metadata filter in case it was disabled
@@ -206,6 +224,7 @@ class InternalSearchService:
         ###
         # 4. cache them add index to search results & join them together
         ###
+
         if not self.config.chunked_sources:
             selected_chunks = merge_content_chunks(selected_chunks)
         else:
@@ -282,6 +301,10 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             chat_id=chat_id,
             logger=self.logger,
         )
+
+        # Initialize MessageStepLogger if event is a ChatEvent
+        # if isinstance(self.event, (ChatEvent, Event)):
+        self.message_step_logger = MessageStepLogger(self._chat_service, self._event)
 
     async def post_progress_message(
         self, message: str, tool_call: LanguageModelFunction, **kwargs
