@@ -1,6 +1,3 @@
-from unique_toolkit.services.chat_service import ChatService
-
-
 from logging import Logger
 
 from pydantic import Field, create_model
@@ -11,6 +8,7 @@ from unique_toolkit._common.chunk_relevancy_sorter.exception import (
 from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.history_manager.utils import transform_chunks_to_string
+from unique_toolkit.agentic.logger_manager.service import MessageStepLogger
 from unique_toolkit.agentic.tools.agent_chunks_hanlder import AgentChunksHandler
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
@@ -38,13 +36,11 @@ from unique_internal_search.utils import (
     clean_search_string,
     interleave_search_results_round_robin,
 )
-from unique_toolkit.chat.service import ChatService
 
-from unique_toolkit.agentic.logger_manager.service import MessageStepLogger
 
 class InternalSearchService:
     message_step_logger: MessageStepLogger | None = None
-    
+
     def __init__(
         self,
         config: InternalSearchConfig,
@@ -59,7 +55,6 @@ class InternalSearchService:
         self.chat_id = chat_id
         self.logger = logger
         self.tool_execution_message_name = "Internal search"
-        
 
     async def post_progress_message(self, message: str, *args, **kwargs):
         pass
@@ -179,7 +174,7 @@ class InternalSearchService:
                 )
             )
 
-        #Updating our logger with the search results for all search strings.
+        # Updating our logger with the search results for all search strings.
         if self.message_step_logger:
             self.message_step_logger.create_full_specific_message(
                 query_list=search_strings,
@@ -306,12 +301,10 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             chat_id=chat_id,
             logger=self.logger,
         )
-        
+
         # Initialize MessageStepLogger if event is a ChatEvent
-        #if isinstance(self.event, (ChatEvent, Event)):
+        # if isinstance(self.event, (ChatEvent, Event)):
         self.message_step_logger = MessageStepLogger(self._chat_service, self._event)
-        
-        
 
     async def post_progress_message(
         self, message: str, tool_call: LanguageModelFunction, **kwargs
@@ -447,7 +440,6 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             )
 
         return tool_response
-    
 
     ## Note: This function is only used by the Investment Research Agent and Agentic Search. Once these agents are moved out of the monorepo, this function should be removed.
     def get_tool_call_result_for_loop_history(

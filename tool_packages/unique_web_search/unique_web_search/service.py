@@ -1,14 +1,16 @@
 from time import time
-from unique_toolkit.content.schemas import ContentReference
+
 from typing_extensions import override
 from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
+from unique_toolkit.agentic.logger_manager.service import MessageStepLogger
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import (
     Tool,
 )
 from unique_toolkit.agentic.tools.tool_progress_reporter import ProgressState
+from unique_toolkit.content.schemas import ContentReference
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelToolDescription,
@@ -22,12 +24,10 @@ from unique_web_search.services.executors import (
     WebSearchV1Executor,
     WebSearchV2Executor,
 )
-
 from unique_web_search.services.executors.configs import WebSearchMode
 from unique_web_search.services.search_engine import get_search_engine_service
 from unique_web_search.utils import WebSearchDebugInfo, reduce_sources_to_token_limit
 
-from unique_toolkit.agentic.logger_manager.service import MessageStepLogger
 
 class WebSearchTool(Tool[WebSearchConfig]):
     name = "WebSearch"
