@@ -4,6 +4,7 @@ Logger Service for Unique Agentic tools.
 Target of the method is to extend the step tracking on all levels of the tool.
 Therefore, the best way seems to expand the existing utils of deepsearch.
 """
+
 from typing import Literal
 
 from unique_toolkit.app.schemas import ChatEvent
@@ -73,9 +74,10 @@ class MessageStepLogger:
             status=status,
             order=order,
             details=details or MessageLogDetails(data=[]),
-            uncited_references=uncited_references or MessageLogUncitedReferences(data=[]),
+            uncited_references=uncited_references
+            or MessageLogUncitedReferences(data=[]),
         )
-        
+
         return message_log
 
     def write_message_log_text_message(self, text: str) -> MessageLog:
@@ -85,7 +87,7 @@ class MessageStepLogger:
         Args:
             text: The text message to log
         """
-                
+
         message_log = MessageStepLogger.create_message_log_entry(
             self._chat_service,
             self._event.payload.assistant_message.id,
@@ -119,8 +121,9 @@ class MessageStepLogger:
         return _request_counters[message_id]
 
     @staticmethod
-    def define_reference_list(source : str,content_chunks : list[ContentChunk],data: list[ContentReference]):
-
+    def define_reference_list(
+        source: str, content_chunks: list[ContentChunk], data: list[ContentReference]
+    ):
         """
         Create a reference list for web search content chunks.
 
@@ -138,27 +141,26 @@ class MessageStepLogger:
         count = 0
         data: list[ContentReference] = []
         for content_chunk in content_chunks:
-
             content_url = content_chunk.url or ""
-        
-            if(content_url != ""):
-                data.append(              
+
+            if content_url != "":
+                data.append(
                     ContentReference(
-                            name=content_url or "",
-                            sequence_number = count,
-                            source=source,
-                            url=content_url or "",
-                            source_id=content_url or "")
-                            )
+                        name=content_url or "",
+                        sequence_number=count,
+                        source=source,
+                        url=content_url or "",
+                        source_id=content_url or "",
+                    )
+                )
 
-            count +=1
-
+            count += 1
 
         return data
 
     @staticmethod
     def define_reference_list_for_internal(
-        source: str, content_chunks: list[ContentChunk],data: list[ContentReference]
+        source: str, content_chunks: list[ContentChunk], data: list[ContentReference]
     ) -> list[ContentReference]:
         """
         Create a reference list for internal search content chunks.
@@ -175,14 +177,13 @@ class MessageStepLogger:
         """
         count = 0
         for content_chunk in content_chunks:
-
             reference_name: str
             if content_chunk.title is not None:
                 reference_name = content_chunk.title
             else:
                 reference_name = content_chunk.key or ""
 
-            if(reference_name != ""):
+            if reference_name != "":
                 data.append(
                     ContentReference(
                         name=reference_name,
@@ -193,7 +194,7 @@ class MessageStepLogger:
                     )
                 )
 
-            count +=1
+            count += 1
 
         return data
 
@@ -211,7 +212,6 @@ class MessageStepLogger:
             search_type: The type of search ("WebSearch" or "InternalSearch")
             data: List of ContentReference objects to reference
         """
-        
 
         message = ""
         for entry in query_list:
@@ -219,18 +219,20 @@ class MessageStepLogger:
         message = message.strip("\n")
 
         input_string = "**Web Search**"
-        if(search_type == "InternalSearch"):
+        if search_type == "InternalSearch":
             input_string = "**Internal Search**"
 
-        #Creating a new message log entry with the found hits.
+        # Creating a new message log entry with the found hits.
         _ = self._chat_service.create_message_log(
             message_id=self._event.payload.assistant_message.id,
             text=f"{input_string}\n**Question asked by the Tool**\n{message}\n",
             status=MessageLogStatus.COMPLETED,
             order=MessageStepLogger.get_next_message_order(
-                    self._event.payload.assistant_message.id
+                self._event.payload.assistant_message.id
             ),
-            details=MessageLogDetails(data=[MessageLogEvent(type=search_type, text="")]),
+            details=MessageLogDetails(
+                data=[MessageLogEvent(type=search_type, text="")]
+            ),
             uncited_references=MessageLogUncitedReferences(data=data),
             references=data,
         )
