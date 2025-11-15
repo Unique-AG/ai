@@ -138,7 +138,7 @@ class Space(APIResource["Space"]):
         )
 
     @classmethod
-    def get_all_messages(
+    def get_chat_messages(
         cls, user_id: str, company_id: str, chat_id: str
     ) -> "Space.GetAllMessagesResponse":
         """
@@ -155,7 +155,7 @@ class Space(APIResource["Space"]):
         )
 
     @classmethod
-    async def get_all_messages_async(
+    async def get_chat_messages_async(
         cls, user_id: str, company_id: str, chat_id: str
     ) -> "Space.GetAllMessagesResponse":
         """

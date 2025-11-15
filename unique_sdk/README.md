@@ -1374,12 +1374,12 @@ message = unique_sdk.Space.create_message(
 )
 ```
 
-#### `unique_sdk.Space.get_all_messages` (Compatible with release >.48)
+#### `unique_sdk.Space.get_chat_messages` (Compatible with release >.48)
 
 Get all messages in a space chat. Returns a list of all messages in the specified chat.
 
 ```python
-messages = unique_sdk.Space.get_all_messages(
+messages = unique_sdk.Space.get_chat_messages(
     user_id=user_id,
     company_id=company_id,
     chat_id="chat_dejfhe729br398",
