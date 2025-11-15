@@ -11,9 +11,9 @@ from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.chat.schemas import (
     MessageLog,
     MessageLogDetails,
+    MessageLogEvent,
     MessageLogStatus,
     MessageLogUncitedReferences,
-    MessageLogEvent,
 )
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.schemas import ContentChunk, ContentReference

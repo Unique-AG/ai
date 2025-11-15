@@ -92,7 +92,9 @@ def reset_message_order_counters():
     Why this matters: Prevents test interference from shared module-level state.
     Setup summary: Clear the _request_counters dictionary before each test.
     """
-    from unique_toolkit.agentic.logger_manager.service import _request_counters  # type: ignore[attr-defined]
+    from unique_toolkit.agentic.logger_manager.service import (
+        _request_counters,  # type: ignore[attr-defined]
+    )
 
     # Clear counters before test
     _request_counters.clear()
