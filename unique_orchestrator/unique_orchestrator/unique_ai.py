@@ -494,6 +494,7 @@ class UniqueAI:
             }
         return user_metadata
 
+
 class UniqueAIResponsesApi(UniqueAI):
     def __init__(
         self,
