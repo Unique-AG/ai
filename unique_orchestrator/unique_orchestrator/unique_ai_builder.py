@@ -28,6 +28,7 @@ from unique_toolkit.agentic.history_manager.history_manager import (
     HistoryManager,
     HistoryManagerConfig,
 )
+from unique_toolkit.agentic.logger_manager.service import MessageStepLogger
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
     PostprocessorManager,
 )
@@ -69,8 +70,6 @@ from unique_toolkit.protocols.support import ResponsesSupportCompleteWithReferen
 
 from unique_orchestrator.config import UniqueAIConfig
 from unique_orchestrator.unique_ai import UniqueAI, UniqueAIResponsesApi
-
-from unique_toolkit.agentic.logger_manager.service import MessageStepLogger
 
 
 async def build_unique_ai(
