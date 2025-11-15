@@ -86,6 +86,13 @@ class Space(APIResource["Space"]):
 
         chat_id: str
 
+    class GetAllMessagesResponse(TypedDict):
+        """
+        Response for getting all messages in a chat.
+        """
+
+        data: List["Space.Message"]
+
     @classmethod
     def create_message(
         cls,
@@ -127,6 +134,40 @@ class Space(APIResource["Space"]):
                 user_id,
                 company_id,
                 params=params,
+            ),
+        )
+
+    @classmethod
+    def get_all_messages(
+        cls, user_id: str, company_id: str, chat_id: str
+    ) -> "Space.GetAllMessagesResponse":
+        """
+        Get all messages in a space chat.
+        """
+        return cast(
+            "Space.GetAllMessagesResponse",
+            cls._static_request(
+                "get",
+                f"/space/chat/{chat_id}/messages",
+                user_id,
+                company_id,
+            ),
+        )
+
+    @classmethod
+    async def get_all_messages_async(
+        cls, user_id: str, company_id: str, chat_id: str
+    ) -> "Space.GetAllMessagesResponse":
+        """
+        Async get all messages in a space chat.
+        """
+        return cast(
+            "Space.GetAllMessagesResponse",
+            await cls._static_request_async(
+                "get",
+                f"/space/chat/{chat_id}/messages",
+                user_id,
+                company_id,
             ),
         )
 
