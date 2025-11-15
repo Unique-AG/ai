@@ -49,6 +49,13 @@ class Group(APIResource["Group"]):
 
         userIds: List[str]
 
+    class RemoveUsersParams(RequestOptions):
+        """
+        Parameters for removing users from a group.
+        """
+
+        userIds: List[str]
+
     class GroupMember(TypedDict):
         """
         Represents a member of a group.
@@ -99,6 +106,13 @@ class Group(APIResource["Group"]):
         """
 
         memberships: List["Group.GroupMembership"]
+
+    class RemoveUsersFromGroupResponse(TypedDict):
+        """
+        Response for removing users from a group.
+        """
+
+        success: bool
 
     @classmethod
     def create_group(
@@ -305,6 +319,50 @@ class Group(APIResource["Group"]):
             "Group.AddUsersToGroupResponse",
             await cls._static_request_async(
                 "post",
+                f"/groups/{group_id}/users",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    def remove_users_from_group(
+        cls,
+        user_id: str,
+        company_id: str,
+        group_id: str,
+        **params: Unpack["Group.RemoveUsersParams"],
+    ) -> "Group.RemoveUsersFromGroupResponse":
+        """
+        Remove users from a group in a company.
+        """
+        return cast(
+            "Group.RemoveUsersFromGroupResponse",
+            cls._static_request(
+                "delete",
+                f"/groups/{group_id}/users",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    async def remove_users_from_group_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        group_id: str,
+        **params: Unpack["Group.RemoveUsersParams"],
+    ) -> "Group.RemoveUsersFromGroupResponse":
+        """
+        Async remove users from a group in a company.
+        """
+        return cast(
+            "Group.RemoveUsersFromGroupResponse",
+            await cls._static_request_async(
+                "delete",
                 f"/groups/{group_id}/users",
                 user_id,
                 company_id,

@@ -1486,6 +1486,19 @@ result = unique_sdk.Group.add_users_to_group(
 )
 ```
 
+#### `unique_sdk.Group.remove_users_from_group` (Compatible with release >.48)
+
+Remove users from a group. Provide an array of user IDs to remove from the specified group.
+
+```python
+result = unique_sdk.Group.remove_users_from_group(
+    user_id=user_id,
+    company_id=company_id,
+    group_id="group_abc123",
+    userIds=["user_id1", "user_id2"],  # Required - array of user IDs to remove
+)
+```
+
 #### `unique_sdk.Group.delete_group` (Compatible with release >.48)
 
 Delete a group in a company by its group ID.
