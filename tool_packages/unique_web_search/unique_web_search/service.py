@@ -106,7 +106,6 @@ class WebSearchTool(Tool[WebSearchConfig]):
             tool_call.arguments,
         )
 
-
         debug_info = WebSearchDebugInfo(parameters=parameters.model_dump())
         executor = self._get_executor(tool_call, parameters, debug_info)
 
@@ -115,9 +114,12 @@ class WebSearchTool(Tool[WebSearchConfig]):
             debug_info.num_chunks_in_final_prompts = len(content_chunks)
             debug_info.execution_time = time() - start_time
 
-
             # Write entry with found hits, WebSearch V1 has just one call.
-            data: list[ContentReference] = self.message_step_logger.define_reference_list(source="web", content_chunks=content_chunks,data=[])
+            data: list[ContentReference] = (
+                self.message_step_logger.define_reference_list(
+                    source="web", content_chunks=content_chunks, data=[]
+                )
+            )
             # Only log for V1 mode (WebSearchToolParameters has query, WebSearchPlan doesn't)
             if isinstance(parameters, WebSearchToolParameters):
                 query_str: str = parameters.query
@@ -216,5 +218,6 @@ class WebSearchTool(Tool[WebSearchConfig]):
         if not tool_response.content_chunks:
             return []
         return evaluation_check_list
+
 
 ToolFactory.register_tool(WebSearchTool, WebSearchConfig)
