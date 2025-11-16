@@ -25,6 +25,8 @@ The Unique Python SDK provides access to the public API of Unique AI. It also en
    - [Folder](#folder)
    - [Space](#space)
    - [LLM Models](#llm-models)
+   - [User](#user)
+   - [Group](#group)
    - [Agentic Table](#agentic-table)
 6. [UniqueQL](#uniqueql)
    - [Query Structure](#uniqueql-query-structure)
@@ -244,6 +246,8 @@ unique_sdk.Message.modify(
 - [Folder](#folder)
 - [Space](#space)
 - [LLM Models](#llm-models)
+- [User](#user)
+- [Group](#group)
 - [Agentic Table](#agentic-table)
 
 Most of the API services provide an asynchronous version of the method. The async methods are suffixed with `_async`.
@@ -1346,6 +1350,42 @@ unique_sdk.Folder.delete(
 
 ### Space
 
+#### `unique_sdk.Space.create_message`
+
+Send a message in a space. You can optionally provide a chat ID to continue an existing conversation, or omit it to start a new chat.
+
+```python
+message = unique_sdk.Space.create_message(
+    user_id=user_id,
+    company_id=company_id,
+    chatId="chat_dejfhe729br398",  # Optional - if not provided, a new chat will be created
+    assistantId="assistant_abc123",
+    text="Hello, how can you help me?",
+    toolChoices=["WebSearch"],  # Optional - list of tools to use
+    scopeRules={  # Optional - scope rules for filtering
+        "or": [
+            {
+                "operator": "contains",
+                "path": ["folderIdPath"],
+                "value": "uniquepathid://scope_123"
+            }
+        ]
+    },
+)
+```
+
+#### `unique_sdk.Space.get_latest_message`
+
+Get the latest message in a space chat.
+
+```python
+message = unique_sdk.Space.get_latest_message(
+    user_id=user_id,
+    company_id=company_id,
+    chat_id="chat_dejfhe729br398",
+)
+```
+
 #### `unique_sdk.Space.delete_chat`
 
 Delete a space chat by id. If the chat does not exist, the function will return an error.
@@ -1369,6 +1409,64 @@ models = unique_sdk.LLMModels.get(
     user_id=user_id,
     company_id=company_id,
     module="UNIQUE_AI",  # Optional - filter models by module, only UNIQUE_AI is supported right now
+)
+```
+
+### User
+
+#### `unique_sdk.User.get_users` (Compatible with release >.48)
+
+Get users in a company. You can filter by email, display name, and use pagination with skip and take parameters.
+
+```python
+users = unique_sdk.User.get_users(
+    user_id=user_id,
+    company_id=company_id,
+    skip=0,  # Optional - number of records to skip for pagination
+    take=50,  # Optional - number of records to return (max 1000)
+    email="user@example.com",  # Optional - filter by email
+    displayName="John",  # Optional - filter by display name
+)
+```
+
+### Group
+
+#### `unique_sdk.Group.get_groups` (Compatible with release >.48)
+
+Get groups in a company. You can filter by name and use pagination with skip and take parameters.
+
+```python
+groups = unique_sdk.Group.get_groups(
+    user_id=user_id,
+    company_id=company_id,
+    skip=0,  # Optional - number of records to skip for pagination
+    take=50,  # Optional - number of records to return (max 1000)
+    name="Admin",  # Optional - filter by group name
+)
+```
+
+#### `unique_sdk.Group.update_group` (Compatible with release >.48)
+
+Update a group in a company. You can update the group's name.
+
+```python
+updated_group = unique_sdk.Group.update_group(
+    user_id=user_id,
+    company_id=company_id,
+    group_id="group_id_here",
+    name="New Group Name",  # Optional - update the group name
+)
+```
+
+#### `unique_sdk.Group.delete_group` (Compatible with release >.48)
+
+Delete a group in a company by its group ID.
+
+```python
+result = unique_sdk.Group.delete_group(
+    user_id=user_id,
+    company_id=company_id,
+    group_id="group_id_here",
 )
 ```
 
