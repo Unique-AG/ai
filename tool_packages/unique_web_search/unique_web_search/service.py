@@ -95,9 +95,8 @@ class WebSearchTool(Tool[WebSearchConfig]):
     def evaluation_check_list(self) -> list[EvaluationMetricName]:
         return self.config.evaluation_check_list
 
-    @classmethod
-    def define_reference_list(
-        cls,
+    def _define_reference_list_for_message_log(
+        self,
         *,
         content_chunks: list[ContentChunk],
         data: list[ContentReference],
@@ -105,11 +104,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
         """
         Create a reference list for web search content chunks.
 
-        Since content keys are different than in web search, this method
-        handles the internal search format.
-
         Args:
-            source: The source identifier for the references
             content_chunks: List of ContentChunk objects to convert
             data: List of ContentReference objects to reference
         Returns:
@@ -117,7 +112,6 @@ class WebSearchTool(Tool[WebSearchConfig]):
         """
 
         count = 0
-        data: list[ContentReference] = []
         for content_chunk in content_chunks:
             content_url = content_chunk.url or ""
 
@@ -154,14 +148,14 @@ class WebSearchTool(Tool[WebSearchConfig]):
             debug_info.execution_time = time() - start_time
 
             # Write entry with found hits, WebSearch V1 has just one call.
-            data: list[ContentReference] = self.define_reference_list(
+            data: list[ContentReference] = self._define_reference_list_for_message_log(
                 content_chunks=content_chunks,
                 data=[],
             )
             # Only log for V1 mode (WebSearchToolParameters has query, WebSearchPlan doesn't)
             if isinstance(parameters, WebSearchToolParameters):
                 query_str: str = parameters.query
-                self._message_step_logger.create_full_specific_message(
+                self._message_step_logger.create_message_log_post(
                     query_list=[query_str],
                     search_type="WebSearch",
                     data=data,

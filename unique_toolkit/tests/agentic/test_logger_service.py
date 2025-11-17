@@ -455,20 +455,20 @@ def test_write_message_log_text_message__increments_order__on_multiple_calls_AI(
 # Full Message Tests - Web Search
 @pytest.mark.ai
 @patch.object(ChatService, "create_message_log", spec=True)
-def test_create_full_specific_message__calls_chat_service__with_web_search_AI(
+def test_create_message_log_post__calls_chat_service__with_web_search_AI(
     mock_create_message_log: "Mock", logger: MessageStepLogger
 ) -> None:
     """
-    Purpose: Verify create_full_specific_message calls chat service for web search.
+    Purpose: Verify create_message_log_post calls chat service for web search.
     Why this matters: Full messages create complete log entries with question and results.
-    Setup summary: Mock chat service, call create_full_specific_message with web search, verify service called.
+    Setup summary: Mock chat service, call create_message_log_post with web search, verify service called.
     """
     # Arrange
     query_list = ["What is machine learning?"]
     data = []
 
     # Act
-    logger.create_full_specific_message(
+    logger.create_message_log_post(
         query_list=query_list,
         search_type="WebSearch",
         data=data,
@@ -480,20 +480,20 @@ def test_create_full_specific_message__calls_chat_service__with_web_search_AI(
 
 @pytest.mark.ai
 @patch.object(ChatService, "create_message_log", spec=True)
-def test_create_full_specific_message__includes_question__in_text_for_web_search_AI(
+def test_create_message_log_post__includes_question__in_text_for_web_search_AI(
     mock_create_message_log: "Mock", logger: MessageStepLogger
 ) -> None:
     """
-    Purpose: Verify create_full_specific_message includes question in text.
+    Purpose: Verify create_message_log_post includes question in text.
     Why this matters: Users need to see what question was asked in the log.
-    Setup summary: Mock chat service, call create_full_specific_message, verify text contains question marker and message.
+    Setup summary: Mock chat service, call create_message_log_post, verify text contains question marker and message.
     """
     # Arrange
     query_list = ["What is machine learning?"]
     data = []
 
     # Act
-    logger.create_full_specific_message(
+    logger.create_message_log_post(
         query_list=query_list,
         search_type="WebSearch",
         data=data,
@@ -509,20 +509,20 @@ def test_create_full_specific_message__includes_question__in_text_for_web_search
 
 @pytest.mark.ai
 @patch.object(ChatService, "create_message_log", spec=True)
-def test_create_full_specific_message__includes_web_search_marker__in_text_for_web_search_AI(
+def test_create_message_log_post__includes_web_search_marker__in_text_for_web_search_AI(
     mock_create_message_log: "Mock", logger: MessageStepLogger
 ) -> None:
     """
-    Purpose: Verify create_full_specific_message includes web search marker in text.
+    Purpose: Verify create_message_log_post includes web search marker in text.
     Why this matters: Web search marker indicates the type of search performed.
-    Setup summary: Mock chat service, call create_full_specific_message, verify text contains web search marker.
+    Setup summary: Mock chat service, call create_message_log_post, verify text contains web search marker.
     """
     # Arrange
     query_list = ["Test question"]
     data = []
 
     # Act
-    logger.create_full_specific_message(
+    logger.create_message_log_post(
         query_list=query_list,
         search_type="WebSearch",
         data=data,
@@ -537,20 +537,20 @@ def test_create_full_specific_message__includes_web_search_marker__in_text_for_w
 
 @pytest.mark.ai
 @patch.object(ChatService, "create_message_log", spec=True)
-def test_create_full_specific_message__sets_completed_status__for_web_search_AI(
+def test_create_message_log_post__sets_completed_status__for_web_search_AI(
     mock_create_message_log: "Mock", logger: MessageStepLogger
 ) -> None:
     """
-    Purpose: Verify create_full_specific_message uses COMPLETED status for web search.
+    Purpose: Verify create_message_log_post uses COMPLETED status for web search.
     Why this matters: Completed status indicates search operation finished successfully.
-    Setup summary: Mock chat service, call create_full_specific_message, verify status is COMPLETED.
+    Setup summary: Mock chat service, call create_message_log_post, verify status is COMPLETED.
     """
     # Arrange
     query_list = ["Test question"]
     data = []
 
     # Act
-    logger.create_full_specific_message(
+    logger.create_message_log_post(
         query_list=query_list,
         search_type="WebSearch",
         data=data,
@@ -564,20 +564,20 @@ def test_create_full_specific_message__sets_completed_status__for_web_search_AI(
 
 @pytest.mark.ai
 @patch.object(ChatService, "create_message_log", spec=True)
-def test_create_full_specific_message__creates_web_search_details__for_web_search_AI(
+def test_create_message_log_post__creates_web_search_details__for_web_search_AI(
     mock_create_message_log: "Mock", logger: MessageStepLogger
 ) -> None:
     """
-    Purpose: Verify create_full_specific_message creates WebSearch details.
+    Purpose: Verify create_message_log_post creates WebSearch details.
     Why this matters: Details identify the type of search operation performed.
-    Setup summary: Mock chat service, call create_full_specific_message with WebSearch, verify details type.
+    Setup summary: Mock chat service, call create_message_log_post with WebSearch, verify details type.
     """
     # Arrange
     query_list = ["Test question"]
     data = []
 
     # Act
-    logger.create_full_specific_message(
+    logger.create_message_log_post(
         query_list=query_list,
         search_type="WebSearch",
         data=data,
@@ -595,13 +595,13 @@ def test_create_full_specific_message__creates_web_search_details__for_web_searc
 
 @pytest.mark.ai
 @patch.object(ChatService, "create_message_log", spec=True)
-def test_create_full_specific_message__creates_references__for_web_search_AI(
+def test_create_message_log_post__creates_references__for_web_search_AI(
     mock_create_message_log: "Mock", logger: MessageStepLogger
 ) -> None:
     """
-    Purpose: Verify create_full_specific_message creates references for web search.
+    Purpose: Verify create_message_log_post creates references for web search.
     Why this matters: References link log entries to source web pages.
-    Setup summary: Mock chat service, call create_full_specific_message, verify uncited_references created.
+    Setup summary: Mock chat service, call create_message_log_post, verify uncited_references created.
     """
     # Arrange
     query_list = ["Test question"]
@@ -616,7 +616,7 @@ def test_create_full_specific_message__creates_references__for_web_search_AI(
     ]
 
     # Act
-    logger.create_full_specific_message(
+    logger.create_message_log_post(
         query_list=query_list,
         search_type="WebSearch",
         data=data,
@@ -635,20 +635,20 @@ def test_create_full_specific_message__creates_references__for_web_search_AI(
 
 @pytest.mark.ai
 @patch.object(ChatService, "create_message_log", spec=True)
-def test_create_full_specific_message__uses_message_id__from_event_AI(
+def test_create_message_log_post__uses_message_id__from_event_AI(
     mock_create_message_log: "Mock", logger: MessageStepLogger, test_event: ChatEvent
 ) -> None:
     """
-    Purpose: Verify create_full_specific_message uses message_id from event.
+    Purpose: Verify create_message_log_post uses message_id from event.
     Why this matters: Message ID is required to associate log with correct message.
-    Setup summary: Mock chat service, call create_full_specific_message, verify message_id parameter.
+    Setup summary: Mock chat service, call create_message_log_post, verify message_id parameter.
     """
     # Arrange
     query_list = ["Test question"]
     data = []
 
     # Act
-    logger.create_full_specific_message(
+    logger.create_message_log_post(
         query_list=query_list,
         search_type="WebSearch",
         data=data,
@@ -663,20 +663,20 @@ def test_create_full_specific_message__uses_message_id__from_event_AI(
 # Full Message Tests - Internal Search
 @pytest.mark.ai
 @patch.object(ChatService, "create_message_log", spec=True)
-def test_create_full_specific_message__creates_internal_search_details__for_internal_search_AI(
+def test_create_message_log_post__creates_internal_search_details__for_internal_search_AI(
     mock_create_message_log: "Mock", logger: MessageStepLogger
 ) -> None:
     """
-    Purpose: Verify create_full_specific_message creates InternalSearch details.
+    Purpose: Verify create_message_log_post creates InternalSearch details.
     Why this matters: Details identify the type of search operation performed.
-    Setup summary: Mock chat service, call create_full_specific_message with InternalSearch, verify details type.
+    Setup summary: Mock chat service, call create_message_log_post with InternalSearch, verify details type.
     """
     # Arrange
     query_list = ["Find company policies"]
     data = []
 
     # Act
-    logger.create_full_specific_message(
+    logger.create_message_log_post(
         query_list=query_list,
         search_type="InternalSearch",
         data=data,
@@ -694,13 +694,13 @@ def test_create_full_specific_message__creates_internal_search_details__for_inte
 
 @pytest.mark.ai
 @patch.object(ChatService, "create_message_log", spec=True)
-def test_create_full_specific_message__creates_references__for_internal_search_AI(
+def test_create_message_log_post__creates_references__for_internal_search_AI(
     mock_create_message_log: "Mock", logger: MessageStepLogger
 ) -> None:
     """
-    Purpose: Verify create_full_specific_message creates references for internal search.
+    Purpose: Verify create_message_log_post creates references for internal search.
     Why this matters: References link log entries to internal document sources.
-    Setup summary: Mock chat service, call create_full_specific_message, verify uncited_references created with internal format.
+    Setup summary: Mock chat service, call create_message_log_post, verify uncited_references created with internal format.
     """
     # Arrange
     query_list = ["Find company policies"]
@@ -715,7 +715,7 @@ def test_create_full_specific_message__creates_references__for_internal_search_A
     ]
 
     # Act
-    logger.create_full_specific_message(
+    logger.create_message_log_post(
         query_list=query_list,
         search_type="InternalSearch",
         data=data,
