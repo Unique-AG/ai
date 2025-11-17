@@ -215,7 +215,7 @@ class MessageStepLogger:
 
         message = ""
         for entry in query_list:
-            message += f"{entry}\n"
+            message += f"• {entry}\n"
         message = message.strip("\n")
 
         input_string = "**Web Search**"
@@ -225,7 +225,7 @@ class MessageStepLogger:
         # Creating a new message log entry with the found hits.
         _ = self._chat_service.create_message_log(
             message_id=self._event.payload.assistant_message.id,
-            text=f"{input_string}\n**Question asked by the Tool**\n{message}\n",
+            text=f"{input_string}\n{message}\n",
             status=MessageLogStatus.COMPLETED,
             order=MessageStepLogger.get_next_message_order(
                 self._event.payload.assistant_message.id

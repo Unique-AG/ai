@@ -111,7 +111,7 @@ class UniqueAI:
         ## Loop iteration
         for i in range(self._config.agent.max_loop_iterations):
             _ = self._message_step_logger.write_message_log_text_message(
-                text="**Loop iteration %s**" % str(i + 1)
+                text="**Loop Iteration %s**" % str(i + 1)
             )
 
             self.current_iteration_index = i
