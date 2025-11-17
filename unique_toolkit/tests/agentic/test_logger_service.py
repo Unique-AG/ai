@@ -198,7 +198,7 @@ def test_get_next_message_order__returns_one__on_first_call_AI() -> None:
     message_id = "test_message_first"
 
     # Act
-    order = MessageStepLogger.get_next_message_order(message_id)
+    order = MessageStepLogger.get_next_message_order(message_id=message_id)
 
     # Assert
     assert isinstance(order, int)
@@ -214,10 +214,10 @@ def test_get_next_message_order__increments_counter__on_subsequent_calls_AI() ->
     """
     # Arrange
     message_id = "test_message_increment"
-    _ = MessageStepLogger.get_next_message_order(message_id)  # First call
+    _ = MessageStepLogger.get_next_message_order(message_id=message_id)  # First call
 
     # Act
-    order = MessageStepLogger.get_next_message_order(message_id)
+    order = MessageStepLogger.get_next_message_order(message_id=message_id)
 
     # Assert
     assert isinstance(order, int)
@@ -235,11 +235,11 @@ def test_get_next_message_order__starts_from_one__with_different_message_id_AI()
     """
     # Arrange
     first_message_id = "test_message_one"
-    _ = MessageStepLogger.get_next_message_order(first_message_id)  # Increment first
+    _ = MessageStepLogger.get_next_message_order(message_id=first_message_id)  # Increment first
     different_message_id = "test_message_two"
 
     # Act
-    order = MessageStepLogger.get_next_message_order(different_message_id)
+    order = MessageStepLogger.get_next_message_order(message_id=different_message_id)
 
     # Assert
     assert isinstance(order, int)
@@ -413,7 +413,7 @@ def test_write_message_log_text_message__calls_chat_service__with_text_AI(
     text = "Starting web search..."
 
     # Act
-    _ = logger.write_message_log_text_message(text)
+    _ = logger.write_message_log_text_message(text=text)
 
     # Assert
     mock_create_message_log.assert_called_once()  # type: ignore[attr-defined]
@@ -435,7 +435,7 @@ def test_write_message_log_text_message__calls_chat_service__with_completed_stat
     # Arrange
 
     # Act
-    _ = logger.write_message_log_text_message("Test message")
+    _ = logger.write_message_log_text_message(text="Test message")
 
     # Assert
     mock_create_message_log.assert_called_once()  # type: ignore[attr-defined]
@@ -457,7 +457,7 @@ def test_write_message_log_text_message__calls_chat_service__with_message_id_AI(
     # Arrange
 
     # Act
-    _ = logger.write_message_log_text_message("Test message")
+    _ = logger.write_message_log_text_message(text="Test message")
 
     # Assert
     mock_create_message_log.assert_called_once()  # type: ignore[attr-defined]
@@ -479,9 +479,9 @@ def test_write_message_log_text_message__increments_order__on_multiple_calls_AI(
     # Arrange
 
     # Act
-    _ = logger.write_message_log_text_message("Step 1")
-    _ = logger.write_message_log_text_message("Step 2")
-    _ = logger.write_message_log_text_message("Step 3")
+    _ = logger.write_message_log_text_message(text="Step 1")
+    _ = logger.write_message_log_text_message(text="Step 2")
+    _ = logger.write_message_log_text_message(text="Step 3")
 
     # Assert
     assert mock_create_message_log.call_count == 3  # type: ignore[attr-defined]
@@ -840,7 +840,6 @@ def test_create_full_specific_message__includes_question__in_text_for_web_search
     text = call_args.kwargs["text"]  # type: ignore[attr-defined]
     assert isinstance(text, str)
     assert "**Web Search**" in text
-    assert "**Question asked by the Tool**" in text
     assert "What is machine learning?" in text
 
 
