@@ -29,6 +29,14 @@ class Space(APIResource["Space"]):
         toolChoices: NotRequired[List[str] | None]
         scopeRules: NotRequired[dict | None]
 
+    class GetChatMessagesParams(RequestOptions):
+        """
+        Parameters for getting chat messages.
+        """
+
+        skip: NotRequired[int]
+        take: NotRequired[int]
+
     class Reference(TypedDict):
         """
         Reference information for a message.
@@ -139,7 +147,11 @@ class Space(APIResource["Space"]):
 
     @classmethod
     def get_chat_messages(
-        cls, user_id: str, company_id: str, chat_id: str
+        cls,
+        user_id: str,
+        company_id: str,
+        chat_id: str,
+        **params: Unpack["Space.GetChatMessagesParams"],
     ) -> "Space.GetAllMessagesResponse":
         """
         Get all messages in a space chat.
@@ -151,12 +163,17 @@ class Space(APIResource["Space"]):
                 f"/space/chat/{chat_id}/messages",
                 user_id,
                 company_id,
+                params=params,
             ),
         )
 
     @classmethod
     async def get_chat_messages_async(
-        cls, user_id: str, company_id: str, chat_id: str
+        cls,
+        user_id: str,
+        company_id: str,
+        chat_id: str,
+        **params: Unpack["Space.GetChatMessagesParams"],
     ) -> "Space.GetAllMessagesResponse":
         """
         Async get all messages in a space chat.
@@ -168,6 +185,7 @@ class Space(APIResource["Space"]):
                 f"/space/chat/{chat_id}/messages",
                 user_id,
                 company_id,
+                params=params,
             ),
         )
 
