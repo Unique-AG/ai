@@ -5012,7 +5012,7 @@ url = "../tool_packages/unique_internal_search"
 
 [[package]]
 name = "unique-sdk"
-version = "0.10.40"
+version = "0.10.43"
 description = ""
 optional = false
 python-versions = "^3.11"
@@ -5080,7 +5080,7 @@ url = "../tool_packages/unique_swot"
 
 [[package]]
 name = "unique-toolkit"
-version = "1.25.1"
+version = "1.26.1"
 description = ""
 optional = false
 python-versions = "^3.12"
@@ -5830,4 +5830,4 @@ cffi = ["cffi (>=1.17,<2.0)", "cffi (>=2.0.0b)"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "f99c48c25a3c54a9a5ff5901f0bb2b33008d1df7aa970c2fc29bb41c93652cb8"
+content-hash = "1fe6057b4b226ae68a6edbf4048cecd159d4fc8a64c16895a7dc64b22abd574a"
