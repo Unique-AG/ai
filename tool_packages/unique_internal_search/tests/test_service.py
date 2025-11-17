@@ -1568,7 +1568,7 @@ class TestInternalSearchTool:
 
         # Act
         references = InternalSearchService.define_reference_list(
-            source="internal", content_chunks=content_chunks, data=data
+            content_chunks=content_chunks, data=data
         )
 
         # Assert
@@ -1595,7 +1595,7 @@ class TestInternalSearchTool:
 
         # Act
         references = InternalSearchService.define_reference_list(
-            source="internal", content_chunks=content_chunks, data=data
+            content_chunks=content_chunks, data=data
         )
 
         # Assert
@@ -1622,12 +1622,38 @@ class TestInternalSearchTool:
 
         # Act
         references = InternalSearchService.define_reference_list(
-            source="internal", content_chunks=content_chunks, data=data
+            content_chunks=content_chunks, data=data
         )
 
         # Assert
         assert isinstance(references[0].source_id, str)
         assert references[0].source_id == "chunk_123"
+
+    @pytest.mark.ai
+    def test_define_reference_list__sets_source__to_internal(
+        self,
+        sample_content_chunk: ContentChunk,
+    ) -> None:
+        """
+        Purpose: Verify define_reference_list sets source to "internal" for internal search.
+        Why this matters: Source identifies where reference content originated.
+        Setup summary: Create internal content chunk, call define_reference_list, verify reference source is "internal".
+        """
+        from unique_toolkit.content.schemas import ContentReference
+        from unique_internal_search.service import InternalSearchService
+
+        # Arrange
+        content_chunks = [sample_content_chunk]
+        data: list[ContentReference] = []
+
+        # Act
+        references = InternalSearchService.define_reference_list(
+            content_chunks=content_chunks, data=data
+        )
+
+        # Assert
+        assert isinstance(references[0].source, str)
+        assert references[0].source == "internal"
 
     @pytest.mark.ai
     def test_define_reference_list__sets_name__from_chunk_key_when_no_title(
@@ -1653,7 +1679,7 @@ class TestInternalSearchTool:
 
         # Act
         references = InternalSearchService.define_reference_list(
-            source="internal", content_chunks=content_chunks, data=data
+            content_chunks=content_chunks, data=data
         )
 
         # Assert
@@ -1685,7 +1711,7 @@ class TestInternalSearchTool:
 
         # Act
         references = InternalSearchService.define_reference_list(
-            source="internal", content_chunks=content_chunks, data=data
+            content_chunks=content_chunks, data=data
         )
 
         # Assert
@@ -1712,7 +1738,7 @@ class TestInternalSearchTool:
 
         # Act
         references = InternalSearchService.define_reference_list(
-            source="internal", content_chunks=content_chunks, data=data
+            content_chunks=content_chunks, data=data
         )
 
         # Assert
@@ -1749,7 +1775,7 @@ class TestInternalSearchTool:
 
         # Act
         references = InternalSearchService.define_reference_list(
-            source="internal", content_chunks=content_chunks, data=data
+            content_chunks=content_chunks, data=data
         )
 
         # Assert
@@ -1788,7 +1814,7 @@ class TestInternalSearchTool:
 
         # Act
         references = InternalSearchService.define_reference_list(
-            source="internal", content_chunks=content_chunks, data=data
+            content_chunks=content_chunks, data=data
         )
 
         # Assert
