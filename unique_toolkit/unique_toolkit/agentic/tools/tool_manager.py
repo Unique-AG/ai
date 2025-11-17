@@ -114,7 +114,7 @@ class _ToolManager(Generic[_ApiMode]):
         registered_tool_names = set(t.name for t in self._sub_agents)
 
         self._builtin_tools = []
-        if self._builtin_tool_manager and self._api_mode == "responses":
+        if self._builtin_tool_manager is not None and self._api_mode == "responses":
             self._builtin_tools = (
                 self._builtin_tool_manager.get_all_openai_builtin_tools()
             )
