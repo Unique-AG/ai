@@ -81,21 +81,15 @@ class InternalSearchService:
                 return True
         return False
 
-    @classmethod
-    def define_reference_list(
-        cls,
-        *,
+    def _define_reference_list_for_message_log(
+        self,
         content_chunks: list[ContentChunk],
         data: list[ContentReference],
     ) -> list[ContentReference]:
         """
         Create a reference list for internal search content chunks.
 
-        Since content keys are different than in web search, this method
-        handles the internal search format.
-
         Args:
-            source: The source identifier for the references
             content_chunks: List of ContentChunk objects to convert
             data: List of ContentReference objects to reference
         Returns:
@@ -103,11 +97,7 @@ class InternalSearchService:
         """
         count = 0
         for content_chunk in content_chunks:
-            reference_name: str
-            if content_chunk.title is not None:
-                reference_name = content_chunk.title
-            else:
-                reference_name = content_chunk.key or ""
+            reference_name: str = content_chunk.title or content_chunk.key or ""
 
             if reference_name != "":
                 data.append(
@@ -195,9 +185,11 @@ class InternalSearchService:
                     score_threshold=self.config.score_threshold,
                 )
 
-                data: list[ContentReference] = self.define_reference_list(
-                    content_chunks=found_chunks,
-                    data=data,
+                data: list[ContentReference] = (
+                    self._define_reference_list_for_message_log(
+                        content_chunks=found_chunks,
+                        data=data,
+                    )
                 )
 
                 self.logger.info(
@@ -215,7 +207,7 @@ class InternalSearchService:
             )
 
         # Updating our logger with the search results for all search strings.
-        self._message_step_logger.create_full_specific_message(
+        self._message_step_logger.create_message_log_post(
             query_list=search_strings,
             search_type="InternalSearch",
             data=data,
@@ -340,7 +332,6 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             chat_id=chat_id,
             logger=self.logger,
         )
-
 
     async def post_progress_message(
         self, message: str, tool_call: LanguageModelFunction, **kwargs

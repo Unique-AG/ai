@@ -158,11 +158,6 @@ class Tool(ABC, Generic[ConfigType]):
     def tool_progress_reporter(self) -> ToolProgressReporter | None:
         return self._tool_progress_reporter
 
-    @property
-    @deprecated("Do not use this property as directly tied to chat frontend")
-    def message_step_logger(self) -> MessageStepLogger:
-        return self._message_step_logger
-
     def __init__(
         self,
         config: ConfigType,

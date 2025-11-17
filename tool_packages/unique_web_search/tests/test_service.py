@@ -185,11 +185,13 @@ class TestWebSearchServiceComponents:
         assert params.date_restrict == "m3"
 
     @pytest.mark.ai
-    def test_define_reference_list__returns_list__with_web_search_chunks(self):
+    def test_define_reference_list_for_message_log__returns_list__with_web_search_chunks(
+        self,
+    ):
         """
-        Purpose: Verify define_reference_list returns list of references for web search.
+        Purpose: Verify define_reference_list_for_message_log returns list of references for web search.
         Why this matters: References link log entries to web search result URLs.
-        Setup summary: Create web content chunks, call define_reference_list, verify returns list.
+        Setup summary: Create web content chunks, call define_reference_list_for_message_log, verify returns list.
         """
         from unique_toolkit.content.schemas import ContentChunk, ContentReference
 
@@ -206,8 +208,9 @@ class TestWebSearchServiceComponents:
         ]
         data: list[ContentReference] = []
 
-        # Act
-        references = WebSearchTool.define_reference_list(
+        # Act - Create a minimal instance to test the private method
+        tool = WebSearchTool.__new__(WebSearchTool)  # Create instance without calling __init__
+        references = tool._define_reference_list_for_message_log(
             content_chunks=content_chunks, data=data
         )
 
@@ -216,11 +219,13 @@ class TestWebSearchServiceComponents:
         assert len(references) == 1
 
     @pytest.mark.ai
-    def test_define_reference_list__sets_sequence_number__for_first_chunk(self):
+    def test_define_reference_list_for_message_log__sets_sequence_number__for_first_chunk(
+        self,
+    ):
         """
-        Purpose: Verify define_reference_list sets sequence_number to 0 for first chunk.
+        Purpose: Verify define_reference_list_for_message_log sets sequence_number to 0 for first chunk.
         Why this matters: Sequence numbers order references in display.
-        Setup summary: Create web content chunk, call define_reference_list, verify first reference sequence_number is 0.
+        Setup summary: Create web content chunk, call define_reference_list_for_message_log, verify first reference sequence_number is 0.
         """
         from unique_toolkit.content.schemas import ContentChunk, ContentReference
 
@@ -237,8 +242,9 @@ class TestWebSearchServiceComponents:
         ]
         data: list[ContentReference] = []
 
-        # Act
-        references = WebSearchTool.define_reference_list(
+        # Act - Create a minimal instance to test the private method
+        tool = WebSearchTool.__new__(WebSearchTool)  # Create instance without calling __init__
+        references = tool._define_reference_list_for_message_log(
             content_chunks=content_chunks, data=data
         )
 
@@ -247,11 +253,11 @@ class TestWebSearchServiceComponents:
         assert references[0].sequence_number == 0
 
     @pytest.mark.ai
-    def test_define_reference_list__sets_url__from_chunk_url(self):
+    def test_define_reference_list_for_message_log__sets_url__from_chunk_url(self):
         """
-        Purpose: Verify define_reference_list sets URL from chunk URL.
+        Purpose: Verify define_reference_list_for_message_log sets URL from chunk URL.
         Why this matters: URL links reference to source web page.
-        Setup summary: Create web content chunk with URL, call define_reference_list, verify reference URL matches.
+        Setup summary: Create web content chunk with URL, call define_reference_list_for_message_log, verify reference URL matches.
         """
         from unique_toolkit.content.schemas import ContentChunk, ContentReference
 
@@ -268,8 +274,9 @@ class TestWebSearchServiceComponents:
         ]
         data: list[ContentReference] = []
 
-        # Act
-        references = WebSearchTool.define_reference_list(
+        # Act - Create a minimal instance to test the private method
+        tool = WebSearchTool.__new__(WebSearchTool)  # Create instance without calling __init__
+        references = tool._define_reference_list_for_message_log(
             content_chunks=content_chunks, data=data
         )
 
@@ -278,11 +285,11 @@ class TestWebSearchServiceComponents:
         assert references[0].url == "https://example.com/page1"
 
     @pytest.mark.ai
-    def test_define_reference_list__sets_source__to_web(self):
+    def test_define_reference_list_for_message_log__sets_source__to_web(self):
         """
-        Purpose: Verify define_reference_list sets source to "web" for web search.
+        Purpose: Verify define_reference_list_for_message_log sets source to "web" for web search.
         Why this matters: Source identifies where reference content originated.
-        Setup summary: Create web content chunk, call define_reference_list, verify reference source is "web".
+        Setup summary: Create web content chunk, call define_reference_list_for_message_log, verify reference source is "web".
         """
         from unique_toolkit.content.schemas import ContentChunk, ContentReference
 
@@ -299,8 +306,9 @@ class TestWebSearchServiceComponents:
         ]
         data: list[ContentReference] = []
 
-        # Act
-        references = WebSearchTool.define_reference_list(
+        # Act - Create a minimal instance to test the private method
+        tool = WebSearchTool.__new__(WebSearchTool)  # Create instance without calling __init__
+        references = tool._define_reference_list_for_message_log(
             content_chunks=content_chunks, data=data
         )
 
@@ -309,11 +317,11 @@ class TestWebSearchServiceComponents:
         assert references[0].source == "web"
 
     @pytest.mark.ai
-    def test_define_reference_list__sets_name__from_chunk_url(self):
+    def test_define_reference_list_for_message_log__sets_name__from_chunk_url(self):
         """
-        Purpose: Verify define_reference_list sets name from chunk URL.
+        Purpose: Verify define_reference_list_for_message_log sets name from chunk URL.
         Why this matters: Name is displayed to users as reference identifier.
-        Setup summary: Create web content chunk with URL, call define_reference_list, verify reference name is URL.
+        Setup summary: Create web content chunk with URL, call define_reference_list_for_message_log, verify reference name is URL.
         """
         from unique_toolkit.content.schemas import ContentChunk, ContentReference
 
@@ -330,8 +338,9 @@ class TestWebSearchServiceComponents:
         ]
         data: list[ContentReference] = []
 
-        # Act
-        references = WebSearchTool.define_reference_list(
+        # Act - Create a minimal instance to test the private method
+        tool = WebSearchTool.__new__(WebSearchTool)  # Create instance without calling __init__
+        references = tool._define_reference_list_for_message_log(
             content_chunks=content_chunks, data=data
         )
 
@@ -340,13 +349,13 @@ class TestWebSearchServiceComponents:
         assert references[0].name == "https://example.com/page1"
 
     @pytest.mark.ai
-    def test_define_reference_list__increments_sequence_number__for_multiple_chunks(
+    def test_define_reference_list_for_message_log__increments_sequence_number__for_multiple_chunks(
         self,
     ):
         """
-        Purpose: Verify define_reference_list increments sequence_number for multiple chunks.
+        Purpose: Verify define_reference_list_for_message_log increments sequence_number for multiple chunks.
         Why this matters: Multiple references must be ordered correctly.
-        Setup summary: Create two web content chunks, call define_reference_list, verify sequence numbers increment.
+        Setup summary: Create two web content chunks, call define_reference_list_for_message_log, verify sequence numbers increment.
         """
         from unique_toolkit.content.schemas import ContentChunk, ContentReference
 
@@ -369,8 +378,9 @@ class TestWebSearchServiceComponents:
         ]
         data: list[ContentReference] = []
 
-        # Act
-        references = WebSearchTool.define_reference_list(
+        # Act - Create a minimal instance to test the private method
+        tool = WebSearchTool.__new__(WebSearchTool)  # Create instance without calling __init__
+        references = tool._define_reference_list_for_message_log(
             content_chunks=content_chunks, data=data
         )
 
@@ -381,11 +391,11 @@ class TestWebSearchServiceComponents:
         assert references[1].sequence_number == 1
 
     @pytest.mark.ai
-    def test_define_reference_list__skips_chunks__with_empty_url(self):
+    def test_define_reference_list_for_message_log__skips_chunks__with_empty_url(self):
         """
         Purpose: Verify define_reference_list skips chunks with empty or None URL.
         Why this matters: Only chunks with valid URLs should be included in references.
-        Setup summary: Create chunks with empty and None URLs, call define_reference_list, verify they are skipped.
+        Setup summary: Create chunks with empty and None URLs, call define_reference_list_for_message_log, verify they are skipped.
         """
         from unique_toolkit.content.schemas import ContentChunk, ContentReference
 
@@ -414,8 +424,9 @@ class TestWebSearchServiceComponents:
         ]
         data: list[ContentReference] = []
 
-        # Act
-        references = WebSearchTool.define_reference_list(
+        # Act - Create a minimal instance to test the private method
+        tool = WebSearchTool.__new__(WebSearchTool)  # Create instance without calling __init__
+        references = tool._define_reference_list_for_message_log(
             content_chunks=content_chunks, data=data
         )
 

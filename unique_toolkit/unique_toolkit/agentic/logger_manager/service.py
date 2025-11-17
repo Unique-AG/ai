@@ -119,7 +119,7 @@ class MessageStepLogger:
         _request_counters[message_id] += 1
         return _request_counters[message_id]
 
-    def create_full_specific_message(
+    def create_message_log_post(
         self,
         *,
         query_list: list[str],
