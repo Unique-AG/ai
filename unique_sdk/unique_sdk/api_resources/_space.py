@@ -99,7 +99,8 @@ class Space(APIResource["Space"]):
         Response for getting all messages in a chat.
         """
 
-        data: List["Space.Message"]
+        messages: List["Space.Message"]
+        totalCount: int
 
     @classmethod
     def create_message(
