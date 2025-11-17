@@ -79,3 +79,7 @@ exclude = [".venv", "docs"]
 
 [tool.ruff.lint]
 extend-select = ["I"]
+
+[tool.basedpyright]
+# Type checking mode: "off", "basic", "standard", "strict", "recommended", or "all"
+typeCheckingMode = "standard"

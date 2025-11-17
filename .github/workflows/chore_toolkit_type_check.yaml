@@ -42,137 +42,25 @@ jobs:
     - name: Create baseline from base branch
       working-directory: ${{ env.PACKAGE }}
       run: |
-        echo "=== Creating baseline from base branch ==="
-        
-        # Checkout base branch
-        git checkout origin/${{ github.base_ref }} --quiet
-        
-        # Create baseline directory
-        mkdir -p .basedpyright
-        
-        # Run basedpyright with --writebaseline to create baseline from base branch
-        echo "Running basedpyright --writebaseline on base branch..."
-        poetry run basedpyright --writebaseline 2>&1 || {
-          echo "Note: basedpyright exited with non-zero status (expected if there are errors)"
-        }
-        
-        # Check if baseline was created
-        if [ -f .basedpyright/baseline.json ]; then
-          echo "✓ Baseline created successfully"
-          echo "  Baseline size: $(wc -c < .basedpyright/baseline.json) bytes"
-          # Count errors in baseline
-          ERROR_COUNT=$(jq '[.files[] | length] | add // 0' .basedpyright/baseline.json 2>/dev/null || echo "0")
-          echo "  Known errors in baseline: $ERROR_COUNT"
-        else
-          echo "✓ No baseline created (no errors in base branch)"
-        fi
-        
-        # Copy baseline to temp location
-        cp .basedpyright/baseline.json /tmp/baseline.json 2>/dev/null || touch /tmp/baseline.json
-        
-        # Checkout back to PR branch
-        echo "Switching back to PR branch..."
-        git checkout - --quiet
+        bash ${{ github.workspace }}/.github/scripts/create-type-baseline.sh ${{ github.workspace }}/${{ env.PACKAGE }} ${{ github.base_ref }} --ci
 
     - name: Apply baseline to PR branch
       working-directory: ${{ env.PACKAGE }}
       run: |
-        # Ensure directory exists
-        mkdir -p .basedpyright
-        
-        # Copy baseline from base branch
-        if [ -s /tmp/baseline.json ]; then
-          cp /tmp/baseline.json .basedpyright/baseline.json
-          echo "✓ Using baseline from base branch"
-          echo "  Baseline size: $(wc -c < .basedpyright/baseline.json) bytes"
-        else
-          echo "✓ No baseline to apply (base branch has no errors)"
-          rm -f .basedpyright/baseline.json
-        fi
+        bash ${{ github.workspace }}/.github/scripts/apply-type-baseline.sh ${{ github.workspace }}/${{ env.PACKAGE }} /tmp/baseline.json ${{ github.base_ref }}
 
-    - name: Run basedpyright and post review comments
+    - name: Run basedpyright
       working-directory: ${{ env.PACKAGE }}
+      run: |
+        bash ${{ github.workspace }}/.github/scripts/run-basedpyright.sh ${{ github.workspace }}/${{ env.PACKAGE }} /tmp/basedpyright.json
+
+    - name: Report type errors
       env:
         REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        set +e  # Don't fail on basedpyright errors
-        
-        # Store repo root (we're in package directory, so go up one level)
-        REPO_ROOT=$(cd .. && pwd)
-        
-        # Run basedpyright with JSON output
-        echo "=== Running basedpyright on PR branch (with baseline) ==="
-        poetry run basedpyright --outputjson > /tmp/basedpyright.json 2>&1 || {
-          echo "Note: basedpyright exited with non-zero status (expected if there are NEW errors)"
-        }
-        
-        # Show summary
-        echo ""
-        echo "=== Basedpyright summary ==="
-        jq '{version, time, summary, diagnostic_count: (.generalDiagnostics | length)}' /tmp/basedpyright.json 2>/dev/null || {
-          echo "Failed to parse JSON output"
-          echo "Raw output:"
-          head -20 /tmp/basedpyright.json
-        }
-        echo ""
-        
-        # Parse JSON and format for reviewdog (file:line:column - severity: message)
-        # Convert absolute paths to relative paths from repo root
-        # Note: JSON line/character are 0-indexed, but reviewdog expects 1-indexed
-        jq -r --arg repo_root "$REPO_ROOT" '
-          .generalDiagnostics[]? | 
-          select(.file != null and .range != null) | 
-          (
-            ($repo_root + "/") as $prefix | 
-            (if .file | startswith($prefix) then .file | ltrimstr($prefix) else .file end) as $rel_path | 
-            (.range.start.line + 1 | tostring) as $line | 
-            (.range.start.character + 1 | tostring) as $col | 
-            (.severity // "warning") as $severity | 
-            (.message | split("\n")[0]) as $msg | 
-            "\($rel_path):\($line):\($col) - \($severity): \($msg)"
-          )
-        ' /tmp/basedpyright.json > /tmp/basedpyright_errors.txt 2>/dev/null || {
-          echo "ERROR: Failed to parse basedpyright JSON output"
-          exit 1
-        }
-        
-        echo "=== Filtered errors (first 20 lines) ==="
-        head -20 /tmp/basedpyright_errors.txt || echo "No errors found"
-        echo ""
-        echo "=== Total error lines ==="
-        wc -l /tmp/basedpyright_errors.txt || echo "0"
-        echo ""
-        
-        # Check if there are any errors
-        if [ ! -s /tmp/basedpyright_errors.txt ]; then
-          echo "✓ No new type errors found! Baseline successfully filtered out existing errors."
-          exit 0
-        fi
-        
-        # Change to repo root for reviewdog (it needs to be in repo root for git diff)
-        cd "$REPO_ROOT"
-        
-        # Run reviewdog with the filtered errors
-        echo "=== Running reviewdog ==="
-        echo "Current directory: $(pwd)"
-        echo "Git diff files:"
-        git diff origin/${{ github.base_ref }} --name-only | head -10
-        echo ""
-        echo "Errors to post (first 10):"
-        head -10 /tmp/basedpyright_errors.txt
-        echo ""
-        
-        # Try with 'added' filter mode which is less restrictive
-        cat /tmp/basedpyright_errors.txt | \
-          /tmp/reviewdog \
-            -efm="%f:%l:%c - %m" \
-            -reporter=github-pr-review \
-            -fail-on-error=false \
-            -filter-mode=added \
-            -level=warning \
-            -diff="git diff origin/${{ github.base_ref }}" \
-            -tee || true
-        
-        echo ""
-        echo "=== Reviewdog completed ==="
+        bash ${{ github.workspace }}/.github/scripts/report-type-errors.sh \
+          ${{ github.workspace }}/${{ env.PACKAGE }} \
+          /tmp/basedpyright.json \
+          --reviewdog /tmp/reviewdog \
+          --base-ref ${{ github.base_ref }}
 
