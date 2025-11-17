@@ -99,7 +99,6 @@ class WebSearchTool(Tool[WebSearchConfig]):
     def define_reference_list(
         cls,
         *,
-        source: str,
         content_chunks: list[ContentChunk],
         data: list[ContentReference],
     ) -> list[ContentReference]:
@@ -127,7 +126,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
                     ContentReference(
                         name=content_url or "",
                         sequence_number=count,
-                        source=source,
+                        source="web",
                         url=content_url or "",
                         source_id=content_url or "",
                     )
@@ -156,7 +155,6 @@ class WebSearchTool(Tool[WebSearchConfig]):
 
             # Write entry with found hits, WebSearch V1 has just one call.
             data: list[ContentReference] = self.define_reference_list(
-                source="web",
                 content_chunks=content_chunks,
                 data=[],
             )
