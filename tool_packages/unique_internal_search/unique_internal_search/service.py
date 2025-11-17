@@ -85,7 +85,6 @@ class InternalSearchService:
     def define_reference_list(
         cls,
         *,
-        source: str,
         content_chunks: list[ContentChunk],
         data: list[ContentReference],
     ) -> list[ContentReference]:
@@ -115,7 +114,7 @@ class InternalSearchService:
                     ContentReference(
                         name=reference_name,
                         sequence_number=count,
-                        source=source,
+                        source="internal",
                         url="",
                         source_id=content_chunk.id,
                     )
@@ -197,7 +196,6 @@ class InternalSearchService:
                 )
 
                 data: list[ContentReference] = self.define_reference_list(
-                    source="internal",
                     content_chunks=found_chunks,
                     data=data,
                 )
