@@ -23,6 +23,7 @@ def base_content_ref() -> ContentReference:
         sequence_number=1,
         source_id="doc-123",
         source="test-source",
+        description="Test document description",
     )
 
 
@@ -36,6 +37,7 @@ def content_refs_list() -> list[ContentReference]:
             sequence_number=1,
             source_id="doc-1",
             source="test-source",
+            description="Document 1 description",
         ),
         ContentReference(
             name="Doc 2",
@@ -43,6 +45,7 @@ def content_refs_list() -> list[ContentReference]:
             sequence_number=2,
             source_id="doc-2",
             source="test-source",
+            description="Document 2 description",
         ),
     ]
 
@@ -181,6 +184,7 @@ def test_add_content_refs__appends_new_refs__with_updated_sequence_numbers(
         sequence_number=1,  # Original number, should be updated
         source_id="doc-3",
         source="test-source",
+        description="Document 3 description",
     )
     new_refs = [new_ref]
 
@@ -209,6 +213,7 @@ def test_add_content_refs__skips_duplicate_source_ids__no_duplication(
         sequence_number=99,
         source_id="doc-1",  # Already exists
         source="test-source",
+        description="Duplicate document description",
     )
     new_refs = [duplicate_ref]
 
@@ -236,6 +241,7 @@ def test_add_content_refs__handles_multiple_new_refs__sequential_numbering() -> 
             sequence_number=10,
             source_id="doc-a",
             source="test",
+            description="Document A description",
         ),
         ContentReference(
             name="Doc B",
@@ -243,6 +249,7 @@ def test_add_content_refs__handles_multiple_new_refs__sequential_numbering() -> 
             sequence_number=20,
             source_id="doc-b",
             source="test",
+            description="Document B description",
         ),
         ContentReference(
             name="Doc C",
@@ -250,6 +257,7 @@ def test_add_content_refs__handles_multiple_new_refs__sequential_numbering() -> 
             sequence_number=30,
             source_id="doc-c",
             source="test",
+            description="Document C description",
         ),
     ]
 
@@ -282,6 +290,7 @@ def test_add_content_refs__preserves_original_ref_properties__except_sequence_nu
         id="custom-id",
         message_id="msg-123",
         original_index=[1, 2, 3],
+        description="Special document description",
     )
     new_refs = [new_ref]
 
@@ -318,6 +327,7 @@ def test_add_content_refs__sorts_new_refs_by_sequence_number__before_processing(
             sequence_number=30,
             source_id="doc-c",
             source="test",
+            description="Third document description",
         ),
         ContentReference(
             name="First",
@@ -325,6 +335,7 @@ def test_add_content_refs__sorts_new_refs_by_sequence_number__before_processing(
             sequence_number=10,
             source_id="doc-a",
             source="test",
+            description="First document description",
         ),
         ContentReference(
             name="Second",
@@ -332,6 +343,7 @@ def test_add_content_refs__sorts_new_refs_by_sequence_number__before_processing(
             sequence_number=20,
             source_id="doc-b",
             source="test",
+            description="Second document description",
         ),
     ]
 
@@ -366,6 +378,7 @@ def test_add_content_refs_and_replace_in_text__returns_unchanged__when_no_new_re
             sequence_number=1,
             source_id="doc-1",
             source="test",
+            description="Document 1 description",
         )
     ]
     new_refs: list[ContentReference] = []
@@ -397,6 +410,7 @@ def test_add_content_refs_and_replace_in_text__replaces_ref_numbers__in_text() -
             sequence_number=1,
             source_id="doc-1",
             source="test",
+            description="Document 1 description",
         )
     ]
 
@@ -430,6 +444,7 @@ def test_add_content_refs_and_replace_in_text__uses_custom_pattern_functions(
             sequence_number=1,
             source_id="doc-1",
             source="test",
+            description="Document 1 description",
         )
     ]
 
@@ -476,6 +491,7 @@ def test_add_content_refs_and_replace_in_text__handles_multiple_refs_in_text() -
             sequence_number=1,
             source_id="doc-1",
             source="test",
+            description="Document 1 description",
         ),
         ContentReference(
             name="Doc 2",
@@ -483,6 +499,7 @@ def test_add_content_refs_and_replace_in_text__handles_multiple_refs_in_text() -
             sequence_number=2,
             source_id="doc-2",
             source="test",
+            description="Document 2 description",
         ),
     ]
 
@@ -513,6 +530,7 @@ def test_add_content_refs_and_replace_in_text__avoids_duplicate_source_ids() -> 
             sequence_number=1,
             source_id="doc-1",
             source="test",
+            description="Document 1 description",
         )
     ]
     new_refs = [
@@ -522,6 +540,7 @@ def test_add_content_refs_and_replace_in_text__avoids_duplicate_source_ids() -> 
             sequence_number=2,
             source_id="doc-1",  # Duplicate
             source="test",
+            description="Duplicate document description",
         )
     ]
 
@@ -576,6 +595,7 @@ def test_add_content_refs_and_replace_in_text__creates_ref_map_correctly() -> No
             sequence_number=1,
             source_id="doc-existing",
             source="test",
+            description="Existing document description",
         )
     ]
     # Add new ref with sequence 5 that should become sequence 2
@@ -586,6 +606,7 @@ def test_add_content_refs_and_replace_in_text__creates_ref_map_correctly() -> No
             sequence_number=5,
             source_id="doc-new",
             source="test",
+            description="New document description",
         )
     ]
 

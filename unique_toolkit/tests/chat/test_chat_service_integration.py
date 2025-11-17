@@ -52,6 +52,7 @@ class TestChatServiceIntegration:
                 source_id="source123",
                 source="source",
                 url="http://example.com",
+                description="Document 1 description",
             )
         ]
         message = self.service.create_assistant_message(
@@ -140,6 +141,7 @@ class TestChatServiceIntegration:
                 source_id="source123",
                 source="source",
                 url="http://example.com",
+                description="Document 1 description",
             )
         ]
         message = await self.service.create_assistant_message_async(

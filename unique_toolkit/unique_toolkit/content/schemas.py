@@ -62,6 +62,10 @@ class ContentChunk(BaseModel):
         default=None,
         description="The end page of the chunk. For document chunks this is the end page of the document.",
     )
+    description: str | None = Field(
+        default=None,
+        description="The description of the chunk. For document chunks this is the description of the document.",
+    )
 
     object: str | None = None
     metadata: ContentMetadata | None = None
@@ -107,6 +111,10 @@ class ContentReference(BaseModel):
         default="",
         description="The id of the message that this reference belongs to. Can be empty on the ChatMessage Object",
     )
+    description: str | None = Field(
+        default=None,
+        description="The description of the chunk. For document chunks this is the description of the document.",
+    )
     name: str
     sequence_number: int
     source: str
@@ -127,6 +135,7 @@ class ContentReference(BaseModel):
             "sequence_number": reference["sequenceNumber"],
             "source": reference["source"],
             "source_id": reference["sourceId"],
+            "description": reference.get("description", reference["name"]),
         }
         if "originalIndex" in reference:
             kwargs["original_index"] = reference["originalIndex"]

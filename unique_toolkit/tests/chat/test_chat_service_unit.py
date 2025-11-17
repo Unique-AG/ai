@@ -115,6 +115,7 @@ class TestChatServiceUnit:
                 source_id="source123",
                 source="source",
                 url="http://example.com",
+                description="Document 1 description",
             )
         ]
         references = [
@@ -126,6 +127,7 @@ class TestChatServiceUnit:
                 source_id="source123",
                 source="source",
                 url="http://example.com",
+                description="Document 1 description",
             )
         ]
 
@@ -404,6 +406,7 @@ class TestChatServiceUnit:
                 source_id="source123",
                 source="source",
                 url="http://example.com",
+                description="Document 1 description",
             )
         ]
         references = [
@@ -415,6 +418,7 @@ class TestChatServiceUnit:
                 source_id="source123",
                 source="source",
                 url="http://example.com",
+                description="Document 1 description",
             )
         ]
 

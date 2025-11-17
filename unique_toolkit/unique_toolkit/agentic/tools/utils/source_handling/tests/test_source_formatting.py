@@ -202,6 +202,7 @@ def test_empty_sections(xml_style_config_without_page_number, json_style_config)
         text="Just plain text without any sections",
         start_page=None,
         end_page=None,
+        description="Just plain text without any sections",
     )
 
     # Test XML style
