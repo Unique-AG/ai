@@ -5,6 +5,7 @@ from typing import Any, Generic, TypeVar, cast
 from typing_extensions import deprecated
 
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
+from unique_toolkit.agentic.logger_manager.service import MessageStepLogger
 from unique_toolkit.agentic.tools.config import ToolBuildConfig, ToolSelectionPolicy
 from unique_toolkit.agentic.tools.schemas import (
     BaseToolConfig,
@@ -157,6 +158,11 @@ class Tool(ABC, Generic[ConfigType]):
     def tool_progress_reporter(self) -> ToolProgressReporter | None:
         return self._tool_progress_reporter
 
+    @property
+    @deprecated("Do not use this property as directly tied to chat frontend")
+    def message_step_logger(self) -> MessageStepLogger:
+        return self._message_step_logger
+
     def __init__(
         self,
         config: ConfigType,
@@ -181,3 +187,7 @@ class Tool(ABC, Generic[ConfigType]):
 
         self._chat_service = ChatService(event)
         self._language_model_service = LanguageModelService(event)
+        self._message_step_logger = MessageStepLogger(
+            chat_service=self._chat_service,
+            event=self._event,
+        )
