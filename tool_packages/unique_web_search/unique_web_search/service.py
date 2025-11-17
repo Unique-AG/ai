@@ -3,14 +3,13 @@ from time import time
 from typing_extensions import override
 from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
-from unique_toolkit.agentic.logger_manager.service import MessageStepLogger
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import (
     Tool,
 )
 from unique_toolkit.agentic.tools.tool_progress_reporter import ProgressState
-from unique_toolkit.content.schemas import ContentReference
+from unique_toolkit.content.schemas import ContentChunk, ContentReference
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelToolDescription,
@@ -64,7 +63,6 @@ class WebSearchTool(Tool[WebSearchConfig]):
             )
 
         self.content_reducer = content_reducer
-        self.message_step_logger = MessageStepLogger(self._chat_service, self._event)
 
     @override
     def tool_description(self) -> LanguageModelToolDescription:
@@ -97,6 +95,48 @@ class WebSearchTool(Tool[WebSearchConfig]):
     def evaluation_check_list(self) -> list[EvaluationMetricName]:
         return self.config.evaluation_check_list
 
+    @classmethod
+    def define_reference_list(
+        cls,
+        *,
+        source: str,
+        content_chunks: list[ContentChunk],
+        data: list[ContentReference],
+    ) -> list[ContentReference]:
+        """
+        Create a reference list for web search content chunks.
+
+        Since content keys are different than in web search, this method
+        handles the internal search format.
+
+        Args:
+            source: The source identifier for the references
+            content_chunks: List of ContentChunk objects to convert
+            data: List of ContentReference objects to reference
+        Returns:
+            List of ContentReference objects
+        """
+
+        count = 0
+        data: list[ContentReference] = []
+        for content_chunk in content_chunks:
+            content_url = content_chunk.url or ""
+
+            if content_url != "":
+                data.append(
+                    ContentReference(
+                        name=content_url or "",
+                        sequence_number=count,
+                        source=source,
+                        url=content_url or "",
+                        source_id=content_url or "",
+                    )
+                )
+
+            count += 1
+
+        return data
+
     @override
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
         self.logger.info("Running the WebSearch tool")
@@ -115,15 +155,15 @@ class WebSearchTool(Tool[WebSearchConfig]):
             debug_info.execution_time = time() - start_time
 
             # Write entry with found hits, WebSearch V1 has just one call.
-            data: list[ContentReference] = (
-                self.message_step_logger.define_reference_list(
-                    source="web", content_chunks=content_chunks, data=[]
-                )
+            data: list[ContentReference] = self.define_reference_list(
+                source="web",
+                content_chunks=content_chunks,
+                data=[],
             )
             # Only log for V1 mode (WebSearchToolParameters has query, WebSearchPlan doesn't)
             if isinstance(parameters, WebSearchToolParameters):
                 query_str: str = parameters.query
-                self.message_step_logger.create_full_specific_message(
+                self._message_step_logger.create_full_specific_message(
                     query_list=[query_str],
                     search_type="WebSearch",
                     data=data,

@@ -184,6 +184,246 @@ class TestWebSearchServiceComponents:
         assert params.query == "service custom query"
         assert params.date_restrict == "m3"
 
+    @pytest.mark.ai
+    def test_define_reference_list__returns_list__with_web_search_chunks(self):
+        """
+        Purpose: Verify define_reference_list returns list of references for web search.
+        Why this matters: References link log entries to web search result URLs.
+        Setup summary: Create web content chunks, call define_reference_list, verify returns list.
+        """
+        from unique_toolkit.content.schemas import ContentChunk, ContentReference
+
+        from unique_web_search.service import WebSearchTool
+
+        # Arrange
+        content_chunks = [
+            ContentChunk(
+                id="chunk_1",
+                text="Content from web page 1",
+                url="https://example.com/page1",
+                title="Page 1 Title",
+            )
+        ]
+        data: list[ContentReference] = []
+
+        # Act
+        references = WebSearchTool.define_reference_list(
+            source="web", content_chunks=content_chunks, data=data
+        )
+
+        # Assert
+        assert isinstance(references, list)
+        assert len(references) == 1
+
+    @pytest.mark.ai
+    def test_define_reference_list__sets_sequence_number__for_first_chunk(self):
+        """
+        Purpose: Verify define_reference_list sets sequence_number to 0 for first chunk.
+        Why this matters: Sequence numbers order references in display.
+        Setup summary: Create web content chunk, call define_reference_list, verify first reference sequence_number is 0.
+        """
+        from unique_toolkit.content.schemas import ContentChunk, ContentReference
+
+        from unique_web_search.service import WebSearchTool
+
+        # Arrange
+        content_chunks = [
+            ContentChunk(
+                id="chunk_1",
+                text="Content from web page 1",
+                url="https://example.com/page1",
+                title="Page 1 Title",
+            )
+        ]
+        data: list[ContentReference] = []
+
+        # Act
+        references = WebSearchTool.define_reference_list(
+            source="web", content_chunks=content_chunks, data=data
+        )
+
+        # Assert
+        assert isinstance(references[0].sequence_number, int)
+        assert references[0].sequence_number == 0
+
+    @pytest.mark.ai
+    def test_define_reference_list__sets_url__from_chunk_url(self):
+        """
+        Purpose: Verify define_reference_list sets URL from chunk URL.
+        Why this matters: URL links reference to source web page.
+        Setup summary: Create web content chunk with URL, call define_reference_list, verify reference URL matches.
+        """
+        from unique_toolkit.content.schemas import ContentChunk, ContentReference
+
+        from unique_web_search.service import WebSearchTool
+
+        # Arrange
+        content_chunks = [
+            ContentChunk(
+                id="chunk_1",
+                text="Content from web page 1",
+                url="https://example.com/page1",
+                title="Page 1 Title",
+            )
+        ]
+        data: list[ContentReference] = []
+
+        # Act
+        references = WebSearchTool.define_reference_list(
+            source="web", content_chunks=content_chunks, data=data
+        )
+
+        # Assert
+        assert isinstance(references[0].url, str)
+        assert references[0].url == "https://example.com/page1"
+
+    @pytest.mark.ai
+    def test_define_reference_list__sets_source__from_parameter(self):
+        """
+        Purpose: Verify define_reference_list sets source from parameter.
+        Why this matters: Source identifies where reference content originated.
+        Setup summary: Create web content chunk, call define_reference_list with source, verify reference source matches.
+        """
+        from unique_toolkit.content.schemas import ContentChunk, ContentReference
+
+        from unique_web_search.service import WebSearchTool
+
+        # Arrange
+        content_chunks = [
+            ContentChunk(
+                id="chunk_1",
+                text="Content from web page 1",
+                url="https://example.com/page1",
+                title="Page 1 Title",
+            )
+        ]
+        source = "web_search"
+        data: list[ContentReference] = []
+
+        # Act
+        references = WebSearchTool.define_reference_list(
+            source=source, content_chunks=content_chunks, data=data
+        )
+
+        # Assert
+        assert isinstance(references[0].source, str)
+        assert references[0].source == source
+
+    @pytest.mark.ai
+    def test_define_reference_list__sets_name__from_chunk_url(self):
+        """
+        Purpose: Verify define_reference_list sets name from chunk URL.
+        Why this matters: Name is displayed to users as reference identifier.
+        Setup summary: Create web content chunk with URL, call define_reference_list, verify reference name is URL.
+        """
+        from unique_toolkit.content.schemas import ContentChunk, ContentReference
+
+        from unique_web_search.service import WebSearchTool
+
+        # Arrange
+        content_chunks = [
+            ContentChunk(
+                id="chunk_1",
+                text="Content from web page 1",
+                url="https://example.com/page1",
+                title="Page 1 Title",
+            )
+        ]
+        data: list[ContentReference] = []
+
+        # Act
+        references = WebSearchTool.define_reference_list(
+            source="web", content_chunks=content_chunks, data=data
+        )
+
+        # Assert
+        assert isinstance(references[0].name, str)
+        assert references[0].name == "https://example.com/page1"
+
+    @pytest.mark.ai
+    def test_define_reference_list__increments_sequence_number__for_multiple_chunks(
+        self,
+    ):
+        """
+        Purpose: Verify define_reference_list increments sequence_number for multiple chunks.
+        Why this matters: Multiple references must be ordered correctly.
+        Setup summary: Create two web content chunks, call define_reference_list, verify sequence numbers increment.
+        """
+        from unique_toolkit.content.schemas import ContentChunk, ContentReference
+
+        from unique_web_search.service import WebSearchTool
+
+        # Arrange
+        content_chunks = [
+            ContentChunk(
+                id="chunk_1",
+                text="Content from web page 1",
+                url="https://example.com/page1",
+                title="Page 1 Title",
+            ),
+            ContentChunk(
+                id="chunk_2",
+                text="Content from web page 2",
+                url="https://example.com/page2",
+                title="Page 2 Title",
+            ),
+        ]
+        data: list[ContentReference] = []
+
+        # Act
+        references = WebSearchTool.define_reference_list(
+            source="web", content_chunks=content_chunks, data=data
+        )
+
+        # Assert
+        assert isinstance(references[0].sequence_number, int)
+        assert references[0].sequence_number == 0
+        assert isinstance(references[1].sequence_number, int)
+        assert references[1].sequence_number == 1
+
+    @pytest.mark.ai
+    def test_define_reference_list__skips_chunks__with_empty_url(self):
+        """
+        Purpose: Verify define_reference_list skips chunks with empty or None URL.
+        Why this matters: Only chunks with valid URLs should be included in references.
+        Setup summary: Create chunks with empty and None URLs, call define_reference_list, verify they are skipped.
+        """
+        from unique_toolkit.content.schemas import ContentChunk, ContentReference
+
+        from unique_web_search.service import WebSearchTool
+
+        # Arrange
+        content_chunks = [
+            ContentChunk(
+                id="chunk_1",
+                text="Content with URL",
+                url="https://example.com/page1",
+                title="Page 1 Title",
+            ),
+            ContentChunk(
+                id="chunk_2",
+                text="Content without URL",
+                url="",
+                title="Page 2 Title",
+            ),
+            ContentChunk(
+                id="chunk_3",
+                text="Content with None URL",
+                url=None,
+                title="Page 3 Title",
+            ),
+        ]
+        data: list[ContentReference] = []
+
+        # Act
+        references = WebSearchTool.define_reference_list(
+            source="web", content_chunks=content_chunks, data=data
+        )
+
+        # Assert
+        assert len(references) == 1
+        assert references[0].url == "https://example.com/page1"
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

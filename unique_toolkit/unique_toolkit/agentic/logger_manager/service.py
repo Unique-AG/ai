@@ -2,7 +2,6 @@
 Logger Service for Unique Agentic tools.
 
 Target of the method is to extend the step tracking on all levels of the tool.
-Therefore, the best way seems to expand the existing utils of deepsearch.
 """
 
 from typing import Literal
@@ -16,7 +15,7 @@ from unique_toolkit.chat.schemas import (
     MessageLogUncitedReferences,
 )
 from unique_toolkit.chat.service import ChatService
-from unique_toolkit.content.schemas import ContentChunk, ContentReference
+from unique_toolkit.content.schemas import ContentReference
 
 # Per-request counters for message log ordering - keyed by message_id
 _request_counters: dict[str, int] = {}
@@ -27,8 +26,7 @@ class MessageStepLogger:
     Logger class for tracking message steps in agentic tools.
 
     This class provides utilities for creating message log entries with proper
-    ordering, references, and details. It extends the functionality from
-    deepsearch utils to be usable across all agentic tools.
+    ordering, references, and details.
     """
 
     def __init__(self, chat_service: ChatService, event: ChatEvent) -> None:
@@ -120,90 +118,6 @@ class MessageStepLogger:
 
         _request_counters[message_id] += 1
         return _request_counters[message_id]
-
-    @staticmethod
-    def define_reference_list(
-        *,
-        source: str,
-        content_chunks: list[ContentChunk],
-        data: list[ContentReference],
-    ):
-        """
-        Create a reference list for web search content chunks.
-
-        Since content keys are different than in web search, this method
-        handles the internal search format.
-
-        Args:
-            source: The source identifier for the references
-            content_chunks: List of ContentChunk objects to convert
-            data: List of ContentReference objects to reference
-        Returns:
-            List of ContentReference objects
-        """
-
-        count = 0
-        data: list[ContentReference] = []
-        for content_chunk in content_chunks:
-            content_url = content_chunk.url or ""
-
-            if content_url != "":
-                data.append(
-                    ContentReference(
-                        name=content_url or "",
-                        sequence_number=count,
-                        source=source,
-                        url=content_url or "",
-                        source_id=content_url or "",
-                    )
-                )
-
-            count += 1
-
-        return data
-
-    @staticmethod
-    def define_reference_list_for_internal(
-        *,
-        source: str,
-        content_chunks: list[ContentChunk],
-        data: list[ContentReference],
-    ) -> list[ContentReference]:
-        """
-        Create a reference list for internal search content chunks.
-
-        Since content keys are different than in web search, this method
-        handles the internal search format.
-
-        Args:
-            source: The source identifier for the references
-            content_chunks: List of ContentChunk objects to convert
-            data: List of ContentReference objects to reference
-        Returns:
-            List of ContentReference objects
-        """
-        count = 0
-        for content_chunk in content_chunks:
-            reference_name: str
-            if content_chunk.title is not None:
-                reference_name = content_chunk.title
-            else:
-                reference_name = content_chunk.key or ""
-
-            if reference_name != "":
-                data.append(
-                    ContentReference(
-                        name=reference_name,
-                        sequence_number=count,
-                        source=source,
-                        url="",
-                        source_id=content_chunk.id,
-                    )
-                )
-
-            count += 1
-
-        return data
 
     def create_full_specific_message(
         self,

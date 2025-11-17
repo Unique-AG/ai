@@ -8,7 +8,6 @@ from unique_toolkit._common.chunk_relevancy_sorter.exception import (
 from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.history_manager.utils import transform_chunks_to_string
-from unique_toolkit.agentic.logger_manager.service import MessageStepLogger
 from unique_toolkit.agentic.tools.agent_chunks_hanlder import AgentChunksHandler
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
@@ -39,8 +38,6 @@ from unique_internal_search.utils import (
 
 
 class InternalSearchService:
-    message_step_logger: MessageStepLogger | None = None
-
     def __init__(
         self,
         config: InternalSearchConfig,
@@ -83,6 +80,50 @@ class InternalSearchService:
             if len(chat_files) > 0:
                 return True
         return False
+
+    @classmethod
+    def define_reference_list(
+        cls,
+        *,
+        source: str,
+        content_chunks: list[ContentChunk],
+        data: list[ContentReference],
+    ) -> list[ContentReference]:
+        """
+        Create a reference list for internal search content chunks.
+
+        Since content keys are different than in web search, this method
+        handles the internal search format.
+
+        Args:
+            source: The source identifier for the references
+            content_chunks: List of ContentChunk objects to convert
+            data: List of ContentReference objects to reference
+        Returns:
+            List of ContentReference objects
+        """
+        count = 0
+        for content_chunk in content_chunks:
+            reference_name: str
+            if content_chunk.title is not None:
+                reference_name = content_chunk.title
+            else:
+                reference_name = content_chunk.key or ""
+
+            if reference_name != "":
+                data.append(
+                    ContentReference(
+                        name=reference_name,
+                        sequence_number=count,
+                        source=source,
+                        url="",
+                        source_id=content_chunk.id,
+                    )
+                )
+
+            count += 1
+
+        return data
 
     async def search(
         self,
@@ -155,10 +196,11 @@ class InternalSearchService:
                     score_threshold=self.config.score_threshold,
                 )
 
-                if self.message_step_logger:
-                    data = self.message_step_logger.define_reference_list_for_internal(
-                        source="internal", content_chunks=found_chunks, data=data
-                    )
+                data: list[ContentReference] = self.define_reference_list(
+                    source="internal",
+                    content_chunks=found_chunks,
+                    data=data,
+                )
 
                 self.logger.info(
                     f"Found {len(found_chunks)} chunks (Query {i + 1}/{len(search_strings)})"
@@ -175,12 +217,11 @@ class InternalSearchService:
             )
 
         # Updating our logger with the search results for all search strings.
-        if self.message_step_logger:
-            self.message_step_logger.create_full_specific_message(
-                query_list=search_strings,
-                search_type="InternalSearch",
-                data=data,
-            )
+        self._message_step_logger.create_full_specific_message(
+            query_list=search_strings,
+            search_type="InternalSearch",
+            data=data,
+        )
 
         # Reset the metadata filter in case it was disabled
         self.content_service._metadata_filter = metadata_filter_copy
@@ -302,9 +343,6 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             logger=self.logger,
         )
 
-        # Initialize MessageStepLogger if event is a ChatEvent
-        # if isinstance(self.event, (ChatEvent, Event)):
-        self.message_step_logger = MessageStepLogger(self._chat_service, self._event)
 
     async def post_progress_message(
         self, message: str, tool_call: LanguageModelFunction, **kwargs
