@@ -5,15 +5,8 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.26.2] - 2025-11-17
-- Message logger class which allows to log important updates in the side log.
-
-
-## [1.26.1] - 2025-11-17
-- Fix bug where forcing a tool still sends builtin tools to the LLM when using the responses api.
-
-## [1.26.0] - 2025-11-17
-- Adding model `AZURE_GPT_51_2025_1113`, `AZURE_GPT_51_THINKING_2025_1113`, `AZURE_GPT_51_CHAT_2025_1113`, `AZURE_GPT_51_CODEX_2025_1113`,  `AZURE_GPT_51_CODEX_MINI_2025_1113` and `litellm:openai-gpt-51` and `litellm:openai-gpt-51-thinking` to `language_model/info.py`
+## [1.25.3] - 2025-11-13
+- MessageLogger Class added to the agentic toolkit.
 
 ## [1.25.2] - 2025-11-12
 - Standardize paths in unique toolkit settings
