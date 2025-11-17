@@ -208,7 +208,7 @@ class TestWebSearchServiceComponents:
 
         # Act
         references = WebSearchTool.define_reference_list(
-            source="web", content_chunks=content_chunks, data=data
+            content_chunks=content_chunks, data=data
         )
 
         # Assert
@@ -239,7 +239,7 @@ class TestWebSearchServiceComponents:
 
         # Act
         references = WebSearchTool.define_reference_list(
-            source="web", content_chunks=content_chunks, data=data
+            content_chunks=content_chunks, data=data
         )
 
         # Assert
@@ -270,7 +270,7 @@ class TestWebSearchServiceComponents:
 
         # Act
         references = WebSearchTool.define_reference_list(
-            source="web", content_chunks=content_chunks, data=data
+            content_chunks=content_chunks, data=data
         )
 
         # Assert
@@ -278,11 +278,11 @@ class TestWebSearchServiceComponents:
         assert references[0].url == "https://example.com/page1"
 
     @pytest.mark.ai
-    def test_define_reference_list__sets_source__from_parameter(self):
+    def test_define_reference_list__sets_source__to_web(self):
         """
-        Purpose: Verify define_reference_list sets source from parameter.
+        Purpose: Verify define_reference_list sets source to "web" for web search.
         Why this matters: Source identifies where reference content originated.
-        Setup summary: Create web content chunk, call define_reference_list with source, verify reference source matches.
+        Setup summary: Create web content chunk, call define_reference_list, verify reference source is "web".
         """
         from unique_toolkit.content.schemas import ContentChunk, ContentReference
 
@@ -297,17 +297,16 @@ class TestWebSearchServiceComponents:
                 title="Page 1 Title",
             )
         ]
-        source = "web_search"
         data: list[ContentReference] = []
 
         # Act
         references = WebSearchTool.define_reference_list(
-            source=source, content_chunks=content_chunks, data=data
+            content_chunks=content_chunks, data=data
         )
 
         # Assert
         assert isinstance(references[0].source, str)
-        assert references[0].source == source
+        assert references[0].source == "web"
 
     @pytest.mark.ai
     def test_define_reference_list__sets_name__from_chunk_url(self):
@@ -333,7 +332,7 @@ class TestWebSearchServiceComponents:
 
         # Act
         references = WebSearchTool.define_reference_list(
-            source="web", content_chunks=content_chunks, data=data
+            content_chunks=content_chunks, data=data
         )
 
         # Assert
@@ -372,7 +371,7 @@ class TestWebSearchServiceComponents:
 
         # Act
         references = WebSearchTool.define_reference_list(
-            source="web", content_chunks=content_chunks, data=data
+            content_chunks=content_chunks, data=data
         )
 
         # Assert
@@ -417,7 +416,7 @@ class TestWebSearchServiceComponents:
 
         # Act
         references = WebSearchTool.define_reference_list(
-            source="web", content_chunks=content_chunks, data=data
+            content_chunks=content_chunks, data=data
         )
 
         # Assert
