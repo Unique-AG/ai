@@ -60,8 +60,8 @@ class LanguageModelName(StrEnum):
     LITELLM_OPENAI_GPT_5_NANO = "litellm:openai-gpt-5-nano"
     LITELLM_OPENAI_GPT_5_CHAT = "litellm:openai-gpt-5-chat"
     LITELLM_OPENAI_GPT_5_PRO = "litellm:openai-gpt-5-pro"
-    LITELLM_OPENAI_GPT_51 = "litellm:openai-gpt-51"
-    LITELLM_OPENAI_GPT_51_THINKING = "litellm:openai-gpt-51-thinking"
+    LITELLM_OPENAI_GPT_51 = "litellm:openai-gpt-5-1"
+    LITELLM_OPENAI_GPT_51_THINKING = "litellm:openai-gpt-5-1-thinking"
     LITELLM_OPENAI_O1 = "litellm:openai-o1"
     LITELLM_OPENAI_O3 = "litellm:openai-o3"
     LITELLM_OPENAI_O3_DEEP_RESEARCH = "litellm:openai-o3-deep-research"
@@ -434,7 +434,7 @@ class LanguageModelInfo(BaseModel):
                         min_temperature=1.0, max_temperature=1.0
                     ),
                     default_options={
-                        "reasoning_effort": "minimal",
+                        "reasoning_effort": " medium",
                     },
                 )
             case LanguageModelName.AZURE_GPT_51_CHAT_2025_1113:
@@ -462,7 +462,7 @@ class LanguageModelInfo(BaseModel):
                         min_temperature=1.0, max_temperature=1.0
                     ),
                     default_options={
-                        "reasoning_effort": "minimal",
+                        "reasoning_effort": "medium",
                     },
                 )
             case LanguageModelName.AZURE_GPT_51_CODEX_2025_1113:
@@ -489,7 +489,7 @@ class LanguageModelInfo(BaseModel):
                         min_temperature=1.0, max_temperature=1.0
                     ),
                     default_options={
-                        "reasoning_effort": "minimal",
+                        "reasoning_effort": "medium",
                     },
                 )
             case LanguageModelName.AZURE_GPT_51_CODEX_MINI_2025_1113:
@@ -516,7 +516,7 @@ class LanguageModelInfo(BaseModel):
                         min_temperature=1.0, max_temperature=1.0
                     ),
                     default_options={
-                        "reasoning_effort": "minimal",
+                        "reasoning_effort": "medium",
                     },
                 )
             case LanguageModelName.AZURE_GPT_4_TURBO_2024_0409:
@@ -1285,7 +1285,7 @@ class LanguageModelInfo(BaseModel):
                         min_temperature=1.0, max_temperature=1.0
                     ),
                     default_options={
-                        "reasoning_effort": "minimal",
+                        "reasoning_effort": "medium",
                     },
                 )
             case LanguageModelName.LITELLM_OPENAI_O1:
