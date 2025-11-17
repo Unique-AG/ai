@@ -1,4 +1,6 @@
 # %%
+import time
+
 from unique_toolkit import (
     ChatService,
     KnowledgeBaseService,
@@ -12,9 +14,10 @@ for event in get_event_generator(unique_settings=settings, event_type=ChatEvent)
     # Initialize services from event
     chat_service = ChatService(event)
     kb_service = KnowledgeBaseService.from_event(event)
-    assistant_message = chat_service.create_assistant_message(
-        content="Hello from Unique",
-    )
     chat_service.modify_assistant_message(
-        content="Modified User Message", message_id=assistant_message.id
+        content="Intermediate assistant message",
+    )
+    time.sleep(2)
+    chat_service.modify_assistant_message(
+        content="Final assistant message",
     )
