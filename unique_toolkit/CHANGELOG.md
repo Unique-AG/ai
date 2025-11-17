@@ -9,9 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Adding a new field called "Description" to ContentChunk and ReferenceChunk
 
-## [1.25.3] - 2025-11-13
-- MessageLogger Class added to the agentic toolkit.
-
 ## [1.25.2] - 2025-11-12
 - Standardize paths in unique toolkit settings
 
