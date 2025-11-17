@@ -209,7 +209,9 @@ class TestWebSearchServiceComponents:
         data: list[ContentReference] = []
 
         # Act - Create a minimal instance to test the private method
-        tool = WebSearchTool.__new__(WebSearchTool)  # Create instance without calling __init__
+        tool = WebSearchTool.__new__(
+            WebSearchTool
+        )  # Create instance without calling __init__
         references = tool._define_reference_list_for_message_log(
             content_chunks=content_chunks, data=data
         )
@@ -243,7 +245,9 @@ class TestWebSearchServiceComponents:
         data: list[ContentReference] = []
 
         # Act - Create a minimal instance to test the private method
-        tool = WebSearchTool.__new__(WebSearchTool)  # Create instance without calling __init__
+        tool = WebSearchTool.__new__(
+            WebSearchTool
+        )  # Create instance without calling __init__
         references = tool._define_reference_list_for_message_log(
             content_chunks=content_chunks, data=data
         )
@@ -275,7 +279,9 @@ class TestWebSearchServiceComponents:
         data: list[ContentReference] = []
 
         # Act - Create a minimal instance to test the private method
-        tool = WebSearchTool.__new__(WebSearchTool)  # Create instance without calling __init__
+        tool = WebSearchTool.__new__(
+            WebSearchTool
+        )  # Create instance without calling __init__
         references = tool._define_reference_list_for_message_log(
             content_chunks=content_chunks, data=data
         )
@@ -307,7 +313,9 @@ class TestWebSearchServiceComponents:
         data: list[ContentReference] = []
 
         # Act - Create a minimal instance to test the private method
-        tool = WebSearchTool.__new__(WebSearchTool)  # Create instance without calling __init__
+        tool = WebSearchTool.__new__(
+            WebSearchTool
+        )  # Create instance without calling __init__
         references = tool._define_reference_list_for_message_log(
             content_chunks=content_chunks, data=data
         )
@@ -339,7 +347,9 @@ class TestWebSearchServiceComponents:
         data: list[ContentReference] = []
 
         # Act - Create a minimal instance to test the private method
-        tool = WebSearchTool.__new__(WebSearchTool)  # Create instance without calling __init__
+        tool = WebSearchTool.__new__(
+            WebSearchTool
+        )  # Create instance without calling __init__
         references = tool._define_reference_list_for_message_log(
             content_chunks=content_chunks, data=data
         )
@@ -379,7 +389,9 @@ class TestWebSearchServiceComponents:
         data: list[ContentReference] = []
 
         # Act - Create a minimal instance to test the private method
-        tool = WebSearchTool.__new__(WebSearchTool)  # Create instance without calling __init__
+        tool = WebSearchTool.__new__(
+            WebSearchTool
+        )  # Create instance without calling __init__
         references = tool._define_reference_list_for_message_log(
             content_chunks=content_chunks, data=data
         )
@@ -425,7 +437,9 @@ class TestWebSearchServiceComponents:
         data: list[ContentReference] = []
 
         # Act - Create a minimal instance to test the private method
-        tool = WebSearchTool.__new__(WebSearchTool)  # Create instance without calling __init__
+        tool = WebSearchTool.__new__(
+            WebSearchTool
+        )  # Create instance without calling __init__
         references = tool._define_reference_list_for_message_log(
             content_chunks=content_chunks, data=data
         )

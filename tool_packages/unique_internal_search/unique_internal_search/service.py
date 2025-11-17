@@ -14,6 +14,10 @@ from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.agentic.tools.tool_progress_reporter import ProgressState
 from unique_toolkit.app.schemas import BaseEvent, ChatEvent, Event
+from unique_toolkit.chat.schemas import (
+    MessageLogDetails,
+    MessageLogEvent,
+)
 from unique_toolkit.chat.service import LanguageModelToolDescription
 from unique_toolkit.content.schemas import Content, ContentChunk, ContentReference
 from unique_toolkit.content.service import ContentService
@@ -114,6 +118,14 @@ class InternalSearchService:
 
         return data
 
+    def _prepare_string_for_message_log(self, *, query_list: list[str]) -> str:
+        message = ""
+        for entry in query_list:
+            message += f"• {entry}\n"
+        message = message.strip("\n")
+
+        return f"**Internal Search**\n{message}\n"
+
     async def search(
         self,
         search_string: str | list[str],
@@ -207,9 +219,14 @@ class InternalSearchService:
             )
 
         # Updating our logger with the search results for all search strings.
-        self._message_step_logger.create_message_log_post(
-            query_list=search_strings,
-            search_type="InternalSearch",
+        prepared_string = self._prepare_string_for_message_log(
+            query_list=search_strings
+        )
+        self._message_step_logger.create_message_log_entry(
+            text=prepared_string,
+            details=MessageLogDetails(
+                data=[MessageLogEvent(type="InternalSearch", text="")]
+            ),
             data=data,
         )
 

@@ -99,9 +99,8 @@ class UniqueAI:
         """
         self._logger.info("Start LoopAgent...")
 
-        _ = self._message_step_logger.write_message_log_text_message(
-            text="**Start Unique AI**"
-        )
+        self._message_step_logger.create_message_log_entry(text="**Start Unique AI**",data=[])
+
 
         if self._history_manager.has_no_loop_messages():  # TODO: why do we even need to check its always no loop messages on this when its called.
             self._chat_service.modify_assistant_message(
@@ -110,9 +109,8 @@ class UniqueAI:
 
         ## Loop iteration
         for i in range(self._config.agent.max_loop_iterations):
-            _ = self._message_step_logger.write_message_log_text_message(
-                text="**Loop Iteration %s**" % str(i + 1)
-            )
+
+            self._message_step_logger.create_message_log_entry(text="**Loop Iteration %s**" % str(i + 1),data=[])
 
             self.current_iteration_index = i
             self._logger.info(f"Starting iteration {i + 1}...")
@@ -249,9 +247,7 @@ class UniqueAI:
 
         self._logger.debug("No tool calls. we might exit the loop")
 
-        _ = self._message_step_logger.write_message_log_text_message(
-            text="**Answer Generation**"
-        )
+        self._message_step_logger.create_message_log_entry(text="**Answer Generation**",data=[])
 
         return await self._handle_no_tool_calls(loop_response)
 
