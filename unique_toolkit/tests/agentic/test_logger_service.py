@@ -347,7 +347,9 @@ def test_create_message_log_entry__calls_chat_service__with_references_AI(
     call_args = mock_create_message_log.call_args  # type: ignore[attr-defined]
     assert isinstance(call_args.kwargs["references"], list)  # type: ignore[attr-defined]
     assert len(call_args.kwargs["references"]) == 1  # type: ignore[attr-defined]
-    assert isinstance(call_args.kwargs["uncited_references"], MessageLogUncitedReferences)  # type: ignore[attr-defined]
+    assert isinstance(
+        call_args.kwargs["uncited_references"], MessageLogUncitedReferences
+    )  # type: ignore[attr-defined]
     assert len(call_args.kwargs["uncited_references"].data) == 1  # type: ignore[attr-defined]
 
 
