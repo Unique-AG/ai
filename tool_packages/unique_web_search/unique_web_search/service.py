@@ -9,6 +9,10 @@ from unique_toolkit.agentic.tools.tool import (
     Tool,
 )
 from unique_toolkit.agentic.tools.tool_progress_reporter import ProgressState
+from unique_toolkit.chat.schemas import (
+    MessageLogDetails,
+    MessageLogEvent,
+)
 from unique_toolkit.content.schemas import ContentChunk, ContentReference
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
@@ -130,6 +134,14 @@ class WebSearchTool(Tool[WebSearchConfig]):
 
         return data
 
+    def _prepare_string_for_message_log(self, *, query_list: list[str]) -> str:
+        message = ""
+        for entry in query_list:
+            message += f"• {entry}\n"
+        message = message.strip("\n")
+
+        return f"**Web Search**\n{message}\n"
+
     @override
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
         self.logger.info("Running the WebSearch tool")
@@ -155,9 +167,14 @@ class WebSearchTool(Tool[WebSearchConfig]):
             # Only log for V1 mode (WebSearchToolParameters has query, WebSearchPlan doesn't)
             if isinstance(parameters, WebSearchToolParameters):
                 query_str: str = parameters.query
-                self._message_step_logger.create_message_log_post(
-                    query_list=[query_str],
-                    search_type="WebSearch",
+                prepared_string = self._prepare_string_for_message_log(
+                    query_list=[query_str]
+                )
+                self._message_step_logger.create_message_log_entry(
+                    text=prepared_string,
+                    details=MessageLogDetails(
+                        data=[MessageLogEvent(type="WebSearch", text="")]
+                    ),
                     data=data,
                 )
 

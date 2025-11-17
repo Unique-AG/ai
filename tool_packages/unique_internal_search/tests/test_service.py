@@ -1552,22 +1552,31 @@ class TestInternalSearchTool:
     def test_define_reference_list_for_message_log__returns_list__with_internal_chunks(
         self,
         sample_content_chunk: ContentChunk,
+        base_internal_search_config: InternalSearchConfig,
+        mock_content_service: ContentService,
+        mock_chunk_relevancy_sorter: Any,
+        mock_logger: Any,
     ) -> None:
         """
-        Purpose: Verify define_reference_list_for_message_log returns list of references for internal search.
+        Purpose: Verify _define_reference_list_for_message_log returns list of references for internal search.
         Why this matters: References link log entries to internal document sources.
-        Setup summary: Create internal content chunk, call define_reference_list_for_message_log, verify returns list.
+        Setup summary: Create internal content chunk, call _define_reference_list_for_message_log, verify returns list.
         """
         from unique_toolkit.content.schemas import ContentReference
 
-        from unique_internal_search.service import InternalSearchService
-
         # Arrange
+        service = InternalSearchService(
+            config=base_internal_search_config,
+            content_service=mock_content_service,
+            chunk_relevancy_sorter=mock_chunk_relevancy_sorter,
+            chat_id="chat_123",
+            logger=mock_logger,
+        )
         content_chunks = [sample_content_chunk]
         data: list[ContentReference] = []
 
         # Act
-        references = InternalSearchService.define_reference_list_for_message_log(
+        references = service._define_reference_list_for_message_log(
             content_chunks=content_chunks, data=data
         )
 
@@ -1579,22 +1588,31 @@ class TestInternalSearchTool:
     def test_define_reference_list_for_message_log__sets_sequence_number__for_first_chunk(
         self,
         sample_content_chunk: ContentChunk,
+        base_internal_search_config: InternalSearchConfig,
+        mock_content_service: ContentService,
+        mock_chunk_relevancy_sorter: Any,
+        mock_logger: Any,
     ) -> None:
         """
-        Purpose: Verify define_reference_list_for_message_log sets sequence_number to 0 for first chunk.
+        Purpose: Verify _define_reference_list_for_message_log sets sequence_number to 0 for first chunk.
         Why this matters: Sequence numbers order references in display.
-        Setup summary: Create internal content chunk, call define_reference_list_for_message_log, verify sequence_number is 0.
+        Setup summary: Create internal content chunk, call _define_reference_list_for_message_log, verify sequence_number is 0.
         """
         from unique_toolkit.content.schemas import ContentReference
 
-        from unique_internal_search.service import InternalSearchService
-
         # Arrange
+        service = InternalSearchService(
+            config=base_internal_search_config,
+            content_service=mock_content_service,
+            chunk_relevancy_sorter=mock_chunk_relevancy_sorter,
+            chat_id="chat_123",
+            logger=mock_logger,
+        )
         content_chunks = [sample_content_chunk]
         data: list[ContentReference] = []
 
         # Act
-        references = InternalSearchService.define_reference_list_for_message_log(
+        references = service._define_reference_list_for_message_log(
             content_chunks=content_chunks, data=data
         )
 
@@ -1606,22 +1624,31 @@ class TestInternalSearchTool:
     def test_define_reference_list_for_message_log__sets_source_id__from_chunk_id(
         self,
         sample_content_chunk: ContentChunk,
+        base_internal_search_config: InternalSearchConfig,
+        mock_content_service: ContentService,
+        mock_chunk_relevancy_sorter: Any,
+        mock_logger: Any,
     ) -> None:
         """
-        Purpose: Verify define_reference_list_for_message_log sets source_id from chunk ID.
+        Purpose: Verify _define_reference_list_for_message_log sets source_id from chunk ID.
         Why this matters: Source ID identifies the internal document chunk.
-        Setup summary: Create internal content chunk with ID, call define_reference_list_for_message_log, verify source_id matches.
+        Setup summary: Create internal content chunk with ID, call _define_reference_list_for_message_log, verify source_id matches.
         """
         from unique_toolkit.content.schemas import ContentReference
 
-        from unique_internal_search.service import InternalSearchService
-
         # Arrange
+        service = InternalSearchService(
+            config=base_internal_search_config,
+            content_service=mock_content_service,
+            chunk_relevancy_sorter=mock_chunk_relevancy_sorter,
+            chat_id="chat_123",
+            logger=mock_logger,
+        )
         content_chunks = [sample_content_chunk]
         data: list[ContentReference] = []
 
         # Act
-        references = InternalSearchService.define_reference_list_for_message_log(
+        references = service._define_reference_list_for_message_log(
             content_chunks=content_chunks, data=data
         )
 
@@ -1633,22 +1660,31 @@ class TestInternalSearchTool:
     def test_define_reference_list_for_message_log__sets_source__to_internal(
         self,
         sample_content_chunk: ContentChunk,
+        base_internal_search_config: InternalSearchConfig,
+        mock_content_service: ContentService,
+        mock_chunk_relevancy_sorter: Any,
+        mock_logger: Any,
     ) -> None:
         """
-        Purpose: Verify define_reference_list_for_message_log sets source to "internal" for internal search.
+        Purpose: Verify _define_reference_list_for_message_log sets source to "internal" for internal search.
         Why this matters: Source identifies where reference content originated.
-        Setup summary: Create internal content chunk, call define_reference_list_for_message_log, verify reference source is "internal".
+        Setup summary: Create internal content chunk, call _define_reference_list_for_message_log, verify reference source is "internal".
         """
         from unique_toolkit.content.schemas import ContentReference
 
-        from unique_internal_search.service import InternalSearchService
-
         # Arrange
+        service = InternalSearchService(
+            config=base_internal_search_config,
+            content_service=mock_content_service,
+            chunk_relevancy_sorter=mock_chunk_relevancy_sorter,
+            chat_id="chat_123",
+            logger=mock_logger,
+        )
         content_chunks = [sample_content_chunk]
         data: list[ContentReference] = []
 
         # Act
-        references = InternalSearchService.define_reference_list_for_message_log(
+        references = service._define_reference_list_for_message_log(
             content_chunks=content_chunks, data=data
         )
 
@@ -1659,17 +1695,26 @@ class TestInternalSearchTool:
     @pytest.mark.ai
     def test_define_reference_list_for_message_log__sets_name__from_chunk_key_when_no_title(
         self,
+        base_internal_search_config: InternalSearchConfig,
+        mock_content_service: ContentService,
+        mock_chunk_relevancy_sorter: Any,
+        mock_logger: Any,
     ) -> None:
         """
-        Purpose: Verify define_reference_list_for_message_log uses key when title is missing.
+        Purpose: Verify _define_reference_list_for_message_log uses key when title is missing.
         Why this matters: References need names even when title is unavailable.
-        Setup summary: Create internal content chunk without title, call define_reference_list_for_message_log, verify name is key.
+        Setup summary: Create internal content chunk without title, call _define_reference_list_for_message_log, verify name is key.
         """
         from unique_toolkit.content.schemas import ContentChunk, ContentReference
 
-        from unique_internal_search.service import InternalSearchService
-
         # Arrange
+        service = InternalSearchService(
+            config=base_internal_search_config,
+            content_service=mock_content_service,
+            chunk_relevancy_sorter=mock_chunk_relevancy_sorter,
+            chat_id="chat_123",
+            logger=mock_logger,
+        )
         content_chunk = ContentChunk(
             id="chunk_internal_2",
             text="Another internal document",
@@ -1679,7 +1724,7 @@ class TestInternalSearchTool:
         data: list[ContentReference] = []
 
         # Act
-        references = InternalSearchService.define_reference_list_for_message_log(
+        references = service._define_reference_list_for_message_log(
             content_chunks=content_chunks, data=data
         )
 
@@ -1690,17 +1735,26 @@ class TestInternalSearchTool:
     @pytest.mark.ai
     def test_define_reference_list_for_message_log__sets_name__from_chunk_title_when_available(
         self,
+        base_internal_search_config: InternalSearchConfig,
+        mock_content_service: ContentService,
+        mock_chunk_relevancy_sorter: Any,
+        mock_logger: Any,
     ) -> None:
         """
-        Purpose: Verify define_reference_list_for_message_log uses title when available.
+        Purpose: Verify _define_reference_list_for_message_log uses title when available.
         Why this matters: Title provides meaningful name for internal document references.
-        Setup summary: Create internal content chunk with title, call define_reference_list_for_message_log, verify name is title.
+        Setup summary: Create internal content chunk with title, call _define_reference_list_for_message_log, verify name is title.
         """
         from unique_toolkit.content.schemas import ContentChunk, ContentReference
 
-        from unique_internal_search.service import InternalSearchService
-
         # Arrange
+        service = InternalSearchService(
+            config=base_internal_search_config,
+            content_service=mock_content_service,
+            chunk_relevancy_sorter=mock_chunk_relevancy_sorter,
+            chat_id="chat_123",
+            logger=mock_logger,
+        )
         content_chunk = ContentChunk(
             id="chunk_internal_1",
             text="Internal document content",
@@ -1711,7 +1765,7 @@ class TestInternalSearchTool:
         data: list[ContentReference] = []
 
         # Act
-        references = InternalSearchService.define_reference_list_for_message_log(
+        references = service._define_reference_list_for_message_log(
             content_chunks=content_chunks, data=data
         )
 
@@ -1723,22 +1777,31 @@ class TestInternalSearchTool:
     def test_define_reference_list_for_message_log__sets_empty_url__for_internal_chunks(
         self,
         sample_content_chunk: ContentChunk,
+        base_internal_search_config: InternalSearchConfig,
+        mock_content_service: ContentService,
+        mock_chunk_relevancy_sorter: Any,
+        mock_logger: Any,
     ) -> None:
         """
-        Purpose: Verify define_reference_list_for_message_log sets empty URL for internal chunks.
+        Purpose: Verify _define_reference_list_for_message_log sets empty URL for internal chunks.
         Why this matters: Internal documents don't have URLs, only source IDs.
-        Setup summary: Create internal content chunk, call define_reference_list_for_message_log, verify URL is empty string.
+        Setup summary: Create internal content chunk, call _define_reference_list_for_message_log, verify URL is empty string.
         """
         from unique_toolkit.content.schemas import ContentReference
 
-        from unique_internal_search.service import InternalSearchService
-
         # Arrange
+        service = InternalSearchService(
+            config=base_internal_search_config,
+            content_service=mock_content_service,
+            chunk_relevancy_sorter=mock_chunk_relevancy_sorter,
+            chat_id="chat_123",
+            logger=mock_logger,
+        )
         content_chunks = [sample_content_chunk]
         data: list[ContentReference] = []
 
         # Act
-        references = InternalSearchService.define_reference_list_for_message_log(
+        references = service._define_reference_list_for_message_log(
             content_chunks=content_chunks, data=data
         )
 
@@ -1749,17 +1812,26 @@ class TestInternalSearchTool:
     @pytest.mark.ai
     def test_define_reference_list_for_message_log__increments_sequence_number__for_multiple_chunks(
         self,
+        base_internal_search_config: InternalSearchConfig,
+        mock_content_service: ContentService,
+        mock_chunk_relevancy_sorter: Any,
+        mock_logger: Any,
     ) -> None:
         """
-        Purpose: Verify define_reference_list_for_message_log increments sequence_number for multiple chunks.
+        Purpose: Verify _define_reference_list_for_message_log increments sequence_number for multiple chunks.
         Why this matters: Multiple references must be ordered correctly.
-        Setup summary: Create two internal content chunks, call define_reference_list_for_message_log, verify sequence numbers increment.
+        Setup summary: Create two internal content chunks, call _define_reference_list_for_message_log, verify sequence numbers increment.
         """
         from unique_toolkit.content.schemas import ContentChunk, ContentReference
 
-        from unique_internal_search.service import InternalSearchService
-
         # Arrange
+        service = InternalSearchService(
+            config=base_internal_search_config,
+            content_service=mock_content_service,
+            chunk_relevancy_sorter=mock_chunk_relevancy_sorter,
+            chat_id="chat_123",
+            logger=mock_logger,
+        )
         content_chunks = [
             ContentChunk(
                 id="chunk_1",
@@ -1775,7 +1847,7 @@ class TestInternalSearchTool:
         data: list[ContentReference] = []
 
         # Act
-        references = InternalSearchService.define_reference_list_for_message_log(
+        references = service._define_reference_list_for_message_log(
             content_chunks=content_chunks, data=data
         )
 
@@ -1788,17 +1860,26 @@ class TestInternalSearchTool:
     @pytest.mark.ai
     def test_define_reference_list_for_message_log__skips_chunks__with_empty_name(
         self,
+        base_internal_search_config: InternalSearchConfig,
+        mock_content_service: ContentService,
+        mock_chunk_relevancy_sorter: Any,
+        mock_logger: Any,
     ) -> None:
         """
-        Purpose: Verify define_reference_list_for_message_log skips chunks with empty name (no title and no key).
+        Purpose: Verify _define_reference_list_for_message_log skips chunks with empty name (no title and no key).
         Why this matters: Only chunks with valid names should be included in references.
-        Setup summary: Create chunks with empty name, call define_reference_list_for_message_log, verify they are skipped.
+        Setup summary: Create chunks with empty name, call _define_reference_list_for_message_log, verify they are skipped.
         """
         from unique_toolkit.content.schemas import ContentChunk, ContentReference
 
-        from unique_internal_search.service import InternalSearchService
-
         # Arrange
+        service = InternalSearchService(
+            config=base_internal_search_config,
+            content_service=mock_content_service,
+            chunk_relevancy_sorter=mock_chunk_relevancy_sorter,
+            chat_id="chat_123",
+            logger=mock_logger,
+        )
         content_chunks = [
             ContentChunk(
                 id="chunk_1",
@@ -1814,7 +1895,7 @@ class TestInternalSearchTool:
         data: list[ContentReference] = []
 
         # Act
-        references = InternalSearchService.define_reference_list_for_message_log(
+        references = service._define_reference_list_for_message_log(
             content_chunks=content_chunks, data=data
         )
 
