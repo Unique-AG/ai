@@ -45,6 +45,7 @@ class MessageStepLogger:
     @classmethod
     def create_message_log_entry(
         cls,
+        *,
         chat_service: ChatService,
         message_id: str,
         text: str | None = None,
@@ -66,7 +67,7 @@ class MessageStepLogger:
         The returns are for futre potential use cases using update.
         """
         # Use per-request incrementing counter for clean, predictable ordering
-        order = MessageStepLogger.get_next_message_order(message_id)
+        order = MessageStepLogger.get_next_message_order(message_id=message_id)
 
         message_log: MessageLog = chat_service.create_message_log(
             message_id=message_id,
@@ -80,7 +81,7 @@ class MessageStepLogger:
 
         return message_log
 
-    def write_message_log_text_message(self, text: str) -> MessageLog:
+    def write_message_log_text_message(self, *, text: str) -> MessageLog:
         """
         Write a simple text message for progress logging.
 
@@ -89,10 +90,10 @@ class MessageStepLogger:
         """
 
         message_log = MessageStepLogger.create_message_log_entry(
-            self._chat_service,
-            self._event.payload.assistant_message.id,
-            text,
-            MessageLogStatus.COMPLETED,
+            chat_service=self._chat_service,
+            message_id=self._event.payload.assistant_message.id,
+            text=text,
+            status=MessageLogStatus.COMPLETED,
             details=MessageLogDetails(data=[]),
             uncited_references=MessageLogUncitedReferences(data=[]),
         )
@@ -100,7 +101,7 @@ class MessageStepLogger:
         return message_log
 
     @staticmethod
-    def get_next_message_order(message_id: str) -> int:
+    def get_next_message_order(*, message_id: str) -> int:
         """
         Get the next message log order number for a specific request.
 
@@ -122,7 +123,10 @@ class MessageStepLogger:
 
     @staticmethod
     def define_reference_list(
-        source: str, content_chunks: list[ContentChunk], data: list[ContentReference]
+        *,
+        source: str,
+        content_chunks: list[ContentChunk],
+        data: list[ContentReference],
     ):
         """
         Create a reference list for web search content chunks.
@@ -160,7 +164,10 @@ class MessageStepLogger:
 
     @staticmethod
     def define_reference_list_for_internal(
-        source: str, content_chunks: list[ContentChunk], data: list[ContentReference]
+        *,
+        source: str,
+        content_chunks: list[ContentChunk],
+        data: list[ContentReference],
     ) -> list[ContentReference]:
         """
         Create a reference list for internal search content chunks.
@@ -200,6 +207,7 @@ class MessageStepLogger:
 
     def create_full_specific_message(
         self,
+        *,
         query_list: list[str],
         search_type: Literal["WebSearch", "InternalSearch"],
         data: list[ContentReference],
@@ -228,7 +236,7 @@ class MessageStepLogger:
             text=f"{input_string}\n{message}\n",
             status=MessageLogStatus.COMPLETED,
             order=MessageStepLogger.get_next_message_order(
-                self._event.payload.assistant_message.id
+                message_id=self._event.payload.assistant_message.id
             ),
             details=MessageLogDetails(
                 data=[MessageLogEvent(type=search_type, text="")]
