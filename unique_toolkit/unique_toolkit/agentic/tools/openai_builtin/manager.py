@@ -16,47 +16,64 @@ from unique_toolkit.content.service import ContentService
 class OpenAIBuiltInToolManager:
     def __init__(
         self,
+        builtin_tools: list[OpenAIBuiltInTool],
+    ):
+        self._builtin_tools = builtin_tools
+
+    @classmethod
+    async def _build_tool(
+        cls,
         uploaded_files: list[Content],
         content_service: ContentService,
         user_id: str,
         company_id: str,
         chat_id: str,
         client: AsyncOpenAI,
-    ):
-        self._uploaded_files = uploaded_files
-        self._content_service = content_service
-        self._user_id = user_id
-        self._company_id = company_id
-        self._client = client
-        self._chat_id = chat_id
-
-    async def _build_tool(self, tool_config: ToolBuildConfig) -> OpenAIBuiltInTool:
+        tool_config: ToolBuildConfig,
+    ) -> OpenAIBuiltInTool:
         if tool_config.name == OpenAIBuiltInToolName.CODE_INTERPRETER:
             assert isinstance(tool_config.configuration, OpenAICodeInterpreterConfig)
             tool = await OpenAICodeInterpreterTool.build_tool(
                 config=tool_config.configuration,
-                uploaded_files=self._uploaded_files,
-                user_id=self._user_id,
-                company_id=self._company_id,
-                chat_id=self._chat_id,
-                content_service=self._content_service,
-                client=self._client,
+                uploaded_files=uploaded_files,
+                content_service=content_service,
+                client=client,
+                company_id=company_id,
+                user_id=user_id,
+                chat_id=chat_id,
+                is_exclusive=tool_config.is_exclusive,
             )
             return tool
         else:
             raise ValueError(f"Unknown built-in tool name: {tool_config.name}")
 
-    async def get_all_openai_builtin_tools(
-        self, tool_configs: list[ToolBuildConfig]
-    ) -> tuple[list[ToolBuildConfig], list[OpenAIBuiltInTool]]:
-        openai_builtin_tools = []
-        filtered_tool_configs = []
-
+    @classmethod
+    async def build_manager(
+        cls,
+        uploaded_files: list[Content],
+        content_service: ContentService,
+        user_id: str,
+        company_id: str,
+        chat_id: str,
+        client: AsyncOpenAI,
+        tool_configs: list[ToolBuildConfig],
+    ) -> "OpenAIBuiltInToolManager":
+        builtin_tools = []
         for tool_config in tool_configs:
-            if tool_config.name not in OpenAIBuiltInToolName:
-                filtered_tool_configs.append(tool_config)
-                continue
+            if tool_config.name in OpenAIBuiltInToolName and tool_config.is_enabled:
+                builtin_tools.append(
+                    await cls._build_tool(
+                        uploaded_files,
+                        content_service,
+                        user_id,
+                        company_id,
+                        chat_id,
+                        client,
+                        tool_config,
+                    )
+                )
 
-            openai_builtin_tools.append(await self._build_tool(tool_config))
+        return OpenAIBuiltInToolManager(builtin_tools)
 
-        return filtered_tool_configs, openai_builtin_tools
+    def get_all_openai_builtin_tools(self) -> list[OpenAIBuiltInTool]:
+        return self._builtin_tools.copy()

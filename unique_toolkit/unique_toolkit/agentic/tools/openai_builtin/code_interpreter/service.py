@@ -145,13 +145,15 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
         self,
         config: OpenAICodeInterpreterConfig,
         container_id: str | None,
-    ):
+        is_exclusive: bool = False,
+    ) -> None:
         self._config = config
 
         if not config.use_auto_container and container_id is None:
             raise ValueError("`container_id` required when not using `auto` containers")
 
         self._container_id = container_id
+        self._is_exclusive = is_exclusive
 
     @property
     @override
@@ -168,6 +170,18 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
             "type": "code_interpreter",
         }
 
+    @override
+    def is_enabled(self) -> bool:
+        return True
+
+    @override
+    def takes_control(self) -> bool:
+        return False
+
+    @override
+    def is_exclusive(self) -> bool:
+        return self._is_exclusive
+
     @classmethod
     async def build_tool(
         cls,
@@ -178,6 +192,7 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
         company_id: str,
         user_id: str,
         chat_id: str,
+        is_exclusive: bool = False,
     ) -> "OpenAICodeInterpreterTool":
         if config.use_auto_container:
             logger.info("Using `auto` container setting")
@@ -214,7 +229,7 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
         assert memory.container_id is not None
 
         return OpenAICodeInterpreterTool(
-            config=config, container_id=memory.container_id
+            config=config, container_id=memory.container_id, is_exclusive=is_exclusive
         )
 
     @override
