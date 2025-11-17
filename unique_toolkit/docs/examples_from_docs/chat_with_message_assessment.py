@@ -17,14 +17,14 @@ for event in get_event_generator(unique_settings=settings, event_type=ChatEvent)
     # Initialize services from event
     chat_service = ChatService(event)
     kb_service = KnowledgeBaseService.from_event(event)
-    assistant_message = chat_service.create_assistant_message(
-        content="Hello from Unique",
+    chat_service.modify_assistant_message(
+        content="Final assistant message",
     )
-    if not assistant_message.id:
+    if not event.payload.assistant_message.id:
         raise ValueError("Assistant message ID is not set")
 
     message_assessment = chat_service.create_message_assessment(
-        assistant_message_id=assistant_message.id,
+        assistant_message_id=event.payload.assistant_message.id,
         status=ChatMessageAssessmentStatus.PENDING,
         type=ChatMessageAssessmentType.COMPLIANCE,
         title="Following Guidelines",
@@ -32,7 +32,7 @@ for event in get_event_generator(unique_settings=settings, event_type=ChatEvent)
         is_visible=True,
     )
     chat_service.modify_message_assessment(
-        assistant_message_id=assistant_message.id,
+        assistant_message_id=event.payload.assistant_message.id,
         status=ChatMessageAssessmentStatus.DONE,
         type=ChatMessageAssessmentType.COMPLIANCE,
         title="Following Guidelines",

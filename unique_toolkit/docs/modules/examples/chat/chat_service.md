@@ -46,10 +46,61 @@ from unique_toolkit import ChatService
 The `ChatService` is a stateful service and therefore should be freshly instantiated for each request sent by a user from the frontend. 
 
 ## Basics
+The below sequence diagram shows the dataflow on user input.
 
-### Create assistant messages
+```mermaid
+sequenceDiagram
+    participant FE as Frontend
+    participant B as Backend
+    participant W as LLM Workflow/Agent
+    participant DB as Database
 
-The most used functionality is to create an assistant message via a stream to the frontend
+    FE->>B: Send user input
+
+    B->>DB: Create User Message
+    B->>DB: Create Assistant Message (placeholder)
+    B-->>W: Emit `ChatEvent`
+
+    W->>B: Update Assistant  Message 
+    B-->>FE: Return Assistant Message
+    B->>DB: Update Assistant Message
+```
+
+
+### The Chat Event
+
+For each input of the user the application obtains a `ChatEvent`, this objects contains the `id's` of the user message in the database as well as the following assistant message entry. We can use these entries to return the final as well as intermediate results to the user using 
+
+```{python #chat_service_intermediate_assistant_result}
+chat_service.modify_assistant_message(
+        content="Intermediate assistant message",
+    )
+```
+
+The functionality automatically uses the last assistant message within the chat.
+
+The message can be updated as many times as desired to display intermediate results but it is important to ensure that the user has time to read it between the updates. Especially, when using the `async` version `modify_assistant_message_async` a short async sleep after modification can be helpful.
+
+
+```{python #chat_service_final_assistant_result}
+chat_service.modify_assistant_message(
+        content="Final assistant message",
+    )
+```
+
+<!--
+```{.python file=docs/.python_files/minimal_chat_with_manual_modifiy.py}
+import time
+<<full_sse_setup_with_services>>
+    <<chat_service_intermediate_assistant_result>>
+    time.sleep(2)
+    <<chat_service_final_assistant_result>>
+```
+-->
+
+### Modify assistant messages with LLM
+
+The most used functionality is to create an assistant message via a stream to the frontend and to safe it in the database. Therefore, we use
 
 
 ```{.python #chat_service_complete_with_references}
@@ -57,6 +108,8 @@ chat_service.complete_with_references(
         messages = messages,
         model_name = LanguageModelName.AZURE_GPT_4o_2024_1120)
 ```
+
+and again the functionality automatically returns the the last assistant message in the chat.
 
 
 <!--
@@ -69,55 +122,13 @@ chat_service.complete_with_references(
 -->
 
 
-Alternatively a message can be created directly by
-
-```{python #chat_service_create_assistant_message}
-assistant_message = chat_service.create_assistant_message(
-        content="Hello from Unique",
-    )
-```
-
-<!--
-```{.python file=docs/.python_files/chat_with_manual_message_create.py}
-<<full_sse_setup_with_services>>
-    <<chat_service_create_assistant_message>>
-```
--->
 
 ??? example "Full Examples (Click to expand)"
     
     <!--codeinclude-->
+    [Simple Manual Response](../../../examples_from_docs/minimal_chat_with_manual_modifiy.py)
     [Simple Streaming](../../../examples_from_docs/chat_app_minimal.py)
-    [Simple Manual Response](../../../examples_from_docs/chat_with_manual_message_create.py)
     <!--/codeinclude-->
-
-### Modifying messages
-
-### Edit texts 
-
-Both user messages as well as assistant message may be modified via the `message_id`. If no id is specified the last message in the chat history will be modified.
-
-```{python #chat_service_modify_user_message}
-chat_service.modify_user_message(
-        content="Modified User Message",
-        message_id=event.payload.user_message.id,
-    )
-```
-
-```{python #chat_service_modify_assistant_message}
-chat_service.modify_assistant_message(
-        content="Modified User Message",
-        message_id=assistant_message.id
-    )
-```
-
-<!--
-```{.python file=docs/.python_files/chat_with_manual_message_create_and_modification.py}
-<<full_sse_setup_with_services>>
-    <<chat_service_create_assistant_message>>
-    <<chat_service_modify_assistant_message>>
-```
--->
 
 ### Unblocking the next user input
 
@@ -135,8 +146,7 @@ chat_service.free_user_input()
 <!--
 ```{.python file=docs/.python_files/chat_with_manual_message_create_free_user_input.py}
 <<full_sse_setup_with_services>>
-    <<chat_service_create_assistant_message>>
-    <<chat_service_modify_assistant_message>>
+    <<chat_service_final_assistant_result>>
     <<chat_service_free_user_input>>
 ```
 -->
@@ -147,7 +157,7 @@ which should be called at the end of an agent interaction. Alternatively the use
 ??? example "Full Examples (Click to expand)"
     
     <!--codeinclude-->
-    [Modifying Assistant Message](../../../examples_from_docs/chat_with_manual_message_create_and_modification.py)
+    [Modifying Assistant Message](../../../examples_from_docs/minimal_chat_with_manual_modifiy.py)
     [Unblocking](../../../examples_from_docs/chat_with_manual_message_create_free_user_input.py)
     <!--/codeinclude-->
 
@@ -160,7 +170,7 @@ For applications using additional information retrieved from the knowledge base 
 ### Manual References
 
 ```{python #chat_service_assistant_message_with_reference}
-chat_service.create_assistant_message(
+chat_service.modify_assistant_message(
         content="Hello from Unique <sup>0</sup>",
         references=[ContentReference(source="source0",
                                      url="https://www.unique.ai",
@@ -179,8 +189,6 @@ In the `content` string the refercnes must be referred to by `<sup>sequence_numb
 ```{.python file=docs/.python_files/chat_with_manual_message_and_reference.py}
 <<full_sse_setup>>
     chat_service = ChatService(event)
-    <<chat_service_create_assistant_message>>
-    <<chat_service_modify_assistant_message>>
     <<chat_service_assistant_message_with_reference>>
 ```
 -->
@@ -216,8 +224,8 @@ If we want the LLM be able to reference them in its answer we need to present th
 
 ```{python #chat_service_chunk_presentation}
 def to_source_table(chunks: list[ContentChunk]) -> str:
-    header = "| Source Number | Title |  URL | \n" + "| --- | --- | --- | --- |\n"
-    rows = [f"| {index} | {chunk.title} | {chunk.url} |\n" for index,chunk in enumerate(chunks)]
+    header = "| Source Tag | Title |  URL | Text \n" + "| --- | --- | --- | --- |\n"
+    rows = [f"| [source{index}] | {chunk.title} | {chunk.url} | {chunk.text} \n" for index,chunk in enumerate(chunks)]
     return header + "\n".join(rows)
 ```
 
@@ -296,8 +304,7 @@ chat_service.modify_user_message(
 <!--
 ```{.python file=docs/.python_files/chat_edit_debug_information.py}
 <<full_sse_setup_with_services>>
-    <<chat_service_create_assistant_message>>
-    <<chat_service_modify_assistant_message>>
+    <<chat_service_final_assistant_result>>
     <<chat_service_modify_user_message_debug_info>>
     <<chat_service_free_user_input>>
 ```
@@ -328,11 +335,11 @@ from unique_toolkit.chat.schemas import ChatMessageAssessmentStatus, ChatMessage
 ```
 -->
 ```{python #chat_service_create_message_assessment}
-if not assistant_message.id:
+if not event.payload.assistant_message.id:
     raise ValueError("Assistant message ID is not set")
 
 message_assessment = chat_service.create_message_assessment(
-        assistant_message_id=assistant_message.id,
+        assistant_message_id=event.payload.assistant_message.id,
         status=ChatMessageAssessmentStatus.PENDING,
         type=ChatMessageAssessmentType.COMPLIANCE,
         title="Following Guidelines",
@@ -348,7 +355,7 @@ Once the assessment is finished it can be reported using
 
 ```{python #chat_service_modify_message_assessment}
 chat_service.modify_message_assessment(
-    assistant_message_id=assistant_message.id,
+    assistant_message_id=event.payload.assistant_message.id,
     status=ChatMessageAssessmentStatus.DONE,
     type=ChatMessageAssessmentType.COMPLIANCE,
     title="Following Guidelines",
@@ -364,7 +371,7 @@ which displays as
 ```{.python file=docs/.python_files/chat_with_message_assessment.py}
 <<common_imports>>
 <<full_sse_setup_with_services>>
-    <<chat_service_create_assistant_message>>
+    <<chat_service_final_assistant_result>>
     <<chat_service_create_message_assessment>>
     <<chat_service_modify_message_assessment>>
 ```
