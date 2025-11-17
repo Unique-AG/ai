@@ -49,6 +49,7 @@ class TestContentServiceUnit:
                     "startPage": 1,
                     "endPage": 1,
                     "order": 1,
+                    "description": "Test chunk description",
                 }
             ]
 
@@ -64,6 +65,7 @@ class TestContentServiceUnit:
             assert len(result) == 1
             assert result[0].id == "1"
             assert result[0].text == "Test chunk"
+            assert result[0].description == "Test chunk description"
 
             mock_create.assert_called_once_with(
                 user_id="test_user",
@@ -100,6 +102,7 @@ class TestContentServiceUnit:
                             "startPage": 1,
                             "endPage": 1,
                             "order": 1,
+                            "description": "Test chunk description",
                         }
                     ],
                     "createdAt": "2021-01-01T00:00:00Z",
@@ -151,6 +154,7 @@ class TestContentServiceUnit:
                     "startPage": 1,
                     "endPage": 1,
                     "order": 1,
+                    "description": "Test chunk description",
                 }
             ]
 
@@ -203,6 +207,7 @@ class TestContentServiceUnit:
                             "startPage": 1,
                             "endPage": 1,
                             "order": 1,
+                            "description": "Test chunk description",
                         }
                     ],
                     "createdAt": "2021-01-01T00:00:00Z",

@@ -200,6 +200,7 @@ def test_modify_message_with_references(mock_sdk, sample_message_data):
             sequence_number=1,
             source_id="src123",
             source="web",
+            description="Test document description",
         )
     ]
 
@@ -259,6 +260,7 @@ def test_map_references():
             sequence_number=1,
             source_id="src123",
             source="web",
+            description="Test document description",
         )
     ]
 
