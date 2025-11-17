@@ -28,3 +28,15 @@ class OpenAIBuiltInTool(ABC, Generic[ToolType]):
     @abstractmethod
     def get_tool_prompts(self) -> ToolPrompts:
         raise NotImplementedError()
+
+    @abstractmethod
+    def is_enabled(self) -> bool:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def is_exclusive(self) -> bool:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def takes_control(self) -> bool:
+        raise NotImplementedError()
