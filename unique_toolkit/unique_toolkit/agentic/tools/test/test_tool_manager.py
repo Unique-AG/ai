@@ -1574,9 +1574,7 @@ def test_responses_api_tool_manager__get_tool_by_name__can_return_builtin(
     mock_builtin_tool.is_exclusive.return_value = False
 
     mock_builtin_manager = mocker.Mock(spec=OpenAIBuiltInToolManager)
-    mock_builtin_manager.get_all_openai_builtin_tools.return_value = [
-        mock_builtin_tool
-    ]
+    mock_builtin_manager.get_all_openai_builtin_tools.return_value = [mock_builtin_tool]
 
     tool_manager = ResponsesApiToolManager(
         logger=logger,
@@ -1617,9 +1615,7 @@ def test_responses_api_tool_manager__filter_tool_calls__filters_builtin(
     mock_builtin_tool.is_exclusive.return_value = False
 
     mock_builtin_manager = mocker.Mock(spec=OpenAIBuiltInToolManager)
-    mock_builtin_manager.get_all_openai_builtin_tools.return_value = [
-        mock_builtin_tool
-    ]
+    mock_builtin_manager.get_all_openai_builtin_tools.return_value = [mock_builtin_tool]
 
     tool_manager = ResponsesApiToolManager(
         logger=logger,
@@ -1668,9 +1664,7 @@ def test_responses_api_tool_manager__get_forced_tools__formats_builtin_special(
     mock_builtin_tool.is_exclusive.return_value = False
 
     mock_builtin_manager = mocker.Mock(spec=OpenAIBuiltInToolManager)
-    mock_builtin_manager.get_all_openai_builtin_tools.return_value = [
-        mock_builtin_tool
-    ]
+    mock_builtin_manager.get_all_openai_builtin_tools.return_value = [mock_builtin_tool]
 
     base_event.payload.tool_choices = ["code_interpreter"]
 
@@ -1690,4 +1684,3 @@ def test_responses_api_tool_manager__get_forced_tools__formats_builtin_special(
     # Assert
     assert len(forced_tools) == 1
     assert forced_tools[0]["type"] == "code_interpreter"
-
