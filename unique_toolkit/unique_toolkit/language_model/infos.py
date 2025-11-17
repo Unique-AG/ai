@@ -434,7 +434,7 @@ class LanguageModelInfo(BaseModel):
                         min_temperature=1.0, max_temperature=1.0
                     ),
                     default_options={
-                        "reasoning_effort": " medium",
+                        "reasoning_effort": "medium",
                     },
                 )
             case LanguageModelName.AZURE_GPT_51_CHAT_2025_1113:
@@ -1355,7 +1355,6 @@ class LanguageModelInfo(BaseModel):
                         token_limit_input=200_000, token_limit_output=100_000
                     ),
                     published_at=date(2025, 4, 16),
-                    capabilities=[ModelCapabilities.STREAMING],
                     info_cutoff_at=date(2024, 6, 1),
                 )
             case LanguageModelName.LITELLM_OPENAI_O3_PRO:
