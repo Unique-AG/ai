@@ -47,6 +47,7 @@ class TestToolProgressReporter:
                 source="1",
                 source_id="1",
                 url="1",
+                description="Test reference description",
             )
         ]
 
@@ -92,6 +93,7 @@ class TestToolProgressReporter:
                 source="1",
                 source_id="1",
                 url="1",
+                description="Test reference 1 description",
             ),
             ContentReference(
                 sequence_number=0,
@@ -101,6 +103,7 @@ class TestToolProgressReporter:
                 source="2",
                 source_id="2",
                 url="2",
+                description="Test reference 2 description",
             ),
         ]
 
@@ -132,6 +135,7 @@ class TestToolProgressReporter:
                     source="1",
                     source_id="1",
                     url="1",
+                    description="Test reference description",
                 )
             ],
         )
@@ -167,6 +171,7 @@ class TestToolProgressDecorator:
                         source="1",
                         source_id="1",
                         url="1",
+                        description="Test reference description",
                     )
                 ]
             }
