@@ -300,7 +300,8 @@ class _ToolManager(Generic[_ApiMode]):
             tool_call.name
         )  # we need to copy this as it will have problematic interference on multi calls.
 
-        assert isinstance(tool_instance, Tool)  # Should always be the case
+        if not isinstance(tool_instance, Tool):
+            raise ValueError(f"Tool {tool_call.name} cannot be run")
 
         if tool_instance:
             # Execute the tool
