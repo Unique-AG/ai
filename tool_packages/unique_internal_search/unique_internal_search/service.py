@@ -87,6 +87,7 @@ class InternalSearchService:
 
     def _define_reference_list_for_message_log(
         self,
+        *
         content_chunks: list[ContentChunk],
         data: list[ContentReference],
     ) -> list[ContentReference]:
