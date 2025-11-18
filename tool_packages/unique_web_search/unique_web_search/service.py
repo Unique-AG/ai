@@ -115,7 +115,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
             List of ContentReference objects
         """
 
-        count = 0
+        count = len(data)
         for content_chunk in content_chunks:
             content_url = content_chunk.url or ""
 
