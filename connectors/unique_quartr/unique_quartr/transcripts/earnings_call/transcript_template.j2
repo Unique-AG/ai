@@ -1,0 +1,14 @@
+{%- set previous_speaker = None -%}
+{%- for paragraph in transcript.paragraphs -%}
+{%- if paragraph.speaker != previous_speaker -%}
+{%- if not loop.first %}
+
+{% endif -%}
+## {{ get_speaker_name(paragraph.speaker) }}
+
+{%- set previous_speaker = paragraph.speaker -%}
+{%- endif %}
+{{ paragraph.text }}
+
+{%- endfor -%}
+

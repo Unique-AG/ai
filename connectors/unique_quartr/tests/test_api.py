@@ -24,7 +24,7 @@ class TestGetQuartrContext:
         # Mock the settings
         mock_creds = Mock()
         mock_creds.api_key = "test_api_key_12345"
-        mock_settings.quartr_api_creds = mock_creds
+        mock_settings.quartr_api_creds_model = mock_creds
         mock_settings.quartr_api_activated_companies = ["company1", "company2"]
 
         # Get context
@@ -38,7 +38,7 @@ class TestGetQuartrContext:
     @patch("unique_quartr.endpoints.api.quartr_settings")
     def test_get_quartr_context_no_credentials(self, mock_settings):
         """Test get_quartr_context raises error when credentials are not set."""
-        mock_settings.quartr_api_creds = None
+        mock_settings.quartr_api_creds_model = None
 
         with pytest.raises(ValueError, match="Quartr API credentials are not set"):
             get_quartr_context(company_id="company1")
@@ -48,7 +48,7 @@ class TestGetQuartrContext:
         """Test get_quartr_context raises error when company is not activated."""
         mock_creds = Mock()
         mock_creds.api_key = "test_api_key"
-        mock_settings.quartr_api_creds = mock_creds
+        mock_settings.quartr_api_creds_model = mock_creds
         mock_settings.quartr_api_activated_companies = ["company1", "company2"]
 
         with pytest.raises(ValueError, match="Company company3 is not activated"):
