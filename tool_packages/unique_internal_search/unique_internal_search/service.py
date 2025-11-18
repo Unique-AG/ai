@@ -114,8 +114,7 @@ class InternalSearchService:
                         source_id=content_chunk.id,
                     )
                 )
-
-            count += 1
+                count += 1
 
         return data
 
