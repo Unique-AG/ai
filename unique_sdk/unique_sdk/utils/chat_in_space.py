@@ -142,7 +142,7 @@ async def chat_against_file(
         raise
     finally:
         if chat_id and should_delete_chat:
-            Space.delete_chat(
+            await Space.delete_chat_async(
                 user_id=user_id,
                 company_id=company_id,
                 chat_id=chat_id,

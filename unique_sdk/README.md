@@ -2068,7 +2068,7 @@ You must provide the following parameters:
 - `mime_type`: The mime type of the ifle to be uploaded.
 - `text`: The text to be sent to the chat for chatting against the file.
 
-The script creates a chat and uploads the file to it. It then keeps polling the `ingestionState` field of the message, waiting for it to reach `FINISHED`, signaling the upload is complete. Once the file uploads successfully, the script sends the text, continues polling for completion, and finally retrieves the response message.
+The script creates a chat and uploads the file to it. It then keeps polling the `ingestionState` field of the message, waiting for it to reach `FINISHED`, signaling the upload is complete. Once the file uploads successfully, the script sends the text, continues polling for completion, and finally retrieves the response message. The function deletes the chat at the end unless the `should_delete_chat` is set to false.
 
 **Optional parameters:**
 - `poll_interval`: The number of seconds to wait between polling attempts (default: `1` second).
