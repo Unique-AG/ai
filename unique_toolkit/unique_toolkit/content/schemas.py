@@ -93,6 +93,7 @@ class Content(BaseModel):
     updated_at: datetime | None = None
     metadata: dict[str, Any] | None = None
     ingestion_config: dict | None = None
+    ingestion_state: str | None = None
 
 
 class ContentReference(BaseModel):

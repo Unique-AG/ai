@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any, Generic, Optional, TypeVar, override
 
 from humps import camelize
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, JsonValue, field_validator
 from pydantic_settings import BaseSettings
 from typing_extensions import deprecated
 
@@ -214,6 +214,10 @@ class ChatEventPayload(BaseModel):
     message_execution_id: str | None = Field(
         default=None,
         description="The message execution id for triggering the chat event. Originates from the message execution service.",
+    )
+    session_config: JsonValue | None = Field(
+        default=None,
+        description="The session configuration for the chat session.",
     )
 
     @field_validator("raw_scope_rules", mode="before")
