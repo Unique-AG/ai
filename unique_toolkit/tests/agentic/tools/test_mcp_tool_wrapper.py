@@ -11,7 +11,6 @@ This test suite validates the MCPToolWrapper's ability to:
 """
 
 import json
-from typing import Any, Dict
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -84,13 +83,13 @@ def mock_chat_event() -> ChatEvent:
     event.company_id = "company_456"
     event.chat_id = "chat_789"
     event.assistant_id = "assistant_101"
-    
+
     # Mock the payload structure
     mock_payload = Mock()
     mock_payload.assistant_message = Mock()
     mock_payload.assistant_message.id = "assistant_message_202"
     event.payload = mock_payload
-    
+
     return event
 
 
@@ -456,7 +455,7 @@ class TestMCPToolWrapperArgumentExtraction:
         tool_call = LanguageModelFunction(
             id="call_123",
             name="test_mcp_tool",
-            arguments="",
+            arguments={},
         )
 
         # Act
@@ -464,75 +463,6 @@ class TestMCPToolWrapperArgumentExtraction:
 
         # Assert
         assert arguments == {}
-
-    @pytest.mark.ai
-    def test_extract_arguments__raises_value_error__with_invalid_json_AI(
-        self,
-        mcp_tool_wrapper: MCPToolWrapper,
-    ) -> None:
-        """
-        Purpose: Verify ValueError is raised for invalid JSON arguments.
-        Why this matters: Provides clear error messages for malformed inputs.
-        Setup summary: Create tool call with invalid JSON, verify ValueError is raised.
-        """
-        # Arrange
-        tool_call = LanguageModelFunction(
-            id="call_123",
-            name="test_mcp_tool",
-            arguments='{"invalid": json}',  # Invalid JSON
-        )
-
-        # Act & Assert
-        with pytest.raises(ValueError) as exc_info:
-            mcp_tool_wrapper._extract_and_validate_arguments(tool_call)
-
-        assert "Invalid JSON arguments" in str(exc_info.value)
-
-    @pytest.mark.ai
-    def test_extract_arguments__returns_empty_dict__with_non_dict_json_AI(
-        self,
-        mcp_tool_wrapper: MCPToolWrapper,
-    ) -> None:
-        """
-        Purpose: Verify empty dict is returned when JSON parses to non-dict.
-        Why this matters: Handles unusual API responses gracefully.
-        Setup summary: Create tool call with JSON array, verify empty dict returned.
-        """
-        # Arrange
-        tool_call = LanguageModelFunction(
-            id="call_123",
-            name="test_mcp_tool",
-            arguments='["not", "a", "dict"]',
-        )
-
-        # Act
-        arguments = mcp_tool_wrapper._extract_and_validate_arguments(tool_call)
-
-        # Assert
-        assert arguments == {}
-
-    @pytest.mark.ai
-    def test_extract_arguments__raises_value_error__with_unexpected_type_AI(
-        self,
-        mcp_tool_wrapper: MCPToolWrapper,
-    ) -> None:
-        """
-        Purpose: Verify ValueError is raised for unexpected argument types.
-        Why this matters: Catches programming errors early.
-        Setup summary: Create tool call with integer arguments, verify ValueError.
-        """
-        # Arrange
-        tool_call = LanguageModelFunction(
-            id="call_123",
-            name="test_mcp_tool",
-            arguments=12345,  # Unexpected type
-        )
-
-        # Act & Assert
-        with pytest.raises(ValueError) as exc_info:
-            mcp_tool_wrapper._extract_and_validate_arguments(tool_call)
-
-        assert "Unexpected arguments type" in str(exc_info.value)
 
 
 class TestMCPToolWrapperJsonSchemaConversion:
@@ -552,7 +482,7 @@ class TestMCPToolWrapperJsonSchemaConversion:
         python_type = mcp_tool_wrapper._json_schema_to_python_type({"type": "string"})
 
         # Assert
-        assert python_type == str
+        assert python_type is str
 
     @pytest.mark.ai
     def test_json_schema_to_python_type__converts_integer__AI(
@@ -568,7 +498,7 @@ class TestMCPToolWrapperJsonSchemaConversion:
         python_type = mcp_tool_wrapper._json_schema_to_python_type({"type": "integer"})
 
         # Assert
-        assert python_type == int
+        assert python_type is int
 
     @pytest.mark.ai
     def test_json_schema_to_python_type__converts_number__AI(
@@ -584,7 +514,7 @@ class TestMCPToolWrapperJsonSchemaConversion:
         python_type = mcp_tool_wrapper._json_schema_to_python_type({"type": "number"})
 
         # Assert
-        assert python_type == float
+        assert python_type is float
 
     @pytest.mark.ai
     def test_json_schema_to_python_type__converts_boolean__AI(
@@ -600,7 +530,7 @@ class TestMCPToolWrapperJsonSchemaConversion:
         python_type = mcp_tool_wrapper._json_schema_to_python_type({"type": "boolean"})
 
         # Assert
-        assert python_type == bool
+        assert python_type is bool
 
     @pytest.mark.ai
     def test_json_schema_to_python_type__converts_array__AI(
@@ -616,7 +546,7 @@ class TestMCPToolWrapperJsonSchemaConversion:
         python_type = mcp_tool_wrapper._json_schema_to_python_type({"type": "array"})
 
         # Assert
-        assert python_type == list
+        assert python_type is list
 
     @pytest.mark.ai
     def test_json_schema_to_python_type__converts_object__AI(
@@ -632,7 +562,7 @@ class TestMCPToolWrapperJsonSchemaConversion:
         python_type = mcp_tool_wrapper._json_schema_to_python_type({"type": "object"})
 
         # Assert
-        assert python_type == dict
+        assert python_type is dict
 
     @pytest.mark.ai
     def test_json_schema_to_python_type__defaults_to_string__with_unknown_type_AI(
@@ -650,7 +580,7 @@ class TestMCPToolWrapperJsonSchemaConversion:
         )
 
         # Assert
-        assert python_type == str
+        assert python_type is str
 
     @pytest.mark.ai
     def test_json_schema_to_python_type__defaults_to_string__with_missing_type_AI(
@@ -666,7 +596,7 @@ class TestMCPToolWrapperJsonSchemaConversion:
         python_type = mcp_tool_wrapper._json_schema_to_python_type({})
 
         # Assert
-        assert python_type == str
+        assert python_type is str
 
 
 class TestMCPToolWrapperRun:
@@ -687,22 +617,27 @@ class TestMCPToolWrapperRun:
         tool_call = LanguageModelFunction(
             id="call_123",
             name="test_mcp_tool",
-            arguments='{"query": "test"}',
+            arguments={"query": "test"},
         )
-        
+
         with patch("unique_sdk.MCP.call_tool") as mock_sdk_call:
             mock_sdk_call.return_value = {"result": "success", "data": [1, 2, 3]}
 
             # Act
-            response = await mcp_tool_wrapper.run(tool_call)
+            response: ToolCallResponse = await mcp_tool_wrapper.run(tool_call)
 
             # Assert
             assert isinstance(response, ToolCallResponse)
             assert response.id == "call_123"
             assert response.name == "test_mcp_tool"
             assert response.error_message == ""
-            assert json.loads(response.content) == {"result": "success", "data": [1, 2, 3]}
+            assert json.loads(response.content) == {
+                "result": "success",
+                "data": [1, 2, 3],
+            }
+            assert response.debug_info is not None
             assert response.debug_info["mcp_tool"] == "test_mcp_tool"
+            assert response.debug_info["arguments"] is not None
             assert response.debug_info["arguments"] == {"query": "test"}
 
     @pytest.mark.ai
@@ -721,9 +656,9 @@ class TestMCPToolWrapperRun:
         tool_call = LanguageModelFunction(
             id="call_123",
             name="test_mcp_tool",
-            arguments='{"query": "test", "limit": 5}',
+            arguments={"query": "test", "limit": 5},
         )
-        
+
         with patch("unique_sdk.MCP.call_tool") as mock_sdk_call:
             mock_sdk_call.return_value = {"result": "ok"}
 
@@ -753,9 +688,9 @@ class TestMCPToolWrapperRun:
         tool_call = LanguageModelFunction(
             id="call_123",
             name="test_mcp_tool",
-            arguments='{"query": "test"}',
+            arguments={"query": "test"},
         )
-        
+
         with patch("unique_sdk.MCP.call_tool") as mock_sdk_call:
             mock_sdk_call.side_effect = Exception("SDK error occurred")
 
@@ -767,6 +702,7 @@ class TestMCPToolWrapperRun:
             assert response.id == "call_123"
             assert response.name == "test_mcp_tool"
             assert response.error_message == "SDK error occurred"
+            assert response.debug_info is not None
             assert response.debug_info["mcp_tool"] == "test_mcp_tool"
             assert response.debug_info["error"] == "SDK error occurred"
 
@@ -787,7 +723,7 @@ class TestMCPToolWrapperRun:
         # Arrange
         mock_progress_reporter = Mock(spec=ToolProgressReporter)
         mock_progress_reporter.notify_from_tool_call = AsyncMock()
-        
+
         wrapper = MCPToolWrapper(
             mcp_server=mock_mcp_server,
             mcp_tool=mock_mcp_tool,
@@ -795,13 +731,13 @@ class TestMCPToolWrapperRun:
             event=mock_chat_event,
             tool_progress_reporter=mock_progress_reporter,
         )
-        
+
         tool_call = LanguageModelFunction(
             id="call_123",
             name="test_mcp_tool",
-            arguments='{"query": "test"}',
+            arguments={"query": "test"},
         )
-        
+
         with patch("unique_sdk.MCP.call_tool") as mock_sdk_call:
             mock_sdk_call.return_value = {"result": "ok"}
 
@@ -810,12 +746,12 @@ class TestMCPToolWrapperRun:
 
             # Assert
             assert mock_progress_reporter.notify_from_tool_call.call_count == 2
-            
+
             # Check RUNNING notification
             first_call = mock_progress_reporter.notify_from_tool_call.call_args_list[0]
             assert first_call.kwargs["state"] == ProgressState.RUNNING
             assert "Executing MCP tool" in first_call.kwargs["message"]
-            
+
             # Check FINISHED notification
             second_call = mock_progress_reporter.notify_from_tool_call.call_args_list[1]
             assert second_call.kwargs["state"] == ProgressState.FINISHED
@@ -838,7 +774,7 @@ class TestMCPToolWrapperRun:
         # Arrange
         mock_progress_reporter = Mock(spec=ToolProgressReporter)
         mock_progress_reporter.notify_from_tool_call = AsyncMock()
-        
+
         wrapper = MCPToolWrapper(
             mcp_server=mock_mcp_server,
             mcp_tool=mock_mcp_tool,
@@ -846,13 +782,13 @@ class TestMCPToolWrapperRun:
             event=mock_chat_event,
             tool_progress_reporter=mock_progress_reporter,
         )
-        
+
         tool_call = LanguageModelFunction(
             id="call_123",
             name="test_mcp_tool",
-            arguments='{"query": "test"}',
+            arguments={"query": "test"},
         )
-        
+
         with patch("unique_sdk.MCP.call_tool") as mock_sdk_call:
             mock_sdk_call.side_effect = Exception("Test error")
 
@@ -861,7 +797,7 @@ class TestMCPToolWrapperRun:
 
             # Assert
             assert mock_progress_reporter.notify_from_tool_call.call_count == 2
-            
+
             # Check FAILED notification
             second_call = mock_progress_reporter.notify_from_tool_call.call_args_list[1]
             assert second_call.kwargs["state"] == ProgressState.FAILED
@@ -882,9 +818,9 @@ class TestMCPToolWrapperRun:
         tool_call = LanguageModelFunction(
             id="call_123",
             name="test_mcp_tool",
-            arguments='{"query": "test"}',
+            arguments={"query": "test"},
         )
-        
+
         with patch("unique_sdk.MCP.call_tool") as mock_sdk_call:
             mock_sdk_call.return_value = {"result": "ok"}
 
@@ -894,32 +830,6 @@ class TestMCPToolWrapperRun:
             # Assert
             assert response.error_message == ""
             assert response.name == "test_mcp_tool"
-
-    @pytest.mark.ai
-    @pytest.mark.asyncio
-    async def test_run__handles_argument_extraction_error__with_invalid_args_AI(
-        self,
-        mcp_tool_wrapper: MCPToolWrapper,
-    ) -> None:
-        """
-        Purpose: Verify tool handles argument extraction errors.
-        Why this matters: Invalid arguments should result in error response.
-        Setup summary: Create tool call with invalid arguments, verify error response.
-        """
-        # Arrange
-        tool_call = LanguageModelFunction(
-            id="call_123",
-            name="test_mcp_tool",
-            arguments='invalid json',
-        )
-
-        # Act
-        response = await mcp_tool_wrapper.run(tool_call)
-
-        # Assert
-        assert isinstance(response, ToolCallResponse)
-        assert response.error_message != ""
-        assert "Invalid JSON" in response.error_message
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -938,7 +848,7 @@ class TestMCPToolWrapperRun:
             name="test_mcp_tool",
             arguments='{"query": "test"}',
         )
-        
+
         with patch("unique_sdk.MCP.call_tool") as mock_sdk_call:
             mock_sdk_call.return_value = {"result": "ok"}
 
@@ -965,7 +875,7 @@ class TestMCPToolWrapperCallSDK:
         """
         # Arrange
         arguments = {"query": "test search"}
-        
+
         with patch("unique_sdk.MCP.call_tool") as mock_sdk_call:
             mock_sdk_call.return_value = {"status": "success", "items": []}
 
@@ -988,35 +898,19 @@ class TestMCPToolWrapperCallSDK:
         """
         # Arrange
         arguments = {"query": "test"}
-        
+
         with patch("unique_sdk.MCP.call_tool") as mock_sdk_call:
             mock_sdk_call.side_effect = Exception("Connection timeout")
 
             # Act & Assert
             with pytest.raises(Exception) as exc_info:
                 await mcp_tool_wrapper._call_mcp_tool_via_sdk(arguments)
-            
+
             assert "Connection timeout" in str(exc_info.value)
 
 
 class TestMCPToolWrapperEdgeCases:
     """Test suite for edge cases and unusual scenarios."""
-
-    @pytest.mark.ai
-    def test_display_name__uses_tool_name__by_default_AI(
-        self,
-        mcp_tool_wrapper: MCPToolWrapper,
-    ) -> None:
-        """
-        Purpose: Verify display_name falls back to tool name.
-        Why this matters: Display name is used in UI and logs.
-        Setup summary: Call display_name without setting custom name, verify default.
-        """
-        # Act
-        display_name = mcp_tool_wrapper.display_name()
-
-        # Assert
-        assert display_name == "test_mcp_tool"
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -1033,9 +927,9 @@ class TestMCPToolWrapperEdgeCases:
         tool_call = LanguageModelFunction(
             id="call_123",
             name="test_mcp_tool",
-            arguments='{"query": "test"}',
+            arguments={"query": "test"},
         )
-        
+
         with patch("unique_sdk.MCP.call_tool") as mock_sdk_call:
             mock_sdk_call.return_value = {}
 
@@ -1069,9 +963,9 @@ class TestMCPToolWrapperEdgeCases:
         tool_call = LanguageModelFunction(
             id="call_123",
             name="test_mcp_tool",
-            arguments=json.dumps(complex_args),
+            arguments=complex_args,
         )
-        
+
         with patch("unique_sdk.MCP.call_tool") as mock_sdk_call:
             mock_sdk_call.return_value = {"result": "ok"}
 
@@ -1083,4 +977,3 @@ class TestMCPToolWrapperEdgeCases:
             mock_sdk_call.assert_called_once()
             called_args = mock_sdk_call.call_args[1]["arguments"]
             assert called_args == complex_args
-

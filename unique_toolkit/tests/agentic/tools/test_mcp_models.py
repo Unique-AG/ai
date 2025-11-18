@@ -213,7 +213,7 @@ class TestMCPToolConfig:
             server_name="Server 1",
             mcp_source_id="source_1",
         )
-        
+
         config2 = MCPToolConfig(
             server_id="server_2",
             server_name="Server 2",
@@ -224,8 +224,7 @@ class TestMCPToolConfig:
         assert config1.server_id != config2.server_id
         assert config1.server_name != config2.server_name
         assert config1.mcp_source_id != config2.mcp_source_id
-        
+
         # Modifying one shouldn't affect the other
         config1.server_name = "Modified Server 1"
         assert config2.server_name == "Server 2"
-

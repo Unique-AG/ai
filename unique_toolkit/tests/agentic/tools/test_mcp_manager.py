@@ -28,13 +28,13 @@ def mock_chat_event() -> ChatEvent:
     event.company_id = "company_456"
     event.chat_id = "chat_789"
     event.assistant_id = "assistant_101"
-    
+
     # Mock the payload structure
     mock_payload = Mock()
     mock_payload.assistant_message = Mock()
     mock_payload.assistant_message.id = "assistant_message_202"
     event.payload = mock_payload
-    
+
     return event
 
 
@@ -51,7 +51,10 @@ def mock_mcp_tools() -> list[McpTool]:
         McpTool(
             name="search_tool",
             description="Search for information",
-            input_schema={"type": "object", "properties": {"query": {"type": "string"}}},
+            input_schema={
+                "type": "object",
+                "properties": {"query": {"type": "string"}},
+            },
             title="Search Tool",
             is_connected=True,
         ),
@@ -336,7 +339,7 @@ class TestMCPManagerToolCreation:
         server_without_tools.name = "Server Without Tools"
         # Deliberately don't set 'tools' attribute
         delattr(server_without_tools, "tools")
-        
+
         manager = MCPManager(
             mcp_servers=[server_without_tools],
             event=mock_chat_event,
@@ -409,14 +412,14 @@ class TestMCPManagerToolCreation:
             input_schema={"type": "object"},
             is_connected=True,
         )
-        
+
         good_tool = McpTool(
             name="good_tool",
             description="This tool is fine",
             input_schema={"type": "object"},
             is_connected=True,
         )
-        
+
         # Create a server with both tools
         server = Mock(spec=McpServer)
         server.id = "test_server"
@@ -424,7 +427,7 @@ class TestMCPManagerToolCreation:
         server.system_prompt = "System prompt"
         server.user_prompt = "User prompt"
         server.tools = [bad_tool, good_tool]
-        
+
         manager = MCPManager(
             mcp_servers=[server],
             event=mock_chat_event,
@@ -499,7 +502,7 @@ class TestMCPManagerMultipleServersWithTools:
                 is_connected=True,
             ),
         ]
-        
+
         server2_tools = [
             McpTool(
                 name="tool_2",
@@ -508,7 +511,7 @@ class TestMCPManagerMultipleServersWithTools:
                 is_connected=True,
             ),
         ]
-        
+
         servers = [
             McpServer(
                 id="server_1",
@@ -521,7 +524,7 @@ class TestMCPManagerMultipleServersWithTools:
                 tools=server2_tools,
             ),
         ]
-        
+
         manager = MCPManager(
             mcp_servers=servers,
             event=mock_chat_event,
@@ -556,7 +559,7 @@ class TestMCPManagerMultipleServersWithTools:
                 is_connected=True,
             ),
         ]
-        
+
         server2_tools = [
             McpTool(
                 name="tool_s2",
@@ -564,12 +567,12 @@ class TestMCPManagerMultipleServersWithTools:
                 is_connected=True,
             ),
         ]
-        
+
         servers = [
             McpServer(id="s1", name="Server 1", tools=server1_tools),
             McpServer(id="s2", name="Server 2", tools=server2_tools),
         ]
-        
+
         manager = MCPManager(
             mcp_servers=servers,
             event=mock_chat_event,
@@ -582,7 +585,6 @@ class TestMCPManagerMultipleServersWithTools:
         # Assert
         tool_s1 = next((t for t in tools if t.name == "tool_s1"), None)
         tool_s2 = next((t for t in tools if t.name == "tool_s2"), None)
-        
+
         assert tool_s1.configuration.server_id == "s1"
         assert tool_s2.configuration.server_id == "s2"
-
