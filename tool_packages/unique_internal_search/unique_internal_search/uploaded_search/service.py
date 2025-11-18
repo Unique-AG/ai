@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from pydantic import Field, create_model
 from typing_extensions import override
 from unique_toolkit import ContentService
@@ -72,10 +74,13 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
             parameters=internal_search_tool_input,
         )
 
-    def tool_description_for_system_prompt(self) -> str:
+    def tool_description_for_system_prompt(self) -> str:    
         documents = self._content_service.get_documents_uploaded_to_chat()
-        list_all_documents = "".join([f"- {doc.title or doc.key}" for doc in documents])
-        return self._config.tool_description_for_system_prompt + list_all_documents
+        valid_documents = [doc for doc in documents if doc.expires_at is None or doc.expires_at > datetime.now(timezone.utc)]
+        expired_documents = [doc for doc in documents if doc.expires_at is not None and doc.expires_at <= datetime.now(timezone.utc)]
+        list_all_valid_documents = "".join([f"- {doc.title or doc.key}" for doc in valid_documents])
+        list_all_expired_documents = "".join([f"- {doc.title or doc.key}" for doc in expired_documents])
+        return self._config.tool_description_for_system_prompt.format(list_all_valid_documents=list_all_valid_documents, list_all_expired_documents=list_all_expired_documents)
 
     def tool_format_information_for_system_prompt(self) -> str:
         return self._config.tool_format_information_for_system_prompt

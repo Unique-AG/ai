@@ -420,7 +420,7 @@ def get_selection_from_history(
 
 
 def map_to_chat_messages(messages: list[dict]) -> list[ChatMessage]:
-    return [ChatMessage(**msg) for msg in messages]
+    return [ChatMessage(**msg) for msg in messages if msg["role"].lower() != ChatMessageRole.SYSTEM.value]
 
 
 def pick_messages_in_reverse_for_token_window(
@@ -520,7 +520,7 @@ def filter_valid_messages(
     messages = messages["data"][:-2]  # type: ignore
     filtered_messages = []
     for message in messages:
-        if message["text"] is None or SYSTEM_MESSAGE_PREFIX in message["text"]:
+        if message["text"] is None or SYSTEM_MESSAGE_PREFIX in message["text"] or message["role"].lower() == ChatMessageRole.SYSTEM.value:
             continue
         filtered_messages.append(message)
 

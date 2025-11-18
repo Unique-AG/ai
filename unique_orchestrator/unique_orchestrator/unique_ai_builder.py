@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from logging import Logger
 from typing import NamedTuple, cast
 
@@ -363,11 +364,25 @@ def _build_completions(
     # 1. Add it to forced tools if there are tool choices.
     # 2. Simply force it if there are no tool choices.
     # 3. Not available if not uploaded documents.
-    UPLOADED_DOCUMENTS = len(common_components.uploaded_documents) > 0
+    now = datetime.now(timezone.utc)
+    UPLOADED_DOCUMENTS_VALID = [
+        doc for doc in common_components.uploaded_documents
+        if doc.expires_at is None or doc.expires_at > now
+    ]
+    UPLOADED_DOCUMENTS_EXPIRED = [
+        doc for doc in common_components.uploaded_documents
+        if doc.expires_at is not None and doc.expires_at <= now
+    ]
     TOOL_CHOICES = len(event.payload.tool_choices) > 0
-    if UPLOADED_DOCUMENTS:
+    
+    if UPLOADED_DOCUMENTS_EXPIRED:
         logger.info(
-            f"Adding UploadedSearchTool with {len(common_components.uploaded_documents)} documents"
+            f"Number of expired uploaded documents: {len(UPLOADED_DOCUMENTS_EXPIRED)}"
+        )
+    
+    if UPLOADED_DOCUMENTS_VALID:
+        logger.info(
+            f"Number of valid uploaded documents: {len(UPLOADED_DOCUMENTS_VALID)}"
         )
         common_components.tool_manager_config.tools.append(
             ToolBuildConfig(
@@ -376,7 +391,7 @@ def _build_completions(
                 configuration=UploadedSearchConfig(),
             )
         )
-    if TOOL_CHOICES and UPLOADED_DOCUMENTS:
+    if TOOL_CHOICES and UPLOADED_DOCUMENTS_VALID:
         event.payload.tool_choices.append(str(UploadedSearchTool.name))
 
     tool_manager = ToolManager(
@@ -387,7 +402,7 @@ def _build_completions(
         mcp_manager=common_components.mcp_manager,
         a2a_manager=common_components.a2a_manager,
     )
-    if not TOOL_CHOICES and UPLOADED_DOCUMENTS:
+    if not TOOL_CHOICES and UPLOADED_DOCUMENTS_VALID:
         tool_manager.add_forced_tool(UploadedSearchTool.name)
 
     postprocessor_manager = common_components.postprocessor_manager
