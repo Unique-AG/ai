@@ -34,7 +34,6 @@ async def collect_earnings_calls(
     company: UniqueCompanyListing,
     earnings_call_start_date: datetime,
 ) -> list[Source]:
-
     event_type_ids = quartr_service.get_event_subtype_ids_from_event_types(
         [EventType.EARNINGS_CALL]
     )
@@ -47,7 +46,7 @@ async def collect_earnings_calls(
         event_ids=event_type_ids,
         start_date=earnings_call_start_date.strftime("%Y-%m-%d"),
     )
-    
+
     with open("events.json", "w") as f:
         f.write(events.model_dump_json(indent=4))
 
