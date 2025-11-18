@@ -40,15 +40,9 @@ for event in get_event_generator(unique_settings=settings, event_type=ChatEvent)
     kb_service= KnowledgeBaseService.from_event(event)
     # ~/~ end
 # ~/~ end
-    # ~/~ begin <<docs/modules/examples/chat/chat_service.md#chat_service_create_assistant_message>>[init]
-    assistant_message = chat_service.create_assistant_message(
-            content="Hello from Unique",
-        )
-    # ~/~ end
-    # ~/~ begin <<docs/modules/examples/chat/chat_service.md#chat_service_modify_assistant_message>>[init]
+    # ~/~ begin <<docs/modules/examples/chat/chat_service.md#chat_service_final_assistant_result>>[init]
     chat_service.modify_assistant_message(
-            content="Modified User Message",
-            message_id=assistant_message.id
+            content="Final assistant message",
         )
     # ~/~ end
     # ~/~ begin <<docs/modules/examples/chat/chat_service.md#chat_service_modify_user_message_debug_info>>[init]

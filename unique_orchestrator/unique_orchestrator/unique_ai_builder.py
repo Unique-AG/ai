@@ -285,16 +285,17 @@ async def _build_responses(
             )
         )
 
-    builtin_tool_manager = OpenAIBuiltInToolManager(
+    builtin_tool_manager = await OpenAIBuiltInToolManager.build_manager(
         uploaded_files=common_components.uploaded_documents,
-        chat_id=event.payload.chat_id,
         content_service=common_components.content_service,
         user_id=event.user_id,
         company_id=event.company_id,
+        chat_id=event.payload.chat_id,
         client=client,
+        tool_configs=config.space.tools,
     )
 
-    tool_manager = await ResponsesApiToolManager.build_manager(
+    tool_manager = ResponsesApiToolManager(
         logger=logger,
         config=common_components.tool_manager_config,
         event=event,

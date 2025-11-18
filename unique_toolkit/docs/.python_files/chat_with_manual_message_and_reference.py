@@ -34,19 +34,8 @@ settings = UniqueSettings.from_env_auto_with_sdk_init()
 for event in get_event_generator(unique_settings=settings, event_type=ChatEvent):
 # ~/~ end
     chat_service = ChatService(event)
-    # ~/~ begin <<docs/modules/examples/chat/chat_service.md#chat_service_create_assistant_message>>[init]
-    assistant_message = chat_service.create_assistant_message(
-            content="Hello from Unique",
-        )
-    # ~/~ end
-    # ~/~ begin <<docs/modules/examples/chat/chat_service.md#chat_service_modify_assistant_message>>[init]
-    chat_service.modify_assistant_message(
-            content="Modified User Message",
-            message_id=assistant_message.id
-        )
-    # ~/~ end
     # ~/~ begin <<docs/modules/examples/chat/chat_service.md#chat_service_assistant_message_with_reference>>[init]
-    chat_service.create_assistant_message(
+    chat_service.modify_assistant_message(
             content="Hello from Unique <sup>0</sup>",
             references=[ContentReference(source="source0",
                                          url="https://www.unique.ai",
