@@ -228,16 +228,28 @@ def build_httpx_requestor(
             )
             url = urljoin(context.base_url, path)
             _verify_url(url)
+
+            payload = cls._operation.create_payload_from_model(
+                payload_model,
+                model_dump_options=cls._operation.payload_dump_options(),
+            )
+
             with httpx.Client() as client:
-                response = client.request(
-                    method=cls._operation.request_method(),
-                    url=url,
-                    headers=headers,
-                    json=cls._operation.create_payload_from_model(
-                        payload_model,
-                        model_dump_options=cls._operation.payload_dump_options(),
-                    ),
-                )
+                # For GET requests, send payload as params; for others, send as json
+                if cls._operation.request_method() == HttpMethods.GET:
+                    response = client.request(
+                        method=cls._operation.request_method(),
+                        url=url,
+                        headers=headers,
+                        params=payload,
+                    )
+                else:
+                    response = client.request(
+                        method=cls._operation.request_method(),
+                        url=url,
+                        headers=headers,
+                        json=payload,
+                    )
                 response_json = response.json()
                 return cls._operation.handle_response(
                     response_json,
@@ -262,16 +274,28 @@ def build_httpx_requestor(
             )
             url = urljoin(context.base_url, path)
             _verify_url(url)
+
+            payload = cls._operation.create_payload_from_model(
+                payload_model,
+                model_dump_options=cls._operation.payload_dump_options(),
+            )
+
             async with httpx.AsyncClient() as client:
-                response = await client.request(
-                    method=cls._operation.request_method(),
-                    url=url,
-                    headers=headers,
-                    json=cls._operation.create_payload_from_model(
-                        payload_model,
-                        model_dump_options=cls._operation.payload_dump_options(),
-                    ),
-                )
+                # For GET requests, send payload as params; for others, send as json
+                if cls._operation.request_method() == HttpMethods.GET:
+                    response = await client.request(
+                        method=cls._operation.request_method(),
+                        url=url,
+                        headers=headers,
+                        params=payload,
+                    )
+                else:
+                    response = await client.request(
+                        method=cls._operation.request_method(),
+                        url=url,
+                        headers=headers,
+                        json=payload,
+                    )
                 response_json = response.json()
                 return cls._operation.handle_response(
                     response_json,
