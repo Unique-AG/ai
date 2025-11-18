@@ -129,8 +129,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
                         source_id=content_url or "",
                     )
                 )
-
-            count += 1
+                count += 1
 
         return data
 

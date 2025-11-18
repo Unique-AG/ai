@@ -425,7 +425,7 @@ def _build_completions(
         postprocessor_manager=postprocessor_manager,
         debug_info_manager=debug_info_manager,
         mcp_servers=event.payload.mcp_servers,
-        message_step_logger=MessageStepLogger(common_components.chat_service, event),
+        message_step_logger=common_components.message_step_logger,
     )
 
 
