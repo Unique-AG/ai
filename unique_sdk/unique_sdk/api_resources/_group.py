@@ -33,7 +33,6 @@ class Group(APIResource["Group"]):
         name: str
         externalId: NotRequired[Optional[str]]
         parentId: NotRequired[Optional[str]]
-        roles: NotRequired[Optional[List[str]]]
 
     class UpdateParams(RequestOptions):
         """
@@ -81,7 +80,6 @@ class Group(APIResource["Group"]):
         name: str
         externalId: str
         parentId: Optional[str]
-        roles: Optional[List[str]]
         members: Optional[List["Group.GroupMember"]]
         createdAt: str
         updatedAt: str

@@ -1433,7 +1433,7 @@ users = unique_sdk.User.get_users(
 
 #### `unique_sdk.Group.create_group` (Compatible with release >.48)
 
-Create a new group in a company. You can specify the group name (required), external ID, parent group ID, and roles.
+Create a new group in a company. You can specify the group name (required), external ID and parent group ID.
 
 ```python
 group = unique_sdk.Group.create_group(
@@ -1442,7 +1442,6 @@ group = unique_sdk.Group.create_group(
     name="New Group",  # Required - the name of the group
     externalId="ext_123",  # Optional - external ID for the group
     parentId="group_a9cs7wr2z1bg2sxczvltgjch",  # Optional - parent group ID
-    roles=["chat.knowledge.read"],  # Optional - roles associated with the group
 )
 ```
 
