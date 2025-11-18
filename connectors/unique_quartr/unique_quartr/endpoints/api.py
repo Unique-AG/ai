@@ -40,7 +40,7 @@ def get_quartr_context(*, company_id: str):
     )
 
 
-model_payload_dump_options = {
+model_params_dump_options = {
     "by_alias": True,
 }
 
@@ -50,7 +50,7 @@ QuartrEventsApiOperation = build_api_operation(
     path_template=Template("/public/v3/events"),
     query_params_constructor=PublicV3EventsGetParametersQuery,
     response_model_type=PaginatedEventResponseDto,
-    query_params_dump_options=model_payload_dump_options,
+    query_params_dump_options=model_params_dump_options,
 )
 
 QuartrDocumentsApiOperation = build_api_operation(
@@ -58,7 +58,7 @@ QuartrDocumentsApiOperation = build_api_operation(
     path_template=Template("/public/v3/documents"),
     query_params_constructor=PublicV3DocumentsGetParametersQuery,
     response_model_type=PaginatedDocumentResponseDto,
-    query_params_dump_options=model_payload_dump_options,
+    query_params_dump_options=model_params_dump_options,
 )
 
 QuartrDocumentsTypesApiOperation = build_api_operation(
@@ -66,5 +66,5 @@ QuartrDocumentsTypesApiOperation = build_api_operation(
     path_template=Template("/public/v3/document-types"),
     query_params_constructor=PublicV3DocumentTypesGetParametersQuery,
     response_model_type=PaginatedDocumentTypeResponseDto,
-    query_params_dump_options=model_payload_dump_options,
+    query_params_dump_options=model_params_dump_options,
 )
