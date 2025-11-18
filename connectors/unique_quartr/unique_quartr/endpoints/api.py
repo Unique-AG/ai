@@ -1,8 +1,11 @@
+from logging import getLogger
 from string import Template
 
-from pydantic import BaseModel
-from unique_toolkit._common.endpoint_builder import HttpMethods, build_api_operation
-from unique_toolkit._common.endpoint_requestor import (
+from unique_toolkit._common.experimental.endpoint_builder import (
+    HttpMethods,
+    build_api_operation,
+)
+from unique_toolkit._common.experimental.endpoint_requestor import (
     RequestContext,
 )
 
@@ -17,12 +20,12 @@ from .schemas import (
     PublicV3EventsGetParametersQuery,
 )
 
-
-class EmptyModel(BaseModel): ...
+_LOGGER = getLogger(__name__)
 
 
 def get_quartr_context(*, company_id: str):
-    if quartr_settings.quartr_api_creds is None:
+    _LOGGER.debug(quartr_settings.model_dump_json(indent=1))
+    if quartr_settings.quartr_api_creds_model is None:
         raise ValueError("Quartr API credentials are not set")
 
     if company_id not in quartr_settings.quartr_api_activated_companies:
@@ -32,31 +35,36 @@ def get_quartr_context(*, company_id: str):
         base_url="https://api.quartr.com",
         headers={
             "Content-Type": "application/json",
-            "X-Api-Key": quartr_settings.quartr_api_creds.api_key,
+            "X-Api-Key": quartr_settings.quartr_api_creds_model.api_key,
         },
     )
+
+
+model_payload_dump_options = {
+    "by_alias": True,
+}
 
 
 QuartrEventsApiOperation = build_api_operation(
     method=HttpMethods.GET,
     path_template=Template("/public/v3/events"),
-    path_params_constructor=EmptyModel,
-    payload_constructor=PublicV3EventsGetParametersQuery,
+    query_params_constructor=PublicV3EventsGetParametersQuery,
     response_model_type=PaginatedEventResponseDto,
+    payload_dump_options=model_payload_dump_options,
 )
 
 QuartrDocumentsApiOperation = build_api_operation(
     method=HttpMethods.GET,
     path_template=Template("/public/v3/documents"),
-    path_params_constructor=EmptyModel,
-    payload_constructor=PublicV3DocumentsGetParametersQuery,
+    query_params_constructor=PublicV3DocumentsGetParametersQuery,
     response_model_type=PaginatedDocumentResponseDto,
+    payload_dump_options=model_payload_dump_options,
 )
 
 QuartrDocumentsTypesApiOperation = build_api_operation(
     method=HttpMethods.GET,
     path_template=Template("/public/v3/document-types"),
-    path_params_constructor=EmptyModel,
-    payload_constructor=PublicV3DocumentTypesGetParametersQuery,
+    query_params_constructor=PublicV3DocumentTypesGetParametersQuery,
     response_model_type=PaginatedDocumentTypeResponseDto,
+    payload_dump_options=model_payload_dump_options,
 )

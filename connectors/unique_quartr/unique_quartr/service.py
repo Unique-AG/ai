@@ -1,6 +1,8 @@
 from functools import reduce
+from typing import Sequence, overload
 
-from unique_toolkit._common.endpoint_requestor import (
+from pydantic import BaseModel
+from unique_toolkit._common.experimental.endpoint_requestor import (
     RequestorType,
     build_requestor,
 )
@@ -25,6 +27,14 @@ from unique_quartr.endpoints.schemas import (
     PublicV3DocumentTypesGetParametersQuery,
     PublicV3EventsGetParametersQuery,
 )
+
+
+class EventResults(BaseModel):
+    data: list[EventDto]
+
+
+class DocumentResults(BaseModel):
+    data: list[DocumentDto]
 
 
 class QuartrService:
@@ -67,17 +77,44 @@ class QuartrService:
     ) -> list[int]:
         return [document_type.value for document_type in document_types]
 
+    @overload
     def fetch_company_events(
         self,
-        ticker: str,
-        exchange: str,
-        country: str,
+        *,
+        company_ids: list[int | float],
         event_ids: list[int],
         start_date: str | None = None,
         end_date: str | None = None,
         limit: int = 500,
         max_iteration: int = 20,
-    ) -> list[EventDto]:
+    ) -> EventResults: ...
+
+    @overload
+    def fetch_company_events(
+        self,
+        *,
+        ticker: str,
+        exchange: str,
+        event_ids: list[int],
+        start_date: str | None = None,
+        end_date: str | None = None,
+        limit: int = 500,
+        max_iteration: int = 20,
+    ) -> EventResults: ...
+
+    def fetch_company_events(
+        self,
+        *,
+        company_ids: list[int | float] | None = None,
+        ticker: str | None = None,
+        exchange: str | None = None,
+        country: str | None = None,
+        event_ids: list[int] | None = None,
+        start_date: str | None = None,
+        end_date: str | None = None,
+        limit: int = 500,
+        max_iteration: int = 20,
+    ) -> EventResults:
         """Retrieve all earnings call events for a given company.
 
         Args:
@@ -94,17 +131,32 @@ class QuartrService:
             list[EventDto]: List of EventDto objects
         """
 
+        if (
+            company_ids is None
+            and ticker is None
+            and exchange is None
+            and country is None
+        ):
+            raise ValueError(
+                "Either company_ids, ticker, exchange, or country must be provided"
+            )
+
         events = []
         cursor = 0
         for _ in range(max_iteration):
             response = self.events_requestor.request(
+                company_ids=_convert_ids_to_str(company_ids)
+                if company_ids is not None
+                else None,
                 context=self._context,
                 countries=country,
                 exchanges=exchange,
                 tickers=ticker,
                 limit=limit,
                 direction=Direction.ASC,
-                type_ids=_convert_ids_to_str(event_ids),
+                type_ids=_convert_ids_to_str(event_ids)
+                if event_ids is not None
+                else None,
                 start_date=start_date,
                 end_date=end_date,
                 cursor=cursor,
@@ -115,7 +167,7 @@ class QuartrService:
             if cursor is None:
                 break
 
-        return events
+        return EventResults.model_validate({"data": events})
 
     def fetch_event_documents(
         self,
@@ -123,7 +175,7 @@ class QuartrService:
         document_ids: list[int],
         limit: int = 500,
         max_iteration: int = 20,
-    ) -> list[DocumentDto]:
+    ) -> DocumentResults:
         """Retrieve documents for a list of events from Quartr API.
 
         Args:
@@ -151,8 +203,8 @@ class QuartrService:
             if cursor is None:
                 break
 
-        return documents
+        return DocumentResults.model_validate({"data": documents})
 
 
-def _convert_ids_to_str(ids: list[int]) -> str:
+def _convert_ids_to_str(ids: Sequence[int | float]) -> str:
     return ",".join([str(id) for id in ids])
