@@ -72,6 +72,11 @@ class SwotMemoryService(Generic[T]):
 
         # Store in knowledge base
         try:
+            if not self._cache_scope_id:
+                raise ValueError(
+                    "Cache scope id is required. Please set it in the configuration."
+                )
+
             content = self._knowledge_base_service.upload_content_from_bytes(
                 content=input.model_dump_json(indent=1).encode("utf-8"),
                 content_name=file_name,
@@ -103,3 +108,4 @@ class SwotMemoryService(Generic[T]):
     def _log_memory_error(self, key: str, error: Exception, message: str) -> None:
         """Log memory operation errors with consistent formatting."""
         _LOGGER.warning(f"{message} for key '{key}'. Returning None.")
+        # _LOGGER.debug(f"Error: {error}", exc_info=True)

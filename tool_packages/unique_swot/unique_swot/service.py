@@ -1,9 +1,11 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from logging import getLogger
 
 from typing_extensions import override
+from unique_quartr.service import QuartrService
 from unique_toolkit import ShortTermMemoryService
 from unique_toolkit._common.docx_generator import DocxGeneratorService
+from unique_toolkit._common.endpoint_requestor import RequestorType
 from unique_toolkit.agentic.tools.agent_chunks_hanlder import AgentChunksHandler
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
@@ -28,6 +30,7 @@ from unique_swot.services.memory.base import SwotMemoryService
 from unique_swot.services.notifier import ProgressNotifier
 from unique_swot.services.report import ReportDeliveryService
 from unique_swot.services.schemas import SWOTPlan
+from unique_swot.services.session.schema import SessionConfig
 
 _LOGGER = getLogger(__name__)
 
@@ -37,6 +40,10 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
 
     def __init__(self, configuration: SwotAnalysisToolConfig, *args, **kwargs):
         super().__init__(configuration, *args, **kwargs)
+
+        self._swot_analysis_session_config = SessionConfig.model_validate(
+            self._event.payload.session_config, by_name=True
+        )
 
         metadata_filter = self._event.payload.metadata_filter
 
@@ -64,31 +71,43 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
             memory_service=self._memory_service
         )
 
+        self._earnings_call_docx_generator_service = DocxGeneratorService(
+            chat_service=self._chat_service,
+            knowledge_base_service=self._knowledge_base_service,
+            config=self.config.earnings_call_config.docx_renderer_config,
+        )
+
+        self._report_docx_renderer = DocxGeneratorService(
+            chat_service=self._chat_service,
+            knowledge_base_service=self._knowledge_base_service,
+            config=self.config.report_renderer_config.docx_renderer_config,
+        )
+
         self._source_collection_manager = SourceCollectionManager(
             context=CollectionContext(
-                use_earnings_calls=False,
-                use_web_sources=False,
+                use_earnings_calls=self._swot_analysis_session_config.swot_analysis.use_earnings_call,
+                use_web_sources=self._swot_analysis_session_config.swot_analysis.use_web_sources,
                 metadata_filter=metadata_filter,
+                company=self._swot_analysis_session_config.swot_analysis.company_listing,
+                earnings_call_start_date=self._swot_analysis_session_config.swot_analysis.earnings_call_start_date
+                or datetime.now() - timedelta(days=365),
+                upload_scope_id_earnings_calls=self.config.earnings_call_config.upload_scope_id,
             ),
             knowledge_base_service=self._knowledge_base_service,
             content_chunk_registry=self._content_chunk_registry,
             notifier=self._notifier,
+            quartr_service=self._get_quartr_service(self._event.company_id),
+            earnings_call_docx_generator_service=self._earnings_call_docx_generator_service,
         )
 
         self._citation_manager = CitationManager(
             content_chunk_registry=self._content_chunk_registry,
         )
 
-        self._docx_renderer = DocxGeneratorService(
-            chat_service=self._chat_service,
-            knowledge_base_service=self._knowledge_base_service,
-            config=self.config.report_renderer_config.docx_renderer_config,
-        )
-
         self._report_delivery_service = ReportDeliveryService(
             chat_service=self._chat_service,
             template_name=self.config.report_renderer_config.report_template,
-            docx_renderer=self._docx_renderer,
+            docx_renderer=self._report_docx_renderer,
             citation_manager=self._citation_manager,
             renderer_type=self.config.report_renderer_config.renderer_type,
             message_id=self._event.payload.assistant_message.id,
@@ -124,6 +143,9 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
 
     @override
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
+        company_name = (
+            self._swot_analysis_session_config.swot_analysis.company_listing.name
+        )
         try:
             plan = SWOTPlan.model_validate(tool_call.arguments)
             # Ensure the plan is semantically valid for execution, as Pydantic validation may accept plans that
@@ -135,22 +157,25 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
                 plan.get_number_of_executions() + 1
             )  # +1 for Collecting sources step
 
-            self._notifier.start_progress(number_of_executions)
+            self._notifier.start_progress(
+                number_of_executions,
+                company_name,
+            )
 
             # Get Sources
-            sources = self._source_collection_manager.collect_sources()
+            sources = await self._source_collection_manager.collect_sources()
 
             _LOGGER.info(f"Collected {len(sources)} sources!")
 
             total_steps = self._calculate_total_steps(plan, len(sources))
             _LOGGER.info(f"Total steps: {total_steps}")
             executor = SWOTExecutionManager(
+                company_name=company_name,
                 configuration=self.config.report_generation_config,
                 language_model_service=self._language_model_service,
                 notifier=self._notifier,
                 memory_service=self._memory_service,
                 knowledge_base_service=self._knowledge_base_service,
-                cache_scope_id=self.config.cache_scope_id,
                 content_chunk_registry=self._content_chunk_registry,
                 citation_manager=self._citation_manager,
             )
@@ -160,15 +185,17 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
             # Store the result in memory
             self._memory_service.set(result)
 
+            self._notifier.end_progress(failed=False)
+
             # Deliver the report to the chat
             markdown_report = self._report_delivery_service.deliver_report(
+                company_name=company_name,
                 result=result,
                 docx_template_fields={
-                    "title": "SWOT Analysis Report",
+                    "title": f"{company_name} SWOT Analysis Report",
                     "date": datetime.now().strftime("%Y-%m-%d"),
                 },
             )
-            self._notifier.end_progress(success=True)
 
             return ToolCallResponse(
                 id=tool_call.id,  # type: ignore
@@ -178,12 +205,8 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
             )
 
         except Exception as e:
-            self._notifier.end_progress(success=False)
+            self._notifier.end_progress(failed=True, failure_message=str(e))
             _LOGGER.exception(f"Error running SWOT plan: {e}")
-            self._chat_service.modify_assistant_message(
-                message_id=self._event.payload.assistant_message.id,
-                content="Unexpected error occurred while running SWOT plan ❌",
-            )
             return ToolCallResponse(
                 id=tool_call.id,  # type: ignore
                 name=self.name,
@@ -226,6 +249,17 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
         num_steps_per_execution = number_of_sources + 1  # +1 for the summarization step
 
         return number_of_executions * num_steps_per_execution
+
+    @staticmethod
+    def _get_quartr_service(company_id: str) -> QuartrService | None:
+        try:
+            return QuartrService(
+                company_id=company_id,
+                requestor_type=RequestorType.REQUESTS,
+            )
+        except Exception as e:
+            _LOGGER.error(f"Error getting Quartr service: {e}")
+            return None
 
 
 ToolFactory.register_tool(tool=SwotAnalysisTool, tool_config=SwotAnalysisToolConfig)
