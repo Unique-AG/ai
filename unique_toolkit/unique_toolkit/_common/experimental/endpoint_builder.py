@@ -313,6 +313,18 @@ def build_api_operation(
             )
 
         @staticmethod
+        def create_query_params_from_model(
+            query_params: QueryParamsType, *, model_dump_options: dict | None = None
+        ) -> dict[str, Any]:
+            if model_dump_options is None:
+                if query_params_dump_options is None:
+                    model_dump_options = dump_options
+                else:
+                    model_dump_options = query_params_dump_options
+
+            return query_params.model_dump(**model_dump_options)
+
+        @staticmethod
         def handle_response(
             response: dict[str, Any],
             *,
