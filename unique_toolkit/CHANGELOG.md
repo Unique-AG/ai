@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.27.0] - 2025-11-18
+- Add `session_config` field to `ChatEventPayload` schema for chat session configuration support
+- Add `ingestion_state` field to `Content` model for tracking content ingestion status
+- Add `include_failed_content` parameter to content search functions in `KnowledgeBaseService`, `search_contents`, and `search_contents_async`
+- Experimental: 
+    - Fix HTTP GET requests in `build_request_requestor` to use query parameters (`params`) instead of JSON body
+    - `build_requestor` to properly pass kwargs to `build_request_requestor`
+
 ## [1.26.2] - 2025-11-17
 - Adding tool format information for MCP tools
 

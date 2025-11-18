@@ -143,6 +143,7 @@ def search_contents(
     company_id: str,
     chat_id: str,
     where: dict,
+    include_failed_content: bool = False,
 ):
     """
     Performs an asynchronous search for content files in the knowledge base by filter.
@@ -166,6 +167,7 @@ def search_contents(
             chatId=chat_id,
             # TODO add type parameter in SDK
             where=where,  # type: ignore
+            includeFailedContent=include_failed_content,
         )
         return map_contents(contents)
     except Exception as e:
@@ -178,6 +180,7 @@ async def search_contents_async(
     company_id: str,
     chat_id: str,
     where: dict,
+    include_failed_content: bool = False,
 ):
     """Asynchronously searches for content in the knowledge base."""
     if where.get("contentId"):
@@ -189,6 +192,7 @@ async def search_contents_async(
             company_id=company_id,
             chatId=chat_id,
             where=where,  # type: ignore
+            includeFailedContent=include_failed_content,
         )
         return map_contents(contents)
     except Exception as e:
