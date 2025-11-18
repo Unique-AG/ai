@@ -28,15 +28,7 @@ class OpenAIModelName(StrEnum):
 
 
 def get_model_name(model: str) -> OpenAIModelName:
-    if model in [
-        "gpt-3.5-turbo-0125",
-        "gpt-4-0314",
-        "gpt-4-32k-0314",
-        "gpt-4-0613",
-        "gpt-4-32k-0613",
-        "gpt-4o-mini-2024-07-18",
-        "gpt-4o-2024-08-06",
-    ]:
+    if model in OpenAIModelName.__members__:
         return OpenAIModelName(model)
     elif "gpt-3.5-turbo" in model:
         return OpenAIModelName.GPT_3_5_TURBO_0125
