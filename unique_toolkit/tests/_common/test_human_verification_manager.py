@@ -62,8 +62,6 @@ TestManager: TypeAlias = HumanVerificationManagerForApiCalling[
     ApiPathParams,
     PayloadParamSpec,
     ApiPayload,
-    QueryParamsSpec,
-    ApiQueryParams,
     ApiResponse,
 ]
 
