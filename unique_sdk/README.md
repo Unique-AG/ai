@@ -1445,6 +1445,20 @@ users = unique_sdk.User.get_users(
 
 ### Group
 
+#### `unique_sdk.Group.create_group` (Compatible with release >.48)
+
+Create a new group in a company. You can specify the group name (required), external ID and parent group ID.
+
+```python
+group = unique_sdk.Group.create_group(
+    user_id=user_id,
+    company_id=company_id,
+    name="New Group",  # Required - the name of the group
+    externalId="ext_123",  # Optional - external ID for the group
+    parentId="group_a9cs7wr2z1bg2sxczvltgjch",  # Optional - parent group ID
+)
+```
+
 #### `unique_sdk.Group.get_groups` (Compatible with release >.48)
 
 Get groups in a company. You can filter by name and use pagination with skip and take parameters.
@@ -1467,8 +1481,34 @@ Update a group in a company. You can update the group's name.
 updated_group = unique_sdk.Group.update_group(
     user_id=user_id,
     company_id=company_id,
-    group_id="group_id_here",
+    group_id="group_a9cs7wr2z1bg2sxczvltgjch",
     name="New Group Name",  # Optional - update the group name
+)
+```
+
+#### `unique_sdk.Group.add_users_to_group` (Compatible with release >.48)
+
+Add users to a group. Provide an array of user IDs to add as members to the specified group.
+
+```python
+result = unique_sdk.Group.add_users_to_group(
+    user_id=user_id,
+    company_id=company_id,
+    group_id="group_a9cs7wr2z1bg2sxczvltgjch",
+    userIds=["299420877169688584", "325402458132058201", "299426678160031752"],  # Required - array of user IDs to add
+)
+```
+
+#### `unique_sdk.Group.remove_users_from_group` (Compatible with release >.48)
+
+Remove users from a group. Provide an array of user IDs to remove from the specified group.
+
+```python
+result = unique_sdk.Group.remove_users_from_group(
+    user_id=user_id,
+    company_id=company_id,
+    group_id="group_a9cs7wr2z1bg2sxczvltgjch",
+    userIds=["299426678160031752", "299426678160031752"],  # Required - array of user IDs to remove
 )
 ```
 
@@ -1480,7 +1520,7 @@ Delete a group in a company by its group ID.
 result = unique_sdk.Group.delete_group(
     user_id=user_id,
     company_id=company_id,
-    group_id="group_id_here",
+    group_id="group_a9cs7wr2z1bg2sxczvltgjch",
 )
 ```
 
