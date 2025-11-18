@@ -12,6 +12,8 @@ from unique_toolkit._common.endpoint_builder import (
     PathParamsType,
     PayloadParamSpec,
     PayloadType,
+    QueryParamsSpec,
+    QueryParamsType,
     ResponseType,
 )
 
@@ -61,6 +63,8 @@ def build_fake_requestor(
             PathParamsType,
             PayloadParamSpec,
             PayloadType,
+            QueryParamsSpec,
+            QueryParamsType,
             ResponseType,
         ]
     ],
@@ -78,8 +82,8 @@ def build_fake_requestor(
             **kwargs: CombinedParamsSpec.kwargs,
         ) -> ResponseType:
             try:
-                path_params, payload_model = cls._operation.models_from_combined(
-                    combined=kwargs
+                path_params, payload_model, query_params = (
+                    cls._operation.models_from_combined(combined=kwargs)
                 )
             except Exception as e:
                 raise ValueError(
@@ -113,6 +117,8 @@ def build_request_requestor(
             PathParamsType,
             PayloadParamSpec,
             PayloadType,
+            QueryParamsSpec,
+            QueryParamsType,
             ResponseType,
         ]
     ],
@@ -131,8 +137,8 @@ def build_request_requestor(
             **kwargs: CombinedParamsSpec.kwargs,
         ) -> ResponseType:
             # Create separate instances for path params and payload using endpoint helper
-            path_params, payload_model = cls._operation.models_from_combined(
-                combined=kwargs
+            path_params, payload_model, query_params = (
+                cls._operation.models_from_combined(combined=kwargs)
             )
 
             path = cls._operation.create_path_from_model(
@@ -144,11 +150,16 @@ def build_request_requestor(
             payload = cls._operation.create_payload_from_model(
                 payload_model, model_dump_options=cls._operation.payload_dump_options()
             )
+            request_method = cls._operation.request_method()
 
-            match cls._operation.request_method():
+            params = cls._operation.create_query_params_from_model(
+                query_params=query_params,
+                model_dump_options=cls._operation.query_params_dump_options(),
+            )
+            match request_method:
                 case HttpMethods.GET:
                     response = requests.get(
-                        url, headers=context.headers, params=payload
+                        url, headers=context.headers, json=payload, params=params
                     )
                 case HttpMethods.POST:
                     response = requests.post(url, headers=context.headers, json=payload)
@@ -200,6 +211,8 @@ def build_httpx_requestor(
             PathParamsType,
             PayloadParamSpec,
             PayloadType,
+            QueryParamsSpec,
+            QueryParamsType,
             ResponseType,
         ]
     ],
@@ -219,8 +232,8 @@ def build_httpx_requestor(
         ) -> ResponseType:
             headers = context.headers or {}
 
-            path_params, payload_model = cls._operation.models_from_combined(
-                combined=kwargs
+            path_params, payload_model, query_model = (
+                cls._operation.models_from_combined(combined=kwargs)
             )
 
             path = cls._operation.create_path_from_model(
@@ -234,6 +247,11 @@ def build_httpx_requestor(
                 model_dump_options=cls._operation.payload_dump_options(),
             )
 
+            query_params = cls._operation.create_query_params_from_model(
+                query_params=query_model,
+                model_dump_options=cls._operation.query_params_dump_options(),
+            )
+
             with httpx.Client() as client:
                 # For GET requests, send payload as params; for others, send as json
                 if cls._operation.request_method() == HttpMethods.GET:
@@ -241,7 +259,8 @@ def build_httpx_requestor(
                         method=cls._operation.request_method(),
                         url=url,
                         headers=headers,
-                        params=payload,
+                        json=payload,
+                        params=query_params,
                     )
                 else:
                     response = client.request(
@@ -265,8 +284,8 @@ def build_httpx_requestor(
         ) -> ResponseType:
             headers = context.headers or {}
 
-            path_params, payload_model = cls._operation.models_from_combined(
-                combined=kwargs
+            path_params, payload_model, query_model = (
+                cls._operation.models_from_combined(combined=kwargs)
             )
 
             path = cls._operation.create_path_from_model(
@@ -312,6 +331,8 @@ def build_aiohttp_requestor(
             PathParamsType,
             PayloadParamSpec,
             PayloadType,
+            QueryParamsSpec,
+            QueryParamsType,
             ResponseType,
         ]
     ],
@@ -343,8 +364,8 @@ def build_aiohttp_requestor(
         ) -> ResponseType:
             headers = context.headers or {}
 
-            path_params, payload_model = cls._operation.models_from_combined(
-                combined=kwargs
+            path_params, payload_model, query_model = (
+                cls._operation.models_from_combined(combined=kwargs)
             )
             path = cls._operation.create_path_from_model(
                 path_params, model_dump_options=cls._operation.path_dump_options()
@@ -360,6 +381,10 @@ def build_aiohttp_requestor(
                     json=cls._operation.create_payload_from_model(
                         payload=payload_model,
                         model_dump_options=cls._operation.payload_dump_options(),
+                    ),
+                    params=cls._operation.create_query_params_from_model(
+                        query_params=query_model,
+                        model_dump_options=cls._operation.query_params_dump_options(),
                     ),
                 )
                 response_json = await response.json()
@@ -386,6 +411,8 @@ def build_requestor(
             PathParamsType,
             PayloadParamSpec,
             PayloadType,
+            QueryParamsSpec,
+            QueryParamsType,
             ResponseType,
         ]
     ],
@@ -427,11 +454,15 @@ if __name__ == "__main__":
     class GetUserRequestBody(BaseModel):
         include_profile: bool = False
 
+    class GetUserQueryParams(BaseModel):
+        page: int = 1
+        limit: int = 10
+
     class UserResponse(BaseModel):
         id: int
         name: str
 
-    class CombinedParams(GetUserPathParams, GetUserRequestBody):
+    class CombinedParams(GetUserPathParams, GetUserRequestBody, GetUserQueryParams):
         pass
 
     UserEndpoint = build_api_operation(
@@ -439,6 +470,7 @@ if __name__ == "__main__":
         path_template=Template("/users/{user_id}"),
         path_params_constructor=GetUserPathParams,
         payload_constructor=GetUserRequestBody,
+        query_params_constructor=GetUserQueryParams,
         response_model_type=UserResponse,
     )
 
