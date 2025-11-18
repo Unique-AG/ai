@@ -2073,6 +2073,7 @@ The script creates a chat and uploads the file to it. It then keeps polling the 
 **Optional parameters:**
 - `poll_interval`: The number of seconds to wait between polling attempts (default: `1` second).
 - `max_wait`: The maximum number of seconds to wait for the message to complete (default: `60` seconds).
+- `should_delete_chat`: Setting this flag determines whether the chat should be deleted at the end or not. Default is True.
 
 Example of chatting against a PDF. (The usage can be extended to any supported file type)
 

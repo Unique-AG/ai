@@ -76,6 +76,7 @@ async def chat_against_file(
     text: str,
     poll_interval: float = 1.0,
     max_wait: float = 60.0,
+    should_delete_chat: bool = True,
 ) -> "Space.Message":
     """
     Chat against a file by uploading it, sending a message and waiting for a reply.
@@ -140,7 +141,7 @@ async def chat_against_file(
         print(f"Error during chat against file: {err}")
         raise
     finally:
-        if chat_id:
+        if chat_id and should_delete_chat:
             Space.delete_chat(
                 user_id=user_id,
                 company_id=company_id,
