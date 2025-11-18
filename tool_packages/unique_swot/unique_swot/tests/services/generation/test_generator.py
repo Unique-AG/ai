@@ -61,6 +61,7 @@ class TestExtractSwotFromSources:
             sources=sample_sources,
             extraction_system_prompt="Extract strengths from the sources",
             extraction_output_model=StrengthsExtraction,
+            company_name="Test Company",
         )
 
     @pytest.fixture
@@ -114,6 +115,7 @@ class TestExtractSwotFromSources:
             sources=[],
             extraction_system_prompt="Extract strengths",
             extraction_output_model=StrengthsExtraction,
+            company_name="Test Company",
         )
 
         result = await extract_swot_from_sources(
@@ -208,6 +210,7 @@ class TestExtractSwotFromSources:
             sources=[large_source],
             extraction_system_prompt="Extract strengths",
             extraction_output_model=StrengthsExtraction,
+            company_name="Test Company",
         )
 
         result = await extract_swot_from_sources(
@@ -283,6 +286,7 @@ class TestSummarizeSwotExtraction:
             component=SWOTComponent.STRENGTHS,
             summarization_system_prompt="Summarize the extracted strengths",
             extraction_results=extraction_results,
+            company_name="Test Company",
         )
 
     @pytest.fixture
@@ -346,6 +350,7 @@ class TestSummarizeSwotExtraction:
             component=SWOTComponent.STRENGTHS,
             summarization_system_prompt="Summarize",
             extraction_results=extraction_results,
+            company_name="Test Company",
         )
 
         _ = await summarize_swot_extraction(
@@ -509,6 +514,7 @@ class TestGenerationPipeline:
             sources=sample_sources,
             extraction_system_prompt="Extract strengths",
             extraction_output_model=StrengthsExtraction,
+            company_name="Test Company",
         )
 
         config = ReportGenerationConfig(
@@ -534,6 +540,7 @@ class TestGenerationPipeline:
             component=SWOTComponent.STRENGTHS,
             summarization_system_prompt="Summarize",
             extraction_results=extraction_result,
+            company_name="Test Company",
         )
 
         summary = await summarize_swot_extraction(
