@@ -87,6 +87,10 @@ class McpTool(BaseModel):
         default=None,
         description="An optional user prompt for the tool. This is a Unique specific field.",
     )
+    tool_format_information: Optional[str] = Field(
+        default=None,
+        description="An optional tool format information. This is a Unique specific field.",
+    )
     is_connected: bool = Field(
         description="Whether the tool is connected to the MCP server. This is a Unique specific field.",
     )

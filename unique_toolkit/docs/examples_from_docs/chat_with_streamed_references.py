@@ -42,9 +42,9 @@ for event in get_event_generator(unique_settings=settings, event_type=ChatEvent)
     ]
 
     def to_source_table(chunks: list[ContentChunk]) -> str:
-        header = "| Source Number | Title |  URL | \n" + "| --- | --- | --- | --- |\n"
+        header = "| Source Tag | Title |  URL | Text \n" + "| --- | --- | --- | --- |\n"
         rows = [
-            f"| {index} | {chunk.title} | {chunk.url} |\n"
+            f"| [source{index}] | {chunk.title} | {chunk.url} | {chunk.text} \n"
             for index, chunk in enumerate(chunks)
         ]
         return header + "\n".join(rows)

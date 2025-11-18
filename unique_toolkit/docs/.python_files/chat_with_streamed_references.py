@@ -57,8 +57,8 @@ for event in get_event_generator(unique_settings=settings, event_type=ChatEvent)
     # ~/~ end
     # ~/~ begin <<docs/modules/examples/chat/chat_service.md#chat_service_chunk_presentation>>[init]
     def to_source_table(chunks: list[ContentChunk]) -> str:
-        header = "| Source Number | Title |  URL | \n" + "| --- | --- | --- | --- |\n"
-        rows = [f"| {index} | {chunk.title} | {chunk.url} |\n" for index,chunk in enumerate(chunks)]
+        header = "| Source Tag | Title |  URL | Text \n" + "| --- | --- | --- | --- |\n"
+        rows = [f"| [source{index}] | {chunk.title} | {chunk.url} | {chunk.text} \n" for index,chunk in enumerate(chunks)]
         return header + "\n".join(rows)
     # ~/~ end
     # ~/~ begin <<docs/modules/examples/chat/chat_service.md#chat_service_reference_guidelines>>[init]
