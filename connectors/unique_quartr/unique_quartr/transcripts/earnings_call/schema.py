@@ -110,7 +110,7 @@ class QuartrEarningsCallTranscript(BaseModel):
         """Create a QuartrEarningsCallTranscript from a Quartr URL."""
         response = requests.get(url)
         response.raise_for_status()
-        return cls.model_validate_json(response.json())
+        return cls.model_validate_json(response.text)
 
     def to_markdown(self, markdown_template: Template = _markdown_template) -> str:
         """Generate markdown representation of the transcript using Jinja template."""
