@@ -29,6 +29,14 @@ class Space(APIResource["Space"]):
         toolChoices: NotRequired[List[str] | None]
         scopeRules: NotRequired[dict | None]
 
+    class GetChatMessagesParams(RequestOptions):
+        """
+        Parameters for getting chat messages.
+        """
+
+        skip: NotRequired[int]
+        take: NotRequired[int]
+
     class Reference(TypedDict):
         """
         Reference information for a message.
@@ -86,6 +94,14 @@ class Space(APIResource["Space"]):
 
         chat_id: str
 
+    class GetAllMessagesResponse(TypedDict):
+        """
+        Response for getting all messages in a chat.
+        """
+
+        messages: List["Space.Message"]
+        totalCount: int
+
     @classmethod
     def create_message(
         cls,
@@ -124,6 +140,50 @@ class Space(APIResource["Space"]):
             await cls._static_request_async(
                 "post",
                 "/space/message",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    def get_chat_messages(
+        cls,
+        user_id: str,
+        company_id: str,
+        chat_id: str,
+        **params: Unpack["Space.GetChatMessagesParams"],
+    ) -> "Space.GetAllMessagesResponse":
+        """
+        Get all messages in a space chat.
+        """
+        return cast(
+            "Space.GetAllMessagesResponse",
+            cls._static_request(
+                "get",
+                f"/space/chat/{chat_id}/messages",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    async def get_chat_messages_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        chat_id: str,
+        **params: Unpack["Space.GetChatMessagesParams"],
+    ) -> "Space.GetAllMessagesResponse":
+        """
+        Async get all messages in a space chat.
+        """
+        return cast(
+            "Space.GetAllMessagesResponse",
+            await cls._static_request_async(
+                "get",
+                f"/space/chat/{chat_id}/messages",
                 user_id,
                 company_id,
                 params=params,
