@@ -103,7 +103,6 @@ class WebSearchTool(Tool[WebSearchConfig]):
         self,
         *,
         content_chunks: list[ContentChunk],
-        data: list[ContentReference],
     ) -> list[ContentReference]:
         """
         Create a reference list for web search content chunks.
@@ -114,19 +113,19 @@ class WebSearchTool(Tool[WebSearchConfig]):
         Returns:
             List of ContentReference objects
         """
-
-        count = len(data)
+        data: list[ContentReference] = []
+        count = 0
         for content_chunk in content_chunks:
             content_url = content_chunk.url or ""
 
             if content_url != "":
                 data.append(
                     ContentReference(
-                        name=content_url or "",
+                        name=content_url,
                         sequence_number=count,
                         source="web",
-                        url=content_url or "",
-                        source_id=content_url or "",
+                        url=content_url,
+                        source_id=content_url,
                     )
                 )
                 count += 1
@@ -144,7 +143,6 @@ class WebSearchTool(Tool[WebSearchConfig]):
     @override
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
         self.logger.info("Running the WebSearch tool")
-
         start_time = time()
         parameters = self.tool_parameter_calls.model_validate(
             tool_call.arguments,
@@ -161,7 +159,6 @@ class WebSearchTool(Tool[WebSearchConfig]):
             # Write entry with found hits, WebSearch V1 has just one call.
             data: list[ContentReference] = self._define_reference_list_for_message_log(
                 content_chunks=content_chunks,
-                data=[],
             )
             # Only log for V1 mode (WebSearchToolParameters has query, WebSearchPlan doesn't)
             if isinstance(parameters, WebSearchToolParameters):

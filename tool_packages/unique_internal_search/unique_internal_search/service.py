@@ -89,18 +89,17 @@ class InternalSearchService:
         self,
         *,
         content_chunks: list[ContentChunk],
-        data: list[ContentReference],
     ) -> list[ContentReference]:
         """
         Create a reference list for internal search content chunks.
 
         Args:
             content_chunks: List of ContentChunk objects to convert
-            data: List of ContentReference objects to reference
         Returns:
             List of ContentReference objects
         """
-        count = len(data)
+        data: list[ContentReference] = []
+        count = 0
         for content_chunk in content_chunks:
             reference_name: str = content_chunk.title or content_chunk.key or ""
 
@@ -197,12 +196,12 @@ class InternalSearchService:
                     score_threshold=self.config.score_threshold,
                 )
 
-                data: list[ContentReference] = (
+                data_sublist: list[ContentReference] = (
                     self._define_reference_list_for_message_log(
                         content_chunks=found_chunks,
-                        data=data,
                     )
                 )
+                data.extend(data_sublist)
 
                 self.logger.info(
                     f"Found {len(found_chunks)} chunks (Query {i + 1}/{len(search_strings)})"
@@ -272,7 +271,6 @@ class InternalSearchService:
         ###
         # 4. cache them add index to search results & join them together
         ###
-
         if not self.config.chunked_sources:
             selected_chunks = merge_content_chunks(selected_chunks)
         else:

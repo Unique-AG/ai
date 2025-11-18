@@ -523,7 +523,7 @@ class TestInternalSearchService:
 
         # Assert
         assert hasattr(service, "debug_info")
-        assert service.debug_info["searchString"] == search_string
+        assert service.debug_info["searchStrings"] == [search_string]
         assert "chatOnly" in service.debug_info
         assert "metadataFilter" in service.debug_info
 
@@ -1562,8 +1562,6 @@ class TestInternalSearchTool:
         Why this matters: References link log entries to internal document sources.
         Setup summary: Create internal content chunk, call _define_reference_list_for_message_log, verify returns list.
         """
-        from unique_toolkit.content.schemas import ContentReference
-
         # Arrange
         service = InternalSearchService(
             config=base_internal_search_config,
@@ -1573,11 +1571,10 @@ class TestInternalSearchTool:
             logger=mock_logger,
         )
         content_chunks = [sample_content_chunk]
-        data: list[ContentReference] = []
 
         # Act
         references = service._define_reference_list_for_message_log(
-            content_chunks=content_chunks, data=data
+            content_chunks=content_chunks
         )
 
         # Assert
@@ -1598,8 +1595,6 @@ class TestInternalSearchTool:
         Why this matters: Sequence numbers order references in display.
         Setup summary: Create internal content chunk, call _define_reference_list_for_message_log, verify sequence_number is 0.
         """
-        from unique_toolkit.content.schemas import ContentReference
-
         # Arrange
         service = InternalSearchService(
             config=base_internal_search_config,
@@ -1609,11 +1604,10 @@ class TestInternalSearchTool:
             logger=mock_logger,
         )
         content_chunks = [sample_content_chunk]
-        data: list[ContentReference] = []
 
         # Act
         references = service._define_reference_list_for_message_log(
-            content_chunks=content_chunks, data=data
+            content_chunks=content_chunks
         )
 
         # Assert
@@ -1634,8 +1628,6 @@ class TestInternalSearchTool:
         Why this matters: Source ID identifies the internal document chunk.
         Setup summary: Create internal content chunk with ID, call _define_reference_list_for_message_log, verify source_id matches.
         """
-        from unique_toolkit.content.schemas import ContentReference
-
         # Arrange
         service = InternalSearchService(
             config=base_internal_search_config,
@@ -1645,11 +1637,10 @@ class TestInternalSearchTool:
             logger=mock_logger,
         )
         content_chunks = [sample_content_chunk]
-        data: list[ContentReference] = []
 
         # Act
         references = service._define_reference_list_for_message_log(
-            content_chunks=content_chunks, data=data
+            content_chunks=content_chunks
         )
 
         # Assert
@@ -1670,8 +1661,6 @@ class TestInternalSearchTool:
         Why this matters: Source identifies where reference content originated.
         Setup summary: Create internal content chunk, call _define_reference_list_for_message_log, verify reference source is "internal".
         """
-        from unique_toolkit.content.schemas import ContentReference
-
         # Arrange
         service = InternalSearchService(
             config=base_internal_search_config,
@@ -1681,11 +1670,10 @@ class TestInternalSearchTool:
             logger=mock_logger,
         )
         content_chunks = [sample_content_chunk]
-        data: list[ContentReference] = []
 
         # Act
         references = service._define_reference_list_for_message_log(
-            content_chunks=content_chunks, data=data
+            content_chunks=content_chunks
         )
 
         # Assert
@@ -1705,7 +1693,6 @@ class TestInternalSearchTool:
         Why this matters: References need names even when title is unavailable.
         Setup summary: Create internal content chunk without title, call _define_reference_list_for_message_log, verify name is key.
         """
-        from unique_toolkit.content.schemas import ContentChunk, ContentReference
 
         # Arrange
         service = InternalSearchService(
@@ -1721,11 +1708,10 @@ class TestInternalSearchTool:
             key="doc_key_2",
         )
         content_chunks = [content_chunk]
-        data: list[ContentReference] = []
 
         # Act
         references = service._define_reference_list_for_message_log(
-            content_chunks=content_chunks, data=data
+            content_chunks=content_chunks
         )
 
         # Assert
@@ -1745,7 +1731,6 @@ class TestInternalSearchTool:
         Why this matters: Title provides meaningful name for internal document references.
         Setup summary: Create internal content chunk with title, call _define_reference_list_for_message_log, verify name is title.
         """
-        from unique_toolkit.content.schemas import ContentChunk, ContentReference
 
         # Arrange
         service = InternalSearchService(
@@ -1762,11 +1747,10 @@ class TestInternalSearchTool:
             key="doc_key_1",
         )
         content_chunks = [content_chunk]
-        data: list[ContentReference] = []
 
         # Act
         references = service._define_reference_list_for_message_log(
-            content_chunks=content_chunks, data=data
+            content_chunks=content_chunks
         )
 
         # Assert
@@ -1787,8 +1771,6 @@ class TestInternalSearchTool:
         Why this matters: Internal documents don't have URLs, only source IDs.
         Setup summary: Create internal content chunk, call _define_reference_list_for_message_log, verify URL is empty string.
         """
-        from unique_toolkit.content.schemas import ContentReference
-
         # Arrange
         service = InternalSearchService(
             config=base_internal_search_config,
@@ -1798,11 +1780,10 @@ class TestInternalSearchTool:
             logger=mock_logger,
         )
         content_chunks = [sample_content_chunk]
-        data: list[ContentReference] = []
 
         # Act
         references = service._define_reference_list_for_message_log(
-            content_chunks=content_chunks, data=data
+            content_chunks=content_chunks
         )
 
         # Assert
@@ -1822,7 +1803,6 @@ class TestInternalSearchTool:
         Why this matters: Multiple references must be ordered correctly.
         Setup summary: Create two internal content chunks, call _define_reference_list_for_message_log, verify sequence numbers increment.
         """
-        from unique_toolkit.content.schemas import ContentChunk, ContentReference
 
         # Arrange
         service = InternalSearchService(
@@ -1844,11 +1824,10 @@ class TestInternalSearchTool:
                 key="doc2.pdf",
             ),
         ]
-        data: list[ContentReference] = []
 
         # Act
         references = service._define_reference_list_for_message_log(
-            content_chunks=content_chunks, data=data
+            content_chunks=content_chunks
         )
 
         # Assert
@@ -1870,7 +1849,6 @@ class TestInternalSearchTool:
         Why this matters: Only chunks with valid names should be included in references.
         Setup summary: Create chunks with empty name, call _define_reference_list_for_message_log, verify they are skipped.
         """
-        from unique_toolkit.content.schemas import ContentChunk, ContentReference
 
         # Arrange
         service = InternalSearchService(
@@ -1892,11 +1870,10 @@ class TestInternalSearchTool:
                 key="",
             ),
         ]
-        data: list[ContentReference] = []
 
         # Act
         references = service._define_reference_list_for_message_log(
-            content_chunks=content_chunks, data=data
+            content_chunks=content_chunks
         )
 
         # Assert

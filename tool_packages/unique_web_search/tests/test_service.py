@@ -1,6 +1,7 @@
 from unittest.mock import Mock
 
 import pytest
+from unique_toolkit.content.schemas import ContentChunk
 
 from unique_web_search.schema import (
     Step,
@@ -193,7 +194,6 @@ class TestWebSearchServiceComponents:
         Why this matters: References link log entries to web search result URLs.
         Setup summary: Create web content chunks, call define_reference_list_for_message_log, verify returns list.
         """
-        from unique_toolkit.content.schemas import ContentChunk, ContentReference
 
         from unique_web_search.service import WebSearchTool
 
@@ -206,14 +206,13 @@ class TestWebSearchServiceComponents:
                 title="Page 1 Title",
             )
         ]
-        data: list[ContentReference] = []
 
         # Act - Create a minimal instance to test the private method
         tool = WebSearchTool.__new__(
             WebSearchTool
         )  # Create instance without calling __init__
         references = tool._define_reference_list_for_message_log(
-            content_chunks=content_chunks, data=data
+            content_chunks=content_chunks
         )
 
         # Assert
@@ -229,7 +228,6 @@ class TestWebSearchServiceComponents:
         Why this matters: Sequence numbers order references in display.
         Setup summary: Create web content chunk, call define_reference_list_for_message_log, verify first reference sequence_number is 0.
         """
-        from unique_toolkit.content.schemas import ContentChunk, ContentReference
 
         from unique_web_search.service import WebSearchTool
 
@@ -242,14 +240,13 @@ class TestWebSearchServiceComponents:
                 title="Page 1 Title",
             )
         ]
-        data: list[ContentReference] = []
 
         # Act - Create a minimal instance to test the private method
         tool = WebSearchTool.__new__(
             WebSearchTool
         )  # Create instance without calling __init__
         references = tool._define_reference_list_for_message_log(
-            content_chunks=content_chunks, data=data
+            content_chunks=content_chunks
         )
 
         # Assert
@@ -263,7 +260,6 @@ class TestWebSearchServiceComponents:
         Why this matters: URL links reference to source web page.
         Setup summary: Create web content chunk with URL, call define_reference_list_for_message_log, verify reference URL matches.
         """
-        from unique_toolkit.content.schemas import ContentChunk, ContentReference
 
         from unique_web_search.service import WebSearchTool
 
@@ -276,14 +272,13 @@ class TestWebSearchServiceComponents:
                 title="Page 1 Title",
             )
         ]
-        data: list[ContentReference] = []
 
         # Act - Create a minimal instance to test the private method
         tool = WebSearchTool.__new__(
             WebSearchTool
         )  # Create instance without calling __init__
         references = tool._define_reference_list_for_message_log(
-            content_chunks=content_chunks, data=data
+            content_chunks=content_chunks
         )
 
         # Assert
@@ -297,7 +292,6 @@ class TestWebSearchServiceComponents:
         Why this matters: Source identifies where reference content originated.
         Setup summary: Create web content chunk, call define_reference_list_for_message_log, verify reference source is "web".
         """
-        from unique_toolkit.content.schemas import ContentChunk, ContentReference
 
         from unique_web_search.service import WebSearchTool
 
@@ -310,14 +304,13 @@ class TestWebSearchServiceComponents:
                 title="Page 1 Title",
             )
         ]
-        data: list[ContentReference] = []
 
         # Act - Create a minimal instance to test the private method
         tool = WebSearchTool.__new__(
             WebSearchTool
         )  # Create instance without calling __init__
         references = tool._define_reference_list_for_message_log(
-            content_chunks=content_chunks, data=data
+            content_chunks=content_chunks
         )
 
         # Assert
@@ -331,7 +324,6 @@ class TestWebSearchServiceComponents:
         Why this matters: Name is displayed to users as reference identifier.
         Setup summary: Create web content chunk with URL, call define_reference_list_for_message_log, verify reference name is URL.
         """
-        from unique_toolkit.content.schemas import ContentChunk, ContentReference
 
         from unique_web_search.service import WebSearchTool
 
@@ -344,14 +336,13 @@ class TestWebSearchServiceComponents:
                 title="Page 1 Title",
             )
         ]
-        data: list[ContentReference] = []
 
         # Act - Create a minimal instance to test the private method
         tool = WebSearchTool.__new__(
             WebSearchTool
         )  # Create instance without calling __init__
         references = tool._define_reference_list_for_message_log(
-            content_chunks=content_chunks, data=data
+            content_chunks=content_chunks
         )
 
         # Assert
@@ -367,7 +358,6 @@ class TestWebSearchServiceComponents:
         Why this matters: Multiple references must be ordered correctly.
         Setup summary: Create two web content chunks, call define_reference_list_for_message_log, verify sequence numbers increment.
         """
-        from unique_toolkit.content.schemas import ContentChunk, ContentReference
 
         from unique_web_search.service import WebSearchTool
 
@@ -386,14 +376,13 @@ class TestWebSearchServiceComponents:
                 title="Page 2 Title",
             ),
         ]
-        data: list[ContentReference] = []
 
         # Act - Create a minimal instance to test the private method
         tool = WebSearchTool.__new__(
             WebSearchTool
         )  # Create instance without calling __init__
         references = tool._define_reference_list_for_message_log(
-            content_chunks=content_chunks, data=data
+            content_chunks=content_chunks
         )
 
         # Assert
@@ -409,7 +398,6 @@ class TestWebSearchServiceComponents:
         Why this matters: Only chunks with valid URLs should be included in references.
         Setup summary: Create chunks with empty and None URLs, call define_reference_list_for_message_log, verify they are skipped.
         """
-        from unique_toolkit.content.schemas import ContentChunk, ContentReference
 
         from unique_web_search.service import WebSearchTool
 
@@ -434,14 +422,13 @@ class TestWebSearchServiceComponents:
                 title="Page 3 Title",
             ),
         ]
-        data: list[ContentReference] = []
 
         # Act - Create a minimal instance to test the private method
         tool = WebSearchTool.__new__(
             WebSearchTool
         )  # Create instance without calling __init__
         references = tool._define_reference_list_for_message_log(
-            content_chunks=content_chunks, data=data
+            content_chunks=content_chunks
         )
 
         # Assert

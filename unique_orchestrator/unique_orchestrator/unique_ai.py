@@ -147,8 +147,6 @@ class UniqueAI:
                 self.start_text, loop_response
             )
 
-        ## Placeholder to set end of process label, if wished.
-
         # Only set completed_at if no tool took control. Tools that take control will set the message state to completed themselves.
         await self._chat_service.modify_assistant_message_async(
             set_completed_at=not self._tool_took_control,
@@ -422,7 +420,6 @@ class UniqueAI:
         # Process results with error handling
         # Add tool call results to history first to stabilize source numbering,
         # then extract referenceable chunks and debug info
-
         self._history_manager.add_tool_call_results(tool_call_responses)
         self._reference_manager.extract_referenceable_chunks(tool_call_responses)
         self._debug_info_manager.extract_tool_debug_info(
