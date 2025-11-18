@@ -33,6 +33,7 @@ class ReportGenerationContext(BaseModel):
     extraction_system_prompt: str
     sources: list[Source]
     extraction_output_model: type[SWOTExtractionModel]
+    company_name: str
 
 
 class ReportSummarizationContext(BaseModel):
@@ -47,6 +48,7 @@ class ReportSummarizationContext(BaseModel):
     component: SWOTComponent
     summarization_system_prompt: str
     extraction_results: SWOTExtractionModel
+    company_name: str
 
 
 class ReportModificationContext(BaseModel):
