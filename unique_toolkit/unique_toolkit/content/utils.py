@@ -8,7 +8,7 @@ from unique_toolkit.content.schemas import (
     Content,
     ContentChunk,
 )
-from unique_toolkit.unique_toolkit.language_model.infos import EncoderName
+from unique_toolkit.language_model.infos import EncoderName
 
 
 def _map_content_id_to_chunks(content_chunks: list[ContentChunk]):

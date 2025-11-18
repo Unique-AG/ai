@@ -5,7 +5,7 @@ from unique_toolkit.content.utils import (
     pick_content_chunks_for_token_window,
     sort_content_chunks,
 )
-from unique_toolkit.unique_toolkit.language_model.infos import EncoderName
+from unique_toolkit.language_model.infos import EncoderName
 
 
 class TestContentChunkUtils:

@@ -34,6 +34,7 @@ mkdocs-multirepo-plugin = "^0.8.3"
 mkdocs-mermaid2-plugin = "^1.2.2"
 docxtpl = "^0.20.1"
 markdown-it-py = "^4.0.0"
+transformers = "^4.57.1"
 
 [tool.poetry.group.langchain]
 optional = true
