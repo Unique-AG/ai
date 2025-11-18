@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2025-11-18
+- Fix to use correct field (`query_params_dump_options`) for `model_params_dump_options`
+
 ## [0.2.0] - 2025-11-18
 
 - Add `QuartrEarningsCallTranscript` class for parsing and exporting earnings call transcripts to markdown
