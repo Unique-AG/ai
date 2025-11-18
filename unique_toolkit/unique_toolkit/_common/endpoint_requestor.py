@@ -156,31 +156,14 @@ def build_request_requestor(
                 query_params=query_params,
                 model_dump_options=cls._operation.query_params_dump_options(),
             )
-            match request_method:
-                case HttpMethods.GET:
-                    response = requests.get(
-                        url, headers=context.headers, json=payload, params=params
-                    )
-                case HttpMethods.POST:
-                    response = requests.post(url, headers=context.headers, json=payload)
-                case HttpMethods.PUT:
-                    response = requests.put(url, headers=context.headers, json=payload)
-                case HttpMethods.DELETE:
-                    response = requests.delete(
-                        url, headers=context.headers, json=payload
-                    )
-                case HttpMethods.PATCH:
-                    response = requests.patch(
-                        url, headers=context.headers, json=payload
-                    )
-                case HttpMethods.OPTIONS:
-                    response = requests.options(url, headers=context.headers)
-                case HttpMethods.HEAD:
-                    response = requests.head(url, headers=context.headers)
-                case _:
-                    raise ValueError(
-                        f"Unsupported HTTP method: {cls._operation.request_method()}"
-                    )
+
+            response = requests.request(
+                method=request_method,
+                url=url,
+                headers=context.headers,
+                json=payload,
+                params=params,
+            )
 
             response_json = response.json()
 
