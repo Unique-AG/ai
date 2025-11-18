@@ -37,11 +37,6 @@ class ApiPayload(BaseModel):
     include_posts: bool = False
 
 
-class ApiQueryParams(BaseModel):
-    page: int = 1
-    limit: int = 10
-
-
 class ApiResponse(BaseModel):
     id: int
     name: str
@@ -54,15 +49,10 @@ class ApiEnvironmentParams(BaseModel):
 # ParamSpec for type checking
 PathParamsSpec = ParamSpec("PathParamsSpec")
 PayloadParamSpec = ParamSpec("PayloadParamSpec")
-QueryParamsSpec = ParamSpec("QueryParamsSpec")
 
 # Type alias with explicit ParamSpec
 TestManager: TypeAlias = HumanVerificationManagerForApiCalling[
-    PathParamsSpec,
-    ApiPathParams,
-    PayloadParamSpec,
-    ApiPayload,
-    ApiResponse,
+    PathParamsSpec, ApiPathParams, PayloadParamSpec, ApiPayload, ApiResponse
 ]
 
 
