@@ -2083,8 +2083,8 @@ latest_message = await unique_sdk.utils.chat_in_space.chat_against_file(
     company_id=company_id,
     assistant_id="assistant_hjcdga64bkcjnhu4",
     path_to_file="/files/hello.pdf",
-    displayed_filename="hello.pdf"
-    mime_type="application/pdf"
+    displayed_filename="hello.pdf",
+    mime_type="application/pdf",
     text="Give me a bullet point summary of the file.",
 )
 ```
