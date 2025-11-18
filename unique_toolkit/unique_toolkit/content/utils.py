@@ -214,6 +214,7 @@ def map_content(content: dict):
         ],
         created_at=content["createdAt"],
         updated_at=content["updatedAt"],
+        ingestion_state=content["ingestionState"],
     )
 
 
