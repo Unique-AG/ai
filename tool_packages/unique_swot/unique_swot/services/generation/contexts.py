@@ -25,6 +25,7 @@ class ReportGenerationContext(BaseModel):
         system_prompt: The system prompt to guide the language model
         sources: List of data sources to analyze
         output_model: The Pydantic model class for structured output
+        company_name: The name of the company being analyzed
     """
 
     model_config = ConfigDict(frozen=True)
@@ -33,6 +34,7 @@ class ReportGenerationContext(BaseModel):
     extraction_system_prompt: str
     sources: list[Source]
     extraction_output_model: type[SWOTExtractionModel]
+    company_name: str
 
 
 class ReportSummarizationContext(BaseModel):
@@ -47,6 +49,7 @@ class ReportSummarizationContext(BaseModel):
     component: SWOTComponent
     summarization_system_prompt: str
     extraction_results: SWOTExtractionModel
+    company_name: str
 
 
 class ReportModificationContext(BaseModel):

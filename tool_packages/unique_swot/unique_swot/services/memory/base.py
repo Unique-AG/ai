@@ -72,6 +72,12 @@ class SwotMemoryService(Generic[T]):
 
         # Store in knowledge base
         try:
+            if not self._cache_scope_id:
+                # TODO: Add a warning message to the user to set the cache scope id
+                raise ValueError(
+                    "Cache scope id is required. Please set it in the configuration."
+                )
+
             content = self._knowledge_base_service.upload_content_from_bytes(
                 content=input.model_dump_json(indent=1).encode("utf-8"),
                 content_name=file_name,

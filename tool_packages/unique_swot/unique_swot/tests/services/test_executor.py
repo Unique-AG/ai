@@ -40,12 +40,12 @@ class TestSWOTExecutionManager:
         config = ReportGenerationConfig()
 
         return SWOTExecutionManager(
+            company_name="Test Company",
             configuration=config,
             language_model_service=mock_language_model_service,
             memory_service=memory_service,
             knowledge_base_service=mock_knowledge_base_service,
             content_chunk_registry=content_chunk_registry,
-            cache_scope_id="test_scope",
             citation_manager=citation_manager,
             notifier=mock_notifier,
         )
@@ -165,6 +165,7 @@ class TestSWOTExecutionManager:
             result = await execution_manager.run_generation_function(
                 component=SWOTComponent.STRENGTHS,
                 sources=sample_sources,
+                company_name="Test Company",
             )
 
             assert result == "Summarized result"
@@ -188,6 +189,7 @@ class TestSWOTExecutionManager:
                 component=SWOTComponent.STRENGTHS,
                 sources=sample_sources,
                 modify_instruction="Update analysis",
+                company_name="Test Company",
             )
 
             assert result == "Generated analysis"
@@ -214,6 +216,7 @@ class TestSWOTExecutionManager:
                 component=SWOTComponent.STRENGTHS,
                 sources=sample_sources,
                 modify_instruction="Update analysis",
+                company_name="Test Company",
             )
 
             # Currently falls back to generation

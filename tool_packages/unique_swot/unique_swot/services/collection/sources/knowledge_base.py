@@ -1,13 +1,13 @@
 from logging import getLogger
 
 from unique_toolkit import KnowledgeBaseService
-from unique_toolkit.content import ContentChunk
 from unique_toolkit.content.schemas import (
     ContentInfo,
 )
 
 from unique_swot.services.collection.registry import ContentChunkRegistry
 from unique_swot.services.collection.schema import Source, SourceChunk, SourceType
+from unique_swot.services.collection.sources.utils import convert_content_to_sources
 
 _LOGGER = getLogger(__name__)
 
@@ -78,19 +78,20 @@ def _get_chunks_from_content(
         where={"id": {"equals": content_id}}
     )
 
+    chunks = []
+
+    if len(contents) == 0:
+        _LOGGER.warning(
+            f"No content found for the given content id. Check Ingestion Status: {content_id}"
+        )
+        return chunks
+
     assert len(contents) == 1, (
         "Expected exactly one content to be found for the given content id"
     )
 
-    chunks = []
-    for chunk in sorted(contents[0].chunks, key=lambda x: x.order):
-        text = chunk.text
-        chunk_id = chunk_registry.register_and_generate_id(chunk)
-        chunks.append(SourceChunk(id=chunk_id, text=text))
+    chunks = convert_content_to_sources(
+        content=contents[0], chunk_registry=chunk_registry
+    )
 
     return chunks
-
-
-def _clean_up_content_chunk(content_chunk: ContentChunk) -> ContentChunk:
-    content_chunk.text = ""
-    return content_chunk
