@@ -139,9 +139,9 @@ class TestQuartrService:
             end_date="2024-12-31",
         )
 
-        assert len(events) == 1
-        assert events[0]["id"] == 128301
-        assert events[0]["title"] == "Q1 2024"
+        assert len(events.data) == 1
+        assert events.data[0].id == 128301
+        assert events.data[0].title == "Q1 2024"
 
         quartr_service.events_requestor.request.assert_called_once()
         call_kwargs = quartr_service.events_requestor.request.call_args.kwargs
@@ -178,7 +178,7 @@ class TestQuartrService:
             event_ids=[26],
         )
 
-        assert len(events) == 2
+        assert len(events.data) == 2
         assert quartr_service.events_requestor.request.call_count == 2
 
         # Check that cursor was updated on second call
@@ -205,7 +205,7 @@ class TestQuartrService:
             max_iteration=3,
         )
 
-        assert len(events) == 3
+        assert len(events.data) == 3
         assert quartr_service.events_requestor.request.call_count == 3
 
     def test_fetch_event_documents_success(
@@ -221,9 +221,9 @@ class TestQuartrService:
             document_ids=[7, 15],
         )
 
-        assert len(documents) == 1
-        assert documents[0]["id"] == 432907
-        assert documents[0]["event_id"] == 128301
+        assert len(documents.data) == 1
+        assert documents.data[0].id == 432907
+        assert documents.data[0].event_id == 128301
 
         quartr_service.documents_requestor.request.assert_called_once()
         call_kwargs = quartr_service.documents_requestor.request.call_args.kwargs
@@ -254,7 +254,7 @@ class TestQuartrService:
             document_ids=[7],
         )
 
-        assert len(documents) == 2
+        assert len(documents.data) == 2
         assert quartr_service.documents_requestor.request.call_count == 2
 
     def test_fetch_event_documents_max_iteration(
@@ -274,7 +274,7 @@ class TestQuartrService:
             max_iteration=5,
         )
 
-        assert len(documents) == 5
+        assert len(documents.data) == 5
         assert quartr_service.documents_requestor.request.call_count == 5
 
 

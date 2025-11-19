@@ -84,7 +84,7 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
 
     def tool_format_information_for_system_prompt(self) -> str:
         """Return formatting information for system prompt"""
-        return ""  # this is empty for now as it requires to add this to the MCP model of the backend.
+        return self._mcp_tool.tool_format_information or ""
 
     def evaluation_check_list(self) -> list[EvaluationMetricName]:
         """Return evaluation check list - empty for MCP tools for now"""

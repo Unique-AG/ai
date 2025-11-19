@@ -1374,6 +1374,20 @@ message = unique_sdk.Space.create_message(
 )
 ```
 
+#### `unique_sdk.Space.get_chat_messages` (Compatible with release >.48)
+
+Get all messages in a space chat. Returns a list of paginated messages in the specified chat.
+
+```python
+messages = unique_sdk.Space.get_chat_messages(
+    user_id=user_id,
+    company_id=company_id,
+    chat_id="chat_dejfhe729br398",
+    skip=0,  # Optional (defaults to 0) - number of messages to skip for pagination
+    take=50,  # Optional (defaults to 10) - number of messages to return
+)
+```
+
 #### `unique_sdk.Space.get_latest_message`
 
 Get the latest message in a space chat.
@@ -1431,6 +1445,20 @@ users = unique_sdk.User.get_users(
 
 ### Group
 
+#### `unique_sdk.Group.create_group` (Compatible with release >.48)
+
+Create a new group in a company. You can specify the group name (required), external ID and parent group ID.
+
+```python
+group = unique_sdk.Group.create_group(
+    user_id=user_id,
+    company_id=company_id,
+    name="New Group",  # Required - the name of the group
+    externalId="ext_123",  # Optional - external ID for the group
+    parentId="group_a9cs7wr2z1bg2sxczvltgjch",  # Optional - parent group ID
+)
+```
+
 #### `unique_sdk.Group.get_groups` (Compatible with release >.48)
 
 Get groups in a company. You can filter by name and use pagination with skip and take parameters.
@@ -1453,8 +1481,34 @@ Update a group in a company. You can update the group's name.
 updated_group = unique_sdk.Group.update_group(
     user_id=user_id,
     company_id=company_id,
-    group_id="group_id_here",
+    group_id="group_a9cs7wr2z1bg2sxczvltgjch",
     name="New Group Name",  # Optional - update the group name
+)
+```
+
+#### `unique_sdk.Group.add_users_to_group` (Compatible with release >.48)
+
+Add users to a group. Provide an array of user IDs to add as members to the specified group.
+
+```python
+result = unique_sdk.Group.add_users_to_group(
+    user_id=user_id,
+    company_id=company_id,
+    group_id="group_a9cs7wr2z1bg2sxczvltgjch",
+    userIds=["299420877169688584", "325402458132058201", "299426678160031752"],  # Required - array of user IDs to add
+)
+```
+
+#### `unique_sdk.Group.remove_users_from_group` (Compatible with release >.48)
+
+Remove users from a group. Provide an array of user IDs to remove from the specified group.
+
+```python
+result = unique_sdk.Group.remove_users_from_group(
+    user_id=user_id,
+    company_id=company_id,
+    group_id="group_a9cs7wr2z1bg2sxczvltgjch",
+    userIds=["299426678160031752", "299426678160031752"],  # Required - array of user IDs to remove
 )
 ```
 
@@ -1466,7 +1520,7 @@ Delete a group in a company by its group ID.
 result = unique_sdk.Group.delete_group(
     user_id=user_id,
     company_id=company_id,
-    group_id="group_id_here",
+    group_id="group_a9cs7wr2z1bg2sxczvltgjch",
 )
 ```
 
@@ -2014,11 +2068,12 @@ You must provide the following parameters:
 - `mime_type`: The mime type of the ifle to be uploaded.
 - `text`: The text to be sent to the chat for chatting against the file.
 
-The script creates a chat and uploads the file to it. It then keeps polling the `ingestionState` field of the message, waiting for it to reach `FINISHED`, signaling the upload is complete. Once the file uploads successfully, the script sends the text, continues polling for completion, and finally retrieves the response message.
+The script creates a chat and uploads the file to it. It then keeps polling the `ingestionState` field of the message, waiting for it to reach `FINISHED`, signaling the upload is complete. Once the file uploads successfully, the script sends the text, continues polling for completion, and finally retrieves the response message. The function deletes the chat at the end unless the `should_delete_chat` is set to false.
 
 **Optional parameters:**
 - `poll_interval`: The number of seconds to wait between polling attempts (default: `1` second).
 - `max_wait`: The maximum number of seconds to wait for the message to complete (default: `60` seconds).
+- `should_delete_chat`: Setting this flag determines whether the chat should be deleted at the end or not. Default is True.
 
 Example of chatting against a PDF. (The usage can be extended to any supported file type)
 
@@ -2028,8 +2083,8 @@ latest_message = await unique_sdk.utils.chat_in_space.chat_against_file(
     company_id=company_id,
     assistant_id="assistant_hjcdga64bkcjnhu4",
     path_to_file="/files/hello.pdf",
-    displayed_filename="hello.pdf"
-    mime_type="application/pdf"
+    displayed_filename="hello.pdf",
+    mime_type="application/pdf",
     text="Give me a bullet point summary of the file.",
 )
 ```

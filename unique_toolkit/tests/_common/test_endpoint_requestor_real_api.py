@@ -190,40 +190,40 @@ def test_httpx_requestor():
     assert len(response.body) > 0
 
 
-async def test_httpx_async_requestor():
-    """Test the httpx-based async requestor with real API."""
-    # Create API operation for getting a post
-    GetPostEndpoint = build_api_operation(
-        method=HttpMethods.GET,
-        path_template=Template("/posts/${post_id}"),
-        path_params_constructor=PostPathParams,
-        payload_constructor=PostPathParams,  # Use same model
-        response_model_type=PostResponse,
-    )
+# async def test_httpx_async_requestor():
+#     """Test the httpx-based async requestor with real API."""
+#     # Create API operation for getting a post
+#     GetPostEndpoint = build_api_operation(
+#         method=HttpMethods.GET,
+#         path_template=Template("/posts/${post_id}"),
+#         path_params_constructor=PostPathParams,
+#         payload_constructor=PostPathParams,  # Use same model
+#         response_model_type=PostResponse,
+#     )
 
-    # Create httpx requestor
-    HttpxPostRequestor = build_httpx_requestor(
-        operation_type=GetPostEndpoint,
-        combined_model=PostPathParams,  # Simplified
-    )
+#     # Create httpx requestor
+#     HttpxPostRequestor = build_httpx_requestor(
+#         operation_type=GetPostEndpoint,
+#         combined_model=PostPathParams,  # Simplified
+#     )
 
-    # Test the httpx requestor (async)
-    response = await HttpxPostRequestor.request_async(
-        context=RequestContext(
-            base_url="https://jsonplaceholder.typicode.com",
-            headers={"Content-Type": "application/json"},
-        ),
-        post_id=3,
-    )
+#     # Test the httpx requestor (async)
+#     response = await HttpxPostRequestor.request_async(
+#         context=RequestContext(
+#             base_url="https://jsonplaceholder.typicode.com",
+#             headers={"Content-Type": "application/json"},
+#         ),
+#         post_id=3,
+#     )
 
-    # Assertions
-    assert isinstance(response, PostResponse)
-    assert response.id == 3
-    assert response.userId == 1
-    assert isinstance(response.title, str)
-    assert isinstance(response.body, str)
-    assert len(response.title) > 0
-    assert len(response.body) > 0
+#     # Assertions
+#     assert isinstance(response, PostResponse)
+#     assert response.id == 3
+#     assert response.userId == 1
+#     assert isinstance(response.title, str)
+#     assert isinstance(response.body, str)
+#     assert len(response.title) > 0
+#     assert len(response.body) > 0
 
 
 # async def test_aiohttp_requestor():

@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any, Generic, Optional, TypeVar, override
 
 from humps import camelize
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, JsonValue, field_validator
 from pydantic_settings import BaseSettings
 from typing_extensions import deprecated
 
@@ -86,6 +86,10 @@ class McpTool(BaseModel):
     user_prompt: Optional[str] = Field(
         default=None,
         description="An optional user prompt for the tool. This is a Unique specific field.",
+    )
+    tool_format_information: Optional[str] = Field(
+        default=None,
+        description="An optional tool format information. This is a Unique specific field.",
     )
     is_connected: bool = Field(
         description="Whether the tool is connected to the MCP server. This is a Unique specific field.",
@@ -210,6 +214,10 @@ class ChatEventPayload(BaseModel):
     message_execution_id: str | None = Field(
         default=None,
         description="The message execution id for triggering the chat event. Originates from the message execution service.",
+    )
+    session_config: JsonValue | None = Field(
+        default=None,
+        description="The session configuration for the chat session.",
     )
 
     @field_validator("raw_scope_rules", mode="before")

@@ -1,3 +1,4 @@
+import base64
 import os
 import sys
 from pathlib import Path
@@ -15,8 +16,17 @@ class QuartrApiCreds(BaseModel):
 
 
 class Base(BaseSettings):
-    quartr_api_creds: QuartrApiCreds | None = None
+    quartr_api_creds: str | None = None
     quartr_api_activated_companies: list[str] = []
+
+    @property
+    def quartr_api_creds_model(self) -> QuartrApiCreds | None:
+        """Return the Quartr API credentials model."""
+        if self.quartr_api_creds is None:
+            return None
+
+        decoded_creds = base64.b64decode(self.quartr_api_creds).decode("utf-8")
+        return QuartrApiCreds.model_validate_json(decoded_creds)
 
 
 class Settings(Base):
