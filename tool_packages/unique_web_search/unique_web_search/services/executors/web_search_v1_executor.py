@@ -194,9 +194,7 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
             else:
                 self.notify_name = "**Searching Web**"
 
-            human_string = query_params_to_human_string(refined_query, date_restrict)
-
-            self.notify_message = human_string
+            self.notify_message = query_params_to_human_string(refined_query, date_restrict)
             await self.notify_callback()
 
             search_results = await self._search(
@@ -205,7 +203,7 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
             queries_for_log.append(
                 WebSearchLogEntry(
                     type=StepType.SEARCH,
-                    message=human_string,
+                    message=self.notify_message,
                     web_search_results=search_results,
                 )
             )
