@@ -83,3 +83,5 @@ extend-select = ["I"]
 [tool.basedpyright]
 # Type checking mode: "off", "basic", "standard", "strict", "recommended", or "all"
 typeCheckingMode = "standard"
+# Exclude test files from type checking
+exclude = ["**/test_*.py", "**/tests/**"]

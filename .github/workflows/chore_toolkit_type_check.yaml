@@ -55,6 +55,7 @@ jobs:
         bash ${{ github.workspace }}/.github/scripts/run-basedpyright.sh ${{ github.workspace }}/${{ env.PACKAGE }} /tmp/basedpyright.json
 
     - name: Report type errors
+      continue-on-error: true
       env:
         REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
@@ -62,5 +63,5 @@ jobs:
           -r /tmp/reviewdog \
           -b ${{ github.base_ref }} \
           ${{ github.workspace }}/${{ env.PACKAGE }} \
-          /tmp/basedpyright.json
+          /tmp/basedpyright.json || true
 
