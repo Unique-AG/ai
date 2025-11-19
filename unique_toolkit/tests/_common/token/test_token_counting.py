@@ -1,7 +1,6 @@
 # Original source
 # https://github.com/openai/openai-cookbook/blob/main/examples/How_to_count_tokens_with_tiktoken.ipynb
 
-from enum import StrEnum
 from pathlib import Path
 
 import tiktoken
@@ -13,32 +12,15 @@ from unique_toolkit._common.token.token_counting import (
     num_tokens_from_messages,
 )
 from unique_toolkit._common.utils.image.encode import image_to_base64
+from unique_toolkit.language_model.infos import LanguageModelName
 
 CURRENT_DIR = Path(__file__).parent.absolute()
 
 
-class OpenAIModelName(StrEnum):
-    GPT_3_5_TURBO_0125 = "gpt-3.5-turbo-0125"
-    GPT_4_0314 = "gpt-4-0314"
-    GPT_4_32K_0314 = "gpt-4-32k-0314"
-    GPT_4_0613 = "gpt-4-0613"
-    GPT_4_32K_0613 = "gpt-4-32k-0613"
-    GPT_4O_MINI_2024_07_18 = "gpt-4o-mini-2024-07-18"
-    GPT_4O_2024_08_06 = "gpt-4o-2024-08-06"
-
-
-def get_model_name(model: str) -> OpenAIModelName:
-    if model in OpenAIModelName.__members__:
-        return OpenAIModelName(model)
-    elif "gpt-3.5-turbo" in model:
-        return OpenAIModelName.GPT_3_5_TURBO_0125
-    elif "gpt-4o-mini" in model:
-        return OpenAIModelName.GPT_4O_MINI_2024_07_18
-    elif "gpt-4o" in model:
-        return OpenAIModelName.GPT_4O_2024_08_06
-    elif "gpt-4" in model:
-        return OpenAIModelName.GPT_4_0613
-    else:
+def get_model_name(model: str) -> LanguageModelName:
+    try:
+        return LanguageModelName(model)
+    except ValueError:
         raise NotImplementedError(
             f"""get_model_name() is not implemented for model {model}."""
         )
@@ -56,12 +38,12 @@ def get_encoder(model_str) -> tiktoken.Encoding:
     return encoding
 
 
-def get_special_token(model: OpenAIModelName) -> SpecialToolCallingTokens:
+def get_special_token(model: LanguageModelName) -> SpecialToolCallingTokens:
     special_token = SpecialToolCallingTokens()
 
     if model in [
-        OpenAIModelName.GPT_4O_2024_08_06,
-        OpenAIModelName.GPT_4O_MINI_2024_07_18,
+        LanguageModelName.AZURE_GPT_4o_2024_0806,
+        LanguageModelName.AZURE_GPT_4o_MINI_2024_0718,
     ]:
         # Set function settings for the above models
         special_token.func_init = 7
@@ -72,11 +54,9 @@ def get_special_token(model: OpenAIModelName) -> SpecialToolCallingTokens:
         special_token.func_end = 12
 
     elif model in [
-        OpenAIModelName.GPT_3_5_TURBO_0125,
-        OpenAIModelName.GPT_4_0314,
-        OpenAIModelName.GPT_4_0613,
-        OpenAIModelName.GPT_4_32K_0314,
-        OpenAIModelName.GPT_4_32K_0613,
+        LanguageModelName.AZURE_GPT_35_TURBO_0125,
+        LanguageModelName.AZURE_GPT_4_0613,
+        LanguageModelName.AZURE_GPT_4_32K_0613,
     ]:
         # Set function settings for the above models
         special_token.func_init = 10
@@ -125,13 +105,13 @@ def test_num_tokens_from_messages():
     ]
 
     model_str_list = [
-        "gpt-3.5-turbo-0125",
-        "gpt-4-0613",
-        "gpt-4-32k-0314",
-        "gpt-4o-mini-2024-07-18",
-        "gpt-4o-2024-08-06",
+        "AZURE_GPT_35_TURBO_0125",
+        "AZURE_GPT_4_0613",
+        "AZURE_GPT_4_32K_0613",
+        "AZURE_GPT_4o_MINI_2024_0718",
+        "AZURE_GPT_4o_2024_0806",
     ]
-    expected_token_counts = [129, 129, 129, 124, 124]
+    expected_token_counts = [124, 124, 124, 124, 124]
 
     for model_str, expected_count in zip(model_str_list, expected_token_counts):
         encoder = get_encoder(model_str=model_str)
@@ -178,8 +158,8 @@ def test_num_tokens_for_tools():
         },
     ]
 
-    model_str_list = ["gpt-3.5-turbo", "gpt-4", "gpt-4o", "gpt-4o-mini"]
-    token_counts = [105, 105, 101, 101]
+    model_str_list = ["AZURE_GPT_35_TURBO_0125", "AZURE_GPT_4_0613", "AZURE_GPT_4o_2024_0806", "AZURE_GPT_4o_MINI_2024_0718"]
+    token_counts = [104, 104, 101, 101]
 
     for num, model_str in zip(token_counts, model_str_list):
         model = get_model_name(model_str)  # Use the new function to get the model
@@ -229,7 +209,7 @@ def test_token_counting_with_image():
     ]
 
     # Test with a small image (low detail)
-    model_str = "gpt-4o-2024-08-06"
+    model_str = "AZURE_GPT_4o_2024_0806"
     encoder = get_encoder(model_str)
 
     message_token_count_1 = num_tokens_from_messages(example_messages_1, encoder.encode)
