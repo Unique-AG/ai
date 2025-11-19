@@ -38,10 +38,10 @@ EXAMPLES:
     ${SCRIPT_NAME} unique_toolkit
 
     # Specify baseline file and comparison branch
-    ${SCRIPT_NAME} unique_toolkit --baseline /tmp/baseline.json --compare origin/main
+    ${SCRIPT_NAME} -b /tmp/baseline.json -c origin/main unique_toolkit
 
     # All options
-    ${SCRIPT_NAME} unique_sdk --baseline /tmp/baseline.json --compare main
+    ${SCRIPT_NAME} -b /tmp/baseline.json -c main unique_sdk
 
 EXIT CODES:
     0    Baseline applied successfully
@@ -64,27 +64,28 @@ PACKAGE_DIR=""
 BASELINE_FILE="/tmp/baseline.json"
 COMPARE_BRANCH="main"
 
-# Parse long options first
+# Convert long options to short options for getopts
+ARGS=()
 while [[ $# -gt 0 ]]; do
     case $1 in
         --help)
-            show_help
-            exit 0
+            ARGS+=(-h)
+            shift
             ;;
         --version)
-            show_version
-            exit 0
+            ARGS+=(-v)
+            shift
             ;;
         --baseline)
-            BASELINE_FILE="$2"
+            ARGS+=(-b "$2")
             shift 2
             ;;
         --compare)
-            COMPARE_BRANCH="$2"
+            ARGS+=(-c "$2")
             shift 2
             ;;
         --)
-            shift
+            ARGS+=("$@")
             break
             ;;
         --*)
@@ -92,18 +93,17 @@ while [[ $# -gt 0 ]]; do
             echo "Use --help for usage information."
             exit 1
             ;;
-        -*)
-            # Short options will be handled by getopts
-            break
-            ;;
         *)
-            # Positional arguments will be handled after getopts
-            break
+            ARGS+=("$1")
+            shift
             ;;
     esac
 done
 
-# Parse short options using getopts
+# Reset positional parameters for getopts
+set -- "${ARGS[@]}"
+
+# Parse options using getopts
 while getopts "hvb:c:" opt; do
     case $opt in
         h)

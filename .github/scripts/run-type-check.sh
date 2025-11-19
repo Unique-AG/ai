@@ -38,7 +38,7 @@ OPTIONS:
     -h, --help           Show this help message and exit
     -v, --version        Show version information and exit
     -b, --branch REF     Branch/ref to compare against (default: main)
-    --skip-install       Skip installing dependencies (assume already installed)
+    -s, --skip-install   Skip installing dependencies (assume already installed)
 
 EXAMPLES:
     # Basic usage
@@ -48,7 +48,7 @@ EXAMPLES:
     ${SCRIPT_NAME} unique_sdk origin/main
 
     # Using branch option
-    ${SCRIPT_NAME} unique_toolkit --branch origin/main
+    ${SCRIPT_NAME} -b origin/main unique_toolkit
 
 EXIT CODES:
     0    Type check passed (no new errors)
@@ -71,27 +71,28 @@ PACKAGE_DIR=""
 COMPARE_BRANCH="main"
 SKIP_INSTALL=false
 
-# Parse long options first
+# Convert long options to short options for getopts
+ARGS=()
 while [[ $# -gt 0 ]]; do
     case $1 in
         --help)
-            show_help
-            exit 0
+            ARGS+=(-h)
+            shift
             ;;
         --version)
-            show_version
-            exit 0
+            ARGS+=(-v)
+            shift
             ;;
         --branch)
-            COMPARE_BRANCH="$2"
+            ARGS+=(-b "$2")
             shift 2
             ;;
         --skip-install)
-            SKIP_INSTALL=true
+            ARGS+=(-s)
             shift
             ;;
         --)
-            shift
+            ARGS+=("$@")
             break
             ;;
         --*)
@@ -99,19 +100,18 @@ while [[ $# -gt 0 ]]; do
             echo "Use --help for usage information."
             exit 1
             ;;
-        -*)
-            # Short options will be handled by getopts
-            break
-            ;;
         *)
-            # Positional arguments will be handled after getopts
-            break
+            ARGS+=("$1")
+            shift
             ;;
     esac
 done
 
-# Parse short options using getopts
-while getopts "hvb:" opt; do
+# Reset positional parameters for getopts
+set -- "${ARGS[@]}"
+
+# Parse options using getopts
+while getopts "hvb:s" opt; do
     case $opt in
         h)
             show_help
@@ -123,6 +123,9 @@ while getopts "hvb:" opt; do
             ;;
         b)
             COMPARE_BRANCH="$OPTARG"
+            ;;
+        s)
+            SKIP_INSTALL=true
             ;;
         \?)
             print_error "Invalid option: -$OPTARG"
@@ -208,7 +211,7 @@ echo ""
 
 # Step 2: Apply baseline to current branch
 print_info "Step 2: Applying baseline to current branch"
-bash "$SCRIPT_DIR/apply-type-baseline.sh" --baseline /tmp/baseline.json --compare "$COMPARE_BRANCH" "$PACKAGE_DIR"
+bash "$SCRIPT_DIR/apply-type-baseline.sh" -b /tmp/baseline.json -c "$COMPARE_BRANCH" "$PACKAGE_DIR"
 echo ""
 
 # Step 3: Run basedpyright on current branch

@@ -31,8 +31,8 @@ ARGUMENTS:
 OPTIONS:
     -h, --help           Show this help message and exit
     -v, --version        Show version information and exit
-    --ci                 CI mode - use git checkout instead of stash/restore
-    --output FILE        Output file for baseline (default: /tmp/baseline.json)
+    -c, --ci             CI mode - use git checkout instead of stash/restore
+    -o, --output FILE    Output file for baseline (default: /tmp/baseline.json)
 
 EXAMPLES:
     # Basic usage
@@ -42,10 +42,10 @@ EXAMPLES:
     ${SCRIPT_NAME} unique_sdk origin/main
 
     # CI mode
-    ${SCRIPT_NAME} --ci unique_toolkit main
+    ${SCRIPT_NAME} -c unique_toolkit main
 
     # Custom output file
-    ${SCRIPT_NAME} --output /tmp/my-baseline.json unique_toolkit main
+    ${SCRIPT_NAME} -o /tmp/my-baseline.json unique_toolkit main
 
 EXIT CODES:
     0    Baseline created successfully
@@ -69,27 +69,28 @@ BRANCH="main"
 CI_MODE=false
 OUTPUT_FILE="/tmp/baseline.json"
 
-# Parse long options first
+# Convert long options to short options for getopts
+ARGS=()
 while [[ $# -gt 0 ]]; do
     case $1 in
         --help)
-            show_help
-            exit 0
+            ARGS+=(-h)
+            shift
             ;;
         --version)
-            show_version
-            exit 0
+            ARGS+=(-v)
+            shift
             ;;
         --ci)
-            CI_MODE=true
+            ARGS+=(-c)
             shift
             ;;
         --output)
-            OUTPUT_FILE="$2"
+            ARGS+=(-o "$2")
             shift 2
             ;;
         --)
-            shift
+            ARGS+=("$@")
             break
             ;;
         --*)
@@ -97,19 +98,18 @@ while [[ $# -gt 0 ]]; do
             echo "Use --help for usage information."
             exit 1
             ;;
-        -*)
-            # Short options will be handled by getopts
-            break
-            ;;
         *)
-            # Positional arguments will be handled after getopts
-            break
+            ARGS+=("$1")
+            shift
             ;;
     esac
 done
 
-# Parse short options using getopts
-while getopts "hvo:" opt; do
+# Reset positional parameters for getopts
+set -- "${ARGS[@]}"
+
+# Parse options using getopts
+while getopts "hvo:c" opt; do
     case $opt in
         h)
             show_help
@@ -121,6 +121,9 @@ while getopts "hvo:" opt; do
             ;;
         o)
             OUTPUT_FILE="$OPTARG"
+            ;;
+        c)
+            CI_MODE=true
             ;;
         \?)
             print_error "Invalid option: -$OPTARG"

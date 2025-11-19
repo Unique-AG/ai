@@ -30,8 +30,8 @@ ARGUMENTS:
 OPTIONS:
     -h, --help           Show this help message and exit
     -v, --version        Show version information and exit
-    --reviewdog PATH     Path to reviewdog binary (enables CI mode)
-    --base-ref REF       Base branch/ref for comparison (default: main)
+    -r, --reviewdog PATH Path to reviewdog binary (enables CI mode)
+    -b, --base-ref REF   Base branch/ref for comparison (default: main)
 
 EXAMPLES:
     # Basic usage
@@ -41,10 +41,10 @@ EXAMPLES:
     ${SCRIPT_NAME} unique_sdk /tmp/basedpyright.json
 
     # CI mode with reviewdog
-    ${SCRIPT_NAME} unique_toolkit --reviewdog /usr/bin/reviewdog --base-ref main
+    ${SCRIPT_NAME} -r /usr/bin/reviewdog -b main unique_toolkit
 
     # All options
-    ${SCRIPT_NAME} unique_toolkit /tmp/basedpyright.json --reviewdog /usr/bin/reviewdog --base-ref origin/main
+    ${SCRIPT_NAME} -r /usr/bin/reviewdog -b origin/main unique_toolkit /tmp/basedpyright.json
 
 EXIT CODES:
     0    No new type errors found
@@ -69,28 +69,29 @@ REVIEWDOG_PATH=""
 USE_REVIEWDOG=false
 BASE_REF="main"
 
-# Parse long options first
+# Convert long options to short options for getopts
+ARGS=()
 while [[ $# -gt 0 ]]; do
     case $1 in
         --help)
-            show_help
-            exit 0
+            ARGS+=(-h)
+            shift
             ;;
         --version)
-            show_version
-            exit 0
+            ARGS+=(-v)
+            shift
             ;;
         --reviewdog)
-            REVIEWDOG_PATH="$2"
+            ARGS+=(-r "$2")
             USE_REVIEWDOG=true
             shift 2
             ;;
         --base-ref)
-            BASE_REF="$2"
+            ARGS+=(-b "$2")
             shift 2
             ;;
         --)
-            shift
+            ARGS+=("$@")
             break
             ;;
         --*)
@@ -98,19 +99,18 @@ while [[ $# -gt 0 ]]; do
             echo "Use --help for usage information."
             exit 1
             ;;
-        -*)
-            # Short options will be handled by getopts
-            break
-            ;;
         *)
-            # Positional arguments will be handled after getopts
-            break
+            ARGS+=("$1")
+            shift
             ;;
     esac
 done
 
-# Parse short options using getopts
-while getopts "hv" opt; do
+# Reset positional parameters for getopts
+set -- "${ARGS[@]}"
+
+# Parse options using getopts
+while getopts "hvr:b:" opt; do
     case $opt in
         h)
             show_help
@@ -120,8 +120,20 @@ while getopts "hv" opt; do
             show_version
             exit 0
             ;;
+        r)
+            REVIEWDOG_PATH="$OPTARG"
+            USE_REVIEWDOG=true
+            ;;
+        b)
+            BASE_REF="$OPTARG"
+            ;;
         \?)
             print_error "Invalid option: -$OPTARG"
+            echo "Use -h or --help for usage information."
+            exit 1
+            ;;
+        :)
+            print_error "Option -$OPTARG requires an argument."
             echo "Use -h or --help for usage information."
             exit 1
             ;;

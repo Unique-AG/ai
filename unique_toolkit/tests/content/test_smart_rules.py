@@ -19,7 +19,7 @@ class MockDatetime:
         self.fixed_time = fixed_time
 
     def now(self, tz: timezone | None = None) -> datetime:
-        a: int = "str"
+        a: float = "str"
 
         b: list[int] = [1, 2, 3]
         b.append(a)

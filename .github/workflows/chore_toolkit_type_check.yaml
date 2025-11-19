@@ -42,12 +42,12 @@ jobs:
     - name: Create baseline from base branch
       working-directory: ${{ env.PACKAGE }}
       run: |
-        bash ${{ github.workspace }}/.github/scripts/create-type-baseline.sh ${{ github.workspace }}/${{ env.PACKAGE }} ${{ github.base_ref }} --ci
+        bash ${{ github.workspace }}/.github/scripts/create-type-baseline.sh -c ${{ github.workspace }}/${{ env.PACKAGE }} ${{ github.base_ref }}
 
     - name: Apply baseline to PR branch
       working-directory: ${{ env.PACKAGE }}
       run: |
-        bash ${{ github.workspace }}/.github/scripts/apply-type-baseline.sh ${{ github.workspace }}/${{ env.PACKAGE }} /tmp/baseline.json ${{ github.base_ref }}
+        bash ${{ github.workspace }}/.github/scripts/apply-type-baseline.sh -b /tmp/baseline.json -c ${{ github.base_ref }} ${{ github.workspace }}/${{ env.PACKAGE }}
 
     - name: Run basedpyright
       working-directory: ${{ env.PACKAGE }}
@@ -59,8 +59,8 @@ jobs:
         REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         bash ${{ github.workspace }}/.github/scripts/report-type-errors.sh \
+          -r /tmp/reviewdog \
+          -b ${{ github.base_ref }} \
           ${{ github.workspace }}/${{ env.PACKAGE }} \
-          /tmp/basedpyright.json \
-          --reviewdog /tmp/reviewdog \
-          --base-ref ${{ github.base_ref }}
+          /tmp/basedpyright.json
 

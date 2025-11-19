@@ -41,7 +41,7 @@ EXAMPLES:
     ${SCRIPT_NAME} unique_sdk /tmp/my-results.json
 
     # Using output option
-    ${SCRIPT_NAME} unique_toolkit --output /tmp/my-results.json
+    ${SCRIPT_NAME} -o /tmp/my-results.json unique_toolkit
 
 EXIT CODES:
     0    Basedpyright completed (may have errors, check JSON output)
@@ -63,23 +63,24 @@ EOF
 PACKAGE_DIR=""
 OUTPUT_FILE="/tmp/basedpyright.json"
 
-# Parse long options first
+# Convert long options to short options for getopts
+ARGS=()
 while [[ $# -gt 0 ]]; do
     case $1 in
         --help)
-            show_help
-            exit 0
+            ARGS+=(-h)
+            shift
             ;;
         --version)
-            show_version
-            exit 0
+            ARGS+=(-v)
+            shift
             ;;
         --output)
-            OUTPUT_FILE="$2"
+            ARGS+=(-o "$2")
             shift 2
             ;;
         --)
-            shift
+            ARGS+=("$@")
             break
             ;;
         --*)
@@ -87,18 +88,17 @@ while [[ $# -gt 0 ]]; do
             echo "Use --help for usage information."
             exit 1
             ;;
-        -*)
-            # Short options will be handled by getopts
-            break
-            ;;
         *)
-            # Positional arguments will be handled after getopts
-            break
+            ARGS+=("$1")
+            shift
             ;;
     esac
 done
 
-# Parse short options using getopts
+# Reset positional parameters for getopts
+set -- "${ARGS[@]}"
+
+# Parse options using getopts
 while getopts "hvo:" opt; do
     case $opt in
         h)
