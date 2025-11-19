@@ -189,10 +189,10 @@ def sample_content_chunks():
     chunk1.text = "Test content 1"
     chunk1.url = "https://example.com/page1"
     chunk1.order = 0
-    
+
     chunk2 = Mock()
     chunk2.text = "Test content 2"
     chunk2.url = "https://example.com/page2"
     chunk2.order = 1
-    
+
     return [chunk1, chunk2]
