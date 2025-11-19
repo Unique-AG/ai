@@ -106,7 +106,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
         executor = self._get_executor(tool_call, parameters, debug_info)
 
         try:
-            content_chunks = await executor.run()
+            content_chunks, queries_for_log = await executor.run()
             debug_info.num_chunks_in_final_prompts = len(content_chunks)
             debug_info.execution_time = time() - start_time
 

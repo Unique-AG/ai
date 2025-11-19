@@ -93,7 +93,7 @@ class BaseWebSearchExecutor(ABC):
     @abstractmethod
     async def run(
         self,
-    ) -> list[ContentChunk]:
+    ) -> tuple[list[ContentChunk], list[str]]:
         raise NotImplementedError("Subclasses must implement this method.")
 
     async def _content_processing(

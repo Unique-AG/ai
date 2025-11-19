@@ -172,7 +172,7 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
         self.refine_query_system_prompt = refine_query_system_prompt
         self.max_queries = max_queries
 
-    async def run(self) -> list[ContentChunk]:
+    async def run(self) -> tuple[list[ContentChunk], list[str]]:
         query = self.tool_parameters.query
         date_restrict = self.tool_parameters.date_restrict
 
@@ -182,6 +182,7 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
         refined_queries, objective = await self._refine_query(query)
 
         web_search_results = []
+        queries_for_log = []
         for index, refined_query in enumerate(refined_queries):
             if len(refined_queries) > 1:
                 self.notify_name = (
@@ -189,11 +190,13 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
                 )
             else:
                 self.notify_name = "**Searching Web**"
+                
+            human_string = query_params_to_human_string(refined_query, date_restrict)
 
-            self.notify_message = query_params_to_human_string(
-                refined_query, date_restrict
-            )
+            self.notify_message = human_string
             await self.notify_callback()
+
+            queries_for_log.append(f"Search: {human_string}")
 
             search_results = await self._search(
                 refined_query, date_restrict=date_restrict
@@ -225,7 +228,7 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
             objective, content_results
         )
 
-        return relevant_sources
+        return relevant_sources, queries_for_log
 
     async def _refine_query(self, query: str) -> tuple[list[str], str]:
         start_time = time()

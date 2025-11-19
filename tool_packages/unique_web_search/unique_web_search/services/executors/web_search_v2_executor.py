@@ -75,6 +75,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
 
         self.tool_parameters = tool_parameters
         self.max_steps = max_steps
+        self.queries_for_log = []
 
     @property
     def notify_name(self):
@@ -92,7 +93,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
     def notify_message(self, value):
         self._notify_message = value
 
-    async def run(self) -> list[ContentChunk]:
+    async def run(self) -> tuple[list[ContentChunk], list[str]]:
         await self._enforce_max_steps()
 
         results: list[WebSearchResult] = []
@@ -137,7 +138,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
             self.tool_parameters.objective, content_results
         )
 
-        return relevant_sources
+        return relevant_sources, self.queries_for_log
 
     async def _execute_step(self, step: Step) -> list[WebSearchResult]:
         if step.step_type == StepType.SEARCH:
@@ -161,6 +162,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
         _LOGGER.info(f"Company {self.company_id} Searching with {self.search_service}")
 
         results = await self.search_service.search(step.query_or_url)
+        self.queries_for_log.append(f"Search: {step.query_or_url}")
         delta_time = time() - time_start
 
         self.debug_info.steps.append(
@@ -220,6 +222,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
         time_start = time()
         _LOGGER.info(f"Company {self.company_id} Crawling with {self.crawler_service}")
         results = await self.crawler_service.crawl([step.query_or_url])
+        self.queries_for_log.append(f"Read URL: {step.query_or_url}")
         delta_time = time() - time_start
         _LOGGER.debug(
             f"Crawled {step.query_or_url} with {self.crawler_service} completed in {delta_time} seconds"
