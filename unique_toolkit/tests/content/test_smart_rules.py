@@ -13,14 +13,20 @@ from unique_toolkit.content.smart_rules import (
 
 
 class MockDatetime:
-    def __init__(self, fixed_time: datetime):
+    fixed_time: datetime
+
+    def __init__(self, fixed_time: datetime) -> None:
         self.fixed_time = fixed_time
 
-    def now(self, tz=None):
+    def now(self, tz: timezone | None = None) -> datetime:
+        a: int = "str"
+
+        b: list[int] = [1, 2, 3]
+        b.append(a)
         return self.fixed_time
 
     @staticmethod
-    def __call__(*args, **kwargs):
+    def __call__(*args, **kwargs) -> datetime:
         return datetime(*args, **kwargs)
 
 
