@@ -25,7 +25,7 @@ DESCRIPTION:
     1. Creates a baseline from a comparison branch
     2. Applies the baseline to the current branch
     3. Runs basedpyright on the current branch
-    4. Reports any new type errors
+    4. Reports any new type errors and exits with appropriate status
 
     For CI usage, see the GitHub Actions workflow which calls the modular
     scripts directly.
@@ -219,3 +219,12 @@ print_info "Step 3: Running basedpyright on current branch"
 bash "$SCRIPT_DIR/run-basedpyright.sh" "$PACKAGE_DIR" /tmp/basedpyright.json
 echo ""
 
+# Step 4: Report type errors
+print_info "Step 4: Reporting type errors"
+if bash "$SCRIPT_DIR/report-type-errors.sh" -b "$COMPARE_BRANCH" "$PACKAGE_DIR" /tmp/basedpyright.json; then
+    print_success "Type check passed - no new errors!"
+    exit 0
+else
+    print_error "Type check failed - new errors found!"
+    exit 1
+fi
