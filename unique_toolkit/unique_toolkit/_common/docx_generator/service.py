@@ -10,12 +10,10 @@ from unique_toolkit._common.docx_generator.config import DocxGeneratorConfig
 from unique_toolkit._common.docx_generator.schemas import (
     ContentField,
     HeadingField,
-    # ImageField,
     ParagraphField,
     RunField,
     RunsField,
 )
-from unique_toolkit.chat.service import ChatService
 from unique_toolkit.services import KnowledgeBaseService
 
 generator_dir_path = Path(__file__).resolve().parent
@@ -27,7 +25,6 @@ _LOGGER = logging.getLogger(__name__)
 class DocxGeneratorService:
     def __init__(
         self,
-        chat_service: ChatService,
         knowledge_base_service: KnowledgeBaseService,
         config: DocxGeneratorConfig,
     ):

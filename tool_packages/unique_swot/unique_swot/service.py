@@ -68,13 +68,11 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
         )
 
         self._earnings_call_docx_generator_service = DocxGeneratorService(
-            chat_service=self._chat_service,
             knowledge_base_service=self._knowledge_base_service,
             config=self.config.earnings_call_config.docx_renderer_config,
         )
 
         self._report_docx_renderer = DocxGeneratorService(
-            chat_service=self._chat_service,
             knowledge_base_service=self._knowledge_base_service,
             config=self.config.report_renderer_config.docx_renderer_config,
         )
