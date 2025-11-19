@@ -1,4 +1,4 @@
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import Field
 
@@ -72,7 +72,7 @@ class SubAgentToolConfig(BaseToolConfig):
         description="The condition that will be used to stop the polling for the sub-agent response.",
     )
 
-    tool_input_json_schema: dict[str, Any] | None = Field(
+    tool_input_json_schema: str | None = Field(
         default=None,
         description="A custom JSON schema to send to the llm as the tool input schema.",
     )

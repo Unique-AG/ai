@@ -101,7 +101,7 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
             return LanguageModelToolDescription(
                 name=self.name,
                 description=self.config.tool_description,
-                parameters=self.config.tool_input_json_schema,
+                parameters=json.loads(self.config.tool_input_json_schema),
             )
 
         tool_input_model_with_description = create_model(
