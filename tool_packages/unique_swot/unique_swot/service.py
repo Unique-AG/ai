@@ -41,11 +41,7 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
     def __init__(self, configuration: SwotAnalysisToolConfig, *args, **kwargs):
         super().__init__(configuration, *args, **kwargs)
 
-        self._swot_analysis_session_config = SessionConfig.model_validate(
-            self._event.payload.session_config, by_name=True
-        )
-
-        metadata_filter = self._event.payload.metadata_filter
+        self._metadata_filter = self._event.payload.metadata_filter
 
         self._knowledge_base_service = KnowledgeBaseService.from_event(self._event)
 
@@ -83,23 +79,6 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
             config=self.config.report_renderer_config.docx_renderer_config,
         )
 
-        self._source_collection_manager = SourceCollectionManager(
-            context=CollectionContext(
-                use_earnings_calls=self._swot_analysis_session_config.swot_analysis.use_earnings_call,
-                use_web_sources=self._swot_analysis_session_config.swot_analysis.use_web_sources,
-                metadata_filter=metadata_filter,
-                company=self._swot_analysis_session_config.swot_analysis.company_listing,
-                earnings_call_start_date=self._swot_analysis_session_config.swot_analysis.earnings_call_start_date
-                or datetime.now() - timedelta(days=365),
-                upload_scope_id_earnings_calls=self.config.earnings_call_config.upload_scope_id,
-            ),
-            knowledge_base_service=self._knowledge_base_service,
-            content_chunk_registry=self._content_chunk_registry,
-            notifier=self._notifier,
-            quartr_service=self._get_quartr_service(self._event.company_id),
-            earnings_call_docx_generator_service=self._earnings_call_docx_generator_service,
-        )
-
         self._citation_manager = CitationManager(
             content_chunk_registry=self._content_chunk_registry,
         )
@@ -111,6 +90,34 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
             citation_manager=self._citation_manager,
             renderer_type=self.config.report_renderer_config.renderer_type,
             message_id=self._event.payload.assistant_message.id,
+        )
+
+    def _try_load_session_config(self):
+        try:
+            self._swot_analysis_session_config = SessionConfig.model_validate(
+                self._event.payload.session_config, by_name=True
+            )
+            return True
+        except Exception as e:
+            _LOGGER.error(f"Error validating session config: {e}")
+            return False
+
+    def _init_source_collection_manager(self):
+        self._source_collection_manager = SourceCollectionManager(
+            context=CollectionContext(
+                use_earnings_calls=self._swot_analysis_session_config.swot_analysis.use_earnings_call,
+                use_web_sources=self._swot_analysis_session_config.swot_analysis.use_web_sources,
+                metadata_filter=self._metadata_filter,
+                company=self._swot_analysis_session_config.swot_analysis.company_listing,
+                earnings_call_start_date=self._swot_analysis_session_config.swot_analysis.earnings_call_start_date
+                or datetime.now() - timedelta(days=365),
+                upload_scope_id_earnings_calls=self.config.earnings_call_config.upload_scope_id,
+            ),
+            knowledge_base_service=self._knowledge_base_service,
+            content_chunk_registry=self._content_chunk_registry,
+            notifier=self._notifier,
+            quartr_service=self._get_quartr_service(self._event.company_id),
+            earnings_call_docx_generator_service=self._earnings_call_docx_generator_service,
         )
 
     @override
@@ -143,6 +150,20 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
 
     @override
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
+        
+        if not self._try_load_session_config():
+            self._chat_service.modify_assistant_message(
+                content="Please make sure to provide the mandatory fields in the SWOT Analysis side bar configuration."
+            )
+            return ToolCallResponse(
+                id=tool_call.id,  # type: ignore
+                name=self.name,
+                content="The user has not provided a valid configuration for the SWOT. He must provide a valid configuration before running the tool.",
+                content_chunks=[],
+            )
+
+        self._init_source_collection_manager()
+
         company_name = (
             self._swot_analysis_session_config.swot_analysis.company_listing.name
         )
