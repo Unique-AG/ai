@@ -5,6 +5,7 @@ from typing import Any, Generic, TypeVar, cast
 from typing_extensions import deprecated
 
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
+from unique_toolkit.agentic.logger_manager.service import MessageStepLogger
 from unique_toolkit.agentic.tools.config import ToolBuildConfig, ToolSelectionPolicy
 from unique_toolkit.agentic.tools.schemas import (
     BaseToolConfig,
@@ -181,3 +182,7 @@ class Tool(ABC, Generic[ConfigType]):
 
         self._chat_service = ChatService(event)
         self._language_model_service = LanguageModelService(event)
+        self._message_step_logger = MessageStepLogger(
+            chat_service=self._chat_service,
+            event=self._event,
+        )

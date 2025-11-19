@@ -14,8 +14,12 @@ from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.agentic.tools.tool_progress_reporter import ProgressState
 from unique_toolkit.app.schemas import BaseEvent, ChatEvent, Event
+from unique_toolkit.chat.schemas import (
+    MessageLogDetails,
+    MessageLogEvent,
+)
 from unique_toolkit.chat.service import LanguageModelToolDescription
-from unique_toolkit.content.schemas import Content, ContentChunk
+from unique_toolkit.content.schemas import Content, ContentChunk, ContentReference
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.content.utils import (
     merge_content_chunks,
@@ -163,6 +167,8 @@ class InternalSearchService:
                     chunks=found_chunks,
                 )
             )
+
+        # Updating our logger with the search results for all search strings.
 
         # Reset the metadata filter in case it was disabled
         self.content_service._metadata_filter = metadata_filter_copy
@@ -395,6 +401,11 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             tool_call=tool_call,  # Need to pass tool_call to post_progress_message
         )
 
+        ## Message log entry
+        await self._create_message_log_entry(
+            chunks=selected_chunks, search_strings_list=search_strings_list
+        )
+
         ## Modify metadata in chunks
         selected_chunks = append_metadata_in_chunks(
             chunks=selected_chunks,
@@ -417,6 +428,65 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             )
 
         return tool_response
+
+    async def _create_message_log_entry(
+        self, *, chunks: list[ContentChunk], search_strings_list: list[str]
+    ) -> None:
+        message_log_reference_list: list[
+            ContentReference
+        ] = await self._define_reference_list_for_message_log(
+            content_chunks=chunks,
+        )
+        message_log_text = await self._prepare_string_for_message_log(
+            query_list=search_strings_list
+        )
+        self._message_step_logger.create_message_log_entry(
+            text=message_log_text,
+            details=MessageLogDetails(
+                data=[MessageLogEvent(type="InternalSearch", text="")]
+            ),
+            data=message_log_reference_list,
+        )
+
+    async def _define_reference_list_for_message_log(
+        self,
+        *,
+        content_chunks: list[ContentChunk],
+    ) -> list[ContentReference]:
+        """
+        Create a reference list for internal search content chunks.
+
+        Args:
+            content_chunks: List of ContentChunk objects to convert
+        Returns:
+            List of ContentReference objects
+        """
+        data: list[ContentReference] = []
+        count = 0
+        for content_chunk in content_chunks:
+            reference_name: str = content_chunk.title or content_chunk.key or ""
+
+            if reference_name != "":
+                data.append(
+                    ContentReference(
+                        name=reference_name,
+                        sequence_number=count,
+                        source="internal",
+                        url="",
+                        source_id=content_chunk.id,
+                    )
+                )
+                count += 1
+
+        return data
+
+    async def _prepare_string_for_message_log(self, *, query_list: list[str]) -> str:
+        message = ""
+        for entry in query_list:
+            message += f"• {entry}\n"
+        message = message.strip("\n")
+
+        return f"**Internal Search**\n{message}\n"
 
     ## Note: This function is only used by the Investment Research Agent and Agentic Search. Once these agents are moved out of the monorepo, this function should be removed.
     def get_tool_call_result_for_loop_history(

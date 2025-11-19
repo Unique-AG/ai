@@ -8,6 +8,7 @@ from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
 )
 from unique_toolkit.agentic.evaluation.evaluation_manager import EvaluationManager
 from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
+from unique_toolkit.agentic.logger_manager.service import MessageStepLogger
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
     PostprocessorManager,
 )
@@ -61,6 +62,7 @@ class UniqueAI:
         history_manager: HistoryManager,
         evaluation_manager: EvaluationManager,
         postprocessor_manager: PostprocessorManager,
+        message_step_logger: MessageStepLogger,
         mcp_servers: list[McpServer],
     ):
         self._logger = logger
@@ -82,6 +84,7 @@ class UniqueAI:
         self._mcp_servers = mcp_servers
         self._streaming_handler = streaming_handler
 
+        self._message_step_logger = message_step_logger
         # Helper variable to support control loop
         self._tool_took_control = False
 
@@ -96,6 +99,10 @@ class UniqueAI:
         """
         self._logger.info("Start LoopAgent...")
 
+        self._message_step_logger.create_message_log_entry(
+            text="**Start Unique AI**", data=[]
+        )
+
         if self._history_manager.has_no_loop_messages():  # TODO: why do we even need to check its always no loop messages on this when its called.
             self._chat_service.modify_assistant_message(
                 content="Starting agentic loop..."  # TODO: this must be more informative
@@ -103,6 +110,10 @@ class UniqueAI:
 
         ## Loop iteration
         for i in range(self._config.agent.max_loop_iterations):
+            self._message_step_logger.create_message_log_entry(
+                text="**Loop Iteration %s**" % str(i + 1), data=[]
+            )
+
             self.current_iteration_index = i
             self._logger.info(f"Starting iteration {i + 1}...")
 
@@ -135,6 +146,8 @@ class UniqueAI:
             self.start_text = self._thinking_manager.update_start_text(
                 self.start_text, loop_response
             )
+
+        ## Placeholder to set end of process label, if wished.
 
         # Only set completed_at if no tool took control. Tools that take control will set the message state to completed themselves.
         await self._chat_service.modify_assistant_message_async(
@@ -235,6 +248,10 @@ class UniqueAI:
             return await self._handle_tool_calls(loop_response)
 
         self._logger.debug("No tool calls. we might exit the loop")
+
+        self._message_step_logger.create_message_log_entry(
+            text="**Answer Generation**", data=[]
+        )
 
         return await self._handle_no_tool_calls(loop_response)
 
@@ -405,6 +422,7 @@ class UniqueAI:
         # Process results with error handling
         # Add tool call results to history first to stabilize source numbering,
         # then extract referenceable chunks and debug info
+
         self._history_manager.add_tool_call_results(tool_call_responses)
         self._reference_manager.extract_referenceable_chunks(tool_call_responses)
         self._debug_info_manager.extract_tool_debug_info(
@@ -487,6 +505,7 @@ class UniqueAIResponsesApi(UniqueAI):
         history_manager: HistoryManager,
         evaluation_manager: EvaluationManager,
         postprocessor_manager: PostprocessorManager,
+        message_step_logger: MessageStepLogger,
         mcp_servers: list[McpServer],
     ) -> None:
         super().__init__(
@@ -503,5 +522,6 @@ class UniqueAIResponsesApi(UniqueAI):
             history_manager=history_manager,
             evaluation_manager=evaluation_manager,
             postprocessor_manager=postprocessor_manager,
+            message_step_logger=message_step_logger,
             mcp_servers=mcp_servers,
         )

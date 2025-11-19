@@ -28,6 +28,7 @@ from unique_toolkit.agentic.history_manager.history_manager import (
     HistoryManager,
     HistoryManagerConfig,
 )
+from unique_toolkit.agentic.logger_manager.service import MessageStepLogger
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
     PostprocessorManager,
 )
@@ -106,6 +107,7 @@ class _CommonComponents(NamedTuple):
     history_manager: HistoryManager
     evaluation_manager: EvaluationManager
     postprocessor_manager: PostprocessorManager
+    message_step_logger: MessageStepLogger
     response_watcher: SubAgentResponseWatcher
     # Tool Manager Components
     tool_progress_reporter: ToolProgressReporter
@@ -227,6 +229,7 @@ def _build_common(
         mcp_servers=event.payload.mcp_servers,
         postprocessor_manager=postprocessor_manager,
         response_watcher=response_watcher,
+        message_step_logger=MessageStepLogger(chat_service, event),
     )
 
 
@@ -348,6 +351,7 @@ async def _build_responses(
         evaluation_manager=common_components.evaluation_manager,
         postprocessor_manager=postprocessor_manager,
         debug_info_manager=debug_info_manager,
+        message_step_logger=common_components.message_step_logger,
         mcp_servers=event.payload.mcp_servers,
     )
 
@@ -421,6 +425,7 @@ def _build_completions(
         postprocessor_manager=postprocessor_manager,
         debug_info_manager=debug_info_manager,
         mcp_servers=event.payload.mcp_servers,
+        message_step_logger=common_components.message_step_logger,
     )
 
 

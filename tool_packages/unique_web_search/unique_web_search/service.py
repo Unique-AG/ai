@@ -9,6 +9,11 @@ from unique_toolkit.agentic.tools.tool import (
     Tool,
 )
 from unique_toolkit.agentic.tools.tool_progress_reporter import ProgressState
+from unique_toolkit.chat.schemas import (
+    MessageLogDetails,
+    MessageLogEvent,
+)
+from unique_toolkit.content.schemas import ContentChunk, ContentReference
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelToolDescription,
@@ -94,6 +99,47 @@ class WebSearchTool(Tool[WebSearchConfig]):
     def evaluation_check_list(self) -> list[EvaluationMetricName]:
         return self.config.evaluation_check_list
 
+    def _define_reference_list_for_message_log(
+        self,
+        *,
+        content_chunks: list[ContentChunk],
+    ) -> list[ContentReference]:
+        """
+        Create a reference list for web search content chunks.
+
+        Args:
+            content_chunks: List of ContentChunk objects to convert
+            data: List of ContentReference objects to reference
+        Returns:
+            List of ContentReference objects
+        """
+        data: list[ContentReference] = []
+        count = 0
+        for content_chunk in content_chunks:
+            content_url = content_chunk.url or ""
+
+            if content_url != "":
+                data.append(
+                    ContentReference(
+                        name=content_url,
+                        sequence_number=count,
+                        source="web",
+                        url=content_url,
+                        source_id=content_url,
+                    )
+                )
+                count += 1
+
+        return data
+
+    def _prepare_string_for_message_log(self, *, query_list: list[str]) -> str:
+        message = ""
+        for entry in query_list:
+            message += f"• {entry}\n"
+        message = message.strip("\n")
+
+        return f"**Web Search**\n{message}\n"
+
     @override
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
         self.logger.info("Running the WebSearch tool")
@@ -109,6 +155,24 @@ class WebSearchTool(Tool[WebSearchConfig]):
             content_chunks = await executor.run()
             debug_info.num_chunks_in_final_prompts = len(content_chunks)
             debug_info.execution_time = time() - start_time
+
+            # Write entry with found hits, WebSearch V1 has just one call.
+            data: list[ContentReference] = self._define_reference_list_for_message_log(
+                content_chunks=content_chunks,
+            )
+            # Only log for V1 mode (WebSearchToolParameters has query, WebSearchPlan doesn't)
+            if isinstance(parameters, WebSearchToolParameters):
+                query_str: str = parameters.query
+                prepared_string = self._prepare_string_for_message_log(
+                    query_list=[query_str]
+                )
+                self._message_step_logger.create_message_log_entry(
+                    text=prepared_string,
+                    details=MessageLogDetails(
+                        data=[MessageLogEvent(type="WebSearch", text="")]
+                    ),
+                    data=data,
+                )
 
             if self.tool_progress_reporter:
                 await self.tool_progress_reporter.notify_from_tool_call(
