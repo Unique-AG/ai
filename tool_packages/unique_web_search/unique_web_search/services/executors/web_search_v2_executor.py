@@ -200,6 +200,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
             crawl_results = await self.crawler_service.crawl(
                 [result.url for result in results]
             )
+
             self.queries_for_log.append(
                 WebSearchLogEntry(
                     type=StepType.READ_URL,
@@ -207,7 +208,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
                     web_search_results=[
                         WebSearchResult(
                             url=step.query_or_url,
-                            content=results[0] or "",
+                            content=results[0].content or "",
                             snippet=step.objective,
                             title=step.objective,
                         )
