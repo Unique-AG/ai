@@ -208,7 +208,7 @@ echo ""
 
 # Step 2: Apply baseline to current branch
 print_info "Step 2: Applying baseline to current branch"
-bash "$SCRIPT_DIR/apply-type-baseline.sh" "$PACKAGE_DIR" /tmp/baseline.json "$COMPARE_BRANCH"
+bash "$SCRIPT_DIR/apply-type-baseline.sh" --baseline /tmp/baseline.json --compare "$COMPARE_BRANCH" "$PACKAGE_DIR"
 echo ""
 
 # Step 3: Run basedpyright on current branch
@@ -216,6 +216,3 @@ print_info "Step 3: Running basedpyright on current branch"
 bash "$SCRIPT_DIR/run-basedpyright.sh" "$PACKAGE_DIR" /tmp/basedpyright.json
 echo ""
 
-# Step 4: Report errors
-print_info "Step 4: Reporting type errors"
-bash "$SCRIPT_DIR/report-type-errors.sh" "$PACKAGE_DIR" /tmp/basedpyright.json
