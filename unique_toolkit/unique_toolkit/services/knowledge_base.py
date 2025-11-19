@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from pathlib import Path
+from pathlib import Path, PurePath
 from typing import Any, overload
 
 import humps
@@ -29,6 +29,7 @@ from unique_toolkit.content.functions import (
     upload_content_from_bytes_async,
 )
 from unique_toolkit.content.schemas import (
+    BaseFolderInfo,
     Content,
     ContentChunk,
     ContentInfo,
@@ -546,6 +547,9 @@ class KnowledgeBaseService:
             file_path=file_path,
         )
 
+    # Folder Management
+    # ------------------------------------------------------------------------------------------------
+
     def get_folder_info(
         self,
         *,
@@ -555,19 +559,6 @@ class KnowledgeBaseService:
             user_id=self._user_id,
             company_id=self._company_id,
             scope_id=scope_id,
-        )
-
-    def replace_content_metadata(
-        self,
-        *,
-        content_id: str,
-        metadata: dict[str, Any],
-    ) -> ContentInfo:
-        return update_content(
-            user_id=self._user_id,
-            company_id=self._company_id,
-            content_id=content_id,
-            metadata=metadata,
         )
 
     def _resolve_visible_file_tree(self, content_infos: list[ContentInfo]) -> list[str]:
@@ -651,6 +642,33 @@ class KnowledgeBaseService:
         for key in forbidden_keys:
             metadata.pop(key, None)
         return metadata
+
+    def create_folders(self, *, paths: list[PurePath]):
+        result = unique_sdk.Folder.create_paths(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            paths=[path.as_posix() for path in paths],
+        )
+        return [
+            BaseFolderInfo.model_validate(folder, by_alias=True, by_name=True)
+            for folder in result["createdFolders"]
+        ]
+
+    # Metadata
+    # ------------------------------------------------------------------------------------------------
+
+    def replace_content_metadata(
+        self,
+        *,
+        content_id: str,
+        metadata: dict[str, Any],
+    ) -> ContentInfo:
+        return update_content(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            content_id=content_id,
+            metadata=metadata,
+        )
 
     def update_content_metadata(
         self,
@@ -781,6 +799,9 @@ class KnowledgeBaseService:
 
         return content_infos
 
+    # Delete
+    # ------------------------------------------------------------------------------------------------
+
     @overload
     def delete_content(
         self,
@@ -892,6 +913,60 @@ class KnowledgeBaseService:
         resp = await asyncio.gather(*delete_tasks)
 
         return list(resp)
+
+    def _get_knowledge_base_location(
+        self, *, scope_id: str
+    ) -> tuple[PurePath, list[str]]:
+        """
+        Get the path of a folder from a scope id.
+
+        Args:
+            scope_id (str): The scope id of the folder.
+
+        Returns:
+            PurePath: The path of the folder.
+            list[str]: The list of scope ids from root to the folder.
+        """
+
+        list_of_folder_names: list[str] = []
+        list_of_scope_ids: list[str] = []
+        folder_info = self.get_folder_info(scope_id=scope_id)
+        list_of_scope_ids.append(folder_info.id)
+        if folder_info.parent_id is not None:
+            list_of_folder_names.append(folder_info.name)
+        else:
+            return PurePath("/" + folder_info.name), list_of_scope_ids
+
+        while folder_info.parent_id is not None:
+            folder_info = self.get_folder_info(scope_id=folder_info.parent_id)
+            list_of_folder_names.append(folder_info.name)
+
+        list_of_scope_ids.reverse()
+        return PurePath("/" + "/".join(list_of_folder_names[::-1])), list_of_scope_ids
+
+    def get_folder_path(self, *, scope_id: str) -> PurePath:
+        """
+        Get the path of a folder from a scope id.
+        Args:
+            scope_id (str): The scope id of the folder.
+
+        Returns:
+            PurePath: The path of the folder.
+        """
+        folder_path, _ = self._get_knowledge_base_location(scope_id=scope_id)
+        return folder_path
+
+    def get_scope_id_path(self, *, scope_id: str) -> list[str]:
+        """
+        Get the path of a folder from a scope id.
+        Args:
+            scope_id (str): The scope id of the folder.
+
+        Returns:
+            list[str]: The list of scope ids from root to the folder.
+        """
+        _, list_of_scope_ids = self._get_knowledge_base_location(scope_id=scope_id)
+        return list_of_scope_ids
 
 
 if __name__ == "__main__":
