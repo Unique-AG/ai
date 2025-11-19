@@ -101,7 +101,9 @@ async def collect_earnings_calls(
             type=SourceType.EARNINGS_CALL,
             url=None,
             title=content.title or content.key or "Unknown Title",
-            chunks=convert_content_to_sources(content, chunk_registry=chunk_registry),
+            chunks=convert_content_to_sources(
+                content=content, chunk_registry=chunk_registry
+            ),
         )
 
         sources.append(source)
@@ -110,6 +112,7 @@ async def collect_earnings_calls(
 
 
 async def _ingest_all_transcripts(
+    *,
     list_of_transcripts_to_ingest: list[DocumentDto],
     knowledge_base_service: KnowledgeBaseService,
     docx_generator_service: DocxGeneratorService,

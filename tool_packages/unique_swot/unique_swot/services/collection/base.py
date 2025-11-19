@@ -168,7 +168,7 @@ class SourceCollectionManager:
         )
         self._notifier.update_progress(
             step_precentage_increment=1 / self._total_steps,
-            current_step_message=f"{len(sources)} earnings calls collected",
+            current_step_message=f"{len(sources)} earnings call(s) collected",
         )
         return sources
 
@@ -183,7 +183,7 @@ class SourceCollectionManager:
             notification_title=self._notification_title,
             status=MessageLogStatus.RUNNING,
             message_log_event=MessageLogEvent(
-                type="InternalSearch",
+                type="WebSearch",
                 text="Collecting Web Sources",
             ),
         )

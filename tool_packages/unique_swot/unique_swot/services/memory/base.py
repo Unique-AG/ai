@@ -73,6 +73,7 @@ class SwotMemoryService(Generic[T]):
         # Store in knowledge base
         try:
             if not self._cache_scope_id:
+                # TODO: Add a warning message to the user to set the cache scope id
                 raise ValueError(
                     "Cache scope id is required. Please set it in the configuration."
                 )
@@ -108,4 +109,3 @@ class SwotMemoryService(Generic[T]):
     def _log_memory_error(self, key: str, error: Exception, message: str) -> None:
         """Log memory operation errors with consistent formatting."""
         _LOGGER.warning(f"{message} for key '{key}'. Returning None.")
-        # _LOGGER.debug(f"Error: {error}", exc_info=True)

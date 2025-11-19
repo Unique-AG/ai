@@ -78,9 +78,7 @@ class CitationManager:
         """
         Main entry point to process all citations in a report.
 
-        Performs a two-pass transformation:
-        1. First pass: Process inline citations ([bullet_chunk_X]) to assign numbers
-        2. Second pass: Process consolidated citations ([chunk_X]) to add source info
+        Process inline citations ([chunk_X]) to assign numbers
 
         The order is important: inline citations must be processed first to establish
         the numbering that consolidated citations will reference.

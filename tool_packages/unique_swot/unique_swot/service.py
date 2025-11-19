@@ -5,7 +5,7 @@ from typing_extensions import override
 from unique_quartr.service import QuartrService
 from unique_toolkit import ShortTermMemoryService
 from unique_toolkit._common.docx_generator import DocxGeneratorService
-from unique_toolkit._common.endpoint_requestor import RequestorType
+from unique_toolkit._common.experimental.endpoint_requestor import RequestorType
 from unique_toolkit.agentic.tools.agent_chunks_hanlder import AgentChunksHandler
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse

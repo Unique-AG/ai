@@ -5,7 +5,7 @@ from unique_swot.services.collection.schema import SourceChunk
 
 
 def convert_content_to_sources(
-    content: Content, chunk_registry: ContentChunkRegistry
+    *, content: Content, chunk_registry: ContentChunkRegistry
 ) -> list[SourceChunk]:
     chunks = []
     for chunk in sorted(content.chunks, key=lambda x: x.order):
