@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [0.10.47] - 2025-11-19
-- Allow updating the metadata of a user and group.
+- Allow updating the configuration of a user and group.
 
 ## [0.10.46] - 2025-11-18
 - chat_against_file function allows now a should_delete_chat flag.
