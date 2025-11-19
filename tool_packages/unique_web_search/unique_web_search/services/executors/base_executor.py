@@ -1,4 +1,6 @@
 import logging
+from pydantic import BaseModel
+
 from abc import ABC, abstractmethod
 from time import time
 from typing import Callable, Optional
@@ -16,7 +18,7 @@ from unique_toolkit.agentic.tools.tool_progress_reporter import (
 from unique_toolkit.content import ContentChunk
 from unique_toolkit.language_model import LanguageModelFunction
 
-from unique_web_search.schema import WebSearchPlan, WebSearchToolParameters
+from unique_web_search.schema import StepType, WebSearchPlan, WebSearchToolParameters
 from unique_web_search.services.content_processing import ContentProcessor, WebPageChunk
 from unique_web_search.services.crawlers import CrawlerTypes
 from unique_web_search.services.search_engine import SearchEngineTypes
@@ -26,6 +28,11 @@ from unique_web_search.services.search_engine.schema import (
 from unique_web_search.utils import StepDebugInfo, WebSearchDebugInfo
 
 _LOGGER = logging.getLogger(__name__)
+
+class WebSearchLogEntry(BaseModel):
+    type: StepType
+    message: str
+    web_search_results: list[WebSearchResult]
 
 
 class BaseWebSearchExecutor(ABC):
@@ -93,7 +100,7 @@ class BaseWebSearchExecutor(ABC):
     @abstractmethod
     async def run(
         self,
-    ) -> list[ContentChunk]:
+    ) -> tuple[list[ContentChunk], list[WebSearchLogEntry]]:
         raise NotImplementedError("Subclasses must implement this method.")
 
     async def _content_processing(

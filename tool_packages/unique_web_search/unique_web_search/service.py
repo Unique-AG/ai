@@ -1,5 +1,8 @@
 from time import time
 
+from unique_toolkit.content import ContentReference
+from unique_web_search.services.executors.base_executor import WebSearchLogEntry
+
 from typing_extensions import override
 from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
@@ -13,6 +16,8 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelToolDescription,
 )
+
+from unique_toolkit.chat.schemas import MessageLogDetails, MessageLogEvent
 
 from unique_web_search.config import WebSearchConfig
 from unique_web_search.schema import WebSearchPlan, WebSearchToolParameters
@@ -106,9 +111,17 @@ class WebSearchTool(Tool[WebSearchConfig]):
         executor = self._get_executor(tool_call, parameters, debug_info)
 
         try:
-            content_chunks = await executor.run()
+            content_chunks, queries_for_log = await executor.run()
             debug_info.num_chunks_in_final_prompts = len(content_chunks)
             debug_info.execution_time = time() - start_time
+
+            details, reference_list = self._add_message_logs(queries_for_log)
+            self._message_step_logger.create_message_log_entry(
+                text="**Web Search**",
+                details=details,
+                data=reference_list,
+            )
+                        
 
             if self.tool_progress_reporter:
                 await self.tool_progress_reporter.notify_from_tool_call(
@@ -200,5 +213,27 @@ class WebSearchTool(Tool[WebSearchConfig]):
             return []
         return evaluation_check_list
 
+    def _add_message_logs(self, queries_for_log: list[WebSearchLogEntry]) -> tuple[MessageLogDetails, list[ContentReference]]:
+
+        details = MessageLogDetails(
+            data=[
+                MessageLogEvent(
+                    type="WebSearch",
+                    text=query_for_log.message,
+                )
+                for query_for_log in queries_for_log
+            ]
+        )
+        references = []
+        sequence_number = 0
+        for query_for_log in queries_for_log:
+            for web_search_result in query_for_log.web_search_results:
+                references.append(
+                    web_search_result.to_content_reference(sequence_number)
+                )
+                sequence_number += 1
+
+        return details, references
 
 ToolFactory.register_tool(WebSearchTool, WebSearchConfig)
+

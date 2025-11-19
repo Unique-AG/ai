@@ -1,5 +1,5 @@
 from urllib.parse import urlparse
-
+from unique_toolkit.content import ContentReference
 from pydantic import BaseModel, Field
 
 
@@ -25,3 +25,12 @@ class WebSearchResult(BaseModel):
     @property
     def display_link(self):
         return extract_root_domain(self.url)
+
+    def to_content_reference(self, sequence_number: int) -> ContentReference:
+        return ContentReference(
+            name=self.title,
+            url=self.url,
+            sequence_number=sequence_number,
+            source="WebSearch",
+            source_id=self.url,
+        )
