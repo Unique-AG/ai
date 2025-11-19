@@ -1,5 +1,4 @@
 import asyncio
-import json
 from datetime import datetime
 from logging import getLogger
 from typing import Sequence
@@ -47,33 +46,12 @@ async def collect_earnings_calls(
         start_date=earnings_call_start_date.strftime("%Y-%m-%d"),
     )
 
-    with open("events.json", "w") as f:
-        f.write(events.model_dump_json(indent=4))
-
     events_mapping = {int(event.id): event for event in events.data}
 
     documents = quartr_service.fetch_event_documents(
         event_ids=list(events_mapping.keys()),
         document_ids=document_ids,
     )
-    with open("documents.json", "w") as f:
-        f.write(documents.model_dump_json(indent=4))
-
-    with open("events.json", "w") as f:
-        f.write(events.model_dump_json(indent=4))
-
-    with open("documents.json", "w") as f:
-        f.write(documents.model_dump_json(indent=4))
-
-    with open("events_mapping.json", "w") as f:
-        json.dump(
-            {
-                key: event.model_dump(exclude={"updated_at", "created_at", "date"})
-                for key, event in events_mapping.items()
-            },
-            f,
-            indent=4,
-        )
 
     available_contents_in_knowledge_base: list[Content] = []
     list_of_transcripts_to_ingest: list[DocumentDto] = []
@@ -254,7 +232,5 @@ async def _wait_for_content_to_be_ready(
                 raise ValueError(f"Content {content_id} ingestion failed")
             else:
                 await asyncio.sleep(_INGESTION_RETRY_DELAY)
-
-            await asyncio.sleep(1)
 
     return None
