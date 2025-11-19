@@ -158,7 +158,12 @@ def test_num_tokens_for_tools():
         },
     ]
 
-    model_str_list = ["AZURE_GPT_35_TURBO_0125", "AZURE_GPT_4_0613", "AZURE_GPT_4o_2024_0806", "AZURE_GPT_4o_MINI_2024_0718"]
+    model_str_list = [
+        "AZURE_GPT_35_TURBO_0125",
+        "AZURE_GPT_4_0613",
+        "AZURE_GPT_4o_2024_0806",
+        "AZURE_GPT_4o_MINI_2024_0718",
+    ]
     token_counts = [104, 104, 101, 101]
 
     for num, model_str in zip(token_counts, model_str_list):
