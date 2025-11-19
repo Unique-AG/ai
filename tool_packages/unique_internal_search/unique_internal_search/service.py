@@ -437,14 +437,12 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
         ] = await self._define_reference_list_for_message_log(
             content_chunks=chunks,
         )
-        message_log_text = await self._prepare_string_for_message_log(
+        details = await self._prepare_message_log_details(
             query_list=search_strings_list
         )
         self._message_step_logger.create_message_log_entry(
-            text=message_log_text,
-            details=MessageLogDetails(
-                data=[MessageLogEvent(type="InternalSearch", text="")]
-            ),
+            text="**Internal Search**",
+            details=details,
             data=message_log_reference_list,
         )
 
@@ -480,13 +478,20 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
 
         return data
 
-    async def _prepare_string_for_message_log(self, *, query_list: list[str]) -> str:
-        message = ""
-        for entry in query_list:
-            message += f"• {entry}\n"
-        message = message.strip("\n")
+    async def _prepare_message_log_details(
+        self, *, query_list: list[str]
+    ) -> MessageLogDetails:
+        details = MessageLogDetails(
+            data=[
+                MessageLogEvent(
+                    type="InternalSearch",
+                    text=query_for_log,
+                )
+                for query_for_log in query_list
+            ]
+        )
 
-        return f"**Internal Search**\n{message}\n"
+        return details
 
     ## Note: This function is only used by the Investment Research Agent and Agentic Search. Once these agents are moved out of the monorepo, this function should be removed.
     def get_tool_call_result_for_loop_history(
