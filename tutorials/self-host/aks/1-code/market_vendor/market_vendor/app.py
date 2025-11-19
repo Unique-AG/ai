@@ -56,10 +56,6 @@ if env_path:
     except Exception as e:
         raise EnvironmentError(f"Error loading environment file: {str(e)}")
 
-    logger.info(f"API Key starts with: -{os.environ.get('API_KEY', '')[:5]}****-")
-    logger.info(
-        f"ENDPOINT Secret starts with: -{os.environ.get('ENDPOINT_SECRET', '')[:5]}****-"
-    )
 
 init_sdk()
 
