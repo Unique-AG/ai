@@ -19,10 +19,6 @@ class MockDatetime:
         self.fixed_time = fixed_time
 
     def now(self, tz: timezone | None = None) -> datetime:
-        a: float = "str"
-
-        b: list[int] = [1, 2, 3]
-        b.append(a)
         return self.fixed_time
 
     @staticmethod
