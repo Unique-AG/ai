@@ -85,46 +85,6 @@ class InternalSearchService:
                 return True
         return False
 
-    def _define_reference_list_for_message_log(
-        self,
-        *,
-        content_chunks: list[ContentChunk],
-    ) -> list[ContentReference]:
-        """
-        Create a reference list for internal search content chunks.
-
-        Args:
-            content_chunks: List of ContentChunk objects to convert
-        Returns:
-            List of ContentReference objects
-        """
-        data: list[ContentReference] = []
-        count = 0
-        for content_chunk in content_chunks:
-            reference_name: str = content_chunk.title or content_chunk.key or ""
-
-            if reference_name != "":
-                data.append(
-                    ContentReference(
-                        name=reference_name,
-                        sequence_number=count,
-                        source="internal",
-                        url="",
-                        source_id=content_chunk.id,
-                    )
-                )
-                count += 1
-
-        return data
-
-    def _prepare_string_for_message_log(self, *, query_list: list[str]) -> str:
-        message = ""
-        for entry in query_list:
-            message += f"• {entry}\n"
-        message = message.strip("\n")
-
-        return f"**Internal Search**\n{message}\n"
-
     async def search(
         self,
         search_string: str | list[str],
@@ -175,7 +135,6 @@ class InternalSearchService:
             metadata_filter = None
 
         found_chunks_per_search_string: list[SearchStringResult] = []
-        data: list[ContentReference] = []
         for i, search_string in enumerate(search_strings):
             try:
                 found_chunks: list[
@@ -195,14 +154,6 @@ class InternalSearchService:
                     content_ids=content_ids,
                     score_threshold=self.config.score_threshold,
                 )
-
-                data_sublist: list[ContentReference] = (
-                    self._define_reference_list_for_message_log(
-                        content_chunks=found_chunks,
-                    )
-                )
-                data.extend(data_sublist)
-
                 self.logger.info(
                     f"Found {len(found_chunks)} chunks (Query {i + 1}/{len(search_strings)})"
                 )
@@ -218,16 +169,6 @@ class InternalSearchService:
             )
 
         # Updating our logger with the search results for all search strings.
-        prepared_string = self._prepare_string_for_message_log(
-            query_list=search_strings
-        )
-        self._message_step_logger.create_message_log_entry(
-            text=prepared_string,
-            details=MessageLogDetails(
-                data=[MessageLogEvent(type="InternalSearch", text="")]
-            ),
-            data=data,
-        )
 
         # Reset the metadata filter in case it was disabled
         self.content_service._metadata_filter = metadata_filter_copy
@@ -460,6 +401,11 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             tool_call=tool_call,  # Need to pass tool_call to post_progress_message
         )
 
+        ## Message log entry
+        await self._create_message_log_entry(
+            chunks=selected_chunks, search_strings_list=search_strings_list
+        )
+
         ## Modify metadata in chunks
         selected_chunks = append_metadata_in_chunks(
             chunks=selected_chunks,
@@ -482,6 +428,65 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             )
 
         return tool_response
+
+    async def _create_message_log_entry(
+        self, *, chunks: list[ContentChunk], search_strings_list: list[str]
+    ) -> None:
+        message_log_reference_list: list[
+            ContentReference
+        ] = await self._define_reference_list_for_message_log(
+            content_chunks=chunks,
+        )
+        message_log_text = await self._prepare_string_for_message_log(
+            query_list=search_strings_list
+        )
+        self._message_step_logger.create_message_log_entry(
+            text=message_log_text,
+            details=MessageLogDetails(
+                data=[MessageLogEvent(type="InternalSearch", text="")]
+            ),
+            data=message_log_reference_list,
+        )
+
+    async def _define_reference_list_for_message_log(
+        self,
+        *,
+        content_chunks: list[ContentChunk],
+    ) -> list[ContentReference]:
+        """
+        Create a reference list for internal search content chunks.
+
+        Args:
+            content_chunks: List of ContentChunk objects to convert
+        Returns:
+            List of ContentReference objects
+        """
+        data: list[ContentReference] = []
+        count = 0
+        for content_chunk in content_chunks:
+            reference_name: str = content_chunk.title or content_chunk.key or ""
+
+            if reference_name != "":
+                data.append(
+                    ContentReference(
+                        name=reference_name,
+                        sequence_number=count,
+                        source="internal",
+                        url="",
+                        source_id=content_chunk.id,
+                    )
+                )
+                count += 1
+
+        return data
+
+    async def _prepare_string_for_message_log(self, *, query_list: list[str]) -> str:
+        message = ""
+        for entry in query_list:
+            message += f"• {entry}\n"
+        message = message.strip("\n")
+
+        return f"**Internal Search**\n{message}\n"
 
     ## Note: This function is only used by the Investment Research Agent and Agentic Search. Once these agents are moved out of the monorepo, this function should be removed.
     def get_tool_call_result_for_loop_history(

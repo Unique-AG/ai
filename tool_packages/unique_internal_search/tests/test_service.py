@@ -1549,13 +1549,19 @@ class TestInternalSearchTool:
             assert mock_tool_progress_reporter.notify_from_tool_call.call_count >= 2
 
     @pytest.mark.ai
-    def test_define_reference_list_for_message_log__returns_list__with_internal_chunks(
+    @pytest.mark.asyncio
+    @patch("unique_internal_search.service.ContentService")
+    @patch("unique_internal_search.service.ChunkRelevancySorter")
+    async def test_define_reference_list_for_message_log__returns_list__with_internal_chunks(
         self,
+        mock_sorter_class: Any,
+        mock_content_service_class: Any,
         sample_content_chunk: ContentChunk,
         base_internal_search_config: InternalSearchConfig,
         mock_content_service: ContentService,
         mock_chunk_relevancy_sorter: Any,
         mock_logger: Any,
+        mock_chat_event: Any,
     ) -> None:
         """
         Purpose: Verify _define_reference_list_for_message_log returns list of references for internal search.
@@ -1563,17 +1569,22 @@ class TestInternalSearchTool:
         Setup summary: Create internal content chunk, call _define_reference_list_for_message_log, verify returns list.
         """
         # Arrange
-        service = InternalSearchService(
-            config=base_internal_search_config,
-            content_service=mock_content_service,
-            chunk_relevancy_sorter=mock_chunk_relevancy_sorter,
-            chat_id="chat_123",
-            logger=mock_logger,
-        )
+        mock_content_service_class.from_event.return_value = mock_content_service
+        mock_sorter_class.from_event.return_value = mock_chunk_relevancy_sorter
         content_chunks = [sample_content_chunk]
 
+        def setup_tool(self, configuration, event, *args, **kwargs):
+            setattr(self, "_event", event)
+            setattr(self, "logger", mock_logger)
+
+        with patch("unique_internal_search.service.Tool.__init__", setup_tool):
+            tool = InternalSearchTool(
+                configuration=base_internal_search_config,
+                event=mock_chat_event,
+            )
+
         # Act
-        references = service._define_reference_list_for_message_log(
+        references = await tool._define_reference_list_for_message_log(
             content_chunks=content_chunks
         )
 
@@ -1582,13 +1593,19 @@ class TestInternalSearchTool:
         assert len(references) == 1
 
     @pytest.mark.ai
-    def test_define_reference_list_for_message_log__sets_sequence_number__for_first_chunk(
+    @pytest.mark.asyncio
+    @patch("unique_internal_search.service.ContentService")
+    @patch("unique_internal_search.service.ChunkRelevancySorter")
+    async def test_define_reference_list_for_message_log__sets_sequence_number__for_first_chunk(
         self,
+        mock_sorter_class: Any,
+        mock_content_service_class: Any,
         sample_content_chunk: ContentChunk,
         base_internal_search_config: InternalSearchConfig,
         mock_content_service: ContentService,
         mock_chunk_relevancy_sorter: Any,
         mock_logger: Any,
+        mock_chat_event: Any,
     ) -> None:
         """
         Purpose: Verify _define_reference_list_for_message_log sets sequence_number to 0 for first chunk.
@@ -1596,17 +1613,22 @@ class TestInternalSearchTool:
         Setup summary: Create internal content chunk, call _define_reference_list_for_message_log, verify sequence_number is 0.
         """
         # Arrange
-        service = InternalSearchService(
-            config=base_internal_search_config,
-            content_service=mock_content_service,
-            chunk_relevancy_sorter=mock_chunk_relevancy_sorter,
-            chat_id="chat_123",
-            logger=mock_logger,
-        )
+        mock_content_service_class.from_event.return_value = mock_content_service
+        mock_sorter_class.from_event.return_value = mock_chunk_relevancy_sorter
         content_chunks = [sample_content_chunk]
 
+        def setup_tool(self, configuration, event, *args, **kwargs):
+            setattr(self, "_event", event)
+            setattr(self, "logger", mock_logger)
+
+        with patch("unique_internal_search.service.Tool.__init__", setup_tool):
+            tool = InternalSearchTool(
+                configuration=base_internal_search_config,
+                event=mock_chat_event,
+            )
+
         # Act
-        references = service._define_reference_list_for_message_log(
+        references = await tool._define_reference_list_for_message_log(
             content_chunks=content_chunks
         )
 
@@ -1615,13 +1637,19 @@ class TestInternalSearchTool:
         assert references[0].sequence_number == 0
 
     @pytest.mark.ai
-    def test_define_reference_list_for_message_log__sets_source_id__from_chunk_id(
+    @pytest.mark.asyncio
+    @patch("unique_internal_search.service.ContentService")
+    @patch("unique_internal_search.service.ChunkRelevancySorter")
+    async def test_define_reference_list_for_message_log__sets_source_id__from_chunk_id(
         self,
+        mock_sorter_class: Any,
+        mock_content_service_class: Any,
         sample_content_chunk: ContentChunk,
         base_internal_search_config: InternalSearchConfig,
         mock_content_service: ContentService,
         mock_chunk_relevancy_sorter: Any,
         mock_logger: Any,
+        mock_chat_event: Any,
     ) -> None:
         """
         Purpose: Verify _define_reference_list_for_message_log sets source_id from chunk ID.
@@ -1629,17 +1657,22 @@ class TestInternalSearchTool:
         Setup summary: Create internal content chunk with ID, call _define_reference_list_for_message_log, verify source_id matches.
         """
         # Arrange
-        service = InternalSearchService(
-            config=base_internal_search_config,
-            content_service=mock_content_service,
-            chunk_relevancy_sorter=mock_chunk_relevancy_sorter,
-            chat_id="chat_123",
-            logger=mock_logger,
-        )
+        mock_content_service_class.from_event.return_value = mock_content_service
+        mock_sorter_class.from_event.return_value = mock_chunk_relevancy_sorter
         content_chunks = [sample_content_chunk]
 
+        def setup_tool(self, configuration, event, *args, **kwargs):
+            setattr(self, "_event", event)
+            setattr(self, "logger", mock_logger)
+
+        with patch("unique_internal_search.service.Tool.__init__", setup_tool):
+            tool = InternalSearchTool(
+                configuration=base_internal_search_config,
+                event=mock_chat_event,
+            )
+
         # Act
-        references = service._define_reference_list_for_message_log(
+        references = await tool._define_reference_list_for_message_log(
             content_chunks=content_chunks
         )
 
@@ -1648,13 +1681,19 @@ class TestInternalSearchTool:
         assert references[0].source_id == "chunk_123"
 
     @pytest.mark.ai
-    def test_define_reference_list_for_message_log__sets_source__to_internal(
+    @pytest.mark.asyncio
+    @patch("unique_internal_search.service.ContentService")
+    @patch("unique_internal_search.service.ChunkRelevancySorter")
+    async def test_define_reference_list_for_message_log__sets_source__to_internal(
         self,
+        mock_sorter_class: Any,
+        mock_content_service_class: Any,
         sample_content_chunk: ContentChunk,
         base_internal_search_config: InternalSearchConfig,
         mock_content_service: ContentService,
         mock_chunk_relevancy_sorter: Any,
         mock_logger: Any,
+        mock_chat_event: Any,
     ) -> None:
         """
         Purpose: Verify _define_reference_list_for_message_log sets source to "internal" for internal search.
@@ -1662,17 +1701,22 @@ class TestInternalSearchTool:
         Setup summary: Create internal content chunk, call _define_reference_list_for_message_log, verify reference source is "internal".
         """
         # Arrange
-        service = InternalSearchService(
-            config=base_internal_search_config,
-            content_service=mock_content_service,
-            chunk_relevancy_sorter=mock_chunk_relevancy_sorter,
-            chat_id="chat_123",
-            logger=mock_logger,
-        )
+        mock_content_service_class.from_event.return_value = mock_content_service
+        mock_sorter_class.from_event.return_value = mock_chunk_relevancy_sorter
         content_chunks = [sample_content_chunk]
 
+        def setup_tool(self, configuration, event, *args, **kwargs):
+            setattr(self, "_event", event)
+            setattr(self, "logger", mock_logger)
+
+        with patch("unique_internal_search.service.Tool.__init__", setup_tool):
+            tool = InternalSearchTool(
+                configuration=base_internal_search_config,
+                event=mock_chat_event,
+            )
+
         # Act
-        references = service._define_reference_list_for_message_log(
+        references = await tool._define_reference_list_for_message_log(
             content_chunks=content_chunks
         )
 
@@ -1681,12 +1725,17 @@ class TestInternalSearchTool:
         assert references[0].source == "internal"
 
     @pytest.mark.ai
-    def test_define_reference_list_for_message_log__sets_name__from_chunk_key_when_no_title(
+    @patch("unique_internal_search.service.ContentService")
+    @patch("unique_internal_search.service.ChunkRelevancySorter")
+    async def test_define_reference_list_for_message_log__sets_name__from_chunk_key_when_no_title(
         self,
+        mock_sorter_class: Any,
+        mock_content_service_class: Any,
         base_internal_search_config: InternalSearchConfig,
         mock_content_service: ContentService,
         mock_chunk_relevancy_sorter: Any,
         mock_logger: Any,
+        mock_chat_event: Any,
     ) -> None:
         """
         Purpose: Verify _define_reference_list_for_message_log uses key when title is missing.
@@ -1695,13 +1744,9 @@ class TestInternalSearchTool:
         """
 
         # Arrange
-        service = InternalSearchService(
-            config=base_internal_search_config,
-            content_service=mock_content_service,
-            chunk_relevancy_sorter=mock_chunk_relevancy_sorter,
-            chat_id="chat_123",
-            logger=mock_logger,
-        )
+        mock_content_service_class.from_event.return_value = mock_content_service
+        mock_sorter_class.from_event.return_value = mock_chunk_relevancy_sorter
+
         content_chunk = ContentChunk(
             id="chunk_internal_2",
             text="Another internal document",
@@ -1709,8 +1754,18 @@ class TestInternalSearchTool:
         )
         content_chunks = [content_chunk]
 
+        def setup_tool(self, configuration, event, *args, **kwargs):
+            setattr(self, "_event", event)
+            setattr(self, "logger", mock_logger)
+
+        with patch("unique_internal_search.service.Tool.__init__", setup_tool):
+            tool = InternalSearchTool(
+                configuration=base_internal_search_config,
+                event=mock_chat_event,
+            )
+
         # Act
-        references = service._define_reference_list_for_message_log(
+        references = await tool._define_reference_list_for_message_log(
             content_chunks=content_chunks
         )
 
@@ -1719,12 +1774,18 @@ class TestInternalSearchTool:
         assert references[0].name == "doc_key_2"
 
     @pytest.mark.ai
-    def test_define_reference_list_for_message_log__sets_name__from_chunk_title_when_available(
+    @pytest.mark.asyncio
+    @patch("unique_internal_search.service.ContentService")
+    @patch("unique_internal_search.service.ChunkRelevancySorter")
+    async def test_define_reference_list_for_message_log__sets_name__from_chunk_title_when_available(
         self,
+        mock_sorter_class: Any,
+        mock_content_service_class: Any,
         base_internal_search_config: InternalSearchConfig,
         mock_content_service: ContentService,
         mock_chunk_relevancy_sorter: Any,
         mock_logger: Any,
+        mock_chat_event: Any,
     ) -> None:
         """
         Purpose: Verify _define_reference_list_for_message_log uses title when available.
@@ -1733,13 +1794,9 @@ class TestInternalSearchTool:
         """
 
         # Arrange
-        service = InternalSearchService(
-            config=base_internal_search_config,
-            content_service=mock_content_service,
-            chunk_relevancy_sorter=mock_chunk_relevancy_sorter,
-            chat_id="chat_123",
-            logger=mock_logger,
-        )
+        mock_content_service_class.from_event.return_value = mock_content_service
+        mock_sorter_class.from_event.return_value = mock_chunk_relevancy_sorter
+
         content_chunk = ContentChunk(
             id="chunk_internal_1",
             text="Internal document content",
@@ -1748,8 +1805,18 @@ class TestInternalSearchTool:
         )
         content_chunks = [content_chunk]
 
+        def setup_tool(self, configuration, event, *args, **kwargs):
+            setattr(self, "_event", event)
+            setattr(self, "logger", mock_logger)
+
+        with patch("unique_internal_search.service.Tool.__init__", setup_tool):
+            tool = InternalSearchTool(
+                configuration=base_internal_search_config,
+                event=mock_chat_event,
+            )
+
         # Act
-        references = service._define_reference_list_for_message_log(
+        references = await tool._define_reference_list_for_message_log(
             content_chunks=content_chunks
         )
 
@@ -1758,13 +1825,19 @@ class TestInternalSearchTool:
         assert references[0].name == "Internal Document Title"
 
     @pytest.mark.ai
-    def test_define_reference_list_for_message_log__sets_empty_url__for_internal_chunks(
+    @pytest.mark.asyncio
+    @patch("unique_internal_search.service.ContentService")
+    @patch("unique_internal_search.service.ChunkRelevancySorter")
+    async def test_define_reference_list_for_message_log__sets_empty_url__for_internal_chunks(
         self,
+        mock_sorter_class: Any,
+        mock_content_service_class: Any,
         sample_content_chunk: ContentChunk,
         base_internal_search_config: InternalSearchConfig,
         mock_content_service: ContentService,
         mock_chunk_relevancy_sorter: Any,
         mock_logger: Any,
+        mock_chat_event: Any,
     ) -> None:
         """
         Purpose: Verify _define_reference_list_for_message_log sets empty URL for internal chunks.
@@ -1772,17 +1845,22 @@ class TestInternalSearchTool:
         Setup summary: Create internal content chunk, call _define_reference_list_for_message_log, verify URL is empty string.
         """
         # Arrange
-        service = InternalSearchService(
-            config=base_internal_search_config,
-            content_service=mock_content_service,
-            chunk_relevancy_sorter=mock_chunk_relevancy_sorter,
-            chat_id="chat_123",
-            logger=mock_logger,
-        )
+        mock_content_service_class.from_event.return_value = mock_content_service
+        mock_sorter_class.from_event.return_value = mock_chunk_relevancy_sorter
         content_chunks = [sample_content_chunk]
 
+        def setup_tool(self, configuration, event, *args, **kwargs):
+            setattr(self, "_event", event)
+            setattr(self, "logger", mock_logger)
+
+        with patch("unique_internal_search.service.Tool.__init__", setup_tool):
+            tool = InternalSearchTool(
+                configuration=base_internal_search_config,
+                event=mock_chat_event,
+            )
+
         # Act
-        references = service._define_reference_list_for_message_log(
+        references = await tool._define_reference_list_for_message_log(
             content_chunks=content_chunks
         )
 
@@ -1791,12 +1869,18 @@ class TestInternalSearchTool:
         assert references[0].url == ""
 
     @pytest.mark.ai
-    def test_define_reference_list_for_message_log__increments_sequence_number__for_multiple_chunks(
+    @pytest.mark.asyncio
+    @patch("unique_internal_search.service.ContentService")
+    @patch("unique_internal_search.service.ChunkRelevancySorter")
+    async def test_define_reference_list_for_message_log__increments_sequence_number__for_multiple_chunks(
         self,
+        mock_sorter_class: Any,
+        mock_content_service_class: Any,
         base_internal_search_config: InternalSearchConfig,
         mock_content_service: ContentService,
         mock_chunk_relevancy_sorter: Any,
         mock_logger: Any,
+        mock_chat_event: Any,
     ) -> None:
         """
         Purpose: Verify _define_reference_list_for_message_log increments sequence_number for multiple chunks.
@@ -1805,13 +1889,9 @@ class TestInternalSearchTool:
         """
 
         # Arrange
-        service = InternalSearchService(
-            config=base_internal_search_config,
-            content_service=mock_content_service,
-            chunk_relevancy_sorter=mock_chunk_relevancy_sorter,
-            chat_id="chat_123",
-            logger=mock_logger,
-        )
+        mock_content_service_class.from_event.return_value = mock_content_service
+        mock_sorter_class.from_event.return_value = mock_chunk_relevancy_sorter
+
         content_chunks = [
             ContentChunk(
                 id="chunk_1",
@@ -1825,8 +1905,18 @@ class TestInternalSearchTool:
             ),
         ]
 
+        def setup_tool(self, configuration, event, *args, **kwargs):
+            setattr(self, "_event", event)
+            setattr(self, "logger", mock_logger)
+
+        with patch("unique_internal_search.service.Tool.__init__", setup_tool):
+            tool = InternalSearchTool(
+                configuration=base_internal_search_config,
+                event=mock_chat_event,
+            )
+
         # Act
-        references = service._define_reference_list_for_message_log(
+        references = await tool._define_reference_list_for_message_log(
             content_chunks=content_chunks
         )
 
@@ -1837,12 +1927,18 @@ class TestInternalSearchTool:
         assert references[1].sequence_number == 1
 
     @pytest.mark.ai
-    def test_define_reference_list_for_message_log__skips_chunks__with_empty_name(
+    @pytest.mark.asyncio
+    @patch("unique_internal_search.service.ContentService")
+    @patch("unique_internal_search.service.ChunkRelevancySorter")
+    async def test_define_reference_list_for_message_log__skips_chunks__with_empty_name(
         self,
+        mock_sorter_class: Any,
+        mock_content_service_class: Any,
         base_internal_search_config: InternalSearchConfig,
         mock_content_service: ContentService,
         mock_chunk_relevancy_sorter: Any,
         mock_logger: Any,
+        mock_chat_event: Any,
     ) -> None:
         """
         Purpose: Verify _define_reference_list_for_message_log skips chunks with empty name (no title and no key).
@@ -1851,13 +1947,9 @@ class TestInternalSearchTool:
         """
 
         # Arrange
-        service = InternalSearchService(
-            config=base_internal_search_config,
-            content_service=mock_content_service,
-            chunk_relevancy_sorter=mock_chunk_relevancy_sorter,
-            chat_id="chat_123",
-            logger=mock_logger,
-        )
+        mock_content_service_class.from_event.return_value = mock_content_service
+        mock_sorter_class.from_event.return_value = mock_chunk_relevancy_sorter
+
         content_chunks = [
             ContentChunk(
                 id="chunk_1",
@@ -1871,8 +1963,18 @@ class TestInternalSearchTool:
             ),
         ]
 
+        def setup_tool(self, configuration, event, *args, **kwargs):
+            setattr(self, "_event", event)
+            setattr(self, "logger", mock_logger)
+
+        with patch("unique_internal_search.service.Tool.__init__", setup_tool):
+            tool = InternalSearchTool(
+                configuration=base_internal_search_config,
+                event=mock_chat_event,
+            )
+
         # Act
-        references = service._define_reference_list_for_message_log(
+        references = await tool._define_reference_list_for_message_log(
             content_chunks=content_chunks
         )
 
