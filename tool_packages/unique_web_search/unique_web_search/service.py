@@ -1,8 +1,5 @@
 from time import time
 
-from unique_toolkit.content import ContentReference
-from unique_web_search.services.executors.base_executor import WebSearchLogEntry
-
 from typing_extensions import override
 from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
@@ -12,12 +9,12 @@ from unique_toolkit.agentic.tools.tool import (
     Tool,
 )
 from unique_toolkit.agentic.tools.tool_progress_reporter import ProgressState
+from unique_toolkit.chat.schemas import MessageLogDetails, MessageLogEvent
+from unique_toolkit.content import ContentReference
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelToolDescription,
 )
-
-from unique_toolkit.chat.schemas import MessageLogDetails, MessageLogEvent
 
 from unique_web_search.config import WebSearchConfig
 from unique_web_search.schema import WebSearchPlan, WebSearchToolParameters
@@ -27,6 +24,7 @@ from unique_web_search.services.executors import (
     WebSearchV1Executor,
     WebSearchV2Executor,
 )
+from unique_web_search.services.executors.base_executor import WebSearchLogEntry
 from unique_web_search.services.executors.configs import WebSearchMode
 from unique_web_search.services.search_engine import get_search_engine_service
 from unique_web_search.utils import WebSearchDebugInfo, reduce_sources_to_token_limit
@@ -115,13 +113,14 @@ class WebSearchTool(Tool[WebSearchConfig]):
             debug_info.num_chunks_in_final_prompts = len(content_chunks)
             debug_info.execution_time = time() - start_time
 
-            details, reference_list = self._prepare_message_logs_entries(queries_for_log)
+            details, reference_list = self._prepare_message_logs_entries(
+                queries_for_log
+            )
             self._message_step_logger.create_message_log_entry(
                 text="**Web Search**",
                 details=details,
                 data=reference_list,
             )
-                        
 
             if self.tool_progress_reporter:
                 await self.tool_progress_reporter.notify_from_tool_call(
@@ -213,8 +212,9 @@ class WebSearchTool(Tool[WebSearchConfig]):
             return []
         return evaluation_check_list
 
-    def _prepare_message_logs_entries(self, queries_for_log: list[WebSearchLogEntry]) -> tuple[MessageLogDetails, list[ContentReference]]:
-
+    def _prepare_message_logs_entries(
+        self, queries_for_log: list[WebSearchLogEntry]
+    ) -> tuple[MessageLogDetails, list[ContentReference]]:
         details = MessageLogDetails(
             data=[
                 MessageLogEvent(
@@ -235,5 +235,5 @@ class WebSearchTool(Tool[WebSearchConfig]):
 
         return details, references
 
-ToolFactory.register_tool(WebSearchTool, WebSearchConfig)
 
+ToolFactory.register_tool(WebSearchTool, WebSearchConfig)

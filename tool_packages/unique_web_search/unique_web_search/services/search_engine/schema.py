@@ -1,6 +1,7 @@
 from urllib.parse import urlparse
-from unique_toolkit.content import ContentReference
+
 from pydantic import BaseModel, Field
+from unique_toolkit.content import ContentReference
 
 
 def extract_root_domain(url: str) -> str:

@@ -194,7 +194,9 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
             else:
                 self.notify_name = "**Searching Web**"
 
-            self.notify_message = query_params_to_human_string(refined_query, date_restrict)
+            self.notify_message = query_params_to_human_string(
+                refined_query, date_restrict
+            )
             await self.notify_callback()
 
             search_results = await self._search(

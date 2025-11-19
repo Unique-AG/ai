@@ -1,10 +1,9 @@
 import logging
-from pydantic import BaseModel
-
 from abc import ABC, abstractmethod
 from time import time
 from typing import Callable, Optional
 
+from pydantic import BaseModel
 from unique_toolkit import LanguageModelService
 from unique_toolkit._common.chunk_relevancy_sorter.config import (
     ChunkRelevancySortConfig,
@@ -28,6 +27,7 @@ from unique_web_search.services.search_engine.schema import (
 from unique_web_search.utils import StepDebugInfo, WebSearchDebugInfo
 
 _LOGGER = logging.getLogger(__name__)
+
 
 class WebSearchLogEntry(BaseModel):
     type: StepType

@@ -80,7 +80,6 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
         self.max_steps = max_steps
         self.queries_for_log: list[WebSearchLogEntry] = []
 
-
     @property
     def notify_name(self):
         return self._notify_name
@@ -202,19 +201,19 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
                 [result.url for result in results]
             )
             self.queries_for_log.append(
-            WebSearchLogEntry(
-                type=StepType.READ_URL,
-                message=f"Reading URL: {step.query_or_url}",
-                web_search_results=[
-                    WebSearchResult(
-                        url=step.query_or_url,
-                        content=results[0],
-                        snippet=step.objective,
-                        title=step.objective,
-                    )
-                ],
+                WebSearchLogEntry(
+                    type=StepType.READ_URL,
+                    message=f"Reading URL: {step.query_or_url}",
+                    web_search_results=[
+                        WebSearchResult(
+                            url=step.query_or_url,
+                            content=results[0] or "",
+                            snippet=step.objective,
+                            title=step.objective,
+                        )
+                    ],
+                )
             )
-        )
 
             delta_time = time() - time_start
             for result, content in zip(results, crawl_results):
