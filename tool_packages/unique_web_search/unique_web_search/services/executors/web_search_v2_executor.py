@@ -235,7 +235,14 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
             WebSearchLogEntry(
                 type=StepType.READ_URL,
                 message=f"Reading URL: {step.query_or_url}",
-                web_search_results=[],
+                web_search_results=[
+                    WebSearchResult(
+                        url=step.query_or_url,
+                        content=results[0],
+                        snippet=step.objective,
+                        title=step.objective,
+                    )
+                ],
             )
         )
         delta_time = time() - time_start

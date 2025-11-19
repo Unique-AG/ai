@@ -1,3 +1,4 @@
+from logging import getLogger
 from time import time
 
 from typing_extensions import override
@@ -9,6 +10,12 @@ from unique_toolkit.agentic.tools.tool import (
     Tool,
 )
 from unique_toolkit.agentic.tools.tool_progress_reporter import ProgressState
+from unique_toolkit.chat.schemas import (
+    MessageLogDetails,
+    MessageLogEvent,
+    MessageLogStatus,
+    MessageLogUncitedReferences,
+)
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelToolDescription,
@@ -22,9 +29,12 @@ from unique_web_search.services.executors import (
     WebSearchV1Executor,
     WebSearchV2Executor,
 )
+from unique_web_search.services.executors.base_executor import WebSearchLogEntry
 from unique_web_search.services.executors.configs import WebSearchMode
 from unique_web_search.services.search_engine import get_search_engine_service
 from unique_web_search.utils import WebSearchDebugInfo, reduce_sources_to_token_limit
+
+_LOGGER = getLogger(__name__)
 
 
 class WebSearchTool(Tool[WebSearchConfig]):
@@ -109,6 +119,8 @@ class WebSearchTool(Tool[WebSearchConfig]):
             content_chunks, queries_for_log = await executor.run()
             debug_info.num_chunks_in_final_prompts = len(content_chunks)
             debug_info.execution_time = time() - start_time
+
+            self._add_message_logs(queries_for_log)
 
             if self.tool_progress_reporter:
                 await self.tool_progress_reporter.notify_from_tool_call(
@@ -199,6 +211,35 @@ class WebSearchTool(Tool[WebSearchConfig]):
         if not tool_response.content_chunks:
             return []
         return evaluation_check_list
+
+    def _add_message_logs(self, queries_for_log: list[WebSearchLogEntry]) -> None:
+        _LOGGER.info(f"Adding message logs for {len(queries_for_log)} queries")
+        details = MessageLogDetails(
+            data=[
+                MessageLogEvent(
+                    type="WebSearch",
+                    text=query_for_log.message,
+                )
+                for query_for_log in queries_for_log
+            ]
+        )
+        references = []
+        sequence_number = 0
+        for query_for_log in queries_for_log:
+            for web_search_result in query_for_log.web_search_results:
+                references.append(
+                    web_search_result.to_content_reference(sequence_number)
+                )
+                sequence_number += 1
+
+        self._chat_service.create_message_log(
+            message_id=self._chat_service._assistant_message_id,
+            details=details,
+            text="**Web Search Tool**",
+            status=MessageLogStatus.COMPLETED,
+            uncited_references=MessageLogUncitedReferences(data=references),
+            order=0,
+        )
 
 
 ToolFactory.register_tool(WebSearchTool, WebSearchConfig)
