@@ -22,7 +22,10 @@ from unique_web_search.schema import (
 )
 from unique_web_search.services.content_processing import ContentProcessor, WebPageChunk
 from unique_web_search.services.crawlers import CrawlerTypes
-from unique_web_search.services.executors.base_executor import BaseWebSearchExecutor
+from unique_web_search.services.executors.base_executor import (
+    BaseWebSearchExecutor,
+    WebSearchLogEntry,
+)
 from unique_web_search.services.search_engine import SearchEngineTypes
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
@@ -75,7 +78,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
 
         self.tool_parameters = tool_parameters
         self.max_steps = max_steps
-        self.queries_for_log = []
+        self.queries_for_log: list[WebSearchLogEntry] = []
 
     @property
     def notify_name(self):
@@ -93,7 +96,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
     def notify_message(self, value):
         self._notify_message = value
 
-    async def run(self) -> tuple[list[ContentChunk], list[str]]:
+    async def run(self) -> tuple[list[ContentChunk], list[WebSearchLogEntry]]:
         await self._enforce_max_steps()
 
         results: list[WebSearchResult] = []
@@ -162,7 +165,13 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
         _LOGGER.info(f"Company {self.company_id} Searching with {self.search_service}")
 
         results = await self.search_service.search(step.query_or_url)
-        self.queries_for_log.append(f"Search: {step.query_or_url}")
+        self.queries_for_log.append(
+            WebSearchLogEntry(
+                type=StepType.SEARCH,
+                message=step.query_or_url,
+                web_search_results=results,
+            )
+        )
         delta_time = time() - time_start
 
         self.debug_info.steps.append(
@@ -222,7 +231,13 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
         time_start = time()
         _LOGGER.info(f"Company {self.company_id} Crawling with {self.crawler_service}")
         results = await self.crawler_service.crawl([step.query_or_url])
-        self.queries_for_log.append(f"Read URL: {step.query_or_url}")
+        self.queries_for_log.append(
+            WebSearchLogEntry(
+                type=StepType.READ_URL,
+                message=f"Reading URL: {step.query_or_url}",
+                web_search_results=[],
+            )
+        )
         delta_time = time() - time_start
         _LOGGER.debug(
             f"Crawled {step.query_or_url} with {self.crawler_service} completed in {delta_time} seconds"

@@ -17,10 +17,13 @@ from unique_toolkit.content import ContentChunk
 from unique_toolkit.language_model import LanguageModelFunction
 from unique_toolkit.language_model.builder import MessagesBuilder
 
-from unique_web_search.schema import WebSearchToolParameters
+from unique_web_search.schema import StepType, WebSearchToolParameters
 from unique_web_search.services.content_processing import ContentProcessor, WebPageChunk
 from unique_web_search.services.crawlers import CrawlerTypes
-from unique_web_search.services.executors.base_executor import BaseWebSearchExecutor
+from unique_web_search.services.executors.base_executor import (
+    BaseWebSearchExecutor,
+    WebSearchLogEntry,
+)
 from unique_web_search.services.executors.configs import RefineQueryMode
 from unique_web_search.services.search_engine import SearchEngineTypes
 from unique_web_search.services.search_engine.schema import (
@@ -172,7 +175,7 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
         self.refine_query_system_prompt = refine_query_system_prompt
         self.max_queries = max_queries
 
-    async def run(self) -> tuple[list[ContentChunk], list[str]]:
+    async def run(self) -> tuple[list[ContentChunk], list[WebSearchLogEntry]]:
         query = self.tool_parameters.query
         date_restrict = self.tool_parameters.date_restrict
 
@@ -190,16 +193,21 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
                 )
             else:
                 self.notify_name = "**Searching Web**"
-                
+
             human_string = query_params_to_human_string(refined_query, date_restrict)
 
             self.notify_message = human_string
             await self.notify_callback()
 
-            queries_for_log.append(f"Search: {human_string}")
-
             search_results = await self._search(
                 refined_query, date_restrict=date_restrict
+            )
+            queries_for_log.append(
+                WebSearchLogEntry(
+                    type=StepType.SEARCH,
+                    message=human_string,
+                    web_search_results=search_results,
+                )
             )
             web_search_results.extend(search_results)
 
