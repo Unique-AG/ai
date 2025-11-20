@@ -206,7 +206,6 @@ class FolderInfo(BaseFolderInfo):
     ingestion_config: dict[str, Any]
     created_at: str | None
     updated_at: str | None
-    parent_id: str | None
     external_id: str | None
 
 
