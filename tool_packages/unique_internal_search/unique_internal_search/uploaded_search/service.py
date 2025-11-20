@@ -74,13 +74,30 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
             parameters=internal_search_tool_input,
         )
 
-    def tool_description_for_system_prompt(self) -> str:    
+    def tool_description_for_system_prompt(self) -> str:
         documents = self._content_service.get_documents_uploaded_to_chat()
-        valid_documents = [doc for doc in documents if doc.expired_at is None or doc.expired_at > datetime.now(timezone.utc)]
-        expired_documents = [doc for doc in documents if doc.expired_at is not None and doc.expired_at <= datetime.now(timezone.utc)]
-        list_all_valid_documents = "".join([f"- {doc.title or doc.key}" for doc in valid_documents])
-        list_all_expired_documents = "".join([f"- {doc.title or doc.key}" for doc in expired_documents])
-        return self._config.tool_description_for_system_prompt.format(list_all_valid_documents=list_all_valid_documents, list_all_expired_documents=list_all_expired_documents)
+        now = datetime.now(timezone.utc)
+        
+        valid_documents = [
+            doc for doc in documents
+            if doc.expired_at is None or doc.expired_at > now
+        ]
+        expired_documents = [
+            doc for doc in documents
+            if doc.expired_at is not None and doc.expired_at <= now
+        ]
+        
+        list_all_valid_documents = "\n".join(
+            f"- {doc.title or doc.key}" for doc in valid_documents
+        )
+        list_all_expired_documents = "\n".join(
+            f"- {doc.title or doc.key}" for doc in expired_documents
+        )
+        
+        return self._config.tool_description_for_system_prompt.format(
+            list_all_valid_documents=list_all_valid_documents,
+            list_all_expired_documents=list_all_expired_documents,
+        )
 
     def tool_format_information_for_system_prompt(self) -> str:
         return self._config.tool_format_information_for_system_prompt
