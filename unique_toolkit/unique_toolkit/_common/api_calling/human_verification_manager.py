@@ -23,7 +23,7 @@ from unique_toolkit._common.endpoint_requestor import (
 )
 from unique_toolkit._common.pydantic_helpers import (
     create_complement_model,
-    create_union_model,
+    create_union_model_from_models,
 )
 from unique_toolkit._common.string_utilities import (
     dict_to_markdown_table,
@@ -146,9 +146,13 @@ class HumanVerificationManagerForApiCalling(
         self._verification_model = VerificationModel
 
         self._requestor_type = requestor_type
-        self._combined_params_model = create_union_model(
-            model_type_a=self._operation.path_params_model(),
-            model_type_b=self._operation.payload_model(),
+
+        self._combined_params_model = create_union_model_from_models(
+            model_types=[
+                self._operation.path_params_model(),
+                self._operation.payload_model(),
+                self._operation.query_params_model(),
+            ],
         )
         self._requestor = build_requestor(
             requestor_type=requestor_type,

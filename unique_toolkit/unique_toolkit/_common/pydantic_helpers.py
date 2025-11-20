@@ -45,6 +45,26 @@ def _name_intersection(
     return field_names_a.intersection(field_names_b)
 
 
+def create_union_model_from_models(
+    model_types: list[type[ModelTypeA]],
+    model_name: str = "UnionModel",
+    config_dict: ConfigDict = ConfigDict(),
+) -> type[BaseModel]:
+    if len(model_types) == 0:
+        raise ValueError("At least one model type is required")
+
+    if len(model_types) == 1:
+        return model_types[0]
+
+    fields = {}
+    for model_type in model_types:
+        for name, field in model_type.model_fields.items():
+            fields[name] = (field.annotation, field)
+
+    UnionModel = create_model(model_name, __config__=config_dict, **fields)
+    return UnionModel
+
+
 def create_union_model(
     model_type_a: type[ModelTypeA],
     model_type_b: type[ModelTypeB],
