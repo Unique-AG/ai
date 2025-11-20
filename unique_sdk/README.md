@@ -1400,6 +1400,18 @@ message = unique_sdk.Space.get_latest_message(
 )
 ```
 
+#### `unique_sdk.Space.get_space` (Compatible with release >.48)
+
+Get detailed information about a space (assistant), including its configuration, modules, scope rules, and access controls.
+
+```python
+space_info = unique_sdk.Space.get_space(
+    user_id=user_id,
+    company_id=company_id,
+    space_id="assistant_hjcdga64bkcjnhu4",
+)
+```
+
 #### `unique_sdk.Space.delete_chat`
 
 Delete a space chat by id. If the chat does not exist, the function will return an error.
