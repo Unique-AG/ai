@@ -2,6 +2,7 @@ from pydantic import Field
 from pydantic.json_schema import SkipJsonSchema
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 
+from unique_swot.services.collection.config import EarningsCallConfig
 from unique_swot.services.generation import ReportGenerationConfig
 from unique_swot.services.report import ReportRendererConfig
 
@@ -18,6 +19,10 @@ class SwotAnalysisToolConfig(BaseToolConfig):
     cache_scope_id: str = Field(
         default="",
         description="The scope id for the SWOT analysis cache.",
+    )
+    earnings_call_config: EarningsCallConfig = Field(
+        default_factory=EarningsCallConfig,
+        description="The configuration for the earnings call.",
     )
     report_generation_config: ReportGenerationConfig = Field(
         default_factory=ReportGenerationConfig,

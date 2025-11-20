@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.28.2] - 2025-11-20
+- Adding model `litellm:gemini-3-pro-preview` to `language_model/info.py`
+
+## [1.28.1] - 2025-11-19
+- Remove `chat_service` from DocXGeneratorService
+
+## [1.28.1] - 2025-11-19
+- Set review standards in pyright for toolkit
+- Refactor type check pipeline
+
+## [1.28.0] - 2025-11-19
+- Add option to interpret sub agent responses as content chunks.
+- Add option to specify a custom JSON schema for sub agent tool input.
+
+## [1.27.2] - 2025-11-19
+- Add test to token counting
+
+## [1.27.1] - 2025-11-18
+- Add missing `create_query_params_from_model` in experimental endoint_builder.py
+
 ## [1.27.0] - 2025-11-18
 - Add `session_config` field to `ChatEventPayload` schema for chat session configuration support
 - Add `ingestion_state` field to `Content` model for tracking content ingestion status

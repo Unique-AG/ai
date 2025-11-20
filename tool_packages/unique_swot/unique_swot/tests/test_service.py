@@ -1,5 +1,6 @@
 """Tests for main SWOT service/tool."""
 
+from datetime import datetime
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -8,6 +9,11 @@ from unique_toolkit.language_model.schemas import LanguageModelToolDescription
 from unique_swot.config import SwotAnalysisToolConfig
 from unique_swot.service import SwotAnalysisTool
 from unique_swot.services.schemas import SWOTPlan
+from unique_swot.services.session.schema import (
+    SessionConfig,
+    SwotAnalysisSessionConfig,
+    UniqueCompanyListing,
+)
 
 
 class TestSwotTool:
@@ -19,7 +25,31 @@ class TestSwotTool:
         return SwotAnalysisToolConfig(cache_scope_id="test_scope")
 
     @pytest.fixture
-    def mock_event(self):
+    def mock_company(self):
+        """Create a mock company listing."""
+        return UniqueCompanyListing(
+            sourceRef=123.0,
+            name="Test Company",
+            display_name="Test Company Inc.",
+            country="US",
+            tickers=[],
+            source_url="https://example.com",
+            source="test",
+        )
+
+    @pytest.fixture
+    def mock_session_config(self, mock_company):
+        """Create a mock session config."""
+        swot_config = SwotAnalysisSessionConfig(
+            company_listing=mock_company,
+            use_earnings_call=False,
+            use_web_sources=False,
+            earnings_call_start_date=datetime(2023, 1, 1),
+        )
+        return SessionConfig(swot_analysis=swot_config)
+
+    @pytest.fixture
+    def mock_event(self, mock_session_config):
         """Create a mock event."""
         event = Mock()
         event.company_id = "test_company"
@@ -27,6 +57,7 @@ class TestSwotTool:
         event.payload.chat_id = "test_chat"
         event.payload.assistant_message = Mock(id="test_message")
         event.payload.metadata_filter = None
+        event.payload.session_config = mock_session_config
         return event
 
     def test_swot_tool_name(self):

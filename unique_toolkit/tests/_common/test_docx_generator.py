@@ -420,21 +420,15 @@ class TestDocxGeneratorServiceGeneration:
     """Test cases for DocxGeneratorService document generation."""
 
     @pytest.fixture
-    def mock_chat_service(self):
-        """Create a mock ChatService."""
-        return Mock()
-
-    @pytest.fixture
     def mock_kb_service(self):
         """Create a mock KnowledgeBaseService."""
         return Mock()
 
     @pytest.fixture
-    def docx_service(self, mock_chat_service, mock_kb_service):
+    def docx_service(self, mock_kb_service):
         """Create a DocxGeneratorService with mocks."""
         config = DocxGeneratorConfig()
         return DocxGeneratorService(
-            chat_service=mock_chat_service,
             knowledge_base_service=mock_kb_service,
             config=config,
         )
@@ -584,11 +578,9 @@ class TestDocxGeneratorIntegration:
     @pytest.fixture
     def real_docx_service(self):
         """Create a real DocxGeneratorService for integration tests."""
-        mock_chat_service = Mock()
         mock_kb_service = Mock()
         config = DocxGeneratorConfig()
         return DocxGeneratorService(
-            chat_service=mock_chat_service,
             knowledge_base_service=mock_kb_service,
             config=config,
         )

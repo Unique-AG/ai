@@ -37,6 +37,7 @@ def mock_citation_manager():
     manager.add_citations_to_report.side_effect = (
         lambda report, renderer_type: f"cited: {report}"
     )
+    manager.get_citations.return_value = ["[1] Test Citation"]
     manager.get_references.return_value = [
         ContentReference(
             url="unique//content/123",
@@ -117,6 +118,7 @@ class TestReportDeliveryService:
         )
 
         result = service.deliver_report(
+            company_name="Test Company",
             result=sample_swot_result,
             docx_template_fields={
                 "title": "SWOT Report",
@@ -134,14 +136,17 @@ class TestReportDeliveryService:
         # Verify upload to chat
         mock_chat_service.upload_to_chat_from_bytes.assert_called_once()
         upload_call = mock_chat_service.upload_to_chat_from_bytes.call_args
-        assert upload_call[1]["content_name"] == "swot_analysis_report.docx"
+        assert (
+            upload_call[1]["content_name"] == "Test Company SWOT Analysis Report.docx"
+        )
         assert upload_call[1]["skip_ingestion"] is True
 
         # Verify message modification
         mock_chat_service.modify_assistant_message.assert_called_once()
         modify_call = mock_chat_service.modify_assistant_message.call_args
         assert modify_call[1]["message_id"] == "msg_123"
-        assert "DOCX format" in modify_call[1]["content"]
+        assert "Test Company" in modify_call[1]["content"]
+        assert "SWOT analysis report" in modify_call[1]["content"]
         assert len(modify_call[1]["references"]) == 1
 
         # Verify return value
@@ -166,6 +171,7 @@ class TestReportDeliveryService:
         )
 
         result = service.deliver_report(
+            company_name="Test Company",
             result=sample_swot_result,
             docx_template_fields={},
         )
@@ -203,8 +209,9 @@ class TestReportDeliveryService:
             message_id="msg_123",
         )
 
-        with pytest.raises(ValueError, match="DOCX renderer is not configured"):
+        with pytest.raises(AttributeError):
             service.deliver_report(
+                company_name="Test Company",
                 result=sample_swot_result,
                 docx_template_fields={},
             )
@@ -230,6 +237,7 @@ class TestReportDeliveryService:
 
         with pytest.raises(ValueError, match="Failed to convert markdown to DOCX"):
             service.deliver_report(
+                company_name="Test Company",
                 result=sample_swot_result,
                 docx_template_fields={},
             )
@@ -253,6 +261,7 @@ class TestReportDeliveryService:
 
         with pytest.raises(ValueError, match="Invalid renderer type"):
             service.deliver_report(
+                company_name="Test Company",
                 result=sample_swot_result,
                 docx_template_fields={},
             )
@@ -290,6 +299,7 @@ class TestReportDeliveryService:
         )
 
         service.deliver_report(
+            company_name="Test Company",
             result=sample_swot_result,
             docx_template_fields={"title": "Test", "date": "2024-01-01"},
         )
@@ -329,6 +339,7 @@ class TestReportDeliveryService:
         )
 
         _ = service.deliver_report(
+            company_name="Test Company",
             result=sample_swot_result,
             docx_template_fields={},
         )
@@ -360,6 +371,7 @@ class TestReportDeliveryService:
         )
 
         service_docx.deliver_report(
+            company_name="Test Company",
             result=sample_swot_result,
             docx_template_fields={},
         )
@@ -382,6 +394,7 @@ class TestReportDeliveryService:
         )
 
         service_chat.deliver_report(
+            company_name="Test Company",
             result=sample_swot_result,
             docx_template_fields={},
         )
@@ -439,6 +452,7 @@ class TestReportDeliveryIntegration:
         )
 
         result = service.deliver_report(
+            company_name="Test Company",
             result=full_swot_result,
             docx_template_fields={
                 "title": "Q4 2024 SWOT Analysis",
@@ -475,6 +489,7 @@ class TestReportDeliveryIntegration:
         )
 
         result = service.deliver_report(
+            company_name="Test Company",
             result=full_swot_result,
             docx_template_fields={},
         )

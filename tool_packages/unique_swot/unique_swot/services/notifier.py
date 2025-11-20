@@ -4,8 +4,6 @@ from typing import Self
 from pydantic import BaseModel
 from unique_toolkit import ChatService
 from unique_toolkit.chat.schemas import (
-    MessageExecutionType,
-    MessageExecutionUpdateStatus,
     MessageLogDetails,
     MessageLogEvent,
     MessageLogStatus,
@@ -78,54 +76,28 @@ class MessageLogRegistry(BaseModel):
         return self
 
 
-def _calculate_percentage_completed(current_step: float, total_steps: float) -> int:
-    return int(current_step / total_steps * 100)
-
-
 class ProgressNotifier:
     def __init__(self, chat_service: ChatService, message_id: str):
+        self._progress_bar = ProgressBar(chat_service=chat_service)
         self._chat_service = chat_service
         self._execution_registery: dict[str, MessageLogRegistry] = {}
         self._message_id = message_id
         self._order = 0
-        self._step_increment = 0
 
-    def start_progress(self, total_steps: int):
+    def start_progress(self, total_steps: int, company_name: str):
         _LOGGER.info(f"Starting progress with total steps: {total_steps}")
-        self._total_steps = total_steps
-
-        self.notify(
-            notification_title="Starting SWOT Analysis",
-            status=MessageLogStatus.COMPLETED,
-            message_log_event=None,
-        )
-
-        self._chat_service.create_message_execution(
-            message_id=self._message_id,
-            type=MessageExecutionType.DEEP_RESEARCH,
-            percentage_completed=0,
+        self._progress_bar.start(
+            title=f"Running SWOT Analysis for **{company_name}**",
+            total_steps=total_steps,
         )
 
     def update_progress(
         self,
         step_precentage_increment: float,
-        seconds_remaining: int | None = None,
+        current_step_message: str,
     ):
-        self._step_increment += step_precentage_increment
-        percentage_completed = _calculate_percentage_completed(
-            self._step_increment, self._total_steps
-        )
-        if percentage_completed > 100:
-            _LOGGER.warning(
-                f"Percentage completed is greater than 100: {percentage_completed}. Maxing out at 100% to prevent error. Check your code!"
-            )
-            percentage_completed = 100
-
-        _LOGGER.info(f"Updating progress to: {percentage_completed}")
-        self._chat_service.update_message_execution(
-            message_id=self._message_id,
-            percentage_completed=percentage_completed,
-            seconds_remaining=seconds_remaining,
+        self._progress_bar.update(
+            step_increment=step_precentage_increment, info=current_step_message
         )
 
     def notify(
@@ -167,23 +139,84 @@ class ProgressNotifier:
                 message_log_event=message_log_event,
             )
 
-    def _update_progress(self, percentage_completed: int):
-        _LOGGER.info(f"Updating progress to: {percentage_completed}")
-        self._chat_service.update_message_execution(
-            message_id=self._message_id,
-            percentage_completed=percentage_completed,
-        )
+    def end_progress(self, failed: bool, failure_message: str | None = None):
+        if failed:
+            _LOGGER.info(
+                f"Ending progress with failed: {failed} and failure message: {failure_message}"
+            )
+            self._progress_bar.done(failed=True, failure_message=failure_message)
+        else:
+            self._progress_bar.done(failed=False)
 
-    def end_progress(self, success: bool = True):
-        _LOGGER.info(f"Ending progress with success: {success}")
-        status = (
-            MessageExecutionUpdateStatus.COMPLETED
-            if success
-            else MessageExecutionUpdateStatus.FAILED
+
+_PROGRESS_TEMPLATE = """
+{emoji} {title}
+{bar} {percentage}%
+_{info}_
+"""
+
+
+class ProgressBar:
+    def __init__(self, chat_service: ChatService):
+        self._chat_service = chat_service
+        self._executed_fraction = 0
+        self._title = ""
+
+    def start(self, title: str, total_steps: int):
+        self._title = title
+        self._total_steps = total_steps
+        progress_bar = _PROGRESS_TEMPLATE.format(
+            title=self._title,
+            emoji="⚪️",
+            percentage=0,
+            bar=self._get_string_progress_bar(0),
+            info="Starting...",
         )
-        self._chat_service.update_message_execution(
-            message_id=self._message_id,
-            status=status,
-            percentage_completed=100,
-            seconds_remaining=0,
+        self._chat_service.modify_assistant_message(progress_bar)
+
+    def update(self, step_increment: float, info: str):
+        self._executed_fraction += step_increment
+
+        percentage = self._calculate_percentage_completed(
+            self._executed_fraction, self._total_steps
         )
+        progress_bar = _PROGRESS_TEMPLATE.format(
+            title=self._title,
+            emoji="🟡",
+            percentage=percentage,
+            bar=self._get_string_progress_bar(percentage),
+            info=info,
+        )
+        self._chat_service.modify_assistant_message(progress_bar)
+
+    def done(self, failed: bool = False, failure_message: str | None = None):
+        progress_bar = _PROGRESS_TEMPLATE.format(
+            title=self._title,
+            emoji="🟢" if not failed else "🔴",
+            percentage=100,
+            bar=self._get_string_progress_bar(100),
+            info="Completed!" if not failed else failure_message,
+        )
+        self._chat_service.modify_assistant_message(progress_bar)
+
+    @staticmethod
+    def _get_string_progress_bar(percentage: int) -> str:
+        max_characters = 33
+
+        num_full_blocks = max_characters * percentage // 100
+        num_empty_blocks = max_characters - num_full_blocks
+        return "█" * num_full_blocks + "░" * num_empty_blocks
+
+    @staticmethod
+    def _calculate_percentage_completed(current_step: float, total_steps: float) -> int:
+        percentage = int(current_step / total_steps * 100)
+        if percentage > 100 or percentage < 0:
+            _LOGGER.error(
+                f"Percentage completed is out of range: {percentage}. Must be between 0 and 100. Check your code!"
+            )
+            percentage = _clamp(percentage, 0, 100)
+        return percentage
+
+
+def _clamp(value: int, min_value: int, max_value: int) -> int:
+    return max(min_value, min(value, max_value))

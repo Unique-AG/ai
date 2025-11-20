@@ -1,5 +1,6 @@
 from typing import Callable
 
+from jinja2 import Template
 from tqdm import tqdm
 from unique_toolkit import LanguageModelService
 
@@ -58,7 +59,7 @@ async def extract_swot_from_sources(
     )
 
     report_batches = []
-    notification_title = f"Extracting {context.component.value} from collection"
+    notification_title = f"Extracting **{context.component.value}** from collection"
 
     for source_batch in tqdm(
         source_batches,
@@ -79,8 +80,15 @@ async def extract_swot_from_sources(
         )
 
         for batch in source_batch.batches:
+            notifier.update_progress(
+                step_precentage_increment=0,
+                current_step_message=f"Extracting **{context.component.value}** from `{source_batch.source.title}`",
+            )
+            system_prompt = Template(context.extraction_system_prompt).render(
+                company_name=context.company_name
+            )
             report_batch = await extract_swot_from_source_batch(
-                system_prompt=context.extraction_system_prompt,
+                system_prompt=system_prompt,
                 batch_parser=batch_parser,
                 language_model_service=language_model_service,
                 language_model=configuration.language_model,
@@ -92,7 +100,8 @@ async def extract_swot_from_sources(
 
             report_batches.append(report_batch)
             notifier.update_progress(
-                step_precentage_increment=step_precentage_increment
+                step_precentage_increment=step_precentage_increment,
+                current_step_message=f"Extracted **{context.component.value}** from `{source_batch.source.title}`",
             )
 
         notifier.notify(
@@ -113,20 +122,31 @@ async def summarize_swot_extraction(
     """
     Summarize a SWOT extraction report.
     """
-    notification_title = f"Generating {context.component.value} report"
+    notification_title = f"Generating **{context.component.value}** report"
     notifier.notify(
         notification_title=notification_title,
         status=MessageLogStatus.RUNNING,
         message_log_event=MessageLogEvent(
             type="InternalSearch",
-            text=f"Synthesizing {context.extraction_results.number_of_items} extracted items",
+            text=f"Synthesizing **{context.extraction_results.number_of_items}** extracted items",
         ),
     )
+    notifier.update_progress(
+        step_precentage_increment=0,
+        current_step_message=f"Synthesizing **{context.component.value}** report from **{context.extraction_results.number_of_items}** extracted items",
+    )
+    system_prompt = Template(context.summarization_system_prompt).render(
+        company_name=context.company_name
+    )
     summary = await summarize_swot_extraction_results(
-        system_prompt=context.summarization_system_prompt,
+        system_prompt=system_prompt,
         language_model_service=language_model_service,
         language_model=configuration.language_model,
         extraction_output_model=context.extraction_results,
+    )
+    notifier.update_progress(
+        step_precentage_increment=0,
+        current_step_message=f"Synthesized **{context.component.value}** report from **{context.extraction_results.number_of_items}** extracted items",
     )
     notifier.notify(
         notification_title=notification_title, status=MessageLogStatus.COMPLETED

@@ -37,10 +37,10 @@ The tool receives a SWOT plan specifying which components to analyze (Strengths,
 ### 2. **Multi-Source Data Collection**
 The tool collects relevant information from multiple sources:
 - **Knowledge Base**: Internal documents filtered by metadata
-- **Earnings Calls**: Financial earnings call transcripts
+- **Earnings Calls**: Financial earnings call transcripts fetched from Quartr API, automatically converted to DOCX, and ingested into the knowledge base
 - **Web Sources**: External web research and articles
 
-All collected content is registered in a central registry with unique identifiers for citation tracking.
+All collected content is registered in a central registry with unique identifiers for citation tracking. The tool intelligently caches earnings call content to avoid redundant ingestion.
 
 ### 3. **Two-Phase Generation Process**
 
@@ -60,12 +60,13 @@ For each requested SWOT component:
 - Output is formatted with proper structure and citations
 
 ### 4. **Citation Management**
-The tool implements a sophisticated dual-citation system:
+The tool implements a streamlined citation system:
 
-- **Inline Citations**: `[bullet_chunk_X]` → Converted to `[1]`, `[2]`, etc.
-- **Consolidated References**: `[chunk_X]` → Expanded to `[1] [Document Title: page 5]`
+- **Inline Citations**: `[chunk_X]` → Converted to document-level references like `[1: p5]`
+- **Citation Footer**: DOCX reports include a comprehensive citations section listing all referenced documents
+- **Reference Tracking**: Automatic deduplication of document references
 
-This ensures every claim in the report is traceable back to its source material.
+This ensures every claim in the report is traceable back to its source material with minimal clutter.
 
 ### 5. **Report Delivery**
 
@@ -100,13 +101,15 @@ The final report can be delivered in two formats:
 
 ### 🔗 Advanced Citation System
 - Every point backed by source references
-- Dual-level citation (inline + consolidated)
+- Document-level inline citations with page numbers
+- Citation footer in DOCX reports
 - Traceable to specific pages and documents
 
 ### 📈 Real-Time Progress Tracking
-- Step-by-step progress updates
+- Visual progress bar with emoji indicators
+- Step-by-step progress updates with contextual messages
 - Percentage completion calculation
-- Detailed execution logs
+- Support for success/failure states
 
 ### 💾 State Management
 - Caches extraction results for modifications

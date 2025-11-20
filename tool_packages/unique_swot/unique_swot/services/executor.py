@@ -55,12 +55,12 @@ class SWOTExecutionManager:
     def __init__(
         self,
         *,
+        company_name: str,
         configuration: ReportGenerationConfig,
         language_model_service: LanguageModelService,
         memory_service: SwotMemoryService,
         knowledge_base_service: KnowledgeBaseService,
         content_chunk_registry: ContentChunkRegistry,
-        cache_scope_id: str,
         citation_manager: CitationManager,
         notifier: ProgressNotifier,
     ):
@@ -79,6 +79,7 @@ class SWOTExecutionManager:
         self._memory_service = memory_service
         self._content_chunk_registry = content_chunk_registry
         self._citation_manager = citation_manager
+        self._company_name = company_name
 
     async def run(self, *, plan: SWOTPlan, sources: list[Source]) -> SWOTResult:
         """
@@ -106,6 +107,7 @@ class SWOTExecutionManager:
                 case SWOTOperation.GENERATE:
                     analysis = await self.run_generation_function(
                         component=component,
+                        company_name=self._company_name,
                         sources=sources,
                     )
                     executed_plan.assign_result(component, analysis)
@@ -114,6 +116,7 @@ class SWOTExecutionManager:
                         component=component,
                         sources=sources,
                         modify_instruction=step.modify_instruction,
+                        company_name=self._company_name,
                     )
                     executed_plan.assign_result(component, analysis)
                 case SWOTOperation.NOT_REQUESTED:
@@ -129,6 +132,7 @@ class SWOTExecutionManager:
         component: SWOTComponent,
         sources: list[Source],
         modify_instruction: str | None,
+        company_name: str,
     ) -> str:
         """
         Execute a modify operation for a SWOT analysis component.
@@ -160,6 +164,7 @@ class SWOTExecutionManager:
             return await self.run_generation_function(
                 component=component,
                 sources=sources,
+                company_name=company_name,
             )
 
         _LOGGER.warning(
@@ -171,6 +176,7 @@ class SWOTExecutionManager:
         return await self.run_generation_function(
             component=component,
             sources=sources,
+            company_name=company_name,
         )
 
         # This should never happen as we include validation of the schema in the LLM call
@@ -196,7 +202,7 @@ class SWOTExecutionManager:
         return result
 
     async def run_generation_function(
-        self, *, component: SWOTComponent, sources: list[Source]
+        self, *, component: SWOTComponent, sources: list[Source], company_name: str
     ) -> str:
         """
         Execute a generation operation for a SWOT analysis component.
@@ -223,6 +229,7 @@ class SWOTExecutionManager:
             sources=sources,
             extraction_system_prompt=extraction_system_prompt,
             extraction_output_model=extraction_output_model,
+            company_name=company_name,
         )
         aggregated_extraction_result = await extract_swot_from_sources(
             context=context,
@@ -240,6 +247,7 @@ class SWOTExecutionManager:
                 component, self._configuration.summarization_prompt_config
             ),
             extraction_results=aggregated_extraction_result,
+            company_name=company_name,
         )
 
         summarized_result = await summarize_swot_extraction(

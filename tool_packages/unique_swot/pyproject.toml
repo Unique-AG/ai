@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique-swot"
-version = "0.1.1"
+version = "0.2.2"
 description = "Unique Swot package is a tool that for conducting a swot analysis based on internal and external documents"
 authors = ["Rami Azouz <rami.ext@unique.ch>", "Fabian Schläpfer <fabian.schlaepfer@unique.ai>"]
 license = "Proprietary"
@@ -13,7 +13,8 @@ pydantic = "^2.8.2"
 jinja2 = "^3.1.0"
 python-docx = "^1.2.0"
 beautifulsoup4 = "^4.14.2"
-unique-toolkit = "^1.22.1"
+unique-toolkit = "^1.28.2"
+unique-quartr = "^0.2.1"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.11.7"
@@ -23,6 +24,7 @@ pytest = "^8.3.5"
 pytest-mock = "^3.14.0"
 pytest-asyncio = "^1.2.0"
 unique-toolkit = { path = "../../unique_toolkit",  develop = true}
+unique-quartr = { path = "../../connectors/unique_quartr",  develop = true}
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

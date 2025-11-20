@@ -6,7 +6,10 @@ from unique_toolkit.content import ContentReference
 
 from unique_swot.services.citations import CitationManager
 from unique_swot.services.report.config import DocxRendererType
-from unique_swot.services.report.docx import convert_markdown_to_docx
+from unique_swot.services.report.docx import (
+    add_citation_footer,
+    convert_markdown_to_docx,
+)
 from unique_swot.services.schemas import SWOTResult
 
 _LOGGER = getLogger(__name__)
@@ -42,6 +45,7 @@ class ReportDeliveryService:
 
     def deliver_report(
         self,
+        company_name: str,
         result: SWOTResult,
         docx_template_fields: dict[str, str],
     ) -> str:
@@ -59,11 +63,20 @@ class ReportDeliveryService:
                 report, self._renderer_type
             ),
         )
+        citations = self._citation_manager.get_citations(self._renderer_type)
+
         match self._renderer_type:
             case DocxRendererType.DOCX:
-                self._deliver_docx_report(markdown_report, docx_template_fields)
+                self._deliver_docx_report(
+                    company_name=company_name,
+                    markdown_report=markdown_report,
+                    citations=citations,
+                    template_fields=docx_template_fields,
+                )
             case DocxRendererType.CHAT:
-                self._deliver_markdown_report(markdown_report)
+                self._deliver_markdown_report(
+                    markdown_report=markdown_report,
+                )
             case _:
                 raise ValueError(f"Invalid renderer type: {self._renderer_type}")
 
@@ -71,12 +84,16 @@ class ReportDeliveryService:
 
     def _deliver_docx_report(
         self,
+        *,
         markdown_report: str,
+        citations: list[str] | None,
         template_fields: dict[str, str],
+        company_name: str,
     ) -> None:
         """Converts markdown to DOCX and delivers it as an attachment"""
-        if self._docx_renderer is None:
-            raise ValueError("DOCX renderer is not configured")
+
+        if citations is not None:
+            markdown_report = add_citation_footer(markdown_report, citations)
 
         # Convert markdown to DOCX
         docx_bytes = convert_markdown_to_docx(
@@ -88,7 +105,7 @@ class ReportDeliveryService:
         # Upload to chat
         content = self._chat_service.upload_to_chat_from_bytes(
             content=docx_bytes,
-            content_name="swot_analysis_report.docx",
+            content_name=f"{company_name} SWOT Analysis Report.docx",
             mime_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             skip_ingestion=True,
         )
@@ -102,7 +119,7 @@ class ReportDeliveryService:
         # Modify assistant message
         self._chat_service.modify_assistant_message(
             message_id=self._message_id,
-            content="Here is the SWOT analysis report in DOCX format <sup>1</sup>.",
+            content=f"Here is the {company_name} SWOT analysis report in DOCX format <sup>1</sup>.",
             references=[content_reference],
         )
 
@@ -112,6 +129,7 @@ class ReportDeliveryService:
 
     def _deliver_markdown_report(
         self,
+        *,
         markdown_report: str,
     ) -> None:
         """Delivers the markdown report directly to the chat"""
