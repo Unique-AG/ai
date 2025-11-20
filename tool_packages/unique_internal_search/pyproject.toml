@@ -20,7 +20,7 @@ python-dotenv = "^1.0.1"
 tiktoken = "^0.12.0"
 pillow = "^10.4.0"
 unique-sdk = "^0.10.47"
-unique-toolkit = "^1.28.5"
+unique-toolkit = "^1.28.6"
 
 
 [tool.poetry.group.dev.dependencies]
