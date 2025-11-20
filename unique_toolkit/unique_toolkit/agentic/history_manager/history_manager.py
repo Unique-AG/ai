@@ -17,7 +17,6 @@ from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit.language_model.infos import LanguageModelInfo
 from unique_toolkit.language_model.schemas import (
     LanguageModelAssistantMessage,
-    LanguageModelFunction,
     LanguageModelMessage,
     LanguageModelMessages,
     LanguageModelToolMessage,
@@ -144,16 +143,15 @@ class HistoryManager:
                     )
                 )
                 continue
-            self._append_tool_call_result_to_history(tool_response)
 
-    def _append_tool_call_result_to_history(
-        self,
-        tool_response: ToolCallResponse,
-    ) -> None:
-        tool_call_result_for_history = self._get_tool_call_result_for_loop_history(
-            tool_response=tool_response
-        )
-        self._loop_history.append(tool_call_result_for_history)
+            tool_call_result = self._get_tool_call_result_for_loop_history(
+                tool_response=tool_response
+            )
+            self._loop_history.append(tool_call_result)
+
+            self._loop_history.append(
+                self._get_tool_call_result_for_loop_history(tool_response=tool_response)
+            )
 
     def _get_tool_call_result_for_loop_history(
         self,
@@ -188,13 +186,6 @@ class HistoryManager:
             content=content,
             tool_call_id=tool_response.id,  # type: ignore
             name=tool_response.name,
-        )
-
-    def _append_tool_calls_to_history(
-        self, tool_calls: list[LanguageModelFunction]
-    ) -> None:
-        self._loop_history.append(
-            LanguageModelAssistantMessage.from_functions(tool_calls=tool_calls)
         )
 
     def add_assistant_message(self, message: LanguageModelAssistantMessage) -> None:
