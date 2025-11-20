@@ -138,56 +138,23 @@ class InternalSearchService:
             metadata_filter = None
 
         # Run all searches in parallel
-        async def search_single_string(
-            i: int, search_string: str
-        ) -> SearchStringResult:
-            try:
-                found_chunks: list[
-                    ContentChunk
-                ] = await self.content_service.search_content_chunks_async(
-                    search_string=search_string,  # type: ignore
-                    search_type=self.config.search_type,
-                    limit=self.config.limit,
-                    reranker_config=self.config.reranker_config,
-                    search_language=self.config.search_language,
-                    scope_ids=self.config.scope_ids,
-                    metadata_filter=metadata_filter,
-                    chat_id=self.chat_id
-                    if not self.config.exclude_uploaded_files and self.chat_id
-                    else "NO_CHAT",  # deliberate string to avoid if chat_id condition.
-                    chat_only=chat_only,
-                    content_ids=content_ids,
-                    score_threshold=self.config.score_threshold,
-                )
-                self.logger.info(
-                    f"Found {len(found_chunks)} chunks (Query {i + 1}/{len(search_strings)})"
-                )
-                return SearchStringResult(
-                    query=search_string,
-                    chunks=found_chunks,
-                )
-            except Exception as e:
-                self.logger.error(f"Error in search_document_chunks call: {e}")
-                # Re-raise to be caught by asyncio.gather with return_exceptions=True
-                raise
-
         results = await asyncio.gather(
             *[
-                search_single_string(i, search_string)
-                for i, search_string in enumerate(search_strings)
+                self._search_single_string(
+                    search_string=search_string,
+                    metadata_filter=metadata_filter,
+                    chat_only=chat_only,
+                    content_ids=content_ids,
+                )
+                for search_string in search_strings
             ],
             return_exceptions=True,
         )
 
         # Filter out exceptions and log them
-        found_chunks_per_search_string: list[SearchStringResult] = []
-        for i, result in enumerate(results):
-            if isinstance(result, BaseException):
-                self.logger.error(
-                    f"Search failed for query '{search_strings[i]}': {result}"
-                )
-            elif isinstance(result, SearchStringResult):
-                found_chunks_per_search_string.append(result)
+        found_chunks_per_search_string = self._process_search_results(
+            results, search_strings
+        )
 
         # Reset the metadata filter in case it was disabled
         self.content_service._metadata_filter = metadata_filter_copy
@@ -242,6 +209,59 @@ class InternalSearchService:
             "chatOnly": chat_only,
         }
         return selected_chunks
+
+    async def _search_single_string(
+        self,
+        *,
+        search_string: str,
+        metadata_filter: dict | None = None,
+        chat_only: bool = False,
+        content_ids: list[str] | None = None,
+    ) -> SearchStringResult:
+        try:
+            found_chunks: list[
+                ContentChunk
+            ] = await self.content_service.search_content_chunks_async(
+                search_string=search_string,  # type: ignore
+                search_type=self.config.search_type,
+                limit=self.config.limit,
+                reranker_config=self.config.reranker_config,
+                search_language=self.config.search_language,
+                scope_ids=self.config.scope_ids,
+                metadata_filter=metadata_filter,
+                chat_id=self.chat_id
+                if self.config.exclude_uploaded_files and self.chat_id
+                else "",
+                chat_only=chat_only,
+                content_ids=content_ids,
+                score_threshold=self.config.score_threshold,
+            )
+
+            return SearchStringResult(query=search_string, chunks=found_chunks)
+
+        except Exception as e:
+            self.logger.error(f"Error in search_document_chunks call: {e}")
+            # Re-raise to be caught by asyncio.gather with return_exceptions=True
+            raise
+
+    def _process_search_results(
+        self,
+        results: list[SearchStringResult | BaseException],
+        search_strings: list[str],
+    ) -> list[SearchStringResult]:
+        successful_results: list[SearchStringResult] = []
+        total_queries = len(search_strings)
+
+        for i, result in enumerate(results, start=1):
+            if isinstance(result, BaseException):
+                self.logger.error(f"Search failed for query #{i}/{total_queries}")
+            else:
+                self.logger.info(
+                    f"Found {len(result.chunks)} chunks (Query {i}/{total_queries})"
+                )
+                successful_results.append(result)
+
+        return successful_results
 
     async def _resort_found_chunks_if_enabled(
         self, found_chunks: list[ContentChunk], search_string: str
