@@ -40,3 +40,7 @@ class OpenAIBuiltInTool(ABC, Generic[ToolType]):
     @abstractmethod
     def takes_control(self) -> bool:
         raise NotImplementedError()
+
+    @abstractmethod
+    def is_history_exclusive(self) -> bool:
+        raise NotImplementedError()

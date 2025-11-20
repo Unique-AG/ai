@@ -42,6 +42,7 @@ class OpenAIBuiltInToolManager:
                 user_id=user_id,
                 chat_id=chat_id,
                 is_exclusive=tool_config.is_exclusive,
+                is_history_exclusive=tool_config.is_history_exclusive,
             )
             return tool
         else:
