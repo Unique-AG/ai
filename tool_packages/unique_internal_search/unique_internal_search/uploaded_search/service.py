@@ -77,23 +77,23 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
     def tool_description_for_system_prompt(self) -> str:
         documents = self._content_service.get_documents_uploaded_to_chat()
         now = datetime.now(timezone.utc)
-        
+
         valid_documents = [
-            doc for doc in documents
-            if doc.expired_at is None or doc.expired_at > now
+            doc for doc in documents if doc.expired_at is None or doc.expired_at > now
         ]
         expired_documents = [
-            doc for doc in documents
+            doc
+            for doc in documents
             if doc.expired_at is not None and doc.expired_at <= now
         ]
-        
+
         list_all_valid_documents = "\n".join(
             f"- {doc.title or doc.key}" for doc in valid_documents
         )
         list_all_expired_documents = "\n".join(
             f"- {doc.title or doc.key}" for doc in expired_documents
         )
-        
+
         return self._config.tool_description_for_system_prompt.format(
             list_all_valid_documents=list_all_valid_documents,
             list_all_expired_documents=list_all_expired_documents,
