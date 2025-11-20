@@ -29,7 +29,6 @@ class Content(APIResource["Content"]):
     metadata: Optional[Dict[str, Any]]
     writeUrl: Optional[str]
     readUrl: Optional[str]
-    expiresAt: Optional[str]
     expiredAt: Optional[str]
 
     class QueryMode(Enum):
