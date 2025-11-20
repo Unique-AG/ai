@@ -1725,6 +1725,7 @@ class TestInternalSearchTool:
         assert references[0].source == "internal"
 
     @pytest.mark.ai
+    @pytest.mark.asyncio
     @patch("unique_internal_search.service.ContentService")
     @patch("unique_internal_search.service.ChunkRelevancySorter")
     async def test_define_reference_list_for_message_log__sets_name__from_chunk_key_when_no_title(
