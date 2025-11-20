@@ -394,7 +394,8 @@ def build_requestor(
     match requestor_type:
         case RequestorType.REQUESTS:
             return build_request_requestor(
-                operation_type=operation_type, combined_model=combined_model, **kwargs
+                operation_type=operation_type,
+                combined_model=combined_model,
             )
         case RequestorType.FAKE:
             if return_value is None:

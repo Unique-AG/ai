@@ -8,6 +8,7 @@ from pydantic import BaseModel, ValidationError
 
 from unique_toolkit._common.endpoint_builder import (
     ApiOperationProtocol,
+    EmptyModel,
     PathParamsSpec,
     PathParamsType,
     PayloadParamSpec,
@@ -255,8 +256,9 @@ class HumanVerificationManagerForApiCalling(
         self,
         *,
         context: RequestContext,
-        path_params: PathParamsType,
-        payload: PayloadType,
+        path_params: PathParamsType | EmptyModel = EmptyModel(),
+        payload: PayloadType | EmptyModel = EmptyModel(),
+        query_params: QueryParamsType | EmptyModel = EmptyModel(),
     ) -> ResponseType:
         """
         Call the api with the given path params, payload and secured payload params.
@@ -268,6 +270,7 @@ class HumanVerificationManagerForApiCalling(
         """
         params = path_params.model_dump()
         params.update(payload.model_dump())
+        params.update(query_params.model_dump())
 
         try:
             response = self._requestor.request(
