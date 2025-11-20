@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.28.8] - 2025-11-20
+- Add query params to api operation
+- Add query params to endpoint builder
+
 ## [1.28.7] - 2025-11-20
 - Adding Message Step Logger Class to the agentic tools.
 
