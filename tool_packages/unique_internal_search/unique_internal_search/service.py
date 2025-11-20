@@ -230,8 +230,8 @@ class InternalSearchService:
                 scope_ids=self.config.scope_ids,
                 metadata_filter=metadata_filter,
                 chat_id=self.chat_id
-                if self.config.exclude_uploaded_files and self.chat_id
-                else "",
+                if not self.config.exclude_uploaded_files and self.chat_id
+                else "NO_CHAT",  # deliberate string to avoid if chat_id condition.
                 chat_only=chat_only,
                 content_ids=content_ids,
                 score_threshold=self.config.score_threshold,
