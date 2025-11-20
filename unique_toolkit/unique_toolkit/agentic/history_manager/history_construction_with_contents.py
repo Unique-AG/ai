@@ -25,6 +25,7 @@ from unique_toolkit.language_model.schemas import LanguageModelMessages
 map_chat_llm_message_role = {
     ChatRole.USER: LLMRole.USER,
     ChatRole.ASSISTANT: LLMRole.ASSISTANT,
+    ChatRole.SYSTEM: LLMRole.SYSTEM,
 }
 
 
