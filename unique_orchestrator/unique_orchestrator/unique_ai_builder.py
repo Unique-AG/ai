@@ -367,11 +367,11 @@ def _build_completions(
     now = datetime.now(timezone.utc)
     UPLOADED_DOCUMENTS_VALID = [
         doc for doc in common_components.uploaded_documents
-        if doc.expires_at is None or doc.expires_at > now
+        if doc.expired_at is None or doc.expired_at > now
     ]
     UPLOADED_DOCUMENTS_EXPIRED = [
         doc for doc in common_components.uploaded_documents
-        if doc.expires_at is not None and doc.expires_at <= now
+        if doc.expired_at is not None and doc.expired_at <= now
     ]
     TOOL_CHOICES = len(event.payload.tool_choices) > 0
     
