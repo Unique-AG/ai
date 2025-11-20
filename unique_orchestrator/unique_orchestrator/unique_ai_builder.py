@@ -366,20 +366,22 @@ def _build_completions(
     # 3. Not available if not uploaded documents.
     now = datetime.now(timezone.utc)
     UPLOADED_DOCUMENTS_VALID = [
-        doc for doc in common_components.uploaded_documents
+        doc
+        for doc in common_components.uploaded_documents
         if doc.expired_at is None or doc.expired_at > now
     ]
     UPLOADED_DOCUMENTS_EXPIRED = [
-        doc for doc in common_components.uploaded_documents
+        doc
+        for doc in common_components.uploaded_documents
         if doc.expired_at is not None and doc.expired_at <= now
     ]
     TOOL_CHOICES = len(event.payload.tool_choices) > 0
-    
+
     if UPLOADED_DOCUMENTS_EXPIRED:
         logger.info(
             f"Number of expired uploaded documents: {len(UPLOADED_DOCUMENTS_EXPIRED)}"
         )
-    
+
     if UPLOADED_DOCUMENTS_VALID:
         logger.info(
             f"Number of valid uploaded documents: {len(UPLOADED_DOCUMENTS_VALID)}"
