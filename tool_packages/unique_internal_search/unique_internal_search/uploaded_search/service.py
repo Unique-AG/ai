@@ -93,8 +93,10 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
             system_prompt_valid_documents = (
                 "**The currently uploaded and valid documents are the following**\n"
             )
-            system_prompt_valid_documents = system_prompt_valid_documents + "\n".join(
-                f"- {doc.title or doc.key}" for doc in valid_documents
+            system_prompt_valid_documents = (
+                system_prompt_valid_documents
+                + "\n".join(f"- {doc.title or doc.key}" for doc in valid_documents)
+                + "\n"
             )
 
         if expired_documents:
