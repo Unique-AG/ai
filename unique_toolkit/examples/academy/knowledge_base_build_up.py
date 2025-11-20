@@ -1,8 +1,8 @@
 # %%
 
 import logging
-import mimetypes
 from pathlib import Path, PurePath
+from typing import Any
 
 from unique_toolkit import (
     KnowledgeBaseService,
@@ -16,9 +16,17 @@ from unique_toolkit.framework_utilities.openai.message_builder import (
 )
 from unique_toolkit.language_model import LanguageModelName
 
+# %%
+
+# Define the local root folder path and the root folder scope id
+# --------------------------------------------------------------
+
 local_root_folder_path = Path(__file__).parent / "data"
-root_folder_scope_id = "scope_l9w7jsv190bp7sip4r2wuab0"
-root_folder_path = PurePath("/Company/Cedric")
+
+root_folder_scope_id = (
+    "scope_l9w7jsv190bp7sip4r2wuab0"  # Scope to upload the local folder to
+)
+root_folder_path = PurePath("/Company/Cedric")  # Path to the local folder
 
 settings = UniqueSettings.from_env_auto_with_sdk_init()
 kb_service = KnowledgeBaseService.from_settings(settings=settings)
@@ -46,30 +54,18 @@ files_to_upload = [
 ]
 
 
-creation_result = kb_service.create_folders(paths=folders_to_create_paths)
-folders_path_to_scope_id = {
-    folder_path: result.id
-    for folder_path, result in zip(folders_to_create_paths, creation_result)
-}
+def hr_metadata_generator(
+    local_file_path: Path, remote_folder_path: PurePath
+) -> dict[str, Any]:
+    return {"country": remote_folder_path.name, "departement": "HR"}
 
 
-for remote_file_path, local_file_path in files_to_upload:
-    scope_id = folders_path_to_scope_id[remote_file_path.parent]
-
-    mime_type = mimetypes.guess_type(local_file_path.name)[0]
-
-    if mime_type is None:
-        _LOGGER.warning(f"No mime type found for file {local_file_path.name}, skipping")
-        continue
-
-    content = kb_service.upload_content(
-        path_to_content=str(local_file_path),
-        content_name=local_file_path.name,
-        mime_type=mime_type,
-        scope_id=scope_id,
-        metadata={"country": remote_file_path.parent.name, "departement": "HR"},
-    )
-
+kb_service.batch_file_upload(
+    local_files=[local_file_path for _, local_file_path in files_to_upload],
+    remote_folders=[remote_file_path.parent for remote_file_path, _ in files_to_upload],
+    overwrite=True,
+    metadata_generator=hr_metadata_generator,
+)
 
 # %%
 

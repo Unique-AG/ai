@@ -1,7 +1,8 @@
 import asyncio
 import logging
+import mimetypes
 from pathlib import Path, PurePath
-from typing import Any, overload
+from typing import Any, Callable, overload
 
 import humps
 import unique_sdk
@@ -39,6 +40,7 @@ from unique_toolkit.content.schemas import (
     FolderInfo,
     PaginatedContentInfos,
 )
+from unique_toolkit.content.smart_rules import Operator, Statement
 
 _LOGGER = logging.getLogger(f"toolkit.knowledge_base.{__name__}")
 
@@ -102,6 +104,9 @@ class KnowledgeBaseService:
             user_id=settings.auth.user_id.get_secret_value(),
             metadata_filter=metadata_filter,
         )
+
+    # Content Search
+    # ------------------------------------------------------------------------------------------------
 
     @overload
     def search_content_chunks(
@@ -349,6 +354,9 @@ class KnowledgeBaseService:
             include_failed_content=include_failed_content,
         )
 
+    # Content Management
+    # ------------------------------------------------------------------------------------------------
+
     def upload_content_from_bytes(
         self,
         content: bytes,
@@ -530,6 +538,80 @@ class KnowledgeBaseService:
             chat_id=None,
         )
 
+    def batch_file_upload(
+        self,
+        *,
+        local_files: list[Path],
+        remote_folders: list[PurePath],
+        overwrite: bool = False,
+        metadata_generator: Callable[[Path, PurePath], dict[str, Any]] | None = None,
+    ) -> None:
+        """
+        Upload files to the knowledge base into corresponding folders
+
+        Args:
+            local_files (list[Path]): The local files to upload
+            remote_folders (list[PurePath]): The remote folders to upload the files to
+            overwrite (bool): Whether to overwrite existing files
+            metadata_generator (Callable[[Path, PurePath], dict[str, Any]] | None): The metadata generator function
+
+        Returns:
+            None
+        """
+
+        if len(local_files) != len(remote_folders):
+            raise ValueError(
+                "The number of local files and remote folders must be the same"
+            )
+
+        creation_result = self.create_folders(paths=remote_folders)
+
+        folders_path_to_scope_id = {
+            folder_path: result.id
+            for folder_path, result in zip(remote_folders, creation_result)
+        }
+
+        _old_scope_id = None
+        _existing_file_names: list[str] = []
+
+        for remote_folder_path, local_file_path in zip(remote_folders, local_files):
+            scope_id = folders_path_to_scope_id[remote_folder_path]
+            mime_type = mimetypes.guess_type(local_file_path.name)[0]
+
+            if mime_type is None:
+                _LOGGER.warning(
+                    f"No mime type found for file {local_file_path.name}, skipping"
+                )
+                continue
+
+            if not overwrite:
+                if _old_scope_id is None or _old_scope_id != scope_id:
+                    _LOGGER.debug(f"Switching to new folder {scope_id}")
+                    _old_scope_id = scope_id
+                    _existing_file_names = self.get_file_names_in_folder(
+                        scope_id=scope_id
+                    )
+
+                if local_file_path.name in _existing_file_names:
+                    _LOGGER.warning(
+                        f"File {local_file_path.name} already exists in folder {scope_id}, skipping"
+                    )
+                    continue
+
+            metadata = None
+            if metadata_generator is not None:
+                metadata = metadata_generator(local_file_path, remote_folder_path)
+
+            self.upload_content(
+                path_to_content=str(local_file_path),
+                content_name=local_file_path.name,
+                mime_type=mime_type,
+                scope_id=scope_id,
+                metadata=metadata,
+            )
+
+    # Content Information
+    # ------------------------------------------------------------------------------------------------
     def get_paginated_content_infos(
         self,
         *,
@@ -546,6 +628,24 @@ class KnowledgeBaseService:
             take=take,
             file_path=file_path,
         )
+
+    def get_file_names_in_folder(self, *, scope_id: str) -> list[str]:
+        """
+        Get the list of file names in a knowledge base folder
+
+        Args:
+            scope_id (str): The scope id of the folder
+
+        Returns:
+            list[str]: The list of file names in the folder
+        """
+        smart_rule = Statement(
+            operator=Operator.EQUALS, value=scope_id, path=["folderId"]
+        )
+        infos = self.get_paginated_content_infos(
+            metadata_filter=smart_rule.model_dump(mode="json")
+        )
+        return [i.key for i in infos.content_infos]
 
     # Folder Management
     # ------------------------------------------------------------------------------------------------
@@ -643,7 +743,16 @@ class KnowledgeBaseService:
             metadata.pop(key, None)
         return metadata
 
-    def create_folders(self, *, paths: list[PurePath]):
+    def create_folders(self, *, paths: list[PurePath]) -> list[BaseFolderInfo]:
+        """
+        Create folders in the knowledge base if the path does not exists.
+
+        Args:
+            paths (list[PurePath]): The paths to create the folders at
+
+        Returns:
+            list[BaseFolderInfo]: The information about the created folders or existing folders
+        """
         result = unique_sdk.Folder.create_paths(
             user_id=self._user_id,
             company_id=self._company_id,
@@ -654,7 +763,9 @@ class KnowledgeBaseService:
             for folder in result["createdFolders"]
         ]
 
-    # Metadata
+        # Metadata
+
+    # Metadata Management
     # ------------------------------------------------------------------------------------------------
 
     def replace_content_metadata(
@@ -943,6 +1054,9 @@ class KnowledgeBaseService:
 
         list_of_scope_ids.reverse()
         return PurePath("/" + "/".join(list_of_folder_names[::-1])), list_of_scope_ids
+
+    # Utility Functions
+    # ------------------------------------------------------------------------------------------------
 
     def get_folder_path(self, *, scope_id: str) -> PurePath:
         """
