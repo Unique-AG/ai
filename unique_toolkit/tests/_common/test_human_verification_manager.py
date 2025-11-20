@@ -477,7 +477,7 @@ def test_call_api__merges_params__with_path_and_payload_AI(
 
     with patch.object(base_manager._requestor, "request") as mock_request:
         # Return dict directly, not a Mock object
-        mock_request.return_value = {"id": 100, "name": "John Doe"}
+        mock_request.return_value = ApiResponse(id=100, name="John Doe")
 
         # Act
         response = base_manager.call_api(
