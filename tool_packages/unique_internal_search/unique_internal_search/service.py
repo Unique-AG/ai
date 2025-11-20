@@ -168,8 +168,6 @@ class InternalSearchService:
                 )
             )
 
-        # Updating our logger with the search results for all search strings.
-
         # Reset the metadata filter in case it was disabled
         self.content_service._metadata_filter = metadata_filter_copy
 

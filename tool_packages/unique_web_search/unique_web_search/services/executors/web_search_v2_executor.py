@@ -200,22 +200,6 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
             crawl_results = await self.crawler_service.crawl(
                 [result.url for result in results]
             )
-
-            self.queries_for_log.append(
-                WebSearchLogEntry(
-                    type=StepType.READ_URL,
-                    message=f"Reading URL: {step.query_or_url}",
-                    web_search_results=[
-                        WebSearchResult(
-                            url=step.query_or_url,
-                            content=results[0].content or "",
-                            snippet=step.objective,
-                            title=step.objective,
-                        )
-                    ],
-                )
-            )
-
             delta_time = time() - time_start
             for result, content in zip(results, crawl_results):
                 result.content = content
