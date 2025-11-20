@@ -265,14 +265,14 @@ class HumanVerificationManagerForApiCalling(
         params = path_params.model_dump()
         params.update(payload.model_dump())
 
-        response = self._requestor.request(
-            context=context,
-            **params,
-        )
         try:
-            return self._operation.handle_response(response.model_dump())
+            response = self._requestor.request(
+                context=context,
+                **params,
+            )
+            return response
         except ValidationError as e:
-            self._logger.error(f"Error calling api: {e}. Response: {response}")
+            self._logger.error(f"Error calling api: {e}.")
             raise e
 
 
