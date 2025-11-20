@@ -2280,7 +2280,7 @@ openai = ["openai (>=1.105.0,<2.0.0)"]
 
 [[package]]
 name = "unique-toolkit"
-version = "1.27.1"
+version = "1.28.2"
 description = ""
 optional = false
 python-versions = "^3.12"
@@ -2376,4 +2376,4 @@ watchmedo = ["PyYAML (>=3.10)"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "e6116e4d74adb3689795570c0b47dca8611f837cf6fcd8bc6c785bab7ec4f7c2"
+content-hash = "89be14617a765b7db470cf7edfc82b71a43d5eaf161e862454e3645133b12682"
