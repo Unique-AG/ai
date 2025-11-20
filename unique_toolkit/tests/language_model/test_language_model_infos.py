@@ -48,6 +48,7 @@ class TestLanguageModelInfos:
             LanguageModelName.GEMINI_2_5_PRO,
             LanguageModelName.GEMINI_2_5_PRO_EXP_0325,
             LanguageModelName.GEMINI_2_5_PRO_PREVIEW_0605,
+            LanguageModelName.GEMINI_3_PRO_PREVIEW,
             LanguageModelName.AZURE_GPT_5_2025_0807,
             LanguageModelName.AZURE_GPT_5_MINI_2025_0807,
             LanguageModelName.AZURE_GPT_5_NANO_2025_0807,
