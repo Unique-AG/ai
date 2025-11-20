@@ -87,16 +87,23 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
             if doc.expired_at is not None and doc.expired_at <= now
         ]
 
-        list_all_valid_documents = "\n".join(
-            f"- {doc.title or doc.key}" for doc in valid_documents
-        )
-        list_all_expired_documents = "\n".join(
-            f"- {doc.title or doc.key}" for doc in expired_documents
-        )
+        system_prompt_valid_documents = ""
+        system_prompt_expired_documents = ""
+        if valid_documents:
+            system_prompt_valid_documents = "**The currently uploaded and valid documents are the following**\n"
+            system_prompt_valid_documents = system_prompt_valid_documents + "\n".join(
+                f"- {doc.title or doc.key}" for doc in valid_documents
+            )
+
+        if expired_documents:
+            system_prompt_expired_documents = "**The currently uploaded and expired documents are the following**\n"
+            system_prompt_expired_documents = system_prompt_expired_documents + "\n".join(
+                f"- {doc.title or doc.key}" for doc in expired_documents
+            )
 
         return self._config.tool_description_for_system_prompt.format(
-            list_all_valid_documents=list_all_valid_documents,
-            list_all_expired_documents=list_all_expired_documents,
+            system_prompt_valid_documents=system_prompt_valid_documents,
+            system_prompt_expired_documents=system_prompt_expired_documents,
         )
 
     def tool_format_information_for_system_prompt(self) -> str:

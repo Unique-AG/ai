@@ -13,7 +13,7 @@ pydantic = "^2.8.2"
 pydantic-settings = "^2.10.1"
 python-dotenv = "^1.0.1"
 
-unique-sdk = "^0.10.34"
+unique-sdk = "^0.10.47"
 unique-toolkit = "^1.28.5"
 unique-stock-ticker = "^1.0.2"
 unique-follow-up-questions = "^1.1.2"
