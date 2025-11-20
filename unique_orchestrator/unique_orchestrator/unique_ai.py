@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 from logging import Logger
 
 import jinja2
@@ -331,6 +331,14 @@ class UniqueAI:
             use_sub_agent_references = False
             sub_agent_referencing_instructions = None
 
+        uploaded_documents = self._content_service.get_documents_uploaded_to_chat()
+        uploaded_documents_expired = [
+            doc
+            for doc in uploaded_documents
+            if doc.expired_at is not None
+            and doc.expired_at <= datetime.now(timezone.utc)
+        ]
+
         system_message = system_prompt_template.render(
             model_info=self._config.space.language_model.model_dump(mode="json"),
             date_string=date_string,
@@ -345,6 +353,7 @@ class UniqueAI:
             use_sub_agent_references=use_sub_agent_references,
             sub_agent_referencing_instructions=sub_agent_referencing_instructions,
             user_metadata=user_metadata,
+            uploaded_documents_expired=uploaded_documents_expired,
         )
         return system_message
 
