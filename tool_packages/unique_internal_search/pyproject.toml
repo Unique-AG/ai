@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_internal_search"
-version = "1.2.5"
+version = "1.2.6"
 description = ""
 authors = [
     "Martin Fadler <martin.fadler@unique.ch>",
@@ -19,8 +19,8 @@ pydantic-settings = "^2.10.1"
 python-dotenv = "^1.0.1"
 tiktoken = "^0.12.0"
 pillow = "^10.4.0"
-unique-sdk = "^0.10.0"
-unique-toolkit = "^1.28.4"
+unique-sdk = "^0.10.47"
+unique-toolkit = "^1.28.5"
 
 
 [tool.poetry.group.dev.dependencies]

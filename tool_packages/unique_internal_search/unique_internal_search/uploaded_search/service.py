@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from pydantic import Field, create_model
 from typing_extensions import override
 from unique_toolkit import ContentService
@@ -74,8 +76,40 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
 
     def tool_description_for_system_prompt(self) -> str:
         documents = self._content_service.get_documents_uploaded_to_chat()
-        list_all_documents = "".join([f"- {doc.title or doc.key}" for doc in documents])
-        return self._config.tool_description_for_system_prompt + list_all_documents
+        now = datetime.now(timezone.utc)
+
+        valid_documents = [
+            doc for doc in documents if doc.expired_at is None or doc.expired_at > now
+        ]
+        expired_documents = [
+            doc
+            for doc in documents
+            if doc.expired_at is not None and doc.expired_at <= now
+        ]
+
+        system_prompt_valid_documents = ""
+        system_prompt_expired_documents = ""
+        if valid_documents:
+            system_prompt_valid_documents = (
+                "**The currently uploaded and valid documents are the following**\n"
+            )
+            system_prompt_valid_documents = system_prompt_valid_documents + "\n".join(
+                f"- {doc.title or doc.key}" for doc in valid_documents
+            )
+
+        if expired_documents:
+            system_prompt_expired_documents = (
+                "**The currently uploaded and expired documents are the following**\n"
+            )
+            system_prompt_expired_documents = (
+                system_prompt_expired_documents
+                + "\n".join(f"- {doc.title or doc.key}" for doc in expired_documents)
+            )
+
+        return self._config.tool_description_for_system_prompt.format(
+            system_prompt_valid_documents=system_prompt_valid_documents,
+            system_prompt_expired_documents=system_prompt_expired_documents,
+        )
 
     def tool_format_information_for_system_prompt(self) -> str:
         return self._config.tool_format_information_for_system_prompt

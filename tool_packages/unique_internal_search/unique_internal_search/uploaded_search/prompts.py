@@ -10,8 +10,9 @@ DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT = (
     "You should split the user question into multiple search strings when the user's question needs to be decomposed / rewritten to find different facts. Perform an individual tool call for each search string. Avoid overly broad queries that may return unrelated results. Ensure the search string is specific and relevant to the uploaded document(s).\n\n"
     "Examples:\n"
     'User: "What does the Q2_Report.pdf say about revenue and expenses?" => search strings: ["Q2_Report.pdf revenue", "Q2_Report.pdf expenses"]\n'
-    'User: "Summarize the uploaded document." => search string: ["Summarize the uploaded document"]\n'
-    "**The currently uploaded documents are the following**\n\n"
+    'User: "Summarize the uploaded document." => search string: ["Summarize the uploaded document"]\n\n'
+    "{system_prompt_valid_documents}"
+    "{system_prompt_expired_documents}"
 )
 
 DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT = (
