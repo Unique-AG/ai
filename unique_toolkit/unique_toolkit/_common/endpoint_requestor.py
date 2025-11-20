@@ -5,7 +5,7 @@ from urllib.parse import urljoin, urlparse
 from pydantic import BaseModel, Field
 from typing_extensions import ParamSpec
 
-from unique_toolkit._common.experimental.endpoint_builder import (
+from unique_toolkit._common.endpoint_builder import (
     ApiOperationProtocol,
     HttpMethods,
     PathParamsSpec,
@@ -236,22 +236,13 @@ def build_httpx_requestor(
             )
 
             with httpx.Client() as client:
-                # For GET requests, send payload as params; for others, send as json
-                if cls._operation.request_method() == HttpMethods.GET:
-                    response = client.request(
-                        method=cls._operation.request_method(),
-                        url=url,
-                        headers=headers,
-                        json=payload,
-                        params=query_params,
-                    )
-                else:
-                    response = client.request(
-                        method=cls._operation.request_method(),
-                        url=url,
-                        headers=headers,
-                        json=payload,
-                    )
+                response = client.request(
+                    method=cls._operation.request_method(),
+                    url=url,
+                    headers=headers,
+                    json=payload,
+                    params=query_params,
+                )
                 response_json = response.json()
                 return cls._operation.handle_response(
                     response_json,
@@ -282,22 +273,19 @@ def build_httpx_requestor(
                 model_dump_options=cls._operation.payload_dump_options(),
             )
 
+            query_params = cls._operation.create_query_params_from_model(
+                query_params=query_model,
+                model_dump_options=cls._operation.query_params_dump_options(),
+            )
+
             async with httpx.AsyncClient() as client:
-                # For GET requests, send payload as params; for others, send as json
-                if cls._operation.request_method() == HttpMethods.GET:
-                    response = await client.request(
-                        method=cls._operation.request_method(),
-                        url=url,
-                        headers=headers,
-                        params=payload,
-                    )
-                else:
-                    response = await client.request(
-                        method=cls._operation.request_method(),
-                        url=url,
-                        headers=headers,
-                        json=payload,
-                    )
+                response = await client.request(
+                    method=cls._operation.request_method(),
+                    url=url,
+                    headers=headers,
+                    json=payload,
+                    params=query_params,
+                )
                 response_json = response.json()
                 return cls._operation.handle_response(
                     response_json,
@@ -429,7 +417,10 @@ def build_requestor(
 if __name__ == "__main__":
     from string import Template
 
-    from unique_toolkit._common.experimental.endpoint_builder import build_api_operation
+    from unique_toolkit._common.endpoint_builder import (
+        HttpMethods,
+        build_api_operation,
+    )
 
     class GetUserPathParams(BaseModel):
         user_id: int

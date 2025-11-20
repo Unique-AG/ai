@@ -12,6 +12,8 @@ from unique_toolkit._common.endpoint_builder import (
     PathParamsType,
     PayloadParamSpec,
     PayloadType,
+    QueryParamsSpec,
+    QueryParamsType,
     ResponseType,
 )
 from unique_toolkit._common.endpoint_requestor import (
@@ -56,6 +58,8 @@ class HumanVerificationManagerForApiCalling(
         PathParamsType,
         PayloadParamSpec,
         PayloadType,
+        QueryParamsSpec,
+        QueryParamsType,
         ResponseType,
     ]
 ):
@@ -79,6 +83,8 @@ class HumanVerificationManagerForApiCalling(
                 PathParamsType,
                 PayloadParamSpec,
                 PayloadType,
+                QueryParamsSpec,
+                QueryParamsType,
                 ResponseType,
             ]
         ],
@@ -146,7 +152,7 @@ class HumanVerificationManagerForApiCalling(
         )
         self._requestor = build_requestor(
             requestor_type=requestor_type,
-            operation_type=operation,
+            operation_type=self._operation,
             combined_model=self._combined_params_model,
             **kwargs,
         )
@@ -264,7 +270,7 @@ class HumanVerificationManagerForApiCalling(
             **params,
         )
         try:
-            return self._operation.handle_response(response)
+            return self._operation.handle_response(response.model_dump())
         except ValidationError as e:
             self._logger.error(f"Error calling api: {e}. Response: {response}")
             raise e
