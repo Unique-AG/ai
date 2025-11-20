@@ -8,7 +8,7 @@ from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
 )
 from unique_toolkit.agentic.evaluation.evaluation_manager import EvaluationManager
 from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
-from unique_toolkit.agentic.logger_manager.service import MessageStepLogger
+from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
     PostprocessorManager,
 )
@@ -100,7 +100,7 @@ class UniqueAI:
         self._logger.info("Start LoopAgent...")
 
         self._message_step_logger.create_message_log_entry(
-            text="**Start Unique AI**", data=[]
+            text="**Start Unique AI**", references=[]
         )
 
         if self._history_manager.has_no_loop_messages():  # TODO: why do we even need to check its always no loop messages on this when its called.
@@ -111,7 +111,7 @@ class UniqueAI:
         ## Loop iteration
         for i in range(self._config.agent.max_loop_iterations):
             self._message_step_logger.create_message_log_entry(
-                text="**Loop Iteration %s**" % str(i + 1), data=[]
+                text="**Loop Iteration %s**" % str(i + 1), references=[]
             )
 
             self.current_iteration_index = i
@@ -248,7 +248,7 @@ class UniqueAI:
         self._logger.debug("No tool calls. we might exit the loop")
 
         self._message_step_logger.create_message_log_entry(
-            text="**Answer Generation**", data=[]
+            text="**Answer Generation**", references=[]
         )
 
         return await self._handle_no_tool_calls(loop_response)

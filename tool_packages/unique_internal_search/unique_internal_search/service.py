@@ -441,7 +441,7 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
         self._message_step_logger.create_message_log_entry(
             text="**Internal Search**",
             details=details,
-            data=message_log_reference_list,
+            references=message_log_reference_list,
         )
 
     async def _define_reference_list_for_message_log(
