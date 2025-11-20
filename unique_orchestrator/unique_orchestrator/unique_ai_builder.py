@@ -376,7 +376,7 @@ def _build_completions(
         if doc.expired_at is not None and doc.expired_at <= now
     ]
     TOOL_CHOICES = len(event.payload.tool_choices) > 0
-    
+
     if UPLOADED_DOCUMENTS_EXPIRED:
         logger.info(
             f"Number of expired uploaded documents: {len(UPLOADED_DOCUMENTS_EXPIRED)}"
