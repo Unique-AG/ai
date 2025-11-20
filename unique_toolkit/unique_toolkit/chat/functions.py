@@ -521,7 +521,11 @@ def filter_valid_messages(
     messages = messages["data"][:-2]  # type: ignore
     filtered_messages = []
     for message in messages:
-        if message["text"] is None or SYSTEM_MESSAGE_PREFIX in message["text"] or message["role"] in roles_to_filter:
+        if (
+            message["text"] is None
+            or SYSTEM_MESSAGE_PREFIX in message["text"]
+            or message["role"] in roles_to_filter
+        ):
             continue
         filtered_messages.append(message)
 
