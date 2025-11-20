@@ -194,15 +194,19 @@ class PaginatedContentInfos(BaseModel):
     total_count: int
 
 
-class FolderInfo(BaseModel):
+class BaseFolderInfo(BaseModel):
     model_config = model_config
     id: str
     name: str
+    parent_id: str | None
+
+
+class FolderInfo(BaseFolderInfo):
+    model_config = model_config
     ingestion_config: dict[str, Any]
-    createdAt: str | None
-    updatedAt: str | None
-    parentId: str | None
-    externalId: str | None
+    created_at: str | None
+    updated_at: str | None
+    external_id: str | None
 
 
 class DeleteContentResponse(BaseModel):
