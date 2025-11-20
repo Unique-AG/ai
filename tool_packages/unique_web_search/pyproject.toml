@@ -27,8 +27,8 @@ langchain-community = "^0.3.1"
 pandas = "2.2.3"
 azure-ai-projects = "^1.0.0"
 azure-identity = "^1.25.0"
-unique-toolkit = "^1.19.2"
-unique-sdk = "^0.10.33"
+unique-toolkit = "^1.28.7"
+unique-sdk = "^0.10.48"
 azure-core = "^1.36.0"
 
 
