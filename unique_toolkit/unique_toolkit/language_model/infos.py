@@ -79,6 +79,7 @@ class LanguageModelName(StrEnum):
 class EncoderName(StrEnum):
     O200K_BASE = "o200k_base"
     CL100K_BASE = "cl100k_base"
+    QWEN3 = "qwen3"
 
 
 def get_encoder_name(model_name: LanguageModelName) -> EncoderName:
@@ -124,11 +125,16 @@ def get_encoder_name(model_name: LanguageModelName) -> EncoderName:
             | LMN.LITELLM_OPENAI_O3_PRO
         ):
             return EncoderName.O200K_BASE
+        case (
+            LMN.LITELLM_QWEN_3
+            | LMN.LITELLM_QWEN_3_THINKING
+        ):
+            return EncoderName.QWEN3
         case _:
             print(
                 f"{model_name} is not supported. Please add encoder information. Using default"
             )
-            return EncoderName.CL100K_BASE
+            return EncoderName.O200K_BASE
 
 
 class LanguageModelProvider(StrEnum):

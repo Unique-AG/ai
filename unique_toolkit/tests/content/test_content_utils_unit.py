@@ -5,6 +5,7 @@ from unique_toolkit.content.utils import (
     pick_content_chunks_for_token_window,
     sort_content_chunks,
 )
+from unique_toolkit.language_model.infos import EncoderName
 
 
 class TestContentChunkUtils:
@@ -90,7 +91,7 @@ class TestContentChunkUtils:
 
     def test_count_tokens(self):
         text = "This is a sample text to count tokens."
-        token_count = count_tokens(text)
+        token_count = count_tokens(text=text, encoding_model=EncoderName.QWEN3)
 
         assert token_count > 0
         assert isinstance(token_count, int)
