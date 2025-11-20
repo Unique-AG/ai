@@ -9,6 +9,8 @@ from unique_toolkit.agentic.tools.tool import (
     Tool,
 )
 from unique_toolkit.agentic.tools.tool_progress_reporter import ProgressState
+from unique_toolkit.chat.schemas import MessageLogDetails, MessageLogEvent
+from unique_toolkit.content import ContentReference
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelToolDescription,
@@ -22,6 +24,7 @@ from unique_web_search.services.executors import (
     WebSearchV1Executor,
     WebSearchV2Executor,
 )
+from unique_web_search.services.executors.base_executor import WebSearchLogEntry
 from unique_web_search.services.executors.configs import WebSearchMode
 from unique_web_search.services.search_engine import get_search_engine_service
 from unique_web_search.utils import WebSearchDebugInfo, reduce_sources_to_token_limit
@@ -106,9 +109,18 @@ class WebSearchTool(Tool[WebSearchConfig]):
         executor = self._get_executor(tool_call, parameters, debug_info)
 
         try:
-            content_chunks = await executor.run()
+            content_chunks, queries_for_log = await executor.run()
             debug_info.num_chunks_in_final_prompts = len(content_chunks)
             debug_info.execution_time = time() - start_time
+
+            details, reference_list = self._prepare_message_logs_entries(
+                queries_for_log
+            )
+            self._message_step_logger.create_message_log_entry(
+                text="**Web Search**",
+                details=details,
+                references=reference_list,
+            )
 
             if self.tool_progress_reporter:
                 await self.tool_progress_reporter.notify_from_tool_call(
@@ -199,6 +211,29 @@ class WebSearchTool(Tool[WebSearchConfig]):
         if not tool_response.content_chunks:
             return []
         return evaluation_check_list
+
+    def _prepare_message_logs_entries(
+        self, queries_for_log: list[WebSearchLogEntry]
+    ) -> tuple[MessageLogDetails, list[ContentReference]]:
+        details = MessageLogDetails(
+            data=[
+                MessageLogEvent(
+                    type="WebSearch",
+                    text=query_for_log.message,
+                )
+                for query_for_log in queries_for_log
+            ]
+        )
+        references = []
+        sequence_number = 0
+        for query_for_log in queries_for_log:
+            for web_search_result in query_for_log.web_search_results:
+                references.append(
+                    web_search_result.to_content_reference(sequence_number)
+                )
+                sequence_number += 1
+
+        return details, references
 
 
 ToolFactory.register_tool(WebSearchTool, WebSearchConfig)
