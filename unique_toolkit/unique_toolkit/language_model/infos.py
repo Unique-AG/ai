@@ -55,7 +55,7 @@ class LanguageModelName(StrEnum):
     GEMINI_2_5_PRO = "litellm:gemini-2-5-pro"
     GEMINI_2_5_PRO_EXP_0325 = "litellm:gemini-2-5-pro-exp-03-25"
     GEMINI_2_5_PRO_PREVIEW_0605 = "litellm:gemini-2-5-pro-preview-06-05"
-    GEMINI_3_PRO_PREVIEW = "litellm:gemini-3-pro"
+    GEMINI_3_PRO_PREVIEW = "litellm:gemini-3-pro-preview"
     LITELLM_OPENAI_GPT_5 = "litellm:openai-gpt-5"
     LITELLM_OPENAI_GPT_5_MINI = "litellm:openai-gpt-5-mini"
     LITELLM_OPENAI_GPT_5_NANO = "litellm:openai-gpt-5-nano"
