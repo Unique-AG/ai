@@ -2410,14 +2410,14 @@ openai = ["openai (>=1.105.0,<2.0.0)"]
 
 [[package]]
 name = "unique-toolkit"
-version = "1.28.6"
+version = "1.28.8"
 description = ""
 optional = false
 python-versions = "<4.0,>=3.12"
 groups = ["main"]
 files = [
-    {file = "unique_toolkit-1.28.6-py3-none-any.whl", hash = "sha256:c5d28309a86a73c384a2bb324442a6db6124eff77ebd89baa10e8f3b0f9ede4d"},
-    {file = "unique_toolkit-1.28.6.tar.gz", hash = "sha256:f56dafb46dad413e35768708606eae52d2ee120b2d8a865372846c245d4ca1f1"},
+    {file = "unique_toolkit-1.28.8-py3-none-any.whl", hash = "sha256:317270ee379d3a71686f312b29e1922a2c78d3b51d5784358da81e18a69e5f97"},
+    {file = "unique_toolkit-1.28.8.tar.gz", hash = "sha256:23db43d4db6fb39b16c3cf74b7c74bcd01486b4ec9d305f58f6902fcb80c7b8e"},
 ]
 
 [package.dependencies]
@@ -2438,7 +2438,7 @@ regex = ">=2024.5.15,<2025.0.0"
 sseclient = ">=0.0.27,<0.0.28"
 tiktoken = ">=0.12.0,<0.13.0"
 typing-extensions = ">=4.9.0,<5.0.0"
-unique-sdk = ">=0.10.28,<0.11.0"
+unique-sdk = ">=0.10.48,<0.11.0"
 
 [[package]]
 name = "urllib3"
@@ -2504,4 +2504,4 @@ watchmedo = ["PyYAML (>=3.10)"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "f2081f31f9922e2dc508ae10468f8bd7d5b378de719d6bbbb14e0c41a41bae90"
+content-hash = "6ac647894e864f57cc6738e09813d53daca14720888bce6bb0069db18861949f"
