@@ -1,12 +1,12 @@
-import json
 from enum import StrEnum
-from typing import Annotated, Any, Dict
+from typing import Annotated, Any
 
 from pydantic import (
     BaseModel,
     BeforeValidator,
     Field,
     ValidationInfo,
+    field_serializer,
     model_validator,
 )
 
@@ -123,46 +123,6 @@ class ToolBuildConfig(BaseModel):
         value["configuration"] = config
         return value
 
-    def model_dump(self) -> Dict[str, Any]:
-        """
-        Returns a dict representation of the tool config that preserves
-        subclass fields from `configuration` by delegating to its own
-        model_dump. This prevents `{}` when `configuration` is typed
-        as `BaseToolConfig` but holds a subclass instance.
-        """
-        data: Dict[str, Any] = {
-            "name": self.name,
-            "configuration": self.configuration.model_dump()
-            if self.configuration
-            else None,
-            "display_name": self.display_name,
-            "icon": self.icon,
-            "selection_policy": self.selection_policy,
-            "is_exclusive": self.is_exclusive,
-            "is_sub_agent": self.is_sub_agent,
-            "is_enabled": self.is_enabled,
-        }
-        return data
-
-    def model_dump_json(self) -> str:
-        """
-        Returns a JSON string representation of the tool config.
-        Ensures `configuration` is fully serialized by using the
-        subclass's `model_dump_json()` when available.
-        """
-        config_json = (
-            self.configuration.model_dump_json() if self.configuration else None
-        )
-        config = json.loads(config_json) if config_json else None
-
-        data: Dict[str, Any] = {
-            "name": self.name,
-            "configuration": config,
-            "display_name": self.display_name,
-            "icon": self.icon,
-            "selection_policy": self.selection_policy,
-            "is_exclusive": self.is_exclusive,
-            "is_sub_agent": self.is_sub_agent,
-            "is_enabled": self.is_enabled,
-        }
-        return json.dumps(data)
+    @field_serializer("configuration")
+    def serialize_config(self, value: BaseToolConfig) -> dict[str, Any]:
+        return value.__class__.model_dump(value)

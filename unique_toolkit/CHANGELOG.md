@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.29.1] - 2025-11-21
+- Fix serialization of ToolBuildConfig `configuration` field.
+
 ## [1.29.0] - 2025-11-21
 - Add option to force include references in sub agent responses even if unused by main agent response.
 
