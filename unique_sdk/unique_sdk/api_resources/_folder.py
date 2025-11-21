@@ -177,6 +177,53 @@ class Folder(APIResource["Folder"]):
         successFolders: List["Folder.DeleteFolderResponse"]
         failedFolders: List["Folder.DeleteFolderResponse"]
 
+    class FolderPathResponse(TypedDict):
+        """
+        Response for getting folder path.
+        """
+
+        folderPath: str
+
+    @classmethod
+    def get_folder_path(
+        cls,
+        user_id: str,
+        company_id: str,
+        scope_id: str,
+    ) -> "Folder.FolderPathResponse":
+        """
+        Get the complete folder path for a given folder ID.
+        """
+        return cast(
+            "Folder.FolderPathResponse",
+            cls._static_request(
+                "get",
+                f"/folder/{scope_id}/path",
+                user_id,
+                company_id,
+            ),
+        )
+
+    @classmethod
+    async def get_folder_path_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        scope_id: str,
+    ) -> "Folder.FolderPathResponse":
+        """
+        Async get the complete folder path for a given folder ID.
+        """
+        return cast(
+            "Folder.FolderPathResponse",
+            await cls._static_request_async(
+                "get",
+                f"/folder/{scope_id}/path",
+                user_id,
+                company_id,
+            ),
+        )
+
     @classmethod
     def get_info(
         cls, user_id: str, company_id: str, **params: Unpack["Folder.GetParams"]

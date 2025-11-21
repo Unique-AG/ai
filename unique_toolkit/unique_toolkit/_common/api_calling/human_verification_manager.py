@@ -4,15 +4,19 @@ from logging import Logger
 from typing import Any, Generic
 
 import jinja2
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel
 
 from unique_toolkit._common.endpoint_builder import (
     ApiOperationProtocol,
+    EmptyModel,
     PathParamsSpec,
     PathParamsType,
     PayloadParamSpec,
     PayloadType,
+    QueryParamsSpec,
+    QueryParamsType,
     ResponseType,
+    ResponseValidationException,
 )
 from unique_toolkit._common.endpoint_requestor import (
     RequestContext,
@@ -21,7 +25,7 @@ from unique_toolkit._common.endpoint_requestor import (
 )
 from unique_toolkit._common.pydantic_helpers import (
     create_complement_model,
-    create_union_model,
+    create_union_model_from_models,
 )
 from unique_toolkit._common.string_utilities import (
     dict_to_markdown_table,
@@ -56,6 +60,8 @@ class HumanVerificationManagerForApiCalling(
         PathParamsType,
         PayloadParamSpec,
         PayloadType,
+        QueryParamsSpec,
+        QueryParamsType,
         ResponseType,
     ]
 ):
@@ -79,6 +85,8 @@ class HumanVerificationManagerForApiCalling(
                 PathParamsType,
                 PayloadParamSpec,
                 PayloadType,
+                QueryParamsSpec,
+                QueryParamsType,
                 ResponseType,
             ]
         ],
@@ -140,13 +148,17 @@ class HumanVerificationManagerForApiCalling(
         self._verification_model = VerificationModel
 
         self._requestor_type = requestor_type
-        self._combined_params_model = create_union_model(
-            model_type_a=self._operation.path_params_model(),
-            model_type_b=self._operation.payload_model(),
+
+        self._combined_params_model = create_union_model_from_models(
+            model_types=[
+                self._operation.path_params_model(),
+                self._operation.payload_model(),
+                self._operation.query_params_model(),
+            ],
         )
         self._requestor = build_requestor(
             requestor_type=requestor_type,
-            operation_type=operation,
+            operation_type=self._operation,
             combined_model=self._combined_params_model,
             **kwargs,
         )
@@ -245,8 +257,9 @@ class HumanVerificationManagerForApiCalling(
         self,
         *,
         context: RequestContext,
-        path_params: PathParamsType,
-        payload: PayloadType,
+        path_params: PathParamsType | EmptyModel = EmptyModel(),
+        payload: PayloadType | EmptyModel = EmptyModel(),
+        query_params: QueryParamsType | EmptyModel = EmptyModel(),
     ) -> ResponseType:
         """
         Call the api with the given path params, payload and secured payload params.
@@ -258,15 +271,16 @@ class HumanVerificationManagerForApiCalling(
         """
         params = path_params.model_dump()
         params.update(payload.model_dump())
+        params.update(query_params.model_dump())
 
-        response = self._requestor.request(
-            context=context,
-            **params,
-        )
         try:
-            return self._operation.handle_response(response)
-        except ValidationError as e:
-            self._logger.error(f"Error calling api: {e}. Response: {response}")
+            response = self._requestor.request(
+                context=context,
+                **params,
+            )
+            return response
+        except ResponseValidationException as e:
+            self._logger.error(f"Error calling api: {e.response}.")
             raise e
 
 

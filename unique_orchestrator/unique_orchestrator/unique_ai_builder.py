@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from logging import Logger
 from typing import NamedTuple, cast
 
@@ -28,6 +29,7 @@ from unique_toolkit.agentic.history_manager.history_manager import (
     HistoryManager,
     HistoryManagerConfig,
 )
+from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
     PostprocessorManager,
 )
@@ -106,6 +108,7 @@ class _CommonComponents(NamedTuple):
     history_manager: HistoryManager
     evaluation_manager: EvaluationManager
     postprocessor_manager: PostprocessorManager
+    message_step_logger: MessageStepLogger
     response_watcher: SubAgentResponseWatcher
     # Tool Manager Components
     tool_progress_reporter: ToolProgressReporter
@@ -227,6 +230,7 @@ def _build_common(
         mcp_servers=event.payload.mcp_servers,
         postprocessor_manager=postprocessor_manager,
         response_watcher=response_watcher,
+        message_step_logger=MessageStepLogger(chat_service),
     )
 
 
@@ -348,6 +352,7 @@ async def _build_responses(
         evaluation_manager=common_components.evaluation_manager,
         postprocessor_manager=postprocessor_manager,
         debug_info_manager=debug_info_manager,
+        message_step_logger=common_components.message_step_logger,
         mcp_servers=event.payload.mcp_servers,
     )
 
@@ -363,11 +368,27 @@ def _build_completions(
     # 1. Add it to forced tools if there are tool choices.
     # 2. Simply force it if there are no tool choices.
     # 3. Not available if not uploaded documents.
-    UPLOADED_DOCUMENTS = len(common_components.uploaded_documents) > 0
+    now = datetime.now(timezone.utc)
+    UPLOADED_DOCUMENTS_VALID = [
+        doc
+        for doc in common_components.uploaded_documents
+        if doc.expired_at is None or doc.expired_at > now
+    ]
+    UPLOADED_DOCUMENTS_EXPIRED = [
+        doc
+        for doc in common_components.uploaded_documents
+        if doc.expired_at is not None and doc.expired_at <= now
+    ]
     TOOL_CHOICES = len(event.payload.tool_choices) > 0
-    if UPLOADED_DOCUMENTS:
+
+    if UPLOADED_DOCUMENTS_EXPIRED:
         logger.info(
-            f"Adding UploadedSearchTool with {len(common_components.uploaded_documents)} documents"
+            f"Number of expired uploaded documents: {len(UPLOADED_DOCUMENTS_EXPIRED)}"
+        )
+
+    if UPLOADED_DOCUMENTS_VALID:
+        logger.info(
+            f"Number of valid uploaded documents: {len(UPLOADED_DOCUMENTS_VALID)}"
         )
         common_components.tool_manager_config.tools.append(
             ToolBuildConfig(
@@ -376,7 +397,7 @@ def _build_completions(
                 configuration=UploadedSearchConfig(),
             )
         )
-    if TOOL_CHOICES and UPLOADED_DOCUMENTS:
+    if TOOL_CHOICES and UPLOADED_DOCUMENTS_VALID:
         event.payload.tool_choices.append(str(UploadedSearchTool.name))
 
     tool_manager = ToolManager(
@@ -387,7 +408,7 @@ def _build_completions(
         mcp_manager=common_components.mcp_manager,
         a2a_manager=common_components.a2a_manager,
     )
-    if not TOOL_CHOICES and UPLOADED_DOCUMENTS:
+    if not TOOL_CHOICES and UPLOADED_DOCUMENTS_VALID:
         tool_manager.add_forced_tool(UploadedSearchTool.name)
 
     postprocessor_manager = common_components.postprocessor_manager
@@ -421,6 +442,7 @@ def _build_completions(
         postprocessor_manager=postprocessor_manager,
         debug_info_manager=debug_info_manager,
         mcp_servers=event.payload.mcp_servers,
+        message_step_logger=common_components.message_step_logger,
     )
 
 

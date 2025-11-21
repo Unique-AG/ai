@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_toolkit"
-version = "1.28.2"
+version = "1.29.0"
 description = ""
 authors = [
     "Cedric Klinkert <cedric.klinkert@unique.ch>",
@@ -10,6 +10,7 @@ authors = [
     "Pascal Hauri <pascal@unique.ch>",
     "Ejiroghene Oki-Peter<oki-peter.ejiroghene@unique.ai>",
     "Rami Azouz <rami.ext@unique.ch>",
+    "Ricardo Visini <ricardo.visini@unique.ch>",
 ]
 readme = ["README.md", "CHANGELOG.md"]
 license = "Proprietary"
@@ -22,13 +23,13 @@ pyhumps = "^3.8.0"
 numpy = "^1.26.4"
 python-dotenv = "^1.0.1"
 regex = "^2024.5.15"
-tiktoken = "^0.7.0"
+tiktoken = "^0.12.0"
 pydantic-settings = "^2.10.1"
 sseclient = "^0.0.27"
 openai = "^1.99.9"
 platformdirs = "^4.0.0"
 pillow = "^10.4.0"
-unique-sdk = "^0.10.28"
+unique-sdk = "^0.10.48"
 jambo = "^0.1.2"
 mkdocs-multirepo-plugin = "^0.8.3"
 mkdocs-mermaid2-plugin = "^1.2.2"

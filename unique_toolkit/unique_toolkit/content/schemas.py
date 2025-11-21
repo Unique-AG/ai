@@ -91,6 +91,7 @@ class Content(BaseModel):
     read_url: str | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
+    expired_at: datetime | None = None
     metadata: dict[str, Any] | None = None
     ingestion_config: dict | None = None
     ingestion_state: str | None = None
@@ -194,15 +195,19 @@ class PaginatedContentInfos(BaseModel):
     total_count: int
 
 
-class FolderInfo(BaseModel):
+class BaseFolderInfo(BaseModel):
     model_config = model_config
     id: str
     name: str
+    parent_id: str | None
+
+
+class FolderInfo(BaseFolderInfo):
+    model_config = model_config
     ingestion_config: dict[str, Any]
-    createdAt: str | None
-    updatedAt: str | None
-    parentId: str | None
-    externalId: str | None
+    created_at: str | None
+    updated_at: str | None
+    external_id: str | None
 
 
 class DeleteContentResponse(BaseModel):

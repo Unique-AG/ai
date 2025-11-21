@@ -21,11 +21,13 @@ from pydantic import BaseModel, ValidationError
 # Paramspecs
 PayloadParamSpec = ParamSpec("PayloadParamSpec")
 PathParamsSpec = ParamSpec("PathParamsSpec")
+QueryParamsSpec = ParamSpec("QueryParamsSpec")
 
 # Type variables
 ResponseType = TypeVar("ResponseType", bound=BaseModel, covariant=True)
 PathParamsType = TypeVar("PathParamsType", bound=BaseModel)
 PayloadType = TypeVar("PayloadType", bound=BaseModel)
+QueryParamsType = TypeVar("QueryParamsType", bound=BaseModel)
 
 # Helper type to extract constructor parameters
 
@@ -90,6 +92,8 @@ class ApiOperationProtocol(
         PathParamsType,
         PayloadParamSpec,
         PayloadType,
+        QueryParamsSpec,
+        QueryParamsType,
         ResponseType,
     ],
 ):
@@ -112,6 +116,12 @@ class ApiOperationProtocol(
     def response_model() -> type[ResponseType]: ...
 
     @staticmethod
+    def query_params_dump_options() -> dict[str, Any]: ...
+
+    @staticmethod
+    def query_params_model() -> type[QueryParamsType]: ...
+
+    @staticmethod
     def create_path(
         *args: PathParamsSpec.args, **kwargs: PathParamsSpec.kwargs
     ) -> str: ...
@@ -132,6 +142,16 @@ class ApiOperationProtocol(
     ) -> dict[str, Any]: ...
 
     @staticmethod
+    def create_query_params(
+        *args: QueryParamsSpec.args, **kwargs: QueryParamsSpec.kwargs
+    ) -> dict[str, Any]: ...
+
+    @staticmethod
+    def create_query_params_from_model(
+        query_params: QueryParamsType, *, model_dump_options: dict | None = None
+    ) -> dict[str, Any]: ...
+
+    @staticmethod
     def handle_response(
         response: dict[str, Any], *, model_validate_options: dict | None = None
     ) -> ResponseType: ...
@@ -142,7 +162,10 @@ class ApiOperationProtocol(
     @staticmethod
     def models_from_combined(
         combined: dict[str, Any],
-    ) -> tuple[PathParamsType, PayloadType]: ...
+    ) -> tuple[PathParamsType, PayloadType, QueryParamsType]: ...
+
+
+class EmptyModel(BaseModel): ...
 
 
 # Model for any client to implement
@@ -150,11 +173,13 @@ def build_api_operation(
     *,
     method: HttpMethods,
     path_template: Template,
-    path_params_constructor: Callable[PathParamsSpec, PathParamsType],
-    payload_constructor: Callable[PayloadParamSpec, PayloadType],
     response_model_type: type[ResponseType],
+    path_params_constructor: Callable[PathParamsSpec, PathParamsType] = EmptyModel,
     payload_dump_options: dict | None = None,
+    payload_constructor: Callable[PayloadParamSpec, PayloadType] = EmptyModel,
     path_dump_options: dict | None = None,
+    query_params_constructor: Callable[QueryParamsSpec, QueryParamsType] = EmptyModel,
+    query_params_dump_options: dict | None = None,
     response_validate_options: dict | None = None,
     dump_options: dict | None = None,  # Deprecated
 ) -> type[
@@ -163,6 +188,8 @@ def build_api_operation(
         PathParamsType,
         PayloadParamSpec,
         PayloadType,
+        QueryParamsSpec,
+        QueryParamsType,
         ResponseType,
     ]
 ]:
@@ -204,6 +231,14 @@ def build_api_operation(
         @staticmethod
         def payload_model() -> type[PayloadType]:
             return cast(type[PayloadType], payload_constructor)
+
+        @staticmethod
+        def query_params_dump_options() -> dict[str, Any]:
+            return query_params_dump_options or {}
+
+        @staticmethod
+        def query_params_model() -> type[QueryParamsType]:
+            return cast(type[QueryParamsType], query_params_constructor)
 
         @staticmethod
         def response_validate_options() -> dict[str, Any]:
@@ -265,6 +300,31 @@ def build_api_operation(
             return payload.model_dump(**model_dump_options)
 
         @staticmethod
+        def create_query_params(
+            *args: QueryParamsSpec.args, **kwargs: QueryParamsSpec.kwargs
+        ) -> dict[str, Any]:
+            if query_params_dump_options is None:
+                model_dump_options = dump_options
+            else:
+                model_dump_options = query_params_dump_options
+
+            return query_params_constructor(*args, **kwargs).model_dump(
+                **model_dump_options
+            )
+
+        @staticmethod
+        def create_query_params_from_model(
+            query_params: QueryParamsType, *, model_dump_options: dict | None = None
+        ) -> dict[str, Any]:
+            if model_dump_options is None:
+                if query_params_dump_options is None:
+                    model_dump_options = dump_options
+                else:
+                    model_dump_options = query_params_dump_options
+
+            return query_params.model_dump(**model_dump_options)
+
+        @staticmethod
         def handle_response(
             response: dict[str, Any],
             *,
@@ -293,13 +353,16 @@ def build_api_operation(
         @staticmethod
         def models_from_combined(
             combined: dict[str, Any],
-        ) -> tuple[PathParamsType, PayloadType]:
+        ) -> tuple[PathParamsType, PayloadType, QueryParamsType]:
             path_params = Operation.path_params_model().model_validate(
                 combined, by_alias=True, by_name=True
             )
             payload = Operation.payload_model().model_validate(
                 combined, by_alias=True, by_name=True
             )
-            return path_params, payload
+            query_params = Operation.query_params_model().model_validate(
+                combined, by_alias=True, by_name=True
+            )
+            return path_params, payload, query_params
 
     return Operation

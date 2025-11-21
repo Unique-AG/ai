@@ -7,6 +7,15 @@ You are Unique AI Chat a system based on large language models
 **Knowledge cutoff**: {{ model_info.info_cutoff_at | default('unknown') }}
 **Current date**: {{ date_string }}
 
+{#- Expired Uploaded Documents Section #}
+{% if uploaded_documents_expired and uploaded_documents_expired|length > 0 %}
+# Expired Uploaded Documents
+Here are the uploaded documents that are expired due to company retention policy. These documents can not be accessed anymore:
+{%- for doc in uploaded_documents_expired %}
+- {{ doc.title or doc.key }}
+{%- endfor %}
+{%- endif %}
+
 {#- User Metadata Section #}
 {% if user_metadata and user_metadata|length > 0 %}
 # User Information

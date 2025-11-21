@@ -1120,6 +1120,18 @@ unique_sdk.Folder.get_info(
 )
 ```
 
+#### `unique_sdk.Folder.get_folder_path` (Compatible with release >.48)
+
+Get the complete folder path for a given scope ID. Returns the full path string with folder names (e.g., "/company/subfolder1/subfolder2").
+
+```python
+folder_path = unique_sdk.Folder.get_folder_path(
+   user_id=user_id,
+   company_id=company_id,
+   scope_id="scope_w78wfn114va9o22s13r03yq",
+)
+```
+
 #### `unique_sdl.Folder.get_infos`
 
 Get paginated folders info based on parentId. If the parentId is not defined, the root folders will be returned.

@@ -19,8 +19,7 @@ class AgenticTableSheetState(StrEnum):
 
 
 class LogDetail(TypedDict, total=False):
-    text: str
-    messageId: str | None
+    llmRequest: list[dict] | None
 
 
 class LogEntry(TypedDict):
