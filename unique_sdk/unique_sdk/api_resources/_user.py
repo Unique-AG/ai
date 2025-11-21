@@ -46,7 +46,6 @@ class User(APIResource["User"]):
         displayName: str
         userName: str
         email: str
-        userConfiguration: Dict[str, Any]
         updatedAt: str
         createdAt: str
         active: bool
