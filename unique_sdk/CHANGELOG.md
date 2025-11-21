@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.50] - 2025-11-20
+- Allow updating the configuration of a user and group.
+
+## [0.10.49] - 2025-11-21
+- Add get folder by scope id function
+
 ## [0.10.48] - 2025-11-20
 - Update Agentic Table LogDetail and LogEntry types.
 

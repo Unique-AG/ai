@@ -60,6 +60,8 @@ class SubAgentResponsesDisplayPostprocessor(Postprocessor):
             display_spec.assistant_id: display_spec
             for display_spec in display_specs
             if display_spec.display_config.mode != SubAgentResponseDisplayMode.HIDDEN
+            # We should keep track of these messages even if they are hidden
+            or display_spec.display_config.force_include_references
         }
 
     @override
@@ -113,6 +115,9 @@ class SubAgentResponsesDisplayPostprocessor(Postprocessor):
                         assistant_id,
                         response.sequence_number,
                     )
+
+                if tool_info.display_config.mode == SubAgentResponseDisplayMode.HIDDEN:
+                    continue
 
                 answer = get_sub_agent_answer_display(
                     display_name=display_name,

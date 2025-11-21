@@ -43,3 +43,7 @@ class SubAgentDisplayConfig(BaseModel):
         default="before",
         description="The position of the sub agent response in the main agent response.",
     )
+    force_include_references: bool = Field(
+        default=False,
+        description="If set, the sub agent references will be added to the main agent response references even in not mentioned in the main agent response text.",
+    )

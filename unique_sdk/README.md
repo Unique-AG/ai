@@ -1120,6 +1120,18 @@ unique_sdk.Folder.get_info(
 )
 ```
 
+#### `unique_sdk.Folder.get_folder_path` (Compatible with release >.48)
+
+Get the complete folder path for a given scope ID. Returns the full path string with folder names (e.g., "/company/subfolder1/subfolder2").
+
+```python
+folder_path = unique_sdk.Folder.get_folder_path(
+   user_id=user_id,
+   company_id=company_id,
+   scope_id="scope_w78wfn114va9o22s13r03yq",
+)
+```
+
 #### `unique_sdl.Folder.get_infos`
 
 Get paginated folders info based on parentId. If the parentId is not defined, the root folders will be returned.
@@ -1455,6 +1467,20 @@ users = unique_sdk.User.get_users(
 )
 ```
 
+#### `unique_sdk.User.update_user_configuration` (Compatible with release >.48)
+
+Update the user configuration for the current user. The configuration is stored as a JSON object.
+
+```python
+updated_user = unique_sdk.User.update_user_configuration(
+    user_id=user_id,
+    company_id=company_id,
+    userConfiguration={  # Required - user configuration object (JSON)
+        {"location": "CH"}
+    }
+)
+```
+
 ### Group
 
 #### `unique_sdk.Group.create_group` (Compatible with release >.48)
@@ -1521,6 +1547,21 @@ result = unique_sdk.Group.remove_users_from_group(
     company_id=company_id,
     group_id="group_a9cs7wr2z1bg2sxczvltgjch",
     userIds=["299426678160031752", "299426678160031752"],  # Required - array of user IDs to remove
+)
+```
+
+#### `unique_sdk.Group.update_group_configuration` (Compatible with release >.48)
+
+Update the group configuration for the specified group. The configuration is stored as a JSON object.
+
+```python
+updated_group = unique_sdk.Group.update_group_configuration(
+    user_id=user_id,
+    company_id=company_id,
+    group_id="group_abc123",
+    configuration={  # Required - group configuration object (JSON)
+        {"email": "team@unique.ai"}
+    }
 )
 ```
 

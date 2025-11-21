@@ -68,13 +68,17 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
         )
 
         self._earnings_call_docx_generator_service = DocxGeneratorService(
-            knowledge_base_service=self._knowledge_base_service,
             config=self.config.earnings_call_config.docx_renderer_config,
+            template=self._get_document_template(
+                self.config.earnings_call_config.docx_renderer_config.template_content_id
+            ),
         )
 
         self._report_docx_renderer = DocxGeneratorService(
-            knowledge_base_service=self._knowledge_base_service,
             config=self.config.report_renderer_config.docx_renderer_config,
+            template=self._get_document_template(
+                self.config.report_renderer_config.docx_renderer_config.template_content_id
+            ),
         )
 
         self._citation_manager = CitationManager(
@@ -89,6 +93,20 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
             renderer_type=self.config.report_renderer_config.renderer_type,
             message_id=self._event.payload.assistant_message.id,
         )
+
+    def _get_document_template(self, template_content_id: str | None) -> bytes | None:
+        if not template_content_id:
+            return None
+        try:
+            file_content = self._knowledge_base_service.download_content_to_bytes(
+                content_id=template_content_id
+            )
+        except Exception as e:
+            _LOGGER.warning(
+                f"An error occurred while downloading the template {e}. Make sure the template content ID is valid. Falling back to default template."
+            )
+            return None
+        return file_content
 
     def _try_load_session_config(self):
         try:
@@ -148,7 +166,6 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
 
     @override
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
-        
         if not self._try_load_session_config():
             self._chat_service.modify_assistant_message(
                 content="Please make sure to provide the mandatory fields in the SWOT Analysis side bar configuration."

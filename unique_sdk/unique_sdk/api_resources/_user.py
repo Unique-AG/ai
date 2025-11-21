@@ -1,5 +1,7 @@
 from typing import (
+    Any,
     ClassVar,
+    Dict,
     List,
     NotRequired,
     Optional,
@@ -25,6 +27,13 @@ class User(APIResource["User"]):
         email: NotRequired[Optional[str]]
         displayName: NotRequired[Optional[str]]
 
+    class UpdateUserConfigurationParams(RequestOptions):
+        """
+        Parameters for updating user configuration.
+        """
+
+        userConfiguration: Dict[str, Any]
+
     class User(TypedDict):
         """
         Represents a user in the company.
@@ -40,6 +49,13 @@ class User(APIResource["User"]):
         updatedAt: str
         createdAt: str
         active: bool
+
+    class UserWithConfiguration(User):
+        """
+        Represents a user in the company with configuration.
+        """
+
+        userConfiguration: Dict[str, Any]
 
     class Users(TypedDict):
         """
@@ -84,6 +100,48 @@ class User(APIResource["User"]):
             await cls._static_request_async(
                 "get",
                 "/users",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    def update_user_configuration(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["User.UpdateUserConfigurationParams"],
+    ) -> "User.UserWithConfiguration":
+        """
+        Update user configuration for the current user.
+        """
+        return cast(
+            "User.UserWithConfiguration",
+            cls._static_request(
+                "patch",
+                f"/users/{user_id}/configuration",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    async def update_user_configuration_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["User.UpdateUserConfigurationParams"],
+    ) -> "User.UserWithConfiguration":
+        """
+        Async update user configuration for the current user.
+        """
+        return cast(
+            "User.UserWithConfiguration",
+            await cls._static_request_async(
+                "patch",
+                f"/users/{user_id}/configuration",
                 user_id,
                 company_id,
                 params=params,
