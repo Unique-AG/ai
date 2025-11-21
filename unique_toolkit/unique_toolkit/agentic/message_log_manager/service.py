@@ -79,7 +79,7 @@ class MessageStepLogger:
                 "Assistant message id is not set. Skipping message log entry creation."
             )
             return
-        
+
         _ = self._chat_service.create_message_log(
             message_id=self._chat_service._assistant_message_id,
             text=text,
