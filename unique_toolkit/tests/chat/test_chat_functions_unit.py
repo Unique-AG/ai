@@ -445,3 +445,132 @@ async def test_stream_complete_async_basic(mock_stream):
 
     assert result.message.text == "Streamed response"
     mock_stream.assert_called_once()
+
+
+def test_filter_valid_messages_with_system_prefix_in_text():
+    # Test filtering messages that have [SYSTEM] prefix in text
+    messages = {
+        "data": [
+            {"text": "Valid message", "role": "USER", "id": "msg1"},
+            {"text": "[SYSTEM] This should be filtered", "role": "USER", "id": "msg2"},
+            {"text": "Another valid message", "role": "ASSISTANT", "id": "msg3"},
+            {"text": "Last message 1", "role": "USER", "id": "msg4"},
+            {"text": "Last message 2", "role": "ASSISTANT", "id": "msg5"},
+        ]
+    }
+
+    result = filter_valid_messages(messages)  # type: ignore
+
+    # Only first and third messages should remain (last two are removed, second is filtered)
+    assert len(result) == 2
+    assert result[0]["text"] == "Valid message"
+    assert result[1]["text"] == "Another valid message"
+
+
+def test_filter_valid_messages_empty_list():
+    # Test with empty message list
+    messages = {"data": []}
+
+    result = filter_valid_messages(messages)  # type: ignore
+
+    assert len(result) == 0
+    assert result == []
+
+
+def test_filter_valid_messages_only_two_messages():
+    # Test when there are only two messages (all should be removed by :-2 slice)
+    messages = {
+        "data": [
+            {"text": "Message 1", "role": "USER", "id": "msg1"},
+            {"text": "Message 2", "role": "ASSISTANT", "id": "msg2"},
+        ]
+    }
+
+    result = filter_valid_messages(messages)  # type: ignore
+
+    assert len(result) == 0
+
+
+def test_filter_valid_messages_all_none_text():
+    # Test when all messages have None text
+    messages = {
+        "data": [
+            {"text": None, "role": "USER", "id": "msg1"},
+            {"text": None, "role": "ASSISTANT", "id": "msg2"},
+            {"text": None, "role": "USER", "id": "msg3"},
+            {"text": "Last 1", "role": "USER", "id": "msg4"},
+            {"text": "Last 2", "role": "ASSISTANT", "id": "msg5"},
+        ]
+    }
+
+    result = filter_valid_messages(messages)  # type: ignore
+
+    # All remaining messages (after removing last 2) have None text, so should be empty
+    assert len(result) == 0
+
+
+def test_filter_valid_messages_all_system_roles():
+    # Test when all messages have SYSTEM role
+    messages = {
+        "data": [
+            {"text": "System message 1", "role": "SYSTEM", "id": "msg1"},
+            {"text": "System message 2", "role": "SYSTEM", "id": "msg2"},
+            {"text": "System message 3", "role": "SYSTEM", "id": "msg3"},
+            {"text": "Last 1", "role": "USER", "id": "msg4"},
+            {"text": "Last 2", "role": "ASSISTANT", "id": "msg5"},
+        ]
+    }
+
+    result = filter_valid_messages(messages)  # type: ignore
+
+    # All remaining messages (after removing last 2) have SYSTEM role, so should be empty
+    assert len(result) == 0
+
+
+def test_filter_valid_messages_mixed_valid_messages():
+    # Test with multiple valid messages mixed with invalid ones
+    messages = {
+        "data": [
+            {"text": "Valid 1", "role": "USER", "id": "msg1"},
+            {"text": "Valid 2", "role": "ASSISTANT", "id": "msg2"},
+            {"text": None, "role": "USER", "id": "msg3"},
+            {"text": "[SYSTEM] Invalid", "role": "USER", "id": "msg4"},
+            {"text": "Valid 3", "role": "USER", "id": "msg5"},
+            {"text": "System message", "role": "SYSTEM", "id": "msg6"},
+            {"text": "Last 1", "role": "USER", "id": "msg7"},
+            {"text": "Last 2", "role": "ASSISTANT", "id": "msg8"},
+        ]
+    }
+
+    result = filter_valid_messages(messages)  # type: ignore
+
+    # Should have Valid 1, Valid 2, and Valid 3
+    assert len(result) == 3
+    assert result[0]["text"] == "Valid 1"
+    assert result[1]["text"] == "Valid 2"
+    assert result[2]["text"] == "Valid 3"
+
+
+def test_filter_valid_messages_preserves_message_structure():
+    # Test that the function preserves the full message structure
+    messages = {
+        "data": [
+            {
+                "text": "Valid message",
+                "role": "USER",
+                "id": "msg1",
+                "extra_field": "extra_value",
+                "nested": {"key": "value"},
+            },
+            {"text": "Last 1", "role": "USER", "id": "msg2"},
+            {"text": "Last 2", "role": "ASSISTANT", "id": "msg3"},
+        ]
+    }
+
+    result = filter_valid_messages(messages)  # type: ignore
+
+    assert len(result) == 1
+    assert result[0]["text"] == "Valid message"
+    assert result[0]["id"] == "msg1"
+    assert result[0]["extra_field"] == "extra_value"
+    assert result[0]["nested"]["key"] == "value"

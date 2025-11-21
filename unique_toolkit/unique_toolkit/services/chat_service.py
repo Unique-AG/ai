@@ -242,6 +242,7 @@ class ChatService(ChatServiceDeprecated):
             Exception: If the modification fails.
 
         """
+
         return modify_message(
             user_id=self._user_id,
             company_id=self._company_id,

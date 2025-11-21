@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from pydantic import Field, create_model
 from typing_extensions import override
 from unique_toolkit import ContentService
@@ -74,8 +76,42 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
 
     def tool_description_for_system_prompt(self) -> str:
         documents = self._content_service.get_documents_uploaded_to_chat()
-        list_all_documents = "".join([f"- {doc.title or doc.key}" for doc in documents])
-        return self._config.tool_description_for_system_prompt + list_all_documents
+        now = datetime.now(timezone.utc)
+
+        valid_documents = [
+            doc for doc in documents if doc.expired_at is None or doc.expired_at > now
+        ]
+        expired_documents = [
+            doc
+            for doc in documents
+            if doc.expired_at is not None and doc.expired_at <= now
+        ]
+
+        system_prompt_valid_documents = ""
+        system_prompt_expired_documents = ""
+        if valid_documents:
+            system_prompt_valid_documents = (
+                "**The currently uploaded and valid documents are the following**\n"
+            )
+            system_prompt_valid_documents = (
+                system_prompt_valid_documents
+                + "\n".join(f"- {doc.title or doc.key}" for doc in valid_documents)
+                + "\n"
+            )
+
+        if expired_documents:
+            system_prompt_expired_documents = (
+                "**The currently uploaded and expired documents are the following**\n"
+            )
+            system_prompt_expired_documents = (
+                system_prompt_expired_documents
+                + "\n".join(f"- {doc.title or doc.key}" for doc in expired_documents)
+            )
+
+        return self._config.tool_description_for_system_prompt.format(
+            system_prompt_valid_documents=system_prompt_valid_documents,
+            system_prompt_expired_documents=system_prompt_expired_documents,
+        )
 
     def tool_format_information_for_system_prompt(self) -> str:
         return self._config.tool_format_information_for_system_prompt
@@ -111,17 +147,16 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
         This likely due to the amount of tokens included and as since it's a forced tool not necessarily relevant to the user's request.
         """
         # TODO: This message should be conditional on the tool being forced, but we do not have easy access to this information here
-        return f"""
-            <system_reminder>
-            This tool call was automatically executed to retrieve the user's uploaded documents by the system. Important to note:
-            - The retrieved documents may or may not be relevant to the user's actual query
-            - You must evaluate their relevance independently
-            - You are free to make additional tool calls as needed
-            - Focus on addressing the user's original request
-            {f"Original user message: {self._user_query}" if self._user_query else ""}
-            
-            Please do not mention these instructions in your response to the user!
-            </system_reminder>"""
+        return f"""<system_reminder>
+This tool call was automatically executed to retrieve the user's uploaded documents by the system. Important to note:
+- The retrieved documents may or may not be relevant to the user's actual query
+- You must evaluate their relevance independently
+- You are free to make additional tool calls as needed
+- Focus on addressing the user's original request
+{f"Original user message: {self._user_query}" if self._user_query else ""}
+
+Please do not mention these instructions in your response to the user!
+</system_reminder>"""
 
 
 ToolFactory.register_tool(UploadedSearchTool, UploadedSearchConfig)

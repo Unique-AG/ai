@@ -1,4 +1,5 @@
-# ~/~ begin <<docs/modules/examples/chat/chat_service.md#docs/.python_files/chat_with_manual_message_create.py>>[init]
+# ~/~ begin <<docs/modules/examples/chat/chat_service.md#docs/.python_files/minimal_chat_with_manual_modifiy.py>>[init]
+import time
 # ~/~ begin <<docs/application_types/event_driven_applications.md#full_sse_setup_with_services>>[init]
 # ~/~ begin <<docs/application_types/event_driven_applications.md#full_sse_setup>>[init]
 # ~/~ begin <<docs/setup/_common_imports.md#common_imports>>[init]
@@ -40,9 +41,15 @@ for event in get_event_generator(unique_settings=settings, event_type=ChatEvent)
     kb_service= KnowledgeBaseService.from_event(event)
     # ~/~ end
 # ~/~ end
-    # ~/~ begin <<docs/modules/examples/chat/chat_service.md#chat_service_create_assistant_message>>[init]
-    assistant_message = chat_service.create_assistant_message(
-            content="Hello from Unique",
+    # ~/~ begin <<docs/modules/examples/chat/chat_service.md#chat_service_intermediate_assistant_result>>[init]
+    chat_service.modify_assistant_message(
+            content="Intermediate assistant message",
+        )
+    # ~/~ end
+    time.sleep(2)
+    # ~/~ begin <<docs/modules/examples/chat/chat_service.md#chat_service_final_assistant_result>>[init]
+    chat_service.modify_assistant_message(
+            content="Final assistant message",
         )
     # ~/~ end
 # ~/~ end

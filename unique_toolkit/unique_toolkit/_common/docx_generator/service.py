@@ -10,13 +10,10 @@ from unique_toolkit._common.docx_generator.config import DocxGeneratorConfig
 from unique_toolkit._common.docx_generator.schemas import (
     ContentField,
     HeadingField,
-    # ImageField,
     ParagraphField,
     RunField,
     RunsField,
 )
-from unique_toolkit.chat.service import ChatService
-from unique_toolkit.services import KnowledgeBaseService
 
 generator_dir_path = Path(__file__).resolve().parent
 
@@ -25,14 +22,9 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class DocxGeneratorService:
-    def __init__(
-        self,
-        chat_service: ChatService,
-        knowledge_base_service: KnowledgeBaseService,
-        config: DocxGeneratorConfig,
-    ):
-        self._knowledge_base_service = knowledge_base_service
+    def __init__(self, config: DocxGeneratorConfig, *, template: bytes | None = None):
         self._config = config
+        self._template = template
 
     @staticmethod
     def parse_markdown_to_list_content_fields(
@@ -193,10 +185,7 @@ class DocxGeneratorService:
             subdoc_content (list[HeadingField | ParagraphField | RunsField]): The content to be added to the docx file.
             fields (dict): Other fields to be added to the docx file. Defaults to None.
         """
-
-        docx_template_object = self._get_template(self._config.template_content_id)
-
-        doc = DocxTemplate(io.BytesIO(docx_template_object))
+        doc = DocxTemplate(io.BytesIO(self.template))
 
         try:
             content = {}
@@ -221,27 +210,7 @@ class DocxGeneratorService:
             _LOGGER.error(f"Error generating docx: {e}")
             return None
 
-    def _get_template(self, template_content_id: str):
-        try:
-            if template_content_id:
-                _LOGGER.info(
-                    f"Downloading template from content ID: {template_content_id}"
-                )
-                file_content = self._knowledge_base_service.download_content_to_bytes(
-                    content_id=template_content_id
-                )
-            else:
-                _LOGGER.info("No template content ID provided. Using default template.")
-                file_content = self._get_default_template()
-        except Exception as e:
-            _LOGGER.warning(
-                f"An error occurred while downloading the template {e}. Make sure the template content ID is valid. Falling back to default template."
-            )
-            file_content = self._get_default_template()
-
-        return file_content
-
-    def _get_default_template(self):
+    def _get_default_template(self) -> bytes:
         generator_dir_path = Path(__file__).resolve().parent
         path = generator_dir_path / "template" / "Doc Template.docx"
 
@@ -250,3 +219,7 @@ class DocxGeneratorService:
         _LOGGER.info("Template downloaded from default template")
 
         return file_content
+
+    @property
+    def template(self) -> bytes:
+        return self._template or self._get_default_template()

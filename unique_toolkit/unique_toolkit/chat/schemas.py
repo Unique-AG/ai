@@ -35,6 +35,7 @@ class ChatMessageRole(StrEnum):
     USER = "user"
     ASSISTANT = "assistant"
     TOOL = "tool"  # TODO: Unused according @unique-fabian. To be removed in separate PR
+    SYSTEM = "system"  # Note: These messages are appended by the backend and should not be confused with the LLM’s system message.
 
 
 class Function(BaseModel):

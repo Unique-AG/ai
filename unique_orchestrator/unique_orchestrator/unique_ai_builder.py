@@ -1,8 +1,7 @@
-import os
+from datetime import datetime, timezone
 from logging import Logger
 from typing import NamedTuple, cast
 
-from openai import AsyncOpenAI
 from unique_follow_up_questions.follow_up_postprocessor import (
     FollowUpPostprocessor,
 )
@@ -30,13 +29,13 @@ from unique_toolkit.agentic.history_manager.history_manager import (
     HistoryManager,
     HistoryManagerConfig,
 )
+from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
     PostprocessorManager,
 )
 from unique_toolkit.agentic.reference_manager.reference_manager import ReferenceManager
 from unique_toolkit.agentic.responses_api import (
     DisplayCodeInterpreterFilesPostProcessor,
-    DisplayCodeInterpreterFilesPostProcessorConfig,
     ShowExecutedCodePostprocessor,
 )
 from unique_toolkit.agentic.thinking_manager.thinking_manager import (
@@ -109,6 +108,7 @@ class _CommonComponents(NamedTuple):
     history_manager: HistoryManager
     evaluation_manager: EvaluationManager
     postprocessor_manager: PostprocessorManager
+    message_step_logger: MessageStepLogger
     response_watcher: SubAgentResponseWatcher
     # Tool Manager Components
     tool_progress_reporter: ToolProgressReporter
@@ -230,39 +230,8 @@ def _build_common(
         mcp_servers=event.payload.mcp_servers,
         postprocessor_manager=postprocessor_manager,
         response_watcher=response_watcher,
+        message_step_logger=MessageStepLogger(chat_service),
     )
-
-
-def _prepare_base_url(url: str, use_v1: bool) -> str:
-    url = url.rstrip("/") + "/openai"
-
-    if use_v1:
-        url += "/v1"
-
-    return url
-
-
-def _get_openai_client_from_env(
-    config: UniqueAIConfig, use_v1: bool = False
-) -> AsyncOpenAI:
-    use_direct_azure_client = (
-        config.agent.experimental.responses_api_config.use_direct_azure_client
-    )
-    api_key_env_var = config.agent.experimental.responses_api_config.direct_azure_client_api_key_env_var
-    api_base_env_var = config.agent.experimental.responses_api_config.direct_azure_client_api_base_env_var
-
-    if use_direct_azure_client:
-        # TODO: (for testing only), remove when v1 endpoint is working
-        return AsyncOpenAI(
-            api_key=os.environ[api_key_env_var],
-            base_url=_prepare_base_url(os.environ[api_base_env_var], use_v1=use_v1),
-        )
-    else:
-        return get_async_openai_client().copy(
-            default_headers={
-                "x-model": config.space.language_model.name
-            }  # Backend requires a model name
-        )
 
 
 async def _build_responses(
@@ -272,36 +241,65 @@ async def _build_responses(
     common_components: _CommonComponents,
     debug_info_manager: DebugInfoManager,
 ) -> UniqueAIResponsesApi:
-    client = _get_openai_client_from_env(config, use_v1=True)
+    client = get_async_openai_client().copy(
+        default_headers={
+            "x-model": config.space.language_model.name,
+            "x-user-id": event.user_id,
+            "x-company-id": event.company_id,
+            "x-assistant-id": event.payload.assistant_id,
+            "x-chat-id": event.payload.chat_id,
+        }
+    )
+
+    assert config.agent.experimental.responses_api_config is not None
+
     code_interpreter_config = (
         config.agent.experimental.responses_api_config.code_interpreter
     )
-
+    postprocessor_manager = common_components.postprocessor_manager
     tool_names = [tool.name for tool in config.space.tools]
-    if (
-        code_interpreter_config is not None
-        and OpenAIBuiltInToolName.CODE_INTERPRETER not in tool_names
-    ):
-        logger.info("Automatically adding code interpreter to the tools")
-        config = config.model_copy(deep=True)
-        config.space.tools.append(
-            ToolBuildConfig(
-                name=OpenAIBuiltInToolName.CODE_INTERPRETER,
-                configuration=code_interpreter_config,
+
+    if code_interpreter_config is not None:
+        if OpenAIBuiltInToolName.CODE_INTERPRETER not in tool_names:
+            logger.info("Automatically adding code interpreter to the tools")
+            config = config.model_copy(deep=True)
+            config.space.tools.append(
+                ToolBuildConfig(
+                    name=OpenAIBuiltInToolName.CODE_INTERPRETER,
+                    configuration=code_interpreter_config.tool_config,
+                )
+            )
+            common_components.tool_manager_config.tools = config.space.tools
+
+        if code_interpreter_config.executed_code_display_config is not None:
+            postprocessor_manager.add_postprocessor(
+                ShowExecutedCodePostprocessor(
+                    config=code_interpreter_config.executed_code_display_config
+                )
+            )
+
+        postprocessor_manager.add_postprocessor(
+            DisplayCodeInterpreterFilesPostProcessor(
+                client=client,
+                content_service=common_components.content_service,
+                config=code_interpreter_config.generated_files_config,
+                user_id=event.user_id,
+                company_id=event.company_id,
+                chat_id=event.payload.chat_id,
             )
         )
-        common_components.tool_manager_config.tools = config.space.tools
 
-    builtin_tool_manager = OpenAIBuiltInToolManager(
+    builtin_tool_manager = await OpenAIBuiltInToolManager.build_manager(
         uploaded_files=common_components.uploaded_documents,
-        chat_id=event.payload.chat_id,
         content_service=common_components.content_service,
         user_id=event.user_id,
         company_id=event.company_id,
+        chat_id=event.payload.chat_id,
         client=client,
+        tool_configs=config.space.tools,
     )
 
-    tool_manager = await ResponsesApiToolManager.build_manager(
+    tool_manager = ResponsesApiToolManager(
         logger=logger,
         config=common_components.tool_manager_config,
         event=event,
@@ -312,26 +310,6 @@ async def _build_responses(
     )
 
     postprocessor_manager = common_components.postprocessor_manager
-
-    if (
-        config.agent.experimental.responses_api_config.code_interpreter_display_config
-        is not None
-    ):
-        postprocessor_manager.add_postprocessor(
-            ShowExecutedCodePostprocessor(
-                config=config.agent.experimental.responses_api_config.code_interpreter_display_config
-            )
-        )
-
-    postprocessor_manager.add_postprocessor(
-        DisplayCodeInterpreterFilesPostProcessor(
-            client=client,
-            content_service=common_components.content_service,
-            config=DisplayCodeInterpreterFilesPostProcessorConfig(
-                upload_scope_id=config.agent.experimental.responses_api_config.generated_files_scope_id,
-            ),
-        )
-    )
 
     class ResponsesStreamingHandler(ResponsesSupportCompleteWithReferences):
         def complete_with_references(self, *args, **kwargs):
@@ -374,6 +352,7 @@ async def _build_responses(
         evaluation_manager=common_components.evaluation_manager,
         postprocessor_manager=postprocessor_manager,
         debug_info_manager=debug_info_manager,
+        message_step_logger=common_components.message_step_logger,
         mcp_servers=event.payload.mcp_servers,
     )
 
@@ -389,11 +368,27 @@ def _build_completions(
     # 1. Add it to forced tools if there are tool choices.
     # 2. Simply force it if there are no tool choices.
     # 3. Not available if not uploaded documents.
-    UPLOADED_DOCUMENTS = len(common_components.uploaded_documents) > 0
+    now = datetime.now(timezone.utc)
+    UPLOADED_DOCUMENTS_VALID = [
+        doc
+        for doc in common_components.uploaded_documents
+        if doc.expired_at is None or doc.expired_at > now
+    ]
+    UPLOADED_DOCUMENTS_EXPIRED = [
+        doc
+        for doc in common_components.uploaded_documents
+        if doc.expired_at is not None and doc.expired_at <= now
+    ]
     TOOL_CHOICES = len(event.payload.tool_choices) > 0
-    if UPLOADED_DOCUMENTS:
+
+    if UPLOADED_DOCUMENTS_EXPIRED:
         logger.info(
-            f"Adding UploadedSearchTool with {len(common_components.uploaded_documents)} documents"
+            f"Number of expired uploaded documents: {len(UPLOADED_DOCUMENTS_EXPIRED)}"
+        )
+
+    if UPLOADED_DOCUMENTS_VALID:
+        logger.info(
+            f"Number of valid uploaded documents: {len(UPLOADED_DOCUMENTS_VALID)}"
         )
         common_components.tool_manager_config.tools.append(
             ToolBuildConfig(
@@ -402,7 +397,7 @@ def _build_completions(
                 configuration=UploadedSearchConfig(),
             )
         )
-    if TOOL_CHOICES and UPLOADED_DOCUMENTS:
+    if TOOL_CHOICES and UPLOADED_DOCUMENTS_VALID:
         event.payload.tool_choices.append(str(UploadedSearchTool.name))
 
     tool_manager = ToolManager(
@@ -413,7 +408,7 @@ def _build_completions(
         mcp_manager=common_components.mcp_manager,
         a2a_manager=common_components.a2a_manager,
     )
-    if not TOOL_CHOICES and UPLOADED_DOCUMENTS:
+    if not TOOL_CHOICES and UPLOADED_DOCUMENTS_VALID:
         tool_manager.add_forced_tool(UploadedSearchTool.name)
 
     postprocessor_manager = common_components.postprocessor_manager
@@ -447,6 +442,7 @@ def _build_completions(
         postprocessor_manager=postprocessor_manager,
         debug_info_manager=debug_info_manager,
         mcp_servers=event.payload.mcp_servers,
+        message_step_logger=common_components.message_step_logger,
     )
 
 

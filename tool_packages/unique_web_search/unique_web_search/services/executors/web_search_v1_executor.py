@@ -1,5 +1,4 @@
 import logging
-from enum import StrEnum
 from time import time
 from typing import Callable, Literal, Optional, overload, override
 
@@ -18,10 +17,14 @@ from unique_toolkit.content import ContentChunk
 from unique_toolkit.language_model import LanguageModelFunction
 from unique_toolkit.language_model.builder import MessagesBuilder
 
-from unique_web_search.schema import WebSearchToolParameters
+from unique_web_search.schema import StepType, WebSearchToolParameters
 from unique_web_search.services.content_processing import ContentProcessor, WebPageChunk
 from unique_web_search.services.crawlers import CrawlerTypes
-from unique_web_search.services.executors.base_executor import BaseWebSearchExecutor
+from unique_web_search.services.executors.base_executor import (
+    BaseWebSearchExecutor,
+    WebSearchLogEntry,
+)
+from unique_web_search.services.executors.configs import RefineQueryMode
 from unique_web_search.services.search_engine import SearchEngineTypes
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
@@ -33,11 +36,6 @@ from unique_web_search.utils import (
 )
 
 _LOGGER = logging.getLogger(__name__)
-
-
-class RefineQueryMode(StrEnum):
-    ADVANCED = "advanced"
-    BASIC = "basic"
 
 
 class RefinedQuery(StructuredOutputModel):
@@ -56,6 +54,16 @@ class RefinedQueries(StructuredOutputModel):
     refined_queries: list[RefinedQuery] = Field(
         description="The refined queries optimized for the search engine."
     )
+
+
+@overload
+async def query_generation_agent(
+    query: str,
+    language_model_service: LanguageModelService,
+    language_model: LMI,
+    system_prompt: str,
+    mode: Literal[RefineQueryMode.DEACTIVATED],
+) -> RefinedQuery: ...
 
 
 @overload
@@ -86,17 +94,29 @@ async def query_generation_agent(
     mode: RefineQueryMode,
 ) -> RefinedQuery | RefinedQueries:
     """Refine the query to be more specific and relevant to the user's question."""
+    match mode:
+        case RefineQueryMode.DEACTIVATED:
+            _LOGGER.info("Query Refinement deactivated")
+            ### Early return for deactivated mode
+            return RefinedQuery(
+                objective=query,
+                refined_query=query,
+            )
+        case RefineQueryMode.BASIC:
+            _LOGGER.info("Query Refinement with basic mode")
+            structured_output_model = RefinedQuery
+        case RefineQueryMode.ADVANCED:
+            _LOGGER.info("Query Refinement with advanced mode")
+            structured_output_model = RefinedQueries
+        case _:
+            raise ValueError(f"Invalid refine query mode: {mode}")
+
     messages = (
         MessagesBuilder()
         .system_message_append(system_prompt)
         .user_message_append(query)
         .build()
     )
-
-    if mode == RefineQueryMode.BASIC:
-        structured_output_model = RefinedQuery
-    else:
-        structured_output_model = RefinedQueries
 
     response = await language_model_service.complete_async(
         messages,
@@ -155,7 +175,7 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
         self.refine_query_system_prompt = refine_query_system_prompt
         self.max_queries = max_queries
 
-    async def run(self) -> list[ContentChunk]:
+    async def run(self) -> tuple[list[ContentChunk], list[WebSearchLogEntry]]:
         query = self.tool_parameters.query
         date_restrict = self.tool_parameters.date_restrict
 
@@ -165,6 +185,7 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
         refined_queries, objective = await self._refine_query(query)
 
         web_search_results = []
+        queries_for_log = []
         for index, refined_query in enumerate(refined_queries):
             if len(refined_queries) > 1:
                 self.notify_name = (
@@ -181,6 +202,14 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
             search_results = await self._search(
                 refined_query, date_restrict=date_restrict
             )
+            queries_for_log.append(
+                WebSearchLogEntry(
+                    type=StepType.SEARCH,
+                    message=self.notify_message,
+                    web_search_results=search_results,
+                )
+            )
+
             web_search_results.extend(search_results)
 
         if self.search_service.requires_scraping:
@@ -208,7 +237,7 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
             objective, content_results
         )
 
-        return relevant_sources
+        return relevant_sources, queries_for_log
 
     async def _refine_query(self, query: str) -> tuple[list[str], str]:
         start_time = time()

@@ -71,3 +71,12 @@ class SubAgentToolConfig(BaseToolConfig):
         default="completedAt",
         description="The condition that will be used to stop the polling for the sub-agent response.",
     )
+
+    tool_input_json_schema: str | None = Field(
+        default=None,
+        description="A custom JSON schema to send to the llm as the tool input schema.",
+    )
+    returns_content_chunks: bool = Field(
+        default=False,
+        description="If set, the sub-agent response will be interpreted as a list of content chunks.",
+    )

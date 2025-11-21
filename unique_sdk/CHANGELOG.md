@@ -5,6 +5,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.50] - 2025-11-20
+- Allow updating the configuration of a user and group.
+
+## [0.10.49] - 2025-11-21
+- Add get folder by scope id function
+
+## [0.10.48] - 2025-11-20
+- Update Agentic Table LogDetail and LogEntry types.
+
+## [0.10.47] - 2025-11-19
+- Add expired/s at fields on content search result.
+
+## [0.10.46] - 2025-11-18
+- chat_against_file function allows now a should_delete_chat flag.
+
+## [0.10.45] - 2025-11-18
+- Create group and manage users functions.
+
+## [0.10.44] - 2025-11-18
+- add function to get all messages in a chat.
+
+## [0.10.43] - 2025-11-14
+- Add get, delete and update groups functions.
+
+## [0.10.42] - 2025-11-14
+- Add get_users function.
+
+## [0.10.41] - 2025-11-13
+- Add create_message and get_latest_message.
+
+## [0.10.40] - 2025-11-10
+- Don't send description if not defined.
+
+## [0.10.39] - 2025-11-07
+- Add function to get llm models
+
+## [0.10.38] - 2025-11-06
+- Add description property to Reference and Content.
 
 ## [0.10.37] - 2025-11-04
 - Introduce local integration tests for Content API Resource

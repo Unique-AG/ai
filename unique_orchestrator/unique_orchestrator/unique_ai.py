@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 from logging import Logger
 
 import jinja2
@@ -8,6 +8,7 @@ from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
 )
 from unique_toolkit.agentic.evaluation.evaluation_manager import EvaluationManager
 from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
+from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
     PostprocessorManager,
 )
@@ -61,6 +62,7 @@ class UniqueAI:
         history_manager: HistoryManager,
         evaluation_manager: EvaluationManager,
         postprocessor_manager: PostprocessorManager,
+        message_step_logger: MessageStepLogger,
         mcp_servers: list[McpServer],
     ):
         self._logger = logger
@@ -82,6 +84,7 @@ class UniqueAI:
         self._mcp_servers = mcp_servers
         self._streaming_handler = streaming_handler
 
+        self._message_step_logger = message_step_logger
         # Helper variable to support control loop
         self._tool_took_control = False
 
@@ -96,6 +99,10 @@ class UniqueAI:
         """
         self._logger.info("Start LoopAgent...")
 
+        self._message_step_logger.create_message_log_entry(
+            text="**Start Unique AI**", references=[]
+        )
+
         if self._history_manager.has_no_loop_messages():  # TODO: why do we even need to check its always no loop messages on this when its called.
             self._chat_service.modify_assistant_message(
                 content="Starting agentic loop..."  # TODO: this must be more informative
@@ -103,6 +110,10 @@ class UniqueAI:
 
         ## Loop iteration
         for i in range(self._config.agent.max_loop_iterations):
+            self._message_step_logger.create_message_log_entry(
+                text="**Loop Iteration %s**" % str(i + 1), references=[]
+            )
+
             self.current_iteration_index = i
             self._logger.info(f"Starting iteration {i + 1}...")
 
@@ -236,6 +247,10 @@ class UniqueAI:
 
         self._logger.debug("No tool calls. we might exit the loop")
 
+        self._message_step_logger.create_message_log_entry(
+            text="**Answer Generation**", references=[]
+        )
+
         return await self._handle_no_tool_calls(loop_response)
 
     async def _compose_message_plan_execution(self) -> LanguageModelMessages:
@@ -331,6 +346,14 @@ class UniqueAI:
             use_sub_agent_references = False
             sub_agent_referencing_instructions = None
 
+        uploaded_documents = self._content_service.get_documents_uploaded_to_chat()
+        uploaded_documents_expired = [
+            doc
+            for doc in uploaded_documents
+            if doc.expired_at is not None
+            and doc.expired_at <= datetime.now(timezone.utc)
+        ]
+
         system_message = system_prompt_template.render(
             model_info=self._config.space.language_model.model_dump(mode="json"),
             date_string=date_string,
@@ -345,6 +368,7 @@ class UniqueAI:
             use_sub_agent_references=use_sub_agent_references,
             sub_agent_referencing_instructions=sub_agent_referencing_instructions,
             user_metadata=user_metadata,
+            uploaded_documents_expired=uploaded_documents_expired,
         )
         return system_message
 
@@ -487,6 +511,7 @@ class UniqueAIResponsesApi(UniqueAI):
         history_manager: HistoryManager,
         evaluation_manager: EvaluationManager,
         postprocessor_manager: PostprocessorManager,
+        message_step_logger: MessageStepLogger,
         mcp_servers: list[McpServer],
     ) -> None:
         super().__init__(
@@ -503,5 +528,6 @@ class UniqueAIResponsesApi(UniqueAI):
             history_manager=history_manager,
             evaluation_manager=evaluation_manager,
             postprocessor_manager=postprocessor_manager,
+            message_step_logger=message_step_logger,
             mcp_servers=mcp_servers,
         )

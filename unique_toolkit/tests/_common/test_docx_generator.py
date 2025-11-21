@@ -420,22 +420,10 @@ class TestDocxGeneratorServiceGeneration:
     """Test cases for DocxGeneratorService document generation."""
 
     @pytest.fixture
-    def mock_chat_service(self):
-        """Create a mock ChatService."""
-        return Mock()
-
-    @pytest.fixture
-    def mock_kb_service(self):
-        """Create a mock KnowledgeBaseService."""
-        return Mock()
-
-    @pytest.fixture
-    def docx_service(self, mock_chat_service, mock_kb_service):
+    def docx_service(self):
         """Create a DocxGeneratorService with mocks."""
         config = DocxGeneratorConfig()
         return DocxGeneratorService(
-            chat_service=mock_chat_service,
-            knowledge_base_service=mock_kb_service,
             config=config,
         )
 
@@ -459,124 +447,6 @@ class TestDocxGeneratorServiceGeneration:
         assert template_path.exists()
         assert template_path.is_file()
 
-    @patch.object(DocxGeneratorService, "_get_default_template")
-    def test_get_template_with_no_content_id(self, mock_get_default, docx_service):
-        """Test getting template with no content ID."""
-        mock_get_default.return_value = b"default template bytes"
-
-        result = docx_service._get_template("")
-
-        mock_get_default.assert_called_once()
-        assert result == b"default template bytes"
-
-    @patch.object(DocxGeneratorService, "_get_default_template")
-    def test_get_template_with_content_id(
-        self, mock_get_default, docx_service, mock_kb_service
-    ):
-        """Test getting template with content ID."""
-        mock_kb_service.download_content_to_bytes.return_value = (
-            b"custom template bytes"
-        )
-        docx_service._config.template_content_id = "content-123"
-
-        result = docx_service._get_template("content-123")
-
-        mock_kb_service.download_content_to_bytes.assert_called_once_with(
-            content_id="content-123"
-        )
-        assert result == b"custom template bytes"
-
-    @patch.object(DocxGeneratorService, "_get_default_template")
-    def test_get_template_fallback_on_error(
-        self, mock_get_default, docx_service, mock_kb_service
-    ):
-        """Test template fallback to default on download error."""
-        mock_kb_service.download_content_to_bytes.side_effect = Exception(
-            "Download failed"
-        )
-        mock_get_default.return_value = b"default template bytes"
-        docx_service._config.template_content_id = "invalid-id"
-
-        result = docx_service._get_template("invalid-id")
-
-        mock_get_default.assert_called_once()
-        assert result == b"default template bytes"
-
-    @patch.object(DocxGeneratorService, "_get_template")
-    @patch("unique_toolkit._common.docx_generator.service.DocxTemplate")
-    def test_generate_from_template_success(
-        self, mock_docx_template_class, mock_get_template, docx_service
-    ):
-        """Test successful document generation from template."""
-        # Setup mocks
-        mock_get_template.return_value = b"template bytes"
-        mock_template = Mock(spec=DocxTemplate)
-        mock_docx_template_class.return_value = mock_template
-        mock_template.render = Mock()
-        mock_template.save = Mock()
-
-        # Create test content
-        subdoc_content = [
-            HeadingField(text="Test Heading"),
-            RunsField(runs=[RunField(text="Test content")]),
-        ]
-
-        # Generate document
-        result = docx_service.generate_from_template(subdoc_content)
-
-        # Assertions
-        mock_get_template.assert_called_once()
-        mock_template.render.assert_called_once()
-        mock_template.save.assert_called_once()
-        assert isinstance(result, bytes)
-
-    @patch.object(DocxGeneratorService, "_get_template")
-    @patch("unique_toolkit._common.docx_generator.service.DocxTemplate")
-    def test_generate_from_template_with_fields(
-        self, mock_docx_template_class, mock_get_template, docx_service
-    ):
-        """Test document generation with additional fields."""
-        # Setup mocks
-        mock_get_template.return_value = b"template bytes"
-        mock_template = Mock(spec=DocxTemplate)
-        mock_docx_template_class.return_value = mock_template
-
-        # Create test content
-        subdoc_content = [HeadingField(text="Test")]
-        fields = {"title": "Test Document", "author": "Test Author"}
-
-        # Generate document
-        _ = docx_service.generate_from_template(subdoc_content, fields=fields)
-
-        # Check that render was called
-        mock_template.render.assert_called_once()
-        render_args = mock_template.render.call_args[0][0]
-        assert "title" in render_args
-        assert render_args["title"] == "Test Document"
-        assert "author" in render_args
-        assert render_args["author"] == "Test Author"
-
-    @patch.object(DocxGeneratorService, "_get_template")
-    @patch("unique_toolkit._common.docx_generator.service.DocxTemplate")
-    def test_generate_from_template_error_handling(
-        self, mock_docx_template_class, mock_get_template, docx_service
-    ):
-        """Test error handling during document generation."""
-        # Setup mocks to raise an exception
-        mock_get_template.return_value = b"template bytes"
-        mock_template = Mock(spec=DocxTemplate)
-        mock_docx_template_class.return_value = mock_template
-        mock_template.render.side_effect = Exception("Render failed")
-
-        # Create test content
-        subdoc_content = [HeadingField(text="Test")]
-
-        # Generate document
-        result = docx_service.generate_from_template(subdoc_content)
-
-        # Should return None on error
-        assert result is None
-
 
 class TestDocxGeneratorIntegration:
     """Integration tests for DocxGeneratorService."""
@@ -584,12 +454,8 @@ class TestDocxGeneratorIntegration:
     @pytest.fixture
     def real_docx_service(self):
         """Create a real DocxGeneratorService for integration tests."""
-        mock_chat_service = Mock()
-        mock_kb_service = Mock()
         config = DocxGeneratorConfig()
         return DocxGeneratorService(
-            chat_service=mock_chat_service,
-            knowledge_base_service=mock_kb_service,
             config=config,
         )
 

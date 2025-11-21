@@ -123,6 +123,7 @@ class TestContentServiceUnit:
                 company_id="test_company",
                 chatId="test_chat",
                 where={"key": "test_key"},
+                includeFailedContent=False,
             )
 
     def test_error_handling_search_content_chunks(self):
@@ -226,6 +227,7 @@ class TestContentServiceUnit:
                 chatId="test_chat",
                 company_id="test_company",
                 where={"key": "test_key"},
+                includeFailedContent=False,
             )
 
     @pytest.mark.asyncio
@@ -611,6 +613,7 @@ class TestContentServiceUnit:
                 company_id="test_company",
                 chatId="chat_id",
                 where={"ownerId": {"equals": "chat_id"}},
+                includeFailedContent=False,
             )
 
     @patch("requests.get")

@@ -20,6 +20,11 @@ class LanguageModelName(StrEnum):
     AZURE_GPT_5_NANO_2025_0807 = "AZURE_GPT_5_NANO_2025_0807"
     AZURE_GPT_5_CHAT_2025_0807 = "AZURE_GPT_5_CHAT_2025_0807"
     AZURE_GPT_5_PRO_2025_1006 = "AZURE_GPT_5_PRO_2025_1006"
+    AZURE_GPT_51_2025_1113 = "AZURE_GPT_51_2025_1113"
+    AZURE_GPT_51_THINKING_2025_1113 = "AZURE_GPT_51_THINKING_2025_1113"
+    AZURE_GPT_51_CHAT_2025_1113 = "AZURE_GPT_51_CHAT_2025_1113"
+    AZURE_GPT_51_CODEX_2025_1113 = "AZURE_GPT_51_CODEX_2025_1113"
+    AZURE_GPT_51_CODEX_MINI_2025_1113 = "AZURE_GPT_51_CODEX_MINI_2025_1113"
     AZURE_GPT_4o_2024_0513 = "AZURE_GPT_4o_2024_0513"
     AZURE_GPT_4o_2024_0806 = "AZURE_GPT_4o_2024_0806"
     AZURE_GPT_4o_2024_1120 = "AZURE_GPT_4o_2024_1120"
@@ -44,16 +49,20 @@ class LanguageModelName(StrEnum):
     ANTHROPIC_CLAUDE_OPUS_4_1 = "litellm:anthropic-claude-opus-4-1"
     GEMINI_2_0_FLASH = "litellm:gemini-2-0-flash"
     GEMINI_2_5_FLASH = "litellm:gemini-2-5-flash"
+    GEMINI_2_5_FLASH_LITE = "litellm:gemini-2-5-flash-lite"
     GEMINI_2_5_FLASH_LITE_PREVIEW_0617 = "litellm:gemini-2-5-flash-lite-preview-06-17"
     GEMINI_2_5_FLASH_PREVIEW_0520 = "litellm:gemini-2-5-flash-preview-05-20"
     GEMINI_2_5_PRO = "litellm:gemini-2-5-pro"
     GEMINI_2_5_PRO_EXP_0325 = "litellm:gemini-2-5-pro-exp-03-25"
     GEMINI_2_5_PRO_PREVIEW_0605 = "litellm:gemini-2-5-pro-preview-06-05"
+    GEMINI_3_PRO_PREVIEW = "litellm:gemini-3-pro-preview"
     LITELLM_OPENAI_GPT_5 = "litellm:openai-gpt-5"
     LITELLM_OPENAI_GPT_5_MINI = "litellm:openai-gpt-5-mini"
     LITELLM_OPENAI_GPT_5_NANO = "litellm:openai-gpt-5-nano"
     LITELLM_OPENAI_GPT_5_CHAT = "litellm:openai-gpt-5-chat"
     LITELLM_OPENAI_GPT_5_PRO = "litellm:openai-gpt-5-pro"
+    LITELLM_OPENAI_GPT_51 = "litellm:openai-gpt-5-1"
+    LITELLM_OPENAI_GPT_51_THINKING = "litellm:openai-gpt-5-1-thinking"
     LITELLM_OPENAI_O1 = "litellm:openai-o1"
     LITELLM_OPENAI_O3 = "litellm:openai-o3"
     LITELLM_OPENAI_O3_DEEP_RESEARCH = "litellm:openai-o3-deep-research"
@@ -94,11 +103,18 @@ def get_encoder_name(model_name: LanguageModelName) -> EncoderName:
             | LMN.AZURE_GPT_5_NANO_2025_0807
             | LMN.AZURE_GPT_5_CHAT_2025_0807
             | LMN.AZURE_GPT_5_PRO_2025_1006
+            | LMN.AZURE_GPT_51_2025_1113
+            | LMN.AZURE_GPT_51_THINKING_2025_1113
+            | LMN.AZURE_GPT_51_CHAT_2025_1113
+            | LMN.AZURE_GPT_51_CODEX_2025_1113
+            | LMN.AZURE_GPT_51_CODEX_MINI_2025_1113
             | LMN.LITELLM_OPENAI_GPT_5
             | LMN.LITELLM_OPENAI_GPT_5_MINI
             | LMN.LITELLM_OPENAI_GPT_5_NANO
             | LMN.LITELLM_OPENAI_GPT_5_CHAT
             | LMN.LITELLM_OPENAI_GPT_5_PRO
+            | LMN.LITELLM_OPENAI_GPT_51
+            | LMN.LITELLM_OPENAI_GPT_51_THINKING
             | LMN.LITELLM_OPENAI_O1
             | LMN.LITELLM_OPENAI_O3
             | LMN.LITELLM_OPENAI_O3_DEEP_RESEARCH
@@ -123,13 +139,15 @@ class LanguageModelProvider(StrEnum):
 
 
 class ModelCapabilities(StrEnum):
+    CHAT_COMPLETIONS_API = "chat_completions_api"
     FUNCTION_CALLING = "function_calling"
     PARALLEL_FUNCTION_CALLING = "parallel_function_calling"
-    REPRODUCIBLE_OUTPUT = "reproducible_output"
-    STRUCTURED_OUTPUT = "structured_output"
-    VISION = "vision"
-    STREAMING = "streaming"
     REASONING = "reasoning"
+    REPRODUCIBLE_OUTPUT = "reproducible_output"
+    RESPONSES_API = "responses_api"
+    STRUCTURED_OUTPUT = "structured_output"
+    STREAMING = "streaming"
+    VISION = "vision"
 
 
 class TemperatureBounds(BaseModel):
@@ -243,12 +261,14 @@ class LanguageModelInfo(BaseModel):
                     version="2025-08-07",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
                         ModelCapabilities.FUNCTION_CALLING,
-                        ModelCapabilities.STREAMING,
-                        ModelCapabilities.REASONING,
-                        ModelCapabilities.VISION,
-                        ModelCapabilities.STRUCTURED_OUTPUT,
                         ModelCapabilities.PARALLEL_FUNCTION_CALLING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.RESPONSES_API,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.VISION,
                     ],
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=272000, token_limit_output=128000
@@ -271,12 +291,14 @@ class LanguageModelInfo(BaseModel):
                     version="2025-08-07",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
                         ModelCapabilities.FUNCTION_CALLING,
-                        ModelCapabilities.STREAMING,
-                        ModelCapabilities.REASONING,
-                        ModelCapabilities.VISION,
-                        ModelCapabilities.STRUCTURED_OUTPUT,
                         ModelCapabilities.PARALLEL_FUNCTION_CALLING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.RESPONSES_API,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.VISION,
                     ],
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=272000, token_limit_output=128000
@@ -299,12 +321,14 @@ class LanguageModelInfo(BaseModel):
                     version="2025-08-07",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
                         ModelCapabilities.FUNCTION_CALLING,
-                        ModelCapabilities.STREAMING,
-                        ModelCapabilities.REASONING,
-                        ModelCapabilities.VISION,
-                        ModelCapabilities.STRUCTURED_OUTPUT,
                         ModelCapabilities.PARALLEL_FUNCTION_CALLING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.RESPONSES_API,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.VISION,
                     ],
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=272000, token_limit_output=128000
@@ -327,6 +351,7 @@ class LanguageModelInfo(BaseModel):
                     version="2025-08-07",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
+                        ModelCapabilities.RESPONSES_API,
                         ModelCapabilities.STREAMING,
                         ModelCapabilities.VISION,
                     ],
@@ -347,8 +372,9 @@ class LanguageModelInfo(BaseModel):
                     capabilities=[
                         ModelCapabilities.FUNCTION_CALLING,
                         ModelCapabilities.REASONING,
-                        ModelCapabilities.VISION,
+                        ModelCapabilities.RESPONSES_API,
                         ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.VISION,
                     ],
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=272000, token_limit_output=128000
@@ -359,15 +385,154 @@ class LanguageModelInfo(BaseModel):
                         min_temperature=1.0, max_temperature=1.0
                     ),
                 )
+            case LanguageModelName.AZURE_GPT_51_2025_1113:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.AZURE,
+                    version="2025-11-13",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.PARALLEL_FUNCTION_CALLING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.RESPONSES_API,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.VISION,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=272000, token_limit_output=128000
+                    ),
+                    info_cutoff_at=date(2024, 9, 30),
+                    published_at=date(2025, 11, 13),
+                    temperature_bounds=TemperatureBounds(
+                        min_temperature=1.0, max_temperature=1.0
+                    ),
+                    default_options={
+                        "reasoning_effort": None,
+                    },
+                )
+            case LanguageModelName.AZURE_GPT_51_THINKING_2025_1113:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.AZURE,
+                    version="2025-11-13",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.PARALLEL_FUNCTION_CALLING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.RESPONSES_API,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.VISION,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=272000, token_limit_output=128000
+                    ),
+                    info_cutoff_at=date(2024, 9, 30),
+                    published_at=date(2025, 11, 13),
+                    temperature_bounds=TemperatureBounds(
+                        min_temperature=1.0, max_temperature=1.0
+                    ),
+                    default_options={
+                        "reasoning_effort": "medium",
+                    },
+                )
+            case LanguageModelName.AZURE_GPT_51_CHAT_2025_1113:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.AZURE,
+                    version="2025-11-13",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.PARALLEL_FUNCTION_CALLING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.RESPONSES_API,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.VISION,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=128_000, token_limit_output=16_384
+                    ),
+                    info_cutoff_at=date(2024, 9, 30),
+                    published_at=date(2025, 11, 13),
+                    temperature_bounds=TemperatureBounds(
+                        min_temperature=1.0, max_temperature=1.0
+                    ),
+                    default_options={
+                        "reasoning_effort": "medium",
+                    },
+                )
+            case LanguageModelName.AZURE_GPT_51_CODEX_2025_1113:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.AZURE,
+                    version="2025-11-13",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.PARALLEL_FUNCTION_CALLING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.RESPONSES_API,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.VISION,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=272_000, token_limit_output=128_000
+                    ),
+                    info_cutoff_at=date(2024, 9, 30),
+                    published_at=date(2025, 11, 13),
+                    temperature_bounds=TemperatureBounds(
+                        min_temperature=1.0, max_temperature=1.0
+                    ),
+                    default_options={
+                        "reasoning_effort": "medium",
+                    },
+                )
+            case LanguageModelName.AZURE_GPT_51_CODEX_MINI_2025_1113:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.AZURE,
+                    version="2025-11-13",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.PARALLEL_FUNCTION_CALLING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.RESPONSES_API,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.VISION,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=272_000, token_limit_output=128_000
+                    ),
+                    info_cutoff_at=date(2024, 9, 30),
+                    published_at=date(2025, 11, 13),
+                    temperature_bounds=TemperatureBounds(
+                        min_temperature=1.0, max_temperature=1.0
+                    ),
+                    default_options={
+                        "reasoning_effort": "medium",
+                    },
+                )
             case LanguageModelName.AZURE_GPT_4_TURBO_2024_0409:
                 return cls(
                     name=model_name,
                     encoder_name=EncoderName.CL100K_BASE,
                     capabilities=[
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
                         ModelCapabilities.FUNCTION_CALLING,
                         ModelCapabilities.PARALLEL_FUNCTION_CALLING,
-                        ModelCapabilities.VISION,
                         ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
                     ],
                     provider=LanguageModelProvider.AZURE,
                     version="turbo-2024-04-09",
@@ -382,6 +547,7 @@ class LanguageModelInfo(BaseModel):
                     name=model_name,
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
                         ModelCapabilities.FUNCTION_CALLING,
                         ModelCapabilities.PARALLEL_FUNCTION_CALLING,
                         ModelCapabilities.STREAMING,
@@ -400,6 +566,7 @@ class LanguageModelInfo(BaseModel):
                     name=model_name,
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
                         ModelCapabilities.STRUCTURED_OUTPUT,
                         ModelCapabilities.FUNCTION_CALLING,
                         ModelCapabilities.PARALLEL_FUNCTION_CALLING,
@@ -419,6 +586,7 @@ class LanguageModelInfo(BaseModel):
                     name=model_name,
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
                         ModelCapabilities.STRUCTURED_OUTPUT,
                         ModelCapabilities.FUNCTION_CALLING,
                         ModelCapabilities.PARALLEL_FUNCTION_CALLING,
@@ -437,6 +605,7 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     capabilities=[
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
                         ModelCapabilities.FUNCTION_CALLING,
                         ModelCapabilities.PARALLEL_FUNCTION_CALLING,
                         ModelCapabilities.STREAMING,
@@ -455,6 +624,7 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     capabilities=[
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
                         ModelCapabilities.STRUCTURED_OUTPUT,
                         ModelCapabilities.FUNCTION_CALLING,
                         ModelCapabilities.STREAMING,
@@ -477,11 +647,13 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     capabilities=[
-                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
                         ModelCapabilities.FUNCTION_CALLING,
-                        ModelCapabilities.STREAMING,
-                        ModelCapabilities.VISION,
                         ModelCapabilities.REASONING,
+                        ModelCapabilities.RESPONSES_API,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.VISION,
                     ],
                     provider=LanguageModelProvider.AZURE,
                     version="2024-12-17",
@@ -499,10 +671,12 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     capabilities=[
-                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
                         ModelCapabilities.FUNCTION_CALLING,
-                        ModelCapabilities.STREAMING,
                         ModelCapabilities.REASONING,
+                        ModelCapabilities.RESPONSES_API,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
                     ],
                     provider=LanguageModelProvider.AZURE,
                     version="2025-01-31",
@@ -520,10 +694,12 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     capabilities=[
-                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
                         ModelCapabilities.FUNCTION_CALLING,
-                        ModelCapabilities.STREAMING,
                         ModelCapabilities.REASONING,
+                        ModelCapabilities.RESPONSES_API,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
                         ModelCapabilities.VISION,
                     ],
                     provider=LanguageModelProvider.AZURE,
@@ -542,10 +718,12 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     capabilities=[
-                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
                         ModelCapabilities.FUNCTION_CALLING,
-                        ModelCapabilities.STREAMING,
                         ModelCapabilities.REASONING,
+                        ModelCapabilities.RESPONSES_API,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
                         ModelCapabilities.VISION,
                     ],
                     provider=LanguageModelProvider.AZURE,
@@ -564,8 +742,9 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     capabilities=[
-                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
                         ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
                         ModelCapabilities.STREAMING,
                         ModelCapabilities.VISION,
                     ],
@@ -582,9 +761,11 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     capabilities=[
-                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
                         ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.RESPONSES_API,
                         ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
                         ModelCapabilities.VISION,
                     ],
                     provider=LanguageModelProvider.AZURE,
@@ -600,9 +781,11 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     capabilities=[
-                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
                         ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.RESPONSES_API,
                         ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
                         ModelCapabilities.VISION,
                     ],
                     provider=LanguageModelProvider.AZURE,
@@ -618,9 +801,11 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     capabilities=[
-                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
                         ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.RESPONSES_API,
                         ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
                         ModelCapabilities.VISION,
                     ],
                     provider=LanguageModelProvider.AZURE,
@@ -809,6 +994,25 @@ class LanguageModelInfo(BaseModel):
                     info_cutoff_at=date(2025, 1, day=1),
                     published_at=date(2025, 4, 1),
                 )
+            case LanguageModelName.GEMINI_2_5_FLASH_LITE:
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    version="gemini-2-5-flash-lite",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO:Replace with LLM tokenizer
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=1_048_576, token_limit_output=65_536
+                    ),
+                    info_cutoff_at=date(2025, 1, day=1),
+                    published_at=date(2025, 7, 1),
+                )
             case LanguageModelName.GEMINI_2_5_FLASH_LITE_PREVIEW_0617:
                 return cls(
                     name=model_name,
@@ -904,6 +1108,25 @@ class LanguageModelInfo(BaseModel):
                     info_cutoff_at=date(2025, 1, day=1),
                     published_at=date(2025, 6, 5),
                 )
+            case LanguageModelName.GEMINI_3_PRO_PREVIEW:
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    version="gemini-3-pro-preview",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=1_048_576, token_limit_output=65_536
+                    ),
+                    info_cutoff_at=date(2025, 1, day=1),
+                    published_at=date(2025, 11, 13),
+                )
             case LanguageModelName.LITELLM_OPENAI_GPT_5:
                 return cls(
                     name=model_name,
@@ -911,12 +1134,14 @@ class LanguageModelInfo(BaseModel):
                     version="gpt-5",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
                         ModelCapabilities.FUNCTION_CALLING,
-                        ModelCapabilities.STREAMING,
-                        ModelCapabilities.REASONING,
-                        ModelCapabilities.VISION,
-                        ModelCapabilities.STRUCTURED_OUTPUT,
                         ModelCapabilities.PARALLEL_FUNCTION_CALLING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.RESPONSES_API,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.VISION,
                     ],
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=272000, token_limit_output=128000
@@ -939,12 +1164,14 @@ class LanguageModelInfo(BaseModel):
                     version="gpt-5-mini",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
                         ModelCapabilities.FUNCTION_CALLING,
-                        ModelCapabilities.STREAMING,
-                        ModelCapabilities.REASONING,
-                        ModelCapabilities.VISION,
-                        ModelCapabilities.STRUCTURED_OUTPUT,
                         ModelCapabilities.PARALLEL_FUNCTION_CALLING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.RESPONSES_API,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.VISION,
                     ],
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=272000, token_limit_output=128000
@@ -967,12 +1194,14 @@ class LanguageModelInfo(BaseModel):
                     version="gpt-5-nano",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
                         ModelCapabilities.FUNCTION_CALLING,
-                        ModelCapabilities.STREAMING,
-                        ModelCapabilities.REASONING,
-                        ModelCapabilities.VISION,
-                        ModelCapabilities.STRUCTURED_OUTPUT,
                         ModelCapabilities.PARALLEL_FUNCTION_CALLING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.RESPONSES_API,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.VISION,
                     ],
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=272000, token_limit_output=128000
@@ -995,6 +1224,7 @@ class LanguageModelInfo(BaseModel):
                     version="gpt-5-chat",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
+                        ModelCapabilities.RESPONSES_API,
                         ModelCapabilities.STREAMING,
                         ModelCapabilities.VISION,
                     ],
@@ -1015,8 +1245,9 @@ class LanguageModelInfo(BaseModel):
                     capabilities=[
                         ModelCapabilities.FUNCTION_CALLING,
                         ModelCapabilities.REASONING,
-                        ModelCapabilities.VISION,
+                        ModelCapabilities.RESPONSES_API,
                         ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.VISION,
                     ],
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=272000, token_limit_output=128000
@@ -1027,6 +1258,62 @@ class LanguageModelInfo(BaseModel):
                         min_temperature=1.0, max_temperature=1.0
                     ),
                 )
+            case LanguageModelName.LITELLM_OPENAI_GPT_51:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    version="2025-11-13",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.PARALLEL_FUNCTION_CALLING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.RESPONSES_API,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.VISION,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=272000, token_limit_output=128000
+                    ),
+                    info_cutoff_at=date(2024, 9, 30),
+                    published_at=date(2025, 11, 13),
+                    temperature_bounds=TemperatureBounds(
+                        min_temperature=1.0, max_temperature=1.0
+                    ),
+                    default_options={
+                        "reasoning_effort": None,
+                    },
+                )
+            case LanguageModelName.LITELLM_OPENAI_GPT_51_THINKING:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    version="2025-11-13",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.PARALLEL_FUNCTION_CALLING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.RESPONSES_API,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.VISION,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=272000, token_limit_output=128000
+                    ),
+                    info_cutoff_at=date(2024, 9, 30),
+                    published_at=date(2025, 11, 13),
+                    temperature_bounds=TemperatureBounds(
+                        min_temperature=1.0, max_temperature=1.0
+                    ),
+                    default_options={
+                        "reasoning_effort": "medium",
+                    },
+                )
             case LanguageModelName.LITELLM_OPENAI_O1:
                 return cls(
                     name=model_name,
@@ -1034,11 +1321,13 @@ class LanguageModelInfo(BaseModel):
                     version="2024-12-17",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
-                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
                         ModelCapabilities.FUNCTION_CALLING,
-                        ModelCapabilities.STREAMING,
-                        ModelCapabilities.VISION,
                         ModelCapabilities.REASONING,
+                        ModelCapabilities.RESPONSES_API,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.VISION,
                     ],
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=200_000, token_limit_output=100_000
@@ -1056,10 +1345,13 @@ class LanguageModelInfo(BaseModel):
                     version="2025-04-16",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
                         ModelCapabilities.FUNCTION_CALLING,
-                        ModelCapabilities.STRUCTURED_OUTPUT,
-                        ModelCapabilities.STREAMING,
                         ModelCapabilities.REASONING,
+                        ModelCapabilities.RESPONSES_API,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.VISION,
                     ],
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=200_000, token_limit_output=100_000
@@ -1076,11 +1368,19 @@ class LanguageModelInfo(BaseModel):
                     provider=LanguageModelProvider.LITELLM,
                     version="2025-06-26",
                     encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.RESPONSES_API,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.VISION,
+                    ],
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=200_000, token_limit_output=100_000
                     ),
                     published_at=date(2025, 4, 16),
-                    capabilities=[ModelCapabilities.STREAMING],
                     info_cutoff_at=date(2024, 6, 1),
                 )
             case LanguageModelName.LITELLM_OPENAI_O3_PRO:
@@ -1107,9 +1407,13 @@ class LanguageModelInfo(BaseModel):
                     version="2025-04-16",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
                         ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.RESPONSES_API,
                         ModelCapabilities.STREAMING,
                         ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.VISION,
                     ],
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=200_000, token_limit_output=100_000
@@ -1126,11 +1430,19 @@ class LanguageModelInfo(BaseModel):
                     provider=LanguageModelProvider.LITELLM,
                     version="2025-06-26",
                     encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.RESPONSES_API,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.VISION,
+                    ],
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=200_000, token_limit_output=100_000
                     ),
                     published_at=date(2025, 4, 16),
-                    capabilities=[ModelCapabilities.STREAMING],
                     info_cutoff_at=date(2024, 6, 1),
                 )
             case LanguageModelName.LITELLM_OPENAI_GPT_4_1_MINI:
@@ -1145,9 +1457,12 @@ class LanguageModelInfo(BaseModel):
                         token_limit_input=1_047_576, token_limit_output=32_768
                     ),
                     capabilities=[
-                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
                         ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.RESPONSES_API,
+                        ModelCapabilities.STREAMING,
                         ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.VISION,
                     ],
                 )
             case LanguageModelName.LITELLM_OPENAI_GPT_4_1_NANO:
@@ -1162,9 +1477,12 @@ class LanguageModelInfo(BaseModel):
                         token_limit_input=1_047_576, token_limit_output=32_768
                     ),
                     capabilities=[
-                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
                         ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.RESPONSES_API,
+                        ModelCapabilities.STREAMING,
                         ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.VISION,
                     ],
                 )
             case LanguageModelName.LITELLM_DEEPSEEK_R1:

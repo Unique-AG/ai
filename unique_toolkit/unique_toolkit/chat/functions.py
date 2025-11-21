@@ -515,12 +515,17 @@ def filter_valid_messages(
     messages: ListObject[unique_sdk.Message],
 ) -> list[dict[str, Any]]:
     SYSTEM_MESSAGE_PREFIX = "[SYSTEM] "
+    roles_to_filter = [ChatMessageRole.SYSTEM.value.lower()]
 
     # Remove the last two messages
     messages = messages["data"][:-2]  # type: ignore
     filtered_messages = []
     for message in messages:
-        if message["text"] is None or SYSTEM_MESSAGE_PREFIX in message["text"]:
+        if (
+            message["text"] is None
+            or SYSTEM_MESSAGE_PREFIX in message["text"]
+            or message["role"].lower() in roles_to_filter
+        ):
             continue
         filtered_messages.append(message)
 

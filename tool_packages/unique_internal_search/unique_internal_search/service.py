@@ -7,13 +7,19 @@ from unique_toolkit._common.chunk_relevancy_sorter.exception import (
 )
 from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
+from unique_toolkit.agentic.history_manager.utils import transform_chunks_to_string
+from unique_toolkit.agentic.tools.agent_chunks_hanlder import AgentChunksHandler
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.agentic.tools.tool_progress_reporter import ProgressState
 from unique_toolkit.app.schemas import BaseEvent, ChatEvent, Event
+from unique_toolkit.chat.schemas import (
+    MessageLogDetails,
+    MessageLogEvent,
+)
 from unique_toolkit.chat.service import LanguageModelToolDescription
-from unique_toolkit.content.schemas import Content, ContentChunk
+from unique_toolkit.content.schemas import Content, ContentChunk, ContentReference
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.content.utils import (
     merge_content_chunks,
@@ -22,6 +28,8 @@ from unique_toolkit.content.utils import (
 )
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
+    LanguageModelMessage,
+    LanguageModelToolMessage,
 )
 
 from unique_internal_search.config import InternalSearchConfig
@@ -140,8 +148,8 @@ class InternalSearchService:
                     scope_ids=self.config.scope_ids,
                     metadata_filter=metadata_filter,
                     chat_id=self.chat_id
-                    if self.config.exclude_uploaded_files and self.chat_id
-                    else "",
+                    if not self.config.exclude_uploaded_files and self.chat_id
+                    else "NO_CHAT",  # deliberate string to avoid if chat_id condition.
                     chat_only=chat_only,
                     content_ids=content_ids,
                     score_threshold=self.config.score_threshold,
@@ -391,6 +399,11 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             tool_call=tool_call,  # Need to pass tool_call to post_progress_message
         )
 
+        ## Message log entry
+        await self._create_message_log_entry(
+            chunks=selected_chunks, search_strings_list=search_strings_list
+        )
+
         ## Modify metadata in chunks
         selected_chunks = append_metadata_in_chunks(
             chunks=selected_chunks,
@@ -413,6 +426,106 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             )
 
         return tool_response
+
+    async def _create_message_log_entry(
+        self, *, chunks: list[ContentChunk], search_strings_list: list[str]
+    ) -> None:
+        message_log_reference_list: list[
+            ContentReference
+        ] = await self._define_reference_list_for_message_log(
+            content_chunks=chunks,
+        )
+        details = await self._prepare_message_log_details(
+            query_list=search_strings_list
+        )
+        self._message_step_logger.create_message_log_entry(
+            text="**Internal Search**",
+            details=details,
+            references=message_log_reference_list,
+        )
+
+    async def _define_reference_list_for_message_log(
+        self,
+        *,
+        content_chunks: list[ContentChunk],
+    ) -> list[ContentReference]:
+        """
+        Create a reference list for internal search content chunks.
+
+        Args:
+            content_chunks: List of ContentChunk objects to convert
+        Returns:
+            List of ContentReference objects
+        """
+        data: list[ContentReference] = []
+        count = 0
+        for content_chunk in content_chunks:
+            reference_name: str = content_chunk.title or content_chunk.key or ""
+
+            if reference_name != "":
+                data.append(
+                    ContentReference(
+                        name=reference_name,
+                        sequence_number=count,
+                        source="internal",
+                        url="",
+                        source_id=content_chunk.id,
+                    )
+                )
+                count += 1
+
+        return data
+
+    async def _prepare_message_log_details(
+        self, *, query_list: list[str]
+    ) -> MessageLogDetails:
+        details = MessageLogDetails(
+            data=[
+                MessageLogEvent(
+                    type="InternalSearch",
+                    text=query_for_log,
+                )
+                for query_for_log in query_list
+            ]
+        )
+
+        return details
+
+    ## Note: This function is only used by the Investment Research Agent and Agentic Search. Once these agents are moved out of the monorepo, this function should be removed.
+    def get_tool_call_result_for_loop_history(
+        self,
+        tool_response: ToolCallResponse,
+        agent_chunks_handler: AgentChunksHandler,
+    ) -> LanguageModelMessage:
+        """
+        Process the results of the tool.
+        Args:
+            tool_response: The tool response.
+            loop_history: The loop history.
+        Returns:
+            The tool result to append to the loop history.
+        """
+        self.logger.debug(
+            f"Appending tool call result to history: {tool_response.name}"
+        )
+        # Initialize content_chunks if None
+        content_chunks = tool_response.content_chunks or []
+
+        # Get the maximum source number in the loop history
+        max_source_number = len(agent_chunks_handler.chunks)
+
+        # Transform content chunks into sources to be appended to tool result
+        sources, _ = transform_chunks_to_string(
+            content_chunks,
+            max_source_number,
+        )
+
+        # Append the result to the history
+        return LanguageModelToolMessage(
+            content=sources,
+            tool_call_id=tool_response.id,  # type: ignore
+            name=tool_response.name,
+        )
 
 
 ToolFactory.register_tool(InternalSearchTool, InternalSearchConfig)

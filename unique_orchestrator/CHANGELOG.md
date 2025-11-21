@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.14] - 2025-11-20
+- Add message log service
+
+## [1.7.13] - 2025-11-20
+- Fix bug of handling properly uploaded files that are expired
+
+## [1.7.12] - 2025-11-19
+- Bump Swot tool
+
+## [1.7.11] - 2025-11-17
+- Fix bug where forcing a tool still sends builtin tools to the LLM when using the responses api.
+
+## [1.7.10] - 2025-11-14
+- Move pytest to dev dependencies
+
+## [1.7.9] - 2025-11-12
+- Fix bug where Responses API config was not properly validated
+
+## [1.7.8] - 2025-11-11
+- Better display of Responses API config in the UI
+
+## [1.7.7] - 2025-11-10
+- Remove direct azure client config from responses api config
+- Organize Responses API config better
+
 ## [1.7.6] - 2025-11-05
 - Update default system prompt (including user metadata section)
 

@@ -22,7 +22,6 @@ Output (DOCX mode):
 
 import re
 from logging import getLogger
-from typing import Callable
 
 from unique_toolkit.content.schemas import ContentChunk, ContentReference
 
@@ -30,9 +29,6 @@ from unique_swot.services.collection.registry import ContentChunkRegistry
 from unique_swot.services.report import DocxRendererType
 
 _LOGGER = getLogger(__name__)
-
-# Pattern to match inline citations in bullet points: [bullet_chunk_X]
-inline_citation_pattern = r"\[bullet_chunk_([a-zA-Z0-9\-]+)\]"
 
 # Pattern to match consolidated citations in References section: [chunk_X]
 consolidated_citation_pattern = r"\[chunk_([a-zA-Z0-9\-]+)\]"
@@ -71,49 +67,34 @@ class CitationManager:
         # Maps chunk IDs to their final formatted citations (e.g., "[1] [Title: page 5]")
         self._citations_map = {}
 
-        # Maps chunk IDs to their numeric references (e.g., "1" -> "[1]")
-        self._inline_citations_map = {}
+        self._citated_documents = {}
 
         # List of all referenced chunks for generating ContentReference objects
         self._content_chunks: list[ContentChunk] = []
 
-    def _handle_inline_citations(self, report: str) -> str:
+    def add_citations_to_report(
+        self, report: str, renderer_type: DocxRendererType
+    ) -> str:
         """
-        Transform inline bullet-level citations into numeric references.
+        Main entry point to process all citations in a report.
 
-        Converts [bullet_chunk_X] -> [1], [bullet_chunk_Y] -> [2], etc.
-        Assigns sequential numbers in order of first appearance.
-        Stores the mapping for later use in consolidated citations.
+        Process inline citations ([chunk_X]) to assign numbers
+
+        The order is important: inline citations must be processed first to establish
+        the numbering that consolidated citations will reference.
 
         Args:
-            report: The report text containing [bullet_chunk_X] placeholders
+            report: Raw report text with citation placeholders
 
         Returns:
-            Report text with inline citations replaced by numeric references
-
-        Example:
-            Input:  "Details here [bullet_chunk_a], [bullet_chunk_b]"
-            Output: "Details here [1], [2]"
+            Fully formatted report with all citations transformed
         """
-        # Find all inline citation IDs in the report
-        citations = re.findall(inline_citation_pattern, report)
-
-        for citation in citations:
-            if citation in self._inline_citations_map:
-                # Citation already seen, reuse the same number
-                replace_with = self._inline_citations_map[citation]
-            else:
-                # New citation, assign next sequential number
-                replace_with = f"[{len(self._inline_citations_map) + 1}]"
-                self._inline_citations_map[citation] = replace_with
-
-            # Replace the placeholder with the numeric reference
-            report = report.replace(f"[bullet_chunk_{citation}]", replace_with)
+        report = self._handle_inline_citations(report, renderer_type)
 
         return report
 
-    def _handle_consolidated_citations(
-        self, report: str, citation_function: Callable[[ContentChunk], str]
+    def _handle_inline_citations(
+        self, report: str, renderer_type: DocxRendererType
     ) -> str:
         """
         Transform consolidated references into full citations with source info.
@@ -144,14 +125,10 @@ class CitationManager:
                 chunk = self._content_chunk_registry.retrieve(f"chunk_{citation}")
 
                 if chunk is not None:
-                    # Get the numeric reference that was assigned during inline processing
-                    prefix = self._inline_citations_map.get(citation, "[?]")
-
-                    # Format the source information (title, pages, etc.)
-                    suffix = citation_function(chunk)
-
-                    # Combine: [1] [Document Title: page 5]
-                    replace_with = f"{prefix} {suffix}"
+                    if renderer_type == DocxRendererType.DOCX:
+                        replace_with = self._citation_in_docx(chunk)
+                    else:
+                        replace_with = self._citation_in_chat()
 
                     # Cache for future use and track for ContentReference generation
                     self._citations_map[citation] = replace_with
@@ -159,45 +136,10 @@ class CitationManager:
                 else:
                     # Chunk not found - log warning and leave placeholder
                     _LOGGER.warning(f"Chunk {citation} not found in registry")
-                    replace_with = f"[chunk_{citation}]"
+                    replace_with = "[???]"
 
             # Replace the placeholder with the full citation
             report = report.replace(f"[chunk_{citation}]", replace_with)
-
-        return report
-
-    def add_citations_to_report(
-        self, report: str, renderer_type: DocxRendererType
-    ) -> str:
-        """
-        Main entry point to process all citations in a report.
-
-        Performs a two-pass transformation:
-        1. First pass: Process inline citations ([bullet_chunk_X]) to assign numbers
-        2. Second pass: Process consolidated citations ([chunk_X]) to add source info
-
-        The order is important: inline citations must be processed first to establish
-        the numbering that consolidated citations will reference.
-
-        Args:
-            report: Raw report text with citation placeholders
-
-        Returns:
-            Fully formatted report with all citations transformed
-        """
-        match renderer_type:
-            case DocxRendererType.DOCX:
-                citation_function = self._citation_in_docx
-            case DocxRendererType.CHAT:
-                citation_function = self._citation_in_chat
-            case _:
-                raise ValueError(f"Invalid renderer type: {renderer_type}")
-
-        # First pass: Assign numbers to inline citations
-        report = self._handle_inline_citations(report)
-
-        # Second pass: Add full source information to consolidated citations
-        report = self._handle_consolidated_citations(report, citation_function)
 
         return report
 
@@ -211,12 +153,13 @@ class CitationManager:
         Returns:
             Formatted citation like "[Annual Report 2023: page 45, 46]"
         """
-        title = chunk.title or chunk.key or "Unknown Title"
+        title = _get_title(chunk)
         pages = _get_pages(chunk.start_page, chunk.end_page)
-        title_with_pages: str = f"{title}: {pages}"
-        return f"{title_with_pages}"
+        document_reference_index = self._get_reference_index(title)
 
-    def _citation_in_chat(self, chunk: ContentChunk) -> str:
+        return f"_[{document_reference_index}: p{pages}]_ "
+
+    def _citation_in_chat(self) -> str:
         """
         Format a citation for Chat output with superscript numbers.
 
@@ -227,6 +170,15 @@ class CitationManager:
             Formatted citation like "<sup>1</sup>"
         """
         return f"<sup>{len(self._citations_map) + 1}</sup>"
+
+    def get_citations(self, renderer_type: DocxRendererType) -> list[str] | None:
+        """
+        Append citations to the report.
+        """
+        if renderer_type == DocxRendererType.DOCX:
+            return [
+                f"[{index}] {title}" for title, index in self._citated_documents.items()
+            ]
 
     def get_references(self, message_id: str) -> list[ContentReference]:
         """
@@ -255,6 +207,14 @@ class CitationManager:
         """
         return self._content_chunks
 
+    def _get_reference_index(self, title: str) -> int:
+        """
+        Get the reference index for a given title.
+        """
+        if title not in self._citated_documents:
+            self._citated_documents[title] = len(self._citated_documents) + 1
+        return self._citated_documents[title]
+
 
 def _convert_content_chunk_to_content_reference(
     message_id: str, index: int, chunk: ContentChunk
@@ -272,7 +232,7 @@ def _convert_content_chunk_to_content_reference(
     """
     url = f"unique//content/{chunk.id}"
     source_id = f"{chunk.id}_{chunk.chunk_id}"
-    filename = chunk.title or chunk.key or "Unknown Title"
+    filename = _get_title(chunk)
     pages = _get_pages(chunk.start_page, chunk.end_page)
     title = f"{filename}: {pages}"
     return ContentReference(
@@ -304,3 +264,7 @@ def _get_pages(start_page: int | None, end_page: int | None) -> str:
     if end_page is None or end_page == start_page:
         return f"{start_page}"
     return f"{start_page}, {end_page}"
+
+
+def _get_title(chunk: ContentChunk) -> str:
+    return chunk.title or chunk.key or "Unknown Title"

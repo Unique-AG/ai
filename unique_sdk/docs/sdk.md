@@ -1,7 +1,3 @@
-# Unique Python SDK
-
-Unique AI is a tailored solution for the financial industry, designed to increase productivity by automating manual workloads through AI and ChatGPT solutions.
-
 The Unique Python SDK provides access to the public API of Unique AI. It also enables verification of Webhook signatures to ensure the authenticity of incoming Webhook requests.
 
 ## Table of Contents
@@ -24,6 +20,9 @@ The Unique Python SDK provides access to the public API of Unique AI. It also en
    - [Message Assessment](#message-assessment)
    - [Folder](#folder)
    - [Space](#space)
+   - [LLM Models](#llm-models)
+   - [User](#user)
+   - [Group](#group)
    - [Agentic Table](#agentic-table)
 6. [UniqueQL](#uniqueql)
    - [Query Structure](#uniqueql-query-structure)
@@ -242,6 +241,9 @@ unique_sdk.Message.modify(
 - [Message Assessment](#message-assessment)
 - [Folder](#folder)
 - [Space](#space)
+- [LLM Models](#llm-models)
+- [User](#user)
+- [Group](#group)
 - [Agentic Table](#agentic-table)
 
 Most of the API services provide an asynchronous version of the method. The async methods are suffixed with `_async`.
@@ -459,6 +461,7 @@ def upload_file(
     path_to_file,
     displayed_filename,
     mimeType,
+    description=None,
     scope_or_unique_path,
     ingestion_config=None,
     metadata=None,
@@ -471,6 +474,7 @@ def upload_file(
             "key": displayed_filename,
             "title": displayed_filename,
             "mimeType": mimeType,
+            "description": description,
             "ingestionConfig": ingestionConfig,
             "metadata": metadata,
         },
@@ -497,6 +501,7 @@ def upload_file(
             "key": displayed_filename,
             "title": displayed_filename,
             "mimeType": mimeType,
+            "description": description,
             "byteSize": size,
             "ingestionConfig": ingestionConfig,
             "metadata": metadata,
@@ -1111,6 +1116,18 @@ unique_sdk.Folder.get_info(
 )
 ```
 
+#### `unique_sdk.Folder.get_folder_path` (Compatible with release >.48)
+
+Get the complete folder path for a given scope ID. Returns the full path string with folder names (e.g., "/company/subfolder1/subfolder2").
+
+```python
+folder_path = unique_sdk.Folder.get_folder_path(
+   user_id=user_id,
+   company_id=company_id,
+   scope_id="scope_w78wfn114va9o22s13r03yq",
+)
+```
+
 #### `unique_sdl.Folder.get_infos`
 
 Get paginated folders info based on parentId. If the parentId is not defined, the root folders will be returned.
@@ -1341,6 +1358,56 @@ unique_sdk.Folder.delete(
 
 ### Space
 
+#### `unique_sdk.Space.create_message`
+
+Send a message in a space. You can optionally provide a chat ID to continue an existing conversation, or omit it to start a new chat.
+
+```python
+message = unique_sdk.Space.create_message(
+    user_id=user_id,
+    company_id=company_id,
+    chatId="chat_dejfhe729br398",  # Optional - if not provided, a new chat will be created
+    assistantId="assistant_abc123",
+    text="Hello, how can you help me?",
+    toolChoices=["WebSearch"],  # Optional - list of tools to use
+    scopeRules={  # Optional - scope rules for filtering
+        "or": [
+            {
+                "operator": "contains",
+                "path": ["folderIdPath"],
+                "value": "uniquepathid://scope_123"
+            }
+        ]
+    },
+)
+```
+
+#### `unique_sdk.Space.get_chat_messages` (Compatible with release >.48)
+
+Get all messages in a space chat. Returns a list of paginated messages in the specified chat.
+
+```python
+messages = unique_sdk.Space.get_chat_messages(
+    user_id=user_id,
+    company_id=company_id,
+    chat_id="chat_dejfhe729br398",
+    skip=0,  # Optional (defaults to 0) - number of messages to skip for pagination
+    take=50,  # Optional (defaults to 10) - number of messages to return
+)
+```
+
+#### `unique_sdk.Space.get_latest_message`
+
+Get the latest message in a space chat.
+
+```python
+message = unique_sdk.Space.get_latest_message(
+    user_id=user_id,
+    company_id=company_id,
+    chat_id="chat_dejfhe729br398",
+)
+```
+
 #### `unique_sdk.Space.delete_chat`
 
 Delete a space chat by id. If the chat does not exist, the function will return an error.
@@ -1350,6 +1417,147 @@ unique_sdk.Space.delete_chat(
     user_id=user_id,
     company_id=company_id,
     chat_id="chat_dejfhe729br398",
+)
+```
+
+### LLM Models
+
+#### `unique_sdk.LLMModels.get` (Compatible with release >.46)
+
+Get available LLM models. You can optionally filter by module and skip cache to fetch fresh data.
+
+```python
+models = unique_sdk.LLMModels.get(
+    user_id=user_id,
+    company_id=company_id,
+    module="UNIQUE_AI",  # Optional - filter models by module, only UNIQUE_AI is supported right now
+)
+```
+
+### User
+
+#### `unique_sdk.User.get_users` (Compatible with release >.48)
+
+Get users in a company. You can filter by email, display name, and use pagination with skip and take parameters.
+
+```python
+users = unique_sdk.User.get_users(
+    user_id=user_id,
+    company_id=company_id,
+    skip=0,  # Optional - number of records to skip for pagination
+    take=50,  # Optional - number of records to return (max 1000)
+    email="user@example.com",  # Optional - filter by email
+    displayName="John",  # Optional - filter by display name
+)
+```
+
+#### `unique_sdk.User.update_user_configuration` (Compatible with release >.48)
+
+Update the user configuration for the current user. The configuration is stored as a JSON object.
+
+```python
+updated_user = unique_sdk.User.update_user_configuration(
+    user_id=user_id,
+    company_id=company_id,
+    userConfiguration={  # Required - user configuration object (JSON)
+        {"location": "CH"}
+    }
+)
+```
+
+### Group
+
+#### `unique_sdk.Group.create_group` (Compatible with release >.48)
+
+Create a new group in a company. You can specify the group name (required), external ID and parent group ID.
+
+```python
+group = unique_sdk.Group.create_group(
+    user_id=user_id,
+    company_id=company_id,
+    name="New Group",  # Required - the name of the group
+    externalId="ext_123",  # Optional - external ID for the group
+    parentId="group_a9cs7wr2z1bg2sxczvltgjch",  # Optional - parent group ID
+)
+```
+
+#### `unique_sdk.Group.get_groups` (Compatible with release >.48)
+
+Get groups in a company. You can filter by name and use pagination with skip and take parameters.
+
+```python
+groups = unique_sdk.Group.get_groups(
+    user_id=user_id,
+    company_id=company_id,
+    skip=0,  # Optional - number of records to skip for pagination
+    take=50,  # Optional - number of records to return (max 1000)
+    name="Admin",  # Optional - filter by group name
+)
+```
+
+#### `unique_sdk.Group.update_group` (Compatible with release >.48)
+
+Update a group in a company. You can update the group's name.
+
+```python
+updated_group = unique_sdk.Group.update_group(
+    user_id=user_id,
+    company_id=company_id,
+    group_id="group_a9cs7wr2z1bg2sxczvltgjch",
+    name="New Group Name",  # Optional - update the group name
+)
+```
+
+#### `unique_sdk.Group.add_users_to_group` (Compatible with release >.48)
+
+Add users to a group. Provide an array of user IDs to add as members to the specified group.
+
+```python
+result = unique_sdk.Group.add_users_to_group(
+    user_id=user_id,
+    company_id=company_id,
+    group_id="group_a9cs7wr2z1bg2sxczvltgjch",
+    userIds=["299420877169688584", "325402458132058201", "299426678160031752"],  # Required - array of user IDs to add
+)
+```
+
+#### `unique_sdk.Group.remove_users_from_group` (Compatible with release >.48)
+
+Remove users from a group. Provide an array of user IDs to remove from the specified group.
+
+```python
+result = unique_sdk.Group.remove_users_from_group(
+    user_id=user_id,
+    company_id=company_id,
+    group_id="group_a9cs7wr2z1bg2sxczvltgjch",
+    userIds=["299426678160031752", "299426678160031752"],  # Required - array of user IDs to remove
+)
+```
+
+#### `unique_sdk.Group.update_group_configuration` (Compatible with release >.48)
+
+Update the group configuration for the specified group. The configuration is stored as a JSON object.
+
+```python
+updated_group = unique_sdk.Group.update_group_configuration(
+    user_id=user_id,
+    company_id=company_id,
+    group_id="group_abc123",
+    configuration={  # Required - group configuration object (JSON)
+        {"email": "team@unique.ai"}
+    }
+)
+```
+
+#### `unique_sdk.Group.delete_group` (Compatible with release >.48)
+
+Delete a group in a company by its group ID.
+
+```python
+result = unique_sdk.Group.delete_group(
+    user_id=user_id,
+    company_id=company_id,
+    group_id="group_a9cs7wr2z1bg2sxczvltgjch",
 )
 ```
 
@@ -1897,11 +2105,12 @@ You must provide the following parameters:
 - `mime_type`: The mime type of the ifle to be uploaded.
 - `text`: The text to be sent to the chat for chatting against the file.
 
-The script creates a chat and uploads the file to it. It then keeps polling the `ingestionState` field of the message, waiting for it to reach `FINISHED`, signaling the upload is complete. Once the file uploads successfully, the script sends the text, continues polling for completion, and finally retrieves the response message.
+The script creates a chat and uploads the file to it. It then keeps polling the `ingestionState` field of the message, waiting for it to reach `FINISHED`, signaling the upload is complete. Once the file uploads successfully, the script sends the text, continues polling for completion, and finally retrieves the response message. The function deletes the chat at the end unless the `should_delete_chat` is set to false.
 
 **Optional parameters:**
 - `poll_interval`: The number of seconds to wait between polling attempts (default: `1` second).
 - `max_wait`: The maximum number of seconds to wait for the message to complete (default: `60` seconds).
+- `should_delete_chat`: Setting this flag determines whether the chat should be deleted at the end or not. Default is True.
 
 Example of chatting against a PDF. (The usage can be extended to any supported file type)
 
@@ -1911,8 +2120,8 @@ latest_message = await unique_sdk.utils.chat_in_space.chat_against_file(
     company_id=company_id,
     assistant_id="assistant_hjcdga64bkcjnhu4",
     path_to_file="/files/hello.pdf",
-    displayed_filename="hello.pdf"
-    mime_type="application/pdf"
+    displayed_filename="hello.pdf",
+    mime_type="application/pdf",
     text="Give me a bullet point summary of the file.",
 )
 ```
@@ -1950,3 +2159,4 @@ An example Flask app demonstrating the usage of each API resource and how to int
 ## Credits
 
 This is a _fork_ / inspired-by the fantastic Stripe Python SDK (https://github.com/stripe/stripe-python).
+

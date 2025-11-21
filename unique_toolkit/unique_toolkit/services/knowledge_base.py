@@ -1,7 +1,8 @@
 import asyncio
 import logging
-from pathlib import Path
-from typing import Any, overload
+import mimetypes
+from pathlib import Path, PurePath
+from typing import Any, Callable, overload
 
 import humps
 import unique_sdk
@@ -26,8 +27,10 @@ from unique_toolkit.content.functions import (
     update_content,
     upload_content,
     upload_content_from_bytes,
+    upload_content_from_bytes_async,
 )
 from unique_toolkit.content.schemas import (
+    BaseFolderInfo,
     Content,
     ContentChunk,
     ContentInfo,
@@ -37,6 +40,7 @@ from unique_toolkit.content.schemas import (
     FolderInfo,
     PaginatedContentInfos,
 )
+from unique_toolkit.content.smart_rules import Operator, Statement
 
 _LOGGER = logging.getLogger(f"toolkit.knowledge_base.{__name__}")
 
@@ -100,6 +104,9 @@ class KnowledgeBaseService:
             user_id=settings.auth.user_id.get_secret_value(),
             metadata_filter=metadata_filter,
         )
+
+    # Content Search
+    # ------------------------------------------------------------------------------------------------
 
     @overload
     def search_content_chunks(
@@ -302,6 +309,7 @@ class KnowledgeBaseService:
         self,
         *,
         where: dict,
+        include_failed_content: bool = False,
     ) -> list[Content]:
         """
         Performs a search in the knowledge base by filter (and not a smilarity search)
@@ -319,12 +327,14 @@ class KnowledgeBaseService:
             company_id=self._company_id,
             chat_id="",
             where=where,
+            include_failed_content=include_failed_content,
         )
 
     async def search_contents_async(
         self,
         *,
         where: dict,
+        include_failed_content: bool = False,
     ) -> list[Content]:
         """
         Performs an asynchronous search for content files in the knowledge base by filter.
@@ -341,7 +351,11 @@ class KnowledgeBaseService:
             company_id=self._company_id,
             chat_id="",
             where=where,
+            include_failed_content=include_failed_content,
         )
+
+    # Content Management
+    # ------------------------------------------------------------------------------------------------
 
     def upload_content_from_bytes(
         self,
@@ -372,6 +386,47 @@ class KnowledgeBaseService:
         """
 
         return upload_content_from_bytes(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            content=content,
+            content_name=content_name,
+            mime_type=mime_type,
+            scope_id=scope_id,
+            chat_id="",
+            skip_ingestion=skip_ingestion,
+            ingestion_config=ingestion_config,
+            metadata=metadata,
+        )
+
+    async def upload_content_from_bytes_async(
+        self,
+        content: bytes,
+        *,
+        content_name: str,
+        mime_type: str,
+        scope_id: str,
+        skip_ingestion: bool = False,
+        ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
+        metadata: dict | None = None,
+    ) -> Content:
+        """
+        Uploads content to the knowledge base.
+
+        Args:
+            content (bytes): The content to upload.
+            content_name (str): The name of the content.
+            mime_type (str): The MIME type of the content.
+            scope_id (str | None): The scope ID. Defaults to None.
+            skip_ingestion (bool): Whether to skip ingestion. Defaults to False.
+            skip_excel_ingestion (bool): Whether to skip excel ingestion. Defaults to False.
+            ingestion_config (unique_sdk.Content.IngestionConfig | None): The ingestion configuration. Defaults to None.
+            metadata (dict | None): The metadata to associate with the content. Defaults to None.
+
+        Returns:
+            Content: The uploaded content.
+        """
+
+        return await upload_content_from_bytes_async(
             user_id=self._user_id,
             company_id=self._company_id,
             content=content,
@@ -483,6 +538,80 @@ class KnowledgeBaseService:
             chat_id=None,
         )
 
+    def batch_file_upload(
+        self,
+        *,
+        local_files: list[Path],
+        remote_folders: list[PurePath],
+        overwrite: bool = False,
+        metadata_generator: Callable[[Path, PurePath], dict[str, Any]] | None = None,
+    ) -> None:
+        """
+        Upload files to the knowledge base into corresponding folders
+
+        Args:
+            local_files (list[Path]): The local files to upload
+            remote_folders (list[PurePath]): The remote folders to upload the files to
+            overwrite (bool): Whether to overwrite existing files
+            metadata_generator (Callable[[Path, PurePath], dict[str, Any]] | None): The metadata generator function
+
+        Returns:
+            None
+        """
+
+        if len(local_files) != len(remote_folders):
+            raise ValueError(
+                "The number of local files and remote folders must be the same"
+            )
+
+        creation_result = self.create_folders(paths=remote_folders)
+
+        folders_path_to_scope_id = {
+            folder_path: result.id
+            for folder_path, result in zip(remote_folders, creation_result)
+        }
+
+        _old_scope_id = None
+        _existing_file_names: list[str] = []
+
+        for remote_folder_path, local_file_path in zip(remote_folders, local_files):
+            scope_id = folders_path_to_scope_id[remote_folder_path]
+            mime_type = mimetypes.guess_type(local_file_path.name)[0]
+
+            if mime_type is None:
+                _LOGGER.warning(
+                    f"No mime type found for file {local_file_path.name}, skipping"
+                )
+                continue
+
+            if not overwrite:
+                if _old_scope_id is None or _old_scope_id != scope_id:
+                    _LOGGER.debug(f"Switching to new folder {scope_id}")
+                    _old_scope_id = scope_id
+                    _existing_file_names = self.get_file_names_in_folder(
+                        scope_id=scope_id
+                    )
+
+                if local_file_path.name in _existing_file_names:
+                    _LOGGER.warning(
+                        f"File {local_file_path.name} already exists in folder {scope_id}, skipping"
+                    )
+                    continue
+
+            metadata = None
+            if metadata_generator is not None:
+                metadata = metadata_generator(local_file_path, remote_folder_path)
+
+            self.upload_content(
+                path_to_content=str(local_file_path),
+                content_name=local_file_path.name,
+                mime_type=mime_type,
+                scope_id=scope_id,
+                metadata=metadata,
+            )
+
+    # Content Information
+    # ------------------------------------------------------------------------------------------------
     def get_paginated_content_infos(
         self,
         *,
@@ -500,6 +629,27 @@ class KnowledgeBaseService:
             file_path=file_path,
         )
 
+    def get_file_names_in_folder(self, *, scope_id: str) -> list[str]:
+        """
+        Get the list of file names in a knowledge base folder
+
+        Args:
+            scope_id (str): The scope id of the folder
+
+        Returns:
+            list[str]: The list of file names in the folder
+        """
+        smart_rule = Statement(
+            operator=Operator.EQUALS, value=scope_id, path=["folderId"]
+        )
+        infos = self.get_paginated_content_infos(
+            metadata_filter=smart_rule.model_dump(mode="json")
+        )
+        return [i.key for i in infos.content_infos]
+
+    # Folder Management
+    # ------------------------------------------------------------------------------------------------
+
     def get_folder_info(
         self,
         *,
@@ -509,19 +659,6 @@ class KnowledgeBaseService:
             user_id=self._user_id,
             company_id=self._company_id,
             scope_id=scope_id,
-        )
-
-    def replace_content_metadata(
-        self,
-        *,
-        content_id: str,
-        metadata: dict[str, Any],
-    ) -> ContentInfo:
-        return update_content(
-            user_id=self._user_id,
-            company_id=self._company_id,
-            content_id=content_id,
-            metadata=metadata,
         )
 
     def _resolve_visible_file_tree(self, content_infos: list[ContentInfo]) -> list[str]:
@@ -605,6 +742,44 @@ class KnowledgeBaseService:
         for key in forbidden_keys:
             metadata.pop(key, None)
         return metadata
+
+    def create_folders(self, *, paths: list[PurePath]) -> list[BaseFolderInfo]:
+        """
+        Create folders in the knowledge base if the path does not exists.
+
+        Args:
+            paths (list[PurePath]): The paths to create the folders at
+
+        Returns:
+            list[BaseFolderInfo]: The information about the created folders or existing folders
+        """
+        result = unique_sdk.Folder.create_paths(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            paths=[path.as_posix() for path in paths],
+        )
+        return [
+            BaseFolderInfo.model_validate(folder, by_alias=True, by_name=True)
+            for folder in result["createdFolders"]
+        ]
+
+        # Metadata
+
+    # Metadata Management
+    # ------------------------------------------------------------------------------------------------
+
+    def replace_content_metadata(
+        self,
+        *,
+        content_id: str,
+        metadata: dict[str, Any],
+    ) -> ContentInfo:
+        return update_content(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            content_id=content_id,
+            metadata=metadata,
+        )
 
     def update_content_metadata(
         self,
@@ -735,6 +910,9 @@ class KnowledgeBaseService:
 
         return content_infos
 
+    # Delete
+    # ------------------------------------------------------------------------------------------------
+
     @overload
     def delete_content(
         self,
@@ -846,6 +1024,63 @@ class KnowledgeBaseService:
         resp = await asyncio.gather(*delete_tasks)
 
         return list(resp)
+
+    def _get_knowledge_base_location(
+        self, *, scope_id: str
+    ) -> tuple[PurePath, list[str]]:
+        """
+        Get the path of a folder from a scope id.
+
+        Args:
+            scope_id (str): The scope id of the folder.
+
+        Returns:
+            PurePath: The path of the folder.
+            list[str]: The list of scope ids from root to the folder.
+        """
+
+        list_of_folder_names: list[str] = []
+        list_of_scope_ids: list[str] = []
+        folder_info = self.get_folder_info(scope_id=scope_id)
+        list_of_scope_ids.append(folder_info.id)
+        if folder_info.parent_id is not None:
+            list_of_folder_names.append(folder_info.name)
+        else:
+            return PurePath("/" + folder_info.name), list_of_scope_ids
+
+        while folder_info.parent_id is not None:
+            folder_info = self.get_folder_info(scope_id=folder_info.parent_id)
+            list_of_folder_names.append(folder_info.name)
+
+        list_of_scope_ids.reverse()
+        return PurePath("/" + "/".join(list_of_folder_names[::-1])), list_of_scope_ids
+
+    # Utility Functions
+    # ------------------------------------------------------------------------------------------------
+
+    def get_folder_path(self, *, scope_id: str) -> PurePath:
+        """
+        Get the path of a folder from a scope id.
+        Args:
+            scope_id (str): The scope id of the folder.
+
+        Returns:
+            PurePath: The path of the folder.
+        """
+        folder_path, _ = self._get_knowledge_base_location(scope_id=scope_id)
+        return folder_path
+
+    def get_scope_id_path(self, *, scope_id: str) -> list[str]:
+        """
+        Get the path of a folder from a scope id.
+        Args:
+            scope_id (str): The scope id of the folder.
+
+        Returns:
+            list[str]: The list of scope ids from root to the folder.
+        """
+        _, list_of_scope_ids = self._get_knowledge_base_location(scope_id=scope_id)
+        return list_of_scope_ids
 
 
 if __name__ == "__main__":
