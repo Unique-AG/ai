@@ -102,6 +102,86 @@ class Space(APIResource["Space"]):
         messages: List["Space.Message"]
         totalCount: int
 
+    class AssistantMcpServer(TypedDict):
+        """
+        Represents an MCP server associated with an assistant.
+        """
+
+        id: str
+        name: str
+        assistantId: str
+        mcpServerId: str
+        isEnabled: bool
+        createdAt: str
+        updatedAt: str
+
+    class Module(TypedDict):
+        """
+        Represents a module configured for a space.
+        """
+
+        id: str
+        name: str
+        description: Optional[str]
+        toolDefinition: Optional[Dict[str, Any]]
+        configuration: Dict[str, Any]
+        assistantId: str
+        weight: int
+        isExternal: bool
+        isCustomInstructionEnabled: bool
+        moduleTemplateId: Optional[str]
+        createdAt: str
+        updatedAt: str
+
+    class ScopeRule(TypedDict):
+        """
+        Represents a scope rule for a space.
+        """
+
+        id: str
+        assistantId: str
+        title: str
+        companyId: str
+        rule: Dict[str, Any]
+        isAdvanced: bool
+        createdAt: str
+        updatedAt: str
+
+    class AssistantAccess(TypedDict):
+        """
+        Represents access control for a space.
+        """
+
+        id: str
+        entityId: str
+        entityType: str
+        type: str
+
+    id: str
+    name: str
+    defaultForCompanyId: Optional[str]
+    title: Optional[str]
+    subtitle: Optional[str]
+    explanation: Optional[str]
+    alert: Optional[str]
+    inputLimit: Optional[int]
+    inputPlaceholder: Optional[str]
+    chatUpload: str
+    goals: List[str]
+    languageModel: Optional[str]
+    fallbackModule: str
+    access: List[str]
+    isExternal: bool
+    isPinned: bool
+    uiType: str
+    settings: Optional[Dict[str, Any]]
+    assistantMcpServers: List["Space.AssistantMcpServer"]
+    modules: List["Space.Module"]
+    scopeRules: List["Space.ScopeRule"]
+    assistantAccess: List["Space.AssistantAccess"]
+    createdAt: str
+    updatedAt: str
+
     @classmethod
     def create_message(
         cls,
@@ -259,6 +339,46 @@ class Space(APIResource["Space"]):
             await cls._static_request_async(
                 "delete",
                 f"/space/chat/{chat_id}",
+                user_id,
+                company_id,
+            ),
+        )
+
+    @classmethod
+    def get_space(
+        cls,
+        user_id: str,
+        company_id: str,
+        space_id: str,
+    ) -> "Space":
+        """
+        Get detailed information about a space (assistant).
+        """
+        return cast(
+            "Space",
+            cls._static_request(
+                "get",
+                f"/space/{space_id}",
+                user_id,
+                company_id,
+            ),
+        )
+
+    @classmethod
+    async def get_space_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        space_id: str,
+    ) -> "Space":
+        """
+        Async get detailed information about a space (assistant).
+        """
+        return cast(
+            "Space",
+            await cls._static_request_async(
+                "get",
+                f"/space/{space_id}",
                 user_id,
                 company_id,
             ),
