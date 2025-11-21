@@ -5,6 +5,7 @@ Target of the method is to extend the step tracking on all levels of the tool.
 """
 
 from collections import defaultdict
+from logging import getLogger
 
 from unique_toolkit.chat.schemas import (
     MessageLogDetails,
@@ -13,6 +14,8 @@ from unique_toolkit.chat.schemas import (
 )
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.schemas import ContentReference
+
+_LOGGER = getLogger(__name__)
 
 # Per-request counters for message log ordering - keyed by message_id
 # This is a mandatory global variable since we have in the system a bug which makes it impossible to use it as a proper class variable.
@@ -71,6 +74,12 @@ class MessageStepLogger:
         """
 
         # Creating a new message log entry with the found hits.
+        if not self._chat_service._assistant_message_id:
+            _LOGGER.warning(
+                "Assistant message id is not set. Skipping message log entry creation."
+            )
+            return
+
         _ = self._chat_service.create_message_log(
             message_id=self._chat_service._assistant_message_id,
             text=text,
