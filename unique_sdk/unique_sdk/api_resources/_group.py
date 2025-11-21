@@ -1,5 +1,7 @@
 from typing import (
+    Any,
     ClassVar,
+    Dict,
     List,
     Literal,
     NotRequired,
@@ -55,6 +57,13 @@ class Group(APIResource["Group"]):
 
         userIds: List[str]
 
+    class UpdateGroupConfigurationParams(RequestOptions):
+        """
+        Parameters for updating group configuration.
+        """
+
+        configuration: Dict[str, Any]
+
     class GroupMember(TypedDict):
         """
         Represents a member of a group.
@@ -83,6 +92,13 @@ class Group(APIResource["Group"]):
         members: Optional[List["Group.GroupMember"]]
         createdAt: str
         updatedAt: str
+
+    class GroupWithConfiguration(Group):
+        """
+        Represents a group in the company with configuration.
+        """
+
+        configuration: Dict[str, Any]
 
     class Groups(TypedDict):
         """
@@ -362,6 +378,50 @@ class Group(APIResource["Group"]):
             await cls._static_request_async(
                 "delete",
                 f"/groups/{group_id}/users",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    def update_group_configuration(
+        cls,
+        user_id: str,
+        company_id: str,
+        group_id: str,
+        **params: Unpack["Group.UpdateGroupConfigurationParams"],
+    ) -> "Group.GroupWithConfiguration":
+        """
+        Update group configuration for the specified group.
+        """
+        return cast(
+            "Group.GroupWithConfiguration",
+            cls._static_request(
+                "patch",
+                f"/groups/{group_id}/configuration",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    async def update_group_configuration_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        group_id: str,
+        **params: Unpack["Group.UpdateGroupConfigurationParams"],
+    ) -> "Group.GroupWithConfiguration":
+        """
+        Async update group configuration for the specified group.
+        """
+        return cast(
+            "Group.GroupWithConfiguration",
+            await cls._static_request_async(
+                "patch",
+                f"/groups/{group_id}/configuration",
                 user_id,
                 company_id,
                 params=params,
