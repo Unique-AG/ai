@@ -18,7 +18,10 @@ from unique_toolkit.app.schemas import (
     ChatEventAssistantMessage,
     ChatEventUserMessage,
 )
-from unique_toolkit.language_model.schemas import LanguageModelMessageRole
+from unique_toolkit.language_model.schemas import (
+    LanguageModelMessageRole,
+    LanguageModelMessages,
+)
 
 
 class MagicTableEventTypes(StrEnum):
@@ -199,8 +202,9 @@ class MagicTableEvent(ChatEvent):
 
 class LogDetail(BaseModel):
     model_config = get_configuration_dict()
-    text: str
-    message_id: str | None
+    llm_request: LanguageModelMessages | None = Field(
+        default=None, description="The LLM request for the log detail"
+    )
 
 
 class LogEntry(BaseModel):
@@ -210,8 +214,8 @@ class LogEntry(BaseModel):
     created_at: str
     actor_type: LanguageModelMessageRole
     message_id: str | None = None
-    details: list[LogDetail] = Field(
-        default_factory=list, description="The details of the log entry"
+    details: LogDetail | None = Field(
+        default=None, description="The details of the log entry"
     )
 
     @field_validator("actor_type", mode="before")
