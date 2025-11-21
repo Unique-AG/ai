@@ -1,0 +1,68 @@
+site_name: Tutorials
+site_description: Documentation of the Tutorials
+site_author: Unique Team
+site_url: https://github.com/Unique-AG/ai/tutorials
+repo_name: Unique-AG/ai/tutorials
+repo_url: https://github.com/Unique-AG/ai/tutorials
+edit_uri: /docs/
+
+nav:
+  - MCP Demo Tutorial: mcp_demo.md
+  - MCP Search Tutorial: mcp_search.md
+
+
+markdown_extensions:
+  - admonition
+  - footnotes
+  - meta
+  - toc:
+      permalink: true
+  - pymdownx.arithmatex
+  - pymdownx.betterem
+  - pymdownx.caret
+  - pymdownx.critic
+  - pymdownx.details
+  - pymdownx.emoji
+  - pymdownx.inlinehilite
+  - pymdownx.magiclink
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.snippets:
+      base_path: .
+      check_paths: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist
+  - pymdownx.tilde
+  - attr_list
+
+docs_dir: docs
+site_dir: site
+
+plugins:
+  - search
+  - entangled
+  - include-markdown 
+  - callouts
+  - codeinclude
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            docstring_section_style: table
+            show_root_heading: true
+            show_source: true
+            filters:
+              - "!.[company|user|assistant|chat|assistant_id|assistant_message_id|user_message_id]_id.*"
+              - "!.*_async.*"
+              - "!.*event.*"
+            extra:
+              show_signature_annotations: true
+              show_type_annotations: true
+              show_if_no_docstring: false

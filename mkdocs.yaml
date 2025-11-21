@@ -39,7 +39,10 @@ theme:
 
 nav:
   - Home: 'index.md'
+  - Unique SDK: '!include ./unique_sdk/mkdocs.yaml'
   - Unique Toolkit: '!include ./unique_toolkit/mkdocs.yaml'
+  - Tutorials: '!include ./tutorials/mkdocs.yaml'
+
 
 plugins:
   - search
