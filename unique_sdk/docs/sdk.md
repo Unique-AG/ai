@@ -1,3 +1,5 @@
+# Unique Python SDK
+
 The Unique Python SDK provides access to the public API of Unique AI. It also enables verification of Webhook signatures to ensure the authenticity of incoming Webhook requests.
 
 ## Table of Contents
@@ -1405,6 +1407,18 @@ message = unique_sdk.Space.get_latest_message(
     user_id=user_id,
     company_id=company_id,
     chat_id="chat_dejfhe729br398",
+)
+```
+
+#### `unique_sdk.Space.get_space` (Compatible with release >.48)
+
+Get detailed information about a space, including its configuration, modules and scope rules.
+
+```python
+space_info = unique_sdk.Space.get_space(
+    user_id=user_id,
+    company_id=company_id,
+    space_id="assistant_hjcdga64bkcjnhu4",
 )
 ```
 
