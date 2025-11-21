@@ -1402,7 +1402,7 @@ message = unique_sdk.Space.get_latest_message(
 
 #### `unique_sdk.Space.get_space` (Compatible with release >.48)
 
-Get detailed information about a space (assistant), including its configuration, modules, scope rules, and access controls.
+Get detailed information about a space, including its configuration, modules and scope rules.
 
 ```python
 space_info = unique_sdk.Space.get_space(
