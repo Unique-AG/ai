@@ -9,6 +9,7 @@ This test demonstrates the complete lifecycle of tool configuration and factory 
 5. Cleaning up registered tools
 """
 
+import json
 from typing import cast
 from unittest.mock import Mock
 
@@ -464,3 +465,13 @@ class TestToolBuildConfigAndFactory:
 
         # Cleanup is handled by teardown_method
         # This test verifies that multiple registrations work correctly
+
+    def test_tool_build_config_model_dump(self) -> None:
+        ToolFactory.register_tool(TestTool, TestToolConfig)
+        config = TestToolConfig()
+
+        tool_build_config = ToolBuildConfig(name="test_tool", configuration=config)
+        assert tool_build_config.model_dump()["configuration"] == config.model_dump()
+        assert json.loads(tool_build_config.model_dump_json())[
+            "configuration"
+        ] == json.loads(config.model_dump_json())

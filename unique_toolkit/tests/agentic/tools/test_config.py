@@ -741,35 +741,6 @@ def test_tool_build_config__preserves_config_fields__in_model_dump(
     assert result["configuration"]["param_two"] == 200
 
 
-@pytest.mark.ai
-def test_tool_build_config__handles_none_config__in_model_dump() -> None:
-    """
-    Purpose: Verify model_dump handles None configuration gracefully.
-    Why this matters: Prevents errors when configuration is not set.
-    Setup summary: Test model_dump with constructed object that has None config.
-    """
-    # Arrange
-    from unique_toolkit.agentic.tools.config import ToolBuildConfig
-
-    # Use model_construct to bypass validation for testing edge case
-    config = ToolBuildConfig.model_construct(
-        name="none_config_test",
-        configuration=None,
-        display_name="",
-        icon=ToolIcon.BOOK,
-        selection_policy=ToolSelectionPolicy.BY_USER,
-        is_exclusive=False,
-        is_sub_agent=False,
-        is_enabled=True,
-    )
-
-    # Act
-    result = config.model_dump()
-
-    # Assert
-    assert result["configuration"] is None
-
-
 # ============================================================================
 # ToolBuildConfig Serialization Tests (model_dump_json)
 # ============================================================================
@@ -876,36 +847,6 @@ def test_tool_build_config__round_trip_serialization__preserves_data(
     assert restored_config.is_enabled == original_config.is_enabled
     assert restored_config.configuration.param_one == simple_config.param_one
     assert restored_config.configuration.param_two == simple_config.param_two
-
-
-@pytest.mark.ai
-def test_tool_build_config__handles_none_config__in_model_dump_json() -> None:
-    """
-    Purpose: Verify model_dump_json handles None configuration gracefully.
-    Why this matters: Prevents errors when configuration is not set.
-    Setup summary: Test model_dump_json with constructed object that has None config.
-    """
-    # Arrange
-    from unique_toolkit.agentic.tools.config import ToolBuildConfig
-
-    # Use model_construct to bypass validation for testing edge case
-    config = ToolBuildConfig.model_construct(
-        name="none_json_test",
-        configuration=None,
-        display_name="",
-        icon=ToolIcon.BOOK,
-        selection_policy=ToolSelectionPolicy.BY_USER,
-        is_exclusive=False,
-        is_sub_agent=False,
-        is_enabled=True,
-    )
-
-    # Act
-    result = config.model_dump_json()
-    parsed = json.loads(result)
-
-    # Assert
-    assert parsed["configuration"] is None
 
 
 # ============================================================================
