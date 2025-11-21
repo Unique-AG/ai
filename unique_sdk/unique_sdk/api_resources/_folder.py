@@ -189,7 +189,7 @@ class Folder(APIResource["Folder"]):
         cls,
         user_id: str,
         company_id: str,
-        folder_id: str,
+        scope_id: str,
     ) -> "Folder.FolderPathResponse":
         """
         Get the complete folder path for a given folder ID.
@@ -198,7 +198,7 @@ class Folder(APIResource["Folder"]):
             "Folder.FolderPathResponse",
             cls._static_request(
                 "get",
-                f"/folder/{folder_id}/path",
+                f"/folder/{scope_id}/path",
                 user_id,
                 company_id,
             ),
@@ -209,7 +209,7 @@ class Folder(APIResource["Folder"]):
         cls,
         user_id: str,
         company_id: str,
-        folder_id: str,
+        scope_id: str,
     ) -> "Folder.FolderPathResponse":
         """
         Async get the complete folder path for a given folder ID.
@@ -218,7 +218,7 @@ class Folder(APIResource["Folder"]):
             "Folder.FolderPathResponse",
             await cls._static_request_async(
                 "get",
-                f"/folder/{folder_id}/path",
+                f"/folder/{scope_id}/path",
                 user_id,
                 company_id,
             ),

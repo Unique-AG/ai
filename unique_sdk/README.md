@@ -1122,13 +1122,13 @@ unique_sdk.Folder.get_info(
 
 #### `unique_sdk.Folder.get_folder_path` (Compatible with release >.48)
 
-Get the complete folder path for a given folder ID. Returns the full path string with folder names (e.g., "/company/subfolder1/subfolder2").
+Get the complete folder path for a given scope ID. Returns the full path string with folder names (e.g., "/company/subfolder1/subfolder2").
 
 ```python
 folder_path = unique_sdk.Folder.get_folder_path(
    user_id=user_id,
    company_id=company_id,
-   folder_id="scope_w78wfn114va9o22s13r03yq",
+   scope_id="scope_w78wfn114va9o22s13r03yq",
 )
 ```
 
