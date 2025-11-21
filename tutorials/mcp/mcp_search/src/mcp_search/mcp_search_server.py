@@ -12,7 +12,7 @@ import json
 import sys
 from typing import Annotated
 from pydantic import Field
-
+import unique_sdk
 
 from fastapi.responses import FileResponse, JSONResponse
 from pathlib import Path
@@ -25,20 +25,28 @@ FAVICON_PATH = Path(__file__).parent / "favicon.ico"
 # Load environment variables from .env file
 load_dotenv()
 
-user_id = os.getenv("USER_ID", "default_user_id")
-company_id = os.getenv("COMPANY_ID", "default_company_id")
+
 ZITADEL_URL = os.getenv("ZITADEL_URL", "http://localhost:10116")
-
-
 upstream_client_id = os.getenv("UPSTREAM_CLIENT_ID", "default_client_id")
 upstream_client_secret = os.getenv("UPSTREAM_CLIENT_SECRET", "default_client_secret")
-
 base_url_env = os.getenv("BASE_URL_ENV", "https://default.ngrok-free.app")
+
+unique_sdk.api_base = os.getenv(
+    "API_BASE", "https://gateway.qa.unique.app/public/chat-gen2"
+)
+unique_sdk.api_key = os.getenv("API_KEY", "default_api_key")
+unique_sdk.app_id = os.getenv("APP_ID", "default_app_id")
+
+
+
+
+
 
 
 base_url_arg = sys.argv[1] if len(sys.argv) > 1 else base_url_env
 
 print("base_url_arg", base_url_arg)
+
 
 
 token_verifier = JWTVerifier(
@@ -95,12 +103,19 @@ mcp = FastMCP("Demo 🚀", auth=auth, debug=True, log_level="debug")
 def get_user():
     token = get_access_token()
     if token is not None:
-        print("token", token)
         headers = {
             "Authorization": f"Bearer {token.token}",
         }
         response = requests.get(f"{ZITADEL_URL}/oidc/v1/userinfo", headers=headers)
-    return response.json()
+    zitadel_user_info = response.json()
+    user = {
+        "email": zitadel_user_info.get("email"),
+        "user_id": zitadel_user_info.get("sub"),
+        "name": zitadel_user_info.get("name"),
+        "company_id": zitadel_user_info.get("urn:zitadel:iam:user:resourceowner:id"),
+    }
+
+    return user
 
 
 @mcp.tool(
@@ -128,6 +143,19 @@ def identify(user_prompt: str) -> str:
     data = json.dumps(user)
     print(data)
     return data
+
+@mcp.tool
+def search(query: str)->str:
+    """Search in the knowledge base"""
+    user = get_user()
+    print("user", user)
+    result = unique_sdk.Search.create(
+        user_id=user.get("user_id"),
+        company_id=user.get("company_id"),
+        searchString=query,
+        searchType="COMBINED",
+    )
+    return json.dumps(result)   
 
 
 @mcp.custom_route("/", methods=["GET"])
