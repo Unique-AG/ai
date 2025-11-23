@@ -3,11 +3,11 @@ from typing import Any
 from urllib.parse import quote as encodeURIComponent
 
 from jinja2 import Template
+from unique_toolkit._common.utils.jinja.helpers import get_parent_dir, load_template
+from unique_toolkit._common.utils.jinja.schema import Jinja2PromptParams
 from unique_toolkit.language_model import LanguageModelMessage
 
 from unique_follow_up_questions.schema import FollowUpQuestion, FollowUpQuestionsOutput
-from unique_follow_up_questions.utils.jinja.helpers import get_parent_dir, load_template
-from unique_follow_up_questions.utils.jinja.schema import Jinja2PromptParams
 
 PARENT_DIR = get_parent_dir(__file__)
 
