@@ -34,6 +34,7 @@ class TestGetFilteredUserMetadata:
         mock_evaluation_manager = MagicMock()
         mock_postprocessor_manager = MagicMock()
         mock_streaming_handler = MagicMock()
+        mock_message_step_logger = MagicMock()
 
         # Instantiate UniqueAI
         ua = UniqueAI(
@@ -50,6 +51,7 @@ class TestGetFilteredUserMetadata:
             history_manager=mock_history_manager,
             evaluation_manager=mock_evaluation_manager,
             postprocessor_manager=mock_postprocessor_manager,
+            message_step_logger=mock_message_step_logger,
             mcp_servers=[],
         )
 

@@ -395,29 +395,20 @@ class UniqueAI:
 
         return True
 
-    def _categorize_and_log_tool_calls(self, tool_calls: list) -> None:
-        """Categorize tool calls by type and create log entries for each category."""
+    def _log_tool_calls(self, tool_calls: list) -> None:
         # Create dictionary mapping tool names to display names for efficient lookup
         all_tools_dict: dict[str, str] = {
             tool.name: tool.display_name()
             for tool in self._tool_manager.available_tools
         }
 
-        # Categorize tool calls
-        categorized_calls: list[str] = []
-
+        tool_string: str = ""
         for tool_call in tool_calls:
             if tool_call.name in all_tools_dict.keys():
                 tool_name = (all_tools_dict[tool_call.name]) or tool_call.name
-                if tool_name not in categorized_calls:
-                    categorized_calls.append(tool_name)
-
+                tool_string += f"\n• {tool_name}"
             self._history_manager.add_tool_call(tool_call)
 
-        tool_string: str = ""
-        for tool in categorized_calls:
-            tool_string += f"\n• {tool}"
-            tool_string = tool_string.strip()
         self._message_step_logger.create_message_log_entry(
             text=f"**Triggered Tool Calls:**\n {tool_string}", references=[]
         )
@@ -433,8 +424,8 @@ class UniqueAI:
         # Append function calls to history
         self._history_manager._append_tool_calls_to_history(tool_calls)
 
-        # Categorize and log tool calls
-        self._categorize_and_log_tool_calls(tool_calls)
+        # Log tool calls
+        self._log_tool_calls(tool_calls)
         # Execute tool calls
         tool_call_responses = await self._tool_manager.execute_selected_tools(
             tool_calls
