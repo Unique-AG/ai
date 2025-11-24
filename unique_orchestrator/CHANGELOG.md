@@ -6,7 +6,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [1.7.15] - 2025-11-24 
-
 - Streamlining message log service for listing tools and being compatible with SWOT and DeepSearch
 
 ## [1.7.14] - 2025-11-20
