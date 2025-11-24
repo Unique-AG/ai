@@ -11,6 +11,10 @@ from unique_sdk import (
     AgreementStatus,
     SelectionMethod,
 )
+from unique_sdk.api_resources._agentic_table import (
+    MagicTableAction,
+    SheetType,
+)
 
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 from unique_toolkit.app.schemas import (
@@ -33,29 +37,6 @@ class MagicTableEventTypes(StrEnum):
     SHEET_COMPLETED = "unique.magic-table.sheet-completed"
     LIBRARY_SHEET_ROW_VERIFIED = "unique.magic-table.library-sheet-row.verified"
     SHEET_CREATED = "unique.magic-table.sheet-created"
-
-
-class MagicTableAction(StrEnum):
-    DELETE_ROW = "DeleteRow"
-    DELETE_COLUMN = "DeleteColumn"
-    UPDATE_CELL = "UpdateCell"
-    ADD_QUESTION_TEXT = "AddQuestionText"
-    ADD_META_DATA = "AddMetaData"
-    GENERATE_ARTIFACT = "GenerateArtifact"
-    SHEET_COMPLETED = "SheetCompleted"
-    LIBRARY_SHEET_ROW_VERIFIED = "LibrarySheetRowVerified"
-    SHEET_CREATED = "SheetCreated"
-
-
-class ActivityStatus(StrEnum):
-    IN_PROGRESS = "IN_PROGRESS"
-    COMPLETED = "COMPLETED"
-    FAILED = "FAILED"
-
-
-class SheetType(StrEnum):
-    DEFAULT = "DEFAULT"
-    LIBRARY = "LIBRARY"
 
 
 class BaseMetadata(BaseModel):

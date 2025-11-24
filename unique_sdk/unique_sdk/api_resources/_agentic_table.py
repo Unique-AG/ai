@@ -27,7 +27,7 @@ class LogEntry(TypedDict):
     createdAt: str
     actorType: Literal["USER", "SYSTEM", "ASSISTANT", "TOOL"]
     messageId: NotRequired[str]
-    details: NotRequired[list[LogDetail]]
+    details: NotRequired[LogDetail]
 
 
 class AgenticTableCell(TypedDict, total=False):
@@ -36,7 +36,7 @@ class AgenticTableCell(TypedDict, total=False):
     columnOrder: int
     rowLocked: bool
     text: str
-    logEntries: list[LogEntry]
+    logEntries: list[LogEntry] | None
 
 
 class ColumnMetadataUpdateStatus(TypedDict, total=False):
@@ -71,6 +71,29 @@ class CellRendererTypes(StrEnum):
     REVIEW_STATUS_DROPDOWN = "ReviewStatusDropdown"
     CUSTOM_CELL_RENDERER = "CustomCellRenderer"
     SELECTABLE_CELL_RENDERER = "SelectableCellRenderer"
+
+
+class MagicTableAction(StrEnum):
+    DELETE_ROW = "DeleteRow"
+    DELETE_COLUMN = "DeleteColumn"
+    UPDATE_CELL = "UpdateCell"
+    ADD_QUESTION_TEXT = "AddQuestionText"
+    ADD_META_DATA = "AddMetaData"
+    GENERATE_ARTIFACT = "GenerateArtifact"
+    SHEET_COMPLETED = "SheetCompleted"
+    LIBRARY_SHEET_ROW_VERIFIED = "LibrarySheetRowVerified"
+    SHEET_CREATED = "SheetCreated"
+
+
+class ActivityStatus(StrEnum):
+    IN_PROGRESS = "IN_PROGRESS"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+
+
+class SheetType(StrEnum):
+    DEFAULT = "DEFAULT"
+    LIBRARY = "LIBRARY"
 
 
 class SelectionMethod(StrEnum):
@@ -108,21 +131,8 @@ class AgenticTable(APIResource["AgenticTable"]):
 
     class SetActivityStatus(RequestOptions):
         tableId: str
-        activity: Literal[
-            "DeleteRow",
-            "DeleteColumn",
-            "UpdateCell",
-            "AddQuestionText",
-            "AddMetaData",
-            "GenerateArtifact",
-            "SheetCompleted",
-            "LibrarySheetRowVerified",
-        ]
-        status: Literal[
-            "IN_PROGRESS",
-            "COMPLETED",
-            "FAILED",
-        ]
+        activity: MagicTableAction
+        status: ActivityStatus
         text: str
 
     class SetArtifact(RequestOptions):
