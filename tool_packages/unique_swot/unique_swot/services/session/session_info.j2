@@ -7,7 +7,7 @@
   - **Country:** {{ swot_analysis.company_listing.country }}
   - **Tickers:**
   {%- for ticker in swot_analysis.company_listing.tickers %}
-    - {{ ticker.ticker }}{% if ticker.exchange %} ({{ ticker.exchange }}){% endif -%}
+    - {{ ticker.ticker }} ({{ ticker.exchange }})
   {% endfor %}
 
 ## External Data Sources

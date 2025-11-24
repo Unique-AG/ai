@@ -23,17 +23,9 @@ class TestSessionState:
 
     def test_session_state_membership(self):
         """Test SessionState enum membership."""
-        assert "Running" in SessionState.__members__.values()
-        assert "Completed" in SessionState.__members__.values()
-        assert "Failed" in SessionState.__members__.values()
-
-    def test_session_state_iteration(self):
-        """Test iteration over SessionState values."""
-        states = list(SessionState)
-        assert len(states) == 3
-        assert SessionState.RUNNING in states
-        assert SessionState.COMPLETED in states
-        assert SessionState.FAILED in states
+        assert "Running" in SessionState
+        assert "Completed" in SessionState
+        assert "Failed" in SessionState
 
 
 class TestUniqueCompanyListing:

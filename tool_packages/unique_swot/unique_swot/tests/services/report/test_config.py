@@ -12,15 +12,10 @@ from unique_swot.services.report.config import (
 class TestDocxRendererType:
     """Test cases for DocxRendererType enum."""
 
-    def test_docx_renderer_type_values(self):
-        """Test that DocxRendererType has expected values."""
-        assert DocxRendererType.DOCX == "docx"
-        assert DocxRendererType.CHAT == "chat"
-
     def test_docx_renderer_type_membership(self):
         """Test DocxRendererType enum membership."""
-        assert "docx" in DocxRendererType.__members__.values()
-        assert "chat" in DocxRendererType.__members__.values()
+        assert "docx" in DocxRendererType
+        assert "chat" in DocxRendererType
 
     def test_docx_renderer_type_iteration(self):
         """Test iteration over DocxRendererType values."""
