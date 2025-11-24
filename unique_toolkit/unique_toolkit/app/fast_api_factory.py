@@ -1,6 +1,9 @@
 import json
 from logging import getLogger
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
+
+from unique_toolkit._common.exception import ConfigurationException
 
 if TYPE_CHECKING:
     from fastapi import FastAPI, Request, status
@@ -29,9 +32,9 @@ def default_event_handler(event: Any) -> int:
 
 def build_unique_custom_app(
     *,
-    settings: UniqueSettings,
     title: str = "Unique Chat App",
     webhook_path: str = "/webhook",
+    settings_file: Path | None = None,
     chat_event_handler: Callable[[ChatEvent], int] = default_event_handler,
 ) -> "FastAPI":
     """Factory class for creating FastAPI apps with Unique webhook handling."""
@@ -61,6 +64,11 @@ def build_unique_custom_app(
         body = await request.body()
         headers = dict(request.headers)
 
+        if settings_file is not None:
+            settings = UniqueSettings.from_env(env_file=settings_file)
+        else:
+            settings = UniqueSettings.from_env()
+
         # Verify webhook signature
         from unique_toolkit.app.webhook import is_webhook_signature_valid
 
@@ -87,30 +95,46 @@ def build_unique_custom_app(
         event_name: str | None = event_data.get("event", None)
         from unique_toolkit.app.schemas import EventName
 
-        match event_name:
-            case EventName.EXTERNAL_MODULE_CHOSEN:
-                chat_event = ChatEvent.model_validate(event_data)
+        try:
+            match event_name:
+                case EventName.EXTERNAL_MODULE_CHOSEN:
+                    chat_event = ChatEvent.model_validate(event_data)
 
-                if chat_event.filter_event(
-                    filter_options=settings.chat_event_filter_options
-                ):
+                    settings.auth = UniqueAuth.from_event(chat_event)
+                    settings.init_sdk()
+
+                    if chat_event.filter_event(
+                        filter_options=settings.chat_event_filter_options
+                    ):
+                        return JSONResponse(
+                            status_code=status.HTTP_200_OK,
+                            content={"error": "Event filtered out"},
+                        )
+
+                    return_value = chat_event_handler(chat_event)
+                    settings.auth = UniqueAuth()  # Reset auth to default
                     return JSONResponse(
-                        status_code=status.HTTP_200_OK,
-                        content={"error": "Event filtered out"},
+                        content={"status": "success", "return_value": return_value}
                     )
 
-                settings.auth = UniqueAuth.from_event(chat_event)
-                return_value = chat_event_handler(chat_event)
-                settings.auth = UniqueAuth()  # Reset auth to default
-                return JSONResponse(
-                    content={"status": "success", "return_value": return_value}
-                )
+                case _:
+                    logger.error(f"Invalid event name: {event_name}")
+                    return JSONResponse(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        content={"error": f"Invalid event name: {event_name}"},
+                    )
 
-            case _:
-                logger.error(f"Invalid event name: {event_name}")
-                return JSONResponse(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    content={"error": f"Invalid event name: {event_name}"},
-                )
+        except ConfigurationException as e:
+            logger.error(f"Configuration error: {e}", exc_info=True)
+            return JSONResponse(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                content={"error": f"Configuration error: {str(e)}"},
+            )
+        except Exception as e:
+            logger.error(f"Error handling event: {e}", exc_info=True)
+            return JSONResponse(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                content={"error": f"Error handling event: {str(e)}"},
+            )
 
     return app
