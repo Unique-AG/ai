@@ -1,9 +1,9 @@
-# AZURE_GPT_5_2025_0807
+# litellm:openai-gpt-5-pro
 
 ## Basic Information
-- **Name**: AZURE_GPT_5_2025_0807
-- **Provider**: AZURE
-- **Version**: 2025-08-07
+- **Name**: litellm:openai-gpt-5-pro
+- **Provider**: LITELLM
+- **Version**: 2025-10-06
 - **Encoder**: o200k_base
 
 ## Token Limits
@@ -12,12 +12,9 @@
 - **Total Limit**: 400,000 tokens
 
 ## Capabilities
-- chat_completions_api
 - function_calling
-- parallel_function_calling
 - reasoning
 - responses_api
-- streaming
 - structured_output
 - vision
 

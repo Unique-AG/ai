@@ -1,9 +1,9 @@
-# AZURE_GPT_5_2025_0807
+# AZURE_GPT_51_2025_1113
 
 ## Basic Information
-- **Name**: AZURE_GPT_5_2025_0807
+- **Name**: AZURE_GPT_51_2025_1113
 - **Provider**: AZURE
-- **Version**: 2025-08-07
+- **Version**: 2025-11-13
 - **Encoder**: o200k_base
 
 ## Token Limits
