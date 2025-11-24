@@ -3,7 +3,7 @@
 This is the API Reference for the unique toolkit. 
 
 
-## [Knowledge Base Module](./modules/content.md)
+## [Knowledge Base Module](./modules/knowledge_base.md)
 The content module is responsable for all interaction with the knowledge base.
 ## [Chat Module](./modules/chat.md)
 The chat modules contains all capabilities to interact with the chat frontend.
