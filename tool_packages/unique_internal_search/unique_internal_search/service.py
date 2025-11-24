@@ -461,7 +461,7 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
         count = 0
         for content_chunk in content_chunks:
             reference_name: str = content_chunk.title or content_chunk.key or ""
-            
+
             data.append(
                 ContentReference(
                     name=reference_name,
