@@ -1,7 +1,6 @@
 import asyncio
 from datetime import datetime, timezone
 from logging import Logger
-from typing import Any
 
 import jinja2
 from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
@@ -100,6 +99,10 @@ class UniqueAI:
         """
         self._logger.info("Start LoopAgent...")
 
+        self._message_step_logger.create_message_log_entry(
+            text="**Start Unique AI**", references=[]
+        )
+
         if self._history_manager.has_no_loop_messages():  # TODO: why do we even need to check its always no loop messages on this when its called.
             self._chat_service.modify_assistant_message(
                 content="Starting agentic loop..."  # TODO: this must be more informative
@@ -107,6 +110,10 @@ class UniqueAI:
 
         ## Loop iteration
         for i in range(self._config.agent.max_loop_iterations):
+            self._message_step_logger.create_message_log_entry(
+                text="**Loop Iteration %s**" % str(i + 1), references=[]
+            )
+
             self.current_iteration_index = i
             self._logger.info(f"Starting iteration {i + 1}...")
 
@@ -239,6 +246,10 @@ class UniqueAI:
             return await self._handle_tool_calls(loop_response)
 
         self._logger.debug("No tool calls. we might exit the loop")
+
+        self._message_step_logger.create_message_log_entry(
+            text="**Answer Generation**", references=[]
+        )
 
         return await self._handle_no_tool_calls(loop_response)
 
@@ -398,30 +409,47 @@ class UniqueAI:
 
     def _categorize_and_log_tool_calls(self, tool_calls: list) -> None:
         """Categorize tool calls by type and create log entries for each category."""
-        # Create dictionary mapping tool names to display names for efficient lookup
-        all_tools_dict: dict[str, str] = {
-            tool.name: tool.display_name()
-            for tool in self._tool_manager.available_tools
-        }
-
+        # Create sets of tool names for efficient lookup
+        internal_tool_names = {tool.name for tool in self._tool_manager._internal_tools}
+        mcp_tool_names = {tool.name for tool in self._tool_manager._mcp_tools}
+        sub_agent_tool_names = {tool.name for tool in self._tool_manager._sub_agents}
+        builtin_tool_names = {tool.name for tool in self._tool_manager._builtin_tools}
+        
         # Categorize tool calls
-        categorized_calls: list[str] = []
-
+        categorized_calls = {
+            "internal": [],
+            "mcp": [],
+            "sub_agent": [],
+            "builtin": []
+        }
+        
         for tool_call in tool_calls:
-            if tool_call.name in all_tools_dict.keys():
-                tool_name = (all_tools_dict[tool_call.name]) or tool_call.name
-                if tool_name not in categorized_calls:
-                    categorized_calls.append(tool_name)
-
+            if tool_call.name in internal_tool_names:
+                categorized_calls["internal"].append(tool_call)
+            if tool_call.name in mcp_tool_names:
+                categorized_calls["mcp"].append(tool_call)
+            if tool_call.name in sub_agent_tool_names:
+                categorized_calls["sub_agent"].append(tool_call)
+            if tool_call.name in builtin_tool_names:
+                categorized_calls["builtin"].append(tool_call)
+            
             self._history_manager.add_tool_call(tool_call)
-
-        tool_string: Any = ""
-        for tool in categorized_calls:
-            tool_string += f"\n• {tool}"
-            tool_string = tool_string.strip()
-        self._message_step_logger.create_message_log_entry(
-            text=f"**Triggered Tool Calls:**\n {tool_string}", references=[]
-        )
+        
+        # Create log entries for each category
+        log_config = [
+            ("internal", "Unique tool calls"),
+            ("mcp", "MCP tool calls"),
+            ("sub_agent", "sub-agent tool calls"),
+            ("builtin", "built-in OpenAI tool calls")
+        ]
+        
+        for category, label in log_config:
+            if categorized_calls[category]:
+                tool_names = "\n- ".join([tool.name for tool in categorized_calls[category]])
+                self._message_step_logger.create_message_log_entry(
+                    text=f"**Triggered {label}: {tool_names}**",
+                    references=[]
+                )
 
     async def _handle_tool_calls(
         self, loop_response: LanguageModelStreamResponse
@@ -433,7 +461,7 @@ class UniqueAI:
 
         # Append function calls to history
         self._history_manager._append_tool_calls_to_history(tool_calls)
-
+        
         # Categorize and log tool calls
         self._categorize_and_log_tool_calls(tool_calls)
         # Execute tool calls
