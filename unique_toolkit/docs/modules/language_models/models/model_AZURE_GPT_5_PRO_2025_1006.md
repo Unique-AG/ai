@@ -1,9 +1,9 @@
-# AZURE_GPT_5_2025_0807
+# AZURE_GPT_5_PRO_2025_1006
 
 ## Basic Information
-- **Name**: AZURE_GPT_5_2025_0807
+- **Name**: AZURE_GPT_5_PRO_2025_1006
 - **Provider**: AZURE
-- **Version**: 2025-08-07
+- **Version**: 2025-10-06
 - **Encoder**: o200k_base
 
 ## Token Limits
@@ -12,12 +12,9 @@
 - **Total Limit**: 400,000 tokens
 
 ## Capabilities
-- chat_completions_api
 - function_calling
-- parallel_function_calling
 - reasoning
 - responses_api
-- streaming
 - structured_output
 - vision
 

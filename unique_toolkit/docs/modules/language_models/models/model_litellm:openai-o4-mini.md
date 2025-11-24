@@ -12,9 +12,13 @@
 - **Total Limit**: 300,000 tokens
 
 ## Capabilities
+- chat_completions_api
 - function_calling
+- reasoning
+- responses_api
 - streaming
 - structured_output
+- vision
 
 
 ## Temperature Bounds

@@ -1,9 +1,9 @@
-# AZURE_GPT_5_2025_0807
+# litellm:openai-gpt-5-1-thinking
 
 ## Basic Information
-- **Name**: AZURE_GPT_5_2025_0807
-- **Provider**: AZURE
-- **Version**: 2025-08-07
+- **Name**: litellm:openai-gpt-5-1-thinking
+- **Provider**: LITELLM
+- **Version**: 2025-11-13
 - **Encoder**: o200k_base
 
 ## Token Limits
