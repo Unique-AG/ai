@@ -12,6 +12,7 @@
 - **Total Limit**: 144,384 tokens
 
 ## Capabilities
+- chat_completions_api
 - structured_output
 - function_calling
 - parallel_function_calling
