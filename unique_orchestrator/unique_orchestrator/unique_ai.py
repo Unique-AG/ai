@@ -1,7 +1,6 @@
 import asyncio
 from datetime import datetime, timezone
 from logging import Logger
-from typing import Any
 
 import jinja2
 from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
@@ -415,7 +414,7 @@ class UniqueAI:
 
             self._history_manager.add_tool_call(tool_call)
 
-        tool_string: Any = ""
+        tool_string: str = ""
         for tool in categorized_calls:
             tool_string += f"\n• {tool}"
             tool_string = tool_string.strip()
