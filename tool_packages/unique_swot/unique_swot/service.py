@@ -30,7 +30,7 @@ from unique_swot.services.memory.base import SwotMemoryService
 from unique_swot.services.notifier import ProgressNotifier
 from unique_swot.services.report import ReportDeliveryService
 from unique_swot.services.schemas import SWOTPlan
-from unique_swot.services.session.schema import SessionConfig
+from unique_swot.services.session import SessionConfig
 
 _LOGGER = getLogger(__name__)
 
@@ -195,7 +195,7 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
 
             self._notifier.start_progress(
                 number_of_executions,
-                company_name,
+                self._swot_analysis_session_config.swot_analysis,
             )
 
             # Get Sources
@@ -225,12 +225,13 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
 
             # Deliver the report to the chat
             markdown_report = self._report_delivery_service.deliver_report(
-                company_name=company_name,
+                session_config=self._swot_analysis_session_config.swot_analysis,
                 result=result,
                 docx_template_fields={
                     "title": f"{company_name} SWOT Analysis Report",
                     "date": datetime.now().strftime("%Y-%m-%d"),
                 },
+                ingest_docx=self.config.report_renderer_config.ingest_docx_report,
             )
 
             return ToolCallResponse(

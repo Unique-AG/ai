@@ -11,6 +11,7 @@ from unique_swot.services.report.docx import (
     convert_markdown_to_docx,
 )
 from unique_swot.services.schemas import SWOTResult
+from unique_swot.services.session import SessionState, SwotAnalysisSessionConfig
 
 _LOGGER = getLogger(__name__)
 
@@ -45,9 +46,10 @@ class ReportDeliveryService:
 
     def deliver_report(
         self,
-        company_name: str,
+        session_config: SwotAnalysisSessionConfig,
         result: SWOTResult,
         docx_template_fields: dict[str, str],
+        ingest_docx: bool,
     ) -> str:
         """
         Delivers a SWOT analysis report to the chat.
@@ -68,10 +70,11 @@ class ReportDeliveryService:
         match self._renderer_type:
             case DocxRendererType.DOCX:
                 self._deliver_docx_report(
-                    company_name=company_name,
+                    session_config=session_config,
                     markdown_report=markdown_report,
                     citations=citations,
                     template_fields=docx_template_fields,
+                    ingest_docx=ingest_docx,
                 )
             case DocxRendererType.CHAT:
                 self._deliver_markdown_report(
@@ -88,7 +91,8 @@ class ReportDeliveryService:
         markdown_report: str,
         citations: list[str] | None,
         template_fields: dict[str, str],
-        company_name: str,
+        session_config: SwotAnalysisSessionConfig,
+        ingest_docx: bool,
     ) -> None:
         """Converts markdown to DOCX and delivers it as an attachment"""
 
@@ -105,9 +109,9 @@ class ReportDeliveryService:
         # Upload to chat
         content = self._chat_service.upload_to_chat_from_bytes(
             content=docx_bytes,
-            content_name=f"{company_name} SWOT Analysis Report.docx",
+            content_name=f"{session_config.company_listing.name} SWOT Analysis Report.docx",
             mime_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            skip_ingestion=True,
+            skip_ingestion=not ingest_docx,
         )
 
         # Create content reference
@@ -115,11 +119,12 @@ class ReportDeliveryService:
             content_id=content.id,
             message_id=self._message_id,
         )
+        start_text = session_config.render_session_info(state=SessionState.COMPLETED)
 
         # Modify assistant message
         self._chat_service.modify_assistant_message(
             message_id=self._message_id,
-            content=f"Here is the {company_name} SWOT analysis report in DOCX format <sup>1</sup>.",
+            content=f"{start_text}\n\n Here is the {session_config.company_listing.name} SWOT analysis report in DOCX format <sup>1</sup>.",
             references=[content_reference],
         )
 

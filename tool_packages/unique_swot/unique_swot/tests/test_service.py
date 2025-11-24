@@ -160,6 +160,9 @@ class TestSwotTool:
             ),
             patch("unique_swot.service.ShortTermMemoryService", return_value=Mock()),
             patch("unique_swot.service.SWOTExecutionManager") as mock_executor_class,
+            patch(
+                "unique_swot.service.SourceCollectionManager"
+            ) as mock_source_manager_class,
         ):
             tool = SwotAnalysisTool(configuration=swot_config, event=mock_event)
 
@@ -176,8 +179,10 @@ class TestSwotTool:
             mock_executor.run = AsyncMock(return_value=mock_result)
             mock_executor_class.return_value = mock_executor
 
-            # Mock the source collection
-            tool._source_collection_manager.collect_sources = Mock(return_value=[])
+            # Mock the source collection manager
+            mock_source_manager = Mock()
+            mock_source_manager.collect_sources = AsyncMock(return_value=[])
+            mock_source_manager_class.return_value = mock_source_manager
 
             # Mock citation manager
             tool._citation_manager.get_references = Mock(return_value=[])
