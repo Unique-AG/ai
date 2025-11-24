@@ -154,7 +154,7 @@ and the secrets must be used according to the following table into the environme
 |UNIQUE_AUTH_COMPANY_ID | Company ID| `346386357988860534` |
 |UNIQUE_AUTH_USER_ID | User ID | `347188092944093062` |
 |UNIQUE_APP_ID | App ID | `app_iaii8qhvt5j80wo9i4wmwqqc` |
-|UNIQUE_APP_KEY | Api Key | `ukey_yoegC20rdtKPT50cOX8MnrAaGetPX5Bg8Zc1tC7Nkbc`|
+|UNIQUE_APP_KEY | Api Key | `ukey_<redacted>`|
 
 The `UNIQUE_API_BASE_URL` can be obtained from your admin and the current `UNIQUE_API_VERSION` is `2023-12-06`.
 
