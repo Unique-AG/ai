@@ -20,3 +20,5 @@ smart_rule_custom = Statement(
 
 metadata_filter = smart_rule_custom.model_dump(mode="json")
 infos = kb_service.get_paginated_content_infos(metadata_filter=metadata_filter)
+
+a = 1

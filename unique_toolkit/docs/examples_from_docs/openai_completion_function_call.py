@@ -24,9 +24,8 @@ weather_tool_description = LanguageModelToolDescription(
     description="Get current temperature for a given location.",
     parameters=WeatherParameters,
     strict=True,
-)
+).to_openai()
 
-weather_tool_description_toolkit = weather_tool_description.to_openai()
 messages = (
     OpenAIMessageBuilder()
     .system_message_append(content="You are a helpful assistant")
@@ -36,7 +35,7 @@ messages = (
 completion = client.chat.completions.create(
     model=model,
     messages=messages,
-    tools=[weather_tool_description_toolkit],
+    tools=[weather_tool_description],
 )
 
 completion.choices[0].message.tool_calls

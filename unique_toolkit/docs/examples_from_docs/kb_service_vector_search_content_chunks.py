@@ -18,10 +18,12 @@ content_chunks = kb_service.search_content_chunks(
     search_string="Harry Potter",
     search_type=ContentSearchType.VECTOR,
     limit=10,
-    score_threshold=0.7,  # Only return results with high similarity
-    scope_ids=[scope_id],
+    score_threshold=0.8,  # Only return results with high similarity
+    metadata_filter=None #type: ignore
 )
 
 print(f"Found {len(content_chunks)} relevant chunks")
 for i, chunk in enumerate(content_chunks[:3]):
     print(f"  {i + 1}. {chunk.text[:100]}...")
+
+# %%

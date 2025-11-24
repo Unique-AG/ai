@@ -1,8 +1,10 @@
 import base64
+import copy
 import mimetypes
+from abc import ABC
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Self, overload
+from typing import Generic, Self, TypeVar, overload
 
 from openai.types.chat.chat_completion_assistant_message_param import (
     Audio,
@@ -39,6 +41,12 @@ from openai.types.chat.chat_completion_tool_message_param import (
 from openai.types.chat.chat_completion_user_message_param import (
     ChatCompletionUserMessageParam,
 )
+from openai.types.responses import ResponseInputItemParam
+from openai.types.responses.response_input_message_content_list_param import (
+    ResponseInputMessageContentListParam,
+)
+from openai.types.responses.response_input_param import FunctionCallOutput, Message
+from openai.types.responses.response_input_text_param import ResponseInputTextParam
 from typing_extensions import Literal
 
 
@@ -118,7 +126,26 @@ class OpenAIUserMessageBuilder:
         return self._messages
 
 
-class OpenAIMessageBuilder:
+MessageType = TypeVar("MessageType")
+
+
+class AbstractMessageBuilder(ABC, Generic[MessageType]):
+    def system_message_append(self, content: str) -> Self: ...
+    def user_message_append(self, content: str) -> Self: ...
+    def assistant_message_append(self, content: str) -> Self: ...
+    def developper_message_append(self, content: str) -> Self: ...
+
+    def function_message_append(self, content: str) -> Self: ...
+
+    """Appends a function message to the messages list."""
+
+    def tool_message_append(self, content: str, tool_call_id: str) -> Self: ...
+
+    @property
+    def messages(self) -> list[MessageType]: ...
+
+
+class OpenAIMessageBuilder(AbstractMessageBuilder[ChatCompletionMessageParam]):
     def __init__(
         self,
         messages: list[ChatCompletionMessageParam] | None = None,
@@ -158,6 +185,7 @@ class OpenAIMessageBuilder:
             ChatCompletionUserMessageParam(
                 content=content,
                 role="user",
+                name=name,
             ),
         )
         return self
@@ -226,4 +254,90 @@ class OpenAIMessageBuilder:
 
     @property
     def messages(self) -> list[ChatCompletionMessageParam]:
+        return self._messages
+
+
+class ResponseInputBuilder(AbstractMessageBuilder[ResponseInputItemParam]):
+    def __init__(self) -> None:
+        self._messages: list[ResponseInputItemParam] = []
+
+    def _convert_content_to_message_content_list(
+        self, content: str | ResponseInputMessageContentListParam
+    ) -> ResponseInputMessageContentListParam:
+        if isinstance(content, str):
+            return [
+                ResponseInputTextParam(type="input_text", text=copy.deepcopy(content))
+            ]
+
+        return content
+
+    def system_message_append(
+        self, content: str | ResponseInputMessageContentListParam
+    ) -> Self:
+        content = self._convert_content_to_message_content_list(content)
+        self._messages.append(
+            Message(
+                role="system",
+                content=content,
+            )
+        )
+        return self
+
+    def user_message_append(
+        self, content: str | ResponseInputMessageContentListParam
+    ) -> Self:
+        content = self._convert_content_to_message_content_list(content)
+        self._messages.append(
+            Message(
+                role="user",
+                content=content,
+            )
+        )
+        return self
+
+    def assistant_message_append(
+        self, content: str | ResponseInputMessageContentListParam
+    ) -> Self:
+        self._messages.append(
+            Message(
+                role="system",
+                content=self._convert_content_to_message_content_list(content),
+            )
+        )
+        return self
+
+    def developper_message_append(
+        self, content: str | ResponseInputMessageContentListParam
+    ) -> Self:
+        self._messages.append(
+            Message(
+                role="developer",
+                content=self._convert_content_to_message_content_list(content),
+            )
+        )
+        return self
+
+    def function_message_append(
+        self, content: str | FunctionCallOutput, *, call_id: str | None = None
+    ) -> Self:
+        if isinstance(content, str):
+            function_call_output = FunctionCallOutput(
+                type="function_call_output",
+                call_id=call_id or "unknown_id",
+                output=copy.deepcopy(content),
+            )
+        else:
+            function_call_output = content
+
+        self._messages.append(function_call_output)
+
+        return self
+
+    def tool_message_append(
+        self, content: str | FunctionCallOutput, tool_call_id: str | None = None
+    ) -> Self:
+        return self.function_message_append(content, call_id=tool_call_id)
+
+    @property
+    def messages(self) -> list[ResponseInputItemParam]:
         return self._messages

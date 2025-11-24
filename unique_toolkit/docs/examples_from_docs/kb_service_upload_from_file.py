@@ -18,5 +18,7 @@ content = kb_service.upload_content(
     mime_type="text/plain",
     scope_id=scope_id,
     skip_ingestion=False,  # Process the content for search
-    metadata={"department": "legal", "classification": "confidential"},
+    metadata={"department": "story", "classification": "public"},
 )
+
+# %%
