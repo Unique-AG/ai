@@ -86,21 +86,24 @@ on the command line. This will open a live console with the following content
 
 ```
 ngrok
-                                                                                                                                                                                                                         
-⚠️ Free Users: Agents ≤3.18.x stop connecting 12/17/25. Update or upgrade: https://ngrok.com/pricing                                                                                                                     
-                                                                                                                                                                                                                         
-Session Status             online                                                                                                                                                                                     
-Account                       <redacted> (Plan: Free)                                                                                                                                                                          
-Update                        update available (version 3.33.0, Ctrl-U to update)                                                                                                                                        
-Version                       3.25.0                                                                                                                                                                                     
-Region                        Europe (eu)                                                                                                                                                                                
-Latency                       16ms                                                                                                                                                                                       
-Web Interface                 http://127.0.0.1:4040                                                                                                                                                                      
-Forwarding                    https://<this>-<is>-<redacted>.ngrok-free.dev -> http://localhost:5001                                                                                                              
-                                                                                                                                                                                                                         
-Connections                   ttl     opn     rt1     rt5     p50     p90                                                                                                                                                
-                              15      0       0.00    0.00    10.77   163.64                                                                                                                                             
-HTTP Requests             
+
+⚠️ Free Users: Agents ≤3.18.x stop connecting 12/17/25. Update or upgrade: https://ngrok.com/
+
+pricing
+
+Session Status
+online
+Account                       <redacted> (Plan:Free)
+Update                        update available (version 3.33.0, Ctrl-U to update)
+Version                       3.25.0
+Region                        Europe (eu)
+Latency                       16ms
+Web Interface                 http://127.0.0.1:4040
+Forwarding                    https://<this>-<is>-<redacted>.ngrok-free.dev -> http://localhost:5001
+
+Connections                   ttl     opn     rt1     rt5     p50     p90
+                              15      0       0.00    0.00    10.77   163.64
+HTTP Requests
 ```
 
 The important url is `https://<this>-<is>-<redacted>.ngrok-free.dev`, this will be accessible throught the web. The url must be registered in the endpoint section of the App we have created
@@ -118,7 +121,7 @@ We can now add the two secrets to `unique.env`
 
 ```
 UNIQUE_APP_ENDPOINT=https://<this>-<is>-<redacted>.ngrok-free.dev/webhook
-UNIQUE_APP_ENDPOINT_SECRET=usig_1pfb5r1LwK9T8yV4gyqBBDwMsvK37KK7kZIxbV1RglA
+UNIQUE_APP_ENDPOINT_SECRET=usig_<redacted>
 ```
 
 ## Setting up a Module and a Space
@@ -130,7 +133,7 @@ Wether SSE or Webhooks are use, a AI Module Template and a Space must be setup t
 Modules Templates establish a base configuration and setup that can be further refined when setting up a space.
 Most importantly they define the `reference in Code` that will be passed along with each event and can be used to filter events.
 
-1. Click on  ![alt text](./images/module_button.png){ height=50 } to create a new module using the ![alt text](./images/create_module_button.png){ height=50 } this should open the following page.
+1. Click on  ![alt text](./images/module_button.png){ height=20 } to create a new module using the ![alt text](./images/create_module_button.png){ height=20 } this should open the following page.
 
 ![alt text](./images/create_module_full_page.png)
 
@@ -139,7 +142,7 @@ Most importantly they define the `reference in Code` that will be passed along w
 
 ![alt text](./images/create_module_reference_in_code.png)
 
-3. Define a default configuration that can be refined in the space setup.
+3. Define a default configuration that can be refined in the space setup. This can be any JSON object that you want to pass to your application.
 
 4. Define a default definition (this is a function/tool definition ) that must follow the [openai definitions](https://platform.openai.com/docs/guides/function-calling#defining-functions). This is only required for the case where a space hosts multiple modules at the same time.
 
@@ -148,17 +151,15 @@ Most importantly they define the `reference in Code` that will be passed along w
 Spaces are shown as assistants and can host multiple modules
 
 1. Click on  ![alt text](./images/space_button.png){ height=50 } and click on the ![alt text](./images/create_space_button.png){ height=50 }. This will lead you to the following page
-
 ![alt text](./images/create_space_page.png)
 
-2. Give the space a name
 
-3. Click on custom space and select an AI module template in the following selection
+2. Click on custom space and name your space
 
+3. Select an AI module template in the following selection
 ![alt text](./images/create_ai_assistant_space.png)
 
 4. Edit the configuration and definition
-
 ![alt text](./images/create_ai_assistant_space_configuration.png)
 
 5. Publish the space in the top right corner and follow the `Go to Chat` link.
