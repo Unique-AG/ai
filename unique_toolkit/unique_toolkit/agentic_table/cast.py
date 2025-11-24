@@ -6,20 +6,20 @@ from .schemas import LogDetail, LogEntry
 
 def cast_log_detail(log_detail: LogDetail) -> SDKLogDetail:
     return SDKLogDetail(
-        text=log_detail.text,
-        messageId=log_detail.message_id,
+        llmRequest=log_detail.llm_request.model_dump()
+        if log_detail.llm_request is not None
+        else None,
     )
 
 
 def cast_log_entry(log_entry: LogEntry) -> SDKLogEntry:
     if log_entry.details:
-        details = [cast_log_detail(detail) for detail in log_entry.details]
+        details = cast_log_detail(log_entry.details)
     else:
-        details = []
+        details = None
     return SDKLogEntry(
         text=log_entry.text,
         createdAt=log_entry.created_at,
-        actorType=log_entry.actor_type.value.upper(),  # type: ignore
-        messageId=log_entry.message_id or "",
+        actorType=log_entry.actor_type.value.upper(),
         details=details,
     )
