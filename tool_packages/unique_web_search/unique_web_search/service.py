@@ -117,7 +117,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
                 queries_for_log
             )
             self._message_step_logger.create_message_log_entry(
-                text="**Web Search**",
+                text=f"**{self.display_name()}**",
                 details=details,
                 references=reference_list,
             )
