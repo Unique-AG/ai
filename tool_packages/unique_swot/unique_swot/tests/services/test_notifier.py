@@ -12,6 +12,10 @@ from unique_swot.services.notifier import (
     MessageLogRegistry,
     ProgressNotifier,
 )
+from unique_swot.services.session.schema import (
+    SwotAnalysisSessionConfig,
+    UniqueCompanyListing,
+)
 
 
 class TestMessageLogRegistry:
@@ -111,6 +115,25 @@ class TestProgressNotifier:
         service.modify_assistant_message.return_value = None
         return service
 
+    @pytest.fixture
+    def mock_session_config(self):
+        """Create a mock session config."""
+        company = UniqueCompanyListing(
+            sourceRef=123.0,
+            name="Test Company",
+            display_name="Test Company Inc.",
+            country="US",
+            tickers=[],
+            source_url="https://example.com",
+            source="test",
+        )
+        return SwotAnalysisSessionConfig(
+            company_listing=company,
+            use_earnings_call=False,
+            use_web_sources=False,
+            earnings_call_start_date=None,
+        )
+
     def test_progress_notifier_initialization(self, mock_chat_service):
         """Test ProgressNotifier initialization."""
         notifier = ProgressNotifier(
@@ -124,25 +147,25 @@ class TestProgressNotifier:
         assert notifier._progress_bar is not None
         assert isinstance(notifier._execution_registery, dict)
 
-    def test_start_progress(self, mock_chat_service):
+    def test_start_progress(self, mock_chat_service, mock_session_config):
         """Test starting progress tracking."""
         notifier = ProgressNotifier(
             chat_service=mock_chat_service,
             message_id="msg_123",
         )
 
-        notifier.start_progress(total_steps=10, company_name="Test Company")
+        notifier.start_progress(total_steps=10, session_config=mock_session_config)
 
         assert notifier._progress_bar._total_steps == 10
         mock_chat_service.modify_assistant_message.assert_called_once()
 
-    def test_update_progress(self, mock_chat_service):
+    def test_update_progress(self, mock_chat_service, mock_session_config):
         """Test updating progress."""
         notifier = ProgressNotifier(
             chat_service=mock_chat_service,
             message_id="msg_123",
         )
-        notifier.start_progress(total_steps=10, company_name="Test Company")
+        notifier.start_progress(total_steps=10, session_config=mock_session_config)
 
         notifier.update_progress(
             step_precentage_increment=0.1, current_step_message="Processing..."
@@ -153,13 +176,13 @@ class TestProgressNotifier:
         call_count = mock_chat_service.modify_assistant_message.call_count
         assert call_count >= 2  # Once for start, at least once for update
 
-    def test_update_progress_caps_at_100(self, mock_chat_service):
+    def test_update_progress_caps_at_100(self, mock_chat_service, mock_session_config):
         """Test that progress caps at 100%."""
         notifier = ProgressNotifier(
             chat_service=mock_chat_service,
             message_id="msg_123",
         )
-        notifier.start_progress(total_steps=10, company_name="Test Company")
+        notifier.start_progress(total_steps=10, session_config=mock_session_config)
 
         # Update way beyond 100%
         for _ in range(50):
@@ -223,13 +246,13 @@ class TestProgressNotifier:
         assert mock_chat_service.create_message_log.call_count == 1
         assert mock_chat_service.update_message_log.call_count == 1
 
-    def test_end_progress_success(self, mock_chat_service):
+    def test_end_progress_success(self, mock_chat_service, mock_session_config):
         """Test ending progress with success."""
         notifier = ProgressNotifier(
             chat_service=mock_chat_service,
             message_id="msg_123",
         )
-        notifier.start_progress(total_steps=10, company_name="Test Company")
+        notifier.start_progress(total_steps=10, session_config=mock_session_config)
 
         notifier.end_progress(failed=False)
 
@@ -240,13 +263,13 @@ class TestProgressNotifier:
         final_message = final_call[0][0]
         assert "🟢" in final_message or "100" in final_message
 
-    def test_end_progress_failure(self, mock_chat_service):
+    def test_end_progress_failure(self, mock_chat_service, mock_session_config):
         """Test ending progress with failure."""
         notifier = ProgressNotifier(
             chat_service=mock_chat_service,
             message_id="msg_123",
         )
-        notifier.start_progress(total_steps=10, company_name="Test Company")
+        notifier.start_progress(total_steps=10, session_config=mock_session_config)
 
         notifier.end_progress(failed=True, failure_message="Something went wrong")
 
@@ -271,13 +294,13 @@ class TestProgressNotifier:
         # Order should increment for each new notification
         assert notifier._order == 3
 
-    def test_progress_calculation(self, mock_chat_service):
+    def test_progress_calculation(self, mock_chat_service, mock_session_config):
         """Test progress percentage calculation."""
         notifier = ProgressNotifier(
             chat_service=mock_chat_service,
             message_id="msg_123",
         )
-        notifier.start_progress(total_steps=10, company_name="Test Company")
+        notifier.start_progress(total_steps=10, session_config=mock_session_config)
 
         # Simulate 50% progress
         notifier.update_progress(

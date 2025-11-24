@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.4] - 2025-11-24
+- Add session state tracking (RUNNING, COMPLETED, FAILED) with `SessionState` enum
+- Add `render_session_info()` method to display session details in progress messages
+- Add `ingest_docx_report` configuration field to control DOCX ingestion (defaults to True)
+- Update method signatures to use `session_config` instead of `company_name`
+- set completed at issue at the swot.
+
 ## [0.2.3] - 2025-11-24
 - Remove Knowledge Base Service dependency
 

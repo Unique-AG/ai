@@ -10,6 +10,8 @@ from unique_toolkit.chat.schemas import (
     MessageLogUncitedReferences,
 )
 
+from unique_swot.services.session import SwotAnalysisSessionConfig
+
 _LOGGER = getLogger(__name__)
 
 
@@ -84,10 +86,12 @@ class ProgressNotifier:
         self._message_id = message_id
         self._order = 0
 
-    def start_progress(self, total_steps: int, company_name: str):
+    def start_progress(
+        self, total_steps: int, session_config: SwotAnalysisSessionConfig
+    ):
         _LOGGER.info(f"Starting progress with total steps: {total_steps}")
         self._progress_bar.start(
-            title=f"Running SWOT Analysis for **{company_name}**",
+            session_info=session_config.render_session_info(),
             total_steps=total_steps,
         )
 
@@ -150,8 +154,9 @@ class ProgressNotifier:
 
 
 _PROGRESS_TEMPLATE = """
-{emoji} {title}
-{bar} {percentage}%
+{session_info}
+
+{emoji} {bar} {percentage}%
 _{info}_
 """
 
@@ -160,13 +165,13 @@ class ProgressBar:
     def __init__(self, chat_service: ChatService):
         self._chat_service = chat_service
         self._executed_fraction = 0
-        self._title = ""
+        self._session_info = ""
 
-    def start(self, title: str, total_steps: int):
-        self._title = title
+    def start(self, session_info: str, total_steps: int):
+        self._session_info = session_info
         self._total_steps = total_steps
         progress_bar = _PROGRESS_TEMPLATE.format(
-            title=self._title,
+            session_info=self._session_info,
             emoji="⚪️",
             percentage=0,
             bar=self._get_string_progress_bar(0),
@@ -181,7 +186,7 @@ class ProgressBar:
             self._executed_fraction, self._total_steps
         )
         progress_bar = _PROGRESS_TEMPLATE.format(
-            title=self._title,
+            session_info=self._session_info,
             emoji="🟡",
             percentage=percentage,
             bar=self._get_string_progress_bar(percentage),
@@ -191,13 +196,13 @@ class ProgressBar:
 
     def done(self, failed: bool = False, failure_message: str | None = None):
         progress_bar = _PROGRESS_TEMPLATE.format(
-            title=self._title,
+            session_info=self._session_info,
             emoji="🟢" if not failed else "🔴",
             percentage=100,
             bar=self._get_string_progress_bar(100),
             info="Completed!" if not failed else failure_message,
         )
-        self._chat_service.modify_assistant_message(progress_bar)
+        self._chat_service.modify_assistant_message(progress_bar, set_completed_at=True)
 
     @staticmethod
     def _get_string_progress_bar(percentage: int) -> str:

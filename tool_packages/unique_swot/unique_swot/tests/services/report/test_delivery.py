@@ -9,6 +9,10 @@ from unique_swot.services.citations import CitationManager
 from unique_swot.services.report.config import DocxRendererType
 from unique_swot.services.report.delivery import ReportDeliveryService
 from unique_swot.services.schemas import SWOTOperation, SWOTResult, SWOTStepResult
+from unique_swot.services.session.schema import (
+    SwotAnalysisSessionConfig,
+    UniqueCompanyListing,
+)
 
 
 # Module-level fixtures (shared across all test classes)
@@ -49,6 +53,26 @@ def mock_citation_manager():
         )
     ]
     return manager
+
+
+@pytest.fixture
+def mock_session_config():
+    """Create a mock session config."""
+    company = UniqueCompanyListing(
+        sourceRef=123.0,
+        name="Test Company",
+        display_name="Test Company Inc.",
+        country="US",
+        tickers=[],
+        source_url="https://example.com",
+        source="test",
+    )
+    return SwotAnalysisSessionConfig(
+        company_listing=company,
+        use_earnings_call=False,
+        use_web_sources=False,
+        earnings_call_start_date=None,
+    )
 
 
 class TestReportDeliveryService:
@@ -106,6 +130,7 @@ class TestReportDeliveryService:
         mock_docx_renderer,
         mock_citation_manager,
         sample_swot_result,
+        mock_session_config,
     ):
         """Test successful DOCX report delivery."""
         service = ReportDeliveryService(
@@ -118,12 +143,13 @@ class TestReportDeliveryService:
         )
 
         result = service.deliver_report(
-            company_name="Test Company",
+            session_config=mock_session_config,
             result=sample_swot_result,
             docx_template_fields={
                 "title": "SWOT Report",
                 "date": "2024-01-01",
             },
+            ingest_docx=False,
         )
 
         # Verify citation processing
@@ -159,6 +185,7 @@ class TestReportDeliveryService:
         mock_docx_renderer,
         mock_citation_manager,
         sample_swot_result,
+        mock_session_config,
     ):
         """Test successful Chat markdown report delivery."""
         service = ReportDeliveryService(
@@ -171,9 +198,10 @@ class TestReportDeliveryService:
         )
 
         result = service.deliver_report(
-            company_name="Test Company",
+            session_config=mock_session_config,
             result=sample_swot_result,
             docx_template_fields={},
+            ingest_docx=False,
         )
 
         # Verify citation processing
@@ -197,7 +225,11 @@ class TestReportDeliveryService:
         assert isinstance(result, str)
 
     def test_deliver_docx_report_no_renderer(
-        self, mock_chat_service, mock_citation_manager, sample_swot_result
+        self,
+        mock_chat_service,
+        mock_citation_manager,
+        sample_swot_result,
+        mock_session_config,
     ):
         """Test DOCX delivery fails when renderer is not configured."""
         service = ReportDeliveryService(
@@ -211,9 +243,10 @@ class TestReportDeliveryService:
 
         with pytest.raises(AttributeError):
             service.deliver_report(
-                company_name="Test Company",
+                session_config=mock_session_config,
                 result=sample_swot_result,
                 docx_template_fields={},
+                ingest_docx=False,
             )
 
     def test_deliver_docx_report_conversion_fails(
@@ -222,6 +255,7 @@ class TestReportDeliveryService:
         mock_docx_renderer,
         mock_citation_manager,
         sample_swot_result,
+        mock_session_config,
     ):
         """Test DOCX delivery fails when conversion returns None."""
         mock_docx_renderer.generate_from_template.return_value = None
@@ -237,9 +271,10 @@ class TestReportDeliveryService:
 
         with pytest.raises(ValueError, match="Failed to convert markdown to DOCX"):
             service.deliver_report(
-                company_name="Test Company",
+                session_config=mock_session_config,
                 result=sample_swot_result,
                 docx_template_fields={},
+                ingest_docx=False,
             )
 
     def test_deliver_report_invalid_renderer_type(
@@ -248,6 +283,7 @@ class TestReportDeliveryService:
         mock_docx_renderer,
         mock_citation_manager,
         sample_swot_result,
+        mock_session_config,
     ):
         """Test delivery fails with invalid renderer type."""
         service = ReportDeliveryService(
@@ -261,9 +297,10 @@ class TestReportDeliveryService:
 
         with pytest.raises(ValueError, match="Invalid renderer type"):
             service.deliver_report(
-                company_name="Test Company",
+                session_config=mock_session_config,
                 result=sample_swot_result,
                 docx_template_fields={},
+                ingest_docx=False,
             )
 
     def test_create_content_reference(self):
@@ -287,6 +324,7 @@ class TestReportDeliveryService:
         mock_docx_renderer,
         mock_citation_manager,
         sample_swot_result,
+        mock_session_config,
     ):
         """Test DOCX delivery creates correct content reference structure."""
         service = ReportDeliveryService(
@@ -299,9 +337,10 @@ class TestReportDeliveryService:
         )
 
         service.deliver_report(
-            company_name="Test Company",
+            session_config=mock_session_config,
             result=sample_swot_result,
             docx_template_fields={"title": "Test", "date": "2024-01-01"},
+            ingest_docx=False,
         )
 
         # Verify the reference structure passed to modify_assistant_message
@@ -318,6 +357,7 @@ class TestReportDeliveryService:
         mock_docx_renderer,
         mock_citation_manager,
         sample_swot_result,
+        mock_session_config,
     ):
         """Test Chat delivery with custom template."""
         custom_template = """
@@ -339,9 +379,10 @@ class TestReportDeliveryService:
         )
 
         _ = service.deliver_report(
-            company_name="Test Company",
+            session_config=mock_session_config,
             result=sample_swot_result,
             docx_template_fields={},
+            ingest_docx=False,
         )
 
         # Verify the markdown was processed
@@ -358,6 +399,7 @@ class TestReportDeliveryService:
         mock_docx_renderer,
         mock_citation_manager,
         sample_swot_result,
+        mock_session_config,
     ):
         """Test that citations are processed with correct renderer type."""
         # Test DOCX mode
@@ -371,9 +413,10 @@ class TestReportDeliveryService:
         )
 
         service_docx.deliver_report(
-            company_name="Test Company",
+            session_config=mock_session_config,
             result=sample_swot_result,
             docx_template_fields={},
+            ingest_docx=False,
         )
 
         # Verify DOCX renderer type was passed
@@ -394,9 +437,10 @@ class TestReportDeliveryService:
         )
 
         service_chat.deliver_report(
-            company_name="Test Company",
+            session_config=mock_session_config,
             result=sample_swot_result,
             docx_template_fields={},
+            ingest_docx=False,
         )
 
         # Verify CHAT renderer type was passed
@@ -440,6 +484,7 @@ class TestReportDeliveryIntegration:
         mock_docx_renderer,
         mock_citation_manager,
         full_swot_result,
+        mock_session_config,
     ):
         """Test complete report generation in DOCX mode."""
         service = ReportDeliveryService(
@@ -452,12 +497,13 @@ class TestReportDeliveryIntegration:
         )
 
         result = service.deliver_report(
-            company_name="Test Company",
+            session_config=mock_session_config,
             result=full_swot_result,
             docx_template_fields={
                 "title": "Q4 2024 SWOT Analysis",
                 "date": "2024-12-31",
             },
+            ingest_docx=False,
         )
 
         # Verify all components were called
@@ -477,6 +523,7 @@ class TestReportDeliveryIntegration:
         mock_docx_renderer,
         mock_citation_manager,
         full_swot_result,
+        mock_session_config,
     ):
         """Test complete report generation in Chat mode."""
         service = ReportDeliveryService(
@@ -489,9 +536,10 @@ class TestReportDeliveryIntegration:
         )
 
         result = service.deliver_report(
-            company_name="Test Company",
+            session_config=mock_session_config,
             result=full_swot_result,
             docx_template_fields={},
+            ingest_docx=False,
         )
 
         # Verify citation processing

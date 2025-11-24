@@ -1,8 +1,25 @@
 from datetime import datetime
+from enum import StrEnum
+from pathlib import Path
 
+from jinja2 import Template
 from pydantic import BaseModel, Field
 from unique_quartr.endpoints.schemas import TickerDto
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
+
+from unique_swot.utils import load_template
+
+# Get the directory containing this file
+_PROMPTS_DIR = Path(__file__).parent
+SESSION_INFO_TEMPLATE: str = load_template(
+    _PROMPTS_DIR, template_name="session_info.j2"
+)
+
+
+class SessionState(StrEnum):
+    RUNNING = "Running"
+    COMPLETED = "Completed"
+    FAILED = "Failed"
 
 
 class UniqueCompanyListing(BaseModel):
@@ -41,6 +58,16 @@ class SwotAnalysisSessionConfig(BaseModel):
     earnings_call_start_date: datetime | None = Field(
         default=None, description="The metadata filter to use for the data source"
     )
+
+    def render_session_info(self, state: SessionState = SessionState.RUNNING) -> str:
+        data = self.model_dump()
+        # Format datetime to yyyy-mm-dd
+        data["state"] = state
+        date = data.get("earnings_call_start_date")
+        if date:
+            date = date.strftime("%Y-%m-%d")
+            data["earnings_call_start_date"] = date
+        return Template(SESSION_INFO_TEMPLATE).render(swot_analysis=data)
 
 
 class SessionConfig(BaseModel):
