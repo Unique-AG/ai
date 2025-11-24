@@ -24,7 +24,7 @@ jobs:
 
     - name: Install dependencies
       working-directory: ${{ env.PACKAGE }}
-      run: poetry install
+      run: poetry install --with fastapi
 
     - name: Run tests
       working-directory: ${{ env.PACKAGE }}
