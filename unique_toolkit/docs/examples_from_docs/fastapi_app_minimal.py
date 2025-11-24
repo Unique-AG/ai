@@ -50,8 +50,11 @@ def chat_event_handler(event: ChatEvent) -> int:
 # Create the default app instance at module level
 # This MUST be at module level so uvicorn can find it when importing
 
+_SETTINGS = UniqueSettings.from_env(env_file=Path(__file__).parent / "unique.env")
+_SETTINGS.init_sdk()
+
 # Create app using factory
-_MINIMAL_APP = build_unique_custom_app(settings_file=Path(__file__).parent / "unique.env", 
+_MINIMAL_APP = build_unique_custom_app(settings=_SETTINGS, 
                                                 title="Unique Minimal Chat App", 
                                                 chat_event_handler=chat_event_handler)
 
