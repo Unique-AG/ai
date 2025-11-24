@@ -439,7 +439,7 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             query_list=search_strings_list
         )
         self._message_step_logger.create_message_log_entry(
-            text="**Internal Search**",
+            text=f"**{self.display_name()}**",
             details=details,
             references=message_log_reference_list,
         )
