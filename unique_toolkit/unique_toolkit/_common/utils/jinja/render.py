@@ -1,7 +1,8 @@
 from typing import Any
 
-from _common.utils.jinja.schema import Jinja2PromptParams
 from jinja2 import Template
+
+from unique_toolkit._common.utils.jinja.schema import Jinja2PromptParams
 
 
 def render_template(template: str, params: Jinja2PromptParams | dict[str, Any]) -> str:
