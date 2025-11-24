@@ -403,10 +403,13 @@ class UniqueAI:
         }
 
         tool_string: str = ""
+        used_tools = []
         for tool_call in tool_calls:
             if tool_call.name in all_tools_dict.keys():
-                tool_name = (all_tools_dict[tool_call.name]) or tool_call.name
-                tool_string += f"\n• {tool_name}"
+                if tool_call.name not in used_tools:
+                    used_tools.append(tool_call.name)
+                    tool_name = (all_tools_dict[tool_call.name]) or tool_call.name
+                    tool_string += f"\n• {tool_name}"
             self._history_manager.add_tool_call(tool_call)
 
         self._message_step_logger.create_message_log_entry(
