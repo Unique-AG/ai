@@ -99,10 +99,6 @@ class UniqueAI:
         """
         self._logger.info("Start LoopAgent...")
 
-        self._message_step_logger.create_message_log_entry(
-            text="**Start Unique AI**", references=[]
-        )
-
         if self._history_manager.has_no_loop_messages():  # TODO: why do we even need to check its always no loop messages on this when its called.
             self._chat_service.modify_assistant_message(
                 content="Starting agentic loop..."  # TODO: this must be more informative
@@ -110,10 +106,6 @@ class UniqueAI:
 
         ## Loop iteration
         for i in range(self._config.agent.max_loop_iterations):
-            self._message_step_logger.create_message_log_entry(
-                text="**Loop Iteration %s**" % str(i + 1), references=[]
-            )
-
             self.current_iteration_index = i
             self._logger.info(f"Starting iteration {i + 1}...")
 
@@ -246,10 +238,6 @@ class UniqueAI:
             return await self._handle_tool_calls(loop_response)
 
         self._logger.debug("No tool calls. we might exit the loop")
-
-        self._message_step_logger.create_message_log_entry(
-            text="**Answer Generation**", references=[]
-        )
 
         return await self._handle_no_tool_calls(loop_response)
 
@@ -407,6 +395,27 @@ class UniqueAI:
 
         return True
 
+    def _log_tool_calls(self, tool_calls: list) -> None:
+        # Create dictionary mapping tool names to display names for efficient lookup
+        all_tools_dict: dict[str, str] = {
+            tool.name: tool.display_name()
+            for tool in self._tool_manager.available_tools
+        }
+
+        tool_string: str = ""
+        used_tools = []
+        for tool_call in tool_calls:
+            if tool_call.name in all_tools_dict.keys():
+                if tool_call.name not in used_tools:
+                    used_tools.append(tool_call.name)
+                    tool_name = (all_tools_dict[tool_call.name]) or tool_call.name
+                    tool_string += f"\n• {tool_name}"
+            self._history_manager.add_tool_call(tool_call)
+
+        self._message_step_logger.create_message_log_entry(
+            text=f"**Triggered Tool Calls:**\n {tool_string}", references=[]
+        )
+
     async def _handle_tool_calls(
         self, loop_response: LanguageModelStreamResponse
     ) -> bool:
@@ -418,9 +427,8 @@ class UniqueAI:
         # Append function calls to history
         self._history_manager._append_tool_calls_to_history(tool_calls)
 
-        for tool_call in tool_calls:
-            self._history_manager.add_tool_call(tool_call)
-
+        # Log tool calls
+        self._log_tool_calls(tool_calls)
         # Execute tool calls
         tool_call_responses = await self._tool_manager.execute_selected_tools(
             tool_calls

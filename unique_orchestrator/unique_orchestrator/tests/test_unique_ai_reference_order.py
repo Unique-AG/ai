@@ -74,6 +74,11 @@ async def test_history_updated_before_reference_extraction(monkeypatch):
     mock_history_manager.get_history_for_model_call = AsyncMock(
         return_value=MagicMock()
     )
+    mock_streaming_handler = MagicMock()
+    mock_streaming_handler.complete_with_references_async = AsyncMock(
+        return_value=DummyStreamResponse()
+    )
+    mock_message_step_logger = MagicMock()
 
     # Instantiate
     ua = UniqueAI(
@@ -83,12 +88,14 @@ async def test_history_updated_before_reference_extraction(monkeypatch):
         chat_service=mock_chat_service,
         content_service=mock_content_service,
         debug_info_manager=mock_debug_info_manager,
+        streaming_handler=mock_streaming_handler,
         reference_manager=mock_reference_manager,
         thinking_manager=mock_thinking_manager,
         tool_manager=mock_tool_manager,
         history_manager=mock_history_manager,
         evaluation_manager=MagicMock(),
         postprocessor_manager=MagicMock(),
+        message_step_logger=mock_message_step_logger,
         mcp_servers=[],
     )
 
@@ -107,7 +114,7 @@ async def test_history_updated_before_reference_extraction(monkeypatch):
     def record_reference_extract(results):
         call_sequence.append("reference_extract")
 
-    def record_debug_extract(results):
+    def record_debug_extract(results, iteration_index):
         call_sequence.append("debug_extract")
 
     mock_history_manager.add_tool_call_results.side_effect = record_history_add
