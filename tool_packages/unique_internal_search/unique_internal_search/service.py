@@ -462,17 +462,16 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
         for content_chunk in content_chunks:
             reference_name: str = content_chunk.title or content_chunk.key or ""
 
-            if reference_name != "":
-                data.append(
-                    ContentReference(
-                        name=reference_name,
-                        sequence_number=count,
-                        source="internal",
-                        url="",
-                        source_id=content_chunk.id,
-                    )
+            data.append(
+                ContentReference(
+                    name=reference_name,
+                    sequence_number=count,
+                    source="internal",
+                    source_id=content_chunk.id,
+                    url=f"unique://content/{content_chunk.id}",
                 )
-                count += 1
+            )
+            count += 1
 
         return data
 
