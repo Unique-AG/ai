@@ -1,7 +1,7 @@
-from typing import Any
 import asyncio
 from datetime import datetime, timezone
 from logging import Logger
+from typing import Any
 
 import jinja2
 from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
@@ -107,7 +107,6 @@ class UniqueAI:
 
         ## Loop iteration
         for i in range(self._config.agent.max_loop_iterations):
-
             self.current_iteration_index = i
             self._logger.info(f"Starting iteration {i + 1}...")
 
@@ -400,8 +399,11 @@ class UniqueAI:
     def _categorize_and_log_tool_calls(self, tool_calls: list) -> None:
         """Categorize tool calls by type and create log entries for each category."""
         # Create dictionary mapping tool names to display names for efficient lookup
-        all_tools_dict: dict[str, str] = {tool.name: tool.display_name() for tool in self._tool_manager.available_tools}
-        
+        all_tools_dict: dict[str, str] = {
+            tool.name: tool.display_name()
+            for tool in self._tool_manager.available_tools
+        }
+
         # Categorize tool calls
         categorized_calls: list[str] = []
 
@@ -410,17 +412,16 @@ class UniqueAI:
                 tool_name = (all_tools_dict[tool_call.name]) or tool_call.name
                 if tool_name not in categorized_calls:
                     categorized_calls.append(tool_name)
-            
+
             self._history_manager.add_tool_call(tool_call)
-                
+
         tool_string: Any = ""
         for tool in categorized_calls:
             tool_string += f"\n• {tool}"
             tool_string = tool_string.strip()
         self._message_step_logger.create_message_log_entry(
-            text=f"**Triggered Tool Calls:**\n {tool_string}",
-            references=[]
-            )
+            text=f"**Triggered Tool Calls:**\n {tool_string}", references=[]
+        )
 
     async def _handle_tool_calls(
         self, loop_response: LanguageModelStreamResponse
@@ -432,7 +433,7 @@ class UniqueAI:
 
         # Append function calls to history
         self._history_manager._append_tool_calls_to_history(tool_calls)
-        
+
         # Categorize and log tool calls
         self._categorize_and_log_tool_calls(tool_calls)
         # Execute tool calls
