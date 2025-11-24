@@ -407,6 +407,50 @@ class UniqueAI:
 
         return True
 
+    def _categorize_and_log_tool_calls(self, tool_calls: list) -> None:
+        """Categorize tool calls by type and create log entries for each category."""
+        # Create sets of tool names for efficient lookup
+        internal_tool_names = {tool.name for tool in self._tool_manager._internal_tools}
+        mcp_tool_names = {tool.name for tool in self._tool_manager._mcp_tools}
+        sub_agent_tool_names = {tool.name for tool in self._tool_manager._sub_agents}
+        builtin_tool_names = {tool.name for tool in self._tool_manager._builtin_tools}
+        
+        # Categorize tool calls
+        categorized_calls = {
+            "internal": [],
+            "mcp": [],
+            "sub_agent": [],
+            "builtin": []
+        }
+        
+        for tool_call in tool_calls:
+            if tool_call.name in internal_tool_names:
+                categorized_calls["internal"].append(tool_call)
+            if tool_call.name in mcp_tool_names:
+                categorized_calls["mcp"].append(tool_call)
+            if tool_call.name in sub_agent_tool_names:
+                categorized_calls["sub_agent"].append(tool_call)
+            if tool_call.name in builtin_tool_names:
+                categorized_calls["builtin"].append(tool_call)
+            
+            self._history_manager.add_tool_call(tool_call)
+        
+        # Create log entries for each category
+        log_config = [
+            ("internal", "Unique tool calls"),
+            ("mcp", "MCP tool calls"),
+            ("sub_agent", "sub-agent tool calls"),
+            ("builtin", "built-in OpenAI tool calls")
+        ]
+        
+        for category, label in log_config:
+            if categorized_calls[category]:
+                tool_names = "\n- ".join([tool.name for tool in categorized_calls[category]])
+                self._message_step_logger.create_message_log_entry(
+                    text=f"**Triggered {label}: {tool_names}**",
+                    references=[]
+                )
+
     async def _handle_tool_calls(
         self, loop_response: LanguageModelStreamResponse
     ) -> bool:
@@ -417,10 +461,9 @@ class UniqueAI:
 
         # Append function calls to history
         self._history_manager._append_tool_calls_to_history(tool_calls)
-
-        for tool_call in tool_calls:
-            self._history_manager.add_tool_call(tool_call)
-
+        
+        # Categorize and log tool calls
+        self._categorize_and_log_tool_calls(tool_calls)
         # Execute tool calls
         tool_call_responses = await self._tool_manager.execute_selected_tools(
             tool_calls
