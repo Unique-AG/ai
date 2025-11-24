@@ -47,5 +47,8 @@ from .schemas import (
 from .verification import (
     verify_signature_and_construct_event as verify_signature_and_construct_event,
 )
+from .webhook import (
+    is_webhook_signature_valid as is_webhook_signature_valid,
+)
 
 DOMAIN_NAME = "app"
