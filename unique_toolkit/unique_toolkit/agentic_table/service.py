@@ -10,10 +10,10 @@ from unique_sdk import (
     SelectionMethod,
 )
 from unique_sdk import AgenticTableCell as SDKAgenticTableCell
+from unique_sdk.api_resources._agentic_table import ActivityStatus
 
 from .cast import cast_log_entry
 from .schemas import (
-    ActivityStatus,
     ArtifactType,
     LogEntry,
     MagicTableAction,
@@ -145,8 +145,8 @@ class AgenticTableService:
             user_id=self._user_id,
             company_id=self._company_id,
             tableId=self.table_id,
-            activity=activity.value,
-            status=status.value,
+            activity=activity,
+            status=status,
             text=text,
         )
 
