@@ -1,41 +1,49 @@
 import json
 from logging import getLogger
-from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, TypeVar
 
-from unique_toolkit._common.exception import ConfigurationException
+from pydantic import ValidationError
 
 if TYPE_CHECKING:
-    from fastapi import FastAPI, Request, status
+    from fastapi import BackgroundTasks, FastAPI, Request, status
     from fastapi.responses import JSONResponse
 else:
     try:
-        from fastapi import FastAPI, Request, status
+        from fastapi import BackgroundTasks, FastAPI, Request, status
         from fastapi.responses import JSONResponse
     except ImportError:
         FastAPI = None  # type: ignore[assignment, misc]
         Request = None  # type: ignore[assignment, misc]
         status = None  # type: ignore[assignment, misc]
         JSONResponse = None  # type: ignore[assignment, misc]
+        BackgroundTasks = None  # type: ignore[assignment, misc]
 
-from unique_toolkit.app.schemas import ChatEvent
-from unique_toolkit.app.unique_settings import UniqueAuth, UniqueSettings
+from unique_toolkit.app.schemas import BaseEvent, ChatEvent, EventName
+from unique_toolkit.app.unique_settings import UniqueSettings
 
 logger = getLogger(__name__)
 
 
 def default_event_handler(event: Any) -> int:
-    if status is None:
+    logger.info("Event received at event handler")
+    if status is not None:
+        return status.HTTP_200_OK
+    else:
+        # No fastapi installed
         return 200
-    return status.HTTP_200_OK
+
+
+T = TypeVar("T", bound=BaseEvent)
 
 
 def build_unique_custom_app(
     *,
     title: str = "Unique Chat App",
     webhook_path: str = "/webhook",
-    settings_file: Path | None = None,
-    chat_event_handler: Callable[[ChatEvent], int] = default_event_handler,
+    settings: UniqueSettings,
+    event_handler: Callable[[T], int] = default_event_handler,
+    event_constructor: Callable[..., T] = ChatEvent,
+    subscribed_event_names: list[str] | None = None,
 ) -> "FastAPI":
     """Factory class for creating FastAPI apps with Unique webhook handling."""
     if FastAPI is None:
@@ -45,31 +53,30 @@ def build_unique_custom_app(
 
     app = FastAPI(title=title)
 
+    if subscribed_event_names is None:
+        subscribed_event_names = [EventName.EXTERNAL_MODULE_CHOSEN]
+
     @app.get(path="/")
     async def health_check() -> JSONResponse:
         """Health check endpoint."""
         return JSONResponse(content={"status": "healthy", "service": title})
 
     @app.post(path=webhook_path)
-    async def webhook_handler(request: Request) -> JSONResponse:
+    async def webhook_handler(
+        request: Request, background_tasks: BackgroundTasks
+    ) -> JSONResponse:
         """
         Webhook endpoint for receiving events from Unique platform.
 
         This endpoint:
         1. Verifies the webhook signature
-        2. Constructs a ChatEvent from the payload
+        2. Constructs an event from the payload
         3. Calls the configured event handler
         """
         # Get raw body and headers
         body = await request.body()
         headers = dict(request.headers)
 
-        if settings_file is not None:
-            settings = UniqueSettings.from_env(env_file=settings_file)
-        else:
-            settings = UniqueSettings.from_env()
-
-        # Verify webhook signature
         from unique_toolkit.app.webhook import is_webhook_signature_valid
 
         if not is_webhook_signature_valid(
@@ -91,50 +98,34 @@ def build_unique_custom_app(
                 content={"error": f"Invalid event format: {str(e)}"},
             )
 
-        # Parse and route event
-        event_name: str | None = event_data.get("event", None)
-        from unique_toolkit.app.schemas import EventName
+        if event_data["event"] not in subscribed_event_names:
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={"error": "Not subscribed event"},
+            )
 
         try:
-            match event_name:
-                case EventName.EXTERNAL_MODULE_CHOSEN:
-                    chat_event = ChatEvent.model_validate(event_data)
-
-                    settings.auth = UniqueAuth.from_event(chat_event)
-                    settings.init_sdk()
-
-                    if chat_event.filter_event(
-                        filter_options=settings.chat_event_filter_options
-                    ):
-                        return JSONResponse(
-                            status_code=status.HTTP_200_OK,
-                            content={"error": "Event filtered out"},
-                        )
-
-                    return_value = chat_event_handler(chat_event)
-                    settings.auth = UniqueAuth()  # Reset auth to default
-                    return JSONResponse(
-                        content={"status": "success", "return_value": return_value}
-                    )
-
-                case _:
-                    logger.error(f"Invalid event name: {event_name}")
-                    return JSONResponse(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        content={"error": f"Invalid event name: {event_name}"},
-                    )
-
-        except ConfigurationException as e:
-            logger.error(f"Configuration error: {e}", exc_info=True)
+            event = event_constructor(**event_data)
+            if event.filter_event(filter_options=settings.chat_event_filter_options):
+                return JSONResponse(
+                    status_code=status.HTTP_200_OK,
+                    content={"error": "Event filtered out"},
+                )
+        except ValidationError as e:
+            # pydantic errors https://docs.pydantic.dev/2.10/errors/errors/
+            logger.error(f"Validation error with model: {e.json()}", exc_info=True)
+            raise ValidationError(e)
+        except ValueError as e:
+            logger.error(f"Error deserializing event: {e}", exc_info=True)
             return JSONResponse(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                content={"error": f"Configuration error: {str(e)}"},
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={"error": "Invalid event"},
             )
-        except Exception as e:
-            logger.error(f"Error handling event: {e}", exc_info=True)
-            return JSONResponse(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                content={"error": f"Error handling event: {str(e)}"},
-            )
+
+        # Run the task in background so that we don't block for long running tasks
+        background_tasks.add_task(event_handler, event)
+        return JSONResponse(
+            status_code=status.HTTP_200_OK, content={"message": "Event received"}
+        )
 
     return app

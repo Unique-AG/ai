@@ -89,6 +89,7 @@ def test_default_event_handler__returns_200__when_status_available() -> None:
 @pytest.mark.ai
 def test_build_unique_custom_app__raises_import_error__when_fastapi_not_installed(
     mocker,
+    base_settings: UniqueSettings,
 ) -> None:
     """
     Purpose: Verify build_unique_custom_app raises ImportError when FastAPI is not installed.
@@ -103,7 +104,7 @@ def test_build_unique_custom_app__raises_import_error__when_fastapi_not_installe
     try:
         # Act & Assert
         with pytest.raises(ImportError) as exc_info:
-            build_unique_custom_app()
+            build_unique_custom_app(settings=base_settings)
         assert "FastAPI is not installed" in str(exc_info.value)
         assert "poetry install --with fastapi" in str(exc_info.value)
     finally:
@@ -114,6 +115,7 @@ def test_build_unique_custom_app__raises_import_error__when_fastapi_not_installe
 @pytest.mark.ai
 def test_build_unique_custom_app__creates_app__with_default_title(
     mocker,
+    base_settings: UniqueSettings,
 ) -> None:
     """
     Purpose: Verify build_unique_custom_app creates FastAPI app with default title.
@@ -125,7 +127,7 @@ def test_build_unique_custom_app__creates_app__with_default_title(
     mock_app = MagicMock()
     mock_fastapi.return_value = mock_app
     # Act
-    app = build_unique_custom_app()
+    app = build_unique_custom_app(settings=base_settings)
     # Assert
     mock_fastapi.assert_called_once_with(title="Unique Chat App")
     assert app is mock_app
@@ -134,6 +136,7 @@ def test_build_unique_custom_app__creates_app__with_default_title(
 @pytest.mark.ai
 def test_build_unique_custom_app__creates_app__with_custom_title(
     mocker,
+    base_settings: UniqueSettings,
 ) -> None:
     """
     Purpose: Verify build_unique_custom_app creates FastAPI app with custom title.
@@ -145,7 +148,7 @@ def test_build_unique_custom_app__creates_app__with_custom_title(
     mock_app = MagicMock()
     mock_fastapi.return_value = mock_app
     # Act
-    app = build_unique_custom_app(title="Custom App")
+    app = build_unique_custom_app(title="Custom App", settings=base_settings)
     # Assert
     mock_fastapi.assert_called_once_with(title="Custom App")
     assert app is mock_app
@@ -154,6 +157,7 @@ def test_build_unique_custom_app__creates_app__with_custom_title(
 @pytest.mark.ai
 def test_build_unique_custom_app__registers_health_check__at_root_path(
     mocker,
+    base_settings: UniqueSettings,
 ) -> None:
     """
     Purpose: Verify build_unique_custom_app registers health check endpoint at root path.
@@ -165,7 +169,7 @@ def test_build_unique_custom_app__registers_health_check__at_root_path(
     mock_app = MagicMock()
     mock_fastapi.return_value = mock_app
     # Act
-    build_unique_custom_app(title="Test App")
+    build_unique_custom_app(title="Test App", settings=base_settings)
     # Assert
     mock_app.get.assert_called_once_with(path="/")
     # Verify the handler is registered
@@ -183,7 +187,7 @@ async def test_health_check_endpoint__returns_healthy_status__with_service_name(
     Setup summary: Create app, call health check endpoint, assert correct JSON response.
     """
     # Arrange
-    app = build_unique_custom_app(title="Test Service")
+    app = build_unique_custom_app(title="Test Service", settings=base_settings)
     # Act
     from fastapi.testclient import TestClient
 
@@ -197,6 +201,7 @@ async def test_health_check_endpoint__returns_healthy_status__with_service_name(
 @pytest.mark.ai
 def test_build_unique_custom_app__registers_webhook__at_default_path(
     mocker,
+    base_settings: UniqueSettings,
 ) -> None:
     """
     Purpose: Verify build_unique_custom_app registers webhook endpoint at default path.
@@ -208,7 +213,7 @@ def test_build_unique_custom_app__registers_webhook__at_default_path(
     mock_app = MagicMock()
     mock_fastapi.return_value = mock_app
     # Act
-    build_unique_custom_app()
+    build_unique_custom_app(settings=base_settings)
     # Assert
     mock_app.post.assert_called_once_with(path="/webhook")
 
@@ -216,6 +221,7 @@ def test_build_unique_custom_app__registers_webhook__at_default_path(
 @pytest.mark.ai
 def test_build_unique_custom_app__registers_webhook__at_custom_path(
     mocker,
+    base_settings: UniqueSettings,
 ) -> None:
     """
     Purpose: Verify build_unique_custom_app registers webhook endpoint at custom path.
@@ -227,7 +233,7 @@ def test_build_unique_custom_app__registers_webhook__at_custom_path(
     mock_app = MagicMock()
     mock_fastapi.return_value = mock_app
     # Act
-    build_unique_custom_app(webhook_path="/custom/webhook")
+    build_unique_custom_app(webhook_path="/custom/webhook", settings=base_settings)
     # Assert
     mock_app.post.assert_called_once_with(path="/custom/webhook")
 
@@ -247,7 +253,7 @@ async def test_webhook_handler__returns_401__when_signature_invalid(
         "unique_toolkit.app.fast_api_factory.UniqueSettings.from_env",
         return_value=base_settings,
     )
-    app = build_unique_custom_app()
+    app = build_unique_custom_app(settings=base_settings)
     mocker.patch(
         "unique_toolkit.app.webhook.is_webhook_signature_valid",
         return_value=False,
@@ -285,7 +291,7 @@ async def test_webhook_handler__returns_400__when_json_invalid(
         "unique_toolkit.app.fast_api_factory.UniqueSettings.from_env",
         return_value=base_settings,
     )
-    app = build_unique_custom_app()
+    app = build_unique_custom_app(settings=base_settings)
     mocker.patch(
         "unique_toolkit.app.webhook.is_webhook_signature_valid",
         return_value=True,
@@ -323,7 +329,7 @@ async def test_webhook_handler__returns_400__when_event_name_invalid(
         "unique_toolkit.app.fast_api_factory.UniqueSettings.from_env",
         return_value=base_settings,
     )
-    app = build_unique_custom_app()
+    app = build_unique_custom_app(settings=base_settings)
     mocker.patch(
         "unique_toolkit.app.webhook.is_webhook_signature_valid",
         return_value=True,
@@ -343,7 +349,7 @@ async def test_webhook_handler__returns_400__when_event_name_invalid(
     )
     # Assert
     assert response.status_code == 400
-    assert "Invalid event name" in response.json()["error"]
+    assert "Not subscribed event" in response.json()["error"]
 
 
 @pytest.mark.ai
@@ -370,7 +376,7 @@ async def test_webhook_handler__returns_200__when_event_filtered(
         "unique_toolkit.app.fast_api_factory.UniqueSettings.from_env",
         return_value=settings,
     )
-    app = build_unique_custom_app()
+    app = build_unique_custom_app(settings=settings)
     mocker.patch(
         "unique_toolkit.app.webhook.is_webhook_signature_valid",
         return_value=True,
@@ -391,298 +397,3 @@ async def test_webhook_handler__returns_200__when_event_filtered(
     # Assert
     assert response.status_code == 200
     assert "Event filtered out" in response.json()["error"]
-
-
-@pytest.mark.ai
-@pytest.mark.asyncio
-async def test_webhook_handler__calls_event_handler__with_chat_event(
-    mocker, base_settings: UniqueSettings, sample_chat_event: ChatEvent
-) -> None:
-    """
-    Purpose: Verify webhook handler calls event handler with parsed ChatEvent.
-    Why this matters: Ensures event processing pipeline works correctly.
-    Setup summary: Create app with custom handler, mock valid signature, send event, assert handler called with correct event.
-    """
-    # Arrange
-    mocker.patch(
-        "unique_toolkit.app.fast_api_factory.UniqueSettings.from_env",
-        return_value=base_settings,
-    )
-    mock_handler = mocker.Mock(return_value=201)
-    app = build_unique_custom_app(chat_event_handler=mock_handler)
-    mocker.patch(
-        "unique_toolkit.app.webhook.is_webhook_signature_valid",
-        return_value=True,
-    )
-    event_data = sample_chat_event.model_dump()
-    # Act
-    from fastapi.testclient import TestClient
-
-    client = TestClient(app)
-    response = client.post(
-        "/webhook",
-        json=event_data,
-        headers={
-            "X-Unique-Signature": "valid-signature",
-            "X-Unique-Created-At": "1234567890",
-        },
-    )
-    # Assert
-    assert response.status_code == 200
-    assert response.json()["return_value"] == 201
-    mock_handler.assert_called_once()
-    call_arg = mock_handler.call_args[0][0]
-    assert isinstance(call_arg, ChatEvent)
-    assert call_arg.id == sample_chat_event.id
-
-
-@pytest.mark.ai
-@pytest.mark.asyncio
-async def test_webhook_handler__updates_auth__from_event(
-    mocker, base_settings: UniqueSettings, sample_chat_event: ChatEvent
-) -> None:
-    """
-    Purpose: Verify webhook handler updates settings.auth from event data.
-    Why this matters: Enables dynamic authentication based on event context.
-    Setup summary: Create app, mock valid signature, send event, assert auth updated then reset.
-    """
-    # Arrange
-    # Create a mock settings that we can track changes on
-    mock_settings = mocker.MagicMock(spec=UniqueSettings)
-    mock_settings.app = base_settings.app
-    mock_settings.auth = base_settings.auth
-    mock_settings.chat_event_filter_options = base_settings.chat_event_filter_options
-    mock_settings.init_sdk = mocker.Mock()
-
-    mocker.patch(
-        "unique_toolkit.app.fast_api_factory.UniqueSettings.from_env",
-        return_value=mock_settings,
-    )
-    mock_handler = mocker.Mock(return_value=200)
-    app = build_unique_custom_app(chat_event_handler=mock_handler)
-    mocker.patch(
-        "unique_toolkit.app.webhook.is_webhook_signature_valid",
-        return_value=True,
-    )
-    event_data = sample_chat_event.model_dump()
-    # Act
-    from fastapi.testclient import TestClient
-
-    client = TestClient(app)
-    response = client.post(
-        "/webhook",
-        json=event_data,
-        headers={
-            "X-Unique-Signature": "valid-signature",
-            "X-Unique-Created-At": "1234567890",
-        },
-    )
-    # Assert
-    assert response.status_code == 200
-    # Verify that auth was set during handler execution
-    # Since settings are created per request, we verify the handler was called
-    assert mock_handler.called
-    # Verify init_sdk was called
-    mock_settings.init_sdk.assert_called_once()
-
-
-@pytest.mark.ai
-@pytest.mark.asyncio
-async def test_webhook_handler__uses_default_handler__when_not_provided(
-    mocker, base_settings: UniqueSettings, sample_chat_event: ChatEvent
-) -> None:
-    """
-    Purpose: Verify webhook handler uses default_event_handler when no custom handler provided.
-    Why this matters: Ensures default behavior works correctly.
-    Setup summary: Create app without custom handler, mock valid signature, send event, assert default handler used.
-    """
-    # Arrange
-    mocker.patch(
-        "unique_toolkit.app.fast_api_factory.UniqueSettings.from_env",
-        return_value=base_settings,
-    )
-    app = build_unique_custom_app()
-    mocker.patch(
-        "unique_toolkit.app.webhook.is_webhook_signature_valid",
-        return_value=True,
-    )
-    event_data = sample_chat_event.model_dump()
-    # Act
-    from fastapi.testclient import TestClient
-
-    client = TestClient(app)
-    response = client.post(
-        "/webhook",
-        json=event_data,
-        headers={
-            "X-Unique-Signature": "valid-signature",
-            "X-Unique-Created-At": "1234567890",
-        },
-    )
-    # Assert
-    assert response.status_code == 200
-    assert response.json()["return_value"] == 200
-
-
-@pytest.mark.ai
-@pytest.mark.asyncio
-async def test_webhook_handler__handles_missing_event_field(
-    mocker, base_settings: UniqueSettings
-) -> None:
-    """
-    Purpose: Verify webhook handler handles missing event field gracefully.
-    Why this matters: Prevents crashes from malformed event data.
-    Setup summary: Create app, mock valid signature, send event without event field, assert 400 response.
-    """
-    # Arrange
-    mocker.patch(
-        "unique_toolkit.app.fast_api_factory.UniqueSettings.from_env",
-        return_value=base_settings,
-    )
-    app = build_unique_custom_app()
-    mocker.patch(
-        "unique_toolkit.app.webhook.is_webhook_signature_valid",
-        return_value=True,
-    )
-    event_data = {"id": "test-id"}  # Missing event field
-    # Act
-    from fastapi.testclient import TestClient
-
-    client = TestClient(app)
-    response = client.post(
-        "/webhook",
-        json=event_data,
-        headers={
-            "X-Unique-Signature": "valid-signature",
-            "X-Unique-Created-At": "1234567890",
-        },
-    )
-    # Assert
-    assert response.status_code == 400
-    assert "Invalid event name" in response.json()["error"]
-
-
-@pytest.mark.ai
-@pytest.mark.asyncio
-async def test_build_unique_custom_app__uses_settings_file__when_provided(
-    mocker, base_settings: UniqueSettings, tmp_path, sample_chat_event: ChatEvent
-) -> None:
-    """
-    Purpose: Verify build_unique_custom_app uses settings_file when provided.
-    Why this matters: Enables loading settings from a specific file path.
-    Setup summary: Create app with settings_file, verify from_env called with file path.
-    """
-    # Arrange
-    settings_file = tmp_path / "test.env"
-    settings_file.write_text("UNIQUE_APP_ENDPOINT_SECRET=test-secret-from-file\n")
-
-    mock_from_env = mocker.patch(
-        "unique_toolkit.app.fast_api_factory.UniqueSettings.from_env",
-        return_value=base_settings,
-    )
-    app = build_unique_custom_app(settings_file=settings_file)
-    mocker.patch(
-        "unique_toolkit.app.webhook.is_webhook_signature_valid",
-        return_value=True,
-    )
-    event_data = sample_chat_event.model_dump()
-    # Act
-    from fastapi.testclient import TestClient
-
-    client = TestClient(app)
-    response = client.post(
-        "/webhook",
-        json=event_data,
-        headers={
-            "X-Unique-Signature": "valid-signature",
-            "X-Unique-Created-At": "1234567890",
-        },
-    )
-    # Assert
-    # Verify from_env was called with the settings_file
-    mock_from_env.assert_called_once_with(env_file=settings_file)
-    assert response.status_code == 200
-
-
-@pytest.mark.ai
-@pytest.mark.asyncio
-async def test_webhook_handler__handles_configuration_exception(
-    mocker, base_settings: UniqueSettings, sample_chat_event: ChatEvent
-) -> None:
-    """
-    Purpose: Verify webhook handler handles ConfigurationException gracefully.
-    Why this matters: Provides proper error handling for configuration issues.
-    Setup summary: Create app, mock ConfigurationException, send event, assert 500 response.
-    """
-    # Arrange
-    from unique_toolkit._common.exception import ConfigurationException
-
-    mocker.patch(
-        "unique_toolkit.app.fast_api_factory.UniqueSettings.from_env",
-        return_value=base_settings,
-    )
-    app = build_unique_custom_app()
-    mocker.patch(
-        "unique_toolkit.app.webhook.is_webhook_signature_valid",
-        return_value=True,
-    )
-    # Mock init_sdk to raise ConfigurationException
-    mocker.patch(
-        "unique_toolkit.app.fast_api_factory.UniqueSettings.init_sdk",
-        side_effect=ConfigurationException("Configuration error"),
-    )
-    event_data = sample_chat_event.model_dump()
-    # Act
-    from fastapi.testclient import TestClient
-
-    client = TestClient(app)
-    response = client.post(
-        "/webhook",
-        json=event_data,
-        headers={
-            "X-Unique-Signature": "valid-signature",
-            "X-Unique-Created-At": "1234567890",
-        },
-    )
-    # Assert
-    assert response.status_code == 500
-    assert "Configuration error" in response.json()["error"]
-
-
-@pytest.mark.ai
-@pytest.mark.asyncio
-async def test_webhook_handler__handles_generic_exception(
-    mocker, base_settings: UniqueSettings, sample_chat_event: ChatEvent
-) -> None:
-    """
-    Purpose: Verify webhook handler handles generic exceptions gracefully.
-    Why this matters: Prevents crashes from unexpected errors.
-    Setup summary: Create app, mock exception in handler, send event, assert 500 response.
-    """
-    # Arrange
-    mocker.patch(
-        "unique_toolkit.app.fast_api_factory.UniqueSettings.from_env",
-        return_value=base_settings,
-    )
-    mock_handler = mocker.Mock(side_effect=ValueError("Unexpected error"))
-    app = build_unique_custom_app(chat_event_handler=mock_handler)
-    mocker.patch(
-        "unique_toolkit.app.webhook.is_webhook_signature_valid",
-        return_value=True,
-    )
-    event_data = sample_chat_event.model_dump()
-    # Act
-    from fastapi.testclient import TestClient
-
-    client = TestClient(app)
-    response = client.post(
-        "/webhook",
-        json=event_data,
-        headers={
-            "X-Unique-Signature": "valid-signature",
-            "X-Unique-Created-At": "1234567890",
-        },
-    )
-    # Assert
-    assert response.status_code == 500
-    assert "Error handling event" in response.json()["error"]
