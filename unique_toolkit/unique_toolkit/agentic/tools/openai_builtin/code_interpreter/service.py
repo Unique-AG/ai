@@ -244,3 +244,7 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
             tool_format_information_for_user_prompt=self._config.tool_format_information_for_user_prompt,
             input_model={},
         )
+
+    @override
+    def display_name(self) -> str:
+        return self.DISPLAY_NAME
