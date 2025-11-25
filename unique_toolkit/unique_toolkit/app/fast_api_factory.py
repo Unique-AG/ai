@@ -114,7 +114,7 @@ def build_unique_custom_app(
         except ValidationError as e:
             # pydantic errors https://docs.pydantic.dev/2.10/errors/errors/
             logger.error(f"Validation error with model: {e.json()}", exc_info=True)
-            raise ValidationError(e)
+            raise e
         except ValueError as e:
             logger.error(f"Error deserializing event: {e}", exc_info=True)
             return JSONResponse(
