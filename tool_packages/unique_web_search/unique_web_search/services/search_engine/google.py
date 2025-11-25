@@ -11,12 +11,12 @@ from unique_web_search.services.search_engine import (
     SearchEngine,
     SearchEngineType,
 )
-from unique_web_search.services.search_engine.google_utils.schema import (
-    GoogleSearchOptionalQueryParams,
-    GoogleSearchQueryParams,
-)
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
+)
+from unique_web_search.services.search_engine.utils.google.schema import (
+    GoogleSearchOptionalQueryParams,
+    GoogleSearchQueryParams,
 )
 
 _LOGGER = logging.getLogger(__name__)

@@ -3,7 +3,7 @@ import logging
 import re
 
 import tiktoken
-from langchain.text_splitter import TokenTextSplitter
+from langchain_text_splitters import TokenTextSplitter
 from openai.types.chat import ChatCompletionMessageParam
 from unique_toolkit.agentic.tools.utils.execution.execution import SafeTaskExecutor
 from unique_toolkit.app.schemas import ChatEvent

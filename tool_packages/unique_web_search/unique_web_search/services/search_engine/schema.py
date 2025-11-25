@@ -35,3 +35,7 @@ class WebSearchResult(BaseModel):
             source="WebSearch",
             source_id=self.url,
         )
+
+
+class WebSearchResults(BaseModel):
+    results: list[WebSearchResult]

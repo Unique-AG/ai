@@ -64,7 +64,7 @@ class BasicCrawler(BaseCrawler[BasicCrawlerConfig]):
             for result in results:
                 if isinstance(result, BaseException):
                     markdowns.append(
-                        "An expected error occurred while crawling the URL"
+                        f"Unexpected error occurred while crawling the URL: {result}"
                     )
 
                 else:
