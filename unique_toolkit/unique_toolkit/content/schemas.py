@@ -135,7 +135,7 @@ class ContentReference(BaseModel):
             "sequence_number": reference["sequenceNumber"],
             "source": reference["source"],
             "source_id": reference["sourceId"],
-            "description": reference.get("description", ""),
+            "description": reference["description"],
         }
         if "originalIndex" in reference:
             kwargs["original_index"] = reference["originalIndex"]
