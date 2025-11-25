@@ -7,7 +7,44 @@ repo_url: https://github.com/Unique-AG/ai/unique_sdk
 edit_uri: /docs/
 
 nav:
-  - Home: sdk.md
+  - Home: index.md
+  - Getting Started:
+    - Installation: getting_started/installation.md
+    - Configuration: getting_started/configuration.md
+    - Quickstart: getting_started/quickstart.md
+  - Architecture:
+    - Overview: architecture.md
+  - API Reference:
+    - Content: api_resources/content.md
+    - Message: api_resources/message.md
+    - Search: api_resources/search.md
+    - Search String: api_resources/search_string.md
+    - Chat Completion: api_resources/chat_completion.md
+    - Embeddings: api_resources/embeddings.md
+    - Folder: api_resources/folder.md
+    - Space: api_resources/space.md
+    - User: api_resources/user.md
+    - Group: api_resources/group.md
+    - Agentic Table: api_resources/agentic_table.md
+    - Short Term Memory: api_resources/short_term_memory.md
+    - Message Assessment: api_resources/message_assessment.md
+    - Message Execution: api_resources/message_execution.md
+    - Message Log: api_resources/message_log.md
+    - LLM Models: api_resources/llm_models.md
+  - UniqueQL:
+    - Query Language: uniqueql.md
+  - Utilities:
+    - Chat History: utilities/chat_history.md
+    - File I/O: utilities/file_io.md
+    - Sources: utilities/sources.md
+    - Token Management: utilities/token.md
+    - Chat in Space: utilities/chat_in_space.md
+  - Webhooks:
+    - Overview: webhooks.md
+  - Tutorials:
+    - Folder Updates: tutorials/folder_updates.md
+    - Rule-Based Search: tutorials/get_contents.md
+    - OpenAI Integration: tutorials/openai_scripts.md
 
 
 markdown_extensions:

@@ -1,6 +1,6 @@
-# Unique Ag - Toolkit Documentation
+# Unique AI - SDK & Toolkit Documentation
 
-Welcome to the Unique Ag Toolkit documentation. This repository contains multiple packages and tools developed by the Unique team.
+Welcome to the Unique AI SDK & Toolkit documentation. This repository contains multiple packages and tools developed by the Unique team.
 
 ## Available Packages
 
