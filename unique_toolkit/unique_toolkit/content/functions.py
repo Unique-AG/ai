@@ -144,7 +144,7 @@ def search_contents(
     chat_id: str,
     where: dict,
     include_failed_content: bool = False,
-):
+) -> list[Content]:
     """
     Performs an asynchronous search for content files in the knowledge base by filter.
 
@@ -297,7 +297,7 @@ def upload_content_from_bytes(
     skip_ingestion: bool = False,
     ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
     metadata: dict[str, Any] | None = None,
-):
+) -> Content:
     """
     Uploads content to the knowledge base.
 

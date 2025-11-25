@@ -263,7 +263,7 @@ def create_message(
     references: list[ContentReference] | None = None,
     debug_info: dict | None = None,
     set_completed_at: bool | None = False,
-):
+) -> ChatMessage:
     """Creates a message in the chat session synchronously.
 
     Args:
