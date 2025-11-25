@@ -7,8 +7,9 @@ repo_url: https://github.com/Unique-AG/ai/tutorials
 edit_uri: /docs/
 
 nav:
-  - MCP Demo Tutorial: mcp_demo.md
-  - MCP Search Tutorial: mcp_search.md
+  - MCP:
+    - MCP Demo Tutorial: mcp_demo.md
+    - MCP Search Tutorial: mcp_search.md
 
 
 markdown_extensions:

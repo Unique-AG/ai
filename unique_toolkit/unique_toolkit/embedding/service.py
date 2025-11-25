@@ -145,7 +145,7 @@ class EmbeddingService(BaseService):
         Embed text.
 
         Args:
-            text (str): The text to embed.
+            texts (list[str]): The texts to embed.
             timeout (int): The timeout in milliseconds. Defaults to 600000.
 
         Returns:
