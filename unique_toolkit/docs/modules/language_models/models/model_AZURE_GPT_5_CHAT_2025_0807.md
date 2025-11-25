@@ -12,6 +12,7 @@
 - **Total Limit**: 144,384 tokens
 
 ## Capabilities
+- responses_api
 - streaming
 - vision
 

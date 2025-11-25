@@ -4,7 +4,70 @@
 
 Unique Toolkit is available on [PyPI](https://pypi.org/project/unique_toolkit/) and can be installed using `pip`/`poetry` or `uv`:
 
-We highly recommend using a virtual environment to install Unique Toolkit and SDK.
+We highly recommend using a virtual environment to install Unique Toolkit.
+
+
+## Minimal Project Setup
+
+Here we use [`uv`](https://docs.astral.sh/uv/) to setup a minimal project. In the terminal use
+
+```
+uv init my_unique_project
+```
+
+to create a project which results in 
+
+```
+❯ tree my_unique_project 
+my_unique_project
+├── main.py
+├── pyproject.toml
+└── README.md
+```
+
+then we change into the folder and add the `unique_toolkit` as a dependency
+
+```
+cd my_unique_project 
+uv add unique_toolkit
+```
+
+## Setting up Examples
+
+If you want to explore the examples within a project you can download them using the following code
+
+```
+REPO=https://github.com/Unique-AG/ai.git
+mkdir examples
+git clone --depth 1 --filter=blob:none --sparse $REPO temp-repo
+
+cd temp-repo
+git sparse-checkout set unique_toolkit/docs/examples_from_docs
+cp -r unique_toolkit/docs/examples_from_docs/ ../examples
+
+cd ..
+rm -rf temp-repo
+```
+
+this will download all the examples from the documentation into a folder called `examples`.
+
+
+**Setting up Secrets for Examples**
+
+The following secrets must be set up in a file with the name `unique.env` at the root of the project.
+
+```env
+UNIQUE_AUTH_COMPANY_ID=                         # Your company id
+UNIQUE_AUTH_USER_ID=                            # Your user id
+
+UNIQUE_API_BASE_URL=                            # The backend url of Unique's public API
+UNIQUE_API_VERSION=                             # The version Unique's public API
+
+UNIQUE_APP_ID=                                  # The app id as obtained in the App section of Unique
+UNIQUE_APP_KEY=                                 # The app key as obtained in the App section of Unique
+```
+
+<!--
 
 ## Secrets and how to find them
 
@@ -27,6 +90,7 @@ UNIQUE_CHAT_EVENT_FILTER_OPTIONS_ASSISTANT_IDS=["assistant1", "assistant2"]
 # Filter events by specific module/reference names (JSON array format)  
 UNIQUE_CHAT_EVENT_FILTER_OPTIONS_REFERENCES_IN_CODE=["module1", "module2"]
 ```
+-->
 
 ??? info "Environment File Locations (Click to expand)"
     
@@ -73,23 +137,29 @@ UNIQUE_CHAT_EVENT_FILTER_OPTIONS_REFERENCES_IN_CODE=["module1", "module2"]
     ```
     %APPDATA%\unique\unique.env
     ```
-### User and Company IDs
 
-These IDs can be obtained by inspecting you Personal API Key that can be found when clicking onto your account in the top right corner of the frontend
 
-![alt text](./company_user_id_location.png){ align=center width=200 }
+These secrets can be obtained by inspecting you **Personal API Key** section that can be found when clicking onto your account in the top right corner of the frontend
 
-### API
+![alt text](./images/personal_api_key_location.png){ width=300 }
 
-The `UNIQUE_API_BASE_URL` can be obtained from your admin and the current API version is `2023-12-06`.
+On clicking onto the personal api key button the following popup appears 
 
-### App credentials
-The app credentials can be obtained when creating an app in the corresponding section 
+![alt text](./images/personal_api_key.png)
 
-![alt text](./app_button.png).
+and the secrets must be used according to the following table into the environment variables
 
-The `APP_ID` is immediately visible after creating an app and starts with `app_` followed by a 24-character alphanumeric string. The `APP_KEY` can be generated once the app is activated under the section **API Keys**.
+| Toolkit Secret Variable | Platform Secret Name | Example | 
+|--|--|--|
+|UNIQUE_AUTH_COMPANY_ID | Company ID| `346386357988860534` |
+|UNIQUE_AUTH_USER_ID | User ID | `347188092944093062` |
+|UNIQUE_APP_ID | App ID | `app_iaii8qhvt5j80wo9i4wmwqqc` |
+|UNIQUE_APP_KEY | Api Key | `ukey_<redacted>`|
 
+The `UNIQUE_API_BASE_URL` can be obtained from your admin and the current `UNIQUE_API_VERSION` is `2023-12-06`.
+
+
+<!--
 ### Filtering Events
 Filtering on events is possible via additional environment variables 
 
@@ -104,3 +174,4 @@ Filtering on events is possible via additional environment variables
 An app endpoint is required in the production scenario when the app is running in a container. In this case the Unique plattform reaches the app via the registered endpoints.
 
 [WIP]
+-->

@@ -20,6 +20,7 @@ In its simplest form, a smart rule needs three components:
 The following metadata paths are available by default
 
 | Metadata Path | Description | 
+|--|--|
 | `key` | The title of the document when it was ingested | 
 | `url` | The url where the document can be retrieved from | 
 | `title` | The title if changed after ingestion | 
