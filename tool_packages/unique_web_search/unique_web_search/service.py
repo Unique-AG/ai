@@ -15,6 +15,7 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelToolDescription,
 )
+from unique_toolkit.content.schemas import ContentChunk,ContentReference
 
 from unique_web_search.config import WebSearchConfig
 from unique_web_search.schema import WebSearchPlan, WebSearchToolParameters
@@ -113,9 +114,18 @@ class WebSearchTool(Tool[WebSearchConfig]):
             debug_info.num_chunks_in_final_prompts = len(content_chunks)
             debug_info.execution_time = time() - start_time
 
+            content_chunks: list[ContentChunk]   = self._prepare_content_chunks(content_chunks)
+
+            print("-------------------------------")
+            print(content_chunks[0])
+
             details, reference_list = self._prepare_message_logs_entries(
                 queries_for_log
             )
+
+            print("-------------------------------")
+            print(reference_list[0])
+
             self._message_step_logger.create_message_log_entry(
                 text="**Web Search**",
                 details=details,
@@ -235,5 +245,14 @@ class WebSearchTool(Tool[WebSearchConfig]):
 
         return details, references
 
+    def _prepare_content_chunks(self, content_chunks: list[ContentChunk]) -> list[ContentChunk]:
+
+        for index, content_chunk in enumerate(content_chunks):
+
+            #Snippet extraction from the content chunk
+            snippet = content_chunk.text.split("</SearchEngineSnippet>")[0].split("<SearchEngineSnippet>")[1]
+            content_chunks[index].description = snippet
+
+        return content_chunks
 
 ToolFactory.register_tool(WebSearchTool, WebSearchConfig)

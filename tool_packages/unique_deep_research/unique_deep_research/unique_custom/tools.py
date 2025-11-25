@@ -246,6 +246,7 @@ async def web_fetch(
                         sequence_number=0,
                         source="web",
                         source_id=url,
+                        description="This is a description of the content of the page",
                     )
                 ]
             ),
@@ -303,6 +304,7 @@ def _get_internal_data_citation(
         sequence_number=sequence_number,
         source="node-ingestion-chunks",
         source_id=f"{result.id}_{result.chunk_id}",
+        description="This is a description of the content of the internal document" #result.text,
     )
 
 
@@ -337,7 +339,7 @@ async def internal_search(query: str, config: RunnableConfig, limit: int = 50) -
     citation_manager = get_citation_manager(config)
 
     formatted_results = ""
-    content_references = []
+    content_references = [] #TODO modify content_references to include description
     for idx, result in enumerate(search_results):
         content_reference = _get_internal_data_citation(result, idx)
         content_references.append(content_reference)

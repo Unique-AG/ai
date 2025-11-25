@@ -426,6 +426,9 @@ class UniqueAI:
             tool_calls
         )
 
+        print("Tool CALL RESPONSES")
+        print(tool_call_responses[0])
+
         # Process results with error handling
         # Add tool call results to history first to stabilize source numbering,
         # then extract referenceable chunks and debug info

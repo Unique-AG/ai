@@ -271,6 +271,9 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
 
             await self._update_execution_status(MessageExecutionUpdateStatus.COMPLETED)
 
+            #TODO modify content_chunks to include description
+            ## We miss here content_chunks description quite for sure.
+
             # Return the results
             return ToolCallResponse(
                 id=tool_call.id or "",
@@ -504,6 +507,8 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             references=link_references,
         )
 
+        #TODO other eventual point to add description to content_chunks
+
         return processed_result, content_chunks
 
     async def _process_research_stream(self, stream) -> tuple[str, list[Annotation]]:
@@ -639,6 +644,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                                                 sequence_number=0,
                                                 source="web",
                                                 source_id=event.item.action.url,
+                                                description="This is a description of the content of the page",
                                             )
                                         ],
                                     ),

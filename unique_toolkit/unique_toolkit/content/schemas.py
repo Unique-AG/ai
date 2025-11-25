@@ -4,7 +4,7 @@ from typing import Any, Optional
 
 import unique_sdk
 from humps import camelize
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 # set config to convert camelCase to snake_case
 model_config = ConfigDict(
@@ -125,6 +125,13 @@ class ContentReference(BaseModel):
         description="List of indices in the ChatMessage original_content this reference refers to. This is usually the id in the functionCallResponse. List type due to implementation in node-chat",
     )
 
+    ## Aggressive method to fix the null errors during development
+    @field_validator("description", mode="before")
+    @classmethod
+    def normalize_description(cls, value: str | None) -> str:
+        """Convert None to empty string for description field."""
+        return "Test message" if value is None else value
+
     @classmethod
     def from_sdk_reference(
         cls, reference: unique_sdk.Message.Reference | unique_sdk.Space.Reference
@@ -135,8 +142,10 @@ class ContentReference(BaseModel):
             "sequence_number": reference["sequenceNumber"],
             "source": reference["source"],
             "source_id": reference["sourceId"],
-            "description": reference["description"],
         }
+        if "description" in reference:
+            # Convert None to empty string to match the field type (str, not str | None)
+            reference["description"] = reference["description"] or ""
         if "originalIndex" in reference:
             kwargs["original_index"] = reference["originalIndex"]
 

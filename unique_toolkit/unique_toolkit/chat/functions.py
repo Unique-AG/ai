@@ -182,6 +182,7 @@ def map_references(references: list[ContentReference]) -> list[dict[str, Any]]:
             "sequenceNumber": ref.sequence_number,
             "sourceId": ref.source_id,
             "source": ref.source,
+            "description": ref.description,
         }
         for ref in references
     ]
@@ -202,6 +203,7 @@ def map_references_with_original_index(
             "sourceId": ref.source_id,
             "source": ref.source,
             "originalIndex": ref.original_index,
+            "description": ref.description,
         }
         for ref in references
     ]
