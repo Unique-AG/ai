@@ -8,8 +8,9 @@ edit_uri: /docs/
 
 nav:
   - MCP:
-    - MCP Demo Tutorial: mcp_demo.md
-    - MCP Search Tutorial: mcp_search.md
+    - Fundamentals: mcp_fundamentals.md
+    - Demo Tutorial: mcp_demo.md
+    - Search Tutorial: mcp_search.md
 
 
 markdown_extensions:
