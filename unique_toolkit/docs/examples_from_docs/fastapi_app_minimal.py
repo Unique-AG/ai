@@ -12,7 +12,7 @@ from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.framework_utilities.openai.message_builder import (
     OpenAIMessageBuilder,
 )
-from unique_toolkit.app.schemas import ChatEvent
+from unique_toolkit.app.schemas import ChatEvent, EventName
 logger = logging.getLogger(__name__)
 
 
@@ -50,10 +50,17 @@ def chat_event_handler(event: ChatEvent) -> int:
 # Create the default app instance at module level
 # This MUST be at module level so uvicorn can find it when importing
 
+_SETTINGS = UniqueSettings.from_env(env_file=Path(__file__).parent / "unique.env")
+_SETTINGS.init_sdk()
+
 # Create app using factory
-_MINIMAL_APP = build_unique_custom_app(settings_file=Path(__file__).parent / "unique.env", 
-                                                title="Unique Minimal Chat App", 
-                                                chat_event_handler=chat_event_handler)
+_MINIMAL_APP = build_unique_custom_app(
+    title="Unique Minimal Chat App", 
+    settings=_SETTINGS,
+    event_handler=chat_event_handler,
+    event_constructor=ChatEvent,
+    subscribed_event_names=[EventName.EXTERNAL_MODULE_CHOSEN]
+)
 
 
 if __name__ == "__main__":
