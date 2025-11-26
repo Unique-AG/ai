@@ -1,7 +1,8 @@
 ## 📌 Overview
-This tutorial demonstrates building a simple HTTP-streamable MCP server with FastMCP. It includes:
+This tutorial demonstrates building a simple HTTP-streamable MCP server with FastMCP, **with a focus on demonstrating how to authenticate with Zitadel**. It includes:
+- **Zitadel OAuth authentication** using OAuth Proxy and JWT verification
 - A basic `addition` tool that adds two numbers
-- An `identify` tool that retrieves the current user's profile
+- An `identify` tool that retrieves the current user's profile from Zitadel
 - Custom HTTP routes for health checks and static assets
 
 > **Note**: For fundamental concepts about authentication, server setup, CORS, and deployment, see [MCP Fundamentals](mcp_fundamentals.md).
@@ -32,7 +33,7 @@ BASE_URL = sys.argv if len(sys.argv) > 1 else base_url_env
 ```
 
 ### 🔐 Auth: OAuth Proxy + JWT Verifier
-Set up authentication (see [MCP Fundamentals](mcp_fundamentals.md) for details):
+This example demonstrates **Zitadel authentication** using OAuth Proxy and JWT verification. Set up authentication (see [MCP Fundamentals](mcp_fundamentals.md) for details):
 
 ```python
 from fastmcp.server.auth.providers.jwt import JWTVerifier

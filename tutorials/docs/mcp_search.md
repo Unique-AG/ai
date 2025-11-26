@@ -1,17 +1,19 @@
 ## 📌 Overview
-This tutorial demonstrates building an HTTP-streamable MCP server that integrates with the Unique SDK to provide search functionality. It includes:
-- A `search` tool that queries a knowledge base using the Unique SDK
+This tutorial demonstrates building an HTTP-streamable MCP server that integrates with the Unique SDK to provide search functionality, **with a focus on demonstrating how unique credentials (`user_id` and `company_id`) can be passed and used by underlying tools for authenticated operations via the Unique SDK**. It includes:
+- **Extracting unique credentials** (`user_id` and `company_id`) from authenticated tokens
+- A `search` tool that queries a knowledge base using the Unique SDK with user-specific credentials
 - An `identify` tool that retrieves the current user's profile (including `user_id` and `company_id`)
-- Integration with Unique SDK for authenticated search operations
+- Integration with Unique SDK for authenticated search operations using extracted credentials
 
 > **Note**: For fundamental concepts about authentication, server setup, CORS, and deployment, see [MCP Fundamentals](mcp_fundamentals.md).
 
 See the full example here: [https://github.com/Unique-AG/ai/tree/main/tutorials/mcp/mcp_search](https://github.com/Unique-AG/ai/tree/main/tutorials/mcp/mcp_search)
 
 ## 🔍 Search Tool
-The main feature of this server is the `search` tool that:
-- Extracts user identity (user_id, company_id) from the authenticated token
-- Uses the Unique SDK to perform searches in the knowledge base
+The main feature of this server is the `search` tool that demonstrates **how unique credentials are passed to the Unique SDK for authenticated operations**:
+- Extracts user identity (`user_id`, `company_id`) from the authenticated token
+- **Passes these credentials to the Unique SDK** for authenticated search operations
+- Uses the Unique SDK to perform searches in the knowledge base with user-specific context
 - Returns search results as JSON
 
 ### Unique SDK Configuration
@@ -126,7 +128,7 @@ mcp = FastMCP(
 ```
 
 ### 👤 User Identification Helper
-This implementation uses Zitadel's `/oidc/v1/userinfo` endpoint and extracts `company_id` from custom claims:
+This implementation demonstrates **how to extract unique credentials from authenticated tokens**. It uses Zitadel's `/oidc/v1/userinfo` endpoint and extracts `company_id` from custom claims:
 
 ```python
 import json, requests
@@ -154,13 +156,14 @@ def identify(user_prompt: str) -> str:
 ```
 
 ### 🔍 Search Tool
-The main search tool that integrates with Unique SDK:
+The main search tool that demonstrates **passing unique credentials to the Unique SDK for authenticated operations**:
 
 ```python
 @mcp.tool
 def search(query: str) -> str:
     """Search in the knowledge base"""
     user = get_user()
+    # Pass user_id and company_id to Unique SDK for authenticated operations
     result = unique_sdk.Search.create(
         user_id=user.get("user_id"),
         company_id=user.get("company_id"),
