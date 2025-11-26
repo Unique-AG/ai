@@ -21,7 +21,7 @@ class SubAgentAnswerSubstringConfig(BaseModel):
     )
     display_template: str = Field(
         default="{}",
-        description="The template to use to display the substring. It should contain exactly one placeholder for the substring.",
+        description="The template to use to display the substring. It should contain exactly one empty placeholder '{}' for the substring.",
     )
 
 
