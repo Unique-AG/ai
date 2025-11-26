@@ -66,19 +66,19 @@ class VertexAI(SearchEngine[VertexAIConfig]):
         super().__init__(config)
         self.language_model_service = language_model_service
         self.lmi = lmi
-        self.client = get_vertex_client()
-        self.is_configured = self.client is not None
+        self._client = get_vertex_client()
+        self.is_configured = self._client is not None
 
     @property
     def requires_scraping(self) -> bool:
         return self.config.requires_scraping
 
     async def search(self, query: str, **kwargs) -> list[WebSearchResult]:
-        assert self.client is not None, "VertexAI client is not configured"
+        assert self._client is not None, "VertexAI client is not configured"
 
         # Generate the answer with citations
         answer_with_citations = await generate_content(
-            client=self.client,
+            client=self._client,
             model_name=self.config.model_name,
             config=get_vertex_grounding_config(
                 system_instruction=self.config.grounding_system_instruction,
@@ -90,7 +90,7 @@ class VertexAI(SearchEngine[VertexAIConfig]):
 
         # Generate the structured results
         structured_results = await generate_content(
-            client=self.client,
+            client=self._client,
             model_name=self.config.model_name,
             config=get_vertex_structured_results_config(
                 system_instruction=None,

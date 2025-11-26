@@ -94,20 +94,15 @@ class TestSearchEngineConfigs:
         assert hasattr(config, "fetch_size")
         assert hasattr(config, "custom_search_config")
 
-    def test_vertexai_config_creation(self):
+    def test_vertexai_config_creation_default_value(self):
         """Test VertexAIConfig creation."""
         config = VertexAIConfig(search_engine_name=SearchEngineType.VERTEXAI)
 
         assert config.search_engine_name == SearchEngineType.VERTEXAI
-        assert hasattr(config, "model_name")
-        assert hasattr(config, "grounding_system_instruction")
-        assert hasattr(config, "requires_scraping")
-        assert hasattr(config, "enable_entreprise_search")
-        assert hasattr(config, "enable_redirect_resolution")
-        assert config.model_name == "gemini-2.5-flash"  # default value
-        assert not config.requires_scraping  # default value
-        assert not config.enable_entreprise_search  # default value
-        assert config.enable_redirect_resolution  # default value
+        assert config.model_name == "gemini-2.5-flash"
+        assert not config.requires_scraping
+        assert not config.enable_entreprise_search
+        assert config.enable_redirect_resolution
 
     def test_vertexai_config_custom_values(self):
         """Test VertexAIConfig with custom values."""
@@ -186,9 +181,6 @@ class TestSearchEngineInstances:
         search = VertexAI(config, Mock(), Mock())
 
         assert search.config == config
-        assert hasattr(search, "requires_scraping")
-        assert hasattr(search, "search")
-        assert hasattr(search, "client")
         assert hasattr(search, "is_configured")
 
 
