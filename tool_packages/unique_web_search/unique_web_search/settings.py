@@ -49,7 +49,7 @@ class Base(BaseSettings):
     brave_search_api_endpoint: str | None = None
 
     # VertexAI API settings
-    vertexai_service_account_file: str | None = None
+    vertexai_service_account_credentials: str | None = None
 
     # Proxy settings
     ## Shared settings

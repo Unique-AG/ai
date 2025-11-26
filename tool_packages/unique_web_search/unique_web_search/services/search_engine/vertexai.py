@@ -89,7 +89,6 @@ class VertexAI(SearchEngine[VertexAIConfig]):
         )
 
         # Generate the structured results
-
         structured_results = await generate_content(
             client=self.client,
             model_name=self.config.model_name,
