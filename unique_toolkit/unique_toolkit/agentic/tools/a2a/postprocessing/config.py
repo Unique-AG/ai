@@ -13,6 +13,18 @@ class SubAgentResponseDisplayMode(StrEnum):
     PLAIN = "plain"
 
 
+class SubAgentAnswerSubstringConfig(BaseModel):
+    model_config = get_configuration_dict()
+
+    regexp: str = Field(
+        description="The regular expression to use to extract the substring. The first capture group will always be used.",
+    )
+    display_template: str = Field(
+        default="{}",
+        description="The template to use to display the substring. It should contain exactly one placeholder for the substring.",
+    )
+
+
 class SubAgentDisplayConfig(BaseModel):
     model_config = get_configuration_dict()
 
@@ -46,4 +58,13 @@ class SubAgentDisplayConfig(BaseModel):
     force_include_references: bool = Field(
         default=False,
         description="If set, the sub agent references will be added to the main agent response references even in not mentioned in the main agent response text.",
+    )
+
+    answer_substrings_config: list[SubAgentAnswerSubstringConfig] = Field(
+        default=[],
+        description="If set, only parts of the answer matching the provided regular expressions will be displayed.",
+    )
+    answer_substrings_separator: str = Field(
+        default="\n",
+        description="The separator to use between the substrings.",
     )

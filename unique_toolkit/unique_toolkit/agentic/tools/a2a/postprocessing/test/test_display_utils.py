@@ -16,9 +16,11 @@ from unique_toolkit.agentic.tools.a2a.postprocessing._display_utils import (
     _wrap_with_details_tag,
     _wrap_with_quote_border,
     get_sub_agent_answer_display,
+    get_sub_agent_answer_parts,
     remove_sub_agent_answer_from_text,
 )
 from unique_toolkit.agentic.tools.a2a.postprocessing.config import (
+    SubAgentAnswerSubstringConfig,
     SubAgentDisplayConfig,
     SubAgentResponseDisplayMode,
 )
@@ -1333,3 +1335,389 @@ def test_remove_sub_agent_answer__no_op_when_assistant_not_found() -> None:
     assert result == original_text
     assert "Present answer" in result
     assert "Present Agent" in result
+
+
+# Test get_sub_agent_answer_parts
+
+
+@pytest.mark.ai
+def test_get_sub_agent_answer_parts__returns_empty__when_hidden_mode() -> None:
+    """
+    Purpose: Verify empty list returned for HIDDEN display mode.
+    Why this matters: Hidden mode should not extract any answer parts.
+    Setup summary: Set mode to HIDDEN, assert empty list.
+    """
+    # Arrange
+    answer = "Some answer text"
+    config = SubAgentDisplayConfig(
+        mode=SubAgentResponseDisplayMode.HIDDEN,
+    )
+
+    # Act
+    result = get_sub_agent_answer_parts(answer=answer, display_config=config)
+
+    # Assert
+    assert result == []
+
+
+@pytest.mark.ai
+def test_get_sub_agent_answer_parts__returns_full_answer__when_no_config() -> None:
+    """
+    Purpose: Verify full answer returned when no substring config provided.
+    Why this matters: Default behavior should return entire answer.
+    Setup summary: Provide answer without substring config, assert full answer.
+    """
+    # Arrange
+    answer = "This is the complete answer"
+    config = SubAgentDisplayConfig(
+        mode=SubAgentResponseDisplayMode.PLAIN,
+        answer_substrings_config=[],
+    )
+
+    # Act
+    result = get_sub_agent_answer_parts(answer=answer, display_config=config)
+
+    # Assert
+    assert len(result) == 1
+    assert result[0].matching_text == answer
+    assert result[0].formatted_text == answer
+
+
+@pytest.mark.ai
+def test_get_sub_agent_answer_parts__extracts_single_match__with_one_regexp() -> None:
+    """
+    Purpose: Verify single substring extracted with one regexp config.
+    Why this matters: Core functionality for extracting specific answer parts.
+    Setup summary: Provide answer with single regexp config, assert match extracted.
+    """
+    # Arrange
+    answer = "The price is $42.99 for the item"
+    config = SubAgentDisplayConfig(
+        mode=SubAgentResponseDisplayMode.PLAIN,
+        answer_substrings_config=[
+            SubAgentAnswerSubstringConfig(regexp=r"\$\d+\.\d+"),
+        ],
+    )
+
+    # Act
+    result = get_sub_agent_answer_parts(answer=answer, display_config=config)
+
+    # Assert
+    assert len(result) == 1
+    assert result[0].matching_text == "$42.99"
+    assert result[0].formatted_text == "$42.99"
+
+
+@pytest.mark.ai
+def test_get_sub_agent_answer_parts__extracts_multiple_matches__with_multiple_regexps() -> (
+    None
+):
+    """
+    Purpose: Verify multiple substrings extracted with multiple regexp configs.
+    Why this matters: Supports extracting different types of information.
+    Setup summary: Provide answer with multiple regexp configs, assert all matches.
+    """
+    # Arrange
+    answer = "Contact John at john@example.com or call 555-1234"
+    config = SubAgentDisplayConfig(
+        mode=SubAgentResponseDisplayMode.PLAIN,
+        answer_substrings_config=[
+            SubAgentAnswerSubstringConfig(
+                regexp=r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"
+            ),
+            SubAgentAnswerSubstringConfig(regexp=r"\d{3}-\d{4}"),
+        ],
+    )
+
+    # Act
+    result = get_sub_agent_answer_parts(answer=answer, display_config=config)
+
+    # Assert
+    assert len(result) == 2
+    assert result[0].matching_text == "john@example.com"
+    assert result[1].matching_text == "555-1234"
+
+
+@pytest.mark.ai
+def test_get_sub_agent_answer_parts__applies_display_template__to_matched_text() -> (
+    None
+):
+    """
+    Purpose: Verify display template is applied to format matched text.
+    Why this matters: Allows customization of how extracted parts are displayed.
+    Setup summary: Provide template with placeholder, assert formatted output.
+    """
+    # Arrange
+    answer = "The temperature is 72 degrees"
+    config = SubAgentDisplayConfig(
+        mode=SubAgentResponseDisplayMode.PLAIN,
+        answer_substrings_config=[
+            SubAgentAnswerSubstringConfig(
+                regexp=r"\d+",
+                display_template="Temperature: {}°F",
+            ),
+        ],
+    )
+
+    # Act
+    result = get_sub_agent_answer_parts(answer=answer, display_config=config)
+
+    # Assert
+    assert len(result) == 1
+    assert result[0].matching_text == "72"
+    assert result[0].formatted_text == "Temperature: 72°F"
+
+
+@pytest.mark.ai
+def test_get_sub_agent_answer_parts__returns_empty_list__when_no_matches() -> None:
+    """
+    Purpose: Verify empty list returned when regexp doesn't match answer.
+    Why this matters: Handles cases where expected pattern not present.
+    Setup summary: Provide regexp that doesn't match, assert empty list.
+    """
+    # Arrange
+    answer = "This is plain text without numbers"
+    config = SubAgentDisplayConfig(
+        mode=SubAgentResponseDisplayMode.PLAIN,
+        answer_substrings_config=[
+            SubAgentAnswerSubstringConfig(regexp=r"\d+"),
+        ],
+    )
+
+    # Act
+    result = get_sub_agent_answer_parts(answer=answer, display_config=config)
+
+    # Assert
+    assert result == []
+
+
+@pytest.mark.ai
+def test_get_sub_agent_answer_parts__extracts_first_match_only__for_each_regexp() -> (
+    None
+):
+    """
+    Purpose: Verify only first match per regexp is extracted.
+    Why this matters: Function uses re.search which finds first occurrence.
+    Setup summary: Provide answer with multiple numbers, assert only first extracted.
+    """
+    # Arrange
+    answer = "First number is 42 and second is 99"
+    config = SubAgentDisplayConfig(
+        mode=SubAgentResponseDisplayMode.PLAIN,
+        answer_substrings_config=[
+            SubAgentAnswerSubstringConfig(regexp=r"\d+"),
+        ],
+    )
+
+    # Act
+    result = get_sub_agent_answer_parts(answer=answer, display_config=config)
+
+    # Assert
+    assert len(result) == 1
+    assert result[0].matching_text == "42"
+
+
+@pytest.mark.ai
+def test_get_sub_agent_answer_parts__handles_empty_answer__with_no_config() -> None:
+    """
+    Purpose: Verify empty answer returned as single part when no config.
+    Why this matters: Edge case handling for empty content.
+    Setup summary: Provide empty answer, assert single empty part.
+    """
+    # Arrange
+    answer = ""
+    config = SubAgentDisplayConfig(
+        mode=SubAgentResponseDisplayMode.PLAIN,
+        answer_substrings_config=[],
+    )
+
+    # Act
+    result = get_sub_agent_answer_parts(answer=answer, display_config=config)
+
+    # Assert
+    assert len(result) == 1
+    assert result[0].matching_text == ""
+    assert result[0].formatted_text == ""
+
+
+@pytest.mark.ai
+def test_get_sub_agent_answer_parts__handles_empty_answer__with_regexp_config() -> None:
+    """
+    Purpose: Verify empty list returned for empty answer with regexp config.
+    Why this matters: No matches possible in empty string.
+    Setup summary: Provide empty answer with regexp, assert empty list.
+    """
+    # Arrange
+    answer = ""
+    config = SubAgentDisplayConfig(
+        mode=SubAgentResponseDisplayMode.PLAIN,
+        answer_substrings_config=[
+            SubAgentAnswerSubstringConfig(regexp=r"\d+"),
+        ],
+    )
+
+    # Act
+    result = get_sub_agent_answer_parts(answer=answer, display_config=config)
+
+    # Assert
+    assert result == []
+
+
+@pytest.mark.ai
+def test_get_sub_agent_answer_parts__handles_multiline_answer__with_regexp() -> None:
+    """
+    Purpose: Verify regexp matching works across multiple lines.
+    Why this matters: Answers can span multiple lines.
+    Setup summary: Provide multiline answer with pattern, assert match found.
+    """
+    # Arrange
+    answer = "Line 1\nThe code is ABC123\nLine 3"
+    config = SubAgentDisplayConfig(
+        mode=SubAgentResponseDisplayMode.PLAIN,
+        answer_substrings_config=[
+            SubAgentAnswerSubstringConfig(regexp=r"[A-Z]{3}\d{3}"),
+        ],
+    )
+
+    # Act
+    result = get_sub_agent_answer_parts(answer=answer, display_config=config)
+
+    # Assert
+    assert len(result) == 1
+    assert result[0].matching_text == "ABC123"
+
+
+@pytest.mark.ai
+def test_get_sub_agent_answer_parts__handles_special_regex_chars__in_answer() -> None:
+    """
+    Purpose: Verify regexp can match content with special regex characters.
+    Why this matters: Answers may contain special characters.
+    Setup summary: Provide answer with special chars, use proper escaping in regexp.
+    """
+    # Arrange
+    answer = "The expression is: [test] (value)"
+    config = SubAgentDisplayConfig(
+        mode=SubAgentResponseDisplayMode.PLAIN,
+        answer_substrings_config=[
+            SubAgentAnswerSubstringConfig(regexp=r"\[test\]"),
+        ],
+    )
+
+    # Act
+    result = get_sub_agent_answer_parts(answer=answer, display_config=config)
+
+    # Assert
+    assert len(result) == 1
+    assert result[0].matching_text == "[test]"
+
+
+@pytest.mark.ai
+def test_get_sub_agent_answer_parts__skips_non_matching_configs__returns_matches_only() -> (
+    None
+):
+    """
+    Purpose: Verify only matching regexp configs produce results.
+    Why this matters: Should not fail on partial matches, only return what matches.
+    Setup summary: Provide multiple configs where only some match, assert partial results.
+    """
+    # Arrange
+    answer = "Value is 42"
+    config = SubAgentDisplayConfig(
+        mode=SubAgentResponseDisplayMode.PLAIN,
+        answer_substrings_config=[
+            SubAgentAnswerSubstringConfig(regexp=r"\d+"),  # Matches
+            SubAgentAnswerSubstringConfig(regexp=r"[A-Z]{3}"),  # Doesn't match
+            SubAgentAnswerSubstringConfig(regexp=r"Value"),  # Matches
+        ],
+    )
+
+    # Act
+    result = get_sub_agent_answer_parts(answer=answer, display_config=config)
+
+    # Assert
+    assert len(result) == 2
+    assert result[0].matching_text == "42"
+    assert result[1].matching_text == "Value"
+
+
+@pytest.mark.ai
+def test_get_sub_agent_answer_parts__preserves_order__of_configs_not_matches() -> None:
+    """
+    Purpose: Verify results follow config order, not match order in text.
+    Why this matters: Predictable output order based on configuration.
+    Setup summary: Provide configs in specific order, assert results match config order.
+    """
+    # Arrange
+    answer = "first 123 then abc"
+    config = SubAgentDisplayConfig(
+        mode=SubAgentResponseDisplayMode.PLAIN,
+        answer_substrings_config=[
+            SubAgentAnswerSubstringConfig(regexp=r"[a-z]{3,}"),  # Matches "first"
+            SubAgentAnswerSubstringConfig(regexp=r"\d+"),  # Matches "123"
+        ],
+    )
+
+    # Act
+    result = get_sub_agent_answer_parts(answer=answer, display_config=config)
+
+    # Assert
+    assert len(result) == 2
+    # Results follow config order, not text order
+    assert result[0].matching_text == "first"
+    assert result[1].matching_text == "123"
+
+
+@pytest.mark.ai
+def test_get_sub_agent_answer_parts__handles_complex_template__with_multiple_placeholders() -> (
+    None
+):
+    """
+    Purpose: Verify complex display templates with formatting work correctly.
+    Why this matters: Supports rich formatting of extracted content.
+    Setup summary: Provide template with additional text, assert formatted correctly.
+    """
+    # Arrange
+    answer = "User score: 95"
+    config = SubAgentDisplayConfig(
+        mode=SubAgentResponseDisplayMode.PLAIN,
+        answer_substrings_config=[
+            SubAgentAnswerSubstringConfig(
+                regexp=r"\d+",
+                display_template="**Score: {}%**",
+            ),
+        ],
+    )
+
+    # Act
+    result = get_sub_agent_answer_parts(answer=answer, display_config=config)
+
+    # Assert
+    assert len(result) == 1
+    assert result[0].matching_text == "95"
+    assert result[0].formatted_text == "**Score: 95%**"
+
+
+@pytest.mark.ai
+def test_get_sub_agent_answer_parts__works_with_details_modes__extracts_normally() -> (
+    None
+):
+    """
+    Purpose: Verify extraction works regardless of display mode (except HIDDEN).
+    Why this matters: Substring extraction independent of display mode.
+    Setup summary: Use DETAILS modes, assert extraction still works.
+    """
+    # Arrange
+    answer = "Result: SUCCESS"
+    config = SubAgentDisplayConfig(
+        mode=SubAgentResponseDisplayMode.DETAILS_CLOSED,
+        answer_substrings_config=[
+            SubAgentAnswerSubstringConfig(regexp=r"SUCCESS"),
+        ],
+    )
+
+    # Act
+    result = get_sub_agent_answer_parts(answer=answer, display_config=config)
+
+    # Assert
+    assert len(result) == 1
+    assert result[0].matching_text == "SUCCESS"

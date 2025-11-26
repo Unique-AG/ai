@@ -1,5 +1,5 @@
 import re
-from typing import Literal
+from typing import Literal, NamedTuple
 
 from unique_toolkit.agentic.tools.a2a.postprocessing.config import (
     SubAgentDisplayConfig,
@@ -126,7 +126,7 @@ def _get_display_template(
     if add_block_border:
         template = _wrap_with_block_border(template)
 
-    return template
+    return template.strip()
 
 
 def _get_display_removal_re(
@@ -150,10 +150,40 @@ def _get_display_removal_re(
     return re.compile(pattern, flags=re.DOTALL)
 
 
+class SubAgentAnswerPart(NamedTuple):
+    matching_text: str  # Matching text as found in the answer
+    formatted_text: str  # Formatted text to be displayed
+
+
+def get_sub_agent_answer_parts(
+    answer: str,
+    display_config: SubAgentDisplayConfig,
+) -> list[SubAgentAnswerPart]:
+    if display_config.mode == SubAgentResponseDisplayMode.HIDDEN:
+        return []
+
+    if len(display_config.answer_substrings_config) == 0:
+        return [SubAgentAnswerPart(matching_text=answer, formatted_text=answer)]
+
+    substrings = []
+    for config in display_config.answer_substrings_config:
+        match = re.search(config.regexp, answer)
+        if match is not None:
+            text = match.group(0)
+            substrings.append(
+                SubAgentAnswerPart(
+                    matching_text=text,
+                    formatted_text=config.display_template.format(text),
+                )
+            )
+
+    return substrings
+
+
 def get_sub_agent_answer_display(
     display_name: str,
     display_config: SubAgentDisplayConfig,
-    answer: str,
+    answer: str | list[str],
     assistant_id: str,
 ) -> str:
     template = _get_display_template(
@@ -162,6 +192,10 @@ def get_sub_agent_answer_display(
         add_block_border=display_config.add_block_border,
         display_title_template=display_config.display_title_template,
     )
+
+    if isinstance(answer, list):
+        answer = display_config.answer_substrings_separator.join(answer)
+
     return template.format(
         display_name=display_name, answer=answer, assistant_id=assistant_id
     )
