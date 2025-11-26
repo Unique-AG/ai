@@ -402,19 +402,23 @@ class UniqueAI:
             for tool in self._tool_manager.available_tools
         }
 
+        # Tool names that should not be logged in the message steps
+        tool_names_not_to_log = ["DeepResearch"]
+
         tool_string: str = ""
         used_tools = []
         for tool_call in tool_calls:
-            if tool_call.name in all_tools_dict.keys():
+            if tool_call.name in all_tools_dict.keys() and tool_call.name not in tool_names_not_to_log:
                 if tool_call.name not in used_tools:
                     used_tools.append(tool_call.name)
                     tool_name = (all_tools_dict[tool_call.name]) or tool_call.name
                     tool_string += f"\n• {tool_name}"
             self._history_manager.add_tool_call(tool_call)
 
-        self._message_step_logger.create_message_log_entry(
-            text=f"**Triggered Tool Calls:**\n {tool_string}", references=[]
-        )
+        if tool_string:
+            self._message_step_logger.create_message_log_entry(
+                text=f"**Triggered Tool Calls:**\n {tool_string}", references=[]
+            )
 
     async def _handle_tool_calls(
         self, loop_response: LanguageModelStreamResponse
