@@ -401,7 +401,7 @@ class TestVertexAISearch:
         search_no_scraping = VertexAI(config_no_scraping, Mock(), Mock())
         search_with_scraping = VertexAI(config_with_scraping, Mock(), Mock())
 
-        assert search_no_scraping.requires_scraping
+        assert not search_no_scraping.requires_scraping
         assert search_with_scraping.requires_scraping
 
 
