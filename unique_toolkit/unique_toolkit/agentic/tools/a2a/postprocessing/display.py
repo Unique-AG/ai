@@ -10,6 +10,7 @@ from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import Postprocessor
 from unique_toolkit.agentic.tools.a2a.postprocessing._display_utils import (
     get_sub_agent_answer_display,
+    get_sub_agent_answer_parts,
     remove_sub_agent_answer_from_text,
 )
 from unique_toolkit.agentic.tools.a2a.postprocessing._ref_utils import (
@@ -42,6 +43,15 @@ class SubAgentResponsesPostprocessorConfig(BaseModel):
 
     sleep_time_before_update: float = Field(
         default=1, description="Time to sleep before updating the main agent message."
+    )
+
+    remove_duplicate_answers: bool = Field(
+        default=False,
+        description="If set, duplicate answers will only be displayed once. If sub agent is configured to display only substrings, this will remove duplicate substrings across different responses.",
+    )
+    answer_separator: str = Field(
+        default="",
+        description="The separator to use between the different sub agent answers.",
     )
 
 
@@ -96,6 +106,8 @@ class SubAgentResponsesDisplayPostprocessor(Postprocessor):
         answers_displayed_before = []
         answers_displayed_after = []
 
+        all_answers_displayed = set()
+
         for assistant_id, responses in displayed_sub_agent_responses.items():
             for response in responses:
                 message = response.message
@@ -104,6 +116,9 @@ class SubAgentResponsesDisplayPostprocessor(Postprocessor):
                 _add_response_references_to_message_in_place(
                     loop_response=loop_response, response=message
                 )
+
+                if tool_info.display_config.mode == SubAgentResponseDisplayMode.HIDDEN:
+                    continue
 
                 display_name = tool_info.display_name
                 if len(responses) > 1:
@@ -116,13 +131,33 @@ class SubAgentResponsesDisplayPostprocessor(Postprocessor):
                         response.sequence_number,
                     )
 
-                if tool_info.display_config.mode == SubAgentResponseDisplayMode.HIDDEN:
+                message_text = message["text"] or ""
+
+                answer_parts = get_sub_agent_answer_parts(
+                    answer=message_text,
+                    display_config=tool_info.display_config,
+                )
+
+                if len(answer_parts) == 0:
                     continue
+
+                answer_display_texts = []
+                if self._config.remove_duplicate_answers:
+                    for answer_part in answer_parts:
+                        if answer_part.matching_text in all_answers_displayed:
+                            continue
+
+                        all_answers_displayed.add(answer_part.matching_text)
+                        answer_display_texts.append(answer_part.formatted_text)
+                else:
+                    answer_display_texts = [
+                        answer_part.formatted_text for answer_part in answer_parts
+                    ]
 
                 answer = get_sub_agent_answer_display(
                     display_name=display_name,
                     display_config=tool_info.display_config,
-                    answer=message["text"] or "",
+                    answer=answer_display_texts,
                     assistant_id=assistant_id,
                 )
 
@@ -135,6 +170,7 @@ class SubAgentResponsesDisplayPostprocessor(Postprocessor):
             text=loop_response.message.text,
             answers_before=answers_displayed_before,
             answers_after=answers_displayed_after,
+            sep=self._config.answer_separator,
         )
 
         return True
@@ -182,4 +218,5 @@ def _get_final_answer_display(
 
     if len(answers_after) > 0:
         text = text + sep + sep.join(answers_after)
-    return text
+
+    return text.strip()
