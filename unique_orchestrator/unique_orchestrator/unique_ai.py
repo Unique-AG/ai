@@ -402,10 +402,13 @@ class UniqueAI:
             for tool in self._tool_manager.available_tools
         }
 
+        # Tool names that should not be logged in the message steps
+        tool_names_not_to_log = ["DeepResearch"]
+
         tool_string: str = ""
         used_tools = []
         for tool_call in tool_calls:
-            if tool_call.name in all_tools_dict.keys():
+            if tool_call.name in all_tools_dict.keys() and tool_call.name not in tool_names_not_to_log:
                 if tool_call.name not in used_tools:
                     used_tools.append(tool_call.name)
                     tool_name = (all_tools_dict[tool_call.name]) or tool_call.name
