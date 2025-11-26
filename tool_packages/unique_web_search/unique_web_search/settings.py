@@ -50,6 +50,7 @@ class Base(BaseSettings):
 
     # VertexAI API settings
     vertexai_service_account_credentials: str | None = None
+    vertexai_service_account_scopes: list[str] | None = None
 
     # Proxy settings
     ## Shared settings

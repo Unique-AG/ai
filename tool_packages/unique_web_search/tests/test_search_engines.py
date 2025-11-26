@@ -1,6 +1,7 @@
 from unittest.mock import AsyncMock, Mock
 
 import pytest
+from httpx import HTTPError
 
 from unique_web_search.services.search_engine import (
     get_default_search_engine_config,
@@ -178,7 +179,7 @@ class TestSearchEngineInstances:
     def test_vertexai_search_initialization(self):
         """Test VertexAI initializes correctly."""
         config = VertexAIConfig(search_engine_name=SearchEngineType.VERTEXAI)
-        search = VertexAI(config, Mock(), Mock())
+        search = VertexAI(config)
 
         assert search.config == config
         assert hasattr(search, "is_configured")
@@ -239,7 +240,7 @@ class TestVertexAISearch:
             mock_resolve,
         )
 
-        search = VertexAI(config, Mock(), Mock())
+        search = VertexAI(config)
         results = await search.search("test query")
 
         assert len(results) == 1
@@ -288,7 +289,7 @@ class TestVertexAISearch:
             mock_resolve,
         )
 
-        search = VertexAI(config, Mock(), Mock())
+        search = VertexAI(config)
         results = await search.search("test query")
 
         assert len(results) == 1
@@ -327,7 +328,7 @@ class TestVertexAISearch:
         """Test resolve_url handles exceptions gracefully."""
         # Create a mock client that raises an exception
         mock_client = AsyncMock()
-        mock_client.head = AsyncMock(side_effect=Exception("Network error"))
+        mock_client.head = AsyncMock(side_effect=HTTPError("Network error"))
 
         web_search_result = WebSearchResult(
             url="http://example.com",
@@ -390,8 +391,8 @@ class TestVertexAISearch:
             requires_scraping=True,
         )
 
-        search_no_scraping = VertexAI(config_no_scraping, Mock(), Mock())
-        search_with_scraping = VertexAI(config_with_scraping, Mock(), Mock())
+        search_no_scraping = VertexAI(config_no_scraping)
+        search_with_scraping = VertexAI(config_with_scraping)
 
         assert not search_no_scraping.requires_scraping
         assert search_with_scraping.requires_scraping

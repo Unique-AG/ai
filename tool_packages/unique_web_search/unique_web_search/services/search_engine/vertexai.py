@@ -2,10 +2,8 @@ import asyncio
 import logging
 from typing import Literal
 
-from httpx import AsyncClient
+from httpx import AsyncClient, HTTPError
 from pydantic import Field
-from unique_toolkit import LanguageModelService
-from unique_toolkit._common.validators import LMI
 
 from unique_web_search.services.search_engine.base import (
     BaseSearchEngineConfig,
@@ -60,12 +58,8 @@ class VertexAI(SearchEngine[VertexAIConfig]):
     def __init__(
         self,
         config: VertexAIConfig,
-        language_model_service: LanguageModelService,
-        lmi: LMI,
     ):
         super().__init__(config)
-        self.language_model_service = language_model_service
-        self.lmi = lmi
         self._client = get_vertex_client()
         self.is_configured = self._client is not None
 
@@ -113,7 +107,7 @@ async def resolve_url(client: AsyncClient, web_search_result: WebSearchResult):
         resp = await client.head(web_search_result.url, follow_redirects=True)
         web_search_result.url = str(resp.url)
         return web_search_result
-    except Exception as e:
+    except HTTPError as e:
         _LOGGER.error(f"Unable to redirect URL: {web_search_result.url}: {e}")
         return web_search_result
 

@@ -88,7 +88,7 @@ def get_search_engine_service(
         case SearchEngineType.BRAVE:
             return BraveSearch(search_engine_config, language_model_service, lmi)
         case SearchEngineType.VERTEXAI:
-            return VertexAI(search_engine_config, language_model_service, lmi)
+            return VertexAI(search_engine_config)
 
 
 def get_search_engine_config_types_from_names(engine_names: list[str]) -> TypeAlias:
