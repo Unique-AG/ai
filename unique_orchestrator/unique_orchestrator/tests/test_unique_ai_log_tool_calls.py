@@ -177,10 +177,7 @@ class TestLogToolCalls:
         self, mock_unique_ai: UniqueAI
     ) -> None:
         """
-        Purpose: Verify that _log_tool_calls uses the tool call's name directly when the tool is not found in available_tools.
-
-        Why this matters: The function should gracefully handle tool calls for tools that are not in the available_tools list, ensuring logging continues to work.
-
+        Purpose: Verify that _log_tool_calls does not create a message log entry when the tool is not found in available_tools.
         Setup summary: Create a UniqueAI instance with mocked dependencies, set up a tool manager with no matching tools, and provide a tool call with a name not in available_tools.
         """
         # Arrange
@@ -209,12 +206,9 @@ class TestLogToolCalls:
             mock_unique_ai._message_step_logger.create_message_log_entry.call_count,
             int,
         )
+        # Tool call not in available_tools should not create a log entry
         assert (
-            mock_unique_ai._message_step_logger.create_message_log_entry.call_count == 1
-        )
-        # Tool call not in available_tools should not appear in the tool_string
-        mock_unique_ai._message_step_logger.create_message_log_entry.assert_called_once_with(
-            text="**Triggered Tool Calls:**\n ", references=[]
+            mock_unique_ai._message_step_logger.create_message_log_entry.call_count == 0
         )
 
     @pytest.mark.ai
@@ -267,7 +261,7 @@ class TestLogToolCalls:
         self, mock_unique_ai: UniqueAI
     ) -> None:
         """
-        Purpose: Verify that _log_tool_calls handles an empty tool_calls list without raising errors.
+        Purpose: Verify that _log_tool_calls handles an empty tool_calls list without raising errors and does not create a log entry.
 
         Why this matters: The function should be resilient to edge cases like empty input, ensuring the system continues to function even when no tool calls are present.
 
@@ -293,11 +287,9 @@ class TestLogToolCalls:
             mock_unique_ai._message_step_logger.create_message_log_entry.call_count,
             int,
         )
+        # Empty tool_calls list should not create a log entry
         assert (
-            mock_unique_ai._message_step_logger.create_message_log_entry.call_count == 1
-        )
-        mock_unique_ai._message_step_logger.create_message_log_entry.assert_called_once_with(
-            text="**Triggered Tool Calls:**\n ", references=[]
+            mock_unique_ai._message_step_logger.create_message_log_entry.call_count == 0
         )
 
     @pytest.mark.ai
@@ -348,15 +340,15 @@ class TestLogToolCalls:
         self, mock_unique_ai: UniqueAI
     ) -> None:
         """
-        Purpose: Verify that _log_tool_calls excludes "Deep Research" from the message log entry but still adds it to history.
+        Purpose: Verify that _log_tool_calls excludes "DeepResearch" from the message log entry but still adds it to history.
 
-        Why this matters: Deep Research tool calls should be tracked in history for completeness but hidden from the user-facing message steps to avoid clutter or confusion.
+        Why this matters: DeepResearch tool calls should be tracked in history for completeness but hidden from the user-facing message steps to avoid clutter or confusion.
 
-        Setup summary: Create a UniqueAI instance with mocked dependencies, set up a tool manager with "Deep Research" and other tools, and provide tool calls including "Deep Research".
+        Setup summary: Create a UniqueAI instance with mocked dependencies, set up a tool manager with "DeepResearch" and other tools, and provide tool calls including "DeepResearch".
         """
         # Arrange
         mock_tool_1 = MagicMock(spec=["name", "display_name"])
-        mock_tool_1.name = "Deep Research"
+        mock_tool_1.name = "DeepResearch"
         mock_tool_1.display_name.return_value = "Deep Research"
 
         mock_tool_2 = MagicMock(spec=["name", "display_name"])
@@ -366,7 +358,7 @@ class TestLogToolCalls:
         mock_unique_ai._tool_manager.available_tools = [mock_tool_1, mock_tool_2]
 
         mock_tool_call_1 = MagicMock(spec=["name"])
-        mock_tool_call_1.name = "Deep Research"
+        mock_tool_call_1.name = "DeepResearch"
 
         mock_tool_call_2 = MagicMock(spec=["name"])
         mock_tool_call_2.name = "search_tool"
@@ -383,7 +375,7 @@ class TestLogToolCalls:
         mock_unique_ai._history_manager.add_tool_call.assert_any_call(mock_tool_call_1)
         mock_unique_ai._history_manager.add_tool_call.assert_any_call(mock_tool_call_2)
 
-        # But only the non-Deep Research tool should appear in the message log
+        # But only the non-DeepResearch tool should appear in the message log
         assert isinstance(
             mock_unique_ai._message_step_logger.create_message_log_entry.call_count,
             int,
@@ -400,15 +392,15 @@ class TestLogToolCalls:
         self, mock_unique_ai: UniqueAI
     ) -> None:
         """
-        Purpose: Verify that _log_tool_calls only excludes "Deep Research" and logs all other tools when multiple tools are called.
+        Purpose: Verify that _log_tool_calls only excludes "DeepResearch" and logs all other tools when multiple tools are called.
 
-        Why this matters: The exclusion logic should be precise, affecting only "Deep Research" while allowing all other tools to be logged normally.
+        Why this matters: The exclusion logic should be precise, affecting only "DeepResearch" while allowing all other tools to be logged normally.
 
-        Setup summary: Create a UniqueAI instance with mocked dependencies, set up a tool manager with multiple tools including "Deep Research", and provide multiple tool calls.
+        Setup summary: Create a UniqueAI instance with mocked dependencies, set up a tool manager with multiple tools including "DeepResearch", and provide multiple tool calls.
         """
         # Arrange
         mock_tool_1 = MagicMock(spec=["name", "display_name"])
-        mock_tool_1.name = "Deep Research"
+        mock_tool_1.name = "DeepResearch"
         mock_tool_1.display_name.return_value = "Deep Research"
 
         mock_tool_2 = MagicMock(spec=["name", "display_name"])
@@ -429,7 +421,7 @@ class TestLogToolCalls:
         mock_tool_call_1.name = "search_tool"
 
         mock_tool_call_2 = MagicMock(spec=["name"])
-        mock_tool_call_2.name = "Deep Research"
+        mock_tool_call_2.name = "DeepResearch"
 
         mock_tool_call_3 = MagicMock(spec=["name"])
         mock_tool_call_3.name = "web_search"
@@ -447,7 +439,7 @@ class TestLogToolCalls:
         mock_unique_ai._history_manager.add_tool_call.assert_any_call(mock_tool_call_2)
         mock_unique_ai._history_manager.add_tool_call.assert_any_call(mock_tool_call_3)
 
-        # But only the non-Deep Research tools should appear in the message log
+        # But only the non-DeepResearch tools should appear in the message log
         assert isinstance(
             mock_unique_ai._message_step_logger.create_message_log_entry.call_count,
             int,
@@ -458,4 +450,47 @@ class TestLogToolCalls:
         mock_unique_ai._message_step_logger.create_message_log_entry.assert_called_once_with(
             text="**Triggered Tool Calls:**\n \n• Search Tool\n• Web Search",
             references=[],
+        )
+
+    @pytest.mark.ai
+    def test_log_tool_calls__creates_no_log_entry__when_only_deep_research_called(
+        self, mock_unique_ai: UniqueAI
+    ) -> None:
+        """
+        Purpose: Verify that _log_tool_calls does not create a message log entry when only "DeepResearch" is called.
+
+        Why this matters: When only excluded tools are called, no message log entry should be created since there's nothing to display to the user.
+
+        Setup summary: Create a UniqueAI instance with mocked dependencies, set up a tool manager with "DeepResearch", and provide only a DeepResearch tool call.
+        """
+        # Arrange
+        mock_tool = MagicMock(spec=["name", "display_name"])
+        mock_tool.name = "DeepResearch"
+        mock_tool.display_name.return_value = "Deep Research"
+
+        mock_unique_ai._tool_manager.available_tools = [mock_tool]
+
+        mock_tool_call = MagicMock(spec=["name"])
+        mock_tool_call.name = "DeepResearch"
+
+        tool_calls = [mock_tool_call]
+
+        # Act
+        mock_unique_ai._log_tool_calls(tool_calls)
+
+        # Assert
+        # DeepResearch should be added to history
+        assert isinstance(mock_unique_ai._history_manager.add_tool_call.call_count, int)
+        assert mock_unique_ai._history_manager.add_tool_call.call_count == 1
+        mock_unique_ai._history_manager.add_tool_call.assert_called_once_with(
+            mock_tool_call
+        )
+
+        # But no message log entry should be created since tool_string is empty
+        assert isinstance(
+            mock_unique_ai._message_step_logger.create_message_log_entry.call_count,
+            int,
+        )
+        assert (
+            mock_unique_ai._message_step_logger.create_message_log_entry.call_count == 0
         )

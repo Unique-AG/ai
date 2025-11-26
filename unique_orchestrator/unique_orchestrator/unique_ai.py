@@ -415,9 +415,10 @@ class UniqueAI:
                     tool_string += f"\n• {tool_name}"
             self._history_manager.add_tool_call(tool_call)
 
-        self._message_step_logger.create_message_log_entry(
-            text=f"**Triggered Tool Calls:**\n {tool_string}", references=[]
-        )
+        if tool_string:
+            self._message_step_logger.create_message_log_entry(
+                text=f"**Triggered Tool Calls:**\n {tool_string}", references=[]
+            )
 
     async def _handle_tool_calls(
         self, loop_response: LanguageModelStreamResponse
