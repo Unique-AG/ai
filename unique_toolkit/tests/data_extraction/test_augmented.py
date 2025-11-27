@@ -3,12 +3,12 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from pydantic import BaseModel, Field, create_model
 
-from unique_toolkit._common.data_extraction.augmented import AugmentedDataExtractor
-from unique_toolkit._common.data_extraction.augmented.service import (
+from unique_toolkit.data_extraction.augmented import AugmentedDataExtractor
+from unique_toolkit.data_extraction.augmented.service import (
     AugmentedDataExtractionResult,
     _build_augmented_model_for_field,
 )
-from unique_toolkit._common.data_extraction.base import (
+from unique_toolkit.data_extraction.base import (
     BaseDataExtractionResult,
     BaseDataExtractor,
 )

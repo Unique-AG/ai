@@ -1,7 +1,7 @@
-from unique_toolkit._common.data_extraction.basic.config import (
+from unique_toolkit.data_extraction.basic.config import (
     StructuredOutputDataExtractorConfig,
 )
-from unique_toolkit._common.data_extraction.basic.service import (
+from unique_toolkit.data_extraction.basic.service import (
     StructuredOutputDataExtractor,
 )
 

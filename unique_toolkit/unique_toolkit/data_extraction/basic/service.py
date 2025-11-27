@@ -1,12 +1,12 @@
 from typing_extensions import override
 
 from unique_toolkit import LanguageModelService
-from unique_toolkit._common.data_extraction.base import (
+from unique_toolkit.data_extraction.base import (
     BaseDataExtractionResult,
     BaseDataExtractor,
     ExtractionSchema,
 )
-from unique_toolkit._common.data_extraction.basic.config import (
+from unique_toolkit.data_extraction.basic.config import (
     StructuredOutputDataExtractorConfig,
 )
 from unique_toolkit._common.utils.jinja.render import render_template

@@ -3,8 +3,8 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from pydantic import BaseModel, Field
 
-from unique_toolkit._common.data_extraction.base import BaseDataExtractionResult
-from unique_toolkit._common.data_extraction.basic import (
+from unique_toolkit.data_extraction.base import BaseDataExtractionResult
+from unique_toolkit.data_extraction.basic import (
     StructuredOutputDataExtractor,
     StructuredOutputDataExtractorConfig,
 )

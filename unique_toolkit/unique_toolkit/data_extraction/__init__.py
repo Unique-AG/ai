@@ -1,5 +1,5 @@
-from unique_toolkit._common.data_extraction.augmented import AugmentedDataExtractor
-from unique_toolkit._common.data_extraction.basic import (
+from unique_toolkit.data_extraction.augmented import AugmentedDataExtractor
+from unique_toolkit.data_extraction.basic import (
     StructuredOutputDataExtractor,
     StructuredOutputDataExtractorConfig,
 )

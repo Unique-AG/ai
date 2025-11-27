@@ -4,7 +4,7 @@ from pydantic.alias_generators import to_pascal
 from pydantic.fields import FieldInfo
 from typing_extensions import override
 
-from unique_toolkit._common.data_extraction.base import (
+from unique_toolkit.data_extraction.base import (
     BaseDataExtractionResult,
     BaseDataExtractor,
     ExtractionSchema,

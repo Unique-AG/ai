@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
-from unique_toolkit._common.data_extraction.basic.prompt import (
+from unique_toolkit.data_extraction.basic.prompt import (
     DEFAULT_DATA_EXTRACTION_SYSTEM_PROMPT,
     DEFAULT_DATA_EXTRACTION_USER_PROMPT,
 )
