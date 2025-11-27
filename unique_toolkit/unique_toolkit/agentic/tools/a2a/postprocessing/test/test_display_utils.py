@@ -1492,9 +1492,7 @@ def test_get_sub_agent_answer_parts__returns_empty_list__when_no_matches() -> No
 
 
 @pytest.mark.ai
-def test_get_sub_agent_answer_parts__extracts_first_match_only__for_each_regexp() -> (
-    None
-):
+def test_get_sub_agent_answer_parts__extracts_all_matches__for_each_regexp() -> None:
     """
     Purpose: Verify only first match per regexp is extracted.
     Why this matters: Function uses re.search which finds first occurrence.
@@ -1513,7 +1511,7 @@ def test_get_sub_agent_answer_parts__extracts_first_match_only__for_each_regexp(
     result = get_sub_agent_answer_parts(answer=answer, display_config=config)
 
     # Assert
-    assert len(result) == 1
+    assert len(result) == 2
     assert result[0].matching_text == "42"
 
 
@@ -1661,10 +1659,12 @@ def test_get_sub_agent_answer_parts__preserves_order__of_configs_not_matches() -
     result = get_sub_agent_answer_parts(answer=answer, display_config=config)
 
     # Assert
-    assert len(result) == 2
+    assert len(result) == 4
     # Results follow config order, not text order
     assert result[0].matching_text == "first"
-    assert result[1].matching_text == "123"
+    assert result[1].matching_text == "then"
+    assert result[2].matching_text == "abc"
+    assert result[3].matching_text == "123"
 
 
 @pytest.mark.ai
