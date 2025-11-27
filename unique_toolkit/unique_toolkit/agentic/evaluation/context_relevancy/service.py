@@ -7,7 +7,10 @@ from typing_extensions import deprecated
 from unique_toolkit._common.validate_required_values import (
     validate_required_values,
 )
-from unique_toolkit.agentic.evaluation.config import EvaluationMetricConfig
+from unique_toolkit.agentic.evaluation.config import (
+    CustomPrompts,
+    EvaluationMetricConfig,
+)
 from unique_toolkit.agentic.evaluation.context_relevancy.schema import (
     EvaluationSchemaStructuredOutput,
 )
@@ -50,10 +53,10 @@ default_config = EvaluationMetricConfig(
     enabled=False,
     name=EvaluationMetricName.CONTEXT_RELEVANCY,
     language_model=LanguageModelInfo.from_name(DEFAULT_GPT_4o),
-    custom_prompts={
-        SYSTEM_MSG_KEY: CONTEXT_RELEVANCY_METRIC_SYSTEM_MSG,
-        USER_MSG_KEY: CONTEXT_RELEVANCY_METRIC_USER_MSG,
-    },
+    custom_prompts=CustomPrompts(
+        system_prompt=CONTEXT_RELEVANCY_METRIC_SYSTEM_MSG,
+        user_prompt=CONTEXT_RELEVANCY_METRIC_USER_MSG,
+    ),
 )
 
 relevancy_required_input_fields = [
@@ -246,14 +249,14 @@ class ContextRelevancyEvaluator:
             and ModelCapabilities.STRUCTURED_OUTPUT
             in config.language_model.capabilities
         ):
-            return config.custom_prompts.setdefault(
-                SYSTEM_MSG_KEY,
-                CONTEXT_RELEVANCY_METRIC_SYSTEM_MSG_STRUCTURED_OUTPUT,
+            return (
+                config.custom_prompts.system_prompt
+                or CONTEXT_RELEVANCY_METRIC_SYSTEM_MSG_STRUCTURED_OUTPUT
             )
         else:
-            return config.custom_prompts.setdefault(
-                SYSTEM_MSG_KEY,
-                CONTEXT_RELEVANCY_METRIC_SYSTEM_MSG,
+            return (
+                config.custom_prompts.system_prompt
+                or CONTEXT_RELEVANCY_METRIC_SYSTEM_MSG
             )
 
     def _get_user_prompt(
@@ -262,12 +265,12 @@ class ContextRelevancyEvaluator:
         enable_structured_output: bool,
     ):
         if enable_structured_output:
-            return config.custom_prompts.setdefault(
-                USER_MSG_KEY,
-                CONTEXT_RELEVANCY_METRIC_USER_MSG_STRUCTURED_OUTPUT,
+            return (
+                config.custom_prompts.user_prompt
+                or CONTEXT_RELEVANCY_METRIC_USER_MSG_STRUCTURED_OUTPUT
             )
         else:
-            return config.custom_prompts.setdefault(
-                USER_MSG_KEY,
-                CONTEXT_RELEVANCY_METRIC_USER_MSG,
+            return (
+                config.custom_prompts.user_prompt
+                or CONTEXT_RELEVANCY_METRIC_USER_MSG
             )

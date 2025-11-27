@@ -69,10 +69,12 @@ class HallucinationEvaluation(Evaluation):
             config=self.config,
         )
 
-        score_to_label = self.config.score_to_label
-        evaluation_result.is_positive = (
-            score_to_label.get(evaluation_result.value.upper(), "RED") != "RED"
+        # Get the label for the evaluation result
+        score_value = evaluation_result.value.upper()
+        label = getattr(
+            self.config.score_to_label, score_value.lower(), "RED"
         )
+        evaluation_result.is_positive = label != "RED"
         return evaluation_result
 
     def get_assessment_type(self) -> ChatMessageAssessmentType:
@@ -81,12 +83,18 @@ class HallucinationEvaluation(Evaluation):
     async def evaluation_metric_to_assessment(
         self, evaluation_result: EvaluationMetricResult
     ) -> EvaluationAssessmentMessage:
-        title = self.config.score_to_title.get(
-            evaluation_result.value.upper(), evaluation_result.value
+        # Get title and label from score mappings
+        score_value = evaluation_result.value.upper()
+        title = getattr(
+            self.config.score_to_title,
+            score_value.lower(),
+            evaluation_result.value,
         )
         label = ChatMessageAssessmentLabel(
-            self.config.score_to_label.get(
-                evaluation_result.value.upper(), evaluation_result.value.upper()
+            getattr(
+                self.config.score_to_label,
+                score_value.lower(),
+                evaluation_result.value.upper(),
             )
         )
         status = (

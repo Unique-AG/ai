@@ -174,30 +174,23 @@ def _compose_msgs_default(
 
 
 def _get_system_prompt_with_contexts(config: EvaluationMetricConfig):
-    return config.custom_prompts.setdefault(
-        SYSTEM_MSG_KEY,
-        HALLUCINATION_METRIC_SYSTEM_MSG,
-    )
+    return config.custom_prompts.system_prompt or HALLUCINATION_METRIC_SYSTEM_MSG
 
 
 def _get_user_prompt_with_contexts(config: EvaluationMetricConfig):
-    return config.custom_prompts.setdefault(
-        USER_MSG_KEY,
-        HALLUCINATION_METRIC_USER_MSG,
-    )
+    return config.custom_prompts.user_prompt or HALLUCINATION_METRIC_USER_MSG
 
 
 def _get_system_prompt_default(config: EvaluationMetricConfig):
-    return config.custom_prompts.setdefault(
-        SYSTEM_MSG_DEFAULT_KEY,
-        HALLUCINATION_METRIC_SYSTEM_MSG_DEFAULT,
+    return (
+        config.custom_prompts.system_prompt_default
+        or HALLUCINATION_METRIC_SYSTEM_MSG_DEFAULT
     )
 
 
 def _get_user_prompt_default(config: EvaluationMetricConfig):
-    return config.custom_prompts.setdefault(
-        USER_MSG_DEFAULT_KEY,
-        HALLUCINATION_METRIC_USER_MSG_DEFAULT,
+    return (
+        config.custom_prompts.user_prompt_default or HALLUCINATION_METRIC_USER_MSG_DEFAULT
     )
 
 
