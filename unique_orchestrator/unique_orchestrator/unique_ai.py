@@ -428,10 +428,6 @@ class UniqueAI:
 
         tool_calls = loop_response.tool_calls or []
 
-        # Filter tool calls
-        tool_calls = self._tool_manager.filter_duplicate_tool_calls(tool_calls)
-        tool_calls = self._tool_manager.filter_tool_calls_by_max_tool_calls_allowed(tool_calls)
-
         # Append function calls to history
         self._history_manager._append_tool_calls_to_history(tool_calls)
 
