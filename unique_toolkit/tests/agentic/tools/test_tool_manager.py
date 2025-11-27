@@ -1845,7 +1845,7 @@ def test_responses_api_tool_manager__filter_tool_calls_by_max_tool_calls_allowed
         ),
     ]
     config = ToolManagerConfig(tools=tool_configs, max_tool_calls=10)
-    
+
     tool_manager = ResponsesApiToolManager(
         logger=logger,
         config=config,
@@ -1906,7 +1906,7 @@ def test_responses_api_tool_manager__filter_tool_calls_by_max_tool_calls_allowed
         ),
     ]
     config = ToolManagerConfig(tools=tool_configs, max_tool_calls=10)
-    
+
     tool_manager = ResponsesApiToolManager(
         logger=logger,
         config=config,
