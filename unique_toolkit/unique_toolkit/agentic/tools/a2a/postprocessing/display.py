@@ -7,6 +7,7 @@ import unique_sdk
 from pydantic import BaseModel, Field
 
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
+from unique_toolkit._common.utils.jinja.render import render_template
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import Postprocessor
 from unique_toolkit.agentic.tools.a2a.postprocessing._display_utils import (
     get_sub_agent_answer_display,
@@ -38,20 +39,22 @@ class SubAgentDisplaySpec(NamedTuple):
     display_config: SubAgentDisplayConfig
 
 
+_ANSWERS_JINJA_TEMPLATE = """
+{% for answer in answers %}
+{{ answer }}
+{% endfor %}
+""".strip()
+
+
 class SubAgentResponsesPostprocessorConfig(BaseModel):
     model_config = get_configuration_dict()
 
     sleep_time_before_update: float = Field(
-        default=1, description="Time to sleep before updating the main agent message."
+        default=0, description="Time to sleep before updating the main agent message."
     )
-
-    remove_duplicate_answers: bool = Field(
-        default=False,
-        description="If set, duplicate answers will only be displayed once. If sub agent is configured to display only substrings, this will remove duplicate substrings across different responses.",
-    )
-    answer_separator: str = Field(
-        default="",
-        description="The separator to use between the different sub agent answers.",
+    answers_jinja_template: str = Field(
+        default=_ANSWERS_JINJA_TEMPLATE,
+        description="The template to use to display the sub agent answers.",
     )
 
 
@@ -106,8 +109,6 @@ class SubAgentResponsesDisplayPostprocessor(Postprocessor):
         answers_displayed_before = []
         answers_displayed_after = []
 
-        all_answers_displayed = set()
-
         for assistant_id, responses in displayed_sub_agent_responses.items():
             for response in responses:
                 message = response.message
@@ -130,34 +131,20 @@ class SubAgentResponsesDisplayPostprocessor(Postprocessor):
                         assistant_id,
                         response.sequence_number,
                     )
-
-                message_text = message["text"] or ""
+                    continue
 
                 answer_parts = get_sub_agent_answer_parts(
-                    answer=message_text,
+                    answer=message["text"],
                     display_config=tool_info.display_config,
                 )
 
                 if len(answer_parts) == 0:
                     continue
 
-                answer_display_texts = []
-                if self._config.remove_duplicate_answers:
-                    for answer_part in answer_parts:
-                        if answer_part.matching_text in all_answers_displayed:
-                            continue
-
-                        all_answers_displayed.add(answer_part.matching_text)
-                        answer_display_texts.append(answer_part.formatted_text)
-                else:
-                    answer_display_texts = [
-                        answer_part.formatted_text for answer_part in answer_parts
-                    ]
-
                 answer = get_sub_agent_answer_display(
                     display_name=display_name,
                     display_config=tool_info.display_config,
-                    answer=answer_display_texts,
+                    answer=answer_parts,
                     assistant_id=assistant_id,
                 )
 
@@ -170,7 +157,7 @@ class SubAgentResponsesDisplayPostprocessor(Postprocessor):
             text=loop_response.message.text,
             answers_before=answers_displayed_before,
             answers_after=answers_displayed_after,
-            sep=self._config.answer_separator,
+            template=self._config.answers_jinja_template,
         )
 
         return True
@@ -211,12 +198,12 @@ def _get_final_answer_display(
     text: str,
     answers_before: list[str],
     answers_after: list[str],
-    sep: str = "<br>\n\n",
+    template: str = _ANSWERS_JINJA_TEMPLATE,
 ) -> str:
     if len(answers_before) > 0:
-        text = sep.join(answers_before) + sep + text
+        text = render_template(template, {"answers": answers_before}) + text
 
     if len(answers_after) > 0:
-        text = text + sep + sep.join(answers_after)
+        text = text + render_template(template, {"answers": answers_after})
 
     return text.strip()

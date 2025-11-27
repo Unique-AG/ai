@@ -1,6 +1,7 @@
 import re
 from typing import Literal, NamedTuple
 
+from unique_toolkit._common.utils.jinja.render import render_template
 from unique_toolkit.agentic.tools.a2a.postprocessing.config import (
     SubAgentDisplayConfig,
     SubAgentResponseDisplayMode,
@@ -84,6 +85,12 @@ def _prepare_title_template(
     return display_title_template.replace("{}", "{%s}" % display_name_placeholder)
 
 
+def _clean_linebreaks(text: str) -> str:
+    text = text.strip()
+    text = re.sub(r"^(<br>)*|(<br>)*$", "", text)
+    return text
+
+
 def _get_display_template(
     mode: SubAgentResponseDisplayMode,
     add_quote_border: bool,
@@ -126,7 +133,7 @@ def _get_display_template(
     if add_block_border:
         template = _wrap_with_block_border(template)
 
-    return template.strip()
+    return _clean_linebreaks(template)
 
 
 def _get_display_removal_re(
@@ -167,8 +174,7 @@ def get_sub_agent_answer_parts(
 
     substrings = []
     for config in display_config.answer_substrings_config:
-        match = re.search(config.regexp, answer)
-        if match is not None:
+        for match in config.regexp.finditer(answer):
             text = match.group(0)
             substrings.append(
                 SubAgentAnswerPart(
@@ -183,7 +189,7 @@ def get_sub_agent_answer_parts(
 def get_sub_agent_answer_display(
     display_name: str,
     display_config: SubAgentDisplayConfig,
-    answer: str | list[str],
+    answer: str | list[SubAgentAnswerPart],
     assistant_id: str,
 ) -> str:
     template = _get_display_template(
@@ -194,7 +200,12 @@ def get_sub_agent_answer_display(
     )
 
     if isinstance(answer, list):
-        answer = display_config.answer_substrings_separator.join(answer)
+        answer = render_template(
+            display_config.answer_substrings_jinja_template,
+            {
+                "substrings": [answer.formatted_text for answer in answer],
+            },
+        )
 
     return template.format(
         display_name=display_name, answer=answer, assistant_id=assistant_id
