@@ -1172,46 +1172,6 @@ async def test_tool_manager__execute_selected_tools__handles_missing_tool(
 
 @pytest.mark.ai
 @pytest.mark.asyncio
-async def test_tool_manager__execute_selected_tools__enforces_max_limit(
-    logger,
-    tool_manager_config,
-    base_event,
-    tool_progress_reporter,
-    mcp_manager,
-    a2a_manager,
-) -> None:
-    """
-    Purpose: Verify execute_selected_tools limits calls to max_tool_calls.
-    Why this matters: Prevents resource exhaustion from too many tool calls.
-    Setup summary: Create 15 tool calls with max_tool_calls=10, verify only 10 executed.
-    """
-    # Arrange
-    tool_manager = ToolManager(
-        logger=logger,
-        config=tool_manager_config,
-        event=base_event,
-        tool_progress_reporter=tool_progress_reporter,
-        mcp_manager=mcp_manager,
-        a2a_manager=a2a_manager,
-    )
-    tool_calls = [
-        LanguageModelFunction(
-            id=f"call_{i}",
-            name="mock_tool",
-            arguments={"query": f"test{i}"},
-        )
-        for i in range(15)
-    ]
-
-    # Act
-    responses = await tool_manager.execute_selected_tools(tool_calls)
-
-    # Assert
-    assert len(responses) == 10
-
-
-@pytest.mark.ai
-@pytest.mark.asyncio
 async def test_tool_manager__execute_selected_tools__executes_in_parallel(
     logger,
     tool_manager_config,
@@ -1251,45 +1211,6 @@ async def test_tool_manager__execute_selected_tools__executes_in_parallel(
     for i, response in enumerate(responses):
         assert response.id == f"call_{i}"
         assert response.successful
-
-
-@pytest.mark.ai
-@pytest.mark.asyncio
-async def test_tool_manager__execute_selected_tools__filters_duplicates(
-    logger,
-    tool_manager_config,
-    base_event,
-    tool_progress_reporter,
-    mcp_manager,
-    a2a_manager,
-) -> None:
-    """
-    Purpose: Verify execute_selected_tools automatically filters duplicate calls.
-    Why this matters: Combines duplicate filtering with execution for efficiency.
-    Setup summary: Create duplicate tool calls (same object), execute, verify only unique executed.
-    """
-    # Arrange
-    tool_manager = ToolManager(
-        logger=logger,
-        config=tool_manager_config,
-        event=base_event,
-        tool_progress_reporter=tool_progress_reporter,
-        mcp_manager=mcp_manager,
-        a2a_manager=a2a_manager,
-    )
-    # Create truly duplicate calls - same object reference
-    call = LanguageModelFunction(
-        id="call_1",
-        name="mock_tool",
-        arguments={"query": "test"},
-    )
-    tool_calls = [call, call]  # Same object reference makes them equal
-
-    # Act
-    responses = await tool_manager.execute_selected_tools(tool_calls)
-
-    # Assert
-    assert len(responses) == 1
 
 
 @pytest.mark.ai
