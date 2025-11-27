@@ -27,6 +27,7 @@ class SearchEngineType(StrEnum):
     BING = "Bing"
     DUCKDUCKGO = "DuckDuckGo"
     VERTEXAI = "VertexAI"
+    CUSTOM_API = "CustomAPI"
 
 
 T = TypeVar("T", bound=SearchEngineType)

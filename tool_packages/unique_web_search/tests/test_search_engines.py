@@ -9,6 +9,10 @@ from unique_web_search.services.search_engine import (
     get_search_engine_service,
 )
 from unique_web_search.services.search_engine.base import SearchEngineType
+from unique_web_search.services.search_engine.custom_api import (
+    CustomAPI,
+    CustomAPIConfig,
+)
 from unique_web_search.services.search_engine.google import GoogleConfig, GoogleSearch
 from unique_web_search.services.search_engine.jina import JinaConfig, JinaSearch
 from unique_web_search.services.search_engine.schema import (
@@ -136,6 +140,7 @@ class TestSearchEngineTypes:
         assert SearchEngineType.BING == "Bing"
         assert SearchEngineType.DUCKDUCKGO == "DuckDuckGo"
         assert SearchEngineType.VERTEXAI == "VertexAI"
+        assert SearchEngineType.CUSTOM_API == "CustomAPI"
 
     def test_search_engine_type_membership(self):
         """Test SearchEngineType membership."""
@@ -143,6 +148,7 @@ class TestSearchEngineTypes:
         assert "Jina" in SearchEngineType
         assert "Tavily" in SearchEngineType
         assert "VertexAI" in SearchEngineType
+        assert "CustomAPI" in SearchEngineType
         assert "invalid_engine" not in SearchEngineType
 
 
@@ -396,6 +402,247 @@ class TestVertexAISearch:
 
         assert not search_no_scraping.requires_scraping
         assert search_with_scraping.requires_scraping
+
+
+class TestCustomAPISearch:
+    """Test CustomAPI search engine specific functionality."""
+
+    def test_custom_api_config_creation(self):
+        """Test CustomAPIConfig creation with defaults."""
+        config = CustomAPIConfig(search_engine_name=SearchEngineType.CUSTOM_API)
+
+        assert config.search_engine_name == SearchEngineType.CUSTOM_API
+        assert hasattr(config, "api_endpoint")
+        assert hasattr(config, "api_headers")
+        assert hasattr(config, "api_additional_params")
+        assert hasattr(config, "requires_scraping")
+        assert hasattr(config, "timeout")
+        assert config.timeout == 120  # default value
+        assert not config.requires_scraping  # default value
+
+    def test_custom_api_config_custom_values(self):
+        """Test CustomAPIConfig with custom values."""
+        config = CustomAPIConfig(
+            search_engine_name=SearchEngineType.CUSTOM_API,
+            api_endpoint="https://custom-api.example.com/search",
+            api_headers={"Authorization": "Bearer token123"},
+            api_additional_params={"max_results": 10, "lang": "en"},
+            requires_scraping=True,
+            timeout=60,
+        )
+
+        assert config.api_endpoint == "https://custom-api.example.com/search"
+        assert config.api_headers == {"Authorization": "Bearer token123"}
+        assert config.api_additional_params == {"max_results": 10, "lang": "en"}
+        assert config.requires_scraping
+        assert config.timeout == 60
+
+    def test_custom_api_initialization(self):
+        """Test CustomAPI initializes correctly."""
+        config = CustomAPIConfig(
+            search_engine_name=SearchEngineType.CUSTOM_API,
+            api_endpoint="https://api.example.com",
+        )
+        search = CustomAPI(config)
+
+        assert search.config == config
+        assert search.api_endpoint == "https://api.example.com"
+        assert hasattr(search, "requires_scraping")
+        assert hasattr(search, "search")
+
+    @pytest.mark.asyncio
+    async def test_custom_api_search_successful(self, mocker):
+        """Test CustomAPI search with successful response."""
+        config = CustomAPIConfig(
+            search_engine_name=SearchEngineType.CUSTOM_API,
+            api_endpoint="https://api.example.com/search",
+            api_headers={"Content-Type": "application/json"},
+            api_additional_params={"max_results": 5},
+        )
+
+        # Mock the HTTP response
+        mock_response = Mock()
+        mock_response.json.return_value = {
+            "results": [
+                {
+                    "url": "https://example.com/result1",
+                    "title": "Result 1",
+                    "snippet": "This is result 1",
+                    "content": "Full content of result 1",
+                },
+                {
+                    "url": "https://example.com/result2",
+                    "title": "Result 2",
+                    "snippet": "This is result 2",
+                    "content": "Full content of result 2",
+                },
+            ]
+        }
+
+        # Mock AsyncClient
+        mock_client = AsyncMock()
+        mock_client.post = AsyncMock(return_value=mock_response)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        mocker.patch(
+            "unique_web_search.services.search_engine.custom_api.AsyncClient",
+            return_value=mock_client,
+        )
+
+        search = CustomAPI(config)
+        results = await search.search("test query")
+
+        assert len(results) == 2
+        assert results[0].url == "https://example.com/result1"
+        assert results[0].title == "Result 1"
+        assert results[1].url == "https://example.com/result2"
+        assert results[1].title == "Result 2"
+
+        # Verify the request was made with correct parameters
+        mock_client.post.assert_called_once()
+        call_args = mock_client.post.call_args
+        assert call_args[0][0] == "https://api.example.com/search"
+        assert call_args[1]["json"]["query"] == "test query"
+        assert call_args[1]["json"]["max_results"] == 5
+        assert call_args[1]["headers"] == {"Content-Type": "application/json"}
+
+    @pytest.mark.asyncio
+    async def test_custom_api_search_with_additional_params(self, mocker):
+        """Test CustomAPI search passes additional parameters correctly."""
+        config = CustomAPIConfig(
+            search_engine_name=SearchEngineType.CUSTOM_API,
+            api_endpoint="https://api.example.com/search",
+            api_headers={"Authorization": "Bearer token"},
+            api_additional_params={"lang": "en", "safe": True, "count": 10},
+        )
+
+        mock_response = Mock()
+        mock_response.json.return_value = {"results": []}
+
+        mock_client = AsyncMock()
+        mock_client.post = AsyncMock(return_value=mock_response)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        mocker.patch(
+            "unique_web_search.services.search_engine.custom_api.AsyncClient",
+            return_value=mock_client,
+        )
+
+        search = CustomAPI(config)
+        await search.search("test query")
+
+        # Verify additional params were included
+        call_args = mock_client.post.call_args
+        assert call_args[1]["json"]["lang"] == "en"
+        assert call_args[1]["json"]["safe"] is True
+        assert call_args[1]["json"]["count"] == 10
+        assert call_args[1]["json"]["query"] == "test query"
+
+    @pytest.mark.asyncio
+    async def test_custom_api_search_with_custom_timeout(self, mocker):
+        """Test CustomAPI search respects custom timeout."""
+        config = CustomAPIConfig(
+            search_engine_name=SearchEngineType.CUSTOM_API,
+            api_endpoint="https://api.example.com/search",
+            timeout=30,
+        )
+
+        mock_response = Mock()
+        mock_response.json.return_value = {"results": []}
+
+        mock_client = AsyncMock()
+        mock_client.post = AsyncMock(return_value=mock_response)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        mock_async_client_class = Mock(return_value=mock_client)
+        mocker.patch(
+            "unique_web_search.services.search_engine.custom_api.AsyncClient",
+            mock_async_client_class,
+        )
+
+        search = CustomAPI(config)
+        await search.search("test query")
+
+        # Verify AsyncClient was created with correct timeout
+        mock_async_client_class.assert_called_once_with(timeout=30)
+
+    @pytest.mark.asyncio
+    async def test_custom_api_search_handles_http_error(self, mocker):
+        """Test CustomAPI search handles HTTP errors gracefully."""
+        config = CustomAPIConfig(
+            search_engine_name=SearchEngineType.CUSTOM_API,
+            api_endpoint="https://api.example.com/search",
+        )
+
+        # Mock AsyncClient to raise an HTTP error
+        mock_client = AsyncMock()
+        mock_client.post = AsyncMock(side_effect=HTTPError("Connection failed"))
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        mocker.patch(
+            "unique_web_search.services.search_engine.custom_api.AsyncClient",
+            return_value=mock_client,
+        )
+
+        search = CustomAPI(config)
+
+        with pytest.raises(HTTPError):
+            await search.search("test query")
+
+    @pytest.mark.asyncio
+    async def test_custom_api_search_handles_invalid_response(self, mocker):
+        """Test CustomAPI search handles invalid JSON response."""
+        config = CustomAPIConfig(
+            search_engine_name=SearchEngineType.CUSTOM_API,
+            api_endpoint="https://api.example.com/search",
+        )
+
+        # Mock response with invalid structure
+        mock_response = Mock()
+        mock_response.json.return_value = {"invalid": "structure"}
+
+        mock_client = AsyncMock()
+        mock_client.post = AsyncMock(return_value=mock_response)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        mocker.patch(
+            "unique_web_search.services.search_engine.custom_api.AsyncClient",
+            return_value=mock_client,
+        )
+
+        search = CustomAPI(config)
+
+        # Should raise validation error
+        with pytest.raises(Exception):  # Pydantic validation error
+            await search.search("test query")
+
+    def test_custom_api_requires_scraping_property(self):
+        """Test CustomAPI requires_scraping property."""
+        config_no_scraping = CustomAPIConfig(
+            search_engine_name=SearchEngineType.CUSTOM_API,
+            requires_scraping=False,
+        )
+        config_with_scraping = CustomAPIConfig(
+            search_engine_name=SearchEngineType.CUSTOM_API,
+            requires_scraping=True,
+        )
+
+        search_no_scraping = CustomAPI(config_no_scraping)
+        search_with_scraping = CustomAPI(config_with_scraping)
+
+        assert not search_no_scraping.requires_scraping
+        assert search_with_scraping.requires_scraping
+
+    def test_get_custom_api_search_engine_service(self):
+        """Test getting CustomAPI search engine service via factory."""
+        config = CustomAPIConfig(search_engine_name=SearchEngineType.CUSTOM_API)
+        service = get_search_engine_service(config, Mock(), Mock())
+        assert isinstance(service, CustomAPI)
 
 
 if __name__ == "__main__":

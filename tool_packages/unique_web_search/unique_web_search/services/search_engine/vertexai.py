@@ -15,6 +15,8 @@ from unique_web_search.services.search_engine.schema import (
     WebSearchResults,
 )
 from unique_web_search.services.search_engine.utils.vertexai import (
+    VERTEX_GROUNDING_SYSTEM_INSTRUCTION,
+    VERTEX_STRUCTURED_RESULTS_SYSTEM_INSTRUCTION,
     PostProcessFunction,
     add_citations,
     generate_content,
@@ -34,9 +36,13 @@ class VertexAIConfig(BaseSearchEngineConfig[SearchEngineType.VERTEXAI]):
         default="gemini-2.5-flash",
         description="The name of the model to use for the search.",
     )
-    grounding_system_instruction: str | None = Field(
-        default=None,
+    grounding_system_instruction: str = Field(
+        default=VERTEX_GROUNDING_SYSTEM_INSTRUCTION,
         description="The system instruction to use for the grounding.",
+    )
+    structured_results_system_instruction: str | None = Field(
+        default=VERTEX_STRUCTURED_RESULTS_SYSTEM_INSTRUCTION,
+        description="The system instruction to use for the structured results.",
     )
 
     requires_scraping: bool = Field(
@@ -87,7 +93,6 @@ class VertexAI(SearchEngine[VertexAIConfig]):
             client=self._client,
             model_name=self.config.model_name,
             config=get_vertex_structured_results_config(
-                system_instruction=None,
                 response_schema=WebSearchResults,
             ),
             contents=answer_with_citations,

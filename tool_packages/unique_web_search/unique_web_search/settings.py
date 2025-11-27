@@ -52,6 +52,11 @@ class Base(BaseSettings):
     vertexai_service_account_credentials: str | None = None
     vertexai_service_account_scopes: list[str] | None = None
 
+    # Custom API settings
+    custom_web_search_api_endpoint: str | None = None
+    custom_web_search_api_headers: dict[str, str] | None = None
+    custom_web_search_api_additional_params: dict[str, int | str | bool] | None = None
+
     # Proxy settings
     ## Shared settings
     proxy_auth_mode: ProxyAuthMode = "none"
