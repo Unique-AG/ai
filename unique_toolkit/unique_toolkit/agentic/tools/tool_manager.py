@@ -339,7 +339,9 @@ class _ToolManager(Generic[_ApiMode]):
             )
         return unique_tool_calls
 
-    def filter_tool_calls_by_max_tool_calls_allowed(self, tool_calls: list[LanguageModelFunction]) -> list[LanguageModelFunction]:
+    def filter_tool_calls_by_max_tool_calls_allowed(
+        self, tool_calls: list[LanguageModelFunction]
+    ) -> list[LanguageModelFunction]:
         if len(tool_calls) > self._config.max_tool_calls:
             self._logger.warning(
                 (
