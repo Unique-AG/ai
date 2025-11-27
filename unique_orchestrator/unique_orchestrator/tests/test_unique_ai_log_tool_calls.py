@@ -494,3 +494,236 @@ class TestLogToolCalls:
         assert (
             mock_unique_ai._message_step_logger.create_message_log_entry.call_count == 0
         )
+
+    @pytest.mark.ai
+    def test_log_tool_calls__displays_count__when_same_tool_called_multiple_times(
+        self, mock_unique_ai: UniqueAI
+    ) -> None:
+        """
+        Purpose: Verify that _log_tool_calls displays a count indicator when the same tool is called multiple times.
+
+        Why this matters: Users should see how many times each tool was invoked to understand the execution pattern. Multiple calls to the same tool should be aggregated with a count suffix.
+
+        Setup summary: Create a UniqueAI instance with mocked dependencies, set up a tool manager with one available tool, and provide multiple calls to the same tool.
+        """
+        # Arrange
+        mock_tool = MagicMock(spec=["name", "display_name"])
+        mock_tool.name = "search_tool"
+        mock_tool.display_name.return_value = "Search Tool"
+
+        mock_unique_ai._tool_manager.available_tools = [mock_tool]
+
+        mock_tool_call_1 = MagicMock(spec=["name"])
+        mock_tool_call_1.name = "search_tool"
+
+        mock_tool_call_2 = MagicMock(spec=["name"])
+        mock_tool_call_2.name = "search_tool"
+
+        tool_calls = [mock_tool_call_1, mock_tool_call_2]
+
+        # Act
+        mock_unique_ai._log_tool_calls(tool_calls)
+
+        # Assert
+        assert isinstance(mock_unique_ai._history_manager.add_tool_call.call_count, int)
+        assert mock_unique_ai._history_manager.add_tool_call.call_count == 2
+        mock_unique_ai._history_manager.add_tool_call.assert_any_call(mock_tool_call_1)
+        mock_unique_ai._history_manager.add_tool_call.assert_any_call(mock_tool_call_2)
+
+        assert isinstance(
+            mock_unique_ai._message_step_logger.create_message_log_entry.call_count,
+            int,
+        )
+        assert (
+            mock_unique_ai._message_step_logger.create_message_log_entry.call_count == 1
+        )
+        # Should display "(2x)" for the tool called twice
+        mock_unique_ai._message_step_logger.create_message_log_entry.assert_called_once_with(
+            text="**Triggered Tool Calls:**\n \n• Search Tool (2x)", references=[]
+        )
+
+    @pytest.mark.ai
+    def test_log_tool_calls__displays_count__when_same_tool_called_three_times(
+        self, mock_unique_ai: UniqueAI
+    ) -> None:
+        """
+        Purpose: Verify that _log_tool_calls correctly displays count for tools called three or more times.
+
+        Why this matters: The counting logic should work for any number of duplicate calls, not just two.
+
+        Setup summary: Create a UniqueAI instance with mocked dependencies, set up a tool manager with one available tool, and provide three calls to the same tool.
+        """
+        # Arrange
+        mock_tool = MagicMock(spec=["name", "display_name"])
+        mock_tool.name = "search_tool"
+        mock_tool.display_name.return_value = "Search Tool"
+
+        mock_unique_ai._tool_manager.available_tools = [mock_tool]
+
+        mock_tool_call_1 = MagicMock(spec=["name"])
+        mock_tool_call_1.name = "search_tool"
+
+        mock_tool_call_2 = MagicMock(spec=["name"])
+        mock_tool_call_2.name = "search_tool"
+
+        mock_tool_call_3 = MagicMock(spec=["name"])
+        mock_tool_call_3.name = "search_tool"
+
+        tool_calls = [mock_tool_call_1, mock_tool_call_2, mock_tool_call_3]
+
+        # Act
+        mock_unique_ai._log_tool_calls(tool_calls)
+
+        # Assert
+        assert isinstance(mock_unique_ai._history_manager.add_tool_call.call_count, int)
+        assert mock_unique_ai._history_manager.add_tool_call.call_count == 3
+
+        assert isinstance(
+            mock_unique_ai._message_step_logger.create_message_log_entry.call_count,
+            int,
+        )
+        assert (
+            mock_unique_ai._message_step_logger.create_message_log_entry.call_count == 1
+        )
+        # Should display "(3x)" for the tool called three times
+        mock_unique_ai._message_step_logger.create_message_log_entry.assert_called_once_with(
+            text="**Triggered Tool Calls:**\n \n• Search Tool (3x)", references=[]
+        )
+
+    @pytest.mark.ai
+    def test_log_tool_calls__displays_mixed_counts__with_some_tools_called_once_and_others_multiple_times(
+        self, mock_unique_ai: UniqueAI
+    ) -> None:
+        """
+        Purpose: Verify that _log_tool_calls correctly handles a mix of tools called once and tools called multiple times.
+
+        Why this matters: Real-world scenarios often involve calling different tools different numbers of times. The log should accurately reflect this with counts only shown for tools called more than once.
+
+        Setup summary: Create a UniqueAI instance with mocked dependencies, set up a tool manager with multiple available tools, and provide a mix of single and multiple calls.
+        """
+        # Arrange
+        mock_tool_1 = MagicMock(spec=["name", "display_name"])
+        mock_tool_1.name = "search_tool"
+        mock_tool_1.display_name.return_value = "Search Tool"
+
+        mock_tool_2 = MagicMock(spec=["name", "display_name"])
+        mock_tool_2.name = "web_search"
+        mock_tool_2.display_name.return_value = "Web Search"
+
+        mock_tool_3 = MagicMock(spec=["name", "display_name"])
+        mock_tool_3.name = "file_reader"
+        mock_tool_3.display_name.return_value = "File Reader"
+
+        mock_unique_ai._tool_manager.available_tools = [
+            mock_tool_1,
+            mock_tool_2,
+            mock_tool_3,
+        ]
+
+        mock_tool_call_1 = MagicMock(spec=["name"])
+        mock_tool_call_1.name = "search_tool"
+
+        mock_tool_call_2 = MagicMock(spec=["name"])
+        mock_tool_call_2.name = "web_search"
+
+        mock_tool_call_3 = MagicMock(spec=["name"])
+        mock_tool_call_3.name = "search_tool"
+
+        mock_tool_call_4 = MagicMock(spec=["name"])
+        mock_tool_call_4.name = "file_reader"
+
+        mock_tool_call_5 = MagicMock(spec=["name"])
+        mock_tool_call_5.name = "search_tool"
+
+        tool_calls = [
+            mock_tool_call_1,
+            mock_tool_call_2,
+            mock_tool_call_3,
+            mock_tool_call_4,
+            mock_tool_call_5,
+        ]
+
+        # Act
+        mock_unique_ai._log_tool_calls(tool_calls)
+
+        # Assert
+        assert isinstance(mock_unique_ai._history_manager.add_tool_call.call_count, int)
+        assert mock_unique_ai._history_manager.add_tool_call.call_count == 5
+
+        assert isinstance(
+            mock_unique_ai._message_step_logger.create_message_log_entry.call_count,
+            int,
+        )
+        assert (
+            mock_unique_ai._message_step_logger.create_message_log_entry.call_count == 1
+        )
+        # Should display:
+        # - "Search Tool (3x)" for search_tool (called 3 times)
+        # - "Web Search" for web_search (called once, no count)
+        # - "File Reader" for file_reader (called once, no count)
+        mock_unique_ai._message_step_logger.create_message_log_entry.assert_called_once_with(
+            text="**Triggered Tool Calls:**\n \n• Search Tool (3x)\n• Web Search\n• File Reader",
+            references=[],
+        )
+
+    @pytest.mark.ai
+    def test_log_tool_calls__excludes_deep_research_from_count__when_called_multiple_times(
+        self, mock_unique_ai: UniqueAI
+    ) -> None:
+        """
+        Purpose: Verify that _log_tool_calls excludes "DeepResearch" from message log even when it's called multiple times, but still adds all instances to history.
+
+        Why this matters: The exclusion of DeepResearch should work consistently regardless of how many times it's called.
+
+        Setup summary: Create a UniqueAI instance with mocked dependencies, set up a tool manager with "DeepResearch" and other tools, and provide multiple DeepResearch calls along with other tool calls.
+        """
+        # Arrange
+        mock_tool_1 = MagicMock(spec=["name", "display_name"])
+        mock_tool_1.name = "DeepResearch"
+        mock_tool_1.display_name.return_value = "Deep Research"
+
+        mock_tool_2 = MagicMock(spec=["name", "display_name"])
+        mock_tool_2.name = "search_tool"
+        mock_tool_2.display_name.return_value = "Search Tool"
+
+        mock_unique_ai._tool_manager.available_tools = [mock_tool_1, mock_tool_2]
+
+        mock_tool_call_1 = MagicMock(spec=["name"])
+        mock_tool_call_1.name = "DeepResearch"
+
+        mock_tool_call_2 = MagicMock(spec=["name"])
+        mock_tool_call_2.name = "search_tool"
+
+        mock_tool_call_3 = MagicMock(spec=["name"])
+        mock_tool_call_3.name = "DeepResearch"
+
+        mock_tool_call_4 = MagicMock(spec=["name"])
+        mock_tool_call_4.name = "search_tool"
+
+        tool_calls = [
+            mock_tool_call_1,
+            mock_tool_call_2,
+            mock_tool_call_3,
+            mock_tool_call_4,
+        ]
+
+        # Act
+        mock_unique_ai._log_tool_calls(tool_calls)
+
+        # Assert
+        # All tool calls should be added to history
+        assert isinstance(mock_unique_ai._history_manager.add_tool_call.call_count, int)
+        assert mock_unique_ai._history_manager.add_tool_call.call_count == 4
+
+        # But only the non-DeepResearch tool should appear in the message log, with correct count
+        assert isinstance(
+            mock_unique_ai._message_step_logger.create_message_log_entry.call_count,
+            int,
+        )
+        assert (
+            mock_unique_ai._message_step_logger.create_message_log_entry.call_count == 1
+        )
+        # DeepResearch should be excluded, only Search Tool (2x) should appear
+        mock_unique_ai._message_step_logger.create_message_log_entry.assert_called_once_with(
+            text="**Triggered Tool Calls:**\n \n• Search Tool (2x)", references=[]
+        )

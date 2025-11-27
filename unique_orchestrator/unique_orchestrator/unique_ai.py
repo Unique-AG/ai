@@ -406,14 +406,17 @@ class UniqueAI:
         tool_names_not_to_log = ["DeepResearch"]
 
         tool_string: str = ""
-        used_tools = []
+        used_tools: dict[str, int] = {}
         for tool_call in tool_calls:
-            if tool_call.name in all_tools_dict.keys() and tool_call.name not in tool_names_not_to_log:
-                if tool_call.name not in used_tools:
-                    used_tools.append(tool_call.name)
-                    tool_name = (all_tools_dict[tool_call.name]) or tool_call.name
-                    tool_string += f"\n• {tool_name}"
             self._history_manager.add_tool_call(tool_call)
+            if tool_call.name in all_tools_dict:
+                used_tools[tool_call.name] = used_tools.get(tool_call.name, 0) + 1
+
+        for tool_name, count in used_tools.items():
+            if tool_name in tool_names_not_to_log:
+                continue
+            display_name = all_tools_dict[tool_name] or tool_name
+            tool_string += f"\n• {display_name} ({count}x)" if count > 1 else f"\n• {display_name}"
 
         if tool_string:
             self._message_step_logger.create_message_log_entry(

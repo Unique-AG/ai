@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_orchestrator"
-version = "1.7.17"
+version = "1.7.18"
 description = ""
 authors = ["Andreas Hauri <andreas.hauri@unique.ai>"]
 readme = ["README.md", "CHANGELOG.md"]
