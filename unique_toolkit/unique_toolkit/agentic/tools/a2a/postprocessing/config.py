@@ -1,3 +1,4 @@
+import re
 from enum import StrEnum
 from typing import Literal
 
@@ -16,13 +17,20 @@ class SubAgentResponseDisplayMode(StrEnum):
 class SubAgentAnswerSubstringConfig(BaseModel):
     model_config = get_configuration_dict()
 
-    regexp: str = Field(
+    regexp: re.Pattern[str] = Field(
         description="The regular expression to use to extract the substring. The first capture group will always be used.",
     )
     display_template: str = Field(
         default="{}",
         description="The template to use to display the substring. It should contain exactly one empty placeholder '{}' for the substring.",
     )
+
+
+_ANSWER_SUBSTRINGS_JINJA_TEMPLATE = """
+{% for substring in substrings %}
+{{ substring }}
+{% endfor %}
+""".strip()
 
 
 class SubAgentDisplayConfig(BaseModel):
@@ -64,7 +72,7 @@ class SubAgentDisplayConfig(BaseModel):
         default=[],
         description="If set, only parts of the answer matching the provided regular expressions will be displayed.",
     )
-    answer_substrings_separator: str = Field(
-        default="\n",
-        description="The separator to use between the substrings.",
+    answer_substrings_jinja_template: str = Field(
+        default=_ANSWER_SUBSTRINGS_JINJA_TEMPLATE,
+        description="The template to use in order to format the different answer substrings, if any.",
     )
