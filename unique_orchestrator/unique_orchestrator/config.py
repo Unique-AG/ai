@@ -327,7 +327,7 @@ class ExperimentalConfig(BaseModel):
     )
 
     loop_configuration: LoopConfiguration = LoopConfiguration(
-        max_tool_calls_per_iteration=5
+        max_tool_calls_per_iteration=10
     )
 
     sub_agents_config: SubAgentsConfig = SubAgentsConfig()
