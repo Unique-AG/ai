@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.31.2] - 2025-11-27
+- Added the function `filter_tool_calls_by_max_tool_calls_allowed` in `tool_manager` to limit the number of parallel tool calls permitted per loop iteration.
+
 ## [1.31.1] - 2025-11-27
 - Various fixes to sub agent answers.
 

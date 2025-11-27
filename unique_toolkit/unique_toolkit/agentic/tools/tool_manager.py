@@ -231,25 +231,6 @@ class _ToolManager(Generic[_ApiMode]):
         self,
         tool_calls: list[LanguageModelFunction],
     ) -> list[ToolCallResponse]:
-        tool_calls = tool_calls
-
-        tool_calls = self.filter_duplicate_tool_calls(
-            tool_calls=tool_calls,
-        )
-        num_tool_calls = len(tool_calls)
-
-        if num_tool_calls > self._config.max_tool_calls:
-            self._logger.warning(
-                (
-                    "Number of tool calls %s exceeds the allowed maximum of %s."
-                    "The tool calls will be reduced to the first %s."
-                ),
-                num_tool_calls,
-                self._config.max_tool_calls,
-                self._config.max_tool_calls,
-            )
-            tool_calls = tool_calls[: self._config.max_tool_calls]
-
         tool_call_responses = await self._execute_parallelized(tool_calls)
         return tool_call_responses
 
@@ -357,6 +338,20 @@ class _ToolManager(Generic[_ApiMode]):
                 f"Filtered out {len(tool_calls) - len(unique_tool_calls)} duplicate tool calls."
             )
         return unique_tool_calls
+
+    def filter_tool_calls_by_max_tool_calls_allowed(self, tool_calls: list[LanguageModelFunction]) -> list[LanguageModelFunction]:
+        if len(tool_calls) > self._config.max_tool_calls:
+            self._logger.warning(
+                (
+                    "Number of tool calls %s exceeds the allowed maximum of %s."
+                    "The tool calls will be reduced to the first %s."
+                ),
+                len(tool_calls),
+                self._config.max_tool_calls,
+                self._config.max_tool_calls,
+            )
+            return tool_calls[: self._config.max_tool_calls]
+        return tool_calls
 
     @overload
     def get_tool_by_name(

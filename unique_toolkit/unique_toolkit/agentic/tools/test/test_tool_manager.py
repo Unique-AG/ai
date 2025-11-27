@@ -965,6 +965,129 @@ def test_tool_manager__filter_duplicate_tool_calls__keeps_different_args(
 
 
 @pytest.mark.ai
+def test_tool_manager__filter_tool_calls_by_max_tool_calls_allowed__limits_to_max(
+    logger,
+    tool_manager_config,
+    base_event,
+    tool_progress_reporter,
+    mcp_manager,
+    a2a_manager,
+) -> None:
+    """
+    Purpose: Verify filter_tool_calls_by_max_tool_calls_allowed limits to max_tool_calls.
+    Why this matters: Prevents resource exhaustion from too many tool calls.
+    Setup summary: Create 15 tool calls with max_tool_calls=10, verify only 10 returned.
+    """
+    # Arrange
+    tool_manager = ToolManager(
+        logger=logger,
+        config=tool_manager_config,
+        event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+    )
+    tool_calls = [
+        LanguageModelFunction(
+            id=f"call_{i}",
+            name="mock_tool",
+            arguments={"query": f"test{i}"},
+        )
+        for i in range(15)
+    ]
+
+    # Act
+    filtered = tool_manager.filter_tool_calls_by_max_tool_calls_allowed(tool_calls)
+
+    # Assert
+    assert len(filtered) == 10
+    # Verify first 10 are kept
+    for i in range(10):
+        assert filtered[i].id == f"call_{i}"
+
+
+@pytest.mark.ai
+def test_tool_manager__filter_tool_calls_by_max_tool_calls_allowed__keeps_all_if_under_max(
+    logger,
+    tool_manager_config,
+    base_event,
+    tool_progress_reporter,
+    mcp_manager,
+    a2a_manager,
+) -> None:
+    """
+    Purpose: Verify filter_tool_calls_by_max_tool_calls_allowed keeps all when under max.
+    Why this matters: Should not filter when under the limit.
+    Setup summary: Create 5 tool calls with max_tool_calls=10, verify all 5 returned.
+    """
+    # Arrange
+    tool_manager = ToolManager(
+        logger=logger,
+        config=tool_manager_config,
+        event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+    )
+    tool_calls = [
+        LanguageModelFunction(
+            id=f"call_{i}",
+            name="mock_tool",
+            arguments={"query": f"test{i}"},
+        )
+        for i in range(5)
+    ]
+
+    # Act
+    filtered = tool_manager.filter_tool_calls_by_max_tool_calls_allowed(tool_calls)
+
+    # Assert
+    assert len(filtered) == 5
+
+
+@pytest.mark.ai
+def test_tool_manager__filter_tool_calls_by_max_tool_calls_allowed__logs_warning_when_limiting(
+    logger,
+    tool_manager_config,
+    base_event,
+    tool_progress_reporter,
+    mcp_manager,
+    a2a_manager,
+    caplog,
+) -> None:
+    """
+    Purpose: Verify filter_tool_calls_by_max_tool_calls_allowed logs warning when limiting.
+    Why this matters: Users should be notified when tool calls are being limited.
+    Setup summary: Create 15 tool calls with max_tool_calls=10, verify warning logged.
+    """
+    # Arrange
+    tool_manager = ToolManager(
+        logger=logger,
+        config=tool_manager_config,
+        event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+    )
+    tool_calls = [
+        LanguageModelFunction(
+            id=f"call_{i}",
+            name="mock_tool",
+            arguments={"query": f"test{i}"},
+        )
+        for i in range(15)
+    ]
+
+    # Act
+    with caplog.at_level(logging.WARNING):
+        filtered = tool_manager.filter_tool_calls_by_max_tool_calls_allowed(tool_calls)
+
+    # Assert
+    assert len(filtered) == 10
+    assert "exceeds the allowed maximum" in caplog.text
+
+
+@pytest.mark.ai
 @pytest.mark.asyncio
 async def test_tool_manager__execute_tool_call__returns_response(
     logger,
