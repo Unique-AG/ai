@@ -134,7 +134,7 @@ class LoopConfiguration(BaseModel):
     max_tool_calls_per_iteration: Annotated[
         int,
         *ClipInt(min_value=1, max_value=LIMIT_MAX_TOOL_CALLS_PER_ITERATION),
-    ] = 10
+    ] = 15
 
 
 class EvaluationConfig(BaseModel):
@@ -327,7 +327,7 @@ class ExperimentalConfig(BaseModel):
     )
 
     loop_configuration: LoopConfiguration = LoopConfiguration(
-        max_tool_calls_per_iteration=5
+        max_tool_calls_per_iteration=15
     )
 
     sub_agents_config: SubAgentsConfig = SubAgentsConfig()
