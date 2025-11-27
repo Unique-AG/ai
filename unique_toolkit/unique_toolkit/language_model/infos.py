@@ -47,6 +47,7 @@ class LanguageModelName(StrEnum):
     ANTHROPIC_CLAUDE_SONNET_4_5 = "litellm:anthropic-claude-sonnet-4-5"
     ANTHROPIC_CLAUDE_OPUS_4 = "litellm:anthropic-claude-opus-4"
     ANTHROPIC_CLAUDE_OPUS_4_1 = "litellm:anthropic-claude-opus-4-1"
+    ANTHROPIC_CLAUDE_OPUS_4_5 = "litellm:anthropic-claude-opus-4-5"
     GEMINI_2_0_FLASH = "litellm:gemini-2-0-flash"
     GEMINI_2_5_FLASH = "litellm:gemini-2-5-flash"
     GEMINI_2_5_FLASH_LITE = "litellm:gemini-2-5-flash-lite"
@@ -946,7 +947,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.REASONING,
                     ],
                     provider=LanguageModelProvider.LITELLM,
-                    version="claude-opus-4",
+                    version="claude-opus-4-1",
                     encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
                     token_limits=LanguageModelTokenLimits(
                         # Input limit is 200_000, we leave 20_000 tokens as buffer due to tokenizer mismatch
@@ -955,6 +956,26 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2025, 3, 1),
                     published_at=date(2025, 5, 1),
+                )
+            case LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4_5:
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    version="claude-opus-4-5",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
+                    token_limits=LanguageModelTokenLimits(
+                        # Input limit is 200_000, we leave 20_000 tokens as buffer due to tokenizer mismatch
+                        token_limit_input=180_000,
+                        token_limit_output=64_000,
+                    ),
+                    info_cutoff_at=date(2025, 8, 1),
+                    published_at=date(2025, 11, 13),
                 )
             case LanguageModelName.GEMINI_2_0_FLASH:
                 return cls(
