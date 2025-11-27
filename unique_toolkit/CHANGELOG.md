@@ -6,7 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [1.31.1] - 2025-11-27
-- Multiple fixes to sub agent responses display.
+- Various fixes to sub agent answers.
+
+## [1.31.0] - 2025-11-20
+- Adding model `litellm:anthropic-claude-opus-4-5` to `language_model/info.py`
 
 ## [1.30.0] - 2025-11-26
 - Add option to only display parts of sub agent responses.
