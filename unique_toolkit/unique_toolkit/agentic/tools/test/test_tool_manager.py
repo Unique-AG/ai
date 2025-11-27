@@ -1728,3 +1728,205 @@ def test_responses_api_tool_manager__get_forced_tools__formats_builtin_special(
     # Assert
     assert len(forced_tools) == 1
     assert forced_tools[0]["type"] == "code_interpreter"
+
+
+@pytest.mark.ai
+def test_tool_manager__filter_tool_calls_by_max_tool_calls_allowed__returns_all_when_equal_to_max(
+    logger,
+    tool_manager_config,
+    base_event,
+    tool_progress_reporter,
+    mcp_manager,
+    a2a_manager,
+) -> None:
+    """
+    Purpose: Verify filter_tool_calls_by_max_tool_calls_allowed returns all when exactly at max.
+    Why this matters: Edge case where count equals max should return all tool calls.
+    Setup summary: Create exactly 10 tool calls with max_tool_calls=10, verify all 10 returned.
+    """
+    # Arrange
+    tool_manager = ToolManager(
+        logger=logger,
+        config=tool_manager_config,
+        event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+    )
+    tool_calls = [
+        LanguageModelFunction(
+            id=f"call_{i}",
+            name="mock_tool",
+            arguments={"query": f"test{i}"},
+        )
+        for i in range(10)
+    ]
+
+    # Act
+    filtered = tool_manager.filter_tool_calls_by_max_tool_calls_allowed(tool_calls)
+
+    # Assert
+    assert len(filtered) == 10
+    # Verify all are kept
+    for i in range(10):
+        assert filtered[i].id == f"call_{i}"
+
+
+@pytest.mark.ai
+def test_tool_manager__filter_tool_calls_by_max_tool_calls_allowed__does_not_log_when_at_max(
+    logger,
+    tool_manager_config,
+    base_event,
+    tool_progress_reporter,
+    mcp_manager,
+    a2a_manager,
+    caplog,
+) -> None:
+    """
+    Purpose: Verify filter_tool_calls_by_max_tool_calls_allowed does not log when at max.
+    Why this matters: Warning should only be logged when exceeding, not when at limit.
+    Setup summary: Create exactly 10 tool calls with max_tool_calls=10, verify no warning logged.
+    """
+    # Arrange
+    tool_manager = ToolManager(
+        logger=logger,
+        config=tool_manager_config,
+        event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+    )
+    tool_calls = [
+        LanguageModelFunction(
+            id=f"call_{i}",
+            name="mock_tool",
+            arguments={"query": f"test{i}"},
+        )
+        for i in range(10)
+    ]
+
+    # Act
+    with caplog.at_level(logging.WARNING):
+        filtered = tool_manager.filter_tool_calls_by_max_tool_calls_allowed(tool_calls)
+
+    # Assert
+    assert len(filtered) == 10
+    assert "exceeds the allowed maximum" not in caplog.text
+
+
+@pytest.mark.ai
+def test_responses_api_tool_manager__filter_tool_calls_by_max_tool_calls_allowed__limits_to_max(
+    logger,
+    base_event,
+    tool_progress_reporter,
+    mcp_manager,
+    a2a_manager,
+    mocker,
+    caplog,
+) -> None:
+    """
+    Purpose: Verify ResponsesApiToolManager filter_tool_calls_by_max_tool_calls_allowed limits to max.
+    Why this matters: Ensures the method works for ResponsesApiToolManager as well.
+    Setup summary: Create ResponsesApiToolManager with 15 tool calls and max=10, verify only 10 returned.
+    """
+    # Arrange
+    mock_builtin_manager = mocker.Mock(spec=OpenAIBuiltInToolManager)
+    mock_builtin_manager.get_all_openai_builtin_tools.return_value = []
+
+    tool_configs = [
+        ToolBuildConfig(
+            name="mock_tool",
+            configuration=MockToolConfig(),
+            display_name="Mock Tool",
+            icon=ToolIcon.BOOK,
+            selection_policy=ToolSelectionPolicy.BY_USER,
+            is_exclusive=False,
+            is_enabled=True,
+        ),
+    ]
+    config = ToolManagerConfig(tools=tool_configs, max_tool_calls=10)
+    
+    tool_manager = ResponsesApiToolManager(
+        logger=logger,
+        config=config,
+        event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+        builtin_tool_manager=mock_builtin_manager,
+    )
+    tool_calls = [
+        LanguageModelFunction(
+            id=f"call_{i}",
+            name="mock_tool",
+            arguments={"query": f"test{i}"},
+        )
+        for i in range(15)
+    ]
+
+    # Act
+    with caplog.at_level(logging.WARNING):
+        filtered = tool_manager.filter_tool_calls_by_max_tool_calls_allowed(tool_calls)
+
+    # Assert
+    assert len(filtered) == 10
+    assert "exceeds the allowed maximum" in caplog.text
+    # Verify first 10 are kept
+    for i in range(10):
+        assert filtered[i].id == f"call_{i}"
+
+
+@pytest.mark.ai
+def test_responses_api_tool_manager__filter_tool_calls_by_max_tool_calls_allowed__keeps_all_if_under_max(
+    logger,
+    base_event,
+    tool_progress_reporter,
+    mcp_manager,
+    a2a_manager,
+    mocker,
+) -> None:
+    """
+    Purpose: Verify ResponsesApiToolManager filter_tool_calls_by_max_tool_calls_allowed keeps all when under max.
+    Why this matters: Ensures the method works correctly for ResponsesApiToolManager when under limit.
+    Setup summary: Create ResponsesApiToolManager with 5 tool calls and max=10, verify all 5 returned.
+    """
+    # Arrange
+    mock_builtin_manager = mocker.Mock(spec=OpenAIBuiltInToolManager)
+    mock_builtin_manager.get_all_openai_builtin_tools.return_value = []
+
+    tool_configs = [
+        ToolBuildConfig(
+            name="mock_tool",
+            configuration=MockToolConfig(),
+            display_name="Mock Tool",
+            icon=ToolIcon.BOOK,
+            selection_policy=ToolSelectionPolicy.BY_USER,
+            is_exclusive=False,
+            is_enabled=True,
+        ),
+    ]
+    config = ToolManagerConfig(tools=tool_configs, max_tool_calls=10)
+    
+    tool_manager = ResponsesApiToolManager(
+        logger=logger,
+        config=config,
+        event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+        builtin_tool_manager=mock_builtin_manager,
+    )
+    tool_calls = [
+        LanguageModelFunction(
+            id=f"call_{i}",
+            name="mock_tool",
+            arguments={"query": f"test{i}"},
+        )
+        for i in range(5)
+    ]
+
+    # Act
+    filtered = tool_manager.filter_tool_calls_by_max_tool_calls_allowed(tool_calls)
+
+    # Assert
+    assert len(filtered) == 5
