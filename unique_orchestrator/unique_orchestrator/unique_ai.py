@@ -203,7 +203,9 @@ class UniqueAI:
             self._logger.info(
                 f"we are in the iteration {self.current_iteration_index} asking the model to tell if we should use tools or if it will just stream"
             )
-            stream_response = await self._streaming_handler.complete_with_references_async(
+            print("REFERENCES")
+            print(self._reference_manager.get_chunks()[0].description or "")
+            stream_response: LanguageModelStreamResponse = await self._streaming_handler.complete_with_references_async(
                 messages=messages,
                 model_name=self._config.space.language_model.name,
                 tools=self._tool_manager.get_tool_definitions(),
@@ -213,6 +215,10 @@ class UniqueAI:
                 temperature=self._config.agent.experimental.temperature,
                 other_options=self._config.agent.experimental.additional_llm_options,
             )
+            print("STREAM RESPONSE")
+            for chunk in self._reference_manager.get_chunks():
+                print(chunk.description or "")
+            
 
         return stream_response
 
@@ -434,6 +440,10 @@ class UniqueAI:
             tool_calls
         )
 
+        #self._logger.info("Tool CALL RESPONSES")
+        #print(tool_call_responses[0].content_chunks)
+
+
         # Process results with error handling
         # Add tool call results to history first to stabilize source numbering,
         # then extract referenceable chunks and debug info
@@ -446,6 +456,7 @@ class UniqueAI:
         self._tool_took_control = self._tool_manager.does_a_tool_take_control(
             tool_calls
         )
+
         return self._tool_took_control
 
     async def _create_new_assistant_message_if_loop_response_contains_content(
@@ -539,3 +550,4 @@ class UniqueAIResponsesApi(UniqueAI):
             message_step_logger=message_step_logger,
             mcp_servers=mcp_servers,
         )
+

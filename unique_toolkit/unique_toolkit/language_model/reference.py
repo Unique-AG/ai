@@ -214,6 +214,7 @@ def _find_references(
                 source="node-ingestion-chunks",
                 message_id=message_id,
                 id=search.id,
+                description=search.description or "",
             )
         )
         sequence_number += 1

@@ -174,6 +174,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
                         source="node-ingestion-chunks",
                         url=f"unique://content/{content_id}",
                         name=filename,
+                        description="",
                     )
                 )
                 ref_number += 1

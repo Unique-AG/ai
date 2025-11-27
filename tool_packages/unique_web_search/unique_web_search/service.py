@@ -1,4 +1,5 @@
 from time import time
+from typing import Any
 
 from typing_extensions import override
 from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
@@ -15,6 +16,8 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelToolDescription,
 )
+
+from unique_toolkit.content import ContentChunk,ContentReference
 
 from unique_web_search.config import WebSearchConfig
 from unique_web_search.schema import WebSearchPlan, WebSearchToolParameters
@@ -113,9 +116,16 @@ class WebSearchTool(Tool[WebSearchConfig]):
             debug_info.num_chunks_in_final_prompts = len(content_chunks)
             debug_info.execution_time = time() - start_time
 
+            content_chunks = self._prepare_content_chunks(content_chunks)
+
+            print("-------------------------------")
+            for chunk in content_chunks:
+                print(chunk.description)
+
             details, reference_list = self._prepare_message_logs_entries(
                 queries_for_log
             )
+
             self._message_step_logger.create_message_log_entry(
                 text=f"**{self.display_name()}**",
                 details=details,
@@ -234,6 +244,17 @@ class WebSearchTool(Tool[WebSearchConfig]):
                 sequence_number += 1
 
         return details, references
+
+    def _prepare_content_chunks(self, content_chunks: list[ContentChunk]) -> list[ContentChunk]:
+
+        cited_references = []
+        for index, content_chunk in enumerate(content_chunks):
+
+            #Snippet extraction from the content chunk
+            snippet = content_chunk.text.split("</SearchEngineSnippet>")[0].split("<SearchEngineSnippet>")[1]
+            content_chunks[index].description = snippet
+
+        return content_chunks
 
 
 ToolFactory.register_tool(WebSearchTool, WebSearchConfig)

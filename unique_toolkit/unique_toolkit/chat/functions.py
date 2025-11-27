@@ -182,6 +182,7 @@ def map_references(references: list[ContentReference]) -> list[dict[str, Any]]:
             "sequenceNumber": ref.sequence_number,
             "sourceId": ref.source_id,
             "source": ref.source,
+            "description": ref.description,
         }
         for ref in references
     ]
@@ -193,6 +194,7 @@ def map_references_with_original_index(
     """Maps ContentReference objects to dict format for MessageLog API (complete format).
 
     This function includes all fields including originalIndex for APIs that support it.
+    Ensures description field is always included, even if empty.
     """
     return [
         {
@@ -202,6 +204,7 @@ def map_references_with_original_index(
             "sourceId": ref.source_id,
             "source": ref.source,
             "originalIndex": ref.original_index,
+            "description": ref.description or "",  # Ensure description is always a string, never None
         }
         for ref in references
     ]
