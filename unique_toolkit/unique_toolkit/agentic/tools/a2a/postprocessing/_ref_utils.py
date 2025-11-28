@@ -1,3 +1,4 @@
+import re
 from typing import Callable, Iterable, Mapping, Sequence
 
 from unique_toolkit._common.referencing import get_reference_pattern
@@ -48,6 +49,16 @@ def add_content_refs(
         )
 
     return message_refs
+
+
+def remove_unused_refs(
+    references: Sequence[ContentReference],
+    text: str,
+    ref_pattern_f: Callable[[int], str] = get_reference_pattern,
+) -> list[ContentReference]:
+    return [
+        ref for ref in references if re.search(ref_pattern_f(ref.sequence_number), text)
+    ]
 
 
 def add_content_refs_and_replace_in_text(

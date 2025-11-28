@@ -186,6 +186,18 @@ def get_sub_agent_answer_parts(
     return substrings
 
 
+def get_sub_agent_answer_from_parts(
+    answer_parts: list[SubAgentAnswerPart],
+    config: SubAgentDisplayConfig,
+) -> str:
+    return render_template(
+        config.answer_substrings_jinja_template,
+        {
+            "substrings": [answer.formatted_text for answer in answer_parts],
+        },
+    )
+
+
 def get_sub_agent_answer_display(
     display_name: str,
     display_config: SubAgentDisplayConfig,
@@ -200,11 +212,9 @@ def get_sub_agent_answer_display(
     )
 
     if isinstance(answer, list):
-        answer = render_template(
-            display_config.answer_substrings_jinja_template,
-            {
-                "substrings": [answer.formatted_text for answer in answer],
-            },
+        answer = get_sub_agent_answer_from_parts(
+            answer_parts=answer,
+            config=display_config,
         )
 
     return template.format(

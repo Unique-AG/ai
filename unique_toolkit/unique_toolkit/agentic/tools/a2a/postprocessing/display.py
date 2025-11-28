@@ -10,12 +10,15 @@ from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 from unique_toolkit._common.utils.jinja.render import render_template
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import Postprocessor
 from unique_toolkit.agentic.tools.a2a.postprocessing._display_utils import (
+    SubAgentAnswerPart,
     get_sub_agent_answer_display,
+    get_sub_agent_answer_from_parts,
     get_sub_agent_answer_parts,
     remove_sub_agent_answer_from_text,
 )
 from unique_toolkit.agentic.tools.a2a.postprocessing._ref_utils import (
     add_content_refs_and_replace_in_text,
+    remove_unused_refs,
 )
 from unique_toolkit.agentic.tools.a2a.postprocessing.config import (
     SubAgentDisplayConfig,
@@ -55,6 +58,10 @@ class SubAgentResponsesPostprocessorConfig(BaseModel):
     answers_jinja_template: str = Field(
         default=_ANSWERS_JINJA_TEMPLATE,
         description="The template to use to display the sub agent answers.",
+    )
+    filter_duplicate_answers: bool = Field(
+        default=True,
+        description="If set, duplicate answers will be filtered out.",
     )
 
 
@@ -108,22 +115,23 @@ class SubAgentResponsesDisplayPostprocessor(Postprocessor):
 
         answers_displayed_before = []
         answers_displayed_after = []
+        all_displayed_answers = set()
 
         for assistant_id, responses in displayed_sub_agent_responses.items():
+            tool_info = self._display_specs[assistant_id]
+            tool_name = tool_info.display_name
+
             for response in responses:
                 message = response.message
-                tool_info = self._display_specs[assistant_id]
-
-                _add_response_references_to_message_in_place(
-                    loop_response=loop_response, response=message
-                )
 
                 if tool_info.display_config.mode == SubAgentResponseDisplayMode.HIDDEN:
+                    # Add references and continue
+                    _add_response_references_to_message_in_place(
+                        loop_response=loop_response,
+                        response=message,
+                        remove_unused_references=False,
+                    )
                     continue
-
-                display_name = tool_info.display_name
-                if len(responses) > 1:
-                    display_name += f" {response.sequence_number}"
 
                 if message["text"] is None:
                     logger.warning(
@@ -138,13 +146,37 @@ class SubAgentResponsesDisplayPostprocessor(Postprocessor):
                     display_config=tool_info.display_config,
                 )
 
+                if self._config.filter_duplicate_answers:
+                    answer_parts, all_displayed_answers = (
+                        _filter_and_update_duplicate_answers(
+                            answers=answer_parts,
+                            existing_answers=all_displayed_answers,
+                        )
+                    )
+
+                answer = get_sub_agent_answer_from_parts(
+                    answer_parts=answer_parts,
+                    config=tool_info.display_config,
+                )
+                message["text"] = answer
+
+                _add_response_references_to_message_in_place(
+                    loop_response=loop_response,
+                    response=message,
+                    remove_unused_references=not tool_info.display_config.force_include_references,
+                )
+
                 if len(answer_parts) == 0:
                     continue
+
+                display_name = tool_name
+                if len(responses) > 1:
+                    display_name = tool_name + f" {response.sequence_number}"
 
                 answer = get_sub_agent_answer_display(
                     display_name=display_name,
                     display_config=tool_info.display_config,
-                    answer=answer_parts,
+                    answer=answer,
                     assistant_id=assistant_id,
                 )
 
@@ -174,7 +206,9 @@ class SubAgentResponsesDisplayPostprocessor(Postprocessor):
 
 
 def _add_response_references_to_message_in_place(
-    loop_response: LanguageModelStreamResponse, response: unique_sdk.Space.Message
+    loop_response: LanguageModelStreamResponse,
+    response: unique_sdk.Space.Message,
+    remove_unused_references: bool = True,
 ) -> None:
     references = response["references"]
     text = response["text"]
@@ -183,6 +217,12 @@ def _add_response_references_to_message_in_place(
         return
 
     content_refs = [ContentReference.from_sdk_reference(ref) for ref in references]
+
+    if remove_unused_references:
+        content_refs = remove_unused_refs(
+            references=content_refs,
+            text=text,
+        )
 
     text, refs = add_content_refs_and_replace_in_text(
         message_text=text,
@@ -207,3 +247,18 @@ def _get_final_answer_display(
         text = text + render_template(template, {"answers": answers_after})
 
     return text.strip()
+
+
+def _filter_and_update_duplicate_answers(
+    answers: list[SubAgentAnswerPart],
+    existing_answers: set[str],
+) -> tuple[list[SubAgentAnswerPart], set[str]]:
+    new_answers = []
+
+    for answer in answers:
+        if answer.matching_text in existing_answers:
+            continue
+        existing_answers.add(answer.matching_text)
+        new_answers.append(answer)
+
+    return new_answers, existing_answers
