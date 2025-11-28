@@ -1,6 +1,10 @@
 # Re-export commonly used classes for easier imports
 from unique_toolkit.chat import ChatService
 from unique_toolkit.content import ContentService
+from unique_toolkit.data_extraction import (
+    StructuredOutputDataExtractor,
+    StructuredOutputDataExtractorConfig,
+)
 from unique_toolkit.embedding import EmbeddingService
 from unique_toolkit.framework_utilities.openai.client import (
     get_async_openai_client,
@@ -26,17 +30,19 @@ except ImportError:
 # You can add other classes you frequently use here as well
 
 __all__ = [
-    "LanguageModelService",
-    "LanguageModelMessages",
-    "LanguageModelName",
-    "LanguageModelToolDescription",
     "ChatService",
     "ContentService",
     "EmbeddingService",
-    "ShortTermMemoryService",
-    "KnowledgeBaseService",
     "get_openai_client",
     "get_async_openai_client",
+    "KnowledgeBaseService",
+    "LanguageModelMessages",
+    "LanguageModelName",
+    "LanguageModelService",
+    "LanguageModelToolDescription",
+    "ShortTermMemoryService",
+    "StructuredOutputDataExtractor",
+    "StructuredOutputDataExtractorConfig",
 ]
 
 # Add langchain-specific exports if available
