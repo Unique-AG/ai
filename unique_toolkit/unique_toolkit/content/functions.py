@@ -347,7 +347,7 @@ def upload_content(
     skip_excel_ingestion: bool = False,
     ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
     metadata: dict[str, Any] | None = None,
-):
+) -> Content:
     """
     Uploads content to the knowledge base.
 
@@ -399,7 +399,7 @@ def _trigger_upload_content(
     skip_excel_ingestion: bool = False,
     ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
     metadata: dict[str, Any] | None = None,
-):
+) -> Content:
     """
     Uploads content to the knowledge base.
 

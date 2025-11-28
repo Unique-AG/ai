@@ -74,7 +74,7 @@ unique_sdk.app_id = os.getenv("UNIQUE_APP_ID")
 Now that you've configured the SDK:
 
 1. **[Try the Quickstart guide](quickstart.md)** - Make your first API call
-2. **[Explore API Resources](../api_resources/)** - Browse available APIs
+2. **[Explore API Resources](../api_resources/index.md)** - Browse available APIs
 3. **[Read the Architecture guide](../architecture.md)** - Understand SDK structure
 4. **[Check out Tutorials](../tutorials/folder_updates.md)** - See step-by-step tutorials
 5. **[View the full SDK documentation](../sdk.md)** - Complete API reference

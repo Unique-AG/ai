@@ -15,22 +15,23 @@ nav:
   - Architecture:
     - Overview: architecture.md
   - API Reference:
+    - Overview: api_resources/index.md
+    - Agentic Table: api_resources/agentic_table.md
+    - ChatCompletion: api_resources/chat_completion.md
     - Content: api_resources/content.md
-    - Message: api_resources/message.md
-    - Search: api_resources/search.md
-    - Search String: api_resources/search_string.md
-    - Chat Completion: api_resources/chat_completion.md
     - Embeddings: api_resources/embeddings.md
     - Folder: api_resources/folder.md
-    - Space: api_resources/space.md
-    - User: api_resources/user.md
     - Group: api_resources/group.md
-    - Agentic Table: api_resources/agentic_table.md
-    - Short Term Memory: api_resources/short_term_memory.md
+    - LLM Models: api_resources/llm_models.md
+    - Message: api_resources/message.md
     - Message Assessment: api_resources/message_assessment.md
     - Message Execution: api_resources/message_execution.md
     - Message Log: api_resources/message_log.md
-    - LLM Models: api_resources/llm_models.md
+    - Search: api_resources/search.md
+    - SearchString: api_resources/search_string.md
+    - Short Term Memory: api_resources/short_term_memory.md
+    - Space: api_resources/space.md
+    - User: api_resources/user.md
   - UniqueQL:
     - Query Language: uniqueql.md
   - Utilities:
@@ -82,6 +83,11 @@ site_dir: site
 
 plugins:
   - search
+  - include-dir-to-nav:
+      flat: true
+      file_name_as_title: false
+      recurse: false
+      file_pattern: '.*\.md$'
   - entangled
   - include-markdown 
   - callouts

@@ -27,6 +27,7 @@ mkdocs-codeinclude-plugin = "^0.2.1"
 pyright = "^1.1.405"
 ruff = "^0.14.2"
 basedpyright = "^1.33.0"
+langchain = "^1.1.0"
 
 [build-system]
 requires = ["poetry-core"]
