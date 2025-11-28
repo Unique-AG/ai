@@ -30,7 +30,8 @@ def get_openai_client(
     """Get an OpenAI client instance.
 
     Args:
-        env_file: Optional path to environment file
+        unique_settings (UniqueSettings | None): Optional UniqueSettings instance
+        additional_headers (dict[str, str] | None): Optional additional headers to add to the request
 
     Returns:
         OpenAI client instance

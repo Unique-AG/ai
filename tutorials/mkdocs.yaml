@@ -7,8 +7,12 @@ repo_url: https://github.com/Unique-AG/ai/tutorials
 edit_uri: /docs/
 
 nav:
-  - MCP Demo Tutorial: mcp_demo.md
-  - MCP Search Tutorial: mcp_search.md
+  - MCP:
+    - Fundamentals: mcp_fundamentals.md
+    - Zitadel Authentication: mcp_demo.md
+    - Google Authentication: mcp_google_auth.md
+    - Unique credentials <-> Tools: mcp_search.md
+    - Using MCP Tools in Unique AI: mcp_unique_ai.md
 
 
 markdown_extensions:
