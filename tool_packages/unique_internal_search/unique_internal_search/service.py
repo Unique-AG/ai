@@ -1,3 +1,4 @@
+import asyncio
 from logging import Logger
 
 from pydantic import Field, create_model
@@ -113,6 +114,8 @@ class InternalSearchService:
 
         # Clean search strings by removing QDF and boost operators
         search_strings = [clean_search_string(s) for s in search_strings]
+        search_strings = list(dict.fromkeys(search_strings))
+        search_strings = search_strings[: self.config.max_search_strings]
 
         ###
         # 2. Search for context in the Vector DB
@@ -134,39 +137,24 @@ class InternalSearchService:
             self.content_service._metadata_filter = None
             metadata_filter = None
 
-        found_chunks_per_search_string: list[SearchStringResult] = []
-        for i, search_string in enumerate(search_strings):
-            try:
-                found_chunks: list[
-                    ContentChunk
-                ] = await self.content_service.search_content_chunks_async(
-                    search_string=search_string,  # type: ignore
-                    search_type=self.config.search_type,
-                    limit=self.config.limit,
-                    reranker_config=self.config.reranker_config,
-                    search_language=self.config.search_language,
-                    scope_ids=self.config.scope_ids,
+        # Run all searches in parallel
+        results = await asyncio.gather(
+            *[
+                self._search_single_string(
+                    search_string=search_string,
                     metadata_filter=metadata_filter,
-                    chat_id=self.chat_id
-                    if not self.config.exclude_uploaded_files and self.chat_id
-                    else "NO_CHAT",  # deliberate string to avoid if chat_id condition.
                     chat_only=chat_only,
                     content_ids=content_ids,
-                    score_threshold=self.config.score_threshold,
                 )
-                self.logger.info(
-                    f"Found {len(found_chunks)} chunks (Query {i + 1}/{len(search_strings)})"
-                )
-            except Exception as e:
-                self.logger.error(f"Error in search_document_chunks call: {e}")
-                raise e
+                for search_string in search_strings
+            ],
+            return_exceptions=True,
+        )
 
-            found_chunks_per_search_string.append(
-                SearchStringResult(
-                    query=search_string,
-                    chunks=found_chunks,
-                )
-            )
+        # Filter out exceptions and log them
+        found_chunks_per_search_string = self._process_search_results(
+            results, search_strings
+        )
 
         # Reset the metadata filter in case it was disabled
         self.content_service._metadata_filter = metadata_filter_copy
@@ -175,7 +163,7 @@ class InternalSearchService:
         if self.config.chunk_relevancy_sort_config.enabled:
             for i, result in enumerate(found_chunks_per_search_string):
                 await self.post_progress_message(
-                    f"{result.query} (_Resorting {len(result.chunks)} search results_ 🔄 in query {i + 1}/{len(search_strings)})",
+                    f"{result.query} (_Resorting {len(result.chunks)} search results_ 🔄 in query {i + 1}/{len(found_chunks_per_search_string)})",
                     **kwargs,
                 )
                 result.chunks = await self._resort_found_chunks_if_enabled(
@@ -221,6 +209,59 @@ class InternalSearchService:
             "chatOnly": chat_only,
         }
         return selected_chunks
+
+    async def _search_single_string(
+        self,
+        *,
+        search_string: str,
+        metadata_filter: dict | None = None,
+        chat_only: bool = False,
+        content_ids: list[str] | None = None,
+    ) -> SearchStringResult:
+        try:
+            found_chunks: list[
+                ContentChunk
+            ] = await self.content_service.search_content_chunks_async(
+                search_string=search_string,  # type: ignore
+                search_type=self.config.search_type,
+                limit=self.config.limit,
+                reranker_config=self.config.reranker_config,
+                search_language=self.config.search_language,
+                scope_ids=self.config.scope_ids,
+                metadata_filter=metadata_filter,
+                chat_id=self.chat_id
+                if not self.config.exclude_uploaded_files and self.chat_id
+                else "NO_CHAT",  # deliberate string to avoid if chat_id condition.
+                chat_only=chat_only,
+                content_ids=content_ids,
+                score_threshold=self.config.score_threshold,
+            )
+
+            return SearchStringResult(query=search_string, chunks=found_chunks)
+
+        except Exception as e:
+            self.logger.error(f"Error in search_document_chunks call: {e}")
+            # Re-raise to be caught by asyncio.gather with return_exceptions=True
+            raise
+
+    def _process_search_results(
+        self,
+        results: list[SearchStringResult | BaseException],
+        search_strings: list[str],
+    ) -> list[SearchStringResult]:
+        successful_results: list[SearchStringResult] = []
+        total_queries = len(search_strings)
+
+        for i, result in enumerate(results, start=1):
+            if isinstance(result, BaseException):
+                self.logger.error(f"Search failed for query #{i}/{total_queries}")
+            else:
+                self.logger.info(
+                    f"Found {len(result.chunks)} chunks (Query {i}/{total_queries})"
+                )
+                successful_results.append(result)
+
+        return successful_results
 
     async def _resort_found_chunks_if_enabled(
         self, found_chunks: list[ContentChunk], search_string: str
@@ -314,18 +355,23 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
     @override
     def tool_description(self) -> LanguageModelToolDescription:
         # Conditionally set the type based on config
-        search_string_type = (
-            list[str]
-            if self.config.experimental_features.enable_multiple_search_strings_execution
-            else str
-        )
+        if self.config.experimental_features.enable_multiple_search_strings_execution:
+            search_string_field = (
+                list[str],
+                Field(
+                    description=self.config.param_description_search_string,
+                    max_length=self.config.max_search_strings,
+                ),
+            )
+        else:
+            search_string_field = (
+                str,
+                Field(description=self.config.param_description_search_string),
+            )
 
         internal_search_tool_input = create_model(
             "InternalSearchToolInput",
-            search_string=(
-                search_string_type,
-                Field(description=self.config.param_description_search_string),
-            ),
+            search_string=search_string_field,
             language=(
                 str,
                 Field(description=self.config.param_description_language),
