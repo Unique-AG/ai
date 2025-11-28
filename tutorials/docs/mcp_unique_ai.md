@@ -30,7 +30,7 @@ As a Space Administrator, you have control over MCP tools in your space:
 2. Go to **Sources & Tools**
 3. Available MCP connectors are listed under the **MCP Tools** subsection
 
-![MCP Tools section in Sources & Tools](images/mcp-tools-section.png)
+![MCP Tools section in Sources & Tools](images/mcp-tool-selection.png)
 
 ### Enabling an MCP Connector
 
