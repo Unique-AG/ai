@@ -1,9 +1,73 @@
-from typing import Literal
+import re
+from enum import StrEnum
+from typing import Annotated, Generic, Literal, TypeVar
 
 from pydantic import Field
+from pydantic.main import BaseModel
 
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
+
+
+class SubAgentSystemReminderType(StrEnum):
+    FIXED = "fixed"
+    REGEXP = "regexp"
+    REFERENCE = "reference"
+
+
+T = TypeVar("T", bound=SubAgentSystemReminderType)
+
+
+class SystemReminderConfig(BaseModel, Generic[T]):
+    model_config = get_configuration_dict()
+
+    type: T
+
+
+_SYSTEM_REMINDER_FIELD_DESCRIPTION = """
+The reminder to add to the tool response. The reminder can be a Jinja template and can contain the following placeholders:
+- {{ display_name }}: The display name of the sub agent.
+- {{ tool_name }}: The tool name. 
+""".strip()
+
+
+class ReferenceSystemReminderConfig(SystemReminderConfig):
+    type: Literal[SubAgentSystemReminderType.REFERENCE] = (
+        SubAgentSystemReminderType.REFERENCE
+    )
+    reminder: str = Field(
+        default="Rememeber to properly reference EACH fact from sub agent {{ display_name }}'s response with the correct format INLINE.",
+        description=_SYSTEM_REMINDER_FIELD_DESCRIPTION,
+    )
+
+
+class FixedSystemReminderConfig(SystemReminderConfig):
+    type: Literal[SubAgentSystemReminderType.FIXED] = SubAgentSystemReminderType.FIXED
+    reminder: str = Field(
+        description=_SYSTEM_REMINDER_FIELD_DESCRIPTION,
+    )
+
+
+_REGEXP_DETECTED_REMINDER_FIELD_DESCRIPTION = """
+The reminder to add to the tool response. The reminder can be a Jinja template and can contain the following placeholders:
+- {{ display_name }}: The display name of the sub agent.
+- {{ tool_name }}: The tool name. 
+- {{ text_matches }}: Will be replaced with the portions of the text that triggered the reminder.
+""".strip()
+
+
+class RegExpDetectedSystemReminderConfig(SystemReminderConfig):
+    """A system reminder that is only added if the sub agent response matches a regular expression."""
+
+    type: Literal[SubAgentSystemReminderType.REGEXP] = SubAgentSystemReminderType.REGEXP
+
+    regexp: re.Pattern[str] = Field(
+        description="The regular expression to use to detect whether the system reminder should be added.",
+    )
+    reminder: str = Field(
+        description=_REGEXP_DETECTED_REMINDER_FIELD_DESCRIPTION,
+    )
+
 
 DEFAULT_PARAM_DESCRIPTION_SUB_AGENT_USER_MESSAGE = """
 This is the message that will be sent to the sub-agent.
@@ -79,4 +143,16 @@ class SubAgentToolConfig(BaseToolConfig):
     returns_content_chunks: bool = Field(
         default=False,
         description="If set, the sub-agent response will be interpreted as a list of content chunks.",
+    )
+
+    system_reminders_config: list[
+        Annotated[
+            FixedSystemReminderConfig
+            | RegExpDetectedSystemReminderConfig
+            | ReferenceSystemReminderConfig,
+            Field(discriminator="type"),
+        ]
+    ] = Field(
+        default=[],
+        description="Configuration for the system reminders to add to the tool response.",
     )

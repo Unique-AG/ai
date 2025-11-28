@@ -4,7 +4,7 @@ import json
 import logging
 import re
 from datetime import datetime
-from typing import override
+from typing import cast, override
 
 import unique_sdk
 from pydantic import Field, TypeAdapter, create_model
@@ -15,6 +15,7 @@ from unique_toolkit._common.referencing import (
     remove_all_refs,
     replace_ref_number,
 )
+from unique_toolkit._common.utils.jinja.render import render_template
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.tools.a2a.response_watcher import SubAgentResponseWatcher
 from unique_toolkit.agentic.tools.a2a.tool._memory import (
@@ -25,6 +26,8 @@ from unique_toolkit.agentic.tools.a2a.tool._schema import (
     SubAgentToolInput,
 )
 from unique_toolkit.agentic.tools.a2a.tool.config import (
+    RegExpDetectedSystemReminderConfig,
+    SubAgentSystemReminderType,
     SubAgentToolConfig,
 )
 from unique_toolkit.agentic.tools.factory import ToolFactory
@@ -215,11 +218,62 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
             )
 
             return ToolCallResponse(
-                id=tool_call.id,  # type: ignore
+                id=tool_call.id,
                 name=tool_call.name,
-                content=content,
+                content=_format_response(
+                    tool_name=self.name,
+                    text=content,
+                    system_reminders=self._get_system_reminders(response),
+                ),
                 content_chunks=content_chunks,
             )
+
+    def _get_system_reminders(self, message: unique_sdk.Space.Message) -> list[str]:
+        reminders = []
+        for reminder_config in self.config.system_reminders_config:
+            if reminder_config.type == SubAgentSystemReminderType.FIXED:
+                reminders.append(
+                    render_template(
+                        reminder_config.reminder,
+                        display_name=self.display_name(),
+                        tool_name=self.name,
+                    )
+                )
+            elif (
+                reminder_config.type == SubAgentSystemReminderType.REFERENCE
+                and self.config.use_sub_agent_references
+                and message["references"] is not None
+                and len(message["references"]) > 0
+            ):
+                reminders.append(
+                    render_template(
+                        reminder_config.reminder,
+                        display_name=self.display_name(),
+                        tool_name=self.name,
+                    )
+                )
+            elif (
+                reminder_config.type == SubAgentSystemReminderType.REGEXP
+                and message["text"] is not None
+            ):
+                reminder_config = cast(
+                    RegExpDetectedSystemReminderConfig, reminder_config
+                )
+                text_matches = [
+                    match.group(0)
+                    for match in reminder_config.regexp.finditer(message["text"])
+                ]
+                if len(text_matches) > 0:
+                    reminders.append(
+                        render_template(
+                            reminder_config.reminder,
+                            display_name=self.display_name(),
+                            tool_name=self.name,
+                            text_matches=text_matches,
+                        )
+                    )
+
+        return reminders
 
     async def _get_chat_id(self) -> str | None:
         if not self.config.reuse_chat:
@@ -324,6 +378,16 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
             raise TimeoutError(
                 "Timeout while waiting for response from sub agent. The user should consider increasing the max wait time.",
             ) from e
+
+
+def _format_response(tool_name: str, text: str, system_reminders: list[str]) -> str:
+    if len(system_reminders) == 0:
+        return text
+
+    reponse_key = f"{tool_name} response"
+    response = {reponse_key: text, "SYSTEM_REMINDERS": system_reminders}
+
+    return json.dumps(response, indent=2)
 
 
 ToolFactory.register_tool(SubAgentTool, SubAgentToolConfig)
