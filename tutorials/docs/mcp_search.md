@@ -1,5 +1,6 @@
 ## 📌 Overview
 This tutorial demonstrates building an HTTP-streamable MCP server that integrates with the Unique SDK to provide search functionality, **with a focus on demonstrating how unique credentials (`user_id` and `company_id`) can be passed and used by underlying tools for authenticated operations via the Unique SDK**. It includes:
+
 - **Extracting unique credentials** (`user_id` and `company_id`) from authenticated tokens
 - A `search` tool that queries a knowledge base using the Unique SDK with user-specific credentials
 - An `identify` tool that retrieves the current user's profile (including `user_id` and `company_id`)
@@ -11,6 +12,7 @@ See the full example here: [https://github.com/Unique-AG/ai/tree/main/tutorials/
 
 ## 🔍 Search Tool
 The main feature of this server is the `search` tool that demonstrates **how unique credentials are passed to the Unique SDK for authenticated operations**:
+
 - Extracts user identity (`user_id`, `company_id`) from the authenticated token
 - **Passes these credentials to the Unique SDK** for authenticated search operations
 - Uses the Unique SDK to perform searches in the knowledge base with user-specific context
@@ -18,11 +20,13 @@ The main feature of this server is the `search` tool that demonstrates **how uni
 
 ### Unique SDK Configuration
 The server requires these additional environment variables:
+
 - `API_BASE`: Base URL for the Unique API (e.g., `https://gateway.qa.unique.app/public/chat-gen2`)
 - `API_KEY`: API key for authentication
 - `APP_ID`: Application ID
 
 The SDK is configured before server initialization:
+
 ```python
 unique_sdk.api_base = os.getenv("API_BASE", "https://gateway.qa.unique.app/public/chat-gen2")
 unique_sdk.api_key = os.getenv("API_KEY", "default_api_key")

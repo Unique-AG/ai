@@ -1,5 +1,6 @@
 ## 📌 Overview
 This tutorial demonstrates building an HTTP-streamable MCP server with FastMCP, **with a focus on demonstrating how to authenticate with Google OAuth**. It includes:
+
 - **Google OAuth authentication** using the GoogleProvider
 - A `get_user_info` tool that retrieves the authenticated Google user's information
 - Automatic token validation and user data extraction from Google tokens
@@ -144,6 +145,7 @@ async def get_user_info() -> dict:
 ```
 
 **Key Points:**
+
 - The `get_access_token()` dependency provides access to the authenticated token
 - The GoogleProvider automatically extracts and stores user information in `token.claims`
 - User data includes Google ID, email, name, picture, and locale
@@ -190,6 +192,7 @@ if __name__ == "__main__":
 To use this example, you need to:
 
 1. **Create a Google OAuth Client:**
+
    - Go to the [Google Cloud Console](https://console.cloud.google.com/)
    - Create a new project or select an existing one
    - Enable the Google+ API
@@ -204,6 +207,7 @@ To use this example, you need to:
    ```
 
 3. **Required Scopes:**
+
    - `openid`: Required for OpenID Connect authentication
    - `https://www.googleapis.com/auth/userinfo.email`: Required to access user email information
 
