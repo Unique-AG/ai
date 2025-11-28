@@ -21,6 +21,8 @@ The following diagram illustrates the complete architecture and workflow of the 
   - Jina Search
   - Tavily Search
   - Firecrawl Search
+  - VertexAI (Gemini with Grounding)
+  - Custom API (integrate any compatible web search API)
 
 - **Multiple Web Crawlers**:
   - Basic HTTP Crawler
@@ -43,6 +45,14 @@ The following diagram illustrates the complete architecture and workflow of the 
   - Parallel execution of search and crawl operations
   - Token limit management
   - Configurable timeouts and error handling
+
+## Detailed Subsystem Docs
+
+For deeper dives into each subsystem, see the dedicated READMEs:
+
+- [Search Engines](./unique_web_search/services/search_engine/README.md) &mdash; full catalogue of supported engines, configuration, and usage examples.
+- [Crawlers](./unique_web_search/services/crawlers/README.md) &mdash; comparison of crawling strategies (Basic, Crawl4AI, Tavily, Firecrawl, Jina) with setup guides.
+- [Executors](./unique_web_search/services/executors/README.md) &mdash; orchestration layer (V1 & V2) covering query refinement, planning, logging, and best practices.
 
 ## Configuration
 

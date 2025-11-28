@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+from enum import StrEnum
 from pathlib import Path
 from typing import Literal
 
@@ -13,6 +14,11 @@ ProxyProtocol = Literal["http", "https"]
 
 WebSearchMode = Literal["v1", "v2"]
 AZURE_IDENTITY_CREDENTIAL_TYPE = Literal["workload", "default"]
+
+
+class CUSTOM_API_REQUEST_METHOD(StrEnum):
+    GET = "GET"
+    POST = "POST"
 
 
 class Base(BaseSettings):
@@ -47,6 +53,21 @@ class Base(BaseSettings):
     # Brave Search API settings
     brave_search_api_key: str | None = None
     brave_search_api_endpoint: str | None = None
+
+    # VertexAI API settings
+    vertexai_service_account_credentials: str | None = None
+    vertexai_service_account_scopes: list[str] | None = None
+
+    # Custom API settings
+    custom_web_search_api_method: CUSTOM_API_REQUEST_METHOD | None = None
+    custom_web_search_api_endpoint: str | None = None
+    custom_web_search_api_headers: dict[str, str] | None = None
+    custom_web_search_api_additional_query_params: (
+        dict[str, int | str | bool | float | list | dict] | None
+    ) = None
+    custom_web_search_api_additional_body_params: (
+        dict[str, int | str | bool | float | list | dict] | None
+    ) = None
 
     # Proxy settings
     ## Shared settings

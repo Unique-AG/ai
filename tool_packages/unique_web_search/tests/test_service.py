@@ -40,7 +40,7 @@ class TestWebSearchToolDescription:
         assert result.name == "WebSearch"
         assert hasattr(result, "description")
         assert result.description == "V1 tool description"
-        assert tool.tool_parameter_calls == WebSearchToolParameters
+        assert issubclass(tool.tool_parameter_calls, WebSearchToolParameters)
 
     @pytest.mark.ai
     def test_tool_description__returns_v2_plan__when_mode_is_v2(
@@ -223,14 +223,14 @@ class TestWebSearchToolGetExecutor:
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v2
         tool.search_engine_service = Mock()
-        tool.language_model_service = Mock()
+        tool._language_model_service = Mock()
         tool.language_model = Mock()
         tool.crawler_service = Mock()
         tool.company_id = "test-company"
         tool.content_processor = Mock()
         tool.chunk_relevancy_sorter = Mock()
         tool.content_reducer = Mock()
-        tool.tool_progress_reporter = None
+        tool._tool_progress_reporter = None
 
         tool_call = Mock()
         parameters = WebSearchPlan(
@@ -268,14 +268,14 @@ class TestWebSearchToolGetExecutor:
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v1
         tool.search_engine_service = Mock()
-        tool.language_model_service = Mock()
+        tool._language_model_service = Mock()
         tool.language_model = Mock()
         tool.crawler_service = Mock()
         tool.company_id = "test-company"
         tool.content_processor = Mock()
         tool.chunk_relevancy_sorter = Mock()
         tool.content_reducer = Mock()
-        tool.tool_progress_reporter = None
+        tool._tool_progress_reporter = None
 
         tool_call = Mock()
         parameters = WebSearchToolParameters(query="test", date_restrict=None)
@@ -449,7 +449,18 @@ class TestWebSearchToolRun:
         mocker.patch("unique_web_search.service.get_crawler_service")
         mocker.patch("unique_web_search.service.ChunkRelevancySorter")
         mocker.patch("unique_web_search.service.ContentProcessor")
-        mocker.patch("unique_web_search.service.WebSearchDebugInfo")
+
+        # Mock WebSearchDebugInfo to return a proper dict from model_dump
+        mock_debug_info_class = Mock()
+        mock_debug_info_instance = Mock()
+        mock_debug_info_instance.model_dump.return_value = {"test": "debug_info"}
+        mock_debug_info_instance.num_chunks_in_final_prompts = None
+        mock_debug_info_instance.execution_time = None
+        mock_debug_info_class.return_value = mock_debug_info_instance
+        mocker.patch(
+            "unique_web_search.service.WebSearchDebugInfo", mock_debug_info_class
+        )
+
         mocker.patch.object(
             WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None
         )
@@ -460,8 +471,10 @@ class TestWebSearchToolRun:
         tool.tool_parameter_calls = WebSearchToolParameters
         tool.logger = Mock()
         tool._message_step_logger = Mock()
-        tool.tool_progress_reporter = None
+        tool._tool_progress_reporter = None
         tool.debug = False
+        tool.settings = Mock()
+        tool.settings.display_name = "WebSearch"
 
         tool_call = Mock()
         tool_call.id = "test-id"
@@ -475,7 +488,11 @@ class TestWebSearchToolRun:
         assert result.name == "WebSearch"
         assert hasattr(result, "content_chunks")
         assert result.content_chunks == sample_content_chunks
-        assert not hasattr(result, "error_message") or result.error_message is None
+        assert (
+            not hasattr(result, "error_message")
+            or result.error_message is None
+            or result.error_message == ""
+        )
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -498,7 +515,18 @@ class TestWebSearchToolRun:
         mocker.patch("unique_web_search.service.get_crawler_service")
         mocker.patch("unique_web_search.service.ChunkRelevancySorter")
         mocker.patch("unique_web_search.service.ContentProcessor")
-        mocker.patch("unique_web_search.service.WebSearchDebugInfo")
+
+        # Mock WebSearchDebugInfo to return a proper dict from model_dump
+        mock_debug_info_class = Mock()
+        mock_debug_info_instance = Mock()
+        mock_debug_info_instance.model_dump.return_value = {"test": "debug_info"}
+        mock_debug_info_instance.num_chunks_in_final_prompts = None
+        mock_debug_info_instance.execution_time = None
+        mock_debug_info_class.return_value = mock_debug_info_instance
+        mocker.patch(
+            "unique_web_search.service.WebSearchDebugInfo", mock_debug_info_class
+        )
+
         mocker.patch.object(
             WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None
         )
@@ -509,7 +537,7 @@ class TestWebSearchToolRun:
         tool.tool_parameter_calls = WebSearchToolParameters
         tool.logger = Mock()
         tool._message_step_logger = Mock()
-        tool.tool_progress_reporter = None
+        tool._tool_progress_reporter = None
         tool.debug = False
 
         tool_call = Mock()
@@ -557,7 +585,18 @@ class TestWebSearchToolRun:
         mocker.patch("unique_web_search.service.get_crawler_service")
         mocker.patch("unique_web_search.service.ChunkRelevancySorter")
         mocker.patch("unique_web_search.service.ContentProcessor")
-        mocker.patch("unique_web_search.service.WebSearchDebugInfo")
+
+        # Mock WebSearchDebugInfo to return a proper dict from model_dump
+        mock_debug_info_class = Mock()
+        mock_debug_info_instance = Mock()
+        mock_debug_info_instance.model_dump.return_value = {"test": "debug_info"}
+        mock_debug_info_instance.num_chunks_in_final_prompts = None
+        mock_debug_info_instance.execution_time = None
+        mock_debug_info_class.return_value = mock_debug_info_instance
+        mocker.patch(
+            "unique_web_search.service.WebSearchDebugInfo", mock_debug_info_class
+        )
+
         mocker.patch.object(
             WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None
         )
@@ -568,8 +607,10 @@ class TestWebSearchToolRun:
         tool.tool_parameter_calls = WebSearchToolParameters
         tool.logger = Mock()
         tool._message_step_logger = Mock()
-        tool.tool_progress_reporter = mock_tool_progress_reporter
+        tool._tool_progress_reporter = mock_tool_progress_reporter
         tool.debug = False
+        tool.settings = Mock()
+        tool.settings.display_name = "WebSearch"
 
         tool_call = Mock()
         tool_call.id = "test-id"

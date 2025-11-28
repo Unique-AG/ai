@@ -153,8 +153,10 @@ def mock_message_step_logger():
 @pytest.fixture
 def mock_tool_progress_reporter():
     """Mock tool progress reporter for WebSearchTool."""
+    from unittest.mock import AsyncMock
+
     reporter = Mock(spec=["notify_from_tool_call"])
-    reporter.notify_from_tool_call = Mock()
+    reporter.notify_from_tool_call = AsyncMock()
     return reporter
 
 
@@ -185,12 +187,28 @@ def sample_web_search_log_entries():
 @pytest.fixture
 def sample_content_chunks():
     """Sample ContentChunk list for testing."""
-    chunk1 = Mock()
-    chunk1.text = "Test content 1"
-    chunk1.url = "https://example.com/page1"
-    chunk1.order = 0
-    chunk2 = Mock()
-    chunk2.text = "Test content 2"
-    chunk2.url = "https://example.com/page2"
-    chunk2.order = 1
+    from unique_toolkit.content import ContentChunk
+
+    chunk1 = ContentChunk(
+        id="example.com/page1",
+        text="Test content 1",
+        order=0,
+        start_page=None,
+        end_page=None,
+        key="example.com/page1",
+        chunk_id="0",
+        url="https://example.com/page1",
+        title="Test Page 1",
+    )
+    chunk2 = ContentChunk(
+        id="example.com/page2",
+        text="Test content 2",
+        order=1,
+        start_page=None,
+        end_page=None,
+        key="example.com/page2",
+        chunk_id="1",
+        url="https://example.com/page2",
+        title="Test Page 2",
+    )
     return [chunk1, chunk2]

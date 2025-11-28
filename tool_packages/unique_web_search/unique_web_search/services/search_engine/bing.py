@@ -13,13 +13,14 @@ from unique_web_search.services.search_engine.base import (
     SearchEngine,
     SearchEngineType,
 )
-from unique_web_search.services.search_engine.bing_utils import (
+from unique_web_search.services.search_engine.schema import (
+    WebSearchResult,
+    WebSearchResults,
+)
+from unique_web_search.services.search_engine.utils.bing import (
     credentials_are_valid,
     get_crendentials,
     get_project_client,
-)
-from unique_web_search.services.search_engine.schema import (
-    WebSearchResult,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -108,10 +109,6 @@ class BingSearch(SearchEngine[BingSearchConfig]):
             .user_message_append("\n".join(messages_list))
             .build()
         )
-
-        class WebSearchResults(BaseModel):
-            results: list[WebSearchResult]
-
         response = await self.language_model_service.complete_async(
             llm_messages,
             model_name=self.lmi.name,
