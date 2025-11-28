@@ -5,6 +5,7 @@ import re
 import pytest
 
 from unique_toolkit.agentic.tools.a2a.postprocessing._display_utils import (
+    SubAgentAnswerPart,
     _add_line_break,
     _get_display_removal_re,
     _get_display_template,
@@ -16,6 +17,7 @@ from unique_toolkit.agentic.tools.a2a.postprocessing._display_utils import (
     _wrap_with_details_tag,
     _wrap_with_quote_border,
     get_sub_agent_answer_display,
+    get_sub_agent_answer_from_parts,
     get_sub_agent_answer_parts,
     remove_sub_agent_answer_from_text,
 )
@@ -1721,3 +1723,381 @@ def test_get_sub_agent_answer_parts__works_with_details_modes__extracts_normally
     # Assert
     assert len(result) == 1
     assert result[0].matching_text == "SUCCESS"
+
+
+# Test get_sub_agent_answer_from_parts
+
+
+@pytest.mark.ai
+def test_get_sub_agent_answer_from_parts__returns_empty__with_empty_list() -> None:
+    """
+    Purpose: Verify empty or minimal output when no answer parts provided.
+    Why this matters: Handles edge case of no extracted content.
+    Setup summary: Provide empty list, assert minimal rendered output.
+    """
+    # Arrange
+    answer_parts: list[SubAgentAnswerPart] = []
+    config = SubAgentDisplayConfig(
+        mode=SubAgentResponseDisplayMode.PLAIN,
+    )
+
+    # Act
+    result = get_sub_agent_answer_from_parts(
+        answer_parts=answer_parts,
+        config=config,
+    )
+
+    # Assert
+    assert result == ""
+
+
+@pytest.mark.ai
+def test_get_sub_agent_answer_from_parts__renders_single_part__with_default_template() -> (
+    None
+):
+    """
+    Purpose: Verify single answer part is rendered using default template.
+    Why this matters: Core functionality for single substring display.
+    Setup summary: Provide single part with default template, assert rendered text.
+    """
+    # Arrange
+    answer_parts = [
+        SubAgentAnswerPart(matching_text="42", formatted_text="The answer is 42"),
+    ]
+    config = SubAgentDisplayConfig(
+        mode=SubAgentResponseDisplayMode.PLAIN,
+    )
+
+    # Act
+    result = get_sub_agent_answer_from_parts(
+        answer_parts=answer_parts,
+        config=config,
+    )
+
+    # Assert
+    assert "The answer is 42" in result
+
+
+@pytest.mark.ai
+def test_get_sub_agent_answer_from_parts__renders_multiple_parts__with_default_template() -> (
+    None
+):
+    """
+    Purpose: Verify multiple answer parts are rendered with default template.
+    Why this matters: Supports displaying multiple extracted substrings.
+    Setup summary: Provide multiple parts, assert all rendered in output.
+    """
+    # Arrange
+    answer_parts = [
+        SubAgentAnswerPart(
+            matching_text="john@example.com", formatted_text="Email: john@example.com"
+        ),
+        SubAgentAnswerPart(matching_text="555-1234", formatted_text="Phone: 555-1234"),
+        SubAgentAnswerPart(matching_text="John Doe", formatted_text="Name: John Doe"),
+    ]
+    config = SubAgentDisplayConfig(
+        mode=SubAgentResponseDisplayMode.PLAIN,
+    )
+
+    # Act
+    result = get_sub_agent_answer_from_parts(
+        answer_parts=answer_parts,
+        config=config,
+    )
+
+    # Assert
+    assert "Email: john@example.com" in result
+    assert "Phone: 555-1234" in result
+    assert "Name: John Doe" in result
+
+
+@pytest.mark.ai
+def test_get_sub_agent_answer_from_parts__uses_formatted_text__not_matching_text() -> (
+    None
+):
+    """
+    Purpose: Verify function uses formatted_text from parts, not matching_text.
+    Why this matters: Formatted text includes display template application.
+    Setup summary: Provide parts with different matching vs formatted text, assert formatted used.
+    """
+    # Arrange
+    answer_parts = [
+        SubAgentAnswerPart(matching_text="72", formatted_text="Temperature: 72°F"),
+    ]
+    config = SubAgentDisplayConfig(
+        mode=SubAgentResponseDisplayMode.PLAIN,
+    )
+
+    # Act
+    result = get_sub_agent_answer_from_parts(
+        answer_parts=answer_parts,
+        config=config,
+    )
+
+    # Assert
+    assert "Temperature: 72°F" in result
+    assert result.count("72") == 1  # Only formatted version, not raw matching_text
+
+
+@pytest.mark.ai
+def test_get_sub_agent_answer_from_parts__renders_with_custom_template__single_part() -> (
+    None
+):
+    """
+    Purpose: Verify custom Jinja template is applied correctly for single part.
+    Why this matters: Supports custom formatting via configuration.
+    Setup summary: Provide custom template with HTML, assert custom rendering.
+    """
+    # Arrange
+    answer_parts = [
+        SubAgentAnswerPart(matching_text="Success", formatted_text="Status: Success"),
+    ]
+    custom_template = "<div class='result'>{{ substrings[0] }}</div>"
+    config = SubAgentDisplayConfig(
+        mode=SubAgentResponseDisplayMode.PLAIN,
+        answer_substrings_jinja_template=custom_template,
+    )
+
+    # Act
+    result = get_sub_agent_answer_from_parts(
+        answer_parts=answer_parts,
+        config=config,
+    )
+
+    # Assert
+    assert result == "<div class='result'>Status: Success</div>"
+
+
+@pytest.mark.ai
+def test_get_sub_agent_answer_from_parts__renders_with_custom_template__multiple_parts() -> (
+    None
+):
+    """
+    Purpose: Verify custom template works with multiple parts and loop constructs.
+    Why this matters: Supports complex formatting with iteration.
+    Setup summary: Provide custom template with for loop, assert all parts rendered.
+    """
+    # Arrange
+    answer_parts = [
+        SubAgentAnswerPart(matching_text="Item1", formatted_text="- Item 1"),
+        SubAgentAnswerPart(matching_text="Item2", formatted_text="- Item 2"),
+        SubAgentAnswerPart(matching_text="Item3", formatted_text="- Item 3"),
+    ]
+    custom_template = """
+<ul>
+{% for substring in substrings %}
+<li>{{ substring }}</li>
+{% endfor %}
+</ul>
+""".strip()
+    config = SubAgentDisplayConfig(
+        mode=SubAgentResponseDisplayMode.PLAIN,
+        answer_substrings_jinja_template=custom_template,
+    )
+
+    # Act
+    result = get_sub_agent_answer_from_parts(
+        answer_parts=answer_parts,
+        config=config,
+    )
+
+    # Assert
+    assert "<ul>" in result
+    assert "</ul>" in result
+    assert "<li>- Item 1</li>" in result
+    assert "<li>- Item 2</li>" in result
+    assert "<li>- Item 3</li>" in result
+
+
+@pytest.mark.ai
+def test_get_sub_agent_answer_from_parts__preserves_order__of_parts() -> None:
+    """
+    Purpose: Verify parts are rendered in the order they appear in the list.
+    Why this matters: Predictable output order based on input order.
+    Setup summary: Provide parts in specific order, assert same order in output.
+    """
+    # Arrange
+    answer_parts = [
+        SubAgentAnswerPart(matching_text="First", formatted_text="1. First"),
+        SubAgentAnswerPart(matching_text="Second", formatted_text="2. Second"),
+        SubAgentAnswerPart(matching_text="Third", formatted_text="3. Third"),
+    ]
+    config = SubAgentDisplayConfig(
+        mode=SubAgentResponseDisplayMode.PLAIN,
+    )
+
+    # Act
+    result = get_sub_agent_answer_from_parts(
+        answer_parts=answer_parts,
+        config=config,
+    )
+
+    # Assert
+    # Check order by finding positions
+    pos_first = result.find("1. First")
+    pos_second = result.find("2. Second")
+    pos_third = result.find("3. Third")
+    assert pos_first < pos_second < pos_third
+
+
+@pytest.mark.ai
+def test_get_sub_agent_answer_from_parts__handles_special_chars__in_formatted_text() -> (
+    None
+):
+    """
+    Purpose: Verify formatted text with special characters renders correctly.
+    Why this matters: Answers may contain HTML entities or special symbols.
+    Setup summary: Provide parts with special chars, assert rendered as-is.
+    """
+    # Arrange
+    answer_parts = [
+        SubAgentAnswerPart(
+            matching_text="test",
+            formatted_text="Result: <tag> & 'quotes' & \"double\" & 50% & $100",
+        ),
+    ]
+    config = SubAgentDisplayConfig(
+        mode=SubAgentResponseDisplayMode.PLAIN,
+    )
+
+    # Act
+    result = get_sub_agent_answer_from_parts(
+        answer_parts=answer_parts,
+        config=config,
+    )
+
+    # Assert
+    # Jinja2 default behavior does not escape, so special chars should be preserved
+    assert "<tag>" in result
+    assert "&" in result
+    assert "'" in result
+    assert '"' in result
+    assert "%" in result
+    assert "$" in result
+
+
+@pytest.mark.ai
+def test_get_sub_agent_answer_from_parts__handles_multiline_formatted_text() -> None:
+    """
+    Purpose: Verify formatted text with newlines renders correctly.
+    Why this matters: Formatted content may span multiple lines.
+    Setup summary: Provide parts with newlines, assert multiline output.
+    """
+    # Arrange
+    answer_parts = [
+        SubAgentAnswerPart(
+            matching_text="multiline",
+            formatted_text="Line 1\nLine 2\nLine 3",
+        ),
+    ]
+    config = SubAgentDisplayConfig(
+        mode=SubAgentResponseDisplayMode.PLAIN,
+    )
+
+    # Act
+    result = get_sub_agent_answer_from_parts(
+        answer_parts=answer_parts,
+        config=config,
+    )
+
+    # Assert
+    assert "Line 1" in result
+    assert "Line 2" in result
+    assert "Line 3" in result
+
+
+@pytest.mark.ai
+def test_get_sub_agent_answer_from_parts__works_with_custom_template__conditional_logic() -> (
+    None
+):
+    """
+    Purpose: Verify custom template with Jinja conditionals works correctly.
+    Why this matters: Supports advanced formatting with conditional rendering.
+    Setup summary: Provide custom template with if statement, assert conditional output.
+    """
+    # Arrange
+    answer_parts = [
+        SubAgentAnswerPart(matching_text="a", formatted_text="Item A"),
+        SubAgentAnswerPart(matching_text="b", formatted_text="Item B"),
+    ]
+    custom_template = """
+{% if substrings|length > 1 %}
+Multiple items: {{ substrings|join(', ') }}
+{% else %}
+Single item: {{ substrings[0] }}
+{% endif %}
+""".strip()
+    config = SubAgentDisplayConfig(
+        mode=SubAgentResponseDisplayMode.PLAIN,
+        answer_substrings_jinja_template=custom_template,
+    )
+
+    # Act
+    result = get_sub_agent_answer_from_parts(
+        answer_parts=answer_parts,
+        config=config,
+    )
+
+    # Assert
+    assert "Multiple items:" in result
+    assert "Item A, Item B" in result
+
+
+@pytest.mark.ai
+def test_get_sub_agent_answer_from_parts__empty_formatted_text__renders_empty() -> None:
+    """
+    Purpose: Verify parts with empty formatted_text render as empty.
+    Why this matters: Edge case handling for empty content.
+    Setup summary: Provide parts with empty formatted_text, assert minimal output.
+    """
+    # Arrange
+    answer_parts = [
+        SubAgentAnswerPart(matching_text="something", formatted_text=""),
+    ]
+    config = SubAgentDisplayConfig(
+        mode=SubAgentResponseDisplayMode.PLAIN,
+    )
+
+    # Act
+    result = get_sub_agent_answer_from_parts(
+        answer_parts=answer_parts,
+        config=config,
+    )
+
+    # Assert
+    # Default template renders empty string for empty formatted_text
+    assert result.strip() == ""
+
+
+@pytest.mark.ai
+def test_get_sub_agent_answer_from_parts__integration__with_get_sub_agent_answer_parts() -> (
+    None
+):
+    """
+    Purpose: Verify integration between get_sub_agent_answer_parts and get_sub_agent_answer_from_parts.
+    Why this matters: These functions work together in the display pipeline.
+    Setup summary: Use get_sub_agent_answer_parts output as input, assert complete workflow.
+    """
+    # Arrange
+    answer = "Contact: john@example.com or call 555-1234"
+    config = SubAgentDisplayConfig(
+        mode=SubAgentResponseDisplayMode.PLAIN,
+        answer_substrings_config=[
+            SubAgentAnswerSubstringConfig(
+                regexp=r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b",
+                display_template="Email: {}",
+            ),
+            SubAgentAnswerSubstringConfig(
+                regexp=r"\d{3}-\d{4}",
+                display_template="Phone: {}",
+            ),
+        ],
+    )
+
+    # Act
+    parts = get_sub_agent_answer_parts(answer=answer, display_config=config)
+    result = get_sub_agent_answer_from_parts(answer_parts=parts, config=config)
+
+    # Assert
+    assert "Email: john@example.com" in result
+    assert "Phone: 555-1234" in result
