@@ -1,6 +1,5 @@
 from typing_extensions import override
 
-from unique_toolkit import LanguageModelService
 from unique_toolkit._common.utils.jinja.render import render_template
 from unique_toolkit.data_extraction.base import (
     BaseDataExtractionResult,
@@ -10,6 +9,7 @@ from unique_toolkit.data_extraction.base import (
 from unique_toolkit.data_extraction.basic.config import (
     StructuredOutputDataExtractorConfig,
 )
+from unique_toolkit.language_model import LanguageModelService
 from unique_toolkit.language_model.builder import MessagesBuilder
 
 
