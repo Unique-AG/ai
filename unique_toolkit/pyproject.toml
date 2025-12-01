@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_toolkit"
-version = "1.33.3"
+version = "1.34.0"
 description = ""
 authors = [
     "Cedric Klinkert <cedric.klinkert@unique.ch>",

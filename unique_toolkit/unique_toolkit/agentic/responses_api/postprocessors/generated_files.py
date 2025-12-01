@@ -8,6 +8,7 @@ from openai import AsyncOpenAI
 from openai.types.responses.response_output_text import AnnotationContainerFileCitation
 from pydantic import BaseModel, Field, RootModel
 
+from unique_toolkit import ChatService
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
     ResponsesApiPostprocessor,
 )
@@ -27,9 +28,13 @@ logger = logging.getLogger(__name__)
 
 class DisplayCodeInterpreterFilesPostProcessorConfig(BaseModel):
     model_config = get_configuration_dict()
+    upload_to_chat: bool = Field(
+        default=False,
+        description="Whether to upload the generated files to the chat.",
+    )
     upload_scope_id: str = Field(
         default="<SCOPE_ID_PLACEHOLDER>",
-        description="The scope ID where the generated files will be uploaded.",
+        description="The scope ID where the generated files will be uploaded. Ignored if `uploadToChat` is set.",
     )
 
     file_download_failed_message: str = Field(
@@ -75,6 +80,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
         client: AsyncOpenAI,
         content_service: ContentService | KnowledgeBaseService,
         config: DisplayCodeInterpreterFilesPostProcessorConfig,
+        chat_service: ChatService | None = None,
         # Short term memory arguments, we prefer to explicitely pass the required auth variables
         # as it is crucial that we use chat-level short term memory not to leak user files to other chats.
         # Technically, short term memory can be scoped company-level, we would like to ensure this case is avoided.
@@ -83,9 +89,14 @@ class DisplayCodeInterpreterFilesPostProcessor(
         chat_id: str | None = None,
     ) -> None:
         super().__init__(self.__class__.__name__)
+
         self._content_service = content_service
-        self._config = config
+        self._chat_service = chat_service
         self._client = client
+        self._config = config
+
+        if self._config.upload_to_chat and self._chat_service is None:
+            raise ValueError("ChatService is required if uploadToChat is True")
 
         self._short_term_memory_manager = None
         if chat_id is not None and user_id is not None and company_id is not None:
@@ -199,13 +210,23 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 "Uploading file content for %s to knowledge base",
                 container_file.filename,
             )
-            content = await self._content_service.upload_content_from_bytes_async(
-                content=file_content.content,
-                content_name=container_file.filename,
-                skip_ingestion=True,
-                mime_type=guess_type(container_file.filename)[0] or "text/plain",
-                scope_id=self._config.upload_scope_id,
-            )
+
+            if self._config.upload_to_chat:
+                assert self._chat_service is not None  # Checked in __init__
+                content = await self._chat_service.upload_to_chat_from_bytes_async(
+                    content=file_content.content,
+                    content_name=container_file.filename,
+                    mime_type=guess_type(container_file.filename)[0] or "text/plain",
+                    skip_ingestion=True,
+                )
+            else:
+                content = await self._content_service.upload_content_from_bytes_async(
+                    content=file_content.content,
+                    content_name=container_file.filename,
+                    mime_type=guess_type(container_file.filename)[0] or "text/plain",
+                    scope_id=self._config.upload_scope_id,
+                    skip_ingestion=True,
+                )
 
             return _ContentInfo(filename=container_file.filename, content_id=content.id)
 
