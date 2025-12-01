@@ -411,11 +411,7 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
         if (
             tool_call.arguments is None
             or not isinstance(tool_call.arguments, dict)
-            or (
-                "search_strings" not in tool_call.arguments
-                and "search_string"
-                not in tool_call.arguments  # Backwards compatibility
-            )
+            or "search_string" not in tool_call.arguments
         ):
             self.logger.error("Tool call arguments are missing or invalid")
             return ToolCallResponse(
@@ -426,9 +422,8 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             )
 
         # Extract the search strings (handle both new and old parameter names)
-        search_strings_data = tool_call.arguments.get(
-            "search_strings", tool_call.arguments.get("search_string")
-        )
+        search_strings_data = tool_call.arguments.get("search_string", "")
+
         # Ensure it's always a list for the progress message
         search_strings_list: list[str] = []
         if isinstance(search_strings_data, str):
@@ -437,6 +432,11 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             search_strings_list = search_strings_data
         else:
             raise ValueError("Invalid search strings data")
+
+        # Clean search strings by removing QDF and boost operators
+        search_strings_list = [clean_search_string(s) for s in search_strings_list]
+        search_strings_list = list(dict.fromkeys(search_strings_list))
+        search_strings_list = search_strings_list[: self.config.max_search_strings]
 
         await self.post_progress_message(f"{'; '.join(search_strings_list)}", tool_call)
 
