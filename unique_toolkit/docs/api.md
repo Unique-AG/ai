@@ -11,6 +11,8 @@ This is the API Reference for the unique toolkit.
 - [Short Term Memory Module](./modules/short_term_memory.md) - Create memories attached to a specific chat
 - [App Module](./modules/app.md) - App initialization, SDK setup, event handling, and webhook verification
 - [Smart Rules](./modules/content_smart_rules.md) - Create complex queries using UniqueQL to filter and search content
+- [Data Extraction](./modules/data_extraction.md)
+The data extraction provides a flexible framework for extracting structured data from text using language models
 
 ### Framework Utilities
 
