@@ -153,5 +153,6 @@ class InternalSearchConfig(BaseToolConfig):
     )
     max_search_strings: int = Field(
         default=10,
+        ge=1,
         description="The maximum number of search strings to perform in a single tool call.",
     )

@@ -1832,7 +1832,7 @@ class TestInternalSearchTool:
     @pytest.mark.asyncio
     @patch("unique_internal_search.service.ContentService")
     @patch("unique_internal_search.service.ChunkRelevancySorter")
-    async def test_define_reference_list_for_message_log__sets_empty_url__for_internal_chunks(
+    async def test_define_reference_list_for_message_log__sets_unique_url__for_internal_chunks(
         self,
         mock_sorter_class: Any,
         mock_content_service_class: Any,
@@ -1844,9 +1844,9 @@ class TestInternalSearchTool:
         mock_chat_event: Any,
     ) -> None:
         """
-        Purpose: Verify _define_reference_list_for_message_log sets empty URL for internal chunks.
-        Why this matters: Internal documents don't have URLs, only source IDs.
-        Setup summary: Create internal content chunk, call _define_reference_list_for_message_log, verify URL is empty string.
+        Purpose: Verify _define_reference_list_for_message_log sets unique:// URL for internal chunks.
+        Why this matters: Internal documents use unique:// protocol URLs with chunk IDs.
+        Setup summary: Create internal content chunk, call _define_reference_list_for_message_log, verify URL format.
         """
         # Arrange
         mock_content_service_class.from_event.return_value = mock_content_service
@@ -1870,7 +1870,7 @@ class TestInternalSearchTool:
 
         # Assert
         assert isinstance(references[0].url, str)
-        assert references[0].url == ""
+        assert references[0].url == f"unique://content/{sample_content_chunk.id}"
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -1985,6 +1985,82 @@ class TestInternalSearchTool:
         # Assert
         assert len(references) == 1
         assert references[0].name == "doc1.pdf"
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__limits_search_strings__to_max_search_strings_in_tool_call(
+        self,
+        base_internal_search_config: InternalSearchConfig,
+        mock_chat_event: Any,
+        mock_logger: Any,
+        sample_content_chunks: list[ContentChunk],
+        mock_tool_progress_reporter: Any,
+    ) -> None:
+        """
+        Purpose: Verify run method limits search strings to max_search_strings config when list provided.
+        Why this matters: Ensures tool call respects max_search_strings limit from configuration.
+        Setup summary: Set max_search_strings to 2, provide 4 strings in tool_call, verify only 2 execute.
+        """
+        # Arrange
+        base_internal_search_config.experimental_features.enable_multiple_search_strings_execution = True
+        base_internal_search_config.max_search_strings = 2
+
+        with (
+            patch(
+                "unique_internal_search.service.ContentService"
+            ) as mock_content_service_class,
+            patch(
+                "unique_internal_search.service.ChunkRelevancySorter"
+            ) as mock_sorter_class,
+            patch(
+                "unique_internal_search.service.append_metadata_in_chunks",
+                return_value=sample_content_chunks,
+            ),
+        ):
+            mock_content_service = Mock(spec=ContentService)
+            mock_content_service._metadata_filter = None
+            mock_content_service.search_contents_async = AsyncMock(return_value=[])
+            mock_content_service.search_content_chunks_async = AsyncMock(
+                return_value=sample_content_chunks
+            )
+            mock_content_service_class.from_event.return_value = mock_content_service
+            mock_sorter_class.from_event.return_value = Mock()
+
+            def setup_tool(self, configuration, event, *args, **kwargs):
+                # Set _event attribute that Tool base class expects
+                setattr(self, "_event", event)
+                setattr(self, "logger", mock_logger)
+
+            with (
+                patch("unique_internal_search.service.Tool.__init__", setup_tool),
+                patch.object(
+                    InternalSearchTool,
+                    "tool_progress_reporter",
+                    new_callable=PropertyMock,
+                    return_value=mock_tool_progress_reporter,
+                ),
+            ):
+                tool = InternalSearchTool(
+                    configuration=base_internal_search_config,
+                    event=mock_chat_event,
+                )
+
+                # Create tool call with more search strings than the limit
+                tool_call = Mock()
+                tool_call.id = "tool_call_123"
+                tool_call.arguments = {
+                    "search_string": ["query1", "query2", "query3", "query4"],
+                    "language": "english",
+                }
+
+                # Act
+                result = await tool.run(tool_call)
+
+            # Assert - only max_search_strings (2) should be executed
+            assert result.name == "InternalSearch"
+            assert result.id == "tool_call_123"
+            # Verify only 2 search calls were made (the limit)
+            assert mock_content_service.search_content_chunks_async.call_count == 2
 
     @pytest.mark.ai
     @pytest.mark.asyncio
