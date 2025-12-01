@@ -1,6 +1,5 @@
 import asyncio
 from logging import Logger
-from typing import Any
 
 from pydantic import Field, create_model
 from typing_extensions import override
