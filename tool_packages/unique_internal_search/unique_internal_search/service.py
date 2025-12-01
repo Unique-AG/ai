@@ -1,5 +1,6 @@
 import asyncio
 from logging import Logger
+from typing import Any
 
 from pydantic import Field, create_model
 from typing_extensions import override
@@ -433,7 +434,9 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
         else:
             raise ValueError("Invalid search strings data")
 
-        # Limit the number of search strings to the maximum allowed
+        # Clean search strings by removing QDF and boost operators
+        search_strings_list = [clean_search_string(s) for s in search_strings_list]
+        search_strings_list = list(dict.fromkeys(search_strings_list))
         search_strings_list = search_strings_list[: self.config.max_search_strings]
 
         await self.post_progress_message(f"{'; '.join(search_strings_list)}", tool_call)
