@@ -4,172 +4,28 @@ A event driven application reacts to events obtained from the Unique plattfom. T
 
 For a secure application it is paramount that successive events do not have any effect onto each other, thus ideally your functionality is stateless and all necessary state is obtained via the services of the Unique Plattform.
 
-## Development Setup
 
+# Events
 
-### Using Server Sent Events (SSE)
-The following secrets must be configured for this in an `unique.env` file or in the environment when developing with SSE
+The unique platform sends out events to dedictate endpoints (Webhooks) or registered clients (SSE). 
 
-```env
-UNIQUE_API_BASE_URL=            # The backend url of Unique's public API
-UNIQUE_API_VERSION=             # The version Unique's public API
+# Development Setup
 
-UNIQUE_APP_ID=                  # The app id as obtained in the App secion of Unique
-UNIQUE_APP_KEY=                 # The app key as obtained in the App secion of Unique
+## Register App in Plattform
+Wether we use the SSE client to initiate the connection from the python code or we expose the webhook via an URL, the app need to be registered as explained [here](./event_driven_platform_setup.md)
 
-UNIQUE_AUTH_COMPANY_ID=
-UNIQUE_AUTH_USER_ID=
-```
+## Option1: Connecting via SSE Client
+Using an SSE client we can connect to the event stream of the unique platform.  Find more [here](./event_driven_with_sse.md).
 
-For convenience we provide the `get_event_generator` functionality that hides the complexities of the SSE client such that it suffices to specify the type of event the application is looking for. At the moment only `ChatEvent` is available but other events will soon follow.
+## Option2: Exposing an Endpoint to the Unique Platform
+Setting up an FastAPI application and exposing the local endpoint via ngrok and the web we can register this endpoint directly within the Unique platform
+More [here](./event_driven_as_app_with_ngrok.md)
 
 
-<!--
-```{.python #unique_settings_import}
-from unique_toolkit.app.unique_settings import UniqueSettings
-from unique_toolkit.app.init_sdk import init_unique_sdk
-```
+## Filtering Chat Events
 
-``` {.python #unique_sse_setup_import}
-from unique_toolkit.app.dev_util import get_event_generator
-from unique_toolkit.app.schemas import ChatEvent 
-```
--->
-```{.python #unique_setup_settings_sdk_from_env}
-settings = UniqueSettings.from_env_auto_with_sdk_init()
-```
-
-```{.python #obtaining_sse_client_with_chat_event}
-for event in get_event_generator(unique_settings=settings, event_type=ChatEvent):
-    <<init_services_from_event>>
-
-```
-
-
-
-### Using Webhooks and ngrok
-
-The following secrets must be configured for this in an `unique.env` file or in the environment when developing with SSE
-
-```env
-UNIQUE_API_BASE_URL=            # The backend url of Unique's public API
-UNIQUE_API_VERSION=             # The version Unique's public API
-
-UNIQUE_APP_ID=                  # The app id as obtained in the App secion of Unique
-UNIQUE_APP_KEY=                 # The app key as obtained in the App secion of Unique
-
-UNIQUE_AUTH_COMPANY_ID=
-UNIQUE_AUTH_USER_ID=
-
-UNIQUE_APP_ENDPOINT=            # The app endpoint where the container is reachable (**CHECK THIS**)
-UNIQUE_APP_ENDPOINT_SECRET=     # The app endpoint secret (**CHECK THIS**)
-```
-
-
-A minimal application could look like this
-
-
-??? example "Example Application"
-    
-    <!--codeinclude-->
-    [Custom Application with FastAPI](./../examples_from_docs/fastapi_app_minimal.py)
-    <!--/codeinclude-->
-
-
-This can be run using the debugger and will be exposed locally under `http://localhost:5001`. To make the application available to the platform we can expose it using [ngrok](https://ngrok.com/), therefore we execute 
-
-```
-ngrok http 5001
-```
-
-on the command line. This will open a live console with the following content 
-
-```
-ngrok
-
-⚠️ Free Users: Agents ≤3.18.x stop connecting 12/17/25. Update or upgrade: https://ngrok.com/
-
-pricing
-
-Session Status
-online
-Account                       <redacted> (Plan:Free)
-Update                        update available (version 3.33.0, Ctrl-U to update)
-Version                       3.25.0
-Region                        Europe (eu)
-Latency                       16ms
-Web Interface                 http://127.0.0.1:4040
-Forwarding                    https://<this>-<is>-<redacted>.ngrok-free.dev -> http://localhost:5001
-
-Connections                   ttl     opn     rt1     rt5     p50     p90
-                              15      0       0.00    0.00    10.77   163.64
-HTTP Requests
-```
-
-The important url is `https://<this>-<is>-<redacted>.ngrok-free.dev`, this will be accessible throught the web. The url must be registered in the endpoint section of the App we have created
-
-
-![alt text](./images/create_app_endpoints.png){ height=100 } 
-
-Additionally to the url, we must give a name and a description to the endpoint and decide to what event the app is subscribing to
-
-![alt text](./images/create_app_endpoints_popup.png){ height=100 } 
-
-Note that we have to append `/webhook` to the url and that for custom chat applications `unique.chat.external-module.chose` is required. 
-
-We can now add the two secrets to `unique.env`
-
-```
-UNIQUE_APP_ENDPOINT=https://<this>-<is>-<redacted>.ngrok-free.dev/webhook
-UNIQUE_APP_ENDPOINT_SECRET=usig_<redacted>
-```
-
-## Setting up a Module and a Space
-
-Wether SSE or Webhooks are use, a AI Module Template and a Space must be setup to send messages to the app.
-
-### Module Templates
-
-Modules Templates establish a base configuration and setup that can be further refined when setting up a space.
-Most importantly they define the `reference in Code` that will be passed along with each event and can be used to filter events.
-
-1. Click on  ![alt text](./images/module_button.png){ height=20 } to create a new module using the ![alt text](./images/create_module_button.png){ height=20 } this should open the following page.
-
-![alt text](./images/create_module_full_page.png)
-
-2. Name the Module and give it a unique `Reference in Code`
-
-
-![alt text](./images/create_module_reference_in_code.png)
-
-3. Define a default configuration that can be refined in the space setup. This can be any JSON object that you want to pass to your application.
-
-4. Define a default definition (this is a function/tool definition ) that must follow the [openai definitions](https://platform.openai.com/docs/guides/function-calling#defining-functions). This is only required for the case where a space hosts multiple modules at the same time.
-
-### Space 
-
-Spaces are shown as assistants and can host multiple modules
-
-1. Click on  ![alt text](./images/space_button.png){ height=50 } and click on the ![alt text](./images/create_space_button.png){ height=50 }. This will lead you to the following page
-![alt text](./images/create_space_page.png)
-
-
-2. Click on custom space and name your space
-
-3. Select an AI module template in the following selection
-![alt text](./images/create_ai_assistant_space.png)
-
-4. Edit the configuration and definition
-![alt text](./images/create_ai_assistant_space_configuration.png)
-
-5. Publish the space in the top right corner and follow the `Go to Chat` link.
-
-
-
-
-## Filtering chat events when using SSE or Webhooks
-
-Chat events are filtered by the following two environment variables
+Applications using events are responsible to decide how to react to them and to configure what events should be dropped. 
+Chat events may be filtered by the following two environment variables
 
 ```
 UNIQUE_CHAT_EVENT_FILTER_OPTIONS_ASSISTANT_IDS=
@@ -185,9 +41,7 @@ UNIQUE_CHAT_EVENT_FILTER_OPTIONS_ASSISTANT_IDS=["assistant_i34ys925m8zi5n6ptobbn
 UNIQUE_CHAT_EVENT_FILTER_OPTIONS_REFERENCES_IN_CODE=["AcademyTestModule"]
 ```
 
-⚠️ Events are filtered by default if none of the above variables are defined
-️ 
-
+⚠️ Events are filtered by default if none of the above variables are defined when using our SSE or FastApi setup.
 
 
 
@@ -219,8 +73,8 @@ for event in get_event_generator(unique_settings=settings, event_type=ChatEvent)
 -->
 
 
-??? example "Full Examples (Click to expand)"
-    
-    <!--codeinclude-->
-    [Full SSE Setup](../examples_from_docs/sse_setup_with_services.py)
-    <!--/codeinclude-->
+
+️
+
+
+
