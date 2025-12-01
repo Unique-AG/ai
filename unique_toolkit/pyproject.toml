@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_toolkit"
-version = "1.33.1"
+version = "1.33.2"
 description = ""
 authors = [
     "Cedric Klinkert <cedric.klinkert@unique.ch>",
@@ -20,7 +20,7 @@ python = "^3.12"
 typing-extensions = "^4.9.0"
 pydantic = "^2.8.2"
 pyhumps = "^3.8.0"
-numpy = "^1.26.4"
+numpy = "^2.1.0"
 python-dotenv = "^1.0.1"
 regex = "^2024.5.15"
 tiktoken = "^0.12.0"
