@@ -1,8 +1,8 @@
 # Event Driven App
 
-A event driven application reacts to events obtained from the Unique plattfom. These event can be used to initialize services that in turn have effect on the chat, knowledge base or the agentic table.
+An event driven application reacts to events obtained from the Unique platform. These events can be used to initialize services that in turn have effect on the chat, knowledge base or the agentic table.
 
-For a secure application it is paramount that successive events do not have any effect onto each other, thus ideally your functionality is stateless and all necessary state is obtained via the services of the Unique Plattform.
+For a secure application it is paramount that successive events do not have any effect onto each other, thus ideally your functionality is stateless and all necessary state is obtained via the services of the Unique Platform.
 
 
 # Events
@@ -11,15 +11,14 @@ The unique platform sends out events to dedictate endpoints (Webhooks) or regist
 
 # Development Setup
 
-## Register App in Plattform
-Wether we use the SSE client to initiate the connection from the python code or we expose the webhook via an URL, the app need to be registered as explained [here](./event_driven_platform_setup.md)
+## Register App in Platform
+Whether we use the SSE client to initiate the connection from the Python code or we expose the webhook via a URL, the app needs to be registered as explained [here](./event_driven_platform_setup.md)
 
-## Option1: Connecting via SSE Client
-Using an SSE client we can connect to the event stream of the unique platform.  Find more [here](./event_driven_with_sse.md).
+## Option 1: Connecting via SSE Client
+Using an SSE client we can connect to the event stream of the unique platform. Find more [here](./event_driven_with_sse.md).
 
-## Option2: Exposing an Endpoint to the Unique Platform
-Setting up an FastAPI application and exposing the local endpoint via ngrok and the web we can register this endpoint directly within the Unique platform
-More [here](./event_driven_as_app_with_ngrok.md)
+## Option 2: Exposing an Endpoint to the Unique Platform
+Setting up a FastAPI application and exposing the local endpoint via ngrok and the web, we can register this endpoint directly within the Unique platform. More [here](./event_driven_as_app_with_ngrok.md)
 
 
 ## Filtering Chat Events
@@ -41,7 +40,16 @@ UNIQUE_CHAT_EVENT_FILTER_OPTIONS_ASSISTANT_IDS=["assistant_i34ys925m8zi5n6ptobbn
 UNIQUE_CHAT_EVENT_FILTER_OPTIONS_REFERENCES_IN_CODE=["AcademyTestModule"]
 ```
 
-⚠️ Events are filtered by default if none of the above variables are defined when using our SSE or FastApi setup.
+⚠️ Events are filtered by default if none of the above variables are defined when using our SSE or FastAPI setup.
+
+### How Filtering Works
+
+Filtering happens automatically before your event handler is called. Events that don't match the filter criteria are silently dropped. This helps ensure your application only processes relevant events.
+
+- If `UNIQUE_CHAT_EVENT_FILTER_OPTIONS_ASSISTANT_IDS` is set, only events for those assistant IDs will be processed
+- If `UNIQUE_CHAT_EVENT_FILTER_OPTIONS_REFERENCES_IN_CODE` is set, only events from modules with those references will be processed
+- If both are set, events must match both criteria
+- If neither is set, **all events are filtered out** (default behavior)
 
 
 

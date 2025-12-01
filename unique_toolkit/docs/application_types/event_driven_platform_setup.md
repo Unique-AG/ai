@@ -1,6 +1,6 @@
 # Setting up a Development Application on the Platform
 
-Wether SSE or Webhooks are used, a AI Module Template and a Space must be setup to send messages to the app.
+Whether SSE or Webhooks are used, an AI Module Template and a Space must be set up to send messages to the app.
 
 ### Module Templates
 

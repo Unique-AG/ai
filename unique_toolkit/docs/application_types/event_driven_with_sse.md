@@ -1,4 +1,9 @@
-# Development Setup with Server Sent Events (SSE)
+# Development Setup with Event Socket Streaming Endpoint(SSE)
+
+Server-Sent Events (SSE) provide a persistent connection to the Unique platform's event stream. This is ideal for development as it doesn't require exposing a public endpoint.
+
+## Configuration
+
 The following secrets must be configured for this in an `unique.env` file or in the environment when developing with SSE
 
 ```env

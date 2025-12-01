@@ -1,6 +1,10 @@
 # Development Setup with Webhooks and ngrok
 
-The following secrets must be configured for this in an `unique.env` file or in the environment when developing with SSE
+This setup allows you to expose a local FastAPI application to the Unique platform using ngrok as a tunnel. This is useful for local development when you want to test webhook endpoints.
+
+## Configuration
+
+The following secrets must be configured for this in an `unique.env` file or in the environment when developing with webhooks
 
 ```env
 UNIQUE_API_BASE_URL=            # The backend url of Unique's public API
@@ -77,6 +81,29 @@ UNIQUE_APP_ENDPOINT_SECRET=usig_<redacted>
 
 
 
+## Troubleshooting
+
+### ngrok Issues
+
+- **URL changes on restart**: This is expected with the free tier. Update `UNIQUE_APP_ENDPOINT` in your environment and re-register the endpoint in the platform
+- **Connection refused**: Ensure your FastAPI app is running on the correct port (default: 5001)
+- **ngrok not starting**: Check if port 4040 is already in use (ngrok web interface)
+
+### Webhook Not Receiving Events
+
+- **Endpoint not registered**: Verify the endpoint is registered in the platform with the correct URL (including `/webhook`)
+- **Wrong event subscription**: Ensure you've subscribed to `unique.chat.external-module.chose` for chat events
+- **URL mismatch**: The URL in your environment must exactly match the one registered in the platform
+- **Secret mismatch**: Verify `UNIQUE_APP_ENDPOINT_SECRET` matches the secret from the platform
+
+
+
+### Debugging Tips
+
+- Check ngrok web interface at `http://127.0.0.1:4040` to see incoming requests
+- Enable debug logging in your FastAPI app
+- Verify the webhook is being called by checking ngrok request logs
+- Test the endpoint locally first before exposing via ngrok
 
  
 
