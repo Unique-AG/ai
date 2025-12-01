@@ -66,7 +66,21 @@ nav:
     - Evaluation Manager: agentic_framework/evaluation_manager.md
     - Reference Manager: agentic_framework/reference_manager.md
     - History Manager: agentic_framework/history_manager.md
-  - API Reference: api.md
+  - API Reference:
+    - Overview: api.md
+    - Core Services:
+      - Chat Module: modules/chat.md
+      - Knowledge Base Module: modules/knowledge_base.md
+      - Short Term Memory Module: modules/short_term_memory.md
+      - App Module: modules/app.md
+      - Smart Rules: modules/content_smart_rules.md
+    - Framework Utilities:
+      - OpenAI Client: modules/openai.md
+      - Langchain Client: modules/langchain.md
+    - Deprecated Modules:
+      - Content Module: modules/content.md
+      - Embedding Module: modules/embedding.md
+      - Language Model Module: modules/language_model.md
   - Readme: readme.md
 
 markdown_extensions:

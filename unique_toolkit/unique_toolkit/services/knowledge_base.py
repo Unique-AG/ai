@@ -377,7 +377,6 @@ class KnowledgeBaseService:
             mime_type (str): The MIME type of the content.
             scope_id (str | None): The scope ID. Defaults to None.
             skip_ingestion (bool): Whether to skip ingestion. Defaults to False.
-            skip_excel_ingestion (bool): Whether to skip excel ingestion. Defaults to False.
             ingestion_config (unique_sdk.Content.IngestionConfig | None): The ingestion configuration. Defaults to None.
             metadata (dict | None): The metadata to associate with the content. Defaults to None.
 
@@ -449,7 +448,7 @@ class KnowledgeBaseService:
         skip_excel_ingestion: bool = False,
         ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
         metadata: dict[str, Any] | None = None,
-    ):
+    ) -> Content:
         """
         Uploads content to the knowledge base.
 
@@ -487,14 +486,14 @@ class KnowledgeBaseService:
         content_id: str,
         output_dir_path: Path | None = None,
         output_filename: str | None = None,
-    ):
+    ) -> Path:
         """
         Downloads content from a chat and saves it to a file.
 
         Args:
             content_id (str): The ID of the content to download.
-            filename (str | None): The name of the file to save the content as. If not provided, the original filename will be used. Defaults to None.
-            tmp_dir_path (str | Path | None): The path to the temporary directory where the content will be saved. Defaults to "/tmp".
+            output_filename (str | None): The name of the file to save the content as. If not provided, the original filename will be used. Defaults to None.
+            output_dir_path (str | Path | None): The path to the temporary directory where the content will be saved. Defaults to "/tmp".
 
         Returns:
             Path: The path to the downloaded file.
@@ -522,7 +521,6 @@ class KnowledgeBaseService:
 
         Args:
             content_id (str): The id of the uploaded content.
-            chat_id (Optional[str]): The chat_id, defaults to None.
 
         Returns:
             bytes: The downloaded content.

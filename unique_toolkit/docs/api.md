@@ -1,16 +1,24 @@
 # API Reference
 
-This is the API Reference for the unique toolkit. 
+This is the API Reference for the unique toolkit.
 
+## Available Modules
 
-## [Knowledge Base Module](./modules/knowledge_base.md)
-The content module is responsable for all interaction with the knowledge base.
-## [Chat Module](./modules/chat.md)
-The chat modules contains all capabilities to interact with the chat frontend.
-## [Short Term Memory Module](./modules/short_term_memory.md)
-The short term memory can be used to create memories that are attached to a specific chat.
-## [OpenAI Client](./modules/openai.md)
-The toolkit platform aims to be compatible with the OpenAI stantdard.
+### Core Services
 
-## [Embedding Module (Deprecated soon)](./modules/embedding.md)
-## [Language Model Module (Deprecated soon)](./modules/language_model.md)
+- [Chat Module](./modules/chat.md) - All capabilities to interact with the chat frontend
+- [Knowledge Base Module](./modules/knowledge_base.md) - All interaction with the knowledge base
+- [Short Term Memory Module](./modules/short_term_memory.md) - Create memories attached to a specific chat
+- [App Module](./modules/app.md) - App initialization, SDK setup, event handling, and webhook verification
+- [Smart Rules](./modules/content_smart_rules.md) - Create complex queries using UniqueQL to filter and search content
+
+### Framework Utilities
+
+- [OpenAI Client](./modules/openai.md) - OpenAI-compatible client for the toolkit platform
+- [Langchain Client](./modules/langchain.md) - Langchain integration client
+
+### Deprecated Modules
+
+- [Content Module (Deprecated)](./modules/content.md) - Low-level content operations (use KnowledgeBaseService instead)
+- [Embedding Module (Deprecated soon)](./modules/embedding.md) - Embedding functionality (use OpenAI Client directly)
+- [Language Model Module (Deprecated soon)](./modules/language_model.md) - Language model operations (use OpenAI Client directly)

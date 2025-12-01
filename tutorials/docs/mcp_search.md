@@ -1,117 +1,69 @@
 ## 📌 Overview
-This document describes a HTTP-streamable MCP server built with FastMCP. It focuses on:
-- Authentication and authorization via OAuth2/JWT (using Zitadel as IAM, swappable to other IdPs)
-- FastMCP setup (tools, identify, metadata)
-- Combining MCP with standard HTTP routes (FastAPI/Starlette-style)
-- Running with CORS for browser-based inspectors (e.g., MCP Inspector) and clients (e.g., Unique AI)
+This tutorial demonstrates building an HTTP-streamable MCP server that integrates with the Unique SDK to provide search functionality, **with a focus on demonstrating how unique credentials (`user_id` and `company_id`) can be passed and used by underlying tools for authenticated operations via the Unique SDK**. It includes:
 
-Key point: this is an HTTP MCP server, not a local MCP. Web clients (like Unique AI) cannot use local MCP; HTTP + OAuth ensures user identity, avoids local installs, and enables secure access.
+- **Extracting unique credentials** (`user_id` and `company_id`) from authenticated tokens
+- A `search` tool that queries a knowledge base using the Unique SDK with user-specific credentials
+- An `identify` tool that retrieves the current user's profile (including `user_id` and `company_id`)
+- Integration with Unique SDK for authenticated search operations using extracted credentials
 
-See the full example here [https://github.com/Unique-AG/ai/tree/main/tutorials/mcp/mcp_search](https://github.com/Unique-AG/ai/tree/main/tutorials/mcp/mcp_search)
+> **Note**: For fundamental concepts about authentication, server setup, CORS, and deployment, see [MCP Fundamentals](mcp_fundamentals.md).
 
-## 🔐 Auth & Identity
-### What’s used
-- JWT verification via `JWTVerifier` against IdP JWKS
-- OAuth2 flow via `OAuthProxy` (auth endpoint, token endpoint, revocation)
-- Scopes: `mcp:tools`, `mcp:prompts`, `mcp:resources`, `mcp:resource-templates`, `email`, `openid`, `profile`
+See the full example here: [https://github.com/Unique-AG/ai/tree/main/tutorials/mcp/mcp_search](https://github.com/Unique-AG/ai/tree/main/tutorials/mcp/mcp_search)
 
-### Why it matters
-- Ensures the caller is a real, authorized user
-- Enables user-level actions and auditing
-- Works with web clients and MCP Inspector
+## 🔍 Search Tool
+The main feature of this server is the `search` tool that demonstrates **how unique credentials are passed to the Unique SDK for authenticated operations**:
 
-### Environment variables
-- `ZITADEL_URL`: Base URL of the IdP (Zitadel in the example)
-- `UPSTREAM_CLIENT_ID` / `UPSTREAM_CLIENT_SECRET`: OAuth client credentials
-- `BASE_URL_ENV`: Public base URL of your MCP server (reachable on the internet)
-- Optional app-specific: `USER_ID`, `COMPANY_ID` (if you need them downstream)
+- Extracts user identity (`user_id`, `company_id`) from the authenticated token
+- **Passes these credentials to the Unique SDK** for authenticated search operations
+- Uses the Unique SDK to perform searches in the knowledge base with user-specific context
+- Returns search results as JSON
 
-### Token verification and user lookup
-- Access token is extracted via `get_access_token()`
-- The example calls `GET {ZITADEL_URL}/auth/v1/users/me` to retrieve the current user (email, profile, etc.)
-- You can adapt this to your IdP’s “me” endpoint or map to your internal user store
+### Unique SDK Configuration
+The server requires these additional environment variables:
 
-## ⚙️ FastMCP Setup
-### Server initialization
-- `FastMCP(\"Demo 🚀\", auth=auth, debug=True, log_level=\"debug\")`
-- Transport: `http` (streamable over HTTP)
-- CORS middleware enabled for browser-based tools
+- `API_BASE`: Base URL for the Unique API (e.g., `https://gateway.qa.unique.app/public/chat-gen2`)
+- `API_KEY`: API key for authentication
+- `APP_ID`: Application ID
 
-### Tools
-- `addition` tool:
-  - Name/title/description are customizable
-  - Metadata supports Unique AI-specific hints:
-    - `unique.app/icon`: e.g., `calculator`
-    - `unique.app/system-prompt`: guidance for the LLM to select the tool
-  - Uses Pydantic/typing annotations (`Annotated[int, Field(...)]`) for precise parameter schema, improving LLM and MCP client selection
+The SDK is configured before server initialization:
 
-- `identify` tool:
-  - Retrieves current user via the access token, returns JSON of user profile
-  - Useful to confirm identity and personalize behavior
-
-## 🧩 Standard Routes + MCP
-You can define classic HTTP routes alongside MCP tools:
-- Custom route `/` returns a simple JSON health/status
-- Custom route `/favicon.ico` serves a static file
-- These behave like FastAPI/Starlette routes and are useful for:
-  - Health checks
-  - Static assets (favicon)
-  - Simple non-MCP endpoints
-
-## 🌐 CORS & Inspectors
-- CORS is required when testing via MCP Inspector running on localhost or using browser-based clients
-- The provided `CORSMiddleware` allows all origins/headers/methods for simplicity
-
-## 🚀 Running the Server
-- Ensure your server is reachable at a public `BASE_URL` (e.g., via ngrok, a domain, or a reverse proxy)
-- Pass the base URL either via env `BASE_URL_ENV` or CLI arg
-- Start with:
-  - Transport: `http`
-  - Host/Port: e.g., `127.0.0.1:8003`
-  - Middleware: include CORS middleware
-
-## 🔄 Swapping IdP (Zitadel → Entra, etc.)
-- Replace:
-  - `jwks_uri`, `issuer`, and OAuth endpoints with your provider’s values
-- Keep scopes aligned with your provider:
-  - Always include `openid`, `email`, `profile` where available
-  - MCP-specific scopes (`mcp:*`) are app-side conventions; ensure your IdP client is configured to issue them or adjust your app logic accordingly
-- If your IdP supports a different flow (e.g., implicit/hybrid), consult FastMCP docs and adapt the `OAuthProxy` parameters
+```python
+unique_sdk.api_base = os.getenv("API_BASE", "https://gateway.qa.unique.app/public/chat-gen2")
+unique_sdk.api_key = os.getenv("API_KEY", "default_api_key")
+unique_sdk.app_id = os.getenv("APP_ID", "default_app_id")
+```
 
 
 
-## 📌 Code details
-Got it. I’ve added concise code snippets for the key parts:
-- Environment and base URL loading
-- OAuth2/JWT setup (OAuthProxy + JWTVerifier)
-- MCP tool definition (addition tool)
-- Identify tool using access token
-- Custom routes (health, favicon)
-- Server run config with HTTP transport and CORS
+## 📌 Implementation
 
-Each snippet is minimal and self-contained so developers can copy-paste.
+This section provides code snippets for the search-specific implementation. For setup details on authentication, CORS, and server configuration, refer to [MCP Fundamentals](mcp_fundamentals.md).
 
-## 🔧 Environment & Base URL
-Why: Load IdP endpoints, OAuth client, and the server’s public base URL (needed by the OAuth proxy and web clients).
+### 🔧 Environment & Base URL
+Load IdP endpoints, OAuth client, Unique SDK configuration, and the server's public base URL:
 
 ```python
 from dotenv import load_dotenv
 import os, sys
+import unique_sdk
 
 load_dotenv()
 
 ZITADEL_URL = os.getenv("ZITADEL_URL", "http://localhost:10116")
 UPSTREAM_CLIENT_ID = os.getenv("UPSTREAM_CLIENT_ID", "default_client_id")
 UPSTREAM_CLIENT_SECRET = os.getenv("UPSTREAM_CLIENT_SECRET", "default_client_secret")
-
 base_url_env = os.getenv("BASE_URL_ENV", "https://default.ngrok-free.app")
-BASE_URL = sys.argv if len(sys.argv) > 1 else base_url_env
 
-print("BASE_URL", BASE_URL)
+# Unique SDK configuration
+unique_sdk.api_base = os.getenv("API_BASE", "https://gateway.qa.unique.app/public/chat-gen2")
+unique_sdk.api_key = os.getenv("API_KEY", "default_api_key")
+unique_sdk.app_id = os.getenv("APP_ID", "default_app_id")
+
+BASE_URL = sys.argv[1] if len(sys.argv) > 1 else base_url_env
 ```
 
-## 🔐 Auth: OAuth Proxy + JWT Verifier
-Why: Turn your MCP into an HTTP-authenticated server using your IdP (Zitadel here; swap endpoints for other IdPs).
+### 🔐 Auth: OAuth Proxy + JWT Verifier
+Set up authentication (see [MCP Fundamentals](mcp_fundamentals.md) for details):
 
 ```python
 from fastmcp.server.auth.providers.jwt import JWTVerifier
@@ -120,9 +72,8 @@ from fastmcp.server.auth.oauth_proxy import OAuthProxy
 token_verifier = JWTVerifier(
     jwks_uri=f"{ZITADEL_URL}/oauth/v2/keys",
     issuer=f"{ZITADEL_URL}",
-    algorithm=None,   # Let library infer from JWKS; set explicitly if your IdP requires
-    audience=None,    # Set if you validate audience
-    # required_scopes=[]  # Optionally enforce here
+    algorithm=None,
+    audience=None,
 )
 
 auth = OAuthProxy(
@@ -133,10 +84,6 @@ auth = OAuthProxy(
     upstream_revocation_endpoint=f"{ZITADEL_URL}/oauth/v2/revoke",
     token_verifier=token_verifier,
     base_url=BASE_URL,
-    redirect_path=None,                 # Use default or specify
-    issuer_url=None,                    # Optional override
-    service_documentation_url=None,     # Optional
-    allowed_client_redirect_uris=None,  
     valid_scopes=[
         "mcp:tools",
         "mcp:prompts",
@@ -145,16 +92,15 @@ auth = OAuthProxy(
         "email",
         "openid",
         "profile",
+        "urn:zitadel:iam:user:resourceowner",
     ],
     forward_pkce=True,
     token_endpoint_auth_method="client_secret_post",
-    extra_authorize_params=None,
-    extra_token_params=None,
 )
 ```
 
-## 🌐 CORS Middleware (for Inspectors/Browsers)
-Why: Allow browser-based clients like MCP Inspector to call your server during development.
+### 🌐 CORS Middleware
+Enable CORS for browser-based clients:
 
 ```python
 from starlette.middleware import Middleware
@@ -171,8 +117,8 @@ custom_middleware = [
 ]
 ```
 
-## ⚙️ FastMCP Server Init
-Why: Create an HTTP-streamable MCP server (not local), with auth attached.
+### ⚙️ FastMCP Server Init
+Create the MCP server:
 
 ```python
 from fastmcp import FastMCP
@@ -185,55 +131,54 @@ mcp = FastMCP(
 )
 ```
 
-## 🛠️ MCP Tool: Addition
-Why: Example tool showing name/title/description, metadata for Unique AI, and typed parameters for better schema.
-
-```python
-from typing import Annotated
-from pydantic import Field
-
-@mcp.tool(
-    name="addition",
-    title="addition",
-    description="This tool adds two numbers",
-    meta={
-        "unique.app/icon": "calculator",
-        "unique.app/system-prompt": "Choose this tool if you need to add two numbers together",
-    },
-)
-def add(
-    a: Annotated[int, Field(description="First number to add", default=0)],
-    b: Annotated[int, Field(description="Second number to add", default=0)],
-) -> int:
-    """Add two numbers"""
-    return a + b
-```
-
-## 👤 Identify Tool (User Info via Access Token)
-Why: Demonstrates reading the bearer token and calling IdP’s “me” endpoint to identify the user.
+### 👤 User Identification Helper
+This implementation demonstrates **how to extract unique credentials from authenticated tokens**. It uses Zitadel's `/oidc/v1/userinfo` endpoint and extracts `company_id` from custom claims:
 
 ```python
 import json, requests
 from fastmcp.server.dependencies import get_access_token
 
-def _get_user(ZITADEL_URL: str):
+def get_user():
     token = get_access_token()
-    if not token:
-        return {"error": "no access token"}
-    headers = {"Authorization": f"Bearer {token.token}"}
-    resp = requests.get(f"{ZITADEL_URL}/auth/v1/users/me", headers=headers)
-    resp.raise_for_status()
-    return resp.json()
+    if token is not None:
+        headers = {"Authorization": f"Bearer {token.token}"}
+        response = requests.get(f"{ZITADEL_URL}/oidc/v1/userinfo", headers=headers)
+    zitadel_user_info = response.json()
+    user = {
+        "email": zitadel_user_info.get("email"),
+        "user_id": zitadel_user_info.get("sub"),
+        "name": zitadel_user_info.get("name"),
+        "company_id": zitadel_user_info.get("urn:zitadel:iam:user:resourceowner:id"),
+    }
+    return user
 
 @mcp.tool
 def identify(user_prompt: str) -> str:
     """Identify the user"""
-    data = _get_user(ZITADEL_URL)
-    return json.dumps(data)
+    user = get_user()
+    return json.dumps(user)
 ```
 
-## 🧩 Standard HTTP Routes + MCP
-Why: Combine classic routes (health, favicon) with MCP tools—like you would with FastAPI/Starlette.
+### 🔍 Search Tool
+The main search tool that demonstrates **passing unique credentials to the Unique SDK for authenticated operations**:
+
+```python
+@mcp.tool
+def search(query: str) -> str:
+    """Search in the knowledge base"""
+    user = get_user()
+    # Pass user_id and company_id to Unique SDK for authenticated operations
+    result = unique_sdk.Search.create(
+        user_id=user.get("user_id"),
+        company_id=user.get("company_id"),
+        searchString=query,
+        searchType="COMBINED",
+    )
+    return json.dumps(result)
+```
+
+### 🧩 Standard HTTP Routes
+Custom routes for health checks and static assets:
 
 ```python
 from fastapi.responses import FileResponse, JSONResponse
@@ -243,7 +188,7 @@ from pathlib import Path
 FAVICON_PATH = Path(__file__).parent / "favicon.ico"
 
 @mcp.custom_route("/", methods=["GET"])
-async def health(request: Request):
+async def get_status(request: Request):
     return JSONResponse({"server": "running"})
 
 @mcp.custom_route("/favicon.ico", methods=["GET"])
@@ -251,8 +196,8 @@ async def favicon(request: Request):
     return FileResponse(FAVICON_PATH)
 ```
 
-## 🚀 Run: HTTP Transport + CORS
-Why: Expose an HTTP MCP endpoint, ready for OAuth and browser clients.
+### 🚀 Running the Server
+Run the server with HTTP transport and CORS middleware:
 
 ```python
 if __name__ == "__main__":
@@ -265,6 +210,4 @@ if __name__ == "__main__":
     )
 ```
 
-## ✅ Quick Notes
-- This is an HTTP-streamable MCP server (not local) so web clients can authenticate and call tools.
-- Keep `openid`, `email`, `profile` in scopes; adjust or register `mcp:*` scopes in your IdP as needed.
+For deployment considerations and configuration details, see [MCP Fundamentals](mcp_fundamentals.md).
