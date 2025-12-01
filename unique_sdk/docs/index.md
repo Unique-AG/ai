@@ -30,9 +30,10 @@ Event-driven applications react to events obtained from the Unique platform. The
 - [Webhooks](webhooks.md) - Receive and handle real-time events from Unique AI
 - [Tutorials](tutorials/folder_updates.md) - Step-by-step tutorials and guides
 
-### Supported Models
+### Supported Models & LLM Access
 
 - [LLM Models](api_resources/llm_models.md) - View available language models for chat completions and other operations
+- [OpenAI Integration](tutorials/openai_scripts.md) - Use OpenAI SDK with Unique's secure API proxy
 
 ### API Reference
 

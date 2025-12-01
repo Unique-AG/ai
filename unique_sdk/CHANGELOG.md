@@ -5,8 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.53] - 2025-12-01
+- Improve OpenAI Proxy docs https://unique-ag.github.io/ai/unique-sdk/
+
 ## [0.10.52] - 2025-11-21
-- Centralized docs to https://unique-ag.github.io
+- Centralized docs to https://unique-ag.github.io/ai/unique-sdk/
 
 ## [0.10.51] - 2025-11-21
 - Add function to get a space.

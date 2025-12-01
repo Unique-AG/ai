@@ -1,12 +1,14 @@
 # OpenAI SDK Integration Tutorial
 
-This tutorial demonstrates how to use the OpenAI SDK with Unique API proxy for chat completions, assistants, and responses.
+This tutorial demonstrates how to use the OpenAI SDK with Unique's secure API proxy for chat completions, assistants, and responses.
 
 ## Overview
 
+The Unique API proxy provides a secure, OpenAI-compatible gateway that allows you to access any language model through the Unique platform.
+
 Learn how to:
 
-- Configure OpenAI SDK to work with Unique API proxy
+- Configure OpenAI SDK to work with Unique's secure API proxy
 - Use chat completions through Unique's proxy
 - Create and manage assistants
 - Use the responses API
@@ -17,6 +19,17 @@ Learn how to:
 - OpenAI Python SDK installed (`pip install openai`)
 - Valid API credentials (`API_KEY`, `APP_ID`, `COMPANY_ID`, `USER_ID`)
 - Environment variables configured
+
+## Why Use Unique API Proxy?
+
+The Unique API proxy provides enterprise-grade security and management for your LLM access:
+
+- **Secure Authentication**: All requests are authenticated through Unique's secure infrastructure, protecting your API keys
+- **Usage Tracking**: Optional recording of model usage for monitoring, cost management, and compliance (when enabled)
+- **Unified Interface**: Access multiple LLM providers (OpenAI, Azure, Anthropic, etc.) through a single endpoint
+- **OpenAI Compatibility**: Use the exact same APIs as OpenAI - no code changes needed beyond configuration
+
+The API interface is identical to OpenAI's, so you can use any OpenAI SDK features and reference the [official OpenAI documentation](https://platform.openai.com/docs) for API details.
 
 ## Complete Example
 
@@ -209,15 +222,17 @@ poetry run python sdk_examples/openai_scripts.py responses
 
 1. **API Base URL:** The API base URL must point to your Unique API proxy endpoint: `{your_base_url}/openai-proxy/`
 
-2. **Custom Headers:** All requests require custom headers for authentication:
-   - `x-user-id` - User ID
-   - `x-company-id` - Company ID
-   - `x-api-version` - API version
-   - `x-app-id` - Application ID
-   - `x-model` - Model identifier
-   - `Authorization` - Bearer token with API key
+2. **Custom Headers:** All requests require custom headers for authentication and routing:
+   - `x-user-id` - User ID for request context
+   - `x-company-id` - Company ID for multi-tenant isolation
+   - `x-api-version` - API version (typically `"2023-12-06"`)
+   - `x-app-id` - Application ID for usage tracking
+   - `x-model` - Model identifier (e.g., `"AZURE_o3_2025_0416"`)
+   - `Authorization` - Bearer token with your Unique API key
 
-3. **Model Selection:** Make sure to use a model that's available in your Unique environment. Check available models using the [LLM Models API](../api_resources/llm_models.md).
+3. **Model Selection:** Use models available in your Unique environment. Check available models using the [LLM Models API](../api_resources/llm_models.md).
+
+4. **OpenAI API Compatibility:** The Unique API proxy is fully compatible with OpenAI's API. You can use any OpenAI SDK features and reference the [official OpenAI documentation](https://platform.openai.com/docs) for detailed API specifications, parameters, and response formats.
 
 ## Related Resources
 
