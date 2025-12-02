@@ -12,6 +12,7 @@ from unique_toolkit.app.unique_settings import (
     UniqueAuth,
     UniqueChatEventFilterOptions,
     UniqueSettings,
+    _find_env_file,
     warn_about_defaults,
 )
 
@@ -739,7 +740,7 @@ def test_unique_settings__find_env_file__returns_path__from_env_variable(
     env_file.write_text("TEST=value")
     monkeypatch.setenv("UNIQUE_ENV_FILE", str(env_file))
     # Act
-    found_path = UniqueSettings._find_env_file()
+    found_path = _find_env_file()
     # Assert
     assert found_path == env_file
 
@@ -759,7 +760,7 @@ def test_unique_settings__find_env_file__returns_path__from_current_directory(
     env_file.write_text("TEST=value")
     monkeypatch.chdir(tmp_path)
     # Act
-    found_path = UniqueSettings._find_env_file()
+    found_path = _find_env_file()
     # Assert
     assert found_path == env_file
 
@@ -778,7 +779,7 @@ def test_unique_settings__find_env_file__raises_error__when_not_found(
     monkeypatch.chdir(tmp_path)
     # Act & Assert
     with pytest.raises(EnvFileNotFoundError) as exc_info:
-        UniqueSettings._find_env_file()
+        _find_env_file()
     assert "not found" in str(exc_info.value)
     assert "UNIQUE_ENV_FILE" in str(exc_info.value)
 
