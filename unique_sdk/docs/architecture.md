@@ -30,11 +30,28 @@ API Resources are the primary interface for interacting with the Unique AI platf
 - **[MessageLog](api_resources/message_log.md)**: Log message processing steps
 - **[LLMModels](api_resources/llm_models.md)**: Get available AI models
 
-### 2. Webhook System
+### 2. Unique API Proxy
+
+The Unique API proxy provides a secure, OpenAI-compatible gateway for accessing any language model through the Unique platform.
+
+**Key Benefits:**
+
+- **Secure Access**: All LLM requests are authenticated and routed through Unique's secure infrastructure
+- **Usage Tracking**: Model usage can be recorded and tracked for monitoring and cost management (when enabled)
+- **OpenAI Compatibility**: Use the standard OpenAI SDK with the same APIs - just reference the [OpenAI documentation](https://platform.openai.com/docs)
+- **Unified Interface**: Access multiple LLM providers (OpenAI, Azure, Anthropic, etc.) through a single, consistent interface
+
+**How It Works:**
+
+The proxy accepts OpenAI-compatible requests and routes them through Unique's infrastructure. Simply configure your OpenAI client to point to Unique's proxy endpoint and include authentication headers. The API interface remains identical to OpenAI's, so you can use existing OpenAI code with minimal changes.
+
+See the [OpenAI Integration Tutorial](../tutorials/openai_scripts.md) for a complete example.
+
+### 3. Webhook System
 
 The webhook system provides secure, event-driven communication from the Unique platform to your application with HMAC-SHA256 signature verification.
 
-### 3. Utility Functions
+### 4. Utility Functions
 
 The SDK includes utility modules for:
 
@@ -82,6 +99,7 @@ The SDK uses a structured error hierarchy:
 - **HMAC-SHA256** signature verification for webhooks
 - **API Key** authentication for all requests
 - **Secure credential storage** via environment variables
+- **Unique API Proxy** provides secure, authenticated access to LLMs with optional usage tracking and enterprise-grade security
 
 ## Performance
 
