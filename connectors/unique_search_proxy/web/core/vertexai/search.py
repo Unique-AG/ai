@@ -1,0 +1,94 @@
+from core.vertexai.client import (
+    get_vertex_client,
+)
+from core.vertexai.config import (
+    get_vertex_grounding_config,
+    get_vertex_structured_results_config,
+)
+from core.vertexai.gemini import (
+    generate_content,
+)
+from core.vertexai.response_handler import (
+    PostProcessFunction,
+    add_citations,
+    parse_to_structured_results,
+)
+from core.schema import (
+    WebSearchResult,
+    WebSearchResults,
+    camelized_model_config,
+    SearchEngineType,
+    SearchRequest,
+)
+from core.vertexai.helpers import resolve_all
+from pydantic import BaseModel, Field
+from typing import Literal
+
+
+class VertexAiParams(BaseModel):
+    model_config = camelized_model_config
+
+    model_name: str = Field(
+        default="gemini-2.5-flash", description="The model name to use for the search"
+    )
+    entreprise_search: bool = Field(
+        default=False, description="Whether to use the entreprise search"
+    )
+    system_instruction: str | None = Field(
+        default=None, description="The system instruction to use for the search"
+    )
+    resolve_urls: bool = Field(default=True, description="Whether to resolve the URLs")
+
+
+class VertexAiRequest(SearchRequest[SearchEngineType.VERTEXAI, VertexAiParams]):
+    """Request model for the Vertex AI search engine."""
+
+    model_config = camelized_model_config
+    search_engine: Literal[SearchEngineType.VERTEXAI] = SearchEngineType.VERTEXAI
+    params: VertexAiParams = Field(
+        default_factory=VertexAiParams,
+        description="Additional keyword arguments for the Vertex AI search engine",
+    )
+
+
+class VertexAISearchEngine:
+    def __init__(
+        self,
+        params: VertexAiParams,
+    ):
+        self.model_name = params.model_name
+        self.entreprise_search = params.entreprise_search
+        self.system_instruction = params.system_instruction
+        self.resolve_urls = params.resolve_urls
+
+    async def search(self, query: str) -> list[WebSearchResult]:
+        client = get_vertex_client()
+        answer_with_citations = await generate_content(
+            client=client,
+            model_name=self.model_name,
+            config=get_vertex_grounding_config(
+                system_instruction=self.system_instruction,
+                entreprise_search=self.entreprise_search,
+            ),
+            contents=query,
+            post_process_function=PostProcessFunction[str](add_citations),
+        )
+
+        # Generate the structured results
+        structured_results = await generate_content(
+            client=client,
+            model_name=self.model_name,
+            config=get_vertex_structured_results_config(
+                system_instruction=None,
+                response_schema=WebSearchResults,
+            ),
+            contents=answer_with_citations,
+            post_process_function=PostProcessFunction[WebSearchResults](
+                parse_to_structured_results,
+                response_schema=WebSearchResults,
+            ),
+        )
+        if self.resolve_urls:
+            structured_results = await resolve_all(structured_results)  #  type: ignore
+
+        return structured_results.results
