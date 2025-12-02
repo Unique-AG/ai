@@ -286,6 +286,7 @@ async def _build_responses(
                 user_id=event.user_id,
                 company_id=event.company_id,
                 chat_id=event.payload.chat_id,
+                chat_service=common_components.chat_service,
             )
         )
 
