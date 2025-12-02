@@ -199,7 +199,7 @@ class EnvFileNotFoundError(FileNotFoundError):
     """Raised when no environment file can be found in any of the expected locations."""
 
 
-def _find_env_file(cls, filename: str = "unique.env") -> Path:
+def _find_env_file(filename: str = "unique.env") -> Path:
     """Find environment file using cross-platform fallback locations.
 
     Search order:
@@ -240,10 +240,33 @@ def _find_env_file(cls, filename: str = "unique.env") -> Path:
     )
 
 
+def _load_auth_from_env_auto(filename: str = "unique.env") -> UniqueAuth:
+    """Load UniqueAuth from environment file if found, otherwise from environment variables.
+
+    This function implements the same fallback behavior as from_env_auto, but only for
+    UniqueAuth. It will not raise exceptions if the env file is not found, instead
+    falling back to loading from environment variables only.
+
+    Args:
+        filename: Name of the environment file to search for (default: 'unique.env')
+
+    Returns:
+        UniqueAuth instance loaded from env file or environment variables.
+    """
+    try:
+        env_file = _find_env_file(filename)
+        env_file_str = str(env_file)
+        return UniqueAuth(_env_file=env_file_str)  # type: ignore[call-arg]
+    except EnvFileNotFoundError:
+        # Fall back to environment variables only
+        return UniqueAuth()  # type: ignore[call-arg]
+
+
 # Context variable for UniqueAuth, initialized from env file if available
+# Falls back to environment variables if no env file is found
 _unique_auth_context: ContextVar[UniqueAuth] = ContextVar(
     "_unique_auth_context",
-    default=UniqueAuth(_env_file=_find_env_file()),  # type: ignore[call-arg]
+    default=_load_auth_from_env_auto(),
 )
 
 
