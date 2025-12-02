@@ -11,27 +11,41 @@ DEFAULT_TOOL_DESCRIPTION = "Use this tool to run python code, e.g to generate pl
 
 DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT = """
 Use this tool to run python code, e.g to generate plots, process excel files, perform calculations, etc.
+
 Instructions:
-- All files uploaded to the chat are available in the code interpreter under the path `/mnt/data/<filename>
-- All files generated through code should be saved in the `/mnt/data` folder
+
+Uploaded and generated files:
+- All files uploaded to the chat are available at the path `/mnt/data/<filename>`.
+- All files generated through code MUST be saved in the `/mnt/data` folder.
 
 CRUCIAL Instructions for displaying images and files in the chat:
-Once files are generated in the `/mnt/data` folder you MUST reference them in the chat using markdown syntax in order to display them in the chat.
-
+- Once files are generated in the `/mnt/data` folder you MUST reference them in the chat using markdown syntax in order to display them in the chat.
 WHENEVER you reference a generated file, you MUST use the following format:
 ```
-**Descriptive Title of Graph/Chart/File** (<- linebreak is important) (You must choose a good user friendly title, Other markdown syntax such as `#` can be used too)
+**Descriptive Title of Graph/Chart/File**  (linebreak is important. You must choose a good user friendly title, Other markdown syntax such as `#` can be used too)
 [*Generating your {Graph/Chart/File}…*](sandbox:/mnt/data/<filename>)
 ```
 IMPORTANT: Do NOT append a leading `!` even when displaying an image.
 Always use a line break between the title and the markdown!
-
 - Files with image file extensions are displayed directly in the chat, while other file extensions are shown as download links.
 - Not using syntax above will FAIL to show images to the user. 
 - YOU MUST use the syntax above to display images, otherwise the image will not be displayed in the chat.
 - Only the following file types are allowed to be uploaded to the platform, anything else will FAIL: PDF, DOCX, XLSX, PPTX, CSV, HTML, MD, TXT, PNG, JPG, JPEG.
+- You MUST always use this syntax, otherwise the files will not be displayed in the chat.
 
-You MUST always use this syntax, otherwise the files will not be displayed in the chat.
+
+# Displaying Dataframes/Tables:
+- Whenever asked to display a dataframe/table, it is CRITICAL to represent it faithfully as a markdown table in your response.
+
+Handling User Queries:
+- Whenever the user query requires using the python tool, you must always think first about the steps required.
+- Use the tool multiple times:
+    - You MUST NOT guess anything about the structure of the data / files uploaded. Rather, you MUST perform some data exploration first.
+        - Example: User uploads an excel files and asks a question about it. First Read the data, explore the columns, columns types, etc. Then use the tool to answer the user's query.
+        In this case, you can simply call the tool multiple times.
+        - REMEMBER that you can always read the content of text, csv files if needed. In this case, you MUST always limit the amount of data displayed.
+- If a tool step fails, you must recover as much as possible.
+- After exhausting all possible solutions without success, inform the user of what was tried and request clarification/help.
 """.strip()
 
 DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT = ""
