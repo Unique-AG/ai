@@ -1,6 +1,6 @@
 # Unique Search Proxy
 
-A unified web search proxy API that provides a consistent interface for multiple search backends. Built with Flask and designed for seamless integration with AI applications.
+A unified web search proxy API that provides a consistent interface for multiple search backends. Built with FastAPI and designed for seamless integration with AI applications.
 
 ## Overview
 
@@ -70,6 +70,16 @@ docker run --rm -p 8080:8080 search-proxy
 # With custom environment variables
 docker run --rm -p 8080:8080 -e WORKERS=8 -e LOG_LEVEL=debug search-proxy
 ```
+
+## API Documentation
+
+FastAPI provides automatic interactive API documentation:
+
+| URL | Description |
+|-----|-------------|
+| `/docs` | Swagger UI - interactive API explorer |
+| `/redoc` | ReDoc - alternative documentation |
+| `/openapi.json` | OpenAPI schema |
 
 ## API Reference
 
@@ -182,7 +192,7 @@ Leverages Google's Gemini models with web grounding for AI-enhanced search resul
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                        Flask App                            │
+│                       FastAPI App                           │
 │                      /search endpoint                       │
 └─────────────────────────┬───────────────────────────────────┘
                           │
@@ -218,20 +228,23 @@ All errors return a consistent format:
 
 ## Production Deployment
 
-The service includes a production-ready `entrypoint.sh` that uses Gunicorn:
+The service includes a production-ready `entrypoint.sh` that uses Uvicorn:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `HOST` | `0.0.0.0` | Bind address |
 | `PORT` | `8080` | Listen port |
-| `WORKERS` | `4` | Gunicorn workers |
-| `TIMEOUT` | `120` | Request timeout |
+| `WORKERS` | `4` | Uvicorn workers |
+| `TIMEOUT` | `120` | Keep-alive timeout |
 | `LOG_LEVEL` | `info` | Logging verbosity |
 
 ## Development
 
 ```bash
 # Run with hot reload
+poetry run uvicorn app:app --reload --port 2349
+
+# Or simply
 poetry run python app.py
 
 # Format code
@@ -244,4 +257,3 @@ poetry run ruff check .
 ## License
 
 Proprietary - Unique AG
-

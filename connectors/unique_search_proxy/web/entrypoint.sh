@@ -19,12 +19,10 @@ echo "Log Level: ${LOG_LEVEL}"
 echo "=========================================="
 
 # Execute the main process (replaces shell, proper signal handling)
-exec poetry run gunicorn \
-    --bind "${HOST}:${PORT}" \
+exec poetry run uvicorn \
+    app:app \
+    --host "${HOST}" \
+    --port "${PORT}" \
     --workers "${WORKERS}" \
-    --timeout "${TIMEOUT}" \
-    --log-level "${LOG_LEVEL}" \
-    --access-logfile - \
-    --error-logfile - \
-    app:app
-
+    --timeout-keep-alive "${TIMEOUT}" \
+    --log-level "${LOG_LEVEL}"

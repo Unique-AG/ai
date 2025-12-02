@@ -1,16 +1,15 @@
 from typing import Protocol
-from enum import StrEnum
 from pydantic import BaseModel
 from core.schema import WebSearchResult, SearchEngineType
 from typing import Any
 from core.google_search import GoogleSearch, GoogleSearchParams
 from core.vertexai import VertexAISearchEngine, VertexAiParams
 
+
 class SearchEngine(Protocol):
     def __init__(self, params: Any): ...
 
     async def search(self, query: str) -> list[WebSearchResult]: ...
-
 
 
 type SearchEngineFactory = tuple[type[SearchEngine], type[BaseModel]]

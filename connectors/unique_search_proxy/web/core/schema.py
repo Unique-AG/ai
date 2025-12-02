@@ -5,9 +5,11 @@ from enum import StrEnum
 
 camelized_model_config = ConfigDict(alias_generator=to_camel)
 
+
 class SearchEngineType(StrEnum):
     GOOGLE = "google"
     VERTEXAI = "vertexai"
+
 
 # Pydantic Models
 class SearchRequest(BaseModel):

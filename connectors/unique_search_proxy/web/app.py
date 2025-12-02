@@ -1,21 +1,29 @@
-from flask import Flask, request, jsonify
-from pydantic import BaseModel, Field, ValidationError
+import logging
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+from pydantic import BaseModel, Field
 from typing import List
 from dotenv import load_dotenv
-from core.schema import WebSearchResult
-from core.factory import core_factory, SearchEngineType
+
+from core.schema import WebSearchResult, SearchEngineType
+from core.factory import core_factory
 
 # Load environment variables from .env file
 load_dotenv()
 
-app = Flask(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 
 # Pydantic Models
 class SearchRequest(BaseModel):
     """Request model for search endpoint."""
 
-    search_engine: SearchEngineType = Field(default=SearchEngineType.GOOGLE, description="Search engine to use")
+    search_engine: SearchEngineType = Field(
+        default=SearchEngineType.GOOGLE, description="Search engine to use"
+    )
     query: str = Field(..., min_length=1, description="Search query string")
     kwargs: dict = Field(
         default_factory=dict,
@@ -36,36 +44,59 @@ class ErrorResponse(BaseModel):
     error: str = Field(..., description="Error message")
 
 
-# Error Handlers
-@app.errorhandler(ValidationError)
-def handle_validation_error(e: ValidationError):
-    app.logger.exception(f"Validation error: {e}")
-    return jsonify(ErrorResponse(error=str(e)).model_dump()), 400
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    _LOGGER.info("Starting Unique Search Proxy...")
+    yield
+    # Shutdown
+    _LOGGER.info("Shutting down Unique Search Proxy...")
 
 
-@app.errorhandler(Exception)
-def handle_generic_error(e: Exception):
-    app.logger.exception(f"An error occurred: {e}")
-    return jsonify(ErrorResponse(error=str(e)).model_dump()), 500
+app = FastAPI(
+    title="Unique Search Proxy",
+    description="A unified web search proxy API for multiple search backends",
+    version="0.1.0",
+    lifespan=lifespan,
+)
 
 
-@app.route("/search", methods=["POST"])
-async def search():
-    data = request.get_json()
-    request_data = SearchRequest.model_validate(data)
+# Exception Handlers
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    _LOGGER.exception(f"Validation error: {exc}")
+    return JSONResponse(
+        status_code=400,
+        content=ErrorResponse(error=str(exc)).model_dump(),
+    )
+
+
+@app.exception_handler(Exception)
+async def generic_exception_handler(request: Request, exc: Exception):
+    _LOGGER.exception(f"An error occurred: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content=ErrorResponse(error=str(exc)).model_dump(),
+    )
+
+
+@app.post("/search", response_model=SearchResponse)
+async def search(request_data: SearchRequest):
     search_engine_factory, params = core_factory.resolve(request_data.search_engine)
     validated_kwargs = params.model_validate(request_data.kwargs)
 
     search_engine = search_engine_factory(params=validated_kwargs)
     results = await search_engine.search(request_data.query)
 
-    return jsonify(SearchResponse(results=results).model_dump()), 200
+    return SearchResponse(results=results)
 
 
-@app.route("/health", methods=["GET"])
-def health():
-    return jsonify({"status": "healthy"}), 200
+@app.get("/health")
+async def health():
+    return {"status": "healthy"}
 
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=2349)
+    import uvicorn
+
+    uvicorn.run(app, host="0.0.0.0", port=2349)
