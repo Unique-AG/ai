@@ -262,14 +262,6 @@ def _load_auth_from_env_auto(filename: str = "unique.env") -> UniqueAuth:
         return UniqueAuth()  # type: ignore[call-arg]
 
 
-# Context variable for UniqueAuth, initialized from env file if available
-# Falls back to environment variables if no env file is found
-_unique_auth_context: ContextVar[UniqueAuth] = ContextVar(
-    "_unique_auth_context",
-    default=_load_auth_from_env_auto(),
-)
-
-
 class UniqueSettings:
     def __init__(
         self,
@@ -282,12 +274,11 @@ class UniqueSettings:
     ):
         self._app = app
         self._api = api
+        self._auth = ContextVar[UniqueAuth](f"_auth_{id(self)}", default=auth)
         self._chat_event_filter_options = chat_event_filter_options
         self._env_file: Path | None = (
             env_file if (env_file and env_file.exists()) else None
         )
-        # Set the context variable
-        _unique_auth_context.set(auth)
 
     @classmethod
     def from_env(
@@ -376,7 +367,7 @@ class UniqueSettings:
         return settings
 
     def update_from_event(self, event: "BaseEvent") -> None:
-        _unique_auth_context.set(UniqueAuth.from_event(event))
+        self._auth.set(UniqueAuth.from_event(event))
 
     @property
     def api(self) -> UniqueApi:
@@ -388,11 +379,12 @@ class UniqueSettings:
 
     @property
     def auth(self) -> UniqueAuth:
-        return _unique_auth_context.get()
+        # Check context variable first (for async overrides), fall back to instance auth
+        return self._auth.get()
 
     @auth.setter
     def auth(self, value: UniqueAuth) -> None:
-        _unique_auth_context.set(value)
+        self._auth.set(value)
 
     @property
     def chat_event_filter_options(self) -> UniqueChatEventFilterOptions | None:
