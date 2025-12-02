@@ -6,7 +6,7 @@ from google.auth import load_credentials_from_dict
 from google.genai._api_client import BaseApiClient
 from google.genai.client import AsyncClient
 
-from settings import env_settings
+from core.vertexai.settings import VertexAISettings
 from core.vertexai.exceptions import (
     VertexAICredentialNotFoundException,
 )
@@ -15,9 +15,8 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def _get_vertexai_base_api_client() -> BaseApiClient:
-    vertexai_service_account_credentials = (
-        env_settings.vertexai_service_account_credentials
-    )
+    vertexai_settings = VertexAISettings()
+    vertexai_service_account_credentials = vertexai_settings.service_account_credentials
     if vertexai_service_account_credentials is None:
         raise VertexAICredentialNotFoundException()
     service_account_info = json.loads(

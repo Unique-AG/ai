@@ -7,7 +7,7 @@ from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel, Field
 from typing import List
 from dotenv import load_dotenv
-
+import asyncio
 from core.schema import WebSearchResult, SearchEngineType
 from core.factory import core_factory
 
@@ -23,6 +23,9 @@ class SearchRequest(BaseModel):
 
     search_engine: SearchEngineType = Field(
         default=SearchEngineType.GOOGLE, description="Search engine to use"
+    )
+    timeout: int = Field(
+        default=10, ge=1, le=600, description="The request timeout in seconds"
     )
     query: str = Field(..., min_length=1, description="Search query string")
     kwargs: dict = Field(
@@ -80,13 +83,24 @@ async def generic_exception_handler(request: Request, exc: Exception):
     )
 
 
+@app.exception_handler(asyncio.TimeoutError)
+async def timeout_exception_handler(request: Request, exc: asyncio.TimeoutError):
+    _LOGGER.exception(f"A timeout occurred: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content=ErrorResponse(error=f"Search engine timed out: {exc}").model_dump(),
+    )
+
+
 @app.post("/search", response_model=SearchResponse)
 async def search(request_data: SearchRequest):
     search_engine_factory, params = core_factory.resolve(request_data.search_engine)
     validated_kwargs = params.model_validate(request_data.kwargs)
 
     search_engine = search_engine_factory(params=validated_kwargs)
-    results = await search_engine.search(request_data.query)
+
+    async with asyncio.timeout(10):
+        results = await search_engine.search(request_data.query)
 
     return SearchResponse(results=results)
 

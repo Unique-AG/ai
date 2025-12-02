@@ -15,16 +15,22 @@ from core.vertexai.response_handler import (
 )
 from core.schema import WebSearchResult, WebSearchResults, camelized_model_config
 from core.vertexai.helpers import resolve_all
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class VertexAiParams(BaseModel):
     model_config = camelized_model_config
 
-    model_name: str = "gemini-2.5-flash"
-    entreprise_search: bool = False
-    system_instruction: str | None = None
-    resolve_urls: bool = True
+    model_name: str = Field(
+        default="gemini-2.5-flash", description="The model name to use for the search"
+    )
+    entreprise_search: bool = Field(
+        default=False, description="Whether to use the entreprise search"
+    )
+    system_instruction: str | None = Field(
+        default=None, description="The system instruction to use for the search"
+    )
+    resolve_urls: bool = Field(default=True, description="Whether to resolve the URLs")
 
 
 class VertexAISearchEngine:
