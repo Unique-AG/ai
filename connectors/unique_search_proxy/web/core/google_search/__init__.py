@@ -1,4 +1,4 @@
-from core.google_search.search import GoogleSearch, GoogleSearchParams
+from core.google_search.search import GoogleSearch, GoogleSearchRequest
 
 
-__all__ = ["GoogleSearch", "GoogleSearchParams"]
+__all__ = ["GoogleSearch", "GoogleSearchRequest"]

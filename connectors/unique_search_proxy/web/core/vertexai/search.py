@@ -13,9 +13,16 @@ from core.vertexai.response_handler import (
     add_citations,
     parse_to_structured_results,
 )
-from core.schema import WebSearchResult, WebSearchResults, camelized_model_config
+from core.schema import (
+    WebSearchResult,
+    WebSearchResults,
+    camelized_model_config,
+    SearchEngineType,
+    SearchRequest,
+)
 from core.vertexai.helpers import resolve_all
 from pydantic import BaseModel, Field
+from typing import Literal
 
 
 class VertexAiParams(BaseModel):
@@ -31,6 +38,17 @@ class VertexAiParams(BaseModel):
         default=None, description="The system instruction to use for the search"
     )
     resolve_urls: bool = Field(default=True, description="Whether to resolve the URLs")
+
+
+class VertexAiRequest(SearchRequest[SearchEngineType.VERTEXAI, VertexAiParams]):
+    """Request model for the Vertex AI search engine."""
+
+    model_config = camelized_model_config
+    search_engine: Literal[SearchEngineType.VERTEXAI] = SearchEngineType.VERTEXAI
+    params: VertexAiParams = Field(
+        default_factory=VertexAiParams,
+        description="Additional keyword arguments for the Vertex AI search engine",
+    )
 
 
 class VertexAISearchEngine:
@@ -71,6 +89,6 @@ class VertexAISearchEngine:
             ),
         )
         if self.resolve_urls:
-            structured_results = await resolve_all(structured_results)
+            structured_results = await resolve_all(structured_results)  #  type: ignore
 
         return structured_results.results

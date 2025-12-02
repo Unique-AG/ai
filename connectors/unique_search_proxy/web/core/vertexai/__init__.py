@@ -1,4 +1,4 @@
-from core.vertexai.search import VertexAISearchEngine, VertexAiParams
+from core.vertexai.search import VertexAISearchEngine, VertexAiRequest
 
 
-__all__ = ["VertexAISearchEngine", "VertexAiParams"]
+__all__ = ["VertexAISearchEngine", "VertexAiRequest"]

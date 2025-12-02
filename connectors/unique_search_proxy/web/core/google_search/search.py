@@ -1,10 +1,15 @@
 import logging
-
+from typing import Literal
 from httpx import AsyncClient
 from core.google_search.schema import GoogleSearchQueryParams
 from core.google_search.settings import GoogleSearchSettings
 from pydantic import BaseModel, Field
-from core.schema import WebSearchResult, camelized_model_config
+from core.schema import (
+    WebSearchResult,
+    camelized_model_config,
+    SearchRequest,
+    SearchEngineType,
+)
 from httpx import Response
 from core.google_search.exceptions import (
     GoogleSearchAPIKeyNotSetException,
@@ -31,6 +36,17 @@ class GoogleSearchParams(BaseModel):
     )
     fetch_size: int = Field(
         default=10, ge=1, le=100, description="The number of results to fetch"
+    )
+
+
+class GoogleSearchRequest(SearchRequest[SearchEngineType.GOOGLE, GoogleSearchParams]):
+    """Request model for the Google Search engine."""
+
+    model_config = camelized_model_config
+    search_engine: Literal[SearchEngineType.GOOGLE] = SearchEngineType.GOOGLE
+    params: GoogleSearchParams = Field(
+        default_factory=GoogleSearchParams,
+        description="Additional keyword arguments for the Google Search engine",
     )
 
 

@@ -8,8 +8,7 @@ from pydantic import BaseModel, Field
 from typing import List
 from dotenv import load_dotenv
 import asyncio
-from core.schema import WebSearchResult, SearchEngineType
-from core.factory import core_factory
+from core import SearchEngineRequestType, get_search_engine, WebSearchResult
 
 # Load environment variables from .env file
 load_dotenv()
@@ -18,20 +17,6 @@ _LOGGER = logging.getLogger(__name__)
 
 
 # Pydantic Models
-class SearchRequest(BaseModel):
-    """Request model for search endpoint."""
-
-    search_engine: SearchEngineType = Field(
-        default=SearchEngineType.GOOGLE, description="Search engine to use"
-    )
-    timeout: int = Field(
-        default=10, ge=1, le=600, description="The request timeout in seconds"
-    )
-    query: str = Field(..., min_length=1, description="Search query string")
-    kwargs: dict = Field(
-        default_factory=dict,
-        description="Additional keyword arguments for the search engine",
-    )
 
 
 class SearchResponse(BaseModel):
@@ -93,11 +78,9 @@ async def timeout_exception_handler(request: Request, exc: asyncio.TimeoutError)
 
 
 @app.post("/search", response_model=SearchResponse)
-async def search(request_data: SearchRequest):
-    search_engine_factory, params = core_factory.resolve(request_data.search_engine)
-    validated_kwargs = params.model_validate(request_data.kwargs)
-
-    search_engine = search_engine_factory(params=validated_kwargs)
+async def search(request_data: SearchEngineRequestType):
+    search_engine = get_search_engine(request_data.search_engine)
+    search_engine = search_engine(params=request_data.params)
 
     async with asyncio.timeout(request_data.timeout):
         results = await search_engine.search(request_data.query)
