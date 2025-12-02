@@ -99,7 +99,7 @@ async def search(request_data: SearchRequest):
 
     search_engine = search_engine_factory(params=validated_kwargs)
 
-    async with asyncio.timeout(10):
+    async with asyncio.timeout(request_data.timeout):
         results = await search_engine.search(request_data.query)
 
     return SearchResponse(results=results)
