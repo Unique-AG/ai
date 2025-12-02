@@ -1,10 +1,14 @@
-from .schemas import (
+from unique_sdk.api_resources._agentic_table import (
     ActivityStatus,
+    CellRendererTypes,
+    FilterTypes,
+    RowVerificationStatus,
+)
+
+from .schemas import (
     AgenticTableSheetState,
     AgreementStatus,
     ArtifactType,
-    CellRendererTypes,
-    FilterTypes,
     LogEntry,
     MagicTableAction,
     MagicTableAddMetadataPayload,
@@ -19,7 +23,6 @@ from .schemas import (
     MagicTableSheetCompletedPayload,
     MagicTableSheetCreatedPayload,
     MagicTableUpdateCellPayload,
-    RowVerificationStatus,
     SelectionMethod,
 )
 from .service import AgenticTableService
