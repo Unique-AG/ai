@@ -59,6 +59,18 @@ Or with custom configuration:
 HOST=0.0.0.0 PORT=8080 WORKERS=4 ./entrypoint.sh
 ```
 
+**Docker:**
+```bash
+# Build the image
+docker build -t search-proxy .
+
+# Run the container (map port 8080 to host)
+docker run --rm -p 8080:8080 search-proxy
+
+# With custom environment variables
+docker run --rm -p 8080:8080 -e WORKERS=8 -e LOG_LEVEL=debug search-proxy
+```
+
 ## API Reference
 
 ### Health Check
