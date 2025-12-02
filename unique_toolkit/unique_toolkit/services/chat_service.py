@@ -70,6 +70,7 @@ from unique_toolkit.content.functions import (
     download_content_to_bytes,
     search_contents,
     upload_content_from_bytes,
+    upload_content_from_bytes_async,
 )
 from unique_toolkit.content.schemas import (
     Content,
@@ -1595,6 +1596,30 @@ class ChatService(ChatServiceDeprecated):
         metadata: dict[str, Any] | None = None,
     ) -> Content:
         return upload_content_from_bytes(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            content=content,
+            content_name=content_name,
+            mime_type=mime_type,
+            scope_id=scope_id,
+            chat_id=self._chat_id,
+            skip_ingestion=skip_ingestion,
+            ingestion_config=ingestion_config,
+            metadata=metadata,
+        )
+
+    async def upload_to_chat_from_bytes_async(
+        self,
+        *,
+        content: bytes,
+        content_name: str,
+        mime_type: str,
+        scope_id: str | None = None,
+        skip_ingestion: bool = False,
+        ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> Content:
+        return await upload_content_from_bytes_async(
             user_id=self._user_id,
             company_id=self._company_id,
             content=content,
