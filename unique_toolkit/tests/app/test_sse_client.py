@@ -25,29 +25,32 @@ def unique_settings():
     arguments. Even when no matching environment variables exist, it falls back
     to default values instead of using the provided constructor arguments.
 
-    To work around this, we create the objects with default constructors (which
-    triggers environment loading and warnings) and then directly set the field
-    values afterwards to override them with our test values.
+    With frozen=True, we cannot modify fields after construction, so we use
+    model_construct() to bypass validation and set values directly.
     """
-    # Create settings objects and then directly set the field values
+    # Create settings objects using model_construct to bypass validation
+    # This is necessary because BaseSettings prioritizes env vars over constructor args
 
     # Create app settings
-    app = UniqueApp()
-    app.id = SecretStr("test-app-id")
-    app.key = SecretStr("test-api-key")
-    app.base_url = "https://api.example.com"
-    app.endpoint = "test-endpoint"
-    app.endpoint_secret = SecretStr("test-endpoint-secret")
+    app = UniqueApp.model_construct(
+        id=SecretStr("test-app-id"),
+        key=SecretStr("test-api-key"),
+        base_url="https://api.example.com",
+        endpoint="test-endpoint",
+        endpoint_secret=SecretStr("test-endpoint-secret"),
+    )
 
     # Create auth settings
-    auth = UniqueAuth()
-    auth.company_id = SecretStr("test-company-id")
-    auth.user_id = SecretStr("test-user-id")
+    auth = UniqueAuth.model_construct(
+        company_id=SecretStr("test-company-id"),
+        user_id=SecretStr("test-user-id"),
+    )
 
     # Create api settings
-    api = UniqueApi()
-    api.base_url = "https://api.example.com"
-    api.version = "2023-12-06"
+    api = UniqueApi.model_construct(
+        base_url="https://api.example.com",
+        version="2023-12-06",
+    )
 
     return UniqueSettings(auth=auth, app=app, api=api)
 
