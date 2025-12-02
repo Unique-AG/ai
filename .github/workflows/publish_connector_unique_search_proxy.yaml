@@ -38,7 +38,7 @@ jobs:
         with:
           images: ${{ env.CHART_REPO }}
           tags: |
-            type=sha,suffix=-experimental,format=short
+            type=sha,prefix=experimental-,format=short
 
       - name: Login to registry hub
         uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
