@@ -13,6 +13,7 @@ This is the API Reference for the unique toolkit.
 - [Smart Rules](./modules/content_smart_rules.md) - Create complex queries using UniqueQL to filter and search content
 - [Data Extraction](./modules/data_extraction.md)
 The data extraction provides a flexible framework for extracting structured data from text using language models
+- [Agentic Table](./modules/agentic_table.md) - All capabilities to interact with the agentic table
 
 ### Framework Utilities
 
