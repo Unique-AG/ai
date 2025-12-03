@@ -185,7 +185,7 @@ class LoopTokenReducer:
         """Handle case where token limit is exceeded by reducing sources in tool responses."""
         overshoot_factor = self._calculate_overshoot_factor(token_count)
         self._logger.warning(
-            f"Length of messages exceeds limit of {self._language_model.token_limits.token_limit_input} tokens "
+            f"Length of messages exceeds limit of {self._get_max_tokens()} tokens "
             f"(overshoot factor: {overshoot_factor:.2f}x). Reducing number of sources per tool call.",
         )
 
