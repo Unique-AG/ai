@@ -284,6 +284,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         await self.chat_service.modify_assistant_message_async(
             set_completed_at=True,
         )
+        await self._update_tool_debug_info()
         # put message in short term memory to remember that we asked the followup questions
         await self.memory_service.save_async(
             MemorySchema(message_id=self.event.payload.assistant_message.id),
@@ -312,6 +313,35 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             status=status,
             percentage_completed=percentage,
         )
+
+    async def _update_tool_debug_info(self) -> None:
+        """
+        Update debug info for the tool execution.
+
+        Note: Tool call logging should be handled by the orchestrator.
+        This is a workaround for the deep research tool calling the orchestrator multiple times.
+        """
+        tools = [
+            {
+                "name": "Deep Research",
+                "info": {
+                    "is_forced": True,
+                    "is_exclusive": True,
+                    "loop_iteration": 0,
+                },
+            }
+        ]
+        debug_info_event = {
+            "tools": tools,
+            "assistant": {
+                "id": self.event.payload.assistant_id,
+                "name": self.event.payload.name,
+            },
+            "chosenModule": self.event.payload.name,
+            "userMetadata": self.event.payload.user_metadata,
+            "toolParameters": self.event.payload.tool_parameters,
+        }
+        await self._chat_service.update_debug_info_async(debug_info=debug_info_event)
 
     def write_message_log_text_message(self, text: str):
         create_message_log_entry(

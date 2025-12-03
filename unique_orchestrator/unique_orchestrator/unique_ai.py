@@ -139,20 +139,7 @@ class UniqueAI:
                 self.start_text, loop_response
             )
 
-        # If tool takes over control, add debug info to the message log
-        if self._tool_took_control:
-            debug_info_event = {
-                "tools": self._debug_info_manager.get(),
-                "assistant": {
-                    "id": self._event.payload.assistant_id,
-                    "name": self._event.payload.name,
-                },
-                "chosenModule": self._event.payload.name,
-                "userMetadata": self._event.payload.user_metadata,
-                "toolParameters": self._event.payload.tool_parameters,
-            }
-            await self._chat_service.update_debug_info_async(debug_info=debug_info_event
-            )
+        await self._update_debug_info_if_tool_took_control()
 
         # Only set completed_at if no tool took control. Tools that take control will set the message state to completed themselves.
         await self._chat_service.modify_assistant_message_async(
@@ -527,6 +514,32 @@ class UniqueAI:
                 if k in self._config.agent.prompt_config.user_metadata
             }
         return user_metadata
+
+    async def _update_debug_info_if_tool_took_control(self) -> None:
+        """
+        Update debug info when a tool takes control of the conversation.
+
+        DeepResearch is excluded as it handles debug info directly since it calls
+        the orchestrator multiple times.
+        """
+        if not self._tool_took_control:
+            return
+
+        tool_names = [tool["name"] for tool in self._debug_info_manager.get()["tools"]]
+        if "DeepResearch" in tool_names:
+            return
+
+        debug_info_event = {
+            "tools": self._debug_info_manager.get(),
+            "assistant": {
+                "id": self._event.payload.assistant_id,
+                "name": self._event.payload.name,
+            },
+            "chosenModule": self._event.payload.name,
+            "userMetadata": self._event.payload.user_metadata,
+            "toolParameters": self._event.payload.tool_parameters,
+        }
+        await self._chat_service.update_debug_info_async(debug_info=debug_info_event)
 
 
 class UniqueAIResponsesApi(UniqueAI):
