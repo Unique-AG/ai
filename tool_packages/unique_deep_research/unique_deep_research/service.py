@@ -340,7 +340,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             "userMetadata": self.event.payload.user_metadata,
             "toolParameters": self.event.payload.tool_parameters,
         }
-        await self._chat_service.update_debug_info_async(debug_info=debug_info_event)
+        await self.chat_service.update_debug_info_async(debug_info=debug_info_event)
 
 
     def write_message_log_text_message(self, text: str):
