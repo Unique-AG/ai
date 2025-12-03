@@ -55,15 +55,13 @@ class ExcelGeneratorService:
         self.excel_is_initiated = False
         self.excel_is_empty = True
         self.buffer: io.BytesIO = io.BytesIO()
-        self.workbook = None
+        self.workbook = xlsxwriter.Workbook(self.buffer, {"in_memory": True})
         self.file_export_name: Optional[str] = None
 
     def init_workbook(self, file_name: str, suffix: Optional[str] = None):
         suffix = suffix or self.config.upload_suffix
         base = Path(file_name).stem
         self.file_export_name = f"{base}{suffix}"
-
-        self.workbook = xlsxwriter.Workbook(self.buffer, {"in_memory": True})
 
         self.header_format = self.workbook.add_format(self.config.table_header_format)
         self.table_data_format = self.workbook.add_format(self.config.table_data_format)
