@@ -391,7 +391,14 @@ class LoopTokenReducer:
             )
 
         # Calculate how many chunks to keep based on overshoot
-        chunks_to_keep = max(1, int(num_sources / (overshoot_factor * 0.75)))
+        # Use 0.75 safety margin for aggressive reduction, but only when overshoot is
+        # significant enough (>= ~1.33). Otherwise, the margin would prevent reduction.
+        divisor = (
+            overshoot_factor * 0.75
+            if overshoot_factor * 0.75 >= 1.0
+            else overshoot_factor
+        )
+        chunks_to_keep = max(1, int(num_sources / divisor))
 
         # Reduce chunks
         if chunks_to_keep >= num_sources:

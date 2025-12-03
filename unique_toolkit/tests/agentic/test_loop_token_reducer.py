@@ -497,6 +497,45 @@ def test_reduce_sources_in_tool_message__keeps_at_least_one_chunk_AI(
 
 
 @pytest.mark.ai
+def test_reduce_sources_in_tool_message__reduces_chunks__with_small_overshoot_factor_AI(
+    loop_token_reducer: LoopTokenReducer,
+    mock_reference_manager: ReferenceManager,
+) -> None:
+    """
+    Purpose: Verify _reduce_sources_in_tool_message reduces chunks even with small overshoot.
+    Why this matters: When overshoot_factor is between 1.0 and ~1.33, the algorithm must still
+    reduce chunks. Previously, the formula `num_sources / (overshoot_factor * 0.75)` would
+    yield more chunks than num_sources when overshoot_factor * 0.75 < 1.0, preventing reduction.
+    """
+    # Arrange
+    from unique_toolkit.agentic.tools.schemas import ToolCallResponse
+
+    tool_message = create_tool_message("tool_1", "TestTool", "content")
+    chunks = [create_content_chunk(f"chunk_{i}", f"text{i}") for i in range(10)]
+    tool_response = ToolCallResponse(
+        id="tool_1",
+        name="TestTool",
+        content="test",
+        content_chunks=chunks,
+    )
+    mock_reference_manager.extract_referenceable_chunks([tool_response])
+
+    # Act - Use overshoot factor between 1.0 and 1.33 where old formula would fail
+    # With overshoot_factor=1.2: old formula gives int(10 / 0.9) = 11 (no reduction!)
+    # With fix: int(10 / 1.2) = 8 (proper reduction)
+    result = loop_token_reducer._reduce_sources_in_tool_message(
+        message=tool_message,
+        chunk_offset=0,
+        source_offset=0,
+        overshoot_factor=1.2,
+    )
+
+    # Assert - Should reduce from 10 to 8 chunks
+    assert len(result.reduced_chunks) < 10
+    assert len(result.reduced_chunks) == 8
+
+
+@pytest.mark.ai
 def test_reduce_sources_in_tool_message__returns_empty_chunks__for_message_without_chunks_AI(
     loop_token_reducer: LoopTokenReducer,
     mock_reference_manager: ReferenceManager,
