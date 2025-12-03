@@ -558,7 +558,7 @@ def test_create_reduced_standard_sources_message__formats_sources_correctly_AI(
     ]
 
     # Act
-    result: LanguageModelMessage = (
+    result: LanguageModelToolMessage = (
         loop_token_reducer._create_reduced_standard_sources_message(
             message=original_message,
             content_chunks=chunks,
@@ -568,15 +568,14 @@ def test_create_reduced_standard_sources_message__formats_sources_correctly_AI(
 
     # Assert
     content = result.content
-    assert isinstance(content, list)
-    assert len(content) == 2
-    assert content[0]["source_number"] == 5
-    assert content[0]["content"] == "First chunk text"
-    assert content[1]["source_number"] == 6
-    assert content[1]["content"] == "Second chunk text"
+    assert isinstance(content, str)
+    content_dict = json.loads(content)
+    assert len(content_dict) == 2
+    assert content_dict[0]["source_number"] == 5
+    assert content_dict[0]["content"] == "First chunk text"
+    assert content_dict[1]["source_number"] == 6
+    assert content_dict[1]["content"] == "Second chunk text"
 
-
-@pytest.mark.ai
 def test_create_reduced_table_search_message__preserves_sql_content_AI(
     loop_token_reducer: LoopTokenReducer,
 ) -> None:
