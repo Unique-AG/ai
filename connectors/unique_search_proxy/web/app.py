@@ -16,7 +16,19 @@ load_dotenv()
 _LOGGER = logging.getLogger(__name__)
 
 
-# Pydantic Models
+class HealthCheckFilter(logging.Filter):
+    """Filter out health check requests from access logs."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        message = record.getMessage()
+        # Filter out GET /health requests
+        if "/health" in message and "GET" in message:
+            return False
+        return True
+
+
+# Apply filter to uvicorn access logger
+logging.getLogger("uvicorn.access").addFilter(HealthCheckFilter())
 
 
 class SearchResponse(BaseModel):
