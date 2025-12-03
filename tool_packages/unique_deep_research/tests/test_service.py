@@ -1794,3 +1794,61 @@ def test_deep_research_tool__convert_annotations_to_references__skips_non_url_ci
                 assert len(result) == 1
                 assert result[0].name == "URL Article"
                 assert result[0].url == "https://example.com/article"
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_deep_research_tool__update_tool_debug_info__calls_chat_service__with_correct_debug_info() -> (
+    None
+):
+    """
+    Purpose: Verify _update_tool_debug_info calls chat service with correct debug info.
+    Why this matters: Ensures debug info is properly logged for tool execution tracking.
+    Setup summary: Mock chat service and call _update_tool_debug_info, verify correct parameters.
+    """
+    # Arrange
+    config = DeepResearchToolConfig()
+    mock_event = Mock()
+    mock_event.company_id = "test-company"
+    mock_event.user_id = "test-user"
+    mock_event.payload.chat_id = "test-chat"
+    mock_event.payload.assistant_message.id = "test-assistant-message"
+    mock_event.payload.user_message.text = "Test request"
+    mock_event.payload.user_message.original_text = "Test request"
+    mock_event.payload.message_execution_id = None
+    mock_event.payload.assistant_id = "test-assistant-id"
+    mock_event.payload.name = "Test Assistant"
+    mock_event.payload.user_metadata = {"key": "value"}
+    mock_event.payload.tool_parameters = {"param": "test"}
+    mock_progress_reporter = Mock()
+
+    with patch("unique_deep_research.service.get_async_openai_client"):
+        with patch("unique_deep_research.service.ContentService"):
+            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+                tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+                tool.chat_service.update_debug_info_async = AsyncMock()
+
+                # Act
+                await tool._update_tool_debug_info()
+
+                # Assert
+                tool.chat_service.update_debug_info_async.assert_called_once()
+                call_args = tool.chat_service.update_debug_info_async.call_args
+                debug_info = call_args.kwargs["debug_info"]
+
+                assert debug_info["tools"] == [
+                    {
+                        "name": "DeepResearch",
+                        "info": {
+                            "is_forced": True,
+                            "is_exclusive": True,
+                            "loop_iteration": 0,
+                        },
+                    }
+                ]
+                assert debug_info["assistant"] == {
+                    "id": "test-assistant-id",
+                    "name": "Test Assistant",
+                }
+                assert debug_info["chosenModule"] == "Test Assistant"
+                assert debug_info["userMetadata"] == {"key": "value"}
+                assert debug_info["toolParameters"] == {"param": "test"}
