@@ -429,18 +429,18 @@ class TestCustomAPISearch:
         config = CustomAPIConfig(
             search_engine_name=SearchEngineType.CUSTOM_API,
             api_endpoint="https://custom-api.example.com/search",
-            api_headers={"Authorization": "Bearer token123"},
-            api_additional_query_params={"max_results": 10, "lang": "en"},
-            api_additional_body_params={"filter": "news", "safe": True},
+            api_headers='{"Authorization": "Bearer token123"}',
+            api_additional_query_params='{"max_results": 10, "lang": "en"}',
+            api_additional_body_params='{"filter": "news", "safe": True}',
             api_request_method=CUSTOM_API_REQUEST_METHOD.POST,
             requires_scraping=True,
             timeout=60,
         )
 
         assert config.api_endpoint == "https://custom-api.example.com/search"
-        assert config.api_headers == {"Authorization": "Bearer token123"}
-        assert config.api_additional_query_params == {"max_results": 10, "lang": "en"}
-        assert config.api_additional_body_params == {"filter": "news", "safe": True}
+        assert config.api_headers == '{"Authorization": "Bearer token123"}'
+        assert config.api_additional_query_params == '{"max_results": 10, "lang": "en"}'
+        assert config.api_additional_body_params == '{"filter": "news", "safe": True}'
         assert config.api_request_method == CUSTOM_API_REQUEST_METHOD.POST
         assert config.requires_scraping
         assert config.timeout == 60
@@ -465,8 +465,8 @@ class TestCustomAPISearch:
         config = CustomAPIConfig(
             search_engine_name=SearchEngineType.CUSTOM_API,
             api_endpoint="https://api.example.com/search",
-            api_headers={"Content-Type": "application/json"},
-            api_additional_body_params={"max_results": 5},
+            api_headers='{"Content-Type": "application/json"}',
+            api_additional_body_params='{"max_results": 5}',
             api_request_method=CUSTOM_API_REQUEST_METHOD.POST,
         )
 
@@ -525,8 +525,8 @@ class TestCustomAPISearch:
         config = CustomAPIConfig(
             search_engine_name=SearchEngineType.CUSTOM_API,
             api_endpoint="https://api.example.com/search",
-            api_headers={"X-API-Key": "secret123"},
-            api_additional_query_params={"limit": 10, "format": "json"},
+            api_headers='{"X-API-Key": "secret123"}',
+            api_additional_query_params='{"limit": 10, "format": "json"}',
             api_request_method=CUSTOM_API_REQUEST_METHOD.GET,
         )
 
@@ -577,9 +577,9 @@ class TestCustomAPISearch:
         config = CustomAPIConfig(
             search_engine_name=SearchEngineType.CUSTOM_API,
             api_endpoint="https://api.example.com/search",
-            api_headers={"Authorization": "Bearer token"},
-            api_additional_query_params={"api_version": "v2", "format": "json"},
-            api_additional_body_params={"lang": "en", "safe": True, "count": 10},
+            api_headers='{"Authorization": "Bearer token"}',
+            api_additional_query_params='{"api_version": "v2", "format": "json"}',
+            api_additional_body_params='{"lang": "en", "safe": true, "count": 10}',
             api_request_method=CUSTOM_API_REQUEST_METHOD.POST,
         )
 
@@ -727,7 +727,7 @@ class TestCustomAPISearch:
         """Test CustomAPI _headers property."""
         config = CustomAPIConfig(
             search_engine_name=SearchEngineType.CUSTOM_API,
-            api_headers={"Authorization": "Bearer token", "X-Custom": "value"},
+            api_headers='{"Authorization": "Bearer token", "X-Custom": "value"}',
         )
 
         search = CustomAPI(config)
@@ -738,7 +738,7 @@ class TestCustomAPISearch:
         """Test _prepare_request_params_and_body for GET requests."""
         config = CustomAPIConfig(
             search_engine_name=SearchEngineType.CUSTOM_API,
-            api_additional_query_params={"limit": 10, "format": "json"},
+            api_additional_query_params='{"limit": 10, "format": "json"}',
             api_request_method=CUSTOM_API_REQUEST_METHOD.GET,
         )
 
@@ -752,8 +752,8 @@ class TestCustomAPISearch:
         """Test _prepare_request_params_and_body for POST requests."""
         config = CustomAPIConfig(
             search_engine_name=SearchEngineType.CUSTOM_API,
-            api_additional_query_params={"api_version": "v2"},
-            api_additional_body_params={"lang": "en", "safe": True},
+            api_additional_query_params='{"api_version": "v2"}',
+            api_additional_body_params='{"lang": "en", "safe": true}',
             api_request_method=CUSTOM_API_REQUEST_METHOD.POST,
         )
 

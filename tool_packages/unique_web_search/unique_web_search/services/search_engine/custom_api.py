@@ -1,3 +1,4 @@
+import json
 from typing import Literal, TypeVar
 
 from httpx import AsyncClient
@@ -32,22 +33,22 @@ ApiEndpointType, ApiEndpointField = conditional_type(
     "http://api.example.com",
 )
 ApiHeadersType, ApiHeadersField = conditional_type(
-    dict[str, str],
+    str,
     env_settings.custom_web_search_api_headers,
     "The headers of the custom API",
-    {"Content-Type": "application/json"},
+    '{"Content-Type": "application/json"}',
 )
 ApiAdditionalQueryParamsType, ApiAdditionalQueryParamsField = conditional_type(
-    dict[str, int | str | bool | float | list | dict],
+    str,
     env_settings.custom_web_search_api_additional_query_params,
     "The additional parameters of the custom API",
-    {},
+    "{}",
 )
 ApiAdditionalBodyParamsType, ApiAdditionalBodyParamsField = conditional_type(
-    dict[str, int | str | bool | float | list | dict],
+    str,
     env_settings.custom_web_search_api_additional_body_params,
     "The additional body of the custom API",
-    {},
+    "{}",
 )
 ApiRequestMethodType, ApiRequestMethodField = conditional_type(
     CUSTOM_API_REQUEST_METHOD,
@@ -107,11 +108,19 @@ class CustomAPI(SearchEngine[CustomAPIConfig]):
 
     @property
     def _headers(self) -> dict[str, str]:
-        return self.config.api_headers
+        return json.loads(self.config.api_headers)
+
+    @property
+    def _additional_query_params(self) -> dict[str, str]:
+        return json.loads(self.config.api_additional_query_params)
+
+    @property
+    def _additional_body_params(self) -> dict[str, str]:
+        return json.loads(self.config.api_additional_body_params)
 
     def _prepare_request_params_and_body(self, query: str) -> tuple[dict, dict]:
-        params = self.config.api_additional_query_params
-        body = self.config.api_additional_body_params
+        params = self._additional_query_params
+        body = self._additional_body_params
 
         if self._request_method == CUSTOM_API_REQUEST_METHOD.GET:
             params = params | {"query": query}
