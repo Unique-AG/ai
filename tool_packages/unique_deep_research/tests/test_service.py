@@ -1825,14 +1825,14 @@ async def test_deep_research_tool__update_tool_debug_info__calls_chat_service__w
         with patch("unique_deep_research.service.ContentService"):
             with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
                 tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
-                tool._chat_service.update_debug_info_async = AsyncMock()
+                tool.chat_service.update_debug_info_async = AsyncMock()
 
                 # Act
                 await tool._update_tool_debug_info()
 
                 # Assert
-                tool._chat_service.update_debug_info_async.assert_called_once()
-                call_args = tool._chat_service.update_debug_info_async.call_args
+                tool.chat_service.update_debug_info_async.assert_called_once()
+                call_args = tool.chat_service.update_debug_info_async.call_args
                 debug_info = call_args.kwargs["debug_info"]
 
                 assert debug_info["tools"] == [
