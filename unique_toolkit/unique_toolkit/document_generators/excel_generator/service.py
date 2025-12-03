@@ -66,7 +66,7 @@ class ExcelGeneratorService:
         self.workbook = xlsxwriter.Workbook(self.buffer, {"in_memory": True})
 
         self.header_format = self.workbook.add_format(self.config.table_header_format)
-        self.data_format = self.workbook.add_format(self.config.table_data_format)
+        self.table_data_format = self.workbook.add_format(self.config.table_data_format)
 
         self.excel_is_initiated = True
 
