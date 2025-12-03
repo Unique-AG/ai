@@ -576,6 +576,7 @@ def test_create_reduced_standard_sources_message__formats_sources_correctly_AI(
     assert content_dict[1]["source_number"] == 6
     assert content_dict[1]["content"] == "Second chunk text"
 
+
 def test_create_reduced_table_search_message__preserves_sql_content_AI(
     loop_token_reducer: LoopTokenReducer,
 ) -> None:
