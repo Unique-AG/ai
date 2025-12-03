@@ -139,6 +139,21 @@ class UniqueAI:
                 self.start_text, loop_response
             )
 
+        # If tool takes over control, add debug info to the message log
+        if self._tool_took_control:
+            debug_info_event = {
+                "tools": self._debug_info_manager.get(),
+                "assistant": {
+                    "id": self._event.payload.assistant_id,
+                    "name": self._event.payload.name,
+                },
+                "chosenModule": self._event.payload.name,
+                "userMetadata": self._event.payload.user_metadata,
+                "toolParameters": self._event.payload.tool_parameters,
+            }
+            await self._chat_service.update_debug_info_async(debug_info=debug_info_event
+            )
+
         # Only set completed_at if no tool took control. Tools that take control will set the message state to completed themselves.
         await self._chat_service.modify_assistant_message_async(
             set_completed_at=not self._tool_took_control,
