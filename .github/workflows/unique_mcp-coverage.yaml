@@ -1,0 +1,33 @@
+name: "[coverage] Unique MCP"
+
+env:
+  PACKAGE: unique_mcp
+  MIN_COVERAGE: 60
+
+on: 
+  pull_request:
+    paths:
+      - 'unique_mcp/**'
+      - '!unique_mcp/docs/**'
+
+jobs:
+  coverage-check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history for diff comparison
+
+      - name: Run coverage check
+        uses: ./.github/actions/run-coverage-check
+        with:
+          package_dir: ${{ env.PACKAGE }}
+          package_manager: 'auto'
+          python_version: '3.12'
+          base_ref: origin/${{ github.base_ref }}
+          min_coverage: ${{ env.MIN_COVERAGE }}
+
