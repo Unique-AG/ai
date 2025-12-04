@@ -2,11 +2,12 @@ name: " 📦 : Publish to PyPI"
 
 on:
   workflow_dispatch:
-  push:
+  pull_request:
+    types: [closed]
     paths:
       - 'unique_mcp/**'
     branches:
-      - '**'  # Trigger on all branches
+      - main
 
 env:
   PACKAGE_NAME: unique-mcp
@@ -21,11 +22,13 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Python
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
       - name: Get version from pyproject.toml
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
         id: get_version
         shell: bash
         working-directory: ${{ env.PACKAGE_DIR }}
@@ -35,6 +38,7 @@ jobs:
           echo "Package version: $VERSION"
 
       - name: Publish to PyPI
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
         uses: ./.github/actions/publish-to-pypi-with-uv
         with:
           package_dir: ${{ env.PACKAGE_DIR }}
@@ -42,4 +46,3 @@ jobs:
           python_version: '3.12'
           check_version: 'false'
           pypi_token: ${{ secrets.PYPI_TOKEN }}
-
