@@ -409,11 +409,6 @@ class _ToolManager(Generic[_ApiMode]):
             if t.name in self._tool_choices
         ]  # type: ignore
 
-    def get_forced_tool_call(
-        self, name: str
-    ) -> ChatCompletionNamedToolChoiceParam | response_create_params.ToolChoice:
-        return _convert_to_forced_tool(name, mode=self._api_mode)
-
     @overload
     def get_tool_definitions(
         self: "_ToolManager[Literal['completions']]",
