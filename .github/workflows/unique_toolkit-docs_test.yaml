@@ -14,7 +14,7 @@ on:
       - unique_toolkit/docs.subproject.mkdocs.yaml
       - mkdocs.yaml
       - pyproject.toml
-      - .github/workflows/publish_toolkit_docs.test.yaml
+      - .github/workflows/unique_toolkit-docs_test.yaml
 
 jobs:
   build:
