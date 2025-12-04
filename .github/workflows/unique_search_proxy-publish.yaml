@@ -6,13 +6,13 @@ on:
       - main
     paths:
       - connectors/unique_search_proxy/**
-      - .github/workflows/unique_connector_search_proxy-publish.yaml
+      - .github/workflows/unique_search_proxy-publish.yaml
   pull_request:
     branches:
       - main
     paths:
       - connectors/unique_search_proxy/**
-      - .github/workflows/unique_connector_search_proxy-publish.yaml
+      - .github/workflows/unique_search_proxy-publish.yaml
 
 jobs:
   containerize:
