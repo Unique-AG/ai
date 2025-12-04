@@ -117,12 +117,13 @@ Organize content into folder structures with:
     **Parameters:**
 
     - `paths` (List[str], required) - List of folder paths to create
+    - `inheritAccess` (bool, optional) - Whether to inherit access permissions from parent folders (default: `True`)
 
     **Returns:**
 
     Returns a [`CreateFolderStructureResponse`](#createfolderstructureresponse) object.
 
-    **Example:**
+    **Example - Basic Creation:**
 
     ```python
     unique_sdk.Folder.create_paths(
@@ -133,6 +134,20 @@ Organize content into folder structures with:
             "/Company/Reports/Q2",
             "/Company/Policies"
         ]
+    )
+    ```
+
+    **Without Inheriting Access:**
+
+    ```python
+    unique_sdk.Folder.create_paths(
+        user_id=user_id,
+        company_id=company_id,
+        paths=[
+            "/Company/Reports/Q1",
+            "/Company/Reports/Q2"
+        ],
+        inheritAccess=False
     )
     ```
 
