@@ -1,0 +1,79 @@
+name: 'Publish to PyPI with uv'
+description: 'Builds and publishes a Python package to PyPI using uv'
+
+inputs:
+  package_dir:
+    description: 'Path to the package directory (e.g., ./unique_sdk)'
+    required: true
+  package_name:
+    description: 'Package name on PyPI (for version checking, optional)'
+    required: false
+  python_version:
+    description: 'Python version to use'
+    required: false
+    default: '3.11'
+  check_version:
+    description: 'Check if version already exists on PyPI before publishing'
+    required: false
+    default: 'false'
+  pypi_token:
+    description: 'PyPI API token for publishing'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python_version }}
+
+    - name: Install uv
+      shell: bash
+      run: |
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+    - name: Install dependencies
+      shell: bash
+      working-directory: ${{ inputs.package_dir }}
+      run: uv sync
+
+    - name: Build Package
+      shell: bash
+      working-directory: ${{ inputs.package_dir }}
+      run: uv build
+
+    - name: Get version
+      if: inputs.check_version == 'true'
+      id: get_version
+      shell: bash
+      working-directory: ${{ inputs.package_dir }}
+      run: |
+        VERSION=$(python -c "import tomli; f=open('pyproject.toml', 'rb'); data=tomli.load(f); print(data['project']['version'])" 2>/dev/null || python -c "import tomllib; f=open('pyproject.toml', 'rb'); data=tomllib.load(f); print(data['project']['version'])" 2>/dev/null || echo "0.0.0")
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+    - name: Publish to PyPI (with version check)
+      if: inputs.check_version == 'true'
+      shell: bash
+      working-directory: ${{ inputs.package_dir }}
+      run: |
+        CURRENT_VERSION="${{ steps.get_version.outputs.version }}"
+        LATEST_VERSION=$(curl -s https://pypi.org/pypi/${{ inputs.package_name }}/json | jq -r '.info.version' 2>/dev/null || echo "0.0.0")
+        if [ "$LATEST_VERSION" = "null" ]; then
+          LATEST_VERSION="0.0.0"
+        fi
+        
+        if [ "$CURRENT_VERSION" = "$LATEST_VERSION" ]; then
+          echo "Version $CURRENT_VERSION already exists on PyPI. Skipping publish."
+        else
+          echo "New version detected. Publishing $CURRENT_VERSION to PyPI..."
+          uv publish --username __token__ --password "${{ inputs.pypi_token }}"
+        fi
+
+    - name: Publish to PyPI
+      if: inputs.check_version != 'true'
+      shell: bash
+      working-directory: ${{ inputs.package_dir }}
+      run: uv publish --username __token__ --password "${{ inputs.pypi_token }}"
+

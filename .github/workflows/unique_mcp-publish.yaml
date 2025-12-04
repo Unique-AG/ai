@@ -1,0 +1,45 @@
+name: " 📦 : Publish to PyPI"
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'unique_mcp/**'
+    branches:
+      - '**'  # Trigger on all branches
+
+env:
+  PACKAGE_NAME: unique-mcp
+  PACKAGE_DIR: ./unique_mcp
+
+jobs:
+  build-and-publish:
+    name: Build and publish 📦
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Get version from pyproject.toml
+        id: get_version
+        shell: bash
+        working-directory: ${{ env.PACKAGE_DIR }}
+        run: |
+          VERSION=$(python3 -c "import tomli; f=open('pyproject.toml', 'rb'); data=tomli.load(f); print(data['project']['version'])" 2>/dev/null || python3 -c "import tomllib; f=open('pyproject.toml', 'rb'); data=tomllib.load(f); print(data['project']['version'])" 2>/dev/null || echo "0.0.0")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Package version: $VERSION"
+
+      - name: Publish to PyPI
+        uses: ./.github/actions/publish-to-pypi-with-uv
+        with:
+          package_dir: ${{ env.PACKAGE_DIR }}
+          package_name: ${{ env.PACKAGE_NAME }}
+          python_version: '3.12'
+          check_version: 'false'
+          pypi_token: ${{ secrets.PYPI_TOKEN }}
+
