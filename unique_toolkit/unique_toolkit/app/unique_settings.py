@@ -1,4 +1,5 @@
 import os
+from contextvars import ContextVar
 from logging import getLogger
 from pathlib import Path
 from typing import TYPE_CHECKING, Self, TypeVar
@@ -65,6 +66,7 @@ class UniqueApp(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
+        frozen=True,
     )
 
 
@@ -92,6 +94,7 @@ class UniqueApi(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
+        frozen=True,
     )
 
     @model_validator(mode="after")
@@ -157,6 +160,7 @@ class UniqueAuth(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
+        frozen=True,
     )
 
     @model_validator(mode="after")
@@ -198,6 +202,69 @@ class EnvFileNotFoundError(FileNotFoundError):
     """Raised when no environment file can be found in any of the expected locations."""
 
 
+def _find_env_file(filename: str = "unique.env") -> Path:
+    """Find environment file using cross-platform fallback locations.
+
+    Search order:
+    1. UNIQUE_ENV_FILE environment variable
+    2. Current working directory
+    3. User config directory (cross-platform via platformdirs)
+
+    Args:
+        filename: Name of the environment file (default: 'unique.env')
+
+    Returns:
+        Path to the environment file.
+
+    Raises:
+        EnvFileNotFoundError: If no environment file is found in any location.
+    """
+    locations = [
+        # 1. Explicit environment variable
+        Path(env_path) if (env_path := os.environ.get("UNIQUE_ENV_FILE")) else None,
+        # 2. Current working directory
+        Path.cwd() / filename,
+        # 3. User config directory (cross-platform)
+        Path(user_config_dir("unique", "unique-toolkit")) / filename,
+    ]
+
+    for location in locations:
+        if location and location.exists() and location.is_file():
+            return location
+
+    # If no file found, provide helpful error message
+    searched_locations = [str(loc) for loc in locations if loc is not None]
+    raise EnvFileNotFoundError(
+        f"Environment file '{filename}' not found. Searched locations:\n"
+        + "\n".join(f"  - {loc}" for loc in searched_locations)
+        + "\n\nTo fix this:\n"
+        + f"  1. Create {filename} in one of the above locations, or\n"
+        + f"  2. Set UNIQUE_ENV_FILE environment variable to point to your {filename} file"
+    )
+
+
+def _load_auth_from_env_auto(filename: str = "unique.env") -> UniqueAuth:
+    """Load UniqueAuth from environment file if found, otherwise from environment variables.
+
+    This function implements the same fallback behavior as from_env_auto, but only for
+    UniqueAuth. It will not raise exceptions if the env file is not found, instead
+    falling back to loading from environment variables only.
+
+    Args:
+        filename: Name of the environment file to search for (default: 'unique.env')
+
+    Returns:
+        UniqueAuth instance loaded from env file or environment variables.
+    """
+    try:
+        env_file = _find_env_file(filename)
+        env_file_str = str(env_file)
+        return UniqueAuth(_env_file=env_file_str)  # type: ignore[call-arg]
+    except EnvFileNotFoundError:
+        # Fall back to environment variables only
+        return UniqueAuth()  # type: ignore[call-arg]
+
+
 class UniqueSettings:
     def __init__(
         self,
@@ -209,52 +276,11 @@ class UniqueSettings:
         env_file: Path | None = None,
     ):
         self._app = app
-        self._auth = auth
         self._api = api
+        self._auth = ContextVar[UniqueAuth](f"_auth_{id(self)}", default=auth)
         self._chat_event_filter_options = chat_event_filter_options
         self._env_file: Path | None = (
             env_file if (env_file and env_file.exists()) else None
-        )
-
-    @classmethod
-    def _find_env_file(cls, filename: str = "unique.env") -> Path:
-        """Find environment file using cross-platform fallback locations.
-
-        Search order:
-        1. UNIQUE_ENV_FILE environment variable
-        2. Current working directory
-        3. User config directory (cross-platform via platformdirs)
-
-        Args:
-            filename: Name of the environment file (default: 'unique.env')
-
-        Returns:
-            Path to the environment file.
-
-        Raises:
-            EnvFileNotFoundError: If no environment file is found in any location.
-        """
-        locations = [
-            # 1. Explicit environment variable
-            Path(env_path) if (env_path := os.environ.get("UNIQUE_ENV_FILE")) else None,
-            # 2. Current working directory
-            Path.cwd() / filename,
-            # 3. User config directory (cross-platform)
-            Path(user_config_dir("unique", "unique-toolkit")) / filename,
-        ]
-
-        for location in locations:
-            if location and location.exists() and location.is_file():
-                return location
-
-        # If no file found, provide helpful error message
-        searched_locations = [str(loc) for loc in locations if loc is not None]
-        raise EnvFileNotFoundError(
-            f"Environment file '{filename}' not found. Searched locations:\n"
-            + "\n".join(f"  - {loc}" for loc in searched_locations)
-            + "\n\nTo fix this:\n"
-            + f"  1. Create {filename} in one of the above locations, or\n"
-            + f"  2. Set UNIQUE_ENV_FILE environment variable to point to your {filename} file"
         )
 
     @classmethod
@@ -305,7 +331,7 @@ class UniqueSettings:
             UniqueSettings instance with values loaded from found env file or environment variables.
         """
         try:
-            env_file = cls._find_env_file(filename)
+            env_file = _find_env_file(filename)
             logger.info(f"Environment file found at {env_file}")
             return cls.from_env(env_file=env_file)
         except EnvFileNotFoundError:
@@ -344,7 +370,7 @@ class UniqueSettings:
         return settings
 
     def update_from_event(self, event: "BaseEvent") -> None:
-        self._auth = UniqueAuth.from_event(event)
+        self._auth.set(UniqueAuth.from_event(event))
 
     @property
     def api(self) -> UniqueApi:
@@ -356,11 +382,12 @@ class UniqueSettings:
 
     @property
     def auth(self) -> UniqueAuth:
-        return self._auth
+        # Check context variable first (for async overrides), fall back to instance auth
+        return self._auth.get()
 
     @auth.setter
     def auth(self, value: UniqueAuth) -> None:
-        self._auth = value
+        self._auth.set(value)
 
     @property
     def chat_event_filter_options(self) -> UniqueChatEventFilterOptions | None:

@@ -12,6 +12,7 @@ from unique_toolkit.app.unique_settings import (
     UniqueAuth,
     UniqueChatEventFilterOptions,
     UniqueSettings,
+    _find_env_file,
     warn_about_defaults,
 )
 
@@ -739,7 +740,7 @@ def test_unique_settings__find_env_file__returns_path__from_env_variable(
     env_file.write_text("TEST=value")
     monkeypatch.setenv("UNIQUE_ENV_FILE", str(env_file))
     # Act
-    found_path = UniqueSettings._find_env_file()
+    found_path = _find_env_file()
     # Assert
     assert found_path == env_file
 
@@ -759,7 +760,7 @@ def test_unique_settings__find_env_file__returns_path__from_current_directory(
     env_file.write_text("TEST=value")
     monkeypatch.chdir(tmp_path)
     # Act
-    found_path = UniqueSettings._find_env_file()
+    found_path = _find_env_file()
     # Assert
     assert found_path == env_file
 
@@ -778,7 +779,7 @@ def test_unique_settings__find_env_file__raises_error__when_not_found(
     monkeypatch.chdir(tmp_path)
     # Act & Assert
     with pytest.raises(EnvFileNotFoundError) as exc_info:
-        UniqueSettings._find_env_file()
+        _find_env_file()
     assert "not found" in str(exc_info.value)
     assert "UNIQUE_ENV_FILE" in str(exc_info.value)
 
@@ -1030,3 +1031,32 @@ def test_env_file_not_found_error__is_file_not_found_error() -> None:
     """
     # Assert
     assert issubclass(EnvFileNotFoundError, FileNotFoundError)
+
+
+@pytest.mark.ai
+def test_unique_settings__multiple_instances__maintain_isolated_auth(
+    valid_app: UniqueApp, valid_api: UniqueApi
+) -> None:
+    """
+    Purpose: Verify that multiple UniqueSettings instances maintain their own isolated auth values.
+    Why this matters: Ensures instance isolation - creating a new instance should not affect
+    previously created instances' auth values.
+    Setup summary: Create two instances with different auth values, verify each maintains its own.
+    """
+    # Arrange
+    auth1 = UniqueAuth(company_id=SecretStr("company-1"), user_id=SecretStr("user-1"))
+    auth2 = UniqueAuth(company_id=SecretStr("company-2"), user_id=SecretStr("user-2"))
+
+    # Act
+    settings1 = UniqueSettings(auth=auth1, app=valid_app, api=valid_api)
+    settings2 = UniqueSettings(auth=auth2, app=valid_app, api=valid_api)
+
+    # Assert - each instance should maintain its own auth
+    assert settings1.auth.company_id.get_secret_value() == "company-1"
+    assert settings1.auth.user_id.get_secret_value() == "user-1"
+    assert settings2.auth.company_id.get_secret_value() == "company-2"
+    assert settings2.auth.user_id.get_secret_value() == "user-2"
+
+    # Verify that settings1 still has its original auth after settings2 was created
+    assert settings1.auth.company_id.get_secret_value() == "company-1"
+    assert settings1.auth.user_id.get_secret_value() == "user-1"
