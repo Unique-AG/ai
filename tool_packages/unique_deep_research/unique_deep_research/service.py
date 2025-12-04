@@ -322,7 +322,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         """
         tools = [
             {
-                "name": "Deep Research",
+                "name": self.name,
                 "info": {
                     "is_forced": True,
                     "is_exclusive": True,
