@@ -22,4 +22,10 @@ build-backend = "uv_build"
 [dependency-groups]
 dev = [
     "ruff>=0.14.8",
+    "pytest>=8.0.0",
+]
+
+[tool.pytest.ini_options]
+markers = [
+    "ai: AI-generated tests",
 ]
