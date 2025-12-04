@@ -52,3 +52,4 @@ from .webhook import (
 )
 
 DOMAIN_NAME = "app"
+Test = "Test"
