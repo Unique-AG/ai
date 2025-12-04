@@ -8,7 +8,7 @@ from unique_toolkit.language_model.infos import LanguageModelInfo
 
 from unique_swot.services.collection.schema import Source, SourceChunk, SourceType
 from unique_swot.services.generation.batch_processor import (
-    SourceBatchs,
+    SourceBatches,
     extract_swot_from_source_batch,
     split_context_into_batches,
     summarize_swot_extraction_results,
@@ -300,7 +300,7 @@ class TestSourceBatchs:
             chunks=[],
         )
 
-        batch_model = SourceBatchs(source=source)
+        batch_model = SourceBatches(source=source)
 
         assert batch_model.source == source
         assert batch_model.batches == []
@@ -317,7 +317,7 @@ class TestSourceBatchs:
         batch1 = [SourceChunk(id="chunk_1", text="Content 1")]
         batch2 = [SourceChunk(id="chunk_2", text="Content 2")]
 
-        batch_model = SourceBatchs(source=source, batches=[batch1, batch2])
+        batch_model = SourceBatches(source=source, batches=[batch1, batch2])
 
         assert len(batch_model.batches) == 2
         assert batch_model.batches[0] == batch1

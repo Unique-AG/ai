@@ -35,13 +35,11 @@ class ReportDeliveryService:
         citation_manager: CitationManager,
         renderer_type: DocxRendererType,
         template_name: str,
-        message_id: str,
     ):
         self._chat_service = chat_service
         self._docx_renderer = docx_renderer
         self._citation_manager = citation_manager
         self._renderer_type = renderer_type
-        self._message_id = message_id
         self._template_name = template_name
 
     def deliver_report(
@@ -117,19 +115,19 @@ class ReportDeliveryService:
         # Create content reference
         content_reference = self._create_content_reference(
             content_id=content.id,
-            message_id=self._message_id,
+            message_id=self._chat_service.assistant_message_id,
         )
         start_text = session_config.render_session_info(state=SessionState.COMPLETED)
 
         # Modify assistant message
         self._chat_service.modify_assistant_message(
-            message_id=self._message_id,
+            message_id=self._chat_service.assistant_message_id,
             content=f"{start_text}\n\n Here is the {session_config.company_listing.name} SWOT analysis report in DOCX format <sup>1</sup>.",
             references=[content_reference],
         )
 
         _LOGGER.info(
-            f"Successfully delivered DOCX report for message {self._message_id}"
+            f"Successfully delivered DOCX report for message {self._chat_service.assistant_message_id}"
         )
 
     def _deliver_markdown_report(
@@ -138,16 +136,18 @@ class ReportDeliveryService:
         markdown_report: str,
     ) -> None:
         """Delivers the markdown report directly to the chat"""
-        references = self._citation_manager.get_references(message_id=self._message_id)
+        references = self._citation_manager.get_references(
+            message_id=self._chat_service.assistant_message_id
+        )
 
         self._chat_service.modify_assistant_message(
-            message_id=self._message_id,
+            message_id=self._chat_service.assistant_message_id,
             content=markdown_report,
             references=references,
         )
 
         _LOGGER.info(
-            f"Successfully delivered markdown report for message {self._message_id}"
+            f"Successfully delivered markdown report for message {self._chat_service.assistant_message_id}"
         )
 
     @staticmethod

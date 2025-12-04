@@ -1,10 +1,13 @@
 from pydantic import Field
 from pydantic.json_schema import SkipJsonSchema
+from unique_toolkit import LanguageModelName
+from unique_toolkit._common.validators import LMI, get_LMI_default_field
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 
-from unique_swot.services.collection.config import EarningsCallConfig
-from unique_swot.services.generation import ReportGenerationConfig
+from unique_swot.services.generation.config import ReportGenerationConfig
+from unique_swot.services.generation.extraction.config import ExtractionConfig
 from unique_swot.services.report import ReportRendererConfig
+from unique_swot.services.source_management.config import SourceManagementConfig
 
 TOOL_DESCRIPTION = """
 This tool is used to perfom a SWOT analysis of a company by analyzing its strengths, weaknesses, opportunities, and threats.
@@ -20,9 +23,17 @@ class SwotAnalysisToolConfig(BaseToolConfig):
         default="",
         description="The scope id for the SWOT analysis cache.",
     )
-    earnings_call_config: EarningsCallConfig = Field(
-        default_factory=EarningsCallConfig,
-        description="The configuration for the earnings call.",
+    language_model: LMI = Field(
+        default=get_LMI_default_field(LanguageModelName.AZURE_GPT_5_2025_0807),
+        description="The language model to use for the SWOT analysis.",
+    )
+    source_management_config: SourceManagementConfig = Field(
+        default_factory=SourceManagementConfig,
+        description="The configuration for the source management.",
+    )
+    extraction_config: ExtractionConfig = Field(
+        default_factory=ExtractionConfig,
+        description="The configuration for the extraction.",
     )
     report_generation_config: ReportGenerationConfig = Field(
         default_factory=ReportGenerationConfig,

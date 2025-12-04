@@ -200,7 +200,7 @@ class TestSourceCollectionManager:
             "unique_swot.services.collection.base.collect_knowledge_base",
             return_value=[],
         ):
-            sources = await manager.collect_sources()
+            sources = await manager.collect()
 
             assert sources == []
             mock_registry.save.assert_called_once()

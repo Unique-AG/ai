@@ -12,7 +12,7 @@ from typing import Callable, Generic, TypeVar
 from jinja2 import Template
 from pydantic import BaseModel, Field
 
-from unique_swot.services.generation import SWOTComponent
+from unique_swot.services.generation.context import SWOTComponent
 
 
 # Type definitions for SWOT operations
