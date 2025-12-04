@@ -1,7 +1,7 @@
 from unique_toolkit.content import Content
 
-from unique_swot.services.collection.registry import ContentChunkRegistry
-from unique_swot.services.collection.schema import SourceChunk
+from unique_swot.services.source_management.registry import ContentChunkRegistry
+from unique_swot.services.source_management.schema import SourceChunk
 
 
 def convert_content_to_sources(

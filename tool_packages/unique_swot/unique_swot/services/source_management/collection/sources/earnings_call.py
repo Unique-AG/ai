@@ -12,10 +12,12 @@ from unique_toolkit import KnowledgeBaseService
 from unique_toolkit._common.docx_generator import DocxGeneratorService
 from unique_toolkit.content import Content
 
-from unique_swot.services.collection.registry import ContentChunkRegistry
-from unique_swot.services.collection.schema import Source, SourceType
-from unique_swot.services.collection.sources.utils import convert_content_to_sources
 from unique_swot.services.session.schema import UniqueCompanyListing
+from unique_swot.services.source_management.collection.sources.utils import (
+    convert_content_to_sources,
+)
+from unique_swot.services.source_management.registry import ContentChunkRegistry
+from unique_swot.services.source_management.schema import Source, SourceType
 
 _LOGGER = getLogger(__name__)
 

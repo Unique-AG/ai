@@ -23,8 +23,8 @@ class SwotAnalysisToolConfig(BaseToolConfig):
         default="",
         description="The scope id for the SWOT analysis cache.",
     )
-    language_model: LMI = Field(
-        default=get_LMI_default_field(LanguageModelName.AZURE_GPT_5_2025_0807),
+    language_model: LMI = get_LMI_default_field(
+        LanguageModelName.AZURE_GPT_5_2025_0807,
         description="The language model to use for the SWOT analysis.",
     )
     source_management_config: SourceManagementConfig = Field(

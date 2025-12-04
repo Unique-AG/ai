@@ -1,4 +1,4 @@
-from unique_swot.services.collection.base import (
+from unique_swot.services.source_management.collection.base import (
     CollectionContext,
     SourceCollectionManager,
 )

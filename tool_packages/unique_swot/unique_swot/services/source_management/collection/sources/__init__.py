@@ -1,10 +1,12 @@
-from unique_swot.services.collection.sources.earnings_call import (
+from unique_swot.services.source_management.collection.sources.earnings_call import (
     collect_earnings_calls,
 )
-from unique_swot.services.collection.sources.knowledge_base import (
+from unique_swot.services.source_management.collection.sources.knowledge_base import (
     collect_knowledge_base,
 )
-from unique_swot.services.collection.sources.web import collect_web_sources
+from unique_swot.services.source_management.collection.sources.web import (
+    collect_web_sources,
+)
 
 __all__ = [
     "collect_earnings_calls",

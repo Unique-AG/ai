@@ -5,9 +5,15 @@ from unique_toolkit.content.schemas import (
     ContentInfo,
 )
 
-from unique_swot.services.collection.registry import ContentChunkRegistry
-from unique_swot.services.collection.schema import Source, SourceChunk, SourceType
-from unique_swot.services.collection.sources.utils import convert_content_to_sources
+from unique_swot.services.source_management.collection.sources.utils import (
+    convert_content_to_sources,
+)
+from unique_swot.services.source_management.registry import ContentChunkRegistry
+from unique_swot.services.source_management.schema import (
+    Source,
+    SourceChunk,
+    SourceType,
+)
 
 _LOGGER = getLogger(__name__)
 

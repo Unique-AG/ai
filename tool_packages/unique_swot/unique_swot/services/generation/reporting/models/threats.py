@@ -1,10 +1,12 @@
 from typing import Self
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ThreatBulletPoint(BaseModel):
     """A single bullet point within a threat insight."""
+
+    model_config = ConfigDict(extra="forbid")
 
     key_reasoning: str = Field(
         ...,
@@ -18,6 +20,8 @@ class ThreatBulletPoint(BaseModel):
 
 class ConsolidatedThreatItem(BaseModel):
     """A consolidated threat insight representing an external risk."""
+
+    model_config = ConfigDict(extra="forbid")
 
     id: str = Field(..., description="Unique identifier for tracking this threat.")
     title: str = Field(
@@ -33,6 +37,8 @@ class ConsolidatedThreatItem(BaseModel):
 
 class ConsolidatedThreatsReport(BaseModel):
     """Final aggregated report of threat insights from multiple batches."""
+
+    model_config = ConfigDict(extra="forbid")
 
     threats: list[ConsolidatedThreatItem] = Field(
         ...,

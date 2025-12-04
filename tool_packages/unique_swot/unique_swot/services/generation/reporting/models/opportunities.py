@@ -1,10 +1,12 @@
 from typing import Self
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class OpportunityBulletPoint(BaseModel):
     """A single bullet point within an opportunity insight."""
+
+    model_config = ConfigDict(extra="forbid")
 
     key_reasoning: str = Field(
         ...,
@@ -18,6 +20,8 @@ class OpportunityBulletPoint(BaseModel):
 
 class ConsolidatedOpportunityItem(BaseModel):
     """A consolidated opportunity insight representing a broader theme or trend."""
+
+    model_config = ConfigDict(extra="forbid")
 
     id: str = Field(..., description="Unique identifier for tracking this opportunity.")
     title: str = Field(
@@ -33,6 +37,8 @@ class ConsolidatedOpportunityItem(BaseModel):
 
 class ConsolidatedOpportunitiesReport(BaseModel):
     """Final aggregated report of opportunity insights from multiple batches."""
+
+    model_config = ConfigDict(extra="forbid")
 
     opportunities: list[ConsolidatedOpportunityItem] = Field(
         ...,

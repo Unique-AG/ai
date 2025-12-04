@@ -1,10 +1,12 @@
 from typing import Self
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class StrengthBulletPoint(BaseModel):
     """A single bullet point within a strength insight."""
+
+    model_config = ConfigDict(extra="forbid")
 
     key_reasoning: str = Field(
         ...,
@@ -18,6 +20,8 @@ class StrengthBulletPoint(BaseModel):
 
 class ConsolidatedStrengthItem(BaseModel):
     """A consolidated strength insight representing an internal advantage."""
+
+    model_config = ConfigDict(extra="forbid")
 
     id: str = Field(..., description="Unique identifier for tracking this strength.")
     title: str = Field(
@@ -33,6 +37,8 @@ class ConsolidatedStrengthItem(BaseModel):
 
 class ConsolidatedStrengthsReport(BaseModel):
     """Final aggregated report of strength insights from multiple batches."""
+
+    model_config = ConfigDict(extra="forbid")
 
     strengths: list[ConsolidatedStrengthItem] = Field(
         ...,

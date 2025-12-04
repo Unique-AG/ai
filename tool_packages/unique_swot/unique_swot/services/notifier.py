@@ -166,6 +166,7 @@ class ProgressBar:
         self._chat_service = chat_service
         self._executed_fraction = 0
         self._session_info = ""
+        self._total_steps = 90
 
     def start(self, session_info: str, total_steps: int):
         self._session_info = session_info

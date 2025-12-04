@@ -10,8 +10,8 @@ from unique_swot.services.citations import (
     _convert_content_chunk_to_content_reference,
     _get_pages,
 )
-from unique_swot.services.collection.registry import ContentChunkRegistry
 from unique_swot.services.report.config import DocxRendererType
+from unique_swot.services.source_management.registry import ContentChunkRegistry
 
 
 class TestCitationManager:

@@ -6,19 +6,19 @@ from unique_quartr.service import QuartrService
 from unique_toolkit import KnowledgeBaseService
 from unique_toolkit._common.docx_generator import DocxGeneratorService
 
-from unique_swot.services.collection.registry import ContentChunkRegistry
-from unique_swot.services.collection.schema import Source
-from unique_swot.services.collection.sources import (
-    collect_earnings_calls,
-    collect_knowledge_base,
-    collect_web_sources,
-)
 from unique_swot.services.notifier import (
     MessageLogEvent,
     MessageLogStatus,
     ProgressNotifier,
 )
 from unique_swot.services.session.schema import UniqueCompanyListing
+from unique_swot.services.source_management.collection.sources import (
+    collect_earnings_calls,
+    collect_knowledge_base,
+    collect_web_sources,
+)
+from unique_swot.services.source_management.registry import ContentChunkRegistry
+from unique_swot.services.source_management.schema import Source
 
 _LOGGER = getLogger(__name__)
 

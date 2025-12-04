@@ -1,6 +1,6 @@
 from logging import getLogger
 
-from unique_swot.services.collection.schema import Source
+from unique_swot.services.source_management.schema import Source
 
 _LOGGER = getLogger(__name__)
 

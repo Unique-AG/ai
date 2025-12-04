@@ -5,7 +5,8 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 
 from unique_swot.services.executor import SWOTExecutionManager
-from unique_swot.services.generation import ReportGenerationConfig, SWOTComponent
+from unique_swot.services.generation.config import ReportGenerationConfig
+from unique_swot.services.generation.models.component import SWOTComponent
 from unique_swot.services.schemas import (
     SWOTOperation,
     SWOTPlan,
@@ -26,8 +27,8 @@ class TestSWOTExecutionManager:
     ):
         """Create a SWOTExecutionManager instance for testing."""
         from unique_swot.services.citations import CitationManager
-        from unique_swot.services.collection.registry import ContentChunkRegistry
         from unique_swot.services.memory.base import SwotMemoryService
+        from unique_swot.services.source_management.registry import ContentChunkRegistry
 
         memory_service = Mock(spec=SwotMemoryService)
         memory_service.get.return_value = None
