@@ -69,6 +69,7 @@ class Folder(APIResource["Folder"]):
 
     class CreateParams(RequestOptions):
         paths: List[str]
+        inheritAccess: NotRequired[bool]
 
     class FolderInfo(TypedDict):
         """
