@@ -22,6 +22,7 @@ from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.history_manager.history_manager import (
     UploadedContentConfig,
 )
+from unique_toolkit.agentic.loop_runner import ThinkingConfig
 from unique_toolkit.agentic.responses_api import (
     DisplayCodeInterpreterFilesPostProcessorConfig,
     ShowExecutedCodePostprocessorConfig,
@@ -135,6 +136,10 @@ class LoopConfiguration(BaseModel):
         int,
         *ClipInt(min_value=1, max_value=LIMIT_MAX_TOOL_CALLS_PER_ITERATION),
     ] = 10
+
+    thinking_config: (
+        Annotated[ThinkingConfig, Field(title="Active")] | DeactivatedNone
+    ) = Field(default=None, description="The thinking configuration.")
 
 
 class EvaluationConfig(BaseModel):
