@@ -29,30 +29,7 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - name: Detect package manager (on current branch)
-      if: inputs.package_manager == 'auto'
-      id: detect_pm
-      uses: ./.github/actions/detect-package-manager
-      with:
-        package_dir: ${{ inputs.package_dir }}
-
-    - name: Set package manager and pm_cmd
-      id: set_pm
-      shell: bash
-      run: |
-        if [ "${{ inputs.package_manager }}" != "auto" ]; then
-          MANAGER="${{ inputs.package_manager }}"
-        else
-          MANAGER="${{ steps.detect_pm.outputs.package_manager }}"
-        fi
-        echo "manager=$MANAGER" >> $GITHUB_OUTPUT
-        if [ "$MANAGER" = "poetry" ]; then
-          echo "pm_cmd=poetry run" >> $GITHUB_OUTPUT
-        else
-          echo "pm_cmd=uv run" >> $GITHUB_OUTPUT
-        fi
-
-    - name: Setup package manager (before checkout)
+    - name: Setup package manager
       id: setup_pm
       uses: ./.github/actions/install-package-manager
       with:
@@ -69,25 +46,35 @@ runs:
       shell: bash
       run: git checkout "origin/${{ inputs.branch }}" --quiet
 
-    - name: Reinstall dependencies (Poetry)
-      if: steps.set_pm.outputs.manager == 'poetry'
+    - name: Install dependencies on base branch
       shell: bash
       working-directory: ${{ inputs.package_dir }}
-      run: poetry install
+      run: ${{ steps.setup_pm.outputs.install_cmd }}
 
-    - name: Reinstall dependencies (uv)
-      if: steps.set_pm.outputs.manager == 'uv'
+    - name: Discard lock file changes
       shell: bash
-      working-directory: ${{ inputs.package_dir }}
-      run: uv sync
+      run: |
+        # Discard any changes to lock files from dependency installation
+        # This prevents checkout errors when the script switches back to the PR branch
+        if [ -f "${{ inputs.package_dir }}/poetry.lock" ]; then
+          git restore "${{ inputs.package_dir }}/poetry.lock" 2>/dev/null || \
+          git checkout -- "${{ inputs.package_dir }}/poetry.lock" 2>/dev/null || true
+        fi
+        if [ -f "${{ inputs.package_dir }}/uv.lock" ]; then
+          git restore "${{ inputs.package_dir }}/uv.lock" 2>/dev/null || \
+          git checkout -- "${{ inputs.package_dir }}/uv.lock" 2>/dev/null || true
+        fi
 
     - name: Create baseline
       shell: bash
       working-directory: ${{ inputs.package_dir }}
       run: |
+        # Use -c flag for CI mode. The script will checkout the base branch again
+        # (redundant since we're already there), run basedpyright, then checkout back.
+        # Lock files have been discarded, so checkout back should succeed.
         bash ${{ github.workspace }}/.github/scripts/create-type-baseline.sh \
           -c \
-          -r "${{ steps.setup_pm.outputs.pm_cmd }}" \
+          -r "${{ steps.setup_pm.outputs.run_cmd }}" \
           -o "${{ inputs.output_file }}" \
           ${{ github.workspace }}/${{ inputs.package_dir }} \
           ${{ inputs.branch }}

@@ -1,5 +1,5 @@
 name: 'Install Package Manager'
-description: 'Installs the appropriate package manager (Poetry or uv) and returns the pm_cmd command'
+description: 'Installs the appropriate package manager (Poetry or uv) and returns the run_cmd command'
 
 inputs:
   package_dir:
@@ -19,9 +19,12 @@ inputs:
     default: '1.8.3'
 
 outputs:
-  pm_cmd:
+  run_cmd:
     description: 'Package manager command to use (e.g., "poetry run" or "uv run")'
-    value: ${{ steps.install.outputs.pm_cmd }}
+    value: ${{ steps.install.outputs.run_cmd }}
+  install_cmd:
+    description: 'Package manager install command (e.g., "poetry install" or "uv sync")'
+    value: ${{ steps.install.outputs.install_cmd }}
 
 runs:
   using: 'composite'
@@ -58,13 +61,15 @@ runs:
         package_dir: ${{ inputs.package_dir }}
         python_version: ${{ inputs.python_version }}
 
-    - name: Set pm_cmd output
+    - name: Set run_cmd and install_cmd outputs
       id: install
       shell: bash
       run: |
         if [ "${{ steps.set_pm.outputs.manager }}" = "poetry" ]; then
-          echo "pm_cmd=poetry run" >> $GITHUB_OUTPUT
+          echo "run_cmd=poetry run" >> $GITHUB_OUTPUT
+          echo "install_cmd=poetry install" >> $GITHUB_OUTPUT
         else
-          echo "pm_cmd=uv run" >> $GITHUB_OUTPUT
+          echo "run_cmd=uv run" >> $GITHUB_OUTPUT
+          echo "install_cmd=uv sync" >> $GITHUB_OUTPUT
         fi
 
