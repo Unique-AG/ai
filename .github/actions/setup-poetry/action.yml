@@ -1,0 +1,35 @@
+name: 'Setup Poetry'
+description: 'Sets up Python and Poetry'
+
+inputs:
+  package_dir:
+    description: 'Path to the package directory'
+    required: true
+  python_version:
+    description: 'Python version to use'
+    required: false
+    default: '3.11'
+  poetry_version:
+    description: 'Poetry version to install'
+    required: false
+    default: '1.8.3'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python_version }}
+
+    - name: Install Poetry
+      shell: bash
+      run: |
+        POETRY_VERSION='${{ inputs.poetry_version }}'
+        PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install poetry==$POETRY_VERSION
+
+    - name: Install dependencies
+      shell: bash
+      working-directory: ${{ inputs.package_dir }}
+      run: poetry install
+

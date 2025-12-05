@@ -1,0 +1,60 @@
+name: 'Run Coverage Check'
+description: 'Runs coverage check on new/changed code, supporting both Poetry and uv'
+
+inputs:
+  package_dir:
+    description: 'Path to the package directory'
+    required: true
+  package_manager:
+    description: 'Package manager to use: auto (detect), poetry, or uv'
+    required: false
+    default: 'auto'
+  python_version:
+    description: 'Python version to use'
+    required: false
+    default: '3.11'
+  package_manager_version:
+    description: 'Package manager version to install (e.g., "1.8.3" for Poetry, ignored for uv)'
+    required: false
+    default: '1.8.3'
+  base_ref:
+    description: 'Base branch/ref for comparison'
+    required: false
+    default: ''
+  min_coverage:
+    description: 'Minimum coverage percentage'
+    required: false
+    default: '60'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install package manager
+      id: install_pm
+      uses: ./.github/actions/install-package-manager
+      with:
+        package_dir: ${{ inputs.package_dir }}
+        package_manager: ${{ inputs.package_manager }}
+        python_version: ${{ inputs.python_version }}
+        package_manager_version: ${{ inputs.package_manager_version }}
+
+    - name: Fetch base branch
+      if: inputs.base_ref != ''
+      shell: bash
+      run: |
+        BASE_BRANCH=$(echo "${{ inputs.base_ref }}" | sed 's|^origin/||')
+        git fetch origin $BASE_BRANCH:$BASE_BRANCH
+
+    - name: Check coverage on new/changed code
+      shell: bash
+      run: |
+        ARGS=(
+          "${{ inputs.package_dir }}"
+          --min-coverage "${{ inputs.min_coverage }}"
+          --runner "${{ steps.install_pm.outputs.pm_cmd }}"
+        )
+        if [ -n "${{ inputs.base_ref }}" ]; then
+          ARGS+=(--base-ref "${{ inputs.base_ref }}")
+        fi
+        bash ${{ github.workspace }}/.github/scripts/check-coverage.sh "${ARGS[@]}"
+
