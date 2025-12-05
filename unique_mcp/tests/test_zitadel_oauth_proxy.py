@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from unique_mcp.zitadel.oauth_proxy import (
+from unique_mcp.auth.zitadel.oauth_proxy import (
     ZitadelOAuthProxySettings,
     create_zitadel_oauth_proxy,
 )
@@ -58,7 +58,7 @@ def test_create_zitadel_oauth_proxy__returns_oauth_proxy__with_correct_config(
     """
     # Arrange & Act
     with patch(
-        "unique_mcp.zitadel.oauth_proxy.ZitadelOAuthProxySettings"
+        "unique_mcp.auth.zitadel.oauth_proxy.ZitadelOAuthProxySettings"
     ) as mock_settings:
         mock_settings_instance = MagicMock()
         mock_settings_instance.base_url = "http://localhost:10116"
@@ -78,9 +78,11 @@ def test_create_zitadel_oauth_proxy__returns_oauth_proxy__with_correct_config(
         )
         mock_settings.return_value = mock_settings_instance
 
-        with patch("unique_mcp.zitadel.oauth_proxy.JWTVerifier"):
-            with patch("unique_mcp.zitadel.oauth_proxy.OAuthProxy") as mock_oauth:
-                proxy = create_zitadel_oauth_proxy(sample_mcp_server_url)
+        with patch("unique_mcp.auth.zitadel.oauth_proxy.JWTVerifier"):
+            with patch("unique_mcp.auth.zitadel.oauth_proxy.OAuthProxy") as mock_oauth:
+                proxy = create_zitadel_oauth_proxy(
+                    mcp_server_base_url=sample_mcp_server_url
+                )
 
                 # Assert
                 assert proxy is not None
@@ -99,9 +101,9 @@ def test_create_zitadel_oauth_proxy__uses_default_server_url__when_not_provided(
     Setup summary: Call factory without arguments, verify default URL is used.
     """
     # Arrange & Act
-    with patch("unique_mcp.zitadel.oauth_proxy.ZitadelOAuthProxySettings"):
-        with patch("unique_mcp.zitadel.oauth_proxy.JWTVerifier"):
-            with patch("unique_mcp.zitadel.oauth_proxy.OAuthProxy") as mock_oauth:
+    with patch("unique_mcp.auth.zitadel.oauth_proxy.ZitadelOAuthProxySettings"):
+        with patch("unique_mcp.auth.zitadel.oauth_proxy.JWTVerifier"):
+            with patch("unique_mcp.auth.zitadel.oauth_proxy.OAuthProxy") as mock_oauth:
                 create_zitadel_oauth_proxy()
 
                 # Assert
