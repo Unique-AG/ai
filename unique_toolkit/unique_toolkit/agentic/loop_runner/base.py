@@ -28,6 +28,9 @@ class _LoopIterationRunnerKwargs(TypedDict, total=False):
 
 
 class LoopIterationRunner(Protocol):
+    """
+    A loop iteration runner is responsible for running a single iteration of the loop, and returning the stream response for that iteration.
+    """
     async def __call__(
         self,
         **kwargs: Unpack[_LoopIterationRunnerKwargs],
