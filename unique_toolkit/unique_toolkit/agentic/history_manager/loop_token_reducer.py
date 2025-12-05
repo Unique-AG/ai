@@ -31,6 +31,7 @@ from unique_toolkit.language_model.schemas import (
 MAX_INPUT_TOKENS_SAFETY_PERCENTAGE = (
     0.1  # 10% safety margin for input tokens we need 10% less does not work.
 )
+SAFETY_MARGIN_FOR_AGGRESSIVE_REDUCTION = 0.9
 
 
 class SourceReductionResult(BaseModel):
@@ -323,10 +324,10 @@ class LoopTokenReducer:
         Reduce the message length by removing sources from each tool call based on overshoot.
 
         The number of chunks to keep per tool call is calculated as:
-        chunks_to_keep = num_sources / (overshoot_factor * 0.75)
+        chunks_to_keep = num_sources / (overshoot_factor * SAFETY_MARGIN_FOR_AGGRESSIVE_REDUCTION)
 
         This ensures more aggressive reduction when we're significantly over the limit.
-        Using 0.75 factor provides a safety margin to avoid over-reduction.
+        Using SAFETY_MARGIN_FOR_AGGRESSIVE_REDUCTION factor provides a safety margin to avoid over-reduction.
         E.g., if overshoot_factor = 2 (2x over limit), keep 1/1.5 = 2/3 of chunks.
         Always keeps at least 1 chunk.
         """
@@ -369,7 +370,7 @@ class LoopTokenReducer:
         """
         Reduce the sources in the tool message based on overshoot factor.
 
-        Chunks to keep = num_sources / (overshoot_factor * 0.75)
+        Chunks to keep = num_sources / (overshoot_factor * SAFETY_MARGIN_FOR_AGGRESSIVE_REDUCTION)
         This ensures fewer chunks are kept when overshoot is larger.
         E.g., if overshoot_factor = 2 (2x over limit), keep 1/1.5 = 2/3 of chunks
         Always keeps at least 1 chunk.
@@ -386,11 +387,11 @@ class LoopTokenReducer:
             )
 
         # Calculate how many chunks to keep based on overshoot
-        # Use 0.75 safety margin for aggressive reduction, but only when overshoot is
+        # Use SAFETY_MARGIN_FOR_AGGRESSIVE_REDUCTION safety margin for aggressive reduction, but only when overshoot is
         # significant enough (>= ~1.33). Otherwise, the margin would prevent reduction.
         divisor = (
-            overshoot_factor * 0.75
-            if overshoot_factor * 0.75 >= 1.0
+            overshoot_factor * SAFETY_MARGIN_FOR_AGGRESSIVE_REDUCTION
+            if overshoot_factor * SAFETY_MARGIN_FOR_AGGRESSIVE_REDUCTION >= 1.0
             else overshoot_factor
         )
         chunks_to_keep = max(1, int(num_sources / divisor))
