@@ -42,6 +42,7 @@ class Integrated(APIResource["Integrated"]):
         chunkId: str
         key: str
         title: NotRequired["str"]
+        description: NotRequired["str"]
         url: NotRequired["str"]
 
     class ChatCompletionRequestMessage(TypedDict, total=False):
