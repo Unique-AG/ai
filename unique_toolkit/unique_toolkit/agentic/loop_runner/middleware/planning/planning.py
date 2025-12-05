@@ -57,6 +57,10 @@ class PlanningMiddleware(LoopIterationRunner):
             other_options=kwargs.get("other_options", {}),
         )
 
+        if response.choices[0].message.parsed is None:
+            _LOGGER.info("Error parsing planning response")
+            return None
+
         return LanguageModelAssistantMessage(
             content=json.dumps(response.choices[0].message.parsed)
         )

@@ -22,7 +22,9 @@ class _StreamingHandlerKwargs(TypedDict, total=False):
     other_options: dict[str, Any]
 
 
-def _extract_streaming_kwargs(kwargs: _LoopIterationRunnerKwargs) -> _StreamingHandlerKwargs:
+def _extract_streaming_kwargs(
+    kwargs: _LoopIterationRunnerKwargs,
+) -> _StreamingHandlerKwargs:
     res = _StreamingHandlerKwargs(
         messages=kwargs["messages"],
         model_name=kwargs["model"].name,
