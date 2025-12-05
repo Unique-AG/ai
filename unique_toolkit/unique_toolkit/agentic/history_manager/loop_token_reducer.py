@@ -391,10 +391,10 @@ class LoopTokenReducer:
         # significant enough (>= ~1.33). Otherwise, the margin would prevent reduction.
         divisor = (
             overshoot_factor * SAFETY_MARGIN_FOR_AGGRESSIVE_REDUCTION
-            if overshoot_factor * SAFETY_MARGIN_FOR_AGGRESSIVE_REDUCTION >= 1.0
+            if overshoot_factor * SAFETY_MARGIN_FOR_AGGRESSIVE_REDUCTION >= 1.2  # Skip safety margin for small overshoots (e.g., 1.03) to avoid tiny reduction steps
             else overshoot_factor
         )
-        chunks_to_keep = max(1, int(num_sources / divisor))
+        chunks_to_keep = max(1, int(num_sources // divisor))
 
         # Reduce chunks
         if chunks_to_keep >= num_sources:
