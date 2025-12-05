@@ -8,6 +8,7 @@ from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
 )
 from unique_toolkit.agentic.evaluation.evaluation_manager import EvaluationManager
 from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
+from unique_toolkit.agentic.loop_runner import LoopIterationRunner
 from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
     PostprocessorManager,
@@ -64,6 +65,7 @@ class UniqueAI:
         postprocessor_manager: PostprocessorManager,
         message_step_logger: MessageStepLogger,
         mcp_servers: list[McpServer],
+        loop_runner: LoopIterationRunner,
     ):
         self._logger = logger
         self._event = event
@@ -87,6 +89,7 @@ class UniqueAI:
         self._message_step_logger = message_step_logger
         # Helper variable to support control loop
         self._tool_took_control = False
+        self._loop_runner = loop_runner
 
     ############################################################
     # Override of base methods
@@ -152,70 +155,19 @@ class UniqueAI:
 
         self._logger.info("Done composing message plan execution.")
 
-        # Forces tool calls only in first iteration
-        if (
-            len(self._tool_manager.get_forced_tools()) > 0
-            and self.current_iteration_index == 0
-        ):
-            self._logger.info("Its needs forced tool calls.")
-            self._logger.info(f"Forced tools: {self._tool_manager.get_forced_tools()}")
-            responses = [
-                await self._streaming_handler.complete_with_references_async(
-                    messages=messages,
-                    model_name=self._config.space.language_model.name,
-                    tools=self._tool_manager.get_tool_definitions(),
-                    content_chunks=self._reference_manager.get_chunks(),
-                    start_text=self.start_text,
-                    debug_info=self._debug_info_manager.get(),
-                    temperature=self._config.agent.experimental.temperature,
-                    tool_choice=opt,
-                    other_options=self._config.agent.experimental.additional_llm_options,
-                )
-                for opt in self._tool_manager.get_forced_tools()
-            ]
-
-            # Merge responses and refs:
-            tool_calls = []
-            references = []
-            for r in responses:
-                if r.tool_calls:
-                    tool_calls.extend(r.tool_calls)
-                references.extend(r.message.references)
-
-            stream_response = responses[0]
-            stream_response.tool_calls = tool_calls if len(tool_calls) > 0 else None
-            stream_response.message.references = references
-        elif self.current_iteration_index == self._config.agent.max_loop_iterations - 1:
-            self._logger.info(
-                "we are in the last iteration we need to produce an answer now"
-            )
-            # No tool calls in last iteration
-            stream_response = await self._streaming_handler.complete_with_references_async(
-                messages=messages,
-                model_name=self._config.space.language_model.name,
-                content_chunks=self._reference_manager.get_chunks(),
-                start_text=self.start_text,
-                debug_info=self._debug_info_manager.get(),
-                temperature=self._config.agent.experimental.temperature,
-                other_options=self._config.agent.experimental.additional_llm_options,
-            )
-
-        else:
-            self._logger.info(
-                f"we are in the iteration {self.current_iteration_index} asking the model to tell if we should use tools or if it will just stream"
-            )
-            stream_response = await self._streaming_handler.complete_with_references_async(
-                messages=messages,
-                model_name=self._config.space.language_model.name,
-                tools=self._tool_manager.get_tool_definitions(),
-                content_chunks=self._reference_manager.get_chunks(),
-                start_text=self.start_text,
-                debug_info=self._debug_info_manager.get(),
-                temperature=self._config.agent.experimental.temperature,
-                other_options=self._config.agent.experimental.additional_llm_options,
-            )
-
-        return stream_response
+        return await self._loop_runner(
+            messages=messages,
+            iteration_index=self.current_iteration_index,
+            streaming_handler=self._streaming_handler,
+            model=self._config.space.language_model,
+            tools=self._tool_manager.get_tool_definitions(),
+            content_chunks=self._reference_manager.get_chunks(),
+            start_text=self.start_text,
+            debug_info=self._debug_info_manager.get(),
+            temperature=self._config.agent.experimental.temperature,
+            tool_choices=self._tool_manager.get_forced_tools(),
+            other_options=self._config.agent.experimental.additional_llm_options,
+        )
 
     async def _process_plan(self, loop_response: LanguageModelStreamResponse) -> bool:
         self._logger.info(
@@ -541,7 +493,7 @@ class UniqueAI:
             "toolParameters": self._event.payload.tool_parameters,
             **self._debug_info_manager.get(),
         }
-        
+
         await self._chat_service.update_debug_info_async(debug_info=debug_info_event)
 
 
@@ -563,6 +515,7 @@ class UniqueAIResponsesApi(UniqueAI):
         postprocessor_manager: PostprocessorManager,
         message_step_logger: MessageStepLogger,
         mcp_servers: list[McpServer],
+        loop_runner: LoopIterationRunner,
     ) -> None:
         super().__init__(
             logger,
@@ -580,4 +533,5 @@ class UniqueAIResponsesApi(UniqueAI):
             postprocessor_manager=postprocessor_manager,
             message_step_logger=message_step_logger,
             mcp_servers=mcp_servers,
+            loop_runner=loop_runner,
         )
