@@ -8,9 +8,9 @@ from unique_toolkit import LanguageModelService
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
 from unique_toolkit.agentic.loop_runner.base import LoopRunner, _LoopRunnerKwargs
-from unique_toolkit.agentic.loop_runner.middleware.thinking.schema import (
-    ThinkingSchemaConfig,
-    get_thinking_schema,
+from unique_toolkit.agentic.loop_runner.middleware.planning.schema import (
+    PlanningSchemaConfig,
+    get_planning_schema,
 )
 from unique_toolkit.agentic.tools.utils import failsafe_async
 from unique_toolkit.chat.service import LanguageModelStreamResponse
@@ -18,21 +18,21 @@ from unique_toolkit.language_model import (
     LanguageModelAssistantMessage,
 )
 
-logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 
-class ThinkingConfig(BaseModel):
+class PlanningConfig(BaseModel):
     model_config = get_configuration_dict()
 
-    thinking_schema_config: ThinkingSchemaConfig = ThinkingSchemaConfig()
+    planning_schema_config: PlanningSchemaConfig = PlanningSchemaConfig()
 
 
-class ThinkingMiddleware(LoopRunner):
+class PlanningMiddleware(LoopRunner):
     def __init__(
         self,
         *,
         loop_runner: LoopRunner,
-        config: ThinkingConfig,
+        config: PlanningConfig,
         llm_service: LanguageModelService,
         history_manager: HistoryManager | None = None,
     ) -> None:
@@ -41,16 +41,16 @@ class ThinkingMiddleware(LoopRunner):
         self._history_manager = history_manager
         self._llm_service = llm_service
 
-    @failsafe_async(failure_return_value=None, logger=logger)
-    async def _run_think_step(
+    @failsafe_async(failure_return_value=None, logger=_LOGGER)
+    async def _run_plan_step(
         self, **kwargs: Unpack[_LoopRunnerKwargs]
     ) -> LanguageModelAssistantMessage | None:
-        thinking_schema = get_thinking_schema(self._config.thinking_schema_config)
+        planning_schema = get_planning_schema(self._config.planning_schema_config)
 
         response = await self._llm_service.complete_async(
             messages=kwargs["messages"],
             model_name=kwargs["model"].name,
-            structured_output_model=thinking_schema,
+            structured_output_model=planning_schema,
             other_options=kwargs.get("other_options", {}),
         )
 
@@ -61,10 +61,12 @@ class ThinkingMiddleware(LoopRunner):
     async def __call__(
         self, **kwargs: Unpack[_LoopRunnerKwargs]
     ) -> LanguageModelStreamResponse:
-        assistant_message = await self._run_think_step(**kwargs)
+        assistant_message = await self._run_plan_step(**kwargs)
 
         if assistant_message is None:
-            logger.info("Error executing think step, proceeding without thinking step")
+            _LOGGER.info(
+                "Error executing planning step, proceeding without planning step"
+            )
             return await self._loop_runner(**kwargs)
 
         if self._history_manager is not None:

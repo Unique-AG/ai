@@ -11,7 +11,7 @@ from unique_toolkit.protocols.support import (
     ResponsesLanguageModelStreamResponse,
 )
 
-logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 
 class BasicLoopRunnerConfig(BaseModel):
@@ -26,7 +26,7 @@ class BasicLoopRunner(LoopRunner):
     async def _handle_last_iteration(
         self, **kwargs: Unpack[_LoopRunnerKwargs]
     ) -> LanguageModelStreamResponse:
-        logger.info(
+        _LOGGER.info(
             "Reached last iteration, removing tools and producing final response"
         )
 
@@ -38,7 +38,7 @@ class BasicLoopRunner(LoopRunner):
     async def _handle_normal_iteration(
         self, **kwargs: Unpack[_LoopRunnerKwargs]
     ) -> LanguageModelStreamResponse:
-        logger.info("Running loop iteration %d", kwargs["iteration_index"])
+        _LOGGER.info("Running loop iteration %d", kwargs["iteration_index"])
 
         return await stream_response(loop_runner_kwargs=kwargs)
 
@@ -49,7 +49,7 @@ class BasicLoopRunner(LoopRunner):
         assert "tool_choices" in kwargs
 
         tool_choices = kwargs["tool_choices"]
-        logger.info("Forcing tools calls: %s", tool_choices)
+        _LOGGER.info("Forcing tools calls: %s", tool_choices)
 
         responses: list[LanguageModelStreamResponse] = []
 

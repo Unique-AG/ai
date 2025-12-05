@@ -226,7 +226,7 @@ class LanguageModelService:
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
         tools: Optional[list[LanguageModelTool | LanguageModelToolDescription]] = None,
-        structured_output_model: Optional[Type[BaseModel]] = None,
+        structured_output_model: Optional[Type[BaseModel] | dict[str, Any]] = None,
         structured_output_enforce_schema: bool = False,
         other_options: Optional[dict] = None,
     ) -> LanguageModelResponse:
@@ -254,7 +254,7 @@ class LanguageModelService:
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
         tools: Optional[list[LanguageModelTool | LanguageModelToolDescription]] = None,
-        structured_output_model: Optional[Type[BaseModel]] = None,
+        structured_output_model: Optional[Type[BaseModel] | dict[str, Any]] = None,
         structured_output_enforce_schema: bool = False,
         other_options: Optional[dict] = None,
     ) -> LanguageModelResponse:
@@ -286,7 +286,7 @@ class LanguageModelService:
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
         tools: Optional[list[LanguageModelTool | LanguageModelToolDescription]] = None,
-        structured_output_model: Optional[Type[BaseModel]] = None,
+        structured_output_model: Optional[Type[BaseModel] | dict[str, Any]] = None,
         structured_output_enforce_schema: bool = False,
         other_options: Optional[dict] = None,
     ) -> LanguageModelResponse:

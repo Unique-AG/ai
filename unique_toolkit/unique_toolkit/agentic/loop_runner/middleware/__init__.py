@@ -1,7 +1,7 @@
-from unique_toolkit.agentic.loop_runner.middleware.thinking import (
-    ThinkingConfig,
-    ThinkingMiddleware,
-    ThinkingSchemaConfig,
+from unique_toolkit.agentic.loop_runner.middleware.planning import (
+    PlanningConfig,
+    PlanningMiddleware,
+    PlanningSchemaConfig,
 )
 
-__all__ = ["ThinkingConfig", "ThinkingMiddleware", "ThinkingSchemaConfig"]
+__all__ = ["PlanningConfig", "PlanningMiddleware", "PlanningSchemaConfig"]

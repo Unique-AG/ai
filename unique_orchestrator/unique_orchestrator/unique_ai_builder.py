@@ -33,7 +33,7 @@ from unique_toolkit.agentic.loop_runner import (
     BasicLoopRunner,
     BasicLoopRunnerConfig,
     LoopRunner,
-    ThinkingMiddleware,
+    PlanningMiddleware,
 )
 from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
@@ -545,10 +545,10 @@ def _build_loop_runner(
         )
     )
 
-    if config.agent.experimental.loop_configuration.thinking_config is not None:
-        loop_runner = ThinkingMiddleware(
+    if config.agent.experimental.loop_configuration.planning_config is not None:
+        loop_runner = PlanningMiddleware(
             loop_runner=loop_runner,
-            config=config.agent.experimental.loop_configuration.thinking_config,
+            config=config.agent.experimental.loop_configuration.planning_config,
             history_manager=history_manager,
             llm_service=llm_service,
         )
