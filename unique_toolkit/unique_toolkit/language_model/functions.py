@@ -46,7 +46,7 @@ def complete(
     timeout: int = DEFAULT_COMPLETE_TIMEOUT,
     tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
     other_options: dict | None = None,
-    structured_output_model: type[BaseModel] | None = None,
+    structured_output_model: type[BaseModel] | dict[str, Any] | None = None,
     structured_output_enforce_schema: bool = False,
     user_id: str | None = None,
 ) -> LanguageModelResponse:
@@ -110,7 +110,7 @@ async def complete_async(
     timeout: int = DEFAULT_COMPLETE_TIMEOUT,
     tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
     other_options: dict | None = None,
-    structured_output_model: type[BaseModel] | None = None,
+    structured_output_model: type[BaseModel] | dict[str, Any] | None = None,
     structured_output_enforce_schema: bool = False,
 ) -> LanguageModelResponse:
     """Call the completion endpoint asynchronously without streaming the response.
@@ -214,9 +214,21 @@ def _to_search_context(
 
 def _add_response_format_to_options(
     options: dict,
-    structured_output_model: type[BaseModel],
+    structured_output_model: type[BaseModel] | dict[str, Any],
     structured_output_enforce_schema: bool = False,
 ) -> dict:
+    if isinstance(structured_output_model, dict):
+        name = structured_output_model.get("title", "DefaultName")
+        options["responseFormat"] = {
+            "type": "json_schema",
+            "json_schema": {
+                "name": name,
+                "strict": structured_output_enforce_schema,
+                "schema": structured_output_model,
+            },
+        }
+        return options
+
     options["responseFormat"] = {
         "type": "json_schema",
         "json_schema": {
@@ -235,7 +247,7 @@ def _prepare_completion_params_util(
     tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
     other_options: dict | None = None,
     content_chunks: list[ContentChunk] | None = None,
-    structured_output_model: type[BaseModel] | None = None,
+    structured_output_model: type[BaseModel] | dict[str, Any] | None = None,
     structured_output_enforce_schema: bool = False,
 ) -> tuple[dict, str, dict, SearchContext | None]:
     """Prepare common parameters for completion requests.
@@ -283,7 +295,7 @@ def _prepare_openai_completion_params_util(
     tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
     other_options: dict | None = None,
     content_chunks: list[ContentChunk] | None = None,
-    structured_output_model: type[BaseModel] | None = None,
+    structured_output_model: type[BaseModel] | dict[str, Any] | None = None,
     structured_output_enforce_schema: bool = False,
 ) -> tuple[dict, str, SearchContext | None]:
     """Prepare common parameters for completion requests.
@@ -355,7 +367,7 @@ def _prepare_all_completions_params_util(
     other_options: dict | None = None,
     content_chunks: list[ContentChunk] | None = None,
     tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
-    structured_output_model: type[BaseModel] | None = None,
+    structured_output_model: type[BaseModel] | dict[str, Any] | None = None,
     structured_output_enforce_schema: bool = False,
 ) -> tuple[
     dict,
