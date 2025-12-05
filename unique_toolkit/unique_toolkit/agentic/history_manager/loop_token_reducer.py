@@ -63,6 +63,10 @@ class LoopTokenReducer:
         self._content_service = ContentService.from_event(event)
         self._user_message = event.payload.user_message
         self._chat_id = event.payload.chat_id
+        self._effective_token_limit = int(
+            self._language_model.token_limits.token_limit_input
+            * (1 - MAX_INPUT_TOKENS_SAFETY_PERCENTAGE)
+        )
 
     def _get_encoder(self, language_model: LMI) -> tiktoken.Encoding:
         name = language_model.encoder_name or "cl100k_base"
@@ -95,7 +99,7 @@ class LoopTokenReducer:
 
         while self._exceeds_token_limit(token_count):
             token_count_before_reduction = token_count
-            loop_history = self._handle_token_limit_exceeded(loop_history)
+            loop_history = self._handle_token_limit_exceeded(loop_history, token_count)
             messages = self._construct_history(
                 history_from_db,
                 loop_history,
@@ -120,14 +124,10 @@ class LoopTokenReducer:
             len(chunks) > 1
             for chunks in self._reference_manager.get_chunks_of_all_tools()
         )
-        max_tokens = int(
-            self._language_model.token_limits.token_limit_input
-            * (1 - MAX_INPUT_TOKENS_SAFETY_PERCENTAGE)
-        )
         # TODO: This is not fully correct at the moment as the token_count
         # include system_prompt and user question already
         # TODO: There is a problem if we exceed but only have one chunk per tool call
-        exceeds_limit = token_count > max_tokens
+        exceeds_limit = token_count > self._effective_token_limit
 
         return has_multiple_chunks_for_a_tool_call and exceeds_limit
 
@@ -171,16 +171,21 @@ class LoopTokenReducer:
         return constructed_history
 
     def _handle_token_limit_exceeded(
-        self, loop_history: list[LanguageModelMessage]
+        self, loop_history: list[LanguageModelMessage], token_count: int
     ) -> list[LanguageModelMessage]:
         """Handle case where token limit is exceeded by reducing sources in tool responses."""
+        overshoot_factor = (
+            token_count / self._effective_token_limit
+            if self._effective_token_limit > 0
+            else 1.0
+        )
         self._logger.warning(
-            f"Length of messages is exceeds limit of {self._language_model.token_limits.token_limit_input} tokens. "
-            "Reducing number of sources per tool call.",
+            f"Length of messages exceeds limit of {self._effective_token_limit} tokens "
+            f"(overshoot factor: {overshoot_factor:.2f}x). Reducing number of sources per tool call.",
         )
 
         return self._reduce_message_length_by_reducing_sources_in_tool_response(
-            loop_history
+            loop_history, overshoot_factor
         )
 
     def _replace_user_message(
@@ -312,10 +317,18 @@ class LoopTokenReducer:
     def _reduce_message_length_by_reducing_sources_in_tool_response(
         self,
         history: list[LanguageModelMessage],
+        overshoot_factor: float,
     ) -> list[LanguageModelMessage]:
         """
-        Reduce the message length by removing the last source result of each tool call.
-        If there is only one source for a tool call, the tool call message is returned unchanged.
+        Reduce the message length by removing sources from each tool call based on overshoot.
+
+        The number of chunks to keep per tool call is calculated as:
+        chunks_to_keep = num_sources / (overshoot_factor * 0.75)
+
+        This ensures more aggressive reduction when we're significantly over the limit.
+        Using 0.75 factor provides a safety margin to avoid over-reduction.
+        E.g., if overshoot_factor = 2 (2x over limit), keep 1/1.5 = 2/3 of chunks.
+        Always keeps at least 1 chunk.
         """
         history_reduced: list[LanguageModelMessage] = []
         content_chunks_reduced: list[ContentChunk] = []
@@ -328,6 +341,7 @@ class LoopTokenReducer:
                     message,  # type: ignore
                     chunk_offset,
                     source_offset,
+                    overshoot_factor,
                 )
                 content_chunks_reduced.extend(result.reduced_chunks)
                 history_reduced.append(result.message)
@@ -350,10 +364,15 @@ class LoopTokenReducer:
         message: LanguageModelToolMessage,
         chunk_offset: int,
         source_offset: int,
+        overshoot_factor: float,
     ) -> SourceReductionResult:
         """
-        Reduce the sources in the tool message by removing the last source.
-        If there is only one source, the message is returned unchanged.
+        Reduce the sources in the tool message based on overshoot factor.
+
+        Chunks to keep = num_sources / (overshoot_factor * 0.75)
+        This ensures fewer chunks are kept when overshoot is larger.
+        E.g., if overshoot_factor = 2 (2x over limit), keep 1/1.5 = 2/3 of chunks
+        Always keeps at least 1 chunk.
         """
         tool_chunks = self._reference_manager.get_chunks_of_tool(message.tool_call_id)
         num_sources = len(tool_chunks)
@@ -366,16 +385,27 @@ class LoopTokenReducer:
                 source_offset=source_offset,
             )
 
-        # Reduce chunks, keeping all but the last one if multiple exist
-        if num_sources == 1:
+        # Calculate how many chunks to keep based on overshoot
+        # Use 0.75 safety margin for aggressive reduction, but only when overshoot is
+        # significant enough (>= ~1.33). Otherwise, the margin would prevent reduction.
+        divisor = (
+            overshoot_factor * 0.75
+            if overshoot_factor * 0.75 >= 1.0
+            else overshoot_factor
+        )
+        chunks_to_keep = max(1, int(num_sources / divisor))
+
+        # Reduce chunks
+        if chunks_to_keep >= num_sources:
+            # No reduction needed for this tool call
             reduced_chunks = tool_chunks
             content_chunks_reduced = self._reference_manager.get_chunks()[
                 chunk_offset : chunk_offset + num_sources
             ]
         else:
-            reduced_chunks = tool_chunks[:-1]
+            reduced_chunks = tool_chunks[:chunks_to_keep]
             content_chunks_reduced = self._reference_manager.get_chunks()[
-                chunk_offset : chunk_offset + num_sources - 1
+                chunk_offset : chunk_offset + chunks_to_keep
             ]
             self._reference_manager.replace_chunks_of_tool(
                 message.tool_call_id, reduced_chunks
@@ -392,7 +422,7 @@ class LoopTokenReducer:
             message=new_message,
             reduced_chunks=content_chunks_reduced,
             chunk_offset=chunk_offset + num_sources,
-            source_offset=source_offset + num_sources - (1 if num_sources != 1 else 0),
+            source_offset=source_offset + len(reduced_chunks),
         )
 
     def _create_tool_call_message_with_reduced_sources(
