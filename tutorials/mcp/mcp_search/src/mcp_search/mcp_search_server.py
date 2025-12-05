@@ -1,89 +1,37 @@
-import os
-from dotenv import load_dotenv
+import json
+from pathlib import Path
+from typing import Annotated
+
+import requests
+from fastapi.responses import FileResponse, JSONResponse
 from fastmcp import FastMCP
 from fastmcp.server.dependencies import get_access_token
-import requests
+from mcp.types import CallToolResult, TextContent
+from pydantic import BaseModel, Field
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
-from fastmcp.server.auth.providers.jwt import JWTVerifier
-from fastmcp.server.auth.oauth_proxy import OAuthProxy
 from starlette.requests import Request
-import json
-import sys
-from typing import Annotated
-from pydantic import Field
-import unique_sdk
 
-from fastapi.responses import FileResponse, JSONResponse
-from pathlib import Path
-
+from mcp_search.zitadel_oauth_proxy import (
+    ZitadelOAuthProxySettings,
+    create_zitadel_oauth_proxy,
+)
+from unique_toolkit import KnowledgeBaseService
+from unique_toolkit.app.unique_settings import UniqueSettings
+from unique_toolkit.content.schemas import ContentSearchType
 
 # Ensure the static directory exists and contains favicon.ico
 FAVICON_PATH = Path(__file__).parent / "favicon.ico"
 
 
-# Load environment variables from .env file
-load_dotenv()
+unique_settings = UniqueSettings.from_env_auto_with_sdk_init()
+print(unique_settings._env_file)
 
 
-ZITADEL_URL = os.getenv("ZITADEL_URL", "http://localhost:10116")
-upstream_client_id = os.getenv("UPSTREAM_CLIENT_ID", "default_client_id")
-upstream_client_secret = os.getenv("UPSTREAM_CLIENT_SECRET", "default_client_secret")
-base_url_env = os.getenv("BASE_URL_ENV", "https://default.ngrok-free.app")
-
-unique_sdk.api_base = os.getenv(
-    "API_BASE", "https://gateway.qa.unique.app/public/chat-gen2"
-)
-unique_sdk.api_key = os.getenv("API_KEY", "default_api_key")
-unique_sdk.app_id = os.getenv("APP_ID", "default_app_id")
-
-
-
-
-
-
-
-base_url_arg = sys.argv[1] if len(sys.argv) > 1 else base_url_env
-
-print("base_url_arg", base_url_arg)
-
-
-
-token_verifier = JWTVerifier(
-    jwks_uri=f"{ZITADEL_URL}/oauth/v2/keys",
-    issuer=f"{ZITADEL_URL}",
-    algorithm=None,
-    audience=None,
-    # required_scopes=[],
-)
-
-auth = OAuthProxy(
-    upstream_authorization_endpoint=f"{ZITADEL_URL}/oauth/v2/authorize",
-    upstream_token_endpoint=f"{ZITADEL_URL}/oauth/v2/token",
-    upstream_client_id=upstream_client_id,
-    upstream_client_secret=upstream_client_secret,
-    upstream_revocation_endpoint=f"{ZITADEL_URL}/oauth/v2/revoke",
-    token_verifier=token_verifier,
-    base_url=base_url_arg,
-    redirect_path=None,
-    issuer_url=None,
-    service_documentation_url=None,
-    allowed_client_redirect_uris=None,
-    valid_scopes=[
-        "mcp:tools",
-        "mcp:prompts",
-        "mcp:resources",
-        "mcp:resource-templates",
-        "email",
-        "openid",
-        "profile",
-        "urn:zitadel:iam:user:resourceowner",
-    ],
-    forward_pkce=True,
-    token_endpoint_auth_method="client_secret_post",
-    extra_authorize_params=None,
-    extra_token_params=None,
-)
+zitadel_oauth_proxy_settings = ZitadelOAuthProxySettings()
+# Pass the MCP server's base URL to the OAuth proxy for discovery endpoints
+mcp_server_base_url = "http://localhost:8003"
+auth = create_zitadel_oauth_proxy(mcp_server_base_url=mcp_server_base_url)
 
 
 custom_middleware = [
@@ -97,23 +45,38 @@ custom_middleware = [
 ]
 
 # mcp = FastMCP.from_fastapi(app=app,auth=auth,debug=True,log_level="debug")
-mcp = FastMCP("Demo 🚀", auth=auth, debug=True, log_level="debug")
+# mcp = FastMCP(name="Demo 🚀", auth=auth, debug=True, log_level="debug")
+mcp = FastMCP(name="Demo 🚀", auth=auth, debug=True, log_level="debug")
 
 
-def get_user():
+class User(BaseModel):
+    email: str
+    user_id: str
+    name: str
+    company_id: str
+
+
+def get_user() -> User:
+    zitadel_user_info = None
     token = get_access_token()
-    if token is not None:
-        headers = {
-            "Authorization": f"Bearer {token.token}",
-        }
-        response = requests.get(f"{ZITADEL_URL}/oidc/v1/userinfo", headers=headers)
-    zitadel_user_info = response.json()
-    user = {
-        "email": zitadel_user_info.get("email"),
-        "user_id": zitadel_user_info.get("sub"),
-        "name": zitadel_user_info.get("name"),
-        "company_id": zitadel_user_info.get("urn:zitadel:iam:user:resourceowner:id"),
+
+    if token is None:
+        raise Exception("Unable to retrieve access token for user retrieval")
+
+    headers = {
+        "Authorization": f"Bearer {token.token}",
     }
+    response = requests.get(
+        zitadel_oauth_proxy_settings.userinfo_endpoint(), headers=headers
+    )
+    zitadel_user_info = response.json()
+
+    user = User(
+        email=zitadel_user_info.get("email"),
+        user_id=zitadel_user_info.get("sub"),
+        name=zitadel_user_info.get("name"),
+        company_id=zitadel_user_info.get("urn:zitadel:iam:user:resourceowner:id"),
+    )
 
     return user
 
@@ -137,25 +100,45 @@ def add(
 
 
 @mcp.tool
-def identify(user_prompt: str) -> str:
+def identify(user_prompt: str) -> CallToolResult:
     """Identify the user"""
     user = get_user()
-    data = json.dumps(user)
-    print(data)
-    return data
+    return CallToolResult(
+        content=[
+            TextContent(
+                type="text", text=json.dumps(user.model_dump()), _meta=user.model_dump()
+            )
+        ],
+    )
 
-@mcp.tool
-def search(query: str)->str:
+
+@mcp.tool()
+def search(
+    search_string: str,
+    search_type: ContentSearchType = ContentSearchType.COMBINED,
+    limit: int = 10,
+) -> CallToolResult:
     """Search in the knowledge base"""
     user = get_user()
-    print("user", user)
-    result = unique_sdk.Search.create(
-        user_id=user.get("user_id"),
-        company_id=user.get("company_id"),
-        searchString=query,
-        searchType="COMBINED",
+
+    knowledge_base_service = KnowledgeBaseService(
+        user_id=user.user_id,
+        company_id=user.company_id,
     )
-    return json.dumps(result)   
+
+    content_chunks = knowledge_base_service.search_content_chunks(
+        search_string=search_string,
+        search_type=search_type,
+        limit=limit,
+        scope_ids=None,
+    )
+
+    return CallToolResult(
+        content=[
+            TextContent(type="text", text=chunk.text, _meta=chunk.model_dump())
+            for chunk in content_chunks
+        ],
+    )
 
 
 @mcp.custom_route("/", methods=["GET"])

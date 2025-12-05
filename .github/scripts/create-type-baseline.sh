@@ -33,6 +33,17 @@ OPTIONS:
     -v, --version        Show version information and exit
     -c, --ci             CI mode - use git checkout instead of stash/restore
     -o, --output FILE    Output file for baseline (default: /tmp/baseline.json)
+    -r, --runner CMD     Command executor prefix (e.g., "poetry run" or "uv run", default: "poetry run")
+
+EXAMPLES:
+    # Basic usage (with Poetry)
+    ${SCRIPT_NAME} unique_toolkit
+
+    # With uv
+    ${SCRIPT_NAME} -r "uv run" -c unique_mcp main
+
+    # CI mode with custom output
+    ${SCRIPT_NAME} -c -o /tmp/my-baseline.json unique_toolkit main
 
 EXAMPLES:
     # Basic usage
@@ -68,6 +79,7 @@ PACKAGE_DIR=""
 BRANCH="main"
 CI_MODE=false
 OUTPUT_FILE="/tmp/baseline.json"
+RUNNER="poetry run"
 
 # Convert long options to short options for getopts
 ARGS=()
@@ -109,7 +121,7 @@ done
 set -- "${ARGS[@]}"
 
 # Parse options using getopts
-while getopts "hvo:c" opt; do
+while getopts "hvo:cr:" opt; do
     case $opt in
         h)
             show_help
@@ -124,6 +136,9 @@ while getopts "hvo:c" opt; do
             ;;
         c)
             CI_MODE=true
+            ;;
+        r)
+            RUNNER="$OPTARG"
             ;;
         \?)
             print_error "Invalid option: -$OPTARG"
@@ -222,7 +237,8 @@ mkdir -p .basedpyright
 
 # Run basedpyright with --writebaseline to create baseline
 print_info "Running basedpyright --writebaseline on $BRANCH..."
-poetry run basedpyright --writebaseline 2>&1 || {
+print_info "Using runner: $RUNNER"
+$RUNNER basedpyright --writebaseline 2>&1 || {
     print_warning "basedpyright exited with non-zero status (expected if there are errors)"
 }
 
