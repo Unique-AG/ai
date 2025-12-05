@@ -18,7 +18,7 @@ from unique_swot.services.source_management.schema import (
 _LOGGER = getLogger(__name__)
 
 
-def collect_knowledge_base(
+async def collect_knowledge_base(
     *,
     knowledge_base_service: KnowledgeBaseService,
     metadata_filter: dict,
@@ -27,7 +27,7 @@ def collect_knowledge_base(
     contents = knowledge_base_service.get_paginated_content_infos(
         metadata_filter=metadata_filter
     )
-    sources = _convert_content_to_sources(
+    sources = await _convert_content_to_sources(
         knowledge_base_service=knowledge_base_service,
         content_infos=contents.content_infos,
         chunk_registry=chunk_registry,
@@ -36,7 +36,7 @@ def collect_knowledge_base(
     return sources
 
 
-def _convert_content_to_sources(
+async def _convert_content_to_sources(
     *,
     knowledge_base_service: KnowledgeBaseService,
     content_infos: list[ContentInfo],
@@ -47,7 +47,7 @@ def _convert_content_to_sources(
     for content_info in content_infos:
         title = content_info.title or content_info.key or "Unknown Title"
         url = content_info.url
-        chunks = _get_chunks_from_content(
+        chunks = await _get_chunks_from_content(
             knowledge_base_service=knowledge_base_service,
             content_id=content_info.id,
             chunk_registry=chunk_registry,
@@ -74,13 +74,13 @@ def _convert_content_to_sources(
     return sources
 
 
-def _get_chunks_from_content(
+async def _get_chunks_from_content(
     *,
     knowledge_base_service: KnowledgeBaseService,
     content_id: str,
     chunk_registry: ContentChunkRegistry,
 ) -> list[SourceChunk]:
-    contents = knowledge_base_service.search_contents(
+    contents = await knowledge_base_service.search_contents_async(
         where={"id": {"equals": content_id}}
     )
 
@@ -93,7 +93,7 @@ def _get_chunks_from_content(
         return chunks
 
     assert len(contents) == 1, (
-        "Expected exactly one content to be found for the given content id"
+        "Expecting exactly one content to be found for the given content id"
     )
 
     chunks = convert_content_to_sources(

@@ -1,16 +1,24 @@
 from logging import getLogger
+from typing import Callable
 
+from jinja2 import Template
 from unique_toolkit import ChatService
 from unique_toolkit._common.docx_generator import DocxGeneratorService
 from unique_toolkit.content import ContentReference
 
 from unique_swot.services.citations import CitationManager
+from unique_swot.services.generation.reporting.models import (
+    ConsolidatedOpportunitiesReport,
+    ConsolidatedStrengthsReport,
+    ConsolidatedThreatsReport,
+    ConsolidatedWeaknessesReport,
+    SWOTConsolidatedReport,
+)
 from unique_swot.services.report.config import DocxRendererType
 from unique_swot.services.report.docx import (
     add_citation_footer,
     convert_markdown_to_docx,
 )
-from unique_swot.services.schemas import SWOTResult
 from unique_swot.services.session import SessionState, SwotAnalysisSessionConfig
 
 _LOGGER = getLogger(__name__)
@@ -45,7 +53,7 @@ class ReportDeliveryService:
     def deliver_report(
         self,
         session_config: SwotAnalysisSessionConfig,
-        result: SWOTResult,
+        result: list[SWOTConsolidatedReport],
         docx_template_fields: dict[str, str],
         ingest_docx: bool,
     ) -> str:
@@ -53,11 +61,13 @@ class ReportDeliveryService:
         Delivers a SWOT analysis report to the chat.
 
         Args:
-            markdown_report: The markdown formatted report
-            message_id: The ID of the assistant message to modify
+            session_config: The session configuration containing company info
+            result: List of consolidated SWOT reports (one per component)
             docx_template_fields: The fields to be used in the DOCX template
+            ingest_docx: Whether to ingest the DOCX file
         """
-        markdown_report = result.to_markdown_report(
+        markdown_report = self._convert_consolidated_reports_to_markdown(
+            result,
             markdown_jinja_template=self._template_name,
             processor=lambda report: self._citation_manager.add_citations_to_report(
                 report, self._renderer_type
@@ -82,6 +92,45 @@ class ReportDeliveryService:
                 raise ValueError(f"Invalid renderer type: {self._renderer_type}")
 
         return markdown_report
+
+    def _convert_consolidated_reports_to_markdown(
+        self,
+        consolidated_reports: list[SWOTConsolidatedReport],
+        markdown_jinja_template: str,
+        processor: Callable[[str], str],
+    ) -> str:
+        """
+        Converts a list of consolidated reports into a markdown report.
+
+        Args:
+            consolidated_reports: List of consolidated reports (one per component)
+            markdown_jinja_template: The Jinja2 template for rendering
+            processor: Function to process the markdown (e.g., add citations)
+
+        Returns:
+            Formatted markdown report
+        """
+        # Organize reports by component type
+        report_data = {
+            "strengths": [],
+            "weaknesses": [],
+            "opportunities": [],
+            "threats": [],
+        }
+
+        for report in consolidated_reports:
+            if isinstance(report, ConsolidatedStrengthsReport):
+                report_data["strengths"] = report.strengths
+            elif isinstance(report, ConsolidatedWeaknessesReport):
+                report_data["weaknesses"] = report.weaknesses
+            elif isinstance(report, ConsolidatedOpportunitiesReport):
+                report_data["opportunities"] = report.opportunities
+            elif isinstance(report, ConsolidatedThreatsReport):
+                report_data["threats"] = report.threats
+
+        # Render using the template
+        markdown_report = Template(markdown_jinja_template).render(**report_data)
+        return processor(markdown_report)
 
     def _deliver_docx_report(
         self,

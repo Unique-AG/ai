@@ -28,9 +28,7 @@ class DateRelevancySourceIterator:
     async def iterate(self, *, sources: list[Source]) -> AsyncIterator[Source]:
         async def _generator() -> AsyncIterator[Source]:
             dates = [self._extract_date_from_source(source) for source in sources]
-            sorted_sources = sorted(
-                zip(sources, dates), key=lambda x: x[1], reverse=True
-            )
+            sorted_sources = sorted(zip(sources, dates), key=lambda x: x[1])
             for source, _ in sorted_sources:
                 yield source
 

@@ -26,6 +26,10 @@ class OpportunitiesExtraction(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    notification_message: str = Field(
+        description="A message to be displayed to the user to keep him updated on the progress of the extraction"
+    )
+
     opportunities: list[OpportunityItem] = Field(
         description="The opportunities identified in the analysis"
     )
@@ -33,10 +37,17 @@ class OpportunitiesExtraction(BaseModel):
     @classmethod
     def group_batches(cls, batches: Sequence[Self]) -> Self:
         """Combine multiple OpportunitiesAnalysis batches into a single analysis."""
-        all_opportunities = []
+        all_opportunities: list[OpportunityItem] = []
         for batch in batches:
             all_opportunities.extend(batch.opportunities)
-        return cls(opportunities=all_opportunities)
+
+        notification_message = ""
+        if len(batches):
+            notification_message = batches[-1].notification_message
+
+        return cls(
+            opportunities=all_opportunities, notification_message=notification_message
+        )
 
     @property
     def number_of_items(self) -> int:

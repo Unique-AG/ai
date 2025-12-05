@@ -1,0 +1,16 @@
+Company: {{ company_name }}
+
+Source candidate (top {{ selected_chunks | length }} chunks):
+{% for chunk in selected_chunks %}
+[{{ loop.index }} | id={{ chunk.id }}]
+{{ chunk.text }}
+
+{% endfor %}
+Task
+- Determine whether this source should be selected for the SWOT analysis of {{ company_name }}.
+- Base your decision only on the text above.
+- If the source is off-topic, too generic, or provides little actionable insight, set should_select to false.
+
+Output
+- Follow the schema: should_select (bool), reason (brief, cite the key chunk ids/indices that informed the decision), notification_message (short progress/status note for the user).
+

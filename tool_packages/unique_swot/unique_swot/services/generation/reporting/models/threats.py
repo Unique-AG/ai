@@ -40,6 +40,10 @@ class ConsolidatedThreatsReport(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    notification_message: str = Field(
+        description="A message to be displayed to the user to keep him updated on the progress of the reporting"
+    )
+
     threats: list[ConsolidatedThreatItem] = Field(
         ...,
         description="Refined, deduplicated set of threat insights representing all unique external risks. Should balance comprehensiveness with actionable clarity.",
@@ -50,17 +54,19 @@ class ConsolidatedThreatsReport(BaseModel):
         return self.threats
 
     def update(self, new_items: Self) -> Self:
-        new_items_by_id = {item.id: item for item in new_items.threats}
-        for item in self.threats:
-            if item.id in new_items_by_id:
-                self._update_item(new_items_by_id[item.id])
+        """Merge new threat items into the report, updating matches by id."""
+        existing_by_id = {item.id: item for item in self.threats}
+        for new_item in new_items.threats:
+            if new_item.id in existing_by_id:
+                self._update_item(existing_by_id[new_item.id], new_item)
             else:
-                self.threats.append(item)
+                self.threats.append(new_item)
         return self
 
     def _update_item(
         self,
+        current_item: ConsolidatedThreatItem,
         new_item: ConsolidatedThreatItem,
     ) -> None:
-        self.title = new_item.title
-        self.bullet_points = new_item.bullet_points
+        current_item.title = new_item.title
+        current_item.bullet_points = new_item.bullet_points

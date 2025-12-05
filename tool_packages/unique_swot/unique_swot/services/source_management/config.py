@@ -5,10 +5,18 @@ from unique_swot.services.source_management.collection.config import EarningsCal
 from unique_swot.services.source_management.iteration.date_relevancy import (
     DateRelevancySourceIteratorConfig,
 )
+from unique_swot.services.source_management.selection.config import (
+    SourceSelectionConfig,
+)
 
 
 class SourceManagementConfig(BaseModel):
     model_config = get_configuration_dict()
+
+    source_selection_config: SourceSelectionConfig = Field(
+        default_factory=SourceSelectionConfig,
+        description="The configuration for the source selection.",
+    )
 
     earnings_call_config: EarningsCallConfig = Field(
         default_factory=EarningsCallConfig,

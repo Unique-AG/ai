@@ -40,6 +40,10 @@ class ConsolidatedWeaknessesReport(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    notification_message: str = Field(
+        description="A message to be displayed to the user to keep him updated on the progress of the reporting"
+    )
+
     weaknesses: list[ConsolidatedWeaknessItem] = Field(
         ...,
         description="Refined, deduplicated set of weakness insights representing all unique internal limitations. Should be comprehensive yet concise, maintaining a constructive perspective.",
@@ -50,17 +54,19 @@ class ConsolidatedWeaknessesReport(BaseModel):
         return self.weaknesses
 
     def update(self, new_items: Self) -> Self:
-        new_items_by_id = {item.id: item for item in new_items.weaknesses}
-        for item in self.weaknesses:
-            if item.id in new_items_by_id:
-                self._update_item(new_items_by_id[item.id])
+        """Merge new weakness items into the report, updating matches by id."""
+        existing_by_id = {item.id: item for item in self.weaknesses}
+        for new_item in new_items.weaknesses:
+            if new_item.id in existing_by_id:
+                self._update_item(existing_by_id[new_item.id], new_item)
             else:
-                self.weaknesses.append(item)
+                self.weaknesses.append(new_item)
         return self
 
     def _update_item(
         self,
+        current_item: ConsolidatedWeaknessItem,
         new_item: ConsolidatedWeaknessItem,
     ) -> None:
-        self.title = new_item.title
-        self.bullet_points = new_item.bullet_points
+        current_item.title = new_item.title
+        current_item.bullet_points = new_item.bullet_points

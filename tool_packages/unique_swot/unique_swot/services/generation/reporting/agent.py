@@ -41,7 +41,7 @@ class ProgressiveReportingAgent:
         component: SWOTComponent,
         extraction_result: SWOTExtractionModel,
         optional_instruction: str | None,
-    ) -> None:
+    ) -> str:
         # Load previous report from memory
         consolidated_report_model = get_swot_consolidated_report_model(component)
 
@@ -71,11 +71,20 @@ class ProgressiveReportingAgent:
                 new_items=new_items,
             )
             self._memory_service.set(updated_report)
+            return updated_report.notification_message
+        return "Failed to update the consolidated report"
 
-    def get_report(self) -> str:
+    def get_report(self) -> list[SWOTConsolidatedReport]:
         # Get the report from all components
 
-        return ""
+        reports = []
+        for component in SWOTComponent:
+            consolidated_report_model = get_swot_consolidated_report_model(component)
+            consolidated_report = self._memory_service.get(consolidated_report_model)
+            if consolidated_report is None:
+                continue
+            reports.append(consolidated_report)
+        return reports
 
     def _compose_system_prompt(
         self, company_name: str, component: SWOTComponent

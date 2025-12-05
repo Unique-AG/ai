@@ -6,11 +6,7 @@ from unique_quartr.service import QuartrService
 from unique_toolkit import KnowledgeBaseService
 from unique_toolkit._common.docx_generator import DocxGeneratorService
 
-from unique_swot.services.notifier import (
-    MessageLogEvent,
-    MessageLogStatus,
-    ProgressNotifier,
-)
+from unique_swot.services.orchestrator.service import Notifier
 from unique_swot.services.session.schema import UniqueCompanyListing
 from unique_swot.services.source_management.collection.sources import (
     collect_earnings_calls,
@@ -42,7 +38,7 @@ class SourceCollectionManager:
         knowledge_base_service: KnowledgeBaseService,
         content_chunk_registry: ContentChunkRegistry,
         quartr_service: QuartrService | None = None,
-        notifier: ProgressNotifier,
+        notifier: Notifier,
         earnings_call_docx_generator_service: DocxGeneratorService,
     ):
         self._context = context
@@ -55,26 +51,15 @@ class SourceCollectionManager:
         )
         self._notification_title = "Collecting Sources"
 
-    @property
-    def _total_steps(self) -> int:
-        total_steps = 0
-        if self._context.metadata_filter is not None:
-            total_steps += 1
-        if self._context.use_earnings_calls:
-            total_steps += 1
-        if self._context.use_web_sources:
-            total_steps += 1
-        return total_steps
-
     async def collect(self) -> list[Source]:
-        self._notifier.update_progress(
-            step_precentage_increment=0,
-            current_step_message="Starting to collect sources",
+        await self._notifier.increment_progress(
+            step_increment=0,
+            progress_info="Starting to collect sources",
         )
 
         sources = []
 
-        sources = self._collect_internal_documents(
+        sources = await self._collect_internal_documents(
             metadata_filter=self._context.metadata_filter,
             chunk_registry=self._content_chunk_registry,
         )
@@ -92,26 +77,22 @@ class SourceCollectionManager:
             )
         )
         sources.extend(
-            self._collect_web_sources(
+            await self._collect_web_sources(
                 use_web_sources=self._context.use_web_sources,
                 chunk_registry=self._content_chunk_registry,
             )
         )
-        self._notifier.notify(
-            notification_title=self._notification_title,
-            status=MessageLogStatus.COMPLETED,
-            message_log_event=MessageLogEvent(
-                type="InternalSearch",
-                text=f"Completed collecting {len(sources)} sources",
-            ),
+        await self._notifier.notify(
+            title=self._notification_title,
+            description=f"Completed collecting {len(sources)} sources",
         )
 
         # Save Registry Store in Memory Service
         self._content_chunk_registry.save()
 
-        self._notifier.update_progress(
-            step_precentage_increment=0,
-            current_step_message="Completed collecting sources",
+        await self._notifier.increment_progress(
+            step_increment=0,
+            progress_info="Completed collecting sources",
         )
 
         return sources
@@ -145,17 +126,13 @@ class SourceCollectionManager:
             return []
 
         _LOGGER.info("Collecting earnings calls!")
-        self._notifier.notify(
-            notification_title=self._notification_title,
-            status=MessageLogStatus.RUNNING,
-            message_log_event=MessageLogEvent(
-                type="InternalSearch",
-                text="Collecting Earnings Calls",
-            ),
+        await self._notifier.notify(
+            title=self._notification_title,
+            description="Collecting Earnings Calls",
         )
-        self._notifier.update_progress(
-            step_precentage_increment=0,
-            current_step_message=f"Collecting earnings calls from {earnings_call_start_date.strftime('%Y-%m-%d')} to today",
+        await self._notifier.increment_progress(
+            step_increment=0,
+            progress_info=f"Collecting earnings calls from {earnings_call_start_date.strftime('%Y-%m-%d')} to today",
         )
         sources = await collect_earnings_calls(
             chunk_registry=chunk_registry,
@@ -166,34 +143,30 @@ class SourceCollectionManager:
             docx_generator_service=docx_generator_service,
             knowledge_base_service=knowledge_base_service,
         )
-        self._notifier.update_progress(
-            step_precentage_increment=1 / self._total_steps,
-            current_step_message=f"{len(sources)} earnings call(s) collected",
+        await self._notifier.increment_progress(
+            step_increment=0,
+            progress_info=f"{len(sources)} earnings call(s) collected",
         )
         return sources
 
-    def _collect_web_sources(
+    async def _collect_web_sources(
         self, *, use_web_sources: bool, chunk_registry: ContentChunkRegistry
     ) -> list[Source]:
         if not use_web_sources:
             _LOGGER.warning("No web sources will be collected.")
             return []
         _LOGGER.info("Collecting web sources!")
-        self._notifier.notify(
-            notification_title=self._notification_title,
-            status=MessageLogStatus.RUNNING,
-            message_log_event=MessageLogEvent(
-                type="WebSearch",
-                text="Collecting Web Sources",
-            ),
+        await self._notifier.notify(
+            title=self._notification_title,
+            description="Collecting Web Sources",
         )
-        self._notifier.update_progress(
-            step_precentage_increment=1 / self._total_steps,
-            current_step_message="Collecting web sources",
+        await self._notifier.increment_progress(
+            step_increment=0,
+            progress_info="Collecting web sources",
         )
         return collect_web_sources()
 
-    def _collect_internal_documents(
+    async def _collect_internal_documents(
         self, *, metadata_filter: dict | None, chunk_registry: ContentChunkRegistry
     ) -> list[Source]:
         if metadata_filter is None:
@@ -203,25 +176,21 @@ class SourceCollectionManager:
             return []
 
         _LOGGER.info("Collecting internal documents!")
-        self._notifier.notify(
-            notification_title=self._notification_title,
-            status=MessageLogStatus.RUNNING,
-            message_log_event=MessageLogEvent(
-                type="InternalSearch",
-                text="Collecting Internal Documents",
-            ),
+        await self._notifier.notify(
+            title=self._notification_title,
+            description="Collecting Internal Documents",
         )
-        self._notifier.update_progress(
-            step_precentage_increment=0,
-            current_step_message="Collecting internal documents",
+        await self._notifier.increment_progress(
+            step_increment=0,
+            progress_info="Collecting internal documents",
         )
-        sources = collect_knowledge_base(
+        sources = await collect_knowledge_base(
             knowledge_base_service=self._knowledge_base_service,
             metadata_filter=metadata_filter,
             chunk_registry=chunk_registry,
         )
-        self._notifier.update_progress(
-            step_precentage_increment=1 / self._total_steps,
-            current_step_message=f"Finished collecting {len(sources)} internal documents",
+        await self._notifier.increment_progress(
+            step_increment=0,
+            progress_info=f"Finished collecting {len(sources)} internal documents",
         )
         return sources

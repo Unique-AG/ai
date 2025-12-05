@@ -31,6 +31,10 @@ class WeaknessesExtraction(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    notification_message: str = Field(
+        description="A message to be displayed to the user to keep him updated on the progress of the extraction"
+    )
+
     weaknesses: list[WeaknessItem] = Field(
         description="List of weaknesses extracted from the sources"
     )
@@ -40,10 +44,13 @@ class WeaknessesExtraction(BaseModel):
         cls, batches: Sequence["WeaknessesExtraction"]
     ) -> "WeaknessesExtraction":
         """Combine multiple extraction batches by concatenating all weaknesses."""
-        all_weaknesses = []
+        all_weaknesses: list[WeaknessItem] = []
         for batch in batches:
             all_weaknesses.extend(batch.weaknesses)
-        return cls(weaknesses=all_weaknesses)
+        notification_message = ""
+        if len(batches) > 1:
+            notification_message = batches[-1].notification_message
+        return cls(weaknesses=all_weaknesses, notification_message=notification_message)
 
     @property
     def number_of_items(self) -> int:

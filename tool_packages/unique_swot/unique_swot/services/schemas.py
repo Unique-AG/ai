@@ -71,7 +71,7 @@ class SWOTPlan(SWOT[SWOTStepPlan]):
             case _:
                 raise ValueError(f"Invalid component: {component}")
 
-    def get_number_of_executions(self) -> int:
+    def __len__(self) -> int:
         return len(
             [
                 step

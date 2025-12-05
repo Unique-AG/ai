@@ -40,6 +40,10 @@ class ConsolidatedOpportunitiesReport(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    notification_message: str = Field(
+        description="A message to be displayed to the user to keep him updated on the progress of the reporting"
+    )
+
     opportunities: list[ConsolidatedOpportunityItem] = Field(
         ...,
         description="Refined, deduplicated set of opportunity insights representing all unique external favorable conditions. Should be comprehensive, well-organized, and easy to follow.",
@@ -50,17 +54,19 @@ class ConsolidatedOpportunitiesReport(BaseModel):
         return self.opportunities
 
     def update(self, new_items: Self) -> Self:
-        new_items_by_id = {item.id: item for item in new_items.opportunities}
-        for item in self.opportunities:
-            if item.id in new_items_by_id:
-                self._update_item(new_items_by_id[item.id])
+        """Merge new opportunity items into the report, updating matches by id."""
+        existing_by_id = {item.id: item for item in self.opportunities}
+        for new_item in new_items.opportunities:
+            if new_item.id in existing_by_id:
+                self._update_item(existing_by_id[new_item.id], new_item)
             else:
-                self.opportunities.append(item)
+                self.opportunities.append(new_item)
         return self
 
     def _update_item(
         self,
+        current_item: ConsolidatedOpportunityItem,
         new_item: ConsolidatedOpportunityItem,
     ) -> None:
-        self.title = new_item.title
-        self.bullet_points = new_item.bullet_points
+        current_item.title = new_item.title
+        current_item.bullet_points = new_item.bullet_points

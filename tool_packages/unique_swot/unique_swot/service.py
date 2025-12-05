@@ -26,7 +26,7 @@ from unique_swot.services.citations import CitationManager
 from unique_swot.services.generation.extraction.agent import ExtractorAgent
 from unique_swot.services.generation.reporting.agent import ProgressiveReportingAgent
 from unique_swot.services.memory.base import SwotMemoryService
-from unique_swot.services.notifier import ProgressNotifier
+from unique_swot.services.notification.notifier import Notifier
 from unique_swot.services.orchestrator.service import SWOTOrchestrator
 from unique_swot.services.report import ReportDeliveryService, ReportRendererConfig
 from unique_swot.services.schemas import SWOTPlan
@@ -54,11 +54,6 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
 
         self._knowledge_base_service = KnowledgeBaseService.from_event(self._event)
 
-        self._notifier = ProgressNotifier(
-            chat_service=self._chat_service,
-            message_id=self._event.payload.assistant_message.id,
-        )
-
         self._short_term_memory_service = ShortTermMemoryService(
             company_id=self._event.company_id,
             user_id=self._event.user_id,
@@ -82,13 +77,12 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
 
     def _try_load_session_config(self):
         try:
-            self._swot_analysis_session_config = SessionConfig.model_validate(
+            return SessionConfig.model_validate(
                 self._event.payload.session_config, by_name=True
             )
-            return True
         except Exception as e:
             _LOGGER.error(f"Error validating session config: {e}")
-            return False
+            return None
 
     @override
     def tool_description(self) -> LanguageModelToolDescription:
@@ -120,7 +114,8 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
 
     @override
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
-        if not self._try_load_session_config():
+        session_config = self._try_load_session_config()
+        if not session_config:
             self._chat_service.modify_assistant_message(
                 content="Please make sure to provide the mandatory fields in the SWOT Analysis side bar configuration."
             )
@@ -130,9 +125,14 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
                 content="The user has not provided a valid configuration for the SWOT. He must provide a valid configuration before running the tool.",
                 content_chunks=[],
             )
-        company_name = (
-            self._swot_analysis_session_config.swot_analysis.company_listing.name
+        company_name = session_config.swot_analysis.company_listing.name
+        # This service is responsible for notifying the user of the progress of the SWOT analysis
+        notifier = self._get_notifier()
+
+        await notifier.init_progress(
+            session_info=session_config.swot_analysis.render_session_info()
         )
+
         try:
             plan = SWOTPlan.model_validate(tool_call.arguments)
             # Ensure the plan is semantically valid for execution, as Pydantic validation may accept plans that
@@ -158,7 +158,8 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
             source_collector = self._get_source_collector(
                 chunk_registry=content_chunk_registry,
                 knowledge_base_service=self._knowledge_base_service,
-                notifier=self._notifier,
+                session_config=session_config,
+                notifier=notifier,
             )
 
             # This service is used to define what sources are relevant for the SWOT analysis and what are not
@@ -172,13 +173,12 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
 
             # This service is used to generate the report from the extracted information
             report_manager = self._get_report_manager(
-                memory_service=memory_service, company_name=company_name
+                memory_service=memory_service,
             )
 
             # This service is used to orchestrate the SWOT analysis
             orchestrator = SWOTOrchestrator(
-                company_name=company_name,
-                # notifier=self._notifier,
+                notifier=notifier,
                 source_collector=source_collector,
                 source_iterator=source_iterator,
                 source_selector=source_selector,
@@ -190,39 +190,35 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
             # Generate markdown report
             result = await orchestrator.run(company_name=company_name, plan=plan)
 
-            self._notifier.end_progress(failed=False)
-
-            self._chat_service.modify_assistant_message(
-                content=result,
-            )
+            await notifier.end_progress(failed=False)
 
             citation_manager = self._get_citation_manager(content_chunk_registry)
 
-            # report_delivery_service = self._get_report_delivery_service(
-            #     citation_manager=citation_manager,
-            #     report_renderer_config=self.config.report_renderer_config,
-            # )
+            report_delivery_service = self._get_report_delivery_service(
+                citation_manager=citation_manager,
+                report_renderer_config=self.config.report_renderer_config,
+            )
 
-            # # Deliver the report to the chat
-            # markdown_report = self._report_delivery_service.deliver_report(
-            #     session_config=self._swot_analysis_session_config.swot_analysis,
-            #     result=result,
-            #     docx_template_fields={
-            #         "title": f"{company_name} SWOT Analysis Report",
-            #         "date": datetime.now().strftime("%Y-%m-%d"),
-            #     },
-            #     ingest_docx=self.config.report_renderer_config.ingest_docx_report,
-            # )
+            # Deliver the report to the chat
+            markdown_report = report_delivery_service.deliver_report(
+                session_config=session_config.swot_analysis,
+                result=result,
+                docx_template_fields={
+                    "title": f"{company_name} SWOT Analysis Report",
+                    "date": datetime.now().strftime("%Y-%m-%d"),
+                },
+                ingest_docx=self.config.report_renderer_config.ingest_docx_report,
+            )
 
             return ToolCallResponse(
                 id=tool_call.id,  # type: ignore
                 name=self.name,
-                content=result,
+                content=markdown_report,
                 content_chunks=citation_manager.get_referenced_content_chunks(),
             )
 
         except Exception as e:
-            self._notifier.end_progress(failed=True, failure_message=str(e))
+            await notifier.end_progress(failed=True, failure_message=str(e))
             _LOGGER.exception(f"Error running SWOT plan: {e}")
             return ToolCallResponse(
                 id=tool_call.id,  # type: ignore
@@ -261,12 +257,6 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
         """
         return True
 
-    def _calculate_total_steps(self, plan: SWOTPlan, number_of_sources: int) -> int:
-        number_of_executions = plan.get_number_of_executions()
-        num_steps_per_execution = number_of_sources + 1  # +1 for the summarization step
-
-        return number_of_executions * num_steps_per_execution
-
     @staticmethod
     def _get_quartr_service(company_id: str) -> QuartrService | None:
         try:
@@ -282,7 +272,8 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
         self,
         chunk_registry: ContentChunkRegistry,
         knowledge_base_service: KnowledgeBaseService,
-        notifier: ProgressNotifier,
+        session_config: SessionConfig,
+        notifier: Notifier,
     ) -> SourceCollectionManager:
         earnings_call_docx_generator_service = DocxGeneratorService(
             config=self.config.source_management_config.earnings_call_config.docx_renderer_config,
@@ -292,11 +283,11 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
         )
 
         collection_context = CollectionContext(
-            use_earnings_calls=self._swot_analysis_session_config.swot_analysis.use_earnings_call,
-            use_web_sources=self._swot_analysis_session_config.swot_analysis.use_web_sources,
+            use_earnings_calls=session_config.swot_analysis.use_earnings_call,
+            use_web_sources=session_config.swot_analysis.use_web_sources,
             metadata_filter=self._metadata_filter,
-            company=self._swot_analysis_session_config.swot_analysis.company_listing,
-            earnings_call_start_date=self._swot_analysis_session_config.swot_analysis.earnings_call_start_date
+            company=session_config.swot_analysis.company_listing,
+            earnings_call_start_date=session_config.swot_analysis.earnings_call_start_date
             or datetime.now() - timedelta(days=365),
             upload_scope_id_earnings_calls=self.config.source_management_config.earnings_call_config.upload_scope_id,
         )
@@ -314,6 +305,7 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
         return SourceSelectionAgent(
             llm_service=self._language_model_service,
             llm=self.config.language_model,
+            source_selection_config=self.config.source_management_config.source_selection_config,
         )
 
     def _get_source_iterator(self) -> DateRelevancySourceIterator:
@@ -329,7 +321,7 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
         )
 
     def _get_report_manager(
-        self, memory_service: SwotMemoryService, company_name: str
+        self, memory_service: SwotMemoryService
     ) -> ProgressiveReportingAgent:
         return ProgressiveReportingAgent(
             memory_service=memory_service,
@@ -369,6 +361,12 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
             citation_manager=citation_manager,
             renderer_type=report_renderer_config.renderer_type,
             template_name=report_renderer_config.report_template,
+        )
+
+    def _get_notifier(self) -> Notifier:
+        return Notifier(
+            chat_service=self._chat_service,
+            message_id=self._event.payload.assistant_message.id,
         )
 
 

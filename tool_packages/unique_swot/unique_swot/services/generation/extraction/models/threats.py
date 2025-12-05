@@ -29,6 +29,10 @@ class ThreatsExtraction(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    notification_message: str = Field(
+        description="A message to be displayed to the user to keep him updated on the progress of the extraction"
+    )
+
     threats: list[ThreatItem] = Field(
         description="List of threats extracted from the sources"
     )
@@ -41,7 +45,10 @@ class ThreatsExtraction(BaseModel):
         all_threats = []
         for batch in batches:
             all_threats.extend(batch.threats)
-        return cls(threats=all_threats)
+        notification_message = ""
+        if len(batches) > 1:
+            notification_message = batches[-1].notification_message
+        return cls(threats=all_threats, notification_message=notification_message)
 
     @property
     def number_of_items(self) -> int:

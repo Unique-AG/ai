@@ -31,6 +31,10 @@ class StrengthsExtraction(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    notification_message: str = Field(
+        description="A message to be displayed to the user to keep him updated on the progress of the extraction"
+    )
+
     strengths: list[StrengthItem] = Field(
         description="List of strengths extracted from the sources"
     )
@@ -43,7 +47,10 @@ class StrengthsExtraction(BaseModel):
         all_strengths = []
         for batch in batches:
             all_strengths.extend(batch.strengths)
-        return cls(strengths=all_strengths)
+        notification_message = ""
+        if len(batches) > 1:
+            notification_message = batches[-1].notification_message
+        return cls(strengths=all_strengths, notification_message=notification_message)
 
     @property
     def number_of_items(self) -> int:
