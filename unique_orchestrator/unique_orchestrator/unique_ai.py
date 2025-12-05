@@ -65,7 +65,7 @@ class UniqueAI:
         postprocessor_manager: PostprocessorManager,
         message_step_logger: MessageStepLogger,
         mcp_servers: list[McpServer],
-        loop_runner: LoopIterationRunner,
+        loop_iteration_runner: LoopIterationRunner,
     ):
         self._logger = logger
         self._event = event
@@ -89,7 +89,7 @@ class UniqueAI:
         self._message_step_logger = message_step_logger
         # Helper variable to support control loop
         self._tool_took_control = False
-        self._loop_runner = loop_runner
+        self._loop_iteration_runner = loop_iteration_runner
 
     ############################################################
     # Override of base methods
@@ -155,7 +155,7 @@ class UniqueAI:
 
         self._logger.info("Done composing message plan execution.")
 
-        return await self._loop_runner(
+        return await self._loop_iteration_runner(
             messages=messages,
             iteration_index=self.current_iteration_index,
             streaming_handler=self._streaming_handler,
@@ -515,7 +515,7 @@ class UniqueAIResponsesApi(UniqueAI):
         postprocessor_manager: PostprocessorManager,
         message_step_logger: MessageStepLogger,
         mcp_servers: list[McpServer],
-        loop_runner: LoopIterationRunner,
+        loop_iteration_runner: LoopIterationRunner,
     ) -> None:
         super().__init__(
             logger,
@@ -533,5 +533,5 @@ class UniqueAIResponsesApi(UniqueAI):
             postprocessor_manager=postprocessor_manager,
             message_step_logger=message_step_logger,
             mcp_servers=mcp_servers,
-            loop_runner=loop_runner,
+            loop_iteration_runner=loop_iteration_runner,
         )
