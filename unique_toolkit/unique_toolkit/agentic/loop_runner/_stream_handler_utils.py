@@ -4,7 +4,7 @@ from openai.types.chat import ChatCompletionNamedToolChoiceParam
 from typing_extensions import TypedDict
 
 from unique_toolkit import LanguageModelToolDescription
-from unique_toolkit.agentic.loop_runner.base import _LoopRunnerKwargs
+from unique_toolkit.agentic.loop_runner.base import _LoopIterationRunnerKwargs
 from unique_toolkit.chat.functions import LanguageModelStreamResponse
 from unique_toolkit.chat.service import LanguageModelMessages
 from unique_toolkit.content import ContentChunk
@@ -22,7 +22,7 @@ class _StreamingHandlerKwargs(TypedDict, total=False):
     other_options: dict[str, Any]
 
 
-def _extract_streaming_kwargs(kwargs: _LoopRunnerKwargs) -> _StreamingHandlerKwargs:
+def _extract_streaming_kwargs(kwargs: _LoopIterationRunnerKwargs) -> _StreamingHandlerKwargs:
     res = _StreamingHandlerKwargs(
         messages=kwargs["messages"],
         model_name=kwargs["model"].name,
@@ -43,7 +43,7 @@ def _extract_streaming_kwargs(kwargs: _LoopRunnerKwargs) -> _StreamingHandlerKwa
 
 
 async def stream_response(
-    loop_runner_kwargs: _LoopRunnerKwargs,
+    loop_runner_kwargs: _LoopIterationRunnerKwargs,
     **kwargs,
 ) -> LanguageModelStreamResponse:
     streaming_handler = loop_runner_kwargs["streaming_handler"]

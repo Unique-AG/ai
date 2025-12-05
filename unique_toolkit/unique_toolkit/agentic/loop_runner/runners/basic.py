@@ -5,7 +5,10 @@ from pydantic import BaseModel
 
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 from unique_toolkit.agentic.loop_runner._stream_handler_utils import stream_response
-from unique_toolkit.agentic.loop_runner.base import LoopRunner, _LoopRunnerKwargs
+from unique_toolkit.agentic.loop_runner.base import (
+    LoopIterationRunner,
+    _LoopIterationRunnerKwargs,
+)
 from unique_toolkit.chat.functions import LanguageModelStreamResponse
 from unique_toolkit.protocols.support import (
     ResponsesLanguageModelStreamResponse,
@@ -14,17 +17,17 @@ from unique_toolkit.protocols.support import (
 _LOGGER = logging.getLogger(__name__)
 
 
-class BasicLoopRunnerConfig(BaseModel):
+class BasicLoopIterationRunnerConfig(BaseModel):
     model_config = get_configuration_dict()
     max_loop_iterations: int
 
 
-class BasicLoopRunner(LoopRunner):
-    def __init__(self, config: BasicLoopRunnerConfig) -> None:
+class BasicLoopIterationRunner(LoopIterationRunner):
+    def __init__(self, config: BasicLoopIterationRunnerConfig) -> None:
         self._config = config
 
     async def _handle_last_iteration(
-        self, **kwargs: Unpack[_LoopRunnerKwargs]
+        self, **kwargs: Unpack[_LoopIterationRunnerKwargs]
     ) -> LanguageModelStreamResponse:
         _LOGGER.info(
             "Reached last iteration, removing tools and producing final response"
@@ -36,7 +39,7 @@ class BasicLoopRunner(LoopRunner):
         )
 
     async def _handle_normal_iteration(
-        self, **kwargs: Unpack[_LoopRunnerKwargs]
+        self, **kwargs: Unpack[_LoopIterationRunnerKwargs]
     ) -> LanguageModelStreamResponse:
         _LOGGER.info("Running loop iteration %d", kwargs["iteration_index"])
 
@@ -44,7 +47,7 @@ class BasicLoopRunner(LoopRunner):
 
     async def _handle_forced_tools_iteration(
         self,
-        **kwargs: Unpack[_LoopRunnerKwargs],
+        **kwargs: Unpack[_LoopIterationRunnerKwargs],
     ) -> LanguageModelStreamResponse:
         assert "tool_choices" in kwargs
 
@@ -78,7 +81,7 @@ class BasicLoopRunner(LoopRunner):
     @override
     async def __call__(
         self,
-        **kwargs: Unpack[_LoopRunnerKwargs],
+        **kwargs: Unpack[_LoopIterationRunnerKwargs],
     ) -> LanguageModelStreamResponse | ResponsesLanguageModelStreamResponse:
         tool_choices = kwargs.get("tool_choices", [])
         iteration_index = kwargs["iteration_index"]

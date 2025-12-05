@@ -7,7 +7,10 @@ from pydantic import BaseModel
 from unique_toolkit import LanguageModelService
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
-from unique_toolkit.agentic.loop_runner.base import LoopRunner, _LoopRunnerKwargs
+from unique_toolkit.agentic.loop_runner.base import (
+    LoopIterationRunner,
+    _LoopIterationRunnerKwargs,
+)
 from unique_toolkit.agentic.loop_runner.middleware.planning.schema import (
     PlanningSchemaConfig,
     get_planning_schema,
@@ -27,11 +30,11 @@ class PlanningConfig(BaseModel):
     planning_schema_config: PlanningSchemaConfig = PlanningSchemaConfig()
 
 
-class PlanningMiddleware(LoopRunner):
+class PlanningMiddleware(LoopIterationRunner):
     def __init__(
         self,
         *,
-        loop_runner: LoopRunner,
+        loop_runner: LoopIterationRunner,
         config: PlanningConfig,
         llm_service: LanguageModelService,
         history_manager: HistoryManager | None = None,
@@ -43,7 +46,7 @@ class PlanningMiddleware(LoopRunner):
 
     @failsafe_async(failure_return_value=None, logger=_LOGGER)
     async def _run_plan_step(
-        self, **kwargs: Unpack[_LoopRunnerKwargs]
+        self, **kwargs: Unpack[_LoopIterationRunnerKwargs]
     ) -> LanguageModelAssistantMessage | None:
         planning_schema = get_planning_schema(self._config.planning_schema_config)
 
@@ -59,7 +62,7 @@ class PlanningMiddleware(LoopRunner):
         )
 
     async def __call__(
-        self, **kwargs: Unpack[_LoopRunnerKwargs]
+        self, **kwargs: Unpack[_LoopIterationRunnerKwargs]
     ) -> LanguageModelStreamResponse:
         assistant_message = await self._run_plan_step(**kwargs)
 

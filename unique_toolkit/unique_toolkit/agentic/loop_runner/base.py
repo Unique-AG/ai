@@ -13,7 +13,7 @@ from unique_toolkit.protocols.support import (
 )
 
 
-class _LoopRunnerKwargs(TypedDict, total=False):
+class _LoopIterationRunnerKwargs(TypedDict, total=False):
     iteration_index: Required[int]
     streaming_handler: Required[SupportCompleteWithReferences]
     messages: Required[LanguageModelMessages]
@@ -27,8 +27,8 @@ class _LoopRunnerKwargs(TypedDict, total=False):
     other_options: dict[str, Any]
 
 
-class LoopRunner(Protocol):
+class LoopIterationRunner(Protocol):
     async def __call__(
         self,
-        **kwargs: Unpack[_LoopRunnerKwargs],
+        **kwargs: Unpack[_LoopIterationRunnerKwargs],
     ) -> LanguageModelStreamResponse: ...

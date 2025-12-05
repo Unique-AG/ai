@@ -55,14 +55,14 @@ class PlanningSchemaConfig(RootModel[DefaultPlanningSchemaConfig | str]):
             DefaultPlanningSchemaConfig,
             Field(
                 description="Configuration for the default planning schema, which is a simple json dict with a single `plan` field.",
-                title="Default Planning Schema Config",
+                title="Default Planning Schema",
             ),
         ]
         | Annotated[
             str,
             Field(
                 description="Custom JSON Schema as string for the planning schema.",
-                title="Custom Planning Schema Config",
+                title="Custom Planning Schema",
             ),
         ]
     ) = Field(default=DefaultPlanningSchemaConfig())

@@ -1,19 +1,19 @@
-from unique_toolkit.agentic.loop_runner.base import LoopRunner
+from unique_toolkit.agentic.loop_runner.base import LoopIterationRunner
 from unique_toolkit.agentic.loop_runner.middleware import (
     PlanningConfig,
     PlanningMiddleware,
     PlanningSchemaConfig,
 )
 from unique_toolkit.agentic.loop_runner.runners import (
-    BasicLoopRunner,
-    BasicLoopRunnerConfig,
+    BasicLoopIterationRunner,
+    BasicLoopIterationRunnerConfig,
 )
 
 __all__ = [
-    "LoopRunner",
+    "LoopIterationRunner",
     "PlanningConfig",
     "PlanningMiddleware",
     "PlanningSchemaConfig",
-    "BasicLoopRunnerConfig",
-    "BasicLoopRunner",
+    "BasicLoopIterationRunnerConfig",
+    "BasicLoopIterationRunner",
 ]
