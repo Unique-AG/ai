@@ -46,7 +46,7 @@ model = LanguageModelName.AZURE_GPT_4o_2024_1120
 ## Building the messages
 
 We encourag the usage of the `OpenAIMessageBuilder` and the fluent builder pattern as it
-avoids as long list of imports and helps with typing.
+avoids a long list of imports and helps with typing.
 
 
 ```{.python #openai_chat_completion_messages}
@@ -275,7 +275,7 @@ The former are well-known and a messages object usually follows the pattern
 - assistant
 ...
 
-The newer `developer` messages enables us to give additional hints to the model that can be hidden in 
+The newer `developer` messages enable us to give additional hints to the model that can be hidden in 
 the frontend.
 
 

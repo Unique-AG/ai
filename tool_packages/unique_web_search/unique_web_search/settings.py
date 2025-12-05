@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import sys
@@ -5,6 +6,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Literal
 
+from pydantic import ValidationInfo, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _LOGGER = logging.getLogger(__name__)
@@ -61,13 +63,9 @@ class Base(BaseSettings):
     # Custom API settings
     custom_web_search_api_method: CUSTOM_API_REQUEST_METHOD | None = None
     custom_web_search_api_endpoint: str | None = None
-    custom_web_search_api_headers: dict[str, str] | None = None
-    custom_web_search_api_additional_query_params: (
-        dict[str, int | str | bool | float | list | dict] | None
-    ) = None
-    custom_web_search_api_additional_body_params: (
-        dict[str, int | str | bool | float | list | dict] | None
-    ) = None
+    custom_web_search_api_headers: str | None = None
+    custom_web_search_api_additional_query_params: str | None = None
+    custom_web_search_api_additional_body_params: str | None = None
 
     # Proxy settings
     ## Shared settings
@@ -143,6 +141,23 @@ class Base(BaseSettings):
             )
             return False
         return self.unique_private_endpoint_transport_enabled
+
+    @field_validator(
+        "custom_web_search_api_headers",
+        "custom_web_search_api_additional_query_params",
+        "custom_web_search_api_additional_body_params",
+        mode="after",
+    )
+    def validate_json(cls, v: str | None, info: ValidationInfo) -> str | None:
+        if v is not None:
+            try:
+                json.loads(v)
+            except json.JSONDecodeError:
+                _LOGGER.error(
+                    f"Invalid JSON : {info.field_name}. Setting value to None"
+                )
+                return None
+        return v
 
 
 class Settings(Base):

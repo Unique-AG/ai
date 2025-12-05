@@ -1,0 +1,70 @@
+name: 'Install Package Manager'
+description: 'Installs the appropriate package manager (Poetry or uv) and returns the pm_cmd command'
+
+inputs:
+  package_dir:
+    description: 'Path to the package directory'
+    required: true
+  package_manager:
+    description: 'Package manager to use: auto (detect), poetry, or uv'
+    required: false
+    default: 'auto'
+  python_version:
+    description: 'Python version to use'
+    required: false
+    default: '3.11'
+  package_manager_version:
+    description: 'Package manager version to install (e.g., "1.8.3" for Poetry, ignored for uv)'
+    required: false
+    default: '1.8.3'
+
+outputs:
+  pm_cmd:
+    description: 'Package manager command to use (e.g., "poetry run" or "uv run")'
+    value: ${{ steps.install.outputs.pm_cmd }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Detect package manager
+      if: inputs.package_manager == 'auto'
+      id: detect_pm
+      uses: ./.github/actions/detect-package-manager
+      with:
+        package_dir: ${{ inputs.package_dir }}
+
+    - name: Set package manager
+      id: set_pm
+      shell: bash
+      run: |
+        if [ "${{ inputs.package_manager }}" != "auto" ]; then
+          echo "manager=${{ inputs.package_manager }}" >> $GITHUB_OUTPUT
+        else
+          echo "manager=${{ steps.detect_pm.outputs.package_manager }}" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Setup Poetry
+      if: steps.set_pm.outputs.manager == 'poetry'
+      uses: ./.github/actions/setup-poetry
+      with:
+        package_dir: ${{ inputs.package_dir }}
+        python_version: ${{ inputs.python_version }}
+        poetry_version: ${{ inputs.package_manager_version }}
+
+    - name: Setup uv
+      if: steps.set_pm.outputs.manager == 'uv'
+      uses: ./.github/actions/setup-uv
+      with:
+        package_dir: ${{ inputs.package_dir }}
+        python_version: ${{ inputs.python_version }}
+
+    - name: Set pm_cmd output
+      id: install
+      shell: bash
+      run: |
+        if [ "${{ steps.set_pm.outputs.manager }}" = "poetry" ]; then
+          echo "pm_cmd=poetry run" >> $GITHUB_OUTPUT
+        else
+          echo "pm_cmd=uv run" >> $GITHUB_OUTPUT
+        fi
+

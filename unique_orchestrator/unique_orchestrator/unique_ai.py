@@ -138,6 +138,7 @@ class UniqueAI:
             self.start_text = self._thinking_manager.update_start_text(
                 self.start_text, loop_response
             )
+        await self._update_debug_info_if_tool_took_control()
 
         # Only set completed_at if no tool took control. Tools that take control will set the message state to completed themselves.
         await self._chat_service.modify_assistant_message_async(
@@ -416,7 +417,9 @@ class UniqueAI:
             if tool_name in tool_names_not_to_log:
                 continue
             display_name = all_tools_dict[tool_name] or tool_name
-            tool_string += f"\n• {display_name} ({count}x)" if count > 1 else f"\n• {display_name}"
+            tool_string += (
+                f"\n• {display_name} ({count}x)" if count > 1 else f"\n• {display_name}"
+            )
 
         if tool_string:
             self._message_step_logger.create_message_log_entry(
@@ -433,7 +436,9 @@ class UniqueAI:
 
         # Filter tool calls
         tool_calls = self._tool_manager.filter_duplicate_tool_calls(tool_calls)
-        tool_calls = self._tool_manager.filter_tool_calls_by_max_tool_calls_allowed(tool_calls)
+        tool_calls = self._tool_manager.filter_tool_calls_by_max_tool_calls_allowed(
+            tool_calls
+        )
 
         # Append function calls to history
         self._history_manager._append_tool_calls_to_history(tool_calls)
@@ -512,6 +517,32 @@ class UniqueAI:
                 if k in self._config.agent.prompt_config.user_metadata
             }
         return user_metadata
+
+    async def _update_debug_info_if_tool_took_control(self) -> None:
+        """
+        Update debug info when a tool takes control of the conversation.
+        DeepResearch is excluded as it handles debug info directly since it calls
+        the orchestrator multiple times.
+        """
+        if not self._tool_took_control:
+            return
+
+        tool_names = [tool["name"] for tool in self._debug_info_manager.get()["tools"]]
+        if "DeepResearch" in tool_names:
+            return
+
+        debug_info_event = {
+            "assistant": {
+                "id": self._event.payload.assistant_id,
+                "name": self._event.payload.name,
+            },
+            "chosenModule": self._event.payload.name,
+            "userMetadata": self._event.payload.user_metadata,
+            "toolParameters": self._event.payload.tool_parameters,
+            **self._debug_info_manager.get(),
+        }
+        
+        await self._chat_service.update_debug_info_async(debug_info=debug_info_event)
 
 
 class UniqueAIResponsesApi(UniqueAI):

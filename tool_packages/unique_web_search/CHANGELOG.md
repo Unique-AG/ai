@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.1] - 2025-12-03
+- Use strings instead of dict to configure payload to ensure better integration with current frontend
+
 ## [1.7.0] - 2025-12-01
 - Added full VertexAI search engine integration (Gemini + Google grounding) with service-account authentication and redirect resolution.
 - Introduced the pluggable Custom API search engine so customers can register any compliant web-search backend via simple GET/POST specs.

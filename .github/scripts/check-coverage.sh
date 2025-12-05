@@ -67,6 +67,8 @@ OPTIONS:
     -b, --base-ref REF   Base branch/ref for comparison
                          (default: auto-detect from GITHUB_BASE_REF or origin/main/master)
     -m, --min-coverage N Minimum coverage percentage (default: 60)
+    -r, --runner CMD     Command runner prefix (e.g., "poetry run" or "uv run")
+                         (default: "poetry run" for backward compatibility)
     --skip-tests         Skip running tests (assume coverage.xml already exists)
     --no-install-deps    Skip installing diff-cover (assume already installed)
 
@@ -102,6 +104,7 @@ show_version() {
 PACKAGE=""
 BASE_REF=""
 MIN_COVERAGE=60
+RUNNER="poetry run"  # Default for backward compatibility
 SKIP_TESTS=false
 NO_INSTALL_DEPS=false
 
@@ -123,6 +126,11 @@ while [[ $# -gt 0 ]]; do
             ;;
         --min-coverage)
             MIN_COVERAGE="$2"
+            shift 2
+            continue
+            ;;
+        --runner)
+            RUNNER="$2"
             shift 2
             continue
             ;;
@@ -160,7 +168,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Parse short options using getopts
-while getopts "hvb:m:" opt; do
+while getopts "hvb:m:r:" opt; do
     case $opt in
         h)
             show_help
@@ -175,6 +183,9 @@ while getopts "hvb:m:" opt; do
             ;;
         m)
             MIN_COVERAGE="$OPTARG"
+            ;;
+        r)
+            RUNNER="$OPTARG"
             ;;
         \?)
             print_error "Invalid option: -$OPTARG"
@@ -284,9 +295,9 @@ cd "$PACKAGE" || {
 
 # Install diff-cover if needed
 if [ "$NO_INSTALL_DEPS" = false ]; then
-    if ! poetry run diff-cover --version >/dev/null 2>&1; then
+    if ! $RUNNER diff-cover --version >/dev/null 2>&1; then
         print_info "Installing diff-cover..."
-        poetry run pip install diff-cover >/dev/null 2>&1 || {
+        $RUNNER pip install diff-cover >/dev/null 2>&1 || {
             print_error "Failed to install diff-cover"
             exit 1
         }
@@ -309,8 +320,10 @@ fi
 # Run tests with coverage if not skipped
 if [ "$SKIP_TESTS" = false ]; then
     print_info "Running tests with coverage..."
-    poetry run pytest \
-        --cov=unique_toolkit \
+    # Extract package name from PACKAGE directory (e.g., unique_toolkit from unique_toolkit/)
+    PACKAGE_NAME=$(basename "$PACKAGE")
+    $RUNNER pytest \
+        --cov="$PACKAGE_NAME" \
         --cov-report=xml \
         --cov-report=term \
         tests/ || {
@@ -349,7 +362,7 @@ set +e  # Don't exit on error immediately
 
 # Run diff-cover from package directory (it handles git operations correctly)
 cd "$PACKAGE" || exit 1
-poetry run diff-cover \
+$RUNNER diff-cover \
     coverage.xml \
     --compare-branch="$BASE_REF" \
     --fail-under="$MIN_COVERAGE" \
