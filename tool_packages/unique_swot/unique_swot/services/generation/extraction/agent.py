@@ -75,6 +75,8 @@ class ExtractorAgent:
             )
             if extraction_result is not None:
                 extraction_results.append(extraction_result)
+            else:
+                _LOGGER.warning(f"No extraction result for batch {batch}")
 
         ## Group the extraction results
         return output_model.group_batches(batches=extraction_results)  # type: ignore
@@ -117,7 +119,7 @@ def _split_context_into_batches(
     to accurately count tokens for each source.
 
     Args:
-        sources: List of data sources to split into batches
+        source: Source to split into batches
         batch_size: Maximum number of sources per batch
         max_tokens_per_batch: Maximum tokens allowed per batch
         language_model: Language model configuration for token encoding

@@ -116,8 +116,9 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
         session_config = self._try_load_session_config()
         if not session_config:
-            self._chat_service.modify_assistant_message(
-                content="Please make sure to provide the mandatory fields in the SWOT Analysis side bar configuration."
+            await self._chat_service.modify_assistant_message_async(
+                content="Please make sure to provide the mandatory fields in the SWOT Analysis side bar configuration.",
+                set_completed_at=True,
             )
             return ToolCallResponse(
                 id=tool_call.id,  # type: ignore

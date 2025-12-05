@@ -7,7 +7,7 @@ from unique_swot.services.generation.context import SWOTComponent
 from unique_swot.services.generation.extraction.models import SWOTExtractionModel
 from unique_swot.services.generation.reporting.models import SWOTConsolidatedReport
 from unique_swot.services.memory.base import SwotMemoryService
-from unique_swot.services.schemas import SWOTPlan
+from unique_swot.services.schemas import SWOTOperation, SWOTPlan
 from unique_swot.services.source_management.schema import Source
 from unique_swot.services.source_management.selection.schema import (
     SourceSelectionResult,
@@ -143,6 +143,12 @@ class SWOTOrchestrator:
 
             for component in SWOTComponent:
                 step = plan.get_step_result(component)
+                if step.operation == SWOTOperation.NOT_REQUESTED:
+                    await self._notifier.increment_progress(
+                        step_increment=0.25,
+                        progress_info=f"Skipping **{component.value}** as it was not requested...",
+                    )
+                    continue
 
                 await self._notifier.notify(
                     title=title,
