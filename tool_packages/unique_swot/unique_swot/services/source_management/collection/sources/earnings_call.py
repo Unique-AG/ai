@@ -58,6 +58,7 @@ async def collect_earnings_calls(
     available_contents_in_knowledge_base: list[Content] = []
     list_of_transcripts_to_ingest: list[DocumentDto] = []
 
+    document_collection = {}
     for document in documents.data:
         if document.event_id is None:
             _LOGGER.warning(
@@ -67,11 +68,22 @@ async def collect_earnings_calls(
 
         event = events_mapping[int(document.event_id)]
         document_title = f"{company.name} {event.title} Earnings Call"
-
+        
+        # Filtering step to remove duplicates (Happens when there are both In-House and External Transcripts for the same event)
+        if document_title in document_collection:
+            # If current is In-House Transcript, override the existing document as it is more complete
+            if document.type_id == DocumentType.IN_HOUSE_TRANSCRIPT:
+                document_collection[document_title] = document
+        else:
+            document_collection[document_title] = document
+            
+    for document_title, document in document_collection.items():
+    
         # Try to get the content from the knowledge_base if already exists
         content = _try_getting_content_from_knowledge_base(
             knowledge_base_service=knowledge_base_service,
             document_title=document_title,
+            scope_id=upload_scope_id,
         )
         if content is not None:
             _LOGGER.info(
@@ -109,6 +121,8 @@ async def collect_earnings_calls(
         )
 
         sources.append(source)
+
+    print(f"Earnings call sources: {[source.title for source in sources]}")
 
     return sources
 
@@ -154,10 +168,15 @@ def _try_getting_content_from_knowledge_base(
     *,
     knowledge_base_service: KnowledgeBaseService,
     document_title: str,
+    scope_id: str,
 ) -> Content | None:
-    contents = knowledge_base_service.search_contents(
-        where={"title": {"contains": document_title}}
-    )
+    where_clause = {
+        "AND": [
+            {"title": {"contains": document_title}},
+            {"ownerId": {"equals": scope_id}},
+        ]
+    }
+    contents = knowledge_base_service.search_contents(where=where_clause)
     if len(contents) == 0:
         return None
 
