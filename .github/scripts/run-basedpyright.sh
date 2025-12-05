@@ -32,6 +32,17 @@ OPTIONS:
     -h, --help           Show this help message and exit
     -v, --version        Show version information and exit
     -o, --output FILE    Path to output JSON file (default: /tmp/basedpyright.json)
+    -r, --runner CMD     Command executor prefix (e.g., "poetry run" or "uv run", default: "poetry run")
+
+EXAMPLES:
+    # Basic usage (with Poetry)
+    ${SCRIPT_NAME} unique_toolkit
+
+    # With uv
+    ${SCRIPT_NAME} -r "uv run" unique_mcp
+
+    # Specify package directory and output file
+    ${SCRIPT_NAME} unique_sdk /tmp/my-results.json
 
 EXAMPLES:
     # Basic usage
@@ -62,6 +73,7 @@ EOF
 # Initialize variables with defaults
 PACKAGE_DIR=""
 OUTPUT_FILE="/tmp/basedpyright.json"
+RUNNER="poetry run"
 
 # Convert long options to short options for getopts
 ARGS=()
@@ -77,6 +89,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --output)
             ARGS+=(-o "$2")
+            shift 2
+            ;;
+        --runner)
+            ARGS+=(-r "$2")
             shift 2
             ;;
         --)
@@ -99,7 +115,7 @@ done
 set -- "${ARGS[@]}"
 
 # Parse options using getopts
-while getopts "hvo:" opt; do
+while getopts "hvo:r:" opt; do
     case $opt in
         h)
             show_help
@@ -111,6 +127,9 @@ while getopts "hvo:" opt; do
             ;;
         o)
             OUTPUT_FILE="$OPTARG"
+            ;;
+        r)
+            RUNNER="$OPTARG"
             ;;
         \?)
             print_error "Invalid option: -$OPTARG"
@@ -184,7 +203,8 @@ echo ""
 # Run basedpyright with JSON output
 # basedpyright may output informational messages before the JSON, so we need to extract just the JSON
 TEMP_OUTPUT=$(mktemp)
-poetry run basedpyright --outputjson > "$TEMP_OUTPUT" 2>&1 || {
+print_info "Using runner: $RUNNER"
+$RUNNER basedpyright --outputjson > "$TEMP_OUTPUT" 2>&1 || {
     print_warning "basedpyright exited with non-zero status (expected if there are errors)"
 }
 

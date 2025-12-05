@@ -1,0 +1,93 @@
+name: 'Create Type Baseline'
+description: 'Creates a type checking baseline from a specified branch, supporting both Poetry and uv'
+
+inputs:
+  package_dir:
+    description: 'Path to the package directory'
+    required: true
+  branch:
+    description: 'Branch/ref to create baseline from'
+    required: false
+    default: 'main'
+  package_manager:
+    description: 'Package manager to use: auto (detect), poetry, or uv'
+    required: false
+    default: 'auto'
+  python_version:
+    description: 'Python version to use'
+    required: false
+    default: '3.11'
+  package_manager_version:
+    description: 'Package manager version to install (e.g., "1.8.3" for Poetry, ignored for uv)'
+    required: false
+    default: '1.8.3'
+  output_file:
+    description: 'Output file for baseline'
+    required: false
+    default: '/tmp/baseline.json'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Detect package manager (on current branch)
+      if: inputs.package_manager == 'auto'
+      id: detect_pm
+      uses: ./.github/actions/detect-package-manager
+      with:
+        package_dir: ${{ inputs.package_dir }}
+
+    - name: Set package manager and pm_cmd
+      id: set_pm
+      shell: bash
+      run: |
+        if [ "${{ inputs.package_manager }}" != "auto" ]; then
+          MANAGER="${{ inputs.package_manager }}"
+        else
+          MANAGER="${{ steps.detect_pm.outputs.package_manager }}"
+        fi
+        echo "manager=$MANAGER" >> $GITHUB_OUTPUT
+        if [ "$MANAGER" = "poetry" ]; then
+          echo "pm_cmd=poetry run" >> $GITHUB_OUTPUT
+        else
+          echo "pm_cmd=uv run" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Setup package manager (before checkout)
+      id: setup_pm
+      uses: ./.github/actions/install-package-manager
+      with:
+        package_dir: ${{ inputs.package_dir }}
+        package_manager: ${{ inputs.package_manager }}
+        python_version: ${{ inputs.python_version }}
+        package_manager_version: ${{ inputs.package_manager_version }}
+
+    - name: Fetch base branch
+      shell: bash
+      run: git fetch origin ${{ inputs.branch }}:${{ inputs.branch }}
+
+    - name: Checkout base branch
+      shell: bash
+      run: git checkout "origin/${{ inputs.branch }}" --quiet
+
+    - name: Reinstall dependencies (Poetry)
+      if: steps.set_pm.outputs.manager == 'poetry'
+      shell: bash
+      working-directory: ${{ inputs.package_dir }}
+      run: poetry install
+
+    - name: Reinstall dependencies (uv)
+      if: steps.set_pm.outputs.manager == 'uv'
+      shell: bash
+      working-directory: ${{ inputs.package_dir }}
+      run: uv sync
+
+    - name: Create baseline
+      shell: bash
+      working-directory: ${{ inputs.package_dir }}
+      run: |
+        bash ${{ github.workspace }}/.github/scripts/create-type-baseline.sh \
+          -c \
+          -r "${{ steps.setup_pm.outputs.pm_cmd }}" \
+          -o "${{ inputs.output_file }}" \
+          ${{ github.workspace }}/${{ inputs.package_dir }} \
+          ${{ inputs.branch }}
