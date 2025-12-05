@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [1.35.0] - 2025-12-04
-- Add thinking step experimental feature.
+- Add `LoopIterationRunner` abstraction and support for planning before every loop iteration.
 
 ## [1.34.1] - 2025-12-02
 - Update code interpreter tool instructions.
