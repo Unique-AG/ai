@@ -2,7 +2,7 @@ from logging import getLogger
 from pathlib import Path
 from typing import TypeVar
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 from unique_toolkit import LanguageModelService
 from unique_toolkit._common.validators import LMI
 from unique_toolkit.language_model.builder import MessagesBuilder
@@ -16,6 +16,25 @@ def load_template(parent_dir: Path, template_name: str) -> str:
     """Load a template from a text file."""
     with open(parent_dir / template_name, "r") as file:
         return file.read().strip()
+
+
+class StructuredOutputResult(BaseModel):
+    """This class is responsible for the result of the structured output generation."""
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class StructuredOutputWithNotification(StructuredOutputResult):
+    """This class is responsible for the result of the structured output generation with a notification message."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    notification_message: str = Field(
+        description="A notification message to entertain the use about the outcome of the operation. Might briefly highlight key findings or results etc..."
+    )
+    progress_notification_message: str = Field(
+        description="A very short message to update the message of the progress bar."
+    )
 
 
 async def generate_structured_output(

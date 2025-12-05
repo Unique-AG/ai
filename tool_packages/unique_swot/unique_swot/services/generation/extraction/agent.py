@@ -16,8 +16,8 @@ from unique_swot.services.generation.extraction.prompts import (
     get_swot_extraction_system_prompt,
 )
 from unique_swot.services.generation.extraction.utils import batch_parser
-from unique_swot.services.generation.structured_output import generate_structured_output
 from unique_swot.services.source_management.schema import Source, SourceChunk
+from unique_swot.utils import generate_structured_output
 
 _LOGGER = getLogger(__name__)
 

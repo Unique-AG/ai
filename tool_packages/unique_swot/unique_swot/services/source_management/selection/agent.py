@@ -44,6 +44,7 @@ class SourceSelectionAgent:
                 should_select=False,
                 reason="Failed to select the source",
                 notification_message="Failed to select the source",
+                progress_notification_message="Failed to select the source",
             )
 
         return response

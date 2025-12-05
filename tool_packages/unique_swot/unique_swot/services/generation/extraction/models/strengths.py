@@ -1,16 +1,19 @@
 from typing import Sequence
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
+
+from unique_swot.utils import (
+    StructuredOutputResult,
+    StructuredOutputWithNotification,
+)
 
 # ============================================================================
 # Extraction Models - Used for initial extraction from source data
 # ============================================================================
 
 
-class StrengthItem(BaseModel):
+class StrengthItem(StructuredOutputResult):
     """Individual strength identified during extraction phase."""
-
-    model_config = ConfigDict(extra="forbid")
 
     justification: str = Field(
         description="Comprehensive context and analysis explaining why this is a strength, including competitive advantages and benefits"
@@ -23,17 +26,11 @@ class StrengthItem(BaseModel):
     )
 
 
-class StrengthsExtraction(BaseModel):
+class StrengthsExtraction(StructuredOutputWithNotification):
     """
     Extraction phase output: Raw strengths identified from source documents.
     This is used during the initial extraction from batches of source data.
     """
-
-    model_config = ConfigDict(extra="forbid")
-
-    notification_message: str = Field(
-        description="A message to be displayed to the user to keep him updated on the progress of the extraction"
-    )
 
     strengths: list[StrengthItem] = Field(
         description="List of strengths extracted from the sources"
@@ -48,9 +45,15 @@ class StrengthsExtraction(BaseModel):
         for batch in batches:
             all_strengths.extend(batch.strengths)
         notification_message = ""
-        if len(batches) > 1:
+        progress_notification_message = ""
+        if len(batches):
             notification_message = batches[-1].notification_message
-        return cls(strengths=all_strengths, notification_message=notification_message)
+            progress_notification_message = batches[-1].progress_notification_message
+        return cls(
+            strengths=all_strengths,
+            notification_message=notification_message,
+            progress_notification_message=progress_notification_message,
+        )
 
     @property
     def number_of_items(self) -> int:

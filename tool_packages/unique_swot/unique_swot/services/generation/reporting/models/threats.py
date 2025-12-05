@@ -1,12 +1,15 @@
 from typing import Self
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
+
+from unique_swot.utils import (
+    StructuredOutputResult,
+    StructuredOutputWithNotification,
+)
 
 
-class ThreatBulletPoint(BaseModel):
+class ThreatBulletPoint(StructuredOutputResult):
     """A single bullet point within a threat insight."""
-
-    model_config = ConfigDict(extra="forbid")
 
     key_reasoning: str = Field(
         ...,
@@ -18,10 +21,8 @@ class ThreatBulletPoint(BaseModel):
     )
 
 
-class ConsolidatedThreatItem(BaseModel):
+class ConsolidatedThreatItem(StructuredOutputResult):
     """A consolidated threat insight representing an external risk."""
-
-    model_config = ConfigDict(extra="forbid")
 
     id: str = Field(..., description="Unique identifier for tracking this threat.")
     title: str = Field(
@@ -35,14 +36,8 @@ class ConsolidatedThreatItem(BaseModel):
     )
 
 
-class ConsolidatedThreatsReport(BaseModel):
+class ConsolidatedThreatsReport(StructuredOutputWithNotification):
     """Final aggregated report of threat insights from multiple batches."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    notification_message: str = Field(
-        description="A message to be displayed to the user to keep him updated on the progress of the reporting"
-    )
 
     threats: list[ConsolidatedThreatItem] = Field(
         ...,

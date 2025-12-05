@@ -75,7 +75,7 @@ class ReportManager(Protocol):
         component: SWOTComponent,
         extraction_result: SWOTExtractionModel,
         optional_instruction: str | None,
-    ) -> str: ...
+    ) -> SWOTConsolidatedReport: ...
 
     def get_report(self) -> list[SWOTConsolidatedReport]: ...
 
@@ -104,8 +104,6 @@ class SWOTOrchestrator:
     ) -> list[SWOTConsolidatedReport]:
         sources = await self._source_collector.collect()
 
-        self._notifier.set_progress_total_steps(total_steps=len(sources) * len(plan))
-
         await self._notifier.notify(title="Sorting sources by date")
         await self._notifier.increment_progress(
             step_increment=0, progress_info="Sorting sources by date"
@@ -113,43 +111,42 @@ class SWOTOrchestrator:
 
         source_iterator = await self._source_iterator.iterate(sources=sources)
 
-        async for source in tqdm(source_iterator, desc="Processing sources"):
-            title = f"Processing source {source.title}"
+        total_steps = len(sources)
+        self._notifier.set_progress_total_steps(total_steps=total_steps)
+
+        async for source in tqdm(
+            source_iterator, total=total_steps, desc="Processing sources"
+        ):
+            title = f"Processing source `{source.title}`"
+
             await self._notifier.notify(title=title)
 
-            await self._notifier.increment_progress(
-                step_increment=0, progress_info="Evaluating source relevance..."
-            )
             source_selection_result = await self._source_selector.select(
                 company_name=company_name, source=source
             )
-            notification_message = source_selection_result.notification_message
             await self._notifier.notify(
                 title=title,
-                description=notification_message,
+                description=source_selection_result.notification_message,
             )
+            await self._notifier.increment_progress(
+                step_increment=0,
+                progress_info=source_selection_result.progress_notification_message,
+            )
+
             if not source_selection_result.should_select:
+                # Skip the source if it is not selected
                 await self._notifier.increment_progress(
-                    step_increment=len(plan),
-                    progress_info=notification_message,
+                    step_increment=1,
+                    progress_info=title,
                 )
                 continue
 
-            await self._notifier.notify(
-                title=title,
-                description=notification_message,
-            )
-
-            for component in tqdm(SWOTComponent, desc="Processing components"):
+            for component in SWOTComponent:
                 step = plan.get_step_result(component)
 
                 await self._notifier.notify(
                     title=title,
-                    description=f"Extracting information for {component.value}...",
-                )
-
-                await self._notifier.increment_progress(
-                    step_increment=0.5, progress_info="Extracting information..."
+                    description=f"Processing **{component.value}**...",
                 )
 
                 extraction_result = await self._extractor.extract(
@@ -159,18 +156,16 @@ class SWOTOrchestrator:
                     optional_instruction=step.modify_instruction,
                 )
 
-                notification_message = extraction_result.notification_message
-
                 await self._notifier.notify(
                     title=title,
-                    description=notification_message,
+                    description=extraction_result.notification_message,
                 )
                 await self._notifier.increment_progress(
-                    step_increment=0.5,
-                    progress_info=notification_message,
+                    step_increment=0.125,
+                    progress_info=extraction_result.progress_notification_message,
                 )
 
-                notification_message = (
+                memory_update_result = (
                     await self._report_manager.generate_and_update_memory(
                         company_name=company_name,
                         component=component,
@@ -181,11 +176,11 @@ class SWOTOrchestrator:
 
                 await self._notifier.notify(
                     title=title,
-                    description=notification_message,
+                    description=memory_update_result.notification_message,
                 )
                 await self._notifier.increment_progress(
-                    step_increment=0.5,
-                    progress_info=notification_message,
+                    step_increment=0.125,
+                    progress_info=memory_update_result.progress_notification_message,
                 )
 
         return self._report_manager.get_report()

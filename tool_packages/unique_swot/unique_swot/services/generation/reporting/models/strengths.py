@@ -1,12 +1,15 @@
 from typing import Self
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
+
+from unique_swot.utils import (
+    StructuredOutputResult,
+    StructuredOutputWithNotification,
+)
 
 
-class StrengthBulletPoint(BaseModel):
+class StrengthBulletPoint(StructuredOutputResult):
     """A single bullet point within a strength insight."""
-
-    model_config = ConfigDict(extra="forbid")
 
     key_reasoning: str = Field(
         ...,
@@ -18,10 +21,8 @@ class StrengthBulletPoint(BaseModel):
     )
 
 
-class ConsolidatedStrengthItem(BaseModel):
+class ConsolidatedStrengthItem(StructuredOutputResult):
     """A consolidated strength insight representing an internal advantage."""
-
-    model_config = ConfigDict(extra="forbid")
 
     id: str = Field(..., description="Unique identifier for tracking this strength.")
     title: str = Field(
@@ -35,14 +36,8 @@ class ConsolidatedStrengthItem(BaseModel):
     )
 
 
-class ConsolidatedStrengthsReport(BaseModel):
+class ConsolidatedStrengthsReport(StructuredOutputWithNotification):
     """Final aggregated report of strength insights from multiple batches."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    notification_message: str = Field(
-        description="A message to be displayed to the user to keep him updated on the progress of the reporting"
-    )
 
     strengths: list[ConsolidatedStrengthItem] = Field(
         ...,

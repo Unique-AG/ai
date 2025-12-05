@@ -1,16 +1,19 @@
 from typing import Sequence
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
+
+from unique_swot.utils import (
+    StructuredOutputResult,
+    StructuredOutputWithNotification,
+)
 
 # ============================================================================
 # Extraction Models - Used for initial extraction from source data
 # ============================================================================
 
 
-class WeaknessItem(BaseModel):
+class WeaknessItem(StructuredOutputResult):
     """Individual weakness identified during extraction phase."""
-
-    model_config = ConfigDict(extra="forbid")
 
     justification: str = Field(
         description="Comprehensive context and analysis explaining why this is a weakness, including disadvantages and challenges"
@@ -23,17 +26,11 @@ class WeaknessItem(BaseModel):
     )
 
 
-class WeaknessesExtraction(BaseModel):
+class WeaknessesExtraction(StructuredOutputWithNotification):
     """
     Extraction phase output: Raw weaknesses identified from source documents.
     This is used during the initial extraction from batches of source data.
     """
-
-    model_config = ConfigDict(extra="forbid")
-
-    notification_message: str = Field(
-        description="A message to be displayed to the user to keep him updated on the progress of the extraction"
-    )
 
     weaknesses: list[WeaknessItem] = Field(
         description="List of weaknesses extracted from the sources"
@@ -48,9 +45,15 @@ class WeaknessesExtraction(BaseModel):
         for batch in batches:
             all_weaknesses.extend(batch.weaknesses)
         notification_message = ""
-        if len(batches) > 1:
+        progress_notification_message = ""
+        if len(batches):
             notification_message = batches[-1].notification_message
-        return cls(weaknesses=all_weaknesses, notification_message=notification_message)
+            progress_notification_message = batches[-1].progress_notification_message
+        return cls(
+            weaknesses=all_weaknesses,
+            notification_message=notification_message,
+            progress_notification_message=progress_notification_message,
+        )
 
     @property
     def number_of_items(self) -> int:

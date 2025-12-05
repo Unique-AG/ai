@@ -1,14 +1,18 @@
 from typing import Self, Sequence
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
+
+from unique_swot.utils import (
+    StructuredOutputResult,
+    StructuredOutputWithNotification,
+)
 
 # ============================================================================
 # Extraction Models - Used for initial extraction from source data
 # ============================================================================
 
 
-class OpportunityItem(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+class OpportunityItem(StructuredOutputResult):
     justification: str = Field(
         description="A comprehensive context and analysis of the opportunity, explaining why it is significant."
     )
@@ -18,17 +22,11 @@ class OpportunityItem(BaseModel):
     )
 
 
-class OpportunitiesExtraction(BaseModel):
+class OpportunitiesExtraction(StructuredOutputWithNotification):
     """
     Extraction phase output: Raw opportunities identified from source documents.
     This is used during the initial extraction from batches of source data.
     """
-
-    model_config = ConfigDict(extra="forbid")
-
-    notification_message: str = Field(
-        description="A message to be displayed to the user to keep him updated on the progress of the extraction"
-    )
 
     opportunities: list[OpportunityItem] = Field(
         description="The opportunities identified in the analysis"
@@ -42,11 +40,15 @@ class OpportunitiesExtraction(BaseModel):
             all_opportunities.extend(batch.opportunities)
 
         notification_message = ""
+        progress_notification_message = ""
         if len(batches):
             notification_message = batches[-1].notification_message
+            progress_notification_message = batches[-1].progress_notification_message
 
         return cls(
-            opportunities=all_opportunities, notification_message=notification_message
+            opportunities=all_opportunities,
+            notification_message=notification_message,
+            progress_notification_message=progress_notification_message,
         )
 
     @property

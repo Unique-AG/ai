@@ -14,8 +14,8 @@ from unique_swot.services.generation.reporting.models import (
 from unique_swot.services.generation.reporting.prompts import (
     get_swot_reporting_system_prompt,
 )
-from unique_swot.services.generation.structured_output import generate_structured_output
 from unique_swot.services.memory.base import SwotMemoryService
+from unique_swot.utils import generate_structured_output
 
 _LOGGER = getLogger(__name__)
 
@@ -41,7 +41,7 @@ class ProgressiveReportingAgent:
         component: SWOTComponent,
         extraction_result: SWOTExtractionModel,
         optional_instruction: str | None,
-    ) -> str:
+    ) -> SWOTConsolidatedReport:
         # Load previous report from memory
         consolidated_report_model = get_swot_consolidated_report_model(component)
 
@@ -65,14 +65,15 @@ class ProgressiveReportingAgent:
             llm=self._llm,
             output_model=consolidated_report_model,
         )
-        if new_items is not None:
-            updated_report = self._update_consolidated_report(
-                consolidated_report=previous_report,
-                new_items=new_items,
-            )
-            self._memory_service.set(updated_report)
-            return updated_report.notification_message
-        return "Failed to update the consolidated report"
+
+        assert new_items is not None
+
+        updated_report = self._update_consolidated_report(
+            consolidated_report=previous_report,
+            new_items=new_items,
+        )
+        self._memory_service.set(updated_report)
+        return updated_report
 
     def get_report(self) -> list[SWOTConsolidatedReport]:
         # Get the report from all components

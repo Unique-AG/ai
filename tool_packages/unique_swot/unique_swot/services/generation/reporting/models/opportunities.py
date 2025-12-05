@@ -1,12 +1,15 @@
 from typing import Self
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
+
+from unique_swot.utils import (
+    StructuredOutputResult,
+    StructuredOutputWithNotification,
+)
 
 
-class OpportunityBulletPoint(BaseModel):
+class OpportunityBulletPoint(StructuredOutputResult):
     """A single bullet point within an opportunity insight."""
-
-    model_config = ConfigDict(extra="forbid")
 
     key_reasoning: str = Field(
         ...,
@@ -18,10 +21,8 @@ class OpportunityBulletPoint(BaseModel):
     )
 
 
-class ConsolidatedOpportunityItem(BaseModel):
+class ConsolidatedOpportunityItem(StructuredOutputResult):
     """A consolidated opportunity insight representing a broader theme or trend."""
-
-    model_config = ConfigDict(extra="forbid")
 
     id: str = Field(..., description="Unique identifier for tracking this opportunity.")
     title: str = Field(
@@ -35,14 +36,8 @@ class ConsolidatedOpportunityItem(BaseModel):
     )
 
 
-class ConsolidatedOpportunitiesReport(BaseModel):
+class ConsolidatedOpportunitiesReport(StructuredOutputWithNotification):
     """Final aggregated report of opportunity insights from multiple batches."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    notification_message: str = Field(
-        description="A message to be displayed to the user to keep him updated on the progress of the reporting"
-    )
 
     opportunities: list[ConsolidatedOpportunityItem] = Field(
         ...,
