@@ -56,6 +56,6 @@ runs:
       working-directory: ${{ inputs.package_dir }}
       run: |
         bash ${{ github.workspace }}/.github/scripts/run-basedpyright.sh \
-          -r "${{ steps.install_pm.outputs.pm_cmd }}" \
+          -r "${{ steps.install_pm.outputs.run_cmd }}" \
           -o "${{ inputs.output_file }}" \
           ${{ github.workspace }}/${{ inputs.package_dir }}

@@ -38,5 +38,5 @@ runs:
       shell: bash
       working-directory: ${{ inputs.package_dir }}
       run: |
-        ${{ steps.install_pm.outputs.pm_cmd }} pytest ${{ inputs.test_args }}
+        ${{ steps.install_pm.outputs.run_cmd }} pytest ${{ inputs.test_args }}
 

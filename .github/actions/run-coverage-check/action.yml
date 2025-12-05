@@ -51,7 +51,7 @@ runs:
         ARGS=(
           "${{ inputs.package_dir }}"
           --min-coverage "${{ inputs.min_coverage }}"
-          --runner "${{ steps.install_pm.outputs.pm_cmd }}"
+              --runner "${{ steps.install_pm.outputs.run_cmd }}"
         )
         if [ -n "${{ inputs.base_ref }}" ]; then
           ARGS+=(--base-ref "${{ inputs.base_ref }}")
