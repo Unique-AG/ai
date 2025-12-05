@@ -5,8 +5,12 @@ from unittest.mock import Mock
 import pytest
 from unique_toolkit.content.schemas import ContentChunk
 
-from unique_swot.services.collection.schema import Source, SourceChunk, SourceType
 from unique_swot.services.schemas import SWOTOperation, SWOTPlan, SWOTStepPlan
+from unique_swot.services.source_management.schema import (
+    Source,
+    SourceChunk,
+    SourceType,
+)
 
 
 @pytest.fixture

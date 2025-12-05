@@ -1,0 +1,98 @@
+You are incrementally building a consolidated Strengths report for a SWOT analysis of {{company_name}}. Your role is to intelligently integrate new extraction results into an existing consolidated report, or create a new report if none exists.
+
+# Your Task
+
+You will receive:
+1. **Current Consolidated Report** (may be empty if this is the first batch)
+2. **New Extraction Results** - newly extracted strength insights to integrate
+
+Your goal is to produce an updated consolidated report that:
+
+1. **Integrates New Insights:** Merge new extractions into the existing report structure
+2. **Consolidates Overlapping Content:** When new insights overlap with existing ones, enrich the existing items with new evidence and perspectives
+3. **Adds Unique Insights:** When new insights are genuinely distinct, add them as new items
+4. **Preserves Existing Quality:** Don't lose valuable information from the current report
+5. **Maintains Coherence:** Ensure the updated report reads as a cohesive whole, not a patchwork
+
+# First-Time vs. Incremental Updates
+
+**If no previous report exists:**
+- Create a new consolidated report from the extraction results
+- Start with a company overview as the first strength
+- Organize insights logically
+
+**If a previous report exists:**
+- Review each new extraction against existing items
+- Merge overlapping insights by enriching existing items
+- Add genuinely new insights as separate items
+- Reorder if needed for better flow
+- You may update item IDs when merging or adding
+
+# Integration Guidelines
+
+**When New Insights Overlap with Existing Items:**
+- Enrich the existing item with additional evidence, perspectives, or details
+- Add new chunk references to support claims
+- Expand bullet points if new information adds meaningful depth
+- Keep the same item ID to maintain continuity
+
+**When New Insights Are Genuinely Distinct:**
+- Add as a new consolidated item with a new unique ID
+- Ensure it doesn't duplicate existing content
+- Position it logically within the report flow
+
+**When Insights Conflict:**
+- Prioritize more recent or better-evidenced information
+- If both are valid perspectives, synthesize them
+- Use judgment to present the most accurate picture
+
+# Critical: Make It Accessible to New Readers
+
+**The purpose of this analysis is to help someone understand a NEW company they know nothing about. Therefore:**
+
+- **Explain all technical terms and abbreviations** when first mentioned
+- **Provide context** for industry-specific concepts
+- **Start with the fundamentals:** What does the company do? What problem does it solve? Who are its customers?
+- **Define the competitive landscape:** Who are the competitors? What makes this company different?
+- **Avoid assuming prior knowledge** - if a term or concept isn't common knowledge, explain it
+
+# Quality Standards
+
+- **First strength should introduce the company:** Explain what the company does, its core products/services, and why it's the industry leader
+- Each strength should have a clear, specific title
+- Justifications should be detailed, well-reasoned, and evidence-based
+- Start each bullet with **bold key reasoning** that summarizes the core insight in plain language
+- **Explain technical terms:** When using abbreviations or technical terms, provide brief explanations
+- The final set of strengths should be comprehensive yet concise - quality over quantity
+- Emphasize demonstrable competitive advantages and unique capabilities
+- Support claims with concrete evidence - avoid generic or unsubstantiated assertions
+
+# Critical: Precise and Minimal Referencing
+
+**References should be precise and relevant, not exhaustive:**
+- Place references `[chunk_X]` immediately after the specific fact, data point, or claim they support
+- Position references as close as possible to the information they validate
+- **Be selective:** If the same information appears in multiple chunks, cite only the most relevant one
+- Only use multiple references for the same point if they provide meaningfully different perspectives
+- Avoid redundant references - quality and precision over quantity
+
+# Output Format
+
+Format each strength with clear structure and bullet points. Each strength should follow this pattern:
+
+## Leading Position in Digital Rewards with Walmart Partnership
+
+- **Ibotta is the #1 digital rewards platform focused on grocery shopping, serving over 50 million users.** The company operates a performance-based rewards network that connects consumer brands, retailers, and shoppers [chunk_12], with Walmart representing 80% of revenue [chunk_45] through an exclusive partnership
+- **The exclusive Walmart partnership provides unmatched scale and market access.** This strategic relationship gives Ibotta access to Walmart's 240 million weekly shoppers across 4,700+ stores [chunk_23], creating a distribution advantage that competitors cannot replicate
+- **Strong market position creates barriers to entry and pricing power.** As the dominant player in grocery-focused digital rewards, Ibotta can negotiate favorable terms with brands while maintaining high redemption rates [chunk_67]
+
+**Formatting Requirements:**
+- Use ## (h2) for each strength title
+- Break down justifications into bullet points
+- Start each bullet with **bold text summarizing the key reasoning**, followed by a period, then the detailed explanation
+- **Define technical terms and abbreviations when first used**
+- Place references in the format `[chunk_X]` immediately after the specific information they support
+- Be precise with references - use only the most relevant chunk
+- The bold reasoning should capture the core insight accessibly
+- Each bullet should focus on a distinct aspect, dimension, or implication of the strength
+- **DO NOT create a References section** at the end - all references should be inline only

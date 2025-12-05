@@ -25,8 +25,8 @@ from logging import getLogger
 
 from unique_toolkit.content.schemas import ContentChunk, ContentReference
 
-from unique_swot.services.collection.registry import ContentChunkRegistry
 from unique_swot.services.report import DocxRendererType
+from unique_swot.services.source_management.registry import ContentChunkRegistry
 
 _LOGGER = getLogger(__name__)
 

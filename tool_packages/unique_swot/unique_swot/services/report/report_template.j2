@@ -1,32 +1,56 @@
-{% if strengths.result |length > 0 %}
+{% if strengths |length > 0 %}
 # Strengths
 
-{{ strengths.result }}
+{% for item in strengths %}
+## {{ item.title }}
 
+{% for bullet in item.bullet_points %}
+- **{{ bullet.key_reasoning }}** {{ bullet.detailed_context }}
+{% endfor %}
+
+{% endfor %}
 ---
 
 {% endif %}
-{% if weaknesses.result |length > 0 %}
+{% if weaknesses |length > 0 %}
 # Weaknesses
 
-{{ weaknesses.result }}
+{% for item in weaknesses %}
+## {{ item.title }}
 
+{% for bullet in item.bullet_points %}
+- **{{ bullet.key_reasoning }}** {{ bullet.detailed_context }}
+{% endfor %}
+
+{% endfor %}
 ---
 
 {% endif %}
-{% if opportunities.result |length > 0 %}
+{% if opportunities |length > 0 %}
 # Opportunities
 
-{{ opportunities.result }}
+{% for item in opportunities %}
+## {{ item.title }}
 
+{% for bullet in item.bullet_points %}
+- **{{ bullet.key_reasoning }}** {{ bullet.detailed_context }}
+{% endfor %}
+
+{% endfor %}
 ---
 
 {% endif %}
-{% if threats.result |length > 0 %}
+{% if threats |length > 0 %}
 # Threats
 
-{{ threats.result }}
+{% for item in threats %}
+## {{ item.title }}
 
+{% for bullet in item.bullet_points %}
+- **{{ bullet.key_reasoning }}** {{ bullet.detailed_context }}
+{% endfor %}
+
+{% endfor %}
 ---
 
 {% endif %}
