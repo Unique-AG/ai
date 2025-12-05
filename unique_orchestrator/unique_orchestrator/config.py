@@ -22,7 +22,6 @@ from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.history_manager.history_manager import (
     UploadedContentConfig,
 )
-from unique_toolkit.agentic.loop_runner import PlanningConfig
 from unique_toolkit.agentic.responses_api import (
     DisplayCodeInterpreterFilesPostProcessorConfig,
     ShowExecutedCodePostprocessorConfig,
@@ -136,10 +135,6 @@ class LoopConfiguration(BaseModel):
         int,
         *ClipInt(min_value=1, max_value=LIMIT_MAX_TOOL_CALLS_PER_ITERATION),
     ] = 10
-
-    planning_config: (
-        Annotated[PlanningConfig, Field(title="Active")] | DeactivatedNone
-    ) = Field(default=None, description="Planning configuration.")
 
 
 class EvaluationConfig(BaseModel):

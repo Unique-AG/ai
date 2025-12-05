@@ -29,12 +29,6 @@ from unique_toolkit.agentic.history_manager.history_manager import (
     HistoryManager,
     HistoryManagerConfig,
 )
-from unique_toolkit.agentic.loop_runner import (
-    BasicLoopIterationRunner,
-    BasicLoopIterationRunnerConfig,
-    LoopIterationRunner,
-    PlanningMiddleware,
-)
 from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
     PostprocessorManager,
@@ -122,7 +116,6 @@ class _CommonComponents(NamedTuple):
     mcp_manager: MCPManager
     a2a_manager: A2AManager
     mcp_servers: list[McpServer]
-    loop_runner: LoopIterationRunner
 
 
 def _build_common(
@@ -222,12 +215,6 @@ def _build_common(
             )
         )
 
-    loop_runner = _build_loop_runner(
-        config=config,
-        history_manager=history_manager,
-        llm_service=LanguageModelService.from_event(event),
-    )
-
     return _CommonComponents(
         chat_service=chat_service,
         content_service=content_service,
@@ -244,7 +231,6 @@ def _build_common(
         postprocessor_manager=postprocessor_manager,
         response_watcher=response_watcher,
         message_step_logger=MessageStepLogger(chat_service),
-        loop_runner=loop_runner,
     )
 
 
@@ -369,7 +355,6 @@ async def _build_responses(
         debug_info_manager=debug_info_manager,
         message_step_logger=common_components.message_step_logger,
         mcp_servers=event.payload.mcp_servers,
-        loop_runner=common_components.loop_runner,
     )
 
 
@@ -459,7 +444,6 @@ def _build_completions(
         debug_info_manager=debug_info_manager,
         mcp_servers=event.payload.mcp_servers,
         message_step_logger=common_components.message_step_logger,
-        loop_runner=common_components.loop_runner,
     )
 
 
@@ -532,25 +516,3 @@ def _add_sub_agents_evaluation(
             response_watcher=response_watcher,
         )
         evaluation_manager.add_evaluation(sub_agent_evaluation)
-
-
-def _build_loop_runner(
-    config: UniqueAIConfig,
-    history_manager: HistoryManager,
-    llm_service: LanguageModelService,
-) -> LoopIterationRunner:
-    loop_runner = BasicLoopIterationRunner(
-        config=BasicLoopIterationRunnerConfig(
-            max_loop_iterations=config.agent.max_loop_iterations
-        )
-    )
-
-    if config.agent.experimental.loop_configuration.planning_config is not None:
-        loop_runner = PlanningMiddleware(
-            loop_runner=loop_runner,
-            config=config.agent.experimental.loop_configuration.planning_config,
-            history_manager=history_manager,
-            llm_service=llm_service,
-        )
-
-    return loop_runner
