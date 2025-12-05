@@ -63,6 +63,10 @@ class LoopTokenReducer:
         self._content_service = ContentService.from_event(event)
         self._user_message = event.payload.user_message
         self._chat_id = event.payload.chat_id
+        self._effective_token_limit = int(
+            self._language_model.token_limits.token_limit_input
+            * (1 - MAX_INPUT_TOKENS_SAFETY_PERCENTAGE)
+        )
 
     def _get_encoder(self, language_model: LMI) -> tiktoken.Encoding:
         name = language_model.encoder_name or "cl100k_base"
@@ -113,13 +117,6 @@ class LoopTokenReducer:
 
         return messages
 
-    def _get_max_tokens(self) -> int:
-        """Get the maximum allowed tokens with safety margin."""
-        return int(
-            self._language_model.token_limits.token_limit_input
-            * (1 - MAX_INPUT_TOKENS_SAFETY_PERCENTAGE)
-        )
-
     def _exceeds_token_limit(self, token_count: int) -> bool:
         """Check if token count exceeds the maximum allowed limit and if at least one tool call has more than one source."""
         # At least one tool call should have more than one chunk as answer
@@ -127,18 +124,12 @@ class LoopTokenReducer:
             len(chunks) > 1
             for chunks in self._reference_manager.get_chunks_of_all_tools()
         )
-        max_tokens = self._get_max_tokens()
         # TODO: This is not fully correct at the moment as the token_count
         # include system_prompt and user question already
         # TODO: There is a problem if we exceed but only have one chunk per tool call
-        exceeds_limit = token_count > max_tokens
+        exceeds_limit = token_count > self._effective_token_limit
 
         return has_multiple_chunks_for_a_tool_call and exceeds_limit
-
-    def _calculate_overshoot_factor(self, token_count: int) -> float:
-        """Calculate how much we overshoot the max tokens (e.g., 1.5 means 150% of max)."""
-        max_tokens = self._get_max_tokens()
-        return token_count / max_tokens if max_tokens > 0 else 1.0
 
     def _count_message_tokens(self, messages: LanguageModelMessages) -> int:
         """Count tokens in messages using the configured encoding model."""
@@ -183,9 +174,13 @@ class LoopTokenReducer:
         self, loop_history: list[LanguageModelMessage], token_count: int
     ) -> list[LanguageModelMessage]:
         """Handle case where token limit is exceeded by reducing sources in tool responses."""
-        overshoot_factor = self._calculate_overshoot_factor(token_count)
+        overshoot_factor = (
+            token_count / self._effective_token_limit
+            if self._effective_token_limit > 0
+            else 1.0
+        )
         self._logger.warning(
-            f"Length of messages exceeds limit of {self._get_max_tokens()} tokens "
+            f"Length of messages exceeds limit of {self._effective_token_limit} tokens "
             f"(overshoot factor: {overshoot_factor:.2f}x). Reducing number of sources per tool call.",
         )
 

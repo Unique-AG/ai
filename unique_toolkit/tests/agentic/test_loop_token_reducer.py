@@ -214,12 +214,12 @@ def test_loop_token_reducer__initializes__with_valid_parameters_AI(
 
 # Token Limit Tests
 @pytest.mark.ai
-def test_get_max_tokens__returns_correct_value__with_safety_margin_AI(
+def test_effective_token_limit__returns_correct_value__with_safety_margin_AI(
     loop_token_reducer: LoopTokenReducer,
     language_model_info: LanguageModelInfo,
 ) -> None:
     """
-    Purpose: Verify _get_max_tokens applies the safety margin correctly.
+    Purpose: Verify _effective_token_limit applies the safety margin correctly.
     Why this matters: Safety margin prevents exceeding actual token limits.
     """
     # Arrange
@@ -229,7 +229,7 @@ def test_get_max_tokens__returns_correct_value__with_safety_margin_AI(
     )
 
     # Act
-    result = loop_token_reducer._get_max_tokens()
+    result = loop_token_reducer._effective_token_limit
 
     # Assert
     assert result == expected_max
@@ -313,26 +313,6 @@ def test_exceeds_token_limit__returns_true__when_over_limit_with_multiple_chunks
 
     # Assert
     assert result is True
-
-
-# Overshoot Factor Tests
-@pytest.mark.ai
-def test_calculate_overshoot_factor__returns_correct_ratio_AI(
-    loop_token_reducer: LoopTokenReducer,
-) -> None:
-    """
-    Purpose: Verify _calculate_overshoot_factor computes correct ratio.
-    Why this matters: Overshoot factor determines reduction aggressiveness.
-    """
-    # Arrange
-    max_tokens = loop_token_reducer._get_max_tokens()
-    token_count = max_tokens * 2  # 2x overshoot
-
-    # Act
-    result = loop_token_reducer._calculate_overshoot_factor(token_count)
-
-    # Assert
-    assert abs(result - 2.0) < 0.01  # Allow small floating point error
 
 
 # Message Token Counting Tests
