@@ -8,7 +8,7 @@ from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
 )
 from unique_toolkit.agentic.evaluation.evaluation_manager import EvaluationManager
 from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
-from unique_toolkit.agentic.loop_runner import LoopRunner
+from unique_toolkit.agentic.loop_runner import LoopIterationRunner
 from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
     PostprocessorManager,
@@ -65,7 +65,7 @@ class UniqueAI:
         postprocessor_manager: PostprocessorManager,
         message_step_logger: MessageStepLogger,
         mcp_servers: list[McpServer],
-        loop_runner: LoopRunner,
+        loop_runner: LoopIterationRunner,
     ):
         self._logger = logger
         self._event = event
@@ -515,7 +515,7 @@ class UniqueAIResponsesApi(UniqueAI):
         postprocessor_manager: PostprocessorManager,
         message_step_logger: MessageStepLogger,
         mcp_servers: list[McpServer],
-        loop_runner: LoopRunner,
+        loop_runner: LoopIterationRunner,
     ) -> None:
         super().__init__(
             logger,

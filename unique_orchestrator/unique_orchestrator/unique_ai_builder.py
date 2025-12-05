@@ -30,9 +30,9 @@ from unique_toolkit.agentic.history_manager.history_manager import (
     HistoryManagerConfig,
 )
 from unique_toolkit.agentic.loop_runner import (
-    BasicLoopRunner,
-    BasicLoopRunnerConfig,
-    LoopRunner,
+    BasicLoopIterationRunner,
+    BasicLoopIterationRunnerConfig,
+    LoopIterationRunner,
     PlanningMiddleware,
 )
 from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
@@ -122,7 +122,7 @@ class _CommonComponents(NamedTuple):
     mcp_manager: MCPManager
     a2a_manager: A2AManager
     mcp_servers: list[McpServer]
-    loop_runner: LoopRunner
+    loop_runner: LoopIterationRunner
 
 
 def _build_common(
@@ -538,9 +538,9 @@ def _build_loop_runner(
     config: UniqueAIConfig,
     history_manager: HistoryManager,
     llm_service: LanguageModelService,
-) -> LoopRunner:
-    loop_runner = BasicLoopRunner(
-        config=BasicLoopRunnerConfig(
+) -> LoopIterationRunner:
+    loop_runner = BasicLoopIterationRunner(
+        config=BasicLoopIterationRunnerConfig(
             max_loop_iterations=config.agent.max_loop_iterations
         )
     )
