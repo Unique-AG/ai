@@ -30,10 +30,10 @@ class StructuredOutputWithNotification(StructuredOutputResult):
     model_config = ConfigDict(extra="forbid")
 
     notification_message: str = Field(
-        description="A notification message to entertain the use about the outcome of the operation. Might briefly highlight key findings or results etc..."
+        description="A notification message to entertain the user with highlighting key findings or results."
     )
     progress_notification_message: str = Field(
-        description="A very short message to update the message of the progress bar."
+        description="A very short message to update the message of the progress bar. Should name the step and give overall statistics or information."
     )
 
 
