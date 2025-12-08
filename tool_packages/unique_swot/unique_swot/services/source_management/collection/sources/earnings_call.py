@@ -68,7 +68,7 @@ async def collect_earnings_calls(
 
         event = events_mapping[int(document.event_id)]
         document_title = f"{company.name} {event.title} Earnings Call"
-        
+
         # Filtering step to remove duplicates (Happens when there are both In-House and External Transcripts for the same event)
         if document_title in document_collection:
             # If current is In-House Transcript, override the existing document as it is more complete
@@ -76,9 +76,8 @@ async def collect_earnings_calls(
                 document_collection[document_title] = document
         else:
             document_collection[document_title] = document
-            
+
     for document_title, document in document_collection.items():
-    
         # Try to get the content from the knowledge_base if already exists
         content = _try_getting_content_from_knowledge_base(
             knowledge_base_service=knowledge_base_service,

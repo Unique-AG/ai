@@ -8,7 +8,7 @@ from unique_toolkit._common.validators import LMI
 from unique_toolkit.language_model.builder import MessagesBuilder
 
 _LOGGER = getLogger(__name__)
-
+_MAX_RETRIES = 3
 T = TypeVar("T", bound=BaseModel)
 
 
@@ -46,39 +46,46 @@ async def generate_structured_output(
     llm_service: LanguageModelService,
 ) -> T | None:
     """
-    Generate a SWOT analysis report for a single batch of sources.
+    Call the LLM to produce a structured Pydantic model with retries.
 
-    This function processes a batch of sources through the language model to generate
-    structured SWOT analysis results. It handles errors gracefully and returns None
-    if generation fails.
-
-    Args:
-        system_prompt: The system prompt to guide the language model
-        batch_parser: Function to convert source batch into text for the LLM
-        language_model_service: Service for interacting with language models
-        language_model: Language model configuration
-        output_model: The Pydantic model class for structured output
-        batch: List of sources to process in this batch
-
-    Returns:
-        The generated SWOT analysis for this batch, or None if generation failed
+    Returns None when every attempt fails.
     """
-    try:
-        _LOGGER.info(
-            f"Generating structured output with {output_model.__class__.__name__} model"
-        )
-        messages = (
+    _LOGGER.info(f"Generating structured output with {output_model.__name__} model")
+
+    def _build_messages(error: str | None = None):
+        builder = (
             MessagesBuilder()
             .system_message_append(system_prompt)
             .user_message_append(user_message)
-            .build()
         )
-        response = await llm_service.complete_async(
-            model_name=llm.name,
-            messages=messages,
-            structured_output_model=output_model,
-            structured_output_enforce_schema=True,
-        )
-        return output_model.model_validate(response.choices[0].message.parsed)
-    except Exception as e:
-        _LOGGER.exception(f"Error generating report batch: {e}")
+        if error:
+            builder.user_message_append(
+                f"The following error occurred, please retry and fix the error: \n ```{error}```"
+            )
+        return builder.build()
+
+    last_error = ""
+    for attempt in range(1, _MAX_RETRIES + 1):
+        try:
+            response = await llm_service.complete_async(
+                model_name=llm.name,
+                messages=_build_messages(last_error),
+                structured_output_model=output_model,
+                structured_output_enforce_schema=True,
+            )
+            return output_model.model_validate(response.choices[0].message.parsed)
+        except Exception as exc:
+            last_error = str(exc)
+            _LOGGER.exception(
+                "Error generating structured output (attempt %s/%s): %s",
+                attempt,
+                _MAX_RETRIES,
+                last_error,
+            )
+
+    _LOGGER.error(
+        "Failed to generate structured output after %s retries: %s",
+        _MAX_RETRIES,
+        last_error,
+    )
+    return None
