@@ -7,10 +7,10 @@ from unique_toolkit.language_model.infos import (
     LanguageModelName,
 )
 
-from unique_swot.services.generation.prompts import (
-    ExtractionPromptConfig,
-    SummarizationPromptConfig,
+from unique_swot.services.generation.extraction.config import (
+    ExtractionConfig,
 )
+from unique_swot.services.generation.reporting.config import ReportingConfig
 
 _LOGGER = getLogger(__name__)
 
@@ -36,19 +36,12 @@ class ReportGenerationConfig(BaseModel):
     language_model: LMI = get_LMI_default_field(
         _DEFAULT_LANGUAGE_MODEL, description="The language model to use for generation"
     )
-    extraction_batch_size: int = Field(
-        default=_DEFAULT_BATCH_SIZE,
-        description="Number of sources to process in each batch",
+    extraction_config: ExtractionConfig = Field(
+        default_factory=ExtractionConfig,
+        description="The configuration for the extraction.",
     )
-    max_tokens_per_extraction_batch: int = Field(
-        default=_DEFAULT_MAX_TOKENS_PER_BATCH,
-        description="Maximum tokens allowed per batch to prevent overflow",
-    )
-    extraction_prompt_config: ExtractionPromptConfig = Field(
-        default_factory=ExtractionPromptConfig,
-        description="The configuration for the extraction prompt.",
-    )
-    summarization_prompt_config: SummarizationPromptConfig = Field(
-        default_factory=SummarizationPromptConfig,
-        description="The configuration for the summarization prompt.",
+
+    reporting_config: ReportingConfig = Field(
+        default_factory=ReportingConfig,
+        description="The configuration for the reporting.",
     )
