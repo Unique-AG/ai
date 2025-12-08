@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2025-12-08
+### Added
+- Orchestrator-driven SWOT workflow that chains source collection, LLM-based source selection, extraction, and progressive reporting with shared memory.
+- Source management layer with date-relevancy iterator, configurable earnings call DOCX rendering, and revamped prompts/models for each SWOT component.
+- Progressive reporting agent and consolidated report models that stream citations and render markdown/DOCX outputs.
+
+### Changed
+- Configuration regrouped under source management/extraction/report generation to match the new architecture; package version bumped to 1.0.0.
+
+### Fixed
+- Prevent duplicate earnings call ingestion and fall back gracefully when source filenames lack date metadata.
+- Structured output generation now retries on parsing failures to reduce extraction/reporting errors.
+
 ## [0.2.4] - 2025-11-24
 - Add session state tracking (RUNNING, COMPLETED, FAILED) with `SessionState` enum
 - Add `render_session_info()` method to display session details in progress messages
