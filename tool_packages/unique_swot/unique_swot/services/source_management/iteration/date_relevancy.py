@@ -1,11 +1,14 @@
 import re
 from datetime import datetime, timedelta
+from logging import getLogger
 from typing import AsyncIterator
 
 from pydantic import BaseModel, Field
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 
 from unique_swot.services.source_management.schema import Source
+
+_LOGGER = getLogger(__name__)
 
 DATE_FILE_NAME_PATTERN = r"\d{2}\d{2}\d{2}"
 
@@ -17,6 +20,9 @@ class DateRelevancySourceIteratorConfig(BaseModel):
         default=DATE_FILE_NAME_PATTERN,
         description="The pattern to use for the date in the file name.",
     )
+
+
+_DEFAULT_DATE = datetime.now() - timedelta(days=3650)  # 10 years ago
 
 
 class DateRelevancySourceIterator:
@@ -38,7 +44,13 @@ class DateRelevancySourceIterator:
         match = re.search(self._config.date_file_name_pattern, source.title)
         if match:
             date_file_name = match.group(0)
-            date = datetime.strptime(date_file_name, "%y%m%d")
-            return date
+            try:
+                date = datetime.strptime(date_file_name, "%y%m%d")
+                return date
+            except ValueError:
+                _LOGGER.warning(
+                    f"Failed to parse date from source title: {source.title} as it does not match the pattern {self._config.date_file_name_pattern}. Using default date: {_DEFAULT_DATE}"
+                )
+                return _DEFAULT_DATE
         else:
-            return datetime.now() - timedelta(days=3650)  # 10 years ago
+            return _DEFAULT_DATE
