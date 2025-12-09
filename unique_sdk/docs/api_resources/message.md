@@ -299,5 +299,5 @@ Manage chat messages and integrate with the Unique AI chat system. Includes supp
 - [Message Log API](message_log.md) - Track message execution steps
 - [Message Execution API](message_execution.md) - Manage long-running message operations
 - [Message Assessment API](message_assessment.md) - Evaluate message quality
-- [Chat History Utility](../sdk.md#chat-history) - Manage conversation history
+- [Chat History Utility](../utilities/chat_history.md) - Manage conversation history
 

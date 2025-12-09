@@ -133,5 +133,5 @@ Store small amounts of data temporarily for:
 ## Related Resources
 
 - [Message API](message.md) - Associate memory with messages
-- [Chat History Utility](../sdk.md#chat-history) - Long-term conversation history
+- [Chat History Utility](../utilities/chat_history.md) - Long-term conversation history
 

@@ -77,4 +77,3 @@ Now that you've configured the SDK:
 2. **[Explore API Resources](../api_resources/index.md)** - Browse available APIs
 3. **[Read the Architecture guide](../architecture.md)** - Understand SDK structure
 4. **[Check out Tutorials](../tutorials/folder_updates.md)** - See step-by-step tutorials
-5. **[View the full SDK documentation](../sdk.md)** - Complete API reference

@@ -116,4 +116,3 @@ Now that you understand the SDK architecture:
 2. **[Try the Quickstart](getting_started/quickstart.md)** - Make your first API call
 3. **[Explore API Resources](api_resources/index.md)** - Browse all available APIs
 4. **[See Tutorials](tutorials/folder_updates.md)** - Learn from step-by-step tutorials
-5. **[Read the Full Documentation](../sdk.md)** - Complete API reference

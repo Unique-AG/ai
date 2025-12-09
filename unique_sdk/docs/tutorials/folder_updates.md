@@ -63,8 +63,7 @@ def main():
             folderPath=folder_path,
             ingestionConfig={
                 "chunkMaxTokens": 1000,
-                "chunkStrategy": "default",
-                "uniqueIngestionMode": "standard",
+                "chunkStrategy": "default"
             },
             applyToSubScopes=True,
         )

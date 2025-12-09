@@ -9,7 +9,6 @@ The Chat in Space utilities provide:
 - Async message sending with automatic polling
 - Waiting for message completion
 - File upload and chat workflows
-- Ingestion completion tracking
 
 ## Methods
 

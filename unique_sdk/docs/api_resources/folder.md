@@ -267,7 +267,6 @@ Organize content into folder structures with:
         scopeId="scope_qbnkde820dbmuw2900",
         ingestionConfig={
             "chunkStrategy": "default",
-            "uniqueIngestionMode": "standard",
             "chunkMaxTokens": 1000
         },
         applyToSubScopes=True
@@ -282,8 +281,7 @@ Organize content into folder structures with:
         company_id=company_id,
         folderPath="/Company/folder1/folder2",
         ingestionConfig={
-            "chunkStrategy": "default",
-            "uniqueIngestionMode": "standard"
+            "chunkStrategy": "default"
         },
         applyToSubScopes=True
     )
@@ -418,8 +416,7 @@ Organize content into folder structures with:
         folderPath="/Company/Engineering",
         ingestionConfig={
             "chunkStrategy": "default",
-            "chunkMaxTokens": 1500,  # Larger chunks for technical docs
-            "uniqueIngestionMode": "standard"
+            "chunkMaxTokens": 1500  # Larger chunks for technical docs
         },
         applyToSubScopes=True
     )

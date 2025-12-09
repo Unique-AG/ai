@@ -178,5 +178,5 @@ Messages follow the [OpenAI Chat API format](https://platform.openai.com/docs/ap
 - [LLM Models API](llm_models.md) - Get available models
 - [Search API](search.md) - Retrieve context for RAG
 - [Message API](message.md) - Integrate with chat system
-- [Token Utils](../sdk.md#token) - Manage token usage
+- [Token Management](../utilities/token.md) - Manage token usage
 

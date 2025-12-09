@@ -8,6 +8,7 @@ The File I/O utilities simplify:
 
 - Uploading files to scopes or chats
 - Downloading files from the knowledge base
+- Waiting for ingestion completion
 - Managing file ingestion
 - Handling file metadata and configurations
 
@@ -49,8 +50,7 @@ The File I/O utilities simplify:
         scope_or_unique_path="scope_stcj2osgbl722m22jayidx0n",
         ingestion_config={
             "chunkStrategy": "default",
-            "chunkMaxTokens": 1000,
-            "uniqueIngestionMode": "standard"
+            "chunkMaxTokens": 1000
         },
         metadata={
             "year": "2024",
@@ -121,6 +121,59 @@ The File I/O utilities simplify:
         filename="document.pdf",
         chat_id="chat_abc123"
     )
+    ```
+
+??? example "`unique_sdk.utils.file_io.wait_for_ingestion_completion` - Wait for file ingestion"
+
+    Polls until content ingestion is finished or the maximum wait time is reached. Raises an error if ingestion fails.
+
+    **Parameters:**
+
+    - `user_id` (required) - User ID
+    - `company_id` (required) - Company ID
+    - `content_id` (required) - Content ID to monitor
+    - `chat_id` (optional) - Chat ID if content is in a chat
+    - `poll_interval` (optional) - Seconds between polls (default: 1.0)
+    - `max_wait` (optional) - Maximum seconds to wait (default: 60.0)
+
+    **Returns:**
+
+    - `"FINISHED"` when ingestion completes successfully
+
+    **Raises:**
+
+    - `RuntimeError` - If ingestion fails
+    - `TimeoutError` - If max wait time is exceeded
+
+    **Example:**
+
+    ```python
+    from unique_sdk.utils.file_io import upload_file, wait_for_ingestion_completion
+    import asyncio
+
+    async def upload_and_wait(file_path, scope_id):
+        content = upload_file(
+            userId=user_id,
+            companyId=company_id,
+            path_to_file=file_path,
+            displayed_filename="document.pdf",
+            mime_type="application/pdf",
+            scope_or_unique_path=scope_id
+        )
+        
+        await wait_for_ingestion_completion(
+            user_id=user_id,
+            company_id=company_id,
+            content_id=content.id,
+            poll_interval=2.0,
+            max_wait=120.0
+        )
+        
+        print(f"File {content.id} ingested successfully!")
+        return content
+
+    # Usage
+    asyncio.run(upload_and_wait("/path/to/file.pdf", "scope_abc123"))
     ```
 
 ## Use Cases
@@ -207,8 +260,7 @@ The File I/O utilities simplify:
         ...,
         ingestion_config={
             "chunkStrategy": "default",
-            "chunkMaxTokens": 2000,  # Larger chunks
-            "uniqueIngestionMode": "standard"
+            "chunkMaxTokens": 2000  # Larger chunks
         }
     )
 
@@ -217,8 +269,7 @@ The File I/O utilities simplify:
         ...,
         ingestion_config={
             "chunkStrategy": "default",
-            "chunkMaxTokens": 500,  # Smaller chunks
-            "uniqueIngestionMode": "standard"
+            "chunkMaxTokens": 500  # Smaller chunks
         }
     )
     ```
@@ -237,25 +288,6 @@ The File I/O utilities simplify:
             "tags": ["technical", "architecture"]
         }
     )
-    ```
-
-??? example "Handle Upload Errors"
-
-    ```python
-    try:
-        content = upload_file(
-            userId=user_id,
-            companyId=company_id,
-            path_to_file=file_path,
-            displayed_filename=filename,
-            mime_type="application/pdf",
-            scope_or_unique_path=scope_id
-        )
-        print(f"Success: {content.id}")
-    except ValueError as e:
-        print(f"Validation error: {e}")
-    except Exception as e:
-        print(f"Upload failed: {e}")
     ```
 
 ## Related Resources

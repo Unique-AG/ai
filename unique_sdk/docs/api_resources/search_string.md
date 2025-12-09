@@ -85,6 +85,6 @@ User messages are often suboptimal for vector or full-text search, especially in
 ## Related Resources
 
 - [Search API](search.md) - Perform searches with enhanced queries
-- [Chat History Utility](../sdk.md#chat-history) - Manage conversation context
+- [Chat History Utility](../utilities/chat_history.md) - Manage conversation context
 - [Message API](message.md) - Access chat messages for context
 

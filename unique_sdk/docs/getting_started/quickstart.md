@@ -256,14 +256,5 @@ UNIQUE_ENDPOINT_SECRET=your_webhook_secret
 
 ## Next Steps
 
-- [Architecture Overview](architecture.md) - Learn about SDK internals
-- [API Reference](sdk.md) - Explore all available resources
-- [Tutorials](../tutorials/folder_updates.md) - See step-by-step tutorials
-- [Error Handling](error-handling.md) - Master error handling patterns
-
-## Getting Help
-
-- [GitHub Issues](https://github.com/Unique-AG/ai/issues)
-- [Documentation](https://unique-ag.github.io/ai/)
-- Contact your Unique customer success manager
-
+- [Architecture Overview](../architecture.md) - Learn about SDK internals
+- [API Reference](../api_resources/index.md) - Explore all available resources
