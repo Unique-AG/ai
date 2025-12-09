@@ -266,7 +266,8 @@ Organize content into folder structures with:
         company_id=company_id,
         scopeId="scope_qbnkde820dbmuw2900",
         ingestionConfig={
-            "chunkStrategy": "default",
+            "uniqueIngestionMode": "INGESTION",
+            "chunkStrategy": "UNIQUE_DEFAULT_CHUNKING",
             "chunkMaxTokens": 1000
         },
         applyToSubScopes=True
@@ -281,7 +282,8 @@ Organize content into folder structures with:
         company_id=company_id,
         folderPath="/Company/folder1/folder2",
         ingestionConfig={
-            "chunkStrategy": "default"
+            "uniqueIngestionMode": "INGESTION",
+            "chunkStrategy": "UNIQUE_DEFAULT_CHUNKING"
         },
         applyToSubScopes=True
     )
@@ -415,7 +417,8 @@ Organize content into folder structures with:
         company_id=company_id,
         folderPath="/Company/Engineering",
         ingestionConfig={
-            "chunkStrategy": "default",
+            "uniqueIngestionMode": "INGESTION",
+            "chunkStrategy": "UNIQUE_DEFAULT_CHUNKING",
             "chunkMaxTokens": 1500  # Larger chunks for technical docs
         },
         applyToSubScopes=True
@@ -496,7 +499,8 @@ Organize content into folder structures with:
     unique_sdk.Folder.update_ingestion_config(
         folderPath="/Company/Legal",
         ingestionConfig={
-            "chunkStrategy": "default",
+            "uniqueIngestionMode": "INGESTION",
+            "chunkStrategy": "UNIQUE_DEFAULT_CHUNKING",
             "chunkMaxTokens": 2000  # Legal docs need larger chunks
         },
         applyToSubScopes=True  # Applies to all subfolders

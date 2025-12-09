@@ -249,7 +249,8 @@ The Content resource provides methods to:
         "scope_stcj2osgbl722m22jayidx0n",
         ingestionConfig={
             "chunkMaxTokens": 1000,
-            "chunkStrategy": "default"
+            "uniqueIngestionMode": "INGESTION",
+            "chunkStrategy": "UNIQUE_DEFAULT_CHUNKING"
         },
         metadata={
             "folderIdPath": "uniquepathid://scope_id"
