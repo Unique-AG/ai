@@ -119,7 +119,7 @@ async def chat_against_file(
         )
         content_id = upload_response.get("id")
 
-        await wait_for_ingestion_completion(
+        await _wait_for_ingestion_completion(
             user_id=user_id,
             company_id=company_id,
             content_id=content_id,
