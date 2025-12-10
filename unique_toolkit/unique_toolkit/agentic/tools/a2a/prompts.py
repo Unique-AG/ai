@@ -37,6 +37,8 @@ References: <sup><name>SubAgentName 4</name>2</sup><sup><name>SubAgentName 4</na
 
 6. Fact repetition: If you reuse a fact from SubAgentName, you MUST reference it again inline with the correct format.
 
+7. You can ONLY use references if they are present in the subagent response! You must NOT create any references!
+
 Reminder:
 Inline = directly next to the fact, inside the same sentence or bullet.
 """.strip()

@@ -12,6 +12,7 @@ from unique_sdk.utils.chat_in_space import send_message_and_wait_for_completion
 
 from unique_toolkit._common.referencing import (
     get_all_ref_numbers,
+    get_reference_pattern,
     remove_all_refs,
     replace_ref_number,
 )
@@ -201,15 +202,16 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
             if response["text"] is None:
                 raise ValueError("No response returned from sub agent")
 
+            has_refs = False
+            content = ""
+            content_chunks = None
             if self.config.returns_content_chunks:
-                content = ""
                 content_chunks = _ContentChunkList.validate_json(response["text"])
             else:
-                content = self._prepare_response_references(
+                content, has_refs = self._prepare_response_references(
                     response=response["text"],
                     sequence_number=sequence_number,
                 )
-                content_chunks = None
 
             await self._notify_progress(
                 tool_call=tool_call,
@@ -223,55 +225,64 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                 content=_format_response(
                     tool_name=self.name,
                     text=content,
-                    system_reminders=self._get_system_reminders(response),
+                    system_reminders=self._get_system_reminders(
+                        response, sequence_number, has_refs
+                    ),
                 ),
                 content_chunks=content_chunks,
             )
 
-    def _get_system_reminders(self, message: unique_sdk.Space.Message) -> list[str]:
+    def _get_system_reminders(
+        self, message: unique_sdk.Space.Message, sequence_number: int, has_refs: bool
+    ) -> list[str]:
+        has_refs = (
+            self.config.use_sub_agent_references
+            and message["references"] is not None
+            and len(message["references"]) > 0
+            and has_refs
+            and not self.config.returns_content_chunks
+        )
         reminders = []
+
         for reminder_config in self.config.system_reminders_config:
+            render_kwargs = {}
+            render_kwargs["display_name"] = self.display_name()
+            render_kwargs["tool_name"] = self.name
+            template = None
+
             if reminder_config.type == SubAgentSystemReminderType.FIXED:
-                reminders.append(
-                    render_template(
-                        reminder_config.reminder,
-                        display_name=self.display_name(),
-                        tool_name=self.name,
-                    )
-                )
+                template = reminder_config.reminder
             elif (
                 reminder_config.type == SubAgentSystemReminderType.REFERENCE
-                and self.config.use_sub_agent_references
-                and message["references"] is not None
-                and len(message["references"]) > 0
+                and has_refs
             ):
-                reminders.append(
-                    render_template(
-                        reminder_config.reminder,
-                        display_name=self.display_name(),
-                        tool_name=self.name,
-                    )
-                )
+                render_kwargs["tool_name"] = f"{self.name} {sequence_number}"
+                template = reminder_config.reminder
+            elif (
+                reminder_config.type == SubAgentSystemReminderType.NO_REFERENCE
+                and not has_refs
+            ):
+                render_kwargs["tool_name"] = f"{self.name} {sequence_number}"
+                template = reminder_config.reminder
             elif (
                 reminder_config.type == SubAgentSystemReminderType.REGEXP
                 and message["text"] is not None
+                and not self.config.returns_content_chunks
             ):
                 reminder_config = cast(
                     RegExpDetectedSystemReminderConfig, reminder_config
                 )
-                text_matches = [
-                    match.group(0)
-                    for match in reminder_config.regexp.finditer(message["text"])
-                ]
-                if len(text_matches) > 0:
-                    reminders.append(
-                        render_template(
-                            reminder_config.reminder,
-                            display_name=self.display_name(),
-                            tool_name=self.name,
-                            text_matches=text_matches,
-                        )
-                    )
+                if message["text"] is not None:
+                    text_matches = [
+                        match.group(0)
+                        for match in reminder_config.regexp.finditer(message["text"])
+                    ]
+                    if len(text_matches) > 0:
+                        template = reminder_config.reminder
+                        render_kwargs["text_matches"] = text_matches
+
+            if template is not None:
+                reminders.append(render_template(template, **render_kwargs))
 
         return reminders
 
@@ -290,22 +301,29 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
 
         return None
 
-    def _prepare_response_references(self, response: str, sequence_number: int) -> str:
+    def _prepare_response_references(
+        self, response: str, sequence_number: int
+    ) -> tuple[str, bool]:
         if not self.config.use_sub_agent_references:
             # Remove all references from the response
             response = remove_all_refs(response)
-            return response
+            return response, False
 
+        replaced = False
         for ref_number in get_all_ref_numbers(response):
             reference = self.get_sub_agent_reference_format(
                 name=self.name,
                 sequence_number=sequence_number,
                 reference_number=ref_number,
             )
-            response = replace_ref_number(
-                text=response, ref_number=ref_number, replacement=reference
-            )
-        return response
+            ref_pattern = get_reference_pattern(ref_number)
+            if re.search(ref_pattern, response) is not None:
+                replaced = True
+                response = replace_ref_number(
+                    text=response, ref_number=ref_number, replacement=reference
+                )
+
+        return response, replaced
 
     async def _save_chat_id(self, chat_id: str) -> None:
         if not self.config.reuse_chat:
