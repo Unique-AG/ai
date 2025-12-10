@@ -455,6 +455,6 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
 ## Related Resources
 
 - [Message API](message.md) - Direct message management
-- [Chat in Space Utility](../sdk.md#chat-in-space) - Helper functions
-- [UniqueQL](../sdk.md#uniqueql) - Scope rule filtering
+- [Chat in Space Utility](../utilities/chat_in_space.md) - Helper functions
+- [UniqueQL](../uniqueql.md) - Scope rule filtering
 

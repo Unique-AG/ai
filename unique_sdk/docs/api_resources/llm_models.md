@@ -91,5 +91,5 @@ Get the list of AI models available for chat completions and other operations.
 ## Related Resources
 
 - [ChatCompletion API](chat_completion.md) - Use models for completions
-- [Token Utils](../sdk.md#token) - Manage token usage
+- [Token Management](../utilities/token.md) - Manage token usage
 

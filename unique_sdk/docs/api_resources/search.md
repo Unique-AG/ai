@@ -183,6 +183,6 @@ Perform semantic search with support for:
 
 - [SearchString API](search_string.md) - Enhance queries with context
 - [Content API](content.md) - Manage searchable content
-- [UniqueQL](../sdk.md#uniqueql) - Advanced filtering
-- [Token Utils](../sdk.md#token) - Optimize token usage
+- [UniqueQL](../uniqueql.md) - Advanced filtering
+- [Token Management](../utilities/token.md) - Optimize token usage
 

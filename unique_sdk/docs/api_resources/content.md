@@ -249,8 +249,8 @@ The Content resource provides methods to:
         "scope_stcj2osgbl722m22jayidx0n",
         ingestionConfig={
             "chunkMaxTokens": 1000,
-            "chunkStrategy": "default",
-            "uniqueIngestionMode": "standard",
+            "uniqueIngestionMode": "INGESTION",
+            "chunkStrategy": "UNIQUE_DEFAULT_CHUNKING"
         },
         metadata={
             "folderIdPath": "uniquepathid://scope_id"
@@ -424,6 +424,82 @@ The Content resource provides methods to:
         company_id=company_id,
         filePath="/Company/finance/january.xls",
     )
+    ```
+
+## Use Cases
+
+For simplified file operations, use the [File I/O utilities](../utilities/file_io.md):
+
+??? example "Upload Files"
+
+    Instead of manually handling the three-step `Content.upsert` process, use the `upload_file` utility:
+
+    ```python
+    from unique_sdk.utils.file_io import upload_file
+
+    content = upload_file(
+        userId=user_id,
+        companyId=company_id,
+        path_to_file="/path/to/document.pdf",
+        displayed_filename="Q4_Report.pdf",
+        mime_type="application/pdf",
+        scope_or_unique_path="scope_abc123",
+        ingestion_config={
+            "chunkStrategy": "default",
+            "chunkMaxTokens": 1000
+        },
+        metadata={
+            "year": "2024",
+            "department": "Finance"
+        }
+    )
+    ```
+
+??? example "Download Files"
+
+    Use the `download_content` utility to download files from the knowledge base:
+
+    ```python
+    from unique_sdk.utils.file_io import download_content
+
+    file_path = download_content(
+        companyId=company_id,
+        userId=user_id,
+        content_id="cont_abc123",
+        filename="report.pdf"
+    )
+
+    with open(file_path, "rb") as f:
+        content = f.read()
+    ```
+
+??? example "Wait for Ingestion Completion"
+
+    After uploading a file, wait for it to be fully ingested before using it:
+
+    ```python
+    from unique_sdk.utils.file_io import upload_file, wait_for_ingestion_completion
+    import asyncio
+
+    async def upload_and_wait(file_path, scope_id):
+        content = upload_file(
+            userId=user_id,
+            companyId=company_id,
+            path_to_file=file_path,
+            displayed_filename="document.pdf",
+            mime_type="application/pdf",
+            scope_or_unique_path=scope_id
+        )
+        
+        await wait_for_ingestion_completion(
+            user_id=user_id,
+            company_id=company_id,
+            content_id=content.id
+        )
+        
+        return content
+
+    asyncio.run(upload_and_wait("/path/to/file.pdf", "scope_abc123"))
     ```
 
 ## Filtering
@@ -665,7 +741,8 @@ The Content resource provides methods to:
 
 ## Related Resources
 
+- [File I/O Utilities](../utilities/file_io.md) - Simplified file upload and download
 - [Folder API](folder.md) - Organize content into folders
 - [Search API](search.md) - Search across content
-- [UniqueQL](../sdk.md#uniqueql) - Query language for filtering
+- [UniqueQL](../uniqueql.md) - Query language for filtering
 

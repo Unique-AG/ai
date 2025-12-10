@@ -1,3 +1,4 @@
+import asyncio
 import os
 import tempfile
 from pathlib import Path
@@ -151,3 +152,35 @@ def download_content(
         raise Exception(f"Error downloading file: Status code {response.status_code}")
 
     return file_path
+
+
+async def wait_for_ingestion_completion(
+    user_id: str,
+    company_id: str,
+    content_id: str,
+    chat_id: str | None = None,
+    poll_interval: float = 1.0,
+    max_wait: float = 60.0,
+):
+    """
+    Polls until the content ingestion is finished or the maximum wait time is reached and throws in case ingestion fails. The function assumes that the content exists.
+    """
+    max_attempts = int(max_wait // poll_interval)
+    for _ in range(max_attempts):
+        searched_content = Content.search(
+            user_id=user_id,
+            company_id=company_id,
+            where={"id": {"equals": content_id}},
+            chatId=chat_id,
+            includeFailedContent=True,
+        )
+        if searched_content:
+            ingestion_state = searched_content[0].get("ingestionState")
+            if ingestion_state == "FINISHED":
+                return ingestion_state
+            if isinstance(ingestion_state, str) and ingestion_state.startswith(
+                "FAILED"
+            ):
+                raise RuntimeError(f"Ingestion failed with state: {ingestion_state}")
+        await asyncio.sleep(poll_interval)
+    raise TimeoutError("Timed out waiting for file ingestion to finish.")

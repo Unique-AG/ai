@@ -1,10 +1,13 @@
 import asyncio
+import warnings
 from typing import List, Literal
 
-from unique_sdk.api_resources._content import Content
 from unique_sdk.api_resources._message import Message
 from unique_sdk.api_resources._space import Space
 from unique_sdk.utils.file_io import upload_file
+from unique_sdk.utils.file_io import (
+    wait_for_ingestion_completion as _wait_for_ingestion_completion,
+)
 
 
 async def send_message_and_wait_for_completion(
@@ -116,7 +119,7 @@ async def chat_against_file(
         )
         content_id = upload_response.get("id")
 
-        await wait_for_ingestion_completion(
+        await _wait_for_ingestion_completion(
             user_id=user_id,
             company_id=company_id,
             content_id=content_id,
@@ -159,23 +162,21 @@ async def wait_for_ingestion_completion(
 ):
     """
     Polls until the content ingestion is finished or the maximum wait time is reached and throws in case ingestion fails. The function assumes that the content exists.
+
+    .. deprecated::
+        Use :func:`unique_sdk.utils.file_io.wait_for_ingestion_completion` instead.
     """
-    max_attempts = int(max_wait // poll_interval)
-    for _ in range(max_attempts):
-        searched_content = Content.search(
-            user_id=user_id,
-            company_id=company_id,
-            where={"id": {"equals": content_id}},
-            chatId=chat_id,
-            includeFailedContent=True,
-        )
-        if searched_content:
-            ingestion_state = searched_content[0].get("ingestionState")
-            if ingestion_state == "FINISHED":
-                return ingestion_state
-            if isinstance(ingestion_state, str) and ingestion_state.startswith(
-                "FAILED"
-            ):
-                raise RuntimeError(f"Ingestion failed with state: {ingestion_state}")
-        await asyncio.sleep(poll_interval)
-    raise TimeoutError("Timed out waiting for file ingestion to finish.")
+    warnings.warn(
+        "unique_sdk.utils.chat_in_space.wait_for_ingestion_completion is deprecated. "
+        "Use unique_sdk.utils.file_io.wait_for_ingestion_completion instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return await _wait_for_ingestion_completion(
+        user_id=user_id,
+        company_id=company_id,
+        content_id=content_id,
+        chat_id=chat_id,
+        poll_interval=poll_interval,
+        max_wait=max_wait,
+    )
