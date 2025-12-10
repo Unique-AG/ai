@@ -95,7 +95,7 @@ def build_unique_custom_app(
             logger.error(f"Error parsing event: {e}", exc_info=True)
             return JSONResponse(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                content={"error": f"Invalid event format: {str(e)}"},
+                content={"error": f"Invalid event format: {e.msg}"},
             )
 
         if event_data["event"] not in subscribed_event_names:
