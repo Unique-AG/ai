@@ -2,7 +2,7 @@ import json
 import logging
 from typing import Unpack
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from unique_toolkit import LanguageModelService
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
@@ -28,6 +28,10 @@ class PlanningConfig(BaseModel):
     model_config = get_configuration_dict()
 
     planning_schema_config: PlanningSchemaConfig = PlanningSchemaConfig()
+    ignored_options: list[str] = Field(
+        default=["parallel_tool_calls"],
+        description="A list of options to ignore when calling the LLM for the planning step.",
+    )
 
 
 class PlanningMiddleware(LoopIterationRunner):
@@ -50,11 +54,16 @@ class PlanningMiddleware(LoopIterationRunner):
     ) -> LanguageModelAssistantMessage | None:
         planning_schema = get_planning_schema(self._config.planning_schema_config)
 
+        other_options = {
+            k: v
+            for k, v in kwargs.get("other_options", {}).items()
+            if k not in self._config.ignored_options
+        }
         response = await self._llm_service.complete_async(
             messages=kwargs["messages"],
             model_name=kwargs["model"].name,
             structured_output_model=planning_schema,
-            other_options=kwargs.get("other_options", {}),
+            other_options=other_options,
         )
 
         if response.choices[0].message.parsed is None:
