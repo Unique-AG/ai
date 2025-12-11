@@ -15,7 +15,7 @@ def _iter_ref_numbers(text: str) -> Generator[int, None, None]:
 
 
 @functools.cache
-def _get_detection_pattern_for_ref(ref_number: int) -> re.Pattern[str]:
+def get_detection_pattern_for_ref(ref_number: int) -> re.Pattern[str]:
     return re.compile(rf"<sup>\s*{ref_number}\s*</sup>")
 
 
@@ -35,11 +35,11 @@ def replace_ref_number(text: str, ref_number: int, replacement: int | str) -> st
     if isinstance(replacement, int):
         replacement = get_reference_pattern(replacement)
 
-    return _get_detection_pattern_for_ref(ref_number).sub(replacement, text)
+    return get_detection_pattern_for_ref(ref_number).sub(replacement, text)
 
 
 def remove_ref_number(text: str, ref_number: int) -> str:
-    return _get_detection_pattern_for_ref(ref_number).sub("", text)
+    return get_detection_pattern_for_ref(ref_number).sub("", text)
 
 
 def remove_all_refs(text: str) -> str:

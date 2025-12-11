@@ -12,7 +12,7 @@ from unique_sdk.utils.chat_in_space import send_message_and_wait_for_completion
 
 from unique_toolkit._common.referencing import (
     get_all_ref_numbers,
-    get_reference_pattern,
+    get_detection_pattern_for_ref,
     remove_all_refs,
     replace_ref_number,
 )
@@ -316,7 +316,7 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                 sequence_number=sequence_number,
                 reference_number=ref_number,
             )
-            ref_pattern = get_reference_pattern(ref_number)
+            ref_pattern = get_detection_pattern_for_ref(ref_number)
             if re.search(ref_pattern, response) is not None:
                 replaced = True
                 response = replace_ref_number(
