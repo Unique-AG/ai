@@ -9,6 +9,10 @@ from unique_toolkit.agentic.loop_runner.base import (
     LoopIterationRunner,
     _LoopIterationRunnerKwargs,
 )
+from unique_toolkit.agentic.loop_runner.helpers import (
+    append_qwen_forced_tool_call_instruction,
+    is_qwen_model,
+)
 from unique_toolkit.chat.functions import LanguageModelStreamResponse
 from unique_toolkit.protocols.support import (
     ResponsesLanguageModelStreamResponse,
@@ -56,11 +60,22 @@ class BasicLoopIterationRunner(LoopIterationRunner):
 
         responses: list[LanguageModelStreamResponse] = []
 
+        # For Qwen models, append tool call instruction to the last user message. These models ignore the parameter tool_choice.
+        modified_kwargs = kwargs.copy()
+        if is_qwen_model(kwargs.get("model")) and kwargs.get("messages"):
+            modified_kwargs["messages"] = append_qwen_forced_tool_call_instruction(
+                kwargs["messages"]
+            )
+
+        available_tools = {t.name: t for t in kwargs.get("tools", [])}
+
         for opt in tool_choices:
+            limited_tool = available_tools.get(opt["function"]["name"])
             responses.append(
                 await stream_response(
-                    loop_runner_kwargs=kwargs,
+                    loop_runner_kwargs=modified_kwargs,
                     tool_choice=opt,
+                    tools=[limited_tool] if limited_tool else None,
                 )
             )
 
