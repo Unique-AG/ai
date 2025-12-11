@@ -9,21 +9,23 @@ class EnvFileNotFoundError(FileNotFoundError):
 
 
 def find_env_file(
-    filename: str = ".env",
+    filenames: list[str] = [".env"],
     *,
     app_name: str = "unique",
     app_author: str = "unique",
     required: bool = True,
 ) -> Path | None:
-    """Find environment file using cross-platform fallback locations.
+    """Find environment files using cross-platform fallback locations.
 
-    Search order:
+    Search order for each filename:
     1. ENVIRONMENT_FILE_PATH environment variable
     2. Current working directory
     3. User config directory (cross-platform via platformdirs)
 
+    filenames are searched in the order they are provided in the list.
+
     Args:
-        filename: Name of the environment file (default: '.env')
+        filenames: List of names of the environment files (default: ['.env'])
         app_name: Application name for user config directory (default: 'unique')
         app_author: Application author for user config directory (default: 'unique')
         required: If True, raise EnvFileNotFoundError when file is not found.
@@ -35,16 +37,16 @@ def find_env_file(
     Raises:
         EnvFileNotFoundError: If no environment file is found and required=True.
     """
-    locations = [
-        # 1. Explicit environment variable
-        Path(env_path)
-        if (env_path := os.environ.get("ENVIRONMENT_FILE_PATH"))
-        else None,
-        # 2. Current working directory
-        Path.cwd() / filename,
-        # 3. User config directory (cross-platform)
-        Path(user_config_dir(appname=app_name, appauthor=app_author)) / filename,
-    ]
+
+    locations = []
+    if env_path := os.environ.get("ENVIRONMENT_FILE_PATH"):
+        locations.append(Path(env_path))
+    else:
+        for filename in filenames:
+            locations.append(Path.cwd() / filename)
+            locations.append(
+                Path(user_config_dir(appname=app_name, appauthor=app_author)) / filename
+            )
 
     for location in locations:
         if location and location.exists() and location.is_file():
@@ -57,9 +59,11 @@ def find_env_file(
     # If required, provide helpful error message
     searched_locations = [str(loc) for loc in locations if loc is not None]
     raise EnvFileNotFoundError(
-        f"Environment file '{filename}' not found. Searched locations:\n"
-        + "\n".join(f"  - {loc}" for loc in searched_locations)
-        + "\n\nTo fix this:\n"
-        + f"  1. Create {filename} in one of the above locations, or\n"
-        + f"  2. Set ENVIRONMENT_FILE_PATH environment variable to point to your {filename} file"
+        "\n".join(
+            [
+                f"Environment file '{filename}' not found. Searched locations:\n"
+                + "\n".join(f"  - {loc}" for loc in searched_locations)
+                for filename in filenames
+            ]
+        )
     )

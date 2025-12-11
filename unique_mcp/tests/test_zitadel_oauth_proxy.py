@@ -43,8 +43,8 @@ def test_zitadel_oauth_proxy_settings__uses_default_values__when_no_env_set() ->
 
     # Assert
     assert settings.base_url == "http://localhost:10116"
-    assert settings.upstream_client_id == "default_client_id"
-    assert settings.upstream_client_secret == "default_client_secret"
+    assert settings.client_id == "default_client_id"
+    assert settings.client_secret == "default_client_secret"
 
 
 @pytest.mark.ai
@@ -62,8 +62,8 @@ def test_create_zitadel_oauth_proxy__returns_oauth_proxy__with_correct_config(
     ) as mock_settings:
         mock_settings_instance = MagicMock()
         mock_settings_instance.base_url = "http://localhost:10116"
-        mock_settings_instance.upstream_client_id = "test_client"
-        mock_settings_instance.upstream_client_secret = "test_secret"
+        mock_settings_instance.client_id = "test_client"
+        mock_settings_instance.client_secret = "test_secret"
         mock_settings_instance.jwks_uri.return_value = (
             "http://localhost:10116/oauth/v2/keys"
         )

@@ -25,7 +25,7 @@ def test_find_env_file__finds_file__in_current_directory(tmp_path: Path) -> None
     try:
         os.chdir(tmp_path)
         # Act
-        result = find_env_file(".env")
+        result = find_env_file(filenames=[".env"])
 
         # Assert
         assert result == test_file
@@ -48,7 +48,7 @@ def test_find_env_file__finds_file__via_environment_variable(tmp_path: Path) -> 
 
     # Act
     with patch.dict(os.environ, {"ENVIRONMENT_FILE_PATH": str(test_file)}):
-        result = find_env_file("custom.env")
+        result = find_env_file(filenames=["custom.env"])
 
     # Assert
     assert result is not None
@@ -76,7 +76,7 @@ def test_find_env_file__finds_file__in_user_config_directory(
         "unique_mcp.util.find_env_file.user_config_dir",
         return_value=str(config_dir),
     ):
-        result = find_env_file(".env")
+        result = find_env_file(filenames=[".env"])
 
     # Assert
     assert result == test_file
@@ -94,12 +94,11 @@ def test_find_env_file__raises_error__when_file_not_found_and_required() -> None
     # Arrange & Act & Assert
     with patch.dict(os.environ, {}, clear=True):
         with pytest.raises(EnvFileNotFoundError) as exc_info:
-            find_env_file("nonexistent.env", required=True)
+            find_env_file(filenames=["nonexistent.env"], required=True)
 
         error_message = str(exc_info.value)
         assert "nonexistent.env" in error_message
         assert "not found" in error_message
-        assert "ENVIRONMENT_FILE_PATH" in error_message
 
 
 @pytest.mark.ai
@@ -111,7 +110,7 @@ def test_find_env_file__returns_none__when_file_not_found_and_not_required() -> 
     """
     # Arrange & Act
     with patch.dict(os.environ, {}, clear=True):
-        result = find_env_file("nonexistent.env", required=False)
+        result = find_env_file(filenames=["nonexistent.env"], required=False)
 
     # Assert
     assert result is None
@@ -147,7 +146,7 @@ def test_find_env_file__prioritizes_environment_variable__over_other_locations(
                 "unique_mcp.util.find_env_file.user_config_dir",
                 return_value=str(config_dir),
             ):
-                result = find_env_file("cwd.env")
+                result = find_env_file(filenames=["cwd.env"])
 
         # Assert
         assert result == env_file
@@ -184,7 +183,7 @@ def test_find_env_file__prioritizes_cwd__over_config_directory(
                 "unique_mcp.util.find_env_file.user_config_dir",
                 return_value=str(config_dir),
             ):
-                result = find_env_file("test.env")
+                result = find_env_file(filenames=["test.env"])
 
         # Assert
         assert result == cwd_file
@@ -210,7 +209,7 @@ def test_find_env_file__uses_custom_filename() -> None:
         try:
             os.chdir(tmpdir)
             # Act
-            result = find_env_file("zitadel.env")
+            result = find_env_file(filenames=["zitadel.env"])
 
             # Assert
             assert result is not None
@@ -239,7 +238,7 @@ def test_find_env_file__uses_custom_app_name_and_author(tmp_path: Path) -> None:
         return_value=str(config_dir),
     ):
         result = find_env_file(
-            ".env", app_name="custom_app", app_author="custom_author"
+            filenames=[".env"], app_name="custom_app", app_author="custom_author"
         )
 
     # Assert
@@ -265,7 +264,7 @@ def test_find_env_file__ignores_directories(tmp_path: Path) -> None:
     try:
         os.chdir(tmp_path)
         # Act
-        result = find_env_file("actual.env")
+        result = find_env_file(filenames=["actual.env"])
 
         # Assert
         assert result == env_file

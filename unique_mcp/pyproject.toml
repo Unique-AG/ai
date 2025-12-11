@@ -10,6 +10,8 @@ requires-python = ">=3.12"
 dependencies = [
     "fastmcp>=2.13.3",
     "pydantic>=2.12.5",
+    "pydantic-settings>=2.0.0",
+    "platformdirs>=4.0.0",
 ]
 
 [project.scripts]
@@ -26,6 +28,7 @@ dev = [
     "pytest-cov>=4.1.0",
     "diff-cover>=8.0.0",
     "basedpyright>=1.33.0",
+    "deptry>=0.24.0",
 ]
 
 [tool.pytest.ini_options]
@@ -36,3 +39,6 @@ markers = [
 [tool.basedpyright]
 # Type checking mode: "off", "basic", "standard", "strict", "recommended", or "all"
 typeCheckingMode = "standard"
+
+[tool.deptry]
+known_first_party = ["unique_mcp"]
