@@ -1,0 +1,56 @@
+name: Ruff Format Check
+
+on:
+  workflow_call:
+    inputs:
+      directory:
+        description: 'Directory to check format for'
+        required: true
+        type: string
+      python-version:
+        description: 'Python version to use'
+        required: false
+        type: string
+        default: '3.12'
+
+jobs:
+  format-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check if ruff is in dependencies
+        id: check_ruff
+        run: |
+          if [ -f "${{ inputs.directory }}/pyproject.toml" ]; then
+            if grep -q "ruff" "${{ inputs.directory }}/pyproject.toml"; then
+              echo "ruff_found=true" >> $GITHUB_OUTPUT
+            else
+              echo "ruff_found=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "ruff_found=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Install package manager
+        if: steps.check_ruff.outputs.ruff_found == 'true'
+        id: install_pm
+        uses: ./.github/actions/install-package-manager
+        with:
+          package_dir: ${{ inputs.directory }}
+          package_manager: 'auto'
+          python_version: ${{ inputs.python-version }}
+
+      - name: Check format with ruff
+        if: steps.check_ruff.outputs.ruff_found == 'true'
+        shell: bash
+        working-directory: ${{ inputs.directory }}
+        run: ${{ steps.install_pm.outputs.run_cmd }} ruff format --check .
+
+      - name: Skip format check
+        if: steps.check_ruff.outputs.ruff_found == 'false'
+        run: |
+          echo "Skipping format check: ruff is not found in ${{ inputs.directory }}/pyproject.toml dependencies"
+          exit 0
+

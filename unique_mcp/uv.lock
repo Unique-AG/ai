@@ -1009,6 +1009,15 @@ wheels = [
 ]
 
 [[package]]
+name = "python-dep-tree"
+version = "0.19.9"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/d0/67/2a86013f8cf450a045899d9700fe025df3956eeefc749bd8edbbac2d266a/python_dep_tree-0.19.9.tar.gz", hash = "sha256:c2966d1aa31eb3b54278a7104c0dd08e44ce6e19be3fc7e3d886ae548f63db6c", size = 1502, upload-time = "2024-02-18T09:43:29.854Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e7/49/04e61ca98461fb5a7c3d8709b79612e69af4aeaeeaf18a845311f586e450/python_dep_tree-0.19.9-py3-none-any.whl", hash = "sha256:a1b56bc6b1c13c0b9a0c4989376b64aebf5abe2c39f79f782c81aba2916bce81", size = 2219, upload-time = "2024-02-18T09:43:28.131Z" },
+]
+
+[[package]]
 name = "python-dotenv"
 version = "1.2.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1326,6 +1335,7 @@ dev = [
     { name = "diff-cover" },
     { name = "pytest" },
     { name = "pytest-cov" },
+    { name = "python-dep-tree" },
     { name = "ruff" },
 ]
 
@@ -1344,6 +1354,7 @@ dev = [
     { name = "diff-cover", specifier = ">=8.0.0" },
     { name = "pytest", specifier = ">=8.0.0" },
     { name = "pytest-cov", specifier = ">=4.1.0" },
+    { name = "python-dep-tree", specifier = ">=0.19.9" },
     { name = "ruff", specifier = ">=0.14.8" },
 ]
 

@@ -29,6 +29,7 @@ dev = [
     "diff-cover>=8.0.0",
     "basedpyright>=1.33.0",
     "deptry>=0.24.0",
+    "python-dep-tree>=0.19.9",
 ]
 
 [tool.pytest.ini_options]
