@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.37.0] - 2025-12-15
+- Adding a prompt appendix to enforce forced tool calls when using Qwen models
+
 ## [1.36.0] - 2025-12-11
 - Add support for a sub agent tool system reminder when no references are present in the sub agent response.
 
