@@ -22,7 +22,10 @@ from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.history_manager.history_manager import (
     UploadedContentConfig,
 )
-from unique_toolkit.agentic.loop_runner import PlanningConfig
+from unique_toolkit.agentic.loop_runner import (
+    QWEN_FORCED_TOOL_CALL_PROMPT_INSTRUCTION,
+    PlanningConfig,
+)
 from unique_toolkit.agentic.responses_api import (
     DisplayCodeInterpreterFilesPostProcessorConfig,
     ShowExecutedCodePostprocessorConfig,
@@ -140,6 +143,8 @@ class LoopConfiguration(BaseModel):
     planning_config: (
         Annotated[PlanningConfig, Field(title="Active")] | DeactivatedNone
     ) = Field(default=None, description="Planning configuration.")
+
+    qwen_forced_tool_call_prompt_instruction: str = Field(default=QWEN_FORCED_TOOL_CALL_PROMPT_INSTRUCTION, description="Qwen forced tool call prompt appending.")
 
 
 class EvaluationConfig(BaseModel):
