@@ -144,7 +144,10 @@ class LoopConfiguration(BaseModel):
         Annotated[PlanningConfig, Field(title="Active")] | DeactivatedNone
     ) = Field(default=None, description="Planning configuration.")
 
-    qwen_forced_tool_call_prompt_instruction: str = Field(default=QWEN_FORCED_TOOL_CALL_PROMPT_INSTRUCTION, description="Qwen forced tool call prompt appending.")
+    qwen_forced_tool_call_prompt_instruction: str = Field(
+        default=QWEN_FORCED_TOOL_CALL_PROMPT_INSTRUCTION,
+        description="Qwen forced tool call prompt instruction.",
+    )
 
 
 class EvaluationConfig(BaseModel):

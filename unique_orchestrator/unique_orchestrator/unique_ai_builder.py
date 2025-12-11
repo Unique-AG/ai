@@ -546,7 +546,7 @@ def _build_loop_iteration_runner(
             max_loop_iterations=config.agent.max_loop_iterations
         )
     )
-    
+
     if is_qwen_model(model=config.space.language_model):
         runner = QwenForcedToolCallMiddleware(
             loop_runner=runner,

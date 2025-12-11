@@ -279,7 +279,9 @@ class TestAppendQwenForcedToolCallInstruction:
 
         # Assert
         assert result is not sample_messages
-        assert list(sample_messages)[1].content == original_content  # Original unchanged
+        assert (
+            list(sample_messages)[1].content == original_content
+        )  # Original unchanged
 
 
 # Middleware Initialization Tests
