@@ -23,7 +23,8 @@ def find_env_file(
     3. User config directory (cross-platform via platformdirs)
 
     If filenames is None, the default filename '.env' is used.
-    If filenames is provided, the filenames are searched in the order they are provided in the list.
+    If filenames is provided, the filenames are searched in the order they are provided
+    in the list.
 
     Args:
         filenames: List of names of the environment files (default: None)

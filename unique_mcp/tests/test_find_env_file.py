@@ -15,7 +15,8 @@ def test_find_env_file__finds_file__in_current_directory(tmp_path: Path) -> None
     """
     Purpose: Verify find_env_file finds a file in the current working directory.
     Why this matters: Ensures the function correctly searches the CWD.
-    Setup summary: Create a test file in temp directory, change to it, verify file is found.
+    Setup summary: Create a test file in temp directory, change to it, verify file is
+    found.
     """
     # Arrange
     test_file = tmp_path / ".env"
@@ -62,7 +63,8 @@ def test_find_env_file__finds_file__in_user_config_directory(
 ) -> None:
     """
     Purpose: Verify find_env_file finds a file in the user config directory.
-    Why this matters: Ensures the function correctly searches platform-specific config dirs.
+    Why this matters: Ensures the function correctly searches platform-specific
+    configuration directories.
     Setup summary: Mock user_config_dir, create file there, verify file is found.
     """
     # Arrange
@@ -87,9 +89,11 @@ def test_find_env_file__finds_file__in_user_config_directory(
 @pytest.mark.ai
 def test_find_env_file__raises_error__when_file_not_found_and_required() -> None:
     """
-    Purpose: Verify find_env_file raises EnvFileNotFoundError when file is not found and required=True.
+    Purpose: Verify find_env_file raises EnvFileNotFoundError when file is not found
+    and required=True.
     Why this matters: Ensures proper error handling when file is missing.
-    Setup summary: Search for non-existent file with required=True, verify error is raised.
+    Setup summary: Search for non-existent file with required=True, verify error
+    is raised.
     """
     # Arrange & Act & Assert
     with patch.dict(os.environ, {}, clear=True):
@@ -104,9 +108,12 @@ def test_find_env_file__raises_error__when_file_not_found_and_required() -> None
 @pytest.mark.ai
 def test_find_env_file__returns_none__when_file_not_found_and_not_required() -> None:
     """
-    Purpose: Verify find_env_file returns None when file is not found and required=False.
-    Why this matters: Ensures optional file lookup works correctly, allowing env vars to be used directly.
-    Setup summary: Search for non-existent file with required=False, verify None is returned.
+    Purpose: Verify find_env_file returns None when file is not found
+    and required=False.
+    Why this matters: Ensures optional file lookup works correctly, allowing env vars
+    to be used directly.
+    Setup summary: Search for non-existent file with required=False, verify None
+    is returned.
     """
     # Arrange & Act
     with patch.dict(os.environ, {}, clear=True):
@@ -121,9 +128,11 @@ def test_find_env_file__prioritizes_environment_variable__over_other_locations(
     tmp_path: Path,
 ) -> None:
     """
-    Purpose: Verify find_env_file prioritizes ENVIRONMENT_FILE_PATH over CWD and config dir.
+    Purpose: Verify find_env_file prioritizes ENVIRONMENT_FILE_PATH over CWD and
+    configuration directory.
     Why this matters: Ensures explicit configuration takes precedence.
-    Setup summary: Create files in multiple locations, set ENVIRONMENT_FILE_PATH, verify correct file is found.
+    Setup summary: Create files in multiple locations, set ENVIRONMENT_FILE_PATH,
+    verify correct file is found.
     """
     # Arrange
     env_file = tmp_path / "env.env"
@@ -161,7 +170,8 @@ def test_find_env_file__prioritizes_cwd__over_config_directory(
     tmp_path: Path,
 ) -> None:
     """
-    Purpose: Verify find_env_file prioritizes CWD over config directory when ENVIRONMENT_FILE_PATH is not set.
+    Purpose: Verify find_env_file prioritizes CWD over config directory when
+    ENVIRONMENT_FILE_PATH is not set.
     Why this matters: Ensures correct search order fallback.
     Setup summary: Create files in CWD and config dir, verify CWD file is found.
     """
@@ -222,9 +232,11 @@ def test_find_env_file__uses_custom_filename() -> None:
 @pytest.mark.ai
 def test_find_env_file__uses_custom_app_name_and_author(tmp_path: Path) -> None:
     """
-    Purpose: Verify find_env_file uses custom app_name and app_author for config directory.
+    Purpose: Verify find_env_file uses custom app_name and app_author for
+    configuration directory.
     Why this matters: Ensures the function respects custom application identifiers.
-    Setup summary: Mock user_config_dir with custom app name/author, verify correct path is used.
+    Setup summary: Mock user_config_dir with custom app name/author,
+    verify correct path is used.
     """
     # Arrange
     config_dir = tmp_path / "custom_app" / "config"
@@ -250,7 +262,8 @@ def test_find_env_file__uses_custom_app_name_and_author(tmp_path: Path) -> None:
 @pytest.mark.ai
 def test_find_env_file__ignores_directories(tmp_path: Path) -> None:
     """
-    Purpose: Verify find_env_file ignores directories with the same name as the env file.
+    Purpose: Verify find_env_file ignores directories with the same name as the
+    environment file.
     Why this matters: Ensures only files are matched, not directories.
     Setup summary: Create a directory with env file name, verify it's ignored.
     """

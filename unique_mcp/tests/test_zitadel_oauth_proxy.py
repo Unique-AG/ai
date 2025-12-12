@@ -96,7 +96,8 @@ def test_create_zitadel_oauth_proxy__uses_default_server_url__when_not_provided(
     None
 ):
     """
-    Purpose: Verify create_zitadel_oauth_proxy uses default server URL when not provided.
+    Purpose: Verify create_zitadel_oauth_proxy uses default server URL when
+    not provided.
     Why this matters: Ensures the function has a sensible default for development.
     Setup summary: Call factory without arguments, verify default URL is used.
     """

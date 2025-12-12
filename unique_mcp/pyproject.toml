@@ -43,3 +43,6 @@ typeCheckingMode = "standard"
 
 [tool.deptry]
 known_first_party = ["unique_mcp"]
+
+[tool.ruff.lint]
+select = ["E"]
