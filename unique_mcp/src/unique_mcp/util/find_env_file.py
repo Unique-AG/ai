@@ -9,7 +9,7 @@ class EnvFileNotFoundError(FileNotFoundError):
 
 
 def find_env_file(
-    filenames: list[str] = [".env"],
+    filenames: list[str] | None = None,
     *,
     app_name: str = "unique",
     app_author: str = "unique",
@@ -22,10 +22,11 @@ def find_env_file(
     2. Current working directory
     3. User config directory (cross-platform via platformdirs)
 
-    filenames are searched in the order they are provided in the list.
+    If filenames is None, the default filename '.env' is used.
+    If filenames is provided, the filenames are searched in the order they are provided in the list.
 
     Args:
-        filenames: List of names of the environment files (default: ['.env'])
+        filenames: List of names of the environment files (default: None)
         app_name: Application name for user config directory (default: 'unique')
         app_author: Application author for user config directory (default: 'unique')
         required: If True, raise EnvFileNotFoundError when file is not found.
@@ -37,6 +38,8 @@ def find_env_file(
     Raises:
         EnvFileNotFoundError: If no environment file is found and required=True.
     """
+    if filenames is None:
+        filenames = [".env"]
 
     locations = []
     if env_path := os.environ.get("ENVIRONMENT_FILE_PATH"):

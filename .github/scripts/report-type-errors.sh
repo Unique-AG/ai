@@ -211,7 +211,7 @@ fi
 echo ""
 
 # Extract errors from JSON (make paths relative to repo root)
-REPO_ROOT=$(cd .. && pwd)
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 ERRORS_FILE="/tmp/basedpyright_errors.txt"
 
 jq -r --arg repo_root "$REPO_ROOT" '

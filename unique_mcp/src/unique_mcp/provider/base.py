@@ -7,10 +7,10 @@ from typing import Protocol
 from fastmcp import FastMCP
 
 
-class BaseToolProvider(Protocol):
+class BaseProvider(Protocol):
     """Base class for tool providers."""
 
     def register(self, *, mcp: FastMCP) -> None:
         """
-        Register this provider's tools with the MCP server.
+        Register this provider's resources, routes and tools with the MCP server.
         """

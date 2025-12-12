@@ -262,7 +262,7 @@ fi
 
 # Build JSON output with comparison results
 # Extract full issue details for new issues by matching signatures
-NEW_ISSUES_JSON=$(mktemp)
+NEW_ISSUES_JSON="$TEMP_DIR/new-issues.json"
 echo "[]" > "$NEW_ISSUES_JSON"
 
 # For each signature, find matching issue in current JSON and add to array
@@ -275,7 +275,7 @@ while IFS='|' read -r error_code module file line; do
 done < "$NEW_ISSUES_FILE"
 
 # Extract full issue details for removed issues
-REMOVED_ISSUES_JSON=$(mktemp)
+REMOVED_ISSUES_JSON="$TEMP_DIR/removed-issues.json"
 echo "[]" > "$REMOVED_ISSUES_JSON"
 
 # For each signature, find matching issue in base JSON and add to array

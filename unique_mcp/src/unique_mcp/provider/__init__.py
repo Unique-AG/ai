@@ -1,9 +1,5 @@
-from .resource.base_provider import BaseResourceProvider
-from .routes.base_provider import BaseRouteProvider
-from .tools.base_provider import BaseToolProvider
+from unique_mcp.provider.base import BaseProvider
 
 __all__ = [
-    "BaseResourceProvider",
-    "BaseRouteProvider",
-    "BaseToolProvider",
+    "BaseProvider",
 ]
