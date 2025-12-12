@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-# Parses basedpyright JSON output and reports errors
+# Reports dependency errors from comparison JSON using reviewdog
 
 # Source common library
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -12,20 +12,20 @@ source "$SCRIPT_DIR/lib/common.sh"
 # Help function
 show_help() {
     cat << EOF
-${SCRIPT_NAME} - Parse and report type errors from basedpyright JSON output
+${SCRIPT_NAME} - Report dependency errors from comparison JSON
 
 USAGE:
-    ${SCRIPT_NAME} [OPTIONS] <package_dir> [json_file]
+    ${SCRIPT_NAME} [OPTIONS] <package_dir> <comparison_json>
     ${SCRIPT_NAME} -h | --help
     ${SCRIPT_NAME} --version
 
 DESCRIPTION:
-    This script parses basedpyright JSON output and reports type errors.
-    It can run in local mode (display errors) or CI mode (post to PR via reviewdog).
+    This script reads comparison JSON and reports new dependency issues
+    using reviewdog to post comments on the PR.
 
 ARGUMENTS:
     package_dir          Path to package directory (required)
-    json_file            Path to basedpyright JSON output (default: /tmp/basedpyright.json)
+    comparison_json      Path to comparison JSON file (required)
 
 OPTIONS:
     -h, --help           Show this help message and exit
@@ -34,21 +34,15 @@ OPTIONS:
     -b, --base-ref REF   Base branch/ref for comparison (default: main)
 
 EXAMPLES:
-    # Basic usage
-    ${SCRIPT_NAME} unique_toolkit
-
-    # Specify package and JSON file
-    ${SCRIPT_NAME} unique_sdk /tmp/basedpyright.json
-
     # CI mode with reviewdog
-    ${SCRIPT_NAME} -r /usr/bin/reviewdog -b main unique_toolkit
+    ${SCRIPT_NAME} -r /usr/bin/reviewdog -b main unique_mcp /tmp/comparison.json
 
-    # All options
-    ${SCRIPT_NAME} -r /usr/bin/reviewdog -b origin/main unique_toolkit /tmp/basedpyright.json
+    # Local mode (display only)
+    ${SCRIPT_NAME} unique_mcp /tmp/comparison.json
 
 EXIT CODES:
-    0    No new type errors found
-    1    New type errors found or error occurred
+    0    No new dependency issues found
+    1    New dependency issues found
 
 AUTHOR:
     Unique AI Toolkit
@@ -64,7 +58,7 @@ EOF
 
 # Initialize variables with defaults
 PACKAGE_DIR=""
-JSON_FILE="/tmp/basedpyright.json"
+COMPARISON_JSON=""
 REVIEWDOG_PATH=""
 USE_REVIEWDOG=false
 BASE_REF="main"
@@ -152,8 +146,8 @@ if [ $# -gt 0 ]; then
 fi
 
 if [ $# -gt 0 ]; then
-    if [ "$JSON_FILE" = "/tmp/basedpyright.json" ]; then
-        JSON_FILE="$1"
+    if [ -z "$COMPARISON_JSON" ]; then
+        COMPARISON_JSON="$1"
         shift
     fi
 fi
@@ -173,35 +167,45 @@ if [ -z "$PACKAGE_DIR" ]; then
     exit 1
 fi
 
-# Validate package directory exists
+if [ -z "$COMPARISON_JSON" ]; then
+    print_error "Comparison JSON file is required"
+    echo ""
+    show_help
+    exit 1
+fi
+
+# Resolve package directory to absolute path
 if [ ! -d "$PACKAGE_DIR" ]; then
-    print_error "Package directory '$PACKAGE_DIR' does not exist"
-    echo ""
-    show_help
-    exit 1
+    # Try to find it relative to script location or current directory
+    if [ -d "$SCRIPT_DIR/../../$PACKAGE_DIR" ]; then
+        PACKAGE_DIR="$SCRIPT_DIR/../../$PACKAGE_DIR"
+    elif [ -d "$(pwd)/$PACKAGE_DIR" ]; then
+        PACKAGE_DIR="$(pwd)/$PACKAGE_DIR"
+    else
+        print_error "Package directory '$PACKAGE_DIR' does not exist"
+        exit 1
+    fi
+fi
+PACKAGE_DIR="$(cd "$PACKAGE_DIR" && pwd)"
+
+# Resolve JSON file path to absolute
+if [ ! -f "$COMPARISON_JSON" ] && [ -f "$(pwd)/$COMPARISON_JSON" ]; then
+    COMPARISON_JSON="$(cd "$(dirname "$(pwd)/$COMPARISON_JSON")" && pwd)/$(basename "$COMPARISON_JSON")"
 fi
 
-# Validate JSON file exists
-if [ ! -f "$JSON_FILE" ]; then
-    print_error "JSON file '$JSON_FILE' does not exist"
-    echo ""
-    show_help
+# Validate files exist
+if [ ! -f "$COMPARISON_JSON" ]; then
+    print_error "Comparison JSON file '$COMPARISON_JSON' does not exist"
     exit 1
 fi
-
-# Change to package directory
-cd "$PACKAGE_DIR" || {
-    print_error "Failed to change to package directory: $PACKAGE_DIR"
-    exit 1
-}
 
 # ============================================================================
 # SCRIPT LOGIC
 # ============================================================================
 
-print_info "Parsing type errors from JSON output"
+print_info "Reporting dependency errors"
 print_info "Package: $PACKAGE_DIR"
-print_info "JSON file: $JSON_FILE"
+print_info "Comparison JSON: $COMPARISON_JSON"
 if [ "$USE_REVIEWDOG" = true ]; then
     print_info "Mode: CI (reviewdog)"
     print_info "Base ref: $BASE_REF"
@@ -210,47 +214,49 @@ else
 fi
 echo ""
 
-# Extract errors from JSON (make paths relative to repo root)
-REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-ERRORS_FILE="/tmp/basedpyright_errors.txt"
+# Get summary
+NEW_COUNT=$(jq -r '.summary.new_issues // 0' "$COMPARISON_JSON" 2>/dev/null || echo "0")
+FIXED_COUNT=$(jq -r '.summary.fixed_issues // 0' "$COMPARISON_JSON" 2>/dev/null || echo "0")
 
-jq -r --arg repo_root "$REPO_ROOT" '
-    .generalDiagnostics[]? | 
-    select(.file != null and .range != null) | 
-    (
-        ($repo_root + "/") as $prefix | 
-        (if .file | startswith($prefix) then .file | ltrimstr($prefix) else .file end) as $rel_path | 
-        (.range.start.line + 1 | tostring) as $line | 
-        (.range.start.character + 1 | tostring) as $col | 
-        (.severity // "warning") as $severity | 
-        (.message | split("\n")[0]) as $msg | 
-        "\($rel_path):\($line):\($col) - \($severity): \($msg)"
-    )
-' "$JSON_FILE" > "$ERRORS_FILE" 2>/dev/null || {
-    print_error "Failed to parse basedpyright JSON output"
-    exit 1
-}
-
-# Count errors
-ERROR_COUNT=$(wc -l < "$ERRORS_FILE" | tr -d ' ')
-
-if [ "$ERROR_COUNT" -eq 0 ]; then
-    print_success "No new type errors found! Baseline successfully filtered out existing errors."
-    echo ""
-    print_success "Your changes don't introduce new type errors."
+if [ "$NEW_COUNT" -eq 0 ]; then
+    print_success "No new dependency issues found!"
+    if [ "$FIXED_COUNT" -gt 0 ]; then
+        print_success "Fixed $FIXED_COUNT dependency issue(s)"
+    fi
     exit 0
 fi
 
-# There are errors - handle based on mode
+# Extract new issues and format for reviewdog
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+ERRORS_FILE="/tmp/deptry_errors.txt"
+
+# Format issues for reviewdog: file:line:column - DEPCODE: message
+jq -r --arg package_dir "$PACKAGE_DIR" '
+    .new_issues[]? | 
+    select(.error != null and .location != null) | 
+    (
+        ($package_dir + "/" + (.location.file // "")) as $rel_path | 
+        ((.location.line // 1) | tostring) as $line | 
+        ((.location.column // 1) | tostring) as $col | 
+        (.error.code // "DEP001") as $code | 
+        (.error.message // "Dependency issue") as $msg | 
+        "\($rel_path):\($line):\($col) - \($code): \($msg)"
+    )
+' "$COMPARISON_JSON" > "$ERRORS_FILE" 2>/dev/null || {
+    print_error "Failed to parse comparison JSON"
+    exit 1
+}
+
+# There are new issues - handle based on mode
 if [ "$USE_REVIEWDOG" = true ] && [ -n "$REVIEWDOG_PATH" ]; then
     # CI mode with reviewdog - post comments to PR
-    print_warning "Found $ERROR_COUNT new type error(s) - posting to PR"
+    print_warning "Found $NEW_COUNT new dependency issue(s) - posting to PR"
     echo ""
     
-    # Change to repo root for reviewdog (it needs to be in repo root for git diff)
+    # Change to repo root for reviewdog
     cd "$REPO_ROOT"
     
-    # Run reviewdog
+    # Run reviewdog (always succeeds, just posts comments)
     cat "$ERRORS_FILE" | \
         "$REVIEWDOG_PATH" \
             -efm="%f:%l:%c - %m" \
@@ -263,15 +269,27 @@ if [ "$USE_REVIEWDOG" = true ] && [ -n "$REVIEWDOG_PATH" ]; then
     
     echo ""
     print_warning "Reviewdog completed"
-    print_error "Type check failed with $ERROR_COUNT new error(s)"
-    exit 1  # Fail the workflow to enforce fixing errors
+    print_warning "Found $NEW_COUNT new dependency issue(s) (reported as warnings, will not block merge)"
+    
+    if [ "$FIXED_COUNT" -gt 0 ]; then
+        print_success "Fixed $FIXED_COUNT dependency issue(s)"
+    fi
+    
+    # Don't exit with error code in CI mode - just report issues
+    exit 0
 else
-    # Local mode or no reviewdog - just display errors
-    print_warning "Type errors found"
-    print_error "Found $ERROR_COUNT new type error(s):"
+    # Local mode - just display errors
+    print_warning "Dependency issues found"
+    print_error "Found $NEW_COUNT new dependency issue(s):"
     echo ""
     cat "$ERRORS_FILE"
     echo ""
-    print_error "Please fix these type errors before committing."
+    
+    if [ "$FIXED_COUNT" -gt 0 ]; then
+        print_success "Fixed $FIXED_COUNT dependency issue(s)"
+    fi
+    
+    print_error "Please fix these dependency issues before committing."
     exit 1
 fi
+

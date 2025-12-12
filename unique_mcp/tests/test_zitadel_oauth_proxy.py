@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from unique_mcp.zitadel.oauth_proxy import (
+from unique_mcp.auth.zitadel.oauth_proxy import (
     ZitadelOAuthProxySettings,
     create_zitadel_oauth_proxy,
 )
@@ -43,8 +43,8 @@ def test_zitadel_oauth_proxy_settings__uses_default_values__when_no_env_set() ->
 
     # Assert
     assert settings.base_url == "http://localhost:10116"
-    assert settings.upstream_client_id == "default_client_id"
-    assert settings.upstream_client_secret == "default_client_secret"
+    assert settings.client_id == "default_client_id"
+    assert settings.client_secret == "default_client_secret"
 
 
 @pytest.mark.ai
@@ -58,12 +58,12 @@ def test_create_zitadel_oauth_proxy__returns_oauth_proxy__with_correct_config(
     """
     # Arrange & Act
     with patch(
-        "unique_mcp.zitadel.oauth_proxy.ZitadelOAuthProxySettings"
+        "unique_mcp.auth.zitadel.oauth_proxy.ZitadelOAuthProxySettings"
     ) as mock_settings:
         mock_settings_instance = MagicMock()
         mock_settings_instance.base_url = "http://localhost:10116"
-        mock_settings_instance.upstream_client_id = "test_client"
-        mock_settings_instance.upstream_client_secret = "test_secret"
+        mock_settings_instance.client_id = "test_client"
+        mock_settings_instance.client_secret = "test_secret"
         mock_settings_instance.jwks_uri.return_value = (
             "http://localhost:10116/oauth/v2/keys"
         )
@@ -78,9 +78,11 @@ def test_create_zitadel_oauth_proxy__returns_oauth_proxy__with_correct_config(
         )
         mock_settings.return_value = mock_settings_instance
 
-        with patch("unique_mcp.zitadel.oauth_proxy.JWTVerifier"):
-            with patch("unique_mcp.zitadel.oauth_proxy.OAuthProxy") as mock_oauth:
-                proxy = create_zitadel_oauth_proxy(sample_mcp_server_url)
+        with patch("unique_mcp.auth.zitadel.oauth_proxy.JWTVerifier"):
+            with patch("unique_mcp.auth.zitadel.oauth_proxy.OAuthProxy") as mock_oauth:
+                proxy = create_zitadel_oauth_proxy(
+                    mcp_server_base_url=sample_mcp_server_url
+                )
 
                 # Assert
                 assert proxy is not None
@@ -94,14 +96,15 @@ def test_create_zitadel_oauth_proxy__uses_default_server_url__when_not_provided(
     None
 ):
     """
-    Purpose: Verify create_zitadel_oauth_proxy uses default server URL when not provided.
+    Purpose: Verify create_zitadel_oauth_proxy uses default server URL when
+    not provided.
     Why this matters: Ensures the function has a sensible default for development.
     Setup summary: Call factory without arguments, verify default URL is used.
     """
     # Arrange & Act
-    with patch("unique_mcp.zitadel.oauth_proxy.ZitadelOAuthProxySettings"):
-        with patch("unique_mcp.zitadel.oauth_proxy.JWTVerifier"):
-            with patch("unique_mcp.zitadel.oauth_proxy.OAuthProxy") as mock_oauth:
+    with patch("unique_mcp.auth.zitadel.oauth_proxy.ZitadelOAuthProxySettings"):
+        with patch("unique_mcp.auth.zitadel.oauth_proxy.JWTVerifier"):
+            with patch("unique_mcp.auth.zitadel.oauth_proxy.OAuthProxy") as mock_oauth:
                 create_zitadel_oauth_proxy()
 
                 # Assert

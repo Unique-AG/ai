@@ -1,20 +1,20 @@
-from pathlib import Path
-
 from fastmcp.server.auth.oauth_proxy import OAuthProxy
 from fastmcp.server.auth.providers.jwt import JWTVerifier
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from unique_mcp.util.find_env_file import find_env_file
+
 
 class ZitadelOAuthProxySettings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=Path(__file__).parent.parent.parent
-        / "zitadel.env",  # TODO: Change to discovery function
+        env_file=find_env_file(filenames=["zitadel.env", ".env"], required=False),
         env_prefix="ZITADEL_",
+        extra="allow",
     )
 
     base_url: str = "http://localhost:10116"
-    upstream_client_id: str = "default_client_id"
-    upstream_client_secret: str = "default_client_secret"
+    client_id: str = "default_client_id"
+    client_secret: str = "default_client_secret"
 
     def jwks_uri(self) -> str:
         return f"{self.base_url}/oauth/v2/keys"
@@ -36,7 +36,9 @@ class ZitadelOAuthProxySettings(BaseSettings):
 
 
 def create_zitadel_oauth_proxy(
+    *,
     mcp_server_base_url: str = "http://localhost:8003",
+    zitadel_oauth_proxy_settings: ZitadelOAuthProxySettings | None = None,
 ) -> OAuthProxy:
     """Create a Zitadel OAuth proxy instance.
 
@@ -46,7 +48,7 @@ def create_zitadel_oauth_proxy(
     Returns:
         Configured OAuthProxy instance
     """
-    settings = ZitadelOAuthProxySettings()
+    settings = zitadel_oauth_proxy_settings or ZitadelOAuthProxySettings()
 
     token_verifier = JWTVerifier(
         jwks_uri=settings.jwks_uri(),
@@ -59,8 +61,8 @@ def create_zitadel_oauth_proxy(
     return OAuthProxy(
         upstream_authorization_endpoint=settings.authorize_endpoint(),
         upstream_token_endpoint=settings.token_endpoint(),
-        upstream_client_id=settings.upstream_client_id,
-        upstream_client_secret=settings.upstream_client_secret,
+        upstream_client_id=settings.client_id,
+        upstream_client_secret=settings.client_secret,
         upstream_revocation_endpoint=settings.revoke_endpoint(),
         token_verifier=token_verifier,
         base_url=mcp_server_base_url,

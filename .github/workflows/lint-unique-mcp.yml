@@ -1,0 +1,22 @@
+name: Lint unique_mcp
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'unique_mcp/**'
+      - 'unique_mcp/pyproject.toml'
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'unique_mcp/**'
+      - 'unique_mcp/pyproject.toml'
+
+jobs:
+  lint:
+    uses: ./.github/workflows/lint.yml
+    with:
+      project_directory: unique_mcp
+
