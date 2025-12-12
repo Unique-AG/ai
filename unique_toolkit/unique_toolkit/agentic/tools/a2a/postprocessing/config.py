@@ -65,7 +65,7 @@ class SubAgentDisplayConfig(BaseModel):
     )
     force_include_references: bool = Field(
         default=False,
-        description="If set, the sub agent references will be added to the main agent response references even in not mentioned in the main agent response text.",
+        description="If set, the sub agent references will be added to the main agent response references even if not mentioned in the main agent response text.",
     )
 
     answer_substrings_config: list[SubAgentAnswerSubstringConfig] = Field(

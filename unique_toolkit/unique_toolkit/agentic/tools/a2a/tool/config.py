@@ -13,6 +13,7 @@ class SubAgentSystemReminderType(StrEnum):
     FIXED = "fixed"
     REGEXP = "regexp"
     REFERENCE = "reference"
+    NO_REFERENCE = "no_reference"
 
 
 T = TypeVar("T", bound=SubAgentSystemReminderType)
@@ -31,12 +32,24 @@ The reminder to add to the tool response. The reminder can be a Jinja template a
 """.strip()
 
 
+class NoReferenceSystemReminderConfig(SystemReminderConfig):
+    """A system reminder that is only added if the sub agent response does not contain any references."""
+
+    type: Literal[SubAgentSystemReminderType.NO_REFERENCE] = (
+        SubAgentSystemReminderType.NO_REFERENCE
+    )
+    reminder: str = Field(
+        default="Do NOT create any references from this sub agent in your response! The sub agent response does not contain any references.",
+        description=_SYSTEM_REMINDER_FIELD_DESCRIPTION,
+    )
+
+
 class ReferenceSystemReminderConfig(SystemReminderConfig):
     type: Literal[SubAgentSystemReminderType.REFERENCE] = (
         SubAgentSystemReminderType.REFERENCE
     )
     reminder: str = Field(
-        default="Rememeber to properly reference EACH fact from sub agent {{ display_name }}'s response with the correct format INLINE.",
+        default="Rememeber to properly reference EACH fact from sub agent {{ display_name }}'s response with the correct format INLINE. You MUST COPY THE REFERENCE AS PRESENT IN THE SUBAGENT RESPONSE.",
         description=_SYSTEM_REMINDER_FIELD_DESCRIPTION,
     )
 
@@ -68,6 +81,13 @@ class RegExpDetectedSystemReminderConfig(SystemReminderConfig):
         description=_REGEXP_DETECTED_REMINDER_FIELD_DESCRIPTION,
     )
 
+
+SystemReminderConfigType = (
+    FixedSystemReminderConfig
+    | RegExpDetectedSystemReminderConfig
+    | ReferenceSystemReminderConfig
+    | NoReferenceSystemReminderConfig
+)
 
 DEFAULT_PARAM_DESCRIPTION_SUB_AGENT_USER_MESSAGE = """
 This is the message that will be sent to the sub-agent.
@@ -147,9 +167,7 @@ class SubAgentToolConfig(BaseToolConfig):
 
     system_reminders_config: list[
         Annotated[
-            FixedSystemReminderConfig
-            | RegExpDetectedSystemReminderConfig
-            | ReferenceSystemReminderConfig,
+            SystemReminderConfigType,
             Field(discriminator="type"),
         ]
     ] = Field(

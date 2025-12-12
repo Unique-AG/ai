@@ -12,7 +12,7 @@ from unique_sdk.utils.chat_in_space import send_message_and_wait_for_completion
 
 from unique_toolkit._common.referencing import (
     get_all_ref_numbers,
-    remove_all_refs,
+    get_detection_pattern_for_ref,
     replace_ref_number,
 )
 from unique_toolkit._common.utils.jinja.render import render_template
@@ -29,6 +29,7 @@ from unique_toolkit.agentic.tools.a2a.tool.config import (
     RegExpDetectedSystemReminderConfig,
     SubAgentSystemReminderType,
     SubAgentToolConfig,
+    SystemReminderConfigType,
 )
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
@@ -201,15 +202,39 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
             if response["text"] is None:
                 raise ValueError("No response returned from sub agent")
 
+            has_refs = False
+            content = ""
+            content_chunks = None
             if self.config.returns_content_chunks:
-                content = ""
                 content_chunks = _ContentChunkList.validate_json(response["text"])
             else:
-                content = self._prepare_response_references(
-                    response=response["text"],
-                    sequence_number=sequence_number,
+                has_refs = self.config.use_sub_agent_references and _response_has_refs(
+                    response
                 )
-                content_chunks = None
+                content = response["text"]
+                if has_refs:
+                    refs = response["references"]
+                    assert refs is not None  # Checked in _response_has_refs
+                    content = _prepare_sub_agent_response_refs(
+                        response=content,
+                        name=self.name,
+                        sequence_number=sequence_number,
+                        refs=refs,
+                    )
+                    content = _remove_extra_refs(content, refs=refs)
+                else:
+                    content = _remove_extra_refs(content, refs=[])
+
+            system_reminders = []
+            if not self.config.returns_content_chunks:
+                system_reminders = _get_sub_agent_system_reminders(
+                    response=response["text"],
+                    configs=self.config.system_reminders_config,
+                    name=self.name,
+                    display_name=self.display_name(),
+                    sequence_number=sequence_number,
+                    has_refs=has_refs,
+                )
 
             await self._notify_progress(
                 tool_call=tool_call,
@@ -223,57 +248,10 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                 content=_format_response(
                     tool_name=self.name,
                     text=content,
-                    system_reminders=self._get_system_reminders(response),
+                    system_reminders=system_reminders,
                 ),
                 content_chunks=content_chunks,
             )
-
-    def _get_system_reminders(self, message: unique_sdk.Space.Message) -> list[str]:
-        reminders = []
-        for reminder_config in self.config.system_reminders_config:
-            if reminder_config.type == SubAgentSystemReminderType.FIXED:
-                reminders.append(
-                    render_template(
-                        reminder_config.reminder,
-                        display_name=self.display_name(),
-                        tool_name=self.name,
-                    )
-                )
-            elif (
-                reminder_config.type == SubAgentSystemReminderType.REFERENCE
-                and self.config.use_sub_agent_references
-                and message["references"] is not None
-                and len(message["references"]) > 0
-            ):
-                reminders.append(
-                    render_template(
-                        reminder_config.reminder,
-                        display_name=self.display_name(),
-                        tool_name=self.name,
-                    )
-                )
-            elif (
-                reminder_config.type == SubAgentSystemReminderType.REGEXP
-                and message["text"] is not None
-            ):
-                reminder_config = cast(
-                    RegExpDetectedSystemReminderConfig, reminder_config
-                )
-                text_matches = [
-                    match.group(0)
-                    for match in reminder_config.regexp.finditer(message["text"])
-                ]
-                if len(text_matches) > 0:
-                    reminders.append(
-                        render_template(
-                            reminder_config.reminder,
-                            display_name=self.display_name(),
-                            tool_name=self.name,
-                            text_matches=text_matches,
-                        )
-                    )
-
-        return reminders
 
     async def _get_chat_id(self) -> str | None:
         if not self.config.reuse_chat:
@@ -289,23 +267,6 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
             return short_term_memory.chat_id
 
         return None
-
-    def _prepare_response_references(self, response: str, sequence_number: int) -> str:
-        if not self.config.use_sub_agent_references:
-            # Remove all references from the response
-            response = remove_all_refs(response)
-            return response
-
-        for ref_number in get_all_ref_numbers(response):
-            reference = self.get_sub_agent_reference_format(
-                name=self.name,
-                sequence_number=sequence_number,
-                reference_number=ref_number,
-            )
-            response = replace_ref_number(
-                text=response, ref_number=ref_number, replacement=reference
-            )
-        return response
 
     async def _save_chat_id(self, chat_id: str) -> None:
         if not self.config.reuse_chat:
@@ -388,6 +349,95 @@ def _format_response(tool_name: str, text: str, system_reminders: list[str]) -> 
     response = {reponse_key: text, "SYSTEM_REMINDERS": system_reminders}
 
     return json.dumps(response, indent=2)
+
+
+def _response_has_refs(response: unique_sdk.Space.Message) -> bool:
+    if (
+        response["text"] is None
+        or response["references"] is None
+        or len(response["references"]) == 0
+    ):
+        return False
+
+    for ref in response["references"]:
+        if (
+            re.search(
+                get_detection_pattern_for_ref(ref["sequenceNumber"]), response["text"]
+            )
+            is not None
+        ):
+            return True
+
+    return False
+
+
+def _remove_extra_refs(response: str, refs: list[unique_sdk.Space.Reference]) -> str:
+    text_ref_numbers = set(get_all_ref_numbers(response))
+    extra_ref_numbers = text_ref_numbers - set(ref["sequenceNumber"] for ref in refs)
+
+    for ref_num in extra_ref_numbers:
+        response = get_detection_pattern_for_ref(ref_num).sub("", response)
+
+    return response
+
+
+def _prepare_sub_agent_response_refs(
+    response: str,
+    name: str,
+    sequence_number: int,
+    refs: list[unique_sdk.Space.Reference],
+) -> str:
+    for ref in refs:
+        ref_number = ref["sequenceNumber"]
+        reference = SubAgentTool.get_sub_agent_reference_format(
+            name=name, sequence_number=sequence_number, reference_number=ref_number
+        )
+        response = replace_ref_number(
+            text=response, ref_number=ref_number, replacement=reference
+        )
+
+    return response
+
+
+def _get_sub_agent_system_reminders(
+    response: str,
+    configs: list[SystemReminderConfigType],
+    name: str,
+    display_name: str,
+    sequence_number: int,
+    has_refs: bool,
+) -> list[str]:
+    reminders = []
+
+    for reminder_config in configs:
+        render_kwargs = {}
+        render_kwargs["display_name"] = display_name
+        render_kwargs["tool_name"] = name
+        template = None
+
+        if reminder_config.type == SubAgentSystemReminderType.FIXED:
+            template = reminder_config.reminder
+        elif (
+            reminder_config.type == SubAgentSystemReminderType.REFERENCE and has_refs
+        ) or (
+            reminder_config.type == SubAgentSystemReminderType.NO_REFERENCE
+            and not has_refs
+        ):
+            render_kwargs["tool_name"] = f"{name} {sequence_number}"
+            template = reminder_config.reminder
+        elif reminder_config.type == SubAgentSystemReminderType.REGEXP:
+            reminder_config = cast(RegExpDetectedSystemReminderConfig, reminder_config)
+            text_matches = [
+                match.group(0) for match in reminder_config.regexp.finditer(response)
+            ]
+            if len(text_matches) > 0:
+                template = reminder_config.reminder
+                render_kwargs["text_matches"] = text_matches
+
+        if template is not None:
+            reminders.append(render_template(template, **render_kwargs))
+
+    return reminders
 
 
 ToolFactory.register_tool(SubAgentTool, SubAgentToolConfig)
