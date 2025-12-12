@@ -227,7 +227,7 @@ if [ "$NEW_COUNT" -eq 0 ]; then
 fi
 
 # Extract new issues and format for reviewdog
-REPO_ROOT=$(cd .. && pwd)
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 ERRORS_FILE="/tmp/deptry_errors.txt"
 
 # Format issues for reviewdog: file:line:column - DEPCODE: message

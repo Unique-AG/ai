@@ -268,9 +268,10 @@ echo "[]" > "$NEW_ISSUES_JSON"
 # For each signature, find matching issue in current JSON and add to array
 while IFS='|' read -r error_code module file line; do
     [ -z "$error_code" ] && continue
-    jq --arg code "$error_code" --arg mod "$module" --arg f "$file" --arg l "$line" \
-        '. += [.[] | select(.error.code == $code and .module == $mod and .location.file == $f and (.location.line | tostring) == $l)]' \
-        "$CURRENT_JSON" < "$NEW_ISSUES_JSON" > "${NEW_ISSUES_JSON}.tmp" && mv "${NEW_ISSUES_JSON}.tmp" "$NEW_ISSUES_JSON" 2>/dev/null || true
+    jq --slurpfile source "$CURRENT_JSON" \
+        --arg code "$error_code" --arg mod "$module" --arg f "$file" --arg l "$line" \
+        '. += [$source[0][] | select(.error.code == $code and .module == $mod and .location.file == $f and (.location.line | tostring) == $l)]' \
+        "$NEW_ISSUES_JSON" > "${NEW_ISSUES_JSON}.tmp" && mv "${NEW_ISSUES_JSON}.tmp" "$NEW_ISSUES_JSON" 2>/dev/null || true
 done < "$NEW_ISSUES_FILE"
 
 # Extract full issue details for removed issues
@@ -280,9 +281,10 @@ echo "[]" > "$REMOVED_ISSUES_JSON"
 # For each signature, find matching issue in base JSON and add to array
 while IFS='|' read -r error_code module file line; do
     [ -z "$error_code" ] && continue
-    jq --arg code "$error_code" --arg mod "$module" --arg f "$file" --arg l "$line" \
-        '. += [.[] | select(.error.code == $code and .module == $mod and .location.file == $f and (.location.line | tostring) == $l)]' \
-        "$BASE_JSON" < "$REMOVED_ISSUES_JSON" > "${REMOVED_ISSUES_JSON}.tmp" && mv "${REMOVED_ISSUES_JSON}.tmp" "$REMOVED_ISSUES_JSON" 2>/dev/null || true
+    jq --slurpfile source "$BASE_JSON" \
+        --arg code "$error_code" --arg mod "$module" --arg f "$file" --arg l "$line" \
+        '. += [$source[0][] | select(.error.code == $code and .module == $mod and .location.file == $f and (.location.line | tostring) == $l)]' \
+        "$REMOVED_ISSUES_JSON" > "${REMOVED_ISSUES_JSON}.tmp" && mv "${REMOVED_ISSUES_JSON}.tmp" "$REMOVED_ISSUES_JSON" 2>/dev/null || true
 done < "$REMOVED_ISSUES_FILE"
 
 # Combine into final JSON
