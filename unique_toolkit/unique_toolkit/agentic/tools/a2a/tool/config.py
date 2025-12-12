@@ -82,6 +82,13 @@ class RegExpDetectedSystemReminderConfig(SystemReminderConfig):
     )
 
 
+SystemReminderConfigType = (
+    FixedSystemReminderConfig
+    | RegExpDetectedSystemReminderConfig
+    | ReferenceSystemReminderConfig
+    | NoReferenceSystemReminderConfig
+)
+
 DEFAULT_PARAM_DESCRIPTION_SUB_AGENT_USER_MESSAGE = """
 This is the message that will be sent to the sub-agent.
 """.strip()
@@ -160,10 +167,7 @@ class SubAgentToolConfig(BaseToolConfig):
 
     system_reminders_config: list[
         Annotated[
-            FixedSystemReminderConfig
-            | RegExpDetectedSystemReminderConfig
-            | ReferenceSystemReminderConfig
-            | NoReferenceSystemReminderConfig,
+            SystemReminderConfigType,
             Field(discriminator="type"),
         ]
     ] = Field(
