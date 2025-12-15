@@ -1,4 +1,3 @@
-import pytest
 from pydantic import BaseModel
 
 from unique_toolkit._common.validators import (
@@ -152,4 +151,3 @@ class TestGetLMIDefaultField:
 
         instance = TestModel(model=LanguageModelName.AZURE_GPT_4o_MINI_2024_0718)
         assert instance.model.name == LanguageModelName.AZURE_GPT_4o_MINI_2024_0718
-

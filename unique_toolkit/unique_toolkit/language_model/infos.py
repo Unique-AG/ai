@@ -213,7 +213,11 @@ class LanguageModelInfo(BaseModel):
     def from_name(cls, model_name: LanguageModelName | str) -> Self:
         # Check environment variable first - env definitions take precedence
         env_model_infos = load_language_model_infos_from_env()
-        model_name_str = model_name.value if isinstance(model_name, LanguageModelName) else model_name
+        model_name_str = (
+            model_name.value
+            if isinstance(model_name, LanguageModelName)
+            else model_name
+        )
         if model_name_str in env_model_infos.keys():
             try:
                 return cls.model_validate(env_model_infos[model_name_str])

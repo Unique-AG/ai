@@ -120,11 +120,15 @@ class TestLoadLanguageModelInfosFromEnv(unittest.TestCase):
                 "token_limits": {"token_limit_input": 3000, "token_limit_output": 150},
             }
         }
-        with patch.dict(os.environ, {LANGUAGE_MODEL_INFOS_ENV_VAR: json.dumps(model_infos)}):
+        with patch.dict(
+            os.environ, {LANGUAGE_MODEL_INFOS_ENV_VAR: json.dumps(model_infos)}
+        ):
             result = load_language_model_infos_from_env()
             self.assertEqual(result, model_infos)
             self.assertIn("AZURE_GPT_4o_CUSTOM", result)
-            self.assertEqual(result["AZURE_GPT_4o_CUSTOM"]["name"], "AZURE_GPT_4o_2024_1120")
+            self.assertEqual(
+                result["AZURE_GPT_4o_CUSTOM"]["name"], "AZURE_GPT_4o_2024_1120"
+            )
 
     def test_loads_multiple_model_infos(self):
         model_infos = {
@@ -143,7 +147,9 @@ class TestLoadLanguageModelInfosFromEnv(unittest.TestCase):
                 "token_limits": {"token_limit_input": 3000, "token_limit_output": 150},
             },
         }
-        with patch.dict(os.environ, {LANGUAGE_MODEL_INFOS_ENV_VAR: json.dumps(model_infos)}):
+        with patch.dict(
+            os.environ, {LANGUAGE_MODEL_INFOS_ENV_VAR: json.dumps(model_infos)}
+        ):
             result = load_language_model_infos_from_env()
             self.assertEqual(len(result), 2)
             self.assertIn("AZURE_GPT_4o_CUSTOM", result)
@@ -154,7 +160,9 @@ class TestLoadLanguageModelInfosFromEnv(unittest.TestCase):
             "VALID_MODEL": {"name": "valid", "provider": "AZURE"},
             "INVALID_MODEL": "not a dict",
         }
-        with patch.dict(os.environ, {LANGUAGE_MODEL_INFOS_ENV_VAR: json.dumps(model_infos)}):
+        with patch.dict(
+            os.environ, {LANGUAGE_MODEL_INFOS_ENV_VAR: json.dumps(model_infos)}
+        ):
             result = load_language_model_infos_from_env()
             self.assertEqual(len(result), 1)
             self.assertIn("VALID_MODEL", result)
@@ -168,7 +176,9 @@ class TestLoadLanguageModelInfosFromEnv(unittest.TestCase):
                 "provider": "AZURE",
             }
         }
-        with patch.dict(os.environ, {LANGUAGE_MODEL_INFOS_ENV_VAR: json.dumps(model_infos)}):
+        with patch.dict(
+            os.environ, {LANGUAGE_MODEL_INFOS_ENV_VAR: json.dumps(model_infos)}
+        ):
             result = load_language_model_infos_from_env()
             self.assertIn("MY_CUSTOM_KEY", result)
             self.assertNotIn("DIFFERENT_NAME", result)

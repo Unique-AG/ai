@@ -206,8 +206,12 @@ class TestLanguageModelInfoFromEnv:
                 "token_limits": {"token_limit_input": 5000, "token_limit_output": 500},
             }
         }
-        with patch.dict(os.environ, {LANGUAGE_MODEL_INFOS_ENV_VAR: json.dumps(model_infos)}):
-            model = LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_4o_2024_1120)
+        with patch.dict(
+            os.environ, {LANGUAGE_MODEL_INFOS_ENV_VAR: json.dumps(model_infos)}
+        ):
+            model = LanguageModelInfo.from_name(
+                LanguageModelName.AZURE_GPT_4o_2024_1120
+            )
             assert model.version == "custom-version"
             assert model.token_limit_input == 5000
             assert model.token_limit_output == 500
@@ -223,8 +227,12 @@ class TestLanguageModelInfoFromEnv:
                 "token_limits": {"token_limit_input": 1000, "token_limit_output": 100},
             }
         }
-        with patch.dict(os.environ, {LANGUAGE_MODEL_INFOS_ENV_VAR: json.dumps(model_infos)}):
-            model = LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_4o_2024_1120)
+        with patch.dict(
+            os.environ, {LANGUAGE_MODEL_INFOS_ENV_VAR: json.dumps(model_infos)}
+        ):
+            model = LanguageModelInfo.from_name(
+                LanguageModelName.AZURE_GPT_4o_2024_1120
+            )
             # Should use env values, not defaults
             assert model.version == "overridden"
             assert model.token_limit_input == 1000
@@ -239,8 +247,12 @@ class TestLanguageModelInfoFromEnv:
                 "version": "custom",
             }
         }
-        with patch.dict(os.environ, {LANGUAGE_MODEL_INFOS_ENV_VAR: json.dumps(model_infos)}):
-            model = LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_4o_2024_1120)
+        with patch.dict(
+            os.environ, {LANGUAGE_MODEL_INFOS_ENV_VAR: json.dumps(model_infos)}
+        ):
+            model = LanguageModelInfo.from_name(
+                LanguageModelName.AZURE_GPT_4o_2024_1120
+            )
             # Should use default values since the key doesn't match
             assert model.version == "2024-11-20"
 
@@ -254,7 +266,9 @@ class TestLanguageModelInfoFromEnv:
                 "token_limits": {"token_limit_input": 2000, "token_limit_output": 200},
             }
         }
-        with patch.dict(os.environ, {LANGUAGE_MODEL_INFOS_ENV_VAR: json.dumps(model_infos)}):
+        with patch.dict(
+            os.environ, {LANGUAGE_MODEL_INFOS_ENV_VAR: json.dumps(model_infos)}
+        ):
             model = LanguageModel(LanguageModelName.AZURE_GPT_4o_2024_1120)
             assert model.version == "env-version"
             assert model.token_limit_input == 2000
@@ -270,7 +284,9 @@ class TestLanguageModelInfoFromEnv:
                 "token_limits": {"token_limit_input": 3000, "token_limit_output": 300},
             }
         }
-        with patch.dict(os.environ, {LANGUAGE_MODEL_INFOS_ENV_VAR: json.dumps(model_infos)}):
+        with patch.dict(
+            os.environ, {LANGUAGE_MODEL_INFOS_ENV_VAR: json.dumps(model_infos)}
+        ):
             # Looking up by the key, not by the name field inside
             model = LanguageModelInfo.from_name("MY_CUSTOM_GPT4o")
             assert model.name == "AZURE_GPT_4o_2024_1120"
@@ -288,7 +304,9 @@ class TestLanguageModelInfoFromEnv:
                 "token_limits": {"token_limit_input": 3000, "token_limit_output": 150},
             }
         }
-        with patch.dict(os.environ, {LANGUAGE_MODEL_INFOS_ENV_VAR: json.dumps(model_infos)}):
+        with patch.dict(
+            os.environ, {LANGUAGE_MODEL_INFOS_ENV_VAR: json.dumps(model_infos)}
+        ):
             model = LanguageModelInfo.from_name("AZURE_GPT_4o_CUSTOM")
             assert model.name == "AZURE_GPT_4o_2024_1120"
             assert model.provider == LanguageModelProvider.AZURE
