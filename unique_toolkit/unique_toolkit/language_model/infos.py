@@ -221,10 +221,11 @@ class LanguageModelInfo(BaseModel):
         if model_name_str in env_model_infos.keys():
             try:
                 return cls.model_validate(env_model_infos[model_name_str])
-            except Exception as e:
+            except Exception:
                 _LOGGER.warning(
                     f"Failed to parse model info for '{model_name_str}' from "
-                    f"{LANGUAGE_MODEL_INFOS_ENV_VAR}: {e}. Falling back to default definition."
+                    f"{LANGUAGE_MODEL_INFOS_ENV_VAR}. Falling back to default definition.",
+                    exc_info=True,
                 )
 
         match model_name:

@@ -57,10 +57,11 @@ def load_language_model_infos_from_env() -> dict[str, dict]:
         )
         return valid_model_infos
 
-    except j.JSONDecodeError as e:
+    except j.JSONDecodeError:
         _LOGGER.error(
-            f"Failed to parse {LANGUAGE_MODEL_INFOS_ENV_VAR} as JSON: {e}. "
-            "The environment variable should contain a valid JSON dict of model info objects."
+            f"Failed to parse {LANGUAGE_MODEL_INFOS_ENV_VAR} as JSON. "
+            "The environment variable should contain a valid JSON dict of model info objects.",
+            exc_info=True,
         )
         return {}
 
