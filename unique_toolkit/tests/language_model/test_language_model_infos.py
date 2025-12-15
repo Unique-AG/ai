@@ -112,7 +112,7 @@ class TestLanguageModelInfos:
 
     def test_get_language_model_returns_custom_model_for_string(self):
         name = "custom"
-        LanguageModel(name) == LanguageModelInfo(
+        assert LanguageModel(name).info == LanguageModelInfo(
             name=name,
             version="custom",
             provider=LanguageModelProvider.CUSTOM,
@@ -148,12 +148,12 @@ class TestLanguageModelInfos:
             assert limits.token_limit == case["expected_total"]
 
     def test_language_model_token_limits_with_total(self):
-        limits = LanguageModelTokenLimits(token_limit=10000)
+        limits = LanguageModelTokenLimits(token_limit=10000)  # type: ignore[call-arg]
         assert limits.token_limit_input == 4000
         assert limits.token_limit_output == 6000
 
     def test_language_model_token_limits_with_total_and_fraction(self):
-        limits = LanguageModelTokenLimits(token_limit=10000, fraction_input=0.2)
+        limits = LanguageModelTokenLimits(token_limit=10000, fraction_input=0.2)  # type: ignore[call-arg]
         assert isinstance(limits.token_limit_input, int)
         assert isinstance(limits.token_limit_output, int)
         assert limits.token_limit_input == 2000
@@ -161,10 +161,10 @@ class TestLanguageModelInfos:
 
     def test_language_model_token_limits_raises_error_empty(self):
         with pytest.raises(ValueError):
-            LanguageModelTokenLimits()
+            LanguageModelTokenLimits()  # type: ignore[call-arg]
 
     def test_rounding_does_not_exceed_token_limit(self):
-        limits = LanguageModelTokenLimits(token_limit=2000, fraction_input=0.47)
+        limits = LanguageModelTokenLimits(token_limit=2000, fraction_input=0.47)  # type: ignore[call-arg]
         assert isinstance(limits.token_limit_input, int)
         assert isinstance(limits.token_limit_output, int)
         assert isinstance(limits.token_limit, int)
@@ -174,16 +174,16 @@ class TestLanguageModelInfos:
 
     def test_language_model_token_limits_raises_error_for_partial_input(self):
         with pytest.raises(ValueError):
-            LanguageModelTokenLimits(token_limit_input=1000)
+            LanguageModelTokenLimits(token_limit_input=1000)  # type: ignore[call-arg]
 
         with pytest.raises(ValueError):
-            LanguageModelTokenLimits(token_limit_output=1000)
+            LanguageModelTokenLimits(token_limit_output=1000)  # type: ignore[call-arg]
 
         with pytest.raises(ValueError):
-            LanguageModelTokenLimits(fraction_input=0.5)
+            LanguageModelTokenLimits(fraction_input=0.5)  # type: ignore[call-arg]
 
         with pytest.raises(ValueError):
-            LanguageModelTokenLimits(token_limit_input=1000, fraction_input=0.5)
+            LanguageModelTokenLimits(token_limit_input=1000, fraction_input=0.5)  # type: ignore[call-arg]
 
 
 class TestLanguageModelInfoFromEnv:
@@ -213,8 +213,8 @@ class TestLanguageModelInfoFromEnv:
                 LanguageModelName.AZURE_GPT_4o_2024_1120
             )
             assert model.version == "custom-version"
-            assert model.token_limit_input == 5000
-            assert model.token_limit_output == 500
+            assert model.token_limits.token_limit_input == 5000
+            assert model.token_limits.token_limit_output == 500
 
     def test_from_name_env_takes_precedence_over_default(self):
         """Test that env model info takes precedence over built-in defaults."""
@@ -235,8 +235,8 @@ class TestLanguageModelInfoFromEnv:
             )
             # Should use env values, not defaults
             assert model.version == "overridden"
-            assert model.token_limit_input == 1000
-            assert model.token_limit_output == 100
+            assert model.token_limits.token_limit_input == 1000
+            assert model.token_limits.token_limit_output == 100
 
     def test_from_name_falls_back_to_default_when_key_not_in_env(self):
         """Test that from_name falls back to default when model not in env."""
@@ -291,7 +291,7 @@ class TestLanguageModelInfoFromEnv:
             model = LanguageModelInfo.from_name("MY_CUSTOM_GPT4o")
             assert model.name == "AZURE_GPT_4o_2024_1120"
             assert model.version == "custom-deployment"
-            assert model.token_limit_input == 3000
+            assert model.token_limits.token_limit_input == 3000
 
     def test_env_model_with_all_capabilities(self):
         """Test loading model with full configuration from env."""
@@ -311,5 +311,5 @@ class TestLanguageModelInfoFromEnv:
             assert model.name == "AZURE_GPT_4o_2024_1120"
             assert model.provider == LanguageModelProvider.AZURE
             assert model.version == "custom"
-            assert model.token_limit_input == 3000
-            assert model.token_limit_output == 150
+            assert model.token_limits.token_limit_input == 3000
+            assert model.token_limits.token_limit_output == 150
