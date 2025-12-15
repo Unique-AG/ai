@@ -15,9 +15,6 @@ nav:
     - Unique credentials <-> Tools: mcp/mcp_search.md
     - Using MCP Tools in Unique AI: mcp/mcp_unique_ai.md
 
-mcp:
-  - Home: mcp/index.md
-
 markdown_extensions:
   - admonition
   - footnotes
