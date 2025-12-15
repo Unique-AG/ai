@@ -56,13 +56,15 @@ class BasicLoopIterationRunner(LoopIterationRunner):
 
         responses: list[LanguageModelStreamResponse] = []
 
+        available_tools = {t.name: t for t in kwargs.get("tools") or []}
+
         for opt in tool_choices:
-            responses.append(
-                await stream_response(
-                    loop_runner_kwargs=kwargs,
-                    tool_choice=opt,
-                )
-            )
+            func_name = opt.get("function", {}).get("name")
+            limited_tool = available_tools.get(func_name) if func_name else None
+            stream_kwargs = {"loop_runner_kwargs": kwargs, "tool_choice": opt}
+            if limited_tool:
+                stream_kwargs["tools"] = [limited_tool]
+            responses.append(await stream_response(**stream_kwargs))
 
         # Merge responses and refs:
         tool_calls = []
