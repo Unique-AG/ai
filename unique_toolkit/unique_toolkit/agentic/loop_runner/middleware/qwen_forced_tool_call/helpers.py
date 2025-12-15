@@ -27,7 +27,7 @@ def append_qwen_forced_tool_call_instruction(
         msg = messages_list[i]
         if msg.role == LanguageModelMessageRole.USER and isinstance(msg.content, str):
             messages_list[i] = msg.model_copy(
-                update={"content": msg.content + forced_tool_call_instruction}
+                update={"content": msg.content + "\n" + forced_tool_call_instruction}
             )
             break
     return LanguageModelMessages(root=messages_list)

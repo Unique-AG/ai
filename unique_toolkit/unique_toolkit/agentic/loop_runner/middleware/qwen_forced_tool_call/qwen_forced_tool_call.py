@@ -34,7 +34,7 @@ class QwenForcedToolCallMiddleware(LoopIterationRunner):
     async def __call__(
         self, **kwargs: Unpack[_LoopIterationRunnerKwargs]
     ) -> LanguageModelStreamResponse:
-        tool_choices = kwargs.get("tool_choices", [])
+        tool_choices = kwargs.get("tool_choices") or []
         iteration_index = kwargs["iteration_index"]
 
         # For Qwen models, append tool call instruction to the last user message. These models ignore the parameter tool_choice.
