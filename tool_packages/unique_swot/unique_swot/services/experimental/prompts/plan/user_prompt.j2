@@ -1,0 +1,27 @@
+Facts (id -> text):
+{{ fact_view }}
+
+Existing sections for {{ component }} (may be empty):
+{{ existing_sections_view }}
+
+Task:
+- Group facts by topic and produce the minimal ordered commands to keep sections accurate and non-duplicative.
+- Prefer update_section when facts refine, extend, or change an existing section; note what should be replaced or amended based on the newer facts.
+- Use create_section only when no suitable section exists for the topic.
+- Reference fact ids explicitly in reasoning and in source_facts_ids; do not leave source_facts_ids empty.
+- Order commands so they can be applied sequentially from older to newer facts.
+
+Output:
+A JSON object matching GenerationPlan:
+{
+  "commands": [
+    {
+      "reasoning": "<why this command, cite fact ids>",
+      "command": "create_section" | "update_section",
+      "instruction": "<clear, actionable instruction to the writer; include what to add/update/replace>",
+      "target_section_id": "<section id or null>",
+      "source_facts_ids": ["<fact-id>", ...]
+    }
+  ]
+}
+Keep reasoning and instructions concise.

@@ -1,0 +1,17 @@
+Company: {{ company_name }}
+Component to extract for: {{ component }}
+
+Source chunks (preserve and cite these ids):
+{% for chunk in source_batches -%}
+[{{ chunk.id }}]
+{{ chunk.text }}
+
+{% endfor %}
+
+Task:
+- List distinct atomic facts about {{ company_name }} that inform the {{ component }} dimension.
+- Keep each fact short (1-2 sentences), strictly supported by the text.
+- Append the supporting chunk ids at the end of each fact in the format [chunk_id][chunk_id2] with all relevant chunks.
+Output JSON:
+{ "facts": ["<fact 1>", "..."] }
+
