@@ -61,17 +61,8 @@ def validate_and_init_language_model_info(
         LanguageModelInfo: The validated and initialized LanguageModelInfo object.
 
     """
-    if isinstance(v, LanguageModelName):
+    if isinstance(v, LanguageModelName | str):
         return LanguageModelInfo.from_name(v)
-    if isinstance(v, str):
-        if v in [name.value for name in LanguageModelName]:
-            return LanguageModelInfo.from_name(LanguageModelName(v))
-
-        return LanguageModelInfo(
-            name=v,
-            version="custom",
-            provider=LanguageModelProvider.CUSTOM,
-        )
 
     return v
 

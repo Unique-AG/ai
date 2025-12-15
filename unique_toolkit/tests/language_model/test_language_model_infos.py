@@ -1,4 +1,7 @@
+import json
+import os
 from datetime import date
+from unittest.mock import patch
 
 import pytest
 
@@ -10,6 +13,10 @@ from unique_toolkit.language_model.infos import (
     LanguageModelProvider,
 )
 from unique_toolkit.language_model.schemas import LanguageModelTokenLimits
+from unique_toolkit.language_model.utils import (
+    LANGUAGE_MODEL_INFOS_ENV_VAR,
+    load_language_model_infos_from_env,
+)
 
 
 class TestLanguageModelInfos:
@@ -177,3 +184,114 @@ class TestLanguageModelInfos:
 
         with pytest.raises(ValueError):
             LanguageModelTokenLimits(token_limit_input=1000, fraction_input=0.5)
+
+
+class TestLanguageModelInfoFromEnv:
+    """Tests for loading language model info from environment variable."""
+
+    @pytest.fixture(autouse=True)
+    def clear_cache(self):
+        """Clear the lru_cache before and after each test."""
+        load_language_model_infos_from_env.cache_clear()
+        yield
+        load_language_model_infos_from_env.cache_clear()
+
+    def test_from_name_uses_env_model_info_when_key_matches(self):
+        """Test that LanguageModelInfo.from_name uses env model info when key matches."""
+        model_infos = {
+            "AZURE_GPT_4o_2024_1120": {
+                "name": "AZURE_GPT_4o_2024_1120",
+                "provider": "AZURE",
+                "version": "custom-version",
+                "token_limits": {"token_limit_input": 5000, "token_limit_output": 500},
+            }
+        }
+        with patch.dict(os.environ, {LANGUAGE_MODEL_INFOS_ENV_VAR: json.dumps(model_infos)}):
+            model = LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_4o_2024_1120)
+            assert model.version == "custom-version"
+            assert model.token_limit_input == 5000
+            assert model.token_limit_output == 500
+
+    def test_from_name_env_takes_precedence_over_default(self):
+        """Test that env model info takes precedence over built-in defaults."""
+        # Override a built-in model with custom token limits
+        model_infos = {
+            "AZURE_GPT_4o_2024_1120": {
+                "name": "AZURE_GPT_4o_2024_1120",
+                "provider": "AZURE",
+                "version": "overridden",
+                "token_limits": {"token_limit_input": 1000, "token_limit_output": 100},
+            }
+        }
+        with patch.dict(os.environ, {LANGUAGE_MODEL_INFOS_ENV_VAR: json.dumps(model_infos)}):
+            model = LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_4o_2024_1120)
+            # Should use env values, not defaults
+            assert model.version == "overridden"
+            assert model.token_limit_input == 1000
+            assert model.token_limit_output == 100
+
+    def test_from_name_falls_back_to_default_when_key_not_in_env(self):
+        """Test that from_name falls back to default when model not in env."""
+        model_infos = {
+            "SOME_OTHER_MODEL": {
+                "name": "SOME_OTHER_MODEL",
+                "provider": "AZURE",
+                "version": "custom",
+            }
+        }
+        with patch.dict(os.environ, {LANGUAGE_MODEL_INFOS_ENV_VAR: json.dumps(model_infos)}):
+            model = LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_4o_2024_1120)
+            # Should use default values since the key doesn't match
+            assert model.version == "2024-11-20"
+
+    def test_language_model_uses_env_model_info(self):
+        """Test that LanguageModel wrapper also uses env model info."""
+        model_infos = {
+            "AZURE_GPT_4o_2024_1120": {
+                "name": "AZURE_GPT_4o_2024_1120",
+                "provider": "AZURE",
+                "version": "env-version",
+                "token_limits": {"token_limit_input": 2000, "token_limit_output": 200},
+            }
+        }
+        with patch.dict(os.environ, {LANGUAGE_MODEL_INFOS_ENV_VAR: json.dumps(model_infos)}):
+            model = LanguageModel(LanguageModelName.AZURE_GPT_4o_2024_1120)
+            assert model.version == "env-version"
+            assert model.token_limit_input == 2000
+            assert model.token_limit_output == 200
+
+    def test_env_model_with_custom_key(self):
+        """Test loading model with a custom key that differs from the name field."""
+        model_infos = {
+            "MY_CUSTOM_GPT4o": {
+                "name": "AZURE_GPT_4o_2024_1120",
+                "provider": "AZURE",
+                "version": "custom-deployment",
+                "token_limits": {"token_limit_input": 3000, "token_limit_output": 300},
+            }
+        }
+        with patch.dict(os.environ, {LANGUAGE_MODEL_INFOS_ENV_VAR: json.dumps(model_infos)}):
+            # Looking up by the key, not by the name field inside
+            model = LanguageModelInfo.from_name("MY_CUSTOM_GPT4o")
+            assert model.name == "AZURE_GPT_4o_2024_1120"
+            assert model.version == "custom-deployment"
+            assert model.token_limit_input == 3000
+
+    def test_env_model_with_all_capabilities(self):
+        """Test loading model with full configuration from env."""
+        model_infos = {
+            "AZURE_GPT_4o_CUSTOM": {
+                "name": "AZURE_GPT_4o_2024_1120",
+                "provider": "AZURE",
+                "version": "custom",
+                "capabilities": ["function_calling", "streaming", "vision"],
+                "token_limits": {"token_limit_input": 3000, "token_limit_output": 150},
+            }
+        }
+        with patch.dict(os.environ, {LANGUAGE_MODEL_INFOS_ENV_VAR: json.dumps(model_infos)}):
+            model = LanguageModelInfo.from_name("AZURE_GPT_4o_CUSTOM")
+            assert model.name == "AZURE_GPT_4o_2024_1120"
+            assert model.provider == LanguageModelProvider.AZURE
+            assert model.version == "custom"
+            assert model.token_limit_input == 3000
+            assert model.token_limit_output == 150

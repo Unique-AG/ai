@@ -1,3 +1,4 @@
+import logging
 from datetime import date
 from enum import StrEnum
 from typing import Annotated, Any, ClassVar, Optional, Self
@@ -8,6 +9,12 @@ from typing_extensions import deprecated
 
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 from unique_toolkit.language_model.schemas import LanguageModelTokenLimits
+from unique_toolkit.language_model.utils import (
+    LANGUAGE_MODEL_INFOS_ENV_VAR,
+    load_language_model_infos_from_env,
+)
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class LanguageModelName(StrEnum):
@@ -203,7 +210,19 @@ class LanguageModelInfo(BaseModel):
     default_options: dict[str, Any] = {}
 
     @classmethod
-    def from_name(cls, model_name: LanguageModelName) -> Self:
+    def from_name(cls, model_name: LanguageModelName | str) -> Self:
+        # Check environment variable first - env definitions take precedence
+        env_model_infos = load_language_model_infos_from_env()
+        model_name_str = model_name.value if isinstance(model_name, LanguageModelName) else model_name
+        if model_name_str in env_model_infos.keys():
+            try:
+                return cls.model_validate(env_model_infos[model_name_str])
+            except Exception as e:
+                _LOGGER.warning(
+                    f"Failed to parse model info for '{model_name_str}' from "
+                    f"{LANGUAGE_MODEL_INFOS_ENV_VAR}: {e}. Falling back to default definition."
+                )
+
         match model_name:
             case LanguageModelName.AZURE_GPT_35_TURBO_0125:
                 return cls(
@@ -1723,14 +1742,7 @@ class LanguageModel:
 
     @classmethod
     def get_model_info(cls, model_name: LanguageModelName | str) -> LanguageModelInfo:
-        if isinstance(model_name, LanguageModelName):
-            return LanguageModelInfo.from_name(model_name)
-
-        return LanguageModelInfo(
-            name=model_name,
-            version="custom",
-            provider=LanguageModelProvider.CUSTOM,
-        )
+        return LanguageModelInfo.from_name(model_name)
 
     @classmethod
     def list_models(cls) -> list[LanguageModelInfo]:
