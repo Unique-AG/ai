@@ -1,6 +1,6 @@
 # Development Setup with Webhooks and ngrok
 
-This setup allows you to expose a local FastAPI application to the Unique platform using ngrok as a tunnel. This is useful for local development when you want to test webhook endpoints.
+This setup allows you to expose a local webhook application (FastAPI, Quart, Flask, etc.) to the Unique platform using ngrok as a tunnel. This is useful for local development when you want to test webhook endpoints.
 
 ## Configuration
 

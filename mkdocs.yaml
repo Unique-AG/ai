@@ -40,7 +40,7 @@ theme:
 
 nav:
   - Home: 'index.md'
-  - Usecase Implementation Guidelines: 'usecase_realization_guidelines.md'
+  - Implementation Guidelines: 'usecase_realization_guidelines.md'
   - Unique SDK: '!include ./unique_sdk/mkdocs.yaml'
   - Unique Toolkit: '!include ./unique_toolkit/mkdocs.yaml'
   - Tutorials: '!include ./tutorials/mkdocs.yaml'
