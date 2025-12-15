@@ -13,10 +13,6 @@ from unique_toolkit.language_model.infos import (
     LanguageModelProvider,
 )
 from unique_toolkit.language_model.schemas import LanguageModelTokenLimits
-from unique_toolkit.language_model.utils import (
-    LANGUAGE_MODEL_INFOS_ENV_VAR,
-    load_language_model_infos_from_env,
-)
 
 
 class TestLanguageModelInfos:
@@ -186,15 +182,122 @@ class TestLanguageModelInfos:
             LanguageModelTokenLimits(token_limit_input=1000, fraction_input=0.5)  # type: ignore[call-arg]
 
 
-class TestLanguageModelInfoFromEnv:
-    """Tests for loading language model info from environment variable."""
+class TestLoadLanguageModelInfosFromEnv:
+    """Tests for the _load_from_env classmethod."""
 
     @pytest.fixture(autouse=True)
     def clear_cache(self):
         """Clear the lru_cache before and after each test."""
-        load_language_model_infos_from_env.cache_clear()
+        LanguageModelInfo._load_from_env.cache_clear()
         yield
-        load_language_model_infos_from_env.cache_clear()
+        LanguageModelInfo._load_from_env.cache_clear()
+
+    @patch.dict(os.environ, {}, clear=True)
+    def test_returns_empty_dict_when_env_not_set(self):
+        result = LanguageModelInfo._load_from_env()
+        assert result == {}
+
+    def test_returns_empty_dict_when_env_is_empty(self):
+        with patch.dict(os.environ, {LanguageModelInfo._ENV_VAR: ""}):
+            result = LanguageModelInfo._load_from_env()
+            assert result == {}
+
+    def test_returns_empty_dict_on_invalid_json(self):
+        with patch.dict(os.environ, {LanguageModelInfo._ENV_VAR: "not valid json"}):
+            result = LanguageModelInfo._load_from_env()
+            assert result == {}
+
+    def test_returns_empty_dict_when_json_is_list(self):
+        with patch.dict(os.environ, {LanguageModelInfo._ENV_VAR: '["a", "b", "c"]'}):
+            result = LanguageModelInfo._load_from_env()
+            assert result == {}
+
+    def test_returns_empty_dict_when_json_is_string(self):
+        with patch.dict(os.environ, {LanguageModelInfo._ENV_VAR: '"just a string"'}):
+            result = LanguageModelInfo._load_from_env()
+            assert result == {}
+
+    def test_loads_single_model_info(self):
+        model_infos = {
+            "AZURE_GPT_4o_CUSTOM": {
+                "name": "AZURE_GPT_4o_2024_1120",
+                "provider": "AZURE",
+                "version": "custom",
+                "capabilities": ["function_calling", "streaming", "vision"],
+                "token_limits": {"token_limit_input": 3000, "token_limit_output": 150},
+            }
+        }
+        with patch.dict(
+            os.environ, {LanguageModelInfo._ENV_VAR: json.dumps(model_infos)}
+        ):
+            result = LanguageModelInfo._load_from_env()
+            assert result == model_infos
+            assert "AZURE_GPT_4o_CUSTOM" in result
+            assert result["AZURE_GPT_4o_CUSTOM"]["name"] == "AZURE_GPT_4o_2024_1120"
+
+    def test_loads_multiple_model_infos(self):
+        model_infos = {
+            "AZURE_GPT_4o_CUSTOM": {
+                "name": "AZURE_GPT_4o_2024_1120",
+                "provider": "AZURE",
+                "version": "custom",
+                "capabilities": ["function_calling", "streaming", "vision"],
+                "token_limits": {"token_limit_input": 3000, "token_limit_output": 150},
+            },
+            "AZURE_GPT_4o_2024_1120_1234": {
+                "name": "AZURE_GPT_4o_2024_1120",
+                "provider": "AZURE",
+                "version": "custom",
+                "capabilities": ["function_calling", "streaming", "vision"],
+                "token_limits": {"token_limit_input": 3000, "token_limit_output": 150},
+            },
+        }
+        with patch.dict(
+            os.environ, {LanguageModelInfo._ENV_VAR: json.dumps(model_infos)}
+        ):
+            result = LanguageModelInfo._load_from_env()
+            assert len(result) == 2
+            assert "AZURE_GPT_4o_CUSTOM" in result
+            assert "AZURE_GPT_4o_2024_1120_1234" in result
+
+    def test_skips_invalid_model_info_entries(self):
+        model_infos = {
+            "VALID_MODEL": {"name": "valid", "provider": "AZURE"},
+            "INVALID_MODEL": "not a dict",
+        }
+        with patch.dict(
+            os.environ, {LanguageModelInfo._ENV_VAR: json.dumps(model_infos)}
+        ):
+            result = LanguageModelInfo._load_from_env()
+            assert len(result) == 1
+            assert "VALID_MODEL" in result
+            assert "INVALID_MODEL" not in result
+
+    def test_key_is_used_for_lookup_not_name_field(self):
+        # The key in the dict should be used for lookup, not the "name" field inside
+        model_infos = {
+            "MY_CUSTOM_KEY": {
+                "name": "DIFFERENT_NAME",
+                "provider": "AZURE",
+            }
+        }
+        with patch.dict(
+            os.environ, {LanguageModelInfo._ENV_VAR: json.dumps(model_infos)}
+        ):
+            result = LanguageModelInfo._load_from_env()
+            assert "MY_CUSTOM_KEY" in result
+            assert "DIFFERENT_NAME" not in result
+
+
+class TestLanguageModelInfoFromEnv:
+    """Tests for from_name using environment variable."""
+
+    @pytest.fixture(autouse=True)
+    def clear_cache(self):
+        """Clear the lru_cache before and after each test."""
+        LanguageModelInfo._load_from_env.cache_clear()
+        yield
+        LanguageModelInfo._load_from_env.cache_clear()
 
     def test_from_name_uses_env_model_info_when_key_matches(self):
         """Test that LanguageModelInfo.from_name uses env model info when key matches."""
@@ -207,7 +310,7 @@ class TestLanguageModelInfoFromEnv:
             }
         }
         with patch.dict(
-            os.environ, {LANGUAGE_MODEL_INFOS_ENV_VAR: json.dumps(model_infos)}
+            os.environ, {LanguageModelInfo._ENV_VAR: json.dumps(model_infos)}
         ):
             model = LanguageModelInfo.from_name(
                 LanguageModelName.AZURE_GPT_4o_2024_1120
@@ -228,7 +331,7 @@ class TestLanguageModelInfoFromEnv:
             }
         }
         with patch.dict(
-            os.environ, {LANGUAGE_MODEL_INFOS_ENV_VAR: json.dumps(model_infos)}
+            os.environ, {LanguageModelInfo._ENV_VAR: json.dumps(model_infos)}
         ):
             model = LanguageModelInfo.from_name(
                 LanguageModelName.AZURE_GPT_4o_2024_1120
@@ -248,7 +351,7 @@ class TestLanguageModelInfoFromEnv:
             }
         }
         with patch.dict(
-            os.environ, {LANGUAGE_MODEL_INFOS_ENV_VAR: json.dumps(model_infos)}
+            os.environ, {LanguageModelInfo._ENV_VAR: json.dumps(model_infos)}
         ):
             model = LanguageModelInfo.from_name(
                 LanguageModelName.AZURE_GPT_4o_2024_1120
@@ -267,7 +370,7 @@ class TestLanguageModelInfoFromEnv:
             }
         }
         with patch.dict(
-            os.environ, {LANGUAGE_MODEL_INFOS_ENV_VAR: json.dumps(model_infos)}
+            os.environ, {LanguageModelInfo._ENV_VAR: json.dumps(model_infos)}
         ):
             model = LanguageModel(LanguageModelName.AZURE_GPT_4o_2024_1120)
             assert model.version == "env-version"
@@ -285,7 +388,7 @@ class TestLanguageModelInfoFromEnv:
             }
         }
         with patch.dict(
-            os.environ, {LANGUAGE_MODEL_INFOS_ENV_VAR: json.dumps(model_infos)}
+            os.environ, {LanguageModelInfo._ENV_VAR: json.dumps(model_infos)}
         ):
             # Looking up by the key, not by the name field inside
             model = LanguageModelInfo.from_name("MY_CUSTOM_GPT4o")
@@ -305,7 +408,7 @@ class TestLanguageModelInfoFromEnv:
             }
         }
         with patch.dict(
-            os.environ, {LANGUAGE_MODEL_INFOS_ENV_VAR: json.dumps(model_infos)}
+            os.environ, {LanguageModelInfo._ENV_VAR: json.dumps(model_infos)}
         ):
             model = LanguageModelInfo.from_name("AZURE_GPT_4o_CUSTOM")
             assert model.name == "AZURE_GPT_4o_2024_1120"
