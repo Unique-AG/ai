@@ -3,7 +3,7 @@ import unittest
 from unique_toolkit.language_model.utils import (
     convert_string_to_json,
     find_last_json_object,
-    format_message,
+    format_message,  # Importing the format_message function
 )
 
 
