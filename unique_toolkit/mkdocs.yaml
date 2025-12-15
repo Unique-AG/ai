@@ -41,7 +41,7 @@ nav:
   - Authentication:
     - Personal API Key: authentication/#1-personal-api-key
     - Creating an APP: authentication/#2-creating-an-app
-  - Application Types:
+  - Application Development:
     - Standalone Application: application_types/standalone_application.md
     - Event Driven Applications: 
       - application_types/event_driven/index.md

@@ -1,4 +1,4 @@
-# Application Development Guidelines
+# Usecase Implementation Guidelines
 
 You have a usecase in mind that you want to implement on the Unique Platform. You have a few options to do this:
 
