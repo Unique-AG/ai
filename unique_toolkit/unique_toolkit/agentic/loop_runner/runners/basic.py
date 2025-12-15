@@ -56,15 +56,11 @@ class BasicLoopIterationRunner(LoopIterationRunner):
 
         responses: list[LanguageModelStreamResponse] = []
 
-        available_tools = {t.name: t for t in kwargs.get("tools", [])}
-
         for opt in tool_choices:
-            limited_tool = available_tools.get(opt["function"]["name"])
             responses.append(
                 await stream_response(
                     loop_runner_kwargs=kwargs,
                     tool_choice=opt,
-                    tools=[limited_tool] if limited_tool else None,
                 )
             )
 
