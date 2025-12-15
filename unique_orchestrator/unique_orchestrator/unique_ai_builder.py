@@ -34,6 +34,8 @@ from unique_toolkit.agentic.loop_runner import (
     BasicLoopIterationRunnerConfig,
     LoopIterationRunner,
     PlanningMiddleware,
+    QwenForcedToolCallMiddleware,
+    is_qwen_model,
 )
 from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
@@ -544,6 +546,12 @@ def _build_loop_iteration_runner(
             max_loop_iterations=config.agent.max_loop_iterations
         )
     )
+
+    if is_qwen_model(model=config.space.language_model):
+        runner = QwenForcedToolCallMiddleware(
+            loop_runner=runner,
+            qwen_forced_tool_call_prompt_instruction=config.agent.experimental.loop_configuration.qwen_forced_tool_call_prompt_instruction,
+        )
 
     if config.agent.experimental.loop_configuration.planning_config is not None:
         runner = PlanningMiddleware(
