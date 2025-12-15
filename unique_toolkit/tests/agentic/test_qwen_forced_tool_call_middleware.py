@@ -183,7 +183,7 @@ class TestAppendQwenForcedToolCallInstruction:
         # Assert
         result_list = list(result)
         assert len(result_list) == 2
-        assert result_list[1].content == "Search for documentsTest instruction"
+        assert result_list[1].content == "Search for documents\nTest instruction"
 
     @pytest.mark.ai
     def test_append_instruction__preserves_system_message(
@@ -234,7 +234,7 @@ class TestAppendQwenForcedToolCallInstruction:
         result_list = list(result)
         assert result_list[0].content == "First question"  # Not modified
         assert result_list[1].content == "First answer"  # Not modified
-        assert result_list[2].content == "Second question [INSTRUCTION]"  # Modified
+        assert result_list[2].content == "Second question\n [INSTRUCTION]"  # Modified
 
     @pytest.mark.ai
     def test_append_instruction__handles_no_user_messages(self) -> None:
@@ -343,7 +343,7 @@ class TestQwenForcedToolCallMiddlewareCall:
         mock_inner_runner.assert_called_once()
         call_kwargs = mock_inner_runner.call_args.kwargs
         modified_messages = list(call_kwargs["messages"])
-        assert modified_messages[1].content == "Search for documents [FORCE TOOL]"
+        assert modified_messages[1].content == "Search for documents\n [FORCE TOOL]"
 
     @pytest.mark.ai
     async def test_middleware__does_not_append_instruction__when_no_tool_choices(
