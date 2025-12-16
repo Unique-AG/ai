@@ -15,17 +15,6 @@ from unique_swot.services.generation.agentic.exceptions import (
     SectionNotFoundException,
 )
 from unique_swot.services.generation.agentic.executor import AgenticPlanExecutor
-from unique_swot.services.generation.agentic.models.base import (
-    SWOTExtractionFactsList,
-    SWOTReportComponents,
-    SWOTReportComponentSection,
-)
-from unique_swot.services.generation.agentic.models.plan import (
-    GenerationPlan,
-    GenerationPlanCommand,
-    GenerationPlanCommandType,
-)
-from unique_swot.services.generation.agentic.models.registry import SWOTReportRegistry
 from unique_swot.services.generation.agentic.prompts.commands import (
     CREATE_NEW_SECTION_SYSTEM_PROMPT,
     CREATE_NEW_SECTION_USER_PROMPT,
@@ -45,6 +34,17 @@ from unique_swot.services.generation.agentic.prompts.plan import (
 )
 from unique_swot.services.generation.agentic.utils import create_map_from_list
 from unique_swot.services.generation.context import SWOTComponent
+from unique_swot.services.generation.models.base import (
+    SWOTExtractionFactsList,
+    SWOTReportComponents,
+    SWOTReportComponentSection,
+)
+from unique_swot.services.generation.models.plan import (
+    GenerationPlan,
+    GenerationPlanCommand,
+    GenerationPlanCommandType,
+)
+from unique_swot.services.generation.models.registry import SWOTReportRegistry
 from unique_swot.services.orchestrator.service import (
     ProgressNotifier,
     SourceRegistry,

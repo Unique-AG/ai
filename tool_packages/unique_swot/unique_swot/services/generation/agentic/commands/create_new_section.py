@@ -7,15 +7,15 @@ from unique_toolkit._common.validators import LMI
 from unique_swot.services.generation.agentic.exceptions import (
     FailedToCreateNewSectionException,
 )
-from unique_swot.services.generation.agentic.models.base import (
-    SWOTReportComponentSection,
-)
-from unique_swot.services.generation.agentic.models.plan import GenerationPlanCommand
 from unique_swot.services.generation.agentic.prompts.commands import (
     CREATE_NEW_SECTION_SYSTEM_PROMPT,
     CREATE_NEW_SECTION_USER_PROMPT,
 )
 from unique_swot.services.generation.context import SWOTComponent
+from unique_swot.services.generation.models.base import (
+    SWOTReportComponentSection,
+)
+from unique_swot.services.generation.models.plan import GenerationPlanCommand
 from unique_swot.utils import generate_structured_output
 
 _LOGGER = getLogger(__name__)
