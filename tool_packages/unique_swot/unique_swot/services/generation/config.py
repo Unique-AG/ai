@@ -7,6 +7,7 @@ from unique_toolkit.language_model.infos import (
     LanguageModelName,
 )
 
+from unique_swot.services.experimental.config import AgenticGeneratorConfig
 from unique_swot.services.generation.extraction.config import (
     ExtractionConfig,
 )
@@ -44,4 +45,9 @@ class ReportGenerationConfig(BaseModel):
     reporting_config: ReportingConfig = Field(
         default_factory=ReportingConfig,
         description="The configuration for the reporting.",
+    )
+
+    executor_config: AgenticGeneratorConfig = Field(
+        default_factory=AgenticGeneratorConfig,
+        description="The configuration for the executor.",
     )
