@@ -6267,7 +6267,7 @@ timeout-decorator = "^0.5.0"
 typing-extensions = "^4.9.0"
 unidecode = "^1.4.0"
 unique-sdk = "^0.10.58"
-unique-toolkit = "^1.28.7"
+unique-toolkit = "^1.38.1"
 
 [package.source]
 type = "directory"
@@ -6867,4 +6867,4 @@ cffi = ["cffi (>=1.17,<2.0) ; platform_python_implementation != \"PyPy\" and pyt
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "8b2b27fbdb2ba7035934b6813ad270edea08a66a41b3948e2910bc878e3e3034"
+content-hash = "1f21117a579e1183c4aeca80bc1e71519fc3ca892d83eefe3d5688584b7c7088"
