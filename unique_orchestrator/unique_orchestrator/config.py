@@ -24,6 +24,7 @@ from unique_toolkit.agentic.history_manager.history_manager import (
 )
 from unique_toolkit.agentic.loop_runner import (
     QWEN_FORCED_TOOL_CALL_PROMPT_INSTRUCTION,
+    QWEN_LAST_ITERATION_PROMPT_INSTRUCTION,
     PlanningConfig,
 )
 from unique_toolkit.agentic.responses_api import (
@@ -149,6 +150,10 @@ class LoopConfiguration(BaseModel):
         description="Qwen forced tool call prompt instruction.",
     )
 
+    qwen_last_iteration_prompt_instruction: str = Field(
+        default=QWEN_LAST_ITERATION_PROMPT_INSTRUCTION,
+        description="Qwen last iteration prompt instruction.",
+    )
 
 class EvaluationConfig(BaseModel):
     model_config = get_configuration_dict()

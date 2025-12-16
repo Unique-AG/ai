@@ -34,7 +34,7 @@ from unique_toolkit.agentic.loop_runner import (
     BasicLoopIterationRunnerConfig,
     LoopIterationRunner,
     PlanningMiddleware,
-    QwenForcedToolCallMiddleware,
+    QwenRunnerMiddleware,
     is_qwen_model,
 )
 from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
@@ -228,6 +228,7 @@ def _build_common(
         config=config,
         history_manager=history_manager,
         llm_service=LanguageModelService.from_event(event),
+        chat_service=chat_service,
     )
 
     return _CommonComponents(
@@ -540,6 +541,7 @@ def _build_loop_iteration_runner(
     config: UniqueAIConfig,
     history_manager: HistoryManager,
     llm_service: LanguageModelService,
+    chat_service: ChatService,
 ) -> LoopIterationRunner:
     runner = BasicLoopIterationRunner(
         config=BasicLoopIterationRunnerConfig(
@@ -548,9 +550,11 @@ def _build_loop_iteration_runner(
     )
 
     if is_qwen_model(model=config.space.language_model):
-        runner = QwenForcedToolCallMiddleware(
-            loop_runner=runner,
+        runner = QwenRunnerMiddleware(
             qwen_forced_tool_call_prompt_instruction=config.agent.experimental.loop_configuration.qwen_forced_tool_call_prompt_instruction,
+            qwen_last_iteration_prompt_instruction=config.agent.experimental.loop_configuration.qwen_last_iteration_prompt_instruction,
+            max_loop_iterations=config.agent.max_loop_iterations,
+            chat_service=chat_service,
         )
 
     if config.agent.experimental.loop_configuration.planning_config is not None:

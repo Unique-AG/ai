@@ -3,9 +3,10 @@ from unique_toolkit.agentic.loop_runner.middleware.planning import (
     PlanningMiddleware,
     PlanningSchemaConfig,
 )
-from unique_toolkit.agentic.loop_runner.middleware.qwen_forced_tool_call import (
+from unique_toolkit.agentic.loop_runner.middleware.qwen_runner import (
     QWEN_FORCED_TOOL_CALL_PROMPT_INSTRUCTION,
-    QwenForcedToolCallMiddleware,
+    QWEN_LAST_ITERATION_PROMPT_INSTRUCTION,
+    QwenRunnerMiddleware,
     is_qwen_model,
 )
 
@@ -13,7 +14,8 @@ __all__ = [
     "PlanningConfig",
     "PlanningMiddleware",
     "PlanningSchemaConfig",
-    "QWEN_FORCED_TOOL_CALL_PROMPT_INSTRUCTION",
-    "QwenForcedToolCallMiddleware",
+    "QwenRunnerMiddleware",
     "is_qwen_model",
+    "QWEN_FORCED_TOOL_CALL_PROMPT_INSTRUCTION",
+    "QWEN_LAST_ITERATION_PROMPT_INSTRUCTION",
 ]
