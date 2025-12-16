@@ -15,7 +15,6 @@ from unique_toolkit.agentic.loop_runner.base import (
 from unique_toolkit.agentic.loop_runner.middleware.qwen_runner.helpers import (
     append_qwen_forced_tool_call_instruction,
     append_qwen_no_tool_call_instruction,
-    append_qwen_standard_tool_call_instruction,
 )
 from unique_toolkit.chat.service import ChatService, LanguageModelStreamResponse
 

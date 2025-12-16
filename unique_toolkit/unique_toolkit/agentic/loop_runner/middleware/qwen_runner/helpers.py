@@ -46,20 +46,3 @@ def append_qwen_no_tool_call_instruction(
     )
     messages_list.append(assistant_message)
     return LanguageModelMessages(root=messages_list)
-
-
-def append_qwen_standard_tool_call_instruction(
-    *,
-    messages: LanguageModelMessages,
-    standard_tool_call_instruction: str,
-) -> LanguageModelMessages:
-    """Append instruction to not call any tool in this iteration."""
-    messages_list = list(messages)
-    for i in range(len(messages_list) - 1, -1, -1):
-        msg = messages_list[i]
-        if msg.role == LanguageModelMessageRole.USER and isinstance(msg.content, str):
-            messages_list[i] = msg.model_copy(
-                update={"content": msg.content + "\n" + standard_tool_call_instruction}
-            )
-            break
-    return LanguageModelMessages(root=messages_list)
