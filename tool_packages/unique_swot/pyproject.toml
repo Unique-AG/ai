@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique-swot"
-version = "1.0.0"
+version = "1.0.1"
 description = "Unique Swot package is a tool that for conducting a swot analysis based on internal and external documents"
 authors = ["Rami Azouz <rami.ext@unique.ch>", "Fabian Schläpfer <fabian.schlaepfer@unique.ai>"]
 license = "Proprietary"
