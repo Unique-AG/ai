@@ -1,0 +1,18 @@
+Instruction:
+{{ instruction }}
+
+Facts to use (each is vetted evidence):
+{% for id, fact in facts.items() -%}
+- [{{ id }}]: {{ fact }}
+{% endfor %}
+
+Important:
+- Do not remove or alter the [chunk_id] citations already present in the facts.
+- Ensure each factual statement in the output retains its supporting citations.
+
+Produce a JSON object matching {{model_name}}:
+```
+{{model_schema}}
+```
+Use only the facts above; 2-4 entries is typical.
+
