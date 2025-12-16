@@ -1,5 +1,9 @@
+import json
+import logging
+import os
 from datetime import date
 from enum import StrEnum
+from functools import lru_cache
 from typing import Annotated, Any, ClassVar, Optional, Self
 
 from pydantic import BaseModel, Field
@@ -8,6 +12,8 @@ from typing_extensions import deprecated
 
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 from unique_toolkit.language_model.schemas import LanguageModelTokenLimits
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class LanguageModelName(StrEnum):
@@ -202,8 +208,84 @@ class LanguageModelInfo(BaseModel):
 
     default_options: dict[str, Any] = {}
 
+    _ENV_VAR: ClassVar[str] = "LANGUAGE_MODEL_INFOS"
+    """Environment variable name for custom language model infos."""
+
     @classmethod
-    def from_name(cls, model_name: LanguageModelName) -> Self:
+    @lru_cache(maxsize=1)
+    def _load_from_env(cls) -> dict[str, dict]:
+        """
+        Load custom language model infos from environment variable.
+
+        The environment variable should contain a JSON string with a dict of
+        LanguageModelInfo-compatible dictionaries. The key is used for model lookup.
+
+        Example:
+            LANGUAGE_MODEL_INFOS='{"AZURE_GPT_4o_CUSTOM": {"name": "AZURE_GPT_4o_2024_1120",
+            "provider": "AZURE", "version": "custom", "capabilities": ["function_calling",
+            "streaming", "vision"], "token_limits": {"token_limit_input": 3000,
+            "token_limit_output": 150}}}'
+
+        Returns:
+            A dictionary mapping model keys to their info dictionaries.
+        """
+        env_value = os.getenv(cls._ENV_VAR)
+        if not env_value:
+            return {}
+
+        try:
+            model_infos_dict = json.loads(env_value)
+            if not isinstance(model_infos_dict, dict):
+                _LOGGER.error(
+                    f"{cls._ENV_VAR} must be a JSON dict of model info objects. "
+                    f"Got {type(model_infos_dict).__name__} instead."
+                )
+                return {}
+
+            # Validate each entry in the dictionary
+            valid_model_infos: dict[str, dict] = {}
+            for model_key, model_info in model_infos_dict.items():
+                if not isinstance(model_info, dict):
+                    _LOGGER.warning(
+                        f"Skipping invalid model info entry '{model_key}' in {cls._ENV_VAR}: "
+                        f"expected dict, got {type(model_info).__name__}"
+                    )
+                    continue
+
+                valid_model_infos[model_key] = model_info
+
+            _LOGGER.debug(
+                f"Loaded {len(valid_model_infos)} custom language model infos from {cls._ENV_VAR}"
+            )
+            return valid_model_infos
+
+        except json.JSONDecodeError:
+            _LOGGER.error(
+                f"Failed to parse {cls._ENV_VAR} as JSON. "
+                "The environment variable should contain a valid JSON dict of model info objects.",
+                exc_info=True,
+            )
+            return {}
+
+    @classmethod
+    def from_name(cls, model_name: LanguageModelName | str) -> Self:
+        # Check environment variable first - env definitions take precedence
+        env_model_infos = cls._load_from_env()
+        model_name_str = (
+            model_name.value
+            if isinstance(model_name, LanguageModelName)
+            else model_name
+        )
+        if model_name_str in env_model_infos.keys():
+            try:
+                return cls.model_validate(env_model_infos[model_name_str])
+            except Exception:
+                _LOGGER.warning(
+                    f"Failed to parse model info for '{model_name_str}' from "
+                    f"{cls._ENV_VAR}. Falling back to default definition.",
+                    exc_info=True,
+                )
+
         match model_name:
             case LanguageModelName.AZURE_GPT_35_TURBO_0125:
                 return cls(
@@ -1723,14 +1805,7 @@ class LanguageModel:
 
     @classmethod
     def get_model_info(cls, model_name: LanguageModelName | str) -> LanguageModelInfo:
-        if isinstance(model_name, LanguageModelName):
-            return LanguageModelInfo.from_name(model_name)
-
-        return LanguageModelInfo(
-            name=model_name,
-            version="custom",
-            provider=LanguageModelProvider.CUSTOM,
-        )
+        return LanguageModelInfo.from_name(model_name)
 
     @classmethod
     def list_models(cls) -> list[LanguageModelInfo]:
