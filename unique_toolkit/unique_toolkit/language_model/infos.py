@@ -640,7 +640,7 @@ class LanguageModelInfo(BaseModel):
                         min_temperature=1.0, max_temperature=1.0
                     ),
                     default_options={
-                        "reasoning_effort": "medium",
+                        "reasoning_effort": None,
                     },
                 )
             case LanguageModelName.AZURE_GPT_52_CHAT_2025_1211:
@@ -653,11 +653,9 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.CHAT_COMPLETIONS_API,
                         ModelCapabilities.FUNCTION_CALLING,
                         ModelCapabilities.PARALLEL_FUNCTION_CALLING,
-                        ModelCapabilities.REASONING,
                         ModelCapabilities.RESPONSES_API,
                         ModelCapabilities.STREAMING,
                         ModelCapabilities.STRUCTURED_OUTPUT,
-                        ModelCapabilities.VISION,
                     ],
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=128_000, token_limit_output=16_384
@@ -668,7 +666,7 @@ class LanguageModelInfo(BaseModel):
                         min_temperature=1.0, max_temperature=1.0
                     ),
                     default_options={
-                        "reasoning_effort": None,
+                        "reasoning_effort": "medium",
                     },
                 )
             case LanguageModelName.AZURE_GPT_4_TURBO_2024_0409:
