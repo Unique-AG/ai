@@ -5628,7 +5628,7 @@ unique-toolkit = ">=1.27.1,<2.0.0"
 
 [[package]]
 name = "unique-sdk"
-version = "0.10.57"
+version = "0.10.58"
 description = ""
 optional = false
 python-versions = "^3.11"
@@ -5649,7 +5649,7 @@ url = "../unique_sdk"
 
 [[package]]
 name = "unique-stock-ticker"
-version = "1.0.3"
+version = "1.0.5"
 description = ""
 optional = false
 python-versions = "^3.12"
@@ -5667,7 +5667,7 @@ pyopenssl = "^25.1.0"
 python-dotenv = "^1.0.1"
 typing-extensions = "^4.9.0"
 unique-sdk = "^0.10.0"
-unique-toolkit = "^1.14.5"
+unique-toolkit = "^1.38.3"
 
 [package.source]
 type = "directory"
@@ -5697,7 +5697,7 @@ url = "../tool_packages/unique_swot"
 
 [[package]]
 name = "unique-toolkit"
-version = "1.37.0"
+version = "1.38.4"
 description = ""
 optional = false
 python-versions = "^3.12"
@@ -5724,7 +5724,7 @@ regex = "^2024.5.15"
 sseclient = "^0.0.27"
 tiktoken = "^0.12.0"
 typing-extensions = "^4.9.0"
-unique-sdk = "^0.10.48"
+unique-sdk = "^0.10.58"
 
 [package.source]
 type = "directory"
@@ -6347,4 +6347,4 @@ cffi = ["cffi (>=1.17,<2.0) ; platform_python_implementation != \"PyPy\" and pyt
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "fffe18f16c63a31811210195d1e8ecb8798f991b9ecd1f1562fa04fec81bcc48"
+content-hash = "0f3ae934ac3635241ad8491ae5a8369911ce2c781d033ce4cfed65dd7de77b55"
