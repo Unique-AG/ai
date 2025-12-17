@@ -1,6 +1,6 @@
 # Development Setup with Webhooks and ngrok
 
-This setup allows you to expose a local FastAPI application to the Unique platform using ngrok as a tunnel. This is useful for local development when you want to test webhook endpoints.
+This setup allows you to expose a local webhook application (FastAPI, Quart, Flask, etc.) to the Unique platform using ngrok as a tunnel. This is useful for local development when you want to test webhook endpoints.
 
 ## Configuration
 
@@ -27,7 +27,7 @@ A minimal application could look like this
 ??? example "Example Application"
     
     <!--codeinclude-->
-    [Custom Application with FastAPI](./../examples_from_docs/fastapi_app_minimal.py)
+    [Custom Application with FastAPI](./../../examples_from_docs/fastapi_app_minimal.py)
     <!--/codeinclude-->
 
 
@@ -64,11 +64,11 @@ HTTP Requests
 The important url is `https://<this>-<is>-<redacted>.ngrok-free.dev`, this will be accessible throught the web. The url must be registered in the endpoint section of the App we have created
 
 
-![alt text](./images/create_app_endpoints.png){ height=100 } 
+![alt text](./../images/create_app_endpoints.png){ height=100 } 
 
 Additionally to the url, we must give a name and a description to the endpoint and decide to what event the app is subscribing to
 
-![alt text](./images/create_app_endpoints_popup.png){ height=100 } 
+![alt text](./../images/create_app_endpoints_popup.png){ height=100 } 
 
 Note that we have to append `/webhook` to the url and that for custom chat applications `unique.chat.external-module.chose` is required. 
 

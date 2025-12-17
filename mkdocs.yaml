@@ -15,6 +15,7 @@ theme:
     - content.action.edit
     - content.code.copy
     - content.code.select
+    - navigation.indexes
   font:
     text: Roboto
   icon:
@@ -39,6 +40,7 @@ theme:
 
 nav:
   - Home: 'index.md'
+  - Implementation Guidelines: 'usecase_realization_guidelines.md'
   - Unique SDK: '!include ./unique_sdk/mkdocs.yaml'
   - Unique Toolkit: '!include ./unique_toolkit/mkdocs.yaml'
   - Tutorials: '!include ./tutorials/mkdocs.yaml'

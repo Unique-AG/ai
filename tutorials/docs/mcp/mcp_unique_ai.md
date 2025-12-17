@@ -30,7 +30,7 @@ As a Space Administrator, you have control over MCP tools in your space:
 2. Go to **Sources & Tools**
 3. Available MCP connectors are listed under the **MCP Tools** subsection
 
-![MCP Tools section in Sources & Tools](images/mcp-tool-selection.png)
+![MCP Tools section in Sources & Tools](../images/mcp-tool-selection.png)
 
 ### Enabling an MCP Connector
 
@@ -65,7 +65,7 @@ You have two options:
 - Toggle the **Enable** slider to ON to enable all tools
 - Disable specific tools that you don't want available in your space by toggling them OFF individually
 
-![List of tools from the connector configuration](images/mcp-tool-selection.png)
+![List of tools from the connector configuration](../images/mcp-tool-selection.png)
 
 #### Step 5: Save Configuration
 

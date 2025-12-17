@@ -43,6 +43,6 @@ for event in get_event_generator(unique_settings=settings, event_type=ChatEvent)
 ??? example "Full Examples (Click to expand)"
     
     <!--codeinclude-->
-    [Full SSE Setup](../examples_from_docs/sse_setup_with_services.py)
+    [Full SSE Setup](./../../examples_from_docs/sse_setup_with_services.py)
     <!--/codeinclude-->
 
