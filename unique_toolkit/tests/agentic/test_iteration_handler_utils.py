@@ -77,9 +77,7 @@ def base_kwargs(
     mock_language_model: LanguageModelInfo,
 ) -> _LoopIterationRunnerKwargs:
     """Provide base kwargs for iteration handlers."""
-    messages = LanguageModelMessages(
-        root=[LanguageModelUserMessage(content="Hello")]
-    )
+    messages = LanguageModelMessages(root=[LanguageModelUserMessage(content="Hello")])
     return _LoopIterationRunnerKwargs(
         iteration_index=0,
         streaming_handler=mock_streaming_handler,
@@ -245,12 +243,8 @@ class TestRunForcedToolsIteration:
         Why this matters: Multiple forced tools should produce combined result.
         """
         # Arrange
-        tool_call_1 = LanguageModelFunction(
-            id="call_1", name="Tool1", arguments={}
-        )
-        tool_call_2 = LanguageModelFunction(
-            id="call_2", name="Tool2", arguments={}
-        )
+        tool_call_1 = LanguageModelFunction(id="call_1", name="Tool1", arguments={})
+        tool_call_2 = LanguageModelFunction(id="call_2", name="Tool2", arguments={})
 
         mock_stream.side_effect = [
             create_stream_response(tool_calls=[tool_call_1]),
@@ -496,7 +490,9 @@ class TestRunForcedToolsIteration:
 
         # Assert
         call_kwargs = mock_stream.call_args.kwargs
-        assert call_kwargs["loop_runner_kwargs"].get("start_text") == "Modified start text"
+        assert (
+            call_kwargs["loop_runner_kwargs"].get("start_text") == "Modified start text"
+        )
 
     @pytest.mark.ai
     @patch(

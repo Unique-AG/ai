@@ -142,7 +142,9 @@ class TestIsQwenModel:
         Why this matters: Non-Qwen models should not get Qwen-specific handling.
         """
         # Arrange
-        gpt_model = LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_4o_2024_0513)
+        gpt_model = LanguageModelInfo.from_name(
+            LanguageModelName.AZURE_GPT_4o_2024_0513
+        )
 
         # Act & Assert
         assert is_qwen_model(model=gpt_model) is False
@@ -339,7 +341,10 @@ class TestQwenLoopIterationRunnerInit:
         )
 
         # Assert
-        assert runner._qwen_forced_tool_call_instruction == "Custom instruction {TOOL_NAME}"
+        assert (
+            runner._qwen_forced_tool_call_instruction
+            == "Custom instruction {TOOL_NAME}"
+        )
         assert runner._qwen_last_iteration_instruction == "Custom last instruction"
         assert runner._max_loop_iterations == 10
         assert runner._chat_service == mock_chat_service
@@ -362,7 +367,10 @@ class TestQwenLoopIterationRunnerInit:
 
         # Assert
         assert "MUST call the tool" in runner._qwen_forced_tool_call_instruction
-        assert "maximum number of loop iteration" in runner._qwen_last_iteration_instruction
+        assert (
+            "maximum number of loop iteration"
+            in runner._qwen_last_iteration_instruction
+        )
 
 
 # Tests for QwenLoopIterationRunner routing
