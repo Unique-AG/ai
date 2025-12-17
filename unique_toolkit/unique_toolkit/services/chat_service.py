@@ -2037,13 +2037,11 @@ class ChatService(ChatServiceDeprecated):
         )
 
     @overload
-    async def find_message_memory_async(
-        self, *, key: str, message_id: str | None = None
-    ) -> ShortTermMemory: ...
+    async def find_message_memory_async(self, *, key: str) -> ShortTermMemory: ...
 
     @overload
     async def find_message_memory_async(
-        self, *, key: str, message_id: str | None = None
+        self, *, key: str, message_id: str
     ) -> ShortTermMemory: ...
 
     async def find_message_memory_async(
