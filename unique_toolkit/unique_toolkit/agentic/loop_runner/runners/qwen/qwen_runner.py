@@ -59,7 +59,7 @@ class QwenLoopIterationRunner(LoopIterationRunner):
     ) -> LanguageModelStreamResponse:
         # For Qwen models, append tool call instruction to the last user message. These models ignore the parameter tool_choice.
         # As the message has to be modified for each tool call instruction, the function from the basic runner cant be used.
-        original_messages = kwargs.get("messages").model_copy(deep=True)
+        original_messages = kwargs["messages"].model_copy(deep=True)
 
         def _prepare(
             func_name: str | None,
@@ -108,7 +108,7 @@ class QwenLoopIterationRunner(LoopIterationRunner):
         self, response: LanguageModelStreamResponse
     ) -> LanguageModelStreamResponse:
         # Check if content of response is </tool_call>
-        if "</tool_call>" == response.message.text:
+        if "</tool_call>" == response.message.text.strip():
             _LOGGER.warning(
                 "Response contains only <tool_call>. This is not allowed. Returning empty response."
             )
