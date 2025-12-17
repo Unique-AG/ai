@@ -14,37 +14,32 @@ from unique_toolkit.agentic.loop_runner.base import (
 )
 from unique_toolkit.agentic.loop_runner.middleware.qwen_runner.helpers import (
     append_qwen_forced_tool_call_instruction,
-    append_qwen_no_tool_call_instruction,
+    append_qwen_last_iteration_instruction,
 )
 from unique_toolkit.chat.service import ChatService, LanguageModelStreamResponse
 
 _LOGGER = logging.getLogger(__name__)
 
-QWEN_FORCED_TOOL_CALL_PROMPT_INSTRUCTION = (
+QWEN_FORCED_TOOL_CALL_INSTRUCTION = (
     "**Tool Call Instruction:** \nYou MUST call the tool {TOOL_NAME}. "
     "You must start the response with <tool_call>. "
     "Do NOT provide natural language explanations, summaries, or any text outside the <tool_call> block."
 )
 
-QWEN_LAST_ITERATION_PROMPT_INSTRUCTION = "**Final Response Generation:** \nYou can NOT call any tool in this iteration. Return a final response instead. You should never output <tool_call> in your answer. Strictly follow this instruction."
+QWEN_LAST_ITERATION_INSTRUCTION = "The maximum number of loop iteration have been reached. Not further tool calls are allowed. Based on the found information, an answer should be generated"
 
 
 class QwenRunnerMiddleware(LoopIterationRunner):
     def __init__(
         self,
         *,
-        qwen_forced_tool_call_prompt_instruction: str,
-        qwen_last_iteration_prompt_instruction: str,
+        qwen_forced_tool_call_instruction: str,
+        qwen_last_iteration_instruction: str,
         max_loop_iterations: int,
         chat_service: ChatService,
     ) -> None:
-        self._qwen_forced_tool_call_prompt_instruction = (
-            qwen_forced_tool_call_prompt_instruction
-        )
-        self._qwen_last_iteration_prompt_instruction = (
-            qwen_last_iteration_prompt_instruction
-        )
-
+        self._qwen_forced_tool_call_instruction = qwen_forced_tool_call_instruction
+        self._qwen_last_iteration_instruction = qwen_last_iteration_instruction
         self._max_loop_iterations = max_loop_iterations
         self.chat_service = chat_service
 
@@ -78,7 +73,7 @@ class QwenRunnerMiddleware(LoopIterationRunner):
 
         for opt in tool_choices:
             func_name = opt.get("function", {}).get("name")
-            prompt_instruction = self._qwen_forced_tool_call_prompt_instruction.format(
+            prompt_instruction = self._qwen_forced_tool_call_instruction.format(
                 TOOL_NAME=func_name
             )
             kwargs["messages"] = append_qwen_forced_tool_call_instruction(
@@ -108,14 +103,13 @@ class QwenRunnerMiddleware(LoopIterationRunner):
     async def _qwen_handle_last_iteration(
         self, **kwargs: Unpack[_LoopIterationRunnerKwargs]
     ) -> LanguageModelStreamResponse:
-        # For Qwen models, append final response instruction to the last user message when reaching the last iteration.
-        # This is to avoid creating an output in the form of a tool call
+        # For Qwen models, append an assistant message with instructions to not call any tool in this iteration.
         _LOGGER.info(
-            "Reached last iteration, removing tools. Appending instruction to not call any tool in this iteration."
+            "Reached last iteration, removing tools. Appending assistant message with instructions to not call any tool in this iteration."
         )
-        kwargs["messages"] = append_qwen_no_tool_call_instruction(
+        kwargs["messages"] = append_qwen_last_iteration_instruction(
             messages=kwargs["messages"],
-            no_tool_call_instruction=self._qwen_last_iteration_prompt_instruction,
+            no_tool_call_instruction=self._qwen_last_iteration_instruction,
         )
 
         response = await handle_last_iteration(

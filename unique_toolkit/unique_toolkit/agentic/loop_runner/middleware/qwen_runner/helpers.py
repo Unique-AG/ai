@@ -34,7 +34,7 @@ def append_qwen_forced_tool_call_instruction(
     return LanguageModelMessages(root=messages_list)
 
 
-def append_qwen_no_tool_call_instruction(
+def append_qwen_last_iteration_instruction(
     *,
     messages: LanguageModelMessages,
     no_tool_call_instruction: str,

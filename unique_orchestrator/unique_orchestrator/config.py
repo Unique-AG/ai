@@ -23,8 +23,8 @@ from unique_toolkit.agentic.history_manager.history_manager import (
     UploadedContentConfig,
 )
 from unique_toolkit.agentic.loop_runner import (
-    QWEN_FORCED_TOOL_CALL_PROMPT_INSTRUCTION,
-    QWEN_LAST_ITERATION_PROMPT_INSTRUCTION,
+    QWEN_FORCED_TOOL_CALL_INSTRUCTION,
+    QWEN_LAST_ITERATION_INSTRUCTION,
     PlanningConfig,
 )
 from unique_toolkit.agentic.responses_api import (
@@ -145,13 +145,13 @@ class LoopConfiguration(BaseModel):
         Annotated[PlanningConfig, Field(title="Active")] | DeactivatedNone
     ) = Field(default=None, description="Planning configuration.")
 
-    qwen_forced_tool_call_prompt_instruction: str = Field(
-        default=QWEN_FORCED_TOOL_CALL_PROMPT_INSTRUCTION,
+    qwen_forced_tool_call_instruction: str = Field(
+        default=QWEN_FORCED_TOOL_CALL_INSTRUCTION,
         description="Qwen forced tool call prompt instruction.",
     )
 
-    qwen_last_iteration_prompt_instruction: str = Field(
-        default=QWEN_LAST_ITERATION_PROMPT_INSTRUCTION,
+    qwen_last_iteration_instruction: str = Field(
+        default=QWEN_LAST_ITERATION_INSTRUCTION,
         description="Qwen last iteration prompt instruction.",
     )
 
