@@ -4,7 +4,7 @@ from typing import Unpack, override
 from pydantic import BaseModel
 
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
-from unique_toolkit.agentic.loop_runner import (
+from unique_toolkit.agentic.loop_runner._iteration_handler_utils import (
     handle_forced_tools_iteration,
     handle_last_iteration,
     handle_normal_iteration,

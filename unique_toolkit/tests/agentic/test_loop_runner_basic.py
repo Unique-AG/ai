@@ -122,7 +122,7 @@ class TestBasicLoopIterationRunnerInit:
 class TestBasicLoopIterationRunnerCall:
     @pytest.mark.ai
     @patch(
-        "unique_toolkit.agentic.loop_runner.runners.basic.stream_response",
+        "unique_toolkit.agentic.loop_runner._iteration_handler_utils.stream_response",
         new_callable=AsyncMock,
     )
     async def test_call__routes_to_normal_iteration__when_no_tool_choices(
@@ -156,7 +156,7 @@ class TestBasicLoopIterationRunnerCall:
 
     @pytest.mark.ai
     @patch(
-        "unique_toolkit.agentic.loop_runner.runners.basic.stream_response",
+        "unique_toolkit.agentic.loop_runner._iteration_handler_utils.stream_response",
         new_callable=AsyncMock,
     )
     async def test_call__routes_to_last_iteration__when_at_max_iterations(
@@ -193,7 +193,7 @@ class TestBasicLoopIterationRunnerCall:
 
     @pytest.mark.ai
     @patch(
-        "unique_toolkit.agentic.loop_runner.runners.basic.stream_response",
+        "unique_toolkit.agentic.loop_runner._iteration_handler_utils.stream_response",
         new_callable=AsyncMock,
     )
     async def test_call__routes_to_forced_tools__when_tool_choices_on_first_iteration(
@@ -235,7 +235,7 @@ class TestBasicLoopIterationRunnerCall:
 
     @pytest.mark.ai
     @patch(
-        "unique_toolkit.agentic.loop_runner.runners.basic.stream_response",
+        "unique_toolkit.agentic.loop_runner._iteration_handler_utils.stream_response",
         new_callable=AsyncMock,
     )
     async def test_call__routes_to_normal__when_tool_choices_not_first_iteration(
@@ -276,7 +276,7 @@ class TestBasicLoopIterationRunnerCall:
 class TestForcedToolsIteration:
     @pytest.mark.ai
     @patch(
-        "unique_toolkit.agentic.loop_runner.runners.basic.stream_response",
+        "unique_toolkit.agentic.loop_runner._iteration_handler_utils.stream_response",
         new_callable=AsyncMock,
     )
     async def test_forced_tools__merges_tool_calls__from_multiple_responses(
@@ -331,7 +331,7 @@ class TestForcedToolsIteration:
 
     @pytest.mark.ai
     @patch(
-        "unique_toolkit.agentic.loop_runner.runners.basic.stream_response",
+        "unique_toolkit.agentic.loop_runner._iteration_handler_utils.stream_response",
         new_callable=AsyncMock,
     )
     async def test_forced_tools__merges_references__from_multiple_responses(
@@ -395,7 +395,7 @@ class TestForcedToolsIteration:
 
     @pytest.mark.ai
     @patch(
-        "unique_toolkit.agentic.loop_runner.runners.basic.stream_response",
+        "unique_toolkit.agentic.loop_runner._iteration_handler_utils.stream_response",
         new_callable=AsyncMock,
     )
     async def test_forced_tools__limits_tools_to_matching_tool(
@@ -438,7 +438,7 @@ class TestForcedToolsIteration:
 
     @pytest.mark.ai
     @patch(
-        "unique_toolkit.agentic.loop_runner.runners.basic.stream_response",
+        "unique_toolkit.agentic.loop_runner._iteration_handler_utils.stream_response",
         new_callable=AsyncMock,
     )
     async def test_forced_tools__handles_missing_tool(
@@ -479,7 +479,7 @@ class TestForcedToolsIteration:
 
     @pytest.mark.ai
     @patch(
-        "unique_toolkit.agentic.loop_runner.runners.basic.stream_response",
+        "unique_toolkit.agentic.loop_runner._iteration_handler_utils.stream_response",
         new_callable=AsyncMock,
     )
     async def test_forced_tools__returns_none_tool_calls__when_no_tools_called(
