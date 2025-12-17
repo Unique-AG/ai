@@ -269,6 +269,11 @@ class LanguageModelInfo(BaseModel):
 
     @classmethod
     def from_name(cls, model_name: LanguageModelName | str) -> Self:
+        if isinstance(model_name, str) and model_name in [
+            name.value for name in LanguageModelName
+        ]:
+            model_name = LanguageModelName(model_name)
+
         # Check environment variable first - env definitions take precedence
         env_model_infos = cls._load_from_env()
         model_name_str = (
