@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Sequence
+from typing import Any, Sequence, overload
 
 import unique_sdk
 from openai.types.chat import ChatCompletionToolChoiceOptionParam
@@ -13,6 +13,7 @@ from openai.types.responses import (
     response_create_params,
 )
 from openai.types.shared_params import Metadata, Reasoning
+from pydantic import BaseModel
 from typing_extensions import deprecated
 
 from unique_toolkit._common.utils.files import is_file_content, is_image_content
@@ -93,6 +94,13 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelToolDescription,
     ResponsesLanguageModelStreamResponse,
 )
+from unique_toolkit.short_term_memory.functions import (
+    create_memory,
+    create_memory_async,
+    find_latest_memory,
+    find_latest_memory_async,
+)
+from unique_toolkit.short_term_memory.schemas import ShortTermMemory
 
 logger = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
 
@@ -1654,3 +1662,403 @@ class ChatService(ChatServiceDeprecated):
             if is_image_content(filename=c.key):
                 images.append(c)
         return images, files
+
+    # Short Term Memories
+    ############################################################################
+
+    def create_chat_memory_by_id(
+        self, *, chat_id: str, key: str, value: str | dict | BaseModel
+    ) -> ShortTermMemory:
+        """Creates a short-term memory for a specific chat synchronously.
+
+        Args:
+            chat_id (str): The chat ID
+            key (str): The memory key
+            value (str | dict | BaseModel): The memory value
+
+        Returns:
+            ShortTermMemory: The created short-term memory
+
+        Raises:
+            Exception: If the creation fails
+        """
+        # Convert BaseModel to JSON string if needed
+        if isinstance(value, BaseModel):
+            value = value.model_dump_json()
+
+        return create_memory(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            key=key,
+            value=value,
+            chat_id=chat_id,
+        )
+
+    async def create_chat_memory_by_id_async(
+        self, *, chat_id: str, key: str, value: str | dict | BaseModel
+    ) -> ShortTermMemory:
+        """Creates a short-term memory for a specific chat asynchronously.
+
+        Args:
+            chat_id (str): The chat ID
+            key (str): The memory key
+            value (str | dict | BaseModel): The memory value
+
+        Returns:
+            ShortTermMemory: The created short-term memory
+
+        Raises:
+            Exception: If the creation fails
+        """
+        # Convert BaseModel to JSON string if needed
+        if isinstance(value, BaseModel):
+            value = value.model_dump_json()
+
+        return await create_memory_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            key=key,
+            value=value,
+            chat_id=chat_id,
+        )
+
+    def create_message_memory_by_id(
+        self, *, message_id: str, key: str, value: str | dict | BaseModel
+    ) -> ShortTermMemory:
+        """Creates a short-term memory for a specific message synchronously.
+
+        Args:
+            message_id (str): The message ID
+            key (str): The memory key
+            value (str | dict | BaseModel): The memory value
+
+        Returns:
+            ShortTermMemory: The created short-term memory
+
+        Raises:
+            Exception: If the creation fails
+        """
+        # Convert BaseModel to JSON string if needed
+        if isinstance(value, BaseModel):
+            value = value.model_dump_json()
+
+        return create_memory(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            key=key,
+            value=value,
+            message_id=message_id,
+        )
+
+    async def create_message_memory_by_id_async(
+        self, *, message_id: str, key: str, value: str | dict | BaseModel
+    ) -> ShortTermMemory:
+        """Creates a short-term memory for a specific message asynchronously.
+
+        Args:
+            message_id (str): The message ID
+            key (str): The memory key
+            value (str | dict | BaseModel): The memory value
+
+        Returns:
+            ShortTermMemory: The created short-term memory
+
+        Raises:
+            Exception: If the creation fails
+        """
+        # Convert BaseModel to JSON string if needed
+        if isinstance(value, BaseModel):
+            value = value.model_dump_json()
+
+        return await create_memory_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            key=key,
+            value=value,
+            message_id=message_id,
+        )
+
+    def find_chat_memory_by_id(self, *, chat_id: str, key: str) -> ShortTermMemory:
+        """Finds the latest short-term memory for a specific chat synchronously.
+
+        Args:
+            chat_id (str): The chat ID
+            key (str): The memory key
+
+        Returns:
+            ShortTermMemory: The latest short-term memory
+
+        Raises:
+            Exception: If the retrieval fails
+        """
+        return find_latest_memory(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            key=key,
+            chat_id=chat_id,
+        )
+
+    async def find_chat_memory_by_id_async(
+        self, *, chat_id: str, key: str
+    ) -> ShortTermMemory:
+        """Finds the latest short-term memory for a specific chat asynchronously.
+
+        Args:
+            chat_id (str): The chat ID
+            key (str): The memory key
+
+        Returns:
+            ShortTermMemory: The latest short-term memory
+
+        Raises:
+            Exception: If the retrieval fails
+        """
+        return await find_latest_memory_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            key=key,
+            chat_id=chat_id,
+        )
+
+    def find_message_memory_by_id(
+        self, *, message_id: str, key: str
+    ) -> ShortTermMemory:
+        """Finds the latest short-term memory for a specific message synchronously.
+
+        Args:
+            message_id (str): The message ID
+            key (str): The memory key
+
+        Returns:
+            ShortTermMemory: The latest short-term memory
+
+        Raises:
+            Exception: If the retrieval fails
+        """
+        return find_latest_memory(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            key=key,
+            message_id=message_id,
+        )
+
+    async def find_message_memory_by_id_async(
+        self, *, message_id: str, key: str
+    ) -> ShortTermMemory:
+        """Finds the latest short-term memory for a specific message asynchronously.
+
+        Args:
+            message_id (str): The message ID
+            key (str): The memory key
+
+        Returns:
+            ShortTermMemory: The latest short-term memory
+
+        Raises:
+            Exception: If the retrieval fails
+        """
+        return await find_latest_memory_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            key=key,
+            message_id=message_id,
+        )
+
+    # Convenience methods using current chat/message IDs
+    ############################################################################
+
+    def create_chat_memory(
+        self, *, key: str, value: str | dict | BaseModel
+    ) -> ShortTermMemory:
+        """Creates a short-term memory for the current chat synchronously.
+
+        Args:
+            key (str): The memory key
+            value (str | dict | BaseModel): The memory value
+
+        Returns:
+            ShortTermMemory: The created short-term memory
+
+        Raises:
+            Exception: If the creation fails
+        """
+        return self.create_chat_memory_by_id(
+            chat_id=self._chat_id,
+            key=key,
+            value=value,
+        )
+
+    async def create_chat_memory_async(
+        self, *, key: str, value: str | dict | BaseModel
+    ) -> ShortTermMemory:
+        """Creates a short-term memory for the current chat asynchronously.
+
+        Args:
+            key (str): The memory key
+            value (str | dict | BaseModel): The memory value
+
+        Returns:
+            ShortTermMemory: The created short-term memory
+
+        Raises:
+            Exception: If the creation fails
+        """
+        return await self.create_chat_memory_by_id_async(
+            chat_id=self._chat_id,
+            key=key,
+            value=value,
+        )
+
+    @overload
+    def create_message_memory(
+        self,
+        *,
+        key: str,
+        value: str | dict | BaseModel,
+    ) -> ShortTermMemory: ...
+
+    @overload
+    def create_message_memory(
+        self, *, key: str, value: str | dict | BaseModel, message_id: str
+    ) -> ShortTermMemory: ...
+
+    def create_message_memory(
+        self, *, key: str, value: str | dict | BaseModel, message_id: str | None = None
+    ) -> ShortTermMemory:
+        """Creates a short-term memory for the current assistant message synchronously.
+
+        Args:
+            key (str): The memory key
+            value (str | dict | BaseModel): The memory value
+
+        Returns:
+            ShortTermMemory: The created short-term memory
+
+        Raises:
+            Exception: If the creation fails
+        """
+        return self.create_message_memory_by_id(
+            key=key,
+            value=value,
+            message_id=message_id or self._assistant_message_id,
+        )
+
+    @overload
+    async def create_message_memory_async(
+        self,
+        *,
+        key: str,
+        value: str | dict | BaseModel,
+    ) -> ShortTermMemory: ...
+
+    @overload
+    async def create_message_memory_async(
+        self, *, key: str, value: str | dict | BaseModel, message_id: str
+    ) -> ShortTermMemory: ...
+
+    async def create_message_memory_async(
+        self, *, key: str, value: str | dict | BaseModel, message_id: str | None = None
+    ) -> ShortTermMemory:
+        """Creates a short-term memory for the current assistant message asynchronously.
+
+        Args:
+            key (str): The memory key
+            value (str | dict | BaseModel): The memory value
+
+        Returns:
+            ShortTermMemory: The created short-term memory
+
+        Raises:
+            Exception: If the creation fails
+        """
+        return await self.create_message_memory_by_id_async(
+            message_id=message_id or self._assistant_message_id,
+            key=key,
+            value=value,
+        )
+
+    def find_chat_memory(self, *, key: str) -> ShortTermMemory:
+        """Finds the latest short-term memory for the current chat synchronously.
+
+        Args:
+            key (str): The memory key
+
+        Returns:
+            ShortTermMemory: The latest short-term memory
+
+        Raises:
+            Exception: If the retrieval fails
+        """
+        return self.find_chat_memory_by_id(
+            chat_id=self._chat_id,
+            key=key,
+        )
+
+    async def find_chat_memory_async(self, *, key: str) -> ShortTermMemory:
+        """Finds the latest short-term memory for the current chat asynchronously.
+
+        Args:
+            key (str): The memory key
+
+        Returns:
+            ShortTermMemory: The latest short-term memory
+
+        Raises:
+            Exception: If the retrieval fails
+        """
+        return await self.find_chat_memory_by_id_async(
+            chat_id=self._chat_id,
+            key=key,
+        )
+
+    @overload
+    def find_message_memory(self, *, key: str) -> ShortTermMemory: ...
+
+    @overload
+    def find_message_memory(self, *, key: str, message_id: str) -> ShortTermMemory: ...
+
+    def find_message_memory(
+        self, *, key: str, message_id: str | None = None
+    ) -> ShortTermMemory:
+        """Finds the latest short-term memory for the current assistant message synchronously.
+
+        Args:
+            key (str): The memory key
+
+        Returns:
+            ShortTermMemory: The latest short-term memory
+
+        Raises:
+            Exception: If the retrieval fails
+        """
+        return self.find_message_memory_by_id(
+            message_id=message_id or self._assistant_message_id,
+            key=key,
+        )
+
+    @overload
+    async def find_message_memory_async(self, *, key: str) -> ShortTermMemory: ...
+
+    @overload
+    async def find_message_memory_async(
+        self, *, key: str, message_id: str
+    ) -> ShortTermMemory: ...
+
+    async def find_message_memory_async(
+        self, *, key: str, message_id: str | None = None
+    ) -> ShortTermMemory:
+        """Finds the latest short-term memory for the current assistant message asynchronously.
+
+        Args:
+            key (str): The memory key
+
+        Returns:
+            ShortTermMemory: The latest short-term memory
+
+        Raises:
+            Exception: If the retrieval fails
+        """
+        return await self.find_message_memory_by_id_async(
+            message_id=message_id or self._assistant_message_id,
+            key=key,
+        )

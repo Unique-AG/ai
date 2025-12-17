@@ -120,11 +120,15 @@ class McpServer(BaseModel):
 class ChatEventUserMessage(BaseModel):
     model_config = model_config
 
-    id: str
-    text: str
-    original_text: str
-    created_at: str
-    language: str
+    id: str = Field(
+        description="The id of the user message. On an event this corresponds to the user message that created the event."
+    )
+    text: str = Field(description="The text of the user message.")
+    original_text: str = Field(description="The original text of the user message.")
+    created_at: str = Field(
+        description="The creation date and time of the user message."
+    )
+    language: str = Field(description="The language of the user message.")
 
 
 @deprecated(
@@ -140,8 +144,12 @@ class EventUserMessage(ChatEventUserMessage):
 class ChatEventAssistantMessage(BaseModel):
     model_config = model_config
 
-    id: str
-    created_at: str
+    id: str = Field(
+        description="The id of the assistant message. On an event this corresponds to the assistant message that will be returned by the process handling the event."
+    )
+    created_at: str = Field(
+        description="The creation date and time of the assistant message."
+    )
 
 
 @deprecated(
