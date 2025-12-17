@@ -5,6 +5,7 @@ import unique_sdk
 from jinja2 import Template
 from pydantic import BaseModel
 
+from unique_toolkit._common.execution import failsafe
 from unique_toolkit.agentic.evaluation.evaluation_manager import Evaluation
 from unique_toolkit.agentic.evaluation.schemas import (
     EvaluationAssessmentMessage,
@@ -24,7 +25,6 @@ from unique_toolkit.agentic.tools.a2a.response_watcher import (
     SubAgentResponse,
     SubAgentResponseWatcher,
 )
-from unique_toolkit.agentic.tools.utils import failsafe
 from unique_toolkit.chat.schemas import (
     ChatMessageAssessmentLabel,
     ChatMessageAssessmentStatus,

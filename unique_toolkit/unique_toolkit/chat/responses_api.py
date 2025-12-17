@@ -14,7 +14,7 @@ from openai.types.responses import (
 from openai.types.shared_params import Metadata, Reasoning
 from pydantic import BaseModel, TypeAdapter, ValidationError
 
-from unique_toolkit.agentic.tools.utils.execution.execution import (
+from unique_toolkit._common.execution import (
     failsafe,
 )
 from unique_toolkit.content.schemas import ContentChunk

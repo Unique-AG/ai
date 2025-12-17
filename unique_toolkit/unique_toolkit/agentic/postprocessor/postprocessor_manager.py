@@ -2,7 +2,7 @@ import asyncio
 from abc import ABC
 from logging import Logger
 
-from unique_toolkit.agentic.tools.utils.execution.execution import SafeTaskExecutor
+from unique_toolkit._common.execution import SafeTaskExecutor
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.language_model.schemas import (
     LanguageModelStreamResponse,

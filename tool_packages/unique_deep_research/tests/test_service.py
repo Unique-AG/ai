@@ -1795,6 +1795,7 @@ def test_deep_research_tool__convert_annotations_to_references__skips_non_url_ci
                 assert result[0].name == "URL Article"
                 assert result[0].url == "https://example.com/article"
 
+
 @pytest.mark.ai
 @pytest.mark.asyncio
 async def test_deep_research_tool__update_tool_debug_info__calls_chat_service__with_correct_debug_info() -> (
