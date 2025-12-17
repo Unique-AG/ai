@@ -23,8 +23,7 @@ from unique_toolkit.agentic.history_manager.history_manager import (
     UploadedContentConfig,
 )
 from unique_toolkit.agentic.loop_runner import (
-    QWEN_FORCED_TOOL_CALL_INSTRUCTION,
-    QWEN_LAST_ITERATION_INSTRUCTION,
+    QWEN_FORCED_TOOL_CALL_PROMPT_INSTRUCTION,
     PlanningConfig,
 )
 from unique_toolkit.agentic.responses_api import (
@@ -133,30 +132,6 @@ UniqueAISpaceConfig.model_rebuild()
 LIMIT_MAX_TOOL_CALLS_PER_ITERATION = 50
 
 
-class QwenConfig(BaseModel):
-    """Qwen specific configuration."""
-
-    model_config = get_configuration_dict()
-
-    forced_tool_call_instruction: str = Field(
-        default=QWEN_FORCED_TOOL_CALL_INSTRUCTION,
-        description="This instruction is appended to the user message for every forced tool call.",
-    )
-
-    last_iteration_instruction: str = Field(
-        default=QWEN_LAST_ITERATION_INSTRUCTION,
-        description="An assistant message with this instruction is generated once the maximum number of loop iterations is reached.",
-    )
-
-
-class ModelSpecificConfig(BaseModel):
-    """Model-specific loop configurations."""
-
-    model_config = get_configuration_dict()
-
-    qwen: QwenConfig = QwenConfig()
-
-
 class LoopConfiguration(BaseModel):
     model_config = get_configuration_dict()
 
@@ -169,7 +144,10 @@ class LoopConfiguration(BaseModel):
         Annotated[PlanningConfig, Field(title="Active")] | DeactivatedNone
     ) = Field(default=None, description="Planning configuration.")
 
-    model_specific: ModelSpecificConfig = ModelSpecificConfig()
+    qwen_forced_tool_call_prompt_instruction: str = Field(
+        default=QWEN_FORCED_TOOL_CALL_PROMPT_INSTRUCTION,
+        description="Qwen forced tool call prompt instruction.",
+    )
 
 
 class EvaluationConfig(BaseModel):
