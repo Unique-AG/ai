@@ -19,6 +19,7 @@ REPORT_TEMPLATE: str = load_template(_PROMPTS_DIR, "report_template.j2")
 class DocxRendererType(StrEnum):
     DOCX = "docx"
     CHAT = "chat"
+    STREAM = "stream"
 
 
 class ReportRendererConfig(BaseModel):

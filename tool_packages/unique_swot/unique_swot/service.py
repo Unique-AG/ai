@@ -44,6 +44,7 @@ from unique_swot.services.source_management.iteration.agent import (
 )
 from unique_swot.services.source_management.registry import ContentChunkRegistry
 from unique_swot.services.source_management.selection.agent import SourceSelectionAgent
+from unique_swot.services.summarization.agent import SummarizationAgent
 
 _LOGGER = getLogger(__name__)
 
@@ -193,26 +194,41 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
 
             citation_manager = self._get_citation_manager(content_chunk_registry)
 
-            report_delivery_service = self._get_report_delivery_service(
+            report_handler = self._get_report_delivery_service(
                 citation_manager=citation_manager,
                 report_renderer_config=self.config.report_renderer_config,
-                num_existing_references=step_notifier.get_total_number_of_references(),
             )
-            # Deliver the report to the chat
-            markdown_report = report_delivery_service.deliver_report(
-                session_config=session_config.swot_analysis,
+
+            summarization_agent = self._get_summarization_agent()
+
+            (
+                start_text,
+                summarization_result,
+                num_references,
+            ) = await summarization_agent.summarize(
+                company_name=company_name,
                 result=result,
+                citation_manager=citation_manager,
+                report_handler=report_handler,
+            )
+
+            report_handler.deliver_report(
+                start_text=start_text,
+                executive_summary=summarization_result,
+                result=result,
+                session_config=session_config.swot_analysis,
                 docx_template_fields={
                     "title": f"{company_name} SWOT Analysis Report",
                     "date": datetime.now().strftime("%Y-%m-%d"),
                 },
                 ingest_docx=self.config.report_renderer_config.ingest_docx_report,
+                num_existing_references=num_references,
             )
 
             return ToolCallResponse(
                 id=tool_call.id,  # type: ignore
                 name=self.name,
-                content=markdown_report,
+                content=summarization_result,
                 content_chunks=citation_manager.get_referenced_content_chunks(),
             )
 
@@ -310,23 +326,6 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
             source_iteration_config=self.config.source_management_config.source_iteration_config,
         )
 
-    # def _get_extractor(self) -> ExtractorAgent:
-    #     return ExtractorAgent(
-    #         llm_service=self._language_model_service,
-    #         llm=self.config.language_model,
-    #         extraction_config=self.config.extraction_config,
-    #     )
-
-    # def _get_report_manager(
-    #     self, memory_service: SwotMemoryService
-    # ) -> ProgressiveReportingAgent:
-    #     return ProgressiveReportingAgent(
-    #         memory_service=memory_service,
-    #         llm_service=self._language_model_service,
-    #         llm=self.config.report_generation_config.language_model,
-    #         reporting_config=self.config.report_generation_config.reporting_config,
-    #     )
-
     def _get_content_chunk_registry(
         self, memory_service: SwotMemoryService
     ) -> ContentChunkRegistry:
@@ -345,7 +344,6 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
         self,
         citation_manager: CitationManager,
         report_renderer_config: ReportRendererConfig,
-        num_existing_references: int,
     ) -> ReportDeliveryService:
         report_docx_renderer = DocxGeneratorService(
             config=report_renderer_config.docx_renderer_config,
@@ -359,7 +357,6 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
             citation_manager=citation_manager,
             renderer_type=report_renderer_config.renderer_type,
             template_name=report_renderer_config.report_template,
-            num_existing_references=num_existing_references,
         )
 
     def _get_step_notifier(self) -> StepNotifier:
@@ -378,6 +375,14 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
             registry=SWOTReportRegistry(),
             company_name=company_name,
             executor=executor,
+            prompts_config=self.config.report_generation_config.agentic_generator_config.prompts_config,
+        )
+
+    def _get_summarization_agent(self) -> SummarizationAgent:
+        return SummarizationAgent(
+            llm=self.config.report_summarization_config.language_model,
+            chat_service=self._chat_service,
+            summarization_config=self.config.report_summarization_config,
         )
 
 

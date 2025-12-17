@@ -1,6 +1,7 @@
 import json
 from logging import getLogger
 
+from jinja2 import Template
 from unique_toolkit import LanguageModelService
 from unique_toolkit._common.validators import LMI
 
@@ -10,11 +11,11 @@ from unique_swot.services.generation.agentic.exceptions import (
     InvalidPlanException,
     SectionNotFoundException,
 )
-from unique_swot.services.generation.agentic.prompts.commands import (
-    CREATE_NEW_SECTION_SYSTEM_PROMPT,
-    CREATE_NEW_SECTION_USER_PROMPT,
-    UPDATE_EXISTING_SECTION_SYSTEM_PROMPT,
-    UPDATE_EXISTING_SECTION_USER_PROMPT,
+from unique_swot.services.generation.agentic.prompts.commands.create_new_section.config import (
+    CreateNewSectionPromptConfig,
+)
+from unique_swot.services.generation.agentic.prompts.commands.update_existing_section.config import (
+    UpdateExistingSectionPromptConfig,
 )
 from unique_swot.services.generation.context import SWOTComponent
 from unique_swot.services.generation.models.base import (
@@ -36,6 +37,7 @@ async def create_new_section(
     instruction: str,
     command: GenerationPlanCommand,
     fact_id_map: dict[str, str],
+    prompts_config: CreateNewSectionPromptConfig,
 ) -> SWOTReportComponentSection:
     ## Prepare a fact view for the prompt
     facts = {
@@ -45,11 +47,11 @@ async def create_new_section(
     }
 
     ## Prepare the prompt
-    system_prompt = CREATE_NEW_SECTION_SYSTEM_PROMPT.render(
+    system_prompt = Template(prompts_config.system_prompt).render(
         component=component,
         company_name=company_name,
     )
-    user_message = CREATE_NEW_SECTION_USER_PROMPT.render(
+    user_message = Template(prompts_config.user_prompt).render(
         facts=facts,
         instruction=instruction,
         model_name=SWOTReportComponentSection.__name__,
@@ -88,6 +90,7 @@ async def update_existing_section(
     command: GenerationPlanCommand,
     fact_id_map: dict[str, str],
     swot_report_registry: SWOTReportRegistry,
+    prompts_config: UpdateExistingSectionPromptConfig,
 ) -> SWOTReportComponentSection:
     ## Validate the command
     if command.target_section_id is None:
@@ -114,13 +117,13 @@ async def update_existing_section(
     }
 
     ## Prepare the system prompt
-    system_prompt = UPDATE_EXISTING_SECTION_SYSTEM_PROMPT.render(
+    system_prompt = Template(prompts_config.system_prompt).render(
         component=component,
         company_name=company_name,
     )
 
     ## Prepare the user message
-    user_message = UPDATE_EXISTING_SECTION_USER_PROMPT.render(
+    user_message = Template(prompts_config.user_prompt).render(
         instruction=instruction,
         facts=facts,
         section=existing_section.model_dump_json(indent=1),

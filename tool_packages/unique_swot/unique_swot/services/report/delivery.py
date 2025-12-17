@@ -4,7 +4,6 @@ from typing import Callable
 from jinja2 import Template
 from unique_toolkit import ChatService
 from unique_toolkit._common.docx_generator import DocxGeneratorService
-from unique_toolkit.content import ContentReference
 
 from unique_swot.services.citations import CitationManager
 from unique_swot.services.generation.models.base import SWOTReportComponents
@@ -13,7 +12,8 @@ from unique_swot.services.report.docx import (
     add_citation_footer,
     convert_markdown_to_docx,
 )
-from unique_swot.services.session import SessionState, SwotAnalysisSessionConfig
+from unique_swot.services.session import SwotAnalysisSessionConfig
+from unique_swot.utils import convert_content_chunk_to_reference
 
 _LOGGER = getLogger(__name__)
 
@@ -37,21 +37,36 @@ class ReportDeliveryService:
         citation_manager: CitationManager,
         renderer_type: DocxRendererType,
         template_name: str,
-        num_existing_references: int,
     ):
         self._chat_service = chat_service
         self._docx_renderer = docx_renderer
         self._citation_manager = citation_manager
         self._renderer_type = renderer_type
         self._template_name = template_name
-        self._num_existing_references = num_existing_references
+
+    def render_report(
+        self,
+        result: SWOTReportComponents,
+        citation_fn: Callable[[str], str],
+        executive_summary: str | None = None,
+    ) -> str:
+        # Render using the template
+        markdown_report = Template(self._template_name).render(
+            **result.model_dump(),
+            executive_summary=executive_summary,
+        )
+        return citation_fn(markdown_report)
 
     def deliver_report(
         self,
-        session_config: SwotAnalysisSessionConfig,
+        *,
+        start_text: str,
+        executive_summary: str,
         result: SWOTReportComponents,
+        session_config: SwotAnalysisSessionConfig,
         docx_template_fields: dict[str, str],
         ingest_docx: bool,
+        num_existing_references: int,
     ) -> str:
         """
         Delivers a SWOT analysis report to the chat.
@@ -62,23 +77,27 @@ class ReportDeliveryService:
             docx_template_fields: The fields to be used in the DOCX template
             ingest_docx: Whether to ingest the DOCX file
         """
-        markdown_report = self._convert_consolidated_reports_to_markdown(
-            result,
-            markdown_jinja_template=self._template_name,
-            processor=lambda report: self._citation_manager.add_citations_to_report(
-                report, self._renderer_type
+
+        markdown_report = self.render_report(
+            result=result,
+            citation_fn=lambda report: self._citation_manager.add_citations_to_report(
+                report, self._renderer_type.value
             ),
+            executive_summary=executive_summary,
         )
-        citations = self._citation_manager.get_citations(self._renderer_type)
+
+        citations = self._citation_manager.get_citations_for_docx()
 
         match self._renderer_type:
             case DocxRendererType.DOCX:
                 self._deliver_docx_report(
+                    start_text=start_text,
                     session_config=session_config,
                     markdown_report=markdown_report,
-                    citations=citations,
                     template_fields=docx_template_fields,
                     ingest_docx=ingest_docx,
+                    citations=citations,
+                    num_existing_references=num_existing_references,
                 )
             case DocxRendererType.CHAT:
                 self._deliver_markdown_report(
@@ -116,15 +135,17 @@ class ReportDeliveryService:
     def _deliver_docx_report(
         self,
         *,
+        start_text: str,
         markdown_report: str,
-        citations: list[str] | None,
         template_fields: dict[str, str],
         session_config: SwotAnalysisSessionConfig,
         ingest_docx: bool,
+        citations: list[str],
+        num_existing_references: int,
     ) -> None:
         """Converts markdown to DOCX and delivers it as an attachment"""
 
-        if citations is not None:
+        if citations:
             markdown_report = add_citation_footer(markdown_report, citations)
 
         # Convert markdown to DOCX
@@ -146,18 +167,15 @@ class ReportDeliveryService:
         )
 
         # Create content reference
-        content_reference = self._create_content_reference(
-            content_id=content.id,
-            message_id=self._chat_service.assistant_message_id,
-            num_existing_references=self._num_existing_references,
-            document_name=document_name,
+        content_reference = convert_content_chunk_to_reference(
+            content_or_chunk=content,
+            sequence_number=num_existing_references,
         )
-        start_text = session_config.render_session_info(state=SessionState.COMPLETED)
 
         # Modify assistant message
         self._chat_service.modify_assistant_message(
             message_id=self._chat_service.assistant_message_id,
-            content=f"{start_text}\n\n Here is the {session_config.company_listing.name} SWOT analysis report in DOCX format <sup>{self._num_existing_references}</sup>.",
+            content=f"{start_text}\n\n Here is the full Swot Analysis report for {session_config.company_listing.name} in DOCX format <sup>{num_existing_references}</sup>.",
             references=[content_reference],
         )
 
@@ -183,21 +201,4 @@ class ReportDeliveryService:
 
         _LOGGER.info(
             f"Successfully delivered markdown report for message {self._chat_service.assistant_message_id}"
-        )
-
-    @staticmethod
-    def _create_content_reference(
-        content_id: str,
-        message_id: str,
-        num_existing_references: int,
-        document_name: str,
-    ) -> ContentReference:
-        """Creates a content reference for uploaded DOCX files"""
-        return ContentReference(
-            url=f"unique//content/{content_id}",
-            source_id=content_id,
-            message_id=message_id,
-            name=document_name,
-            sequence_number=num_existing_references,
-            source="SWOT-TOOL",
         )

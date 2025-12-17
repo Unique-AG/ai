@@ -10,6 +10,7 @@ from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 from unique_swot.services.generation.config import ReportGenerationConfig
 from unique_swot.services.report import ReportRendererConfig
 from unique_swot.services.source_management.config import SourceManagementConfig
+from unique_swot.services.summarization.config import SummarizationConfig
 
 TOOL_DESCRIPTION = """
 This tool is used to perfom a SWOT analysis of a company by analyzing its strengths, weaknesses, opportunities, and threats.
@@ -17,7 +18,7 @@ The user can either generate a new SWOT analysis or modify an existing one.
 If the user simply says RUN, the tool will generate a new SWOT analysis.
 
 If the user simply says RUN, It means that he expects the tool to generate a new SWOT analysis.
-"""
+""".strip()
 
 
 class SwotAnalysisToolConfig(BaseToolConfig):
@@ -40,6 +41,10 @@ class SwotAnalysisToolConfig(BaseToolConfig):
     report_renderer_config: ReportRendererConfig = Field(
         default_factory=ReportRendererConfig,
         description="The configuration for the report renderer.",
+    )
+    report_summarization_config: SummarizationConfig = Field(
+        default_factory=SummarizationConfig,
+        description="The configuration for the summarization.",
     )
     tool_description: Annotated[
         str,

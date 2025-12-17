@@ -97,14 +97,15 @@ async def generate_structured_output(
 def convert_content_chunk_to_reference(
     *,
     content_or_chunk: Content | ContentChunk,
+    sequence_number: int | None = None,
 ) -> ContentReference:
     title = get_content_chunk_title(content_or_chunk)
 
     return ContentReference(
-        url=f"unique//content/{content_or_chunk.id}",
+        url=f"unique://content/{content_or_chunk.id}",
         source_id=content_or_chunk.id,
         name=title,
-        sequence_number=0,
+        sequence_number=sequence_number or 0,
         source="SWOT-TOOL",
     )
 

@@ -2,6 +2,7 @@ import json
 from logging import getLogger
 from typing import Any, Sequence
 
+from jinja2 import Template
 from unique_toolkit import LanguageModelService
 from unique_toolkit._common.validators import LMI
 
@@ -15,17 +16,17 @@ from unique_swot.services.generation.agentic.exceptions import (
     InvalidCommandException,
 )
 from unique_swot.services.generation.agentic.executor import AgenticPlanExecutor
+from unique_swot.services.generation.agentic.prompts.commands.config import (
+    CommandsPromptConfig,
+)
+from unique_swot.services.generation.agentic.prompts.config import AgenticPromptsConfig
 from unique_swot.services.generation.agentic.prompts.definition import (
     get_component_definition,
 )
-from unique_swot.services.generation.agentic.prompts.extraction import (
-    EXTRACTION_SYSTEM_PROMPT,
-    EXTRACTION_USER_PROMPT,
+from unique_swot.services.generation.agentic.prompts.extraction.config import (
+    ExtractionPromptConfig,
 )
-from unique_swot.services.generation.agentic.prompts.plan import (
-    PLAN_SYSTEM_PROMPT,
-    PLAN_USER_PROMPT,
-)
+from unique_swot.services.generation.agentic.prompts.plan.config import PlanPromptConfig
 from unique_swot.services.generation.context import SWOTComponent
 from unique_swot.services.generation.models.base import SWOTExtractionFactsList
 from unique_swot.services.generation.models.plan import (
@@ -50,6 +51,7 @@ async def handle_generate_operation(
     notification_title: str,
     swot_report_registry: SWOTReportRegistry,
     executor: AgenticPlanExecutor,
+    prompts_config: AgenticPromptsConfig,
 ) -> None:
     # Extract the items for the component
     extracted_facts = await _extract_facts(
@@ -60,6 +62,7 @@ async def handle_generate_operation(
         llm=llm,
         llm_service=llm_service,
         notification_title=notification_title,
+        prompts_config=prompts_config.extraction_prompt_config,
     )
 
     # Skip if list of facts is empty
@@ -79,6 +82,7 @@ async def handle_generate_operation(
         llm_service=llm_service,
         notification_title=notification_title,
         swot_report_registry=swot_report_registry,
+        prompts_config=prompts_config.plan_prompt_config,
     )
 
     # Execute the generation for the component
@@ -91,6 +95,7 @@ async def handle_generate_operation(
         llm_service=llm_service,
         company_name=company_name,
         executor=executor,
+        prompts_config=prompts_config.commands_prompt_config,
     )
 
     # Register or update the sections in the registry
@@ -111,13 +116,14 @@ async def _extract_facts(
     llm: LMI,
     llm_service: LanguageModelService,
     notification_title: str,
+    prompts_config: ExtractionPromptConfig,
 ) -> list[str]:
-    system_prompt = EXTRACTION_SYSTEM_PROMPT.render(
+    system_prompt = Template(prompts_config.system_prompt).render(
         company_name=company_name,
         component=component,
         component_definition=get_component_definition(component),
     )
-    user_message = EXTRACTION_USER_PROMPT.render(
+    user_message = Template(prompts_config.user_prompt).render(
         company_name=company_name,
         component=component,
         source_batches=source_batches,
@@ -154,8 +160,9 @@ async def _generate_plan(
     llm_service: LanguageModelService,
     notification_title: str,
     swot_report_registry: SWOTReportRegistry,
+    prompts_config: PlanPromptConfig,
 ) -> GenerationPlan:
-    system_prompt = PLAN_SYSTEM_PROMPT.render(
+    system_prompt = Template(prompts_config.system_prompt).render(
         company_name=company_name,
         component=component,
     )
@@ -167,7 +174,7 @@ async def _generate_plan(
 
     fact_view = json.dumps(fact_id_map, indent=1)
 
-    user_message = PLAN_USER_PROMPT.render(
+    user_message = Template(prompts_config.user_prompt).render(
         fact_view=fact_view,
         existing_sections_view=existing_sections_view,
     )
@@ -203,6 +210,7 @@ async def _execute_plan(
     llm_service: LanguageModelService,
     company_name: str,
     executor: AgenticPlanExecutor,
+    prompts_config: CommandsPromptConfig,
 ) -> Sequence[Exception | Any]:
     for command in plan.commands:
         match command.command:
@@ -216,6 +224,7 @@ async def _execute_plan(
                     instruction=command.instruction,
                     command=command,
                     fact_id_map=fact_id_map,
+                    prompts_config=prompts_config.create_new_section_prompt_config,
                 )
 
             case GenerationPlanCommandType.UPDATE_SECTION:
@@ -229,6 +238,7 @@ async def _execute_plan(
                     command=command,
                     fact_id_map=fact_id_map,
                     swot_report_registry=swot_report_registry,
+                    prompts_config=prompts_config.update_existing_section_prompt_config,
                 )
             case _:
                 raise InvalidCommandException(f"Invalid command: {command.command}")

@@ -8,6 +8,7 @@ from unique_swot.services.generation.agentic.executor import AgenticPlanExecutor
 from unique_swot.services.generation.agentic.operations import (
     handle_generate_operation,
 )
+from unique_swot.services.generation.agentic.prompts.config import AgenticPromptsConfig
 from unique_swot.services.generation.context import SWOTComponent
 from unique_swot.services.generation.models.base import (
     SWOTReportComponents,
@@ -35,6 +36,7 @@ class GenerationAgent:
         llm_service: LanguageModelService,
         registry: SWOTReportRegistry,
         executor: AgenticPlanExecutor,
+        prompts_config: AgenticPromptsConfig,
     ):
         self._llm_service = llm_service
         self._registry = registry
@@ -43,6 +45,7 @@ class GenerationAgent:
         self._llm = llm
         self._executor = executor
         self._title = "Generating SWOT report"
+        self._prompts_config = prompts_config
 
     @property
     def notification_title(self) -> str:
@@ -98,6 +101,7 @@ class GenerationAgent:
                         notification_title=self.notification_title,
                         swot_report_registry=self._swot_report_registry,
                         executor=self._executor,
+                        prompts_config=self._prompts_config,
                     )
                 case SWOTOperation.MODIFY:
                     _LOGGER.warning(
@@ -113,6 +117,7 @@ class GenerationAgent:
                         notification_title=self.notification_title,
                         swot_report_registry=self._swot_report_registry,
                         executor=self._executor,
+                        prompts_config=self._prompts_config,
                     )
                 case SWOTOperation.NOT_REQUESTED:
                     continue
