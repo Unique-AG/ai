@@ -147,12 +147,12 @@ class LoopConfiguration(BaseModel):
 
     qwen_forced_tool_call_instruction: str = Field(
         default=QWEN_FORCED_TOOL_CALL_INSTRUCTION,
-        description="Qwen forced tool call prompt instruction.",
+        description="Qwen specific: This instruction is appended to the user message for every forced tool call.",
     )
 
     qwen_last_iteration_instruction: str = Field(
         default=QWEN_LAST_ITERATION_INSTRUCTION,
-        description="Qwen last iteration prompt instruction.",
+        description="Qwen specific: An assistant message with this instruction is generated once the maximum number of loop iterations is reached.",
     )
 
 class EvaluationConfig(BaseModel):

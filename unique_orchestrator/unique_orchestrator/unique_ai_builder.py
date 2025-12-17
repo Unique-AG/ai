@@ -34,7 +34,7 @@ from unique_toolkit.agentic.loop_runner import (
     BasicLoopIterationRunnerConfig,
     LoopIterationRunner,
     PlanningMiddleware,
-    QwenRunnerMiddleware,
+    QwenIterationMiddleware,
     is_qwen_model,
 )
 from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
@@ -550,7 +550,7 @@ def _build_loop_iteration_runner(
     )
 
     if is_qwen_model(model=config.space.language_model):
-        runner = QwenRunnerMiddleware(
+        runner = QwenIterationMiddleware(
             qwen_forced_tool_call_instruction=config.agent.experimental.loop_configuration.qwen_forced_tool_call_instruction,
             qwen_last_iteration_instruction=config.agent.experimental.loop_configuration.qwen_last_iteration_instruction,
             max_loop_iterations=config.agent.max_loop_iterations,

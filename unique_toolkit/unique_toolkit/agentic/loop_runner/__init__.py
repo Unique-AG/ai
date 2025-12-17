@@ -10,7 +10,7 @@ from unique_toolkit.agentic.loop_runner.middleware import (
     PlanningConfig,
     PlanningMiddleware,
     PlanningSchemaConfig,
-    QwenRunnerMiddleware,
+    QwenIterationMiddleware,
     is_qwen_model,
 )
 from unique_toolkit.agentic.loop_runner.runners import (
@@ -23,7 +23,7 @@ __all__ = [
     "PlanningConfig",
     "PlanningMiddleware",
     "PlanningSchemaConfig",
-    "QwenRunnerMiddleware",
+    "QwenIterationMiddleware",
     "is_qwen_model",
     "BasicLoopIterationRunnerConfig",
     "BasicLoopIterationRunner",
