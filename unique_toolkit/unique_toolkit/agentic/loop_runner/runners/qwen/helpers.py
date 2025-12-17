@@ -1,5 +1,6 @@
 from unique_toolkit.language_model.infos import LanguageModelInfo
 from unique_toolkit.language_model.schemas import (
+    LanguageModelAssistantMessage,
     LanguageModelMessageRole,
     LanguageModelMessages,
 )
@@ -30,4 +31,18 @@ def append_qwen_forced_tool_call_instruction(
                 update={"content": msg.content + "\n" + forced_tool_call_instruction}
             )
             break
+    return LanguageModelMessages(root=messages_list)
+
+
+def append_qwen_last_iteration_assistant_message(
+    *,
+    messages: LanguageModelMessages,
+    last_iteration_instruction: str,
+) -> LanguageModelMessages:
+    """Append an assistant message at the end to indicate no further tool calls are allowed."""
+    messages_list = list(messages)
+    assistant_message = LanguageModelAssistantMessage(
+        content=last_iteration_instruction,
+    )
+    messages_list.append(assistant_message)
     return LanguageModelMessages(root=messages_list)
