@@ -133,6 +133,30 @@ UniqueAISpaceConfig.model_rebuild()
 LIMIT_MAX_TOOL_CALLS_PER_ITERATION = 50
 
 
+class QwenConfig(BaseModel):
+    """Qwen specific configuration."""
+
+    model_config = get_configuration_dict()
+
+    forced_tool_call_instruction: str = Field(
+        default=QWEN_FORCED_TOOL_CALL_INSTRUCTION,
+        description="This instruction is appended to the user message for every forced tool call.",
+    )
+
+    last_iteration_instruction: str = Field(
+        default=QWEN_LAST_ITERATION_INSTRUCTION,
+        description="An assistant message with this instruction is generated once the maximum number of loop iterations is reached.",
+    )
+
+
+class ModelSpecificConfig(BaseModel):
+    """Model-specific loop configurations."""
+
+    model_config = get_configuration_dict()
+
+    qwen: QwenConfig = QwenConfig()
+
+
 class LoopConfiguration(BaseModel):
     model_config = get_configuration_dict()
 
@@ -145,15 +169,7 @@ class LoopConfiguration(BaseModel):
         Annotated[PlanningConfig, Field(title="Active")] | DeactivatedNone
     ) = Field(default=None, description="Planning configuration.")
 
-    qwen_forced_tool_call_instruction: str = Field(
-        default=QWEN_FORCED_TOOL_CALL_INSTRUCTION,
-        description="Qwen specific: This instruction is appended to the user message for every forced tool call.",
-    )
-
-    qwen_last_iteration_instruction: str = Field(
-        default=QWEN_LAST_ITERATION_INSTRUCTION,
-        description="Qwen specific: An assistant message with this instruction is generated once the maximum number of loop iterations is reached.",
-    )
+    model_specific: ModelSpecificConfig = ModelSpecificConfig()
 
 
 class EvaluationConfig(BaseModel):

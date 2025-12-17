@@ -551,8 +551,8 @@ def _build_loop_iteration_runner(
 
     if is_qwen_model(model=config.space.language_model):
         runner = QwenLoopIterationRunner(
-            qwen_forced_tool_call_instruction=config.agent.experimental.loop_configuration.qwen_forced_tool_call_instruction,
-            qwen_last_iteration_instruction=config.agent.experimental.loop_configuration.qwen_last_iteration_instruction,
+            qwen_forced_tool_call_instruction=config.agent.experimental.loop_configuration.model_specific.qwen.forced_tool_call_instruction,
+            qwen_last_iteration_instruction=config.agent.experimental.loop_configuration.model_specific.qwen.last_iteration_instruction,
             max_loop_iterations=config.agent.max_loop_iterations,
             chat_service=chat_service,
         )
