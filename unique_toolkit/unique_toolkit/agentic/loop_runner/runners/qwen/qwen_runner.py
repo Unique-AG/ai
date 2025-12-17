@@ -1,18 +1,16 @@
 import logging
 from typing import Unpack
 
-from unique_toolkit.agentic.loop_runner import (
+from unique_toolkit.agentic.loop_runner._iteration_handler_utils import (
     handle_last_iteration,
     handle_normal_iteration,
-)
-from unique_toolkit.agentic.loop_runner._stream_handler_utils import (
-    stream_response,
+    run_forced_tools_iteration,
 )
 from unique_toolkit.agentic.loop_runner.base import (
     LoopIterationRunner,
     _LoopIterationRunnerKwargs,
 )
-from unique_toolkit.agentic.loop_runner.middleware.qwen_iteration.helpers import (
+from unique_toolkit.agentic.loop_runner.runners.qwen.helpers import (
     append_qwen_forced_tool_call_instruction,
     append_qwen_last_iteration_assistant_message,
 )
@@ -29,7 +27,7 @@ QWEN_FORCED_TOOL_CALL_INSTRUCTION = (
 QWEN_LAST_ITERATION_INSTRUCTION = "The maximum number of loop iteration have been reached. Not further tool calls are allowed. Based on the found information, an answer should be generated"
 
 
-class QwenIterationMiddleware(LoopIterationRunner):
+class QwenLoopIterationRunner(LoopIterationRunner):
     def __init__(
         self,
         *,
@@ -61,47 +59,25 @@ class QwenIterationMiddleware(LoopIterationRunner):
     ) -> LanguageModelStreamResponse:
         # For Qwen models, append tool call instruction to the last user message. These models ignore the parameter tool_choice.
         # As the message has to be modified for each tool call instruction, the function from the basic runner cant be used.
-        assert "tool_choices" in kwargs
-
-        tool_choices = kwargs["tool_choices"]
-        _LOGGER.info("Forcing tools calls: %s", tool_choices)
-
-        responses: list[LanguageModelStreamResponse] = []
-
-        available_tools = {t.name: t for t in kwargs.get("tools") or []}
         original_messages = kwargs.get("messages").model_copy(deep=True)
 
-        for opt in tool_choices:
-            func_name = opt.get("function", {}).get("name")
-
-            # Qwen specific section start
+        def _prepare(
+            func_name: str | None,
+            per_choice_kwargs: _LoopIterationRunnerKwargs,
+        ) -> _LoopIterationRunnerKwargs:
             prompt_instruction = self._qwen_forced_tool_call_instruction.format(
-                TOOL_NAME=func_name
+                TOOL_NAME=func_name or ""
             )
-            kwargs["messages"] = append_qwen_forced_tool_call_instruction(
+            per_choice_kwargs["messages"] = append_qwen_forced_tool_call_instruction(
                 messages=original_messages,
                 forced_tool_call_instruction=prompt_instruction,
             )
-            # Qwen specific section end
+            return per_choice_kwargs
 
-            limited_tool = available_tools.get(func_name) if func_name else None
-            stream_kwargs = {"loop_runner_kwargs": kwargs, "tool_choice": opt}
-            if limited_tool:
-                stream_kwargs["tools"] = [limited_tool]
-            responses.append(await stream_response(**stream_kwargs))
-
-        # Merge responses and refs:
-        tool_calls = []
-        references = []
-        for r in responses:
-            if r.tool_calls:
-                tool_calls.extend(r.tool_calls)
-            references.extend(r.message.references)
-
-        response = responses[0]
-        response.tool_calls = tool_calls if len(tool_calls) > 0 else None
-        response.message.references = references
-
+        response = await run_forced_tools_iteration(
+            loop_runner_kwargs=kwargs,
+            prepare_loop_runner_kwargs=_prepare,
+        )
         return self._process_response(response)
 
     async def _qwen_handle_last_iteration(
