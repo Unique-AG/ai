@@ -60,9 +60,7 @@ class GenerationAgent:
         plan: SWOTPlan,
         step_notifier: StepNotifier,
     ):
-        _LOGGER.info(
-            f"Executing SWOT analysis for {self._company_name} with plan {plan.model_dump_json(indent=1)}"
-        )
+        _LOGGER.info("Starting SWOT Analysis generation Agent")
         # Prepare the source splits
         components_step = plan.convert_plan_to_list_of_steps()
         source_batches = self._prepare_source_batches(
