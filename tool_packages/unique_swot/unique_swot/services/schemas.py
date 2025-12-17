@@ -85,6 +85,14 @@ class SWOTPlan(SWOT[SWOTStepPlan]):
             ]
         )
 
+    def convert_plan_to_list_of_steps(self) -> list[tuple[SWOTComponent, SWOTStepPlan]]:
+        return [
+            (SWOTComponent.STRENGTHS, self.strengths),
+            (SWOTComponent.WEAKNESSES, self.weaknesses),
+            (SWOTComponent.OPPORTUNITIES, self.opportunities),
+            (SWOTComponent.THREATS, self.threats),
+        ]
+
 
 class SWOTResult(SWOT[SWOTStepResult]):
     # from unique_swot.services.generation import SWOTComponent

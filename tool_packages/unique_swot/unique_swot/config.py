@@ -1,11 +1,13 @@
+from typing import Annotated
+
 from pydantic import Field
 from pydantic.json_schema import SkipJsonSchema
 from unique_toolkit import LanguageModelName
+from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit._common.validators import LMI, get_LMI_default_field
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 
 from unique_swot.services.generation.config import ReportGenerationConfig
-from unique_swot.services.generation.extraction.config import ExtractionConfig
 from unique_swot.services.report import ReportRendererConfig
 from unique_swot.services.source_management.config import SourceManagementConfig
 
@@ -31,10 +33,6 @@ class SwotAnalysisToolConfig(BaseToolConfig):
         default_factory=SourceManagementConfig,
         description="The configuration for the source management.",
     )
-    extraction_config: ExtractionConfig = Field(
-        default_factory=ExtractionConfig,
-        description="The configuration for the extraction.",
-    )
     report_generation_config: ReportGenerationConfig = Field(
         default_factory=ReportGenerationConfig,
         description="The configuration for the report generation.",
@@ -43,11 +41,17 @@ class SwotAnalysisToolConfig(BaseToolConfig):
         default_factory=ReportRendererConfig,
         description="The configuration for the report renderer.",
     )
-    tool_description: str = Field(
+    tool_description: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(rows=len(TOOL_DESCRIPTION.split("\n"))),
+    ] = Field(
         default=TOOL_DESCRIPTION,
         description="The description of the SWOT analysis tool.",
     )
-    tool_description_for_system_prompt: str = Field(
+    tool_description_for_system_prompt: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(rows=len(TOOL_DESCRIPTION.split("\n"))),
+    ] = Field(
         default=TOOL_DESCRIPTION,
         description="The system prompt for the SWOT analysis tool.",
     )

@@ -7,13 +7,7 @@ from unique_toolkit._common.docx_generator import DocxGeneratorService
 from unique_toolkit.content import ContentReference
 
 from unique_swot.services.citations import CitationManager
-from unique_swot.services.generation.reporting.models import (
-    ConsolidatedOpportunitiesReport,
-    ConsolidatedStrengthsReport,
-    ConsolidatedThreatsReport,
-    ConsolidatedWeaknessesReport,
-    SWOTConsolidatedReport,
-)
+from unique_swot.services.generation.models.base import SWOTReportComponents
 from unique_swot.services.report.config import DocxRendererType
 from unique_swot.services.report.docx import (
     add_citation_footer,
@@ -43,17 +37,19 @@ class ReportDeliveryService:
         citation_manager: CitationManager,
         renderer_type: DocxRendererType,
         template_name: str,
+        num_existing_references: int,
     ):
         self._chat_service = chat_service
         self._docx_renderer = docx_renderer
         self._citation_manager = citation_manager
         self._renderer_type = renderer_type
         self._template_name = template_name
+        self._num_existing_references = num_existing_references
 
     def deliver_report(
         self,
         session_config: SwotAnalysisSessionConfig,
-        result: list[SWOTConsolidatedReport],
+        result: SWOTReportComponents,
         docx_template_fields: dict[str, str],
         ingest_docx: bool,
     ) -> str:
@@ -95,7 +91,7 @@ class ReportDeliveryService:
 
     def _convert_consolidated_reports_to_markdown(
         self,
-        consolidated_reports: list[SWOTConsolidatedReport],
+        consolidated_reports: SWOTReportComponents,
         markdown_jinja_template: str,
         processor: Callable[[str], str],
     ) -> str:
@@ -110,26 +106,11 @@ class ReportDeliveryService:
         Returns:
             Formatted markdown report
         """
-        # Organize reports by component type
-        report_data = {
-            "strengths": [],
-            "weaknesses": [],
-            "opportunities": [],
-            "threats": [],
-        }
-
-        for report in consolidated_reports:
-            if isinstance(report, ConsolidatedStrengthsReport):
-                report_data["strengths"] = report.strengths
-            elif isinstance(report, ConsolidatedWeaknessesReport):
-                report_data["weaknesses"] = report.weaknesses
-            elif isinstance(report, ConsolidatedOpportunitiesReport):
-                report_data["opportunities"] = report.opportunities
-            elif isinstance(report, ConsolidatedThreatsReport):
-                report_data["threats"] = report.threats
 
         # Render using the template
-        markdown_report = Template(markdown_jinja_template).render(**report_data)
+        markdown_report = Template(markdown_jinja_template).render(
+            **consolidated_reports.model_dump()
+        )
         return processor(markdown_report)
 
     def _deliver_docx_report(
@@ -154,9 +135,12 @@ class ReportDeliveryService:
             raise ValueError("Failed to convert markdown to DOCX")
 
         # Upload to chat
+        document_name = (
+            f"{session_config.company_listing.name} SWOT Analysis Report.docx"
+        )
         content = self._chat_service.upload_to_chat_from_bytes(
             content=docx_bytes,
-            content_name=f"{session_config.company_listing.name} SWOT Analysis Report.docx",
+            content_name=document_name,
             mime_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             skip_ingestion=not ingest_docx,
         )
@@ -165,13 +149,15 @@ class ReportDeliveryService:
         content_reference = self._create_content_reference(
             content_id=content.id,
             message_id=self._chat_service.assistant_message_id,
+            num_existing_references=self._num_existing_references,
+            document_name=document_name,
         )
         start_text = session_config.render_session_info(state=SessionState.COMPLETED)
 
         # Modify assistant message
         self._chat_service.modify_assistant_message(
             message_id=self._chat_service.assistant_message_id,
-            content=f"{start_text}\n\n Here is the {session_config.company_listing.name} SWOT analysis report in DOCX format <sup>1</sup>.",
+            content=f"{start_text}\n\n Here is the {session_config.company_listing.name} SWOT analysis report in DOCX format <sup>{self._num_existing_references}</sup>.",
             references=[content_reference],
         )
 
@@ -203,13 +189,15 @@ class ReportDeliveryService:
     def _create_content_reference(
         content_id: str,
         message_id: str,
+        num_existing_references: int,
+        document_name: str,
     ) -> ContentReference:
         """Creates a content reference for uploaded DOCX files"""
         return ContentReference(
             url=f"unique//content/{content_id}",
             source_id=content_id,
             message_id=message_id,
-            name="swot_analysis_report.docx",
-            sequence_number=1,
+            name=document_name,
+            sequence_number=num_existing_references,
             source="SWOT-TOOL",
         )

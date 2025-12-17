@@ -14,9 +14,12 @@ _SYSTEM_PROMPT_TEMPLATE: str = load_template(PARENT_DIR, "system_prompt.j2")
 _USER_PROMPT_TEMPLATE: str = load_template(PARENT_DIR, "user_prompt.j2")
 
 
-class SourceSelectionPromptConfig(BaseModel):
+class SourceIterationPromptConfig(BaseModel):
     model_config = get_configuration_dict()
-
+    objective: str = Field(
+        default="Analyze the provided sources and generate an ordered list from the oldest to the newest.",
+        description="The objective of the source iteration.",
+    )
     system_prompt: Annotated[
         str,
         RJSFMetaTag.StringWidget.textarea(

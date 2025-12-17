@@ -1,8 +1,8 @@
 import json
 from collections import defaultdict
 
-from unique_swot.services.experimental.models.base import SWOTReportComponentSection
 from unique_swot.services.generation.context import SWOTComponent
+from unique_swot.services.generation.models.base import SWOTReportComponentSection
 from unique_swot.utils import generate_unique_id
 
 

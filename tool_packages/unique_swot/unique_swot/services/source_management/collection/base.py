@@ -5,16 +5,15 @@ from pydantic import BaseModel, ConfigDict
 from unique_quartr.service import QuartrService
 from unique_toolkit import KnowledgeBaseService
 from unique_toolkit._common.docx_generator import DocxGeneratorService
+from unique_toolkit.content import Content
 
-from unique_swot.services.orchestrator.service import Notifier
+from unique_swot.services.orchestrator.service import StepNotifier
 from unique_swot.services.session.schema import UniqueCompanyListing
 from unique_swot.services.source_management.collection.sources import (
     collect_earnings_calls,
     collect_knowledge_base,
     collect_web_sources,
 )
-from unique_swot.services.source_management.registry import ContentChunkRegistry
-from unique_swot.services.source_management.schema import Source
 
 _LOGGER = getLogger(__name__)
 
@@ -36,66 +35,53 @@ class SourceCollectionManager:
         *,
         context: CollectionContext,
         knowledge_base_service: KnowledgeBaseService,
-        content_chunk_registry: ContentChunkRegistry,
         quartr_service: QuartrService | None = None,
-        notifier: Notifier,
         earnings_call_docx_generator_service: DocxGeneratorService,
     ):
         self._context = context
         self._knowledge_base_service = knowledge_base_service
-        self._content_chunk_registry = content_chunk_registry
         self._quartr_service = quartr_service
-        self._notifier = notifier
         self._earnings_call_docx_generator_service = (
             earnings_call_docx_generator_service
         )
-        self._notification_title = "Collecting Sources"
 
-    async def collect(self) -> list[Source]:
-        await self._notifier.increment_progress(
-            step_increment=0,
-            progress_info="Starting to collect sources",
+    @property
+    def notification_title(self) -> str:
+        return "**Collecting Sources**"
+
+    async def collect(self, *, step_notifier: StepNotifier) -> list[Content]:
+        await step_notifier.notify(title=self.notification_title, progress=0)
+
+        internal_documents_sources = await self._collect_internal_documents(
+            metadata_filter=self._context.metadata_filter, step_notifier=step_notifier
         )
 
-        sources = []
-
-        sources = await self._collect_internal_documents(
-            metadata_filter=self._context.metadata_filter,
-            chunk_registry=self._content_chunk_registry,
+        earnings_calls_sources = await self._collect_earnings_calls(
+            quartr_service=self._quartr_service,
+            use_earnings_calls=self._context.use_earnings_calls,
+            upload_scope_id_earnings_calls=self._context.upload_scope_id_earnings_calls,
+            company=self._context.company,
+            docx_generator_service=self._earnings_call_docx_generator_service,
+            knowledge_base_service=self._knowledge_base_service,
+            earnings_call_start_date=self._context.earnings_call_start_date,
+            step_notifier=step_notifier,
         )
 
-        sources.extend(
-            await self._collect_earnings_calls(
-                quartr_service=self._quartr_service,
-                use_earnings_calls=self._context.use_earnings_calls,
-                upload_scope_id_earnings_calls=self._context.upload_scope_id_earnings_calls,
-                chunk_registry=self._content_chunk_registry,
-                company=self._context.company,
-                docx_generator_service=self._earnings_call_docx_generator_service,
-                knowledge_base_service=self._knowledge_base_service,
-                earnings_call_start_date=self._context.earnings_call_start_date,
-            )
-        )
-        sources.extend(
-            await self._collect_web_sources(
-                use_web_sources=self._context.use_web_sources,
-                chunk_registry=self._content_chunk_registry,
-            )
-        )
-        await self._notifier.notify(
-            title=self._notification_title,
-            description=f"Completed collecting {len(sources)} sources",
+        web_sources = await self._collect_web_sources(
+            use_web_sources=self._context.use_web_sources,
+            step_notifier=step_notifier,
         )
 
-        # Save Registry Store in Memory Service
-        self._content_chunk_registry.save()
+        all_sources = internal_documents_sources + earnings_calls_sources + web_sources
 
-        await self._notifier.increment_progress(
-            step_increment=0,
-            progress_info="Completed collecting sources",
+        await step_notifier.notify(
+            title=self.notification_title,
+            description=f"Collected {len(all_sources)} sources!",
+            progress=100,
+            completed=True,
         )
 
-        return sources
+        return all_sources
 
     async def _collect_earnings_calls(
         self,
@@ -103,12 +89,12 @@ class SourceCollectionManager:
         use_earnings_calls: bool,
         quartr_service: QuartrService | None,
         upload_scope_id_earnings_calls: str | None,
-        chunk_registry: ContentChunkRegistry,
         company: UniqueCompanyListing,
         earnings_call_start_date: datetime,
         docx_generator_service: DocxGeneratorService,
         knowledge_base_service: KnowledgeBaseService,
-    ) -> list[Source]:
+        step_notifier: StepNotifier,
+    ) -> list[Content]:
         if not use_earnings_calls:
             _LOGGER.warning("No earnings calls will be collected.")
             return []
@@ -126,16 +112,8 @@ class SourceCollectionManager:
             return []
 
         _LOGGER.info("Collecting earnings calls!")
-        await self._notifier.notify(
-            title=self._notification_title,
-            description="Collecting Earnings Calls",
-        )
-        await self._notifier.increment_progress(
-            step_increment=0,
-            progress_info=f"Collecting earnings calls from {earnings_call_start_date.strftime('%Y-%m-%d')} to today",
-        )
-        sources = await collect_earnings_calls(
-            chunk_registry=chunk_registry,
+
+        contents = await collect_earnings_calls(
             quartr_service=quartr_service,
             upload_scope_id=upload_scope_id_earnings_calls,
             company=company,
@@ -143,32 +121,33 @@ class SourceCollectionManager:
             docx_generator_service=docx_generator_service,
             knowledge_base_service=knowledge_base_service,
         )
-        await self._notifier.increment_progress(
-            step_increment=0,
-            progress_info=f"{len(sources)} earnings call(s) collected",
+
+        await step_notifier.notify(
+            title=self.notification_title,
+            description=f"Collected {len(contents)} earnings call(s)!",
+            progress=0,
         )
-        return sources
+        return contents
 
     async def _collect_web_sources(
-        self, *, use_web_sources: bool, chunk_registry: ContentChunkRegistry
-    ) -> list[Source]:
+        self,
+        *,
+        use_web_sources: bool,
+        step_notifier: StepNotifier,
+    ) -> list[Content]:
         if not use_web_sources:
             _LOGGER.warning("No web sources will be collected.")
             return []
         _LOGGER.info("Collecting web sources!")
-        await self._notifier.notify(
-            title=self._notification_title,
-            description="Collecting Web Sources",
-        )
-        await self._notifier.increment_progress(
-            step_increment=0,
-            progress_info="Collecting web sources",
-        )
+
         return collect_web_sources()
 
     async def _collect_internal_documents(
-        self, *, metadata_filter: dict | None, chunk_registry: ContentChunkRegistry
-    ) -> list[Source]:
+        self,
+        *,
+        metadata_filter: dict | None,
+        step_notifier: StepNotifier,
+    ) -> list[Content]:
         if metadata_filter is None:
             _LOGGER.warning(
                 "No where clause provided. No internal documents will be collected."
@@ -176,21 +155,14 @@ class SourceCollectionManager:
             return []
 
         _LOGGER.info("Collecting internal documents!")
-        await self._notifier.notify(
-            title=self._notification_title,
-            description="Collecting Internal Documents",
-        )
-        await self._notifier.increment_progress(
-            step_increment=0,
-            progress_info="Collecting internal documents",
-        )
-        sources = await collect_knowledge_base(
+
+        contents = await collect_knowledge_base(
             knowledge_base_service=self._knowledge_base_service,
             metadata_filter=metadata_filter,
-            chunk_registry=chunk_registry,
         )
-        await self._notifier.increment_progress(
-            step_increment=0,
-            progress_info=f"Finished collecting {len(sources)} internal documents",
+        await step_notifier.notify(
+            title=self.notification_title,
+            description=f"Collected {len(contents)} internal documents!",
+            progress=0,
         )
-        return sources
+        return contents

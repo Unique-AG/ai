@@ -2,8 +2,7 @@ Company: {{ company_name }}
 
 Source candidate (top {{ selected_chunks | length }} chunks):
 {% for chunk in selected_chunks %}
-[{{ loop.index }} | id={{ chunk.id }}]
-{{ chunk.text }}
+[{{ loop.index0 }}] {{ chunk }}
 
 {% endfor %}
 Task
@@ -13,3 +12,4 @@ Task
 
 Output
 - Follow the schema: should_select (bool), reason (brief, cite the key chunk ids/indices that informed the decision), notification_message (short progress/status note for the user).
+

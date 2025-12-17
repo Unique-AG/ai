@@ -1,15 +1,21 @@
 from logging import getLogger
 from pathlib import Path
 from typing import TypeVar
+from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
 from unique_toolkit import LanguageModelService
 from unique_toolkit._common.validators import LMI
+from unique_toolkit.content import Content, ContentChunk, ContentReference
 from unique_toolkit.language_model.builder import MessagesBuilder
 
 _LOGGER = getLogger(__name__)
 _MAX_RETRIES = 3
 T = TypeVar("T", bound=BaseModel)
+
+
+def generate_unique_id(prefix: str) -> str:
+    return f"{prefix}_{uuid4().hex[:8]}"
 
 
 def load_template(parent_dir: Path, template_name: str) -> str:
@@ -31,9 +37,6 @@ class StructuredOutputWithNotification(StructuredOutputResult):
 
     notification_message: str = Field(
         description="A notification message to entertain the user with highlighting key findings or results."
-    )
-    progress_notification_message: str = Field(
-        description="A very short message to update the message of the progress bar. Should name the step and give overall statistics or information."
     )
 
 
@@ -89,3 +92,22 @@ async def generate_structured_output(
         last_error,
     )
     return None
+
+
+def convert_content_chunk_to_reference(
+    *,
+    content_or_chunk: Content | ContentChunk,
+) -> ContentReference:
+    title = get_content_chunk_title(content_or_chunk)
+
+    return ContentReference(
+        url=f"unique//content/{content_or_chunk.id}",
+        source_id=content_or_chunk.id,
+        name=title,
+        sequence_number=0,
+        source="SWOT-TOOL",
+    )
+
+
+def get_content_chunk_title(content_or_chunk: Content | ContentChunk) -> str:
+    return content_or_chunk.title or content_or_chunk.key or "Unknown Title"

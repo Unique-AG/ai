@@ -1,11 +1,11 @@
 {% if strengths |length > 0 %}
 # Strengths
 
-{% for item in strengths %}
-## {{ item.title }}
+{% for section in strengths %}
+## {{ section.h2 }}
 
-{% for bullet in item.bullet_points %}
-- **{{ bullet.key_reasoning }}** {{ bullet.detailed_context }}
+{% for entry in section.entries %}
+- **{{ entry.preview }}** {{ entry.content }}
 {% endfor %}
 
 {% endfor %}
@@ -15,11 +15,11 @@
 {% if weaknesses |length > 0 %}
 # Weaknesses
 
-{% for item in weaknesses %}
-## {{ item.title }}
+{% for section in weaknesses %}
+## {{ section.h2 }}
 
-{% for bullet in item.bullet_points %}
-- **{{ bullet.key_reasoning }}** {{ bullet.detailed_context }}
+{% for entry in section.entries %}
+- **{{ entry.preview }}** {{ entry.content }}
 {% endfor %}
 
 {% endfor %}
@@ -29,11 +29,11 @@
 {% if opportunities |length > 0 %}
 # Opportunities
 
-{% for item in opportunities %}
-## {{ item.title }}
+{% for section in opportunities %}
+## {{ section.h2 }}
 
-{% for bullet in item.bullet_points %}
-- **{{ bullet.key_reasoning }}** {{ bullet.detailed_context }}
+{% for entry in section.entries %}
+- **{{ entry.preview }}** {{ entry.content }}
 {% endfor %}
 
 {% endfor %}
@@ -43,11 +43,11 @@
 {% if threats |length > 0 %}
 # Threats
 
-{% for item in threats %}
-## {{ item.title }}
+{% for section in threats %}
+## {{ section.h2 }}
 
-{% for bullet in item.bullet_points %}
-- **{{ bullet.key_reasoning }}** {{ bullet.detailed_context }}
+{% for entry in section.entries %}
+- **{{ entry.preview }}** {{ entry.content }}
 {% endfor %}
 
 {% endfor %}
