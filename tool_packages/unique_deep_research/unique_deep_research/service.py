@@ -342,7 +342,6 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         }
         await self.chat_service.update_debug_info_async(debug_info=debug_info_event)
 
-
     def write_message_log_text_message(self, text: str):
         create_message_log_entry(
             self.chat_service,

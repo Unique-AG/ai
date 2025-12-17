@@ -11,6 +11,10 @@ from openai.types.responses import (
 )
 from pydantic import BaseModel, Field
 
+from unique_toolkit._common.execution import (
+    Result,
+    SafeTaskExecutor,
+)
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.tools.a2a import A2AManager, SubAgentTool
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
@@ -24,10 +28,6 @@ from unique_toolkit.agentic.tools.openai_builtin.manager import OpenAIBuiltInToo
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse, ToolPrompts
 from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
-from unique_toolkit.agentic.tools.utils.execution.execution import (
-    Result,
-    SafeTaskExecutor,
-)
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,

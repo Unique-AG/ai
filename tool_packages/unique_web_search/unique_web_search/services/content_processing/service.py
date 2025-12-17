@@ -5,7 +5,7 @@ import re
 import tiktoken
 from langchain_text_splitters import TokenTextSplitter
 from openai.types.chat import ChatCompletionMessageParam
-from unique_toolkit.agentic.tools.utils.execution.execution import SafeTaskExecutor
+from unique_toolkit._common.execution import SafeTaskExecutor
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.embedding.service import EmbeddingService
 from unique_toolkit.framework_utilities.openai import get_async_openai_client

@@ -9,6 +9,7 @@ from openai.types.responses.response_output_text import AnnotationContainerFileC
 from pydantic import BaseModel, Field, RootModel
 
 from unique_toolkit import ChatService
+from unique_toolkit._common.execution import failsafe_async
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
     ResponsesApiPostprocessor,
 )
@@ -16,7 +17,6 @@ from unique_toolkit.agentic.short_term_memory_manager.persistent_short_term_memo
     PersistentShortMemoryManager,
 )
 from unique_toolkit.agentic.tools.config import get_configuration_dict
-from unique_toolkit.agentic.tools.utils import failsafe_async
 from unique_toolkit.content.schemas import ContentReference
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model.schemas import ResponsesLanguageModelStreamResponse
