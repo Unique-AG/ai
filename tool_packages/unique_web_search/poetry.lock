@@ -5317,7 +5317,7 @@ files = [
 
 [[package]]
 name = "unique-sdk"
-version = "0.10.58"
+version = "0.10.63"
 description = ""
 optional = false
 python-versions = "^3.11"
@@ -5338,7 +5338,7 @@ url = "../../unique_sdk"
 
 [[package]]
 name = "unique-toolkit"
-version = "1.38.3"
+version = "1.40.1"
 description = ""
 optional = false
 python-versions = "^3.12"
@@ -5365,7 +5365,7 @@ regex = "^2024.5.15"
 sseclient = "^0.0.27"
 tiktoken = "^0.12.0"
 typing-extensions = "^4.9.0"
-unique-sdk = "^0.10.58"
+unique-sdk = "^0.10.61"
 
 [package.source]
 type = "directory"
@@ -5953,4 +5953,4 @@ cffi = ["cffi (>=1.17,<2.0) ; platform_python_implementation != \"PyPy\" and pyt
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "ae00f130e0fca185d5562a9c8b95e312ca30dd73a6a0637dd594f3bbb03e2b13"
+content-hash = "ec5e97176fd090768ea162edd1db9cd0dddc7e70e7ab930ebdeaf7855390f175"
