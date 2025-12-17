@@ -155,6 +155,7 @@ class LoopConfiguration(BaseModel):
         description="Qwen specific: An assistant message with this instruction is generated once the maximum number of loop iterations is reached.",
     )
 
+
 class EvaluationConfig(BaseModel):
     model_config = get_configuration_dict()
     max_review_steps: int = 3

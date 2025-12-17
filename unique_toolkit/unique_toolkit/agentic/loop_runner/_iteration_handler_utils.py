@@ -9,6 +9,7 @@ from unique_toolkit.chat.functions import LanguageModelStreamResponse
 
 _LOGGER = logging.getLogger(__name__)
 
+
 class PrepareForcedToolIterationKwargs(Protocol):
     def __call__(
         self,
@@ -57,7 +58,9 @@ async def run_forced_tools_iteration(
     assert "tool_choices" in loop_runner_kwargs
 
     tool_choices = loop_runner_kwargs["tool_choices"]
-    assert len(tool_choices) > 0, "run_forced_tools_iteration requires at least one tool choice"
+    assert len(tool_choices) > 0, (
+        "run_forced_tools_iteration requires at least one tool choice"
+    )
     _LOGGER.info("Forcing tools calls: %s", tool_choices)
 
     responses: list[LanguageModelStreamResponse] = []

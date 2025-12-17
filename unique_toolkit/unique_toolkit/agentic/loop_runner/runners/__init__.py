@@ -10,10 +10,10 @@ from unique_toolkit.agentic.loop_runner.runners.qwen import (
 )
 
 __all__ = [
-    "BasicLoopIterationRunnerConfig", 
+    "BasicLoopIterationRunnerConfig",
     "BasicLoopIterationRunner",
     "QwenLoopIterationRunner",
     "QWEN_FORCED_TOOL_CALL_INSTRUCTION",
     "QWEN_LAST_ITERATION_INSTRUCTION",
-    "is_qwen_model"
+    "is_qwen_model",
 ]
