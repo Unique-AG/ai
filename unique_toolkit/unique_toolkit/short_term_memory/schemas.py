@@ -30,7 +30,7 @@ class ShortTermMemory(BaseModel):
                 self.value = json.loads(self.data)
             except json.JSONDecodeError:
                 self.value = self.data
-        elif not self.data:
+        elif self.data is None:
             self.value = ""
         else:
             self.value = str(self.data)
