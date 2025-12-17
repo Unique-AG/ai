@@ -31,6 +31,8 @@ class LanguageModelName(StrEnum):
     AZURE_GPT_51_CHAT_2025_1113 = "AZURE_GPT_51_CHAT_2025_1113"
     AZURE_GPT_51_CODEX_2025_1113 = "AZURE_GPT_51_CODEX_2025_1113"
     AZURE_GPT_51_CODEX_MINI_2025_1113 = "AZURE_GPT_51_CODEX_MINI_2025_1113"
+    AZURE_GPT_52_2025_1211 = "AZURE_GPT_52_2025_1211"
+    AZURE_GPT_52_CHAT_2025_1211 = "AZURE_GPT_52_CHAT_2025_1211"
     AZURE_GPT_4o_2024_0513 = "AZURE_GPT_4o_2024_0513"
     AZURE_GPT_4o_2024_0806 = "AZURE_GPT_4o_2024_0806"
     AZURE_GPT_4o_2024_1120 = "AZURE_GPT_4o_2024_1120"
@@ -115,6 +117,8 @@ def get_encoder_name(model_name: LanguageModelName) -> EncoderName:
             | LMN.AZURE_GPT_51_CHAT_2025_1113
             | LMN.AZURE_GPT_51_CODEX_2025_1113
             | LMN.AZURE_GPT_51_CODEX_MINI_2025_1113
+            | LMN.AZURE_GPT_52_2025_1211
+            | LMN.AZURE_GPT_52_CHAT_2025_1211
             | LMN.LITELLM_OPENAI_GPT_5
             | LMN.LITELLM_OPENAI_GPT_5_MINI
             | LMN.LITELLM_OPENAI_GPT_5_NANO
@@ -609,6 +613,62 @@ class LanguageModelInfo(BaseModel):
                     ),
                     default_options={
                         "reasoning_effort": "medium",
+                    },
+                )
+            case LanguageModelName.AZURE_GPT_52_2025_1211:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.AZURE,
+                    version="2025-12-11",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.PARALLEL_FUNCTION_CALLING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.RESPONSES_API,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.VISION,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=400_000, token_limit_output=128_000
+                    ),
+                    info_cutoff_at=date(2024, 9, 30),
+                    published_at=date(2025, 12, 11),
+                    temperature_bounds=TemperatureBounds(
+                        min_temperature=1.0, max_temperature=1.0
+                    ),
+                    default_options={
+                        "reasoning_effort": "medium",
+                    },
+                )
+            case LanguageModelName.AZURE_GPT_52_CHAT_2025_1211:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.AZURE,
+                    version="2025-12-11",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.PARALLEL_FUNCTION_CALLING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.RESPONSES_API,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.VISION,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=128_000, token_limit_output=16_384
+                    ),
+                    info_cutoff_at=date(2024, 9, 30),
+                    published_at=date(2025, 12, 11),
+                    temperature_bounds=TemperatureBounds(
+                        min_temperature=1.0, max_temperature=1.0
+                    ),
+                    default_options={
+                        "reasoning_effort": None,
                     },
                 )
             case LanguageModelName.AZURE_GPT_4_TURBO_2024_0409:
