@@ -182,7 +182,7 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
             )
 
             await self._chat_service.modify_assistant_message_async(
-                content=f"Started SWOT Analysis for {company_name}: {session_config.swot_analysis.render_session_info()}.\n\nPlease follow the progress in the steps sidebar.",
+                content=f"Started SWOT Analysis for {company_name}:\n -{session_config.swot_analysis.render_session_info()}.\n\nPlease follow the progress in the steps sidebar.",
             )
 
             # This service is used to orchestrate the SWOT analysis
