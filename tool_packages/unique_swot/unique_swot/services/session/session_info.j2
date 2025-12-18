@@ -1,20 +1,14 @@
-<details style="margin: 0; padding: 0;">
-<summary style="cursor: pointer; margin-bottom: 0.5em;"> {{ swot_analysis.state.value }} SWOT Analysis for <strong>{{ swot_analysis.company_listing.name }}</strong></summary>
-<div style="margin: 0; padding: 0 0 0 1em; line-height: 1.4;">
-
-## Company Information
-  - **Name:** {{ swot_analysis.company_listing.name }} ({{ swot_analysis.company_listing.display_name }})
-  - **Country:** {{ swot_analysis.company_listing.country }}
-  - **Tickers:**
-  {%- for ticker in swot_analysis.company_listing.tickers %}
-    - {{ ticker.ticker }} ({{ ticker.exchange }})
-  {% endfor %}
-
-## External Data Sources
-  - **Use Earnings Calls:** {{ "✅" if swot_analysis.use_earnings_call else "❌" }}
-  {%- if swot_analysis.use_earnings_call and swot_analysis.earnings_call_start_date %}
-    - **Start Date:** {{ swot_analysis.earnings_call_start_date }}
-  {%- endif %}
-  - **Use Web Sources:** {{ "✅" if swot_analysis.use_web_sources else "❌" }}
-</div>
-</details>
+{{- swot_analysis.company_listing.display_name -}}
+{{- " (" -}}{{- swot_analysis.company_listing.country -}}{{- ") | " -}}
+{%- set unique_tickers = swot_analysis.company_listing.tickers | map(attribute='ticker') | unique | list -%}
+{%- for ticker in unique_tickers -%}
+    {{- ticker -}}
+    {%- if not loop.last %}, {% endif -%}
+{%- endfor -%}
+{{- " | Earnings: " -}}
+{{- "✅" if swot_analysis.use_earnings_call else "❌" -}}
+{%- if swot_analysis.use_earnings_call and swot_analysis.earnings_call_start_date -%}
+    {{- " (from " -}}{{- swot_analysis.earnings_call_start_date -}}{{- ")" -}}
+{%- endif -%}
+{{- " | Web: " -}}
+{{- "✅" if swot_analysis.use_web_sources else "❌" -}}

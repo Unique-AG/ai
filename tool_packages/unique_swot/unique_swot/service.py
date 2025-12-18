@@ -141,9 +141,6 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
             plan.validate_swot_plan()
 
             # TODO: MOVE THIS TO THE STEP NOTIFIER
-            # await progress_notifier.init_progress(
-            #     session_info=session_config.swot_analysis.render_session_info()
-            # )
 
             # This service is used to store intermediate results of the SWOT analysis
             memory_service = SwotMemoryService(
@@ -175,6 +172,18 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
             reporting_agent = self._get_reporting_agent(company_name=company_name)
 
             step_notifier = self._get_step_notifier()
+
+            await step_notifier.notify(
+                title=f"Started SWOT Analysis for {company_name}",
+                description=session_config.swot_analysis.render_session_info(),
+                sources=[],
+                progress=100,
+                completed=True,
+            )
+
+            await self._chat_service.modify_assistant_message_async(
+                content=f"Started SWOT Analysis for {company_name}: {session_config.swot_analysis.render_session_info()}. Please follow the progress in the steps sidebar.",
+            )
 
             # This service is used to orchestrate the SWOT analysis
             orchestrator = SWOTOrchestrator(
@@ -233,7 +242,10 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
             )
 
         except Exception as e:
-            # await progress_notifier.end_progress(failed=True, failure_message=str(e))
+            await self._chat_service.modify_assistant_message_async(
+                content=f"Error running SWOT Analysis for {company_name}: {e}",
+                set_completed_at=True,
+            )
             _LOGGER.exception(f"Error running SWOT plan: {e}")
             return ToolCallResponse(
                 id=tool_call.id,  # type: ignore
