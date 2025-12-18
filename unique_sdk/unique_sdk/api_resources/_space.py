@@ -80,9 +80,11 @@ class Space(APIResource["Space"]):
         originalText: str | None
         role: Literal["SYSTEM", "USER", "ASSISTANT"]
         debugInfo: Optional[Dict[str, Any]]
+        gptRequest: Optional[Dict[str, Any]]
         completedAt: str | None
         createdAt: str | None
         updatedAt: str | None
+        startedStreamingAt: str | None
         stoppedStreamingAt: str | None
         references: Optional[List["Space.Reference"]]
         assessment: Optional[List["Space.Assessment"]]

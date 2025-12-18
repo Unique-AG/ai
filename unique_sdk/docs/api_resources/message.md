@@ -279,6 +279,8 @@ Manage chat messages and integrate with the Unique AI chat system. Includes supp
     - `completedAt` (datetime | None) - Completion timestamp
     - `createdAt` (str | None) - Creation timestamp (ISO 8601)
     - `updatedAt` (str | None) - Last update timestamp (ISO 8601)
+    - `startedStreamingAt` (datetime | None) - When streaming started
+    - `stoppedStreamingAt` (datetime | None) - When streaming stopped
 
     **Returned by:** `Message.list()`, `Message.retrieve()`, `Message.create()`, `Message.modify()`, `Message.delete()`, `Message.create_event()`
 

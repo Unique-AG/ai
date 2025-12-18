@@ -283,10 +283,12 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     - `text` (str | None) - Message text content
     - `originalText` (str | None) - Original message text before processing
     - `role` (Literal["SYSTEM", "USER", "ASSISTANT"]) - Message role
+    - `gptRequest` (Dict[str, Any] | None) - GPT request data
     - `debugInfo` (Dict[str, Any] | None) - Debug information dictionary
     - `completedAt` (str | None) - Completion timestamp (ISO 8601)
     - `createdAt` (str | None) - Creation timestamp (ISO 8601)
     - `updatedAt` (str | None) - Last update timestamp (ISO 8601)
+    - `startedStreamingAt` (str | None) - When streaming started (ISO 8601)
     - `stoppedStreamingAt` (str | None) - When streaming stopped (ISO 8601)
     - `references` (List[Reference] | None) - List of source references. See [`Space.Reference`](#spacereference) for structure.
     - `assessment` (List[Assessment] | None) - List of message assessments. See [`Space.Assessment`](#spaceassessment) for structure.

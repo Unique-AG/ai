@@ -76,6 +76,8 @@ class Message(APIResource["Message"]):
     role: Literal["SYSTEM", "USER", "ASSISTANT"]
     gptRequest: Optional[Dict[str, Any]]
     debugInfo: Optional[Dict[str, Any]]
+    startedStreamingAt: Optional[datetime]
+    stoppedStreamingAt: Optional[datetime]
 
     @classmethod
     def list(
