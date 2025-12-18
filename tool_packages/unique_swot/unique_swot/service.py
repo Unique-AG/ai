@@ -182,7 +182,7 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
             )
 
             await self._chat_service.modify_assistant_message_async(
-                content=f"Started SWOT Analysis for {company_name}: {session_config.swot_analysis.render_session_info()}. Please follow the progress in the steps sidebar.",
+                content=f"Started SWOT Analysis for {company_name}: {session_config.swot_analysis.render_session_info()}.\n\nPlease follow the progress in the steps sidebar.",
             )
 
             # This service is used to orchestrate the SWOT analysis
@@ -199,7 +199,17 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
             # Generate markdown report
             result = await orchestrator.run(company_name=company_name, plan=plan)
 
-            # await progress_notifier.end_progress(failed=False)
+            if result.is_empty():
+                await self._chat_service.modify_assistant_message_async(
+                    content=f"No SWOT analysis results found for the {company_name} with the selected sources. Please try again with a different company or configuration.",
+                    set_completed_at=True,
+                )
+                return ToolCallResponse(
+                    id=tool_call.id,  # type: ignore
+                    name=self.name,
+                    content="No SWOT analysis results found for the company. Please try again with a different company or configuration.",
+                    content_chunks=[],
+                )
 
             citation_manager = self._get_citation_manager(content_chunk_registry)
 
