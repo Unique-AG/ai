@@ -182,7 +182,7 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
             )
 
             await self._chat_service.modify_assistant_message_async(
-                content=f"Started SWOT Analysis for {company_name}:\n -{session_config.swot_analysis.render_session_info()}.\n\nPlease follow the progress in the steps sidebar.",
+                content=f"**SWOT Analysis Initiated**\n\n- {session_config.swot_analysis.render_session_info()}\n\nAnalyzing data sources and generating comprehensive insights may take some time. Track real-time progress in the steps sidebar.",
             )
 
             # This service is used to orchestrate the SWOT analysis
@@ -201,7 +201,7 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
 
             if result.is_empty():
                 await self._chat_service.modify_assistant_message_async(
-                    content=f"No SWOT analysis results found for the {company_name} with the selected sources. Please try again with a different company or configuration.",
+                    content=f"No SWOT analysis results found for the {company_name} with the selected sources. Please make sure to select the correct sources and try again.",
                     set_completed_at=True,
                 )
                 return ToolCallResponse(
