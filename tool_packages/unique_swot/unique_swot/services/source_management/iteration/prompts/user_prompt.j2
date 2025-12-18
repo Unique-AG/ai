@@ -1,0 +1,25 @@
+Please analyze and order the following sources:
+
+{% for content in contents %}
+---
+Source ID: {{ content.id }}
+Document Title: {{ content.document_title }}
+
+Content Preview:
+{{ content.chunks }}
+---
+
+{% endfor %}
+
+Based on the analysis of these sources, please:
+1. Order the sources according to the objective
+2. Provide the order number (starting from 1) for each source
+3. Explain your reasoning for each source's position
+4. Generate a brief notification message (1-2 sentences) summarizing the ordering results
+
+Return your analysis in the structured format with:
+- ordered_sources: A list containing each source's id, order number, and reasoning
+- notification_message: A concise summary of the ordering (e.g., "Successfully ordered 5 sources from oldest to newest based on publication dates")
+
+Note: If you cannot confidently determine the order for certain sources, you may exclude them from the ordered_sources list.
+

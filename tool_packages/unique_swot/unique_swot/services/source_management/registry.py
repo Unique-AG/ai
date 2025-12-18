@@ -1,10 +1,10 @@
 from logging import getLogger
-from uuid import uuid4
 
 from pydantic import BaseModel, Field
 from unique_toolkit.content import ContentChunk
 
 from unique_swot.services.memory import SwotMemoryService
+from unique_swot.utils import generate_unique_id
 
 _MAX_RETRIES = 100
 
@@ -35,10 +35,10 @@ class ContentChunkRegistry:
     def save(self):
         self._memory_service.set(self._store)
 
-    def register_and_generate_id(self, item: ContentChunk) -> str:
+    def register(self, *, chunk: ContentChunk) -> str:
         """Add an item and return its unique ID."""
         id = self._generate_unique_id()
-        self._store.items[id] = item
+        self._store.items[id] = chunk
         return id
 
     def retrieve(self, id: str) -> ContentChunk | None:
@@ -47,7 +47,7 @@ class ContentChunkRegistry:
 
     def _generate_unique_id(self) -> str:
         for _ in range(_MAX_RETRIES):
-            id = f"chunk_{uuid4().hex[:8]}"
+            id = generate_unique_id(prefix="chunk")
             if id not in self._store.items:
                 return id
             _LOGGER.warning(f"Registry ID collision detected for ID: {id}. Retrying...")

@@ -22,16 +22,18 @@ Output (DOCX mode):
 
 import re
 from logging import getLogger
+from typing import Literal
 
 from unique_toolkit.content.schemas import ContentChunk, ContentReference
 
-from unique_swot.services.report import DocxRendererType
 from unique_swot.services.source_management.registry import ContentChunkRegistry
 
 _LOGGER = getLogger(__name__)
 
 # Pattern to match consolidated citations in References section: [chunk_X]
 consolidated_citation_pattern = r"\[chunk_([a-zA-Z0-9\-]+)\]"
+
+type CitationType = Literal["docx", "chat", "stream"]
 
 
 class CitationManager:
@@ -72,30 +74,21 @@ class CitationManager:
         # List of all referenced chunks for generating ContentReference objects
         self._content_chunks: list[ContentChunk] = []
 
-    def add_citations_to_report(
-        self, report: str, renderer_type: DocxRendererType
-    ) -> str:
+    def get_citations_map(self) -> dict[str, str]:
         """
-        Main entry point to process all citations in a report.
-
-        Process inline citations ([chunk_X]) to assign numbers
-
-        The order is important: inline citations must be processed first to establish
-        the numbering that consolidated citations will reference.
-
-        Args:
-            report: Raw report text with citation placeholders
-
-        Returns:
-            Fully formatted report with all citations transformed
+        Get the citations map.
         """
-        report = self._handle_inline_citations(report, renderer_type)
+        return self._citations_map
 
-        return report
+    def reset_maps(self):
+        """
+        Reset the citation manager.
+        """
+        self._citations_map = {}
+        self._citated_documents = {}
+        self._content_chunks = []
 
-    def _handle_inline_citations(
-        self, report: str, renderer_type: DocxRendererType
-    ) -> str:
+    def add_citations_to_report(self, report: str, renderer_type: CitationType) -> str:
         """
         Transform consolidated references into full citations with source info.
 
@@ -125,10 +118,14 @@ class CitationManager:
                 chunk = self._content_chunk_registry.retrieve(f"chunk_{citation}")
 
                 if chunk is not None:
-                    if renderer_type == DocxRendererType.DOCX:
+                    if renderer_type == "docx":
                         replace_with = self._citation_in_docx(chunk)
-                    else:
+                    elif renderer_type == "chat":
                         replace_with = self._citation_in_chat()
+                    elif renderer_type == "stream":
+                        replace_with = self._citation_for_stream()
+                    else:
+                        raise ValueError(f"Invalid renderer type: {renderer_type}")
 
                     # Cache for future use and track for ContentReference generation
                     self._citations_map[citation] = replace_with
@@ -171,14 +168,19 @@ class CitationManager:
         """
         return f"<sup>{len(self._citations_map) + 1}</sup>"
 
-    def get_citations(self, renderer_type: DocxRendererType) -> list[str] | None:
+    def _citation_for_stream(self) -> str:
+        """
+        Format a citation for stream output with superscript numbers.
+        """
+        return f"[source{len(self._citations_map) + 1}]"
+
+    def get_citations_for_docx(self) -> list[str]:
         """
         Append citations to the report.
         """
-        if renderer_type == DocxRendererType.DOCX:
-            return [
-                f"[{index}] {title}" for title, index in self._citated_documents.items()
-            ]
+        return [
+            f"[{index}] {title}" for title, index in self._citated_documents.items()
+        ]
 
     def get_references(self, message_id: str) -> list[ContentReference]:
         """
@@ -230,7 +232,7 @@ def _convert_content_chunk_to_content_reference(
     Returns:
         ContentReference object with URL, title, pages, and metadata
     """
-    url = f"unique//content/{chunk.id}"
+    url = f"unique://content/{chunk.id}"
     source_id = f"{chunk.id}_{chunk.chunk_id}"
     filename = _get_title(chunk)
     pages = _get_pages(chunk.start_page, chunk.end_page)
