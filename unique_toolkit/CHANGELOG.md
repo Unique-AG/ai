@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.39.2] - 2025-12-18
+- Add `litellm:gemini-3-flash-preview`, `litellm:openai-gpt-5-2` and `litellm:openai-gpt-5-2-thinking` to `language_model/info.py`
+
 ## [1.39.1] - 2025-12-17
 - Add GPT-5.2, GPT-5.2_CHAT to supported models list
 
