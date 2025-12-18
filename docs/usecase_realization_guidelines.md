@@ -1,26 +1,64 @@
-# 🎯 Usecase Implementation Guidelines
+# 🎯 Use Case Implementation Guidelines
 
-You have a usecase in mind that you want to implement on the Unique Platform. You have a few options to do this:
+When implementing a use case on the **Unique Platform**, there are multiple approaches.  
+Below is the **recommended starting point for most use cases**.
 
+---
 
-## ⚙️ Option 1: Customize the prompts and configurations of Unique AI
+## ⚙️ Option 1: Customize Unique AI (Prompts & Configuration)
 
-This is the most common and easiest way to get started with your use case. We recommend this as the go to option for most use cases.
+This is the **fastest and most common** way to implement a use case — **no custom development required**.
 
-### 🤔 When to go this route?
+It is best to study **existing agents provided on the platform** to get an idea of how to customize agents for your needs.  
+You can find them in the [Unique AI Space Documentation](https://unique-ch.atlassian.net/wiki/spaces/PUBDOC/pages/1385235119/Space+Management+for+Admins).
 
-- ✨ You want to customize the response of the agent to have a specific format or structure.
-- 📚 You want to work with the web or existing documents in the knowledge base.
-- 📄 You want to work converse with your own files that are not in the knowledge base but can be uploaded on a conversational basis.
-- 🌐 You want to have a translator with a tailored glossary.
+---
 
-It is best to study existing agents provided on the platform to get an idea of how to customize the agent to your needs. You can find them in the [Unique AI Space Documentation](https://unique-ch.atlassian.net/wiki/spaces/PUBDOC/pages/1385235119/Space+Management+for+Admins).
+### When to use this option
+Choose this if you want to:
+- ✨ Control response **format, tone, or structure**
+- 📚 Work with **knowledge base documents** or web sources, including **deep research, code interpreter, and other commodity tools**
+- 🔌 Integrate **MCP tools** into your use case (see Option 2)
+- 📄 Let users **upload and chat with their own files**
+- 🌐 Build a **translator with a custom glossary**
+- 🧠 Define agent behavior via prompts instead of code
 
-### 🛠️ How to go this route?
+---
 
-UniqueAI is a powerful agent/orchestrator that can be customized to your needs. You can customize the prompts, knowledge base access and tools available to the agent to tailor it to your needs.
+### 🧠 Multi-Agent & Sub-Agent Concept
 
-You can find more information about it here: [Unique AI Space Documentation](https://unique-ch.atlassian.net/wiki/spaces/PUBDOC/pages/1405878956/Unique+AI+Space)
+Unique supports **multi-agent systems** using **sub-agents**:
+
+- A **main agent** orchestrates the conversation
+- **Sub-agents** handle specialized tasks
+- Each sub-agent has its own **prompts, tools, and constraints**
+- The main agent delegates tasks and merges results into a single response
+
+You can learn more about designing and configuring sub-agents in the  
+[Sub-Agent Documentation](https://unique-ch.atlassian.net/wiki/spaces/PUBDOC/pages/1450246161/Sub+Agent).
+
+---
+
+### 🛠️ How it works
+
+**UniqueAI Chat** acts as an agent orchestrator that can be configured without code.  
+You can customize prompts, tools, and knowledge access directly in the AI Space, as described in the  
+[Unique AI Space Documentation](https://unique-ch.atlassian.net/wiki/spaces/PUBDOC/pages/1405878956/Unique+AI+Space).
+
+You can configure:
+- System and task prompts
+- Knowledge base access
+- Tools per agent or sub-agent
+- Delegation logic between agents
+
+---
+
+### ✅ Why this is recommended
+- Fast to implement
+- Easy to iterate
+- No engineering dependency
+- Production-ready
+- Supports single- and multi-agent use cases
 
 
 ## 🔌 Option 2: Develop a MCP Server and integrate it with Unique AI
