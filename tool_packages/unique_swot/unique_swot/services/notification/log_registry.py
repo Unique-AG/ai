@@ -57,7 +57,7 @@ class MessageLogRegistryItem(BaseModel):
             message_log_id=message_log.message_log_id,
             order=order,
             progress=progress,
-            completed=False,
+            completed=completed,
         )
 
     async def update(
