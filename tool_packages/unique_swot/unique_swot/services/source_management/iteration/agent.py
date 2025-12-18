@@ -126,7 +126,7 @@ class SourceIterationAgent:
                 yield content
 
             # Then yield the ordered documents as specified by the LLM
-            for result in results.ordered_sources:
+            for result in sorted(results.ordered_sources, key=lambda x: x.order):
                 content = self._content_map[result.id]
                 yield content
 
