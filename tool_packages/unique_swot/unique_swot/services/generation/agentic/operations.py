@@ -20,7 +20,8 @@ from unique_swot.services.generation.agentic.prompts.commands.config import (
     CommandsPromptConfig,
 )
 from unique_swot.services.generation.agentic.prompts.config import AgenticPromptsConfig
-from unique_swot.services.generation.agentic.prompts.definition import (
+from unique_swot.services.generation.agentic.prompts.definition.config import (
+    ComponentDefinitionPromptConfig,
     get_component_definition,
 )
 from unique_swot.services.generation.agentic.prompts.extraction.config import (
@@ -63,6 +64,7 @@ async def handle_generate_operation(
         llm_service=llm_service,
         notification_title=notification_title,
         prompts_config=prompts_config.extraction_prompt_config,
+        component_definition_prompt_config=prompts_config.definition_prompt_config,
     )
 
     # Skip if list of facts is empty
@@ -117,11 +119,15 @@ async def _extract_facts(
     llm_service: LanguageModelService,
     notification_title: str,
     prompts_config: ExtractionPromptConfig,
+    component_definition_prompt_config: ComponentDefinitionPromptConfig,
 ) -> list[str]:
+    component_definition = get_component_definition(
+        component, component_definition_prompt_config
+    )
     system_prompt = Template(prompts_config.system_prompt).render(
         company_name=company_name,
         component=component,
-        component_definition=get_component_definition(component),
+        component_definition=component_definition,
     )
     user_message = Template(prompts_config.user_prompt).render(
         company_name=company_name,
