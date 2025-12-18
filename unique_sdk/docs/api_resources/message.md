@@ -141,6 +141,8 @@ Manage chat messages and integrate with the Unique AI chat system. Includes supp
     - `references` (List[Reference], optional) - List of source references. See [`Message.Reference`](#messagereference) for structure.
     - `debugInfo` (Dict[str, Any], optional) - Debug information dictionary
     - `completedAt` (datetime, optional) - Completion timestamp
+    - `startedStreamingAt` (datetime, optional) - When streaming started
+    - `stoppedStreamingAt` (datetime, optional) - When streaming stopped
 
     **Returns:**
 
