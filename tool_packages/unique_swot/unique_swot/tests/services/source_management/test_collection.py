@@ -15,15 +15,16 @@ from unique_swot.services.source_management.collection.base import (
 
 def _make_company():
     """Helper to create test company listing."""
-    return UniqueCompanyListing(
-        id=123.0,
-        name="ACME Corp",
-        display_name="ACME Corporation",
-        country="US",
-        tickers=[],
-        source_url="https://example.com/acme",
-        source="test",
-    )
+    params = {
+        "sourceRef": 123.0,
+        "name": "ACME Corp",
+        "displayName": "ACME Corporation",
+        "country": "US",
+        "tickers": [],
+        "sourceUrl": "https://example.com/acme",
+        "source": "test",
+    }
+    return UniqueCompanyListing.model_validate(params)
 
 
 def _make_content(content_id="content_1", title="Test Doc"):

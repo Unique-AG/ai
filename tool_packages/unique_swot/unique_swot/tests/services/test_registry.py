@@ -50,7 +50,6 @@ def test_register_and_retrieve():
 
     retrieved = registry.retrieve(chunk_id)
     assert retrieved == chunk
-    assert retrieved.chunk_id == chunk.chunk_id
 
 
 def test_retrieve_nonexistent_returns_none():
