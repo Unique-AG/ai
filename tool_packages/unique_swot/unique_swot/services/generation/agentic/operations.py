@@ -257,8 +257,8 @@ def _handle_execution_results(
 ) -> None:
     for command, result in zip(plan.commands, results):
         if isinstance(result, Exception):
-            _LOGGER.debug(
-                f"Exception: {result}\nCommand: {command.model_dump_json(indent=1)}"
+            _LOGGER.exception(
+                f"Error executing command {command.command}", exc_info=result
             )
         else:
             match command.command:
