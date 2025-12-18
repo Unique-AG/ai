@@ -47,10 +47,14 @@ class Message(APIResource["Message"]):
 
     class ModifyParams(RequestOptions):
         chatId: str
+        originalText: NotRequired[str | None]
         text: NotRequired[Optional["str"]]
-        references: Optional[List["Message.Reference"]]
-        debugInfo: Optional[Dict[str, Any]]
-        completedAt: Optional[datetime]
+        references: NotRequired[List["Message.Reference"] | None]
+        gptRequest: NotRequired[Dict[str, Any] | None]
+        debugInfo: NotRequired[Dict[str, Any] | None]
+        startedStreamingAt: NotRequired[datetime | None]
+        stoppedStreamingAt: NotRequired[datetime | None]
+        completedAt: NotRequired[datetime | None]
 
     class DeleteParams(RequestOptions):
         chatId: str
@@ -61,15 +65,8 @@ class Message(APIResource["Message"]):
     class RetrieveParams(RequestOptions):
         chatId: str
 
-    class CreateEventParams(RequestOptions):
+    class CreateEventParams(ModifyParams):
         messageId: str
-        chatId: str
-        originalText: NotRequired[str | None]
-        text: NotRequired[str | None]
-        references: NotRequired[List["Message.Reference"] | None]
-        gptRequest: NotRequired[Dict[str, Any] | None]
-        debugInfo: NotRequired[Dict[str, Any] | None]
-        completedAt: NotRequired[datetime | None]
 
     chatId: str
     text: Optional[str]
