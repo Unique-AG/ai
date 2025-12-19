@@ -60,7 +60,9 @@ def test_min_version_from_requirement(spec, expected, validator_module):
     assert validator_module._min_version_from_requirement(req) == expected
 
 
-def test_main_success_skips_non_baseline_markers(tmp_path, monkeypatch, validator_module):
+def test_main_success_skips_non_baseline_markers(
+    tmp_path, monkeypatch, validator_module
+):
     # Create a fake package dir with pyproject + constraints.
     (tmp_path / "scripts").mkdir()
     (tmp_path / "pyproject.toml").write_text(
@@ -123,12 +125,12 @@ def test_main_fails_on_wrong_min_pin(tmp_path, monkeypatch, validator_module, ca
         + "\n",
         encoding="utf-8",
     )
-    (tmp_path / "constraints-min.txt").write_text("pydantic==2.12.2\n", encoding="utf-8")
+    (tmp_path / "constraints-min.txt").write_text(
+        "pydantic==2.12.2\n", encoding="utf-8"
+    )
 
     monkeypatch.setenv("PACKAGE_DIR", str(tmp_path))
     rc = validator_module.main()
     out = capsys.readouterr().out
     assert rc == 1
     assert "constraints has 2.12.2" in out
-
-
