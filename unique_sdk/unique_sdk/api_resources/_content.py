@@ -210,20 +210,23 @@ class Content(APIResource["Content"]):
         columnName: str
         content: str
 
-    class MagicTableSheetTable(TypedDict):
+    class MagicTableRow(TypedDict):
         rowId: str
         columns: List["Content.MagicTableSheetTableColumn"]
+        context: NotRequired[str]
+        rowMetadata: NotRequired[str]
 
     class MagicTableSheetIngestionConfiguration(TypedDict):
         columnIdsInMetadata: List[str]
         columnIdsInChunkText: List[str]
 
     class MagicTableSheetIngestParams(TypedDict):
-        data: List["Content.MagicTableSheetTable"]
+        data: List["Content.MagicTableRow"]
         ingestionConfiguration: "Content.MagicTableSheetIngestionConfiguration"
         metadata: Dict[str, Optional[str]]
         scopeId: str
         sheetName: str
+        context: NotRequired[str]
 
     class MagicTableSheetRowIdToContentId(TypedDict):
         rowId: str
