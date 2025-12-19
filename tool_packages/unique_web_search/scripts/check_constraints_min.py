@@ -18,16 +18,15 @@ from __future__ import annotations
 
 import os
 import re
+import tomllib
 from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import cast
 
-import tomllib
 from packaging.markers import default_environment
 from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name
 from packaging.version import Version
-
 
 _DEFAULT_ENV = cast(dict[str, str], cast(object, default_environment()))
 BASELINE_ENV: dict[str, str] = {
@@ -161,16 +160,18 @@ def main() -> int:
             )
 
     if failures:
-        print("constraints-min.txt does not match pyproject minimums (for Linux + py312):")
+        print(
+            "constraints-min.txt does not match pyproject minimums (for Linux + py312):"
+        )
         for f in failures:
             print(f"  - {f}")
         return 1
 
-    print("constraints-min.txt matches pyproject minimums (for Linux + py312), for checkable dependencies.")
+    print(
+        "constraints-min.txt matches pyproject minimums (for Linux + py312), for checkable dependencies."
+    )
     return 0
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
-
