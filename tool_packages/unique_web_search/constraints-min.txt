@@ -27,6 +27,6 @@ langchain-text-splitters==1.0.0
 
 # Internal deps (minimums per current constraints)
 unique-toolkit==1.38.3
-unique-sdk==0.10.48
+unique-sdk==0.10.58
 
 
