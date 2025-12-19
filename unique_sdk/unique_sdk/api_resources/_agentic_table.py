@@ -128,6 +128,7 @@ class AgenticTable(APIResource["AgenticTable"]):
         tableId: str
         rowOrder: int
         columnOrder: int
+        includeRowMetadata: NotRequired[bool]
 
     class SetActivityStatus(RequestOptions):
         tableId: str
@@ -210,6 +211,9 @@ class AgenticTable(APIResource["AgenticTable"]):
     ) -> "AgenticTableCell":
         """ """
         url = f"/magic-table/{params['tableId']}/cell?rowOrder={params['rowOrder']}&columnOrder={params['columnOrder']}"
+        params.pop("tableId")
+        params.pop("rowOrder")
+        params.pop("columnOrder")
         return cast(
             "AgenticTableCell",
             await cls._static_request_async(
@@ -217,7 +221,7 @@ class AgenticTable(APIResource["AgenticTable"]):
                 url,
                 user_id,
                 company_id,
-                params={},
+                params=params,
             ),
         )
 

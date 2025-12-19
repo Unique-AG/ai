@@ -5,8 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.10.59] - 2025-12-18
+## [0.10.60] - 2025-12-19
 - Expose startedStreamingAt and gptRequest fields
+
+## [0.10.59] - 2025-12-19
+- Add context field to MagicTableSheetIngestParams.
+- Add rowMetadata and context fields to MagicTableRow.
 
 ## [0.10.58] - 2025-12-16
 - chore(deps): Bump urllib3 from 2.5.0 to 2.6.2
