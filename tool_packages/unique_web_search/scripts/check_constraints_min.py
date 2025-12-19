@@ -105,13 +105,28 @@ def _iter_project_dependencies(pyproject: Mapping[str, object]) -> Iterable[str]
 
 def main() -> int:
     # Allow tests/CI to point the validator at a specific package directory.
-    # Default: .../tool_packages/unique_web_search
+    # NOTE: In CI we often run with working-directory already set to the package dir,
+    # while PACKAGE_DIR remains relative to the repo root. So if PACKAGE_DIR is relative,
+    # resolve it from repo root (not from CWD) to avoid "double" paths.
     override_dir = os.environ.get("PACKAGE_DIR")
-    package_dir = (
-        Path(override_dir).expanduser().resolve()
-        if override_dir
-        else Path(__file__).resolve().parents[1]
-    )
+
+    if override_dir:
+        p = Path(override_dir).expanduser()
+        if p.is_absolute():
+            package_dir = p.resolve()
+        else:
+            # Prefer the GitHub Actions workspace root if available; otherwise fall back
+            # to a best-effort repo root relative to this file.
+            github_workspace = os.environ.get("GITHUB_WORKSPACE")
+            repo_root = (
+                Path(github_workspace).expanduser().resolve()
+                if github_workspace
+                else Path(__file__).resolve().parents[3]
+            )
+            package_dir = (repo_root / p).resolve()
+    else:
+        package_dir = Path(__file__).resolve().parents[1]
+
     pyproject_path = package_dir / "pyproject.toml"
     constraints_path = package_dir / "constraints-min.txt"
 
