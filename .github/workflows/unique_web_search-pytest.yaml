@@ -1,0 +1,71 @@
+name: "[pytest] unique_web_search (min + latest deps)"
+
+on:
+  pull_request:
+    paths:
+      - 'tool_packages/unique_web_search/**'
+      - '.github/workflows/unique_web_search-pytest.yaml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'tool_packages/unique_web_search/**'
+      - '.github/workflows/unique_web_search-pytest.yaml'
+
+env:
+  PACKAGE_DIR: ./tool_packages/unique_web_search
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        deps: [min, latest]
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        shell: bash
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Install packaging (for constraints-min validation)
+        if: matrix.deps == 'min'
+        shell: bash
+        run: python -m pip install --upgrade packaging
+
+      - name: Install package (latest deps)
+        if: matrix.deps == 'latest'
+        shell: bash
+        working-directory: ${{ env.PACKAGE_DIR }}
+        run: |
+          uv sync --extra dev
+
+      - name: Validate constraints-min.txt against pyproject minimums (Linux + py312)
+        if: matrix.deps == 'min'
+        shell: bash
+        working-directory: ${{ env.PACKAGE_DIR }}
+        run: python scripts/check_constraints_min.py
+
+      - name: Install package (min deps via constraints)
+        if: matrix.deps == 'min'
+        shell: bash
+        working-directory: ${{ env.PACKAGE_DIR }}
+        run: |
+          uv venv
+          uv pip install -c constraints-min.txt -e ".[dev]"
+
+      - name: Run tests
+        shell: bash
+        working-directory: ${{ env.PACKAGE_DIR }}
+        run: uv run pytest
+
+
