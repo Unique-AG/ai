@@ -1,0 +1,32 @@
+# Runtime minimums for tool_packages/unique_web_search (Python 3.12 baseline)
+#
+# This file is used for "min-deps" CI installs (constraints-based) to verify
+# that the library works with the minimum versions we claim to support.
+#
+# Keep this intentionally small: runtime deps + internal deps + any security floors.
+
+typing-extensions==4.9.0
+pydantic==2.12.3
+pydantic-settings==2.10.1
+python-dotenv==1.0.1
+timeout-decorator==0.5.0
+markdownify==0.14.1
+fake-useragent==2.2.0
+crawl4ai==0.6.3
+firecrawl==3.3.2
+tavily-python==0.7.11
+unidecode==1.4.0
+pandas==2.2.3
+azure-ai-projects==1.0.0
+azure-identity==1.25.0
+azure-core==1.36.0
+google-cloud-aiplatform==1.128.0
+google-auth==2.43.0
+google-generativeai==0.8.5
+langchain-text-splitters==1.0.0
+
+# Internal deps (minimums per current constraints)
+unique-toolkit==1.38.3
+unique-sdk==0.10.48
+
+
