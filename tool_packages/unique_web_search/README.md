@@ -93,7 +93,8 @@ uv run pytest
 cd tool_packages/unique_web_search
 uv venv
 uv pip install -c constraints-min.txt -e ".[dev]"
-uv run pytest
+# Prevent uv from syncing the environment from uv.lock (we want the constraints-based env).
+uv run --no-sync pytest
 ```
 
 ### How dependency upgrades happen
