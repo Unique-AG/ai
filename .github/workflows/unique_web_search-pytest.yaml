@@ -63,9 +63,16 @@ jobs:
           uv venv
           uv pip install -c constraints-min.txt -e ".[dev]"
 
-      - name: Run tests
+      - name: Run tests (latest snapshot from uv.lock)
+        if: matrix.deps == 'latest'
         shell: bash
         working-directory: ${{ env.PACKAGE_DIR }}
         run: uv run pytest
+
+      - name: Run tests (min deps; do not sync from uv.lock)
+        if: matrix.deps == 'min'
+        shell: bash
+        working-directory: ${{ env.PACKAGE_DIR }}
+        run: uv run --no-sync pytest
 
 
