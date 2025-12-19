@@ -65,6 +65,45 @@ The tool uses environment variables and configuration files to manage API keys a
 - Proxy configuration
 - Debug and monitoring options
 
+## Dependency management (uv.lock + min/latest testing)
+
+This package is published as a **library** and uses `uv` for dependency management.
+
+- **Source of truth**: `pyproject.toml` defines the supported version ranges (consumer compatibility contract).
+- **Tested snapshot**: `uv.lock` is committed and represents the exact dependency set that CI uses for the “latest-deps” job.
+- **Min-deps CI**: `constraints-min.txt` pins the minimum runtime versions we claim to support (Python 3.12 baseline).
+
+### Why `uv.lock` (and how it differs from lockfile-less installs)
+
+`uv.lock` is the **tested dependency snapshot** (what CI builds and tests against), while `pyproject.toml` remains the **public compatibility contract** (version ranges for consumers). This separation keeps installs reproducible without turning version bumps into large, noisy diffs across many packages.
+
+### Run locally (with uv)
+
+- **Latest deps**:
+
+```bash
+cd tool_packages/unique_web_search
+uv sync --extra dev
+uv run pytest
+```
+
+- **Min deps (constraints)**:
+
+```bash
+cd tool_packages/unique_web_search
+uv venv
+uv pip install -c constraints-min.txt -e ".[dev]"
+uv run pytest
+```
+
+### How dependency upgrades happen
+
+We periodically refresh `uv.lock` (or do so for targeted security updates) and merge the lockfile change via a dedicated PR.
+
+Typical flow:
+- periodic upgrade PR: update `uv.lock`, run CI, merge
+- security upgrade: raise the minimum version in `pyproject.toml` (and in `constraints-min.txt` for min-deps testing), update `uv.lock`, run CI, merge
+
 ## Workflow
 
 1. **Input**: User query or structured search plan
