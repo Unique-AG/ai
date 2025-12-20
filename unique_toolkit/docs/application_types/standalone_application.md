@@ -7,7 +7,7 @@ A standalone application uses the capabilities of the Unique plattform but is no
 - Knowledgebase Management Pipeline
 - Automatic Report Generation
 
-# How to Register an Standalone App
+# How to Register a Standalone App
 Each application must be registered within the unique platform so it can authenticate using secrets. The required secrets are 
 
 ```env
