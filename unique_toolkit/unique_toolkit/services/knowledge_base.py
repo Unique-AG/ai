@@ -3,6 +3,7 @@ import logging
 import mimetypes
 from pathlib import Path, PurePath
 from typing import Any, Callable, overload
+from dataclasses import dataclass, field
 
 import humps
 import unique_sdk
@@ -703,6 +704,123 @@ class KnowledgeBaseService:
             p if p.startswith("/") else f"/{p}"
             for p in folder_paths.union(known_folder_paths)
         ]
+
+    def _resolve_visible_file_tree_including_files(self, content_infos: list[ContentInfo]) -> dict[str, Any]:
+        # collect all scope ids
+        scope_ids = set[str]([])
+        for content_info in content_infos:
+            if (
+                content_info.metadata
+                and content_info.metadata.get("folderIdPath") is not None
+            ):
+                fp = str(content_info.metadata.get("folderIdPath"))
+
+                scope_ids_list = set(fp.replace("uniquepathid://", "").split("/"))
+                scope_ids.update(scope_ids_list)
+
+        scope_id_to_folder_name: dict[str, str] = {}
+        for scope_id in scope_ids:
+            folder_info = self.get_folder_info(
+                scope_id=scope_id,
+            )
+            scope_id_to_folder_name[scope_id] = folder_info.name
+
+        @dataclass
+        class Folder:
+            files: list[str] = field(default_factory=list)
+            folders: dict[str, "Folder"] = field(default_factory=dict)
+
+            def to_dict(self) -> dict:
+                return {
+                    "files": self.files,
+                    "folders": {
+                        name: folder.to_dict()
+                        for name, folder in self.folders.items()
+                    }
+                }
+
+        tree = Folder()
+
+        for content_info in content_infos:
+            current = tree
+            metadata = content_info.metadata
+            path: list[str]
+            if metadata and (full_path := metadata.get(r"{FullPath}")) is not None:
+                path = str(full_path).split("/")
+            elif metadata and (folder_id_path := metadata.get("folderIdPath")) is not None:
+                scope_ids_list = str(folder_id_path).replace("uniquepathid://", "").split("/")
+                path = [
+                    scope_id_to_folder_name[scope_id] for scope_id in scope_ids_list
+                ]
+            else:
+                break
+            for folder_name in path:
+                current = current.folders.setdefault(folder_name, Folder())
+            current.files.append(content_info.key)
+            
+        return tree.to_dict()
+
+    def resolve_visible_file_tree_including_files(
+        self, *, metadata_filter: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
+        """
+        Resolves the visible file tree for the knowledge base for the current user.
+
+        Args:
+            metadata_filter (dict[str, Any] | None): The metadata filter to use. Defaults to None.
+
+        Returns:
+            list[str]: The visible file tree.
+
+        """
+
+        """It is not possible to fetch all content infos at once, so we need to fetch them in chunks.
+        We fetch the total count of content infos first, and then fetch them in chunks.
+        We do this because the API has a limit (100) on the number of content infos that can be fetched at once.
+        """
+
+        info_for_count_of_total_content = self.get_paginated_content_infos(
+            metadata_filter=metadata_filter,
+            take=1,
+        )
+
+        total_count = info_for_count_of_total_content.total_count
+
+        async def _get_paginated_content_infos(
+            metadata_filter: dict[str, Any] | None = None,
+            skip: int | None = None,
+            take: int | None = None,
+        ) -> PaginatedContentInfos:
+            content_infos = await asyncio.to_thread(
+                self.get_paginated_content_infos,
+                metadata_filter=metadata_filter,
+                skip=skip,
+                take=take,
+            )
+            return content_infos
+
+        step_size = 100
+        async def _gather_all() -> list[PaginatedContentInfos | BaseException]:
+            return await asyncio.gather(
+                *[
+                    _get_paginated_content_infos(
+                        metadata_filter=metadata_filter,
+                        skip=i,
+                        take=step_size,
+                    )
+                    for i in range(0, total_count, step_size)
+                ],
+                return_exceptions=True,
+            )
+
+        all_content_infos: list[ContentInfo] = [
+            content_info
+            for result in asyncio.run(_gather_all())
+            if not isinstance(result, BaseException)
+            for content_info in result.content_infos
+        ]
+
+        return self._resolve_visible_file_tree_including_files(content_infos=all_content_infos)
 
     def resolve_visible_file_tree(
         self, *, metadata_filter: dict[str, Any] | None = None
