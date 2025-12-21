@@ -660,7 +660,9 @@ class KnowledgeBaseService:
             scope_id=scope_id,
         )
 
-    def _translate_scope_ids_to_folder_name(self, scope_ids: set[str]) -> dict[str, str]:
+    def _translate_scope_ids_to_folder_name(
+        self, scope_ids: set[str]
+    ) -> dict[str, str]:
         scope_ids_list = list(scope_ids)
 
         async def _get_folder_info(scope_id: str) -> tuple[str, str]:
