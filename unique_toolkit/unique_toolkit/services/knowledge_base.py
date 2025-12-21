@@ -660,7 +660,7 @@ class KnowledgeBaseService:
             scope_id=scope_id,
         )
 
-    def translate_scope_ids_to_folder_name(self, scope_ids: set[str]) -> dict[str, str]:
+    def _translate_scope_ids_to_folder_name(self, scope_ids: set[str]) -> dict[str, str]:
         scope_ids_list = list(scope_ids)
 
         async def _get_folder_info(scope_id: str) -> tuple[str, str]:
@@ -700,7 +700,7 @@ class KnowledgeBaseService:
             scope_ids_list = set(fp.replace("uniquepathid://", "").split("/"))
             scope_ids.update(scope_ids_list)
 
-        scope_id_to_folder_name = self.translate_scope_ids_to_folder_name(scope_ids)
+        scope_id_to_folder_name = self._translate_scope_ids_to_folder_name(scope_ids)
 
         folder_paths: set[str] = set()
         for folder_id_path in folder_id_paths:
@@ -732,7 +732,7 @@ class KnowledgeBaseService:
                 scope_ids_list = set(fp.replace("uniquepathid://", "").split("/"))
                 scope_ids.update(scope_ids_list)
 
-        scope_id_to_folder_name = self.translate_scope_ids_to_folder_name(scope_ids)
+        scope_id_to_folder_name = self._translate_scope_ids_to_folder_name(scope_ids)
 
         @dataclass
         class Folder:
