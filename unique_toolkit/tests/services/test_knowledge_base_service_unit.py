@@ -2527,3 +2527,92 @@ class TestKnowledgeBaseServiceGetAllContentInfos:
 
         # Assert
         assert result == []
+
+
+class TestKnowledgeBaseServiceResolveVisibleFiles:
+    """Test cases for resolve_visible_files method."""
+
+    @pytest.mark.ai
+    @patch.object(KnowledgeBaseService, "_get_all_content_infos")
+    def test_resolve_visible_files__returns_list_of_keys(
+        self,
+        mock_get_all: Mock,
+        base_kb_service: KnowledgeBaseService,
+    ) -> None:
+        """
+        Purpose: Verify resolve_visible_files returns list of file names (keys).
+        Why this matters: Provides simple flat list of all visible files.
+        Setup summary: Mock content infos, call method, verify keys returned.
+        """
+        # Arrange
+        content_info1 = ContentInfo(
+            id="cont_test1",
+            object="content",
+            key="documents/report.pdf",
+            byte_size=100,
+            mime_type="application/pdf",
+            owner_id="test_user",
+            created_at=datetime(2024, 1, 1, 0, 0, 0),
+            updated_at=datetime(2024, 1, 1, 0, 0, 0),
+        )
+        content_info2 = ContentInfo(
+            id="cont_test2",
+            object="content",
+            key="images/photo.jpg",
+            byte_size=200,
+            mime_type="image/jpeg",
+            owner_id="test_user",
+            created_at=datetime(2024, 1, 1, 0, 0, 0),
+            updated_at=datetime(2024, 1, 1, 0, 0, 0),
+        )
+        mock_get_all.return_value = [content_info1, content_info2]
+
+        # Act
+        result = base_kb_service.resolve_visible_files()
+
+        # Assert
+        assert result == ["documents/report.pdf", "images/photo.jpg"]
+        mock_get_all.assert_called_once_with(None)
+
+    @pytest.mark.ai
+    @patch.object(KnowledgeBaseService, "_get_all_content_infos")
+    def test_resolve_visible_files__passes_metadata_filter(
+        self,
+        mock_get_all: Mock,
+        base_kb_service: KnowledgeBaseService,
+    ) -> None:
+        """
+        Purpose: Verify metadata_filter is passed through to _get_all_content_infos.
+        Why this matters: Allows filtering visible files by metadata.
+        Setup summary: Call with metadata_filter, verify it's passed correctly.
+        """
+        # Arrange
+        mock_get_all.return_value = []
+        metadata_filter = {"category": "reports"}
+
+        # Act
+        base_kb_service.resolve_visible_files(metadata_filter=metadata_filter)
+
+        # Assert
+        mock_get_all.assert_called_once_with(metadata_filter)
+
+    @pytest.mark.ai
+    @patch.object(KnowledgeBaseService, "_get_all_content_infos")
+    def test_resolve_visible_files__handles_empty_content(
+        self,
+        mock_get_all: Mock,
+        base_kb_service: KnowledgeBaseService,
+    ) -> None:
+        """
+        Purpose: Verify resolve_visible_files handles empty knowledge base.
+        Why this matters: Edge case when no content exists.
+        Setup summary: Mock empty response, verify empty list returned.
+        """
+        # Arrange
+        mock_get_all.return_value = []
+
+        # Act
+        result = base_kb_service.resolve_visible_files()
+
+        # Assert
+        assert result == []

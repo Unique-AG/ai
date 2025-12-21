@@ -825,6 +825,21 @@ class KnowledgeBaseService:
             for content_info in result.content_infos
         ]
 
+    def resolve_visible_files(
+        self, *, metadata_filter: dict[str, Any] | None = None
+    ) -> list[str]:
+        """
+        Resolves all visible file names in the knowledge base for the current user.
+
+        Args:
+            metadata_filter (dict[str, Any] | None): The metadata filter to use. Defaults to None.
+
+        Returns:
+            list[str]: List of file names (keys) visible to the user.
+        """
+        content_infos = self._get_all_content_infos(metadata_filter)
+        return [content_info.key for content_info in content_infos]
+
     def resolve_visible_file_tree_including_files(
         self, *, metadata_filter: dict[str, Any] | None = None
     ) -> dict[str, Any]:
