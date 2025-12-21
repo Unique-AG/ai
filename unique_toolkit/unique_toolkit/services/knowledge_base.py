@@ -1,9 +1,9 @@
 import asyncio
 import logging
 import mimetypes
+from dataclasses import dataclass, field
 from pathlib import Path, PurePath
 from typing import Any, Callable, overload
-from dataclasses import dataclass, field
 
 import humps
 import unique_sdk
@@ -660,6 +660,23 @@ class KnowledgeBaseService:
             scope_id=scope_id,
         )
 
+    def translate_scope_ids_to_folder_name(self, scope_ids: set[str]) -> dict[str, str]:
+        scope_ids_list = list(scope_ids)
+
+        async def _get_folder_info(scope_id: str) -> tuple[str, str]:
+            folder_info = await asyncio.to_thread(
+                self.get_folder_info, scope_id=scope_id
+            )
+            return (scope_id, folder_info.name)
+
+        async def _gather_all() -> list[tuple[str, str]]:
+            return await asyncio.gather(
+                *[_get_folder_info(sid) for sid in scope_ids_list]
+            )
+
+        results = asyncio.run(_gather_all())
+        return dict(results)
+
     def _resolve_visible_file_tree(self, content_infos: list[ContentInfo]) -> list[str]:
         # collect all scope ids
         folder_id_paths: set[str] = set()
@@ -683,12 +700,7 @@ class KnowledgeBaseService:
             scope_ids_list = set(fp.replace("uniquepathid://", "").split("/"))
             scope_ids.update(scope_ids_list)
 
-        scope_id_to_folder_name: dict[str, str] = {}
-        for scope_id in scope_ids:
-            folder_info = self.get_folder_info(
-                scope_id=scope_id,
-            )
-            scope_id_to_folder_name[scope_id] = folder_info.name
+        scope_id_to_folder_name = self.translate_scope_ids_to_folder_name(scope_ids)
 
         folder_paths: set[str] = set()
         for folder_id_path in folder_id_paths:
@@ -705,7 +717,9 @@ class KnowledgeBaseService:
             for p in folder_paths.union(known_folder_paths)
         ]
 
-    def _resolve_visible_file_tree_including_files(self, content_infos: list[ContentInfo]) -> dict[str, Any]:
+    def _resolve_visible_file_tree_including_files(
+        self, content_infos: list[ContentInfo]
+    ) -> dict[str, Any]:
         # collect all scope ids
         scope_ids = set[str]([])
         for content_info in content_infos:
@@ -718,12 +732,7 @@ class KnowledgeBaseService:
                 scope_ids_list = set(fp.replace("uniquepathid://", "").split("/"))
                 scope_ids.update(scope_ids_list)
 
-        scope_id_to_folder_name: dict[str, str] = {}
-        for scope_id in scope_ids:
-            folder_info = self.get_folder_info(
-                scope_id=scope_id,
-            )
-            scope_id_to_folder_name[scope_id] = folder_info.name
+        scope_id_to_folder_name = self.translate_scope_ids_to_folder_name(scope_ids)
 
         @dataclass
         class Folder:
@@ -734,9 +743,8 @@ class KnowledgeBaseService:
                 return {
                     "files": self.files,
                     "folders": {
-                        name: folder.to_dict()
-                        for name, folder in self.folders.items()
-                    }
+                        name: folder.to_dict() for name, folder in self.folders.items()
+                    },
                 }
 
         tree = Folder()
@@ -747,8 +755,13 @@ class KnowledgeBaseService:
             path: list[str]
             if metadata and (full_path := metadata.get(r"{FullPath}")) is not None:
                 path = str(full_path).split("/")
-            elif metadata and (folder_id_path := metadata.get("folderIdPath")) is not None:
-                scope_ids_list = str(folder_id_path).replace("uniquepathid://", "").split("/")
+            elif (
+                metadata
+                and (folder_id_path := metadata.get("folderIdPath")) is not None
+            ):
+                scope_ids_list = (
+                    str(folder_id_path).replace("uniquepathid://", "").split("/")
+                )
                 path = [
                     scope_id_to_folder_name[scope_id] for scope_id in scope_ids_list
                 ]
@@ -757,23 +770,12 @@ class KnowledgeBaseService:
             for folder_name in path:
                 current = current.folders.setdefault(folder_name, Folder())
             current.files.append(content_info.key)
-            
+
         return tree.to_dict()
 
-    def resolve_visible_file_tree_including_files(
-        self, *, metadata_filter: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
-        """
-        Resolves the visible file tree for the knowledge base for the current user.
-
-        Args:
-            metadata_filter (dict[str, Any] | None): The metadata filter to use. Defaults to None.
-
-        Returns:
-            list[str]: The visible file tree.
-
-        """
-
+    def _get_all_content_infos(
+        self, metadata_filter: dict[str, Any] | None = None
+    ) -> list[ContentInfo]:
         """It is not possible to fetch all content infos at once, so we need to fetch them in chunks.
         We fetch the total count of content infos first, and then fetch them in chunks.
         We do this because the API has a limit (100) on the number of content infos that can be fetched at once.
@@ -800,6 +802,7 @@ class KnowledgeBaseService:
             return content_infos
 
         step_size = 100
+
         async def _gather_all() -> list[PaginatedContentInfos | BaseException]:
             return await asyncio.gather(
                 *[
@@ -813,14 +816,31 @@ class KnowledgeBaseService:
                 return_exceptions=True,
             )
 
-        all_content_infos: list[ContentInfo] = [
+        return [
             content_info
             for result in asyncio.run(_gather_all())
             if not isinstance(result, BaseException)
             for content_info in result.content_infos
         ]
 
-        return self._resolve_visible_file_tree_including_files(content_infos=all_content_infos)
+    def resolve_visible_file_tree_including_files(
+        self, *, metadata_filter: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
+        """
+        Resolves the visible file tree for the knowledge base for the current user including files in a hierarchical folder tree strcture.
+
+        Args:
+            metadata_filter (dict[str, Any] | None): The metadata filter to use. Defaults to None.
+
+        Returns:
+            dict[str, Any]: The visible file tree.
+
+
+        """
+
+        return self._resolve_visible_file_tree_including_files(
+            content_infos=self._get_all_content_infos(metadata_filter)
+        )
 
     def resolve_visible_file_tree(
         self, *, metadata_filter: dict[str, Any] | None = None
@@ -837,11 +857,10 @@ class KnowledgeBaseService:
 
 
         """
-        info = self.get_paginated_content_infos(
-            metadata_filter=metadata_filter,
-        )
 
-        return self._resolve_visible_file_tree(content_infos=info.content_infos)
+        return self._resolve_visible_file_tree(
+            content_infos=self._get_all_content_infos(metadata_filter)
+        )
 
     def _pop_forbidden_metadata_keys(self, metadata: dict[str, Any]) -> dict[str, Any]:
         forbidden_keys = [
