@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.40.0] - 2025-12-21
 - Add `resolve_visible_file_tree_including_files()` to `KnowledgeBaseService` for hierarchical folder tree with files
+- Add `resolve_visible_files()` to `KnowledgeBaseService` for flat list of all visible file names
 - Improve performance of file tree resolution with parallel asyncio fetching
 
 ## [1.40.0] - 2025-12-22
