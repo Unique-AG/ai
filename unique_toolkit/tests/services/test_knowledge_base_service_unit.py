@@ -2216,3 +2216,298 @@ class TestKnowledgeBaseServiceEdgeCases:
         # Assert
         assert len(result) == 2
         assert mock_update.call_count == 2
+
+
+class TestKnowledgeBaseServiceFileTreeIncludingFiles:
+    """Test cases for resolve_visible_file_tree_including_files methods."""
+
+    @pytest.mark.ai
+    @patch.object(KnowledgeBaseService, "get_folder_info")
+    def test_translate_scope_ids_to_folder_name__returns_mapping(
+        self,
+        mock_get_folder: Mock,
+        base_kb_service: KnowledgeBaseService,
+    ) -> None:
+        """
+        Purpose: Verify _translate_scope_ids_to_folder_name returns correct scope_id to folder name mapping.
+        Why this matters: Enables translating internal scope IDs to human-readable folder names.
+        Setup summary: Mock folder info responses, call method with scope IDs, verify mapping.
+        """
+        # Arrange
+        folder1 = FolderInfo(
+            id="scope1",
+            name="Documents",
+            parent_id=None,
+            ingestion_config={},
+            created_at=None,
+            updated_at=None,
+            external_id=None,
+        )
+        folder2 = FolderInfo(
+            id="scope2",
+            name="Reports",
+            parent_id="scope1",
+            ingestion_config={},
+            created_at=None,
+            updated_at=None,
+            external_id=None,
+        )
+
+        def folder_info_side_effect(scope_id: str) -> FolderInfo:
+            if scope_id == "scope1":
+                return folder1
+            return folder2
+
+        mock_get_folder.side_effect = folder_info_side_effect
+
+        # Act
+        result = base_kb_service._translate_scope_ids_to_folder_name({"scope1", "scope2"})
+
+        # Assert
+        assert result == {"scope1": "Documents", "scope2": "Reports"}
+        assert mock_get_folder.call_count == 2
+
+    @pytest.mark.ai
+    @patch.object(KnowledgeBaseService, "_translate_scope_ids_to_folder_name")
+    def test_resolve_visible_file_tree_including_files__returns_hierarchical_dict(
+        self,
+        mock_translate: Mock,
+        base_kb_service: KnowledgeBaseService,
+    ) -> None:
+        """
+        Purpose: Verify _resolve_visible_file_tree_including_files returns hierarchical folder structure with files.
+        Why this matters: Enables displaying complete file tree to users including files.
+        Setup summary: Create content infos with folder metadata, call method, verify structure.
+        """
+        # Arrange
+        content_info1 = ContentInfo(
+            id="cont_test1",
+            object="content",
+            key="report.pdf",
+            byte_size=100,
+            mime_type="application/pdf",
+            owner_id="test_user",
+            created_at=datetime(2024, 1, 1, 0, 0, 0),
+            updated_at=datetime(2024, 1, 1, 0, 0, 0),
+            metadata={"folderIdPath": "uniquepathid://scope1/scope2"},
+        )
+        content_info2 = ContentInfo(
+            id="cont_test2",
+            object="content",
+            key="notes.txt",
+            byte_size=50,
+            mime_type="text/plain",
+            owner_id="test_user",
+            created_at=datetime(2024, 1, 1, 0, 0, 0),
+            updated_at=datetime(2024, 1, 1, 0, 0, 0),
+            metadata={"folderIdPath": "uniquepathid://scope1"},
+        )
+
+        mock_translate.return_value = {"scope1": "Documents", "scope2": "Reports"}
+
+        # Act
+        result = base_kb_service._resolve_visible_file_tree_including_files(
+            [content_info1, content_info2]
+        )
+
+        # Assert
+        assert isinstance(result, dict)
+        assert "folders" in result
+        assert "files" in result
+        assert "Documents" in result["folders"]
+        assert "notes.txt" in result["folders"]["Documents"]["files"]
+        assert "Reports" in result["folders"]["Documents"]["folders"]
+        assert "report.pdf" in result["folders"]["Documents"]["folders"]["Reports"]["files"]
+
+    @pytest.mark.ai
+    @patch.object(KnowledgeBaseService, "_translate_scope_ids_to_folder_name")
+    def test_resolve_visible_file_tree_including_files__handles_fullpath_metadata(
+        self,
+        mock_translate: Mock,
+        base_kb_service: KnowledgeBaseService,
+    ) -> None:
+        """
+        Purpose: Verify _resolve_visible_file_tree_including_files handles {FullPath} metadata.
+        Why this matters: Some content uses {FullPath} instead of folderIdPath.
+        Setup summary: Create content info with {FullPath} metadata, verify correct parsing.
+        """
+        # Arrange
+        content_info = ContentInfo(
+            id="cont_test",
+            object="content",
+            key="data.xlsx",
+            byte_size=200,
+            mime_type="application/vnd.ms-excel",
+            owner_id="test_user",
+            created_at=datetime(2024, 1, 1, 0, 0, 0),
+            updated_at=datetime(2024, 1, 1, 0, 0, 0),
+            metadata={r"{FullPath}": "Shared/Finance"},
+        )
+
+        mock_translate.return_value = {}
+
+        # Act
+        result = base_kb_service._resolve_visible_file_tree_including_files([content_info])
+
+        # Assert
+        assert "Shared" in result["folders"]
+        assert "Finance" in result["folders"]["Shared"]["folders"]
+        assert "data.xlsx" in result["folders"]["Shared"]["folders"]["Finance"]["files"]
+
+    @pytest.mark.ai
+    @patch.object(KnowledgeBaseService, "_translate_scope_ids_to_folder_name")
+    def test_resolve_visible_file_tree_including_files__handles_empty_content_infos(
+        self,
+        mock_translate: Mock,
+        base_kb_service: KnowledgeBaseService,
+    ) -> None:
+        """
+        Purpose: Verify _resolve_visible_file_tree_including_files handles empty input.
+        Why this matters: Edge case when no content exists.
+        Setup summary: Call with empty list, verify empty tree returned.
+        """
+        # Arrange
+        mock_translate.return_value = {}
+
+        # Act
+        result = base_kb_service._resolve_visible_file_tree_including_files([])
+
+        # Assert
+        assert result == {"files": [], "folders": {}}
+
+    @pytest.mark.ai
+    @patch.object(KnowledgeBaseService, "_get_all_content_infos")
+    @patch.object(KnowledgeBaseService, "_resolve_visible_file_tree_including_files")
+    def test_resolve_visible_file_tree_including_files__public_method_calls_internal(
+        self,
+        mock_internal: Mock,
+        mock_get_all: Mock,
+        base_kb_service: KnowledgeBaseService,
+    ) -> None:
+        """
+        Purpose: Verify public resolve_visible_file_tree_including_files orchestrates correctly.
+        Why this matters: Ensures public API properly fetches content and builds tree.
+        Setup summary: Mock internal methods, call public method, verify calls.
+        """
+        # Arrange
+        content_info = ContentInfo(
+            id="cont_test",
+            object="content",
+            key="test.txt",
+            byte_size=100,
+            mime_type="text/plain",
+            owner_id="test_user",
+            created_at=datetime(2024, 1, 1, 0, 0, 0),
+            updated_at=datetime(2024, 1, 1, 0, 0, 0),
+            metadata={"folderIdPath": "uniquepathid://scope1"},
+        )
+        mock_get_all.return_value = [content_info]
+        mock_internal.return_value = {"files": [], "folders": {"folder1": {"files": ["test.txt"], "folders": {}}}}
+
+        # Act
+        result = base_kb_service.resolve_visible_file_tree_including_files()
+
+        # Assert
+        mock_get_all.assert_called_once_with(None)
+        mock_internal.assert_called_once_with(content_infos=[content_info])
+        assert "folders" in result
+
+    @pytest.mark.ai
+    @patch.object(KnowledgeBaseService, "_get_all_content_infos")
+    @patch.object(KnowledgeBaseService, "_resolve_visible_file_tree_including_files")
+    def test_resolve_visible_file_tree_including_files__passes_metadata_filter(
+        self,
+        mock_internal: Mock,
+        mock_get_all: Mock,
+        base_kb_service: KnowledgeBaseService,
+    ) -> None:
+        """
+        Purpose: Verify metadata_filter is passed through to content fetching.
+        Why this matters: Allows filtering visible file tree by metadata.
+        Setup summary: Call with metadata_filter, verify it's passed to _get_all_content_infos.
+        """
+        # Arrange
+        mock_get_all.return_value = []
+        mock_internal.return_value = {"files": [], "folders": {}}
+        metadata_filter = {"category": "reports"}
+
+        # Act
+        base_kb_service.resolve_visible_file_tree_including_files(metadata_filter=metadata_filter)
+
+        # Assert
+        mock_get_all.assert_called_once_with(metadata_filter)
+
+
+class TestKnowledgeBaseServiceGetAllContentInfos:
+    """Test cases for _get_all_content_infos parallel fetching."""
+
+    @pytest.mark.ai
+    @patch.object(KnowledgeBaseService, "get_paginated_content_infos")
+    def test_get_all_content_infos__fetches_all_pages(
+        self,
+        mock_get_paginated: Mock,
+        base_kb_service: KnowledgeBaseService,
+    ) -> None:
+        """
+        Purpose: Verify _get_all_content_infos fetches all content across multiple pages.
+        Why this matters: Ensures all content is retrieved even when paginated.
+        Setup summary: Mock paginated responses, call method, verify all content returned.
+        """
+        # Arrange
+        content_info1 = ContentInfo(
+            id="cont_test1",
+            object="content",
+            key="file1.txt",
+            byte_size=100,
+            mime_type="text/plain",
+            owner_id="test_user",
+            created_at=datetime(2024, 1, 1, 0, 0, 0),
+            updated_at=datetime(2024, 1, 1, 0, 0, 0),
+        )
+        content_info2 = ContentInfo(
+            id="cont_test2",
+            object="content",
+            key="file2.txt",
+            byte_size=100,
+            mime_type="text/plain",
+            owner_id="test_user",
+            created_at=datetime(2024, 1, 1, 0, 0, 0),
+            updated_at=datetime(2024, 1, 1, 0, 0, 0),
+        )
+
+        # First call (take=1) returns total_count, second call returns all content (since 2 < step_size of 100)
+        mock_get_paginated.side_effect = [
+            PaginatedContentInfos(object="list", content_infos=[], total_count=2),
+            PaginatedContentInfos(object="list", content_infos=[content_info1, content_info2], total_count=2),
+        ]
+
+        # Act
+        result = base_kb_service._get_all_content_infos()
+
+        # Assert
+        assert len(result) == 2
+        assert content_info1 in result
+        assert content_info2 in result
+
+    @pytest.mark.ai
+    @patch.object(KnowledgeBaseService, "get_paginated_content_infos")
+    def test_get_all_content_infos__handles_empty_content(
+        self,
+        mock_get_paginated: Mock,
+        base_kb_service: KnowledgeBaseService,
+    ) -> None:
+        """
+        Purpose: Verify _get_all_content_infos handles case with no content.
+        Why this matters: Edge case when knowledge base is empty.
+        Setup summary: Mock empty response, verify empty list returned.
+        """
+        # Arrange
+        mock_get_paginated.return_value = PaginatedContentInfos(
+            object="list", content_infos=[], total_count=0
+        )
+
+        # Act
+        result = base_kb_service._get_all_content_infos()
+
+        # Assert
+        assert result == []
