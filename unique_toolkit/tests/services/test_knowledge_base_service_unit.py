@@ -2261,7 +2261,9 @@ class TestKnowledgeBaseServiceFileTreeIncludingFiles:
         mock_get_folder.side_effect = folder_info_side_effect
 
         # Act
-        result = base_kb_service._translate_scope_ids_to_folder_name({"scope1", "scope2"})
+        result = base_kb_service._translate_scope_ids_to_folder_name(
+            {"scope1", "scope2"}
+        )
 
         # Assert
         assert result == {"scope1": "Documents", "scope2": "Reports"}
@@ -2317,7 +2319,10 @@ class TestKnowledgeBaseServiceFileTreeIncludingFiles:
         assert "Documents" in result["folders"]
         assert "notes.txt" in result["folders"]["Documents"]["files"]
         assert "Reports" in result["folders"]["Documents"]["folders"]
-        assert "report.pdf" in result["folders"]["Documents"]["folders"]["Reports"]["files"]
+        assert (
+            "report.pdf"
+            in result["folders"]["Documents"]["folders"]["Reports"]["files"]
+        )
 
     @pytest.mark.ai
     @patch.object(KnowledgeBaseService, "_translate_scope_ids_to_folder_name")
@@ -2347,7 +2352,9 @@ class TestKnowledgeBaseServiceFileTreeIncludingFiles:
         mock_translate.return_value = {}
 
         # Act
-        result = base_kb_service._resolve_visible_file_tree_including_files([content_info])
+        result = base_kb_service._resolve_visible_file_tree_including_files(
+            [content_info]
+        )
 
         # Assert
         assert "Shared" in result["folders"]
@@ -2402,7 +2409,10 @@ class TestKnowledgeBaseServiceFileTreeIncludingFiles:
             metadata={"folderIdPath": "uniquepathid://scope1"},
         )
         mock_get_all.return_value = [content_info]
-        mock_internal.return_value = {"files": [], "folders": {"folder1": {"files": ["test.txt"], "folders": {}}}}
+        mock_internal.return_value = {
+            "files": [],
+            "folders": {"folder1": {"files": ["test.txt"], "folders": {}}},
+        }
 
         # Act
         result = base_kb_service.resolve_visible_file_tree_including_files()
@@ -2432,7 +2442,9 @@ class TestKnowledgeBaseServiceFileTreeIncludingFiles:
         metadata_filter = {"category": "reports"}
 
         # Act
-        base_kb_service.resolve_visible_file_tree_including_files(metadata_filter=metadata_filter)
+        base_kb_service.resolve_visible_file_tree_including_files(
+            metadata_filter=metadata_filter
+        )
 
         # Assert
         mock_get_all.assert_called_once_with(metadata_filter)
@@ -2478,7 +2490,11 @@ class TestKnowledgeBaseServiceGetAllContentInfos:
         # First call (take=1) returns total_count, second call returns all content (since 2 < step_size of 100)
         mock_get_paginated.side_effect = [
             PaginatedContentInfos(object="list", content_infos=[], total_count=2),
-            PaginatedContentInfos(object="list", content_infos=[content_info1, content_info2], total_count=2),
+            PaginatedContentInfos(
+                object="list",
+                content_infos=[content_info1, content_info2],
+                total_count=2,
+            ),
         ]
 
         # Act
