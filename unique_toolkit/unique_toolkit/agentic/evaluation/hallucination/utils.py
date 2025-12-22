@@ -204,18 +204,18 @@ def _get_user_prompt_default(config: EvaluationMetricConfig):
 
 
 class SourceSelectionMode(StrEnum):
-    DEFAULT = "DEFAULT"
+    FROM_IDS = "FROM_IDS"
     FROM_ORDER = "FROM_ORDER"
 
 
 def context_text_from_stream_response(
     response: LanguageModelStreamResponse,
     selected_chunks: list[ContentChunk],
-    source_selection_mode: SourceSelectionMode = SourceSelectionMode.DEFAULT,
+    source_selection_mode: SourceSelectionMode = SourceSelectionMode.FROM_IDS,
 ):
     response_references = response.message.references
     match source_selection_mode:
-        case SourceSelectionMode.DEFAULT:
+        case SourceSelectionMode.FROM_IDS:
             referenced_chunks = _default_source_selection_mode(
                 response_references, selected_chunks
             )
@@ -249,10 +249,12 @@ def _from_order_source_selection_mode(
 ):
     original_chunks_order: list[int] = []
     for reference in references:
-        original_chunks_order.extend(reference.original_index)
+        for original_index in reference.original_index:
+            if original_index not in original_chunks_order:
+                original_chunks_order.append(original_index)
 
     referenced_chunks: list[ContentChunk] = []
-    for index in set(original_chunks_order):
+    for index in original_chunks_order:
         referenced_chunks.append(selected_chunks[index])
 
     return referenced_chunks
