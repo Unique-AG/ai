@@ -50,8 +50,13 @@ jobs:
         run: |
           git fetch origin ${{ github.base_ref }}
           MERGE_BASE=$(git merge-base HEAD origin/${{ github.base_ref }})
-            
-          if git diff --name-only $MERGE_BASE..HEAD | grep -q "^${{ matrix.package }}/"; then
+
+          # List changed files in the package, excluding docs/config
+          CHANGED=$(git diff --name-only $MERGE_BASE..HEAD \
+              | grep "^${{ matrix.package }}/" || true \
+              | grep -vE "(${ { matrix.package }}/docs/|${{ matrix.package }}/mkdocs.yaml|${{ matrix.package }}/.entangled/)" || true)
+
+          if [ -n "$CHANGED" ]; then
             echo "changed=true" >> $GITHUB_OUTPUT
           else
             echo "changed=false" >> $GITHUB_OUTPUT
