@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [1.40.0] - 2025-12-22
+- Add option to use retrieve referenced chunks from their order
+
+## [1.40.0] - 2025-12-22
 - Add `hide_in_chat` parameter to `upload_to_chat_from_bytes` and `upload_to_chat_from_bytes_async`
 - Hide code interpreter files in chat 
 - Code Interpreter files are now uploaded to chat by default

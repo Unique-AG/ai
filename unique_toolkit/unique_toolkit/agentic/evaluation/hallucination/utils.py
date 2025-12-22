@@ -1,4 +1,5 @@
 import logging
+from enum import StrEnum
 from string import Template
 
 from unique_toolkit.agentic.evaluation.config import EvaluationMetricConfig
@@ -9,6 +10,7 @@ from unique_toolkit.agentic.evaluation.schemas import (
     EvaluationMetricName,
     EvaluationMetricResult,
 )
+from unique_toolkit.content import ContentReference
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
@@ -201,13 +203,58 @@ def _get_user_prompt_default(config: EvaluationMetricConfig):
     )
 
 
+class SourceSelectionMode(StrEnum):
+    FROM_IDS = "FROM_IDS"
+    FROM_ORDER = "FROM_ORDER"
+
+
 def context_text_from_stream_response(
-    response: LanguageModelStreamResponse, selected_chunks: list[ContentChunk]
+    response: LanguageModelStreamResponse,
+    selected_chunks: list[ContentChunk],
+    source_selection_mode: SourceSelectionMode = SourceSelectionMode.FROM_IDS,
 ):
     response_references = response.message.references
-    reference_ids = [reference.source_id for reference in response_references]
-    filtered_contexts: list[str] = []
-    for chunk in selected_chunks:
-        if f"{chunk.id}_{chunk.chunk_id}" in reference_ids:
-            filtered_contexts.append(chunk.text)
-    return filtered_contexts
+    match source_selection_mode:
+        case SourceSelectionMode.FROM_IDS:
+            referenced_chunks = _default_source_selection_mode(
+                response_references, selected_chunks
+            )
+        case SourceSelectionMode.FROM_ORDER:
+            referenced_chunks = _from_order_source_selection_mode(
+                response_references, selected_chunks
+            )
+        case _:
+            raise ValueError(f"Invalid source selection mode: {source_selection_mode}")
+
+    return [chunk.text for chunk in referenced_chunks]
+
+
+def _default_source_selection_mode(
+    references: list[ContentReference], selected_chunks: list[ContentChunk]
+):
+    reference_ids = {reference.source_id for reference in references}
+
+    def build_chunk_id(chunk: ContentChunk) -> str:
+        return f"{chunk.id}_{chunk.chunk_id}"
+
+    referenced_chunks = [
+        chunk for chunk in selected_chunks if build_chunk_id(chunk) in reference_ids
+    ]
+
+    return referenced_chunks
+
+
+def _from_order_source_selection_mode(
+    references: list[ContentReference], selected_chunks: list[ContentChunk]
+):
+    original_chunks_order: list[int] = []
+    for reference in references:
+        for original_index in reference.original_index:
+            if original_index not in original_chunks_order:
+                original_chunks_order.append(original_index)
+
+    referenced_chunks: list[ContentChunk] = []
+    for index in original_chunks_order:
+        referenced_chunks.append(selected_chunks[index])
+
+    return referenced_chunks
