@@ -133,7 +133,7 @@ class Content(APIResource["Content"]):
         uniqueIngestionMode: str
         vttConfig: Optional["Content.VttConfig"]
         wordReadMode: Optional[str]
-        displayInChat: Optional[bool]
+        hideInChat: Optional[bool]
 
     class Input(TypedDict):
         key: str
