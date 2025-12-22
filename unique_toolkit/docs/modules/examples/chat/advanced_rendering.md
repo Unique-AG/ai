@@ -29,7 +29,69 @@ and when clicked the text will appear in the user prompt windown
 ```
 -->
 
-## Latex Formulas
+## LaTeX Formulas
+
+The chat system supports rendering LaTeX formulas in chat messages using Markdown. This feature allows you to include mathematical or scientific equations in a readable format, enhancing communication in technical discussions.
+
+### Who is it for
+
+This feature is designed for:
+
+* **Mathematicians, scientists, and engineers** who need to share complex equations.
+* **Educators and students** collaborating on mathematical or scientific problems.
+* **Anyone** who needs to communicate mathematical or technical content effectively in chat.
+
+### Benefits
+
+* **Clarity**: Share complex mathematical or scientific formulas in a readable format.
+* **Efficiency**: Quickly render formulas without needing external tools.
+* **Collaboration**: Enhance communication in technical discussions.
+
+### Use Cases
+
+* **Educational Discussions**: Teachers and students discussing mathematical problems.
+* **Technical Collaboration**: Engineers and scientists sharing equations during project discussions.
+* **Documentation**: Including formulas in chat for reference or explanation.
+
+### Supported LaTeX Formula Syntax
+
+We support LaTeX formulas in the following formats only:
+
+* **Inline math**: use `\(...\)`  
+  Example: `The area is \( \pi r^2 \).`
+* **Block (display) math**: use `\[...\]` on its own line  
+  Example: `\[ E = mc^2\]`
+
+**Note**: Other delimiters such as `$...$` or `$$...$$` are **not supported**.
+
+### Using with LLMs
+
+If your LLM does not automatically produce the required delimiters, include an instruction in the system prompt such as:
+
+> "Render all LaTeX math using `\(...\)` for inline and `\[...\]` for block equations. Do not use `$...$` or `$$...$$`."
+
+You can also reinforce this by adding:
+
+* "Prefer inline math for short, in-sentence expressions."
+* "Use block math for standalone or multi-line equations."
+
+### Step-by-Step Guide
+
+To render LaTeX formulas in chat messages, you need to use the LaTeX shorthand syntax for equations. This involves wrapping the formula in escaped square brackets `\[...\]` for block math or `\(...\)` for inline math.
+
+#### Key Points
+
+1. **Use LaTeX shorthand syntax**:  
+   * For block math: Wrap the formula in escaped square brackets `\[...\]`.
+   * For inline math: Wrap the formula in escaped parentheses `\(...\)`.
+2. **Ensure correct LaTeX syntax**:  
+   * Follow standard LaTeX syntax rules within the brackets.
+
+### Examples
+
+#### Using the Helper Function (Block Math)
+
+The `create_latex_formula_string` helper function creates block math formulas:
 
 ```{.python #rendering_latex_formula}
 latex_formula_string = create_latex_formula_string(
@@ -39,16 +101,57 @@ chat_service.create_assistant_message(
     content=f"Here is a latex formula: {latex_formula_string}",
 )
 ```
-<!--
-```{.python file=docs/.python_files/chat_latex_formula.py}
-<<full_sse_setup_with_services>>
-    <<rendering_latex_formula>>
-    <<free_user_input>>
-```
--->
 
-The formula will appear as
+The formula will appear as:
 ![alt text](./images/chat_latex_formula.png)
+
+#### Basic Formula (Manual)
+
+To include a basic formula, wrap it in escaped square brackets:
+
+```python
+# Block math example
+formula = r"\[E = mc^2\]"
+chat_service.create_assistant_message(
+    content=f"The famous equation: {formula}",
+)
+```
+
+#### Inline Math Example
+
+For inline formulas within text, use escaped parentheses:
+
+```python
+# Inline math example
+content = f"The area of a circle is \( \pi r^2 \)."
+chat_service.create_assistant_message(content=content)
+```
+
+#### Complex Formula Example
+
+For more complex formulas, ensure all LaTeX syntax is correctly used within the escaped brackets:
+
+```python
+# Complex formula with inline math
+content = f"The integral of a function is given by \[\int_{a}^{b} f(x) \, dx\]."
+chat_service.create_assistant_message(content=content)
+```
+
+### Tips & Tricks
+
+* Ensure that your LaTeX code is correctly formatted and follows the standard LaTeX syntax.
+* The shorthand syntax `\[...\]` is specifically for rendering LaTeX in our chat messages (block math).
+* The shorthand syntax `\(...\)` is for inline math within sentences.
+* If you encounter any issues with rendering, double-check that the formula is correctly wrapped in escaped brackets and that the LaTeX syntax is accurate.
+* Use inline math `\(...\)` for short expressions within sentences.
+* Use block math `\[...\]` for standalone or multi-line equations.
+
+### Limitations
+
+* **Syntax Errors**: Incorrect LaTeX syntax will result in rendering issues.
+* **Formatting Rules**: Only formulas wrapped in `\[...\]` (block) or `\(...\)` (inline) will render.
+* **Unsupported Delimiters**: The delimiters `$...$` or `$$...$$` are not supported and will not render.
+* **Complexity**: Extremely complex formulas may require additional testing to ensure proper display.
 
 ## Images
 
