@@ -43,6 +43,13 @@ The endpoint is secured like all other Public API endpoints and requires:
 - `Authorization`: Bearer token with your API key
 
 By using the **mandatory** `subscriptions` query argument, the consumer can define which events they want to receive via the subscription. **Multiple events can be separated by a comma.**
+For instance to subscribe to both user message created and external module chosen events, the following command can be used:
+
+```bash
+...
+export SUBSCRIPTIONS=unique.chat.user-message.created,unique.chat.external-module.chosen  
+...
+```
 
 ## Configuration
 
