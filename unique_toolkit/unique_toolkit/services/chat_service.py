@@ -1600,6 +1600,7 @@ class ChatService(ChatServiceDeprecated):
         mime_type: str,
         scope_id: str | None = None,
         skip_ingestion: bool = False,
+        hide_in_chat: bool = False,
         ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> Content:
@@ -1612,6 +1613,7 @@ class ChatService(ChatServiceDeprecated):
             scope_id=scope_id,
             chat_id=self._chat_id,
             skip_ingestion=skip_ingestion,
+            hide_in_chat=hide_in_chat,
             ingestion_config=ingestion_config,
             metadata=metadata,
         )
@@ -1624,6 +1626,7 @@ class ChatService(ChatServiceDeprecated):
         mime_type: str,
         scope_id: str | None = None,
         skip_ingestion: bool = False,
+        hide_in_chat: bool = False,
         ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> Content:
@@ -1636,6 +1639,7 @@ class ChatService(ChatServiceDeprecated):
             scope_id=scope_id,
             chat_id=self._chat_id,
             skip_ingestion=skip_ingestion,
+            hide_in_chat=hide_in_chat,
             ingestion_config=ingestion_config,
             metadata=metadata,
         )

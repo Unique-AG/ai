@@ -248,6 +248,7 @@ async def upload_content_from_bytes_async(
     skip_ingestion: bool = False,
     ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
     metadata: dict[str, Any] | None = None,
+    hide_in_chat: bool = False,
 ) -> Content:
     """
     Asynchronously uploads content to the knowledge base.
@@ -280,6 +281,7 @@ async def upload_content_from_bytes_async(
             skip_ingestion=skip_ingestion,
             ingestion_config=ingestion_config,
             metadata=metadata,
+            hide_in_chat=hide_in_chat,
         )
     except Exception as e:
         logger.error(f"Error while uploading content: {e}")
@@ -297,6 +299,7 @@ def upload_content_from_bytes(
     skip_ingestion: bool = False,
     ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
     metadata: dict[str, Any] | None = None,
+    hide_in_chat: bool = False,
 ) -> Content:
     """
     Uploads content to the knowledge base.
@@ -329,6 +332,7 @@ def upload_content_from_bytes(
             skip_ingestion=skip_ingestion,
             ingestion_config=ingestion_config,
             metadata=metadata,
+            hide_in_chat=hide_in_chat,
         )
     except Exception as e:
         logger.error(f"Error while uploading content: {e}")
@@ -399,6 +403,7 @@ def _trigger_upload_content(
     skip_excel_ingestion: bool = False,
     ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
     metadata: dict[str, Any] | None = None,
+    hide_in_chat: bool = False,
 ) -> Content:
     """
     Uploads content to the knowledge base.
@@ -479,6 +484,9 @@ def _trigger_upload_content(
     elif skip_ingestion:
         ingestion_config["uniqueIngestionMode"] = "SKIP_INGESTION"
 
+    if hide_in_chat:
+        ingestion_config["hideInChat"] = True
+
     input_dict = {
         "key": content_name,
         "title": content_name,
@@ -520,6 +528,7 @@ async def _trigger_upload_content_async(
     skip_excel_ingestion: bool = False,
     ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
     metadata: dict[str, Any] | None = None,
+    hide_in_chat: bool = False,
 ):
     """
     Asynchronously uploads content to the knowledge base.
@@ -602,6 +611,9 @@ async def _trigger_upload_content_async(
         ingestion_config["uniqueIngestionMode"] = "SKIP_EXCEL_INGESTION"
     elif skip_ingestion:
         ingestion_config["uniqueIngestionMode"] = "SKIP_INGESTION"
+
+    if hide_in_chat:
+        ingestion_config["hideInChat"] = True
 
     input_dict = {
         "key": content_name,
