@@ -10,6 +10,7 @@ on:
       - '!unique_toolkit/**/docs/**'
       - '!unique_toolkit/**/mkdocs.yaml'
       - '!unique_toolkit/.entangled/**'
+      - 'unique_orchestrator/**'
 
 jobs:
   validate-changes:
@@ -20,6 +21,7 @@ jobs:
         package:
           - unique_sdk
           - unique_toolkit
+          - unique_orchestrator
 
     steps:
       - name: Check out code

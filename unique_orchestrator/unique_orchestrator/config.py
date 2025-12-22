@@ -399,3 +399,6 @@ class UniqueAIConfig(BaseModel):
         if not any(tool.is_sub_agent for tool in self.space.tools):
             self.agent.experimental.sub_agents_config.referencing_config = None
         return self
+
+
+# some changes to trigger the changelog enforcement
