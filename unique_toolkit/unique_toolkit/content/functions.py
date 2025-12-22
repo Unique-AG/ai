@@ -485,7 +485,7 @@ def _trigger_upload_content(
         ingestion_config["uniqueIngestionMode"] = "SKIP_INGESTION"
 
     if hide_in_chat:
-        ingestion_config["displayInChat"] = False
+        ingestion_config["hideInChat"] = True
 
     input_dict = {
         "key": content_name,
