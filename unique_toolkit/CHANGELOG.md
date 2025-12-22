@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.38.4] - 2025-12-17
 - Improving handling of tool calls with Qwen models
 
-## [1.38.4] - 2025-12-17
+## [1.39.4] - 2025-12-17
 - TEST changelog
 
 
