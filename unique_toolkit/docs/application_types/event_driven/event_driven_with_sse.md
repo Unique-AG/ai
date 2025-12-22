@@ -1,6 +1,9 @@
 # Development Setup with Event Socket Streaming Endpoint (SSE)
 
-Server-Sent Events (SSE) provide a persistent connection to the Unique platform's event stream. This is ideal for development as it doesn't require exposing a public endpoint.
+!!! warning "Development Only - Not for Production"
+    **The Event Socket (SSE) is intended for development purposes only.** It has significant limitations including no delivery guarantees, automatic connection timeouts, and no retry mechanisms. **For production use, you must use Webhooks instead.**
+
+Server-Sent Events (SSE) provide a persistent connection to the Unique platform's event stream. This is ideal for local development as it doesn't require exposing a public endpoint or using tunneling services like ngrok.
 
 ## Rationale
 
@@ -14,15 +17,19 @@ This _push principle_ is not achievable for some Developers. While there are som
 
 The Event Socket service allows consumers to subscribe to events and open a long-lived HTTP EventSource connection. Events from the Unique AI platform are sent via the connection.
 
-The connection does not provide any delivery guarantee and automatically closes (without warning) after 10 minutes (also see Limitations below).
+!!! danger "Critical Limitations"
+    - **No delivery guarantee**: The connection does not provide any delivery guarantee
+    - **Automatic timeout**: Connections automatically close (without warning) after 10 minutes
+    - **No retry mechanism**: If the connection is down, events are lost with no replay capability
+    - **Development only**: This service must not be used in production environments
 
-For these reasons, Unique discourages any use of the Event Socket in any non-development use cases.
+For these reasons, the Event Socket should **only** be used for development purposes. For production deployments, use Webhooks instead.
 
 ## Architecture
 
-The **Event Socket** is subscribed to the same Event Bus as the Webhook Services themselves. While the Webhooks send HTTP requests to registered endpoints with retry mechanisms, the Event Socket will publish events to subscribed consumers via server-sent events.
+The **Event Socket** is subscribed to the same Event Bus as the Webhook Services. While Webhooks send HTTP requests to registered endpoints with retry mechanisms, the Event Socket publishes events to subscribed consumers via server-sent events.
 
-The Event Socket is a dedicated service that can be scaled independently from the rest of Unique AI to accommodate the client's needs and scale.
+The Event Socket is a dedicated service that can be scaled independently from the rest of Unique AI to accommodate client needs and scale.
 
 ### Event Socket Endpoint
 
@@ -42,8 +49,9 @@ The endpoint is secured like all other Public API endpoints and requires:
 - `x-company-id`: The current company ID
 - `Authorization`: Bearer token with your API key
 
-By using the **mandatory** `subscriptions` query argument, the consumer can define which events they want to receive via the subscription. **Multiple events can be separated by a comma.**
-For instance to subscribe to both user message created and external module chosen events, the following command can be used:
+By using the **mandatory** `subscriptions` query argument, you can define which events you want to receive via the subscription. **Multiple events can be separated by a comma.**
+
+For example, to subscribe to both user message created and external module chosen events, use the following command:
 
 ```bash
 ...
@@ -53,20 +61,20 @@ export SUBSCRIPTIONS=unique.chat.user-message.created,unique.chat.external-modul
 
 ## Configuration
 
-The following secrets must be configured for this in an `unique.env` file or in the environment when developing with SSE
+The following environment variables must be configured in a `unique.env` file or in your environment when developing with SSE:
 
 ```env
-UNIQUE_API_BASE_URL=            # The backend url of Unique's public API
-UNIQUE_API_VERSION=             # The version Unique's public API
+UNIQUE_API_BASE_URL=            # The backend URL of Unique's public API
+UNIQUE_API_VERSION=             # The version of Unique's public API
 
-UNIQUE_APP_ID=                  # The app id as obtained in the App secion of Unique
-UNIQUE_APP_KEY=                 # The app key as obtained in the App secion of Unique
+UNIQUE_APP_ID=                  # The app ID as obtained in the App section of Unique
+UNIQUE_APP_KEY=                 # The app key as obtained in the App section of Unique
 
 UNIQUE_AUTH_COMPANY_ID=
 UNIQUE_AUTH_USER_ID=
 ```
 
-For convenience we provide the `get_event_generator` functionality that hides the complexities of the SSE client such that it suffices to specify the type of event the application is looking for. At the moment only `ChatEvent` is available but other events will soon follow.
+For convenience, we provide the `get_event_generator` functionality that hides the complexities of the SSE client. You only need to specify the type of event your application is looking for. Currently, only `ChatEvent` is available, but other events will be added in the future.
 
 
 <!--
@@ -98,24 +106,54 @@ for event in get_event_generator(unique_settings=settings, event_type=ChatEvent)
 
 ## Limitations
 
-### Timeout
+!!! warning "Important Limitations"
+    The Event Socket has critical limitations that make it unsuitable for production use. Please review these carefully before using this service.
 
-The connection will timeout after 10 minutes, no matter how many events are sent over the line. The consumer must implement a proper timeout detection and re-new the subscription to keep receiving events.
+### Connection Timeout
 
-### No Retry
+!!! danger "10-Minute Timeout"
+    **The connection automatically closes after 10 minutes**, regardless of how many events are sent. There is no warning before the connection closes.
 
-The Event Socket service has no knowledge of which consumers are supposed to receive events. It only sends events to active subscriptions. If the connection is not up and running, the consumer application will not receive any events and there is no replay or retry mechanism.
+    **You must implement proper timeout detection and reconnection logic** to keep receiving events. If your application does not handle reconnection, you will miss events after the timeout period.
 
-For production purposes, Webhooks must be used.
+### No Delivery Guarantees
 
-## Security
+!!! danger "No Retry or Replay"
+    The Event Socket service has no knowledge of which consumers are supposed to receive events. It only sends events to **active subscriptions**.
+
+    **If your connection is down, events are lost permanently.** There is no:
+    - Retry mechanism
+    - Replay capability
+    - Delivery confirmation
+    - Event queuing
+
+    Any events that occur while your connection is not active will not be delivered.
+
+### Production Use
+
+!!! error "Not for Production"
+    **For production purposes, you must use Webhooks instead.** Webhooks provide:
+    - Reliable delivery with retry mechanisms
+    - Persistent event queuing
+    - Delivery confirmations
+    - Production-grade reliability
+
+## Security Considerations
+
+!!! warning "Security Implications"
+    The Event Socket allows developers to connect their local machines directly to test or production systems. This creates security considerations that must be understood and accepted.
 
 ### Accessibility
 
-These mechanisms allow developers to de-facto attach their machines to a test or even production system, a scenario most clients want to actively avoid (mainly a reason in the first place not even to allow developers to expose their machines).
+The Event Socket mechanism allows developers to effectively attach their local machines to test or even production systems. This is a scenario that most clients want to actively avoid, which is often the primary reason for not allowing developers to expose their machines in the first place.
 
-Unique is fully aware of this risk and mitigates it in the following ways:
+### Risk Mitigation
 
-* Developers leveraging this mechanism have access to the same data already, as the stream is On Behalf Of (_OBO_).
-* Developers and clients who want to leverage these services have actively acknowledged the identified risks in a written form and are accepting the Terms of Use.
+Unique is fully aware of these risks and mitigates them in the following ways:
+
+- **On Behalf Of (OBO) access**: Developers leveraging this mechanism have access to the same data they would already have access to, as the stream operates on behalf of their existing credentials
+- **Explicit acknowledgment**: Developers and clients who use this service must actively acknowledge the identified risks in written form and accept the Terms of Use
+
+!!! note "Responsibility"
+    By using the Event Socket service, you acknowledge that you understand the security implications and accept responsibility for the risks associated with connecting your local development machine to Unique's systems.
 
