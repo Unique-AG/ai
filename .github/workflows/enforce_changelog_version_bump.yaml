@@ -11,6 +11,14 @@ on:
       - '!unique_toolkit/**/mkdocs.yaml'
       - '!unique_toolkit/.entangled/**'
       - 'unique_orchestrator/**'
+      - 'connectors/unique_quartr/**'
+      - 'connectors/unique_search_proxy/**'
+      - 'postprocessors/unique_follow_up_questions/**'
+      - 'postprocessors/unique_stock_ticker/**'
+      - 'tool_packages/unique_deep_research/**'
+      - 'tool_packages/unique_internal_search/**'
+      - 'tool_packages/unique_swot/**'
+      - 'tool_packages/unique_web_search/**'
 
 jobs:
   validate-changes:
@@ -22,6 +30,14 @@ jobs:
           - unique_sdk
           - unique_toolkit
           - unique_orchestrator
+          - connectors/unique_quartr
+          - connectors/unique_search_proxy
+          - postprocessors/unique_follow_up_questions
+          - postprocessors/unique_stock_ticker
+          - tool_packages/unique_deep_research
+          - tool_packages/unique_internal_search
+          - tool_packages/unique_swot
+          - tool_packages/unique_web_search
 
     steps:
       - name: Check out code
@@ -34,8 +50,13 @@ jobs:
         run: |
           git fetch origin ${{ github.base_ref }}
           MERGE_BASE=$(git merge-base HEAD origin/${{ github.base_ref }})
-            
-          if git diff --name-only $MERGE_BASE..HEAD | grep -q "^${{ matrix.package }}/"; then
+
+          # List changed files in the package, excluding docs/config
+          CHANGED=$(git diff --name-only $MERGE_BASE..HEAD \
+              | grep "^${{ matrix.package }}/" || true \
+              | grep -vE "(${ { matrix.package }}/docs/|${{ matrix.package }}/mkdocs.yaml|${{ matrix.package }}/.entangled/)" || true)
+
+          if [ -n "$CHANGED" ]; then
             echo "changed=true" >> $GITHUB_OUTPUT
           else
             echo "changed=false" >> $GITHUB_OUTPUT
