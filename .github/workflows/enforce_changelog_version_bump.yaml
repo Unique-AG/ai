@@ -1,0 +1,62 @@
+name: "[chore] Enforce Changelog and Version Bump"
+
+on:
+  pull_request:
+    paths:
+      - 'unique_sdk/**'
+      - '!unique_sdk/**/docs/**'
+      - '!unique_sdk/**/mkdocs.yaml'
+      - 'unique_toolkit/**'
+      - '!unique_toolkit/**/docs/**'
+      - '!unique_toolkit/**/mkdocs.yaml'
+      - '!unique_toolkit/.entangled/**'
+      - 'unique_orchestrator/**'
+      - 'connectors/unique_quartr/**'
+      - 'connectors/unique_search_proxy/**'
+      - 'postprocessors/unique_follow_up_questions/**'
+      - 'postprocessors/unique_stock_ticker/**'
+      - 'tool_packages/unique_deep_research/**'
+      - 'tool_packages/unique_internal_search/**'
+      - 'tool_packages/unique_swot/**'
+      - 'tool_packages/unique_web_search/**'
+
+jobs:
+  validate-changes:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        package:
+          - unique_sdk
+          - unique_toolkit
+          - unique_orchestrator
+          - connectors/unique_quartr
+          - connectors/unique_search_proxy
+          - postprocessors/unique_follow_up_questions
+          - postprocessors/unique_stock_ticker
+          - tool_packages/unique_deep_research
+          - tool_packages/unique_internal_search
+          - tool_packages/unique_swot
+          - tool_packages/unique_web_search
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if package has changes
+        id: changes
+        run: |
+          git fetch origin ${{ github.base_ref }}
+          MERGE_BASE=$(git merge-base HEAD origin/${{ github.base_ref }})
+            
+          if git diff --name-only $MERGE_BASE..HEAD | grep -q "^${{ matrix.package }}/"; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Validate changelog and version bump
+        if: steps.changes.outputs.changed == 'true'
+        run: ./.github/scripts/validate-changelog-version-bump.sh ${{ matrix.package }} ${{ github.base_ref }}
