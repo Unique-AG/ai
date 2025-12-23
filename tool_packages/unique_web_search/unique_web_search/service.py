@@ -9,7 +9,12 @@ from unique_toolkit.agentic.tools.tool import (
     Tool,
 )
 from unique_toolkit.agentic.tools.tool_progress_reporter import ProgressState
-from unique_toolkit.chat.schemas import MessageLogDetails, MessageLogEvent
+from unique_toolkit.chat.schemas import (
+    MessageLog,
+    MessageLogDetails,
+    MessageLogEvent,
+    MessageLogStatus,
+)
 from unique_toolkit.content import ContentReference
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
@@ -52,7 +57,10 @@ class WebSearchTool(Tool[WebSearchConfig]):
             config=self.config.content_processor_config,
             language_model=self.language_model,
         )
+        self._display_name = kwargs.get("display_name", "Web search")
         self.debug = self.config.debug
+
+        self._active_message_log: MessageLog | None = None
 
         def content_reducer(web_page_chunks: list[WebPageChunk]) -> list[WebPageChunk]:
             return reduce_sources_to_token_limit(
@@ -113,16 +121,15 @@ class WebSearchTool(Tool[WebSearchConfig]):
             debug_info.num_chunks_in_final_prompts = len(content_chunks)
             debug_info.execution_time = time() - start_time
 
-            details, reference_list = self._prepare_message_logs_entries(
-                queries_for_log
-            )
-            self._message_step_logger.create_message_log_entry(
-                text=f"**{self.display_name()}**",
-                details=details,
-                references=reference_list,
+            self._active_message_log = self.create_or_update_active_message_log(
+                queries_for_log=queries_for_log,
+                status=MessageLogStatus.COMPLETED,
             )
 
-            if self.tool_progress_reporter:
+            if (
+                not self._feature_flags.feature_flag_enable_new_answers_ui
+                and self.tool_progress_reporter
+            ):
                 await self.tool_progress_reporter.notify_from_tool_call(
                     tool_call=tool_call,
                     name=executor.notify_name,
@@ -139,7 +146,10 @@ class WebSearchTool(Tool[WebSearchConfig]):
         except Exception as e:
             self.logger.exception(f"Error executing WebSearch tool: {e}")
 
-            if self.tool_progress_reporter:
+            if (
+                not self._feature_flags.feature_flag_enable_new_answers_ui
+                and self.tool_progress_reporter
+            ):
                 await self.tool_progress_reporter.notify_from_tool_call(
                     tool_call=tool_call,
                     name=executor.notify_name,
@@ -160,6 +170,18 @@ class WebSearchTool(Tool[WebSearchConfig]):
         parameters: WebSearchPlan | WebSearchToolParameters,
         debug_info: WebSearchDebugInfo,
     ) -> WebSearchV1Executor | WebSearchV2Executor:
+        # Create callback that wraps the service's create_or_update_active_message_log method
+        def message_log_callback(
+            progress_message: str | None,
+            queries_for_log: list[WebSearchLogEntry] | None,
+            status: MessageLogStatus,
+        ) -> MessageLog | None:
+            return self.create_or_update_active_message_log(
+                progress_message=progress_message,
+                queries_for_log=queries_for_log,
+                status=status,
+            )
+
         if isinstance(parameters, WebSearchPlan):
             assert self.config.web_search_mode_config.mode == WebSearchMode.V2
             return WebSearchV2Executor(
@@ -173,10 +195,13 @@ class WebSearchTool(Tool[WebSearchConfig]):
                 content_processor=self.content_processor,
                 chunk_relevancy_sorter=self.chunk_relevancy_sorter,
                 chunk_relevancy_sort_config=self.config.chunk_relevancy_sort_config,
-                tool_progress_reporter=self.tool_progress_reporter,
+                tool_progress_reporter=self.tool_progress_reporter
+                if not self._feature_flags.feature_flag_enable_new_answers_ui
+                else None,
                 content_reducer=self.content_reducer,
                 max_steps=self.config.web_search_mode_config.max_steps,
                 debug_info=debug_info,
+                message_log_callback=message_log_callback,
             )
         elif isinstance(parameters, WebSearchToolParameters):
             assert self.config.web_search_mode_config.mode == WebSearchMode.V1
@@ -193,10 +218,13 @@ class WebSearchTool(Tool[WebSearchConfig]):
                 content_processor=self.content_processor,
                 chunk_relevancy_sorter=self.chunk_relevancy_sorter,
                 chunk_relevancy_sort_config=self.config.chunk_relevancy_sort_config,
-                tool_progress_reporter=self.tool_progress_reporter,
+                tool_progress_reporter=self.tool_progress_reporter
+                if not self._feature_flags.feature_flag_enable_new_answers_ui
+                else None,
                 content_reducer=self.content_reducer,
                 refine_query_system_prompt=self.config.web_search_mode_config.refine_query_mode.system_prompt,
                 debug_info=debug_info,
+                message_log_callback=message_log_callback,
             )
         else:
             raise ValueError(f"Invalid parameters: {parameters}")
@@ -234,6 +262,48 @@ class WebSearchTool(Tool[WebSearchConfig]):
                 sequence_number += 1
 
         return details, references
+
+    def create_or_update_active_message_log(
+        self,
+        *,
+        progress_message: str | None = None,
+        queries_for_log: list[WebSearchLogEntry] | None = None,
+        status: MessageLogStatus,
+    ) -> MessageLog | None:
+        text = (
+            f"**{self._display_name}**\n{progress_message}"
+            if progress_message is not None
+            else f"**{self._display_name}**"
+        )
+
+        if queries_for_log is not None:
+            details, reference_list = self._prepare_message_logs_entries(
+                queries_for_log
+            )
+        else:
+            details = MessageLogDetails(data=[])
+            reference_list = []
+
+        if self._active_message_log is None:
+            self._active_message_log = (
+                self._message_step_logger.create_message_log_entry(
+                    text=text,
+                    details=details,
+                    references=reference_list,
+                    status=status,
+                )
+            )
+        else:
+            self._active_message_log = (
+                self._message_step_logger.update_message_log_entry(
+                    message_log=self._active_message_log,
+                    text=text,
+                    status=status,
+                    details=details,
+                    references=reference_list,
+                )
+            )
+        return self._active_message_log
 
 
 ToolFactory.register_tool(WebSearchTool, WebSearchConfig)
