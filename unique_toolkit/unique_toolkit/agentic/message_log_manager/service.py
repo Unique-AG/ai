@@ -8,6 +8,7 @@ from collections import defaultdict
 from logging import getLogger
 
 from unique_toolkit.chat.schemas import (
+    MessageLog,
     MessageLogDetails,
     MessageLogStatus,
     MessageLogUncitedReferences,
@@ -61,9 +62,10 @@ class MessageStepLogger:
         self,
         *,
         text: str,
+        status: MessageLogStatus = MessageLogStatus.COMPLETED,
         details: MessageLogDetails | None = None,
-        references: list[ContentReference],
-    ) -> None:
+        references: list[ContentReference] = [],
+    ) -> MessageLog | None:
         """
         Create a full message log entry with question, hits, and references.
 
@@ -79,14 +81,37 @@ class MessageStepLogger:
                 "Assistant message id is not set. Skipping message log entry creation."
             )
             return
-
-        _ = self._chat_service.create_message_log(
+        return self._chat_service.create_message_log(
             message_id=self._chat_service._assistant_message_id,
             text=text,
-            status=MessageLogStatus.COMPLETED,
+            status=status,
             order=self._get_next_message_order(
                 message_id=self._chat_service._assistant_message_id
             ),
+            details=details or MessageLogDetails(data=[]),
+            uncited_references=MessageLogUncitedReferences(data=references),
+            references=[],
+        )
+
+    def update_message_log_entry(
+        self,
+        *,
+        message_log: MessageLog,
+        text: str | None = None,
+        status: MessageLogStatus,
+        details: MessageLogDetails | None = None,
+        references: list[ContentReference] = [],
+    ) -> MessageLog | None:
+        """
+        Update a message log entry with a new status.
+        """
+        if message_log.message_log_id is None:
+            return None
+        return self._chat_service.update_message_log(
+            message_log_id=message_log.message_log_id,
+            order=message_log.order,
+            text=text,
+            status=status,
             details=details or MessageLogDetails(data=[]),
             uncited_references=MessageLogUncitedReferences(data=references),
             references=[],

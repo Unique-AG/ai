@@ -7,6 +7,7 @@ from typing_extensions import deprecated
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
 from unique_toolkit.agentic.tools.config import ToolBuildConfig, ToolSelectionPolicy
+from unique_toolkit.agentic.tools.feature_flags import FeatureFlags
 from unique_toolkit.agentic.tools.schemas import (
     BaseToolConfig,
     ToolCallResponse,
@@ -163,6 +164,7 @@ class Tool(ABC, Generic[ConfigType]):
         config: ConfigType,
         event: ChatEvent,
         tool_progress_reporter: ToolProgressReporter | None = None,
+        feature_flags: FeatureFlags | None = None,
     ):
         self.settings = ToolBuildConfig(
             name=self.name,
@@ -179,6 +181,8 @@ class Tool(ABC, Generic[ConfigType]):
         self._tool_progress_reporter: ToolProgressReporter | None = (
             tool_progress_reporter
         )
+
+        self._feature_flags: FeatureFlags = feature_flags or FeatureFlags()
 
         self._chat_service = ChatService(event)
         self._language_model_service = LanguageModelService(event)

@@ -62,6 +62,7 @@ from unique_toolkit.agentic.tools.a2a import (
     SubAgentResponseWatcher,
 )
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
+from unique_toolkit.agentic.tools.feature_flags import FeatureFlags
 from unique_toolkit.agentic.tools.mcp.manager import MCPManager
 from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolName
 from unique_toolkit.agentic.tools.tool_manager import (
@@ -125,6 +126,7 @@ class _CommonComponents(NamedTuple):
     a2a_manager: A2AManager
     mcp_servers: list[McpServer]
     loop_iteration_runner: LoopIterationRunner
+    feature_flags: FeatureFlags
 
 
 def _build_common(
@@ -231,6 +233,8 @@ def _build_common(
         chat_service=chat_service,
     )
 
+    feature_flags = FeatureFlags.from_env(event.company_id)
+
     return _CommonComponents(
         chat_service=chat_service,
         content_service=content_service,
@@ -248,6 +252,7 @@ def _build_common(
         response_watcher=response_watcher,
         message_step_logger=MessageStepLogger(chat_service),
         loop_iteration_runner=loop_iteration_runner,
+        feature_flags=feature_flags,
     )
 
 
@@ -325,6 +330,7 @@ async def _build_responses(
         mcp_manager=common_components.mcp_manager,
         a2a_manager=common_components.a2a_manager,
         builtin_tool_manager=builtin_tool_manager,
+        feature_flags=common_components.feature_flags,
     )
 
     postprocessor_manager = common_components.postprocessor_manager
@@ -426,6 +432,7 @@ def _build_completions(
         tool_progress_reporter=common_components.tool_progress_reporter,
         mcp_manager=common_components.mcp_manager,
         a2a_manager=common_components.a2a_manager,
+        feature_flags=common_components.feature_flags,
     )
     if not TOOL_CHOICES and UPLOADED_DOCUMENTS_VALID:
         tool_manager.add_forced_tool(UploadedSearchTool.name)
