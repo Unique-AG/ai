@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.10.63] - 2025-12-23
 - Add functions to craete a space and manage its access.
 
+## [0.10.62] - 2025-12-23
+- Add get user gorups function and allow the get users function to filter by username.
+
 ## [0.10.61] - 2025-12-22
 - Add `displayInChat` field to ingestion config, allowing silent uploads to chat.
 
