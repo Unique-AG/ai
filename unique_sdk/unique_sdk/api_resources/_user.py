@@ -26,6 +26,7 @@ class User(APIResource["User"]):
         take: NotRequired[Optional[int]]
         email: NotRequired[Optional[str]]
         displayName: NotRequired[Optional[str]]
+        userName: NotRequired[Optional[str]]
 
     class UpdateUserConfigurationParams(RequestOptions):
         """
@@ -33,6 +34,17 @@ class User(APIResource["User"]):
         """
 
         userConfiguration: Dict[str, Any]
+
+    class UserGroup(TypedDict):
+        id: str
+        name: str
+        externalId: Optional[str]
+        parentId: Optional[str]
+        createdAt: str
+        updatedAt: str
+
+    class UserGroupsResponse(TypedDict):
+        groups: List["User.UserGroup"]
 
     class User(TypedDict):
         """
@@ -145,5 +157,39 @@ class User(APIResource["User"]):
                 user_id,
                 company_id,
                 params=params,
+            ),
+        )
+
+    @classmethod
+    def get_user_groups(
+        cls,
+        user_id: str,
+        company_id: str,
+        target_user_id: str,
+    ) -> "User.UserGroupsResponse":
+        return cast(
+            "User.UserGroupsResponse",
+            cls._static_request(
+                "get",
+                f"/users/{target_user_id}/groups",
+                user_id,
+                company_id,
+            ),
+        )
+
+    @classmethod
+    async def get_user_groups_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        target_user_id: str,
+    ) -> "User.UserGroupsResponse":
+        return cast(
+            "User.UserGroupsResponse",
+            await cls._static_request_async(
+                "get",
+                f"/users/{target_user_id}/groups",
+                user_id,
+                company_id,
             ),
         )
