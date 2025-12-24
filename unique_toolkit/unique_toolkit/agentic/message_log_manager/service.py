@@ -68,14 +68,8 @@ class MessageStepLogger:
     ) -> MessageLog | None:
         """
         Create a full message log entry with question, hits, and references.
-
-        Args:
-            text: The prepared string for the message log entry
-            details: Some formal details about the message log entry
-            references: List of ContentReference objects to reference
+        The created message log entry is returned. If the message log entry is not created, None is returned.
         """
-
-        # Creating a new message log entry with the found hits.
         if not self._chat_service._assistant_message_id:
             _LOGGER.warning(
                 "Assistant message id is not set. Skipping message log entry creation."
@@ -104,9 +98,13 @@ class MessageStepLogger:
     ) -> MessageLog | None:
         """
         Update a message log entry with a new status.
+        The updated message log entry is returned. If the message log entry is not updated, None is returned.
         """
         if message_log.message_log_id is None:
-            return None
+            _LOGGER.warning(
+                "Message log id is not set. Skipping message log entry update."
+            )
+            return
         return self._chat_service.update_message_log(
             message_log_id=message_log.message_log_id,
             order=message_log.order,
