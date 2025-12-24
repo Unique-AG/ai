@@ -108,7 +108,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
         self.notify_message = self.tool_parameters.objective
         await self.notify_callback()
         self.create_or_update_active_message_log(
-            progress_message=f"_Searching Web:_ {self.tool_parameters.objective}",
+            progress_message="_Searching Web_",
             queries_for_log=self.queries_for_log,
             status=MessageLogStatus.RUNNING,
         )
@@ -137,7 +137,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
         self.notify_message = self.tool_parameters.expected_outcome
         await self.notify_callback()
         self.create_or_update_active_message_log(
-            progress_message=f"_Analyzing Web Pages:_ {self.tool_parameters.expected_outcome}",
+            progress_message="_Analyzing Web Pages_",
             queries_for_log=self.queries_for_log,
             status=MessageLogStatus.RUNNING,
         )
@@ -151,7 +151,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
             self.notify_message = self.tool_parameters.objective
             await self.notify_callback()
             self.create_or_update_active_message_log(
-                progress_message=f"_Resorting Sources:_ {self.tool_parameters.objective}",
+                progress_message="_Resorting Sources_",
                 queries_for_log=self.queries_for_log,
                 status=MessageLogStatus.RUNNING,
             )
