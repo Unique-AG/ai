@@ -146,6 +146,7 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
         search_service: SearchEngineTypes,
         crawler_service: CrawlerTypes,
         content_processor: ContentProcessor,
+        message_log_callback: MessageLogCallback,
         chunk_relevancy_sorter: ChunkRelevancySorter | None,
         chunk_relevancy_sort_config: ChunkRelevancySortConfig,
         content_reducer: Callable[[list[WebPageChunk]], list[WebPageChunk]],
@@ -156,7 +157,6 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
         tool_progress_reporter: Optional[ToolProgressReporter] = None,
         mode: RefineQueryMode = RefineQueryMode.BASIC,
         max_queries: int = 10,
-        message_log_callback: Optional[MessageLogCallback] = None,
     ):
         super().__init__(
             search_service=search_service,

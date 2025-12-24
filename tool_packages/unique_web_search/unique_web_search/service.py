@@ -57,9 +57,8 @@ class WebSearchTool(Tool[WebSearchConfig]):
             config=self.config.content_processor_config,
             language_model=self.language_model,
         )
-        self._display_name = kwargs.get("display_name", "Web search")
         self.debug = self.config.debug
-
+        self._display_name = kwargs.get("display_name", "Web Search")
         self._active_message_log: MessageLog | None = None
 
         def content_reducer(web_page_chunks: list[WebPageChunk]) -> list[WebPageChunk]:
