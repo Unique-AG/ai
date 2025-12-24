@@ -23,5 +23,6 @@ class FeatureFlags(BaseModel):
         feature_flag_enable_new_answers_ui = (
             new_ui_value.lower() == "true" or company_id in new_ui_value.split(",")
         )
-        return cls(feature_flag_enable_new_answers_ui=feature_flag_enable_new_answers_ui)
-
+        return cls(
+            feature_flag_enable_new_answers_ui=feature_flag_enable_new_answers_ui
+        )
