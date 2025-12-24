@@ -114,3 +114,56 @@ class MessageStepLogger:
             uncited_references=MessageLogUncitedReferences(data=references),
             references=[],
         )
+
+    def create_or_update_message_log(
+        self,
+        *,
+        active_message_log: MessageLog | None,
+        header: str,
+        progress_message: str | None = None,
+        status: MessageLogStatus,
+        details: MessageLogDetails | None = None,
+        references: list[ContentReference] | None = None,
+    ) -> MessageLog | None:
+        """
+        Create a new message log entry or update an existing one.
+
+        This is a convenience method that handles the common pattern of:
+        - Creating a new message log if active_message_log is None
+        - Updating the existing message log otherwise
+
+        Args:
+            active_message_log: The current active message log, or None if none exists
+            header: The header to show in bold (e.g., "Internal Search", "Web Search")
+            progress_message: Optional progress message to append after the display name
+            status: The status of the message log
+            details: Optional message log details
+            references: Optional list of content references
+
+        Returns:
+            The created or updated MessageLog, or None if the operation failed
+        """
+        text = (
+            f"**{header}**\n{progress_message}"
+            if progress_message is not None
+            else f"**{header}**"
+        )
+
+        if references is None:
+            references = []
+
+        if active_message_log is None:
+            return self.create_message_log_entry(
+                text=text,
+                details=details,
+                references=references,
+                status=status,
+            )
+        else:
+            return self.update_message_log_entry(
+                message_log=active_message_log,
+                text=text,
+                status=status,
+                details=details,
+                references=references,
+            )

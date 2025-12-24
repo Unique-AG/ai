@@ -8,6 +8,7 @@ from unique_toolkit._common.chunk_relevancy_sorter.exception import (
 )
 from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
+from unique_toolkit.agentic.feature_flags.feature_flags import FeatureFlags
 from unique_toolkit.agentic.history_manager.utils import transform_chunks_to_string
 from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
 from unique_toolkit.agentic.tools.agent_chunks_hanlder import AgentChunksHandler
@@ -43,7 +44,6 @@ from unique_internal_search.utils import (
     clean_search_string,
     interleave_search_results_round_robin,
 )
-from unique_toolkit.agentic.tools.feature_flags import FeatureFlags
 
 
 class InternalSearchService:
@@ -56,7 +56,7 @@ class InternalSearchService:
         logger: Logger,
         message_step_logger: MessageStepLogger | None = None,
         feature_flags: FeatureFlags | None = None,
-        display_name: str = "Internal search",
+        display_name: str = "Internal Search",
     ):
         self.config = config
         self.content_service = content_service
@@ -68,7 +68,6 @@ class InternalSearchService:
         self._display_name = display_name
         self._active_message_log: MessageLog | None = None
         self._feature_flags = feature_flags or FeatureFlags()
-        self._feature_flag_enable_new_answers_ui = self._feature_flags.feature_flag_enable_new_answers_ui
 
     async def post_progress_message(self, message: str, *args, **kwargs):
         pass
@@ -173,16 +172,16 @@ class InternalSearchService:
 
         # Apply chunk relevancy sorter if enabled
         if self.config.chunk_relevancy_sort_config.enabled:
-            for i, result in enumerate(found_chunks_per_search_string):
-                if self._feature_flag_enable_new_answers_ui:
-                    progress_message = f"{result.query} (_Resorting {len(result.chunks)} search results_ 🔄 in query {i + 1}/{len(found_chunks_per_search_string)})"
-                    self._active_message_log = (
-                        await self._create_or_update_active_message_log(
-                            search_strings_list=[result.query],
-                            status=MessageLogStatus.RUNNING,
-                        )
+            if self._feature_flags.feature_flag_enable_new_answers_ui:
+                progress_message = "_Resorting search results_"
+                self._active_message_log = (
+                    await self._create_or_update_active_message_log(
+                        search_strings_list=search_strings,
+                        status=MessageLogStatus.RUNNING,
                     )
-                else:
+                )
+            for i, result in enumerate(found_chunks_per_search_string):
+                if not self._feature_flags.feature_flag_enable_new_answers_ui:
                     await self.post_progress_message(
                         f"{result.query} (_Resorting {len(result.chunks)} search results_ 🔄 in query {i + 1}/{len(found_chunks_per_search_string)})",
                         **kwargs,
@@ -203,8 +202,8 @@ class InternalSearchService:
                 found_chunks_per_search_string
             )
 
-        if self._feature_flag_enable_new_answers_ui:
-            progress_message = f"{', '.join(search_strings)} (_Postprocessing search results_)"
+        if self._feature_flags.feature_flag_enable_new_answers_ui:
+            progress_message = "_Postprocessing search results_"
             self._active_message_log = await self._create_or_update_active_message_log(
                 progress_message=progress_message,
                 search_strings_list=search_strings,
@@ -336,11 +335,6 @@ class InternalSearchService:
         search_strings_list: list[str],
         status: MessageLogStatus,
     ) -> MessageLog | None:
-        text = (
-            f"**{self._display_name}**\n{progress_message}"
-            if progress_message is not None
-            else f"**{self._display_name}**"
-        )
         if self._message_step_logger is None:
             return None
         if chunks is not None:
@@ -354,21 +348,14 @@ class InternalSearchService:
         details = await self._prepare_message_log_details(
             query_list=search_strings_list
         )
-        if self._active_message_log is None:
-            return self._message_step_logger.create_message_log_entry(
-                text=text,
-                details=details,
-                references=message_log_reference_list,
-                status=status,
-            )
-        else:
-            return self._message_step_logger.update_message_log_entry(
-                message_log=self._active_message_log,
-                text=f"**{self._display_name}**",
-                status=status,
-                details=details,
-                references=message_log_reference_list,
-            )
+        return self._message_step_logger.create_or_update_message_log(
+            active_message_log=self._active_message_log,
+            header=self._display_name,
+            progress_message=progress_message,
+            status=status,
+            details=details,
+            references=message_log_reference_list,
+        )
 
     async def _define_reference_list_for_message_log(
         self,
@@ -565,7 +552,7 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
         search_strings_list = list(dict.fromkeys(search_strings_list))
         search_strings_list = search_strings_list[: self.config.max_search_strings]
 
-        if not self._feature_flag_enable_new_answers_ui:
+        if not self._feature_flags.feature_flag_enable_new_answers_ui:
             await self.post_progress_message(
                 f"{'; '.join(search_strings_list)}", tool_call
             )
