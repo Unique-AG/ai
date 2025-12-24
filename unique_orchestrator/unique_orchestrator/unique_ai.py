@@ -102,7 +102,7 @@ class UniqueAI:
         """
         self._logger.info("Start LoopAgent...")
 
-        if self._history_manager.has_no_loop_messages():  # TODO: why do we even need to check its always no loop messages on this when its called.
+        if not self._tool_manager.feature_flags.feature_flag_enable_new_answers_ui:
             self._chat_service.modify_assistant_message(
                 content="Starting agentic loop..."  # TODO: this must be more informative
             )

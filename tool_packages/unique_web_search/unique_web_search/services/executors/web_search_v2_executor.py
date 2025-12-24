@@ -12,6 +12,7 @@ from unique_toolkit._common.validators import LMI
 from unique_toolkit.agentic.tools.tool_progress_reporter import (
     ToolProgressReporter,
 )
+from unique_toolkit.chat.schemas import MessageLogStatus
 from unique_toolkit.content import ContentChunk
 from unique_toolkit.language_model import LanguageModelFunction
 
@@ -24,6 +25,7 @@ from unique_web_search.services.content_processing import ContentProcessor, WebP
 from unique_web_search.services.crawlers import CrawlerTypes
 from unique_web_search.services.executors.base_executor import (
     BaseWebSearchExecutor,
+    MessageLogCallback,
     WebSearchLogEntry,
 )
 from unique_web_search.services.search_engine import SearchEngineTypes
@@ -53,6 +55,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
         tool_parameters: WebSearchPlan,
         company_id: str,
         content_processor: ContentProcessor,
+        message_log_callback: MessageLogCallback,
         chunk_relevancy_sorter: ChunkRelevancySorter | None,
         chunk_relevancy_sort_config: ChunkRelevancySortConfig,
         content_reducer: Callable[[list[WebPageChunk]], list[WebPageChunk]],
@@ -74,6 +77,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
             content_reducer=content_reducer,
             debug_info=debug_info,
             tool_progress_reporter=tool_progress_reporter,
+            message_log_callback=message_log_callback,
         )
 
         self.tool_parameters = tool_parameters
@@ -103,6 +107,11 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
         self.notify_name = "**Searching Web**"
         self.notify_message = self.tool_parameters.objective
         await self.notify_callback()
+        self.create_or_update_active_message_log(
+            progress_message="_Searching Web_",
+            queries_for_log=self.queries_for_log,
+            status=MessageLogStatus.RUNNING,
+        )
 
         tasks = [
             asyncio.create_task(self._execute_step(step))
@@ -127,6 +136,11 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
         self.notify_name = "**Analyzing Web Pages**"
         self.notify_message = self.tool_parameters.expected_outcome
         await self.notify_callback()
+        self.create_or_update_active_message_log(
+            progress_message="_Analyzing Web Pages_",
+            queries_for_log=self.queries_for_log,
+            status=MessageLogStatus.RUNNING,
+        )
 
         content_results = await self._content_processing(
             self.tool_parameters.objective, results
@@ -136,6 +150,11 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
             self.notify_name = "**Resorting Sources**"
             self.notify_message = self.tool_parameters.objective
             await self.notify_callback()
+            self.create_or_update_active_message_log(
+                progress_message="_Resorting Sources_",
+                queries_for_log=self.queries_for_log,
+                status=MessageLogStatus.RUNNING,
+            )
 
         relevant_sources = await self._select_relevant_sources(
             self.tool_parameters.objective, content_results
