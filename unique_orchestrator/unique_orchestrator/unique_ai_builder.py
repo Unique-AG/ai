@@ -22,6 +22,7 @@ from unique_toolkit.agentic.evaluation.evaluation_manager import EvaluationManag
 from unique_toolkit.agentic.evaluation.hallucination.hallucination_evaluation import (
     HallucinationEvaluation,
 )
+from unique_toolkit.agentic.feature_flags.feature_flags import FeatureFlags
 from unique_toolkit.agentic.history_manager import (
     history_manager as history_manager_module,
 )
@@ -62,7 +63,6 @@ from unique_toolkit.agentic.tools.a2a import (
     SubAgentResponseWatcher,
 )
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
-from unique_toolkit.agentic.tools.feature_flags import FeatureFlags
 from unique_toolkit.agentic.tools.mcp.manager import MCPManager
 from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolName
 from unique_toolkit.agentic.tools.tool_manager import (
