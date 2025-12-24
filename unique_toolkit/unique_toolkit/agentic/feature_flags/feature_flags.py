@@ -4,9 +4,6 @@ from pydantic import BaseModel, Field
 
 
 class FeatureFlags(BaseModel):
-    """Centralized feature flags passed from orchestrator to all tools.
-    """
-
     feature_flag_enable_new_answers_ui: bool = Field(
         default=False,
         description="Enable new answers UI (UN-14411)",

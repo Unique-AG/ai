@@ -5,9 +5,9 @@ from typing import Any, Generic, TypeVar, cast
 from typing_extensions import deprecated
 
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
+from unique_toolkit.agentic.feature_flags.feature_flags import FeatureFlags
 from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
 from unique_toolkit.agentic.tools.config import ToolBuildConfig, ToolSelectionPolicy
-from unique_toolkit.agentic.tools.feature_flags import FeatureFlags
 from unique_toolkit.agentic.tools.schemas import (
     BaseToolConfig,
     ToolCallResponse,
