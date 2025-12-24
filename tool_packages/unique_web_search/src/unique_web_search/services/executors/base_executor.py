@@ -54,12 +54,12 @@ class BaseWebSearchExecutor(ABC):
         tool_parameters: WebSearchPlan | WebSearchToolParameters,
         company_id: str,
         content_processor: ContentProcessor,
+        message_log_callback: MessageLogCallback,
         chunk_relevancy_sorter: ChunkRelevancySorter | None,
         chunk_relevancy_sort_config: ChunkRelevancySortConfig,
         debug_info: WebSearchDebugInfo,
         content_reducer: Callable[[list[WebPageChunk]], list[WebPageChunk]],
         tool_progress_reporter: Optional[ToolProgressReporter] = None,
-        message_log_callback: Optional[MessageLogCallback] = None,
     ):
         self.company_id = company_id
         self.search_service = search_service
@@ -114,9 +114,6 @@ class BaseWebSearchExecutor(ABC):
         queries_for_log: list[WebSearchLogEntry] | None = None,
         status: MessageLogStatus,
     ) -> MessageLog | None:
-        """Call the service's create_or_update_active_message_log method via callback."""
-        if self._message_log_callback is None:
-            return None
         return self._message_log_callback(progress_message, queries_for_log, status)
 
     @abstractmethod

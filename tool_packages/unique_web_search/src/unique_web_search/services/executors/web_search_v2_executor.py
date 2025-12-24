@@ -55,13 +55,13 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
         tool_parameters: WebSearchPlan,
         company_id: str,
         content_processor: ContentProcessor,
+        message_log_callback: MessageLogCallback,
         chunk_relevancy_sorter: ChunkRelevancySorter | None,
         chunk_relevancy_sort_config: ChunkRelevancySortConfig,
         content_reducer: Callable[[list[WebPageChunk]], list[WebPageChunk]],
         debug_info: WebSearchDebugInfo,
         tool_progress_reporter: Optional[ToolProgressReporter] = None,
         max_steps: int = 3,
-        message_log_callback: Optional[MessageLogCallback] = None,
     ):
         super().__init__(
             search_service=search_service,
