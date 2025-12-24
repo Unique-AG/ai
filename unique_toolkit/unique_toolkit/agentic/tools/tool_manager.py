@@ -16,10 +16,10 @@ from unique_toolkit._common.execution import (
     SafeTaskExecutor,
 )
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
+from unique_toolkit.agentic.feature_flags.feature_flags import FeatureFlags
 from unique_toolkit.agentic.tools.a2a import A2AManager, SubAgentTool
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
 from unique_toolkit.agentic.tools.factory import ToolFactory
-from unique_toolkit.agentic.tools.feature_flags import FeatureFlags
 from unique_toolkit.agentic.tools.mcp.manager import MCPManager
 from unique_toolkit.agentic.tools.openai_builtin.base import (
     OpenAIBuiltInTool,
