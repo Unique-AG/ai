@@ -16,6 +16,7 @@ from unique_toolkit.app.schemas import ChatEvent, EventName
 from unique_toolkit.agentic_table.schemas import MagicTableEvent
 from unique_toolkit.agentic_table.service import AgenticTableService
 from unique_toolkit.agentic_table.schemas import MagicTableAction
+from unique_sdk.api_resources._agentic_table import ActivityStatus
 logger = logging.getLogger(__name__)
 
 
@@ -48,36 +49,130 @@ async def agentic_table_event_handler(event: MagicTableEvent) -> int:
         case MagicTableAction.SHEET_CREATED:
             # This event is triggered when a new sheet is created.
             # You can use this for housekeeping tasks like displaying the table headers, etc.
-
-            # Since this is also simply house keeping, you might not want to lock the table funcitonality.
+            #
+            # Payload Structure (MagicTableSheetCreatedPayload):
+            # - name: str - The name of the module
+            # - sheet_name: str - The name of the sheet
+            # - action: MagicTableAction.SHEET_CREATED
+            # - chat_id: str - The chat ID associated with the table
+            # - assistant_id: str - The assistant ID
+            # - table_id: str - The table ID
+            # - user_message: ChatEventUserMessage - User message details (id, text, original_text, created_at, language)
+            # - assistant_message: ChatEventAssistantMessage - Assistant message details (id, created_at)
+            # - configuration: dict[str, Any] - Custom configuration dictionary
+            # - metadata: SheetCreatedMetadata - Contains:
+            #     * sheet_type: SheetType - The type of the sheet (DEFAULT or LIBRARY)
+            # - metadata_filter: dict[str, Any] | None - Optional metadata filter
+            #
+            # Since this is also simply house keeping, you might not want to lock the table functionality.
             # await at_service.deregister_agent() 
             ...
         case MagicTableAction.ADD_META_DATA:
             # This event is triggered when a new question or question file or source file is added.
-
-            #########################################################
-            # The schema of the metadata is defined in the unique_toolkit.agentic_table.schemas.DDMetadata class.
-
-            # All the information related to the new questions, question files, and source files are available in the event payload.
-            # event.payload.metadata.question_texts : comprises any new questions added to the table via the question text input box.
-            # event.payload.metadata.question_file_ids: comprises a list of file ids of the question files added to the table.
-            # event.payload.metadata.source_file_ids: comprises a list of file ids of the source files added to the table.
-            # event.payload.metadata.context: comprises the context text for the table.
-            # You can pass this information to your agent/workflow..
+            #
+            # Payload Structure (MagicTableAddMetadataPayload):
+            # - name: str - The name of the module
+            # - sheet_name: str - The name of the sheet
+            # - action: MagicTableAction.ADD_META_DATA
+            # - chat_id: str - The chat ID associated with the table
+            # - assistant_id: str - The assistant ID
+            # - table_id: str - The table ID
+            # - user_message: ChatEventUserMessage - User message details (id, text, original_text, created_at, language)
+            # - assistant_message: ChatEventAssistantMessage - Assistant message details (id, created_at)
+            # - configuration: dict[str, Any] - Custom configuration dictionary
+            # - metadata: DDMetadata - Contains:
+            #     * sheet_type: SheetType - The type of the sheet (DEFAULT or LIBRARY)
+            #     * question_file_ids: list[str] - List of file IDs of question files added to the table
+            #     * source_file_ids: list[str] - List of file IDs of source files added to the table
+            #     * question_texts: list[str] - List of question texts added via the question text input box
+            #     * context: str - The context text for the table
+            # - metadata_filter: dict[str, Any] | None - Optional metadata filter
+            #
+            # The schema of the metadata is defined in unique_toolkit.agentic_table.schemas.DDMetadata.
+            # You can pass this information to your agent/workflow.
             ...
         case MagicTableAction.UPDATE_CELL:
             # This event is triggered when a cell is updated.
+            #
+            # Payload Structure (MagicTableUpdateCellPayload):
+            # - name: str - The name of the module
+            # - sheet_name: str - The name of the sheet
+            # - action: MagicTableAction.UPDATE_CELL
+            # - chat_id: str - The chat ID associated with the table
+            # - assistant_id: str - The assistant ID
+            # - table_id: str - The table ID
+            # - user_message: ChatEventUserMessage - User message details (id, text, original_text, created_at, language)
+            # - assistant_message: ChatEventAssistantMessage - Assistant message details (id, created_at)
+            # - configuration: dict[str, Any] - Custom configuration dictionary
+            # - metadata: DDMetadata - Contains:
+            #     * sheet_type: SheetType - The type of the sheet (DEFAULT or LIBRARY)
+            #     * question_file_ids: list[str] - List of file IDs of question files
+            #     * source_file_ids: list[str] - List of file IDs of source files
+            #     * question_texts: list[str] - List of question texts
+            #     * context: str - The context text for the table
+            # - metadata_filter: dict[str, Any] | None - Optional metadata filter
+            # - column_order: int - The column index (0-based) of the updated cell
+            # - row_order: int - The row index (0-based) of the updated cell
+            # - data: str - The new cell data/text value
             ...
         case MagicTableAction.GENERATE_ARTIFACT:
             # This event is triggered when a report generation button is clicked.
+            #
+            # Payload Structure (MagicTableGenerateArtifactPayload):
+            # - name: str - The name of the module
+            # - sheet_name: str - The name of the sheet
+            # - action: MagicTableAction.GENERATE_ARTIFACT
+            # - chat_id: str - The chat ID associated with the table
+            # - assistant_id: str - The assistant ID
+            # - table_id: str - The table ID
+            # - user_message: ChatEventUserMessage - User message details (id, text, original_text, created_at, language)
+            # - assistant_message: ChatEventAssistantMessage - Assistant message details (id, created_at)
+            # - configuration: dict[str, Any] - Custom configuration dictionary
+            # - metadata: BaseMetadata - Contains:
+            #     * sheet_type: SheetType - The type of the sheet (DEFAULT or LIBRARY)
+            # - metadata_filter: dict[str, Any] | None - Optional metadata filter
+            # - data: ArtifactData - Contains:
+            #     * artifact_type: ArtifactType - The type of artifact to generate (QUESTIONS or FULL_REPORT)
             ...
         case MagicTableAction.SHEET_COMPLETED:
             # This event is triggered when the sheet is marked as completed.
+            #
+            # Payload Structure (MagicTableSheetCompletedPayload):
+            # - name: str - The name of the module
+            # - sheet_name: str - The name of the sheet
+            # - action: MagicTableAction.SHEET_COMPLETED
+            # - chat_id: str - The chat ID associated with the table
+            # - assistant_id: str - The assistant ID
+            # - table_id: str - The table ID
+            # - user_message: ChatEventUserMessage - User message details (id, text, original_text, created_at, language)
+            # - assistant_message: ChatEventAssistantMessage - Assistant message details (id, created_at)
+            # - configuration: dict[str, Any] - Custom configuration dictionary
+            # - metadata: SheetCompletedMetadata - Contains:
+            #     * sheet_type: SheetType - The type of the sheet (DEFAULT or LIBRARY)
+            #     * sheet_id: str - The ID of the sheet that was completed
+            #     * library_sheet_id: str - The ID of the library corresponding to the sheet
+            #     * context: str - The context text for the table
+            # - metadata_filter: dict[str, Any] | None - Optional metadata filter
             ...
         case MagicTableAction.LIBRARY_SHEET_ROW_VERIFIED:
             # This event is triggered when a row in a "Library" sheet is verified.
             # This is a special sheet type and is only relevant within the context of Rfp Agent.
             # You can ignore this event/block if you are not working with the library feature.
+            #
+            # Payload Structure (MagicTableLibrarySheetRowVerifiedPayload):
+            # - name: str - The name of the module
+            # - sheet_name: str - The name of the sheet
+            # - action: MagicTableAction.LIBRARY_SHEET_ROW_VERIFIED
+            # - chat_id: str - The chat ID associated with the table
+            # - assistant_id: str - The assistant ID
+            # - table_id: str - The table ID
+            # - user_message: ChatEventUserMessage - User message details (id, text, original_text, created_at, language)
+            # - assistant_message: ChatEventAssistantMessage - Assistant message details (id, created_at)
+            # - configuration: dict[str, Any] - Custom configuration dictionary
+            # - metadata: LibrarySheetRowVerifiedMetadata - Contains:
+            #     * sheet_type: SheetType - The type of the sheet (DEFAULT or LIBRARY)
+            #     * row_order: int - The row index (0-based) of the row that was verified
+            # - metadata_filter: dict[str, Any] | None - Optional metadata filter
             ...
         case _:
             logger.error(f"Unknown action: {event.payload.action}")
