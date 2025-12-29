@@ -82,11 +82,11 @@ class DDMetadata(BaseMetadata):
 
 
 # Define template types
-T = TypeVar("T", bound=BaseMetadata)
 A = TypeVar("A", bound=MagicTableAction)
+T = TypeVar("T", bound=BaseMetadata)
 
 
-class MagicTableBasePayload(BaseModel, Generic[T, A]):
+class MagicTableBasePayload(BaseModel, Generic[A, T]):
     model_config = get_configuration_dict()
     name: str = Field(description="The name of the module")
     sheet_name: str
@@ -111,17 +111,17 @@ class MagicTableBasePayload(BaseModel, Generic[T, A]):
 ########### Specialized Payload definitions ###########
 
 
-class MagicTableAddMetadataPayload(MagicTableBasePayload):
-    action: Literal[MagicTableAction.ADD_META_DATA]
-    metadata: DDMetadata
+class MagicTableAddMetadataPayload(
+    MagicTableBasePayload[Literal[MagicTableAction.ADD_META_DATA], DDMetadata]
+): ...
 
 
-class MagicTableUpdateCellPayload(MagicTableBasePayload):
-    action: Literal[MagicTableAction.UPDATE_CELL]
+class MagicTableUpdateCellPayload(
+    MagicTableBasePayload[Literal[MagicTableAction.UPDATE_CELL], DDMetadata]
+):
     column_order: int
     row_order: int
     data: str
-    metadata: DDMetadata
 
 
 class ArtifactType(StrEnum):
@@ -135,9 +135,8 @@ class ArtifactData(BaseModel):
 
 
 class MagicTableGenerateArtifactPayload(
-    MagicTableBasePayload[BaseMetadata, MagicTableAction.GENERATE_ARTIFACT]
+    MagicTableBasePayload[Literal[MagicTableAction.GENERATE_ARTIFACT], BaseMetadata]
 ):
-    action: Literal[MagicTableAction.GENERATE_ARTIFACT]
     data: ArtifactData
 
 
@@ -161,20 +160,18 @@ class SheetCompletedMetadata(BaseMetadata):
 
 
 class MagicTableSheetCompletedPayload(
-    MagicTableBasePayload[SheetCompletedMetadata, MagicTableAction.SHEET_COMPLETED]
-):
-    action: Literal[MagicTableAction.SHEET_COMPLETED]
+    MagicTableBasePayload[
+        Literal[MagicTableAction.SHEET_COMPLETED], SheetCompletedMetadata
+    ]
+): ...
 
 
-########## Sheet Created Payload ##########
-class SheetCreatedMetadata(BaseMetadata):
-    pass
+class SheetCreatedMetadata(BaseMetadata): ...
 
 
 class MagicTableSheetCreatedPayload(
-    MagicTableBasePayload[SheetCreatedMetadata, MagicTableAction.SHEET_CREATED]
-):
-    action: Literal[MagicTableAction.SHEET_CREATED]
+    MagicTableBasePayload[Literal[MagicTableAction.SHEET_CREATED], SheetCreatedMetadata]
+): ...
 
 
 ########## Library Sheet Row Verified Payload ##########
@@ -187,10 +184,10 @@ class LibrarySheetRowVerifiedMetadata(BaseMetadata):
 
 class MagicTableLibrarySheetRowVerifiedPayload(
     MagicTableBasePayload[
-        LibrarySheetRowVerifiedMetadata, MagicTableAction.LIBRARY_SHEET_ROW_VERIFIED
+        Literal[MagicTableAction.LIBRARY_SHEET_ROW_VERIFIED],
+        LibrarySheetRowVerifiedMetadata,
     ]
-):
-    action: Literal[MagicTableAction.LIBRARY_SHEET_ROW_VERIFIED]
+): ...
 
 
 ########### Magic Table Event definition ###########
