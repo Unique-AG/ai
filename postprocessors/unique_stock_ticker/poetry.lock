@@ -2497,7 +2497,7 @@ typing-extensions = ">=4.12.0"
 
 [[package]]
 name = "unique-sdk"
-version = "0.10.58"
+version = "0.10.63"
 description = ""
 optional = false
 python-versions = "^3.11"
@@ -2518,7 +2518,7 @@ url = "../../unique_sdk"
 
 [[package]]
 name = "unique-toolkit"
-version = "1.38.3"
+version = "1.40.1"
 description = ""
 optional = false
 python-versions = "^3.12"
@@ -2545,7 +2545,7 @@ regex = "^2024.5.15"
 sseclient = "^0.0.27"
 tiktoken = "^0.12.0"
 typing-extensions = "^4.9.0"
-unique-sdk = "^0.10.58"
+unique-sdk = "^0.10.61"
 
 [package.source]
 type = "directory"
@@ -2615,4 +2615,4 @@ watchmedo = ["PyYAML (>=3.10)"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "df31d8f77fb6ae1fe1531661f95f8f78fb102843cbcf91ef979f1f2e86a4076d"
+content-hash = "9153d57b19086d7fc3bfa0f84843eee8b57bba250447cc50dd1ea03649e076ed"

@@ -35,6 +35,7 @@ class TestGetFilteredUserMetadata:
         mock_postprocessor_manager = MagicMock()
         mock_streaming_handler = MagicMock()
         mock_message_step_logger = MagicMock()
+        mock_loop_iteration_runner = MagicMock()
 
         # Instantiate UniqueAI
         ua = UniqueAI(
@@ -53,6 +54,7 @@ class TestGetFilteredUserMetadata:
             postprocessor_manager=mock_postprocessor_manager,
             message_step_logger=mock_message_step_logger,
             mcp_servers=[],
+            loop_iteration_runner=mock_loop_iteration_runner,
         )
 
         return ua
