@@ -48,6 +48,17 @@ class BaseMetadata(BaseModel):
     )
 
 
+class RowMetadataEntry(BaseModel):
+    model_config = get_configuration_dict()
+    id: str = Field(description="The ID of the metadata")
+    key: str = Field(description="The key of the metadata")
+    value: str = Field(description="The value of the metadata")
+    exact_filter: bool = Field(
+        default=False,
+        description="Whether the metadata is to be used for strict filtering",
+    )
+
+
 class DDMetadata(BaseMetadata):
     model_config = get_configuration_dict()
 
@@ -60,6 +71,14 @@ class DDMetadata(BaseMetadata):
     question_texts: list[str] = Field(
         default_factory=list, description="The texts of the questions"
     )
+    context: str = Field(default="", description="The context text for the table.")
+
+    @field_validator("context", mode="before")
+    @classmethod
+    def normalize_context(cls, v):
+        if v is None:
+            return ""
+        return v
 
 
 # Define template types
@@ -131,6 +150,14 @@ class SheetCompletedMetadata(BaseMetadata):
     library_sheet_id: str = Field(
         description="The ID of the library corresponding to the sheet."
     )
+    context: str = Field(default="", description="The context text for the table.")
+
+    @field_validator("context", mode="before")
+    @classmethod
+    def normalize_context(cls, v):
+        if v is None:
+            return ""
+        return v
 
 
 class MagicTableSheetCompletedPayload(
@@ -229,6 +256,10 @@ class MagicTableCell(BaseModel):
     meta_data: MagicTableCellMetaData | None = Field(
         default=None, description="The metadata for the cell"
     )
+    row_metadata: list[RowMetadataEntry] = Field(
+        default_factory=list,
+        description="The metadata (key value pairs)for the rows.",
+    )
 
 
 class MagicTableSheet(BaseModel):
@@ -247,4 +278,7 @@ class MagicTableSheet(BaseModel):
     created_at: str
     magic_table_cells: list[MagicTableCell] = Field(
         default_factory=list, description="The cells in the sheet"
+    )
+    magic_table_sheet_metadata: list[RowMetadataEntry] = Field(
+        default_factory=list, description="The metadata for the sheet"
     )

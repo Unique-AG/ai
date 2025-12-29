@@ -1,5 +1,6 @@
 import logging
 
+from typing_extensions import deprecated
 from unique_sdk import (
     AgenticTable,
     AgenticTableSheetState,
@@ -19,6 +20,7 @@ from .schemas import (
     MagicTableAction,
     MagicTableCell,
     MagicTableSheet,
+    RowMetadataEntry,
 )
 
 
@@ -82,13 +84,16 @@ class AgenticTableService:
         except Exception as e:
             self.logger.error(f"Error setting cell {row}, {column}: {e}.")
 
-    async def get_cell(self, row: int, column: int) -> MagicTableCell:
+    async def get_cell(
+        self, row: int, column: int, include_row_metadata: bool = True
+    ) -> MagicTableCell:
         """
         Gets the value of a cell in the Magic Table.
 
         Args:
             row (int): The row index.
             column (int): The column index.
+            include_row_metadata (bool): Whether to include the row metadata. Defaults to True.
 
         Returns:
             MagicTableCell: The MagicTableCell object.
@@ -100,6 +105,7 @@ class AgenticTableService:
             tableId=self.table_id,
             rowOrder=row,
             columnOrder=column,
+            includeRowMetadata=include_row_metadata,  # type: ignore[arg-type]
         )
         return MagicTableCell.model_validate(cell_data)
 
@@ -145,8 +151,8 @@ class AgenticTableService:
             user_id=self._user_id,
             company_id=self._company_id,
             tableId=self.table_id,
-            activity=activity,
-            status=status,
+            activity=activity.value,  # type: ignore[arg-type]
+            status=status.value,  # type: ignore[arg-type]
             text=text,
         )
 
@@ -193,6 +199,10 @@ class AgenticTableService:
             mimeType=mime_type,
             name=name,
         )
+
+    @deprecated("Use set_column_style instead.")
+    async def set_column_width(self, column: int, width: int):
+        await self.set_column_style(column=column, width=width)
 
     async def set_column_style(
         self,
@@ -254,6 +264,7 @@ class AgenticTableService:
         batch_size: int = 100,
         include_log_history: bool = False,
         include_cell_meta_data: bool = False,
+        include_row_metadata: bool = False,
     ) -> MagicTableSheet:
         """
         Gets the sheet data from the Magic Table paginated by batch_size.
@@ -263,8 +274,8 @@ class AgenticTableService:
             end_row (int | None): The end row (not inclusive).
             batch_size (int): The batch size.
             include_log_history (bool): Whether to include the log history.
-            include_cell_meta_data (bool): Whether to include the cell meta data.
-
+            include_cell_meta_data (bool): Whether to include the cell metadata (renderer, selection, agreement status).
+            include_row_metadata (bool): Whether to include the row metadata (key value pairs).
         Returns:
             MagicTableSheet: The sheet data.
         """
@@ -289,7 +300,7 @@ class AgenticTableService:
         # Get the cells
         cells = []
         for row in range(start_row, end_row, batch_size):
-            endRow = min(row + batch_size, end_row)
+            end_row_batch = min(row + batch_size, end_row)
             sheet_partial = await AgenticTable.get_sheet_data(
                 user_id=self._user_id,
                 company_id=self._company_id,
@@ -297,15 +308,58 @@ class AgenticTableService:
                 includeCells=True,
                 includeLogHistory=include_log_history,
                 includeRowCount=False,
-                includeCellMetaData=include_cell_meta_data,
+                includeCellMetaData=include_cell_meta_data,  # renderer, selection, agreement status
                 startRow=row,
-                endRow=endRow - 1,
+                endRow=end_row_batch - 1,
             )
             if "magicTableCells" in sheet_partial:
+                if include_row_metadata:
+                    # If include_row_metadata is true, we need to get the row metadata for each cell.
+                    row_metadata_map = {}
+                    # TODO: @thea-unique This routine is not efficient and would be nice if we had this data passed on in get_sheet_data.
+                    for cell in sheet_partial["magicTableCells"]:
+                        row_order = cell.get("rowOrder")  # type: ignore[assignment]
+                        if row_order is not None and row_order not in row_metadata_map:
+                            column_order = cell.get("columnOrder")  # type: ignore[assignment]
+                            self.logger.info(
+                                f"Getting row metadata for cell {row_order}, {column_order}"
+                            )
+                            cell_with_row_metadata = await self.get_cell(
+                                row_order,
+                                column_order,  # type: ignore[arg-type]
+                            )
+                            if cell_with_row_metadata.row_metadata:
+                                print(cell_with_row_metadata.row_metadata)
+                                row_metadata_map[cell_with_row_metadata.row_order] = (
+                                    cell_with_row_metadata.row_metadata
+                                )
+                                cell["rowMetadata"] = (  # type: ignore[assignment]
+                                    cell_with_row_metadata.row_metadata
+                                )
+                    # Assign row_metadata to all cells
+                    for cell in sheet_partial["magicTableCells"]:
+                        row_order = cell.get("rowOrder")  # type: ignore[assignment]
+                        if row_order is not None and row_order in row_metadata_map:
+                            cell["rowMetadata"] = row_metadata_map[  # type: ignore[assignment]
+                                row_order
+                            ]
+
                 cells.extend(sheet_partial["magicTableCells"])
 
         sheet_info["magicTableCells"] = cells
         return MagicTableSheet.model_validate(sheet_info)
+
+    async def get_sheet_metadata(self) -> list[RowMetadataEntry]:
+        sheet_info = await AgenticTable.get_sheet_data(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            tableId=self.table_id,
+            includeSheetMetadata=True,  # type: ignore[arg-type]
+        )
+        return [
+            RowMetadataEntry.model_validate(metadata)
+            for metadata in sheet_info["magicTableSheetMetadata"]
+        ]
 
     async def set_cell_metadata(
         self,

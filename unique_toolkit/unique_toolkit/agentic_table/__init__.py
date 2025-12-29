@@ -23,6 +23,7 @@ from .schemas import (
     MagicTableSheetCompletedPayload,
     MagicTableSheetCreatedPayload,
     MagicTableUpdateCellPayload,
+    RowMetadataEntry,
     SelectionMethod,
 )
 from .service import AgenticTableService
@@ -49,6 +50,7 @@ __all__ = [
     "MagicTableSheetCompletedPayload",
     "MagicTableSheetCreatedPayload",
     "MagicTableUpdateCellPayload",
+    "RowMetadataEntry",
     "RowVerificationStatus",
     "SelectionMethod",
 ]
