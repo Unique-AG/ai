@@ -35,11 +35,15 @@ jobs:
           uv venv --project ${{ env.PACKAGE_DIR }}
           uv pip install -e ".[dev]" --resolution=lowest-direct
 
+      - name: Check dependencies with deptry
+        if: matrix.deps == 'latest'
+        working-directory: ${{ env.PACKAGE_DIR }}
+        run: uv run deptry .
+
       - name: Run tests with latest
         if: matrix.deps == 'latest'
         working-directory: ${{ env.PACKAGE_DIR }}
-        run: |
-          uv run pytest
+        run: uv run pytest
 
       - name: Run tests with min dependencies
         if: matrix.deps == 'min'
