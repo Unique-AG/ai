@@ -26,14 +26,17 @@ jobs:
       - name: Install package (latest)
         if: matrix.deps == 'latest'
         working-directory: ${{ env.PACKAGE_DIR }}
-        run: uv sync --extra dev
+        run: uv sync
 
       - name: Install package (min)
         if: matrix.deps == 'min'
         working-directory: ${{ env.PACKAGE_DIR }}
         run: |
           uv venv
-          uv pip install -e ".[dev]" --resolution=lowest-direct
+          # Install runtime deps at minimum versions
+          uv pip install -e . --resolution=lowest-direct
+          # Install dev deps from [dependency-groups] (we only care about runtime dep minimums)
+          uv export --only-group dev --no-hashes | uv pip install -r -
 
       - name: Check dependencies with deptry
         if: matrix.deps == 'latest'
