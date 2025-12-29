@@ -1,5 +1,5 @@
 from enum import StrEnum
-from typing import Any, Generic, Literal, TypeVar
+from typing import Any, Generic, Literal, TypeVar, cast
 
 from pydantic import (
     BaseModel,
@@ -17,6 +17,7 @@ from unique_sdk.api_resources._agentic_table import (
 )
 
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
+from unique_toolkit.agentic_table.cast import SDKLogDetail, SDKLogEntry
 from unique_toolkit.app.schemas import (
     ChatEvent,
     ChatEventAssistantMessage,
@@ -211,6 +212,12 @@ class LogDetail(BaseModel):
         default=None, description="The LLM request for the log detail"
     )
 
+    def to_sdk_log_detail(self) -> SDKLogDetail:
+        llm_request = None
+        if self.llm_request:
+            llm_request = self.llm_request.model_dump()
+        return SDKLogDetail(llmRequest=llm_request)
+
 
 class LogEntry(BaseModel):
     model_config = get_configuration_dict()
@@ -229,6 +236,17 @@ class LogEntry(BaseModel):
         if isinstance(v, str):
             return v.lower()
         return v
+
+    def to_sdk_log_entry(self) -> SDKLogEntry:
+        params: dict[str, Any] = {
+            "text": self.text,
+            "createdAt": self.created_at,
+            "actorType": self.actor_type.value.upper(),
+        }
+        if self.details:
+            params["details"] = self.details.to_sdk_log_detail()
+
+        return SDKLogEntry(**params)
 
 
 class MagicTableCellMetaData(BaseModel):
