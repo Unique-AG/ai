@@ -12,7 +12,7 @@ on:
       - '!unique_toolkit/.entangled/**'
       - 'unique_orchestrator/**'
       - 'connectors/unique_quartr/**'
-      - 'connectors/unique_search_proxy/**'
+      - 'connectors/unique_search_proxy/web/**'
       - 'postprocessors/unique_follow_up_questions/**'
       - 'postprocessors/unique_stock_ticker/**'
       - 'tool_packages/unique_deep_research/**'
@@ -52,11 +52,13 @@ jobs:
           MERGE_BASE=$(git merge-base HEAD origin/${{ github.base_ref }})
 
           # List changed files in the package, excluding docs/config
-          CHANGED=$(git diff --name-only $MERGE_BASE..HEAD \
-              | grep "^${{ matrix.package }}/" || true \
-              | grep -vE "(${ { matrix.package }}/docs/|${{ matrix.package }}/mkdocs.yaml|${{ matrix.package }}/.entangled/)" || true)
-
-          if [ -n "$CHANGED" ]; then
+          CHANGED_FILES=$(
+            git diff --name-only "$MERGE_BASE..HEAD" \
+              | grep "^${{ matrix.package }}/" \
+              | grep -vE "^${{ matrix.package }}/(docs/|mkdocs\.yaml|\.entangled/)" \
+              || true
+          )
+          if [ -n "$CHANGED_FILES" ]; then
             echo "changed=true" >> $GITHUB_OUTPUT
           else
             echo "changed=false" >> $GITHUB_OUTPUT
