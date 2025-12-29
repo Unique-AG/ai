@@ -70,20 +70,25 @@ The tool uses environment variables and configuration files to manage API keys a
 This package is a **library** and uses `uv` for dependency management.
 
 We run tests additionally with minimal dependencies to ensure that the listed ranges are valid. NOTE: We use lowest-direct, not lowest. 
-Lowest attempts to use the lowest possible dependency versions _tarnsitively_ causing issues if  a dependency has incorrect metadata. Example:
+Lowest attempts to use the lowest possible dependency versions _tarnsitively_ causing issues if a dependency has incorrect metadata. Example:
 - google-cloud-aiplatform says it works with shapely<3.0.0.
 - The lowest resolver assumes 1.0 which needs python 2 -> breaks
-Therefor we use lowest-direct which only sets our direct dependencies to lowest 
+Therefore we use lowest-direct which only sets our direct dependencies to lowest. However, this only correctly verifies our min dependencies
+if our code correctly lists all the required dependencies and never imports a transitive dependency. We therefore use deptry to ansure we
+don't use transitive dependencies and that we have no unused dependencies.
 
-### Run locally (with uv)
+### Test locally
 
-- **Latest deps**:
+- **Latest deps and deptry**:
 
 ```bash
 cd tool_packages/unique_web_search
-uv sync --extra dev
+uv sync
 uv run pytest
+uv run deptry
 ```
+
+
 
 - **Min deps (constraints)**:
 
@@ -92,16 +97,8 @@ cd tool_packages/unique_web_search
 uv venv
 uv pip install -e ".[dev]" --resolution=lowest-direct
 # Use --no-sync for min to prevent uv from "fixing" the versions
-uv run --project . --no-sync pytest
+uv run --no-sync pytest
 ```
-
-### How dependency upgrades happen
-
-We periodically refresh `uv.lock` (or do so for targeted security updates) and merge the lockfile change via a dedicated PR.
-
-Typical flow:
-- periodic upgrade PR: update `uv.lock`, run CI, merge
-- security upgrade: raise the minimum version in `pyproject.toml` (and in `constraints-min.txt` for min-deps testing), update `uv.lock`, run CI, merge
 
 ## Workflow
 
