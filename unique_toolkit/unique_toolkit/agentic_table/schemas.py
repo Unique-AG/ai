@@ -1,5 +1,5 @@
 from enum import StrEnum
-from typing import Any, Generic, Literal, TypeVar, cast
+from typing import Any, Generic, Literal, TypeVar
 
 from pydantic import (
     BaseModel,
@@ -11,13 +11,14 @@ from unique_sdk import (
     AgreementStatus,
     SelectionMethod,
 )
+from unique_sdk import LogDetail as SDKLogDetail
+from unique_sdk import LogEntry as SDKLogEntry
 from unique_sdk.api_resources._agentic_table import (
     MagicTableAction,
     SheetType,
 )
 
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
-from unique_toolkit.agentic_table.cast import SDKLogDetail, SDKLogEntry
 from unique_toolkit.app.schemas import (
     ChatEvent,
     ChatEventAssistantMessage,

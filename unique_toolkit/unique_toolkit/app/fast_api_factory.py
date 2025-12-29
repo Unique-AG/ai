@@ -18,6 +18,7 @@ else:
         JSONResponse = None  # type: ignore[assignment, misc]
         BackgroundTasks = None  # type: ignore[assignment, misc]
 
+from unique_toolkit.agentic_table.schemas import MagicTableEvent, MagicTableEventTypes
 from unique_toolkit.app.schemas import BaseEvent, ChatEvent, EventName
 from unique_toolkit.app.unique_settings import UniqueSettings
 
@@ -129,3 +130,21 @@ def build_unique_custom_app(
         )
 
     return app
+
+
+def build_agentic_table_custom_app(
+    *,
+    title: str = "Agentic Table App",
+    webhook_path: str = "/webhook",
+    settings: UniqueSettings,
+    event_handler: Callable[[MagicTableEvent], int] = default_event_handler,
+) -> "FastAPI":
+    """Factory class for creating FastAPI apps with Agentic Table webhook handling."""
+    return build_unique_custom_app(
+        title=title,
+        webhook_path=webhook_path,
+        settings=settings,
+        event_handler=event_handler,
+        event_constructor=MagicTableEvent,
+        subscribed_event_names=[ev.value for ev in MagicTableEventTypes],
+    )
