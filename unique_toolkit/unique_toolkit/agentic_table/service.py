@@ -172,7 +172,7 @@ class AgenticTableService:
             return
         # If the sheet is not idle, we cannot register the agent
         raise LockedAgenticTableError(
-            f"Magic Table is busy. Cannot register agent {self._event_id or self.table_id}."
+            f"Agentic Table is busy. Cannot register agent {self._event_id or self.table_id}."
         )
 
     async def deregister_agent(self):
