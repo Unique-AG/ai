@@ -205,6 +205,7 @@ if __name__ == "__main__":
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
     
+    # Run the server
     uvicorn.run(
         "fastapi_app_agentic_table:_MINIMAL_APP",
         host="0.0.0.0",
