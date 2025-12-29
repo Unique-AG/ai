@@ -32,7 +32,7 @@ jobs:
         if: matrix.deps == 'min'
         working-directory: ${{ env.PACKAGE_DIR }}
         run: |
-          uv venv --project ${{ env.PACKAGE_DIR }}
+          uv venv
           uv pip install -e ".[dev]" --resolution=lowest-direct
 
       - name: Check dependencies with deptry
