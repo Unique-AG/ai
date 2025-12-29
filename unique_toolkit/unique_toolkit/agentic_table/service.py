@@ -13,7 +13,6 @@ from unique_sdk import (
 from unique_sdk import AgenticTableCell as SDKAgenticTableCell
 from unique_sdk.api_resources._agentic_table import ActivityStatus
 
-from .cast import cast_log_entry
 from .schemas import (
     ArtifactType,
     LogEntry,
@@ -70,7 +69,9 @@ class AgenticTableService:
         if log_entries is None:
             log_entries_new = []
         else:
-            log_entries_new = [cast_log_entry(log_entry) for log_entry in log_entries]
+            log_entries_new = [
+                log_entry.to_sdk_log_entry() for log_entry in log_entries
+            ]
         try:
             await AgenticTable.set_cell(
                 user_id=self._user_id,
