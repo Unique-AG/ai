@@ -31,7 +31,7 @@ jobs:
         if: matrix.deps == 'min'
         run: |
           uv venv --project ${{ env.PACKAGE_DIR }}
-          uv pip install --project ${{ env.PACKAGE_DIR }} -e "${{ env.PACKAGE_DIR }}[dev]" --resolution=lowest
+          uv pip install --project ${{ env.PACKAGE_DIR }} -e "${{ env.PACKAGE_DIR }}[dev]" --resolution=lowest-direct
 
       - name: Run tests with latest
         if: matrix.deps == 'latest'
