@@ -67,15 +67,13 @@ The tool uses environment variables and configuration files to manage API keys a
 
 ## Dependency management (uv.lock + min/latest testing)
 
-This package is published as a **library** and uses `uv` for dependency management.
+This package is a **library** and uses `uv` for dependency management.
 
-- **Source of truth**: `pyproject.toml` defines the supported version ranges (consumer compatibility contract).
-- **Tested snapshot**: `uv.lock` is committed and represents the exact dependency set that CI uses for the “latest-deps” job.
-- **Min-deps CI**: `constraints-min.txt` pins the minimum runtime versions we claim to support (Python 3.12 baseline).
-
-### Why `uv.lock` (and how it differs from lockfile-less installs)
-
-`uv.lock` is the **tested dependency snapshot** (what CI builds and tests against), while `pyproject.toml` remains the **public compatibility contract** (version ranges for consumers). This separation keeps installs reproducible without turning version bumps into large, noisy diffs across many packages.
+We run tests additionally with minimal dependencies to ensure that the listed ranges are valid. NOTE: We use lowest-direct, not lowest. 
+Lowest attempts to use the lowest possible dependency versions _tarnsitively_ causing issues if  a dependency has incorrect metadata. Example:
+- google-cloud-aiplatform says it works with shapely<3.0.0.
+- The lowest resolver assumes 1.0 which needs python 2 -> breaks
+Therefor we use lowest-direct which only sets our direct dependencies to lowest 
 
 ### Run locally (with uv)
 
@@ -92,9 +90,9 @@ uv run pytest
 ```bash
 cd tool_packages/unique_web_search
 uv venv
-uv pip install -c constraints-min.txt -e ".[dev]"
-# Prevent uv from syncing the environment from uv.lock (we want the constraints-based env).
-uv run --no-sync pytest
+uv pip install -e ".[dev]" --resolution=lowest-direct
+# Use --no-sync for min to prevent uv from "fixing" the versions
+uv run --project . --no-sync pytest
 ```
 
 ### How dependency upgrades happen
