@@ -142,7 +142,7 @@ class AgenticTableService:
         status: ActivityStatus = ActivityStatus.IN_PROGRESS,
     ):
         """
-        Sets the activity of the Magic Table.
+        Sets the activity of the Agentic Table.
 
         Args:
             activity (str): The activity to set.
