@@ -24,14 +24,19 @@ async def agentic_table_event_handler(event: MagicTableEvent) -> int:
     """
     Default event handler that serves as a controller for the Agentic Table.
     """
-    # Initialize the configuration from the event for your custom application
-
-    # Initialize any services needed
+    # Initialize Agentic Table Service to interact with agentic table.
     at_service = AgenticTableService(
         user_id=event.user_id,
         company_id=event.company_id,
         table_id=event.payload.table_id,
     )
+
+    # Initialize the configuration from the event for your custom application
+    # config = YourConfigClass.model_validate(event.payload.configuration)
+
+    # You can now potentially use this configuration to initialize any other services needed for your application.
+    ...
+
 
     # Register the agent
     # This locks the table from any modifications until the agent is completed.
@@ -49,6 +54,16 @@ async def agentic_table_event_handler(event: MagicTableEvent) -> int:
             ...
         case MagicTableAction.ADD_META_DATA:
             # This event is triggered when a new question or question file or source file is added.
+
+            #########################################################
+            # The schema of the metadata is defined in the unique_toolkit.agentic_table.schemas.DDMetadata class.
+
+            # All the information related to the new questions, question files, and source files are available in the event payload.
+            # event.payload.metadata.question_texts : comprises any new questions added to the table via the question text input box.
+            # event.payload.metadata.question_file_ids: comprises a list of file ids of the question files added to the table.
+            # event.payload.metadata.source_file_ids: comprises a list of file ids of the source files added to the table.
+            # event.payload.metadata.context: comprises the context text for the table.
+            # You can pass this information to your agent/workflow..
             ...
         case MagicTableAction.UPDATE_CELL:
             # This event is triggered when a cell is updated.
@@ -75,6 +90,7 @@ async def agentic_table_event_handler(event: MagicTableEvent) -> int:
 
     # De-register the agent
     await at_service.deregister_agent()
+    return 0 # Success
 
 # Create the default app instance at module level
 # This MUST be at module level so uvicorn can find it when importing
