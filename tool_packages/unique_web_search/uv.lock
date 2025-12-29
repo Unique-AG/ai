@@ -3503,7 +3503,7 @@ dependencies = [
     { name = "unique-toolkit" },
 ]
 
-[package.optional-dependencies]
+[package.dev-dependencies]
 dev = [
     { name = "deptry" },
     { name = "pytest" },
@@ -3519,7 +3519,6 @@ requires-dist = [
     { name = "azure-identity", specifier = ">=1.25.0,<2" },
     { name = "certifi", specifier = ">=2025.11.12" },
     { name = "crawl4ai", specifier = ">=0.6.3,<1" },
-    { name = "deptry", marker = "extra == 'dev'", specifier = ">=0.24.0" },
     { name = "fake-useragent", specifier = ">=2.2.0,<3" },
     { name = "firecrawl", specifier = ">=3.3.2,<4" },
     { name = "google-auth", specifier = ">=2.43.0,<3" },
@@ -3531,10 +3530,6 @@ requires-dist = [
     { name = "openai", specifier = ">=1.109.1" },
     { name = "pydantic", specifier = ">=2.12.3,<3" },
     { name = "pydantic-settings", specifier = ">=2.10.1,<3" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.4.1,<9" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=1.2.0,<2" },
-    { name = "pytest-mock", marker = "extra == 'dev'", specifier = ">=3.14.0,<4" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.12.10,<0.13" },
     { name = "tavily-python", specifier = ">=0.7.11,<1" },
     { name = "tiktoken", specifier = ">=0.12.0" },
     { name = "timeout-decorator", specifier = ">=0.5.0,<1" },
@@ -3542,7 +3537,15 @@ requires-dist = [
     { name = "unidecode", specifier = ">=1.4.0,<2" },
     { name = "unique-toolkit", specifier = ">=1.38.3,<2" },
 ]
-provides-extras = ["dev"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "deptry", specifier = ">=0.24.0" },
+    { name = "pytest", specifier = ">=8.4.1,<9" },
+    { name = "pytest-asyncio", specifier = ">=1.2.0,<2" },
+    { name = "pytest-mock", specifier = ">=3.14.0,<4" },
+    { name = "ruff", specifier = ">=0.12.10,<0.13" },
+]
 
 [[package]]
 name = "uritemplate"

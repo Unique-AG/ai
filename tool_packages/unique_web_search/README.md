@@ -90,13 +90,16 @@ uv run deptry
 
 
 
-- **Min deps (constraints)**:
+- **Min deps**:
 
 ```bash
 cd tool_packages/unique_web_search
 uv venv
-uv pip install -e ".[dev]" --resolution=lowest-direct
-# Use --no-sync for min to prevent uv from "fixing" the versions
+# Install runtime deps at minimum versions
+uv pip install -e . --resolution=lowest-direct
+# Install dev deps from [dependency-groups] (we only care about runtime dep minimums)
+uv export --only-group dev --no-hashes | uv pip install -r -
+# Use --no-sync to prevent uv from "fixing" the versions
 uv run --no-sync pytest
 ```
 
