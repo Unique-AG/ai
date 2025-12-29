@@ -55,14 +55,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: ${{ matrix.package }}
-        shell: bash
-        run: |
-          if [[ "${{ steps.install_pm.outputs.install_cmd }}" == "poetry install" ]]; then
-            poetry install --with dev || poetry install
-          else
-            # Prefer installing the "dev" extra (PEP 621), fall back to other uv modes.
-            uv sync --extra dev || uv sync --all-extras || uv sync --dev || uv sync
-          fi
+        run: ${{ steps.install_pm.outputs.install_cmd }}
 
       - name: Run Ruff format check
         working-directory: ${{ matrix.package }}
