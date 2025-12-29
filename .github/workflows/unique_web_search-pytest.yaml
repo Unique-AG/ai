@@ -5,12 +5,6 @@ on:
     paths:
       - 'tool_packages/unique_web_search/**'
       - '.github/workflows/unique_web_search-pytest.yaml'
-  push:
-    branches:
-      - main
-    paths:
-      - 'tool_packages/unique_web_search/**'
-      - '.github/workflows/unique_web_search-pytest.yaml'
 
 env:
   PACKAGE_DIR: ./tool_packages/unique_web_search
@@ -23,56 +17,29 @@ jobs:
       matrix:
         deps: [min, latest]
     steps:
-      - name: Check out code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
         with:
           python-version: '3.12'
+          enable-cache: true
 
-      - name: Install uv
-        shell: bash
-        run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-
-      - name: Install packaging (for constraints-min validation)
-        if: matrix.deps == 'min'
-        shell: bash
-        run: python -m pip install --upgrade packaging
-
-      - name: Install package (latest deps)
+      - name: Install package (latest)
         if: matrix.deps == 'latest'
-        shell: bash
-        working-directory: ${{ env.PACKAGE_DIR }}
-        run: |
-          uv sync --extra dev
+        run: uv sync --project ${{ env.PACKAGE_DIR }} --extra dev
 
-      - name: Validate constraints-min.txt against pyproject minimums (Linux + py312)
+      - name: Install package (min)
         if: matrix.deps == 'min'
-        shell: bash
-        working-directory: ${{ env.PACKAGE_DIR }}
-        run: python scripts/check_constraints_min.py
-
-      - name: Install package (min deps via constraints)
-        if: matrix.deps == 'min'
-        shell: bash
-        working-directory: ${{ env.PACKAGE_DIR }}
         run: |
-          uv venv
-          uv pip install -c constraints-min.txt -e ".[dev]"
+          uv venv --project ${{ env.PACKAGE_DIR }}
+          uv pip install --project ${{ env.PACKAGE_DIR }} -e "${{ env.PACKAGE_DIR }}[dev]" --resolution=lowest
 
-      - name: Run tests (latest snapshot from uv.lock)
+      - name: Run tests with latest
         if: matrix.deps == 'latest'
-        shell: bash
-        working-directory: ${{ env.PACKAGE_DIR }}
-        run: uv run pytest
+        run: |
+          uv run --project ${{ env.PACKAGE_DIR }} pytest
 
-      - name: Run tests (min deps; do not sync from uv.lock)
+      - name: Run tests with min dependencies
         if: matrix.deps == 'min'
-        shell: bash
-        working-directory: ${{ env.PACKAGE_DIR }}
-        run: uv run --no-sync pytest
-
-
+        run: |
+          # Use --no-sync for min to prevent uv from "fixing" the versions
+          uv run --project ${{ env.PACKAGE_DIR }} --no-sync pytest
