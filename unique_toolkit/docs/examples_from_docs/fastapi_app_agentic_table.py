@@ -1,22 +1,14 @@
 
 import logging
 from pathlib import Path
-from unique_toolkit.app.fast_api_factory import build_agentic_table_custom_app
-from unique_toolkit import (
-    ChatService,
-    KnowledgeBaseService,
-    LanguageModelName,
-)
-from unique_toolkit.app.schemas import ChatEvent
-from unique_toolkit.app.unique_settings import UniqueSettings
-from unique_toolkit.framework_utilities.openai.message_builder import (
-    OpenAIMessageBuilder,
-)
-from unique_toolkit.app.schemas import ChatEvent, EventName
-from unique_toolkit.agentic_table.schemas import MagicTableEvent
-from unique_toolkit.agentic_table.service import AgenticTableService
-from unique_toolkit.agentic_table.schemas import MagicTableAction
+
 from unique_sdk.api_resources._agentic_table import ActivityStatus
+
+from unique_toolkit.agentic_table.schemas import MagicTableEvent
+from unique_toolkit.agentic_table.schemas import MagicTableAction
+from unique_toolkit.agentic_table.service import AgenticTableService
+from unique_toolkit.app.fast_api_factory import build_agentic_table_custom_app
+from unique_toolkit.app.unique_settings import UniqueSettings
 logger = logging.getLogger(__name__)
 
 
