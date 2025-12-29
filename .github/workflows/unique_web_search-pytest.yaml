@@ -25,21 +25,25 @@ jobs:
 
       - name: Install package (latest)
         if: matrix.deps == 'latest'
-        run: uv sync --project ${{ env.PACKAGE_DIR }} --extra dev
+        working-directory: ${{ env.PACKAGE_DIR }}
+        run: uv sync --extra dev
 
       - name: Install package (min)
         if: matrix.deps == 'min'
+        working-directory: ${{ env.PACKAGE_DIR }}
         run: |
           uv venv --project ${{ env.PACKAGE_DIR }}
-          uv pip install --project ${{ env.PACKAGE_DIR }} -e "${{ env.PACKAGE_DIR }}[dev]" --resolution=lowest-direct
+          uv pip install -e ".[dev]" --resolution=lowest-direct
 
       - name: Run tests with latest
         if: matrix.deps == 'latest'
+        working-directory: ${{ env.PACKAGE_DIR }}
         run: |
-          uv run --project ${{ env.PACKAGE_DIR }} pytest
+          uv run pytest
 
       - name: Run tests with min dependencies
         if: matrix.deps == 'min'
+        working-directory: ${{ env.PACKAGE_DIR }}
         run: |
           # Use --no-sync for min to prevent uv from "fixing" the versions
-          uv run --project ${{ env.PACKAGE_DIR }} --no-sync pytest
+          uv run --no-sync pytest
