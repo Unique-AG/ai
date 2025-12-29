@@ -25,6 +25,7 @@ unique-swot = "^1.0.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.4.1"
+pytest-asyncio = "^0.24.0"
 ruff = "^0.11.7"
 python = "^3.12"
 typing-extensions = "^4.9.0"
@@ -37,6 +38,7 @@ unique-stock-ticker = { path = "../postprocessors/unique_stock_ticker", develop 
 unique-follow-up-questions = { path = "../postprocessors/unique_follow_up_questions", develop = true }
 unique-internal-search = { path = "../tool_packages/unique_internal_search", develop = true }
 unique-swot = { path = "../tool_packages/unique_swot", develop = true }
+unique-web-search = { path = "../tool_packages/unique_web_search", develop = true }
 
 [build-system]
 requires = ["poetry-core"]
