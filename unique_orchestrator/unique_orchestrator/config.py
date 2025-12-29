@@ -15,6 +15,10 @@ from unique_toolkit._common.validators import (
     ClipInt,
     get_LMI_default_field,
 )
+from unique_toolkit._common.pydantic.optional_with_enabled import (
+    OptionalWithEnabled,
+    optional_with_enabled,
+)
 from unique_toolkit.agentic.evaluation.hallucination.constants import (
     HallucinationConfig,
 )
@@ -165,9 +169,10 @@ class LoopConfiguration(BaseModel):
         *ClipInt(min_value=1, max_value=LIMIT_MAX_TOOL_CALLS_PER_ITERATION),
     ] = 10
 
-    planning_config: (
-        Annotated[PlanningConfig, Field(title="Active")] | DeactivatedNone
-    ) = Field(default=None, description="Planning configuration.")
+    planning_config: OptionalWithEnabled(PlanningConfig) = Field(
+        default=optional_with_enabled(PlanningConfig),
+        description="Planning configuration.",
+    )
 
     model_specific: ModelSpecificConfig = ModelSpecificConfig()
 
@@ -320,11 +325,8 @@ class CodeInterpreterExtendedConfig(BaseModel):
 class ResponsesApiConfig(BaseModel):
     model_config = get_configuration_dict(frozen=True)
 
-    code_interpreter: (
-        Annotated[CodeInterpreterExtendedConfig, Field(title="Active")]
-        | DeactivatedNone
-    ) = Field(
-        default=None,
+    code_interpreter: OptionalWithEnabled(CodeInterpreterExtendedConfig) = Field(
+        default=optional_with_enabled(CodeInterpreterExtendedConfig),
         description="If active, the main agent will have acces to the OpenAI Code Interpreter tool",
     )
 
