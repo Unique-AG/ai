@@ -1,0 +1,23 @@
+name: "[type-check] Unique Orchestrator"
+
+env:
+  PACKAGE: unique_orchestrator
+
+on: 
+  pull_request:
+    paths:
+      - 'unique_orchestrator/**'
+
+jobs:
+  type-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Run type check
+        uses: ./.github/actions/type-check
+        with:
+          package_dir: ${{ env.PACKAGE }}
+          package_manager: 'auto'
+          python_version: '3.12'
