@@ -1,16 +1,7 @@
 name: Format Check - unique_orchestrator
 
 on:
-  push:
-    branches:
-      - main
-      - develop
-    paths:
-      - 'unique_orchestrator/**'
   pull_request:
-    branches:
-      - main
-      - develop
     paths:
       - 'unique_orchestrator/**'
   workflow_dispatch:
