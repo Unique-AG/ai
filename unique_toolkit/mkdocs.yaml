@@ -78,6 +78,8 @@ nav:
       - Short Term Memory Module: modules/short_term_memory.md
       - App Module: modules/app.md
       - Smart Rules: modules/content_smart_rules.md
+      - Data Extraction: modules/data_extraction.md
+      - Agentic Table: modules/agentic_table.md
     - Framework Utilities:
       - OpenAI Client: modules/openai.md
       - Langchain Client: modules/langchain.md
