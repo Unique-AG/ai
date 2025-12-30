@@ -58,7 +58,7 @@ class AgenticTableService:
         log_entries: list[LogEntry] | None = None,
     ):
         """
-        Sets the value of a cell in the Magic Table.
+        Sets the value of a cell in the Agentic Table.
 
         Args:
             row (int): The row index.
@@ -89,7 +89,7 @@ class AgenticTableService:
         self, row: int, column: int, include_row_metadata: bool = True
     ) -> MagicTableCell:
         """
-        Gets the value of a cell in the Magic Table.
+        Gets the value of a cell in the Agentic Table.
 
         Args:
             row (int): The row index.
@@ -114,7 +114,7 @@ class AgenticTableService:
         self, cells: list[MagicTableCell], batch_size: int = 4000
     ):
         """
-        Sets the values of multiple cells in the Magic Table.
+        Sets the values of multiple cells in the Agentic Table.
 
         Args:
             cells (list[MagicTableCell]): The cells to set sorted by row and column.
@@ -214,7 +214,7 @@ class AgenticTableService:
         editable: bool | None = None,
     ):
         """
-        Sets the style of a column in the Magic Table.
+        Sets the style of a column in the Agentic Table.
 
         Args:
             column (int): The column index.
@@ -268,7 +268,7 @@ class AgenticTableService:
         include_row_metadata: bool = False,
     ) -> MagicTableSheet:
         """
-        Gets the sheet data from the Magic Table paginated by batch_size.
+        Gets the sheet data from the Agentic Table paginated by batch_size.
 
         Args:
             start_row (int): The start row (inclusive).
