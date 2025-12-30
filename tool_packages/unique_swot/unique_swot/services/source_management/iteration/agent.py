@@ -127,7 +127,13 @@ class SourceIterationAgent:
 
             # Then yield the ordered documents as specified by the LLM
             for result in sorted(results.ordered_sources, key=lambda x: x.order):
-                content = self._content_map[result.id]
-                yield content
+                content = self._content_map.get(result.id)
+                if content is not None:
+                    yield content
+                else:
+                    # This should not result on a loss of information. The document that do not exist were already yielded as missed.
+                    _LOGGER.warning(
+                        f"Source {result.id} was not found in the content map. Skipping..."
+                    )
 
         return _generator()
