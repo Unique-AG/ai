@@ -40,6 +40,7 @@ class TestUpdateDebugInfoForToolControl:
         mock_postprocessor_manager = MagicMock()
         mock_streaming_handler = MagicMock()
         mock_message_step_logger = MagicMock()
+        mock_loop_iteration_runner = MagicMock()
 
         # Instantiate UniqueAI
         ua = UniqueAI(
@@ -58,6 +59,7 @@ class TestUpdateDebugInfoForToolControl:
             postprocessor_manager=mock_postprocessor_manager,
             message_step_logger=mock_message_step_logger,
             mcp_servers=[],
+            loop_iteration_runner=mock_loop_iteration_runner,
         )
 
         return ua
@@ -159,7 +161,6 @@ class TestUpdateDebugInfoForToolControl:
 
         # Assert
         expected_debug_info_event = {
-            "tools": debug_info,
             "assistant": {
                 "id": "assistant_123",
                 "name": "TestAssistant",
@@ -167,6 +168,7 @@ class TestUpdateDebugInfoForToolControl:
             "chosenModule": "TestAssistant",
             "userMetadata": {"key": "value"},
             "toolParameters": {"param": "value"},
+            **debug_info,  # debug_info is spread at top level
         }
         mock_unique_ai._chat_service.update_debug_info_async.assert_called_once_with(
             debug_info=expected_debug_info_event
@@ -193,7 +195,6 @@ class TestUpdateDebugInfoForToolControl:
 
         # Assert
         expected_debug_info_event = {
-            "tools": debug_info,
             "assistant": {
                 "id": "assistant_123",
                 "name": "TestAssistant",
@@ -201,6 +202,7 @@ class TestUpdateDebugInfoForToolControl:
             "chosenModule": "TestAssistant",
             "userMetadata": {"key": "value"},
             "toolParameters": {"param": "value"},
+            **debug_info,  # debug_info is spread at top level
         }
         mock_unique_ai._chat_service.update_debug_info_async.assert_called_once_with(
             debug_info=expected_debug_info_event
@@ -230,7 +232,6 @@ class TestUpdateDebugInfoForToolControl:
 
         # Assert
         expected_debug_info_event = {
-            "tools": debug_info,
             "assistant": {
                 "id": "assistant_123",
                 "name": "TestAssistant",
@@ -238,6 +239,7 @@ class TestUpdateDebugInfoForToolControl:
             "chosenModule": "TestAssistant",
             "userMetadata": None,
             "toolParameters": {"param": "value"},
+            **debug_info,  # debug_info is spread at top level
         }
         mock_unique_ai._chat_service.update_debug_info_async.assert_called_once_with(
             debug_info=expected_debug_info_event
@@ -267,7 +269,6 @@ class TestUpdateDebugInfoForToolControl:
 
         # Assert
         expected_debug_info_event = {
-            "tools": debug_info,
             "assistant": {
                 "id": "assistant_123",
                 "name": "TestAssistant",
@@ -275,6 +276,7 @@ class TestUpdateDebugInfoForToolControl:
             "chosenModule": "TestAssistant",
             "userMetadata": {"key": "value"},
             "toolParameters": None,
+            **debug_info,  # debug_info is spread at top level
         }
         mock_unique_ai._chat_service.update_debug_info_async.assert_called_once_with(
             debug_info=expected_debug_info_event
@@ -303,7 +305,6 @@ class TestUpdateDebugInfoForToolControl:
 
         # Assert
         expected_debug_info_event = {
-            "tools": debug_info,
             "assistant": {
                 "id": "assistant_123",
                 "name": "TestAssistant",
@@ -311,6 +312,7 @@ class TestUpdateDebugInfoForToolControl:
             "chosenModule": "TestAssistant",
             "userMetadata": {"key": "value"},
             "toolParameters": {"param": "value"},
+            **debug_info,  # debug_info is spread at top level
         }
         mock_unique_ai._chat_service.update_debug_info_async.assert_called_once_with(
             debug_info=expected_debug_info_event
