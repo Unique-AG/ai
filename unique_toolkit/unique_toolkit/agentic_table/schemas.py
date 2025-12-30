@@ -1,5 +1,5 @@
 from enum import StrEnum
-from typing import Any, Generic, Literal, TypeVar
+from typing import Annotated, Any, Generic, Literal, TypeVar
 
 from pydantic import (
     BaseModel,
@@ -195,16 +195,21 @@ class MagicTableLibrarySheetRowVerifiedPayload(
 ########### Magic Table Event definition ###########
 
 
+PayloadTypes = (
+    MagicTableUpdateCellPayload
+    | MagicTableAddMetadataPayload
+    | MagicTableGenerateArtifactPayload
+    | MagicTableSheetCompletedPayload
+    | MagicTableLibrarySheetRowVerifiedPayload
+    | MagicTableSheetCreatedPayload
+)
+
+MagicTablePayloadTypes = Annotated[PayloadTypes, Field(discriminator="action")]
+
+
 class MagicTableEvent(ChatEvent):
-    event: MagicTableEventTypes
-    payload: (
-        MagicTableUpdateCellPayload
-        | MagicTableAddMetadataPayload
-        | MagicTableGenerateArtifactPayload
-        | MagicTableSheetCompletedPayload
-        | MagicTableLibrarySheetRowVerifiedPayload
-        | MagicTableSheetCreatedPayload
-    ) = Field(discriminator="action")
+    event: MagicTableEventTypes  # type: ignore[assignment]
+    payload: MagicTablePayloadTypes  # type: ignore[assignment]
 
 
 class LogDetail(BaseModel):
