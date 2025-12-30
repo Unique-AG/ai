@@ -6,7 +6,7 @@ A powerful, configurable web search tool for retrieving and processing the lates
 
 The following diagram illustrates the complete architecture and workflow of the unique_web_search package:
 
-![Web Search Tool Architecture](doc/images/architecture-diagram.svg)
+![Web Search Tool Architecture](docs/images/architecture-diagram.svg)
 
 ## Key Features
 
