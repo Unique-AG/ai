@@ -1,0 +1,56 @@
+name: "[pytest] unique_web_search (min + latest deps)"
+
+on:
+  pull_request:
+    paths:
+      - 'tool_packages/unique_web_search/**'
+      - '.github/workflows/unique_web_search-pytest.yaml'
+
+env:
+  PACKAGE_DIR: ./tool_packages/unique_web_search
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        deps: [min, latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: '3.12'
+          enable-cache: true
+
+      - name: Install package (latest)
+        if: matrix.deps == 'latest'
+        working-directory: ${{ env.PACKAGE_DIR }}
+        run: uv sync
+
+      - name: Install package (min)
+        if: matrix.deps == 'min'
+        working-directory: ${{ env.PACKAGE_DIR }}
+        run: |
+          uv venv
+          # Install runtime deps at minimum versions
+          uv pip install -e . --resolution=lowest-direct
+          # Install dev deps from [dependency-groups] (we only care about runtime dep minimums)
+          uv export --only-group dev --no-hashes | uv pip install -r -
+
+      - name: Check dependencies with deptry
+        if: matrix.deps == 'latest'
+        working-directory: ${{ env.PACKAGE_DIR }}
+        run: uv run deptry .
+
+      - name: Run tests with latest
+        if: matrix.deps == 'latest'
+        working-directory: ${{ env.PACKAGE_DIR }}
+        run: uv run pytest
+
+      - name: Run tests with min dependencies
+        if: matrix.deps == 'min'
+        working-directory: ${{ env.PACKAGE_DIR }}
+        run: |
+          # Use --no-sync for min to prevent uv from "fixing" the versions
+          uv run --no-sync pytest

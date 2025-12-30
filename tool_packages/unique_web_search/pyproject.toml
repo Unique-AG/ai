@@ -1,68 +1,59 @@
-[tool.poetry]
+[project]
 name = "unique_web_search"
-version = "1.7.3"
+version = "1.7.4"
 description = ""
+readme = "README.md"
+requires-python = ">=3.12"
 authors = [
-    "Andreas Hauri <andreas@unique.ch>",
-    "Gustav Hartz <gustav.hartz.ext@unique.ch>",
-    "Rami Azouz <rami.ext@unique.ch>",
+  { name = "Andreas Hauri", email = "andreas@unique.ch" },
+  { name = "Gustav Hartz", email = "gustav.hartz.ext@unique.ch" },
+  { name = "Rami Azouz", email = "rami.ext@unique.ch" },
 ]
-readme = ["README.md", "CHANGELOG.md"]
-license = "Proprietary"
-
-[tool.poetry.dependencies]
-python = "^3.12"
-typing-extensions = "^4.9.0"
-pydantic = "^2.12.3"
-pydantic-settings = "^2.10.1"
-python-dotenv = "^1.0.1"
-timeout-decorator = "^0.5.0"
-markdownify = "^0.14.1"
-fake-useragent = "^2.2.0"
-crawl4ai = "^0.6.3"
-firecrawl = "^3.3.2"
-tavily-python = "^0.7.11"
-unidecode = "^1.4.0"
-pandas = "2.2.3"
-azure-ai-projects = "^1.0.0"
-azure-identity = "^1.25.0"
-unique-toolkit = "^1.38.3"
-unique-sdk = "^0.10.48"
-azure-core = "^1.36.0"
-google-cloud-aiplatform = "^1.128.0"
-google-auth = "^2.43.0"
-google-generativeai = "^0.8.5"
-langchain-text-splitters = "^1.0.0"
-
-
-[tool.poetry.group.dev.dependencies]
-pytest = "^8.4.1"
-python = "^3.12"
-typing-extensions = "^4.9.0"
-pytest-asyncio = "^1.2.0"
-pytest-mock = "^3.14.0"
-pydantic = "^2.8.2"
-pydantic-settings = "^2.10.1"
-python-dotenv = "^1.0.1"
-timeout-decorator = "^0.5.0"
-markdownify = "^0.14.1"
-fake-useragent = "^2.2.0"
-crawl4ai = "^0.6.3"
-firecrawl = "^3.3.2"
-tavily-python = "^0.7.11"
-unidecode = "^1.4.0"
-pandas = "2.2.3"
-unique-sdk = { path = "../../unique_sdk" }
-unique-toolkit = { path = "../../unique_toolkit" }
-ruff = "^0.12.10"
-
+license = { text = "Proprietary" }
+dependencies = [
+  "typing-extensions>=4.14.1,<5",
+  "pydantic>=2.12.3,<3",
+  "pydantic-settings>=2.10.1,<3",
+  "timeout-decorator>=0.5.0,<1",
+  "markdownify>=0.14.1,<1",
+  "fake-useragent>=2.2.0,<3",
+  "crawl4ai>=0.6.3,<1",
+  "firecrawl>=3.3.2,<4",
+  "tavily-python>=0.7.11,<1",
+  "unidecode>=1.4.0,<2",
+  "azure-ai-projects>=1.0.0,<2",
+  "azure-identity>=1.25.0,<2",
+  "unique-toolkit>=1.38.3,<2",
+  "azure-core>=1.36.0,<2",
+  "google-cloud-aiplatform>=1.128.0,<2",
+  "google-auth>=2.43.0,<3",
+  "google-generativeai>=0.8.5,<0.9",
+  "langchain-text-splitters>=1.0.0,<2",
+  "httpx>=0.28.1",
+  "tiktoken>=0.12.0",
+  "openai>=1.109.1",
+  "certifi>=2025.11.12",
+]
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["uv_build>=0.8.14,<0.9.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+  "deptry>=0.24.0",
+  "pytest>=8.4.1,<9",
+  "pytest-asyncio>=1.2.0,<2",
+  "pytest-mock>=3.14.0,<4",
+  "ruff>=0.12.10,<0.13",
+]
+
+[tool.deptry]
+known_first_party = ["unique_web_search"]
 
 [tool.ruff]
-target-version = "py311"
+target-version = "py312"
 
 [tool.ruff.lint]
 extend-select = ["I"]
+
