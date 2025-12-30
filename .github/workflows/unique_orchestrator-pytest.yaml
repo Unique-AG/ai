@@ -7,8 +7,6 @@ on:
   pull_request:
     paths:
       - 'unique_orchestrator/**'
-      - '!unique_orchestrator/**/docs/**'
-      - '!unique_orchestrator/**/mkdocs.yaml'
   workflow_dispatch:
 
 jobs:
