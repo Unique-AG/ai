@@ -1,0 +1,24 @@
+name: Format Check - unique_orchestrator
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'unique_orchestrator/**'
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'unique_orchestrator/**'
+  workflow_dispatch:
+
+jobs:
+  format-check:
+    uses: ./.github/workflows/ruff-format-check.yml
+    with:
+      directory: unique_orchestrator
+      python-version: '3.12'
+
