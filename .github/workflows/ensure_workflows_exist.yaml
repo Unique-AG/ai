@@ -1,0 +1,43 @@
+name: "[meta] Check required workflows exist"
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/**'
+      - 'tool_packages/**'
+      - 'unique_*/**'
+  push:
+    branches: [main]
+
+jobs:
+  check-workflows:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check required workflows exist
+        run: |
+          # Discover packages by looking for pyproject.toml files
+          PACKAGES=$(find . -name "pyproject.toml" -not -path "./.venv/*" \
+            | xargs -I {} dirname {} \
+            | xargs -I {} basename {} \
+            | grep -E "^unique_" \
+            | sort -u)
+
+          REQUIRED_ACTIONS=("pytest" "type_check" "format_check")
+          MISSING=()
+
+          for pkg in $PACKAGES; do
+            for action in "${REQUIRED_ACTIONS[@]}"; do
+              if ! ls .github/workflows/${pkg}-${action}.y*ml 2>/dev/null; then
+                MISSING+=("${pkg}-${action}.yaml")
+              fi
+            done
+          done
+
+          if [[ ${#MISSING[@]} -gt 0 ]]; then
+            echo "Missing required workflows:"
+            printf '  - %s\n' "${MISSING[@]}"
+            exit 1
+          fi
+          echo "All required workflows exist"
