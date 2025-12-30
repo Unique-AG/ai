@@ -14,6 +14,7 @@ from unique_toolkit.agentic.tools.tool_progress_reporter import (
     ProgressState,
     ToolProgressReporter,
 )
+from unique_toolkit.chat.schemas import MessageLog, MessageLogStatus
 from unique_toolkit.content import ContentChunk
 from unique_toolkit.language_model import LanguageModelFunction
 
@@ -35,6 +36,13 @@ class WebSearchLogEntry(BaseModel):
     web_search_results: list[WebSearchResult]
 
 
+# Type alias for the message log callback
+MessageLogCallback = Callable[
+    [str | None, list[WebSearchLogEntry] | None, MessageLogStatus],
+    MessageLog | None,
+]
+
+
 class BaseWebSearchExecutor(ABC):
     def __init__(
         self,
@@ -46,6 +54,7 @@ class BaseWebSearchExecutor(ABC):
         tool_parameters: WebSearchPlan | WebSearchToolParameters,
         company_id: str,
         content_processor: ContentProcessor,
+        message_log_callback: MessageLogCallback,
         chunk_relevancy_sorter: ChunkRelevancySorter | None,
         chunk_relevancy_sort_config: ChunkRelevancySortConfig,
         debug_info: WebSearchDebugInfo,
@@ -68,6 +77,7 @@ class BaseWebSearchExecutor(ABC):
         self._notify_message = ""
 
         self.debug_info = debug_info
+        self._message_log_callback = message_log_callback
 
         async def notify_callback() -> None:
             _LOGGER.debug(f"{self.notify_name}: {self.notify_message}")
@@ -96,6 +106,15 @@ class BaseWebSearchExecutor(ABC):
     @notify_message.setter
     def notify_message(self, value):
         self._notify_message = value
+
+    def create_or_update_active_message_log(
+        self,
+        *,
+        progress_message: str | None = None,
+        queries_for_log: list[WebSearchLogEntry] | None = None,
+        status: MessageLogStatus,
+    ) -> MessageLog | None:
+        return self._message_log_callback(progress_message, queries_for_log, status)
 
     @abstractmethod
     async def run(
