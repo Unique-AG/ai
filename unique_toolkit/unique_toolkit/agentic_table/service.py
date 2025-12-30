@@ -158,6 +158,12 @@ class AgenticTableService:
         )
 
     async def register_agent(self) -> None:
+        """
+        Registers the agent for the Agentic Table by updating the sheet state to PROCESSING.
+
+        Raises:
+            LockedAgenticTableError: If the Agentic Table is busy.
+        """
         state = await AgenticTable.get_sheet_state(
             user_id=self._user_id,
             company_id=self._company_id,
@@ -177,6 +183,12 @@ class AgenticTableService:
         )
 
     async def deregister_agent(self):
+        """
+        Deregisters the agent for the Agentic Table by updating the sheet state to IDLE.
+
+        Raises:
+            LockedAgenticTableError: If the Agentic Table is busy.
+        """
         await AgenticTable.update_sheet_state(
             user_id=self._user_id,
             company_id=self._company_id,
@@ -191,6 +203,14 @@ class AgenticTableService:
         mime_type: str,
         name: str,
     ):
+        """Upload/set report files to the Agentic Table.
+
+        Args:
+            artifact_type (ArtifactType): The type of artifact to set.
+            content_id (str): The content ID of the artifact.
+            mime_type (str): The MIME type of the artifact.
+            name (str): The name of the artifact.
+        """
         await AgenticTable.set_artifact(
             user_id=self._user_id,
             company_id=self._company_id,
@@ -248,6 +268,12 @@ class AgenticTableService:
         raise Exception(message)
 
     async def get_num_rows(self) -> int:
+        """
+        Gets the number of rows in the Agentic Table.
+
+        Returns:
+            int: The number of rows in the Agentic Table.
+        """
         sheet_info = await AgenticTable.get_sheet_data(
             user_id=self._user_id,
             company_id=self._company_id,
@@ -351,6 +377,12 @@ class AgenticTableService:
         return MagicTableSheet.model_validate(sheet_info)
 
     async def get_sheet_metadata(self) -> list[RowMetadataEntry]:
+        """
+        Gets the sheet metadata from the Agentic Table.
+
+        Returns:
+            list[RowMetadataEntry]: The sheet metadata.
+        """
         sheet_info = await AgenticTable.get_sheet_data(
             user_id=self._user_id,
             company_id=self._company_id,
@@ -370,6 +402,17 @@ class AgenticTableService:
         selection_method: SelectionMethod | None = None,
         agreement_status: AgreementStatus | None = None,
     ) -> None:
+        """
+        Sets the cell metadata for the Agentic Table.
+        NOTE: This is not to be confused with the sheet metadata and is associated rather with selection and agreement status, row locking etc.
+
+        Args:
+            row (int): The row index.
+            column (int): The column index.
+            selected (bool | None): Whether the cell is selected.
+            selection_method (SelectionMethod | None): The method of selection.
+            agreement_status (AgreementStatus | None): The agreement status.
+        """
         params = {}
         if selected is not None:
             params["selected"] = selected
@@ -394,6 +437,12 @@ class AgenticTableService:
         row_orders: list[int],
         status: RowVerificationStatus,
     ):
+        """Update the verification status of multiple rows at once.
+
+        Args:
+            row_orders (list[int]): The row indexes to update.
+            status (RowVerificationStatus): The verification status to set.
+        """
         await AgenticTable.bulk_update_status(
             user_id=self._user_id,
             company_id=self._company_id,
