@@ -79,6 +79,7 @@ async def test_history_updated_before_reference_extraction(monkeypatch):
         return_value=DummyStreamResponse()
     )
     mock_message_step_logger = MagicMock()
+    mock_loop_iteration_runner = AsyncMock(return_value=DummyStreamResponse())
 
     # Instantiate
     ua = UniqueAI(
@@ -97,6 +98,7 @@ async def test_history_updated_before_reference_extraction(monkeypatch):
         postprocessor_manager=MagicMock(),
         message_step_logger=mock_message_step_logger,
         mcp_servers=[],
+        loop_iteration_runner=mock_loop_iteration_runner,
     )
 
     # Bypass Jinja template compilation by stubbing prompt renderers

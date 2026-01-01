@@ -1,6 +1,6 @@
 import json
 from logging import getLogger
-from typing import TYPE_CHECKING, Any, Callable, TypeVar
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, TypeVar
 
 from pydantic import ValidationError
 
@@ -35,13 +35,15 @@ def default_event_handler(event: Any) -> int:
 
 T = TypeVar("T", bound=BaseEvent)
 
+EventHandlerType = Callable[[T], Awaitable[int]] | Callable[[T], int]
+
 
 def build_unique_custom_app(
     *,
     title: str = "Unique Chat App",
     webhook_path: str = "/webhook",
     settings: UniqueSettings,
-    event_handler: Callable[[T], int] = default_event_handler,
+    event_handler: EventHandlerType = default_event_handler,
     event_constructor: Callable[..., T] = ChatEvent,
     subscribed_event_names: list[str] | None = None,
 ) -> "FastAPI":
@@ -106,11 +108,17 @@ def build_unique_custom_app(
 
         try:
             event = event_constructor(**event_data)
-            if event.filter_event(filter_options=settings.chat_event_filter_options):
-                return JSONResponse(
-                    status_code=status.HTTP_200_OK,
-                    content={"error": "Event filtered out"},
-                )
+            if (
+                settings.chat_event_filter_options
+                and settings.chat_event_filter_options.assistant_ids
+            ):
+                if event.filter_event(
+                    filter_options=settings.chat_event_filter_options
+                ):
+                    return JSONResponse(
+                        status_code=status.HTTP_200_OK,
+                        content={"error": "Event filtered out"},
+                    )
         except ValidationError as e:
             # pydantic errors https://docs.pydantic.dev/2.10/errors/errors/
             logger.error(f"Validation error with model: {e.json()}", exc_info=True)
