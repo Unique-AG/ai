@@ -346,7 +346,7 @@ class Content(APIResource["Content"]):
         company_id: str,
         **params: Unpack["Content.ContentInfosParams"],
     ) -> "Content.PaginatedContentInfos":
-        parent_id = unique_sdk.Folder.resolve_scope_id_from_folder_path(
+        parent_id = await unique_sdk.Folder.resolve_scope_id_from_folder_path_async(
             user_id=user_id,
             company_id=company_id,
             scope_id=params.get("parentId"),
@@ -422,12 +422,16 @@ class Content(APIResource["Content"]):
                 params["input"].pop("description")
 
         create_folder = params.get("createFolderIfNotExists")
-        scope_id = unique_sdk.Folder.resolve_scope_id_from_folder_path_with_create(
-            user_id=user_id,
-            company_id=company_id,
-            scope_id=params.get("scopeId"),
-            folder_path=params.get("parentFolderPath"),
-            create_if_not_exists=create_folder if create_folder is not None else True,
+        scope_id = (
+            await unique_sdk.Folder.resolve_scope_id_from_folder_path_with_create_async(
+                user_id=user_id,
+                company_id=company_id,
+                scope_id=params.get("scopeId"),
+                folder_path=params.get("parentFolderPath"),
+                create_if_not_exists=create_folder
+                if create_folder is not None
+                else True,
+            )
         )
         params.pop("parentFolderPath", None)
         params.pop("createFolderIfNotExists", None)
@@ -530,7 +534,7 @@ class Content(APIResource["Content"]):
             params.get("contentId"),
             params.get("filePath"),
         )
-        owner_id = unique_sdk.Folder.resolve_scope_id_from_folder_path(
+        owner_id = await unique_sdk.Folder.resolve_scope_id_from_folder_path_async(
             user_id,
             company_id,
             params.get("ownerId"),

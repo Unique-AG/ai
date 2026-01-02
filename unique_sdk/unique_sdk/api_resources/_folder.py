@@ -297,7 +297,7 @@ class Folder(APIResource["Folder"]):
         """
         Async get paginated folders based on parentId. If the parentId is not defined, the root folders will be returned.
         """
-        parent_id = cls.resolve_scope_id_from_folder_path(
+        parent_id = await cls.resolve_scope_id_from_folder_path_async(
             user_id=user_id,
             company_id=company_id,
             scope_id=params.get("parentId"),
@@ -665,6 +665,79 @@ class Folder(APIResource["Folder"]):
 
             if create_if_not_exists:
                 result = cls.create_paths(
+                    user_id=user_id,
+                    company_id=company_id,
+                    paths=[folder_path],
+                )
+                created_folders = result.get("createdFolders", [])
+                if created_folders:
+                    return created_folders[-1]["id"]
+                raise ValueError(
+                    f"Failed to create folder with folderPath: {folder_path}"
+                )
+
+            raise ValueError(f"Could not find a folder with folderPath: {folder_path}")
+        return None
+
+    @classmethod
+    async def resolve_scope_id_from_folder_path_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        scope_id: str | None = None,
+        folder_path: str | None = None,
+    ) -> str | None:
+        """
+        Async version of resolve_scope_id_from_folder_path.
+        Returns the scopeId to use: if scope_id is provided, returns it;
+        if not, but folder_path is provided, resolves and returns the id for that folder path.
+
+        Returns:
+            str: The resolved folder ID.
+            None: Failed to resolve a folder ID (e.g., folder_path not found or not provided).
+        """
+        if scope_id:
+            return scope_id
+        if folder_path:
+            folder_info = await cls.get_info_async(
+                user_id=user_id,
+                company_id=company_id,
+                folderPath=folder_path,
+            )
+            resolved_id = folder_info.get("id")
+            if not resolved_id:
+                raise ValueError(
+                    f"Could not find a folder with folderPath: {folder_path}"
+                )
+            return resolved_id
+        return None
+
+    @classmethod
+    async def resolve_scope_id_from_folder_path_with_create_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        scope_id: str | None = None,
+        folder_path: str | None = None,
+        create_if_not_exists: bool = True,
+    ) -> str | None:
+        if scope_id:
+            return scope_id
+        if folder_path:
+            try:
+                folder_info = await cls.get_info_async(
+                    user_id=user_id,
+                    company_id=company_id,
+                    folderPath=folder_path,
+                )
+                resolved_id = folder_info.get("id")
+                if resolved_id:
+                    return resolved_id
+            except Exception:
+                pass
+
+            if create_if_not_exists:
+                result = await cls.create_paths_async(
                     user_id=user_id,
                     company_id=company_id,
                     paths=[folder_path],
