@@ -80,6 +80,7 @@ Organize content into folder structures with:
     **Parameters:**
 
     - `parentId` (str, optional) - Parent folder ID (if not provided, returns root folders)
+    - `parentFolderPath` (str, optional) - Parent folder path (alternative to `parentId`)
     - `skip` (int, optional) - Number of folders to skip (default: 0)
     - `take` (int, optional) - Number of folders to return
 
@@ -98,13 +99,25 @@ Organize content into folder structures with:
     )
     ```
 
-    **Get Subfolders:**
+    **Get Subfolders by ID:**
 
     ```python
     subfolders = unique_sdk.Folder.get_infos(
         user_id=user_id,
         company_id=company_id,
         parentId="scope_s18seqpnltf35niydg77xgyp",
+        take=10,
+        skip=0
+    )
+    ```
+
+    **Get Subfolders by Path:**
+
+    ```python
+    subfolders = unique_sdk.Folder.get_infos(
+        user_id=user_id,
+        company_id=company_id,
+        parentFolderPath="/Company/Reports",
         take=10,
         skip=0
     )
