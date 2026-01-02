@@ -28,9 +28,11 @@ while IFS= read -r file; do
         pkg=$(echo "$file" | cut -d'/' -f1)
         packages+=("$pkg")
     # Packages in connectors/
-    elif [[ "$file" =~ ^connectors/([^/]+)/ ]]; then
-        pkg=$(echo "$file" | cut -d'/' -f2)
-        packages+=("connectors/$pkg")
+    # TEMP: remove connectors due to the poetry file path changes
+    # ADD this after merging
+    # elif [[ "$file" =~ ^connectors/([^/]+)/ ]]; then
+    #    pkg=$(echo "$file" | cut -d'/' -f2)
+    #    packages+=("connectors/$pkg")
     # Packages in postprocessors/
     elif [[ "$file" =~ ^postprocessors/([^/]+)/ ]]; then
         pkg=$(echo "$file" | cut -d'/' -f2)
