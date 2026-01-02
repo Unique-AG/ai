@@ -21,23 +21,52 @@ on:
       - 'tool_packages/unique_web_search/**'
 
 jobs:
+  detect-packages:
+    runs-on: ubuntu-latest
+    outputs:
+      packages: ${{ steps.set-packages.outputs.packages }}
+      packages_json: ${{ steps.set-packages.outputs.packages_json }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch full history for proper diff
+
+      - name: Get changed files
+        id: changed-files
+        run: |
+          if [ "${{ github.event.pull_request.base.sha }}" != "" ]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE_SHA=$(git merge-base HEAD origin/${{ github.base_ref }})
+          fi
+          
+          echo "BASE_SHA=$BASE_SHA" >> $GITHUB_ENV
+          echo "HEAD_SHA=${{ github.event.pull_request.head.sha || github.sha }}" >> $GITHUB_ENV
+          
+          # Get list of changed files
+          git diff --name-only $BASE_SHA $HEAD_SHA > changed_files.txt
+          echo "Changed files:"
+          cat changed_files.txt
+
+      - name: Extract package names
+        id: set-packages
+        run: |
+          ./.github/scripts/detect-changed-packages.sh changed_files.txt
+
+      - name: Display detected packages
+        run: |
+          echo "Changed packages: ${{ steps.set-packages.outputs.packages }}"
+          echo "Changed packages (JSON): ${{ steps.set-packages.outputs.packages_json }}"
+
   validate-changes:
+    needs: detect-packages
+    if: needs.detect-packages.outputs.packages != ''
     runs-on: ubuntu-latest
 
     strategy:
       matrix:
-        package:
-          - unique_sdk
-          - unique_toolkit
-          - unique_orchestrator
-          - connectors/unique_quartr
-          - connectors/unique_search_proxy
-          - postprocessors/unique_follow_up_questions
-          - postprocessors/unique_stock_ticker
-          - tool_packages/unique_deep_research
-          - tool_packages/unique_internal_search
-          - tool_packages/unique_swot
-          - tool_packages/unique_web_search
+        package: ${{ fromJson(needs.detect-packages.outputs.packages_json) }}
 
     steps:
       - name: Check out code
