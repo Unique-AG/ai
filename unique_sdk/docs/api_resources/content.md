@@ -681,6 +681,7 @@ For simplified file operations, use the [File I/O utilities](../utilities/file_i
     - `writeUrl` (str | None) - URL for uploading file content
     - `readUrl` (str | None) - URL for reading/downloading file content
     - `expiredAt` (str | None) - Expiration timestamp (ISO 8601)
+    - `appliedIngestionConfig` (Dict[str, Any] | None) - The ingestion configuration that was applied to this content
 
     **Returned by:** `Content.search()`, `Content.upsert()`
 

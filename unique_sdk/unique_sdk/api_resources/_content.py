@@ -30,6 +30,7 @@ class Content(APIResource["Content"]):
     writeUrl: Optional[str]
     readUrl: Optional[str]
     expiredAt: Optional[str]
+    appliedIngestionConfig: Optional[Dict[str, Any]]
 
     class QueryMode(Enum):
         Default = "default"
