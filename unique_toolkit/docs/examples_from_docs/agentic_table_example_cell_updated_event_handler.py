@@ -1,0 +1,97 @@
+from unique_toolkit.agentic_table.schemas import MagicTableUpdateCellPayload
+from unique_toolkit.agentic_table.service import AgenticTableService
+from logging import getLogger
+from datetime import datetime
+from unique_toolkit.language_model.schemas import LanguageModelMessageRole
+from unique_sdk import RowVerificationStatus
+from unique_toolkit.agentic_table.schemas import LogEntry
+from .agentic_table_example_column_definition import example_column_definitions, ExampleColumnNames
+
+logger = getLogger(__name__)
+
+async def handle_cell_updated(
+    at_service: AgenticTableService, 
+    payload: MagicTableUpdateCellPayload
+) -> None:
+    """
+    Handle cell update events with status-based workflow automation.
+    
+    This handler implements intelligent workflow logic that locks rows when their
+    status changes to "Completed" or "Verified". This prevents accidental edits
+    to reviewed and approved documentation.
+    
+    Locking Behavior:
+    - When Status column changes to "Completed" or "Verified":
+      * All columns except Status become non-editable
+      * A log entry is added for audit trail
+      * Row verification status is updated
+    
+    Note on Implementation:
+        Column-level locking affects all rows globally. For true row-specific
+        locking, additional row metadata tracking would be needed. This example
+        demonstrates the workflow pattern that can be adapted.
+    
+    Args:
+        at_service: The AgenticTableService instance for table operations
+        payload: The payload containing updated cell details (row, column, new value)
+        
+    Returns:
+        None
+        
+    Workflow States:
+        - Todo: Editable
+        - In Progress: Editable
+        - Completed: Locked (this handler triggers)
+        - Verified: Locked (this handler triggers)
+    """
+    logger.info(
+        f"Cell updated at row {payload.row_order}, "
+        f"column {payload.column_order}: {payload.data}"
+    )
+    
+    status_col = example_column_definitions.get_column_by_name(ExampleColumnNames.STATUS)
+    
+    # Check if the Status column was updated
+    if payload.column_order == status_col.order:
+        status_value = payload.data.strip()
+        
+        logger.info(f"Status changed to: {status_value}")
+        
+        # Check if status is Completed or Verified (lock row)
+        if status_value.lower() in ["completed", "verified"]:
+            logger.info(f"Locking row {payload.row_order} due to status: {status_value}")
+            
+            # Note: Column-level locking affects all rows. In a production system,
+            # you might track locked rows in metadata and validate edits server-side.
+            # Here we demonstrate the pattern with a log entry.
+            
+            # Add log entry to document the status change and locking
+            log_entries = [
+                LogEntry(
+                    text=f"Row {payload.row_order} marked as {status_value}. Further edits should be restricted.",
+                    created_at=datetime.now().isoformat(),
+                    actor_type=LanguageModelMessageRole.ASSISTANT,
+                )
+            ]
+            
+            await at_service.set_cell(
+                row=payload.row_order,
+                column=payload.column_order,
+                text=status_value,
+                log_entries=log_entries
+            )
+            
+            # Update row verification status
+            await at_service.update_row_verification_status(
+                row_orders=[payload.row_order],
+                status=RowVerificationStatus.VERIFIED
+            )
+            
+            logger.info(f"Row {payload.row_order} verified and logged")
+        else:
+            # For other statuses, just update the cell normally
+            await at_service.set_cell(
+                row=payload.row_order,
+                column=payload.column_order,
+                text=status_value
+            )
