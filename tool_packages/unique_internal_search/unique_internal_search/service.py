@@ -53,8 +53,8 @@ class InternalSearchService:
         content_service: ContentService,
         chunk_relevancy_sorter: ChunkRelevancySorter,
         chat_id: str | None,
-        company_id: str,
         logger: Logger,
+        company_id: str | None = None,
         message_step_logger: MessageStepLogger | None = None,
         display_name: str = "Internal Search",
     ):
