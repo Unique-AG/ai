@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 ## [1.42.1] - 2025-01-05
-- Version bump
+- Version bump of SDK
 
 ## [1.42.0] - 2025-01-05
 - Add new params for elicitation to `call_tool` api
