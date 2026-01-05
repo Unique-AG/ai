@@ -59,6 +59,8 @@ tox = "^4.11.4"
 pyright = "^1.1.341"
 basedpyright = "^1.33.0"
 pytest-cov = "^4.1.0"
+diff-cover = "^9.2.0"
+coverage-badge = "^1.1.1"
 pre-commit = "^3.7.1"
 pytest-asyncio = "^0.23.8"
 pytest-mock = "^3.14.0"
@@ -76,7 +78,7 @@ entangled-cli = "^2.1.13"
 mkdocs-entangled-plugin = "^0.4.0"
 isort = "^6.0.1"
 mkdocs-codeinclude-plugin = "^0.2.1"
-aiohttp = "^3.12.15"
+
 
 [build-system]
 requires = ["poetry-core"]
@@ -89,6 +91,44 @@ exclude = [".venv", "docs"]
 
 [tool.ruff.lint]
 extend-select = ["I"]
+
+[tool.coverage.run]
+source = ["unique_toolkit"]
+omit = [
+    "*/tests/*",
+    "*/test_*",
+    "*/__pycache__/*",
+    "*/.*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\(.*Protocol.*\\):",
+    "@(abc\\.)?abstractmethod",
+]
+show_missing = true
+precision = 2
+
+# Set minimum coverage thresholds
+fail_under = 20
+skip_covered = false
+skip_empty = false  # Show empty files to see untested files
+
+# Include namespace packages and untested files
+include_namespace_packages = true
+
+# Include patterns handled by --source command line option
+
+[tool.coverage.html]
+directory = "docs/coverage/htmlcov"
 
 [tool.basedpyright]
 # Type checking mode: "off", "basic", "standard", "strict", "recommended", or "all"
