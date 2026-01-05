@@ -8,7 +8,7 @@ from unique_toolkit._common.chunk_relevancy_sorter.exception import (
 )
 from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
-from unique_toolkit.agentic.feature_flags.feature_flags import FeatureFlags
+from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.history_manager.utils import transform_chunks_to_string
 from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
 from unique_toolkit.agentic.tools.agent_chunks_hanlder import AgentChunksHandler
@@ -53,21 +53,21 @@ class InternalSearchService:
         content_service: ContentService,
         chunk_relevancy_sorter: ChunkRelevancySorter,
         chat_id: str | None,
+        company_id: str,
         logger: Logger,
         message_step_logger: MessageStepLogger | None = None,
-        feature_flags: FeatureFlags | None = None,
         display_name: str = "Internal Search",
     ):
         self.config = config
         self.content_service = content_service
         self.chunk_relevancy_sorter = chunk_relevancy_sorter
         self.chat_id = chat_id
+        self.company_id = company_id
         self.logger = logger
         self.tool_execution_message_name = "Internal search"
         self._message_step_logger = message_step_logger
         self._display_name = display_name
         self._active_message_log: MessageLog | None = None
-        self._feature_flags = feature_flags or FeatureFlags()
 
     async def post_progress_message(self, message: str, *args, **kwargs):
         pass
@@ -172,7 +172,7 @@ class InternalSearchService:
 
         # Apply chunk relevancy sorter if enabled
         if self.config.chunk_relevancy_sort_config.enabled:
-            if self._feature_flags.feature_flag_enable_new_answers_ui:
+            if feature_flags.is_new_answers_ui_enabled(self.company_id):
                 progress_message = "_Resorting search results_"
                 self._active_message_log = (
                     await self._create_or_update_active_message_log(
@@ -181,7 +181,7 @@ class InternalSearchService:
                     )
                 )
             for i, result in enumerate(found_chunks_per_search_string):
-                if not self._feature_flags.feature_flag_enable_new_answers_ui:
+                if not feature_flags.is_new_answers_ui_enabled(self.company_id):
                     await self.post_progress_message(
                         f"{result.query} (_Resorting {len(result.chunks)} search results_ 🔄 in query {i + 1}/{len(found_chunks_per_search_string)})",
                         **kwargs,
@@ -202,7 +202,7 @@ class InternalSearchService:
                 found_chunks_per_search_string
             )
 
-        if self._feature_flags.feature_flag_enable_new_answers_ui:
+        if feature_flags.is_new_answers_ui_enabled(self.company_id):
             progress_message = "_Postprocessing search results_"
             self._active_message_log = await self._create_or_update_active_message_log(
                 progress_message=progress_message,
@@ -430,9 +430,9 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             content_service=content_service,
             chunk_relevancy_sorter=chunk_relevancy_sorter,
             chat_id=chat_id,
+            company_id=self.event.company_id,
             logger=self.logger,
             message_step_logger=self._message_step_logger,
-            feature_flags=self._feature_flags,
             display_name=self._display_name,
         )
 
@@ -552,7 +552,7 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
         search_strings_list = list(dict.fromkeys(search_strings_list))
         search_strings_list = search_strings_list[: self.config.max_search_strings]
 
-        if not self._feature_flags.feature_flag_enable_new_answers_ui:
+        if not feature_flags.is_new_answers_ui_enabled(self.company_id):
             await self.post_progress_message(
                 f"{'; '.join(search_strings_list)}", tool_call
             )

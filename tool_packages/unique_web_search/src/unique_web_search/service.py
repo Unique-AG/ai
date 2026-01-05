@@ -5,6 +5,7 @@ from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancy
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
+from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.tools.tool import (
     Tool,
 )
@@ -126,7 +127,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
             )
 
             if (
-                not self._feature_flags.feature_flag_enable_new_answers_ui
+                not feature_flags.is_new_answers_ui_enabled(self.company_id)
                 and self.tool_progress_reporter
             ):
                 await self.tool_progress_reporter.notify_from_tool_call(
@@ -146,7 +147,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
             self.logger.exception(f"Error executing WebSearch tool: {e}")
 
             if (
-                not self._feature_flags.feature_flag_enable_new_answers_ui
+                not feature_flags.is_new_answers_ui_enabled(self.company_id)
                 and self.tool_progress_reporter
             ):
                 await self.tool_progress_reporter.notify_from_tool_call(
@@ -195,7 +196,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
                 chunk_relevancy_sorter=self.chunk_relevancy_sorter,
                 chunk_relevancy_sort_config=self.config.chunk_relevancy_sort_config,
                 tool_progress_reporter=self.tool_progress_reporter
-                if not self._feature_flags.feature_flag_enable_new_answers_ui
+                if not feature_flags.is_new_answers_ui_enabled(self.company_id)
                 else None,
                 content_reducer=self.content_reducer,
                 max_steps=self.config.web_search_mode_config.max_steps,
@@ -218,7 +219,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
                 chunk_relevancy_sorter=self.chunk_relevancy_sorter,
                 chunk_relevancy_sort_config=self.config.chunk_relevancy_sort_config,
                 tool_progress_reporter=self.tool_progress_reporter
-                if not self._feature_flags.feature_flag_enable_new_answers_ui
+                if not feature_flags.is_new_answers_ui_enabled(self.company_id)
                 else None,
                 content_reducer=self.content_reducer,
                 refine_query_system_prompt=self.config.web_search_mode_config.refine_query_mode.system_prompt,

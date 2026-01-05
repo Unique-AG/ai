@@ -16,7 +16,6 @@ from unique_toolkit._common.execution import (
     SafeTaskExecutor,
 )
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
-from unique_toolkit.agentic.feature_flags.feature_flags import FeatureFlags
 from unique_toolkit.agentic.tools.a2a import A2AManager, SubAgentTool
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
 from unique_toolkit.agentic.tools.factory import ToolFactory
@@ -83,7 +82,6 @@ class _ToolManager(Generic[_ApiMode]):
         a2a_manager: A2AManager,
         api_mode: _ApiMode,
         builtin_tool_manager: OpenAIBuiltInToolManager | None = None,
-        feature_flags: FeatureFlags | None = None,
     ) -> None:
         self._logger = logger
         self._config = config
@@ -100,7 +98,6 @@ class _ToolManager(Generic[_ApiMode]):
         self._a2a_manager = a2a_manager
         self._builtin_tool_manager = builtin_tool_manager
         self._api_mode = api_mode
-        self._feature_flags = feature_flags or FeatureFlags.from_env(event.company_id)
         self._init__tools(event)
 
     def _init__tools(self, event: ChatEvent) -> None:
@@ -137,7 +134,6 @@ class _ToolManager(Generic[_ApiMode]):
                 t.configuration,
                 event,
                 tool_progress_reporter=self._tool_progress_reporter,
-                feature_flags=self._feature_flags,
             )
             for t in tool_configs
             if t.name not in registered_tool_names  # Skip already handled tools
@@ -200,10 +196,6 @@ class _ToolManager(Generic[_ApiMode]):
     @property
     def sub_agents(self) -> list[SubAgentTool]:
         return self._sub_agents
-
-    @property
-    def feature_flags(self) -> FeatureFlags:
-        return self._feature_flags
 
     def log_loaded_tools(self):
         self._logger.info(f"Loaded tools: {[tool.name for tool in self._tools]}")
@@ -464,7 +456,6 @@ class ToolManager(_ToolManager[Literal["completions"]]):
         tool_progress_reporter: ToolProgressReporter,
         mcp_manager: MCPManager,
         a2a_manager: A2AManager,
-        feature_flags: FeatureFlags | None = None,
     ) -> None:
         super().__init__(
             logger=logger,
@@ -475,7 +466,6 @@ class ToolManager(_ToolManager[Literal["completions"]]):
             a2a_manager=a2a_manager,
             api_mode="completions",
             builtin_tool_manager=None,
-            feature_flags=feature_flags,
         )
 
 
@@ -489,7 +479,6 @@ class ResponsesApiToolManager(_ToolManager[Literal["responses"]]):
         mcp_manager: MCPManager,
         a2a_manager: A2AManager,
         builtin_tool_manager: OpenAIBuiltInToolManager,
-        feature_flags: FeatureFlags | None = None,
     ) -> None:
         super().__init__(
             logger=logger,
@@ -500,5 +489,4 @@ class ResponsesApiToolManager(_ToolManager[Literal["responses"]]):
             a2a_manager=a2a_manager,
             api_mode="responses",
             builtin_tool_manager=builtin_tool_manager,
-            feature_flags=feature_flags,
         )

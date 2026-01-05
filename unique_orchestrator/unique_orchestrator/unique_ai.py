@@ -6,6 +6,7 @@ import jinja2
 from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
     DebugInfoManager,
 )
+from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.evaluation.evaluation_manager import EvaluationManager
 from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
 from unique_toolkit.agentic.loop_runner import LoopIterationRunner
@@ -102,7 +103,7 @@ class UniqueAI:
         """
         self._logger.info("Start LoopAgent...")
 
-        if not self._tool_manager.feature_flags.feature_flag_enable_new_answers_ui:
+        if not feature_flags.is_new_answers_ui_enabled(self._event.company_id):
             self._chat_service.modify_assistant_message(
                 content="Starting agentic loop..."  # TODO: this must be more informative
             )
