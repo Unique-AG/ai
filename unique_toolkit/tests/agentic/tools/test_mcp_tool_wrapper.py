@@ -670,6 +670,8 @@ class TestMCPToolWrapperRun:
                 user_id="user_123",
                 company_id="company_456",
                 name="test_mcp_tool",
+                messageId="assistant_message_202",
+                chatId=mock_chat_event.payload.chat_id,
                 arguments={"query": "test", "limit": 5},
             )
 

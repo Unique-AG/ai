@@ -24,7 +24,7 @@ RUN useradd -m appuser && \
 
 # Copy only requirements to cache them in docker layer
 WORKDIR /app
-COPY web/poetry.lock web/pyproject.toml ./
+COPY poetry.lock pyproject.toml ./
 
 # Project initialization (install dependencies)
 RUN poetry install --only=main --no-root --no-interaction --no-ansi
