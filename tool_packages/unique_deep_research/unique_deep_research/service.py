@@ -97,9 +97,12 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
     name = "DeepResearch"
 
     def __init__(
-        self, configuration: DeepResearchToolConfig, event: ChatEvent, *args, **kwargs
+        self,
+        configuration: DeepResearchToolConfig,
+        event: ChatEvent,
+        tool_progress_reporter,
     ):
-        super().__init__(configuration, event, *args, **kwargs)
+        super().__init__(configuration, event, tool_progress_reporter)
         self.chat_id = event.payload.chat_id
         self.company_id = event.company_id
         self.user_id = event.user_id
