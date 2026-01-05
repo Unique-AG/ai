@@ -118,7 +118,6 @@ async def handle_generate_operation(
             title=notification_title,
             description=f"An error occured while extracting facts for component {component}. This batch will be skipped.",
         )
-        raise e
     except FailedToGeneratePlanException as e:
         _LOGGER.exception(
             f"Failed to generate plan for component {component}", exc_info=e
