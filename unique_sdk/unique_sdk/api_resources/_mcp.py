@@ -59,6 +59,8 @@ class MCP(APIResource["MCP"]):
         """Parameters for calling an MCP tool."""
 
         name: str
+        messageId: str
+        chatId: str
         arguments: Dict[str, Any]
 
     # Response fields
