@@ -2301,7 +2301,7 @@ typing-extensions = ">=4.12.0"
 
 [[package]]
 name = "unique-quartr"
-version = "0.2.1"
+version = "0.2.2"
 description = "Unique Quartr API client"
 optional = false
 python-versions = "^3.12"
