@@ -220,6 +220,8 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
                 user_id=self.event.user_id,
                 company_id=self.event.company_id,
                 name=self.name,
+                messageId=self.event.payload.assistant_message.id,
+                chatId=self.event.chat_id,
                 arguments=arguments,
             )
 
