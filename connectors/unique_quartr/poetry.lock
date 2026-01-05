@@ -2431,14 +2431,14 @@ typing-extensions = ">=4.12.0"
 
 [[package]]
 name = "unique-sdk"
-version = "0.10.58"
+version = "0.10.65"
 description = ""
 optional = false
 python-versions = "<4.0,>=3.11"
 groups = ["main", "dev"]
 files = [
-    {file = "unique_sdk-0.10.58-py3-none-any.whl", hash = "sha256:6568c254066b29a8416a2bcb2793be8dba8e63362eb6015ffe635cbe46689485"},
-    {file = "unique_sdk-0.10.58.tar.gz", hash = "sha256:7d29dad0585600440891c58c958c6412342ce7e6079d4156b62df058d71dd190"},
+    {file = "unique_sdk-0.10.65-py3-none-any.whl", hash = "sha256:135b556f324350120b2730cb39d8f9ca05e185a4ac2dba1620ed2ada747112d7"},
+    {file = "unique_sdk-0.10.65.tar.gz", hash = "sha256:9db3720ec2ea8b66c91c2f8c67c3ca0b3a4f1f4fb2960713768ec9d6f955667c"},
 ]
 
 [package.dependencies]
@@ -2450,7 +2450,7 @@ openai = ["openai (>=1.105.0,<2.0.0)"]
 
 [[package]]
 name = "unique-toolkit"
-version = "1.38.1"
+version = "1.42.2"
 description = ""
 optional = false
 python-versions = "^3.12"
@@ -2477,7 +2477,7 @@ regex = "^2024.5.15"
 sseclient = "^0.0.27"
 tiktoken = "^0.12.0"
 typing-extensions = "^4.9.0"
-unique-sdk = "^0.10.58"
+unique-sdk = "^0.10.65"
 
 [package.source]
 type = "directory"
