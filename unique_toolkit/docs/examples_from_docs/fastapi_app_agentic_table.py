@@ -108,11 +108,9 @@ async def agentic_table_event_handler(event: MagicTableEvent) -> int:
             logger.info(f"Library sheet row verified: {event.payload.metadata.row_order}")
             
             # Here you can call a handler function that will handle the library sheet row verified event.
-        
             
         else:
             logger.error(f"Unknown action: {event.payload.action}")
-            await at_service.deregister_agent()
             await at_service.set_activity(
                 activity=event.payload.action,
                 status=ActivityStatus.FAILED,
