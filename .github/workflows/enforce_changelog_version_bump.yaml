@@ -29,9 +29,8 @@ jobs:
             connectors/unique_quartr:
               - 'connectors/unique_quartr/**'
             
-            # TODO: remove this comment after unique_search_proxy has its poetry in base directory
-            # connectors/unique_search_proxy:
-            #  - 'connectors/unique_search_proxy/**'
+            connectors/unique_search_proxy:
+              - 'connectors/unique_search_proxy/**'
               
             postprocessors/unique_follow_up_questions:
               - 'postprocessors/unique_follow_up_questions/**'
