@@ -353,7 +353,6 @@ class InternalSearchService:
             details=details,
             references=message_log_reference_list,
             **({"status": status} if status is not None else {}),
-
         )
 
     async def _define_reference_list_for_message_log(

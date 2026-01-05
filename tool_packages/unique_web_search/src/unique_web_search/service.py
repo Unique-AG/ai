@@ -3,9 +3,9 @@ from time import time
 from typing_extensions import override
 from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
+from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
-from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.tools.tool import (
     Tool,
 )
@@ -23,7 +23,7 @@ from unique_toolkit.language_model.schemas import (
 )
 
 from unique_web_search.config import WebSearchConfig
-from unique_web_search.schema import WebSearchPlan, WebSearchToolParameters
+from unique_web_search.schema import StepType, WebSearchPlan, WebSearchToolParameters
 from unique_web_search.services.content_processing import ContentProcessor, WebPageChunk
 from unique_web_search.services.crawlers import get_crawler_service
 from unique_web_search.services.executors import (
@@ -172,9 +172,10 @@ class WebSearchTool(Tool[WebSearchConfig]):
     ) -> WebSearchV1Executor | WebSearchV2Executor:
         # Create callback that wraps the service's create_or_update_active_message_log method
         def message_log_callback(
-            progress_message: str | None,
-            queries_for_log: list[WebSearchLogEntry] | None,
-            status: MessageLogStatus,
+            *,
+            progress_message: str | None = None,
+            queries_for_log: list[WebSearchLogEntry] | list[str] | None = None,
+            status: MessageLogStatus | None = None,
         ) -> MessageLog | None:
             return self.create_or_update_active_message_log(
                 progress_message=progress_message,
@@ -241,8 +242,19 @@ class WebSearchTool(Tool[WebSearchConfig]):
         return evaluation_check_list
 
     def _prepare_message_logs_entries(
-        self, queries_for_log: list[WebSearchLogEntry]
+        self, queries_for_log: list[WebSearchLogEntry] | list[str]
     ) -> tuple[MessageLogDetails, list[ContentReference]]:
+        # Handle list of strings (query strings only)
+        if queries_for_log and isinstance(queries_for_log[0], str):
+            queries_for_log = [
+                WebSearchLogEntry(
+                    type=StepType.SEARCH,
+                    message=query,
+                    web_search_results=[],
+                )
+                for query in queries_for_log
+            ]
+
         details = MessageLogDetails(
             data=[
                 MessageLogEvent(
@@ -267,7 +279,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
         self,
         *,
         progress_message: str | None = None,
-        queries_for_log: list[WebSearchLogEntry] | None = None,
+        queries_for_log: list[WebSearchLogEntry] | list[str] | None = None,
         status: MessageLogStatus | None = None,
     ) -> MessageLog | None:
         if queries_for_log is not None:
@@ -283,11 +295,9 @@ class WebSearchTool(Tool[WebSearchConfig]):
                 active_message_log=self._active_message_log,
                 header=self._display_name,
                 progress_message=progress_message,
-                status=status,
                 details=details,
                 references=reference_list,
                 **({"status": status} if status is not None else {}),
-
             )
         )
         return self._active_message_log

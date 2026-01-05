@@ -12,7 +12,6 @@ from unique_toolkit._common.validators import LMI
 from unique_toolkit.agentic.tools.tool_progress_reporter import (
     ToolProgressReporter,
 )
-from unique_toolkit.chat.schemas import MessageLogStatus
 from unique_toolkit.content import ContentChunk
 from unique_toolkit.language_model import LanguageModelFunction
 
@@ -107,9 +106,8 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
         self.notify_name = "**Searching Web**"
         self.notify_message = self.tool_parameters.objective
         await self.notify_callback()
-        self.create_or_update_active_message_log(
-            progress_message="_Searching Web_",
-            queries_for_log=self.queries_for_log,
+        self._message_log_callback(
+            progress_message="_Searching Web_", queries_for_log=self.queries_for_log
         )
 
         tasks = [
@@ -135,7 +133,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
         self.notify_name = "**Analyzing Web Pages**"
         self.notify_message = self.tool_parameters.expected_outcome
         await self.notify_callback()
-        self.create_or_update_active_message_log(
+        self._message_log_callback(
             progress_message="_Analyzing Web Pages_",
             queries_for_log=self.queries_for_log,
         )
@@ -148,7 +146,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
             self.notify_name = "**Resorting Sources**"
             self.notify_message = self.tool_parameters.objective
             await self.notify_callback()
-            self.create_or_update_active_message_log(
+            self._message_log_callback(
                 progress_message="_Resorting Sources_",
                 queries_for_log=self.queries_for_log,
             )

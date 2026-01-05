@@ -1,7 +1,7 @@
 import logging
 from abc import ABC, abstractmethod
 from time import time
-from typing import Callable, Optional
+from typing import Callable, Optional, Protocol
 
 from pydantic import BaseModel
 from unique_toolkit import LanguageModelService
@@ -36,11 +36,14 @@ class WebSearchLogEntry(BaseModel):
     web_search_results: list[WebSearchResult]
 
 
-# Type alias for the message log callback
-MessageLogCallback = Callable[
-    [str | None, list[WebSearchLogEntry] | None, MessageLogStatus],
-    MessageLog | None,
-]
+class MessageLogCallback(Protocol):
+    def __call__(
+        self,
+        *,
+        progress_message: str | None = None,
+        queries_for_log: list[WebSearchLogEntry] | list[str] | None = None,
+        status: MessageLogStatus | None = None,
+    ) -> MessageLog | None: ...
 
 
 class BaseWebSearchExecutor(ABC):
@@ -106,15 +109,6 @@ class BaseWebSearchExecutor(ABC):
     @notify_message.setter
     def notify_message(self, value):
         self._notify_message = value
-
-    def create_or_update_active_message_log(
-        self,
-        *,
-        progress_message: str | None = None,
-        queries_for_log: list[WebSearchLogEntry] | None = None,
-        status: MessageLogStatus | None = None,
-    ) -> MessageLog | None:
-        return self._message_log_callback(progress_message, queries_for_log, status)
 
     @abstractmethod
     async def run(
