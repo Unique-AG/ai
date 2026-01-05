@@ -1,8 +1,6 @@
 name: "[chore] Enforce Changelog and Version Bump"
 
-on:
-  pull_request:
-    types: [opened, synchronize, reopened]
+on: pull_request
 
 jobs:
   detect-packages:
@@ -30,9 +28,10 @@ jobs:
               
             connectors/unique_quartr:
               - 'connectors/unique_quartr/**'
-              
-            connectors/unique_search_proxy:
-              - 'connectors/unique_search_proxy/**'
+            
+            # TODO: remove this comment after unique_search_proxy has its poetry in base directory
+            # connectors/unique_search_proxy:
+            #  - 'connectors/unique_search_proxy/**'
               
             postprocessors/unique_follow_up_questions:
               - 'postprocessors/unique_follow_up_questions/**'
@@ -54,7 +53,7 @@ jobs:
 
   validate-changes:
     needs: detect-packages
-    if: needs.detect-packages.outputs.packages != ''
+    if: needs.detect-packages.outputs.packages != '[]'
     runs-on: ubuntu-latest
 
     strategy:
