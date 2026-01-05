@@ -2263,7 +2263,7 @@ typing-extensions = ">=4.12.0"
 
 [[package]]
 name = "unique-sdk"
-version = "0.10.58"
+version = "0.10.65"
 description = ""
 optional = false
 python-versions = "^3.11"
@@ -2284,7 +2284,7 @@ url = "../../unique_sdk"
 
 [[package]]
 name = "unique-toolkit"
-version = "1.38.2"
+version = "1.42.1"
 description = ""
 optional = false
 python-versions = "^3.12"
@@ -2311,7 +2311,7 @@ regex = "^2024.5.15"
 sseclient = "^0.0.27"
 tiktoken = "^0.12.0"
 typing-extensions = "^4.9.0"
-unique-sdk = "^0.10.58"
+unique-sdk = "^0.10.65"
 
 [package.source]
 type = "directory"
