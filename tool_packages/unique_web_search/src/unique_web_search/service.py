@@ -268,7 +268,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
         *,
         progress_message: str | None = None,
         queries_for_log: list[WebSearchLogEntry] | None = None,
-        status: MessageLogStatus,
+        status: MessageLogStatus | None = None,
     ) -> MessageLog | None:
         if queries_for_log is not None:
             details, reference_list = self._prepare_message_logs_entries(
@@ -286,6 +286,8 @@ class WebSearchTool(Tool[WebSearchConfig]):
                 status=status,
                 details=details,
                 references=reference_list,
+                **({"status": status} if status is not None else {}),
+
             )
         )
         return self._active_message_log

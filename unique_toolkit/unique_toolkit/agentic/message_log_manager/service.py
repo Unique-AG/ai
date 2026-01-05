@@ -121,7 +121,7 @@ class MessageStepLogger:
         active_message_log: MessageLog | None,
         header: str,
         progress_message: str | None = None,
-        status: MessageLogStatus,
+        status: MessageLogStatus = MessageLogStatus.RUNNING,
         details: MessageLogDetails | None = None,
         references: list[ContentReference] | None = None,
     ) -> MessageLog | None:

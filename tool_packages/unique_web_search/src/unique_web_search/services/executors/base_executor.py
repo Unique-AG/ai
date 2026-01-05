@@ -112,7 +112,7 @@ class BaseWebSearchExecutor(ABC):
         *,
         progress_message: str | None = None,
         queries_for_log: list[WebSearchLogEntry] | None = None,
-        status: MessageLogStatus,
+        status: MessageLogStatus | None = None,
     ) -> MessageLog | None:
         return self._message_log_callback(progress_message, queries_for_log, status)
 

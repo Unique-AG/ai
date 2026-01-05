@@ -110,7 +110,6 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
         self.create_or_update_active_message_log(
             progress_message="_Searching Web_",
             queries_for_log=self.queries_for_log,
-            status=MessageLogStatus.RUNNING,
         )
 
         tasks = [
@@ -139,7 +138,6 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
         self.create_or_update_active_message_log(
             progress_message="_Analyzing Web Pages_",
             queries_for_log=self.queries_for_log,
-            status=MessageLogStatus.RUNNING,
         )
 
         content_results = await self._content_processing(
@@ -153,7 +151,6 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
             self.create_or_update_active_message_log(
                 progress_message="_Resorting Sources_",
                 queries_for_log=self.queries_for_log,
-                status=MessageLogStatus.RUNNING,
             )
 
         relevant_sources = await self._select_relevant_sources(

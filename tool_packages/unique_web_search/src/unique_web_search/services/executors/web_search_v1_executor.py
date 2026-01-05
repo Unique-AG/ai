@@ -188,7 +188,6 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
         await self.notify_callback()
         self._active_message_log = self.create_or_update_active_message_log(
             progress_message=f"_Refining Query:_ {self.notify_message}",
-            status=MessageLogStatus.RUNNING,
         )
         refined_queries, objective = await self._refine_query(query)
 
@@ -203,7 +202,6 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
         ]
         self._active_message_log = self.create_or_update_active_message_log(
             queries_for_log=queries_for_log_wo_results,
-            status=MessageLogStatus.RUNNING,
         )
 
         queries_for_log = []
@@ -235,7 +233,6 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
 
         self._active_message_log = self.create_or_update_active_message_log(
             queries_for_log=queries_for_log,
-            status=MessageLogStatus.RUNNING,
         )
 
         if self.search_service.requires_scraping:
@@ -245,7 +242,6 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
             self._active_message_log = self.create_or_update_active_message_log(
                 progress_message="_Crawling URLs_",
                 queries_for_log=queries_for_log,
-                status=MessageLogStatus.RUNNING,
             )
             crawl_results = await self._crawl(web_search_results)
             for web_search_result, crawl_result in zip(
@@ -259,7 +255,6 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
         self._active_message_log = self.create_or_update_active_message_log(
             progress_message="_Analyzing Web Pages_",
             queries_for_log=queries_for_log,
-            status=MessageLogStatus.RUNNING,
         )
 
         content_results = await self._content_processing(objective, web_search_results)
@@ -271,7 +266,6 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
             self._active_message_log = self.create_or_update_active_message_log(
                 progress_message="_Resorting Sources_",
                 queries_for_log=queries_for_log,
-                status=MessageLogStatus.RUNNING,
             )
 
         relevant_sources = await self._select_relevant_sources(

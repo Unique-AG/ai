@@ -173,11 +173,10 @@ class InternalSearchService:
         # Apply chunk relevancy sorter if enabled
         if self.config.chunk_relevancy_sort_config.enabled:
             if feature_flags.is_new_answers_ui_enabled(self.company_id):
-                progress_message = "_Resorting search results_"
                 self._active_message_log = (
                     await self._create_or_update_active_message_log(
+                        progress_message="_Resorting search results_",
                         search_strings_list=search_strings,
-                        status=MessageLogStatus.RUNNING,
                     )
                 )
             for i, result in enumerate(found_chunks_per_search_string):
@@ -207,7 +206,6 @@ class InternalSearchService:
             self._active_message_log = await self._create_or_update_active_message_log(
                 progress_message=progress_message,
                 search_strings_list=search_strings,
-                status=MessageLogStatus.RUNNING,
             )
         else:
             await self.post_progress_message(
@@ -333,7 +331,7 @@ class InternalSearchService:
         progress_message: str | None = None,
         chunks: list[ContentChunk] | None = None,
         search_strings_list: list[str],
-        status: MessageLogStatus,
+        status: MessageLogStatus | None = None,
     ) -> MessageLog | None:
         if self._message_step_logger is None:
             return None
@@ -352,9 +350,10 @@ class InternalSearchService:
             active_message_log=self._active_message_log,
             header=self._display_name,
             progress_message=progress_message,
-            status=status,
             details=details,
             references=message_log_reference_list,
+            **({"status": status} if status is not None else {}),
+
         )
 
     async def _define_reference_list_for_message_log(
@@ -544,7 +543,6 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
         self._active_message_log = await self._create_or_update_active_message_log(
             progress_message="Retrieving search results...",
             search_strings_list=search_strings_list,
-            status=MessageLogStatus.RUNNING,
         )
 
         # Clean search strings by removing QDF and boost operators
