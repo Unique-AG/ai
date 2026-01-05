@@ -113,27 +113,28 @@ class SourceIterationAgent:
             return _default_generator()
 
         async def _generator():
-            # First, find documents that were missed by the LLM
-            ordered_ids = {result.id for result in results.ordered_sources}
-            missed_contents = [
-                content
-                for content_id, content in self._content_map.items()
-                if content_id not in ordered_ids
-            ]
+            # Create a mapping of ID to order for efficient lookup
+            id_to_order = {
+                result.id: result.order for result in results.ordered_sources
+            }
+
+            # Separate missed and ordered contents in one pass
+            missed_contents = []
+            ordered_items = []
+
+            for content_id, content in self._content_map.items():
+                if content_id in id_to_order:
+                    ordered_items.append((id_to_order[content_id], content))
+                else:
+                    missed_contents.append(content)
 
             # Yield missed documents first
             for content in missed_contents:
                 yield content
 
-            # Then yield the ordered documents as specified by the LLM
-            for result in sorted(results.ordered_sources, key=lambda x: x.order):
-                content = self._content_map.get(result.id)
-                if content is not None:
-                    yield content
-                else:
-                    # This should not result on a loss of information. The document that do not exist were already yielded as missed.
-                    _LOGGER.warning(
-                        f"Source {result.id} was not found in the content map. Skipping..."
-                    )
+            # Sort and yield ordered documents
+            ordered_items.sort(key=lambda x: x[0])  # Sort by order
+            for _, content in ordered_items:
+                yield content
 
         return _generator()
