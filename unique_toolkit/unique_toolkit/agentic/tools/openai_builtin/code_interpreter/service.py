@@ -235,7 +235,7 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
     @override
     def get_tool_prompts(self) -> ToolPrompts:
         return ToolPrompts(
-            name="the python tool",  # https://platform.openai.com/docs/guides/tools-code-interpreter
+            name="python",  # https://platform.openai.com/docs/guides/tools-code-interpreter
             display_name=self.DISPLAY_NAME,
             tool_description=self._config.tool_description,
             tool_system_prompt=self._config.tool_description_for_system_prompt,
