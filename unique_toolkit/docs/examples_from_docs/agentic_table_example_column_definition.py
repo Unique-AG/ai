@@ -5,14 +5,14 @@ from enum import StrEnum
 
 class ColumnDefinition(BaseModel):
     """
-    Defines the structure and styling of a single table column.
+    Defines a single table column's structure and styling.
     
     Attributes:
-        order: Zero-based column index
-        name: Display name shown in header row
+        order: Column position (0-indexed)
+        name: Column header text
         width: Column width in pixels
-        renderer: Cell renderer type for specialized display/interaction
-        editable: Whether users can edit cells in this column by default
+        renderer: Optional cell renderer type (dropdown, checkbox, etc.)
+        editable: Whether the column is editable
     """
     order: int
     name: str
@@ -23,27 +23,23 @@ class ColumnDefinition(BaseModel):
     
 class ColumnDefinitions(BaseModel):
     """
-    Defines the structure and styling of all columns in the table.
+    Container for all column definitions in the table.
+    
+    Provides helper methods to access columns by name.
     """
     columns: list[ColumnDefinition]
     
     @property
     def column_map(self) -> dict[str, ColumnDefinition]:
-        """
-        Get a dictionary of column names to column definitions.
-        """
+        """Map of column names to their definitions."""
         return {column.name: column for column in self.columns}
     
     def get_column_by_name(self, name: str) -> ColumnDefinition:
-        """
-        Get a column definition by name.
-        """
+        """Get column definition by name."""
         return self.column_map[name]
     
     def get_column_names(self) -> list[str]:
-        """
-        Get a list of all column names.
-        """
+        """Get list of all column names."""
         return list(self.column_map.keys())
     
 

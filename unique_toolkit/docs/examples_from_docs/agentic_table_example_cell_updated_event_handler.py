@@ -14,35 +14,15 @@ async def handle_cell_updated(
     payload: MagicTableUpdateCellPayload
 ) -> None:
     """
-    Handle cell update events with status-based workflow automation.
+    Example handler for the cell update event.
     
-    This handler implements intelligent workflow logic that locks rows when their
-    status changes to "Completed" or "Verified". This prevents accidental edits
-    to reviewed and approved documentation.
-    
-    Locking Behavior:
-    - When Status column changes to "Completed" or "Verified":
-      * All columns except Status become non-editable
-      * A log entry is added for audit trail
-      * Row verification status is updated
-    
-    Note on Implementation:
-        Column-level locking affects all rows globally. For true row-specific
-        locking, additional row metadata tracking would be needed. This example
-        demonstrates the workflow pattern that can be adapted.
+    This demo shows a simple workflow automation: when the Status column 
+    changes to "Completed" or "Verified", it adds a log entry and updates
+    the row verification status.
     
     Args:
-        at_service: The AgenticTableService instance for table operations
-        payload: The payload containing updated cell details (row, column, new value)
-        
-    Returns:
-        None
-        
-    Workflow States:
-        - Todo: Editable
-        - In Progress: Editable
-        - Completed: Locked (this handler triggers)
-        - Verified: Locked (this handler triggers)
+        at_service: Service instance for table operations
+        payload: Event payload with row, column, and new value
     """
     logger.info(
         f"Cell updated at row {payload.row_order}, "

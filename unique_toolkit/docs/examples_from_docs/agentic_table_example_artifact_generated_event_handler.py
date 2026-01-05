@@ -14,7 +14,9 @@ logger = getLogger(__name__)
 
 def get_uploader(user_id: str, company_id: str, chat_id: str) -> Callable[[bytes, str, str], Content]:
     """
-    Upload a file to the chat.
+    Factory function to create a file uploader with authentication context.
+    
+    Returns a function that uploads files to the chat.
     """
     from unique_toolkit.content.functions import upload_content_from_bytes
     def uploader(content: bytes, mime_type: str, content_name: str) -> Content:
@@ -27,20 +29,19 @@ async def handle_artifact_generated(
     uploader: Callable[[bytes, str, str], Content]
 ) -> None:
     """
-    Handle artifact generation by creating a DOCX report from table data.
+    Example handler for the artifact generation event.
     
-    Workflow:
-    1. Read all sheet data from the table
-    2. Organize data by rows
-    3. Build markdown-formatted report content
-    4. Generate DOCX using DocxGeneratorService
-    5. Upload document to chat
-    6. Set artifact reference in table
+    This demo shows how to export table data as a Word document:
+    - Fetches all table data
+    - Organizes it by sections
+    - Generates a markdown report
+    - Converts to DOCX and uploads it
+    - Links the artifact back to the table
     
     Args:
-        at_service: The AgenticTableService instance for table operations
-        payload: The payload containing artifact generation details
-        uploader: Function to upload content to chat
+        at_service: Service instance for table operations
+        payload: Event payload with artifact type
+        uploader: Function to upload the generated file
     """
     logger.info(f"Generating artifact of type: {payload.data.artifact_type}")
     
@@ -112,13 +113,10 @@ async def handle_artifact_generated(
 
 def organize_sheet_data(sheet: MagicTableSheet) -> dict[int, dict[int, str]]:
     """
-    Organize sheet cells into a row-based dictionary structure.
+    Convert flat cell list to nested dictionary structure.
     
-    Args:
-        sheet: MagicTableSheet containing all cell data
-        
     Returns:
-        Dictionary mapping {row_order: {column_order: cell_text}}
+        Dictionary with structure {row_order: {column_order: cell_text}}
     """
     rows_data: dict[int, dict[int, str]] = {}
     
@@ -131,13 +129,10 @@ def organize_sheet_data(sheet: MagicTableSheet) -> dict[int, dict[int, str]]:
 
 def build_markdown_report(rows_data: dict[int, dict[int, str]]) -> str:
     """
-    Build a markdown-formatted report from table data.
+    Build a markdown report grouped by sections.
     
-    Args:
-        rows_data: Dictionary of row data from organize_sheet_data()
-        
     Returns:
-        Markdown-formatted report as a string
+        Markdown string with sections and question details
     """
     markdown_lines = [
         "# Table Report",

@@ -12,7 +12,9 @@ logger = getLogger(__name__)
 
 def get_downloader(user_id: str, company_id: str, chat_id: str) -> Callable[[str], bytes]:
     """
-    Get a downloader function that downloads a file from the content library.
+    Factory function to create a file downloader with authentication context.
+    
+    Returns a function that downloads files by content_id.
     """
     from unique_toolkit.content.functions import download_content_to_bytes
     return lambda file_id: download_content_to_bytes(user_id=user_id, company_id=company_id, chat_id=chat_id, content_id=file_id)
@@ -23,38 +25,18 @@ async def handle_metadata_added(
     downloader: Callable[[str], bytes]
 ) -> None:
     """
-    Handle metadata addition event for Excel file upload and data population.
+    Example handler for the metadata addition event.
     
-    This handler processes uploaded Excel files containing Source of Wealth questions
-    and answers. It validates the Excel structure against the schema, then efficiently
-    populates the table using batch operations.
-    
-    Workflow:
-    1. Download Excel file from source_file_ids
-    2. Parse Excel with pandas
-    3. Validate columns match schema
-    4. Create batch of MagicTableCell objects
-    5. Upload all cells in single batch operation
+    This demo shows how to populate a table from an uploaded Excel/CSV file:
+    - Downloads the file from the question_file_ids
+    - Parses with pandas (tries Excel, falls back to CSV)
+    - Validates columns match the schema
+    - Batch uploads all cells to the table
     
     Args:
-        at_service: The AgenticTableService instance for table operations
-        payload: The payload containing metadata including source_file_ids
-        chat_service: The ChatService instance for downloading uploaded files
-        
-    Returns:
-        None
-        
-    Excel Format Expected:
-        The Excel file should have columns matching the schema:
-        - Question, Section, Answer, Status, Gap, Contradiction, Reviewer
-        
-    Performance:
-        Uses batch operations for optimal performance. Can handle hundreds of
-        rows efficiently (1-2 seconds vs 50+ seconds for individual cell updates).
-        
-    Raises:
-        ValueError: If Excel columns don't match schema
-        Exception: If file download or parsing fails
+        at_service: Service instance for table operations
+        payload: Event payload with metadata and file IDs
+        downloader: Function to download file contents
     """
     logger.info(f"Processing metadata for sheet: {payload.sheet_name}")
     
@@ -152,24 +134,13 @@ async def handle_metadata_added(
     
 def validate_excel_columns(df: pd.DataFrame) -> None:
     """
-    Validate that Excel file columns match the schema definition.
+    Validate that file columns match the expected schema.
     
-    Ensures data integrity by verifying the uploaded Excel file has the exact
-    columns expected by the table schema. This prevents data import errors and
-    ensures all required fields are present.
+    Checks that all required columns are present. Extra columns are allowed
+    but will be ignored (with a warning).
     
-    Args:
-        df: pandas DataFrame loaded from Excel file
-        schema: The SourceOfWealthTableSchema defining expected columns
-        
     Raises:
-        ValueError: If columns don't match schema (missing, extra, or wrong order)
-        
-    Validation Rules:
-        - All schema columns must be present in Excel
-        - Column names must match exactly (case-sensitive)
-        - Extra columns in Excel are allowed but ignored
-        - Missing required columns cause validation to fail
+        ValueError: If required columns are missing
     """
     excel_columns = set(df.columns)
     schema_columns = set(example_column_definitions.get_column_names())

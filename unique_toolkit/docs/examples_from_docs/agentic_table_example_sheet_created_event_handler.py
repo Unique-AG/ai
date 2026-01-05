@@ -10,29 +10,17 @@ async def handle_sheet_created(
     at_service: AgenticTableService, payload: MagicTableSheetCreatedPayload
 ) -> None:
     """
-    Handle sheet creation event for Source of Wealth documentation table.
+    Example handler for the sheet creation event.
     
-    This handler initializes the table with:
-    - Schema-defined headers in row 0
-    - Column styles including width, renderer types, and editability
-    - All 6 CellRendererTypes demonstrated in appropriate columns
+    This demo shows how to initialize a new table by:
+    - Setting column headers in row 0
+    - Applying column styles (width, renderer type, editability)
     
-    The table is ready to receive data after this handler completes.
+    The table is ready to receive data after initialization.
     
     Args:
-        at_service: The AgenticTableService instance for table operations
-        payload: The payload containing sheet creation details including table_id
-        
-    Returns:
-        None
-        
-    Column Renderer Types:
-        - Regular text: Question, Answer columns
-        - CUSTOM_CELL_RENDERER: Section column for categorization
-        - REVIEW_STATUS_DROPDOWN: Status column (Todo/In Progress/Completed/Verified)
-        - CHECKBOX_LOCK_CELL_RENDERER: Gap column for missing info flags
-        - SELECTABLE_CELL_RENDERER: Contradiction column for inconsistency flags
-        - COLLABORATOR_DROPDOWN: Reviewer column for team assignment
+        at_service: Service instance for table operations
+        payload: Event payload with table_id and sheet_name
     """
     logger.info(f"Initializing Source of Wealth table: {payload.sheet_name}")
     
