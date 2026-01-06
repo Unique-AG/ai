@@ -14,6 +14,10 @@ from unique_toolkit._common.feature_flags.schema import (
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.history_manager.history_manager import DeactivatedNone
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
+from unique_toolkit._common.pydantic.optional_with_active import (
+    OptionalWithActive,
+    optional_with_active,
+)
 from unique_toolkit.content.schemas import (
     ContentRerankerConfig,
     ContentSearchType,
@@ -81,10 +85,8 @@ class InternalSearchConfig(BaseToolConfig):
         default=True,
         description="Whether each chunk is added as an individual source in the final LLM prompt. If set to False, all chunks from the same document are combined into a single source.",
     )
-    reranker_config: (
-        Annotated[ContentRerankerConfig, Field(title="Active")] | DeactivatedNone
-    ) = Field(
-        default=None,
+    reranker_config: OptionalWithActive(ContentRerankerConfig) = Field(
+        default=optional_with_active(ContentRerankerConfig),
         description="The reranker config to use for the search.",
     )
     search_language: str = Field(

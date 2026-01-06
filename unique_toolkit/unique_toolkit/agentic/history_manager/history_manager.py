@@ -22,7 +22,12 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
     LanguageModelToolMessage,
 )
+from unique_toolkit._common.pydantic.optional_with_active import (
+    OptionalWithActive,
+    optional_with_active,
+)
 
+# Keep DeactivatedNone for backwards compatibility (used by other packages)
 DeactivatedNone = Annotated[
     None,
     Field(title="Deactivated", description="None"),
@@ -70,13 +75,9 @@ class HistoryManagerConfig(BaseModel):
             * self.percent_of_max_tokens_for_history,
         )
 
-    uploaded_content_config: (
-        Annotated[
-            UploadedContentConfig,
-            Field(title="Active"),
-        ]
-        | DeactivatedNone
-    ) = UploadedContentConfig()
+    uploaded_content_config: OptionalWithActive(
+        UploadedContentConfig, default_active=True
+    ) = optional_with_active(UploadedContentConfig, default_active=True)
 
 
 class HistoryManager:

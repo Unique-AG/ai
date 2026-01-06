@@ -15,9 +15,9 @@ from unique_toolkit._common.validators import (
     ClipInt,
     get_LMI_default_field,
 )
-from unique_toolkit._common.pydantic.optional_with_enabled import (
-    OptionalWithEnabled,
-    optional_with_enabled,
+from unique_toolkit._common.pydantic.optional_with_active import (
+    OptionalWithActive,
+    optional_with_active,
 )
 from unique_toolkit.agentic.evaluation.hallucination.constants import (
     HallucinationConfig,
@@ -169,8 +169,8 @@ class LoopConfiguration(BaseModel):
         *ClipInt(min_value=1, max_value=LIMIT_MAX_TOOL_CALLS_PER_ITERATION),
     ] = 10
 
-    planning_config: OptionalWithEnabled(PlanningConfig) = Field(
-        default=optional_with_enabled(PlanningConfig),
+    planning_config: OptionalWithActive(PlanningConfig) = Field(
+        default=optional_with_active(PlanningConfig),
         description="Planning configuration.",
     )
 
@@ -215,35 +215,22 @@ class UniqueAIPromptConfig(BaseModel):
 class UniqueAIServices(BaseModel):
     """Determine the services the agent is using
 
-    All services are optional and can be disabled by setting them to None.
+    All services are optional and can be enabled/disabled by toggling the Active flag.
     """
 
     model_config = get_configuration_dict(frozen=True)
 
-    follow_up_questions_config: (
-        Annotated[
-            FollowUpQuestionsConfig,
-            Field(
-                title="Active",
-            ),
-        ]
-        | DeactivatedNone
-    ) = FollowUpQuestionsConfig()
+    follow_up_questions_config: OptionalWithActive(
+        FollowUpQuestionsConfig, default_active=True
+    ) = optional_with_active(FollowUpQuestionsConfig, default_active=True)
 
-    stock_ticker_config: (
-        Annotated[StockTickerConfig, Field(title="Active")] | DeactivatedNone
-    ) = StockTickerConfig()
+    stock_ticker_config: OptionalWithActive(
+        StockTickerConfig, default_active=True
+    ) = optional_with_active(StockTickerConfig, default_active=True)
 
-    evaluation_config: (
-        Annotated[
-            EvaluationConfig,
-            Field(title="Active"),
-        ]
-        | DeactivatedNone
-    ) = EvaluationConfig(
-        hallucination_config=HallucinationConfig(),
-        max_review_steps=0,
-    )
+    evaluation_config: OptionalWithActive(
+        EvaluationConfig, default_active=True
+    ) = optional_with_active(EvaluationConfig, default_active=True)
 
     uploaded_content_config: UploadedContentConfig = UploadedContentConfig()
 
@@ -282,13 +269,13 @@ class SubAgentsReferencingConfig(BaseModel):
 class SubAgentsConfig(BaseModel):
     model_config = get_configuration_dict()
 
-    referencing_config: (
-        Annotated[SubAgentsReferencingConfig, Field(title="Active")] | DeactivatedNone
-    ) = SubAgentsReferencingConfig()
-    evaluation_config: (
-        Annotated[SubAgentEvaluationServiceConfig, Field(title="Active")]
-        | DeactivatedNone
-    ) = SubAgentEvaluationServiceConfig()
+    referencing_config: OptionalWithActive(
+        SubAgentsReferencingConfig, default_active=True
+    ) = optional_with_active(SubAgentsReferencingConfig, default_active=True)
+
+    evaluation_config: OptionalWithActive(
+        SubAgentEvaluationServiceConfig, default_active=True
+    ) = optional_with_active(SubAgentEvaluationServiceConfig, default_active=True)
 
     sleep_time_before_update: float = Field(
         default=0.5,
@@ -305,14 +292,10 @@ class CodeInterpreterExtendedConfig(BaseModel):
         description="Display config for generated files",
     )
 
-    executed_code_display_config: (
-        Annotated[
-            ShowExecutedCodePostprocessorConfig,
-            Field(title="Active"),
-        ]
-        | DeactivatedNone
+    executed_code_display_config: OptionalWithActive(
+        ShowExecutedCodePostprocessorConfig, default_active=True
     ) = Field(
-        ShowExecutedCodePostprocessorConfig(),
+        default=optional_with_active(ShowExecutedCodePostprocessorConfig, default_active=True),
         description="If active, generated code will be prepended to the LLM answer",
     )
 
@@ -325,8 +308,8 @@ class CodeInterpreterExtendedConfig(BaseModel):
 class ResponsesApiConfig(BaseModel):
     model_config = get_configuration_dict(frozen=True)
 
-    code_interpreter: OptionalWithEnabled(CodeInterpreterExtendedConfig) = Field(
-        default=optional_with_enabled(CodeInterpreterExtendedConfig),
+    code_interpreter: OptionalWithActive(CodeInterpreterExtendedConfig) = Field(
+        default=optional_with_active(CodeInterpreterExtendedConfig),
         description="If active, the main agent will have acces to the OpenAI Code Interpreter tool",
     )
 
