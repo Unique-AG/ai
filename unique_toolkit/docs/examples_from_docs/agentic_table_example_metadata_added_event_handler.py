@@ -37,9 +37,9 @@ async def handle_metadata_added(
     """
     Example handler for the metadata addition event.
 
-    This demo shows how to populate a table from an uploaded Excel/CSV file:
+    This demo shows how to populate a table from an uploaded CSV file:
     - Downloads the file from the question_file_ids
-    - Parses with pandas (tries Excel, falls back to CSV)
+    - Parses with pandas (only CSV is supported)
     - Batch uploads all cells to the table
 
     Args:
@@ -56,7 +56,7 @@ async def handle_metadata_added(
     # Note: You can also create your own condition based on the source files: payload.metadata.source_file_ids
 
     await at_service.set_activity(
-        text="Downloading Excel file...",
+        text="Downloading CSV file...",
         activity=payload.action,
         status=ActivityStatus.IN_PROGRESS,
     )
@@ -70,24 +70,16 @@ async def handle_metadata_added(
         file_content = downloader(file_id)
 
         await at_service.set_activity(
-            text="Parsing Excel file...",
+            text="Parsing CSV file...",
             activity=payload.action,
             status=ActivityStatus.IN_PROGRESS,
         )
 
         file_content_stream = io.BytesIO(file_content)
 
-        # Parse Excel or CSV file
-        # Try Excel first, fall back to CSV
-        try:
-            df = pd.read_excel(file_content_stream.seek(0), header=0)
-            logger.info(
-                f"Parsed Excel with {len(df)} rows and {len(df.columns)} columns"
-            )
-        except Exception as excel_error:
-            logger.info(f"Not an Excel file, trying CSV: {excel_error}")
-            df = pd.read_csv(file_content_stream)
-            logger.info(f"Parsed CSV with {len(df)} rows and {len(df.columns)} columns")
+        # Parse CSV file
+        df = pd.read_csv(file_content_stream)
+        logger.info(f"Parsed CSV with {len(df)} rows and {len(df.columns)} columns")
 
         await at_service.set_activity(
             text=f"Populating table with {len(df)} rows...",
@@ -126,9 +118,9 @@ async def handle_metadata_added(
         )
 
     except Exception as e:
-        logger.error(f"Error processing Excel file: {e}")
+        logger.error(f"Error processing CSV file: {e}")
         await at_service.set_activity(
-            text=f"Failed to process Excel file: {str(e)}",
+            text=f"Failed to process CSV file: {str(e)}",
             activity=payload.action,
             status=ActivityStatus.FAILED,
         )
