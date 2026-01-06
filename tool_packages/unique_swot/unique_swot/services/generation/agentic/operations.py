@@ -54,59 +54,86 @@ async def handle_generate_operation(
     executor: AgenticPlanExecutor,
     prompts_config: AgenticPromptsConfig,
 ) -> None:
-    # Extract the items for the component
-    extracted_facts = await _extract_facts(
-        company_name=company_name,
-        component=component,
-        source_batches=source_batches,
-        step_notifier=step_notifier,
-        llm=llm,
-        llm_service=llm_service,
-        notification_title=notification_title,
-        prompts_config=prompts_config.extraction_prompt_config,
-        component_definition_prompt_config=prompts_config.definition_prompt_config,
-    )
+    try:
+        # Extract the items for the component
+        extracted_facts = await _extract_facts(
+            company_name=company_name,
+            component=component,
+            source_batches=source_batches,
+            step_notifier=step_notifier,
+            llm=llm,
+            llm_service=llm_service,
+            notification_title=notification_title,
+            prompts_config=prompts_config.extraction_prompt_config,
+            component_definition_prompt_config=prompts_config.definition_prompt_config,
+        )
 
-    # Skip if list of facts is empty
-    if len(extracted_facts) == 0:
-        _LOGGER.warning(f"No facts extracted for component {component}. Skipping...")
-        return
+        # Skip if list of facts is empty
+        if len(extracted_facts) == 0:
+            _LOGGER.warning(
+                f"No facts extracted for component {component}. Skipping..."
+            )
+            return
 
-    fact_id_map = {generate_unique_id("fact_"): fact for fact in extracted_facts}
+        fact_id_map = {generate_unique_id("fact_"): fact for fact in extracted_facts}
 
-    # Plan the generation for the component
-    plan = await _generate_plan(
-        component=component,
-        fact_id_map=fact_id_map,
-        step_notifier=step_notifier,
-        company_name=company_name,
-        llm=llm,
-        llm_service=llm_service,
-        notification_title=notification_title,
-        swot_report_registry=swot_report_registry,
-        prompts_config=prompts_config.plan_prompt_config,
-    )
+        # Plan the generation for the component
+        plan = await _generate_plan(
+            component=component,
+            fact_id_map=fact_id_map,
+            step_notifier=step_notifier,
+            company_name=company_name,
+            llm=llm,
+            llm_service=llm_service,
+            notification_title=notification_title,
+            swot_report_registry=swot_report_registry,
+            prompts_config=prompts_config.plan_prompt_config,
+        )
 
-    # Execute the generation for the component
-    results = await _execute_plan(
-        plan=plan,
-        component=component,
-        fact_id_map=fact_id_map,
-        swot_report_registry=swot_report_registry,
-        llm=llm,
-        llm_service=llm_service,
-        company_name=company_name,
-        executor=executor,
-        prompts_config=prompts_config.commands_prompt_config,
-    )
+        # Execute the generation for the component
+        results = await _execute_plan(
+            plan=plan,
+            component=component,
+            fact_id_map=fact_id_map,
+            swot_report_registry=swot_report_registry,
+            llm=llm,
+            llm_service=llm_service,
+            company_name=company_name,
+            executor=executor,
+            prompts_config=prompts_config.commands_prompt_config,
+        )
+        # Register or update the sections in the registry
+        _handle_execution_results(
+            plan=plan,
+            results=results,
+            component=component,
+            swot_report_registry=swot_report_registry,
+        )
 
-    # Register or update the sections in the registry
-    _handle_execution_results(
-        plan=plan,
-        results=results,
-        component=component,
-        swot_report_registry=swot_report_registry,
-    )
+    except FailedToExtractFactsException as e:
+        _LOGGER.exception(
+            f"Failed to extract facts for component {component}", exc_info=e
+        )
+        await step_notifier.notify(
+            title=notification_title,
+            description=f"An error occured while extracting facts for component {component}. This batch will be skipped.",
+        )
+    except FailedToGeneratePlanException as e:
+        _LOGGER.exception(
+            f"Failed to generate plan for component {component}", exc_info=e
+        )
+        await step_notifier.notify(
+            title=notification_title,
+            description=f"An error occured while generating plan to update the SWOT report for component {component}. Extracted information will be discarded.",
+        )
+    except Exception as e:
+        _LOGGER.exception(
+            f"Failed to generate operation for component {component}", exc_info=e
+        )
+        await step_notifier.notify(
+            title=notification_title,
+            description=f"An unexpected error occured while updating the SWOT report for component {component}. Skipping this batch.",
+        )
 
 
 async def _extract_facts(
@@ -260,12 +287,14 @@ def _handle_execution_results(
     results: Sequence[Exception | Any],
     component: SWOTComponent,
     swot_report_registry: SWOTReportRegistry,
-) -> None:
+) -> list[Exception]:
+    exceptions = []
     for command, result in zip(plan.commands, results):
         if isinstance(result, Exception):
             _LOGGER.exception(
                 f"Error executing command {command.command}", exc_info=result
             )
+            exceptions.append(result)
         else:
             match command.command:
                 case GenerationPlanCommandType.CREATE_SECTION:
@@ -279,3 +308,4 @@ def _handle_execution_results(
                     )
                 case _:
                     raise InvalidCommandException(f"Invalid command: {command.command}")
+    return exceptions
