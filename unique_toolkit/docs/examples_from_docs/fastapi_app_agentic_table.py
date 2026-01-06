@@ -138,6 +138,8 @@ async def agentic_table_event_handler(event: MagicTableEvent) -> int:
                 status=ActivityStatus.FAILED,
                 text=f"Unknown action: {event.payload.action}",
             )
+            raise Exception(f"Unknown action: {event.payload.action}")
+        
         return 0 # Success
     
     except Exception as e:
