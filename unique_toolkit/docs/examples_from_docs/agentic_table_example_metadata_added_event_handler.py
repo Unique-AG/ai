@@ -112,7 +112,7 @@ async def handle_metadata_added(
         # Setting the activity to update the user on the status operation with a popup banner
         # This is different from the LogEntry which shows in the cell history
         await at_service.set_activity(
-            text=f"Successfully loaded {len(df)} rows from Excel",
+            text=f"Successfully loaded {len(df)} rows from CSV",
             activity=payload.action,
             status=ActivityStatus.COMPLETED,
         )
