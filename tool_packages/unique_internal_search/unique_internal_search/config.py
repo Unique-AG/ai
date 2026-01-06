@@ -32,6 +32,9 @@ from unique_internal_search.prompts import (
 )
 from unique_internal_search.validators import get_string_field_with_pattern_validation
 
+# Type alias for OptionalWithActive fields
+OptionalRerankerConfig = OptionalWithActive(ContentRerankerConfig)
+
 
 class ExperimentalFeatures(FeatureExtendedSourceSerialization):
     enable_multiple_search_strings_execution: bool = Field(
@@ -85,7 +88,7 @@ class InternalSearchConfig(BaseToolConfig):
         default=True,
         description="Whether each chunk is added as an individual source in the final LLM prompt. If set to False, all chunks from the same document are combined into a single source.",
     )
-    reranker_config: OptionalWithActive(ContentRerankerConfig) = Field(
+    reranker_config: OptionalRerankerConfig = Field(
         default=optional_with_active(ContentRerankerConfig),
         description="The reranker config to use for the search.",
     )

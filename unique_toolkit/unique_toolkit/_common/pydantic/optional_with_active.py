@@ -18,6 +18,7 @@ from __future__ import annotations
 from typing import Annotated, Any, TypeVar
 
 from pydantic import BaseModel, BeforeValidator, Field, PlainSerializer, create_model
+from pydantic_core import PydanticUndefined
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -60,6 +61,10 @@ def optional_with_active(
 
     When default_active=True, returns an instance of the config (feature enabled).
     When default_active=False, returns None (feature disabled).
+
+    Note: If default_active=True and the base model has required fields without defaults,
+    this will raise a ValidationError. Consider adding defaults to all fields or using
+    default_active=False for such models.
     """
     if default_active:
         return base()  # Return config instance when default is active
@@ -101,17 +106,31 @@ def OptionalWithActive(  # noqa: N802 - function name mimics a type factory for 
 
     def serialize(v: T | None) -> dict[str, Any]:
         if v is None:
-            return extended_model(active=False).model_dump()
+            # Build dict manually to handle models with required fields (no defaults).
+            # - Fields with defaults: use the default value
+            # - Fields with default_factory: call it to get the default
+            # - Required fields without defaults: use None
+            result: dict[str, Any] = {"active": False}
+            for field_name, field_info in base.model_fields.items():
+                if field_info.default is not PydanticUndefined:
+                    result[field_name] = field_info.default
+                elif field_info.default_factory is not None:
+                    result[field_name] = field_info.default_factory()
+                else:
+                    # Required field without default - use None
+                    result[field_name] = None
+            return result
         return extended_model(active=True, **v.model_dump()).model_dump()
 
-    # Use extended_model | None for JSON schema to accept both:
-    # - New format: {active: bool, ...fields}
-    # - Old format: null (for backwards compatibility with existing saved data)
+    # JSON schema only shows extended_model (no null) - RJSF doesn't handle anyOf well.
+    # Backwards compatibility with old data (null) is handled by:
+    # - Frontend: transform-legacy-config.ts transforms null -> {active: false, ...}
+    # - Backend: deserialize() accepts null input
     return Annotated[
         base | None,
         BeforeValidator(
             deserialize,
-            json_schema_input_type=extended_model | None,
+            json_schema_input_type=extended_model,
         ),
         PlainSerializer(
             serialize,

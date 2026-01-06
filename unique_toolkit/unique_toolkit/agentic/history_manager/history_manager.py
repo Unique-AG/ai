@@ -50,6 +50,10 @@ class UploadedContentConfig(BaseModel):
     )
 
 
+# Type alias for UploadedContentConfig (defined after the class)
+OptionalUploadedContentConfig = OptionalWithActive(UploadedContentConfig, default_active=True)
+
+
 class ExperimentalFeatures(FeatureExtendedSourceSerialization): ...
 
 
@@ -75,9 +79,9 @@ class HistoryManagerConfig(BaseModel):
             * self.percent_of_max_tokens_for_history,
         )
 
-    uploaded_content_config: OptionalWithActive(
+    uploaded_content_config: OptionalUploadedContentConfig = optional_with_active(
         UploadedContentConfig, default_active=True
-    ) = optional_with_active(UploadedContentConfig, default_active=True)
+    )
 
 
 class HistoryManager:

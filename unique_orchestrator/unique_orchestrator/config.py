@@ -10,14 +10,14 @@ from unique_internal_search.config import InternalSearchConfig
 from unique_internal_search.service import InternalSearchTool
 from unique_stock_ticker.config import StockTickerConfig
 from unique_swot import SwotAnalysisTool, SwotAnalysisToolConfig
+from unique_toolkit._common.pydantic.optional_with_active import (
+    OptionalWithActive,
+    optional_with_active,
+)
 from unique_toolkit._common.validators import (
     LMI,
     ClipInt,
     get_LMI_default_field,
-)
-from unique_toolkit._common.pydantic.optional_with_active import (
-    OptionalWithActive,
-    optional_with_active,
 )
 from unique_toolkit.agentic.evaluation.hallucination.constants import (
     HallucinationConfig,
@@ -56,6 +56,16 @@ DeactivatedNone = Annotated[
     None,
     Field(title="Deactivated", description="None"),
 ]
+
+# -----------------------------------------------------------------------------
+# Type aliases for OptionalWithActive fields (imported configs)
+# These are defined at module level so type checkers understand them as types
+# -----------------------------------------------------------------------------
+OptionalPlanningConfig = OptionalWithActive(PlanningConfig)
+OptionalFollowUpQuestionsConfig = OptionalWithActive(FollowUpQuestionsConfig, default_active=True)
+OptionalStockTickerConfig = OptionalWithActive(StockTickerConfig, default_active=True)
+OptionalSubAgentEvaluationConfig = OptionalWithActive(SubAgentEvaluationServiceConfig, default_active=True)
+OptionalShowExecutedCodeConfig = OptionalWithActive(ShowExecutedCodePostprocessorConfig, default_active=True)
 
 
 class SpaceType(StrEnum):
@@ -169,7 +179,7 @@ class LoopConfiguration(BaseModel):
         *ClipInt(min_value=1, max_value=LIMIT_MAX_TOOL_CALLS_PER_ITERATION),
     ] = 10
 
-    planning_config: OptionalWithActive(PlanningConfig) = Field(
+    planning_config: OptionalPlanningConfig = Field(
         default=optional_with_active(PlanningConfig),
         description="Planning configuration.",
     )
@@ -181,6 +191,10 @@ class EvaluationConfig(BaseModel):
     model_config = get_configuration_dict()
     max_review_steps: int = 3
     hallucination_config: HallucinationConfig = HallucinationConfig()
+
+
+# Type alias for EvaluationConfig (defined after the class)
+OptionalEvaluationConfig = OptionalWithActive(EvaluationConfig, default_active=True)
 
 
 # ------------------------------------------------------------
@@ -220,17 +234,17 @@ class UniqueAIServices(BaseModel):
 
     model_config = get_configuration_dict(frozen=True)
 
-    follow_up_questions_config: OptionalWithActive(
+    follow_up_questions_config: OptionalFollowUpQuestionsConfig = optional_with_active(
         FollowUpQuestionsConfig, default_active=True
-    ) = optional_with_active(FollowUpQuestionsConfig, default_active=True)
+    )
 
-    stock_ticker_config: OptionalWithActive(
+    stock_ticker_config: OptionalStockTickerConfig = optional_with_active(
         StockTickerConfig, default_active=True
-    ) = optional_with_active(StockTickerConfig, default_active=True)
+    )
 
-    evaluation_config: OptionalWithActive(
+    evaluation_config: OptionalEvaluationConfig = optional_with_active(
         EvaluationConfig, default_active=True
-    ) = optional_with_active(EvaluationConfig, default_active=True)
+    )
 
     uploaded_content_config: UploadedContentConfig = UploadedContentConfig()
 
@@ -266,16 +280,20 @@ class SubAgentsReferencingConfig(BaseModel):
     )
 
 
+# Type alias for SubAgentsReferencingConfig (defined after the class)
+OptionalSubAgentsReferencingConfig = OptionalWithActive(SubAgentsReferencingConfig, default_active=True)
+
+
 class SubAgentsConfig(BaseModel):
     model_config = get_configuration_dict()
 
-    referencing_config: OptionalWithActive(
+    referencing_config: OptionalSubAgentsReferencingConfig = optional_with_active(
         SubAgentsReferencingConfig, default_active=True
-    ) = optional_with_active(SubAgentsReferencingConfig, default_active=True)
+    )
 
-    evaluation_config: OptionalWithActive(
+    evaluation_config: OptionalSubAgentEvaluationConfig = optional_with_active(
         SubAgentEvaluationServiceConfig, default_active=True
-    ) = optional_with_active(SubAgentEvaluationServiceConfig, default_active=True)
+    )
 
     sleep_time_before_update: float = Field(
         default=0.5,
@@ -292,9 +310,7 @@ class CodeInterpreterExtendedConfig(BaseModel):
         description="Display config for generated files",
     )
 
-    executed_code_display_config: OptionalWithActive(
-        ShowExecutedCodePostprocessorConfig, default_active=True
-    ) = Field(
+    executed_code_display_config: OptionalShowExecutedCodeConfig = Field(
         default=optional_with_active(ShowExecutedCodePostprocessorConfig, default_active=True),
         description="If active, generated code will be prepended to the LLM answer",
     )
@@ -305,10 +321,14 @@ class CodeInterpreterExtendedConfig(BaseModel):
     )
 
 
+# Type alias for CodeInterpreterExtendedConfig (defined after the class)
+OptionalCodeInterpreterConfig = OptionalWithActive(CodeInterpreterExtendedConfig)
+
+
 class ResponsesApiConfig(BaseModel):
     model_config = get_configuration_dict(frozen=True)
 
-    code_interpreter: OptionalWithActive(CodeInterpreterExtendedConfig) = Field(
+    code_interpreter: OptionalCodeInterpreterConfig = Field(
         default=optional_with_active(CodeInterpreterExtendedConfig),
         description="If active, the main agent will have acces to the OpenAI Code Interpreter tool",
     )
