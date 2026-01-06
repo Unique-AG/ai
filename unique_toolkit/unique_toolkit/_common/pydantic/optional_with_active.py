@@ -104,11 +104,14 @@ def OptionalWithActive(  # noqa: N802 - function name mimics a type factory for 
             return extended_model(active=False).model_dump()
         return extended_model(active=True, **v.model_dump()).model_dump()
 
+    # Use extended_model | None for JSON schema to accept both:
+    # - New format: {active: bool, ...fields}
+    # - Old format: null (for backwards compatibility with existing saved data)
     return Annotated[
         base | None,
         BeforeValidator(
             deserialize,
-            json_schema_input_type=extended_model,
+            json_schema_input_type=extended_model | None,
         ),
         PlainSerializer(
             serialize,
