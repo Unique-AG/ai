@@ -102,8 +102,8 @@ async def handle_metadata_added(
                 cell_value = row_data.get(col_def.name, "")
                 cells.append(
                     MagicTableCell(
-                        row_order=int(row_idx)
-                        + 1,  # +1 for header row  # type: ignore  # ConvertibleToInt
+                        row_order=int(row_idx) # type: ignore[arg-type]
+                        + 1,  # +1 for header row  
                         column_order=col_def.order,
                         text=str(cell_value),
                         sheet_id=payload.table_id,

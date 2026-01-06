@@ -138,10 +138,15 @@ async def agentic_table_event_handler(event: MagicTableEvent) -> int:
                 status=ActivityStatus.FAILED,
                 text=f"Unknown action: {event.payload.action}",
             )
+        return 0 # Success
+    
+    except Exception as e:
+        logger.error(f"Error in agentic table event handler: {e}")
+        return 1 # Failure
+    
     finally:
         # De-register the agent
         await at_service.deregister_agent()
-    return 0  # Success
 
 
 # Create the default app instance at module level
