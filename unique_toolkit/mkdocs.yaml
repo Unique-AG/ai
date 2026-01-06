@@ -48,6 +48,16 @@ nav:
       - Platform Setup: application_types/event_driven/event_driven_platform_setup.md
       - SSE Setup: application_types/event_driven/event_driven_with_sse.md
       - Web Hooks: application_types/event_driven/event_driven_as_app_with_ngrok.md
+  - Core Services:
+    - Chat:
+      - chat/index.md
+      - Document Handling: modules/examples/chat/chat_document_handling.md
+      - Advanced Rendering: modules/examples/chat/advanced_rendering.md
+    - Knowledge Base:
+      - modules/examples/content/kb_service.md
+      - Smart Rules: modules/examples/content/smart_rules.md
+    - Agentic Table:
+      - agentic_table/index.md
   - Examples:
     - OpenAI: plattforms/openai/openai.md
     - Chat:
