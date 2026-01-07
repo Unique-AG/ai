@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.42.5] - 2026-01-07
+- Add Mapping of metadata to the `search_content` calls
+- Remove additional indentation by the markdown to docx converter
+
 ## [1.42.4] - 2026-01-07
 - Added `additionalSheetInformation` to magic table event.
 
