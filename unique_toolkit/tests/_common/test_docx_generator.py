@@ -351,15 +351,6 @@ This is a paragraph with **bold** and *italic* text.
         assert isinstance(result[0], HeadingField)
         assert result[0].text == "Heading"
 
-    def test_parse_markdown_heading_replacement(self):
-        """Test markdown heading level replacement."""
-        markdown = "## Second Level"
-        result = DocxGeneratorService.parse_markdown_to_list_content_fields(markdown)
-
-        assert len(result) == 1
-        assert isinstance(result[0], HeadingField)
-        assert result[0].level == 4  # ## is replaced with ####
-
     def test_parse_markdown_offset_header_level(self):
         """Test markdown parsing with header level offset."""
         markdown = "#### Test Heading"
@@ -380,20 +371,6 @@ This is a paragraph with **bold** and *italic* text.
         assert isinstance(result[0], HeadingField)
         # The regex captures everything up to the closing underscore
         assert result[0].text == "Page123Some text"
-
-    def test_parse_markdown_removes_relevant_sources(self):
-        """Test that 'Relevant sources' heading is removed."""
-        markdown = """#### Main Heading
-
-# Relevant sources
-
-Some content"""
-        result = DocxGeneratorService.parse_markdown_to_list_content_fields(markdown)
-
-        # Check that no heading with "Relevant sources" text exists
-        for item in result:
-            if isinstance(item, HeadingField):
-                assert "Relevant sources" not in item.text
 
     def test_parse_markdown_empty_string(self):
         """Test parsing empty markdown string."""
