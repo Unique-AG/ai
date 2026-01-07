@@ -68,7 +68,10 @@ plugins:
             extra:
               show_signature_annotations: true
               show_type_annotations: true
-              show_if_no_docstring: false
+              #show_if_no_docstring: false
+            extensions:
+            - griffe_pydantic:
+                schema: true
 
 markdown_extensions:
   - admonition

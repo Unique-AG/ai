@@ -49,6 +49,7 @@ nav:
       - SSE Setup: application_types/event_driven/event_driven_with_sse.md
       - Web Hooks: application_types/event_driven/event_driven_as_app_with_ngrok.md
   - Core Services:
+    - Events: events/events.md
     - Chat:
       - chat/index.md
       - Document Handling: modules/examples/chat/chat_document_handling.md
@@ -143,6 +144,9 @@ plugins:
       handlers:
         python:
           options:
+            extensions:
+            - griffe_pydantic:
+                schema: true
             docstring_style: google
             docstring_section_style: table
             show_root_heading: true
@@ -154,4 +158,5 @@ plugins:
             extra:
               show_signature_annotations: true
               show_type_annotations: true
-              show_if_no_docstring: false
+              show_if_no_docstring: true
+              members_order: source
