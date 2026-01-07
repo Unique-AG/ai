@@ -1,11 +1,12 @@
-# Chat Service - Advanced Rendering 
+# Advanced Rendering - Examples
 
-In this section we will learn how to use specialy formatted strings to create artifacts on the Unique frontend.
-
+This page provides practical code examples for implementing advanced rendering features in chat messages. For broader documentation and concepts, see the [Advanced Rendering Documentation](../../../chat/advanced_rendering).
 
 ## Prompt Buttons
 
-Prompt buttons allow the user to easily add follow-up prompts suggested by the agent to their prompt field 
+Prompt buttons allow users to easily add follow-up prompts suggested by the agent to their prompt field.
+
+### Basic Example
 
 ```{.python #rendering_prompt_buttons}
 prompt_button_string = create_prompt_button_string(button_text="Click me", next_user_message="Next user message")
@@ -14,13 +15,8 @@ chat_service.create_assistant_message(
 )
 ```
 
-The assistant message will look as
+### Full Example
 
-![alt text](./images/chat_prompt_button.png)
-
-and when clicked the text will appear in the user prompt windown
-
-![alt text](./images/chat_prompt_window_after_press.png)
 <!--
 ```{.python file=docs/.python_files/chat_prompt_button.py}
 <<full_sse_setup_with_services>>
@@ -31,65 +27,7 @@ and when clicked the text will appear in the user prompt windown
 
 ## LaTeX Formulas
 
-The chat system supports rendering LaTeX formulas in chat messages using Markdown. This feature allows you to include mathematical or scientific equations in a readable format, enhancing communication in technical discussions.
-
-### Who is it for
-
-This feature is designed for:
-
-* **Mathematicians, scientists, and engineers** who need to share complex equations.
-* **Educators and students** collaborating on mathematical or scientific problems.
-* **Anyone** who needs to communicate mathematical or technical content effectively in chat.
-
-### Benefits
-
-* **Clarity**: Share complex mathematical or scientific formulas in a readable format.
-* **Efficiency**: Quickly render formulas without needing external tools.
-* **Collaboration**: Enhance communication in technical discussions.
-
-### Use Cases
-
-* **Educational Discussions**: Teachers and students discussing mathematical problems.
-* **Technical Collaboration**: Engineers and scientists sharing equations during project discussions.
-* **Documentation**: Including formulas in chat for reference or explanation.
-
-### Supported LaTeX Formula Syntax
-
-We support LaTeX formulas in the following formats only:
-
-* **Inline math**: use `\(...\)`  
-  Example: `The area is \( \pi r^2 \).`
-* **Block (display) math**: use `\[...\]` on its own line  
-  Example: `\[ E = mc^2\]`
-
-**Note**: Other delimiters such as `$...$` or `$$...$$` are **not supported**.
-
-### Using with LLMs
-
-If your LLM does not automatically produce the required delimiters, include an instruction in the system prompt such as:
-
-> "Render all LaTeX math using `\(...\)` for inline and `\[...\]` for block equations. Do not use `$...$` or `$$...$$`."
-
-You can also reinforce this by adding:
-
-* "Prefer inline math for short, in-sentence expressions."
-* "Use block math for standalone or multi-line equations."
-
-### Step-by-Step Guide
-
-To render LaTeX formulas in chat messages, you need to use the LaTeX shorthand syntax for equations. This involves wrapping the formula in escaped square brackets `\[...\]` for block math or `\(...\)` for inline math.
-
-#### Key Points
-
-1. **Use LaTeX shorthand syntax**:  
-   * For block math: Wrap the formula in escaped square brackets `\[...\]`.
-   * For inline math: Wrap the formula in escaped parentheses `\(...\)`.
-2. **Ensure correct LaTeX syntax**:  
-   * Follow standard LaTeX syntax rules within the brackets.
-
-### Examples
-
-#### Using the Helper Function (Block Math)
+### Using the Helper Function (Block Math)
 
 The `create_latex_formula_string` helper function creates block math formulas:
 
@@ -102,10 +40,7 @@ chat_service.create_assistant_message(
 )
 ```
 
-The formula will appear as:
-![alt text](./images/chat_latex_formula.png)
-
-#### Basic Formula (Manual)
+### Basic Formula (Manual)
 
 To include a basic formula, wrap it in escaped square brackets:
 
@@ -117,7 +52,7 @@ chat_service.create_assistant_message(
 )
 ```
 
-#### Inline Math Example
+### Inline Math Example
 
 For inline formulas within text, use escaped parentheses:
 
@@ -127,7 +62,7 @@ content = f"The area of a circle is \( \pi r^2 \)."
 chat_service.create_assistant_message(content=content)
 ```
 
-#### Complex Formula Example
+### Complex Formula Example
 
 For more complex formulas, ensure all LaTeX syntax is correctly used within the escaped brackets:
 
@@ -137,31 +72,9 @@ content = f"The integral of a function is given by \[\int_{a}^{b} f(x) \, dx\]."
 chat_service.create_assistant_message(content=content)
 ```
 
-### Tips & Tricks
-
-* Ensure that your LaTeX code is correctly formatted and follows the standard LaTeX syntax.
-* The shorthand syntax `\[...\]` is specifically for rendering LaTeX in our chat messages (block math).
-* The shorthand syntax `\(...\)` is for inline math within sentences.
-* If you encounter any issues with rendering, double-check that the formula is correctly wrapped in escaped brackets and that the LaTeX syntax is accurate.
-* Use inline math `\(...\)` for short expressions within sentences.
-* Use block math `\[...\]` for standalone or multi-line equations.
-
-### Limitations
-
-* **Syntax Errors**: Incorrect LaTeX syntax will result in rendering issues.
-* **Formatting Rules**: Only formulas wrapped in `\[...\]` (block) or `\(...\)` (inline) will render.
-* **Unsupported Delimiters**: The delimiters `$...$` or `$$...$$` are not supported and will not render.
-* **Complexity**: Extremely complex formulas may require additional testing to ensure proper display.
-
 ## Images
 
-Images can be rendered directly within chat messages using Markdown syntax. This feature allows you to share visual content seamlessly, enhancing collaboration and understanding in real-time.
-
-### Steps to Embed an Image
-
-1. **Upload the Image**: First, upload the image to the chat. This can typically be done by dragging and dropping the image file into the chat window or using the upload button provided in the chat interface.
-2. **Copy the Image URL**: Once the image is uploaded, it will be assigned a unique URL in the format `unique://content/content_id`. Copy this URL.
-3. **Insert the Markdown**: In your chat message, use the Markdown syntax to embed the image. Replace `unique://content/cont_1234` with the actual URL of your uploaded image.
+### Rendering an Uploaded Image
 
 ```{.python #rendering_image}
 # Example: Rendering an image that was uploaded to the chat
@@ -173,48 +86,24 @@ chat_service.create_assistant_message(
 )
 ```
 
-### Tips & Tricks
+### Getting Content ID from Uploaded Images
 
-* **Image Source**: Only images that have been uploaded into the chat can be displayed. The image URL must follow the format `unique://content/content_id`.
-* **Security Considerations**: For security reasons, our chat application does not render images that:
-  * Do not follow the `unique://content/content_id` format.
-  * Are not part of the chat the user is currently in.
-* **Content ID**: The `content_id` is a unique identifier assigned to each uploaded image. Ensure you use the correct `content_id` associated with the image you want to display.
-* **Preview Before Sending**: Double-check the Markdown syntax to ensure the image renders correctly.
-* **Organize Content IDs**: Keep track of your uploaded image IDs for easy reuse.
-* **Combine with Text**: Add context to your images by including descriptive text in your message.
+```python
+# Download images and documents from the chat
+images, documents = chat_service.download_chat_images_and_documents()
 
-### Limitations
-
-* **Image Source**: Only images uploaded into the chat can be displayed. External URLs are not supported.
-* **Security Restrictions**:
-  * Images must follow the `unique://content/content_id` format.
-  * Images not part of the current chat cannot be rendered.
-* **Content ID**: Ensure you use the correct `content_id` associated with the image you want to display.
+if len(images) > 0:
+    # Use the first uploaded image's content ID
+    content_id = images[0].id
+    image_markdown = f"![image](unique://content/{content_id})"
+    chat_service.create_assistant_message(
+        content=f"Here's the image you uploaded:\n{image_markdown}",
+    )
+```
 
 ## Financial Chart
 
-The `financialchart` block enables rich visualization of stock market data within chat messages using a JSON structure. This feature supports time-series price charts along with detailed financial metrics — perfect for financial bots, stock monitoring tools, or investment platforms.
-
-![Financial Chart Overview](./images/financial_chart_overview.png)
-
-### Comparative View
-
-When multiple instruments are provided, the chart displays a **comparative view**, showing the relative performance of each instrument over time. This allows for direct comparison between stocks or other financial assets within the same visual context.
-
-![Financial Chart Comparative View](./images/financial_chart_comparative_view.png)
-
-### Syntax
-
-Wrap your JSON payload in a code block with the `financialchart` tag:
-
-````
-```financialchart
-// JSON payload (see below)
-```
-````
-
-The payload must be an **array of objects**, each describing a single financial instrument.
+### Basic Financial Chart Example
 
 ```{.python #rendering_financial_chart}
 import json
@@ -233,12 +122,24 @@ financial_data = [
         "priceHistory": [
             {"date": "2025-01-02", "value": 243.85},
             {"date": "2025-01-03", "value": 245.12},
+            {"date": "2025-01-04", "value": 244.50},
+            {"date": "2025-01-05", "value": 246.20},
             # ... more price history entries
         ],
         "metrics": [
             {
                 "name": "Open",
                 "value": 221.45,
+                "timestamp": "2025-03-27T09:30:01-04:00"
+            },
+            {
+                "name": "High",
+                "value": 225.30,
+                "timestamp": "2025-03-27T09:30:01-04:00"
+            },
+            {
+                "name": "Close",
+                "value": 223.10,
                 "timestamp": "2025-03-27T09:30:01-04:00"
             },
             # ... more metrics
@@ -256,20 +157,63 @@ chat_service.create_assistant_message(
 )
 ```
 
-### Supported Metric Names
+### Comparative View Example
 
-| **Name** | **Description** |
-| -------- | --------------- |
-| Open | Opening price of the last session |
-| High | Highest price during the session |
-| Close | Closing price |
-| Market Cap | Market capitalization |
-| Price Earnings Ratio | P/E ratio |
-| Volume | Trading volume |
-| Year High | Highest price in past year |
-| Year Low | Lowest price in past year |
-| Dividend Yield | Dividend yield % |
-| Volatility 30 Days | 30-day price volatility |
+To show multiple instruments for comparison:
+
+```python
+import json
+
+# Multiple instruments for comparative view
+financial_data = [
+    {
+        "info": {
+            "companyName": "Apple",
+            "instrumentName": "Apple Rg",
+            "ticker": "AAPL",
+            "exchange": "NASDAQ",
+            "currency": "USD"
+        },
+        "priceHistory": [
+            {"date": "2025-01-02", "value": 243.85},
+            {"date": "2025-01-03", "value": 245.12},
+            # ... more entries
+        ],
+        "metrics": [
+            {"name": "Open", "value": 221.45, "timestamp": "2025-03-27T09:30:01-04:00"},
+            # ... more metrics
+        ],
+        "lastUpdated": "2025-03-28T16:10:09.243846",
+        "version": 1
+    },
+    {
+        "info": {
+            "companyName": "Microsoft",
+            "instrumentName": "Microsoft Corp",
+            "ticker": "MSFT",
+            "exchange": "NASDAQ",
+            "currency": "USD"
+        },
+        "priceHistory": [
+            {"date": "2025-01-02", "value": 415.20},
+            {"date": "2025-01-03", "value": 417.50},
+            # ... more entries
+        ],
+        "metrics": [
+            {"name": "Open", "value": 410.00, "timestamp": "2025-03-27T09:30:01-04:00"},
+            # ... more metrics
+        ],
+        "lastUpdated": "2025-03-28T16:10:09.243846",
+        "version": 1
+    }
+]
+
+financial_chart_markdown = f"```financialchart\n{json.dumps(financial_data, indent=2)}\n```"
+
+chat_service.create_assistant_message(
+    content=f"Here is a comparison of stock performance:\n{financial_chart_markdown}",
+)
+```
 
 ## Full Examples
 ??? example "Full Examples Rendering (Click to expand)"
@@ -278,6 +222,5 @@ chat_service.create_assistant_message(
     [Button](../../../examples_from_docs/chat_prompt_button.py)
     [Latex](../../../examples_from_docs/chat_latex_formula.py)
     <!--/codeinclude-->
-
 
 

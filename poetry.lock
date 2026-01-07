@@ -299,7 +299,6 @@ files = [
     {file = "colorama-0.4.6-py2.py3-none-any.whl", hash = "sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6"},
     {file = "colorama-0.4.6.tar.gz", hash = "sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44"},
 ]
-markers = {main = "platform_system == \"Windows\""}
 
 [[package]]
 name = "copier"
@@ -495,7 +494,7 @@ version = "1.14.0"
 description = "Signatures for entire Python programs. Extract the structure, the frame, the skeleton of your project, to generate API documentation or find breaking changes in your API."
 optional = false
 python-versions = ">=3.9"
-groups = ["dev"]
+groups = ["main", "dev"]
 files = [
     {file = "griffe-1.14.0-py3-none-any.whl", hash = "sha256:0e9d52832cccf0f7188cfe585ba962d2674b241c01916d780925df34873bceb0"},
     {file = "griffe-1.14.0.tar.gz", hash = "sha256:9d2a15c1eca966d68e00517de5d69dd1bc5c9f2335ef6c1775362ba5b8651a13"},
@@ -503,6 +502,21 @@ files = [
 
 [package.dependencies]
 colorama = ">=0.4"
+
+[[package]]
+name = "griffe-pydantic"
+version = "1.1.8"
+description = "Griffe extension for Pydantic."
+optional = false
+python-versions = ">=3.9"
+groups = ["main"]
+files = [
+    {file = "griffe_pydantic-1.1.8-py3-none-any.whl", hash = "sha256:22212c94216e03bf43d30ff3bc79cd53fb973ae2fe81d8b7510242232a1e6764"},
+    {file = "griffe_pydantic-1.1.8.tar.gz", hash = "sha256:72cde69c74c70f3dc0385a7a5243c736cd6bf6fcf8a41cae497383defe107041"},
+]
+
+[package.dependencies]
+griffe = ">=1.14"
 
 [[package]]
 name = "h11"
@@ -3280,4 +3294,4 @@ cffi = ["cffi (>=1.17,<2.0)", "cffi (>=2.0.0b)"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "687cf8b08eaee4b52d33446b72e44731b8feb5ef4fdbbcfadc1ce140d89d82df"
+content-hash = "4032dd76f739c3fde9aadf2426139d4aae721cc64f56c943ca55af9e5db3c8d7"
