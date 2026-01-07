@@ -5,7 +5,6 @@ from typing import Any, Callable, ParamSpec, TypeVar
 
 import requests
 
-from unique_six.exception import NoCredentialsException
 from unique_six.http_adapter import InMemoryCertAdapter
 from unique_six.schema import (
     BaseRequestParams,
@@ -136,12 +135,3 @@ def endpoint(
         )
 
     return endpoint_f
-
-
-def get_six_api_client(company_id: str) -> SixApiClient:
-    from unique_six.settings import six_api_settings
-
-    creds = six_api_settings.creds_for_company(company_id)
-    if creds is None:
-        raise NoCredentialsException(company_id)
-    return SixApiClient(creds.cert, creds.key)

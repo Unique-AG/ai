@@ -31,10 +31,7 @@ jobs:
             
             connectors/unique_search_proxy:
               - 'connectors/unique_search_proxy/**'
-            
-            connectors/unique_six:
-              - 'connectors/unique_six/**'
-              
+
             postprocessors/unique_follow_up_questions:
               - 'postprocessors/unique_follow_up_questions/**'
               

@@ -27,6 +27,3 @@ class SixApiException(Exception):
 def raise_errors_from_api_response(response: BaseResponsePayload) -> None:
     if response.errors is not None and len(response.errors) > 0:
         raise SixApiException(response.errors)
-
-
-class NoCredentialsException(Exception): ...
