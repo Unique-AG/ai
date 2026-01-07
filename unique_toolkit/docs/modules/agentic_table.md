@@ -1,5 +1,3 @@
-[TOC]
-
 # Service
 
 ::: unique_toolkit.agentic_table.service.AgenticTableService

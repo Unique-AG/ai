@@ -143,9 +143,9 @@ plugins:
       handlers:
         python:
           options:
-            extensions:
-            - griffe_pydantic:
-                schema: true
+            #extensions:
+            #- griffe_pydantic:
+            #    schema: true
             docstring_style: google
             docstring_section_style: table
             show_root_heading: true
