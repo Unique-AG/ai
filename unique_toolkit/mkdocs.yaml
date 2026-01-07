@@ -52,11 +52,10 @@ nav:
     - Events: events/events.md
     - Chat:
       - chat/index.md
-      - Document Handling: modules/examples/chat/chat_document_handling.md
-      - Advanced Rendering: modules/examples/chat/advanced_rendering.md
+      - Advanced Rendering: chat/advanced_rendering.md
     - Knowledge Base:
-      - modules/examples/content/kb_service.md
-      - Smart Rules: modules/examples/content/smart_rules.md
+      - knowledge_base/index.md
+      - Smart Rules: knowledge_base/smart_rules.md
     - Agentic Table:
       - agentic_table/index.md
   - Examples:
@@ -144,19 +143,23 @@ plugins:
       handlers:
         python:
           options:
-            extensions:
-            - griffe_pydantic:
-                schema: true
+            #extensions:
+            #- griffe_pydantic:
+            #    schema: true
             docstring_style: google
             docstring_section_style: table
             show_root_heading: true
             show_source: true
-            filters:
-              - "!.[company|user|assistant|chat|assistant_id|assistant_message_id|user_message_id]_id.*"
-              - "!.*_async.*"
-              - "!.*event.*"
+            preload_modules:
+              - pydantic
+              - typing
+            #filters:
+            #  - "!.[company|user|assistant|chat|assistant_id|assistant_message_id|user_message_id]_id.*"
+            #  - "!.*_async.*"
+            #  - "!.*event.*"
             extra:
               show_signature_annotations: true
               show_type_annotations: true
               show_if_no_docstring: true
               members_order: source
+            inherited_members: true

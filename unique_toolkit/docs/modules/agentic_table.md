@@ -1,5 +1,3 @@
-[TOC]
-
 # Service
 
 ::: unique_toolkit.agentic_table.service.AgenticTableService
@@ -16,6 +14,7 @@ The primary event type is `MagicTableEvent`.
 ## Event Payload Schemas
 
 All event payloads inherit from the `MagicTableBasePayload` schema.
+
 ::: unique_toolkit.agentic_table.schemas.MagicTableBasePayload
 
 The following payload schemas correspond to the events listed above:
