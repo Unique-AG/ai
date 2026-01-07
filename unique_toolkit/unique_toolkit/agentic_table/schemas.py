@@ -48,6 +48,9 @@ class BaseMetadata(BaseModel):
         description="The type of the sheet.",
         default=SheetType.DEFAULT,
     )
+    additional_sheet_information: dict[str, Any] = Field(
+        default_factory=dict, description="Additional information for the sheet"
+    )
 
 
 class RowMetadataEntry(BaseModel):
@@ -74,6 +77,9 @@ class DDMetadata(BaseMetadata):
         default_factory=list, description="The texts of the questions"
     )
     context: str = Field(default="", description="The context text for the table.")
+    additional_sheet_information: dict[str, Any] = Field(
+        default_factory=dict, description="Additional information for the sheet"
+    )
 
     @field_validator("context", mode="before")
     @classmethod
