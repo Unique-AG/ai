@@ -191,7 +191,7 @@ def map_content_chunk(
     content_id: str, content_key: str, content_chunk: dict, metadata: dict | None
 ):
     content_metadata = (
-        ContentMetadata(**metadata) if metadata else None if metadata else None
+        ContentMetadata(**metadata) if metadata else None 
     )
     return ContentChunk(
         id=content_id,
