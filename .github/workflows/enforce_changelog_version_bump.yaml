@@ -31,7 +31,7 @@ jobs:
             
             connectors/unique_search_proxy:
               - 'connectors/unique_search_proxy/**'
-              
+
             postprocessors/unique_follow_up_questions:
               - 'postprocessors/unique_follow_up_questions/**'
               
