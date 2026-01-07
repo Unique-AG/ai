@@ -15,6 +15,9 @@ The primary event type is `MagicTableEvent`.
 
 ## Event Payload Schemas
 
+All event payloads inherit from the `MagicTableBasePayload` schema.
+::: unique_toolkit.agentic_table.schemas.MagicTableBasePayload
+
 The following payload schemas correspond to the events listed above:
 
 ::: unique_toolkit.agentic_table.schemas.MagicTableUpdateCellPayload
@@ -26,7 +29,6 @@ The following payload schemas correspond to the events listed above:
 
 ## Supporting Schemas
 
-::: unique_toolkit.agentic_table.schemas.MagicTableBasePayload
 ::: unique_toolkit.agentic_table.schemas.BaseMetadata
 ::: unique_toolkit.agentic_table.schemas.DDMetadata
 ::: unique_toolkit.agentic_table.schemas.SheetCompletedMetadata
