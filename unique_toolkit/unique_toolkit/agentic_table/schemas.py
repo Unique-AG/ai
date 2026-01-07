@@ -48,6 +48,7 @@ class BaseMetadata(BaseModel):
         description="The type of the sheet.",
         default=SheetType.DEFAULT,
     )
+    
     additional_sheet_information: dict[str, Any] = Field(
         default_factory=dict, description="Additional information for the sheet"
     )
