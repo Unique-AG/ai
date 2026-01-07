@@ -55,7 +55,9 @@ class TestBaseMetadata:
             is None
         )
         assert (
-            metadata.additional_sheet_information["clientInformation"]["locationOfBirth"]
+            metadata.additional_sheet_information["clientInformation"][
+                "locationOfBirth"
+            ]
             == ""
         )
 
@@ -70,6 +72,11 @@ class TestBaseMetadata:
             }
         }"""
         metadata = BaseMetadata.model_validate_json(json_data)
-        assert metadata.additional_sheet_information["clientInformation"]["type"] == "natural_person"
-        assert metadata.additional_sheet_information["clientInformation"]["clientId"] == "123"
-
+        assert (
+            metadata.additional_sheet_information["clientInformation"]["type"]
+            == "natural_person"
+        )
+        assert (
+            metadata.additional_sheet_information["clientInformation"]["clientId"]
+            == "123"
+        )
