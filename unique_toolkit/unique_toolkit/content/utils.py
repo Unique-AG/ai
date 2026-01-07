@@ -190,9 +190,7 @@ def count_tokens(text: str, encoding_model="cl100k_base") -> int:
 def map_content_chunk(
     content_id: str, content_key: str, content_chunk: dict, metadata: dict | None
 ):
-    content_metadata = (
-        ContentMetadata(**metadata) if metadata else None 
-    )
+    content_metadata = ContentMetadata(**metadata) if metadata else None
     return ContentChunk(
         id=content_id,
         key=content_key,
