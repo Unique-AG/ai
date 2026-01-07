@@ -1,6 +1,8 @@
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.content.utils import (
     count_tokens,
+    map_content,
+    map_content_chunk,
     merge_content_chunks,
     pick_content_chunks_for_token_window,
     sort_content_chunks,
@@ -94,3 +96,46 @@ class TestContentChunkUtils:
 
         assert token_count > 0
         assert isinstance(token_count, int)
+
+    def test_map_content_chunk(self):
+        content_chunk_dict = {
+            "id": "chunk_123",
+            "text": "Sample text",
+            "startPage": 1,
+            "endPage": 2,
+            "order": 1,
+        }
+        metadata = {"key": "file.pdf", "mime_type": "application/pdf"}
+
+        result = map_content_chunk("cont_456", "file.pdf", content_chunk_dict, metadata)
+
+        assert result.id == "cont_456"
+        assert result.chunk_id == "chunk_123"
+        assert result.text == "Sample text"
+        assert result.metadata is not None
+
+    def test_map_content(self):
+        content_dict = {
+            "id": "cont_123",
+            "key": "document.pdf",
+            "title": "Test Document",
+            "url": "https://example.com/doc.pdf",
+            "chunks": [
+                {
+                    "id": "chunk_1",
+                    "text": "First chunk",
+                    "startPage": 1,
+                    "endPage": 1,
+                    "order": 1,
+                }
+            ],
+            "createdAt": "2024-01-01T00:00:00Z",
+            "updatedAt": "2024-01-01T00:00:00Z",
+        }
+
+        result = map_content(content_dict)
+
+        assert result.id == "cont_123"
+        assert result.key == "document.pdf"
+        assert len(result.chunks) == 1
+        assert result.chunks[0].chunk_id == "chunk_1"

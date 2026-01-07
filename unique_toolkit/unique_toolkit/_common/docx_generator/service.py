@@ -33,15 +33,6 @@ class DocxGeneratorService:
         # Initialize markdown-it parser
         md = MarkdownIt()
 
-        # Preprocess markdown.
-        # - Replace all headings with the correct heading level
-        # - Remove "Relevant sources" heading
-        # - Replace "# Proposed answer" with "#### Proposed answer"
-        markdown = re.sub(r"(?m)^\s*## ", "#### ", markdown)
-        markdown = re.sub(r"(?m)^\s*### ", "##### ", markdown)
-        markdown = markdown.replace("# Relevant sources", "")
-        markdown = markdown.replace("# Proposed answer", "#### Proposed answer")
-
         tokens = md.parse(markdown)
 
         elements = []
