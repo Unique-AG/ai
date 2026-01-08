@@ -1,8 +1,16 @@
-from pydantic import BaseModel
-
-from unique_sdk import CellRendererTypes
 from enum import StrEnum
 
+from pydantic import BaseModel
+from unique_sdk import CellRendererTypes
+
+
+class ExampleColumnNames(StrEnum):
+    QUESTION = "Question"
+    SECTION = "Section"
+    ANSWER = "Answer"
+    CRITICAL_CONSISTENCY = "Critical Consistency"
+    STATUS = "Status"
+    REVIEWER = "Reviewer"
 
 class ColumnDefinition(BaseModel):
     """
@@ -17,7 +25,7 @@ class ColumnDefinition(BaseModel):
     """
 
     order: int
-    name: str
+    name: ExampleColumnNames
     width: int
     renderer: CellRendererTypes | None = None
     editable: bool = True
@@ -41,18 +49,16 @@ class ColumnDefinitions(BaseModel):
         """Get column definition by name."""
         return self.column_map[name]
 
+    def get_column_name_by_order(self, order: int) -> ExampleColumnNames:
+        """Get column definition by order."""
+        return self.columns[order].name
+
     def get_column_names(self) -> list[str]:
         """Get list of all column names."""
         return list(self.column_map.keys())
 
 
-class ExampleColumnNames(StrEnum):
-    QUESTION = "Question"
-    SECTION = "Section"
-    ANSWER = "Answer"
-    CRITICAL_CONSISTENCY = "Critical Consistency"
-    STATUS = "Status"
-    REVIEWER = "Reviewer"
+
 
 
 example_configuration = {

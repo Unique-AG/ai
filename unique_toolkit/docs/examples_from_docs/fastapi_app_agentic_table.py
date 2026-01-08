@@ -3,29 +3,32 @@ from pathlib import Path
 
 from unique_sdk.api_resources._agentic_table import ActivityStatus
 
-from unique_toolkit import ChatService, KnowledgeBaseService
-from unique_toolkit.agentic_table.schemas import MagicTableEvent
-from unique_toolkit.agentic_table.schemas import MagicTableAction
-from unique_toolkit.agentic_table.service import AgenticTableService
-from unique_toolkit.agentic_table.schemas import MagicTableEventTypes
-from unique_toolkit.app.fast_api_factory import build_unique_custom_app
-from unique_toolkit.app.unique_settings import UniqueSettings
-
-from docs.examples_from_docs.agentic_table_example_sheet_created_event_handler import (
-    handle_sheet_created,
-)
-from docs.examples_from_docs.agentic_table_example_metadata_added_event_handler import (
-    handle_metadata_added,
-    get_downloader,
+from docs.examples_from_docs.agentic_table_example_artifact_generated_event_handler import (
+    handle_artifact_generated,
 )
 from docs.examples_from_docs.agentic_table_example_cell_updated_event_handler import (
     handle_cell_updated,
 )
-from docs.examples_from_docs.agentic_table_example_artifact_generated_event_handler import (
-    handle_artifact_generated,
-    get_uploader,
+from docs.examples_from_docs.agentic_table_example_metadata_added_event_handler import (
+    handle_metadata_added,
 )
-
+from docs.examples_from_docs.agentic_table_example_sheet_created_event_handler import (
+    handle_sheet_created,
+)
+from docs.examples_from_docs.agentic_table_helper_functions import (
+    get_augmented_text_with_references_fn,
+    get_downloader_fn,
+    get_file_content_getter_fn,
+    get_uploader_fn,
+)
+from unique_toolkit.agentic_table.schemas import (
+    MagicTableAction,
+    MagicTableEvent,
+    MagicTableEventTypes,
+)
+from unique_toolkit.agentic_table.service import AgenticTableService
+from unique_toolkit.app.fast_api_factory import build_unique_custom_app
+from unique_toolkit.app.unique_settings import UniqueSettings
 
 # Configure logging at module level so it works regardless of how the app is started
 logging.basicConfig(
@@ -84,10 +87,18 @@ async def agentic_table_event_handler(event: MagicTableEvent) -> int:
             # Payload type (MagicTableAddMetadataPayload):
             logger.info(f"Metadata added: {event.payload.metadata}")
 
-            downloader = get_downloader(
+            downloader_fn = get_downloader_fn(
                 event.user_id, event.company_id, event.payload.chat_id
             )
-            await handle_metadata_added(at_service, event.payload, downloader)
+            file_content_getter_fn = get_file_content_getter_fn(
+                event.user_id, event.company_id, event.payload.chat_id
+            )
+            augmented_text_with_references_fn = get_augmented_text_with_references_fn(
+                event.user_id, event.company_id, event.payload.chat_id, event.payload.assistant_id
+            )
+            await handle_metadata_added(
+                at_service, event.payload, downloader_fn, file_content_getter_fn, augmented_text_with_references_fn
+            )
 
         elif event.payload.action == MagicTableAction.UPDATE_CELL:
             # This event is triggered when a cell is updated.
@@ -105,11 +116,11 @@ async def agentic_table_event_handler(event: MagicTableEvent) -> int:
             # Payload type (MagicTableGenerateArtifactPayload):
             logger.info(f"Artifact generated: {event.payload.data}")
 
-            uploader = get_uploader(
+            uploader_fn = get_uploader_fn(
                 event.user_id, event.company_id, event.payload.chat_id
             )
 
-            await handle_artifact_generated(at_service, event.payload, uploader)
+            await handle_artifact_generated(at_service, event.payload, uploader_fn)
 
         elif event.payload.action == MagicTableAction.SHEET_COMPLETED:
             # This event is triggered when the sheet is marked as completed.
@@ -139,13 +150,13 @@ async def agentic_table_event_handler(event: MagicTableEvent) -> int:
                 text=f"Unknown action: {event.payload.action}",
             )
             raise Exception(f"Unknown action: {event.payload.action}")
-        
-        return 0 # Success
-    
+
+        return 0  # Success
+
     except Exception as e:
         logger.error(f"Error in agentic table event handler: {e}")
-        return 1 # Failure
-    
+        return 1  # Failure
+
     finally:
         # De-register the agent
         await at_service.deregister_agent()
@@ -168,6 +179,7 @@ _MINIMAL_APP = build_unique_custom_app(
 
 if __name__ == "__main__":
     import logging
+
     import uvicorn
 
     # Initialize settings

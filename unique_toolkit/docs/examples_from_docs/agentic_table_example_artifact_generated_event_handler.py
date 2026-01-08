@@ -1,54 +1,32 @@
+from datetime import datetime
+from logging import getLogger
 from typing import Callable
 
-from .agentic_table_example_column_definition import (
-    ExampleColumnNames,
-    example_column_definitions,
+from unique_sdk.api_resources._agentic_table import ActivityStatus
+
+from unique_toolkit._common.docx_generator import (
+    DocxGeneratorConfig,
+    DocxGeneratorService,
 )
 from unique_toolkit.agentic_table.schemas import (
     MagicTableGenerateArtifactPayload,
     MagicTableSheet,
 )
 from unique_toolkit.agentic_table.service import AgenticTableService
-from unique_sdk.api_resources._agentic_table import ActivityStatus
-from logging import getLogger
-from datetime import datetime
-from unique_toolkit._common.docx_generator import (
-    DocxGeneratorService,
-    DocxGeneratorConfig,
-)
 from unique_toolkit.content.schemas import Content
 
+from .agentic_table_example_column_definition import (
+    ExampleColumnNames,
+    example_column_definitions,
+)
+
 logger = getLogger(__name__)
-
-
-def get_uploader(
-    user_id: str, company_id: str, chat_id: str
-) -> Callable[[bytes, str, str], Content]:
-    """
-    Factory function to create a file uploader with authentication context.
-
-    Returns a function that uploads files to the chat.
-    """
-    from unique_toolkit.content.functions import upload_content_from_bytes
-
-    def uploader(content: bytes, mime_type: str, content_name: str) -> Content:
-        return upload_content_from_bytes(
-            user_id=user_id,
-            company_id=company_id,
-            content=content,
-            mime_type=mime_type,
-            content_name=content_name,
-            chat_id=chat_id,
-            skip_ingestion=True,
-        )
-
-    return uploader
 
 
 async def handle_artifact_generated(
     at_service: AgenticTableService,
     payload: MagicTableGenerateArtifactPayload,
-    uploader: Callable[[bytes, str, str], Content],
+    uploader_fn: Callable[[bytes, str, str], Content],
 ) -> None:
     """
     Example handler for the artifact generation event.
@@ -63,7 +41,7 @@ async def handle_artifact_generated(
     Args:
         at_service: Service instance for table operations
         payload: Event payload with artifact type
-        uploader: Function to upload the generated file
+        uploader_fn: Function to upload the generated file
     """
     logger.info(f"Generating artifact of type: {payload.data.artifact_type}")
 
@@ -104,7 +82,7 @@ async def handle_artifact_generated(
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"Table_Report_{timestamp}.docx"
 
-        content = uploader(
+        content = uploader_fn(
             docx_file,
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             filename,

@@ -8,6 +8,8 @@ This tutorial shows how to build an Agentic Table application that responds to u
 - Setting up a FastAPI application to receive and route table events
 - Implementing handlers for different table lifecycle events
 - Using the AgenticTableService to interact with tables programmatically
+- **Working with file metadata** to build intelligent routing logic
+- **Creating clickable references** that link table content to source documents
 
 ## Understanding the Event Flow
 
@@ -91,7 +93,17 @@ async def agentic_table_event_handler(event: MagicTableEvent) -> int:
         
         elif event.payload.action == MagicTableAction.ADD_META_DATA:
             downloader = get_downloader(event.user_id, event.company_id, event.payload.chat_id)
-            await handle_metadata_added(at_service, event.payload, downloader)
+            file_content_getter = get_file_content_getter(event.user_id, event.company_id, event.payload.chat_id)
+            reference_builder = get_augmented_text_with_references(
+                event.user_id, event.company_id, event.payload.chat_id, event.payload.assistant_id
+            )
+            await handle_metadata_added(
+                at_service, 
+                event.payload, 
+                downloader,
+                file_content_getter,
+                reference_builder
+            )
         
         elif event.payload.action == MagicTableAction.UPDATE_CELL:
             await handle_cell_updated(at_service, event.payload)
@@ -207,19 +219,137 @@ This handler prepares the empty table structure so it's ready to receive data. A
 
 **When**: Triggered when a user uploads a question file or source file to the table.
 
-**Goal**: Process the uploaded file and populate the table with data. In this example, we demonstrate parsing a CSV file and batch-populating cells.
+**Goal**: Process the uploaded file and populate the table with data. This handler demonstrates two powerful framework capabilities:
+
+1. **CSV Processing**: Parse question files and batch-populate cells
+2. **Content Metadata & References**: Retrieve file metadata and create clickable references
+
+#### Part A: Processing Question Files (CSV)
+
+The first part handles question files by downloading and parsing CSV data:
 
 **What we do with `at_service`**:
 
 - `set_activity()` - Updates users on progress through multiple stages ("Downloading CSV...", "Parsing...", "Populating...")
 - `set_multiple_cells()` - Batch operation to set many cells at once (much more efficient than individual updates)
 
-This handler showcases how to automate data entry. You could extend this to:
+This showcases how to automate data entry. You could extend this to:
 
 - Use AI agents to generate answers for questions in the CSV
-- Extract and index information from source documents
 - Validate or enrich data before populating the table
 - Implement custom parsing logic for different file types
+
+#### Part B: Processing Source Files with Metadata
+
+The second part demonstrates **two core framework capabilities** that are essential for building sophisticated applications:
+
+##### 1. Retrieving File Content and Metadata
+
+When users upload source files, you can retrieve the full `Content` objects which include:
+
+- **content.id**: Unique identifier
+- **content.metadata**: Custom key-value pairs (e.g., `{"section": "Finance", "department": "Legal"}`)
+- **content.title**: File name or title
+- **content.text**: Extracted text content
+- **content.chunks**: List of ContentChunk objects for chunked documents
+
+**Example: Organizing Files by Metadata**
+
+```python
+# Retrieve Content objects for uploaded files
+content = file_content_getter_fn(file_id)
+
+# Access metadata
+if content.metadata:
+    section = content.metadata.get("section")
+    department = content.metadata.get("department")
+    
+# EXAMPLE: Use ContentRegistry to group files by metadata keys
+# (This is just one approach - implement your own filtering logic!)
+content_registry = ContentRegistry(
+    keys=["Finance", "Legal", "Technical"],
+    contents=all_contents
+)
+
+# Retrieve all files with specific metadata key
+finance_files = content_registry.get_contents_by_metadata_key("Finance")
+
+# Alternative: Implement your own filtering
+finance_files = [
+    c for c in all_contents 
+    if c.metadata and c.metadata.get("department") == "Finance"
+]
+```
+
+**Use Cases**:
+- Route different source files to different table rows based on categories
+- Filter content by department, section, or custom tags
+- Build conditional logic based on file properties
+
+##### 2. Creating Clickable References
+
+The framework provides a reference system that converts inline citations into clickable links in the UI. This is crucial when AI agents generate text with citations to source documents.
+
+**Why This Matters**:
+- Users can click references to view source documents
+- Creates audit trails for AI-generated content
+- Improves transparency and trust in automated workflows
+- Enables verification of information
+
+**The Reference Workflow**:
+
+```
+Step 1: AI/Logic generates text with inline citations
+  "According to the Q3 report [chunk_abc123], revenue increased [chunk_xyz789]."
+
+Step 2: Create reference registry mapping IDs to Content objects
+  {
+    "chunk_abc123": <Content object for Q3 report>,
+    "chunk_xyz789": <Content object for financial data>
+  }
+
+Step 3: Convert citations to numbered references
+  "According to the Q3 report [1], revenue increased [2]."
+  
+Step 4: Frontend renders as clickable links
+  "According to the Q3 report [1]↗, revenue increased [2]↗."
+  (clicking [1] opens the Q3 report document)
+```
+
+**Implementation Example**:
+
+```python
+# Step 1: Create temporary IDs for your content items
+reference_registry = create_id_map(relevant_contents, prefix="chunk")
+# Returns: {"chunk_a1b2c3d4": content1, "chunk_x9y8z7w6": content2, ...}
+
+# Step 2: Generate text with inline citations (from AI or your logic)
+text_with_citations = "Based on the analysis [chunk_a1b2c3d4], we conclude..."
+
+# Step 3: Convert to clickable references
+augmented_text = augmented_text_with_references_fn(
+    text_with_citations,
+    reference_registry,
+    prefix="chunk",
+    citation_pattern=r"\[chunk_([a-zA-Z0-9\-]+)\]"
+)
+# Returns: "Based on the analysis [1&message_123], we conclude..."
+# Frontend renders as: "Based on the analysis [1]↗, we conclude..." (clickable)
+```
+
+**Use Cases**:
+- Link AI-generated answers to source documents
+- Create audit trails for compliance and review
+- Enable fact-checking and verification workflows
+- Build transparent, explainable AI systems
+- Track provenance of information across your pipeline
+
+**What we do with `at_service`**:
+
+- `set_activity()` - Provides progress updates during processing
+- `get_sheet()` - Retrieves table data to understand what's already populated
+- `get_num_rows()` - Gets the current number of rows
+- `set_multiple_cells()` - Batch updates cells with referenced content
 
 The key takeaway is the batch operation pattern - when dealing with large datasets, always use `set_multiple_cells()` instead of individual `set_cell()` calls.
 
@@ -297,6 +427,157 @@ The example demonstrates the basic pattern - reading data, transforming it, and 
     [Artifact Generated Handler](../examples_from_docs/agentic_table_example_artifact_generated_event_handler.py)
     <!--/codeinclude-->
 
+## Framework Utilities: Helper Functions
+
+The tutorial examples use several helper functions that encapsulate common patterns for working with files, metadata, and references. These are available in the toolkit and demonstrate best practices for your own applications.
+
+### File Content Retrieval
+
+**Function**: `get_file_content_getter_fn(user_id, company_id, chat_id)`
+
+Creates a function to retrieve full `Content` objects by file ID. This is essential for accessing file metadata and properties.
+
+```python
+# Create the getter function with authentication context
+file_content_getter = get_file_content_getter_fn(user_id, company_id, chat_id)
+
+# Retrieve content by ID
+content = file_content_getter(file_id)
+
+# Access properties
+if content:
+    metadata = content.metadata  # Custom key-value pairs
+    title = content.title        # File name
+    text = content.text          # Extracted text
+    chunks = content.chunks      # ContentChunk objects
+```
+
+**Use in your handlers**: Pass this function to handlers that need to access source file metadata.
+
+### File Download
+
+**Function**: `get_downloader_fn(user_id, company_id, chat_id)`
+
+Creates a function to download raw file bytes. Useful for processing CSV, Excel, or other binary formats.
+
+```python
+# Create the downloader with authentication context
+downloader = get_downloader_fn(user_id, company_id, chat_id)
+
+# Download file content
+file_bytes = downloader(file_id)
+
+# Process the bytes (e.g., parse CSV)
+csv_data = pd.read_csv(io.BytesIO(file_bytes))
+```
+
+**Use in your handlers**: Pass this function to handlers that need to download and process file contents.
+
+### File Upload
+
+**Function**: `get_uploader_fn(user_id, company_id, chat_id)`
+
+Creates a function to upload files to the chat. Used for uploading generated artifacts.
+
+```python
+# Create the uploader with authentication context
+uploader = get_uploader_fn(user_id, company_id, chat_id)
+
+# Upload a file
+content = uploader(
+    file_bytes,
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "report.docx"
+)
+
+# Use the returned content ID
+content_id = content.id
+```
+
+**Use in your handlers**: Pass this function to artifact generation handlers.
+
+### Reference Creation
+
+**Function**: `get_augmented_text_with_references_fn(user_id, company_id, chat_id, assistant_id)`
+
+Creates a function to convert inline citations into clickable references. This is the core utility for building traceable, source-linked content.
+
+```python
+# Create the reference builder with authentication context
+reference_builder = get_augmented_text_with_references_fn(
+    user_id, company_id, chat_id, assistant_id
+)
+
+# Create a reference registry
+reference_registry = create_id_map(content_items, prefix="chunk")
+
+# Convert citations to references
+text_with_citations = "According to the report [chunk_abc123]..."
+augmented_text = reference_builder(
+    text_with_citations,
+    reference_registry,
+    prefix="chunk",
+    citation_pattern=r"\[chunk_([a-zA-Z0-9\-]+)\]"
+)
+# Result: "According to the report [1]..." (clickable in UI)
+```
+
+**Use in your handlers**: Pass this function to handlers that generate AI content with source citations.
+
+### Content Organization
+
+**Class**: `ContentRegistry(keys, contents)`
+
+An **example** utility class demonstrating how to organize Content objects by metadata keys. This is just one approach - you should implement your own filtering logic based on your specific needs.
+
+**Example usage**:
+
+```python
+# Create a registry with metadata keys
+content_registry = ContentRegistry(
+    keys=["Finance", "Legal", "Technical"],
+    contents=all_content_objects
+)
+
+# Retrieve files by metadata key
+finance_files = content_registry.get_contents_by_metadata_key("Finance")
+legal_files = content_registry.get_contents_by_metadata_key("Legal")
+```
+
+**This example shows**: Grouping by metadata key existence (e.g., file has `{"Finance": "true"}`)
+
+**Your implementation might**:
+- Filter by metadata **values** instead of keys (e.g., `{"status": "approved"}`)
+- Support complex queries (AND/OR conditions, ranges, regex)
+- Combine multiple metadata attributes (e.g., section AND department)
+- Implement scoring/ranking logic for content relevance
+- Use caching strategies for large content sets
+
+**Key point**: Build your own registry class that matches your business logic and metadata structure!
+
+### ID Mapping
+
+**Function**: `create_id_map(items, prefix)`
+
+Generates temporary IDs for a list of items. Essential for creating citation systems.
+
+```python
+# Create unique IDs for content items
+id_map = create_id_map(content_list, prefix="chunk")
+# Returns: {"chunk_a1b2c3d4": content1, "chunk_x9y8z7w6": content2, ...}
+
+# Use in text generation
+text = f"See source [{list(id_map.keys())[0]}]"
+```
+
+**Pattern**: Always use consistent prefixes and citation patterns throughout your application.
+
+??? example "Helper Functions Implementation (Click to expand)"
+    
+    <!--codeinclude-->
+    [Helper Functions](../examples_from_docs/agentic_table_helper_functions.py)
+    <!--/codeinclude-->
+
 ## Key Concepts
 
 ### Agent Registration
@@ -312,15 +593,111 @@ Use `at_service.set_activity()` liberally to communicate with users. These appea
 ### Batch Operations
 The `set_multiple_cells()` method is crucial for performance when dealing with multiple cell updates. It's dramatically faster than individual `set_cell()` calls and reduces network overhead.
 
-### File Upload/Download Patterns
-The tutorial demonstrates factory functions (`get_downloader` and `get_uploader`) that encapsulate authentication context. This pattern:
+### File Operations and Metadata Patterns
+
+The tutorial demonstrates factory functions that encapsulate authentication context. This pattern:
 
 - Keeps authentication logic centralized
 - Makes handlers more testable
 - Simplifies the handler function signatures
 
+#### File Download Pattern
+
+Use `get_downloader_fn()` for downloading raw file bytes (CSV, Excel, binary formats):
+
+```python
+downloader = get_downloader_fn(user_id, company_id, chat_id)
+file_bytes = downloader(file_id)
+```
+
+#### Content Retrieval Pattern
+
+Use `get_file_content_getter_fn()` for accessing file metadata and properties:
+
+```python
+content_getter = get_file_content_getter_fn(user_id, company_id, chat_id)
+content = content_getter(file_id)
+
+# Access metadata
+if content.metadata:
+    section = content.metadata.get("section")
+```
+
+#### File Upload Pattern
+
+Use `get_uploader_fn()` for uploading generated artifacts:
+
+```python
+uploader = get_uploader_fn(user_id, company_id, chat_id)
+content = uploader(file_bytes, mime_type, filename)
+```
+
+#### Reference Creation Pattern
+
+Use `get_augmented_text_with_references_fn()` for creating clickable source links:
+
+```python
+reference_builder = get_augmented_text_with_references_fn(
+    user_id, company_id, chat_id, assistant_id
+)
+
+# Create ID mapping for your content
+id_map = create_id_map(content_items, prefix="chunk")
+
+# Convert citations to references
+augmented_text = reference_builder(
+    text_with_citations,
+    id_map,
+    prefix="chunk",
+    citation_pattern=r"\[chunk_([a-zA-Z0-9\-]+)\]"
+)
+```
+
+**Key Benefits**:
+- Citations become clickable links in the UI
+- Users can verify source information
+- Creates audit trails for AI-generated content
+- Improves transparency and trust
+
 ### Flexibility is Key
 Remember that all handlers in this tutorial are **examples**. The framework provides events and tools - how you use them depends on your business requirements. You can integrate with any external system, use AI models, implement complex workflows, or create custom validation rules.
+
+## Summary of Core Capabilities
+
+This tutorial covered the essential building blocks for Agentic Table applications:
+
+### Event Handling
+- **SHEET_CREATED**: Initialize table structure with headers and styling
+- **ADD_META_DATA**: Process uploaded files (questions and sources)
+- **UPDATE_CELL**: React to user edits with business logic
+- **GENERATE_ARTIFACT**: Export table data as documents
+- **SHEET_COMPLETED**: Finalize and validate completed tables
+
+### Data Operations
+- **Batch updates**: Use `set_multiple_cells()` for performance
+- **Row operations**: Read, update, and verify individual rows
+- **Status management**: Communicate progress with `set_activity()`
+- **Artifact linking**: Connect generated files back to tables
+
+### File Management
+- **Download files**: Process CSV, Excel, and binary formats
+- **Retrieve content**: Access file metadata and properties
+- **Upload artifacts**: Create and link generated documents
+
+### Advanced Capabilities
+- **Metadata filtering**: Organize files by custom categories
+- **Reference creation**: Convert citations to clickable links
+- **Content routing**: Direct files to appropriate table rows
+- **Audit trails**: Track provenance of data and decisions
+
+### Integration Patterns
+All helper functions use the factory pattern with authentication context:
+- Centralizes authentication logic
+- Makes handlers testable
+- Simplifies function signatures
+- Enables dependency injection
+
+**Key Takeaway**: The framework provides the infrastructure (events, table operations, content management) while you implement the business logic (AI agents, validation rules, custom workflows).
 
 ## Next Steps
 
