@@ -20,6 +20,8 @@ class MessageExecution(APIResource["MessageExecution"]):
 
         messageId: str
         type: "MessageExecution.TypeLiteral"
+        isQueueable: NotRequired[bool]
+        executionOptions: NotRequired[dict | None]
 
     class GetMessageExecutionParams(RequestOptions):
         """

@@ -13,6 +13,7 @@ from unique_toolkit.agentic.tools.tool import (
     EvaluationMetricName,
     Tool,
 )
+from unique_toolkit.chat.schemas import MessageExecutionUpdateStatus
 from unique_toolkit.language_model import (
     LanguageModelFunction,
     LanguageModelMessage,
@@ -181,6 +182,19 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
                 completed=True,
             )
 
+            # initialize progress bar
+            self._message_execution = await self._chat_service.create_message_execution_async(
+                message_id=self._chat_service.assistant_message_id,
+                is_queueable=False,
+                execution_options={"toolChoices": ["SWOT"]},
+                percentage_completed=0,
+            )
+
+            await self._chat_service.update_message_execution_async(
+                message_id=self._chat_service.assistant_message_id,
+                percentage_completed=0
+            )
+
             await self._chat_service.modify_assistant_message_async(
                 content=f"**SWOT Analysis Initiated**\n\n- {session_config.swot_analysis.render_session_info()}\n\nAnalyzing data sources and generating comprehensive insights may take some time. Track real-time progress in the steps sidebar.",
             )
@@ -194,12 +208,18 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
                 reporting_agent=reporting_agent,
                 memory_service=memory_service,
                 source_registry=content_chunk_registry,
+                chat_service=self._chat_service,
             )
 
             # Generate markdown report
             result = await orchestrator.run(company_name=company_name, plan=plan)
 
             if result.is_empty():
+                await self._chat_service.update_message_execution_async(
+                    message_id=self._chat_service.assistant_message_id,
+                    percentage_completed=100,
+                    status=MessageExecutionUpdateStatus.COMPLETED,
+                )
                 await self._chat_service.modify_assistant_message_async(
                     content=f"No SWOT analysis results found for the {company_name} with the selected sources. Please make sure to select the correct sources and try again.",
                     set_completed_at=True,
@@ -210,6 +230,11 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
                     content="No SWOT analysis results found for the company. Please try again with a different company or configuration.",
                     content_chunks=[],
                 )
+
+            await self._chat_service.update_message_execution_async(
+                message_id=self._chat_service.assistant_message_id,
+                percentage_completed=90,
+            )
 
             citation_manager = self._get_citation_manager(content_chunk_registry)
 
@@ -229,6 +254,12 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
                 result=result,
                 citation_manager=citation_manager,
                 report_handler=report_handler,
+            )
+
+            await self._chat_service.update_message_execution_async(
+                message_id=self._chat_service.assistant_message_id,
+                percentage_completed=100,
+                status=MessageExecutionUpdateStatus.COMPLETED,
             )
 
             report_handler.deliver_report(

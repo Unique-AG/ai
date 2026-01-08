@@ -1153,6 +1153,8 @@ def create_message_execution(
     type: MessageExecutionType = MessageExecutionType.DEEP_RESEARCH,
     seconds_remaining: int | None = None,
     percentage_completed: int | None = None,
+    is_queueable: bool = True,
+    execution_options: dict | None = None,
 ) -> MessageExecution:
     """Creates a message execution synchronously.
 
@@ -1164,6 +1166,8 @@ def create_message_execution(
         type (MessageExecutionType): The type of execution. Defaults to DEEP_RESEARCH.
         seconds_remaining (int | None): Estimated seconds remaining for completion.
         percentage_completed (int | None): Percentage of completion (0-100).
+        is_queueable (bool): Whether the execution is queueable. Defaults to True. If true, then the progress will be updated in the background by the execution pipeline
+        execution_options (dict | None): Additional execution options. Defaults to None.
 
     Returns:
         MessageExecution: The created message execution.
@@ -1181,6 +1185,8 @@ def create_message_execution(
             type=type.value,
             secondsRemaining=seconds_remaining,
             percentageCompleted=percentage_completed,
+            isQueueable=is_queueable,
+            executionOptions=execution_options,
         )
         return MessageExecution(**message_execution)
     except Exception as e:
@@ -1196,6 +1202,8 @@ async def create_message_execution_async(
     type: MessageExecutionType = MessageExecutionType.DEEP_RESEARCH,
     seconds_remaining: int | None = None,
     percentage_completed: int | None = None,
+    is_queueable: bool = True,
+    execution_options: dict | None = None,
 ) -> MessageExecution:
     """Creates a message execution asynchronously.
 
@@ -1207,6 +1215,8 @@ async def create_message_execution_async(
         type (MessageExecutionType): The type of execution. Defaults to DEEP_RESEARCH.
         seconds_remaining (int | None): Estimated seconds remaining for completion.
         percentage_completed (int | None): Percentage of completion (0-100).
+        is_queueable (bool): Whether the execution is queueable. Defaults to True. If true, then the progress will be updated in the background by the execution pipeline
+        execution_options (dict | None): Additional execution options. Defaults to None.
 
     Returns:
         MessageExecution: The created message execution.
@@ -1224,6 +1234,8 @@ async def create_message_execution_async(
             type=type.value,
             secondsRemaining=seconds_remaining,
             percentageCompleted=percentage_completed,
+            isQueueable=is_queueable,
+            executionOptions=execution_options,
         )
         return MessageExecution(**message_execution)
     except Exception as e:

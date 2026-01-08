@@ -2,6 +2,7 @@ from logging import getLogger
 from typing import AsyncIterator, Protocol
 
 from tqdm.asyncio import tqdm
+from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content import Content, ContentChunk, ContentReference
 
 from unique_swot.services.generation.models.base import SWOTReportComponents
@@ -82,6 +83,7 @@ class SWOTOrchestrator:
         reporting_agent: ReportingAgent,
         source_registry: SourceRegistry,
         memory_service: SwotMemoryService,
+        chat_service: ChatService,
     ):
         self._source_collector = source_collector
         self._source_selector = source_selector
@@ -90,7 +92,7 @@ class SWOTOrchestrator:
         self._memory_service = memory_service
         self._step_notifier = step_notifier
         self._source_registry = source_registry
-
+        self._chat_service = chat_service
     async def run(self, *, company_name: str, plan: SWOTPlan) -> SWOTReportComponents:
         contents = await self._source_collector.collect(
             step_notifier=self._step_notifier
@@ -101,10 +103,16 @@ class SWOTOrchestrator:
         )
 
         total_steps = len(contents)
+        current_step = 0
 
         async for content in tqdm(
             source_iterator, total=total_steps, desc="Processing sources"
         ):
+            current_step += 1
+            await self._chat_service.update_message_execution_async(
+                message_id=self._chat_service.assistant_message_id,
+                percentage_completed=(current_step-1) * 80 / total_steps + 10,
+            )
             source_selection_result = await self._source_selector.select(
                 company_name=company_name,
                 content=content,
