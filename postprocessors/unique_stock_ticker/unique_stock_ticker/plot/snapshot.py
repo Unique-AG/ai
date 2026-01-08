@@ -1,15 +1,16 @@
 import datetime
 from logging import getLogger
 
-from unique_stock_ticker.clients.six.client import SixApiClient
-from unique_stock_ticker.clients.six.exception import raise_errors_from_api_response
-from unique_stock_ticker.clients.six.schema.common.listing import (
+from unique_six.client import SixApiClient
+from unique_six.exception import raise_errors_from_api_response
+from unique_six.schema.common.listing import (
     ListingIdentifierScheme,
 )
-from unique_stock_ticker.clients.six.schema.intraday_snapshot.response import (
+from unique_six.schema.intraday_snapshot.response import (
     IntradaySnapshotResponsePayload,
     IntradaySnapshotValues,
 )
+
 from unique_stock_ticker.plot.backend.base.schema import MetricName
 
 

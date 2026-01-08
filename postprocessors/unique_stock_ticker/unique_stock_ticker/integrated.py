@@ -1,7 +1,7 @@
+from unique_six.schema.common.instrument import InstrumentType
 from unique_toolkit.language_model.service import LanguageModelService
 
 from unique_stock_ticker.clients.six.client import get_six_api_client
-from unique_stock_ticker.clients.six.schema.common.instrument import InstrumentType
 from unique_stock_ticker.config import StockTickerConfig
 from unique_stock_ticker.detection.service import get_stock_ticker_service
 from unique_stock_ticker.plot.backend.utils import get_plotting_backend
