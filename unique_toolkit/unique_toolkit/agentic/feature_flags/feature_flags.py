@@ -24,7 +24,7 @@ class FeatureFlags(BaseSettings):
         """Check if new answers UI is enabled for the given company."""
         value = self.feature_flag_enable_new_answers_ui_un_14411
         return value.lower() == "true" or bool(
-            company_id and company_id in value.split(",")
+            company_id and company_id in [id.strip() for id in value.split(",")]
         )
 
 

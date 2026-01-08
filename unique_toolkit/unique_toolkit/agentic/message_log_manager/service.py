@@ -95,7 +95,7 @@ class MessageStepLogger:
         status: MessageLogStatus,
         details: MessageLogDetails | None = None,
         references: list[ContentReference] = [],
-    ) -> MessageLog | None:
+    ) -> MessageLog:
         """
         Update a message log entry with a new status.
         The updated message log entry is returned. If the message log entry is not updated, None is returned.
@@ -104,7 +104,7 @@ class MessageStepLogger:
             _LOGGER.warning(
                 "Message log id is not set. Skipping message log entry update."
             )
-            return
+            return message_log
         return self._chat_service.update_message_log(
             message_log_id=message_log.message_log_id,
             order=message_log.order,
@@ -123,7 +123,7 @@ class MessageStepLogger:
         progress_message: str | None = None,
         status: MessageLogStatus = MessageLogStatus.RUNNING,
         details: MessageLogDetails | None = None,
-        references: list[ContentReference] | None = None,
+        references: list[ContentReference] | None = [],
     ) -> MessageLog | None:
         """
         Create a new message log entry or update an existing one.
