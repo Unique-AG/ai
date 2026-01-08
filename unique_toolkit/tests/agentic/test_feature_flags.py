@@ -510,4 +510,3 @@ def test_feature_flags__ignores_extra_env_vars__AI() -> None:
         # Assert
         assert flags.feature_flag_enable_new_answers_ui_un_14411 == "true"
         assert not hasattr(flags, "some_other_env_var")
-
