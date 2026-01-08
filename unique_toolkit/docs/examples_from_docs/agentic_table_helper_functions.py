@@ -103,7 +103,7 @@ def convert_content_chunk_to_reference(
         else:
             page_suffix = f": {start_page}"
 
-    title = f"{title}{page_suffix}"
+    title = f"{title}{page_suffix}" if page_suffix else title
 
     return ContentReference(
         message_id=message_id,

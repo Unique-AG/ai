@@ -215,7 +215,7 @@ async def handle_source_files(
             )
             
             if len(relevant_contents) == 0:
-                logger.warning(f"No contents found for section '{section_name}'")
+                logger.warning(f"No contents found for section '{section_name.text}'")
                 continue
 
             logger.info(
