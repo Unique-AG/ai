@@ -7,6 +7,7 @@ from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
     DebugInfoManager,
 )
 from unique_toolkit.agentic.evaluation.evaluation_manager import EvaluationManager
+from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
 from unique_toolkit.agentic.loop_runner import LoopIterationRunner
 from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
@@ -102,7 +103,7 @@ class UniqueAI:
         """
         self._logger.info("Start LoopAgent...")
 
-        if self._history_manager.has_no_loop_messages():  # TODO: why do we even need to check its always no loop messages on this when its called.
+        if not feature_flags.is_new_answers_ui_enabled(self._event.company_id):
             self._chat_service.modify_assistant_message(
                 content="Starting agentic loop..."  # TODO: this must be more informative
             )
