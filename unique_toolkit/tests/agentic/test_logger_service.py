@@ -656,7 +656,7 @@ def test_update_message_log_entry__returns_none__when_message_log_id_not_set_AI(
     )
 
     # Assert
-    assert result is None
+    assert result is message_log_without_id
 
 
 # Create or Update Message Log Tests

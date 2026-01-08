@@ -451,9 +451,9 @@ def test_is_new_answers_ui_enabled__returns_false__when_company_id_is_empty_stri
 @pytest.mark.ai
 def test_is_new_answers_ui_enabled__handles_whitespace_in_company_ids_AI() -> None:
     """
-    Purpose: Verify whitespace in company IDs is preserved (not trimmed).
-    Why this matters: Exact matching means whitespace affects results.
-    Setup summary: Set flag with spaces, verify behavior.
+    Purpose: Verify whitespace in company IDs is trimmed.
+    Why this matters: Whitespace around company IDs in env var should be ignored.
+    Setup summary: Set flag with spaces around IDs, verify trimmed matching.
     """
     # Arrange
     with patch.dict(
@@ -468,8 +468,8 @@ def test_is_new_answers_ui_enabled__handles_whitespace_in_company_ids_AI() -> No
         result_without_space = flags.is_new_answers_ui_enabled(company_id="company2")
 
         # Assert
-        assert result_with_space is True
-        assert result_without_space is False
+        assert result_with_space is False  # Space in lookup won't match trimmed ID
+        assert result_without_space is True  # Matches trimmed ID
 
 
 # Module-level Singleton Tests
