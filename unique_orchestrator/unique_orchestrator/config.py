@@ -129,7 +129,6 @@ class LoopConfiguration(BaseModel):
 
 class EvaluationConfig(BaseModel):
     model_config = get_configuration_dict()
-    max_review_steps: int = 3
     hallucination_config: HallucinationConfig = HallucinationConfig()
 
 
@@ -186,7 +185,6 @@ class UniqueAIServices(BaseModel):
         | DeactivatedNone
     ) = EvaluationConfig(
         hallucination_config=HallucinationConfig(),
-        max_review_steps=0,
     )
 
     uploaded_content_config: UploadedContentConfig = UploadedContentConfig()
@@ -279,12 +277,6 @@ class ExperimentalConfig(BaseModel):
     model_config = get_configuration_dict(frozen=True)
 
     thinking_steps_display: bool = False
-
-    # TODO: @gustavhartz, the Hallucination check should be triggered if enabled and the answer contains references.
-    force_checks_on_stream_response_references: list[EvaluationMetricName] = Field(
-        default=[EvaluationMetricName.HALLUCINATION],
-        description="A list of checks to force on references. This is used to add hallucination check to references without new tool calls.",
-    )
 
     # TODO: The temperature should be used via the additional_llm_options
     # then the additional_llm_options migth should eventually be closer to the LangaugeModelInfo

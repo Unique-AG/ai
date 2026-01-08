@@ -88,7 +88,6 @@ class InternalSearchConfig(BaseToolConfig):
         validation_alias=AliasChoices("ftsSearchLanguage", "searchLanguage"),
         description="The language to use for the search.",
     )
-    # evaluation_config: EvaluationMetricConfig = EvaluationMetricConfig()
     chunk_relevancy_sort_config: ChunkRelevancySortConfig = Field(
         default_factory=ChunkRelevancySortConfig,
         description="The chunk relevancy sort config to use for the search.",
