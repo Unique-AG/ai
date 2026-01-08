@@ -52,6 +52,13 @@ class BaseMetadata(BaseModel):
     additional_sheet_information: dict[str, Any] = Field(
         default_factory=dict, description="Additional information for the sheet"
     )
+    
+    @field_validator("additional_sheet_information", mode="before")
+    @classmethod
+    def normalize_additional_sheet_information(cls, v):
+        if v is None:
+            return {}
+        return v
 
 
 class RowMetadataEntry(BaseModel):
