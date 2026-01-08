@@ -39,6 +39,17 @@ def create_zitadel_oauth_proxy(
     *,
     mcp_server_base_url: str = "http://localhost:8003",
     zitadel_oauth_proxy_settings: ZitadelOAuthProxySettings | None = None,
+    algorithm: str | None = None,
+    audience: str | None = None,
+    redirect_path: str | None = None,
+    issuer_url=None,
+    service_documentation_url=None,
+    allowed_client_redirect_uris=None,
+    valid_scopes: list[str] | None = None,
+    forward_pkce=True,
+    token_endpoint_auth_method="client_secret_post",
+    extra_authorize_params=None,
+    extra_token_params=None,
 ) -> OAuthProxy:
     """Create a Zitadel OAuth proxy instance.
 
@@ -48,13 +59,26 @@ def create_zitadel_oauth_proxy(
     Returns:
         Configured OAuthProxy instance
     """
+
+    valid_scopes = valid_scopes or [
+        "mcp:tools",
+        "mcp:prompts",
+        "mcp:resources",
+        "mcp:resource-templates",
+        "email",
+        "openid",
+        "profile",
+        "urn:zitadel:iam:user:resourceowner",
+        "urn:zitadel:iam:user:metadata",
+    ]
+
     settings = zitadel_oauth_proxy_settings or ZitadelOAuthProxySettings()
 
     token_verifier = JWTVerifier(
         jwks_uri=settings.jwks_uri(),
         issuer=settings.base_url,  # Issuer is Zitadel's URL
-        algorithm=None,
-        audience=None,
+        algorithm=algorithm,
+        audience=audience,
         # required_scopes=[],
     )
 
@@ -66,22 +90,13 @@ def create_zitadel_oauth_proxy(
         upstream_revocation_endpoint=settings.revoke_endpoint(),
         token_verifier=token_verifier,
         base_url=mcp_server_base_url,
-        redirect_path=None,
-        issuer_url=None,
-        service_documentation_url=None,
-        allowed_client_redirect_uris=None,
-        valid_scopes=[
-            "mcp:tools",
-            "mcp:prompts",
-            "mcp:resources",
-            "mcp:resource-templates",
-            "email",
-            "openid",
-            "profile",
-            "urn:zitadel:iam:user:resourceowner",
-        ],
-        forward_pkce=True,
-        token_endpoint_auth_method="client_secret_post",
-        extra_authorize_params=None,
-        extra_token_params=None,
+        redirect_path=redirect_path,
+        issuer_url=issuer_url,
+        service_documentation_url=service_documentation_url,
+        allowed_client_redirect_uris=allowed_client_redirect_uris,
+        valid_scopes=valid_scopes,
+        forward_pkce=forward_pkce,
+        token_endpoint_auth_method=token_endpoint_auth_method,
+        extra_authorize_params=extra_authorize_params,
+        extra_token_params=extra_token_params,
     )
