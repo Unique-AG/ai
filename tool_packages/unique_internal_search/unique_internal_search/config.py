@@ -29,11 +29,7 @@ from unique_internal_search.prompts import (
 from unique_internal_search.validators import get_string_field_with_pattern_validation
 
 
-class ExperimentalFeatures(FeatureExtendedSourceSerialization):
-    enable_multiple_search_strings_execution: bool = Field(
-        default=False,
-        description="Allow execution of multiple search strings in one call. When set to True, each string is searched individually and results are merged into a single response.",
-    )
+class ExperimentalFeatures(FeatureExtendedSourceSerialization): ...
 
 
 DEFAULT_LIMIT_CHUNK_RELEVANCY_SORT_ENABLED = 200
@@ -132,7 +128,13 @@ class InternalSearchConfig(BaseToolConfig):
         default=[EvaluationMetricName.HALLUCINATION],
         description="The list of evaluation metrics to check.",
     )
-    experimental_features: ExperimentalFeatures = ExperimentalFeatures()
+
+    enable_multiple_search_strings_execution: bool = Field(
+        default=True,
+        description="Allow execution of multiple search strings in one call. When set to True, each string is searched individually and results are merged into a single response.",
+    )
+
+    experimental_features: SkipJsonSchema[ExperimentalFeatures] = ExperimentalFeatures()
 
     metadata_chunk_sections: dict[str, str] = Field(
         default={},
@@ -147,7 +149,7 @@ class InternalSearchConfig(BaseToolConfig):
         le=1.0,
         description="The score threshold to use for the search to filter chunks on relevancy.",
     )
-    exclude_uploaded_files: bool = Field(
+    exclude_uploaded_files: SkipJsonSchema[bool] = Field(
         default=False,
         description="Whether to exclude uploaded files from the search. Overrides the `chat_only` parameter as it removes the `chat_id` from the search.",
     )

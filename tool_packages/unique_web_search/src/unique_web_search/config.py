@@ -149,7 +149,7 @@ class WebSearchConfig(BaseToolConfig):
         description="Tool format information for system prompt. This is used to format the tool response for the system prompt.",
     )
 
-    experimental_features: ExperimentalFeatures = ExperimentalFeatures()
+    experimental_features: SkipJsonSchema[ExperimentalFeatures] = ExperimentalFeatures()
 
     debug: bool = Field(
         default=False,

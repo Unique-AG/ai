@@ -3,8 +3,13 @@ from enum import StrEnum
 from pydantic import BaseModel, Field
 from unidecode import unidecode
 from unique_toolkit import LanguageModelName
+from unique_toolkit._common.validators import (
+    LMI,
+    get_LMI_default_field,
+)
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 from unique_toolkit.content.schemas import ContentChunk
+from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
 
@@ -80,9 +85,9 @@ class ContentProcessorConfig(BaseModel):
         default=True,
         description="Whether to remove URLs from markdown links in website content.",
     )
-    language_model: LanguageModelInfo = Field(
-        default=LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_4o_2024_1120),
-        description="The language model to use for SUMMARIZE strategy",
+    language_model: LMI = Field(
+        default=get_LMI_default_field(DEFAULT_GPT_4o),
+        description="The language model to use for summarization"
     )
     max_tokens: int = Field(
         default=5000,

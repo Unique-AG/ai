@@ -194,7 +194,7 @@ class InternalSearchService:
         # 3. Pick a subset of the search results
         ###
         if (
-            self.config.experimental_features.enable_multiple_search_strings_execution
+            self.config.enable_multiple_search_strings_execution
             and len(found_chunks_per_search_string) > 1
         ):
             found_chunks_per_search_string = interleave_search_results_round_robin(
@@ -459,7 +459,7 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
     @override
     def tool_description(self) -> LanguageModelToolDescription:
         # Conditionally set the type based on config
-        if self.config.experimental_features.enable_multiple_search_strings_execution:
+        if self.config.enable_multiple_search_strings_execution:
             search_string_field = (
                 list[str],
                 Field(
