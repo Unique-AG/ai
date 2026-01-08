@@ -539,15 +539,15 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
         else:
             raise ValueError("Invalid search strings data")
 
-        self._active_message_log = await self._create_or_update_active_message_log(
-            progress_message="Retrieving search results...",
-            search_strings_list=search_strings_list,
-        )
-
         # Clean search strings by removing QDF and boost operators
         search_strings_list = [clean_search_string(s) for s in search_strings_list]
         search_strings_list = list(dict.fromkeys(search_strings_list))
         search_strings_list = search_strings_list[: self.config.max_search_strings]
+
+        self._active_message_log = await self._create_or_update_active_message_log(
+            progress_message="Retrieving search results...",
+            search_strings_list=search_strings_list,
+        )
 
         if not feature_flags.is_new_answers_ui_enabled(self.company_id):
             await self.post_progress_message(
