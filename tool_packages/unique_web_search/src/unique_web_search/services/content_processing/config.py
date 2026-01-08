@@ -2,7 +2,6 @@ from enum import StrEnum
 
 from pydantic import BaseModel, Field
 from unidecode import unidecode
-from unique_toolkit import LanguageModelName
 from unique_toolkit._common.validators import (
     LMI,
     get_LMI_default_field,
@@ -10,7 +9,6 @@ from unique_toolkit._common.validators import (
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
-from unique_toolkit.language_model.infos import LanguageModelInfo
 
 
 class ContentProcessingStartegy(StrEnum):
@@ -87,7 +85,7 @@ class ContentProcessorConfig(BaseModel):
     )
     language_model: LMI = Field(
         default=get_LMI_default_field(DEFAULT_GPT_4o),
-        description="The language model to use for summarization"
+        description="The language model to use for summarization",
     )
     max_tokens: int = Field(
         default=5000,
