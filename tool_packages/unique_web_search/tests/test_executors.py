@@ -5,7 +5,12 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from unique_web_search.schema import Step, StepType, WebSearchPlan, WebSearchToolParameters
+from unique_web_search.schema import (
+    Step,
+    StepType,
+    WebSearchPlan,
+    WebSearchToolParameters,
+)
 from unique_web_search.services.executors.configs import RefineQueryMode
 from unique_web_search.services.executors.web_search_v1_executor import (
     RefinedQueries,
@@ -13,7 +18,9 @@ from unique_web_search.services.executors.web_search_v1_executor import (
     WebSearchV1Executor,
     query_generation_agent,
 )
-from unique_web_search.services.executors.web_search_v2_executor import WebSearchV2Executor
+from unique_web_search.services.executors.web_search_v2_executor import (
+    WebSearchV2Executor,
+)
 from unique_web_search.services.search_engine.schema import WebSearchResult
 
 
@@ -207,7 +214,9 @@ class TestWebSearchV1ExecutorRun:
         Why this matters: Ensures the main execution flow works correctly.
         Setup summary: Mock all services to return successful results.
         """
-        tool_parameters = WebSearchToolParameters(query="test query", date_restrict=None)
+        tool_parameters = WebSearchToolParameters(
+            query="test query", date_restrict=None
+        )
 
         mock_executor_dependencies["search_service"].search = AsyncMock(
             return_value=sample_web_search_results
@@ -255,7 +264,9 @@ class TestWebSearchV1ExecutorRun:
         Why this matters: Some search engines don't return content, requiring crawling.
         Setup summary: Set requires_scraping=True on search service.
         """
-        tool_parameters = WebSearchToolParameters(query="test query", date_restrict=None)
+        tool_parameters = WebSearchToolParameters(
+            query="test query", date_restrict=None
+        )
 
         mock_executor_dependencies["search_service"].search = AsyncMock(
             return_value=sample_web_search_results
@@ -315,9 +326,9 @@ class TestWebSearchV1ExecutorRefineQuery:
             "objective": "test objective",
             "refined_query": "refined test",
         }
-        mock_executor_dependencies[
-            "language_model_service"
-        ].complete_async = AsyncMock(return_value=mock_response)
+        mock_executor_dependencies["language_model_service"].complete_async = AsyncMock(
+            return_value=mock_response
+        )
 
         executor = WebSearchV1Executor(
             company_id="test-company",
@@ -367,9 +378,9 @@ class TestWebSearchV1ExecutorRefineQuery:
                 {"objective": "sub2", "refined_query": "query2"},
             ],
         }
-        mock_executor_dependencies[
-            "language_model_service"
-        ].complete_async = AsyncMock(return_value=mock_response)
+        mock_executor_dependencies["language_model_service"].complete_async = AsyncMock(
+            return_value=mock_response
+        )
 
         executor = WebSearchV1Executor(
             company_id="test-company",
@@ -588,9 +599,9 @@ class TestWebSearchV2ExecutorExecuteStep:
             return_value=sample_web_search_results
         )
         mock_executor_dependencies["search_service"].requires_scraping = False
-        mock_executor_dependencies["search_service"].config.search_engine_name.name = (
-            "TEST"
-        )
+        mock_executor_dependencies[
+            "search_service"
+        ].config.search_engine_name.name = "TEST"
 
         executor = WebSearchV2Executor(
             company_id="test-company",
@@ -692,9 +703,9 @@ class TestWebSearchV2ExecutorExecuteSearchStep:
             return_value=sample_web_search_results
         )
         mock_executor_dependencies["search_service"].requires_scraping = False
-        mock_executor_dependencies["search_service"].config.search_engine_name.name = (
-            "TEST"
-        )
+        mock_executor_dependencies[
+            "search_service"
+        ].config.search_engine_name.name = "TEST"
 
         executor = WebSearchV2Executor(
             company_id="test-company",
@@ -742,9 +753,9 @@ class TestWebSearchV2ExecutorExecuteSearchStep:
             return_value=sample_web_search_results
         )
         mock_executor_dependencies["search_service"].requires_scraping = True
-        mock_executor_dependencies["search_service"].config.search_engine_name.name = (
-            "TEST"
-        )
+        mock_executor_dependencies[
+            "search_service"
+        ].config.search_engine_name.name = "TEST"
         mock_executor_dependencies["crawler_service"].crawl = AsyncMock(
             return_value=["content1", "content2"]
         )
@@ -796,9 +807,9 @@ class TestWebSearchV2ExecutorExecuteSearchStep:
             return_value=sample_web_search_results
         )
         mock_executor_dependencies["search_service"].requires_scraping = False
-        mock_executor_dependencies["search_service"].config.search_engine_name.name = (
-            "TEST"
-        )
+        mock_executor_dependencies[
+            "search_service"
+        ].config.search_engine_name.name = "TEST"
 
         executor = WebSearchV2Executor(
             company_id="test-company",
@@ -947,12 +958,8 @@ class TestWebSearchV2ExecutorEnforceMaxSteps:
             objective="Test",
             query_analysis="Analysis",
             steps=[
-                Step(
-                    step_type=StepType.SEARCH, objective="s1", query_or_url="q1"
-                ),
-                Step(
-                    step_type=StepType.SEARCH, objective="s2", query_or_url="q2"
-                ),
+                Step(step_type=StepType.SEARCH, objective="s1", query_or_url="q1"),
+                Step(step_type=StepType.SEARCH, objective="s2", query_or_url="q2"),
             ],
             expected_outcome="Outcome",
         )
@@ -995,21 +1002,11 @@ class TestWebSearchV2ExecutorEnforceMaxSteps:
             objective="Test",
             query_analysis="Analysis",
             steps=[
-                Step(
-                    step_type=StepType.SEARCH, objective="s1", query_or_url="q1"
-                ),
-                Step(
-                    step_type=StepType.SEARCH, objective="s2", query_or_url="q2"
-                ),
-                Step(
-                    step_type=StepType.SEARCH, objective="s3", query_or_url="q3"
-                ),
-                Step(
-                    step_type=StepType.SEARCH, objective="s4", query_or_url="q4"
-                ),
-                Step(
-                    step_type=StepType.SEARCH, objective="s5", query_or_url="q5"
-                ),
+                Step(step_type=StepType.SEARCH, objective="s1", query_or_url="q1"),
+                Step(step_type=StepType.SEARCH, objective="s2", query_or_url="q2"),
+                Step(step_type=StepType.SEARCH, objective="s3", query_or_url="q3"),
+                Step(step_type=StepType.SEARCH, objective="s4", query_or_url="q4"),
+                Step(step_type=StepType.SEARCH, objective="s5", query_or_url="q5"),
             ],
             expected_outcome="Outcome",
         )
@@ -1062,9 +1059,9 @@ class TestWebSearchV2ExecutorDebugInfo:
             return_value=sample_web_search_results
         )
         mock_executor_dependencies["search_service"].requires_scraping = False
-        mock_executor_dependencies["search_service"].config.search_engine_name.name = (
-            "TEST"
-        )
+        mock_executor_dependencies[
+            "search_service"
+        ].config.search_engine_name.name = "TEST"
 
         executor = WebSearchV2Executor(
             company_id="test-company",
@@ -1099,4 +1096,3 @@ class TestWebSearchV2ExecutorDebugInfo:
         )
         assert search_step is not None
         assert search_step.extra["query"] == "test query"
-
