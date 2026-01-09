@@ -168,6 +168,7 @@ class LanguageModelStreamResponse(BaseModel):
 
     message: LanguageModelStreamResponseMessage
     tool_calls: list[LanguageModelFunction] | None = None
+    stopped_by_user: bool = False
 
     def is_empty(self) -> bool:
         """
