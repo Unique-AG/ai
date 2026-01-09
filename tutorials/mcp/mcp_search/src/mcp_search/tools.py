@@ -1,4 +1,6 @@
 from copy import deepcopy
+from enum import StrEnum
+from textwrap import dedent
 from typing import Annotated
 
 from fastmcp import FastMCP
@@ -41,7 +43,6 @@ class UniqueKnowledgeBaseTools(BaseProvider):
                 "unique.app/icon": "search",
                 "unique.app/system-prompt": "Choose this tool if you need to search in the knowledge base",
             },
-            exclude_args=["unique_auth"],
         )
         def _search(
             search_string: Annotated[
@@ -64,11 +65,10 @@ class UniqueKnowledgeBaseTools(BaseProvider):
                     default=10,
                 ),
             ] = 10,
-            unique_auth: UniqueAuth | None = None,
         ) -> CallToolResult:
             """Search in the knowledge base"""
 
-            settings = self._get_unique_settings_for_request(unique_auth=unique_auth)
+            settings = self._get_unique_settings_for_request()
 
             knowledge_base_service = KnowledgeBaseService.from_settings(settings)
 
@@ -85,3 +85,119 @@ class UniqueKnowledgeBaseTools(BaseProvider):
                     for chunk in content_chunks
                 ],
             )
+
+        @mcp.tool(
+            name="list_files",
+            description="This tool lists the files in the knowledge base",
+            meta={
+                "unique.app/icon": "file",
+                "unique.app/system-prompt": "Choose this tool if you need to list the files in the knowledge base",
+            },
+        )
+        def _list_files(
+            user_confirmed: Annotated[
+                bool,
+                Field(
+                    description="""Weather the user has confirmed that the tool should be used. 
+                    You must have explicit confirmation from the user before using this tool."""
+                ),
+            ],
+        ) -> CallToolResult:
+            """List the files in the knowledge base"""
+
+            if not user_confirmed:
+                return CallToolResult(
+                    content=[
+                        TextContent(
+                            type="text",
+                            text="You must have explicit confirmation from the user before using this tool.",
+                        )
+                    ],
+                )
+
+            files = dedent("""
+                        ├── src
+                        │   └── mcp_search
+                        │       ├── __init__.py
+                        │       ├── favicon.ico
+                        │       ├── mcp_client.py
+                        │       ├── mcp_search_server.py
+                        │       ├── routes.py
+                        │       ├── tools.py
+                        │       └── util.py
+                        """)
+
+            return CallToolResult(
+                content=[TextContent(type="text", text=files)],
+            )
+
+        Filenames = StrEnum(
+            "Filenames",
+            {
+                filename: filename
+                for filename in [
+                    "mcp_client.py",
+                    "mcp_search_server.py",
+                    "routes.py",
+                    "tools.py",
+                    "util.py",
+                    "favicon.ico",
+                    "pyproject.toml",
+                    "README.md",
+                    "LICENSE",
+                ]
+            },
+        )
+
+        @mcp.tool(
+            name="find_file",
+            description=dedent("""This tool finds a file in the knowledge base by name or a fuzzy search string.
+            If you provide a fuzzy search string, the tool will return the files that match the search string.
+            and the you should ask the user which file they want to use.
+            If you provide a file name, the tool will return the file to download."""),
+            meta={
+                "unique.app/icon": "file",
+                "unique.app/system-prompt": "Choose this tool if you need to find a file in the knowledge base by name",
+            },
+        )
+        def _find_file(
+            file_name_or_fuzzy_search_string: Annotated[
+                Filenames | str,  # type: ignore
+                Field(
+                    description="""
+                        The name of the file to find in the knowledge base or a fuzzy search string to find the file.
+                        If you provide a fuzzy search string, the tool will return the files that match the search string.
+                        and the you should ask the user which file they want to use.
+                        If you provide a file name, the tool will return the file to download.
+                        
+                        """
+                ),
+            ] = None,
+        ) -> CallToolResult:
+            """Fuzzy search the files in the knowledge base"""
+
+            if file_name_or_fuzzy_search_string in Filenames:
+                return CallToolResult(
+                    content=[
+                        TextContent(
+                            type="text",
+                            text=f"The file {file_name_or_fuzzy_search_string} does exist",  # type: ignore
+                        )
+                    ],
+                )
+            else:
+                files = [
+                    file
+                    for file in Filenames
+                    if file_name_or_fuzzy_search_string in file
+                ]
+
+                return CallToolResult(
+                    content=[
+                        TextContent(
+                            type="text",
+                            text="The following files match the search string: \n -"
+                            + "\n - ".join(files),
+                        )
+                    ],
+                )
