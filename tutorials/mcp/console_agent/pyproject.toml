@@ -15,10 +15,13 @@ dependencies = [
     "rich>=14.2.0",
     "unique-mcp>=0.1.1",
     "unique-toolkit>=1.42.8",
+    "flet[all]>=0.80.1",
 ]
+
 
 [project.scripts]
 console-agent = "console_agent:main"
+console-agent-gui = "console_agent.flet_ui:main_cli"
 
 [build-system]
 requires = ["uv_build>=0.8.23,<0.9.0"]

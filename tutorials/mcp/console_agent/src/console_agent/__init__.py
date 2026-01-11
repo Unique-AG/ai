@@ -24,6 +24,16 @@ from console_agent.console_ui import (
     format_token_usage,
     get_default_ui,
 )
+from console_agent.flet_ui import (
+    FletUI,
+    FletUIConfig,
+    MessageBubble,
+    TokenUsageBar,
+    run_flet_ui,
+)
+from console_agent.flet_ui import (
+    main_cli as gui_main,
+)
 from console_agent.interactive_runner import (
     ConversationState,
     InputHandler,
@@ -91,4 +101,11 @@ __all__ = [
     "TokenStats",
     "TokenTracker",
     "create_tracker_from_model",
+    # Flet UI
+    "FletUI",
+    "FletUIConfig",
+    "MessageBubble",
+    "TokenUsageBar",
+    "gui_main",
+    "run_flet_ui",
 ]

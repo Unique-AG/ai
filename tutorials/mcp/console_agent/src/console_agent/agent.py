@@ -245,6 +245,69 @@ class AgentOrchestrator:
             )
             sys.exit(1)
 
+    async def run_gui(
+        self,
+        mcp_server_url: Optional[str] = None,
+        model: LanguageModelName = LanguageModelName.AZURE_GPT_4o_2024_1120,
+        use_oauth: bool = True,
+        debug: bool = False,
+    ) -> None:
+        """Run the agent with Flet GUI.
+
+        Args:
+            mcp_server_url: Optional MCP server URL (defaults to ServerSettings)
+            model: Language model to use
+            use_oauth: Whether to use OAuth authentication
+            debug: Whether to show debug information
+        """
+        # Import here to avoid requiring flet for console mode
+        from console_agent.flet_ui import run_flet_ui
+
+        # Resolve MCP server URL
+        server_url = mcp_server_url or get_mcp_server_url()
+
+        # Check server availability (using console UI for initial setup)
+        self._ui.print(f"[dim]Checking MCP server availability: {server_url}[/dim]")
+
+        with self._ui.create_status("[bold yellow]Checking server...[/bold yellow]"):
+            connection_result = await self._mcp_service.check_server_available(
+                server_url
+            )
+
+        self._ui.print_server_status(
+            url=server_url,
+            available=connection_result.available,
+            use_oauth=use_oauth,
+        )
+
+        try:
+            # Get model info for token tracking
+            model_info = self._get_model_info(model, debug)
+
+            # Create agent
+            agent = self._create_agent(
+                model=model,
+                server_url=server_url,
+                connection_result=connection_result,
+                use_oauth=use_oauth,
+                debug=debug,
+            )
+
+            self._ui.print("[dim]Launching Flet GUI...[/dim]\n")
+
+            # Run Flet GUI (sync - manages its own event loop)
+            run_flet_ui(
+                agent=agent,
+                model_info=model_info,
+                debug=debug,
+            )
+
+        except Exception as e:
+            self._ui.print(
+                f"[bold red]Failed to start GUI:[/bold red] {str(e)}",
+            )
+            sys.exit(1)
+
     async def _check_server(
         self,
         server_url: str,
