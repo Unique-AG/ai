@@ -331,7 +331,10 @@ class GenerationHandler:
                 model_name=self.config.language_model.name,
             )
 
-            return response.choices[0].message.content  # type: ignore
+            response_text = response.choices[0].message.content
+
+            assert isinstance(response_text, str), "Response must be a string"
+            return response_text
 
         except Exception as e:
             raise LLMCallError(
