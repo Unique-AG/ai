@@ -1,0 +1,16 @@
+{# User prompt with group-specific instructions and optional previous summary #}
+{% if group_instruction %}
+## Section-Specific Instructions
+{{ group_instruction }}
+
+{% endif %}
+{% if previous_summary %}
+## Context from Previous Batch
+The following is a summary from the previous batch of content for this section. Build upon this context when generating your summary:
+
+{{ previous_summary }}
+
+{% endif %}
+## Content to Summarize
+{{ content }}
+

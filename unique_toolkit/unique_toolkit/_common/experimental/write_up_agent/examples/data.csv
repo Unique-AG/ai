@@ -1,0 +1,13 @@
+section,question,answer
+Introduction,What is the Write-Up Agent?,The Write-Up Agent is a tool that automatically generates summaries from structured DataFrame data using LLM technology.
+Introduction,Who should use this tool?,Data scientists and analysts who need to convert tabular data into readable reports.
+Introduction,What are the key benefits?,Automated report generation with customizable templates and intelligent summarization.
+Methods,How does the agent process data?,The agent groups data by sections and generates summaries for each group using LLM calls with adaptive batching.
+Methods,What is adaptive batching?,A technique that splits large groups into smaller batches to fit within token limits while maintaining context.
+Methods,Can I customize the output format?,Yes! You can provide custom Jinja templates to control the structure and style of the generated report.
+Results,What level of accuracy can I expect?,The agent leverages state-of-the-art LLMs to produce accurate and contextually relevant summaries.
+Results,How fast is the processing?,Processing speed depends on the LLM provider and the size of your dataset. Batching helps optimize performance.
+Results,Can it handle large datasets?,Yes! The agent automatically batches large groups to handle datasets of any size efficiently.
+Conclusion,Is this production-ready?,Yes! The agent includes robust error handling and type-safe operations using Pydantic schemas.
+Conclusion,Where can I find more examples?,Check the examples directory for additional use cases and custom template examples.
+

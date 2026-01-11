@@ -1,0 +1,36 @@
+{#
+  Default Write-Up Agent Template
+  
+  This template works in two phases:
+  1. PHASE 1 (LLM Input): When g.llm_response is not provided, renders all Q&A data
+     - Used to send structured data to the LLM for summarization
+  2. PHASE 2 (Final Report): When g.llm_response is provided, renders the LLM output
+     - Used to generate the final markdown report with LLM summaries
+  
+  Template Variables:
+  - groups: List of data groups
+  - g.<column>: Access grouping columns (e.g., g.section)
+  - g.rows: List of rows in this group
+  - g.llm_response: (Optional) LLM-generated summary to replace row data
+  - row.<column>: Access data columns (e.g., row.question, row.answer)
+#}
+{% for g in groups %}
+# {{ g.section }}
+
+{% if g.llm_response %}
+{# Phase 2: Render LLM-generated summary #}
+{{ g.llm_response }}
+{% else %}
+{# Phase 1: Render detailed Q&A for LLM to process #}
+{% for row in g.rows %}
+**Q: {{ row.question }}**
+
+A: {{ row.answer }}
+
+{% endfor %}
+{% endif %}
+
+---
+
+{% endfor %}
+

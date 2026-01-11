@@ -27,8 +27,19 @@ class HealthCheckFilter(logging.Filter):
         return True
 
 
-# Apply filter to uvicorn access logger
+class MetricsFilter(logging.Filter):
+    """Filter out metrics requests from access logs."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        message = record.getMessage()
+        if "/metrics" in message and "GET" in message:
+            return False
+        return True
+
+
+# Apply filters to uvicorn access logger
 logging.getLogger("uvicorn.access").addFilter(HealthCheckFilter())
+logging.getLogger("uvicorn.access").addFilter(MetricsFilter())
 
 
 class SearchResponse(BaseModel):
