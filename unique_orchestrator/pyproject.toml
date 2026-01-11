@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_orchestrator"
-version = "1.12.0"
+version = "1.11.5"
 description = ""
 authors = ["Andreas Hauri <andreas.hauri@unique.ai>"]
 readme = ["README.md", "CHANGELOG.md"]
@@ -14,12 +14,12 @@ pydantic-settings = "^2.10.1"
 python-dotenv = "^1.0.1"
 
 unique-sdk = "^0.10.48"
-unique-toolkit = "^1.38.4"
+unique-toolkit = "^1.32.9"
 unique-stock-ticker = "^1.0.2"
 unique-follow-up-questions = "^1.1.2"
-unique-internal-search = "^1.2.8"
+unique-internal-search = "^1.2.15"
 unique-deep-research = "^3.0.17"
-unique-web-search = "^1.6.0"
+unique-web-search = "^1.7.5"
 unique-swot = "^1.0.0"
 
 
