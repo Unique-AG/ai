@@ -286,13 +286,12 @@ class WebSearchTool(Tool[WebSearchConfig]):
         queries_for_log: list[WebSearchLogEntry] | list[str] | None = None,
         status: MessageLogStatus | None = None,
     ) -> MessageLog | None:
-        if queries_for_log is not None:
-            details, reference_list = self._prepare_message_logs_entries(
-                queries_for_log
-            )
-        else:
-            details = MessageLogDetails(data=[])
-            reference_list = []
+        details = MessageLogDetails(data=[])  
+        reference_list = []  
+        if queries_for_log is not None:  
+            details, reference_list = self._prepare_message_logs_entries(  
+                queries_for_log  
+            )  
 
         self._active_message_log = (
             self._message_step_logger.create_or_update_message_log(
