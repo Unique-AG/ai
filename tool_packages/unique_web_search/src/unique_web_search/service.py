@@ -146,6 +146,10 @@ class WebSearchTool(Tool[WebSearchConfig]):
         except Exception as e:
             self.logger.exception(f"Error executing WebSearch tool: {e}")
 
+            self._active_message_log = self.create_or_update_active_message_log(
+                status=MessageLogStatus.COMPLETED,
+            )
+
             if (
                 not feature_flags.is_new_answers_ui_enabled(self.company_id)
                 and self.tool_progress_reporter
