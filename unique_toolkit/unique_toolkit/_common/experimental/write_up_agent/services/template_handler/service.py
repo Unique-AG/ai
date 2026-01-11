@@ -6,6 +6,9 @@ from unique_toolkit._common.experimental.write_up_agent.schemas import (
     GroupData,
     ProcessedGroup,
 )
+from unique_toolkit._common.experimental.write_up_agent.services.dataframe_handler.utils import (
+    from_snake_case,
+)
 from unique_toolkit._common.experimental.write_up_agent.services.template_handler.exceptions import (
     ColumnExtractionError,
     TemplateParsingError,
@@ -133,7 +136,7 @@ class TemplateHandler:
 
             # Prepare group item with grouping column value, rows, and llm_response
             group_item = {
-                grouping_column: group_data.group_key,
+                grouping_column: from_snake_case(group_data.group_key),
                 "rows": group_data.rows,
                 "llm_response": llm_response,  # Add to group item, not top level
             }
@@ -168,8 +171,11 @@ class TemplateHandler:
             # Prepare all groups for rendering
             groups_data = []
             for group_data in processed_groups:
+                # Convert snake_case group_key to Title Case for display
+                display_group_key = from_snake_case(group_data.group_key)
+                
                 group_item = {
-                    grouping_column: group_data.group_key,
+                    grouping_column: display_group_key,  # Use Title Case for display
                     "rows": group_data.rows,
                     "llm_response": group_data.llm_response,
                 }

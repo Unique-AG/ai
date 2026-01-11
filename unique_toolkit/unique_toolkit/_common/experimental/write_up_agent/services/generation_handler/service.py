@@ -11,6 +11,9 @@ from unique_toolkit._common.experimental.write_up_agent.schemas import (
     GroupData,
     ProcessedGroup,
 )
+from unique_toolkit._common.experimental.write_up_agent.services.dataframe_handler.utils import (
+    from_snake_case,
+)
 from unique_toolkit._common.experimental.write_up_agent.services.generation_handler.config import (
     GenerationHandlerConfig,
 )
@@ -71,12 +74,15 @@ class GenerationHandler:
         # Token counter (use provided or default to character approximation)
         self.token_counter = token_counter
 
-    def process_groups(self, groups: list[GroupData]) -> list[ProcessedGroup]:
+    def process_groups(
+        self, groups: list[GroupData], grouping_column: str
+    ) -> list[ProcessedGroup]:
         """
         Process all groups with LLM generation.
 
         Args:
             groups: List of GroupData instances
+            grouping_column: The column name used for grouping (e.g., 'section')
 
         Returns:
             List of ProcessedGroup instances with llm_response added
@@ -91,10 +97,10 @@ class GenerationHandler:
 
             logger.info(f"Processing group: {group_key_string}")
 
-            # Get group-specific instruction
-            group_instruction = self.config.group_specific_instructions.get(
-                group_key_string
-            )
+            # Get group-specific instruction using the documented format: "column:value"
+            # e.g., "section:introduction" for a group with key "introduction" in column "section"
+            lookup_key = f"{grouping_column}:{group_key_string}"
+            group_instruction = self.config.group_specific_instructions.get(lookup_key)
 
             try:
                 # Process group with batching
@@ -165,14 +171,17 @@ class GenerationHandler:
                 # Render content for this batch
                 content = self.renderer(batch_group)
 
+                # Convert snake_case group_key to Title Case for display in prompts
+                display_section_name = from_snake_case(group_key)
+
                 # Build prompts with section name and at most one previous summary
                 system_prompt, user_prompt = self._build_prompts(
-                    section_name=group_key,
+                    section_name=display_section_name,  # Use Title Case for display
                     content=content,
                     group_instruction=group_instruction,
                     previous_summary=previous_summary,
                 )
-
+                
                 # Call LLM
                 batch_summary = self._call_llm(system_prompt, user_prompt)
 

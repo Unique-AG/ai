@@ -11,6 +11,9 @@ from unique_toolkit._common.experimental.write_up_agent import (
     WriteUpAgent,
     WriteUpAgentConfig,
 )
+from unique_toolkit._common.experimental.write_up_agent.services.generation_handler.config import (
+    GenerationHandlerConfig,
+)
 from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.language_model.service import LanguageModelService
 
@@ -28,14 +31,18 @@ _SETTINGS.init_sdk()
 # Configure the Write-Up Agent
 # Using default configuration which expects: section, question, answer columns
 write_up_agent_config = WriteUpAgentConfig(
-    # Optional: Customize generation settings
-    # max_rows_per_group=20,  # Max rows per batch (default: 20)
-    # max_tokens_per_group=4000,  # Max tokens per batch (default: None)
-    # common_instruction="You are a technical writer...",  # Custom system prompt
-    # group_specific_instructions={
-    #     "section:Introduction": "Be welcoming and engaging",
-    #     "section:Methods": "Be precise and technical"
-    # }
+    generation_handler_config=GenerationHandlerConfig(
+        # Optional: Customize generation settings
+        # max_rows_per_batch=20,  # Max rows per batch (default: 20)
+        # max_tokens_per_batch=4000,  # Max tokens per batch (default: 4000)
+        # common_instruction="You are a technical writer...",  # Custom system prompt
+        # group_specific_instructions={
+        #     # IMPORTANT: Both column and value must be in snake_case
+        #     # DataFrame: Section="Introduction" → Key: "section:introduction"
+        #     "section:introduction": "Be welcoming and engaging",
+        #     "section:methods": "Be precise and technical"
+        # }
+    )
 )
 
 # Initialize the agent with LLM service

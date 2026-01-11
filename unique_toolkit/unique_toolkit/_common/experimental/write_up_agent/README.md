@@ -221,28 +221,50 @@ df = pd.DataFrame({
 {% endfor %}
 ```
 
-### Group-Specific Instructions: Format
+### Group-Specific Instructions: Key Format
 
-The group-specific instruction keys follow this format:
+When providing `group_specific_instructions`, you must use a specific key format to ensure the instructions are correctly matched to groups:
+
+⚠️ **Key Format**: `"{snake_case_column}:{snake_case_value}"`
+
+**Why both in snake_case?**
+- DataFrame column names are automatically normalized to snake_case (e.g., `"Report Section"` → `"report_section"`)
+- Group values are also normalized to snake_case (e.g., `"Executive Summary"` → `"executive_summary"`)
+- Your instruction keys must match this normalized format
+
+**Example:**
+
+If your DataFrame has:
+- Column: `"Section"`
+- Values: `"Executive Summary"`, `"Detailed Analysis"`, `"Recommendations"`
+
+Your keys must be:
 
 ```python
 config = WriteUpAgentConfig(
     generation_handler_config=GenerationHandlerConfig(
         group_specific_instructions={
-            # Format: "{snake_case_column_name}:{actual_group_value}"
-            # Column name: snake_case (normalized)
-            # Group value: EXACT value from DataFrame (case-sensitive)
-            "section:Executive Summary": "Be concise, highlight key metrics",
-            "section:Detailed Analysis": "Be thorough, include all data points",
-            "section:Recommendations": "Be actionable, prioritize by impact"
+            # Format: "{snake_case_column}:{snake_case_value}"
+            # Both parts must be in snake_case
+            "section:executive_summary": "Be concise, highlight key metrics",
+            "section:detailed_analysis": "Be thorough, include all data points",
+            "section:recommendations": "Be actionable, prioritize by impact"
         }
     )
 )
 ```
 
-**Key Format**: `"{snake_case_column_name}:{actual_group_value}"`
+**Key Format**: `"{snake_case_column}:{snake_case_value}"`
 - **Column name part**: MUST be snake_case (normalized column name)
-- **Value part**: Use the EXACT value as it appears in your DataFrame (preserves original case)
+- **Value part**: MUST be snake_case (normalized group value)
+
+**Transformation Table:**
+
+| DataFrame Column | DataFrame Value | Normalized Column | Normalized Value | Required Key |
+| :--------------- | :-------------- | :---------------- | :--------------- | :----------- |
+| `Section` | `Executive Summary` | `section` | `executive_summary` | `section:executive_summary` |
+| `Report Section` | `User Feedback` | `report_section` | `user_feedback` | `report_section:user_feedback` |
+| `topic-name` | `API-Design` | `topic_name` | `api_design` | `topic_name:api_design` |
 
 ### Validation and Error Messages
 
@@ -262,10 +284,10 @@ This tells you:
 
 | Component | Format | Example | Notes |
 |-----------|--------|---------|-------|
-| **DataFrame Columns** | Any format | `"My Column"`, `"UserName"` | Will be normalized |
+| **DataFrame Columns** | Any format | `"My Column"`, `"UserName"` | Will be normalized to snake_case |
+| **DataFrame Values** | Any format | `"Executive Summary"` | Will be normalized to snake_case |
 | **Template Variables** | **snake_case** | `{{ g.my_column }}` | MUST use snake_case |
-| **Group Instruction Keys** | **snake_case:Value** | `"my_column:Actual Value"` | Column in snake_case, value as-is |
-| **Actual Data Values** | Unchanged | `"Executive Summary"` | Keep original case |
+| **Group Instruction Keys** | **snake_case:snake_case** | `"my_column:executive_summary"` | Both parts in snake_case |
 
 ---
 
@@ -599,21 +621,25 @@ from unique_toolkit._common.experimental.write_up_agent.services.generation_hand
     GenerationHandlerConfig
 )
 
+# DataFrame column: "Section"
+# DataFrame values: "Executive Summary", "Detailed Analysis", "Recommendations"
+
 gen_config = GenerationHandlerConfig(
     language_model=language_model_info,
     common_instruction="You are an expert data analyst.",
     group_specific_instructions={
-        # Format: "snake_case_column:Exact DataFrame Value"
-        "section:Executive Summary": "Be concise, highlight key metrics",
-        "section:Detailed Analysis": "Be thorough, include all data points",
-        "section:Recommendations": "Be actionable, prioritize by impact"
+        # Format: "snake_case_column:snake_case_value"
+        # Both column name AND value must be in snake_case
+        "section:executive_summary": "Be concise, highlight key metrics",
+        "section:detailed_analysis": "Be thorough, include all data points",
+        "section:recommendations": "Be actionable, prioritize by impact"
     }
 )
 
 config = WriteUpAgentConfig(generation_handler_config=gen_config)
 ```
 
-**Note**: The column name (`section`) is in snake_case, but the values (`Executive Summary`, etc.) match exactly as they appear in your DataFrame.
+**Important**: Both the column name (`section`) AND the values (`executive_summary`, etc.) must be in snake_case to match the automatic normalization applied to your DataFrame.
 
 ---
 

@@ -47,6 +47,29 @@ def to_snake_case(text: str) -> str:
     return text
 
 
+def from_snake_case(text: str) -> str:
+    """
+    Convert snake_case text back to Title Case for display.
+
+    Args:
+        text: snake_case text to convert
+
+    Returns:
+        Title Case version of the text
+
+    Example:
+        >>> from_snake_case("executive_summary")
+        'Executive Summary'
+        >>> from_snake_case("my_column_name")
+        'My Column Name'
+        >>> from_snake_case("api_design")
+        'Api Design'
+    """
+    # Split on underscores and capitalize each word
+    words = text.split("_")
+    return " ".join(word.capitalize() for word in words)
+
+
 def normalize_column_names(df: pd.DataFrame) -> pd.DataFrame:
     """
     Convert all DataFrame column names to snake_case.
@@ -66,6 +89,7 @@ def normalize_column_names(df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         New DataFrame with normalized column names
     """
+    ## TODO: Normalization may lead to duplicate column names, we should handle this case
     normalized_columns = {col: to_snake_case(col) for col in df.columns}
     return df.rename(columns=normalized_columns)
 

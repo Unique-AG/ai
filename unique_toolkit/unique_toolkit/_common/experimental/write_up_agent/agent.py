@@ -119,7 +119,9 @@ class WriteUpAgent:
 
             # Step 4: Process groups with GenerationHandler
             logger.info("Processing groups with GenerationHandler...")
-            processed_groups = self.generation_handler.process_groups(groups)
+            processed_groups = self.generation_handler.process_groups(
+                groups, grouping_column
+            )
             logger.info(f"Generation complete for {len(processed_groups)} groups")
 
             # Step 5: Render final report with LLM responses

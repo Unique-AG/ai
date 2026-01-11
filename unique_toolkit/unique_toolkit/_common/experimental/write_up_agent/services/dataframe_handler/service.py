@@ -11,6 +11,7 @@ from unique_toolkit._common.experimental.write_up_agent.services.dataframe_handl
 from unique_toolkit._common.experimental.write_up_agent.services.dataframe_handler.utils import (
     dataframe_to_dict_records,
     normalize_column_names,
+    to_snake_case,
 )
 
 
@@ -90,7 +91,7 @@ class DataFrameHandler:
 
         Returns:
             List of GroupData instances in order of first appearance, each containing
-            original group_key value and rows with snake_case columns
+            group_key (in snake_case) and rows with snake_case columns
 
         Raises:
             DataFrameGroupingError: If grouping fails
@@ -103,7 +104,7 @@ class DataFrameHandler:
             ... })
             >>> groups = handler.create_groups(df, "my_section", ["my_question"])
             >>> [g.group_key for g in groups]
-            ['Intro', 'Methods', 'Results']  # Original values, order preserved
+            ['intro', 'methods', 'results']  # Values normalized to snake_case, order preserved
         """
         # Normalize column names to snake_case
         normalized_df = normalize_column_names(df)
@@ -138,8 +139,11 @@ class DataFrameHandler:
                 # Convert to dict records
                 rows = dataframe_to_dict_records(limited_df)
 
+                # Normalize group_key value to snake_case for consistency with template syntax
+                normalized_group_key = to_snake_case(str(group_key))
+
                 # Create GroupData instance with proper typing
-                results.append(GroupData(group_key=str(group_key), rows=rows))
+                results.append(GroupData(group_key=normalized_group_key, rows=rows))
         except Exception as e:
             raise DataFrameProcessingError(f"Error processing grouped data: {e}") from e
 
