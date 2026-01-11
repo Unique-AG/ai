@@ -14,9 +14,11 @@ following SOLID principles:
 import asyncio
 import os
 import sys
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 from openai import AsyncOpenAI
+from pydantic import BaseModel, Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from console_agent.agent_factory import (
     AgentConfig,
@@ -51,6 +53,76 @@ from console_agent.token_tracker import (
 )
 from unique_toolkit.language_model import LanguageModelName
 
+
+class MCPServerSettings(BaseModel):
+    """Settings for an individual MCP server."""
+
+    oauth: bool = Field(default=True, description="Whether to use OAuth authentication")
+    timeout: float = Field(default=5.0, description="Connection timeout in seconds")
+    enabled: bool = Field(default=True, description="Whether this server is enabled")
+
+
+class MCPSettings(BaseSettings):
+    """Global MCP server settings.
+
+    Automatically loads from environment variables:
+    - MCP_SERVERS: JSON dictionary mapping server URLs to their settings
+    - MCP_DEFAULT_OAUTH: Default OAuth setting for unconfigured servers
+    - MCP_DEFAULT_TIMEOUT: Default timeout for unconfigured servers
+    """
+
+    model_config = SettingsConfigDict(env_prefix="MCP_")
+
+    servers: Dict[str, MCPServerSettings] = Field(
+        default_factory=dict,
+        description="Dictionary mapping server URLs to their settings",
+    )
+    default_oauth: bool = Field(
+        default=True,
+        description="Default OAuth setting for servers not in servers dict",
+    )
+    default_timeout: float = Field(
+        default=5.0, description="Default timeout for servers not in servers dict"
+    )
+
+
+# Global settings instance (cached for performance)
+_mcp_settings: Optional[MCPSettings] = None
+
+
+def get_mcp_settings() -> MCPSettings:
+    """Get the global MCP settings instance.
+
+    Settings are loaded once and cached. BaseSettings automatically
+    parses MCP_SERVERS as JSON for the Dict[str, MCPServerSettings] field.
+    """
+    global _mcp_settings
+    if _mcp_settings is None:
+        _mcp_settings = MCPSettings()
+    return _mcp_settings
+
+
+def get_oauth_setting_for_server(server_url: str) -> bool:
+    """Get OAuth setting for a specific MCP server.
+
+    Uses the MCP settings configuration to determine OAuth for each server.
+
+    Args:
+        server_url: The MCP server URL to check authentication for
+
+    Returns:
+        True if OAuth should be used for this server, False otherwise
+    """
+    settings = get_mcp_settings()
+
+    # Check if server has specific settings
+    if server_url in settings.servers:
+        return settings.servers[server_url].oauth
+
+    # Fall back to default setting
+    return settings.default_oauth
+
+
 __all__ = [
     # Main entry points
     "main",
@@ -76,6 +148,11 @@ __all__ = [
     "MCPService",
     "check_mcp_server_available",
     "get_mcp_server_url",
+    # MCP settings
+    "MCPServerSettings",
+    "MCPSettings",
+    "get_mcp_settings",
+    "get_oauth_setting_for_server",
     # Token tracking
     "ModelInfoExtractor",
     "TokenStats",
@@ -265,7 +342,6 @@ class AgentOrchestrator:
         config = AgentConfig(
             model=str(model),
             mcp_server_url=server_url if connection_result.available else None,
-            use_oauth=use_oauth,
             tools_available=connection_result.available,
             mcp_client=connection_result.client,
         )

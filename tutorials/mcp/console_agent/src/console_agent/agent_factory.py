@@ -94,14 +94,12 @@ class AgentConfig:
     Attributes:
         model: The model name to use
         mcp_server_url: Optional MCP server URL
-        use_oauth: Whether to use OAuth for MCP authentication
         tools_available: Whether tools should be loaded
         mcp_client: Optional pre-authenticated MCP client
     """
 
     model: str = "gpt-4"
     mcp_server_url: Optional[str] = None
-    use_oauth: bool = True
     tools_available: bool = False
     mcp_client: Optional[Any] = None
     instruction_provider: InstructionProvider = field(
@@ -179,28 +177,24 @@ class AgentFactory:
             toolset = FastMCPToolset(config.mcp_client)  # type: ignore[arg-type]
         else:
             # Create new client
-            toolset = self._create_toolset_with_new_client(
-                config.mcp_server_url,
-                config.use_oauth,
-            )
+            toolset = self._create_toolset_with_new_client(config.mcp_server_url)
 
         return [toolset]
 
-    def _create_toolset_with_new_client(
-        self,
-        server_url: str,
-        use_oauth: bool,
-    ) -> FastMCPToolset:
+    def _create_toolset_with_new_client(self, server_url: str) -> FastMCPToolset:
         """Create a toolset with a new MCP client.
 
         Args:
             server_url: MCP server URL
-            use_oauth: Whether to use OAuth authentication
 
         Returns:
             FastMCPToolset configured with new client
         """
         from fastmcp import Client
+
+        from console_agent.agent import get_oauth_setting_for_server
+
+        use_oauth = get_oauth_setting_for_server(server_url)
 
         if use_oauth:
             client = Client(server_url, auth="oauth")
@@ -215,20 +209,15 @@ def create_agent(
     openai_client: AsyncOpenAI,
     mcp_server_url: Optional[str] = None,
     model: str = "gpt-4",
-    use_oauth: bool = True,
     tools_available: bool = False,
     mcp_client: Optional[Any] = None,
 ) -> Agent:
     """Create a pydantic-ai agent with optional MCP tools.
 
-    This is a convenience function maintaining backward compatibility
-    with the original API.
-
     Args:
         openai_client: AsyncOpenAI client instance
         mcp_server_url: URL of the MCP server
         model: OpenAI model name to use
-        use_oauth: Whether OAuth is required
         tools_available: Whether MCP tools should be loaded
         mcp_client: Optional authenticated FastMCP Client to reuse
 
@@ -239,7 +228,6 @@ def create_agent(
     config = AgentConfig(
         model=model,
         mcp_server_url=mcp_server_url,
-        use_oauth=use_oauth,
         tools_available=tools_available,
         mcp_client=mcp_client,
     )

@@ -5,7 +5,10 @@ This package can be extracted to a separate repository.
 
 from console_agent.agent import (
     AgentOrchestrator,
+    MCPServerSettings,
+    MCPSettings,
     cli_main,
+    get_mcp_settings,
     main,
 )
 from console_agent.agent_factory import (
@@ -72,6 +75,9 @@ __all__ = [
     "MCPService",
     "check_mcp_server_available",
     "get_mcp_server_url",
+    "MCPServerSettings",
+    "MCPSettings",
+    "get_mcp_settings",
     "AgentProtocol",
     "AgentRunResult",
     "ConsoleOutputProtocol",

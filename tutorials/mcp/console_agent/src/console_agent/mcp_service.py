@@ -38,16 +38,13 @@ class MCPService:
     def __init__(
         self,
         default_timeout: float = 5.0,
-        use_oauth: bool = True,
     ) -> None:
         """Initialize MCPService.
 
         Args:
             default_timeout: Default timeout for server checks
-            use_oauth: Whether to use OAuth authentication by default
         """
         self._default_timeout = default_timeout
-        self._use_oauth = use_oauth
 
     async def check_server_available(
         self,
@@ -60,18 +57,33 @@ class MCPService:
 
         Args:
             server_url: URL of the MCP server
-            timeout: Timeout in seconds for the check (uses default if not provided)
+            timeout: Timeout in seconds for the check (uses server-specific setting if not provided)
 
         Returns:
             MCPConnectionResult with availability status and client if successful
         """
-        effective_timeout = timeout or self._default_timeout
+        if timeout is None:
+            # Get server-specific timeout setting
+            from console_agent.agent import get_mcp_settings
+
+            settings = get_mcp_settings()
+            if server_url in settings.servers:
+                effective_timeout = settings.servers[server_url].timeout
+            else:
+                effective_timeout = settings.default_timeout
+        else:
+            effective_timeout = timeout
 
         try:
             from fastmcp import Client
 
-            # Create client with OAuth authentication
-            client = Client(server_url, auth="oauth" if self._use_oauth else None)
+            # Determine OAuth usage for this specific server
+            from console_agent.agent import get_oauth_setting_for_server
+
+            use_oauth = get_oauth_setting_for_server(server_url)
+
+            # Create client with appropriate authentication
+            client = Client(server_url, auth="oauth" if use_oauth else None)
 
             # Try to list tools - this verifies both connection and authentication
             async with client:
@@ -102,14 +114,20 @@ class MCPService:
 
         Args:
             server_url: URL of the MCP server
-            use_oauth: Whether to use OAuth (uses default if not provided)
+            use_oauth: Whether to use OAuth (uses server-specific setting if not provided)
 
         Returns:
             FastMCP Client instance
         """
         from fastmcp import Client
 
-        oauth = use_oauth if use_oauth is not None else self._use_oauth
+        # Use explicit OAuth setting if provided, otherwise determine from server
+        if use_oauth is not None:
+            oauth = use_oauth
+        else:
+            from console_agent.agent import get_oauth_setting_for_server
+
+            oauth = get_oauth_setting_for_server(server_url)
 
         if oauth:
             return Client(server_url, auth="oauth")
