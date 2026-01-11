@@ -75,7 +75,7 @@ class DataFrameHandler:
 
         NOTE: Column names are automatically converted to snake_case.
         Group values (group_key) are kept as-is from the DataFrame (NOT normalized).
-        
+
         The returned GroupData instances will have:
         - snake_case column names in their rows
         - Original group_key values from DataFrame
