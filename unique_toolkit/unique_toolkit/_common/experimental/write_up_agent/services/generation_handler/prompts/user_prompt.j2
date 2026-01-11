@@ -1,4 +1,9 @@
-{# User prompt with group-specific instructions and optional previous summary #}
+{# User prompt with section context and optional previous summary #}
+## Section Context
+You are writing content for the section titled: **"{{ section_name }}"**
+
+**IMPORTANT**: The section header is already provided in the final report. Do NOT include the section title (# {{ section_name }}) in your response. Start directly with the content.
+
 {% if group_instruction %}
 ## Section-Specific Instructions
 {{ group_instruction }}

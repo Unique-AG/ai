@@ -165,8 +165,9 @@ class GenerationHandler:
                 # Render content for this batch
                 content = self.renderer(batch_group)
 
-                # Build prompts with at most one previous summary
+                # Build prompts with section name and at most one previous summary
                 system_prompt, user_prompt = self._build_prompts(
+                    section_name=group_key,
                     content=content,
                     group_instruction=group_instruction,
                     previous_summary=previous_summary,
@@ -257,6 +258,7 @@ class GenerationHandler:
 
     def _build_prompts(
         self,
+        section_name: str,
         content: str,
         group_instruction: str | None,
         previous_summary: str | None,
@@ -265,6 +267,7 @@ class GenerationHandler:
         Build system and user prompts from templates.
 
         Args:
+            section_name: Name of the section being processed (group_key)
             content: Rendered content to summarize
             group_instruction: Optional group-specific instruction
             previous_summary: Optional previous batch summary for context
@@ -281,8 +284,9 @@ class GenerationHandler:
                 common_instruction=self.config.common_instruction,
             )
 
-            # Build user prompt
+            # Build user prompt with section name
             user_prompt = self.user_template.render(
+                section_name=section_name,
                 content=content,
                 group_instruction=group_instruction,
                 previous_summary=previous_summary,
@@ -294,6 +298,7 @@ class GenerationHandler:
             raise PromptBuildError(
                 f"Failed to build prompts: {e}",
                 context={
+                    "section_name": section_name,
                     "has_group_instruction": group_instruction is not None,
                     "has_previous_summary": previous_summary is not None,
                 },
