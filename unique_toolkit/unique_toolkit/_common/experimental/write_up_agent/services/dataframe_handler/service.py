@@ -74,7 +74,11 @@ class DataFrameHandler:
         Create groups from DataFrame.
 
         NOTE: Column names are automatically converted to snake_case.
-        The returned GroupData instances will have snake_case column names in their rows.
+        Group values (group_key) are kept as-is from the DataFrame (NOT normalized).
+        
+        The returned GroupData instances will have:
+        - snake_case column names in their rows
+        - Original group_key values from DataFrame
 
         IMPORTANT: Groups are returned in the order of their first appearance in the DataFrame,
         NOT sorted alphabetically. This preserves the logical flow of your data.
@@ -86,7 +90,7 @@ class DataFrameHandler:
 
         Returns:
             List of GroupData instances in order of first appearance, each containing
-            group_key and rows with snake_case columns
+            original group_key value and rows with snake_case columns
 
         Raises:
             DataFrameGroupingError: If grouping fails
@@ -99,7 +103,7 @@ class DataFrameHandler:
             ... })
             >>> groups = handler.create_groups(df, "my_section", ["my_question"])
             >>> [g.group_key for g in groups]
-            ['Intro', 'Methods', 'Results']  # Order preserved, not alphabetical
+            ['Intro', 'Methods', 'Results']  # Original values, order preserved
         """
         # Normalize column names to snake_case
         normalized_df = normalize_column_names(df)
