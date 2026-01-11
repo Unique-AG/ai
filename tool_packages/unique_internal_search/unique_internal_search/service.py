@@ -335,14 +335,13 @@ class InternalSearchService:
     ) -> MessageLog | None:
         if self._message_step_logger is None:
             return None
+        message_log_reference_list = []
         if chunks is not None:
             message_log_reference_list = (
                 await self._define_reference_list_for_message_log(
                     content_chunks=chunks,
                 )
             )
-        else:
-            message_log_reference_list = []
         details = await self._prepare_message_log_details(
             query_list=search_strings_list
         )
@@ -369,8 +368,7 @@ class InternalSearchService:
             List of ContentReference objects
         """
         data: list[ContentReference] = []
-        count = 0
-        for content_chunk in content_chunks:
+        for count, content_chunk in enumerate(content_chunks):
             reference_name: str = content_chunk.title or content_chunk.key or ""
 
             data.append(
