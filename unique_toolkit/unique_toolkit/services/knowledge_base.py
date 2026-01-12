@@ -2,6 +2,7 @@ import asyncio
 import logging
 import mimetypes
 from dataclasses import dataclass, field
+from dataclasses import dataclass, field
 from pathlib import Path, PurePath
 from typing import Any, Callable, overload
 
@@ -769,6 +770,17 @@ class KnowledgeBaseService:
             ],
             return_exceptions=True,
         )
+        scope_id_to_folder_name = self._translate_scope_ids_to_folder_name(scope_ids)
+
+        folder_paths: set[str] = set()
+        for folder_id_path in folder_id_paths:
+            scope_ids_list = folder_id_path.replace("uniquepathid://", "").split("/")
+
+            if all(scope_id in scope_id_to_folder_name for scope_id in scope_ids_list):
+                folder_path = [
+                    scope_id_to_folder_name[scope_id] for scope_id in scope_ids_list
+                ]
+                folder_paths.add("/".join(folder_path))
 
         return [
             content_info
