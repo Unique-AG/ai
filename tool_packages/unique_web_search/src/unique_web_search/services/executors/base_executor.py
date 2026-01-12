@@ -1,7 +1,7 @@
 import logging
 from abc import ABC, abstractmethod
 from time import time
-from typing import Callable, Optional
+from typing import Callable, Optional, Protocol
 
 from pydantic import BaseModel
 from unique_toolkit import LanguageModelService
@@ -14,6 +14,7 @@ from unique_toolkit.agentic.tools.tool_progress_reporter import (
     ProgressState,
     ToolProgressReporter,
 )
+from unique_toolkit.chat.schemas import MessageLog, MessageLogStatus
 from unique_toolkit.content import ContentChunk
 from unique_toolkit.language_model import LanguageModelFunction
 
@@ -35,6 +36,16 @@ class WebSearchLogEntry(BaseModel):
     web_search_results: list[WebSearchResult]
 
 
+class MessageLogCallback(Protocol):
+    def __call__(
+        self,
+        *,
+        progress_message: str | None = None,
+        queries_for_log: list[WebSearchLogEntry] | list[str] | None = None,
+        status: MessageLogStatus | None = None,
+    ) -> MessageLog | None: ...
+
+
 class BaseWebSearchExecutor(ABC):
     def __init__(
         self,
@@ -46,6 +57,7 @@ class BaseWebSearchExecutor(ABC):
         tool_parameters: WebSearchPlan | WebSearchToolParameters,
         company_id: str,
         content_processor: ContentProcessor,
+        message_log_callback: MessageLogCallback,
         chunk_relevancy_sorter: ChunkRelevancySorter | None,
         chunk_relevancy_sort_config: ChunkRelevancySortConfig,
         debug_info: WebSearchDebugInfo,
@@ -68,6 +80,7 @@ class BaseWebSearchExecutor(ABC):
         self._notify_message = ""
 
         self.debug_info = debug_info
+        self._message_log_callback = message_log_callback
 
         async def notify_callback() -> None:
             _LOGGER.debug(f"{self.notify_name}: {self.notify_message}")

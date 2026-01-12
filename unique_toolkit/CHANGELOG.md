@@ -5,12 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.43.0] - 2025-12-21
+## [1.44.0] - 2025-12-21
 - Add `resolve_visible_folder_tree_async()` to `KnowledgeBaseService` for hierarchical folder tree with files
 - Add `resolve_visible_files()` to `KnowledgeBaseService` for flat list of visible file names
 - Add `resolve_visible_folder_paths_async()` to `KnowledgeBaseService` for list of folder paths
 - Add `get_content_infos_async()` to `KnowledgeBaseService` for fetching all content infos with parallel pagination
 - Add `extract_folder_metadata_from_content_infos()` static method to extract scope IDs and folder paths from content
+
+## [1.43.1] - 2026-01-12
+- Remove accidental example report.md from repo
+
+## [1.43.0] - 2026-01-11
+- Add `WriteUpAgent` as an experimental service
+
+## [1.42.9] - 2026-01-11
+- Include feature flag to have message logs compatible with new ChatUI
 
 ## [1.42.8] - 2026-01-08
 - Add validator to `BaseMetadata` in case `additional_sheet_information` is empty
