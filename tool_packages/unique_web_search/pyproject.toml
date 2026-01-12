@@ -1,4 +1,4 @@
-[project]
+[tool.poetry]
 name = "unique_web_search"
 version = "1.7.4"
 description = ""
