@@ -850,7 +850,7 @@ class KnowledgeBaseService:
 
         return tree.to_dict()
 
-    async def resolve_visible_files(
+    async def resolve_visible_files_async(
         self, *, metadata_filter: dict[str, Any] | None = None
     ) -> list[str]:
         """
