@@ -47,7 +47,7 @@ def to_snake_case(text: str) -> str:
     return text
 
 
-def from_snake_case(text: str) -> str:
+def from_snake_case_to_display_name(text: str) -> str:
     """
     Convert snake_case text back to Title Case for display.
 
@@ -89,7 +89,7 @@ def normalize_column_names(df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         New DataFrame with normalized column names
     """
-    ## TODO: Normalization may lead to duplicate column names, we should handle this case
+    ## TODO [UN-16142]: Normalization may lead to duplicate column names, we should handle this case
     normalized_columns = {col: to_snake_case(col) for col in df.columns}
     return df.rename(columns=normalized_columns)
 

@@ -34,7 +34,7 @@ from unique_toolkit._common.experimental.write_up_agent.services.template_handle
 )
 from unique_toolkit.language_model.service import LanguageModelService
 
-logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 
 class WriteUpAgent:
@@ -57,25 +57,17 @@ class WriteUpAgent:
         Args:
             config: Configuration with template and settings
         """
-        self.config = config
+        self._config = config
         self.template_handler = TemplateHandler(config.template)
         self.dataframe_handler = DataFrameHandler()
-
-        # Initialize tokenizer (can be customized later)
-        self.token_counter = self._default_token_counter
 
         # Create generation handler with injected renderer
         def renderer(group_data, llm_response=None):
             return self.template_handler.render_group(group_data, llm_response)
 
         self.generation_handler = GenerationHandler(
-            self.config.generation_handler_config, llm_service, renderer
+            self._config.generation_handler_config, llm_service, renderer
         )
-
-    @staticmethod
-    def _default_token_counter(text: str) -> int:
-        """Default token counter using character approximation (chars/4)."""
-        return len(text) // 4
 
     def process(self, df: pd.DataFrame) -> str:
         """
@@ -98,77 +90,77 @@ class WriteUpAgent:
         """
         try:
             # Step 1: Extract template structure
-            logger.info("Extracting template structure...")
+            _LOGGER.info("Extracting template structure...")
             grouping_column = self.template_handler.get_grouping_column()
             selected_columns = self.template_handler.get_selected_columns()
-            logger.info(f"Detected grouping column: {grouping_column}")
-            logger.info(f"Detected data columns: {selected_columns}")
+            _LOGGER.info(f"Detected grouping column: {grouping_column}")
+            _LOGGER.info(f"Detected data columns: {selected_columns}")
 
             # Step 2: Validate DataFrame
-            logger.info("Validating DataFrame columns...")
+            _LOGGER.info("Validating DataFrame columns...")
             self.dataframe_handler.validate_columns(
                 df, grouping_column, selected_columns
             )
 
             # Step 3: Create groups
-            logger.info("Creating groups from DataFrame...")
+            _LOGGER.info("Creating groups from DataFrame...")
             groups = self.dataframe_handler.create_groups(
                 df, grouping_column, selected_columns
             )
-            logger.info(f"Created {len(groups)} groups")
+            _LOGGER.info(f"Created {len(groups)} groups")
 
             # Step 4: Process groups with GenerationHandler
-            logger.info("Processing groups with GenerationHandler...")
+            _LOGGER.info("Processing groups with GenerationHandler...")
             processed_groups = self.generation_handler.process_groups(
                 groups, grouping_column
             )
-            logger.info(f"Generation complete for {len(processed_groups)} groups")
+            _LOGGER.info(f"Generation complete for {len(processed_groups)} groups")
 
             # Step 5: Render final report with LLM responses
-            logger.info("Rendering final report...")
+            _LOGGER.info("Rendering final report...")
 
             final_report = self.template_handler.render_all_groups(processed_groups)
 
-            logger.info(f"Report generated ({len(final_report)} characters)")
+            _LOGGER.info(f"Report generated ({len(final_report)} characters)")
 
             return final_report
 
         except TemplateParsingError as e:
-            logger.error(f"Template parsing failed: {e}")
+            _LOGGER.error(f"Template parsing failed: {e}")
             raise
 
         except TemplateStructureError as e:
-            logger.error(f"Template structure invalid: {e}")
+            _LOGGER.error(f"Template structure invalid: {e}")
             raise
 
         except ColumnExtractionError as e:
-            logger.error(f"Column extraction failed: {e}")
+            _LOGGER.error(f"Column extraction failed: {e}")
             raise
 
         except DataFrameValidationError as e:
-            logger.error(f"DataFrame validation failed: {e}")
+            _LOGGER.error(f"DataFrame validation failed: {e}")
             raise
 
         except DataFrameGroupingError as e:
-            logger.error(f"DataFrame grouping failed: {e}")
+            _LOGGER.error(f"DataFrame grouping failed: {e}")
             raise
 
         except DataFrameProcessingError as e:
-            logger.error(f"DataFrame processing failed: {e}")
+            _LOGGER.error(f"DataFrame processing failed: {e}")
             raise
 
         except GenerationHandlerError as e:
-            logger.error(f"Generation failed: {e}")
+            _LOGGER.error(f"Generation failed: {e}")
             raise
 
         except TemplateRenderingError as e:
-            logger.error(f"Final rendering failed: {e}")
+            _LOGGER.error(f"Final rendering failed: {e}")
             raise
 
         except (TemplateHandlerError, DataFrameHandlerError) as e:
-            logger.error(f"Handler error: {e}")
+            _LOGGER.error(f"Handler error: {e}")
             raise
 
         except Exception as e:
-            logger.error(f"Unexpected error: {e}", exc_info=True)
+            _LOGGER.error(f"Unexpected error: {e}", exc_info=True)
             raise

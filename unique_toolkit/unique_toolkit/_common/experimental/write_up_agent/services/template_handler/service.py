@@ -7,7 +7,7 @@ from unique_toolkit._common.experimental.write_up_agent.schemas import (
     ProcessedGroup,
 )
 from unique_toolkit._common.experimental.write_up_agent.services.dataframe_handler.utils import (
-    from_snake_case,
+    from_snake_case_to_display_name,
 )
 from unique_toolkit._common.experimental.write_up_agent.services.template_handler.exceptions import (
     ColumnExtractionError,
@@ -20,6 +20,7 @@ from unique_toolkit._common.experimental.write_up_agent.services.template_handle
 )
 
 
+# TODO [UN-16142]: Simplify template logic
 class TemplateHandler:
     """
     Handles all template operations.
@@ -40,7 +41,7 @@ class TemplateHandler:
         Raises:
             TemplateParsingError: If template cannot be parsed
         """
-        self.template = template
+        self._template = template
 
         try:
             self._jinja_template = Template(template, lstrip_blocks=True)
@@ -61,7 +62,7 @@ class TemplateHandler:
         """
         if self._parsed_info is None:
             try:
-                self._parsed_info = parse_template(self.template)
+                self._parsed_info = parse_template(self._template)
             except Exception as e:
                 raise TemplateParsingError(
                     f"Failed to parse template structure: {e}"
@@ -136,7 +137,7 @@ class TemplateHandler:
 
             # Prepare group item with grouping column value, rows, and llm_response
             group_item = {
-                grouping_column: from_snake_case(group_data.group_key),
+                grouping_column: from_snake_case_to_display_name(group_data.group_key),
                 "rows": group_data.rows,
                 "llm_response": llm_response,  # Add to group item, not top level
             }
@@ -172,8 +173,10 @@ class TemplateHandler:
             groups_data = []
             for group_data in processed_groups:
                 # Convert snake_case group_key to Title Case for display
-                display_group_key = from_snake_case(group_data.group_key)
-                
+                display_group_key = from_snake_case_to_display_name(
+                    group_data.group_key
+                )
+
                 group_item = {
                     grouping_column: display_group_key,  # Use Title Case for display
                     "rows": group_data.rows,

@@ -26,6 +26,7 @@ class GenerationHandlerConfig(BaseModel):
         description="Common instruction applied to all groups",
     )
 
+    # TODO [UN-16142]: Add default instructions for each group
     group_specific_instructions: dict[str, str] = Field(
         default_factory=dict,
         description=(

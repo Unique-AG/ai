@@ -21,6 +21,7 @@ class TemplateStructureInfo(BaseModel):
     expects_rows: bool
 
 
+# TODO [UN-16142]: Simplify template logic
 def parse_template(template_str: str) -> TemplateStructureInfo:
     """
     Parse a Jinja template to extract structure information.

@@ -12,7 +12,7 @@ from unique_toolkit._common.experimental.write_up_agent.schemas import (
     ProcessedGroup,
 )
 from unique_toolkit._common.experimental.write_up_agent.services.dataframe_handler.utils import (
-    from_snake_case,
+    from_snake_case_to_display_name,
 )
 from unique_toolkit._common.experimental.write_up_agent.services.generation_handler.config import (
     GenerationHandlerConfig,
@@ -26,7 +26,7 @@ from unique_toolkit._common.experimental.write_up_agent.services.generation_hand
 from unique_toolkit.language_model import LanguageModelService
 from unique_toolkit.language_model.builder import MessagesBuilder
 
-logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 
 class GenerationHandler:
@@ -54,7 +54,7 @@ class GenerationHandler:
             renderer: Function to render group content (injected from template handler)
                      Signature: renderer(group_data, llm_response=None) -> str
         """
-        self.config = config
+        self._config = config
         self.renderer = renderer
 
         # Load prompt templates
@@ -66,13 +66,26 @@ class GenerationHandler:
         self.user_template = Template(user_template_path.read_text())
 
         self.llm_service = llm_service
-        self.encoder = get_encoding(self.config.language_model.encoder_name)
+
+        # TODO [UN-16142]: Use token counter from toolkit
+        try:
+            encoder = get_encoding(self._config.language_model.encoder_name)
+        except Exception as e:
+            _LOGGER.warning(
+                f"Failed to get encoder for model {self._config.language_model.name}: {e}"
+            )
+            encoder = get_encoding("cl100k_base")
 
         def token_counter(text: str) -> int:
-            return len(self.encoder.encode(text))
+            return len(encoder.encode(text))
 
         # Token counter (use provided or default to character approximation)
-        self.token_counter = token_counter
+        self._token_counter = token_counter
+
+    def _default_token_counter(self, text: str) -> int:
+        """Default token counter using tiktoken encoding with cl100k_base."""
+        default_encoder = get_encoding("cl100k_base")
+        return len(default_encoder.encode(text))
 
     def process_groups(
         self, groups: list[GroupData], grouping_column: str
@@ -95,12 +108,12 @@ class GenerationHandler:
         for group in groups:
             group_key_string = group.group_key
 
-            logger.info(f"Processing group: {group_key_string}")
+            _LOGGER.info(f"Processing group: {group_key_string}")
 
             # Get group-specific instruction using the documented format: "column:value"
             # e.g., "section:introduction" for a group with key "introduction" in column "section"
             lookup_key = f"{grouping_column}:{group_key_string}"
-            group_instruction = self.config.group_specific_instructions.get(lookup_key)
+            group_instruction = self._config.group_specific_instructions.get(lookup_key)
 
             try:
                 # Process group with batching
@@ -116,13 +129,13 @@ class GenerationHandler:
                 )
                 processed_groups.append(processed_group)
 
-                logger.info(
+                _LOGGER.info(
                     f"Successfully processed group: {group_key_string} "
-                    f"(response length: {self.token_counter(llm_response)} tokens)"
+                    f"(response length: {self._token_counter(llm_response)} tokens)"
                 )
 
             except Exception as e:
-                logger.error(f"Error processing group {group_key_string}: {e}")
+                _LOGGER.error(f"Error processing group {group_key_string}: {e}")
                 # Re-raise to allow caller to handle
                 raise
 
@@ -152,7 +165,7 @@ class GenerationHandler:
         # Create batches adaptively
         try:
             batches = self._create_batches(rows, group_key)
-            logger.info(
+            _LOGGER.info(
                 f"Created {len(batches)} batches for group {group_key} "
                 f"({len(rows)} total rows)"
             )
@@ -172,7 +185,7 @@ class GenerationHandler:
                 content = self.renderer(batch_group)
 
                 # Convert snake_case group_key to Title Case for display in prompts
-                display_section_name = from_snake_case(group_key)
+                display_section_name = from_snake_case_to_display_name(group_key)
 
                 # Build prompts with section name and at most one previous summary
                 system_prompt, user_prompt = self._build_prompts(
@@ -181,16 +194,16 @@ class GenerationHandler:
                     group_instruction=group_instruction,
                     previous_summary=previous_summary,
                 )
-                
+
                 # Call LLM
                 batch_summary = self._call_llm(system_prompt, user_prompt)
 
                 # Keep only this summary for the next iteration
                 previous_summary = batch_summary
 
-                logger.debug(
+                _LOGGER.debug(
                     f"Batch {batch_index}/{len(batches)} processed "
-                    f"(summary length: {self.token_counter(batch_summary)} tokens)"
+                    f"(summary length: {self._token_counter(batch_summary)} tokens)"
                 )
 
             except LLMCallError:
@@ -235,19 +248,19 @@ class GenerationHandler:
             # Estimate tokens for this row (rough approximation)
             try:
                 row_str = str(row)
-                row_tokens = self.token_counter(row_str)
+                row_tokens = self._token_counter(row_str)
             except Exception as e:
                 raise TokenLimitError(
                     f"Failed to count tokens for row: {e}",
                     estimated_tokens=0,
-                    max_tokens=self.config.max_tokens_per_batch,
+                    max_tokens=self._config.max_tokens_per_batch,
                 ) from e
 
             # Check if adding this row would exceed limits
             would_exceed_tokens = (
-                current_batch_tokens + row_tokens > self.config.max_tokens_per_batch
+                current_batch_tokens + row_tokens > self._config.max_tokens_per_batch
             )
-            would_exceed_rows = len(current_batch) >= self.config.max_rows_per_batch
+            would_exceed_rows = len(current_batch) >= self._config.max_rows_per_batch
 
             if current_batch and (would_exceed_tokens or would_exceed_rows):
                 # Start new batch - create GroupData instance
@@ -290,7 +303,7 @@ class GenerationHandler:
         try:
             # Build system prompt
             system_prompt = self.system_template.render(
-                common_instruction=self.config.common_instruction,
+                common_instruction=self._config.common_instruction,
             )
 
             # Build user prompt with section name
@@ -337,7 +350,7 @@ class GenerationHandler:
             # Call the language model using the configured LMI
             response = self.llm_service.complete(
                 messages=messages,
-                model_name=self.config.language_model.name,
+                model_name=self._config.language_model.name,
             )
 
             response_text = response.choices[0].message.content
