@@ -819,6 +819,7 @@ def get_content_info(
         content_info, by_alias=True, by_name=True
     )
 
+
 async def get_content_info_async(
     user_id: str,
     company_id: str,
