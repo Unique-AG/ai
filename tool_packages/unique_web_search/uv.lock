@@ -1,6 +1,6 @@
 version = 1
 revision = 3
-requires-python = ">=3.12"
+requires-python = ">=3.12, <4.0"
 resolution-markers = [
     "python_full_version >= '3.14'",
     "python_full_version == '3.13.*'",
@@ -254,6 +254,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/36/7c/2fd872e11a88163f208b9c92de273bf64bb22d0eef9048cc6284d128a77a/azure_storage_blob-12.27.1.tar.gz", hash = "sha256:a1596cc4daf5dac9be115fcb5db67245eae894cf40e4248243754261f7b674a6", size = 597579, upload-time = "2025-10-29T12:27:16.185Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/3d/9e/1c90a122ea6180e8c72eb7294adc92531b0e08eb3d2324c2ba70d37f4802/azure_storage_blob-12.27.1-py3-none-any.whl", hash = "sha256:65d1e25a4628b7b6acd20ff7902d8da5b4fde8e46e19c8f6d213a3abc3ece272", size = 428954, upload-time = "2025-10-29T12:27:18.072Z" },
+]
+
+[[package]]
+name = "babel"
+version = "2.17.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/7d/6b/d52e42361e1aa00709585ecc30b3f9684b3ab62530771402248b1b1d6240/babel-2.17.0.tar.gz", hash = "sha256:0c54cffb19f690cdcc52a3b50bcbf71e07a808d1c80d549f2459b9d2cf0afb9d", size = 9951852, upload-time = "2025-02-01T15:17:41.026Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b7/b8/3fe70c75fe32afc4bb507f75563d39bc5642255d1d94f1f23604725780bf/babel-2.17.0-py3-none-any.whl", hash = "sha256:4d0b53093fdfb4b21c92b5213dba5a1b23885afa8383709427046b21c366e5f2", size = 10182537, upload-time = "2025-02-01T15:17:37.39Z" },
 ]
 
 [[package]]
@@ -647,6 +656,19 @@ sdist = { url = "https://files.pythonhosted.org/packages/b2/9d/c3b43da9515bd270d
 wheels = [
     { url = "https://files.pythonhosted.org/packages/55/e2/2537ebcff11c1ee1ff17d8d0b6f4db75873e3b0fb32c2d4a2ee31ecb310a/docstring_parser-0.17.0-py3-none-any.whl", hash = "sha256:cf2569abd23dce8099b300f9b4fa8191e9582dda731fd533daf54c4551658708", size = 36896, upload-time = "2025-07-21T07:35:00.684Z" },
 ]
+
+[[package]]
+name = "docxcompose"
+version = "1.4.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "babel" },
+    { name = "lxml" },
+    { name = "python-docx" },
+    { name = "setuptools" },
+    { name = "six" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/5d/25/07597a0fda04adf2f2fc375f48f704612a91c0c1da64f4c18e78a4a26630/docxcompose-1.4.0.tar.gz", hash = "sha256:bcf2799a0b63c29eb77a3d799a2f28443ae0f69f8691ff3d753f706be515c3e9", size = 20219, upload-time = "2022-12-14T09:45:09.195Z" }
 
 [[package]]
 name = "docxtpl"
@@ -3433,22 +3455,23 @@ wheels = [
 
 [[package]]
 name = "unique-sdk"
-version = "0.10.58"
+version = "0.10.66"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "requests" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/75/63/e56cb373b1366f177a83faad89aed8094747feccc937a714326ffd59df18/unique_sdk-0.10.58.tar.gz", hash = "sha256:7d29dad0585600440891c58c958c6412342ce7e6079d4156b62df058d71dd190", size = 43497, upload-time = "2025-12-16T13:15:07.842Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/40/88/773c22c315edb3b68d5ab20e19dae0d927b19bcc7517907afe32ab15613f/unique_sdk-0.10.66.tar.gz", hash = "sha256:a3af5183f8b1a14d74c2b6ed3dbe8432b9f4daf183d08122989e9e5a68becb0a", size = 45064, upload-time = "2026-01-05T15:36:21.308Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/4c/d3/9f62ebeb812dbb56da5959c0a226a0f287f41605e4a1bd5e81f16ec8af7c/unique_sdk-0.10.58-py3-none-any.whl", hash = "sha256:6568c254066b29a8416a2bcb2793be8dba8e63362eb6015ffe635cbe46689485", size = 56662, upload-time = "2025-12-16T13:15:06.536Z" },
+    { url = "https://files.pythonhosted.org/packages/14/09/5eb0ff7484b2bb2167c5ff110cbd3c1f4c55a84d6f6c9f225509d64e8ba8/unique_sdk-0.10.66-py3-none-any.whl", hash = "sha256:4903c52a6f331400cf0ac2c2f79b7b8967ec3c780a8d0d45d3eca1ba92757856", size = 58077, upload-time = "2026-01-05T15:36:19.885Z" },
 ]
 
 [[package]]
 name = "unique-toolkit"
-version = "1.39.2"
+version = "1.43.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
+    { name = "docxcompose" },
     { name = "docxtpl" },
     { name = "jambo" },
     { name = "jinja2" },
@@ -3469,14 +3492,14 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "unique-sdk" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/3c/ce/98831d88c08ace1f4cec5b9be6bf4ac9c22ba16c6fe3b6879979bbc4e8f0/unique_toolkit-1.39.2.tar.gz", hash = "sha256:f4251ac618dfe63714d3db716eac86db20d7626d4f0dbdca6b73458f3e1eafac", size = 281560, upload-time = "2025-12-18T07:54:39.337Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/28/82/ae5fce8b548703dcbee91e67ad81001d7d1d93cad10a733ef5578b60bf60/unique_toolkit-1.43.0.tar.gz", hash = "sha256:6af89ef337f84355d8ccff14497b84aa10460e341866703d0fde4c809de7f40a", size = 316058, upload-time = "2026-01-12T10:23:08.314Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c3/1c/a297bb476e84927cb3cb96180b8131f077ded4e3ac29e010b4ed57b1d865/unique_toolkit-1.39.2-py3-none-any.whl", hash = "sha256:a77514673b9c913bf6093a9a31449e69da2f7f40963df657eac21f84ad96a8df", size = 347921, upload-time = "2025-12-18T07:54:37.998Z" },
+    { url = "https://files.pythonhosted.org/packages/d0/d9/aa1e105015a1ffe49b7e4a626766352df667f1d621ee87026cceb8f1a9cd/unique_toolkit-1.43.0-py3-none-any.whl", hash = "sha256:53bc4ad116afd34574fe0a241da08c69a5a57d49a31d0e98d55f0e79a688489b", size = 395769, upload-time = "2026-01-12T10:23:06.521Z" },
 ]
 
 [[package]]
 name = "unique-web-search"
-version = "1.7.4"
+version = "1.7.5"
 source = { editable = "." }
 dependencies = [
     { name = "azure-ai-projects" },
@@ -3535,7 +3558,7 @@ requires-dist = [
     { name = "timeout-decorator", specifier = ">=0.5.0,<1" },
     { name = "typing-extensions", specifier = ">=4.14.1,<5" },
     { name = "unidecode", specifier = ">=1.4.0,<2" },
-    { name = "unique-toolkit", specifier = ">=1.38.3,<2" },
+    { name = "unique-toolkit", specifier = ">=1.42.9,<2" },
 ]
 
 [package.metadata.requires-dev]
