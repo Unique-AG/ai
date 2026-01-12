@@ -112,6 +112,7 @@ class SWOTOrchestrator:
             await self._chat_service.update_message_execution_async(
                 message_id=self._chat_service.assistant_message_id,
                 percentage_completed=(current_step-1) * 80 / total_steps + 10,
+                progress_title=f"Processing source `{_get_content_title(content)}`",
             )
             source_selection_result = await self._source_selector.select(
                 company_name=company_name,

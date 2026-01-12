@@ -989,6 +989,7 @@ class ChatService(ChatServiceDeprecated):
         percentage_completed: int | None = None,
         is_queueable: bool = True,
         execution_options: dict | None = None,
+        progress_title: str | None = None,
     ) -> MessageExecution:
         """Creates a message execution for tracking long-running operations synchronously.
 
@@ -999,6 +1000,7 @@ class ChatService(ChatServiceDeprecated):
             percentage_completed (int | None): Percentage of completion (0-100)
             is_queueable (bool): Whether the execution is queueable. Defaults to True. If true, then the progress will be updated in the background by the execution pipeline
             execution_options (dict | None): Additional execution options. Defaults to None.
+            progress_title (str | None): The title of the progress bar. If not provided, the title of the last message log is taken.
 
         Returns:
             MessageExecution: The created message execution
@@ -1017,6 +1019,7 @@ class ChatService(ChatServiceDeprecated):
             percentage_completed=percentage_completed,
             is_queueable=is_queueable,
             execution_options=execution_options,
+            progress_title=progress_title,
         )
 
     async def create_message_execution_async(
@@ -1028,6 +1031,7 @@ class ChatService(ChatServiceDeprecated):
         percentage_completed: int | None = None,
         is_queueable: bool = True,
         execution_options: dict | None = None,
+        progress_title: str | None = None,
     ) -> MessageExecution:
         """Creates a message execution for tracking long-running operations asynchronously.
 
@@ -1038,6 +1042,7 @@ class ChatService(ChatServiceDeprecated):
             percentage_completed (int | None): Percentage of completion (0-100)
             is_queueable (bool): Whether the execution is queueable. Defaults to True. If true, then the progress will be updated in the background by the execution pipeline
             execution_options (dict | None): Additional execution options. Defaults to None.
+            progress_title (str | None): The title of the progress bar. If not provided, the title of the last message log is taken.
 
         Returns:
             MessageExecution: The created message execution
@@ -1056,6 +1061,7 @@ class ChatService(ChatServiceDeprecated):
             percentage_completed=percentage_completed,
             is_queueable=is_queueable,
             execution_options=execution_options,
+            progress_title=progress_title,
         )
 
     def get_message_execution(
@@ -1174,6 +1180,9 @@ class ChatService(ChatServiceDeprecated):
         type: MessageExecutionType = MessageExecutionType.DEEP_RESEARCH,
         seconds_remaining: int | None = None,
         percentage_completed: int | None = None,
+        is_queueable: bool = True,
+        execution_options: dict | None = None,
+        progress_title: str | None = None,
     ) -> MessageExecution:
         """Creates a message execution for the current assistant message synchronously.
 
@@ -1183,6 +1192,9 @@ class ChatService(ChatServiceDeprecated):
             type (MessageExecutionType): The type of execution. Defaults to DEEP_RESEARCH.
             seconds_remaining (int | None): Estimated seconds remaining for completion
             percentage_completed (int | None): Percentage of completion (0-100)
+            is_queueable (bool): Whether the execution is queueable. Defaults to True. If true, then the progress will be updated in the background by the execution pipeline
+            execution_options (dict | None): Additional execution options. Defaults to None.
+            progress_title (str | None): The title of the progress bar. If not provided, the title of the last message log is taken.
 
         Returns:
             MessageExecution: The created message execution
@@ -1196,6 +1208,9 @@ class ChatService(ChatServiceDeprecated):
             type=type,
             seconds_remaining=seconds_remaining,
             percentage_completed=percentage_completed,
+            is_queueable=is_queueable,
+            execution_options=execution_options,
+            progress_title=progress_title,
         )
 
     async def create_assistant_message_execution_async(
@@ -1204,6 +1219,9 @@ class ChatService(ChatServiceDeprecated):
         type: MessageExecutionType = MessageExecutionType.DEEP_RESEARCH,
         seconds_remaining: int | None = None,
         percentage_completed: int | None = None,
+        is_queueable: bool = True,
+        execution_options: dict | None = None,
+        progress_title: str | None = None,
     ) -> MessageExecution:
         """Creates a message execution for the current assistant message asynchronously.
 
@@ -1213,6 +1231,9 @@ class ChatService(ChatServiceDeprecated):
             type (MessageExecutionType): The type of execution. Defaults to DEEP_RESEARCH.
             seconds_remaining (int | None): Estimated seconds remaining for completion
             percentage_completed (int | None): Percentage of completion (0-100)
+            is_queueable (bool): Whether the execution is queueable. Defaults to True. If true, then the progress will be updated in the background by the execution pipeline
+            execution_options (dict | None): Additional execution options. Defaults to None.
+            progress_title (str | None): The title of the progress bar. If not provided, the title of the last message log is taken.
 
         Returns:
             MessageExecution: The created message execution
@@ -1226,6 +1247,9 @@ class ChatService(ChatServiceDeprecated):
             type=type,
             seconds_remaining=seconds_remaining,
             percentage_completed=percentage_completed,
+            is_queueable=is_queueable,
+            execution_options=execution_options,
+            progress_title=progress_title,
         )
 
     def get_assistant_message_execution(self) -> MessageExecution:

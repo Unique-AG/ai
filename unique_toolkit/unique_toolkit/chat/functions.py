@@ -1155,6 +1155,7 @@ def create_message_execution(
     percentage_completed: int | None = None,
     is_queueable: bool = True,
     execution_options: dict | None = None,
+    progress_title: str | None = None,
 ) -> MessageExecution:
     """Creates a message execution synchronously.
 
@@ -1168,6 +1169,7 @@ def create_message_execution(
         percentage_completed (int | None): Percentage of completion (0-100).
         is_queueable (bool): Whether the execution is queueable. Defaults to True. If true, then the progress will be updated in the background by the execution pipeline
         execution_options (dict | None): Additional execution options. Defaults to None.
+        progress_title (str | None): The title of the progress bar. If not provided, the title of the last message log is taken.
 
     Returns:
         MessageExecution: The created message execution.
@@ -1187,6 +1189,7 @@ def create_message_execution(
             percentageCompleted=percentage_completed,
             isQueueable=is_queueable,
             executionOptions=execution_options,
+            progressTitle=progress_title,
         )
         return MessageExecution(**message_execution)
     except Exception as e:
@@ -1204,6 +1207,7 @@ async def create_message_execution_async(
     percentage_completed: int | None = None,
     is_queueable: bool = True,
     execution_options: dict | None = None,
+    progress_title: str | None = None,
 ) -> MessageExecution:
     """Creates a message execution asynchronously.
 
@@ -1217,6 +1221,7 @@ async def create_message_execution_async(
         percentage_completed (int | None): Percentage of completion (0-100).
         is_queueable (bool): Whether the execution is queueable. Defaults to True. If true, then the progress will be updated in the background by the execution pipeline
         execution_options (dict | None): Additional execution options. Defaults to None.
+        progress_title (str | None): The title of the progress bar. If not provided, the title of the last message log is taken.
 
     Returns:
         MessageExecution: The created message execution.
@@ -1236,6 +1241,7 @@ async def create_message_execution_async(
             percentageCompleted=percentage_completed,
             isQueueable=is_queueable,
             executionOptions=execution_options,
+            progressTitle=progress_title,
         )
         return MessageExecution(**message_execution)
     except Exception as e:
