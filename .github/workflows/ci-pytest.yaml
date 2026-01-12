@@ -1,0 +1,112 @@
+name: "[CI] Pytest - All Packages"
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      package:
+        description: 'Package to test (leave empty for auto-detect based on changes)'
+        type: choice
+        options:
+          - ''
+          - all
+          - toolkit
+          - sdk
+          - mcp
+          - orchestrator
+          - web_search
+        default: ''
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            toolkit:
+              - 'unique_toolkit/**'
+              - '!unique_toolkit/docs/**'
+              - '!unique_toolkit/mkdocs.yaml'
+              - '!unique_toolkit/docs.subproject.mkdocs.yaml'
+            sdk:
+              - 'unique_sdk/**'
+            mcp:
+              - 'unique_mcp/**'
+            orchestrator:
+              - 'unique_orchestrator/**'
+            web_search:
+              - 'tool_packages/unique_web_search/**'
+              - '.github/workflows/ci-pytest.yaml'
+
+      - name: Build test matrix
+        id: set-matrix
+        run: |
+          # Package configurations: name, dir, python, install_args, test_args, deps, run_deptry
+          declare -A PACKAGES
+          PACKAGES[toolkit]='{"name":"toolkit","dir":"unique_toolkit","python":"3.12","install_args":"--with fastapi","test_args":"","deps":"latest","run_deptry":"false"}'
+          PACKAGES[sdk]='{"name":"sdk","dir":"unique_sdk","python":"3.11","install_args":"","test_args":"-m \"not integration\"","deps":"latest","run_deptry":"false"}'
+          PACKAGES[mcp]='{"name":"mcp","dir":"unique_mcp","python":"3.12","install_args":"","test_args":"","deps":"latest","run_deptry":"false"}'
+          PACKAGES[orchestrator]='{"name":"orchestrator","dir":"unique_orchestrator","python":"3.12","install_args":"","test_args":"","deps":"latest","run_deptry":"false"}'
+          PACKAGES[web_search_latest]='{"name":"web_search (latest)","dir":"tool_packages/unique_web_search","python":"3.12","install_args":"","test_args":"","deps":"latest","run_deptry":"false"}'
+          PACKAGES[web_search_min]='{"name":"web_search (min)","dir":"tool_packages/unique_web_search","python":"3.12","install_args":"","test_args":"","deps":"min","run_deptry":"true"}'
+          
+          SELECTED="${{ github.event.inputs.package }}"
+          MATRIX="[]"
+          
+          if [ "$SELECTED" = "all" ]; then
+            MATRIX=$(echo "${PACKAGES[@]}" | jq -sc '.')
+          elif [ "$SELECTED" = "web_search" ]; then
+            MATRIX=$(echo "${PACKAGES[web_search_latest]}" "${PACKAGES[web_search_min]}" | jq -sc '.')
+          elif [ -n "$SELECTED" ]; then
+            MATRIX=$(echo "${PACKAGES[$SELECTED]}" | jq -sc '.')
+          else
+            # Auto-detect based on changed paths
+            CHANGED=()
+            [ "${{ steps.filter.outputs.toolkit }}" = "true" ] && CHANGED+=("${PACKAGES[toolkit]}")
+            [ "${{ steps.filter.outputs.sdk }}" = "true" ] && CHANGED+=("${PACKAGES[sdk]}")
+            [ "${{ steps.filter.outputs.mcp }}" = "true" ] && CHANGED+=("${PACKAGES[mcp]}")
+            [ "${{ steps.filter.outputs.orchestrator }}" = "true" ] && CHANGED+=("${PACKAGES[orchestrator]}")
+            if [ "${{ steps.filter.outputs.web_search }}" = "true" ]; then
+              CHANGED+=("${PACKAGES[web_search_latest]}")
+              CHANGED+=("${PACKAGES[web_search_min]}")
+            fi
+            
+            if [ ${#CHANGED[@]} -gt 0 ]; then
+              MATRIX=$(printf '%s\n' "${CHANGED[@]}" | jq -sc '.')
+            fi
+          fi
+          
+          echo "matrix={\"include\":$MATRIX}" >> $GITHUB_OUTPUT
+          echo "Generated matrix: $MATRIX"
+
+  test:
+    needs: detect-changes
+    if: ${{ fromJson(needs.detect-changes.outputs.matrix).include[0] != null }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
+    name: test-${{ matrix.name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run tests
+        uses: ./.github/actions/run-tests
+        with:
+          package_dir: ${{ matrix.dir }}
+          python_version: ${{ matrix.python }}
+          install_args: ${{ matrix.install_args }}
+          test_args: ${{ matrix.test_args }}
+          deps: ${{ matrix.deps }}
+          run_deptry: ${{ matrix.run_deptry }}
