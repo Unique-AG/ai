@@ -187,14 +187,8 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
                 message_id=self._chat_service.assistant_message_id,
                 is_queueable=False,
                 execution_options={"toolChoices": ["SWOT"]},
-                progressTitle=f"Started SWOT Analysis for {company_name}",
+                progress_title=f"Started SWOT Analysis for '{company_name}'",
                 percentage_completed=0,
-            )
-
-            await self._chat_service.update_message_execution_async(
-                message_id=self._chat_service.assistant_message_id,
-                percentage_completed=0,
-                progressTitle=f"Started SWOT Analysis for {company_name}",
             )
 
             await self._chat_service.modify_assistant_message_async(

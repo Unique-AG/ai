@@ -1117,6 +1117,7 @@ class ChatService(ChatServiceDeprecated):
         status: MessageExecutionUpdateStatus | None = None,
         seconds_remaining: int | None = None,
         percentage_completed: int | None = None,
+        progress_title: str | None = None,
     ) -> MessageExecution:
         """Updates a message execution synchronously.
 
@@ -1125,6 +1126,7 @@ class ChatService(ChatServiceDeprecated):
             status (MessageExecutionUpdateStatus | None): The updated status (COMPLETED or FAILED). Defaults to None
             seconds_remaining (int | None): Updated estimated seconds remaining
             percentage_completed (int | None): Updated percentage of completion (0-100)
+            progress_title (str | None): The title of the progress bar. If not provided, the title of the last message log is taken.
 
         Returns:
             MessageExecution: The updated message execution
@@ -1140,6 +1142,7 @@ class ChatService(ChatServiceDeprecated):
             status=status,
             seconds_remaining=seconds_remaining,
             percentage_completed=percentage_completed,
+            progress_title=progress_title,
         )
 
     async def update_message_execution_async(
@@ -1149,6 +1152,7 @@ class ChatService(ChatServiceDeprecated):
         status: MessageExecutionUpdateStatus | None = None,
         seconds_remaining: int | None = None,
         percentage_completed: int | None = None,
+        progress_title: str | None = None,
     ) -> MessageExecution:
         """Updates a message execution asynchronously.
 
@@ -1157,6 +1161,7 @@ class ChatService(ChatServiceDeprecated):
             status (MessageExecutionUpdateStatus | None): The updated status (COMPLETED or FAILED). Defaults to None
             seconds_remaining (int | None): Updated estimated seconds remaining
             percentage_completed (int | None): Updated percentage of completion (0-100)
+            progress_title (str | None): The title of the progress bar. If not provided, the title of the last message log is taken.
 
         Returns:
             MessageExecution: The updated message execution
@@ -1172,6 +1177,7 @@ class ChatService(ChatServiceDeprecated):
             status=status,
             seconds_remaining=seconds_remaining,
             percentage_completed=percentage_completed,
+            progress_title=progress_title,
         )
 
     def create_assistant_message_execution(

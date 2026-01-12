@@ -1318,6 +1318,7 @@ def update_message_execution(
     status: MessageExecutionUpdateStatus | None = None,
     seconds_remaining: int | None = None,
     percentage_completed: int | None = None,
+    progress_title: str | None = None,
 ) -> MessageExecution:
     """Updates a message execution synchronously.
 
@@ -1328,6 +1329,7 @@ def update_message_execution(
         status (MessageExecutionUpdateStatus | None): The updated status (COMPLETED or FAILED). Defaults to None.
         seconds_remaining (int | None): Updated estimated seconds remaining.
         percentage_completed (int | None): Updated percentage of completion (0-100).
+        progress_title (str | None): The title of the progress bar. If not provided, the title of the last message log is taken.
 
     Returns:
         MessageExecution: The updated message execution.
@@ -1345,6 +1347,7 @@ def update_message_execution(
             status=status_value,
             secondsRemaining=seconds_remaining,
             percentageCompleted=percentage_completed,
+            progressTitle=progress_title,
         )
         return MessageExecution(**message_execution)
     except Exception as e:
@@ -1359,6 +1362,7 @@ async def update_message_execution_async(
     status: MessageExecutionUpdateStatus | None = None,
     seconds_remaining: int | None = None,
     percentage_completed: int | None = None,
+    progress_title: str | None = None,
 ) -> MessageExecution:
     """Updates a message execution asynchronously.
 
@@ -1369,6 +1373,7 @@ async def update_message_execution_async(
         status (MessageExecutionUpdateStatus | None): The updated status (COMPLETED or FAILED). Defaults to None.
         seconds_remaining (int | None): Updated estimated seconds remaining.
         percentage_completed (int | None): Updated percentage of completion (0-100).
+        progress_title (str | None): The title of the progress bar. If not provided, the title of the last message log is taken.
 
     Returns:
         MessageExecution: The updated message execution.
@@ -1386,6 +1391,7 @@ async def update_message_execution_async(
             status=status_value,
             secondsRemaining=seconds_remaining,
             percentageCompleted=percentage_completed,
+            progressTitle=progress_title,
         )
         return MessageExecution(**message_execution)
     except Exception as e:
