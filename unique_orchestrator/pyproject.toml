@@ -14,7 +14,7 @@ pydantic-settings = "^2.10.1"
 python-dotenv = "^1.0.1"
 
 unique-sdk = "^0.10.48"
-unique-toolkit = "^1.32.9"
+unique-toolkit = "^1.42.9"
 unique-stock-ticker = "^1.0.2"
 unique-follow-up-questions = "^1.1.2"
 unique-internal-search = "^1.2.15"

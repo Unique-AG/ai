@@ -8,6 +8,12 @@ async def test_history_updated_before_reference_extraction(monkeypatch):
     # Lazy import to avoid heavy dependencies at module import time
     from unique_orchestrator.unique_ai import UniqueAI
 
+    # Mock feature_flags to avoid calling the real implementation
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai.feature_flags.is_new_answers_ui_enabled",
+        lambda company_id: True,
+    )
+
     # Create a minimal UniqueAI instance with mocked dependencies
     mock_logger = MagicMock()
 
@@ -24,6 +30,7 @@ async def test_history_updated_before_reference_extraction(monkeypatch):
 
     dummy_event = MagicMock()
     dummy_event.payload = DummyEvent.Payload()
+    dummy_event.company_id = "test_company_id"
 
     mock_config = MagicMock()
     mock_config.agent.max_loop_iterations = 1
@@ -33,7 +40,6 @@ async def test_history_updated_before_reference_extraction(monkeypatch):
 
     # Managers
     mock_history_manager = MagicMock()
-    mock_history_manager.has_no_loop_messages.return_value = True
     mock_history_manager._append_tool_calls_to_history = MagicMock()
     mock_history_manager.add_tool_call_results = MagicMock()
 
