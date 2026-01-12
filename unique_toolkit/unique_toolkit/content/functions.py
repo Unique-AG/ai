@@ -855,7 +855,10 @@ def get_folder_info(user_id: str, company_id: str, *, scope_id: str) -> FolderIn
 
     return FolderInfo.model_validate(info, by_alias=True, by_name=True)
 
-async def get_folder_info_async(user_id: str, company_id: str, *, scope_id: str) -> FolderInfo:
+
+async def get_folder_info_async(
+    user_id: str, company_id: str, *, scope_id: str
+) -> FolderInfo:
     info = unique_sdk.Folder.get_info_async(
         user_id=user_id, company_id=company_id, scopeId=scope_id
     )

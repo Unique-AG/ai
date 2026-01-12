@@ -1364,6 +1364,7 @@ class TestKnowledgeBaseServiceFolderManagement:
         assert isinstance(result, list)
         assert all(isinstance(scope_id, str) for scope_id in result)
 
+
 class TestKnowledgeBaseServiceMetadata:
     """Test cases for metadata management methods."""
 
@@ -2071,8 +2072,6 @@ class TestKnowledgeBaseServiceEdgeCases:
         assert mock_update.call_count == 2
 
 
-
-
 class TestExtractFolderMetadataFromContentInfos:
     """Test cases for extract_folder_metadata_from_content_infos static method."""
 
@@ -2100,7 +2099,9 @@ class TestExtractFolderMetadataFromContentInfos:
 
         # Act
         scope_ids, folder_id_paths, known_folder_paths = (
-            KnowledgeBaseService.extract_folder_metadata_from_content_infos([content_info])
+            KnowledgeBaseService.extract_folder_metadata_from_content_infos(
+                [content_info]
+            )
         )
 
         # Assert
@@ -2132,7 +2133,9 @@ class TestExtractFolderMetadataFromContentInfos:
 
         # Act
         scope_ids, folder_id_paths, known_folder_paths = (
-            KnowledgeBaseService.extract_folder_metadata_from_content_infos([content_info])
+            KnowledgeBaseService.extract_folder_metadata_from_content_infos(
+                [content_info]
+            )
         )
 
         # Assert
@@ -2187,7 +2190,11 @@ class TestExtractFolderMetadataFromContentInfos:
         # Act
         scope_ids, folder_id_paths, known_folder_paths = (
             KnowledgeBaseService.extract_folder_metadata_from_content_infos(
-                [content_with_folder_id, content_with_full_path, content_without_metadata]
+                [
+                    content_with_folder_id,
+                    content_with_full_path,
+                    content_without_metadata,
+                ]
             )
         )
 
@@ -2250,7 +2257,9 @@ class TestExtractFolderMetadataFromContentInfos:
 
         # Act
         scope_ids, folder_id_paths, known_folder_paths = (
-            KnowledgeBaseService.extract_folder_metadata_from_content_infos([content_1, content_2])
+            KnowledgeBaseService.extract_folder_metadata_from_content_infos(
+                [content_1, content_2]
+            )
         )
 
         # Assert
@@ -2281,7 +2290,9 @@ class TestExtractFolderMetadataFromContentInfos:
 
         # Act
         scope_ids, folder_id_paths, known_folder_paths = (
-            KnowledgeBaseService.extract_folder_metadata_from_content_infos([content_info])
+            KnowledgeBaseService.extract_folder_metadata_from_content_infos(
+                [content_info]
+            )
         )
 
         # Assert
@@ -2624,7 +2635,10 @@ class TestResolveVisibleFolderTreeAsync:
         assert "Documents" in result["folders"]
         assert "notes.txt" in result["folders"]["Documents"]["files"]
         assert "Reports" in result["folders"]["Documents"]["folders"]
-        assert "report.pdf" in result["folders"]["Documents"]["folders"]["Reports"]["files"]
+        assert (
+            "report.pdf"
+            in result["folders"]["Documents"]["folders"]["Reports"]["files"]
+        )
         print(f"   ⏱️  resolve_visible_folder_tree_async duration: {duration:.3f}s")
 
     @pytest.mark.ai
@@ -2939,7 +2953,10 @@ class TestResolveVisibleFolderPathsAsync:
             metadata={r"{FullPath}": "/External/Data"},
         )
 
-        mock_get_content_async.return_value = [content_with_folder_id, content_with_full_path]
+        mock_get_content_async.return_value = [
+            content_with_folder_id,
+            content_with_full_path,
+        ]
         mock_translate_async.return_value = {"scope1": "Documents"}
 
         # Act
