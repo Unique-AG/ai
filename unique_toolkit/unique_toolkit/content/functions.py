@@ -799,7 +799,7 @@ def get_content_info(
     skip: int | None = None,
     take: int | None = None,
     file_path: str | None = None,
-):
+) -> PaginatedContentInfos:
     """Gets the info of a content."""
 
     get_info_params = unique_sdk.Content.ContentInfoParams(
@@ -819,6 +819,34 @@ def get_content_info(
         content_info, by_alias=True, by_name=True
     )
 
+async def get_content_info_async(
+    user_id: str,
+    company_id: str,
+    *,
+    metadata_filter: dict[str, Any] | None = None,
+    skip: int | None = None,
+    take: int | None = None,
+    file_path: str | None = None,
+) -> PaginatedContentInfos:
+    """Gets the info of a content."""
+
+    get_info_params = unique_sdk.Content.ContentInfoParams(
+        metadataFilter=metadata_filter or None,  # Dict cannot be empty
+    )
+    if skip:
+        get_info_params["skip"] = skip
+    if take:
+        get_info_params["take"] = take
+    if file_path:
+        get_info_params["filePath"] = file_path
+
+    content_info = unique_sdk.Content.get_infos_async(
+        user_id=user_id, company_id=company_id, **get_info_params
+    )
+    return PaginatedContentInfos.model_validate(
+        await content_info, by_alias=True, by_name=True
+    )
+
 
 def get_folder_info(user_id: str, company_id: str, *, scope_id: str) -> FolderInfo:
     info = unique_sdk.Folder.get_info(
@@ -826,6 +854,13 @@ def get_folder_info(user_id: str, company_id: str, *, scope_id: str) -> FolderIn
     )
 
     return FolderInfo.model_validate(info, by_alias=True, by_name=True)
+
+async def get_folder_info_async(user_id: str, company_id: str, *, scope_id: str) -> FolderInfo:
+    info = unique_sdk.Folder.get_info_async(
+        user_id=user_id, company_id=company_id, scopeId=scope_id
+    )
+
+    return FolderInfo.model_validate(await info, by_alias=True, by_name=True)
 
 
 def update_content(
