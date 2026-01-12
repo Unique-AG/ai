@@ -577,7 +577,9 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             debug_info=self.debug_info,
         )
 
-        if self.tool_progress_reporter:
+        if self.tool_progress_reporter and not feature_flags.is_new_answers_ui_enabled(
+            self.company_id
+        ):
             await self.tool_progress_reporter.notify_from_tool_call(
                 tool_call=tool_call,
                 name=f"**{self.tool_execution_message_name}**",

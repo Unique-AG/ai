@@ -1,5 +1,4 @@
 from docx.document import Document as DocumentObject
-from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
 from docxtpl import DocxTemplate
 from pydantic import BaseModel
 
@@ -7,45 +6,39 @@ from pydantic import BaseModel
 class HeadingField(BaseModel):
     text: str
     level: int = 4
-    alignment: WD_PARAGRAPH_ALIGNMENT = WD_PARAGRAPH_ALIGNMENT.LEFT
 
     def add(self, doc: DocumentObject):
         p = doc.add_heading(self.text, level=self.level)
-        p.alignment = self.alignment
         return p
 
     def __str__(self):
-        return f"HeadingField(text={self.text}, level={self.level}, alignment={self.alignment})"
+        return f"HeadingField(text={self.text}, level={self.level})"
 
 
 class ParagraphField(BaseModel):
     text: str
     style: str | None = None
-    alignment: WD_PARAGRAPH_ALIGNMENT = WD_PARAGRAPH_ALIGNMENT.LEFT
 
     def add(self, doc: DocumentObject):
         p = doc.add_paragraph(self.text, style=self.style)
-        p.alignment = self.alignment
         return p
 
     def __str__(self):
-        return f"ParagraphField(text={self.text}, style={self.style}, alignment={self.alignment})"
+        return f"ParagraphField(text={self.text}, style={self.style})"
 
 
 class RunField(BaseModel):
     text: str
     italic: bool | None = False
     bold: bool | None = False
-    alignment: WD_PARAGRAPH_ALIGNMENT = WD_PARAGRAPH_ALIGNMENT.LEFT
 
     def __str__(self):
-        return f"RunField(text={self.text}, italic={self.italic}, alignment={self.alignment})"
+        return f"RunField(text={self.text}, italic={self.italic}, bold={self.bold})"
 
 
 class RunsField(BaseModel):
     runs: list[RunField]
     style: str | None = None
-    alignment: WD_PARAGRAPH_ALIGNMENT = WD_PARAGRAPH_ALIGNMENT.LEFT
 
     def add(self, doc: DocumentObject):
         if not self.runs:
@@ -60,7 +53,7 @@ class RunsField(BaseModel):
         return p
 
     def __str__(self):
-        return f"RunsField(runs={self.runs}, style={self.style}, alignment={self.alignment})"
+        return f"RunsField(runs={self.runs}, style={self.style})"
 
 
 class ContentField(BaseModel):

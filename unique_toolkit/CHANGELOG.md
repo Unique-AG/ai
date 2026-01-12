@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `get_content_infos_async()` to `KnowledgeBaseService` for fetching all content infos with parallel pagination
 - Add `extract_folder_metadata_from_content_infos()` static method to extract scope IDs and folder paths from content
 
+## [1.43.2] - 2026-01-12
+- `DocxGeneratorService`: Alignment need to be specified by the template rather than in code
+
 ## [1.43.1] - 2026-01-12
 - Remove accidental example report.md from repo
 
