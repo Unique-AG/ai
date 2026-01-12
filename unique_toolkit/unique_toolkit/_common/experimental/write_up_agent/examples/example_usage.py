@@ -2,6 +2,8 @@
 Example: Using the Write-Up Agent to generate summaries from DataFrame data.
 """
 
+# TODO [UN-16142]: Add example usage in tutorial instead of here
+
 import logging
 from pathlib import Path
 
@@ -48,7 +50,6 @@ write_up_agent_config = WriteUpAgentConfig(
 # Initialize the agent with LLM service
 write_up_agent = WriteUpAgent(
     config=write_up_agent_config,
-    llm_service=LanguageModelService.from_settings(_SETTINGS),
 )
 
 # Load your DataFrame
@@ -59,8 +60,10 @@ print(f"Processing {len(df)} rows across {df['section'].nunique()} sections...")
 print(f"Columns in DataFrame: {list(df.columns)}")
 print()
 
+llm_service = LanguageModelService.from_settings(_SETTINGS)
+
 # Generate the report
-report = write_up_agent.process(df)
+report = write_up_agent.process(df, llm_service=llm_service)
 
 # Display the result
 print("=" * 80)

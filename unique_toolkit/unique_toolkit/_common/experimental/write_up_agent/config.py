@@ -37,6 +37,6 @@ class WriteUpAgentConfig(BaseModel):
     @field_validator("template")
     @classmethod
     def validate_template_not_empty(cls, v: str) -> str:
-        if not v or not v.strip():
+        if not v.strip():
             raise ValueError("Template must not be empty")
         return v

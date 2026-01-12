@@ -1,7 +1,6 @@
 """Generation handler service for LLM-based summarization."""
 
 import logging
-from pathlib import Path
 from typing import Any, Callable
 
 from jinja2 import Template
@@ -43,8 +42,7 @@ class GenerationHandler:
     def __init__(
         self,
         config: GenerationHandlerConfig,
-        llm_service: LanguageModelService,
-        renderer: Callable,
+        renderer: Callable[[GroupData], str],
     ):
         """
         Initialize generation handler.
@@ -52,20 +50,10 @@ class GenerationHandler:
         Args:
             config: Configuration for generation
             renderer: Function to render group content (injected from template handler)
-                     Signature: renderer(group_data, llm_response=None) -> str
+                     Signature: renderer(group_data: GroupData) -> str
         """
         self._config = config
-        self.renderer = renderer
-
-        # Load prompt templates
-        prompts_dir = Path(__file__).parent / "prompts"
-        system_template_path = prompts_dir / "system_prompt.j2"
-        user_template_path = prompts_dir / "user_prompt.j2"
-
-        self.system_template = Template(system_template_path.read_text())
-        self.user_template = Template(user_template_path.read_text())
-
-        self.llm_service = llm_service
+        self._renderer = renderer
 
         # TODO [UN-16142]: Use token counter from toolkit
         try:
@@ -88,7 +76,10 @@ class GenerationHandler:
         return len(default_encoder.encode(text))
 
     def process_groups(
-        self, groups: list[GroupData], grouping_column: str
+        self,
+        groups: list[GroupData],
+        grouping_column: str,
+        llm_service: LanguageModelService,
     ) -> list[ProcessedGroup]:
         """
         Process all groups with LLM generation.
@@ -96,6 +87,7 @@ class GenerationHandler:
         Args:
             groups: List of GroupData instances
             grouping_column: The column name used for grouping (e.g., 'section')
+            llm_service: LanguageModelService instance to use for LLM calls
 
         Returns:
             List of ProcessedGroup instances with llm_response added
@@ -118,7 +110,7 @@ class GenerationHandler:
             try:
                 # Process group with batching
                 llm_response = self._process_group_with_batching(
-                    group, group_instruction
+                    group, group_instruction, llm_service
                 )
 
                 # Create ProcessedGroup with proper typing
@@ -142,7 +134,10 @@ class GenerationHandler:
         return processed_groups
 
     def _process_group_with_batching(
-        self, group: GroupData, group_instruction: str | None
+        self,
+        group: GroupData,
+        group_instruction: str | None,
+        llm_service: LanguageModelService,
     ) -> str:
         """
         Process a single group with adaptive batching.
@@ -150,6 +145,7 @@ class GenerationHandler:
         Args:
             group: GroupData instance
             group_instruction: Optional group-specific instruction
+            llm_service: LanguageModelService instance to use for LLM calls
 
         Returns:
             Final LLM response (aggregated if multiple batches)
@@ -179,10 +175,11 @@ class GenerationHandler:
         # Process each batch iteratively, keeping only one previous summary at a time
         previous_summary: str | None = None
 
+        # TODO [UN-16142]: Improve error handling logic for LLMCallError
         for batch_index, batch_group in enumerate(batches, start=1):
             try:
                 # Render content for this batch
-                content = self.renderer(batch_group)
+                content = self._renderer(batch_group)
 
                 # Convert snake_case group_key to Title Case for display in prompts
                 display_section_name = from_snake_case_to_display_name(group_key)
@@ -196,7 +193,7 @@ class GenerationHandler:
                 )
 
                 # Call LLM
-                batch_summary = self._call_llm(system_prompt, user_prompt)
+                batch_summary = self._call_llm(system_prompt, user_prompt, llm_service)
 
                 # Keep only this summary for the next iteration
                 previous_summary = batch_summary
@@ -302,12 +299,16 @@ class GenerationHandler:
         """
         try:
             # Build system prompt
-            system_prompt = self.system_template.render(
+            system_prompt = Template(
+                self._config.prompts_config.system_prompt_template
+            ).render(
                 common_instruction=self._config.common_instruction,
             )
 
             # Build user prompt with section name
-            user_prompt = self.user_template.render(
+            user_prompt = Template(
+                self._config.prompts_config.user_prompt_template
+            ).render(
                 section_name=section_name,
                 content=content,
                 group_instruction=group_instruction,
@@ -326,13 +327,16 @@ class GenerationHandler:
                 },
             ) from e
 
-    def _call_llm(self, system_prompt: str, user_prompt: str) -> str:
+    def _call_llm(
+        self, system_prompt: str, user_prompt: str, llm_service: LanguageModelService
+    ) -> str:
         """
         Call LLM with prompts.
 
         Args:
             system_prompt: System prompt
             user_prompt: User prompt
+            llm_service: LanguageModelService instance to use for LLM calls
 
         Returns:
             LLM response text
@@ -348,7 +352,7 @@ class GenerationHandler:
         )
         try:
             # Call the language model using the configured LMI
-            response = self.llm_service.complete(
+            response = llm_service.complete(
                 messages=messages,
                 model_name=self._config.language_model.name,
             )

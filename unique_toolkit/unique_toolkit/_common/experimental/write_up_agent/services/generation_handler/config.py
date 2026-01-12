@@ -2,6 +2,9 @@
 
 from pydantic import BaseModel, Field
 
+from unique_toolkit._common.experimental.write_up_agent.services.generation_handler.prompts.config import (
+    GenerationHandlerPromptsConfig,
+)
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 from unique_toolkit._common.validators import LMI, get_LMI_default_field
 from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
@@ -45,4 +48,9 @@ class GenerationHandlerConfig(BaseModel):
         default=20,
         ge=1,
         description="Maximum rows per batch (secondary limit to tokens)",
+    )
+
+    prompts_config: GenerationHandlerPromptsConfig = Field(
+        default_factory=GenerationHandlerPromptsConfig,
+        description="Configuration for the prompts.",
     )

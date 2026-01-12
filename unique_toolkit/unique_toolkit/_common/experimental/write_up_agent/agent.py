@@ -9,6 +9,7 @@ import pandas as pd
 from unique_toolkit._common.experimental.write_up_agent.config import (
     WriteUpAgentConfig,
 )
+from unique_toolkit._common.experimental.write_up_agent.schemas import GroupData
 from unique_toolkit._common.experimental.write_up_agent.services.dataframe_handler import (
     DataFrameHandler,
 )
@@ -50,7 +51,7 @@ class WriteUpAgent:
     6. Return results
     """
 
-    def __init__(self, config: WriteUpAgentConfig, llm_service: LanguageModelService):
+    def __init__(self, config: WriteUpAgentConfig):
         """
         Initialize WriteUpAgent.
 
@@ -58,23 +59,25 @@ class WriteUpAgent:
             config: Configuration with template and settings
         """
         self._config = config
-        self.template_handler = TemplateHandler(config.template)
-        self.dataframe_handler = DataFrameHandler()
+        self._template_handler = TemplateHandler(config.template)
+        self._dataframe_handler = DataFrameHandler()
 
         # Create generation handler with injected renderer
-        def renderer(group_data, llm_response=None):
-            return self.template_handler.render_group(group_data, llm_response)
+        def renderer(group_data: GroupData) -> str:
+            return self._template_handler.render_group(group_data)
 
-        self.generation_handler = GenerationHandler(
-            self._config.generation_handler_config, llm_service, renderer
+        # TODO [UN-16142]: Find a better way to inject the renderer
+        self._generation_handler = GenerationHandler(
+            self._config.generation_handler_config, renderer
         )
 
-    def process(self, df: pd.DataFrame) -> str:
+    def process(self, df: pd.DataFrame, llm_service: LanguageModelService) -> str:
         """
         Execute complete pipeline and generate final report.
 
         Args:
             df: pandas DataFrame to process
+            llm_service: LanguageModelService to use for generating summaries
 
         Returns:
             Final markdown report as a single string with all groups processed
@@ -88,38 +91,39 @@ class WriteUpAgent:
             >>> report = agent.process(df)
             >>> print(report)
         """
+        # TODO [UN-16142]: Add error handling for each step separately
         try:
             # Step 1: Extract template structure
             _LOGGER.info("Extracting template structure...")
-            grouping_column = self.template_handler.get_grouping_column()
-            selected_columns = self.template_handler.get_selected_columns()
+            grouping_column = self._template_handler.get_grouping_column()
+            selected_columns = self._template_handler.get_selected_columns()
             _LOGGER.info(f"Detected grouping column: {grouping_column}")
             _LOGGER.info(f"Detected data columns: {selected_columns}")
 
             # Step 2: Validate DataFrame
             _LOGGER.info("Validating DataFrame columns...")
-            self.dataframe_handler.validate_columns(
+            self._dataframe_handler.validate_columns(
                 df, grouping_column, selected_columns
             )
 
             # Step 3: Create groups
             _LOGGER.info("Creating groups from DataFrame...")
-            groups = self.dataframe_handler.create_groups(
+            groups = self._dataframe_handler.create_groups(
                 df, grouping_column, selected_columns
             )
             _LOGGER.info(f"Created {len(groups)} groups")
 
             # Step 4: Process groups with GenerationHandler
             _LOGGER.info("Processing groups with GenerationHandler...")
-            processed_groups = self.generation_handler.process_groups(
-                groups, grouping_column
+            processed_groups = self._generation_handler.process_groups(
+                groups, grouping_column, llm_service
             )
             _LOGGER.info(f"Generation complete for {len(processed_groups)} groups")
 
             # Step 5: Render final report with LLM responses
             _LOGGER.info("Rendering final report...")
 
-            final_report = self.template_handler.render_all_groups(processed_groups)
+            final_report = self._template_handler.render_all_groups(processed_groups)
 
             _LOGGER.info(f"Report generated ({len(final_report)} characters)")
 

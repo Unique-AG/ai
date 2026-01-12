@@ -312,7 +312,7 @@ df = pd.DataFrame({
 Two main components:
 
 1. **WriteUpAgentConfig**: Defines the template and generation settings
-2. **LanguageModelService**: Provides LLM access for summarization
+2. **LanguageModelService**: Provides LLM access for summarization (passed at process time)
 
 ```python
 from unique_toolkit._common.experimental.write_up_agent import (
@@ -322,9 +322,10 @@ from unique_toolkit._common.experimental.write_up_agent import (
 from unique_toolkit.language_model.service import LanguageModelService
 
 config = WriteUpAgentConfig()  # Uses default template
-llm_service = LanguageModelService.from_settings(settings)
+agent = WriteUpAgent(config=config)
 
-agent = WriteUpAgent(config=config, llm_service=llm_service)
+# LLM service is created separately and passed to process()
+llm_service = LanguageModelService.from_settings(settings)
 ```
 
 ### Processing
@@ -332,7 +333,7 @@ agent = WriteUpAgent(config=config, llm_service=llm_service)
 The agent orchestrates a multi-step pipeline:
 
 ```python
-report = agent.process(df)  # Returns markdown string
+report = agent.process(df, llm_service=llm_service)  # Returns markdown string
 ```
 
 **Internal Pipeline:**
@@ -490,11 +491,101 @@ config = WriteUpAgentConfig(
 | `common_instruction` | `str` | Default system prompt | Base instruction for all groups |
 | `max_rows_per_batch` | `int` | 20 | Max rows per LLM call |
 | `max_tokens_per_batch` | `int` | 4000 | Max tokens per LLM call |
-| `group_specific_instructions` | `dict[str, str]` | `{}` | Custom instructions per group |
+| `group_specific_instructions` | `dict[str, str]` | `{}` | Custom instructions per group (format: `"column:value"`) |
+| `prompts_config` | `GenerationHandlerPromptsConfig` | Default prompts | Configurable system and user prompt templates |
+
+### GenerationHandlerPromptsConfig
+
+Allows customization of the prompt templates used for LLM generation:
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `system_prompt_template` | `str` | Default system template | Jinja2 template for system prompt |
+| `user_prompt_template` | `str` | Default user template | Jinja2 template for user prompt |
+
+**Example: Custom Prompts**
+```python
+from unique_toolkit._common.experimental.write_up_agent.services.generation_handler.prompts.config import (
+    GenerationHandlerPromptsConfig
+)
+
+custom_prompts = GenerationHandlerPromptsConfig(
+    system_prompt_template="""
+You are a professional technical writer.
+{{ common_instruction }}
+""",
+    user_prompt_template="""
+Section: {{ section_name }}
+
+{% if group_instruction %}
+Special instructions: {{ group_instruction }}
+{% endif %}
+
+{% if previous_summary %}
+Previous context: {{ previous_summary }}
+{% endif %}
+
+Content to summarize:
+{{ content }}
+"""
+)
+
+gen_config = GenerationHandlerConfig(
+    language_model=language_model_info,
+    prompts_config=custom_prompts
+)
+```
+
+### Utility Functions
+
+**template_loader(parent_dir, template_name)**
+
+Helper function to load Jinja2 templates from the filesystem:
+
+```python
+from pathlib import Path
+from unique_toolkit._common.experimental.write_up_agent.utils import template_loader
+
+# Load a custom template file
+template_path = Path(__file__).parent
+template_content = template_loader(template_path, "my_template.j2")
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `parent_dir` | `Path` | Directory containing the template |
+| `template_name` | `str` | Name of the template file (e.g., "template.j2") |
+| **Returns** | `str` | Template content as a string |
 
 ---
 
 ## Architecture
+
+### Dependency Injection Pattern
+
+The agent uses **dependency injection** for the `LanguageModelService`:
+
+- **At initialization**: The agent is configured with templates and settings, but no LLM service
+- **At process time**: The LLM service is passed as a parameter to `process()`
+
+**Benefits:**
+- **Flexibility**: Use different LLM services for different processing runs
+- **Reusability**: One agent instance can be used with multiple LLM services
+- **Testability**: Easy to mock LLM services for testing
+- **Separation**: Agent configuration is independent of LLM service lifecycle
+
+**Example:**
+```python
+# Initialize once with configuration
+agent = WriteUpAgent(config=config)
+
+# Use with different LLM services or configurations
+llm_service_gpt4 = LanguageModelService.from_settings(gpt4_settings)
+report1 = agent.process(df1, llm_service=llm_service_gpt4)
+
+llm_service_claude = LanguageModelService.from_settings(claude_settings)
+report2 = agent.process(df2, llm_service=llm_service_claude)
+```
 
 ### Separation of Concerns
 
@@ -513,7 +604,7 @@ WriteUpAgent (Orchestrator)
 └── GenerationHandler (LLM Operations)
     ├── Create batches
     ├── Build prompts
-    ├── Call LLM
+    ├── Call LLM (with injected LanguageModelService)
     └── Aggregate summaries
 ```
 
@@ -573,13 +664,13 @@ df = pd.DataFrame({
 
 # Initialize agent
 config = WriteUpAgentConfig()
-agent = WriteUpAgent(
-    config=config,
-    llm_service=LanguageModelService.from_settings(settings)
-)
+agent = WriteUpAgent(config=config)
+
+# Create LLM service
+llm_service = LanguageModelService.from_settings(settings)
 
 # Generate report
-report = agent.process(df)
+report = agent.process(df, llm_service=llm_service)
 print(report)
 ```
 
@@ -610,8 +701,9 @@ df = pd.DataFrame({
     'Units': [100, 200, 150]
 })
 
-agent = WriteUpAgent(config=config, llm_service=llm_service)
-report = agent.process(df)
+agent = WriteUpAgent(config=config)
+llm_service = LanguageModelService.from_settings(settings)
+report = agent.process(df, llm_service=llm_service)
 ```
 
 ### With Group-Specific Instructions
@@ -637,10 +729,14 @@ gen_config = GenerationHandlerConfig(
 )
 
 config = WriteUpAgentConfig(generation_handler_config=gen_config)
+agent = WriteUpAgent(config=config)
+
+# Process with LLM service
+llm_service = LanguageModelService.from_settings(settings)
+report = agent.process(df, llm_service=llm_service)
 ```
 
 **Important**: Both the column name (`section`) AND the values (`executive_summary`, etc.) must be in snake_case to match the automatic normalization applied to your DataFrame.
-
 ---
 
 ## Advanced Features
