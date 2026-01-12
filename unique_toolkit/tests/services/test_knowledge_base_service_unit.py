@@ -2777,7 +2777,7 @@ class TestResolveVisibleFilesAsync:
 
         # Act
         start_time = time.perf_counter()
-        result = await base_kb_service.resolve_visible_files()
+        result = await base_kb_service.resolve_visible_files_async()
         duration = time.perf_counter() - start_time
 
         # Assert
@@ -2803,7 +2803,7 @@ class TestResolveVisibleFilesAsync:
         metadata_filter = {"category": "reports"}
 
         # Act
-        await base_kb_service.resolve_visible_files(metadata_filter=metadata_filter)
+        await base_kb_service.resolve_visible_files_async(metadata_filter=metadata_filter)
 
         # Assert
         mock_get_content_async.assert_called_once_with(metadata_filter=metadata_filter)
@@ -2825,7 +2825,7 @@ class TestResolveVisibleFilesAsync:
         mock_get_content_async.return_value = []
 
         # Act
-        result = await base_kb_service.resolve_visible_files()
+        result = await base_kb_service.resolve_visible_files_async()
 
         # Assert
         assert result == []
