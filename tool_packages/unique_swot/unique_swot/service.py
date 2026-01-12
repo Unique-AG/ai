@@ -236,6 +236,7 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
             await self._chat_service.update_message_execution_async(
                 message_id=self._chat_service.assistant_message_id,
                 percentage_completed=90,
+                progress_title="Generating SWOT analysis report",
             )
 
             citation_manager = self._get_citation_manager(content_chunk_registry)

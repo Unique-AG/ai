@@ -12,7 +12,6 @@ class StepNotifier:
     def __init__(self, chat_service: ChatService):
         self._chat_service = chat_service
         self._log_registry = LogRegistry()
-        self._message_execution = None
 
     async def notify(
         self,
