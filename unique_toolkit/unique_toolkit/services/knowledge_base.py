@@ -773,7 +773,7 @@ class KnowledgeBaseService:
         # Log any exceptions that occurred during parallel fetching
         for result in results:
             if isinstance(result, BaseException):
-                _LOGGER.error(f"Error fetching paginated content infos: {result}")
+                _LOGGER.error("Error fetching paginated content infos", exc_info=result)
 
         return [
             content_info
