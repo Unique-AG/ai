@@ -622,10 +622,8 @@ class TestWebSearchToolRun:
         tool.settings.display_name = "WebSearch"
 
         # Mock feature_flags to ensure the progress reporter code path is taken
-        mocker.patch(
-            "unique_web_search.service.feature_flags.is_new_answers_ui_enabled",
-            return_value=False,
-        )
+        mock_feature_flags = mocker.patch("unique_web_search.service.feature_flags")
+        mock_feature_flags.is_new_answers_ui_enabled.return_value = False
 
         tool_call = Mock()
         tool_call.id = "test-id"
