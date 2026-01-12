@@ -9,9 +9,11 @@ async def test_history_updated_before_reference_extraction(monkeypatch):
     from unique_orchestrator.unique_ai import UniqueAI
 
     # Mock feature_flags to avoid calling the real implementation
+    mock_feature_flags = MagicMock()
+    mock_feature_flags.is_new_answers_ui_enabled = MagicMock(return_value=True)
     monkeypatch.setattr(
-        "unique_orchestrator.unique_ai.feature_flags.is_new_answers_ui_enabled",
-        lambda company_id: True,
+        "unique_orchestrator.unique_ai.feature_flags",
+        mock_feature_flags,
     )
 
     # Create a minimal UniqueAI instance with mocked dependencies
