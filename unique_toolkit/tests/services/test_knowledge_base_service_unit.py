@@ -2803,7 +2803,9 @@ class TestResolveVisibleFilesAsync:
         metadata_filter = {"category": "reports"}
 
         # Act
-        await base_kb_service.resolve_visible_files_async(metadata_filter=metadata_filter)
+        await base_kb_service.resolve_visible_files_async(
+            metadata_filter=metadata_filter
+        )
 
         # Assert
         mock_get_content_async.assert_called_once_with(metadata_filter=metadata_filter)
