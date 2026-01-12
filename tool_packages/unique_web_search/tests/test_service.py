@@ -472,6 +472,9 @@ class TestWebSearchToolRun:
         tool.logger = Mock()
         tool._message_step_logger = Mock()
         tool._tool_progress_reporter = None
+        tool._active_message_log = None
+        tool._display_name = "WebSearch"
+        tool.company_id = "test-company"
         tool.debug = False
         tool.settings = Mock()
         tool.settings.display_name = "WebSearch"
@@ -538,6 +541,9 @@ class TestWebSearchToolRun:
         tool.logger = Mock()
         tool._message_step_logger = Mock()
         tool._tool_progress_reporter = None
+        tool._active_message_log = None
+        tool._display_name = "WebSearch"
+        tool.company_id = "test-company"
         tool.debug = False
 
         tool_call = Mock()
@@ -608,9 +614,16 @@ class TestWebSearchToolRun:
         tool.logger = Mock()
         tool._message_step_logger = Mock()
         tool._tool_progress_reporter = mock_tool_progress_reporter
+        tool._active_message_log = None
+        tool._display_name = "WebSearch"
+        tool.company_id = "test-company"
         tool.debug = False
         tool.settings = Mock()
         tool.settings.display_name = "WebSearch"
+
+        # Mock feature_flags to ensure the progress reporter code path is taken
+        mock_feature_flags = mocker.patch("unique_web_search.service.feature_flags")
+        mock_feature_flags.is_new_answers_ui_enabled.return_value = False
 
         tool_call = Mock()
         tool_call.id = "test-id"
