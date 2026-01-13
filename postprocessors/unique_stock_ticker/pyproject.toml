@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_stock_ticker"
-version = "1.0.6"
+version = "1.0.8"
 description = ""
 authors = [
     "Martin Fadler <martin.fadler@unique.ch>",
@@ -13,34 +13,39 @@ license = "Proprietary"
 
 [tool.poetry.dependencies]
 python = "^3.12"
-typing-extensions = "^4.9.0"
 pydantic = "^2.8.2"
-pydantic-settings = "^2.10.1"
-python-dotenv = "^1.0.1"
-unique-sdk = "^0.10.58"
+typing-extensions = "^4.9.0"
 unique-toolkit = "^1.38.3"
 plotly = "^5.24.1"
 numerize = "^0.12"
+requests = "^2.32.0"
+urllib3 = "^2.0.0"
+pyhumps = "^3.8.0"
 cryptography = "^45.0.6"
-pyopenssl = "^25.1.0"
+pyopenssl = "^25.0.0"
 
 
 [tool.poetry.group.dev.dependencies]
-python = "^3.12"
-typing-extensions = "^4.9.0"
-pydantic = "^2.8.2"
-pydantic-settings = "^2.10.1"
-plotly = "^5.24.1"
-numerize = "^0.12"
 pytest = "^8.4.1"
+pytest-asyncio = "^0.25.0"
 unique-sdk = { path = "../../unique_sdk" }
 unique-toolkit = { path = "../../unique_toolkit" }
 ruff = "^0.12.10"
+deptry = "^0.24.0"
 
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.deptry]
+known_first_party = ["unique_stock_ticker", "settings"]
+extend_exclude = ["unique_stock_ticker/detection/tests"]
+
+[tool.deptry.per_rule_ignores]
+# pyopenssl: Required by Six API client (http_adapter.py) via urllib3.contrib.pyopenssl
+# Not directly imported as 'pyopenssl', so deptry sees it as unused
+DEP002 = ["pyopenssl"]
 
 [tool.ruff]
 target-version = "py311"
