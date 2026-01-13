@@ -41,9 +41,10 @@ runs:
     - name: Save script before checkout
       shell: bash
       run: |
-        # Copy script to /tmp before checking out base branch
+        # Copy script and lib to /tmp before checking out base branch
         # (otherwise we'd run main's version of the script, not the PR's)
         cp ${{ github.workspace }}/.github/scripts/create-type-baseline.sh /tmp/create-type-baseline.sh
+        cp -r ${{ github.workspace }}/.github/scripts/lib /tmp/lib
 
     - name: Fetch base branch
       shell: bash
