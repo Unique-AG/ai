@@ -2,16 +2,20 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from unique_toolkit import LanguageModelService
-
-from unique_follow_up_questions.config import FollowUpQuestionsConfig
-from unique_follow_up_questions.schema import FollowUpCategory, FollowUpQuestion, FollowUpQuestionsOutput
-from unique_follow_up_questions.service import FollowUpQuestionService
 from unique_toolkit.language_model import (
     LanguageModelMessage,
     LanguageModelMessageRole,
 )
 from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit.language_model.infos import LanguageModelInfo
+
+from unique_follow_up_questions.config import FollowUpQuestionsConfig
+from unique_follow_up_questions.schema import (
+    FollowUpCategory,
+    FollowUpQuestion,
+    FollowUpQuestionsOutput,
+)
+from unique_follow_up_questions.service import FollowUpQuestionService
 
 
 @pytest.fixture
@@ -156,7 +160,9 @@ async def test_get_follow_up_question_suggestion_without_structured_output(
 
     # Mock use_structured_output to return False to test non-structured output path
     with patch.object(
-        FollowUpQuestionsConfig, "use_structured_output", new_callable=lambda: property(lambda self: False)
+        FollowUpQuestionsConfig,
+        "use_structured_output",
+        new_callable=lambda: property(lambda self: False),
     ):
         service = FollowUpQuestionService(config=config_without_structured_output)
 
@@ -172,7 +178,8 @@ async def test_get_follow_up_question_suggestion_without_structured_output(
         language_model_service.complete.assert_called_once()
         call_args = language_model_service.complete.call_args[1]
         assert (
-            call_args["model_name"] == config_without_structured_output.language_model.name
+            call_args["model_name"]
+            == config_without_structured_output.language_model.name
         )
         assert "structured_output_model" not in call_args
 
