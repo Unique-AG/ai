@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_deep_research"
-version = "3.0.22"
+version = "3.0.23"
 description = "Deep Research Tool for complex research tasks"
 authors = [
     "Martin Fadler <martin.fadler@unique.ch>",
@@ -33,6 +33,7 @@ unique-sdk = { path = "../../unique_sdk" }
 unique-toolkit = { path = "../../unique_toolkit" }
 unique-web-search = { path = "../unique_web_search" }
 pytest = "^8.4.1"
+pytest-asyncio = "^0.25.0"
 ruff = "^0.12.10"
 opik = "^1.8.42"
 google = "^3.0.0"
