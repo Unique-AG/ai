@@ -1,0 +1,65 @@
+name: "[CI] Dependency Checks"
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      package:
+        description: 'Package to check (leave empty for auto-detect based on changes)'
+        type: choice
+        options:
+          - ''
+          - all
+          - mcp
+          - web_search
+        default: ''
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            mcp:
+              - 'unique_mcp/**'
+            web_search:
+              - 'tool_packages/unique_web_search/**'
+
+      - name: Select packages
+        id: set-matrix
+        uses: ./.github/actions/select-packages
+        with:
+          packages: |
+            [
+              {"id": "mcp",                "dir": "unique_mcp",                                "python": "3.12"},
+              {"id": "web_search",         "dir": "tool_packages/unique_web_search",           "python": "3.12"}
+            ]
+          selected: ${{ github.event.inputs.package }}
+          changes: ${{ toJson(steps.filter.outputs) }}
+
+  check:
+    needs: detect-changes
+    if: ${{ fromJson(needs.detect-changes.outputs.matrix).include[0] != null }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
+    name: deps-${{ matrix.id }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run min-deps tests with deptry
+        uses: ./.github/actions/run-min-tests-and-deptry
+        with:
+          package_dir: ${{ matrix.dir }}
+          python_version: ${{ matrix.python }}
