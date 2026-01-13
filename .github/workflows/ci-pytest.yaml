@@ -21,6 +21,7 @@ on:
           - follow_up_questions
           - stock_ticker
           - deep_research
+          - internal_search
           - quartr
         default: ''
 
@@ -57,6 +58,8 @@ jobs:
               - 'postprocessors/unique_stock_ticker/**'
             deep_research:
               - 'tool_packages/unique_deep_research/**'
+            internal_search:
+              - 'tool_packages/unique_internal_search/**'
             quartr:
               - 'connectors/unique_quartr/**'
 
@@ -75,6 +78,7 @@ jobs:
               {"id": "follow_up_questions","dir": "postprocessors/unique_follow_up_questions", "python": "3.12"},
               {"id": "stock_ticker",       "dir": "postprocessors/unique_stock_ticker",        "python": "3.12"},
               {"id": "deep_research",      "dir": "tool_packages/unique_deep_research",        "python": "3.12"},
+              {"id": "internal_search",    "dir": "tool_packages/unique_internal_search",      "python": "3.12"},
               {"id": "quartr",             "dir": "connectors/unique_quartr",                  "python": "3.12"}
             ]
           selected: ${{ github.event.inputs.package }}
