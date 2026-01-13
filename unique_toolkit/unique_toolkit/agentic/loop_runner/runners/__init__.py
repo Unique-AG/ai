@@ -1,6 +1,7 @@
 from unique_toolkit.agentic.loop_runner.runners.basic import (
     BasicLoopIterationRunner,
     BasicLoopIterationRunnerConfig,
+    ResponsesBasicLoopIterationRunner,
 )
 from unique_toolkit.agentic.loop_runner.runners.qwen import (
     QWEN_FORCED_TOOL_CALL_INSTRUCTION,
@@ -13,6 +14,7 @@ from unique_toolkit.agentic.loop_runner.runners.qwen import (
 __all__ = [
     "BasicLoopIterationRunnerConfig",
     "BasicLoopIterationRunner",
+    "ResponsesBasicLoopIterationRunner",
     "QwenLoopIterationRunner",
     "QWEN_FORCED_TOOL_CALL_INSTRUCTION",
     "QWEN_LAST_ITERATION_INSTRUCTION",
