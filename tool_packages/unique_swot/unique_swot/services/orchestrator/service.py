@@ -28,6 +28,12 @@ class StepNotifier(Protocol):
     ): ...
 
 
+class ProgressNotifier(Protocol):
+    """This class is responsible for notifying the user of the progress of the SWOT analysis."""
+
+    async def update(self, *, progress: int | float, progress_title: str | None): ...
+
+
 class SourceCollector(Protocol):
     """This class is responsible for collecting the sources from the various data sources."""
 
@@ -82,6 +88,7 @@ class SWOTOrchestrator:
         source_iterator: SourceIterator,
         reporting_agent: ReportingAgent,
         source_registry: SourceRegistry,
+        progress_notifier: ProgressNotifier,
         memory_service: SwotMemoryService,
         chat_service: ChatService,
     ):
@@ -92,7 +99,9 @@ class SWOTOrchestrator:
         self._memory_service = memory_service
         self._step_notifier = step_notifier
         self._source_registry = source_registry
+        self._progress_notifier = progress_notifier
         self._chat_service = chat_service
+
     async def run(self, *, company_name: str, plan: SWOTPlan) -> SWOTReportComponents:
         contents = await self._source_collector.collect(
             step_notifier=self._step_notifier
@@ -103,16 +112,19 @@ class SWOTOrchestrator:
         )
 
         total_steps = len(contents)
-        current_step = 0
+        increment = 0
+        if total_steps > 0:
+            increment = 80 / total_steps
 
+        index = 0
         async for content in tqdm(
             source_iterator, total=total_steps, desc="Processing sources"
         ):
-            current_step += 1
-            await self._chat_service.update_message_execution_async(
-                message_id=self._chat_service.assistant_message_id,
-                percentage_completed=int((current_step-1) * 80 / total_steps + 10),
-                progress_title=f"Processing source `{_get_content_title(content)}`",
+            source_title = _get_content_title(content)
+
+            await self._progress_notifier.update(
+                progress=(index * increment),
+                progress_title=f"Processing source `{source_title}`",
             )
             source_selection_result = await self._source_selector.select(
                 company_name=company_name,
@@ -122,14 +134,10 @@ class SWOTOrchestrator:
 
             if not source_selection_result.should_select:
                 # Skip the source if it is not selected
-                _LOGGER.info(
-                    f"Skipping source `{_get_content_title(content)}` as it is not selected"
-                )
+                _LOGGER.info(f"Skipping source `{source_title}` as it is not selected")
                 continue
             else:
-                _LOGGER.info(
-                    f"Selecting source `{_get_content_title(content)}` as it is selected"
-                )
+                _LOGGER.info(f"Selecting source `{source_title}` as it is selected")
 
             await self._reporting_agent.generate(
                 plan=plan,
@@ -137,6 +145,8 @@ class SWOTOrchestrator:
                 step_notifier=self._step_notifier,
                 source_registry=self._source_registry,
             )
+
+            index += 1
 
         return self._reporting_agent.get_reports()
 

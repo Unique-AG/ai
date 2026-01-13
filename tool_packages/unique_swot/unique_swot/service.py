@@ -13,7 +13,6 @@ from unique_toolkit.agentic.tools.tool import (
     EvaluationMetricName,
     Tool,
 )
-from unique_toolkit.chat.schemas import MessageExecutionUpdateStatus
 from unique_toolkit.language_model import (
     LanguageModelFunction,
     LanguageModelMessage,
@@ -32,6 +31,7 @@ from unique_swot.services.generation.models.registry import SWOTReportRegistry
 # from unique_swot.services.generation.reporting.agent import ProgressiveReportingAgent
 from unique_swot.services.memory.base import SwotMemoryService
 from unique_swot.services.notification.notifier import StepNotifier
+from unique_swot.services.notification.progress import ProgressNotifier
 from unique_swot.services.orchestrator.service import SWOTOrchestrator
 from unique_swot.services.report import ReportDeliveryService, ReportRendererConfig
 from unique_swot.services.schemas import SWOTPlan
@@ -133,6 +133,7 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
                 content_chunks=[],
             )
         company_name = session_config.swot_analysis.company_listing.name
+        progress_notifier = self._get_progress_notifier(company_name=company_name)
 
         try:
             plan = SWOTPlan.model_validate(tool_call.arguments)
@@ -177,16 +178,12 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
             await self._chat_service.modify_assistant_message_async(
                 content=session_config.swot_analysis.render_session_info()
             )
-            await self._chat_service.create_assistant_message_async(content=" ") # Must be none empty message to be able to initialize the progress bar
+            await self._chat_service.create_assistant_message_async(
+                content=" "
+            )  # Must be none empty message to be able to initialize the progress bar
 
             # initialize progress bar
-            self._message_execution = await self._chat_service.create_message_execution_async(
-                message_id=self._chat_service.assistant_message_id,
-                is_queueable=False,
-                execution_options={"toolChoices": ["SWOT"]},
-                progress_title=f"Started SWOT Analysis for '{company_name}'",
-                percentage_completed=0,
-            )
+            await progress_notifier.start()
 
             # This service is used to orchestrate the SWOT analysis
             orchestrator = SWOTOrchestrator(
@@ -198,17 +195,14 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
                 memory_service=memory_service,
                 source_registry=content_chunk_registry,
                 chat_service=self._chat_service,
+                progress_notifier=progress_notifier,
             )
 
             # Generate markdown report
             result = await orchestrator.run(company_name=company_name, plan=plan)
 
             if result.is_empty():
-                await self._chat_service.update_message_execution_async(
-                    message_id=self._chat_service.assistant_message_id,
-                    percentage_completed=100,
-                    status=MessageExecutionUpdateStatus.COMPLETED,
-                )
+                await progress_notifier.finish()
                 await self._chat_service.modify_assistant_message_async(
                     content=f"No SWOT analysis results found for the {company_name} with the selected sources. Please make sure to select the correct sources and try again.",
                     set_completed_at=True,
@@ -220,9 +214,8 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
                     content_chunks=[],
                 )
 
-            await self._chat_service.update_message_execution_async(
-                message_id=self._chat_service.assistant_message_id,
-                percentage_completed=90,
+            await progress_notifier.update(
+                progress=90,
                 progress_title="Generating SWOT analysis report",
             )
 
@@ -246,11 +239,7 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
                 report_handler=report_handler,
             )
 
-            await self._chat_service.update_message_execution_async(
-                message_id=self._chat_service.assistant_message_id,
-                percentage_completed=100,
-                status=MessageExecutionUpdateStatus.COMPLETED,
-            )
+            await progress_notifier.finish()
 
             report_handler.deliver_report(
                 start_text=start_text,
@@ -273,12 +262,8 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
             )
 
         except Exception as e:
-            if self._message_execution:
-                await self._chat_service.update_message_execution_async(
-                    message_id=self._chat_service.assistant_message_id,
-                    percentage_completed=100,
-                    status=MessageExecutionUpdateStatus.COMPLETED,
-                )
+            await progress_notifier.finish(failed=True)
+
             await self._chat_service.modify_assistant_message_async(
                 content=f"Error running SWOT Analysis for {company_name}: {e}",
                 set_completed_at=True,
@@ -432,6 +417,12 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
             llm=self.config.report_summarization_config.language_model,
             chat_service=self._chat_service,
             summarization_config=self.config.report_summarization_config,
+        )
+
+    def _get_progress_notifier(self, *, company_name: str) -> ProgressNotifier:
+        return ProgressNotifier(
+            chat_service=self._chat_service,
+            company_name=company_name,
         )
 
 

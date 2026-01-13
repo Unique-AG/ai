@@ -113,6 +113,11 @@ async def test_orchestrator_full_workflow():
     source_registry = Mock()
     memory_service = Mock()
 
+    progress_notifier = Mock()
+    progress_notifier.update = AsyncMock()
+
+    chat_service = Mock()
+
     # Create orchestrator
     orchestrator = SWOTOrchestrator(
         step_notifier=step_notifier,
@@ -121,7 +126,9 @@ async def test_orchestrator_full_workflow():
         source_iterator=source_iterator,
         reporting_agent=reporting_agent,
         source_registry=source_registry,
+        progress_notifier=progress_notifier,
         memory_service=memory_service,
+        chat_service=chat_service,
     )
 
     # Run orchestration
@@ -185,6 +192,11 @@ async def test_orchestrator_skips_unselected_sources():
     source_registry = Mock()
     memory_service = Mock()
 
+    progress_notifier = Mock()
+    progress_notifier.update = AsyncMock()
+
+    chat_service = Mock()
+
     orchestrator = SWOTOrchestrator(
         step_notifier=step_notifier,
         source_collector=source_collector,
@@ -192,7 +204,9 @@ async def test_orchestrator_skips_unselected_sources():
         source_iterator=source_iterator,
         reporting_agent=reporting_agent,
         source_registry=source_registry,
+        progress_notifier=progress_notifier,
         memory_service=memory_service,
+        chat_service=chat_service,
     )
 
     plan = _make_plan()
@@ -231,6 +245,11 @@ async def test_orchestrator_handles_empty_sources():
     source_registry = Mock()
     memory_service = Mock()
 
+    progress_notifier = Mock()
+    progress_notifier.update = AsyncMock()
+
+    chat_service = Mock()
+
     orchestrator = SWOTOrchestrator(
         step_notifier=step_notifier,
         source_collector=source_collector,
@@ -238,7 +257,9 @@ async def test_orchestrator_handles_empty_sources():
         source_iterator=source_iterator,
         reporting_agent=reporting_agent,
         source_registry=source_registry,
+        progress_notifier=progress_notifier,
         memory_service=memory_service,
+        chat_service=chat_service,
     )
 
     plan = _make_plan()
@@ -286,6 +307,11 @@ async def test_orchestrator_passes_correct_parameters():
     source_registry = Mock()
     memory_service = Mock()
 
+    progress_notifier = Mock()
+    progress_notifier.update = AsyncMock()
+
+    chat_service = Mock()
+
     orchestrator = SWOTOrchestrator(
         step_notifier=step_notifier,
         source_collector=source_collector,
@@ -293,7 +319,9 @@ async def test_orchestrator_passes_correct_parameters():
         source_iterator=source_iterator,
         reporting_agent=reporting_agent,
         source_registry=source_registry,
+        progress_notifier=progress_notifier,
         memory_service=memory_service,
+        chat_service=chat_service,
     )
 
     company_name = "ACME Corp"
@@ -368,6 +396,11 @@ async def test_orchestrator_with_multiple_components():
     source_registry = Mock()
     memory_service = Mock()
 
+    progress_notifier = Mock()
+    progress_notifier.update = AsyncMock()
+
+    chat_service = Mock()
+
     orchestrator = SWOTOrchestrator(
         step_notifier=step_notifier,
         source_collector=source_collector,
@@ -375,7 +408,9 @@ async def test_orchestrator_with_multiple_components():
         source_iterator=source_iterator,
         reporting_agent=reporting_agent,
         source_registry=source_registry,
+        progress_notifier=progress_notifier,
         memory_service=memory_service,
+        chat_service=chat_service,
     )
 
     # Plan with multiple components
