@@ -307,8 +307,8 @@ fi
 
 # Convert comma-separated to array and build grep pattern
 IFS=',' read -ra EXCLUDED_PATTERNS <<< "$EXCLUDE_CSV"
-# Use | for extended regex (grep -E), not \|
-EXCLUDE_REGEX=$(printf '%s|' "${EXCLUDED_PATTERNS[@]}" | sed 's/|$//')
+# Escape regex metacharacters (dots) and join with | for extended regex
+EXCLUDE_REGEX=$(printf '%s|' "${EXCLUDED_PATTERNS[@]}" | sed 's/\./\\./g; s/|$//')
 
 # First check if there are any meaningful code changes in this package
 CODE_CHANGES=$(git diff --name-only "$MERGE_BASE"..HEAD -- "$PACKAGE" | grep -v -E "($EXCLUDE_REGEX)" || true)
