@@ -78,7 +78,7 @@ from unique_toolkit.content.service import ContentService
 from unique_toolkit.protocols.support import ResponsesSupportCompleteWithReferences
 
 from unique_orchestrator.config import UniqueAIConfig
-from unique_orchestrator.unique_ai import UniqueAI, UniqueAIResponsesApi
+from unique_orchestrator.unique_ai import UniqueAI
 
 
 async def build_unique_ai(
@@ -86,7 +86,7 @@ async def build_unique_ai(
     logger: Logger,
     config: UniqueAIConfig,
     debug_info_manager: DebugInfoManager,
-) -> UniqueAI | UniqueAIResponsesApi:
+) -> UniqueAI:
     common_components = _build_common(event, logger, config)
 
     if config.agent.experimental.responses_api_config.use_responses_api:
@@ -257,7 +257,7 @@ async def _build_responses(
     config: UniqueAIConfig,
     common_components: _CommonComponents,
     debug_info_manager: DebugInfoManager,
-) -> UniqueAIResponsesApi:
+) -> UniqueAI:
     client = get_async_openai_client().copy(
         default_headers={
             "x-model": config.space.language_model.name,
@@ -356,7 +356,7 @@ async def _build_responses(
         response_watcher=common_components.response_watcher,
     )
 
-    return UniqueAIResponsesApi(
+    return UniqueAI(
         event=event,
         config=config,
         logger=logger,
