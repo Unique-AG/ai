@@ -34,14 +34,12 @@ runs:
         uv pip install -e . --resolution=lowest-direct
         uv export --only-group dev --no-hashes | uv pip install -r -
 
-    # Poetry: Normal install + deptry
+    # Poetry: Normal install (deptry is in dev dependencies)
     - name: Install package (poetry)
       if: steps.pm.outputs.run_cmd == 'poetry run'
       shell: bash
       working-directory: ${{ inputs.package_dir }}
-      run: |
-        poetry install
-        poetry run pip install deptry
+      run: poetry install
 
     - name: Run deptry (uv)
       if: steps.pm.outputs.run_cmd == 'uv run'

@@ -37,6 +37,7 @@ pytest-asyncio = "^0.25.0"
 unique-sdk = { path = "../../unique_sdk" }
 unique-toolkit = { path = "../../unique_toolkit" }
 ruff = "^0.12.10"
+deptry = "^0.24.0"
 
 
 [build-system]

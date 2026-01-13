@@ -4921,6 +4921,25 @@ pygments = ">=2.7.2"
 dev = ["argcomplete", "attrs (>=19.2)", "hypothesis (>=3.56)", "mock", "requests", "setuptools", "xmlschema"]
 
 [[package]]
+name = "pytest-asyncio"
+version = "0.25.3"
+description = "Pytest support for asyncio"
+optional = false
+python-versions = ">=3.9"
+groups = ["dev"]
+files = [
+    {file = "pytest_asyncio-0.25.3-py3-none-any.whl", hash = "sha256:9e89518e0f9bd08928f97a3482fdc4e244df17529460bc038291ccaf8f85c7c3"},
+    {file = "pytest_asyncio-0.25.3.tar.gz", hash = "sha256:fc1da2cf9f125ada7e710b4ddad05518d4cee187ae9412e9ac9271003497f07a"},
+]
+
+[package.dependencies]
+pytest = ">=8.2,<9"
+
+[package.extras]
+docs = ["sphinx (>=5.3)", "sphinx-rtd-theme (>=1)"]
+testing = ["coverage (>=6.2)", "hypothesis (>=5.7.1)"]
+
+[[package]]
 name = "python-dateutil"
 version = "2.9.0.post0"
 description = "Extensions to the standard Python datetime module"
@@ -6075,7 +6094,7 @@ files = [
 
 [[package]]
 name = "unique-sdk"
-version = "0.10.65"
+version = "0.10.66"
 description = ""
 optional = false
 python-versions = "^3.11"
@@ -6096,7 +6115,7 @@ url = "../../unique_sdk"
 
 [[package]]
 name = "unique-toolkit"
-version = "1.42.1"
+version = "1.43.1"
 description = ""
 optional = false
 python-versions = "^3.12"
@@ -6105,6 +6124,7 @@ files = []
 develop = false
 
 [package.dependencies]
+docxcompose = "^1.4.0"
 docxtpl = "^0.20.1"
 jambo = "^0.1.2"
 jinja2 = "^3.1.6"
@@ -6131,10 +6151,10 @@ url = "../../unique_toolkit"
 
 [[package]]
 name = "unique-web-search"
-version = "1.7.4"
+version = "1.7.5"
 description = ""
 optional = false
-python-versions = ">=3.12"
+python-versions = ">=3.12,<4.0"
 groups = ["main", "dev"]
 files = []
 develop = false
@@ -6161,7 +6181,7 @@ tiktoken = ">=0.12.0"
 timeout-decorator = ">=0.5.0,<1"
 typing-extensions = ">=4.14.1,<5"
 unidecode = ">=1.4.0,<2"
-unique-toolkit = ">=1.38.3,<2"
+unique-toolkit = ">=1.42.9,<2"
 
 [package.source]
 type = "directory"
@@ -6761,4 +6781,4 @@ cffi = ["cffi (>=1.17,<2.0) ; platform_python_implementation != \"PyPy\" and pyt
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "a15ecfe170c755631675dc0f3f5c148f817c909784b5c0b864d9dcff3bade087"
+content-hash = "7e32ed927512a20d97344450ebef357079c7f3208c26532ed33483407862eec5"
