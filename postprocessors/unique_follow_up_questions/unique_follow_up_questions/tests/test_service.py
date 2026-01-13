@@ -1,10 +1,11 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
-from config import FollowUpQuestionsConfig
-from schema import FollowUpCategory, FollowUpQuestion, FollowUpQuestionsOutput
-from service import FollowUpQuestionService
 from unique_toolkit import LanguageModelService
+
+from unique_follow_up_questions.config import FollowUpQuestionsConfig
+from unique_follow_up_questions.schema import FollowUpCategory, FollowUpQuestion, FollowUpQuestionsOutput
+from unique_follow_up_questions.service import FollowUpQuestionService
 from unique_toolkit.language_model import (
     LanguageModelMessage,
     LanguageModelMessageRole,
@@ -61,15 +62,6 @@ def language_model_service():
 def service(config):
     return FollowUpQuestionService(
         config=config,
-    )
-
-
-@pytest.fixture
-def service_without_structured_output(
-    config_without_structured_output,
-):
-    return FollowUpQuestionService(
-        config=config_without_structured_output,
     )
 
 
@@ -147,7 +139,6 @@ async def test_get_follow_up_question_suggestion(
 
 @pytest.mark.asyncio
 async def test_get_follow_up_question_suggestion_without_structured_output(
-    service_without_structured_output,
     config_without_structured_output,
     language_model_service,
 ):
@@ -163,21 +154,27 @@ async def test_get_follow_up_question_suggestion_without_structured_output(
         choices=[MagicMock(message=MagicMock(content=mock_content))]
     )
 
-    # Act
-    result = await service_without_structured_output.get_follow_up_question_suggestion(
-        language=language,
-        language_model_service=language_model_service,
-        history=history,
-    )
+    # Mock use_structured_output to return False to test non-structured output path
+    with patch.object(
+        FollowUpQuestionsConfig, "use_structured_output", new_callable=lambda: property(lambda self: False)
+    ):
+        service = FollowUpQuestionService(config=config_without_structured_output)
 
-    # Assert
-    assert isinstance(result, str)
-    language_model_service.complete.assert_called_once()
-    call_args = language_model_service.complete.call_args[1]
-    assert (
-        call_args["model_name"] == config_without_structured_output.language_model.name
-    )
-    assert "structured_output_model" not in call_args
+        # Act
+        result = await service.get_follow_up_question_suggestion(
+            language=language,
+            language_model_service=language_model_service,
+            history=history,
+        )
+
+        # Assert
+        assert isinstance(result, str)
+        language_model_service.complete.assert_called_once()
+        call_args = language_model_service.complete.call_args[1]
+        assert (
+            call_args["model_name"] == config_without_structured_output.language_model.name
+        )
+        assert "structured_output_model" not in call_args
 
 
 @pytest.mark.asyncio
