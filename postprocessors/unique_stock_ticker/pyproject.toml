@@ -22,6 +22,7 @@ requests = "^2.32.0"
 urllib3 = "^2.0.0"
 pyhumps = "^3.8.0"
 cryptography = "^45.0.6"
+pyopenssl = "^25.0.0"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -40,6 +41,11 @@ build-backend = "poetry.core.masonry.api"
 [tool.deptry]
 known_first_party = ["unique_stock_ticker", "settings"]
 extend_exclude = ["unique_stock_ticker/detection/tests"]
+
+[tool.deptry.per_rule_ignores]
+# pyopenssl: Required by Six API client (http_adapter.py) via urllib3.contrib.pyopenssl
+# Not directly imported as 'pyopenssl', so deptry sees it as unused
+DEP002 = ["pyopenssl"]
 
 [tool.ruff]
 target-version = "py311"
