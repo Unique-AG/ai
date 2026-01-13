@@ -264,13 +264,9 @@ print_info "Baseline saved to: $OUTPUT_FILE"
 # Checkout back to original branch
 if [ "$CI_MODE" = true ]; then
     print_info "Switching back to PR branch..."
-    # Change to repo root and reset to discard all changes
-    # (uv run/sync may have modified lock files)
-    cd "$(git rev-parse --show-toplevel)"
-    print_info "Resetting from $(pwd)..."
-    git status --short
-    git reset --hard HEAD
-    git checkout -
+    # Reset to discard any lock file changes from uv run/sync
+    git reset --hard HEAD --quiet
+    git checkout - --quiet
 else
     print_info "Switching back to $CURRENT_BRANCH..."
     git checkout "$CURRENT_BRANCH" --quiet
