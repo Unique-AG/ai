@@ -18,6 +18,12 @@ on:
           - mcp
           - orchestrator
           - web_search
+          - internal_search
+          - swot
+          - deep_research
+          - stock_ticker
+          - follow_up_questions
+          - quartr
         default: ''
 
 jobs:
@@ -48,6 +54,18 @@ jobs:
             web_search:
               - 'tool_packages/unique_web_search/**'
               - '.github/workflows/ci-pytest.yaml'
+            internal_search:
+              - 'tool_packages/unique_internal_search/**'
+            swot:
+              - 'tool_packages/unique_swot/**'
+            deep_research:
+              - 'tool_packages/unique_deep_research/**'
+            stock_ticker:
+              - 'postprocessors/unique_stock_ticker/**'
+            follow_up_questions:
+              - 'postprocessors/unique_follow_up_questions/**'
+            quartr:
+              - 'connectors/unique_quartr/**'
 
       - name: Build test matrix
         id: set-matrix
@@ -60,6 +78,12 @@ jobs:
           PACKAGES[orchestrator]='{"name":"orchestrator","dir":"unique_orchestrator","python":"3.12","install_args":"","test_args":"","deps":"latest","run_deptry":"false"}'
           PACKAGES[web_search_latest]='{"name":"web_search (latest)","dir":"tool_packages/unique_web_search","python":"3.12","install_args":"","test_args":"","deps":"latest","run_deptry":"false"}'
           PACKAGES[web_search_min]='{"name":"web_search (min)","dir":"tool_packages/unique_web_search","python":"3.12","install_args":"","test_args":"","deps":"min","run_deptry":"true"}'
+          PACKAGES[internal_search]='{"name":"internal_search","dir":"tool_packages/unique_internal_search","python":"3.12","install_args":"","test_args":"","deps":"latest","run_deptry":"false"}'
+          PACKAGES[swot]='{"name":"swot","dir":"tool_packages/unique_swot","python":"3.12","install_args":"","test_args":"","deps":"latest","run_deptry":"false"}'
+          PACKAGES[deep_research]='{"name":"deep_research","dir":"tool_packages/unique_deep_research","python":"3.12","install_args":"","test_args":"","deps":"latest","run_deptry":"false"}'
+          PACKAGES[stock_ticker]='{"name":"stock_ticker","dir":"postprocessors/unique_stock_ticker","python":"3.12","install_args":"","test_args":"","deps":"latest","run_deptry":"false"}'
+          PACKAGES[follow_up_questions]='{"name":"follow_up_questions","dir":"postprocessors/unique_follow_up_questions","python":"3.12","install_args":"","test_args":"","deps":"latest","run_deptry":"false"}'
+          PACKAGES[quartr]='{"name":"quartr","dir":"connectors/unique_quartr","python":"3.12","install_args":"","test_args":"","deps":"latest","run_deptry":"false"}'
           
           SELECTED="${{ github.event.inputs.package }}"
           MATRIX="[]"
@@ -81,6 +105,12 @@ jobs:
               CHANGED+=("${PACKAGES[web_search_latest]}")
               CHANGED+=("${PACKAGES[web_search_min]}")
             fi
+            [ "${{ steps.filter.outputs.internal_search }}" = "true" ] && CHANGED+=("${PACKAGES[internal_search]}")
+            [ "${{ steps.filter.outputs.swot }}" = "true" ] && CHANGED+=("${PACKAGES[swot]}")
+            [ "${{ steps.filter.outputs.deep_research }}" = "true" ] && CHANGED+=("${PACKAGES[deep_research]}")
+            [ "${{ steps.filter.outputs.stock_ticker }}" = "true" ] && CHANGED+=("${PACKAGES[stock_ticker]}")
+            [ "${{ steps.filter.outputs.follow_up_questions }}" = "true" ] && CHANGED+=("${PACKAGES[follow_up_questions]}")
+            [ "${{ steps.filter.outputs.quartr }}" = "true" ] && CHANGED+=("${PACKAGES[quartr]}")
             
             if [ ${#CHANGED[@]} -gt 0 ]; then
               MATRIX=$(printf '%s\n' "${CHANGED[@]}" | jq -sc '.')
