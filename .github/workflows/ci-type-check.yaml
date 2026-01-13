@@ -1,0 +1,95 @@
+name: "[CI] Type Check - All Packages"
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: 'Package to type check (leave empty for auto-detect based on changes)'
+        type: choice
+        options:
+          - ''
+          - all
+          - toolkit
+          - mcp
+        default: ''
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            toolkit:
+              - 'unique_toolkit/**'
+              - '!unique_toolkit/docs/**'
+              - '!unique_toolkit/.entangled/**'
+            mcp:
+              - 'unique_mcp/**'
+
+      - name: Select packages
+        id: set-matrix
+        uses: ./.github/actions/select-packages
+        with:
+          packages: |
+            [
+              {"id": "toolkit", "dir": "unique_toolkit", "python": "3.12"},
+              {"id": "mcp",     "dir": "unique_mcp",     "python": "3.12"}
+            ]
+          selected: ${{ github.event.inputs.package }}
+          changes: ${{ toJson(steps.filter.outputs) }}
+
+  type-check:
+    needs: detect-changes
+    if: ${{ fromJson(needs.detect-changes.outputs.matrix).include[0] != null }}
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      contents: read
+      pull-requests: write
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
+    name: types-${{ matrix.id }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install reviewdog
+        run: |
+          curl -sfL https://raw.githubusercontent.com/reviewdog/reviewdog/master/install.sh | sh -s -- -b /tmp
+
+      - name: Create baseline from base branch
+        uses: ./.github/actions/create-type-baseline
+        with:
+          package_dir: ${{ matrix.dir }}
+          branch: ${{ github.base_ref }}
+          python_version: ${{ matrix.python }}
+
+      - name: Run type check
+        uses: ./.github/actions/type-check
+        with:
+          package_dir: ${{ matrix.dir }}
+          python_version: ${{ matrix.python }}
+          baseline_file: /tmp/baseline.json
+          output_file: /tmp/basedpyright.json
+
+      - name: Report type errors
+        continue-on-error: true
+        env:
+          REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          bash ${{ github.workspace }}/.github/scripts/report-type-errors.sh \
+            -r /tmp/reviewdog \
+            -b ${{ github.base_ref }} \
+            ${{ github.workspace }}/${{ matrix.dir }} \
+            /tmp/basedpyright.json || true
