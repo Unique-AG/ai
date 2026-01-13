@@ -20,7 +20,7 @@ class MessageExecution(APIResource["MessageExecution"]):
 
         messageId: str
         type: "MessageExecution.TypeLiteral"
-        isQueueable: NotRequired[bool]
+        isQueueable: NotRequired[bool | None]
         executionOptions: NotRequired[dict | None]
         progressTitle: NotRequired[str | None]
 

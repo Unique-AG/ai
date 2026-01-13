@@ -273,6 +273,12 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
             )
 
         except Exception as e:
+            if self._message_execution:
+                await self._chat_service.update_message_execution_async(
+                    message_id=self._chat_service.assistant_message_id,
+                    percentage_completed=100,
+                    status=MessageExecutionUpdateStatus.COMPLETED,
+                )
             await self._chat_service.modify_assistant_message_async(
                 content=f"Error running SWOT Analysis for {company_name}: {e}",
                 set_completed_at=True,
