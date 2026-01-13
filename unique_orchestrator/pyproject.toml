@@ -9,6 +9,7 @@ license = "Proprietary"
 [tool.poetry.dependencies]
 python = "^3.12"
 pydantic = "^2.8.2"
+typing-extensions = "^4.9.0"
 jinja2 = "^3.1.0"
 unique-toolkit = "^1.42.9"
 unique-stock-ticker = "^1.0.2"
