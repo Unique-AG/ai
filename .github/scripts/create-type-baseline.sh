@@ -264,6 +264,8 @@ print_info "Baseline saved to: $OUTPUT_FILE"
 # Checkout back to original branch
 if [ "$CI_MODE" = true ]; then
     print_info "Switching back to PR branch..."
+    # Reset to discard any lock file changes from uv run/sync
+    git reset --hard HEAD --quiet
     git checkout - --quiet
 else
     print_info "Switching back to $CURRENT_BRANCH..."
