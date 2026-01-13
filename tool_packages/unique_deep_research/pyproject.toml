@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_deep_research"
-version = "3.0.22"
+version = "3.0.23"
 description = "Deep Research Tool for complex research tasks"
 authors = [
     "Martin Fadler <martin.fadler@unique.ch>",
@@ -13,11 +13,8 @@ license = "Proprietary"
 
 [tool.poetry.dependencies]
 python = "^3.12"
-typing-extensions = "^4.9.0"
 pydantic = "^2.8.2"
-pydantic-settings = "^2.10.1"
-python-dotenv = "^1.0.1"
-unique-sdk = "^0.10.58"
+typing-extensions = "^4.9.0"
 unique-toolkit = "^1.38.3"
 jinja2 = "^3.1.2"
 openai = "^1.99.0"
@@ -25,7 +22,12 @@ langgraph = "^1.0.0"
 langchain = "^1.1.0"
 langchain-core = "^1.0.0"
 unique-web-search = "^1.7.0"
-langchain-openai = "^0.3.32"
+httpx = "^0.28.0"
+tiktoken = "^0.12.0"
+timeout-decorator = "^0.5.0"
+beautifulsoup4 = "^4.12.0"
+fake-useragent = "^2.0.0"
+markdownify = "^0.14.0"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -33,7 +35,9 @@ unique-sdk = { path = "../../unique_sdk" }
 unique-toolkit = { path = "../../unique_toolkit" }
 unique-web-search = { path = "../unique_web_search" }
 pytest = "^8.4.1"
+pytest-asyncio = "^0.25.0"
 ruff = "^0.12.10"
+deptry = "^0.24.0"
 opik = "^1.8.42"
 google = "^3.0.0"
 google-genai = "^1.46.0"
@@ -42,6 +46,10 @@ google-genai = "^1.46.0"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.deptry]
+known_first_party = ["unique_deep_research"]
+extend_exclude = ["benchmarking", "tests"]
 
 [tool.ruff]
 target-version = "py311"

@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [3.0.22] - 2026-01-13
 - Fixing bug with message logs
 
+## [3.0.23] - 2026-01-13
+- Add missing `pytest-asyncio` dev dependency
+
+## [3.0.22] - 2026-01-13
+- Fix tests to use `.invoke()` method for StructuredTool objects
+
 ## [3.0.21] - 2025-12-29
 - Bump unique_sdk version to `0.10.58`
 
