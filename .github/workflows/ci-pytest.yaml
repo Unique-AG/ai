@@ -12,6 +12,7 @@ on:
         options:
           - ''
           - all
+          - sdk
           - mcp
           - web_search
         default: ''
@@ -30,6 +31,8 @@ jobs:
         id: filter
         with:
           filters: |
+            sdk:
+              - 'unique_sdk/**'
             mcp:
               - 'unique_mcp/**'
             web_search:
@@ -41,6 +44,7 @@ jobs:
         with:
           packages: |
             [
+              {"id": "sdk",                "dir": "unique_sdk",                                "python": "3.11", "test_args": "-m \"not integration\""},
               {"id": "mcp",                "dir": "unique_mcp",                                "python": "3.12"},
               {"id": "web_search",         "dir": "tool_packages/unique_web_search",           "python": "3.12"}
             ]
