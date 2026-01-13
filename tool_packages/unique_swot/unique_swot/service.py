@@ -174,13 +174,10 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
 
             step_notifier = self._get_step_notifier()
 
-            await step_notifier.notify(
-                title=f"Started SWOT Analysis for {company_name}",
-                description=session_config.swot_analysis.render_session_info(),
-                sources=[],
-                progress=100,
-                completed=True,
+            await self._chat_service.modify_assistant_message_async(
+                content=session_config.swot_analysis.render_session_info()
             )
+            await self._chat_service.create_assistant_message_async(content=" ") # Must be none empty message to be able to initialize the progress bar
 
             # initialize progress bar
             self._message_execution = await self._chat_service.create_message_execution_async(
@@ -189,10 +186,6 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
                 execution_options={"toolChoices": ["SWOT"]},
                 progress_title=f"Started SWOT Analysis for '{company_name}'",
                 percentage_completed=0,
-            )
-
-            await self._chat_service.modify_assistant_message_async(
-                content=f"**SWOT Analysis Initiated**\n\n- {session_config.swot_analysis.render_session_info()}\n\nAnalyzing data sources and generating comprehensive insights may take some time. Track real-time progress in the steps sidebar.",
             )
 
             # This service is used to orchestrate the SWOT analysis

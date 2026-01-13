@@ -998,7 +998,7 @@ class ChatService(ChatServiceDeprecated):
             type (MessageExecutionType): The type of execution. Defaults to DEEP_RESEARCH.
             seconds_remaining (int | None): Estimated seconds remaining for completion
             percentage_completed (int | None): Percentage of completion (0-100)
-            is_queueable (bool): Whether the execution is queueable. Defaults to True. If true, then the progress will be updated in the background by the execution pipeline
+            is_queueable (bool): Whether the execution is queueable. Defaults to True. If true, then the progress will be updated in the background by the execution pipeline. Set to False if you want to update the progress manually.
             execution_options (dict | None): Additional execution options. Defaults to None.
             progress_title (str | None): The title of the progress bar. If not provided, the title of the last message log is taken.
 
@@ -1040,7 +1040,7 @@ class ChatService(ChatServiceDeprecated):
             type (MessageExecutionType): The type of execution. Defaults to DEEP_RESEARCH.
             seconds_remaining (int | None): Estimated seconds remaining for completion
             percentage_completed (int | None): Percentage of completion (0-100)
-            is_queueable (bool): Whether the execution is queueable. Defaults to True. If true, then the progress will be updated in the background by the execution pipeline
+            is_queueable (bool): Whether the execution is queueable. Defaults to True. If true, then the progress will be updated in the background by the execution pipeline. Set to False if you want to update the progress manually.
             execution_options (dict | None): Additional execution options. Defaults to None.
             progress_title (str | None): The title of the progress bar. If not provided, the title of the last message log is taken.
 
@@ -1198,7 +1198,7 @@ class ChatService(ChatServiceDeprecated):
             type (MessageExecutionType): The type of execution. Defaults to DEEP_RESEARCH.
             seconds_remaining (int | None): Estimated seconds remaining for completion
             percentage_completed (int | None): Percentage of completion (0-100)
-            is_queueable (bool): Whether the execution is queueable. Defaults to True. If true, then the progress will be updated in the background by the execution pipeline
+            is_queueable (bool): Whether the execution is queueable. Defaults to True. If true, then the progress will be updated in the background by the execution pipeline. Set to False if you want to update the progress manually.
             execution_options (dict | None): Additional execution options. Defaults to None.
             progress_title (str | None): The title of the progress bar. If not provided, the title of the last message log is taken.
 
@@ -1237,7 +1237,7 @@ class ChatService(ChatServiceDeprecated):
             type (MessageExecutionType): The type of execution. Defaults to DEEP_RESEARCH.
             seconds_remaining (int | None): Estimated seconds remaining for completion
             percentage_completed (int | None): Percentage of completion (0-100)
-            is_queueable (bool): Whether the execution is queueable. Defaults to True. If true, then the progress will be updated in the background by the execution pipeline
+            is_queueable (bool): Whether the execution is queueable. Defaults to True. If true, then the progress will be updated in the background by the execution pipeline. Set to False if you want to update the progress manually.
             execution_options (dict | None): Additional execution options. Defaults to None.
             progress_title (str | None): The title of the progress bar. If not provided, the title of the last message log is taken.
 
