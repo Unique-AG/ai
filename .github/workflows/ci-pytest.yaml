@@ -3,8 +3,7 @@ name: "[CI] Pytest - All Packages"
 on:
   pull_request:
   push:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
     inputs:
       package:
@@ -35,7 +34,7 @@ jobs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
-      
+
       - uses: dorny/paths-filter@v3
         id: filter
         with:
@@ -43,8 +42,6 @@ jobs:
             toolkit:
               - 'unique_toolkit/**'
               - '!unique_toolkit/docs/**'
-              - '!unique_toolkit/mkdocs.yaml'
-              - '!unique_toolkit/docs.subproject.mkdocs.yaml'
             sdk:
               - 'unique_sdk/**'
             mcp:
@@ -53,7 +50,6 @@ jobs:
               - 'unique_orchestrator/**'
             web_search:
               - 'tool_packages/unique_web_search/**'
-              - '.github/workflows/ci-pytest.yaml'
             internal_search:
               - 'tool_packages/unique_internal_search/**'
             swot:
@@ -70,53 +66,37 @@ jobs:
       - name: Build test matrix
         id: set-matrix
         run: |
-          # Package configurations: name, dir, python, install_args, test_args, deps, run_deptry
-          declare -A PACKAGES
-          PACKAGES[toolkit]='{"name":"toolkit","dir":"unique_toolkit","python":"3.12","install_args":"--with fastapi","test_args":"","deps":"latest","run_deptry":"false"}'
-          PACKAGES[sdk]='{"name":"sdk","dir":"unique_sdk","python":"3.11","install_args":"","test_args":"-m \"not integration\"","deps":"latest","run_deptry":"false"}'
-          PACKAGES[mcp]='{"name":"mcp","dir":"unique_mcp","python":"3.12","install_args":"","test_args":"","deps":"latest","run_deptry":"false"}'
-          PACKAGES[orchestrator]='{"name":"orchestrator","dir":"unique_orchestrator","python":"3.12","install_args":"","test_args":"","deps":"latest","run_deptry":"false"}'
-          PACKAGES[web_search_latest]='{"name":"web_search (latest)","dir":"tool_packages/unique_web_search","python":"3.12","install_args":"","test_args":"","deps":"latest","run_deptry":"false"}'
-          PACKAGES[web_search_min]='{"name":"web_search (min)","dir":"tool_packages/unique_web_search","python":"3.12","install_args":"","test_args":"","deps":"min","run_deptry":"true"}'
-          PACKAGES[internal_search]='{"name":"internal_search","dir":"tool_packages/unique_internal_search","python":"3.12","install_args":"","test_args":"","deps":"latest","run_deptry":"false"}'
-          PACKAGES[swot]='{"name":"swot","dir":"tool_packages/unique_swot","python":"3.12","install_args":"","test_args":"","deps":"latest","run_deptry":"false"}'
-          PACKAGES[deep_research]='{"name":"deep_research","dir":"tool_packages/unique_deep_research","python":"3.12","install_args":"","test_args":"","deps":"latest","run_deptry":"false"}'
-          PACKAGES[stock_ticker]='{"name":"stock_ticker","dir":"postprocessors/unique_stock_ticker","python":"3.12","install_args":"","test_args":"","deps":"latest","run_deptry":"false"}'
-          PACKAGES[follow_up_questions]='{"name":"follow_up_questions","dir":"postprocessors/unique_follow_up_questions","python":"3.12","install_args":"","test_args":"","deps":"latest","run_deptry":"false"}'
-          PACKAGES[quartr]='{"name":"quartr","dir":"connectors/unique_quartr","python":"3.12","install_args":"","test_args":"","deps":"latest","run_deptry":"false"}'
-          
+          # All package configurations in one place
+          PACKAGES='[
+            {"id": "toolkit",            "name": "toolkit",              "dir": "unique_toolkit",                            "python": "3.12", "install_args": "--with fastapi"},
+            {"id": "sdk",                "name": "sdk",                  "dir": "unique_sdk",                                "python": "3.11", "test_args": "-m \"not integration\""},
+            {"id": "mcp",                "name": "mcp",                  "dir": "unique_mcp",                                "python": "3.12"},
+            {"id": "orchestrator",       "name": "orchestrator",         "dir": "unique_orchestrator",                       "python": "3.12"},
+            {"id": "web_search",         "name": "web_search",           "dir": "tool_packages/unique_web_search",           "python": "3.12"},
+            {"id": "web_search",         "name": "web_search (min)",     "dir": "tool_packages/unique_web_search",           "python": "3.12", "deps": "min", "run_deptry": "true"},
+            {"id": "internal_search",    "name": "internal_search",      "dir": "tool_packages/unique_internal_search",      "python": "3.12"},
+            {"id": "swot",               "name": "swot",                 "dir": "tool_packages/unique_swot",                 "python": "3.12"},
+            {"id": "deep_research",      "name": "deep_research",        "dir": "tool_packages/unique_deep_research",        "python": "3.12"},
+            {"id": "stock_ticker",       "name": "stock_ticker",         "dir": "postprocessors/unique_stock_ticker",        "python": "3.12"},
+            {"id": "follow_up_questions","name": "follow_up_questions",  "dir": "postprocessors/unique_follow_up_questions", "python": "3.12"},
+            {"id": "quartr",             "name": "quartr",               "dir": "connectors/unique_quartr",                  "python": "3.12"}
+          ]'
+
           SELECTED="${{ github.event.inputs.package }}"
-          MATRIX="[]"
-          
+          CHANGES='${{ toJson(steps.filter.outputs) }}'
+
           if [ "$SELECTED" = "all" ]; then
-            MATRIX=$(echo "${PACKAGES[@]}" | jq -sc '.')
-          elif [ "$SELECTED" = "web_search" ]; then
-            MATRIX=$(echo "${PACKAGES[web_search_latest]}" "${PACKAGES[web_search_min]}" | jq -sc '.')
+            MATRIX="$PACKAGES"
           elif [ -n "$SELECTED" ]; then
-            MATRIX=$(echo "${PACKAGES[$SELECTED]}" | jq -sc '.')
+            # Filter by selected package id
+            MATRIX=$(echo "$PACKAGES" | jq -c --arg id "$SELECTED" '[.[] | select(.id == $id)]')
           else
-            # Auto-detect based on changed paths
-            CHANGED=()
-            [ "${{ steps.filter.outputs.toolkit }}" = "true" ] && CHANGED+=("${PACKAGES[toolkit]}")
-            [ "${{ steps.filter.outputs.sdk }}" = "true" ] && CHANGED+=("${PACKAGES[sdk]}")
-            [ "${{ steps.filter.outputs.mcp }}" = "true" ] && CHANGED+=("${PACKAGES[mcp]}")
-            [ "${{ steps.filter.outputs.orchestrator }}" = "true" ] && CHANGED+=("${PACKAGES[orchestrator]}")
-            if [ "${{ steps.filter.outputs.web_search }}" = "true" ]; then
-              CHANGED+=("${PACKAGES[web_search_latest]}")
-              CHANGED+=("${PACKAGES[web_search_min]}")
-            fi
-            [ "${{ steps.filter.outputs.internal_search }}" = "true" ] && CHANGED+=("${PACKAGES[internal_search]}")
-            [ "${{ steps.filter.outputs.swot }}" = "true" ] && CHANGED+=("${PACKAGES[swot]}")
-            [ "${{ steps.filter.outputs.deep_research }}" = "true" ] && CHANGED+=("${PACKAGES[deep_research]}")
-            [ "${{ steps.filter.outputs.stock_ticker }}" = "true" ] && CHANGED+=("${PACKAGES[stock_ticker]}")
-            [ "${{ steps.filter.outputs.follow_up_questions }}" = "true" ] && CHANGED+=("${PACKAGES[follow_up_questions]}")
-            [ "${{ steps.filter.outputs.quartr }}" = "true" ] && CHANGED+=("${PACKAGES[quartr]}")
-            
-            if [ ${#CHANGED[@]} -gt 0 ]; then
-              MATRIX=$(printf '%s\n' "${CHANGED[@]}" | jq -sc '.')
-            fi
+            # Auto-detect: filter packages where the corresponding path changed
+            MATRIX=$(echo "$PACKAGES" | jq -c --argjson changes "$CHANGES" '
+              [.[] | select($changes[.id] == "true")]
+            ')
           fi
-          
+
           echo "matrix={\"include\":$MATRIX}" >> $GITHUB_OUTPUT
           echo "Generated matrix: $MATRIX"
 
