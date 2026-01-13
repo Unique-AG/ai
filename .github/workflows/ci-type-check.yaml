@@ -11,7 +11,16 @@ on:
           - ''
           - all
           - toolkit
+          - sdk
           - mcp
+          - orchestrator
+          - web_search
+          - swot
+          - follow_up_questions
+          - stock_ticker
+          - deep_research
+          - internal_search
+          - quartr
         default: ''
 
 jobs:
@@ -32,8 +41,26 @@ jobs:
               - 'unique_toolkit/**'
               - '!unique_toolkit/docs/**'
               - '!unique_toolkit/.entangled/**'
+            sdk:
+              - 'unique_sdk/**'
             mcp:
               - 'unique_mcp/**'
+            orchestrator:
+              - 'unique_orchestrator/**'
+            web_search:
+              - 'tool_packages/unique_web_search/**'
+            swot:
+              - 'tool_packages/unique_swot/**'
+            follow_up_questions:
+              - 'postprocessors/unique_follow_up_questions/**'
+            stock_ticker:
+              - 'postprocessors/unique_stock_ticker/**'
+            deep_research:
+              - 'tool_packages/unique_deep_research/**'
+            internal_search:
+              - 'tool_packages/unique_internal_search/**'
+            quartr:
+              - 'connectors/unique_quartr/**'
 
       - name: Select packages
         id: set-matrix
@@ -41,8 +68,17 @@ jobs:
         with:
           packages: |
             [
-              {"id": "toolkit", "dir": "unique_toolkit", "python": "3.12"},
-              {"id": "mcp",     "dir": "unique_mcp",     "python": "3.12"}
+              {"id": "toolkit",            "dir": "unique_toolkit",                            "python": "3.12"},
+              {"id": "sdk",                "dir": "unique_sdk",                                "python": "3.11"},
+              {"id": "mcp",                "dir": "unique_mcp",                                "python": "3.12"},
+              {"id": "orchestrator",       "dir": "unique_orchestrator",                       "python": "3.12"},
+              {"id": "web_search",         "dir": "tool_packages/unique_web_search",           "python": "3.12"},
+              {"id": "swot",               "dir": "tool_packages/unique_swot",                 "python": "3.12"},
+              {"id": "follow_up_questions","dir": "postprocessors/unique_follow_up_questions", "python": "3.12"},
+              {"id": "stock_ticker",       "dir": "postprocessors/unique_stock_ticker",        "python": "3.12"},
+              {"id": "deep_research",      "dir": "tool_packages/unique_deep_research",        "python": "3.12"},
+              {"id": "internal_search",    "dir": "tool_packages/unique_internal_search",      "python": "3.12"},
+              {"id": "quartr",             "dir": "connectors/unique_quartr",                  "python": "3.12"}
             ]
           selected: ${{ github.event.inputs.package }}
           changes: ${{ toJson(steps.filter.outputs) }}

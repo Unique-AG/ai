@@ -57,7 +57,15 @@ runs:
     - name: Install dependencies on base branch
       shell: bash
       working-directory: ${{ inputs.package_dir }}
-      run: ${{ steps.setup_pm.outputs.install_cmd }}
+      run: |
+        # Don't use --locked for base branch since older branches may not have
+        # lock files that pass --locked validation
+        INSTALL_CMD="${{ steps.setup_pm.outputs.install_cmd }}"
+        if [[ "$INSTALL_CMD" == uv* ]]; then
+          uv sync
+        else
+          $INSTALL_CMD
+        fi
 
     - name: Discard lock file changes
       shell: bash

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique-swot"
-version = "1.1.5"
+version = "1.1.6"
 description = "Unique Swot package is a tool that for conducting a swot analysis based on internal and external documents"
 authors = ["Rami Azouz <rami.ext@unique.ch>", "Fabian Schläpfer <fabian.schlaepfer@unique.ai>"]
 license = "Proprietary"
@@ -25,6 +25,7 @@ pytest-cov = "^7.0.0"
 pytest-mock = "^3.14.0"
 pytest-asyncio = "^1.2.0"
 deptry = "^0.24.0"
+basedpyright = "^1.35.0"
 unique-toolkit = { path = "../../unique_toolkit",  develop = true}
 unique-quartr = { path = "../../connectors/unique_quartr",  develop = true}
 
@@ -39,6 +40,11 @@ extend_exclude = ["unique_swot/tests"]
 
 [tool.deptry.per_rule_ignores]
 DEP002 = ["unique-toolkit", "unique-quartr"]
+
+[tool.basedpyright]
+typeCheckingMode = "standard"
+include = ["unique_swot"]
+exclude = ["**/tests/**", "**/test_*.py"]
 
 [tool.ruff]
 target-version = "py311"

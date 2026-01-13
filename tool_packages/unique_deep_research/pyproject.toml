@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_deep_research"
-version = "3.0.24"
+version = "3.0.25"
 description = "Deep Research Tool for complex research tasks"
 authors = [
     "Martin Fadler <martin.fadler@unique.ch>",
@@ -39,6 +39,7 @@ pytest-asyncio = "^0.25.0"
 pytest-cov = "^7.0.0"
 ruff = "^0.12.10"
 deptry = "^0.24.0"
+basedpyright = "^1.35.0"
 opik = "^1.8.42"
 google = "^3.0.0"
 google-genai = "^1.46.0"
@@ -51,6 +52,11 @@ build-backend = "poetry.core.masonry.api"
 [tool.deptry]
 known_first_party = ["unique_deep_research"]
 extend_exclude = ["benchmarking", "tests"]
+
+[tool.basedpyright]
+typeCheckingMode = "standard"
+include = ["unique_deep_research"]
+exclude = ["**/tests/**", "**/test_*.py", "**/benchmarking/**"]
 
 [tool.ruff]
 target-version = "py311"
