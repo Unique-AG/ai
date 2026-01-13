@@ -264,14 +264,13 @@ print_info "Baseline saved to: $OUTPUT_FILE"
 # Checkout back to original branch
 if [ "$CI_MODE" = true ]; then
     print_info "Switching back to PR branch..."
-    # Discard all local changes then checkout (uv run may have modified lock files)
-    print_info "Discarding local changes..."
+    # Change to repo root and reset to discard all changes
+    # (uv run/sync may have modified lock files)
+    cd "$(git rev-parse --show-toplevel)"
+    print_info "Resetting from $(pwd)..."
     git status --short
-    git checkout -- . || print_warning "git checkout -- . failed"
-    git clean -fd || print_warning "git clean -fd failed"
-    print_info "After cleanup:"
-    git status --short
-    git checkout - --quiet
+    git reset --hard HEAD
+    git checkout -
 else
     print_info "Switching back to $CURRENT_BRANCH..."
     git checkout "$CURRENT_BRANCH" --quiet
