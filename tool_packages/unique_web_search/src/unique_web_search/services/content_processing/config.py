@@ -83,10 +83,7 @@ class ContentProcessorConfig(BaseModel):
         default=True,
         description="Whether to remove URLs from markdown links in website content.",
     )
-    language_model: LMI = Field(
-        default=get_LMI_default_field(DEFAULT_GPT_4o),
-        description="The language model to use for summarization",
-    )
+    language_model: LMI = get_LMI_default_field(DEFAULT_GPT_4o)
     max_tokens: int = Field(
         default=5000,
         description="Max tokens for truncation and summarization",

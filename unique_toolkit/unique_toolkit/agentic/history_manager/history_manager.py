@@ -10,6 +10,7 @@ from unique_toolkit._common.validators import LMI
 from unique_toolkit.agentic.history_manager.loop_token_reducer import LoopTokenReducer
 from unique_toolkit.agentic.history_manager.utils import transform_chunks_to_string
 from unique_toolkit.agentic.reference_manager.reference_manager import ReferenceManager
+from unique_toolkit.agentic.tools.config import get_configuration_dict
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
@@ -26,6 +27,22 @@ DeactivatedNone = Annotated[
     None,
     Field(title="Deactivated", description="None"),
 ]
+
+
+class UploadedContentConfig(BaseModel):
+    model_config = get_configuration_dict()
+
+    user_context_window_limit_warning: str = Field(
+        default="The uploaded content is too large to fit into the ai model. "
+        "Unique AI will search for relevant sections in the material and if needed combine the data with knowledge base content",
+        description="Message to show when using the Internal Search instead of upload and chat tool due to context window limit. Jinja template.",
+    )
+    percent_for_uploaded_content: float = Field(
+        default=0.6,
+        ge=0.0,
+        le=1.0,
+        description="The fraction of the max input tokens that will be reserved for the uploaded content.",
+    )
 
 
 class ExperimentalFeatures(FeatureExtendedSourceSerialization): ...
@@ -52,6 +69,14 @@ class HistoryManagerConfig(BaseModel):
             self.language_model.token_limits.token_limit_input
             * self.percent_of_max_tokens_for_history,
         )
+
+    uploaded_content_config: (
+        Annotated[
+            UploadedContentConfig,
+            Field(title="Active"),
+        ]
+        | DeactivatedNone
+    ) = UploadedContentConfig()
 
 
 class HistoryManager:

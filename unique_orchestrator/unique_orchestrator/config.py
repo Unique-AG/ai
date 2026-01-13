@@ -19,7 +19,9 @@ from unique_toolkit._common.validators import (
 from unique_toolkit.agentic.evaluation.hallucination.constants import (
     HallucinationConfig,
 )
-from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
+from unique_toolkit.agentic.history_manager.history_manager import (
+    UploadedContentConfig,
+)
 from unique_toolkit.agentic.loop_runner import (
     QWEN_FORCED_TOOL_CALL_INSTRUCTION,
     QWEN_LAST_ITERATION_INSTRUCTION,
@@ -234,6 +236,10 @@ class UniqueAIServices(BaseModel):
         | DeactivatedNone
     ) = EvaluationConfig(
         hallucination_config=HallucinationConfig(),
+    )
+
+    uploaded_content_config: SkipJsonSchema[UploadedContentConfig] = (
+        UploadedContentConfig()
     )
 
     tool_progress_reporter_config: SkipJsonSchema[ToolProgressReporterConfig] = (
