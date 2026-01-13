@@ -17,6 +17,7 @@ on:
           - mcp
           - orchestrator
           - web_search
+          - swot
           - quartr
         default: ''
 
@@ -45,6 +46,8 @@ jobs:
               - 'unique_orchestrator/**'
             web_search:
               - 'tool_packages/unique_web_search/**'
+            swot:
+              - 'tool_packages/unique_swot/**'
             quartr:
               - 'connectors/unique_quartr/**'
 
@@ -59,6 +62,7 @@ jobs:
               {"id": "mcp",                "dir": "unique_mcp",                                "python": "3.12"},
               {"id": "orchestrator",       "dir": "unique_orchestrator",                       "python": "3.12"},
               {"id": "web_search",         "dir": "tool_packages/unique_web_search",           "python": "3.12"},
+              {"id": "swot",               "dir": "tool_packages/unique_swot",                 "python": "3.12"},
               {"id": "quartr",             "dir": "connectors/unique_quartr",                  "python": "3.12"}
             ]
           selected: ${{ github.event.inputs.package }}
