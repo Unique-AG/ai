@@ -288,11 +288,14 @@ else
 fi
 
 # Get the merge base
-MERGE_BASE=$(git merge-base HEAD "$BASE_REF" 2>/dev/null || {
+MERGE_BASE=$(git merge-base HEAD "$BASE_REF" 2>/dev/null) || true
+
+# Check if merge-base succeeded (subshell exit doesn't stop main script)
+if [ -z "$MERGE_BASE" ]; then
     print_error "Could not find merge base between HEAD and $BASE_REF"
     print_error "Make sure you have fetched the base branch: git fetch origin <branch>"
     exit 1
-})
+fi
 
 print_info "Merge base: $MERGE_BASE"
 
@@ -311,7 +314,13 @@ IFS=',' read -ra EXCLUDED_PATTERNS <<< "$EXCLUDE_CSV"
 EXCLUDE_REGEX=$(printf '%s|' "${EXCLUDED_PATTERNS[@]}" | sed 's/\./\\./g; s/|$//')
 
 # First check if there are any meaningful code changes in this package
-CODE_CHANGES=$(git diff --name-only "$MERGE_BASE"..HEAD -- "$PACKAGE" | grep -v -E "($EXCLUDE_REGEX)" || true)
+# Separate git diff from grep to properly detect git failures
+ALL_CHANGES=$(git diff --name-only "$MERGE_BASE"..HEAD -- "$PACKAGE") || {
+    print_error "git diff failed - merge base '$MERGE_BASE' may be invalid"
+    exit 1
+}
+# Filter out excluded patterns (grep returns 1 if no matches, which is fine)
+CODE_CHANGES=$(echo "$ALL_CHANGES" | grep -v -E "($EXCLUDE_REGEX)" || true)
 
 if [ -z "$CODE_CHANGES" ]; then
     print_info "No code changes detected in $PACKAGE (only lock files, docs, or no changes)"
