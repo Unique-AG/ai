@@ -1,8 +1,10 @@
 import asyncio
 from datetime import datetime, timezone
 from logging import Logger
+from typing import overload
 
 import jinja2
+from typing_extensions import deprecated
 from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
     DebugInfoManager,
 )
@@ -49,6 +51,28 @@ class UniqueAI:
     start_text = ""
     current_iteration_index = 0
 
+    @overload
+    def __init__(
+        self,
+        logger: Logger,
+        event: ChatEvent,
+        config: UniqueAIConfig,
+        chat_service: ChatService,
+        content_service: ContentService,
+        debug_info_manager: DebugInfoManager,
+        streaming_handler: ResponsesSupportCompleteWithReferences,
+        reference_manager: ReferenceManager,
+        thinking_manager: ThinkingManager,
+        tool_manager: ResponsesApiToolManager,
+        history_manager: HistoryManager,
+        evaluation_manager: EvaluationManager,
+        postprocessor_manager: PostprocessorManager,
+        message_step_logger: MessageStepLogger,
+        mcp_servers: list[McpServer],
+        loop_iteration_runner: LoopIterationRunner,
+    ) -> None: ...
+
+    @overload
     def __init__(
         self,
         logger: Logger,
@@ -67,7 +91,28 @@ class UniqueAI:
         message_step_logger: MessageStepLogger,
         mcp_servers: list[McpServer],
         loop_iteration_runner: LoopIterationRunner,
-    ):
+    ) -> None: ...
+
+    def __init__(
+        self,
+        logger: Logger,
+        event: ChatEvent,
+        config: UniqueAIConfig,
+        chat_service: ChatService,
+        content_service: ContentService,
+        debug_info_manager: DebugInfoManager,
+        streaming_handler: ResponsesSupportCompleteWithReferences
+        | SupportCompleteWithReferences,
+        reference_manager: ReferenceManager,
+        thinking_manager: ThinkingManager,
+        tool_manager: ResponsesApiToolManager | ToolManager,
+        history_manager: HistoryManager,
+        evaluation_manager: EvaluationManager,
+        postprocessor_manager: PostprocessorManager,
+        message_step_logger: MessageStepLogger,
+        mcp_servers: list[McpServer],
+        loop_iteration_runner: LoopIterationRunner,
+    ) -> None:
         self._logger = logger
         self._event = event
         self._config = config
@@ -500,6 +545,7 @@ class UniqueAI:
         await self._chat_service.update_debug_info_async(debug_info=debug_info_event)
 
 
+@deprecated("Use UniqueAI directly instead")
 class UniqueAIResponsesApi(UniqueAI):
     def __init__(
         self,
