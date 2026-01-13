@@ -96,9 +96,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run min-deps tests with deptry
-        uses: ./.github/actions/run-tests
+        uses: ./.github/actions/run-min-tests-and-deptry
         with:
           package_dir: ${{ matrix.dir }}
           python_version: ${{ matrix.python }}
-          deps: min
-          run_deptry: 'true'

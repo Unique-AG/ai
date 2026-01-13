@@ -38,7 +38,7 @@ runs:
     - name: Check dependencies with deptry
       shell: bash
       working-directory: ${{ inputs.package_dir }}
-      run: uv run deptry .
+      run: uv run --no-sync deptry .
 
     - name: Run tests with min dependencies
       shell: bash

@@ -102,5 +102,3 @@ jobs:
           python_version: ${{ matrix.python }}
           install_args: ${{ matrix.install_args }}
           test_args: ${{ matrix.test_args }}
-          deps: ${{ matrix.deps }}
-          run_deptry: ${{ matrix.run_deptry }}

@@ -1,5 +1,5 @@
 name: 'Run Tests'
-description: 'Runs pytest tests, supporting both Poetry and uv, with optional min-deps testing (uv only)'
+description: 'Runs pytest tests, supporting both Poetry and uv'
 
 inputs:
   package_dir:
@@ -25,14 +25,6 @@ inputs:
     description: 'Additional arguments to pass to pytest'
     required: false
     default: ''
-  deps:
-    description: 'Dependency resolution: "latest" (default) or "min" (minimum versions, uv only)'
-    required: false
-    default: 'latest'
-  run_deptry:
-    description: 'Run deptry dependency check (only with deps=min)'
-    required: false
-    default: 'false'
 
 runs:
   using: 'composite'
@@ -46,48 +38,15 @@ runs:
         python_version: ${{ inputs.python_version }}
         package_manager_version: ${{ inputs.package_manager_version }}
 
-    # ============ LATEST DEPS (default) ============
     # Note: install-package-manager already installs deps via setup-poetry/setup-uv
     # Only run explicit install if install_args is provided (e.g., --with fastapi)
     - name: Install extra dependencies
-      if: inputs.deps == 'latest' && inputs.install_args != ''
+      if: inputs.install_args != ''
       shell: bash
       working-directory: ${{ inputs.package_dir }}
       run: ${{ steps.install_pm.outputs.install_cmd }} ${{ inputs.install_args }}
 
-    - name: Run pytest (latest)
-      if: inputs.deps == 'latest'
+    - name: Run pytest
       shell: bash
       working-directory: ${{ inputs.package_dir }}
       run: ${{ steps.install_pm.outputs.run_cmd }} pytest ${{ inputs.test_args }}
-
-    # ============ MIN DEPS (uv only) ============
-    - name: Fail if min deps requested for poetry
-      if: inputs.deps == 'min' && steps.install_pm.outputs.run_cmd == 'poetry run'
-      shell: bash
-      run: |
-        echo "::error::Min-deps testing is only supported for uv projects"
-        exit 1
-
-    - name: Install dependencies (min)
-      if: inputs.deps == 'min' && steps.install_pm.outputs.run_cmd == 'uv run'
-      shell: bash
-      working-directory: ${{ inputs.package_dir }}
-      run: |
-        uv venv
-        # Install runtime deps at minimum versions
-        uv pip install -e . --resolution=lowest-direct
-        # Install dev deps at latest (we only care about runtime dep minimums)
-        uv export --only-group dev --no-hashes | uv pip install -r -
-
-    - name: Run deptry (min)
-      if: inputs.deps == 'min' && steps.install_pm.outputs.run_cmd == 'uv run' && inputs.run_deptry == 'true'
-      shell: bash
-      working-directory: ${{ inputs.package_dir }}
-      run: uv run --no-sync deptry .
-
-    - name: Run pytest (min)
-      if: inputs.deps == 'min' && steps.install_pm.outputs.run_cmd == 'uv run'
-      shell: bash
-      working-directory: ${{ inputs.package_dir }}
-      run: uv run --no-sync pytest ${{ inputs.test_args }}
