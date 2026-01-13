@@ -15,6 +15,7 @@ on:
           - toolkit
           - sdk
           - mcp
+          - orchestrator
           - web_search
         default: ''
 
@@ -39,6 +40,8 @@ jobs:
               - 'unique_sdk/**'
             mcp:
               - 'unique_mcp/**'
+            orchestrator:
+              - 'unique_orchestrator/**'
             web_search:
               - 'tool_packages/unique_web_search/**'
 
@@ -51,6 +54,7 @@ jobs:
               {"id": "toolkit",            "dir": "unique_toolkit",                            "python": "3.12"},
               {"id": "sdk",                "dir": "unique_sdk",                                "python": "3.11"},
               {"id": "mcp",                "dir": "unique_mcp",                                "python": "3.12"},
+              {"id": "orchestrator",       "dir": "unique_orchestrator",                       "python": "3.12"},
               {"id": "web_search",         "dir": "tool_packages/unique_web_search",           "python": "3.12"}
             ]
           selected: ${{ github.event.inputs.package }}

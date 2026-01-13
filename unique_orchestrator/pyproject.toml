@@ -8,12 +8,9 @@ license = "Proprietary"
 
 [tool.poetry.dependencies]
 python = "^3.12"
-typing-extensions = "^4.9.0"
 pydantic = "^2.8.2"
-pydantic-settings = "^2.10.1"
-python-dotenv = "^1.0.1"
-
-unique-sdk = "^0.10.48"
+typing-extensions = "^4.9.0"
+jinja2 = "^3.1.0"
 unique-toolkit = "^1.42.9"
 unique-stock-ticker = "^1.0.2"
 unique-follow-up-questions = "^1.1.2"
@@ -27,11 +24,7 @@ unique-swot = "^1.0.0"
 pytest = "^8.4.1"
 pytest-asyncio = "^0.24.0"
 ruff = "^0.11.7"
-python = "^3.12"
-typing-extensions = "^4.9.0"
-pydantic = "^2.8.2"
-pydantic-settings = "^2.10.1"
-python-dotenv = "^1.0.1"
+deptry = "^0.24.0"
 unique-sdk = { path = "../unique_sdk" }
 unique-toolkit = { path = "../unique_toolkit", develop = true }
 unique-stock-ticker = { path = "../postprocessors/unique_stock_ticker", develop = true }
@@ -43,6 +36,13 @@ unique-web-search = { path = "../tool_packages/unique_web_search", develop = tru
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.deptry]
+known_first_party = ["unique_orchestrator", "unique_toolkit", "unique_stock_ticker", "unique_follow_up_questions", "unique_internal_search", "unique_deep_research", "unique_web_search", "unique_swot"]
+extend_exclude = ["unique_orchestrator/tests"]
+
+[tool.deptry.per_rule_ignores]
+DEP002 = ["unique-toolkit", "unique-stock-ticker", "unique-follow-up-questions", "unique-internal-search", "unique-deep-research", "unique-web-search", "unique-swot"]
 
 [tool.ruff]
 target-version = "py311"
