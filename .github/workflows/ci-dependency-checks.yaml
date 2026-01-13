@@ -1,4 +1,4 @@
-name: "[CI] Pytest - All Packages"
+name: "[CI] Dependency Checks"
 
 on:
   pull_request:
@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       package:
-        description: 'Package to test (leave empty for auto-detect based on changes)'
+        description: 'Package to check (leave empty for auto-detect based on changes)'
         type: choice
         options:
           - ''
@@ -69,8 +69,8 @@ jobs:
         with:
           packages: |
             [
-              {"id": "toolkit",            "name": "toolkit",              "dir": "unique_toolkit",                            "python": "3.12", "install_args": "--with fastapi"},
-              {"id": "sdk",                "name": "sdk",                  "dir": "unique_sdk",                                "python": "3.11", "test_args": "-m \"not integration\""},
+              {"id": "toolkit",            "name": "toolkit",              "dir": "unique_toolkit",                            "python": "3.12"},
+              {"id": "sdk",                "name": "sdk",                  "dir": "unique_sdk",                                "python": "3.11"},
               {"id": "mcp",                "name": "mcp",                  "dir": "unique_mcp",                                "python": "3.12"},
               {"id": "orchestrator",       "name": "orchestrator",         "dir": "unique_orchestrator",                       "python": "3.12"},
               {"id": "web_search",         "name": "web_search",           "dir": "tool_packages/unique_web_search",           "python": "3.12"},
@@ -84,23 +84,21 @@ jobs:
           selected: ${{ github.event.inputs.package }}
           changes: ${{ toJson(steps.filter.outputs) }}
 
-  test:
+  check:
     needs: detect-changes
     if: ${{ fromJson(needs.detect-changes.outputs.matrix).include[0] != null }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
-    name: test-${{ matrix.name }}
+    name: deps-${{ matrix.name }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run tests
+      - name: Run min-deps tests with deptry
         uses: ./.github/actions/run-tests
         with:
           package_dir: ${{ matrix.dir }}
           python_version: ${{ matrix.python }}
-          install_args: ${{ matrix.install_args }}
-          test_args: ${{ matrix.test_args }}
-          deps: ${{ matrix.deps }}
-          run_deptry: ${{ matrix.run_deptry }}
+          deps: min
+          run_deptry: 'true'
