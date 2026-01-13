@@ -264,9 +264,8 @@ print_info "Baseline saved to: $OUTPUT_FILE"
 # Checkout back to original branch
 if [ "$CI_MODE" = true ]; then
     print_info "Switching back to PR branch..."
-    # Discard all local changes from baseline creation
-    git reset --hard HEAD
-    git checkout - --quiet
+    # Force checkout to discard any local changes (e.g., lock files modified by uv sync)
+    git checkout -f - --quiet
 else
     print_info "Switching back to $CURRENT_BRANCH..."
     git checkout "$CURRENT_BRANCH" --quiet
