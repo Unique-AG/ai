@@ -264,8 +264,10 @@ print_info "Baseline saved to: $OUTPUT_FILE"
 # Checkout back to original branch
 if [ "$CI_MODE" = true ]; then
     print_info "Switching back to PR branch..."
-    # Force checkout to discard any local changes (e.g., lock files modified by uv sync)
-    git checkout -f - --quiet
+    # Discard all local changes then checkout (uv run may have modified lock files)
+    git checkout -- . 2>/dev/null || true
+    git clean -fd 2>/dev/null || true
+    git checkout - --quiet
 else
     print_info "Switching back to $CURRENT_BRANCH..."
     git checkout "$CURRENT_BRANCH" --quiet
