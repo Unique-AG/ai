@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_quartr"
-version = "0.2.2"
+version = "0.2.3"
 description = "Unique Quartr API client"
 authors = [
     "Rami Azouz <rami.ext@unique.ch>",
