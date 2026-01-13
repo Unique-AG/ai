@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.44.0] - 2026-01-13
 - Add LoopIterationRunner abstraction for the responses api 
 - Change Code Interpreter internal name to `AzureCodeInterpreter`
+- Add Responses API capability to models that support it
 
 ## [1.43.2] - 2026-01-12
 - `DocxGeneratorService`: Alignment need to be specified by the template rather than in code
