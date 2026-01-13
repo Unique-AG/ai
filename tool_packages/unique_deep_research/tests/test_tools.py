@@ -34,7 +34,7 @@ def test_conduct_research__returns_delegation_message__with_research_topic() -> 
     research_topic = "AI research trends"
 
     # Act
-    result = conduct_research(research_topic)
+    result = conduct_research.invoke({"research_topic": research_topic})
 
     # Assert
     assert result == f"Research task delegated for topic: {research_topic}"
@@ -51,7 +51,7 @@ def test_research_complete__returns_final_report__with_provided_report() -> None
     final_report = "# Research Report\n\nThis is the final report."
 
     # Act
-    result = research_complete(final_report)
+    result = research_complete.invoke({"final_report": final_report})
 
     # Assert
     assert result == final_report
