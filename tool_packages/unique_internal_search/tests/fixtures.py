@@ -101,6 +101,8 @@ def sample_content_chunks() -> list[ContentChunk]:
 def mock_base_event() -> BaseEvent:
     """Create a mock BaseEvent for testing."""
     event: BaseEvent = Mock(spec=BaseEvent)
+    event.company_id = "company_123"
+    event.user_id = "user_123"
     return event
 
 
@@ -108,6 +110,8 @@ def mock_base_event() -> BaseEvent:
 def mock_chat_event() -> ChatEvent:
     """Create a mock ChatEvent with chat_id for testing."""
     event: ChatEvent = Mock(spec=ChatEvent)
+    event.company_id = "company_123"
+    event.user_id = "user_123"
     payload = Mock()
     payload.chat_id = "chat_123"
     event.payload = payload
@@ -118,6 +122,8 @@ def mock_chat_event() -> ChatEvent:
 def mock_event() -> Event:
     """Create a mock Event with chat_id for testing."""
     event: Event = Mock(spec=Event)
+    event.company_id = "company_123"
+    event.user_id = "user_123"
     payload = Mock()
     payload.chat_id = "chat_456"
     event.payload = payload
