@@ -84,7 +84,7 @@ runs:
       if: inputs.deps == 'min' && steps.install_pm.outputs.run_cmd == 'uv run' && inputs.run_deptry == 'true'
       shell: bash
       working-directory: ${{ inputs.package_dir }}
-      run: uv run deptry .
+      run: uv run --no-sync deptry .
 
     - name: Run pytest (min)
       if: inputs.deps == 'min' && steps.install_pm.outputs.run_cmd == 'uv run'
