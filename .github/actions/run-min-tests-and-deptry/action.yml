@@ -1,5 +1,5 @@
 name: 'Run Min Tests and Deptry'
-description: 'Runs pytest tests with min dependencies and deptry, supporting only uv'
+description: 'Runs deptry on all packages, and min-deps pytest tests for uv packages only'
 
 inputs:
   package_dir:
@@ -18,31 +18,45 @@ runs:
   using: 'composite'
   steps:
     - name: Install package manager
-      id: install_pm
+      id: pm
       uses: ./.github/actions/install-package-manager
       with:
         package_dir: ${{ inputs.package_dir }}
-        package_manager: uv
         python_version: ${{ inputs.python_version }}
 
-    - name: Install package (min)
+    # uv: Install with min deps
+    - name: Install package (min deps - uv)
+      if: steps.pm.outputs.run_cmd == 'uv run'
       shell: bash
       working-directory: ${{ inputs.package_dir }}
       run: |
         uv venv
-        # Install runtime deps at minimum versions
         uv pip install -e . --resolution=lowest-direct
-        # Install dev deps from [dependency-groups] (we only care about runtime dep minimums)
         uv export --only-group dev --no-hashes | uv pip install -r -
 
-    - name: Check dependencies with deptry
+    # Poetry: Normal install + deptry
+    - name: Install package (poetry)
+      if: steps.pm.outputs.run_cmd == 'poetry run'
+      shell: bash
+      working-directory: ${{ inputs.package_dir }}
+      run: |
+        poetry install
+        poetry run pip install deptry
+
+    - name: Run deptry (uv)
+      if: steps.pm.outputs.run_cmd == 'uv run'
       shell: bash
       working-directory: ${{ inputs.package_dir }}
       run: uv run --no-sync deptry .
 
-    - name: Run tests with min dependencies
+    - name: Run deptry (poetry)
+      if: steps.pm.outputs.run_cmd == 'poetry run'
       shell: bash
       working-directory: ${{ inputs.package_dir }}
-      run: |
-        # Use --no-sync for min to prevent uv from "fixing" the versions
-        uv run --no-sync pytest ${{ inputs.test_args }}
+      run: poetry run deptry .
+
+    - name: Run tests with min dependencies (uv only)
+      if: steps.pm.outputs.run_cmd == 'uv run'
+      shell: bash
+      working-directory: ${{ inputs.package_dir }}
+      run: uv run --no-sync pytest ${{ inputs.test_args }}
