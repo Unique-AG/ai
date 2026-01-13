@@ -322,11 +322,24 @@ if [ "$SKIP_TESTS" = false ]; then
     print_info "Running tests with coverage..."
     # Extract package name from PACKAGE directory (e.g., unique_toolkit from unique_toolkit/)
     PACKAGE_NAME=$(basename "$PACKAGE")
+    
+    # Find tests directory - try multiple locations
+    if [ -d "tests" ]; then
+        TESTS_DIR="tests/"
+    elif [ -d "$PACKAGE_NAME/tests" ]; then
+        TESTS_DIR="$PACKAGE_NAME/tests/"
+    else
+        # Search for test files in the package
+        TESTS_DIR="$PACKAGE_NAME/"
+        print_info "No dedicated tests/ directory found, searching in $TESTS_DIR"
+    fi
+    
+    print_info "Running tests from: $TESTS_DIR"
     $RUNNER pytest \
         --cov="$PACKAGE_NAME" \
         --cov-report=xml \
         --cov-report=term \
-        tests/ || {
+        "$TESTS_DIR" || {
         print_warning "Some tests failed, but continuing with coverage check..."
     }
 fi

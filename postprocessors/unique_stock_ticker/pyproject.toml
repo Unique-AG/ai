@@ -28,6 +28,7 @@ pyopenssl = "^25.0.0"
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.4.1"
 pytest-asyncio = "^0.25.0"
+pytest-cov = "^7.0.0"
 unique-sdk = { path = "../../unique_sdk" }
 unique-toolkit = { path = "../../unique_toolkit" }
 ruff = "^0.12.10"
