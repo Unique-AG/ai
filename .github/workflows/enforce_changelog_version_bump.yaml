@@ -1,6 +1,9 @@
 name: "[chore] Enforce Changelog and Version Bump"
 
-on: pull_request
+on:
+  pull_request:
+  push:
+    branches: [main]
 
 jobs:
   detect-packages:
@@ -16,40 +19,32 @@ jobs:
         id: filter
         uses: dorny/paths-filter@v3
         with:
+          # Simple filters - exclusions are handled by the validation script
           filters: |
             unique_sdk:
-              - 'unique_sdk/**/!(*docs/|*/mkdocs.yaml)'
-              
+              - 'unique_sdk/**'
             unique_toolkit:
-              - 'unique_toolkit/**/!(*docs/|*mkdocs.yaml|*.entangled/)'
-              
+              - 'unique_toolkit/**'
             unique_orchestrator:
               - 'unique_orchestrator/**'
-              
+            unique_mcp:
+              - 'unique_mcp/**'
             connectors/unique_quartr:
               - 'connectors/unique_quartr/**'
-            
             connectors/unique_search_proxy:
               - 'connectors/unique_search_proxy/**'
-            
             connectors/unique_six:
               - 'connectors/unique_six/**'
-
             postprocessors/unique_follow_up_questions:
               - 'postprocessors/unique_follow_up_questions/**'
-              
             postprocessors/unique_stock_ticker:
               - 'postprocessors/unique_stock_ticker/**'
-              
             tool_packages/unique_deep_research:
               - 'tool_packages/unique_deep_research/**'
-              
             tool_packages/unique_internal_search:
               - 'tool_packages/unique_internal_search/**'
-              
             tool_packages/unique_swot:
               - 'tool_packages/unique_swot/**'
-              
             tool_packages/unique_web_search:
               - 'tool_packages/unique_web_search/**'
 
@@ -59,6 +54,7 @@ jobs:
     runs-on: ubuntu-latest
 
     strategy:
+      fail-fast: false
       matrix:
         package: ${{ fromJSON(needs.detect-packages.outputs.packages) }}
 
@@ -67,5 +63,18 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - name: Determine base ref
+        id: base
+        run: |
+          # For pull_request: use base branch; for push: use commit before push
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "ref=${{ github.base_ref }}" >> $GITHUB_OUTPUT
+          else
+            echo "ref=${{ github.event.before }}" >> $GITHUB_OUTPUT
+          fi
       - name: Validate changelog and version bump
-        run: ./.github/scripts/validate-changelog-version-bump.sh ${{ matrix.package }} ${{ github.base_ref }}
+        run: |
+          ./.github/scripts/validate-changelog-version-bump.sh \
+            --exclude "poetry.lock,uv.lock,CHANGELOG.md,docs/,mkdocs.yaml,.entangled/" \
+            ${{ matrix.package }} \
+            ${{ steps.base.outputs.ref }}

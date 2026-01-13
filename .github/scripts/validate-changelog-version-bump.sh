@@ -61,6 +61,8 @@ OPTIONS:
     -b, --base-ref REF   Base branch/ref for comparison
                          (default: auto-detect from GITHUB_BASE_REF or origin/main/master)
     --no-fetch           Skip fetching the base branch (useful if already fetched)
+    --exclude PATTERNS   Comma-separated list of patterns to exclude from "meaningful changes"
+                         (e.g., "poetry.lock,uv.lock,docs/,CHANGELOG.md")
 
 EXAMPLES:
     # CI usage (GitHub Actions)
@@ -74,6 +76,9 @@ EXAMPLES:
 
     # Skip fetch (if branch already fetched)
     ${SCRIPT_NAME} unique_toolkit --base-ref main --no-fetch
+
+    # With custom exclusions
+    ${SCRIPT_NAME} unique_toolkit main --exclude "poetry.lock,uv.lock,docs/"
 
 EXIT CODES:
     0    Validation passed
@@ -97,6 +102,10 @@ show_version() {
 PACKAGE=""
 BASE_REF=""
 NO_FETCH=false
+EXCLUDE_ARG=""
+
+# Default exclusion patterns (used if --exclude not provided)
+DEFAULT_EXCLUDES="poetry.lock,uv.lock,CHANGELOG.md,docs/,mkdocs.yaml,.entangled/"
 
 # Parse long options first (--help, --version, --base-ref, --no-fetch)
 while [[ $# -gt 0 ]]; do
@@ -117,6 +126,11 @@ while [[ $# -gt 0 ]]; do
         --no-fetch)
             NO_FETCH=true
             shift
+            continue
+            ;;
+        --exclude)
+            EXCLUDE_ARG="$2"
+            shift 2
             continue
             ;;
         --)
@@ -229,16 +243,33 @@ if [ -z "$BASE_REF" ]; then
     fi
 fi
 
-# Ensure base_ref has origin/ prefix if it's a branch name (and not already a full ref)
-if [[ ! "$BASE_REF" =~ ^origin/ ]] && [[ ! "$BASE_REF" =~ ^refs/ ]]; then
+# Check for null SHA (used for force pushes or first push to branch)
+NULL_SHA="0000000000000000000000000000000000000000"
+if [ "$BASE_REF" = "$NULL_SHA" ]; then
+    print_warning "Base reference is null SHA (force push or first push to branch)"
+    print_info "Skipping validation - cannot determine what changed"
+    exit 0
+fi
+
+# Check if BASE_REF is a commit SHA (40 hex chars) vs a branch name
+IS_COMMIT_SHA=false
+if [[ "$BASE_REF" =~ ^[0-9a-f]{40}$ ]]; then
+    IS_COMMIT_SHA=true
+    print_info "Base reference is a commit SHA"
+fi
+
+# Ensure base_ref has origin/ prefix if it's a branch name (and not already a full ref or SHA)
+if [ "$IS_COMMIT_SHA" = false ] && [[ ! "$BASE_REF" =~ ^origin/ ]] && [[ ! "$BASE_REF" =~ ^refs/ ]]; then
     BASE_REF="origin/$BASE_REF"
 fi
 
 print_info "Validating package: $PACKAGE"
 print_info "Base reference: $BASE_REF"
 
-# Fetch the base reference (needed for merge-base)
-if [ "$NO_FETCH" = false ]; then
+# We'll check for actual code changes after fetching and finding merge base
+
+# Fetch the base reference (needed for merge-base) - skip for commit SHAs
+if [ "$NO_FETCH" = false ] && [ "$IS_COMMIT_SHA" = false ]; then
     # Extract branch name (remove origin/ prefix if present)
     BRANCH_NAME=$(echo "$BASE_REF" | sed 's|^origin/||')
     print_info "Fetching base branch: $BRANCH_NAME"
@@ -250,6 +281,8 @@ if [ "$NO_FETCH" = false ]; then
             exit 1
         fi
     fi
+elif [ "$IS_COMMIT_SHA" = true ]; then
+    print_info "Skipping fetch (using commit SHA directly)"
 else
     print_info "Skipping fetch (--no-fetch specified)"
 fi
@@ -263,13 +296,63 @@ MERGE_BASE=$(git merge-base HEAD "$BASE_REF" 2>/dev/null || {
 
 print_info "Merge base: $MERGE_BASE"
 
+# Use provided exclusions or defaults
+if [ -n "$EXCLUDE_ARG" ]; then
+    EXCLUDE_CSV="$EXCLUDE_ARG"
+    print_info "Using provided exclusions: $EXCLUDE_CSV"
+else
+    EXCLUDE_CSV="$DEFAULT_EXCLUDES"
+    print_info "Using default exclusions: $EXCLUDE_CSV"
+fi
+
+# Convert comma-separated to array and build grep pattern
+IFS=',' read -ra EXCLUDED_PATTERNS <<< "$EXCLUDE_CSV"
+# Use | for extended regex (grep -E), not \|
+EXCLUDE_REGEX=$(printf '%s|' "${EXCLUDED_PATTERNS[@]}" | sed 's/|$//')
+
+# First check if there are any meaningful code changes in this package
+CODE_CHANGES=$(git diff --name-only "$MERGE_BASE"..HEAD -- "$PACKAGE" | grep -v -E "($EXCLUDE_REGEX)" || true)
+
+if [ -z "$CODE_CHANGES" ]; then
+    print_info "No code changes detected in $PACKAGE (only lock files, docs, or no changes)"
+    print_success "Skipping validation - no changelog/version bump required"
+    exit 0
+fi
+
+print_info "Detected code changes in $PACKAGE:"
+echo "$CODE_CHANGES" | head -10
+echo ""
+
 # Check CHANGELOG.md is updated
+CHANGELOG_FILE="$PACKAGE/CHANGELOG.md"
 if ! git diff --name-only "$MERGE_BASE"..HEAD | grep -q "^$PACKAGE/CHANGELOG.md$"; then
     print_error "$PACKAGE/CHANGELOG.md must be updated in this PR"
     echo "Please add an entry to the changelog describing your changes."
     exit 1
 else
     print_success "$PACKAGE/CHANGELOG.md has been updated"
+fi
+
+# Verify CHANGELOG.md wasn't deleted (diff includes deletions)
+if [ ! -f "$CHANGELOG_FILE" ]; then
+    print_error "$CHANGELOG_FILE was deleted - changelog must exist and be updated, not removed"
+    exit 1
+fi
+
+# Check for duplicate version entries in changelog
+if [ -f "$CHANGELOG_FILE" ]; then
+    # Extract all version headers (## [X.Y.Z])
+    VERSIONS=$(grep -oE '## \[[0-9]+\.[0-9]+\.[0-9]+[^]]*\]' "$CHANGELOG_FILE" | sed 's/## \[//; s/\]//' | sort)
+    UNIQUE_VERSIONS=$(echo "$VERSIONS" | uniq)
+    
+    if [ "$VERSIONS" != "$UNIQUE_VERSIONS" ]; then
+        print_error "Duplicate version entries found in $CHANGELOG_FILE"
+        echo "The following versions appear more than once:"
+        echo "$VERSIONS" | uniq -d
+        exit 1
+    else
+        print_success "No duplicate version entries in changelog"
+    fi
 fi
 
 # Check pyproject.toml exists and has been modified
@@ -305,6 +388,18 @@ if [ "$BASE_VERSION" = "$CURRENT_VERSION" ]; then
     exit 1
 else
     print_success "Version has been updated from $BASE_VERSION to $CURRENT_VERSION"
+fi
+
+# Check that changelog has an entry for the current version
+if [ -f "$CHANGELOG_FILE" ]; then
+    # Use grep -F for literal string matching (versions may contain + or other regex chars)
+    if ! grep -qF "## [$CURRENT_VERSION]" "$CHANGELOG_FILE"; then
+        print_error "Changelog does not contain an entry for version $CURRENT_VERSION"
+        echo "Please add a '## [$CURRENT_VERSION]' section to the changelog."
+        exit 1
+    else
+        print_success "Changelog contains entry for version $CURRENT_VERSION"
+    fi
 fi
 
 print_success "All validations passed!"
