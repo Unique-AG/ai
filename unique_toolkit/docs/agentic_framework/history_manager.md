@@ -14,11 +14,6 @@ The `HistoryManager` is a critical component responsible for managing the conver
      - *Assistant Responses*: Tracks the assistant's replies, including system-generated messages and tool call results.  
      - *Tool Call Results*: Logs the outputs of tools invoked during the conversation.  
 
-   - **Combining Uploaded Content**:  
-     Uploaded files, such as documents or images, are integrated into the conversation history. This ensures that the LLM has access to all relevant context when generating responses.  
-     - Uploaded content is processed and merged with the conversation history.  
-     - A portion of the token window is reserved for this content, as configured in the `UploadedContentConfig`.  
-
    - **Unified View**:  
      The `HistoryManager` creates a cohesive history by merging uploaded content, user messages, and assistant responses. This unified view is essential for providing the LLM with a complete context for generating accurate and relevant answers.
 
