@@ -1,0 +1,139 @@
+name: "[CI] Publish to PyPI"
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'unique_sdk/**'
+      - 'unique_toolkit/**'
+      - 'unique_mcp/**'
+      - 'unique_orchestrator/**'
+      - 'tool_packages/**'
+      - 'postprocessors/**'
+      - 'connectors/**'
+      - '!**/docs/**'
+      - '!**/mkdocs.yaml'
+  workflow_dispatch:
+    inputs:
+      package:
+        description: 'Package to publish (leave empty for auto-detect)'
+        type: choice
+        options:
+          - ''
+          - all
+          - sdk
+          - toolkit
+          - mcp
+          - orchestrator
+          - web_search
+          - swot
+          - follow_up_questions
+          - stock_ticker
+          - deep_research
+          - internal_search
+          - quartr
+          - six
+          - search_proxy
+        default: ''
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        if: github.event_name == 'push'
+        with:
+          filters: |
+            sdk:
+              - 'unique_sdk/**'
+              - '!unique_sdk/**/docs/**'
+            toolkit:
+              - 'unique_toolkit/**'
+              - '!unique_toolkit/**/docs/**'
+            mcp:
+              - 'unique_mcp/**'
+            orchestrator:
+              - 'unique_orchestrator/**'
+            web_search:
+              - 'tool_packages/unique_web_search/**'
+            swot:
+              - 'tool_packages/unique_swot/**'
+            follow_up_questions:
+              - 'postprocessors/unique_follow_up_questions/**'
+            stock_ticker:
+              - 'postprocessors/unique_stock_ticker/**'
+            deep_research:
+              - 'tool_packages/unique_deep_research/**'
+            internal_search:
+              - 'tool_packages/unique_internal_search/**'
+            quartr:
+              - 'connectors/unique_quartr/**'
+            six:
+              - 'connectors/unique_six/**'
+            search_proxy:
+              - 'connectors/unique_search_proxy/**'
+
+      - name: Select packages
+        id: set-matrix
+        uses: ./.github/actions/select-packages
+        with:
+          packages: |
+            [
+              {"id": "sdk",                "dir": "unique_sdk",                                "pypi_name": "unique_sdk",                  "python": "3.11"},
+              {"id": "toolkit",            "dir": "unique_toolkit",                            "pypi_name": "unique_toolkit",              "python": "3.12"},
+              {"id": "mcp",                "dir": "unique_mcp",                                "pypi_name": "unique-mcp",                  "python": "3.12"},
+              {"id": "orchestrator",       "dir": "unique_orchestrator",                       "pypi_name": "unique_orchestrator",         "python": "3.12"},
+              {"id": "web_search",         "dir": "tool_packages/unique_web_search",           "pypi_name": "unique_web_search",           "python": "3.12"},
+              {"id": "swot",               "dir": "tool_packages/unique_swot",                 "pypi_name": "unique-swot",                 "python": "3.12"},
+              {"id": "follow_up_questions","dir": "postprocessors/unique_follow_up_questions", "pypi_name": "unique_follow_up_questions",  "python": "3.12"},
+              {"id": "stock_ticker",       "dir": "postprocessors/unique_stock_ticker",        "pypi_name": "unique_stock_ticker",         "python": "3.12"},
+              {"id": "deep_research",      "dir": "tool_packages/unique_deep_research",        "pypi_name": "unique_deep_research",        "python": "3.12"},
+              {"id": "internal_search",    "dir": "tool_packages/unique_internal_search",      "pypi_name": "unique_internal_search",      "python": "3.12"},
+              {"id": "quartr",             "dir": "connectors/unique_quartr",                  "pypi_name": "unique_quartr",               "python": "3.12"},
+              {"id": "six",                "dir": "connectors/unique_six",                     "pypi_name": "unique_six",                  "python": "3.12"},
+              {"id": "search_proxy",       "dir": "connectors/unique_search_proxy",            "pypi_name": "unique_search_proxy",         "python": "3.12"}
+            ]
+          selected: ${{ github.event.inputs.package }}
+          changes: ${{ toJson(steps.filter.outputs) }}
+
+  publish:
+    needs: detect-changes
+    if: ${{ fromJson(needs.detect-changes.outputs.matrix).include[0] != null }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
+    name: publish-${{ matrix.id }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect package manager
+        id: detect
+        uses: ./.github/actions/detect-package-manager
+        with:
+          package_dir: ${{ matrix.dir }}
+
+      - name: Publish with Poetry
+        if: steps.detect.outputs.package_manager == 'poetry'
+        uses: ./.github/actions/publish-to-pypi-with-poetry
+        with:
+          package_dir: ${{ matrix.dir }}
+          package_name: ${{ matrix.pypi_name }}
+          python_version: ${{ matrix.python }}
+          check_version: 'true'
+          pypi_token: ${{ secrets.PYPI_TOKEN }}
+
+      - name: Publish with uv
+        if: steps.detect.outputs.package_manager == 'uv'
+        uses: ./.github/actions/publish-to-pypi-with-uv
+        with:
+          package_dir: ${{ matrix.dir }}
+          package_name: ${{ matrix.pypi_name }}
+          python_version: ${{ matrix.python }}
+          check_version: 'true'
+          pypi_token: ${{ secrets.PYPI_TOKEN }}
