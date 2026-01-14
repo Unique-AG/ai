@@ -119,6 +119,11 @@ while [[ $# -gt 0 ]]; do
             exit 0
             ;;
         --base-ref)
+            if [ -z "${2:-}" ] || [[ "$2" == -* ]]; then
+                print_error "Option --base-ref requires an argument."
+                echo "Use --help for usage information."
+                exit 2
+            fi
             BASE_REF="$2"
             shift 2
             continue
@@ -129,6 +134,11 @@ while [[ $# -gt 0 ]]; do
             continue
             ;;
         --exclude)
+            if [ -z "${2:-}" ] || [[ "$2" == -* ]]; then
+                print_error "Option --exclude requires an argument."
+                echo "Use --help for usage information."
+                exit 2
+            fi
             EXCLUDE_ARG="$2"
             shift 2
             continue
@@ -293,10 +303,28 @@ else
     print_info "Using default exclusions: $EXCLUDE_CSV"
 fi
 
-# Convert comma-separated to array and build grep pattern
+# Convert comma-separated to array and build precise grep patterns
 IFS=',' read -ra EXCLUDED_PATTERNS <<< "$EXCLUDE_CSV"
-# Escape regex metacharacters (dots) and join with | for extended regex
-EXCLUDE_REGEX=$(printf '%s|' "${EXCLUDED_PATTERNS[@]}" | sed 's/\./\\./g; s/|$//')
+
+# Build regex patterns that match exact path components:
+# - For files (no trailing /): match at end of path, preceded by / or start
+# - For directories (trailing /): match as complete directory component
+EXCLUDE_REGEX_PARTS=()
+for pattern in "${EXCLUDED_PATTERNS[@]}"; do
+    # Escape regex metacharacters (dots)
+    escaped=$(echo "$pattern" | sed 's/\./\\./g')
+    
+    if [[ "$pattern" == */ ]]; then
+        # Directory pattern (ends with /): match as complete path component
+        # e.g., "docs/" should match "foo/docs/bar" but not "foo/apidocs/bar"
+        EXCLUDE_REGEX_PARTS+=("(^|/)${escaped}")
+    else
+        # File pattern: match exact filename at end of path
+        # e.g., "poetry.lock" should match "foo/poetry.lock" but not "foo/my-poetry.lock"
+        EXCLUDE_REGEX_PARTS+=("(^|/)${escaped}$")
+    fi
+done
+EXCLUDE_REGEX=$(IFS='|'; echo "${EXCLUDE_REGEX_PARTS[*]}")
 
 # First check if there are any meaningful code changes in this package
 # Separate git diff from grep to properly detect git failures

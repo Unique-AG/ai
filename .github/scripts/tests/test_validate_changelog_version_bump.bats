@@ -53,6 +53,24 @@ load test_helper
     [[ "$output" =~ "Unknown long option" ]]
 }
 
+@test "fails when --base-ref missing argument" {
+    run "$SCRIPT" test_package --base-ref
+    [ "$status" -eq 2 ]
+    [[ "$output" =~ "Option --base-ref requires an argument" ]]
+}
+
+@test "fails when --exclude missing argument" {
+    run "$SCRIPT" test_package --exclude
+    [ "$status" -eq 2 ]
+    [[ "$output" =~ "Option --exclude requires an argument" ]]
+}
+
+@test "fails when --base-ref followed by another option" {
+    run "$SCRIPT" test_package --base-ref --no-fetch
+    [ "$status" -eq 2 ]
+    [[ "$output" =~ "Option --base-ref requires an argument" ]]
+}
+
 # ==============================================================================
 # Skip validation tests (no meaningful code changes)
 # ==============================================================================
@@ -91,6 +109,51 @@ load test_helper
     run "$SCRIPT" "$TEST_PACKAGE" --base-ref main --no-fetch
     [ "$status" -eq 0 ]
     [[ "$output" =~ "Skipping validation" ]] || [[ "$output" =~ "No code changes" ]]
+}
+
+@test "does NOT skip validation for similarly-named directories (apidocs vs docs)" {
+    setup_test_repo
+    
+    # Make changes to 'apidocs/' - should NOT be excluded by 'docs/' pattern
+    mkdir -p "$TEST_PACKAGE/apidocs"
+    echo "# API documentation" > "$TEST_PACKAGE/apidocs/api.md"
+    git add .
+    git commit -m "Add apidocs"
+    
+    # The default exclusion includes 'docs/' but 'apidocs/' should NOT match
+    run "$SCRIPT" "$TEST_PACKAGE" --base-ref main --no-fetch
+    [ "$status" -eq 1 ]
+    # Should fail because it detected code changes (apidocs not excluded)
+    [[ "$output" =~ "CHANGELOG.md must be updated" ]]
+}
+
+@test "does NOT skip validation for similarly-named files (my-poetry.lock vs poetry.lock)" {
+    setup_test_repo
+    
+    # Make changes to a file with similar name - should NOT be excluded
+    echo "custom lock" > "$TEST_PACKAGE/my-poetry.lock"
+    git add .
+    git commit -m "Add custom lock file"
+    
+    # 'poetry.lock' pattern should NOT match 'my-poetry.lock'
+    run "$SCRIPT" "$TEST_PACKAGE" --base-ref main --no-fetch
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "CHANGELOG.md must be updated" ]]
+}
+
+@test "correctly excludes exact directory matches" {
+    setup_test_repo
+    
+    # Make changes ONLY to the exact 'docs/' directory
+    mkdir -p "$TEST_PACKAGE/src/docs"
+    echo "# Nested doc" > "$TEST_PACKAGE/src/docs/readme.md"
+    git add .
+    git commit -m "Add nested docs"
+    
+    # 'docs/' should match 'src/docs/' as a complete path component
+    run "$SCRIPT" "$TEST_PACKAGE" --base-ref main --no-fetch
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Skipping validation" ]]
 }
 
 # ==============================================================================
