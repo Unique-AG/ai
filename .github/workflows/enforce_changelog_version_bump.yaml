@@ -1,6 +1,8 @@
 name: "[chore] Enforce Changelog and Version Bump"
 
-on: pull_request
+on:
+  pull_request:
+  merge_group:
 
 jobs:
   detect-packages:
@@ -16,40 +18,32 @@ jobs:
         id: filter
         uses: dorny/paths-filter@v3
         with:
+          # Simple filters - exclusions are handled by the validation script
           filters: |
             unique_sdk:
-              - 'unique_sdk/**/!(*docs/|*/mkdocs.yaml)'
-              
+              - 'unique_sdk/**'
             unique_toolkit:
-              - 'unique_toolkit/**/!(*docs/|*mkdocs.yaml|*.entangled/)'
-              
+              - 'unique_toolkit/**'
             unique_orchestrator:
               - 'unique_orchestrator/**'
-              
+            unique_mcp:
+              - 'unique_mcp/**'
             connectors/unique_quartr:
               - 'connectors/unique_quartr/**'
-            
             connectors/unique_search_proxy:
               - 'connectors/unique_search_proxy/**'
-            
             connectors/unique_six:
               - 'connectors/unique_six/**'
-
             postprocessors/unique_follow_up_questions:
               - 'postprocessors/unique_follow_up_questions/**'
-              
             postprocessors/unique_stock_ticker:
               - 'postprocessors/unique_stock_ticker/**'
-              
             tool_packages/unique_deep_research:
               - 'tool_packages/unique_deep_research/**'
-              
             tool_packages/unique_internal_search:
               - 'tool_packages/unique_internal_search/**'
-              
             tool_packages/unique_swot:
               - 'tool_packages/unique_swot/**'
-              
             tool_packages/unique_web_search:
               - 'tool_packages/unique_web_search/**'
 
@@ -59,6 +53,7 @@ jobs:
     runs-on: ubuntu-latest
 
     strategy:
+      fail-fast: false
       matrix:
         package: ${{ fromJSON(needs.detect-packages.outputs.packages) }}
 
@@ -68,4 +63,10 @@ jobs:
         with:
           fetch-depth: 0
       - name: Validate changelog and version bump
-        run: ./.github/scripts/validate-changelog-version-bump.sh ${{ matrix.package }} ${{ github.base_ref }}
+        run: |
+          # For pull_request: github.base_ref; for merge_group: github.event.merge_group.base_ref
+          BASE_REF="${{ github.base_ref || github.event.merge_group.base_ref }}"
+          ./.github/scripts/validate-changelog-version-bump.sh \
+            --exclude "poetry.lock,uv.lock,CHANGELOG.md,docs/,mkdocs.yaml,.entangled/" \
+            ${{ matrix.package }} \
+            "$BASE_REF"
