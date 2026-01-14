@@ -2,8 +2,7 @@ name: "[chore] Enforce Changelog and Version Bump"
 
 on:
   pull_request:
-  push:
-    branches: [main]
+  merge_group:
 
 jobs:
   detect-packages:
@@ -63,18 +62,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Determine base ref
-        id: base
-        run: |
-          # For pull_request: use base branch; for push: use commit before push
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "ref=${{ github.base_ref }}" >> $GITHUB_OUTPUT
-          else
-            echo "ref=${{ github.event.before }}" >> $GITHUB_OUTPUT
-          fi
       - name: Validate changelog and version bump
         run: |
+          # For pull_request: github.base_ref; for merge_group: github.event.merge_group.base_ref
+          BASE_REF="${{ github.base_ref || github.event.merge_group.base_ref }}"
           ./.github/scripts/validate-changelog-version-bump.sh \
             --exclude "poetry.lock,uv.lock,CHANGELOG.md,docs/,mkdocs.yaml,.entangled/" \
             ${{ matrix.package }} \
-            ${{ steps.base.outputs.ref }}
+            "$BASE_REF"

@@ -243,33 +243,16 @@ if [ -z "$BASE_REF" ]; then
     fi
 fi
 
-# Check for null SHA (used for force pushes or first push to branch)
-NULL_SHA="0000000000000000000000000000000000000000"
-if [ "$BASE_REF" = "$NULL_SHA" ]; then
-    print_warning "Base reference is null SHA (force push or first push to branch)"
-    print_info "Skipping validation - cannot determine what changed"
-    exit 0
-fi
-
-# Check if BASE_REF is a commit SHA (40 hex chars) vs a branch name
-IS_COMMIT_SHA=false
-if [[ "$BASE_REF" =~ ^[0-9a-f]{40}$ ]]; then
-    IS_COMMIT_SHA=true
-    print_info "Base reference is a commit SHA"
-fi
-
-# Ensure base_ref has origin/ prefix if it's a branch name (and not already a full ref or SHA)
-if [ "$IS_COMMIT_SHA" = false ] && [[ ! "$BASE_REF" =~ ^origin/ ]] && [[ ! "$BASE_REF" =~ ^refs/ ]]; then
+# Ensure base_ref has origin/ prefix if it's a branch name (and not already a full ref)
+if [[ ! "$BASE_REF" =~ ^origin/ ]] && [[ ! "$BASE_REF" =~ ^refs/ ]]; then
     BASE_REF="origin/$BASE_REF"
 fi
 
 print_info "Validating package: $PACKAGE"
 print_info "Base reference: $BASE_REF"
 
-# We'll check for actual code changes after fetching and finding merge base
-
-# Fetch the base reference (needed for merge-base) - skip for commit SHAs
-if [ "$NO_FETCH" = false ] && [ "$IS_COMMIT_SHA" = false ]; then
+# Fetch the base reference (needed for merge-base)
+if [ "$NO_FETCH" = false ]; then
     # Extract branch name (remove origin/ prefix if present)
     BRANCH_NAME=$(echo "$BASE_REF" | sed 's|^origin/||')
     print_info "Fetching base branch: $BRANCH_NAME"
@@ -281,8 +264,6 @@ if [ "$NO_FETCH" = false ] && [ "$IS_COMMIT_SHA" = false ]; then
             exit 1
         fi
     fi
-elif [ "$IS_COMMIT_SHA" = true ]; then
-    print_info "Skipping fetch (using commit SHA directly)"
 else
     print_info "Skipping fetch (--no-fetch specified)"
 fi
