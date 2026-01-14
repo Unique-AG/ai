@@ -357,8 +357,9 @@ if ! git diff --name-only "$MERGE_BASE"..HEAD | grep -q "^$PACKAGE/pyproject.tom
 fi
 
 # Extract and compare versions
-BASE_VERSION=$(git show "$MERGE_BASE:$PACKAGE/pyproject.toml" 2>/dev/null | grep -E '^version\s*=' | sed -E 's/version\s*=\s*"([^"]+)"/\1/' || echo "")
-CURRENT_VERSION=$(grep -E '^version\s*=' "$PACKAGE/pyproject.toml" | sed -E 's/version\s*=\s*"([^"]+)"/\1/' || echo "")
+# Note: Using [[:space:]] instead of \s for BSD/macOS sed compatibility
+BASE_VERSION=$(git show "$MERGE_BASE:$PACKAGE/pyproject.toml" 2>/dev/null | grep -E '^version[[:space:]]*=' | sed -E 's/version[[:space:]]*=[[:space:]]*"([^"]+)"/\1/' || echo "")
+CURRENT_VERSION=$(grep -E '^version[[:space:]]*=' "$PACKAGE/pyproject.toml" | sed -E 's/version[[:space:]]*=[[:space:]]*"([^"]+)"/\1/' || echo "")
 
 if [ -z "$BASE_VERSION" ]; then
     print_error "Could not extract version from base branch's pyproject.toml"
