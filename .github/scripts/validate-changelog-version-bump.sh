@@ -243,8 +243,12 @@ if [ -z "$BASE_REF" ]; then
     fi
 fi
 
-# Ensure base_ref has origin/ prefix if it's a branch name (and not already a full ref)
-if [[ ! "$BASE_REF" =~ ^origin/ ]] && [[ ! "$BASE_REF" =~ ^refs/ ]]; then
+# Normalize base_ref to origin/<branch> format
+# Handle refs/heads/main -> origin/main, main -> origin/main
+if [[ "$BASE_REF" =~ ^refs/heads/ ]]; then
+    # Convert refs/heads/main to origin/main
+    BASE_REF="origin/${BASE_REF#refs/heads/}"
+elif [[ ! "$BASE_REF" =~ ^origin/ ]]; then
     BASE_REF="origin/$BASE_REF"
 fi
 
@@ -253,8 +257,8 @@ print_info "Base reference: $BASE_REF"
 
 # Fetch the base reference (needed for merge-base)
 if [ "$NO_FETCH" = false ]; then
-    # Extract branch name (remove origin/ prefix if present)
-    BRANCH_NAME=$(echo "$BASE_REF" | sed 's|^origin/||')
+    # Extract branch name (remove origin/ prefix)
+    BRANCH_NAME="${BASE_REF#origin/}"
     print_info "Fetching base branch: $BRANCH_NAME"
     if ! git fetch origin "$BRANCH_NAME" 2>/dev/null; then
         # If fetch fails, try without suppressing output to see the error
