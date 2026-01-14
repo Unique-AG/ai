@@ -133,7 +133,7 @@ class InternalSearchConfig(BaseToolConfig):
     tool_description_for_system_prompt: Annotated[
         str,
         RJSFMetaTag.StringWidget.textarea(
-            rows=int(len(DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT.split("\n"))/2)
+            rows=int(len(DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT.split("\n")) / 2)
         ),
     ] = get_string_field_with_pattern_validation(
         DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
@@ -142,7 +142,9 @@ class InternalSearchConfig(BaseToolConfig):
     tool_format_information_for_system_prompt: Annotated[
         str,
         RJSFMetaTag.StringWidget.textarea(
-            rows=int(len(DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT.split("\n"))/3)
+            rows=int(
+                len(DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT.split("\n")) / 3
+            )
         ),
     ] = get_string_field_with_pattern_validation(
         DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT,

@@ -149,7 +149,9 @@ class WebSearchConfig(BaseToolConfig):
     tool_format_information_for_system_prompt: Annotated[
         str,
         RJSFMetaTag.StringWidget.textarea(
-            rows=int(len(DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT.split("\n"))/3)
+            rows=int(
+                len(DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT.split("\n")) / 3
+            )
         ),
     ] = Field(
         default=DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT,
