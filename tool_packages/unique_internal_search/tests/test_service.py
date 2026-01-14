@@ -2003,7 +2003,7 @@ class TestInternalSearchTool:
         Setup summary: Set max_search_strings to 2, provide 4 strings in tool_call, verify only 2 execute.
         """
         # Arrange
-        base_internal_search_config.experimental_features.enable_multiple_search_strings_execution = True
+        base_internal_search_config.enable_multiple_search_strings_execution = True
         base_internal_search_config.max_search_strings = 2
 
         with (
@@ -2079,7 +2079,7 @@ class TestInternalSearchTool:
         Setup summary: Enable multiple search strings, mock search calls, verify all searches execute.
         """
         # Arrange
-        base_internal_search_config.experimental_features.enable_multiple_search_strings_execution = True
+        base_internal_search_config.enable_multiple_search_strings_execution = True
         service = InternalSearchService(
             config=base_internal_search_config,
             content_service=mock_content_service,
@@ -2126,7 +2126,7 @@ class TestInternalSearchTool:
         Setup summary: Provide duplicate search strings, verify only unique searches execute.
         """
         # Arrange
-        base_internal_search_config.experimental_features.enable_multiple_search_strings_execution = True
+        base_internal_search_config.enable_multiple_search_strings_execution = True
         service = InternalSearchService(
             config=base_internal_search_config,
             content_service=mock_content_service,
@@ -2168,7 +2168,7 @@ class TestInternalSearchTool:
         Setup summary: Set max_search_strings to 3, provide 5 strings, verify only 3 execute.
         """
         # Arrange
-        base_internal_search_config.experimental_features.enable_multiple_search_strings_execution = True
+        base_internal_search_config.enable_multiple_search_strings_execution = True
         base_internal_search_config.max_search_strings = 3
         service = InternalSearchService(
             config=base_internal_search_config,

@@ -1,11 +1,16 @@
 from enum import StrEnum
+from typing import Annotated
 
 from pydantic import BaseModel, Field
 from unidecode import unidecode
-from unique_toolkit import LanguageModelName
+from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
+from unique_toolkit._common.validators import (
+    LMI,
+    get_LMI_default_field,
+)
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 from unique_toolkit.content.schemas import ContentChunk
-from unique_toolkit.language_model.infos import LanguageModelInfo
+from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 
 
 class ContentProcessingStartegy(StrEnum):
@@ -80,15 +85,15 @@ class ContentProcessorConfig(BaseModel):
         default=True,
         description="Whether to remove URLs from markdown links in website content.",
     )
-    language_model: LanguageModelInfo = Field(
-        default=LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_4o_2024_1120),
-        description="The language model to use for SUMMARIZE strategy",
-    )
+    language_model: LMI = get_LMI_default_field(DEFAULT_GPT_4o)
     max_tokens: int = Field(
         default=5000,
         description="Max tokens for truncation and summarization",
     )
-    summarization_prompt: str = Field(
+    summarization_prompt: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(rows=2),
+    ] = Field(
         default="""You are a helping assistant that generates query focused summarization of a webpage content. The summary should convey any information that is relevant to the query.""",
         description="The system prompt to use for summarization",
     )

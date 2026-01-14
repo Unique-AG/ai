@@ -27,7 +27,7 @@ class SubAgentEvaluationServiceConfig(BaseModel):
     model_config = get_configuration_dict()
 
     assessment_type: ChatMessageAssessmentType = Field(
-        default=ChatMessageAssessmentType.COMPLIANCE,
+        default=ChatMessageAssessmentType.HALLUCINATION,
         description="The type of assessment to use in the display.",
     )
     summarization_model: LMI = get_LMI_default_field(DEFAULT_GPT_4o)

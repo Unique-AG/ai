@@ -11,6 +11,7 @@ from unique_toolkit._common.chunk_relevancy_sorter.config import (
 from unique_toolkit._common.feature_flags.schema import (
     FeatureExtendedSourceSerialization,
 )
+from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.history_manager.history_manager import DeactivatedNone
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
@@ -29,11 +30,7 @@ from unique_internal_search.prompts import (
 from unique_internal_search.validators import get_string_field_with_pattern_validation
 
 
-class ExperimentalFeatures(FeatureExtendedSourceSerialization):
-    enable_multiple_search_strings_execution: bool = Field(
-        default=False,
-        description="Allow execution of multiple search strings in one call. When set to True, each string is searched individually and results are merged into a single response.",
-    )
+class ExperimentalFeatures(FeatureExtendedSourceSerialization): ...
 
 
 DEFAULT_LIMIT_CHUNK_RELEVANCY_SORT_ENABLED = 200
@@ -106,33 +103,64 @@ class InternalSearchConfig(BaseToolConfig):
         description="Whether to only chat on the upload.",
     )
 
-    tool_description: str = get_string_field_with_pattern_validation(
+    tool_description: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(
+            rows=len(DEFAULT_TOOL_DESCRIPTION.split("\n"))
+        ),
+    ] = get_string_field_with_pattern_validation(
         DEFAULT_TOOL_DESCRIPTION,
         description="Tool description.",
     )
-    param_description_search_string: str = Field(
+    param_description_search_string: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(
+            rows=len(DEFAULT_SEARCH_STRING_PARAM_DESCRIPTION.split("\n"))
+        ),
+    ] = Field(
         default=DEFAULT_SEARCH_STRING_PARAM_DESCRIPTION,
         description="`search_string` parameter description.",
     )
-    param_description_language: str = get_string_field_with_pattern_validation(
+    param_description_language: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(
+            rows=len(DEFAULT_LANGUAGE_PARAM_DESCRIPTION.split("\n"))
+        ),
+    ] = get_string_field_with_pattern_validation(
         DEFAULT_LANGUAGE_PARAM_DESCRIPTION,
         description="`language` parameter description.",
     )
-    tool_description_for_system_prompt: str = get_string_field_with_pattern_validation(
+    tool_description_for_system_prompt: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(
+            rows=int(len(DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT.split("\n")) / 2)
+        ),
+    ] = get_string_field_with_pattern_validation(
         DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
         description="Tool description for the system prompt.",
     )
-    tool_format_information_for_system_prompt: str = (
-        get_string_field_with_pattern_validation(
-            DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT,
-            description="Tool format information for the system prompt.",
-        )
+    tool_format_information_for_system_prompt: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(
+            rows=int(
+                len(DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT.split("\n")) / 3
+            )
+        ),
+    ] = get_string_field_with_pattern_validation(
+        DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT,
+        description="Tool format information for the system prompt.",
     )
     evaluation_check_list: list[EvaluationMetricName] = Field(
         default=[EvaluationMetricName.HALLUCINATION],
         description="The list of evaluation metrics to check.",
     )
-    experimental_features: ExperimentalFeatures = ExperimentalFeatures()
+
+    enable_multiple_search_strings_execution: bool = Field(
+        default=True,
+        description="Allow execution of multiple search strings in one call. When set to True, each string is searched individually and results are merged into a single response.",
+    )
+
+    experimental_features: SkipJsonSchema[ExperimentalFeatures] = ExperimentalFeatures()
 
     metadata_chunk_sections: dict[str, str] = Field(
         default={},
@@ -147,7 +175,7 @@ class InternalSearchConfig(BaseToolConfig):
         le=1.0,
         description="The score threshold to use for the search to filter chunks on relevancy.",
     )
-    exclude_uploaded_files: bool = Field(
+    exclude_uploaded_files: SkipJsonSchema[bool] = Field(
         default=False,
         description="Whether to exclude uploaded files from the search. Overrides the `chat_only` parameter as it removes the `chat_id` from the search.",
     )
