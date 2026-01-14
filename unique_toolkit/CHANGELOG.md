@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.43.4] - 2026-01-14
+- chore(deps-dev): bump aiohttp from 3.13.2 to 3.13.3
+
 ## [1.43.3] - 2026-01-13
 - Changing default `assessment_type` in `SubAgentEvaluationServiceConfig` to `HALLUCINATION`
 
