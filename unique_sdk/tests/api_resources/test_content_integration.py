@@ -832,7 +832,7 @@ def test_content__ingest_magic_table_sheets__creates_content_from_table_data(
     # Arrange
     import uuid
 
-    table_data: Content.MagicTableSheetTable = {
+    table_data: Content.MagicTableRow = {
         "rowId": f"row_{uuid.uuid4().hex[:8]}",
         "columns": [
             {
@@ -895,7 +895,7 @@ async def test_content__ingest_magic_table_sheets_async__creates_content_from_ta
     # Arrange
     import uuid
 
-    table_data: Content.MagicTableSheetTable = {
+    table_data: Content.MagicTableRow = {
         "rowId": f"row_{uuid.uuid4().hex[:8]}",
         "columns": [
             {

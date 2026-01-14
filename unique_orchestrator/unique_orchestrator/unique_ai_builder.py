@@ -34,7 +34,7 @@ from unique_toolkit.agentic.loop_runner import (
     BasicLoopIterationRunnerConfig,
     LoopIterationRunner,
     PlanningMiddleware,
-    QwenForcedToolCallMiddleware,
+    QwenLoopIterationRunner,
     is_qwen_model,
 )
 from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
@@ -78,7 +78,7 @@ from unique_toolkit.content.service import ContentService
 from unique_toolkit.protocols.support import ResponsesSupportCompleteWithReferences
 
 from unique_orchestrator.config import UniqueAIConfig
-from unique_orchestrator.unique_ai import UniqueAI, UniqueAIResponsesApi
+from unique_orchestrator.unique_ai import UniqueAI
 
 
 async def build_unique_ai(
@@ -86,7 +86,7 @@ async def build_unique_ai(
     logger: Logger,
     config: UniqueAIConfig,
     debug_info_manager: DebugInfoManager,
-) -> UniqueAI | UniqueAIResponsesApi:
+) -> UniqueAI:
     common_components = _build_common(event, logger, config)
 
     if config.agent.experimental.responses_api_config.use_responses_api:
@@ -228,6 +228,7 @@ def _build_common(
         config=config,
         history_manager=history_manager,
         llm_service=LanguageModelService.from_event(event),
+        chat_service=chat_service,
     )
 
     return _CommonComponents(
@@ -256,7 +257,7 @@ async def _build_responses(
     config: UniqueAIConfig,
     common_components: _CommonComponents,
     debug_info_manager: DebugInfoManager,
-) -> UniqueAIResponsesApi:
+) -> UniqueAI:
     client = get_async_openai_client().copy(
         default_headers={
             "x-model": config.space.language_model.name,
@@ -355,7 +356,7 @@ async def _build_responses(
         response_watcher=common_components.response_watcher,
     )
 
-    return UniqueAIResponsesApi(
+    return UniqueAI(
         event=event,
         config=config,
         logger=logger,
@@ -540,6 +541,7 @@ def _build_loop_iteration_runner(
     config: UniqueAIConfig,
     history_manager: HistoryManager,
     llm_service: LanguageModelService,
+    chat_service: ChatService,
 ) -> LoopIterationRunner:
     runner = BasicLoopIterationRunner(
         config=BasicLoopIterationRunnerConfig(
@@ -548,9 +550,11 @@ def _build_loop_iteration_runner(
     )
 
     if is_qwen_model(model=config.space.language_model):
-        runner = QwenForcedToolCallMiddleware(
-            loop_runner=runner,
-            qwen_forced_tool_call_prompt_instruction=config.agent.experimental.loop_configuration.qwen_forced_tool_call_prompt_instruction,
+        runner = QwenLoopIterationRunner(
+            qwen_forced_tool_call_instruction=config.agent.experimental.loop_configuration.model_specific.qwen.forced_tool_call_instruction,
+            qwen_last_iteration_instruction=config.agent.experimental.loop_configuration.model_specific.qwen.last_iteration_instruction,
+            max_loop_iterations=config.agent.max_loop_iterations,
+            chat_service=chat_service,
         )
 
     if config.agent.experimental.loop_configuration.planning_config is not None:

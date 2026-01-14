@@ -5,6 +5,82 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.43.3] - 2026-01-13
+- Changing default `assessment_type` in `SubAgentEvaluationServiceConfig` to `HALLUCINATION`
+
+## [1.43.2] - 2026-01-12
+- `DocxGeneratorService`: Alignment need to be specified by the template rather than in code
+
+## [1.43.1] - 2026-01-12
+- Remove accidental example report.md from repo
+
+## [1.43.0] - 2026-01-11
+- Add `WriteUpAgent` as an experimental service
+
+## [1.42.9] - 2026-01-11
+- Include feature flag to have message logs compatible with new ChatUI
+
+## [1.42.8] - 2026-01-08
+- Add validator to `BaseMetadata` in case `additional_sheet_information` is empty
+- Add more code snippets to create references and pull file metadata
+
+## [1.42.7] - 2026-01-08
+- Add aliases for endpoint secret env var.
+
+## [1.42.6] - 2026-01-07
+- Remove double redundant condition
+
+## [1.42.5] - 2026-01-07
+- Add Mapping of metadata to the `search_content` calls
+- Remove additional indentation by the markdown to docx converter
+
+## [1.42.4] - 2026-01-07
+- Added `additionalSheetInformation` to magic table event.
+
+## [1.42.3] - 2026-01-05
+- Added example code for agentic table
+
+## [1.42.2] - 2026-01-05
+- Fix naming of code interpreter tool in its `ToolPrompts`.
+
+## [1.42.1] - 2025-01-05
+- Version bump of SDK
+
+## [1.42.0] - 2025-01-05
+- Add new params for elicitation to `call_tool` api
+
+## [1.41.0] - 2025-12-29
+- Add `AgenticTable` service to unique_toolkit
+
+## [1.40.0] - 2025-12-22
+- Add option to use retrieve referenced chunks from their order
+
+## [1.40.0] - 2025-12-22
+- Add `hide_in_chat` parameter to `upload_to_chat_from_bytes` and `upload_to_chat_from_bytes_async`
+- Hide code interpreter files in chat 
+- Code Interpreter files are now uploaded to chat by default
+
+## [1.39.2] - 2025-12-18
+- Add `litellm:gemini-3-flash-preview`, `litellm:openai-gpt-5-2` and `litellm:openai-gpt-5-2-thinking` to `language_model/info.py`
+
+## [1.39.1] - 2025-12-17
+- Add GPT-5.2, GPT-5.2_CHAT to supported models list
+
+## [1.39.0] - 2025-12-17
+- Adding simpler shortterm message abilities to chat service
+
+## [1.38.4] - 2025-12-17
+- Improving handling of tool calls with Qwen models
+
+## [1.38.3] - 2025-12-17
+- Move the failsafe exception to root folder of unique_toolkit from agentic tools
+
+## [1.38.2] - 2025-12-17
+- Fixing bug that language model infos were not loaded correctly
+
+## [1.38.1] - 2025-12-16
+- chore(deps): Bump urllib3 from 2.5.0 to 2.6.2 and unique_sdk from 0.10.48 to 0.10.58 to ensure urllib3 transitively
+
 ## [1.38.0] - 2025-12-15
 - Including capability to load LanguageModelInfos in env variable
 

@@ -41,9 +41,23 @@ nav:
   - Authentication:
     - Personal API Key: authentication/#1-personal-api-key
     - Creating an APP: authentication/#2-creating-an-app
-  - Application Types:
+  - Application Development:
     - Standalone Application: application_types/standalone_application.md
-    - Event Driven Applications: application_types/event_driven_applications.md
+    - Event Driven Applications: 
+      - application_types/event_driven/index.md
+      - Platform Setup: application_types/event_driven/event_driven_platform_setup.md
+      - SSE Setup: application_types/event_driven/event_driven_with_sse.md
+      - Web Hooks: application_types/event_driven/event_driven_as_app_with_ngrok.md
+  - Core Services:
+    - Events: events/events.md
+    - Chat:
+      - chat/index.md
+      - Advanced Rendering: chat/advanced_rendering.md
+    - Knowledge Base:
+      - knowledge_base/index.md
+      - Smart Rules: knowledge_base/smart_rules.md
+    - Agentic Table:
+      - agentic_table/index.md
   - Examples:
     - OpenAI: plattforms/openai/openai.md
     - Chat:
@@ -54,6 +68,7 @@ nav:
       - Base Service: modules/examples/content/kb_service.md
       - Smart Rules: modules/examples/content/smart_rules.md
   - Tutorials:
+    - Agentic Table App: tutorials/agentic_table_app.md
     - File Creation with Upload to Chat: tutorials/file_creation_and_upload_to_chat.md
   - Agentic Framework:
     - Overview: agentic_framework/framework.md
@@ -74,6 +89,8 @@ nav:
       - Short Term Memory Module: modules/short_term_memory.md
       - App Module: modules/app.md
       - Smart Rules: modules/content_smart_rules.md
+      - Data Extraction: modules/data_extraction.md
+      - Agentic Table: modules/agentic_table.md
     - Framework Utilities:
       - OpenAI Client: modules/openai.md
       - Langchain Client: modules/langchain.md
@@ -126,15 +143,23 @@ plugins:
       handlers:
         python:
           options:
+            #extensions:
+            #- griffe_pydantic:
+            #    schema: true
             docstring_style: google
             docstring_section_style: table
             show_root_heading: true
             show_source: true
-            filters:
-              - "!.[company|user|assistant|chat|assistant_id|assistant_message_id|user_message_id]_id.*"
-              - "!.*_async.*"
-              - "!.*event.*"
+            preload_modules:
+              - pydantic
+              - typing
+            #filters:
+            #  - "!.[company|user|assistant|chat|assistant_id|assistant_message_id|user_message_id]_id.*"
+            #  - "!.*_async.*"
+            #  - "!.*event.*"
             extra:
               show_signature_annotations: true
               show_type_annotations: true
-              show_if_no_docstring: false
+              show_if_no_docstring: true
+              members_order: source
+            inherited_members: true

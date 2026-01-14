@@ -4,22 +4,16 @@ from typing import Callable
 from jinja2 import Template
 from unique_toolkit import ChatService
 from unique_toolkit._common.docx_generator import DocxGeneratorService
-from unique_toolkit.content import ContentReference
 
 from unique_swot.services.citations import CitationManager
-from unique_swot.services.generation.reporting.models import (
-    ConsolidatedOpportunitiesReport,
-    ConsolidatedStrengthsReport,
-    ConsolidatedThreatsReport,
-    ConsolidatedWeaknessesReport,
-    SWOTConsolidatedReport,
-)
+from unique_swot.services.generation.models.base import SWOTReportComponents
 from unique_swot.services.report.config import DocxRendererType
 from unique_swot.services.report.docx import (
     add_citation_footer,
     convert_markdown_to_docx,
 )
-from unique_swot.services.session import SessionState, SwotAnalysisSessionConfig
+from unique_swot.services.session import SwotAnalysisSessionConfig
+from unique_swot.utils import convert_content_chunk_to_reference
 
 _LOGGER = getLogger(__name__)
 
@@ -50,12 +44,29 @@ class ReportDeliveryService:
         self._renderer_type = renderer_type
         self._template_name = template_name
 
+    def render_report(
+        self,
+        result: SWOTReportComponents,
+        citation_fn: Callable[[str], str],
+        executive_summary: str | None = None,
+    ) -> str:
+        # Render using the template
+        markdown_report = Template(self._template_name).render(
+            **result.model_dump(),
+            executive_summary=executive_summary,
+        )
+        return citation_fn(markdown_report)
+
     def deliver_report(
         self,
+        *,
+        start_text: str,
+        executive_summary: str,
+        result: SWOTReportComponents,
         session_config: SwotAnalysisSessionConfig,
-        result: list[SWOTConsolidatedReport],
         docx_template_fields: dict[str, str],
         ingest_docx: bool,
+        num_existing_references: int,
     ) -> str:
         """
         Delivers a SWOT analysis report to the chat.
@@ -66,23 +77,27 @@ class ReportDeliveryService:
             docx_template_fields: The fields to be used in the DOCX template
             ingest_docx: Whether to ingest the DOCX file
         """
-        markdown_report = self._convert_consolidated_reports_to_markdown(
-            result,
-            markdown_jinja_template=self._template_name,
-            processor=lambda report: self._citation_manager.add_citations_to_report(
-                report, self._renderer_type
+
+        markdown_report = self.render_report(
+            result=result,
+            citation_fn=lambda report: self._citation_manager.add_citations_to_report(
+                report, self._renderer_type.value
             ),
+            executive_summary=executive_summary,
         )
-        citations = self._citation_manager.get_citations(self._renderer_type)
+
+        citations = self._citation_manager.get_citations_for_docx()
 
         match self._renderer_type:
             case DocxRendererType.DOCX:
                 self._deliver_docx_report(
+                    start_text=start_text,
                     session_config=session_config,
                     markdown_report=markdown_report,
-                    citations=citations,
                     template_fields=docx_template_fields,
                     ingest_docx=ingest_docx,
+                    citations=citations,
+                    num_existing_references=num_existing_references,
                 )
             case DocxRendererType.CHAT:
                 self._deliver_markdown_report(
@@ -95,7 +110,7 @@ class ReportDeliveryService:
 
     def _convert_consolidated_reports_to_markdown(
         self,
-        consolidated_reports: list[SWOTConsolidatedReport],
+        consolidated_reports: SWOTReportComponents,
         markdown_jinja_template: str,
         processor: Callable[[str], str],
     ) -> str:
@@ -110,40 +125,27 @@ class ReportDeliveryService:
         Returns:
             Formatted markdown report
         """
-        # Organize reports by component type
-        report_data = {
-            "strengths": [],
-            "weaknesses": [],
-            "opportunities": [],
-            "threats": [],
-        }
-
-        for report in consolidated_reports:
-            if isinstance(report, ConsolidatedStrengthsReport):
-                report_data["strengths"] = report.strengths
-            elif isinstance(report, ConsolidatedWeaknessesReport):
-                report_data["weaknesses"] = report.weaknesses
-            elif isinstance(report, ConsolidatedOpportunitiesReport):
-                report_data["opportunities"] = report.opportunities
-            elif isinstance(report, ConsolidatedThreatsReport):
-                report_data["threats"] = report.threats
 
         # Render using the template
-        markdown_report = Template(markdown_jinja_template).render(**report_data)
+        markdown_report = Template(markdown_jinja_template).render(
+            **consolidated_reports.model_dump()
+        )
         return processor(markdown_report)
 
     def _deliver_docx_report(
         self,
         *,
+        start_text: str,
         markdown_report: str,
-        citations: list[str] | None,
         template_fields: dict[str, str],
         session_config: SwotAnalysisSessionConfig,
         ingest_docx: bool,
+        citations: list[str],
+        num_existing_references: int,
     ) -> None:
         """Converts markdown to DOCX and delivers it as an attachment"""
 
-        if citations is not None:
+        if citations:
             markdown_report = add_citation_footer(markdown_report, citations)
 
         # Convert markdown to DOCX
@@ -154,24 +156,26 @@ class ReportDeliveryService:
             raise ValueError("Failed to convert markdown to DOCX")
 
         # Upload to chat
+        document_name = (
+            f"{session_config.company_listing.name} SWOT Analysis Report.docx"
+        )
         content = self._chat_service.upload_to_chat_from_bytes(
             content=docx_bytes,
-            content_name=f"{session_config.company_listing.name} SWOT Analysis Report.docx",
+            content_name=document_name,
             mime_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             skip_ingestion=not ingest_docx,
         )
 
         # Create content reference
-        content_reference = self._create_content_reference(
-            content_id=content.id,
-            message_id=self._chat_service.assistant_message_id,
+        content_reference = convert_content_chunk_to_reference(
+            content_or_chunk=content,
+            sequence_number=num_existing_references,
         )
-        start_text = session_config.render_session_info(state=SessionState.COMPLETED)
 
         # Modify assistant message
         self._chat_service.modify_assistant_message(
             message_id=self._chat_service.assistant_message_id,
-            content=f"{start_text}\n\n Here is the {session_config.company_listing.name} SWOT analysis report in DOCX format <sup>1</sup>.",
+            content=f"{start_text}\n\n Here is the full Swot Analysis report for {session_config.company_listing.name} in DOCX format <sup>{num_existing_references}</sup>.",
             references=[content_reference],
         )
 
@@ -197,19 +201,4 @@ class ReportDeliveryService:
 
         _LOGGER.info(
             f"Successfully delivered markdown report for message {self._chat_service.assistant_message_id}"
-        )
-
-    @staticmethod
-    def _create_content_reference(
-        content_id: str,
-        message_id: str,
-    ) -> ContentReference:
-        """Creates a content reference for uploaded DOCX files"""
-        return ContentReference(
-            url=f"unique//content/{content_id}",
-            source_id=content_id,
-            message_id=message_id,
-            name="swot_analysis_report.docx",
-            sequence_number=1,
-            source="SWOT-TOOL",
         )

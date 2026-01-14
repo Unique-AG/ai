@@ -22,6 +22,7 @@ from unique_toolkit.app import (
     EventName,
 )
 from unique_toolkit.chat.schemas import (
+    MessageLog,
     MessageLogDetails,
     MessageLogEvent,
     MessageLogStatus,
@@ -387,3 +388,530 @@ def test_create_message_log_entry__increments_order__on_multiple_calls_AI(
     assert calls[1].kwargs["order"] == 2  # type: ignore[attr-defined]
     assert isinstance(calls[2].kwargs["order"], int)  # type: ignore[attr-defined]
     assert calls[2].kwargs["order"] == 3  # type: ignore[attr-defined]
+
+
+@pytest.mark.ai
+def test_create_message_log_entry__returns_none__when_assistant_message_id_not_set_AI(
+    chat_service: ChatService,
+) -> None:
+    """
+    Purpose: Verify create_message_log_entry returns None when assistant_message_id is not set.
+    Why this matters: Operation should fail gracefully when message context is missing.
+    Setup summary: Create logger with chat service that has no assistant_message_id, verify returns None.
+    """
+    # Arrange
+    chat_service._assistant_message_id = ""  # Empty string is falsy
+    logger = MessageStepLogger(chat_service)
+
+    # Act
+    result = logger.create_message_log_entry(
+        text="Test text",
+        references=[],
+    )
+
+    # Assert
+    assert result is None
+
+
+@pytest.mark.ai
+@patch.object(ChatService, "create_message_log", spec=True)
+def test_create_message_log_entry__calls_chat_service__with_custom_status_AI(
+    mock_create_message_log: "Mock", logger: MessageStepLogger
+) -> None:
+    """
+    Purpose: Verify create_message_log_entry passes custom status to chat service.
+    Why this matters: Status can be customized for different log entry states.
+    Setup summary: Mock chat service, call create_message_log_entry with RUNNING status, verify status parameter.
+    """
+    # Arrange
+    references: list[ContentReference] = []
+
+    # Act
+    logger.create_message_log_entry(
+        text="Test text",
+        status=MessageLogStatus.RUNNING,
+        references=references,
+    )
+
+    # Assert
+    mock_create_message_log.assert_called_once()  # type: ignore[attr-defined]
+    call_args = mock_create_message_log.call_args  # type: ignore[attr-defined]
+    assert call_args.kwargs["status"] == MessageLogStatus.RUNNING  # type: ignore[attr-defined]
+
+
+# Update Message Log Entry Tests
+@pytest.fixture
+def sample_message_log() -> MessageLog:
+    """
+    Purpose: Provide a sample MessageLog for update tests.
+    Why this matters: Update tests require an existing message log.
+    Setup summary: Creates MessageLog with test data.
+    """
+    return MessageLog(
+        message_log_id="test_message_log_id",
+        message_id="assistant_message_id",
+        status=MessageLogStatus.RUNNING,
+        text="Initial text",
+        order=1,
+        references=[],
+    )
+
+
+@pytest.mark.ai
+@patch.object(ChatService, "update_message_log", spec=True)
+def test_update_message_log_entry__calls_chat_service__with_correct_message_log_id_AI(
+    mock_update_message_log: "Mock",
+    logger: MessageStepLogger,
+    sample_message_log: MessageLog,
+) -> None:
+    """
+    Purpose: Verify update_message_log_entry passes message_log_id to chat service.
+    Why this matters: Message log ID is required to identify which log to update.
+    Setup summary: Mock chat service, call update_message_log_entry, verify message_log_id parameter.
+    """
+    # Arrange
+    # Act
+    logger.update_message_log_entry(
+        message_log=sample_message_log,
+        status=MessageLogStatus.COMPLETED,
+        references=[],
+    )
+
+    # Assert
+    mock_update_message_log.assert_called_once()  # type: ignore[attr-defined]
+    call_args = mock_update_message_log.call_args  # type: ignore[attr-defined]
+    assert call_args.kwargs["message_log_id"] == "test_message_log_id"  # type: ignore[attr-defined]
+
+
+@pytest.mark.ai
+@patch.object(ChatService, "update_message_log", spec=True)
+def test_update_message_log_entry__calls_chat_service__with_correct_order_AI(
+    mock_update_message_log: "Mock",
+    logger: MessageStepLogger,
+    sample_message_log: MessageLog,
+) -> None:
+    """
+    Purpose: Verify update_message_log_entry preserves order from original message log.
+    Why this matters: Order must be preserved during updates to maintain sequence.
+    Setup summary: Mock chat service, call update_message_log_entry, verify order parameter.
+    """
+    # Arrange
+    # Act
+    logger.update_message_log_entry(
+        message_log=sample_message_log,
+        status=MessageLogStatus.COMPLETED,
+        references=[],
+    )
+
+    # Assert
+    mock_update_message_log.assert_called_once()  # type: ignore[attr-defined]
+    call_args = mock_update_message_log.call_args  # type: ignore[attr-defined]
+    assert call_args.kwargs["order"] == 1  # type: ignore[attr-defined]
+
+
+@pytest.mark.ai
+@patch.object(ChatService, "update_message_log", spec=True)
+def test_update_message_log_entry__calls_chat_service__with_correct_status_AI(
+    mock_update_message_log: "Mock",
+    logger: MessageStepLogger,
+    sample_message_log: MessageLog,
+) -> None:
+    """
+    Purpose: Verify update_message_log_entry passes status to chat service.
+    Why this matters: Status indicates the updated state of the log entry.
+    Setup summary: Mock chat service, call update_message_log_entry, verify status parameter.
+    """
+    # Arrange
+    # Act
+    logger.update_message_log_entry(
+        message_log=sample_message_log,
+        status=MessageLogStatus.COMPLETED,
+        references=[],
+    )
+
+    # Assert
+    mock_update_message_log.assert_called_once()  # type: ignore[attr-defined]
+    call_args = mock_update_message_log.call_args  # type: ignore[attr-defined]
+    assert call_args.kwargs["status"] == MessageLogStatus.COMPLETED  # type: ignore[attr-defined]
+
+
+@pytest.mark.ai
+@patch.object(ChatService, "update_message_log", spec=True)
+def test_update_message_log_entry__calls_chat_service__with_text_AI(
+    mock_update_message_log: "Mock",
+    logger: MessageStepLogger,
+    sample_message_log: MessageLog,
+) -> None:
+    """
+    Purpose: Verify update_message_log_entry passes text to chat service.
+    Why this matters: Text content can be updated to reflect progress.
+    Setup summary: Mock chat service, call update_message_log_entry with text, verify text parameter.
+    """
+    # Arrange
+    # Act
+    logger.update_message_log_entry(
+        message_log=sample_message_log,
+        text="Updated text",
+        status=MessageLogStatus.COMPLETED,
+        references=[],
+    )
+
+    # Assert
+    mock_update_message_log.assert_called_once()  # type: ignore[attr-defined]
+    call_args = mock_update_message_log.call_args  # type: ignore[attr-defined]
+    assert call_args.kwargs["text"] == "Updated text"  # type: ignore[attr-defined]
+
+
+@pytest.mark.ai
+@patch.object(ChatService, "update_message_log", spec=True)
+def test_update_message_log_entry__calls_chat_service__with_custom_details_AI(
+    mock_update_message_log: "Mock",
+    logger: MessageStepLogger,
+    sample_message_log: MessageLog,
+) -> None:
+    """
+    Purpose: Verify update_message_log_entry passes custom details to chat service.
+    Why this matters: Details can be updated with additional event information.
+    Setup summary: Mock chat service, call update_message_log_entry with details, verify details parameter.
+    """
+    # Arrange
+    custom_details = MessageLogDetails(
+        data=[MessageLogEvent(type="WebSearch", text="Updated event")]
+    )
+
+    # Act
+    logger.update_message_log_entry(
+        message_log=sample_message_log,
+        status=MessageLogStatus.COMPLETED,
+        details=custom_details,
+        references=[],
+    )
+
+    # Assert
+    mock_update_message_log.assert_called_once()  # type: ignore[attr-defined]
+    call_args = mock_update_message_log.call_args  # type: ignore[attr-defined]
+    assert call_args.kwargs["details"] == custom_details  # type: ignore[attr-defined]
+
+
+@pytest.mark.ai
+@patch.object(ChatService, "update_message_log", spec=True)
+def test_update_message_log_entry__calls_chat_service__with_references_AI(
+    mock_update_message_log: "Mock",
+    logger: MessageStepLogger,
+    sample_message_log: MessageLog,
+) -> None:
+    """
+    Purpose: Verify update_message_log_entry passes references to chat service.
+    Why this matters: References can be updated with new content links.
+    Setup summary: Mock chat service, call update_message_log_entry with references, verify references parameter.
+    """
+    # Arrange
+    references = [
+        ContentReference(
+            name="https://example.com/updated",
+            sequence_number=0,
+            source="web",
+            url="https://example.com/updated",
+            source_id="https://example.com/updated",
+        )
+    ]
+
+    # Act
+    logger.update_message_log_entry(
+        message_log=sample_message_log,
+        status=MessageLogStatus.COMPLETED,
+        references=references,
+    )
+
+    # Assert
+    mock_update_message_log.assert_called_once()  # type: ignore[attr-defined]
+    call_args = mock_update_message_log.call_args  # type: ignore[attr-defined]
+    assert isinstance(
+        call_args.kwargs["uncited_references"], MessageLogUncitedReferences
+    )  # type: ignore[attr-defined]
+    assert len(call_args.kwargs["uncited_references"].data) == 1  # type: ignore[attr-defined]
+
+
+@pytest.mark.ai
+def test_update_message_log_entry__returns_none__when_message_log_id_not_set_AI(
+    logger: MessageStepLogger,
+) -> None:
+    """
+    Purpose: Verify update_message_log_entry returns None when message_log_id is not set.
+    Why this matters: Operation should fail gracefully when log ID is missing.
+    Setup summary: Create message log with no ID, call update, verify returns None.
+    """
+    # Arrange
+    message_log_without_id = MessageLog(
+        message_log_id=None,
+        status=MessageLogStatus.RUNNING,
+        order=1,
+    )
+
+    # Act
+    result = logger.update_message_log_entry(
+        message_log=message_log_without_id,
+        status=MessageLogStatus.COMPLETED,
+        references=[],
+    )
+
+    # Assert
+    assert result is message_log_without_id
+
+
+# Create or Update Message Log Tests
+@pytest.mark.ai
+@patch.object(ChatService, "create_message_log", spec=True)
+def test_create_or_update_message_log__creates_new__when_active_message_log_is_none_AI(
+    mock_create_message_log: "Mock", logger: MessageStepLogger
+) -> None:
+    """
+    Purpose: Verify create_or_update_message_log creates new entry when no active log exists.
+    Why this matters: New logs should be created when starting a new operation.
+    Setup summary: Mock chat service, call with None active_message_log, verify create called.
+    """
+    # Arrange
+    # Act
+    logger.create_or_update_message_log(
+        active_message_log=None,
+        header="Web Search",
+    )
+
+    # Assert
+    mock_create_message_log.assert_called_once()  # type: ignore[attr-defined]
+
+
+@pytest.mark.ai
+@patch.object(ChatService, "update_message_log", spec=True)
+def test_create_or_update_message_log__updates_existing__when_active_message_log_provided_AI(
+    mock_update_message_log: "Mock",
+    logger: MessageStepLogger,
+    sample_message_log: MessageLog,
+) -> None:
+    """
+    Purpose: Verify create_or_update_message_log updates entry when active log exists.
+    Why this matters: Existing logs should be updated to show progress.
+    Setup summary: Mock chat service, call with active_message_log, verify update called.
+    """
+    # Arrange
+    # Act
+    logger.create_or_update_message_log(
+        active_message_log=sample_message_log,
+        header="Web Search",
+    )
+
+    # Assert
+    mock_update_message_log.assert_called_once()  # type: ignore[attr-defined]
+
+
+@pytest.mark.ai
+@patch.object(ChatService, "create_message_log", spec=True)
+def test_create_or_update_message_log__formats_text__with_header_only_AI(
+    mock_create_message_log: "Mock", logger: MessageStepLogger
+) -> None:
+    """
+    Purpose: Verify create_or_update_message_log formats text correctly with header only.
+    Why this matters: Header should be formatted in bold without extra content.
+    Setup summary: Mock chat service, call with header only, verify text format.
+    """
+    # Arrange
+    # Act
+    logger.create_or_update_message_log(
+        active_message_log=None,
+        header="Internal Search",
+    )
+
+    # Assert
+    mock_create_message_log.assert_called_once()  # type: ignore[attr-defined]
+    call_args = mock_create_message_log.call_args  # type: ignore[attr-defined]
+    assert call_args.kwargs["text"] == "**Internal Search**"  # type: ignore[attr-defined]
+
+
+@pytest.mark.ai
+@patch.object(ChatService, "create_message_log", spec=True)
+def test_create_or_update_message_log__formats_text__with_header_and_progress_message_AI(
+    mock_create_message_log: "Mock", logger: MessageStepLogger
+) -> None:
+    """
+    Purpose: Verify create_or_update_message_log formats text with header and progress.
+    Why this matters: Progress message should appear after header on new line.
+    Setup summary: Mock chat service, call with header and progress, verify text format.
+    """
+    # Arrange
+    # Act
+    logger.create_or_update_message_log(
+        active_message_log=None,
+        header="Web Search",
+        progress_message="Processing 5 sources...",
+    )
+
+    # Assert
+    mock_create_message_log.assert_called_once()  # type: ignore[attr-defined]
+    call_args = mock_create_message_log.call_args  # type: ignore[attr-defined]
+    assert call_args.kwargs["text"] == "**Web Search**\nProcessing 5 sources..."  # type: ignore[attr-defined]
+
+
+@pytest.mark.ai
+@patch.object(ChatService, "create_message_log", spec=True)
+def test_create_or_update_message_log__uses_running_status__by_default_AI(
+    mock_create_message_log: "Mock", logger: MessageStepLogger
+) -> None:
+    """
+    Purpose: Verify create_or_update_message_log uses RUNNING status by default.
+    Why this matters: Default status should indicate operation is in progress.
+    Setup summary: Mock chat service, call without status, verify RUNNING status.
+    """
+    # Arrange
+    # Act
+    logger.create_or_update_message_log(
+        active_message_log=None,
+        header="Web Search",
+    )
+
+    # Assert
+    mock_create_message_log.assert_called_once()  # type: ignore[attr-defined]
+    call_args = mock_create_message_log.call_args  # type: ignore[attr-defined]
+    assert call_args.kwargs["status"] == MessageLogStatus.RUNNING  # type: ignore[attr-defined]
+
+
+@pytest.mark.ai
+@patch.object(ChatService, "create_message_log", spec=True)
+def test_create_or_update_message_log__uses_custom_status__when_provided_AI(
+    mock_create_message_log: "Mock", logger: MessageStepLogger
+) -> None:
+    """
+    Purpose: Verify create_or_update_message_log uses custom status when provided.
+    Why this matters: Status can be customized for different operation states.
+    Setup summary: Mock chat service, call with COMPLETED status, verify status.
+    """
+    # Arrange
+    # Act
+    logger.create_or_update_message_log(
+        active_message_log=None,
+        header="Web Search",
+        status=MessageLogStatus.COMPLETED,
+    )
+
+    # Assert
+    mock_create_message_log.assert_called_once()  # type: ignore[attr-defined]
+    call_args = mock_create_message_log.call_args  # type: ignore[attr-defined]
+    assert call_args.kwargs["status"] == MessageLogStatus.COMPLETED  # type: ignore[attr-defined]
+
+
+@pytest.mark.ai
+@patch.object(ChatService, "create_message_log", spec=True)
+def test_create_or_update_message_log__passes_details__when_provided_AI(
+    mock_create_message_log: "Mock", logger: MessageStepLogger
+) -> None:
+    """
+    Purpose: Verify create_or_update_message_log passes details to underlying method.
+    Why this matters: Details provide additional context about the operation.
+    Setup summary: Mock chat service, call with details, verify details passed.
+    """
+    # Arrange
+    custom_details = MessageLogDetails(
+        data=[MessageLogEvent(type="WebSearch", text="Searching...")]
+    )
+
+    # Act
+    logger.create_or_update_message_log(
+        active_message_log=None,
+        header="Web Search",
+        details=custom_details,
+    )
+
+    # Assert
+    mock_create_message_log.assert_called_once()  # type: ignore[attr-defined]
+    call_args = mock_create_message_log.call_args  # type: ignore[attr-defined]
+    assert call_args.kwargs["details"] == custom_details  # type: ignore[attr-defined]
+
+
+@pytest.mark.ai
+@patch.object(ChatService, "create_message_log", spec=True)
+def test_create_or_update_message_log__passes_references__when_provided_AI(
+    mock_create_message_log: "Mock", logger: MessageStepLogger
+) -> None:
+    """
+    Purpose: Verify create_or_update_message_log passes references to underlying method.
+    Why this matters: References link the log to source content.
+    Setup summary: Mock chat service, call with references, verify references passed.
+    """
+    # Arrange
+    references = [
+        ContentReference(
+            name="https://example.com/page",
+            sequence_number=0,
+            source="web",
+            url="https://example.com/page",
+            source_id="https://example.com/page",
+        )
+    ]
+
+    # Act
+    logger.create_or_update_message_log(
+        active_message_log=None,
+        header="Web Search",
+        references=references,
+    )
+
+    # Assert
+    mock_create_message_log.assert_called_once()  # type: ignore[attr-defined]
+    call_args = mock_create_message_log.call_args  # type: ignore[attr-defined]
+    assert isinstance(
+        call_args.kwargs["uncited_references"], MessageLogUncitedReferences
+    )  # type: ignore[attr-defined]
+    assert len(call_args.kwargs["uncited_references"].data) == 1  # type: ignore[attr-defined]
+
+
+@pytest.mark.ai
+@patch.object(ChatService, "create_message_log", spec=True)
+def test_create_or_update_message_log__uses_empty_references__when_none_provided_AI(
+    mock_create_message_log: "Mock", logger: MessageStepLogger
+) -> None:
+    """
+    Purpose: Verify create_or_update_message_log uses empty references when None provided.
+    Why this matters: None references should be converted to empty list.
+    Setup summary: Mock chat service, call with None references, verify empty list used.
+    """
+    # Arrange
+    # Act
+    logger.create_or_update_message_log(
+        active_message_log=None,
+        header="Web Search",
+        references=None,
+    )
+
+    # Assert
+    mock_create_message_log.assert_called_once()  # type: ignore[attr-defined]
+    call_args = mock_create_message_log.call_args  # type: ignore[attr-defined]
+    assert isinstance(
+        call_args.kwargs["uncited_references"], MessageLogUncitedReferences
+    )  # type: ignore[attr-defined]
+    assert len(call_args.kwargs["uncited_references"].data) == 0  # type: ignore[attr-defined]
+
+
+@pytest.mark.ai
+@patch.object(ChatService, "update_message_log", spec=True)
+def test_create_or_update_message_log__preserves_order__when_updating_AI(
+    mock_update_message_log: "Mock",
+    logger: MessageStepLogger,
+    sample_message_log: MessageLog,
+) -> None:
+    """
+    Purpose: Verify create_or_update_message_log preserves order when updating.
+    Why this matters: Order must be preserved during updates.
+    Setup summary: Mock chat service, call with active_message_log, verify order preserved.
+    """
+    # Arrange
+    # Act
+    logger.create_or_update_message_log(
+        active_message_log=sample_message_log,
+        header="Web Search",
+        progress_message="Done",
+        status=MessageLogStatus.COMPLETED,
+    )
+
+    # Assert
+    mock_update_message_log.assert_called_once()  # type: ignore[attr-defined]
+    call_args = mock_update_message_log.call_args  # type: ignore[attr-defined]
+    assert call_args.kwargs["order"] == sample_message_log.order  # type: ignore[attr-defined]

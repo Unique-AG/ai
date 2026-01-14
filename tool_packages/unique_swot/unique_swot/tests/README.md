@@ -1,119 +1,157 @@
 # SWOT Analysis Test Suite
 
-This directory contains comprehensive tests for the SWOT analysis tool package.
+This directory contains comprehensive component-level functional tests for the SWOT analysis tool package.
+
+## Test Philosophy
+
+The test suite follows a **component-level testing approach** with these principles:
+
+1. **Component Isolation**: Each major component is tested independently
+2. **Mock External Dependencies**: All external services (LLM, KB, Quartr, Chat) are mocked
+3. **Functional Focus**: Tests verify complete workflows and behaviors, not just individual methods
+4. **Protocol Compliance**: Tests verify that components correctly implement protocol interfaces
+5. **Comprehensive Coverage**: Tests cover happy paths, edge cases, and error conditions
 
 ## Test Structure
 
 ```
 tests/
-├── conftest.py                          # Shared fixtures and test configuration
-├── test_config.py                       # Tests for SwotConfig
-├── test_service.py                      # Tests for SwotTool main service
-└── services/                            # Tests for service modules
-    ├── test_citations.py                # Citation management tests
-    ├── test_executor.py                 # SWOT execution manager tests
-    ├── test_notifier.py                 # Notification services tests
-    ├── test_schemas.py                  # Data schema tests
-    ├── collection/                      # Source collection tests
-    │   ├── test_base.py                 # SourceCollectionManager tests
-    │   ├── test_registry.py             # ContentChunkRegistry tests
-    │   └── test_schema.py               # Collection schema tests
-    ├── generation/                      # Report generation tests
-    │   ├── test_batch_processor.py      # Batch processing tests
-    │   └── test_config.py               # Generation config tests
-    ├── memory/                          # Memory service tests
-    │   └── test_base.py                 # SwotMemoryService tests
-    └── report/                          # Report generation tests
-        └── test_report.py               # Report template tests
+├── conftest.py                              # Shared fixtures and test configuration
+├── test_schemas.py                          # Core data schema tests
+├── test_utils.py                            # Utility function tests
+├── README.md                                # This file
+└── services/
+    ├── test_orchestrator.py                 # Orchestration workflow tests
+    ├── test_citations.py                    # Citation management tests
+    ├── test_registry.py                     # Content chunk registry tests
+    ├── test_notification.py                 # Step notifier tests
+    ├── test_summarization.py                # Summarization agent tests
+    ├── generation/
+    │   ├── test_generation_agent.py         # Generation agent workflow tests
+    │   ├── test_plan_executor.py            # Agentic plan executor tests
+    │   └── test_report_registry.py          # SWOT report registry tests
+    ├── source_management/
+    │   ├── test_collection.py               # Source collection manager tests
+    │   ├── test_selection.py                # Source selection agent tests
+    │   └── test_iteration.py                # Source iteration agent tests
+    ├── report/
+    │   ├── test_delivery.py                 # Report delivery service tests
+    │   └── test_docx_conversion.py          # DOCX conversion utility tests
+    └── memory/
+        └── test_memory_service.py           # Memory service tests
 ```
 
-## Test Coverage
+## Test Coverage by Component
 
-### Core Configuration (`test_config.py`)
-- SwotConfig initialization with default values
-- Custom configuration settings
-- Serialization and deserialization
-- Tool description validation
+### Core Schemas (`test_schemas.py`)
+- SWOTPlan validation and component counting
+- SWOTResult initialization and assignment
+- Plan-to-result conversion
+- Modify operation validation
 
-### Main Service (`test_service.py`)
-- SwotTool initialization
-- Tool description methods
-- Tool execution flow
-- Evaluation checks
-- Control taking behavior
+### Utilities (`test_utils.py`)
+- Structured output generation with retries
+- LLM failure handling
+- Response parsing
 
-### Schemas (`services/test_schemas.py`)
-- SWOTOperation enum values
-- SWOTStepPlan creation and validation
-- SWOTPlan validation (including modify instruction requirements)
-- SWOTResult initialization and result assignment
-- Component-specific result retrieval
+### Orchestration (`test_orchestrator.py`)
+- Complete workflow: collect → iterate → select → generate → get_reports
+- Source selection and skipping
+- Protocol-based component integration
+- Empty source handling
+- Parameter passing between components
 
-### Citations (`services/test_citations.py`)
-- Citation processing and superscript replacement
-- Multiple and duplicate citation handling
-- Content chunk to reference conversion
-- Missing chunk handling
+### Citations (`test_citations.py`)
+- Citation format conversion (DOCX, Chat, Stream)
+- Duplicate citation handling
+- Missing chunk placeholder
+- Reference generation
 - Page number formatting
 
-### Executor (`services/test_executor.py`)
-- SWOTExecutionManager initialization
-- Plan execution with different operation types
-- Generation and modification workflows
-- Component processing (strengths, weaknesses, opportunities, threats)
-- Memory service integration
+### Registry (`test_registry.py`)
+- Chunk registration with unique ID generation
+- Chunk retrieval
+- Store persistence to memory
+- Registry initialization from existing store
+- ID collision handling
 
-### Notifier (`services/test_notifier.py`)
-- LoggerNotifier functionality
-- ProgressNotifier with chat service integration
-- Progress percentage calculation
-- Step registry management
+### Notifications (`test_notification.py`)
+- Progress notifications with percentages
+- Source/reference tracking
+- Completion flags
+- Multiple sequential notifications
 
-### Collection Module
-- **Base** (`services/collection/test_base.py`):
-  - CollectionContext creation and immutability
-  - SourceCollectionManager source collection
-  - Internal documents, earnings calls, and web sources
-  - Registry saving
+### Generation (`generation/`)
 
-- **Registry** (`services/collection/test_registry.py`):
-  - ContentChunkRegistry initialization
-  - Adding and retrieving items
-  - Unique ID generation
-  - Store persistence
+**Generation Agent** (`test_generation_agent.py`):
+- Complete generation workflow
+- Source batch preparation
+- Chunk registration
+- Operation handling (GENERATE, MODIFY, NOT_REQUESTED)
+- Notification sending
 
-- **Schema** (`services/collection/test_schema.py`):
-  - SourceType enum
-  - SourceChunk creation and validation
-  - Source creation for different types
-  - Serialization and deserialization
+**Plan Executor** (`test_plan_executor.py`):
+- Sequential vs concurrent execution
+- Max concurrent tasks limiting
+- Task failure handling
+- Queue management
 
-### Generation Module
-- **Batch Processor** (`services/generation/test_batch_processor.py`):
-  - Context splitting into batches
-  - Token limit respect
-  - SWOT extraction from batches
-  - Summarization with error handling
+**Report Registry** (`test_report_registry.py`):
+- Section registration and retrieval
+- Component-specific section queries
+- Section updates
+- ID uniqueness
 
-- **Config** (`services/generation/test_config.py`):
-  - ReportGenerationConfig defaults
-  - Custom batch size and token limits
-  - Configuration serialization
+### Source Management (`source_management/`)
 
-### Memory Module (`services/memory/test_base.py`)
-- SwotMemoryService initialization
-- Memory retrieval (get)
-- Memory storage (set)
-- Error handling for missing or invalid data
-- Scope ID management
-- JSON serialization/deserialization
+**Collection** (`test_collection.py`):
+- Multi-source collection (KB, Earnings Calls, Web)
+- Source enabling/disabling
+- Metadata filter handling
+- Quartr service integration
+- Notification workflow
 
-### Report Module (`services/report/test_report.py`)
-- Report template rendering
-- Handling empty sections
-- Markdown content support
-- Citation superscripts
+**Selection** (`test_selection.py`):
+- Relevant source selection
+- Irrelevant source rejection
+- LLM failure fallback
+- Chunk limiting
+
+**Iteration** (`test_iteration.py`):
+- Source ordering by LLM
+- Missed document handling
+- Original order fallback
+- Empty source list handling
+
+### Report Delivery (`report/`)
+
+**Delivery Service** (`test_delivery.py`):
+- Report rendering with Jinja templates
+- DOCX mode delivery with upload
+- Chat mode delivery with references
+- Citation application
+- Citation footer addition
+- Reference numbering
+
+**DOCX Conversion** (`test_docx_conversion.py`):
+- Markdown to DOCX conversion
+- Citation footer addition
 - Special character handling
+- Complex markdown elements
+
+### Summarization (`test_summarization.py`)
+- Executive summary generation
+- LLM failure handling
+- Company name inclusion
+- Report content usage
+- Reference counting
+
+### Memory (`memory/test_memory_service.py`)
+- Memory retrieval from KB
+- Memory creation and updates
+- Cache scope ID handling
+- JSON serialization
+- Error handling
 
 ## Running Tests
 
@@ -124,7 +162,7 @@ pytest unique_swot/tests/
 
 ### Run Specific Test File
 ```bash
-pytest unique_swot/tests/test_config.py
+pytest unique_swot/tests/test_schemas.py
 ```
 
 ### Run Tests with Coverage
@@ -139,54 +177,140 @@ pytest unique_swot/tests/ -v
 
 ### Run Tests for Specific Module
 ```bash
-pytest unique_swot/tests/services/collection/
+pytest unique_swot/tests/services/generation/
 ```
 
-## Test Fixtures
+### Run Tests Matching Pattern
+```bash
+pytest unique_swot/tests/ -k "test_orchestrator"
+```
 
-The `conftest.py` file provides shared fixtures across all tests:
+## Shared Fixtures
 
+The `conftest.py` file provides comprehensive fixtures for all tests:
+
+### External Service Mocks
 - `mock_knowledge_base_service` - Mock KnowledgeBaseService
-- `mock_language_model_service` - Mock LanguageModelService
+- `mock_language_model_service` - Mock LanguageModelService with AsyncMock methods
 - `mock_short_term_memory_service` - Mock ShortTermMemoryService
-- `mock_chat_service` - Mock ChatService
-- `sample_content_chunk` - Sample ContentChunk for testing
-- `sample_source` - Sample Source for testing
-- `sample_sources` - List of sample sources
-- `sample_swot_step_plan` - Sample SWOTStepPlan
-- `sample_swot_plan` - Complete SWOTPlan for testing
-- `sample_modify_swot_plan` - SWOTPlan with modify operations
-- `mock_notifier` - Mock Notifier
-- `mock_event` - Mock event for tool initialization
+- `mock_chat_service` - Mock ChatService with upload capabilities
+- `mock_quartr_service` - Mock QuartrService for earnings calls
+- `mock_docx_generator` - Mock DocxGeneratorService
 
-## Test Philosophy
+### Content & Chunk Fixtures
+- `sample_content_chunk` - Single ContentChunk
+- `sample_content` - Content with multiple chunks
+- `sample_contents` - List of Content objects
 
-The test suite follows these principles:
+### SWOT Plan Fixtures
+- `sample_swot_step_plan` - Basic SWOTStepPlan
+- `sample_swot_plan` - Complete SWOTPlan
+- `sample_modify_swot_plan` - Plan with MODIFY operations
+- `sample_plan_strengths_only` - Plan with only strengths requested
 
-1. **Comprehensive Coverage**: Tests cover happy paths, edge cases, and error conditions
-2. **Isolation**: Each test is independent and uses mocks to avoid external dependencies
-3. **Clear Documentation**: Test names and docstrings clearly describe what is being tested
-4. **Fixture Reuse**: Common test data is defined in conftest.py for reuse
-5. **Async Testing**: Async functions are properly tested using pytest.mark.asyncio
-6. **Error Handling**: Tests verify that errors are handled gracefully
+### SWOT Report Fixtures
+- `sample_report_section` - SWOTReportComponentSection
+- `sample_report_components` - Complete SWOTReportComponents
+
+### Service Component Mocks
+- `mock_step_notifier` - Mock StepNotifier with AsyncMock
+- `mock_swot_memory_service` - Mock SwotMemoryService
+- `mock_content_chunk_registry` - Mock ContentChunkRegistry
+- `mock_swot_report_registry` - Mock SWOTReportRegistry
+- `mock_agentic_executor` - Mock AgenticPlanExecutor
+- `mock_citation_manager` - Mock CitationManager
+- `mock_llm` - Mock LLM interface
+
+### Protocol Implementation Mocks
+- `mock_source_collector` - Mock SourceCollector protocol
+- `mock_source_selector` - Mock SourceSelector protocol
+- `mock_source_iterator` - Mock SourceIterator protocol
+- `mock_reporting_agent` - Mock ReportingAgent protocol
+
+## Mock Strategy
+
+All tests follow a consistent mocking strategy:
+
+1. **External Services**: Always mocked to avoid network calls and external dependencies
+2. **Async Methods**: Use `AsyncMock` for all async functions
+3. **Realistic Responses**: Mocks return realistic data structures matching actual responses
+4. **Error Simulation**: Tests include error cases with mocked exceptions
+5. **Protocol Compliance**: Protocol mocks implement the full protocol interface
 
 ## Adding New Tests
 
 When adding new tests:
 
-1. Place tests in the appropriate directory matching the source code structure
-2. Use descriptive test names starting with `test_`
-3. Add fixtures to `conftest.py` if they'll be reused
-4. Use mocks for external dependencies
-5. Include docstrings explaining what each test validates
-6. Follow the existing naming conventions and structure
+1. **Place in Correct Directory**: Match the source code structure
+2. **Use Descriptive Names**: Start with `test_` and clearly describe what is tested
+3. **Leverage Fixtures**: Reuse fixtures from `conftest.py` when possible
+4. **Mock External Dependencies**: Never make real API calls or database queries
+5. **Test Multiple Scenarios**: Include happy path, edge cases, and error conditions
+6. **Document with Docstrings**: Explain what each test validates
+7. **Follow Naming Conventions**: Use consistent naming patterns
 
-## Dependencies
+### Example Test Structure
+
+```python
+@pytest.mark.asyncio
+async def test_component_handles_specific_scenario(mock_dependency):
+    """Test that component correctly handles a specific scenario."""
+    # Arrange: Set up test data and mocks
+    mock_dependency.method.return_value = expected_value
+    component = Component(dependency=mock_dependency)
+    
+    # Act: Execute the functionality
+    result = await component.process(test_input)
+    
+    # Assert: Verify expectations
+    assert result == expected_output
+    mock_dependency.method.assert_called_once()
+```
+
+## Test Dependencies
 
 The test suite requires:
-- pytest
-- pytest-asyncio (for async tests)
-- unittest.mock (standard library)
+- `pytest` - Test framework
+- `pytest-asyncio` - Async test support
+- `pytest-mock` - Enhanced mocking capabilities
+- `unittest.mock` - Standard library mocking (Mock, AsyncMock)
 
 These are specified in the project's `pyproject.toml` file.
 
+## Continuous Integration
+
+Tests are designed to run quickly (< 10 seconds total) and reliably in CI environments:
+- All external dependencies are mocked
+- No network calls or file I/O (except in-memory)
+- Deterministic test execution
+- No test interdependencies
+
+## Troubleshooting
+
+### Tests Failing After Code Changes
+
+1. Check if the component interface changed
+2. Update mocks to match new signatures
+3. Verify fixtures still match expected data structures
+4. Check for new required parameters
+
+### Async Test Issues
+
+- Ensure `@pytest.mark.asyncio` decorator is present
+- Use `AsyncMock` for async methods, not regular `Mock`
+- Verify `await` is used for async calls
+
+### Mock Assertion Failures
+
+- Use `assert_called_once()` for regular mocks
+- Use `assert_awaited_once()` for AsyncMocks
+- Check `call_args` and `call_kwargs` for parameter verification
+
+## Contributing
+
+When contributing tests:
+1. Follow the existing test structure and patterns
+2. Ensure all tests pass before submitting
+3. Add tests for new features and bug fixes
+4. Update this README if adding new test categories
+5. Maintain high test coverage (aim for >80%)

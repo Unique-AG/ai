@@ -3,10 +3,7 @@ import re
 import tiktoken
 import unique_sdk
 
-from unique_toolkit.content.schemas import (
-    Content,
-    ContentChunk,
-)
+from unique_toolkit.content.schemas import Content, ContentChunk, ContentMetadata
 
 
 def _map_content_id_to_chunks(content_chunks: list[ContentChunk]):
@@ -190,7 +187,10 @@ def count_tokens(text: str, encoding_model="cl100k_base") -> int:
     return len(encoding.encode(text))
 
 
-def map_content_chunk(content_id: str, content_key: str, content_chunk: dict):
+def map_content_chunk(
+    content_id: str, content_key: str, content_chunk: dict, metadata: dict | None
+):
+    content_metadata = ContentMetadata(**metadata) if metadata else None
     return ContentChunk(
         id=content_id,
         key=content_key,
@@ -199,23 +199,26 @@ def map_content_chunk(content_id: str, content_key: str, content_chunk: dict):
         start_page=content_chunk["startPage"],
         end_page=content_chunk["endPage"],
         order=content_chunk["order"],
+        metadata=content_metadata,
     )
 
 
 def map_content(content: dict):
+    metadata = content.get("metadata")
     return Content(
         id=content["id"],
         key=content["key"],
         title=content["title"],
         url=content["url"],
         chunks=[
-            map_content_chunk(content["id"], content["key"], chunk)
+            map_content_chunk(content["id"], content["key"], chunk, metadata)
             for chunk in content["chunks"]
         ],
         created_at=content["createdAt"],
         updated_at=content["updatedAt"],
         ingestion_state=content.get("ingestionState"),
         expired_at=content.get("expiredAt"),
+        metadata=content.get("metadata"),
     )
 
 

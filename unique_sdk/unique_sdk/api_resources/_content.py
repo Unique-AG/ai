@@ -30,6 +30,7 @@ class Content(APIResource["Content"]):
     writeUrl: Optional[str]
     readUrl: Optional[str]
     expiredAt: Optional[str]
+    appliedIngestionConfig: Optional[Dict[str, Any]]
 
     class QueryMode(Enum):
         Default = "default"
@@ -110,6 +111,7 @@ class Content(APIResource["Content"]):
         skip: NotRequired[int | None]
         take: NotRequired[int | None]
         parentId: NotRequired[str | None]
+        parentFolderPath: NotRequired[str | None]
 
     class CustomApiOptions(TypedDict):
         apiIdentifier: str
@@ -133,6 +135,7 @@ class Content(APIResource["Content"]):
         uniqueIngestionMode: str
         vttConfig: Optional["Content.VttConfig"]
         wordReadMode: Optional[str]
+        hideInChat: Optional[bool]
 
     class Input(TypedDict):
         key: str
@@ -148,6 +151,8 @@ class Content(APIResource["Content"]):
     class UpsertParams(RequestOptions):
         input: "Content.Input"
         scopeId: NotRequired[str | None]
+        parentFolderPath: NotRequired[str | None]
+        createFolderIfNotExists: NotRequired[bool | None]
         chatId: NotRequired[str | None]
         sourceOwnerType: NotRequired[str | None]
         storeInternally: NotRequired[bool | None]
@@ -210,20 +215,23 @@ class Content(APIResource["Content"]):
         columnName: str
         content: str
 
-    class MagicTableSheetTable(TypedDict):
+    class MagicTableRow(TypedDict):
         rowId: str
         columns: List["Content.MagicTableSheetTableColumn"]
+        context: NotRequired[str]
+        rowMetadata: NotRequired[str]
 
     class MagicTableSheetIngestionConfiguration(TypedDict):
         columnIdsInMetadata: List[str]
         columnIdsInChunkText: List[str]
 
     class MagicTableSheetIngestParams(TypedDict):
-        data: List["Content.MagicTableSheetTable"]
+        data: List["Content.MagicTableRow"]
         ingestionConfiguration: "Content.MagicTableSheetIngestionConfiguration"
         metadata: Dict[str, Optional[str]]
         scopeId: str
         sheetName: str
+        context: NotRequired[str]
 
     class MagicTableSheetRowIdToContentId(TypedDict):
         rowId: str
@@ -311,6 +319,16 @@ class Content(APIResource["Content"]):
         company_id: str,
         **params: Unpack["Content.ContentInfosParams"],
     ) -> "Content.PaginatedContentInfos":
+        parent_id = unique_sdk.Folder.resolve_scope_id_from_folder_path(
+            user_id=user_id,
+            company_id=company_id,
+            scope_id=params.get("parentId"),
+            folder_path=params.get("parentFolderPath"),
+        )
+        params.pop("parentFolderPath", None)
+        if parent_id:
+            params["parentId"] = parent_id
+
         return cast(
             Content.PaginatedContentInfos,
             cls._static_request(
@@ -329,6 +347,16 @@ class Content(APIResource["Content"]):
         company_id: str,
         **params: Unpack["Content.ContentInfosParams"],
     ) -> "Content.PaginatedContentInfos":
+        parent_id = await unique_sdk.Folder.resolve_scope_id_from_folder_path_async(
+            user_id=user_id,
+            company_id=company_id,
+            scope_id=params.get("parentId"),
+            folder_path=params.get("parentFolderPath"),
+        )
+        params.pop("parentFolderPath", None)
+        if parent_id:
+            params["parentId"] = parent_id
+
         return cast(
             Content.PaginatedContentInfos,
             await cls._static_request_async(
@@ -355,6 +383,19 @@ class Content(APIResource["Content"]):
             if "description" in params["input"] and not params["input"]["description"]:
                 params["input"].pop("description")
 
+        create_folder = params.get("createFolderIfNotExists")
+        scope_id = unique_sdk.Folder.resolve_scope_id_from_folder_path_with_create(
+            user_id=user_id,
+            company_id=company_id,
+            scope_id=params.get("scopeId"),
+            folder_path=params.get("parentFolderPath"),
+            create_if_not_exists=create_folder if create_folder is not None else True,
+        )
+        params.pop("parentFolderPath", None)
+        params.pop("createFolderIfNotExists", None)
+        if scope_id:
+            params["scopeId"] = scope_id
+
         return cast(
             "Content",
             cls._static_request(
@@ -380,6 +421,23 @@ class Content(APIResource["Content"]):
             params["input"]["metadata"] = params["input"].get("metadata") or {}
             if "description" in params["input"] and not params["input"]["description"]:
                 params["input"].pop("description")
+
+        create_folder = params.get("createFolderIfNotExists")
+        scope_id = (
+            await unique_sdk.Folder.resolve_scope_id_from_folder_path_with_create_async(
+                user_id=user_id,
+                company_id=company_id,
+                scope_id=params.get("scopeId"),
+                folder_path=params.get("parentFolderPath"),
+                create_if_not_exists=create_folder
+                if create_folder is not None
+                else True,
+            )
+        )
+        params.pop("parentFolderPath", None)
+        params.pop("createFolderIfNotExists", None)
+        if scope_id:
+            params["scopeId"] = scope_id
 
         return cast(
             "Content",
@@ -477,7 +535,7 @@ class Content(APIResource["Content"]):
             params.get("contentId"),
             params.get("filePath"),
         )
-        owner_id = unique_sdk.Folder.resolve_scope_id_from_folder_path(
+        owner_id = await unique_sdk.Folder.resolve_scope_id_from_folder_path_async(
             user_id,
             company_id,
             params.get("ownerId"),

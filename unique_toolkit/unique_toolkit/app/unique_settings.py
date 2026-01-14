@@ -54,7 +54,15 @@ class UniqueApp(BaseSettings):
     )
     endpoint: str = Field(default="dummy")
 
-    endpoint_secret: SecretStr = Field(default=SecretStr("dummy_secret"))
+    endpoint_secret: SecretStr = Field(
+        default=SecretStr("dummy_secret"),
+        validation_alias=AliasChoices(
+            "unique_app_endpoint_secret",
+            "endpoint_secret",
+            "UNIQUE_APP_ENDPOINT_SECRET",
+            "ENDPOINT_SECRET",
+        ),
+    )
 
     @model_validator(mode="after")
     def _warn_about_defaults(self) -> Self:

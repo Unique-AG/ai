@@ -18,6 +18,43 @@ from unique_sdk._request_options import RequestOptions
 class Space(APIResource["Space"]):
     OBJECT_NAME: ClassVar[Literal["space"]] = "space"
 
+    class ModuleParams(TypedDict):
+        name: str
+        description: NotRequired[Optional[str]]
+        weight: NotRequired[Optional[int]]
+        isExternal: NotRequired[Optional[bool]]
+        isCustomInstructionEnabled: NotRequired[Optional[bool]]
+        configuration: NotRequired[Optional[Dict[str, Any]]]
+        toolDefinition: NotRequired[Optional[Dict[str, Any]]]
+
+    class CreateSpaceParams(RequestOptions):
+        name: str
+        fallbackModule: str
+        modules: List["Space.ModuleParams"]
+        explanation: NotRequired[Optional[str]]
+        alert: NotRequired[Optional[str]]
+        chatUpload: NotRequired[Optional[Literal["ENABLED", "DISABLED"]]]
+        languageModel: NotRequired[Optional[str]]
+        isExternal: NotRequired[Optional[bool]]
+        isPinned: NotRequired[Optional[bool]]
+        uiType: NotRequired[
+            Optional[
+                Literal["MAGIC_TABLE", "UNIQUE_CUSTOM", "TRANSLATION", "UNIQUE_AI"]
+            ]
+        ]
+        settings: NotRequired[Optional[Dict[str, Any]]]
+
+    class AccessEntry(TypedDict):
+        entityId: str
+        entityType: Literal["USER", "GROUP"]
+        type: Literal["USE", "MANAGE", "UPLOAD"]
+
+    class AddSpaceAccessParams(RequestOptions):
+        access: List["Space.AccessEntry"]
+
+    class DeleteSpaceAccessParams(RequestOptions):
+        accessIds: List[str]
+
     class CreateMessageParams(RequestOptions):
         """
         Parameters for querying the assistant for a message.
@@ -80,9 +117,11 @@ class Space(APIResource["Space"]):
         originalText: str | None
         role: Literal["SYSTEM", "USER", "ASSISTANT"]
         debugInfo: Optional[Dict[str, Any]]
+        gptRequest: Optional[Dict[str, Any]]
         completedAt: str | None
         createdAt: str | None
         updatedAt: str | None
+        startedStreamingAt: str | None
         stoppedStreamingAt: str | None
         references: Optional[List["Space.Reference"]]
         assessment: Optional[List["Space.Assessment"]]
@@ -102,9 +141,9 @@ class Space(APIResource["Space"]):
         messages: List["Space.Message"]
         totalCount: int
 
-    class AssistantMcpServer(TypedDict):
+    class McpServer(TypedDict):
         """
-        Represents an MCP server associated with an assistant.
+        Represents an MCP server associated with a space.
         """
 
         id: str
@@ -147,15 +186,17 @@ class Space(APIResource["Space"]):
         createdAt: str
         updatedAt: str
 
-    class AssistantAccess(TypedDict):
-        """
-        Represents access control for a space.
-        """
-
+    class Access(TypedDict):
         id: str
         entityId: str
         entityType: str
         type: str
+
+    class SpaceAccessResponse(TypedDict):
+        access: List["Space.Access"]
+
+    class DeleteSpaceAccessResponse(TypedDict):
+        success: bool
 
     id: str
     name: str
@@ -175,10 +216,10 @@ class Space(APIResource["Space"]):
     isPinned: bool
     uiType: str
     settings: Optional[Dict[str, Any]]
-    assistantMcpServers: List["Space.AssistantMcpServer"]
+    assistantMcpServers: List["Space.McpServer"]
     modules: List["Space.Module"]
     scopeRules: List["Space.ScopeRule"]
-    assistantAccess: List["Space.AssistantAccess"]
+    assistantAccess: List["Space.Access"]
     createdAt: str
     updatedAt: str
 
@@ -381,5 +422,151 @@ class Space(APIResource["Space"]):
                 f"/space/{space_id}",
                 user_id,
                 company_id,
+            ),
+        )
+
+    @classmethod
+    def create_space(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Space.CreateSpaceParams"],
+    ) -> "Space":
+        return cast(
+            "Space",
+            cls._static_request(
+                "post",
+                "/space",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    async def create_space_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Space.CreateSpaceParams"],
+    ) -> "Space":
+        return cast(
+            "Space",
+            await cls._static_request_async(
+                "post",
+                "/space",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    def get_space_access(
+        cls,
+        user_id: str,
+        company_id: str,
+        space_id: str,
+    ) -> "Space.SpaceAccessResponse":
+        return cast(
+            "Space.SpaceAccessResponse",
+            cls._static_request(
+                "get",
+                f"/space/{space_id}/access",
+                user_id,
+                company_id,
+            ),
+        )
+
+    @classmethod
+    async def get_space_access_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        space_id: str,
+    ) -> "Space.SpaceAccessResponse":
+        return cast(
+            "Space.SpaceAccessResponse",
+            await cls._static_request_async(
+                "get",
+                f"/space/{space_id}/access",
+                user_id,
+                company_id,
+            ),
+        )
+
+    @classmethod
+    def add_space_access(
+        cls,
+        user_id: str,
+        company_id: str,
+        space_id: str,
+        **params: Unpack["Space.AddSpaceAccessParams"],
+    ) -> "Space.SpaceAccessResponse":
+        return cast(
+            "Space.SpaceAccessResponse",
+            cls._static_request(
+                "post",
+                f"/space/{space_id}/access",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    async def add_space_access_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        space_id: str,
+        **params: Unpack["Space.AddSpaceAccessParams"],
+    ) -> "Space.SpaceAccessResponse":
+        return cast(
+            "Space.SpaceAccessResponse",
+            await cls._static_request_async(
+                "post",
+                f"/space/{space_id}/access",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    def delete_space_access(
+        cls,
+        user_id: str,
+        company_id: str,
+        space_id: str,
+        **params: Unpack["Space.DeleteSpaceAccessParams"],
+    ) -> "Space.DeleteSpaceAccessResponse":
+        return cast(
+            "Space.DeleteSpaceAccessResponse",
+            cls._static_request(
+                "delete",
+                f"/space/{space_id}/access",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    async def delete_space_access_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        space_id: str,
+        **params: Unpack["Space.DeleteSpaceAccessParams"],
+    ) -> "Space.DeleteSpaceAccessResponse":
+        return cast(
+            "Space.DeleteSpaceAccessResponse",
+            await cls._static_request_async(
+                "delete",
+                f"/space/{space_id}/access",
+                user_id,
+                company_id,
+                params=params,
             ),
         )

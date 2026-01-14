@@ -55,6 +55,7 @@ class TestLogToolCalls:
         mock_postprocessor_manager = MagicMock()
         mock_streaming_handler = MagicMock()
         mock_message_step_logger = MagicMock()
+        mock_loop_iteration_runner = MagicMock()
 
         # Instantiate UniqueAI
         ua = UniqueAI(
@@ -73,6 +74,7 @@ class TestLogToolCalls:
             postprocessor_manager=mock_postprocessor_manager,
             message_step_logger=mock_message_step_logger,
             mcp_servers=[],
+            loop_iteration_runner=mock_loop_iteration_runner,
         )
 
         return ua
@@ -118,7 +120,7 @@ class TestLogToolCalls:
             mock_unique_ai._message_step_logger.create_message_log_entry.call_count == 1
         )
         mock_unique_ai._message_step_logger.create_message_log_entry.assert_called_once_with(
-            text="**Triggered Tool Calls:**\n \n• Search Tool", references=[]
+            text="**Triggered Tool Calls:**\n - Search Tool", references=[]
         )
 
     @pytest.mark.ai
@@ -168,7 +170,7 @@ class TestLogToolCalls:
             mock_unique_ai._message_step_logger.create_message_log_entry.call_count == 1
         )
         mock_unique_ai._message_step_logger.create_message_log_entry.assert_called_once_with(
-            text="**Triggered Tool Calls:**\n \n• Search Tool\n• Web Search",
+            text="**Triggered Tool Calls:**\n - Search Tool\n - Web Search",
             references=[],
         )
 
@@ -253,7 +255,7 @@ class TestLogToolCalls:
         )
         # When display_name is falsy, should use tool_call.name
         mock_unique_ai._message_step_logger.create_message_log_entry.assert_called_once_with(
-            text="**Triggered Tool Calls:**\n \n• search_tool", references=[]
+            text="**Triggered Tool Calls:**\n - search_tool", references=[]
         )
 
     @pytest.mark.ai
@@ -384,7 +386,7 @@ class TestLogToolCalls:
             mock_unique_ai._message_step_logger.create_message_log_entry.call_count == 1
         )
         mock_unique_ai._message_step_logger.create_message_log_entry.assert_called_once_with(
-            text="**Triggered Tool Calls:**\n \n• Search Tool", references=[]
+            text="**Triggered Tool Calls:**\n - Search Tool", references=[]
         )
 
     @pytest.mark.ai
@@ -448,7 +450,7 @@ class TestLogToolCalls:
             mock_unique_ai._message_step_logger.create_message_log_entry.call_count == 1
         )
         mock_unique_ai._message_step_logger.create_message_log_entry.assert_called_once_with(
-            text="**Triggered Tool Calls:**\n \n• Search Tool\n• Web Search",
+            text="**Triggered Tool Calls:**\n - Search Tool\n - Web Search",
             references=[],
         )
 
@@ -539,7 +541,7 @@ class TestLogToolCalls:
         )
         # Should display "(2x)" for the tool called twice
         mock_unique_ai._message_step_logger.create_message_log_entry.assert_called_once_with(
-            text="**Triggered Tool Calls:**\n \n• Search Tool (2x)", references=[]
+            text="**Triggered Tool Calls:**\n - Search Tool (2x)", references=[]
         )
 
     @pytest.mark.ai
@@ -587,7 +589,7 @@ class TestLogToolCalls:
         )
         # Should display "(3x)" for the tool called three times
         mock_unique_ai._message_step_logger.create_message_log_entry.assert_called_once_with(
-            text="**Triggered Tool Calls:**\n \n• Search Tool (3x)", references=[]
+            text="**Triggered Tool Calls:**\n - Search Tool (3x)", references=[]
         )
 
     @pytest.mark.ai
@@ -662,7 +664,7 @@ class TestLogToolCalls:
         # - "Web Search" for web_search (called once, no count)
         # - "File Reader" for file_reader (called once, no count)
         mock_unique_ai._message_step_logger.create_message_log_entry.assert_called_once_with(
-            text="**Triggered Tool Calls:**\n \n• Search Tool (3x)\n• Web Search\n• File Reader",
+            text="**Triggered Tool Calls:**\n - Search Tool (3x)\n - Web Search\n - File Reader",
             references=[],
         )
 
@@ -725,5 +727,5 @@ class TestLogToolCalls:
         )
         # DeepResearch should be excluded, only Search Tool (2x) should appear
         mock_unique_ai._message_step_logger.create_message_log_entry.assert_called_once_with(
-            text="**Triggered Tool Calls:**\n \n• Search Tool (2x)", references=[]
+            text="**Triggered Tool Calls:**\n - Search Tool (2x)", references=[]
         )

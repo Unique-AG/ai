@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.66] - 2026-01-05
+- Expose appliedIngestionConfig field on content search.
+
+## [0.10.65] - 2025-01-05
+- Add new params for elicitation to `call_tool` api
+
+## [0.10.64] - 2025-12-31
+- Add create path functionality to theupsert function and allow getinfo(s) to query by parentfolderpath.
+
+## [0.10.63] - 2025-12-23
+- Add functions to create a space and manage its access.
+
+## [0.10.62] - 2025-12-23
+- Add get user groups function and allow the get users function to filter by username.
+
+## [0.10.61] - 2025-12-22
+- Add `displayInChat` field to ingestion config, allowing silent uploads to chat.
+
+## [0.10.60] - 2025-12-19
+- Expose startedStreamingAt and gptRequest fields
+
+## [0.10.59] - 2025-12-19
+- Add context field to MagicTableSheetIngestParams.
+- Add rowMetadata and context fields to MagicTableRow.
+
+## [0.10.58] - 2025-12-16
+- chore(deps): Bump urllib3 from 2.5.0 to 2.6.2
+
 ## [0.10.57] - 2025-12-06
 - Add description field on create chat completions params.
 

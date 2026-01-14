@@ -9,6 +9,7 @@ from openai.types.responses.response_output_text import AnnotationContainerFileC
 from pydantic import BaseModel, Field, RootModel
 
 from unique_toolkit import ChatService
+from unique_toolkit._common.execution import failsafe_async
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
     ResponsesApiPostprocessor,
 )
@@ -16,7 +17,6 @@ from unique_toolkit.agentic.short_term_memory_manager.persistent_short_term_memo
     PersistentShortMemoryManager,
 )
 from unique_toolkit.agentic.tools.config import get_configuration_dict
-from unique_toolkit.agentic.tools.utils import failsafe_async
 from unique_toolkit.content.schemas import ContentReference
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model.schemas import ResponsesLanguageModelStreamResponse
@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 class DisplayCodeInterpreterFilesPostProcessorConfig(BaseModel):
     model_config = get_configuration_dict()
     upload_to_chat: bool = Field(
-        default=False,
+        default=True,
         description="Whether to upload the generated files to the chat.",
     )
     upload_scope_id: str = Field(
@@ -218,6 +218,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
                     content_name=container_file.filename,
                     mime_type=guess_type(container_file.filename)[0] or "text/plain",
                     skip_ingestion=True,
+                    hide_in_chat=True,
                 )
             else:
                 content = await self._content_service.upload_content_from_bytes_async(

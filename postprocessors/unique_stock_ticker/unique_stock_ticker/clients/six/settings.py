@@ -4,7 +4,7 @@ from typing import NamedTuple
 
 from pydantic import BaseModel, RootModel
 from settings import env_settings
-from unique_toolkit.agentic.tools.utils.execution.execution import failsafe
+from unique_toolkit._common.execution import failsafe
 
 logger = logging.getLogger(__name__)
 

@@ -23,10 +23,14 @@ from unique_toolkit.services.knowledge_base import KnowledgeBaseService
 
 from unique_swot.config import SwotAnalysisToolConfig
 from unique_swot.services.citations import CitationManager
-from unique_swot.services.generation.extraction.agent import ExtractorAgent
-from unique_swot.services.generation.reporting.agent import ProgressiveReportingAgent
+from unique_swot.services.generation.agentic.agent import GenerationAgent
+from unique_swot.services.generation.agentic.executor import AgenticPlanExecutor
+from unique_swot.services.generation.models.registry import SWOTReportRegistry
+
+# from unique_swot.services.generation.extraction.agent import ExtractorAgent
+# from unique_swot.services.generation.reporting.agent import ProgressiveReportingAgent
 from unique_swot.services.memory.base import SwotMemoryService
-from unique_swot.services.notification.notifier import Notifier
+from unique_swot.services.notification.notifier import StepNotifier
 from unique_swot.services.orchestrator.service import SWOTOrchestrator
 from unique_swot.services.report import ReportDeliveryService, ReportRendererConfig
 from unique_swot.services.schemas import SWOTPlan
@@ -35,11 +39,12 @@ from unique_swot.services.source_management.collection.base import (
     CollectionContext,
     SourceCollectionManager,
 )
-from unique_swot.services.source_management.iteration.date_relevancy import (
-    DateRelevancySourceIterator,
+from unique_swot.services.source_management.iteration.agent import (
+    SourceIterationAgent,
 )
 from unique_swot.services.source_management.registry import ContentChunkRegistry
 from unique_swot.services.source_management.selection.agent import SourceSelectionAgent
+from unique_swot.services.summarization.agent import SummarizationAgent
 
 _LOGGER = getLogger(__name__)
 
@@ -127,12 +132,6 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
                 content_chunks=[],
             )
         company_name = session_config.swot_analysis.company_listing.name
-        # This service is responsible for notifying the user of the progress of the SWOT analysis
-        notifier = self._get_notifier()
-
-        await notifier.init_progress(
-            session_info=session_config.swot_analysis.render_session_info()
-        )
 
         try:
             plan = SWOTPlan.model_validate(tool_call.arguments)
@@ -140,6 +139,8 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
             # are structurally correct but logically invalid (e.g., missing required modify instructions)
 
             plan.validate_swot_plan()
+
+            # TODO: MOVE THIS TO THE STEP NOTIFIER
 
             # This service is used to store intermediate results of the SWOT analysis
             memory_service = SwotMemoryService(
@@ -157,10 +158,8 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
             # This service is used to collect the sources from the knowledge base
             # It is used to collect the sources from the knowledge base
             source_collector = self._get_source_collector(
-                chunk_registry=content_chunk_registry,
                 knowledge_base_service=self._knowledge_base_service,
                 session_config=session_config,
-                notifier=notifier,
             )
 
             # This service is used to define what sources are relevant for the SWOT analysis and what are not
@@ -169,57 +168,94 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
             # This service is used to define the order in which the sources are processed
             source_iterator = self._get_source_iterator()
 
-            # This service is used to extract the relevant information from the sources
-            extractor = self._get_extractor()
-
             # This service is used to generate the report from the extracted information
-            report_manager = self._get_report_manager(
-                memory_service=memory_service,
+            reporting_agent = self._get_reporting_agent(company_name=company_name)
+
+            step_notifier = self._get_step_notifier()
+
+            await step_notifier.notify(
+                title=f"Started SWOT Analysis for {company_name}",
+                description=session_config.swot_analysis.render_session_info(),
+                sources=[],
+                progress=100,
+                completed=True,
+            )
+
+            await self._chat_service.modify_assistant_message_async(
+                content=f"**SWOT Analysis Initiated**\n\n- {session_config.swot_analysis.render_session_info()}\n\nAnalyzing data sources and generating comprehensive insights may take some time. Track real-time progress in the steps sidebar.",
             )
 
             # This service is used to orchestrate the SWOT analysis
             orchestrator = SWOTOrchestrator(
-                notifier=notifier,
                 source_collector=source_collector,
                 source_iterator=source_iterator,
                 source_selector=source_selector,
-                extractor=extractor,
-                report_manager=report_manager,
+                step_notifier=step_notifier,
+                reporting_agent=reporting_agent,
                 memory_service=memory_service,
+                source_registry=content_chunk_registry,
             )
 
             # Generate markdown report
             result = await orchestrator.run(company_name=company_name, plan=plan)
 
-            await notifier.end_progress(failed=False)
+            if result.is_empty():
+                await self._chat_service.modify_assistant_message_async(
+                    content=f"No SWOT analysis results found for the {company_name} with the selected sources. Please make sure to select the correct sources and try again.",
+                    set_completed_at=True,
+                )
+                return ToolCallResponse(
+                    id=tool_call.id,  # type: ignore
+                    name=self.name,
+                    content="No SWOT analysis results found for the company. Please try again with a different company or configuration.",
+                    content_chunks=[],
+                )
 
             citation_manager = self._get_citation_manager(content_chunk_registry)
 
-            report_delivery_service = self._get_report_delivery_service(
+            report_handler = self._get_report_delivery_service(
                 citation_manager=citation_manager,
                 report_renderer_config=self.config.report_renderer_config,
             )
 
-            # Deliver the report to the chat
-            markdown_report = report_delivery_service.deliver_report(
-                session_config=session_config.swot_analysis,
+            summarization_agent = self._get_summarization_agent()
+
+            (
+                start_text,
+                summarization_result,
+                num_references,
+            ) = await summarization_agent.summarize(
+                company_name=company_name,
                 result=result,
+                citation_manager=citation_manager,
+                report_handler=report_handler,
+            )
+
+            report_handler.deliver_report(
+                start_text=start_text,
+                executive_summary=summarization_result,
+                result=result,
+                session_config=session_config.swot_analysis,
                 docx_template_fields={
                     "title": f"{company_name} SWOT Analysis Report",
                     "date": datetime.now().strftime("%Y-%m-%d"),
                 },
                 ingest_docx=self.config.report_renderer_config.ingest_docx_report,
+                num_existing_references=num_references,
             )
 
             return ToolCallResponse(
                 id=tool_call.id,  # type: ignore
                 name=self.name,
-                content=markdown_report,
+                content=summarization_result,
                 content_chunks=citation_manager.get_referenced_content_chunks(),
             )
 
         except Exception as e:
-            await notifier.end_progress(failed=True, failure_message=str(e))
+            await self._chat_service.modify_assistant_message_async(
+                content=f"Error running SWOT Analysis for {company_name}: {e}",
+                set_completed_at=True,
+            )
             _LOGGER.exception(f"Error running SWOT plan: {e}")
             return ToolCallResponse(
                 id=tool_call.id,  # type: ignore
@@ -271,10 +307,8 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
 
     def _get_source_collector(
         self,
-        chunk_registry: ContentChunkRegistry,
         knowledge_base_service: KnowledgeBaseService,
         session_config: SessionConfig,
-        notifier: Notifier,
     ) -> SourceCollectionManager:
         earnings_call_docx_generator_service = DocxGeneratorService(
             config=self.config.source_management_config.earnings_call_config.docx_renderer_config,
@@ -296,8 +330,6 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
         return SourceCollectionManager(
             context=collection_context,
             knowledge_base_service=knowledge_base_service,
-            content_chunk_registry=chunk_registry,
-            notifier=notifier,
             quartr_service=self._get_quartr_service(self._event.company_id),
             earnings_call_docx_generator_service=earnings_call_docx_generator_service,
         )
@@ -309,26 +341,11 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
             source_selection_config=self.config.source_management_config.source_selection_config,
         )
 
-    def _get_source_iterator(self) -> DateRelevancySourceIterator:
-        return DateRelevancySourceIterator(
-            config=self.config.source_management_config.date_relevancy_config,
-        )
-
-    def _get_extractor(self) -> ExtractorAgent:
-        return ExtractorAgent(
+    def _get_source_iterator(self) -> SourceIterationAgent:
+        return SourceIterationAgent(
             llm_service=self._language_model_service,
             llm=self.config.language_model,
-            extraction_config=self.config.extraction_config,
-        )
-
-    def _get_report_manager(
-        self, memory_service: SwotMemoryService
-    ) -> ProgressiveReportingAgent:
-        return ProgressiveReportingAgent(
-            memory_service=memory_service,
-            llm_service=self._language_model_service,
-            llm=self.config.report_generation_config.language_model,
-            reporting_config=self.config.report_generation_config.reporting_config,
+            source_iteration_config=self.config.source_management_config.source_iteration_config,
         )
 
     def _get_content_chunk_registry(
@@ -364,10 +381,30 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
             template_name=report_renderer_config.report_template,
         )
 
-    def _get_notifier(self) -> Notifier:
-        return Notifier(
+    def _get_step_notifier(self) -> StepNotifier:
+        return StepNotifier(
             chat_service=self._chat_service,
-            message_id=self._event.payload.assistant_message.id,
+        )
+
+    def _get_reporting_agent(self, *, company_name: str) -> GenerationAgent:
+        executor = AgenticPlanExecutor(
+            execution_mode=self.config.report_generation_config.agentic_generator_config.execution_mode,
+            max_concurrent_tasks=self.config.report_generation_config.agentic_generator_config.max_concurrent_tasks,
+        )
+        return GenerationAgent(
+            llm=self.config.report_generation_config.language_model,
+            llm_service=self._language_model_service,
+            registry=SWOTReportRegistry(),
+            company_name=company_name,
+            executor=executor,
+            prompts_config=self.config.report_generation_config.agentic_generator_config.prompts_config,
+        )
+
+    def _get_summarization_agent(self) -> SummarizationAgent:
+        return SummarizationAgent(
+            llm=self.config.report_summarization_config.language_model,
+            chat_service=self._chat_service,
+            summarization_config=self.config.report_summarization_config,
         )
 
 

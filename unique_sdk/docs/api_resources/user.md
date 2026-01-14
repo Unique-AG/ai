@@ -21,6 +21,7 @@ Manage users within a company including user lookup and configuration management
     - `take` (int, optional) - Number of records to return (default: 50, max: 1000)
     - `email` (str, optional) - Filter by email address
     - `displayName` (str, optional) - Filter by display name
+    - `userName` (str, optional) - Filter by user name
 
     **Returns:**
 
@@ -57,6 +58,54 @@ Manage users within a company including user lookup and configuration management
         user_id=user_id,
         company_id=company_id,
         displayName="John"
+    )
+    ```
+
+    **Example - Search by Username:**
+
+    ```python
+    users = unique_sdk.User.get_users(
+        user_id=user_id,
+        company_id=company_id,
+        userName="john.doe"
+    )
+    ```
+
+??? example "`unique_sdk.User.get_user_groups` - Get groups a user belongs to"
+
+    !!! info "Compatibility"
+        Compatible with release >.61
+
+    Get all groups that a specific user belongs to.
+
+    **Parameters:**
+
+    - `target_user_id` (str, required) - The ID of the user to get groups for
+
+    **Returns:**
+
+    Returns a [`UserGroupsResponse`](#usergroupsresponse) object.
+
+    **Example:**
+
+    ```python
+    user_groups = unique_sdk.User.get_user_groups(
+        user_id=user_id,
+        company_id=company_id,
+        target_user_id="351283829975023795"
+    )
+
+    for group in user_groups["groups"]:
+        print(f"Group: {group['name']} (ID: {group['id']})")
+    ```
+
+    **Example - Async:**
+
+    ```python
+    user_groups = await unique_sdk.User.get_user_groups_async(
+        user_id=user_id,
+        company_id=company_id,
+        target_user_id="351283829975023795"
     )
     ```
 
@@ -262,6 +311,31 @@ Manage users within a company including user lookup and configuration management
     - `users` (List[User]) - List of user objects. See [`User`](#user) for properties.
 
     **Returned by:** `User.get_users()`
+
+#### UserGroup {#usergroup}
+
+??? note "The `UserGroup` object represents a group that a user belongs to"
+
+    **Fields:**
+
+    - `id` (str) - Unique group identifier
+    - `name` (str) - Group name
+    - `externalId` (str | None) - External system identifier
+    - `parentId` (str | None) - Parent group ID
+    - `createdAt` (str) - Creation timestamp (ISO 8601)
+    - `updatedAt` (str) - Last update timestamp (ISO 8601)
+
+    **Used in:** `UserGroupsResponse.groups`
+
+#### UserGroupsResponse {#usergroupsresponse}
+
+??? note "The `UserGroupsResponse` object contains groups a user belongs to"
+
+    **Fields:**
+
+    - `groups` (List[UserGroup]) - List of group objects. See [`UserGroup`](#usergroup) for properties.
+
+    **Returned by:** `User.get_user_groups()`
 
 ## Related Resources
 

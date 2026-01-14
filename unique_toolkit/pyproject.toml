@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_toolkit"
-version = "1.38.0"
+version = "1.43.3"
 description = ""
 authors = [
     "Cedric Klinkert <cedric.klinkert@unique.ch>",
@@ -29,13 +29,14 @@ sseclient = "^0.0.27"
 openai = "^1.99.9"
 platformdirs = "^4.0.0"
 pillow = "^10.4.0"
-unique-sdk = "^0.10.48"
+unique-sdk = "^0.10.65"
 jambo = "^0.1.2"
 jinja2 = "^3.1.6"
 mkdocs-multirepo-plugin = "^0.8.3"
 mkdocs-mermaid2-plugin = "^1.2.2"
 docxtpl = "^0.20.1"
 markdown-it-py = "^4.0.0"
+docxcompose = "^1.4.0"
 
 [tool.poetry.group.langchain]
 optional = true
@@ -77,6 +78,7 @@ mkdocs-entangled-plugin = "^0.4.0"
 isort = "^6.0.1"
 mkdocs-codeinclude-plugin = "^0.2.1"
 aiohttp = "^3.12.15"
+pandas = "^2.3.3"
 
 [build-system]
 requires = ["poetry-core"]

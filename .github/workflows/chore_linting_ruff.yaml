@@ -20,7 +20,21 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        package: [unique_toolkit, unique_sdk, postprocessors/unique_follow_up_questions, postprocessors/unique_stock_ticker, tool_packages/unique_internal_search, tool_packages/unique_web_search]
+        include:
+          - package: unique_toolkit
+            python: "3.12"
+          - package: unique_sdk
+            python: "3.11"
+          - package: postprocessors/unique_follow_up_questions
+            python: "3.12"
+          - package: postprocessors/unique_stock_ticker
+            python: "3.12"
+          - package: tool_packages/unique_internal_search
+            python: "3.12"
+          - package: tool_packages/unique_web_search
+            python: "3.12"
+          - package: tool_packages/unique_deep_research
+            python: "3.12"
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -28,21 +42,25 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: ${{ matrix.python }}
 
-      - name: Install Poetry
-        run: |
-          POETRY_VERSION='1.8.3'
-          PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install poetry==$POETRY_VERSION
+      - name: Install package manager
+        id: install_pm
+        uses: ./.github/actions/install-package-manager
+        with:
+          package_dir: ${{ matrix.package }}
+          package_manager: "auto"
+          python_version: ${{ matrix.python }}
+          package_manager_version: "1.8.3"
 
       - name: Install dependencies
         working-directory: ${{ matrix.package }}
-        run: poetry install
+        run: ${{ steps.install_pm.outputs.install_cmd }}
 
       - name: Run Ruff format check
         working-directory: ${{ matrix.package }}
-        run: poetry run ruff format --check .
+        run: ${{ steps.install_pm.outputs.run_cmd }} ruff format --check .
 
       - name: Run Ruff lint check
         working-directory: ${{ matrix.package }}
-        run: poetry run ruff check .
+        run: ${{ steps.install_pm.outputs.run_cmd }} ruff check .

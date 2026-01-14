@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.17] - 2026-01-13
+- Removing unused parameters from config
+- Activating multiple search string execution by default
+
+## [1.2.16] - 2026-01-12
+- Fix message logswith new ChatUI
+
+## [1.2.15] - 2026-01-12
+- Include feature flag to have message logs compatible with new ChatUI
+
+## [1.2.14] - 2026-01-05
+- Bump unique_toolkit version
+
+## [1.2.13] - 2025-12-29
+- Bump unique_sdk version to `0.10.58`
+
 ## [1.2.12] - 2025-12-01
 - Fix of multiple search queries: 
   - `max_search_strings` must be at lest 1

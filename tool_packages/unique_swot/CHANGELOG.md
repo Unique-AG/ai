@@ -5,6 +5,51 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.3] - 2026-01-05
+- Prevent Pipeline from crashing if any of the agentic steps fail 
+
+## [1.1.2] - 2026-01-05
+- Bump unique_toolkit version
+
+## [1.1.1] - 2025-12-18
+- Early return if report is empty.
+
+## [1.1.0] - 2025-12-17
+### Added
+- Protocol-based orchestration architecture with dependency injection
+  - `StepNotifier` protocol for progress notifications
+  - `SourceCollector`, `SourceSelector`, `SourceIterator` protocols for source management
+  - `SourceRegistry` protocol for content tracking
+  - `ReportingAgent` protocol for generation
+- Agentic generation system with flexible execution strategies
+  - `GenerationAgent` for SWOT component generation
+  - `AgenticPlanExecutor` supporting sequential and concurrent execution modes
+  - Configurable `max_concurrent_tasks` for parallel processing
+- Intelligent source management pipeline
+  - `SourceSelectionAgent`: LLM-based filtering to identify relevant sources
+  - `SourceIterationAgent`: LLM-based prioritization and ordering of sources
+  - Graceful handling of missed or irrelevant documents
+- Enhanced citation infrastructure
+  - `ContentChunkRegistry` with memory persistence
+  - Unique ID generation with collision detection
+  - Registry initialization from cached state
+- `SummarizationAgent` for executive summary generation
+  - Reference remapping and citation management
+  - Integration with chat service for streaming responses
+
+### Changed
+- Orchestration flow now uses protocol-based dependency injection for better testability and modularity
+- Source processing pipeline: collect → iterate → select → generate (vs. previous direct processing)
+- Generation flow simplified with operation-based processing (GENERATE, MODIFY, NOT_REQUESTED)
+- Notification system decoupled through `StepNotifier` protocol
+- Memory service abstracted for state persistence across components
+
+### Improved
+- Comprehensive test suite with 100% coverage of new architecture
+  - Component-level tests with all external dependencies mocked
+  - Tests for orchestration, generation, source management, and delivery
+  - Async testing patterns with proper mock handling
+
 ## [1.0.0] - 2025-12-08
 ### Added
 - Orchestrator-driven SWOT workflow that chains source collection, LLM-based source selection, extraction, and progressive reporting with shared memory.

@@ -5,6 +5,7 @@ from typing import Unpack
 from pydantic import BaseModel, Field
 
 from unique_toolkit import LanguageModelService
+from unique_toolkit._common.execution import failsafe_async
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
 from unique_toolkit.agentic.loop_runner.base import (
@@ -15,7 +16,6 @@ from unique_toolkit.agentic.loop_runner.middleware.planning.schema import (
     PlanningSchemaConfig,
     get_planning_schema,
 )
-from unique_toolkit.agentic.tools.utils import failsafe_async
 from unique_toolkit.chat.service import LanguageModelStreamResponse
 from unique_toolkit.language_model import (
     LanguageModelAssistantMessage,

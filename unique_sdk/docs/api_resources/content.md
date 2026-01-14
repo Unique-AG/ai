@@ -109,6 +109,7 @@ The Content resource provides methods to:
 
     - `metadataFilter` (optional) - UniqueQL metadata filter (cannot be used with `parentId`)
     - `parentId` (optional) - Filter by parent folder/scope ID (cannot be used with `metadataFilter`)
+    - `parentFolderPath` (optional) - Filter by parent folder path (alternative to `parentId`)
     - `skip` (optional) - Number of entries to skip (default: 0)
     - `take` (optional) - Number of entries to return (default: 50)
 
@@ -155,6 +156,16 @@ The Content resource provides methods to:
     )
     ```
 
+    **Example with Parent Folder Path:**
+
+    ```python
+    content_info_result = unique_sdk.Content.get_infos(
+        user_id=user_id,
+        company_id=company_id,
+        parentFolderPath="/Company/Reports/Q1"
+    )
+    ```
+
 ??? example "`unique_sdk.Content.upsert` - Upload content"
 
     Upload new content to the knowledge base into a specific scope or chat.
@@ -162,7 +173,9 @@ The Content resource provides methods to:
     **Parameters:**
 
     - `input` (required) - Content input object. See [`Content.Input`](#contentinput) for field details.
-    - `scopeId` (str, optional) - Scope ID to upload to (required if `chatId` not provided)
+    - `scopeId` (str, optional) - Scope ID to upload to (required if `chatId` or `parentFolderPath` not provided)
+    - `parentFolderPath` (str, optional) - Folder path to upload to (alternative to `scopeId`). Creates the folder if it doesn't exist.
+    - `createFolderIfNotExists` (bool, optional) - Whether to create the folder if it doesn't exist (default: `True`)
     - `chatId` (str, optional) - Chat ID to upload to (required if `scopeId` not provided)
     - `sourceOwnerType` (str, optional) - Source owner type
     - `storeInternally` (bool, optional) - Store file internally
@@ -255,6 +268,22 @@ The Content resource provides methods to:
         metadata={
             "folderIdPath": "uniquepathid://scope_id"
         }
+    )
+    ```
+
+    **Example with Folder Path (auto-creates folder):**
+
+    ```python
+    content = unique_sdk.Content.upsert(
+        user_id=user_id,
+        company_id=company_id,
+        parentFolderPath="/Company/Reports/2024/Q1",
+        input={
+            "key": "quarterly-report.pdf",
+            "title": "Q1 2024 Report",
+            "mimeType": "application/pdf",
+            "byteSize": 1024,
+        },
     )
     ```
 
@@ -652,6 +681,7 @@ For simplified file operations, use the [File I/O utilities](../utilities/file_i
     - `writeUrl` (str | None) - URL for uploading file content
     - `readUrl` (str | None) - URL for reading/downloading file content
     - `expiredAt` (str | None) - Expiration timestamp (ISO 8601)
+    - `appliedIngestionConfig` (Dict[str, Any] | None) - The ingestion configuration that was applied to this content
 
     **Returned by:** `Content.search()`, `Content.upsert()`
 

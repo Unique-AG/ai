@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.7] - 2026-01-13
+- Removing unused and retired configuration parameters `max_review_steps`, `uploaded_content_config`, `tool_progress_reporter_config`, `force_checks_on_stream_response_references` and `thinking_steps_display`
+
+## [1.11.6] - 2026-01-13
+- Deprecate UniqueAIResponsesApi and use UniqueAI directly instead (type safety)
+
+## [1.11.5] - 2026-01-12
+- Include feature flag to have message logs compatible with new ChatUI
+
+## [1.11.4] - 2025-12-29
+- Fixes orchestrator tests and adds a ci test pipeline for it
+
+## [1.11.3] - 2025-12-29
+- Fix system prompt with priority rule
+
+## [1.11.2] - 2025-12-18
+- Improve bullet style for tool call message logs (for consistency)
+
+## [1.11.1] - 2025-12-11
+- Improving support for forced tool call for Qwen models
+
 ## [1.11.0] - 2025-12-11
 - Add support for forced tool call for Qwen models
 

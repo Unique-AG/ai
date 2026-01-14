@@ -1,12 +1,15 @@
 import asyncio
 from datetime import datetime, timezone
 from logging import Logger
+from typing import overload
 
 import jinja2
+from typing_extensions import deprecated
 from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
     DebugInfoManager,
 )
 from unique_toolkit.agentic.evaluation.evaluation_manager import EvaluationManager
+from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
 from unique_toolkit.agentic.loop_runner import LoopIterationRunner
 from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
@@ -48,6 +51,28 @@ class UniqueAI:
     start_text = ""
     current_iteration_index = 0
 
+    @overload
+    def __init__(
+        self,
+        logger: Logger,
+        event: ChatEvent,
+        config: UniqueAIConfig,
+        chat_service: ChatService,
+        content_service: ContentService,
+        debug_info_manager: DebugInfoManager,
+        streaming_handler: ResponsesSupportCompleteWithReferences,
+        reference_manager: ReferenceManager,
+        thinking_manager: ThinkingManager,
+        tool_manager: ResponsesApiToolManager,
+        history_manager: HistoryManager,
+        evaluation_manager: EvaluationManager,
+        postprocessor_manager: PostprocessorManager,
+        message_step_logger: MessageStepLogger,
+        mcp_servers: list[McpServer],
+        loop_iteration_runner: LoopIterationRunner,
+    ) -> None: ...
+
+    @overload
     def __init__(
         self,
         logger: Logger,
@@ -66,7 +91,28 @@ class UniqueAI:
         message_step_logger: MessageStepLogger,
         mcp_servers: list[McpServer],
         loop_iteration_runner: LoopIterationRunner,
-    ):
+    ) -> None: ...
+
+    def __init__(
+        self,
+        logger: Logger,
+        event: ChatEvent,
+        config: UniqueAIConfig,
+        chat_service: ChatService,
+        content_service: ContentService,
+        debug_info_manager: DebugInfoManager,
+        streaming_handler: ResponsesSupportCompleteWithReferences
+        | SupportCompleteWithReferences,
+        reference_manager: ReferenceManager,
+        thinking_manager: ThinkingManager,
+        tool_manager: ResponsesApiToolManager | ToolManager,
+        history_manager: HistoryManager,
+        evaluation_manager: EvaluationManager,
+        postprocessor_manager: PostprocessorManager,
+        message_step_logger: MessageStepLogger,
+        mcp_servers: list[McpServer],
+        loop_iteration_runner: LoopIterationRunner,
+    ) -> None:
         self._logger = logger
         self._event = event
         self._config = config
@@ -102,7 +148,7 @@ class UniqueAI:
         """
         self._logger.info("Start LoopAgent...")
 
-        if self._history_manager.has_no_loop_messages():  # TODO: why do we even need to check its always no loop messages on this when its called.
+        if not feature_flags.is_new_answers_ui_enabled(self._event.company_id):
             self._chat_service.modify_assistant_message(
                 content="Starting agentic loop..."  # TODO: this must be more informative
             )
@@ -358,24 +404,26 @@ class UniqueAI:
         # Tool names that should not be logged in the message steps
         tool_names_not_to_log = ["DeepResearch"]
 
-        tool_string: str = ""
         used_tools: dict[str, int] = {}
         for tool_call in tool_calls:
             self._history_manager.add_tool_call(tool_call)
             if tool_call.name in all_tools_dict:
                 used_tools[tool_call.name] = used_tools.get(tool_call.name, 0) + 1
 
+        tool_calls_logs = []
         for tool_name, count in used_tools.items():
             if tool_name in tool_names_not_to_log:
                 continue
             display_name = all_tools_dict[tool_name] or tool_name
-            tool_string += (
-                f"\n• {display_name} ({count}x)" if count > 1 else f"\n• {display_name}"
+            tool_calls_logs.append(
+                f"{display_name} ({count}x)" if count > 1 else f"{display_name}"
             )
 
-        if tool_string:
+        if tool_calls_logs:
+            tool_calls_logs_to_string = "\n - ".join(tool_calls_logs)
             self._message_step_logger.create_message_log_entry(
-                text=f"**Triggered Tool Calls:**\n {tool_string}", references=[]
+                text=f"**Triggered Tool Calls:**\n - {tool_calls_logs_to_string}",
+                references=[],
             )
 
     async def _handle_tool_calls(
@@ -497,6 +545,7 @@ class UniqueAI:
         await self._chat_service.update_debug_info_async(debug_info=debug_info_event)
 
 
+@deprecated("Use UniqueAI directly instead")
 class UniqueAIResponsesApi(UniqueAI):
     def __init__(
         self,

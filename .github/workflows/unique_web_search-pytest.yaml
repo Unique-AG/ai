@@ -1,0 +1,39 @@
+name: "[pytest] unique_web_search (min + latest deps)"
+
+env:
+  PACKAGE_DIR: ./tool_packages/unique_web_search
+
+on:
+  pull_request:
+    paths:
+      - 'tool_packages/unique_web_search/**'
+      - '.github/workflows/unique_web_search-pytest.yaml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        deps: [min, latest]  
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: '3.12'
+          enable-cache: true
+
+      - name: Run tests
+        if: matrix.deps == 'latest'
+        uses: ./.github/actions/run-tests
+        with:
+          package_dir: ${{ env.PACKAGE_DIR }}
+          package_manager: 'uv'
+          python_version: '3.12'
+
+      - name: Run Min tests and deptry
+        if: matrix.deps == 'min'
+        uses: ./.github/actions/run-min-tests-and-deptry
+        with:
+          package_dir: ${{ env.PACKAGE_DIR }}
+          python_version: '3.12'

@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Annotated, Any, Generic, Literal, TypeVar
 
 from pydantic import BaseModel, Field, ValidationInfo, field_validator, model_validator
+from pydantic.json_schema import SkipJsonSchema
 from unique_deep_research.config import DeepResearchToolConfig
 from unique_deep_research.service import DeepResearchTool
 from unique_follow_up_questions.config import FollowUpQuestionsConfig
@@ -18,12 +19,12 @@ from unique_toolkit._common.validators import (
 from unique_toolkit.agentic.evaluation.hallucination.constants import (
     HallucinationConfig,
 )
-from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.history_manager.history_manager import (
     UploadedContentConfig,
 )
 from unique_toolkit.agentic.loop_runner import (
-    QWEN_FORCED_TOOL_CALL_PROMPT_INSTRUCTION,
+    QWEN_FORCED_TOOL_CALL_INSTRUCTION,
+    QWEN_LAST_ITERATION_INSTRUCTION,
     PlanningConfig,
 )
 from unique_toolkit.agentic.responses_api import (
@@ -132,6 +133,30 @@ UniqueAISpaceConfig.model_rebuild()
 LIMIT_MAX_TOOL_CALLS_PER_ITERATION = 50
 
 
+class QwenConfig(BaseModel):
+    """Qwen specific configuration."""
+
+    model_config = get_configuration_dict()
+
+    forced_tool_call_instruction: str = Field(
+        default=QWEN_FORCED_TOOL_CALL_INSTRUCTION,
+        description="This instruction is appended to the user message for every forced tool call.",
+    )
+
+    last_iteration_instruction: str = Field(
+        default=QWEN_LAST_ITERATION_INSTRUCTION,
+        description="An assistant message with this instruction is generated once the maximum number of loop iterations is reached.",
+    )
+
+
+class ModelSpecificConfig(BaseModel):
+    """Model-specific loop configurations."""
+
+    model_config = get_configuration_dict()
+
+    qwen: QwenConfig = QwenConfig()
+
+
 class LoopConfiguration(BaseModel):
     model_config = get_configuration_dict()
 
@@ -144,15 +169,11 @@ class LoopConfiguration(BaseModel):
         Annotated[PlanningConfig, Field(title="Active")] | DeactivatedNone
     ) = Field(default=None, description="Planning configuration.")
 
-    qwen_forced_tool_call_prompt_instruction: str = Field(
-        default=QWEN_FORCED_TOOL_CALL_PROMPT_INSTRUCTION,
-        description="Qwen forced tool call prompt instruction.",
-    )
+    model_specific: ModelSpecificConfig = ModelSpecificConfig()
 
 
 class EvaluationConfig(BaseModel):
     model_config = get_configuration_dict()
-    max_review_steps: int = 3
     hallucination_config: HallucinationConfig = HallucinationConfig()
 
 
@@ -215,12 +236,13 @@ class UniqueAIServices(BaseModel):
         | DeactivatedNone
     ) = EvaluationConfig(
         hallucination_config=HallucinationConfig(),
-        max_review_steps=0,
     )
 
-    uploaded_content_config: UploadedContentConfig = UploadedContentConfig()
+    uploaded_content_config: SkipJsonSchema[UploadedContentConfig] = (
+        UploadedContentConfig()
+    )
 
-    tool_progress_reporter_config: ToolProgressReporterConfig = (
+    tool_progress_reporter_config: SkipJsonSchema[ToolProgressReporterConfig] = (
         ToolProgressReporterConfig()
     )
 
@@ -317,13 +339,7 @@ class ExperimentalConfig(BaseModel):
 
     model_config = get_configuration_dict(frozen=True)
 
-    thinking_steps_display: bool = False
-
-    # TODO: @gustavhartz, the Hallucination check should be triggered if enabled and the answer contains references.
-    force_checks_on_stream_response_references: list[EvaluationMetricName] = Field(
-        default=[EvaluationMetricName.HALLUCINATION],
-        description="A list of checks to force on references. This is used to add hallucination check to references without new tool calls.",
-    )
+    thinking_steps_display: SkipJsonSchema[bool] = False
 
     # TODO: The temperature should be used via the additional_llm_options
     # then the additional_llm_options migth should eventually be closer to the LangaugeModelInfo

@@ -6,12 +6,182 @@ The Space API manages conversational spaces (assistants) and their chats in Uniq
 
 Spaces are conversational assistants with configured tools, scope rules, and modules. Use this API to:
 
+- Create spaces
+- Manage space access control
 - Send messages to spaces
 - Manage space chats
 - Retrieve space configuration
 - Access message history
 
 ## Methods
+
+??? example "`unique_sdk.Space.create_space` - Create a new space"
+
+    Create a new space (assistant) with the specified configuration.
+
+    **Parameters:**
+
+    - `name` (str, required) - The name of the space
+    - `fallbackModule` (str, required) - The fallback module name (must match one of the module names)
+    - `modules` (List[ModuleParams], required) - List of modules to create for the space
+        - `name` (str, required) - The name of the module
+        - `description` (str, optional) - The description of the module
+        - `weight` (int, optional) - The weight/priority of the module
+        - `isExternal` (bool, optional) - Whether the module is external
+        - `isCustomInstructionEnabled` (bool, optional) - Whether custom instruction is enabled
+        - `configuration` (Dict, optional) - Configuration for the module
+        - `toolDefinition` (Dict, optional) - Tool definition for the module
+    - `explanation` (str, optional) - Description of the space
+    - `alert` (str, optional) - Alert message for the space
+    - `chatUpload` (Literal["ENABLED", "DISABLED"], optional) - Chat upload setting
+    - `languageModel` (str, optional) - Language model to use
+    - `isExternal` (bool, optional) - Whether the space is external
+    - `isPinned` (bool, optional) - Whether the space is pinned
+    - `uiType` (Literal["MAGIC_TABLE", "UNIQUE_CUSTOM", "TRANSLATION", "UNIQUE_AI"], optional) - UI type
+    - `settings` (Dict, optional) - Space settings
+
+    **Returns:**
+
+    Returns a [`Space`](#space) object.
+
+    **Example:**
+
+    ```python
+    space = unique_sdk.Space.create_space(
+        user_id=user_id,
+        company_id=company_id,
+        name="Customer Support Assistant",
+        fallbackModule="UniqueAi",
+        modules=[
+            {
+                "name": "UniqueAi",
+                "weight": 10000
+            }
+        ]
+    )
+
+    print(f"Created space: {space['id']}")
+    ```
+
+    **Example - With Additional Options:**
+
+    ```python
+    space = unique_sdk.Space.create_space(
+        user_id=user_id,
+        company_id=company_id,
+        name="Engineering Assistant",
+        fallbackModule="UniqueAi",
+        modules=[
+            {
+                "name": "UniqueAi",
+                "weight": 10000,
+                "description": "Main AI module"
+            }
+        ],
+        explanation="Assistant for engineering team",
+        chatUpload="ENABLED",
+        isPinned=True
+    )
+    ```
+
+??? example "`unique_sdk.Space.get_space_access` - Get space access entries"
+
+    Get access entries for a space. Requires manage access to the space.
+
+    **Parameters:**
+
+    - `space_id` (str, required) - The ID of the space
+
+    **Returns:**
+
+    Returns a [`SpaceAccessResponse`](#spaceaccessresponse) object.
+
+    **Example:**
+
+    ```python
+    access = unique_sdk.Space.get_space_access(
+        user_id=user_id,
+        company_id=company_id,
+        space_id="assistant_hjcdga64bkcjnhu4"
+    )
+
+    for entry in access["access"]:
+        print(f"{entry['entityType']}: {entry['entityId']} - {entry['type']}")
+    ```
+
+??? example "`unique_sdk.Space.add_space_access` - Add access to a space"
+
+    Add access entries to a space. Requires manage access to the space.
+
+    **Parameters:**
+
+    - `space_id` (str, required) - The ID of the space
+    - `accessIds` (List[AccessEntry], required) - List of access entries to add
+        - `entityId` (str, required) - The ID of the entity (user or group)
+        - `entityType` (Literal["USER", "GROUP"], required) - The type of entity
+        - `type` (Literal["USE", "MANAGE", "UPLOAD"], required) - The type of access
+
+    **Returns:**
+
+    Returns an [`AddSpaceAccessResponse`](#addspaceaccessresponse) object.
+
+    **Example:**
+
+    ```python
+    result = unique_sdk.Space.add_space_access(
+        user_id=user_id,
+        company_id=company_id,
+        space_id="assistant_hjcdga64bkcjnhu4",
+        accessIds=[
+            {
+                "entityId": "228959553377538182",
+                "entityType": "USER",
+                "type": "USE"
+            }
+        ]
+    )
+    ```
+
+    **Example - Add Group Access:**
+
+    ```python
+    result = unique_sdk.Space.add_space_access(
+        user_id=user_id,
+        company_id=company_id,
+        space_id="assistant_hjcdga64bkcjnhu4",
+        accessIds=[
+            {
+                "entityId": "group_abc123",
+                "entityType": "GROUP",
+                "type": "MANAGE"
+            }
+        ]
+    )
+    ```
+
+??? example "`unique_sdk.Space.delete_space_access` - Remove access from a space"
+
+    Remove access entries from a space. Requires manage access to the space.
+
+    **Parameters:**
+
+    - `space_id` (str, required) - The ID of the space
+    - `accessIds` (List[str], required) - List of access entry IDs to delete
+
+    **Returns:**
+
+    Returns a [`DeleteSpaceAccessResponse`](#deletespaceaccessresponse) object.
+
+    **Example:**
+
+    ```python
+    result = unique_sdk.Space.delete_space_access(
+        user_id=user_id,
+        company_id=company_id,
+        space_id="assistant_hjcdga64bkcjnhu4",
+        accessIds=["access_yptvsdq8sqjfsxe1ih0mnug7"]
+    )
+    ```
 
 ??? example "`unique_sdk.Space.create_message` - Send message in space"
 
@@ -283,10 +453,12 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     - `text` (str | None) - Message text content
     - `originalText` (str | None) - Original message text before processing
     - `role` (Literal["SYSTEM", "USER", "ASSISTANT"]) - Message role
+    - `gptRequest` (Dict[str, Any] | None) - GPT request data
     - `debugInfo` (Dict[str, Any] | None) - Debug information dictionary
     - `completedAt` (str | None) - Completion timestamp (ISO 8601)
     - `createdAt` (str | None) - Creation timestamp (ISO 8601)
     - `updatedAt` (str | None) - Last update timestamp (ISO 8601)
+    - `startedStreamingAt` (str | None) - When streaming started (ISO 8601)
     - `stoppedStreamingAt` (str | None) - When streaming stopped (ISO 8601)
     - `references` (List[Reference] | None) - List of source references. See [`Space.Reference`](#spacereference) for structure.
     - `assessment` (List[Assessment] | None) - List of message assessments. See [`Space.Assessment`](#spaceassessment) for structure.
@@ -373,7 +545,37 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     - `createdAt` (str) - Creation timestamp (ISO 8601)
     - `updatedAt` (str) - Last update timestamp (ISO 8601)
 
-    **Returned by:** `Space.get_space()`
+    **Returned by:** `Space.get_space()`, `Space.create_space()`
+
+#### SpaceAccessResponse {#spaceaccessresponse}
+
+??? note "The `SpaceAccessResponse` object contains access entries for a space"
+
+    **Fields:**
+
+    - `access` (List[AssistantAccess]) - List of access control entries. See [`Space.AssistantAccess`](#spaceassistantaccess) for structure.
+
+    **Returned by:** `Space.get_space_access()`
+
+#### AddSpaceAccessResponse {#addspaceaccessresponse}
+
+??? note "The `AddSpaceAccessResponse` object contains the added access entries"
+
+    **Fields:**
+
+    - `access` (List[AssistantAccess]) - List of added access control entries. See [`Space.AssistantAccess`](#spaceassistantaccess) for structure.
+
+    **Returned by:** `Space.add_space_access()`
+
+#### DeleteSpaceAccessResponse {#deletespaceaccessresponse}
+
+??? note "The `DeleteSpaceAccessResponse` object indicates success of deletion"
+
+    **Fields:**
+
+    - `success` (bool) - Whether the deletion was successful
+
+    **Returned by:** `Space.delete_space_access()`
 
 #### Space.AssistantMcpServer {#spaceassistantmcpserver}
 
@@ -437,10 +639,10 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
 
     - `id` (str) - Unique access control identifier
     - `entityId` (str) - User or group ID
-    - `entityType` (str) - Entity type (e.g., "USER", "GROUP")
-    - `type` (str) - Access type (e.g., "READ", "WRITE")
+    - `entityType` (str) - Entity type ("USER" or "GROUP")
+    - `type` (str) - Access type ("USE", "MANAGE", or "UPLOAD")
 
-    **Used in:** `Space.assistantAccess`
+    **Used in:** `Space.assistantAccess`, `SpaceAccessResponse.access`, `AddSpaceAccessResponse.access`
 
 #### DeleteChatResponse {#deletechatresponse}
 

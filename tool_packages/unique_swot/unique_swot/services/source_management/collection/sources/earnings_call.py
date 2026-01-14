@@ -13,11 +13,6 @@ from unique_toolkit._common.docx_generator import DocxGeneratorService
 from unique_toolkit.content import Content
 
 from unique_swot.services.session.schema import UniqueCompanyListing
-from unique_swot.services.source_management.collection.sources.utils import (
-    convert_content_to_sources,
-)
-from unique_swot.services.source_management.registry import ContentChunkRegistry
-from unique_swot.services.source_management.schema import Source, SourceType
 
 _LOGGER = getLogger(__name__)
 
@@ -27,14 +22,13 @@ _INGESTION_RETRY_DELAY = 1
 
 async def collect_earnings_calls(
     *,
-    chunk_registry: ContentChunkRegistry,
     docx_generator_service: DocxGeneratorService,
     knowledge_base_service: KnowledgeBaseService,
     quartr_service: QuartrService,
     upload_scope_id: str,
     company: UniqueCompanyListing,
     earnings_call_start_date: datetime,
-) -> list[Source]:
+) -> list[Content]:
     event_type_ids = quartr_service.get_event_subtype_ids_from_event_types(
         [EventType.EARNINGS_CALL]
     )
@@ -107,23 +101,7 @@ async def collect_earnings_calls(
     # Merging the available contents in the knowledge base and the ingested contents
     all_contents = available_contents_in_knowledge_base + ingested_contents
 
-    sources = []
-
-    for content in all_contents:
-        source = Source(
-            type=SourceType.EARNINGS_CALL,
-            url=None,
-            title=content.title or content.key or "Unknown Title",
-            chunks=convert_content_to_sources(
-                content=content, chunk_registry=chunk_registry
-            ),
-        )
-
-        sources.append(source)
-
-    print(f"Earnings call sources: {[source.title for source in sources]}")
-
-    return sources
+    return all_contents
 
 
 async def _ingest_all_transcripts(

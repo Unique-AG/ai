@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_orchestrator"
-version = "1.11.0"
+version = "1.11.7"
 description = ""
 authors = ["Andreas Hauri <andreas.hauri@unique.ai>"]
 readme = ["README.md", "CHANGELOG.md"]
@@ -14,17 +14,18 @@ pydantic-settings = "^2.10.1"
 python-dotenv = "^1.0.1"
 
 unique-sdk = "^0.10.48"
-unique-toolkit = "^1.37.0"
+unique-toolkit = "^1.42.9"
 unique-stock-ticker = "^1.0.2"
 unique-follow-up-questions = "^1.1.2"
-unique-internal-search = "^1.2.8"
+unique-internal-search = "^1.2.15"
 unique-deep-research = "^3.0.17"
-unique-web-search = "^1.6.0"
+unique-web-search = "^1.7.5"
 unique-swot = "^1.0.0"
 
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.4.1"
+pytest-asyncio = "^0.24.0"
 ruff = "^0.11.7"
 python = "^3.12"
 typing-extensions = "^4.9.0"
@@ -37,6 +38,7 @@ unique-stock-ticker = { path = "../postprocessors/unique_stock_ticker", develop 
 unique-follow-up-questions = { path = "../postprocessors/unique_follow_up_questions", develop = true }
 unique-internal-search = { path = "../tool_packages/unique_internal_search", develop = true }
 unique-swot = { path = "../tool_packages/unique_swot", develop = true }
+unique-web-search = { path = "../tool_packages/unique_web_search", develop = true }
 
 [build-system]
 requires = ["poetry-core"]

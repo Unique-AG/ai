@@ -79,7 +79,6 @@ class TestChatServiceUnit:
         self.service = ChatService(self.event)
         self.mock_get_datetime_now = mock_get_datetime_now
 
-    @pytest.mark.unit
     @patch.object(unique_sdk.Message, "modify", autospec=True)
     def test_modify_assistant_message(self, mock_modify):
         # Test with update completedAt
