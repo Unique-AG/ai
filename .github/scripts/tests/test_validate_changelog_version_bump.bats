@@ -285,6 +285,70 @@ EOF
     [[ "$output" =~ "Skipping validation" ]] || [[ "$output" =~ "No code changes" ]]
 }
 
+@test "trailing comma in exclude list does not skip all validation" {
+    setup_test_repo
+    
+    # Make meaningful code changes that should NOT be excluded
+    echo "# important code change" >> "$TEST_PACKAGE/src/main.py"
+    git add .
+    git commit -m "Add code change"
+    
+    # Use exclude with trailing comma - this should NOT cause all files to be excluded
+    run "$SCRIPT" "$TEST_PACKAGE" --base-ref main --no-fetch --exclude "poetry.lock,uv.lock,"
+    [ "$status" -eq 1 ]
+    # Should fail because src/main.py is a meaningful change requiring changelog
+    [[ "$output" =~ "CHANGELOG.md must be updated" ]]
+}
+
+@test "leading comma in exclude list does not skip all validation" {
+    setup_test_repo
+    
+    # Make meaningful code changes
+    echo "# important code change" >> "$TEST_PACKAGE/src/main.py"
+    git add .
+    git commit -m "Add code change"
+    
+    # Use exclude with leading comma
+    run "$SCRIPT" "$TEST_PACKAGE" --base-ref main --no-fetch --exclude ",poetry.lock,uv.lock"
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "CHANGELOG.md must be updated" ]]
+}
+
+@test "double comma in exclude list does not skip all validation" {
+    setup_test_repo
+    
+    # Make meaningful code changes
+    echo "# important code change" >> "$TEST_PACKAGE/src/main.py"
+    git add .
+    git commit -m "Add code change"
+    
+    # Use exclude with double comma in middle
+    run "$SCRIPT" "$TEST_PACKAGE" --base-ref main --no-fetch --exclude "poetry.lock,,uv.lock"
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "CHANGELOG.md must be updated" ]]
+}
+
+@test "empty exclude argument is rejected" {
+    # Empty string argument should be rejected as invalid
+    run "$SCRIPT" test_package --exclude ""
+    [ "$status" -eq 2 ]
+    [[ "$output" =~ "requires an argument" ]]
+}
+
+@test "whitespace-only patterns in exclude list are handled" {
+    setup_test_repo
+    
+    # Make meaningful code changes
+    echo "# important code change" >> "$TEST_PACKAGE/src/main.py"
+    git add .
+    git commit -m "Add code change"
+    
+    # Use exclude with only whitespace between commas
+    run "$SCRIPT" "$TEST_PACKAGE" --base-ref main --no-fetch --exclude "poetry.lock, ,uv.lock"
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "CHANGELOG.md must be updated" ]]
+}
+
 @test "passes with backward compatible positional arguments" {
     setup_test_repo
     

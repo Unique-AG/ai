@@ -311,6 +311,13 @@ IFS=',' read -ra EXCLUDED_PATTERNS <<< "$EXCLUDE_CSV"
 # - For directories (trailing /): match as complete directory component
 EXCLUDE_REGEX_PARTS=()
 for pattern in "${EXCLUDED_PATTERNS[@]}"; do
+    # Skip empty or whitespace-only patterns (from trailing/leading/double commas)
+    # Trim whitespace and check if empty
+    trimmed="${pattern#"${pattern%%[![:space:]]*}"}"  # trim leading
+    trimmed="${trimmed%"${trimmed##*[![:space:]]}"}"  # trim trailing
+    [ -z "$trimmed" ] && continue
+    pattern="$trimmed"
+    
     # Escape regex metacharacters (dots)
     escaped=$(echo "$pattern" | sed 's/\./\\./g')
     
@@ -324,7 +331,13 @@ for pattern in "${EXCLUDED_PATTERNS[@]}"; do
         EXCLUDE_REGEX_PARTS+=("(^|/)${escaped}$")
     fi
 done
-EXCLUDE_REGEX=$(IFS='|'; echo "${EXCLUDE_REGEX_PARTS[*]}")
+
+# Handle empty regex (no valid patterns) - use pattern that matches nothing
+if [ ${#EXCLUDE_REGEX_PARTS[@]} -eq 0 ]; then
+    EXCLUDE_REGEX="^$"  # Only matches empty lines (file paths are never empty)
+else
+    EXCLUDE_REGEX=$(IFS='|'; echo "${EXCLUDE_REGEX_PARTS[*]}")
+fi
 
 # First check if there are any meaningful code changes in this package
 # Separate git diff from grep to properly detect git failures
