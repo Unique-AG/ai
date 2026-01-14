@@ -1,9 +1,10 @@
 import asyncio
 import logging
-from typing import Literal
+from typing import Annotated, Literal
 
 from httpx import AsyncClient, HTTPError
 from pydantic import Field
+from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 
 from unique_web_search.services.search_engine.base import (
     BaseSearchEngineConfig,
@@ -36,11 +37,21 @@ class VertexAIConfig(BaseSearchEngineConfig[SearchEngineType.VERTEXAI]):
         default="gemini-2.5-flash",
         description="The name of the model to use for the search.",
     )
-    grounding_system_instruction: str = Field(
+    grounding_system_instruction: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(
+            rows=len(VERTEX_GROUNDING_SYSTEM_INSTRUCTION.split("\n"))
+        ),
+    ] = Field(
         default=VERTEX_GROUNDING_SYSTEM_INSTRUCTION,
         description="The system instruction to use for the grounding.",
     )
-    structured_results_system_instruction: str | None = Field(
+    structured_results_system_instruction: Annotated[
+        str | None,
+        RJSFMetaTag.StringWidget.textarea(
+            rows=len(VERTEX_STRUCTURED_RESULTS_SYSTEM_INSTRUCTION.split("\n"))
+        ),
+    ] = Field(
         default=VERTEX_STRUCTURED_RESULTS_SYSTEM_INSTRUCTION,
         description="The system instruction to use for the structured results.",
     )

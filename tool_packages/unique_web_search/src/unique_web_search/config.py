@@ -1,4 +1,5 @@
 from logging import getLogger
+from typing import Annotated
 
 from pydantic import BaseModel, Field, model_validator
 from pydantic.json_schema import SkipJsonSchema
@@ -8,6 +9,7 @@ from unique_toolkit._common.chunk_relevancy_sorter.config import (
 from unique_toolkit._common.feature_flags.schema import (
     FeatureExtendedSourceSerialization,
 )
+from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit._common.validators import LMI, get_LMI_default_field
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.tools.config import get_configuration_dict
@@ -144,7 +146,12 @@ class WebSearchConfig(BaseToolConfig):
         title="Evaluation Check List",
     )
 
-    tool_format_information_for_system_prompt: str = Field(
+    tool_format_information_for_system_prompt: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(
+            rows=int(len(DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT.split("\n"))/3)
+        ),
+    ] = Field(
         default=DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT,
         description="Tool format information for system prompt. This is used to format the tool response for the system prompt.",
     )

@@ -11,6 +11,7 @@ from unique_toolkit._common.chunk_relevancy_sorter.config import (
 from unique_toolkit._common.feature_flags.schema import (
     FeatureExtendedSourceSerialization,
 )
+from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.history_manager.history_manager import DeactivatedNone
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
@@ -102,27 +103,50 @@ class InternalSearchConfig(BaseToolConfig):
         description="Whether to only chat on the upload.",
     )
 
-    tool_description: str = get_string_field_with_pattern_validation(
+    tool_description: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(
+            rows=len(DEFAULT_TOOL_DESCRIPTION.split("\n"))
+        ),
+    ] = get_string_field_with_pattern_validation(
         DEFAULT_TOOL_DESCRIPTION,
         description="Tool description.",
     )
-    param_description_search_string: str = Field(
+    param_description_search_string: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(
+            rows=len(DEFAULT_SEARCH_STRING_PARAM_DESCRIPTION.split("\n"))
+        ),
+    ] = Field(
         default=DEFAULT_SEARCH_STRING_PARAM_DESCRIPTION,
         description="`search_string` parameter description.",
     )
-    param_description_language: str = get_string_field_with_pattern_validation(
+    param_description_language: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(
+            rows=len(DEFAULT_LANGUAGE_PARAM_DESCRIPTION.split("\n"))
+        ),
+    ] = get_string_field_with_pattern_validation(
         DEFAULT_LANGUAGE_PARAM_DESCRIPTION,
         description="`language` parameter description.",
     )
-    tool_description_for_system_prompt: str = get_string_field_with_pattern_validation(
+    tool_description_for_system_prompt: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(
+            rows=int(len(DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT.split("\n"))/2)
+        ),
+    ] = get_string_field_with_pattern_validation(
         DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
         description="Tool description for the system prompt.",
     )
-    tool_format_information_for_system_prompt: str = (
-        get_string_field_with_pattern_validation(
-            DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT,
-            description="Tool format information for the system prompt.",
-        )
+    tool_format_information_for_system_prompt: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(
+            rows=int(len(DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT.split("\n"))/3)
+        ),
+    ] = get_string_field_with_pattern_validation(
+        DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT,
+        description="Tool format information for the system prompt.",
     )
     evaluation_check_list: list[EvaluationMetricName] = Field(
         default=[EvaluationMetricName.HALLUCINATION],
