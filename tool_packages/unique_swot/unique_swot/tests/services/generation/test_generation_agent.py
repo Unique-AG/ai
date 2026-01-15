@@ -70,6 +70,7 @@ async def test_generation_agent_generate_workflow(
     mock_swot_report_registry,
     mock_agentic_executor,
     mock_step_notifier,
+    mock_progress_notifier,
 ):
     """Test the complete generate workflow."""
     source_registry = Mock()
@@ -99,6 +100,7 @@ async def test_generation_agent_generate_workflow(
             source_registry=source_registry,
             plan=plan,
             step_notifier=mock_step_notifier,
+            progress_notifier=mock_progress_notifier,
         )
 
         # Verify handle_generate_operation was called
@@ -115,6 +117,7 @@ async def test_generation_agent_prepares_source_batches(
     mock_swot_report_registry,
     mock_agentic_executor,
     mock_step_notifier,
+    mock_progress_notifier,
 ):
     """Test that source batches are prepared correctly."""
     source_registry = Mock()
@@ -144,6 +147,7 @@ async def test_generation_agent_prepares_source_batches(
             source_registry=source_registry,
             plan=plan,
             step_notifier=mock_step_notifier,
+            progress_notifier=mock_progress_notifier,
         )
 
         # Verify source batches were prepared
@@ -164,6 +168,7 @@ async def test_generation_agent_skips_not_requested_operations(
     mock_swot_report_registry,
     mock_agentic_executor,
     mock_step_notifier,
+    mock_progress_notifier,
 ):
     """Test that NOT_REQUESTED operations are skipped."""
     source_registry = Mock()
@@ -207,6 +212,7 @@ async def test_generation_agent_skips_not_requested_operations(
             source_registry=source_registry,
             plan=plan,
             step_notifier=mock_step_notifier,
+            progress_notifier=mock_progress_notifier,
         )
 
         # Should not be called for any component
@@ -220,6 +226,7 @@ async def test_generation_agent_handles_modify_operation(
     mock_swot_report_registry,
     mock_agentic_executor,
     mock_step_notifier,
+    mock_progress_notifier,
 ):
     """Test that MODIFY operations are handled (currently uses GENERATE)."""
     source_registry = Mock()
@@ -262,6 +269,7 @@ async def test_generation_agent_handles_modify_operation(
             source_registry=source_registry,
             plan=plan,
             step_notifier=mock_step_notifier,
+            progress_notifier=mock_progress_notifier,
         )
 
         # Should be called once for MODIFY (currently treated as GENERATE)
@@ -275,6 +283,7 @@ async def test_generation_agent_sends_notifications(
     mock_swot_report_registry,
     mock_agentic_executor,
     mock_step_notifier,
+    mock_progress_notifier,
 ):
     """Test that notifications are sent during generation."""
     source_registry = Mock()
@@ -303,6 +312,7 @@ async def test_generation_agent_sends_notifications(
             source_registry=source_registry,
             plan=plan,
             step_notifier=mock_step_notifier,
+            progress_notifier=mock_progress_notifier,
         )
 
         # Verify notifications were sent

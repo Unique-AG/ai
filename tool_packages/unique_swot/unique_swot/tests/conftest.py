@@ -316,6 +316,16 @@ def mock_llm():
     return llm
 
 
+@pytest.fixture
+def mock_progress_notifier():
+    """Mock ProgressNotifier for testing."""
+    notifier = Mock()
+    notifier.update = AsyncMock()
+    notifier.increment = AsyncMock()
+    notifier.step_size = 0
+    return notifier
+
+
 # ============================================================================
 # Protocol Implementation Mocks
 # ============================================================================
