@@ -2,6 +2,7 @@ name: "[CI] Type Check - All Packages"
 
 on:
   pull_request:
+  merge_group:
   workflow_dispatch:
     inputs:
       package:
