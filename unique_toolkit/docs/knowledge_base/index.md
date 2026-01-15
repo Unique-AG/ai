@@ -21,7 +21,7 @@ kb_service = KnowledgeBaseService.from_settings()
 
 For security, prefer uploading from memory to avoid disk-based information leakage. This method takes raw bytes and uploads them directly to the knowledge base without creating intermediate files on disk.
 
-For implementation examples, see the [Content Upload Examples](../../modules/examples/content/kb_service#content-upload).
+For implementation examples, see the [Content Upload Examples](../modules/examples/content/kb_service#content-upload).
 
 ### Upload from File
 
@@ -67,7 +67,7 @@ Prefer downloading to memory for security - this approach avoids leaving sensiti
 - Parsing JSON/XML/CSV data
 - Any operation where the library supports file-like objects or byte streams
 
-For implementation examples, see the [Content Download Examples](../../modules/examples/content/kb_service#content-download).
+For implementation examples, see the [Content Download Examples](../modules/examples/content/kb_service#content-download).
 
 ### Download to Temporary File
 
@@ -90,7 +90,7 @@ Permanently removes content from the knowledge base. This operation:
 - Deletes the file from storage
 - Removes all indexed chunks from the vector database
 
-For implementation examples, see the [Content Deletion Examples](../../modules/examples/content/kb_service#content-deletion).
+For implementation examples, see the [Content Deletion Examples](../modules/examples/content/kb_service#content-deletion).
 
 ## Content Search
 
@@ -145,7 +145,7 @@ Search for complete content files (not chunks) by metadata. This is useful when 
 - Finding files by title, creation date, or custom metadata
 - Getting files uploaded to a specific chat
 
-For implementation examples, see the [Content Search Examples](../../modules/examples/content/kb_service#content-search).
+For implementation examples, see the [Content Search Examples](../modules/examples/content/kb_service#content-search).
 
 ## Best Practices
 
@@ -172,5 +172,5 @@ For implementation examples, see the [Content Search Examples](../../modules/exa
 
 ## Full Examples
 
-For complete, runnable examples of all knowledge base features, see the [Knowledge Base Examples](../../modules/examples/content/kb_service) section.
+For complete, runnable examples of all knowledge base features, see the [Knowledge Base Examples](../modules/examples/content/kb_service) section.
 
