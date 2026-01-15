@@ -38,6 +38,14 @@ runs:
         python_version: ${{ inputs.python_version }}
         package_manager_version: ${{ inputs.package_manager_version }}
 
+    - name: Save script before checkout
+      shell: bash
+      run: |
+        # Copy script and lib to /tmp before checking out base branch
+        # (otherwise we'd run main's version of the script, not the PR's)
+        cp ${{ github.workspace }}/.github/scripts/create-type-baseline.sh /tmp/create-type-baseline.sh
+        cp -r ${{ github.workspace }}/.github/scripts/lib /tmp/lib
+
     - name: Fetch base branch
       shell: bash
       run: git fetch origin ${{ inputs.branch }}:${{ inputs.branch }}
@@ -72,7 +80,7 @@ runs:
         # Use -c flag for CI mode. The script will checkout the base branch again
         # (redundant since we're already there), run basedpyright, then checkout back.
         # Lock files have been discarded, so checkout back should succeed.
-        bash ${{ github.workspace }}/.github/scripts/create-type-baseline.sh \
+        bash /tmp/create-type-baseline.sh \
           -c \
           -r "${{ steps.setup_pm.outputs.run_cmd }}" \
           -o "${{ inputs.output_file }}" \

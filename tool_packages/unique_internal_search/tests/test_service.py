@@ -688,9 +688,10 @@ class TestInternalSearchTool:
 
         # Act
         def setup_tool(self, configuration, event, *args, **kwargs):
-            # Set _event attribute that Tool base class expects
+            # Set attributes that Tool base class expects
             setattr(self, "_event", event)
             setattr(self, "logger", mock_logger)
+            setattr(self, "_message_step_logger", None)
 
         with patch("unique_internal_search.service.Tool.__init__", setup_tool):
             tool = InternalSearchTool(
@@ -732,9 +733,10 @@ class TestInternalSearchTool:
 
         # Act
         def setup_tool(self, configuration, event, *args, **kwargs):
-            # Set _event attribute that Tool base class expects
+            # Set attributes that Tool base class expects
             setattr(self, "_event", event)
             setattr(self, "logger", mock_logger)
+            setattr(self, "_message_step_logger", None)
 
         with patch("unique_internal_search.service.Tool.__init__", setup_tool):
             tool = InternalSearchTool(
@@ -776,9 +778,10 @@ class TestInternalSearchTool:
             mock_sorter_class.from_event.return_value = Mock()
 
             def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set _event attribute that Tool base class expects
+                # Set attributes that Tool base class expects
                 setattr(self, "_event", event)
                 setattr(self, "logger", mock_logger)
+                setattr(self, "_message_step_logger", None)
 
             with (
                 patch("unique_internal_search.service.Tool.__init__", setup_tool),
@@ -835,9 +838,10 @@ class TestInternalSearchTool:
             mock_sorter_class.from_event.return_value = Mock()
 
             def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set _event attribute that Tool base class expects
+                # Set attributes that Tool base class expects
                 setattr(self, "_event", event)
                 setattr(self, "logger", mock_logger)
+                setattr(self, "_message_step_logger", None)
 
             with (
                 patch("unique_internal_search.service.Tool.__init__", setup_tool),
@@ -890,9 +894,10 @@ class TestInternalSearchTool:
             mock_content_service.search_contents_async = AsyncMock(return_value=[])
 
             def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set _event attribute that Tool base class expects
+                # Set attributes that Tool base class expects
                 setattr(self, "_event", event)
                 setattr(self, "logger", mock_logger)
+                setattr(self, "_message_step_logger", None)
 
             with patch("unique_internal_search.service.Tool.__init__", setup_tool):
                 tool = InternalSearchTool(
@@ -942,9 +947,10 @@ class TestInternalSearchTool:
             mock_content_service.search_contents_async = AsyncMock(return_value=[])
 
             def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set _event attribute that Tool base class expects
+                # Set attributes that Tool base class expects
                 setattr(self, "_event", event)
                 setattr(self, "logger", mock_logger)
+                setattr(self, "_message_step_logger", None)
 
             with patch("unique_internal_search.service.Tool.__init__", setup_tool):
                 tool = InternalSearchTool(
@@ -994,9 +1000,10 @@ class TestInternalSearchTool:
             mock_content_service.search_contents_async = AsyncMock(return_value=[])
 
             def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set _event attribute that Tool base class expects
+                # Set attributes that Tool base class expects
                 setattr(self, "_event", event)
                 setattr(self, "logger", mock_logger)
+                setattr(self, "_message_step_logger", None)
 
             with patch("unique_internal_search.service.Tool.__init__", setup_tool):
                 tool = InternalSearchTool(
@@ -1041,9 +1048,10 @@ class TestInternalSearchTool:
             mock_sorter_class.from_event.return_value = Mock()
 
             def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set _event attribute that Tool base class expects
+                # Set attributes that Tool base class expects
                 setattr(self, "_event", event)
                 setattr(self, "logger", mock_logger)
+                setattr(self, "_message_step_logger", None)
 
             with patch("unique_internal_search.service.Tool.__init__", setup_tool):
                 tool = InternalSearchTool(
@@ -1094,9 +1102,10 @@ class TestInternalSearchTool:
             mock_sorter_class.from_event.return_value = Mock()
 
             def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set _event attribute that Tool base class expects
+                # Set attributes that Tool base class expects
                 setattr(self, "_event", event)
                 setattr(self, "logger", mock_logger)
+                setattr(self, "_message_step_logger", None)
 
             with patch("unique_internal_search.service.Tool.__init__", setup_tool):
                 tool = InternalSearchTool(
@@ -1140,9 +1149,10 @@ class TestInternalSearchTool:
             mock_sorter_class.from_event.return_value = Mock()
 
             def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set _event attribute that Tool base class expects
+                # Set attributes that Tool base class expects
                 setattr(self, "_event", event)
                 setattr(self, "logger", mock_logger)
+                setattr(self, "_message_step_logger", None)
 
             with patch("unique_internal_search.service.Tool.__init__", setup_tool):
                 tool = InternalSearchTool(
@@ -1187,9 +1197,10 @@ class TestInternalSearchTool:
             mock_sorter_class.from_event.return_value = Mock()
 
             def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set _event attribute that Tool base class expects
+                # Set attributes that Tool base class expects
                 setattr(self, "_event", event)
                 setattr(self, "logger", mock_logger)
+                setattr(self, "_message_step_logger", None)
 
             with patch("unique_internal_search.service.Tool.__init__", setup_tool):
                 tool = InternalSearchTool(
@@ -1234,9 +1245,10 @@ class TestInternalSearchTool:
             mock_sorter_class.from_event.return_value = Mock()
 
             def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set _event attribute that Tool base class expects
+                # Set attributes that Tool base class expects
                 setattr(self, "_event", event)
                 setattr(self, "logger", mock_logger)
+                setattr(self, "_message_step_logger", None)
 
             with patch("unique_internal_search.service.Tool.__init__", setup_tool):
                 tool = InternalSearchTool(
@@ -1284,9 +1296,10 @@ class TestInternalSearchTool:
             mock_sorter_class.from_event.return_value = Mock()
 
             def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set _event attribute that Tool base class expects
+                # Set attributes that Tool base class expects
                 setattr(self, "_event", event)
                 setattr(self, "logger", mock_logger)
+                setattr(self, "_message_step_logger", None)
 
             with patch("unique_internal_search.service.Tool.__init__", setup_tool):
                 tool = InternalSearchTool(
@@ -1331,9 +1344,10 @@ class TestInternalSearchTool:
             mock_sorter_class.from_event.return_value = Mock()
 
             def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set _event attribute that Tool base class expects
+                # Set attributes that Tool base class expects
                 setattr(self, "_event", event)
                 setattr(self, "logger", mock_logger)
+                setattr(self, "_message_step_logger", None)
 
             with patch("unique_internal_search.service.Tool.__init__", setup_tool):
                 tool = InternalSearchTool(
@@ -1383,9 +1397,10 @@ class TestInternalSearchTool:
             mock_sorter_class.from_event.return_value = Mock()
 
             def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set _event attribute that Tool base class expects
+                # Set attributes that Tool base class expects
                 setattr(self, "_event", event)
                 setattr(self, "logger", mock_logger)
+                setattr(self, "_message_step_logger", None)
 
             with patch("unique_internal_search.service.Tool.__init__", setup_tool):
                 tool = InternalSearchTool(
@@ -1445,9 +1460,10 @@ class TestInternalSearchTool:
             mock_sorter_class.from_event.return_value = Mock()
 
             def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set _event attribute that Tool base class expects
+                # Set attributes that Tool base class expects
                 setattr(self, "_event", event)
                 setattr(self, "logger", mock_logger)
+                setattr(self, "_message_step_logger", None)
 
             with (
                 patch("unique_internal_search.service.Tool.__init__", setup_tool),
@@ -1513,9 +1529,10 @@ class TestInternalSearchTool:
             mock_sorter_class.from_event.return_value = Mock()
 
             def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set _event attribute that Tool base class expects
+                # Set attributes that Tool base class expects
                 setattr(self, "_event", event)
                 setattr(self, "logger", mock_logger)
+                setattr(self, "_message_step_logger", None)
 
             with (
                 patch("unique_internal_search.service.Tool.__init__", setup_tool),
@@ -1579,6 +1596,7 @@ class TestInternalSearchTool:
         def setup_tool(self, configuration, event, *args, **kwargs):
             setattr(self, "_event", event)
             setattr(self, "logger", mock_logger)
+            setattr(self, "_message_step_logger", None)
 
         with patch("unique_internal_search.service.Tool.__init__", setup_tool):
             tool = InternalSearchTool(
@@ -1623,6 +1641,7 @@ class TestInternalSearchTool:
         def setup_tool(self, configuration, event, *args, **kwargs):
             setattr(self, "_event", event)
             setattr(self, "logger", mock_logger)
+            setattr(self, "_message_step_logger", None)
 
         with patch("unique_internal_search.service.Tool.__init__", setup_tool):
             tool = InternalSearchTool(
@@ -1667,6 +1686,7 @@ class TestInternalSearchTool:
         def setup_tool(self, configuration, event, *args, **kwargs):
             setattr(self, "_event", event)
             setattr(self, "logger", mock_logger)
+            setattr(self, "_message_step_logger", None)
 
         with patch("unique_internal_search.service.Tool.__init__", setup_tool):
             tool = InternalSearchTool(
@@ -1681,7 +1701,7 @@ class TestInternalSearchTool:
 
         # Assert
         assert isinstance(references[0].source_id, str)
-        assert references[0].source_id == "chunk_123"
+        assert references[0].source_id == "cont_abcdefghijklmnopqrstuv"
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -1711,6 +1731,7 @@ class TestInternalSearchTool:
         def setup_tool(self, configuration, event, *args, **kwargs):
             setattr(self, "_event", event)
             setattr(self, "logger", mock_logger)
+            setattr(self, "_message_step_logger", None)
 
         with patch("unique_internal_search.service.Tool.__init__", setup_tool):
             tool = InternalSearchTool(
@@ -1761,6 +1782,7 @@ class TestInternalSearchTool:
         def setup_tool(self, configuration, event, *args, **kwargs):
             setattr(self, "_event", event)
             setattr(self, "logger", mock_logger)
+            setattr(self, "_message_step_logger", None)
 
         with patch("unique_internal_search.service.Tool.__init__", setup_tool):
             tool = InternalSearchTool(
@@ -1812,6 +1834,7 @@ class TestInternalSearchTool:
         def setup_tool(self, configuration, event, *args, **kwargs):
             setattr(self, "_event", event)
             setattr(self, "logger", mock_logger)
+            setattr(self, "_message_step_logger", None)
 
         with patch("unique_internal_search.service.Tool.__init__", setup_tool):
             tool = InternalSearchTool(
@@ -1856,6 +1879,7 @@ class TestInternalSearchTool:
         def setup_tool(self, configuration, event, *args, **kwargs):
             setattr(self, "_event", event)
             setattr(self, "logger", mock_logger)
+            setattr(self, "_message_step_logger", None)
 
         with patch("unique_internal_search.service.Tool.__init__", setup_tool):
             tool = InternalSearchTool(
@@ -1912,6 +1936,7 @@ class TestInternalSearchTool:
         def setup_tool(self, configuration, event, *args, **kwargs):
             setattr(self, "_event", event)
             setattr(self, "logger", mock_logger)
+            setattr(self, "_message_step_logger", None)
 
         with patch("unique_internal_search.service.Tool.__init__", setup_tool):
             tool = InternalSearchTool(
@@ -1970,6 +1995,7 @@ class TestInternalSearchTool:
         def setup_tool(self, configuration, event, *args, **kwargs):
             setattr(self, "_event", event)
             setattr(self, "logger", mock_logger)
+            setattr(self, "_message_step_logger", None)
 
         with patch("unique_internal_search.service.Tool.__init__", setup_tool):
             tool = InternalSearchTool(
@@ -2028,9 +2054,10 @@ class TestInternalSearchTool:
             mock_sorter_class.from_event.return_value = Mock()
 
             def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set _event attribute that Tool base class expects
+                # Set attributes that Tool base class expects
                 setattr(self, "_event", event)
                 setattr(self, "logger", mock_logger)
+                setattr(self, "_message_step_logger", None)
 
             with (
                 patch("unique_internal_search.service.Tool.__init__", setup_tool),
@@ -2221,6 +2248,7 @@ class TestInternalSearchTool:
             chunk_relevancy_sorter=mock_chunk_relevancy_sorter,
             chat_id="chat_123",
             logger=mock_logger,
+            company_id="company_123",
         )
         mock_content_service.search_contents_async = AsyncMock(return_value=[])
 
@@ -2381,6 +2409,7 @@ class TestInternalSearchTool:
         def setup_tool(self, configuration, event, *args, **kwargs):
             setattr(self, "_event", event)
             setattr(self, "logger", mock_logger)
+            setattr(self, "_message_step_logger", None)
 
         with patch("unique_internal_search.service.Tool.__init__", setup_tool):
             tool = InternalSearchTool(
@@ -2435,6 +2464,7 @@ class TestInternalSearchTool:
         def setup_tool(self, configuration, event, *args, **kwargs):
             setattr(self, "_event", event)
             setattr(self, "logger", mock_logger)
+            setattr(self, "_message_step_logger", None)
 
         with patch("unique_internal_search.service.Tool.__init__", setup_tool):
             tool = InternalSearchTool(
@@ -2488,6 +2518,7 @@ class TestInternalSearchTool:
         def setup_tool(self, configuration, event, *args, **kwargs):
             setattr(self, "_event", event)
             setattr(self, "logger", mock_logger)
+            setattr(self, "_message_step_logger", None)
 
         with patch("unique_internal_search.service.Tool.__init__", setup_tool):
             tool = InternalSearchTool(
@@ -2541,6 +2572,7 @@ class TestInternalSearchTool:
         def setup_tool(self, configuration, event, *args, **kwargs):
             setattr(self, "_event", event)
             setattr(self, "logger", mock_logger)
+            setattr(self, "_message_step_logger", None)
 
         with patch("unique_internal_search.service.Tool.__init__", setup_tool):
             tool = InternalSearchTool(
