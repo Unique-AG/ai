@@ -1,8 +1,8 @@
 import logging
 
-from unique_stock_ticker.clients.six import SixApiClient, raise_errors_from_api_response
-from unique_stock_ticker.clients.six.schema import ListingIdentifierScheme
-from unique_stock_ticker.clients.six.schema.entity_base.listing.response import (
+from unique_six import SixApiClient, raise_errors_from_api_response
+from unique_six.schema import ListingIdentifierScheme
+from unique_six.schema.entity_base.listing.response import (
     EntityBaseByListingEntityBase,
 )
 

@@ -2,31 +2,31 @@ import asyncio
 import logging
 from datetime import date, timedelta
 
+from unique_six.client import SixApiClient
+from unique_six.schema.common.instrument import InstrumentType
+from unique_six.schema.common.listing import (
+    ListingIdentifierScheme,
+)
+from unique_six.schema.end_of_day_history.response import (
+    EndOfDayHistoryItem,
+)
+from unique_six.schema.entity_base.listing.response import (
+    EntityBaseByListingEntityBase,
+)
+from unique_six.schema.free_text_search.instruments.response import (
+    FreeTextInstrumentSearchHit,
+)
+from unique_six.schema.intraday_history.summary.response import (
+    IntradayHistorySummaryItem,
+)
+from unique_six.schema.intraday_snapshot.response import (
+    IntradaySnapshotValues,
+)
 from unique_toolkit._common.execution import (
     SafeTaskExecutor,
     safe_execute_async,
 )
 
-from unique_stock_ticker.clients.six.client import SixApiClient
-from unique_stock_ticker.clients.six.schema.common.instrument import InstrumentType
-from unique_stock_ticker.clients.six.schema.common.listing import (
-    ListingIdentifierScheme,
-)
-from unique_stock_ticker.clients.six.schema.end_of_day_history.response import (
-    EndOfDayHistoryItem,
-)
-from unique_stock_ticker.clients.six.schema.entity_base.listing.response import (
-    EntityBaseByListingEntityBase,
-)
-from unique_stock_ticker.clients.six.schema.free_text_search.instruments.response import (
-    FreeTextInstrumentSearchHit,
-)
-from unique_stock_ticker.clients.six.schema.intraday_history.summary.response import (
-    IntradayHistorySummaryItem,
-)
-from unique_stock_ticker.clients.six.schema.intraday_snapshot.response import (
-    IntradaySnapshotValues,
-)
 from unique_stock_ticker.plot.backend.base.base import PlottingBackend
 from unique_stock_ticker.plot.backend.base.schema import (
     PriceHistoryItem,
