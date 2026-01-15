@@ -48,7 +48,8 @@ def base_internal_search_config() -> InternalSearchConfig:
 def sample_content_chunk() -> ContentChunk:
     """Create a sample ContentChunk for testing."""
     return ContentChunk(
-        id="chunk_123",
+        id="cont_abcdefghijklmnopqrstuv",
+        chunk_id="chunk_123",
         text="Sample chunk text",
         order=1,
         start_page=1,
@@ -79,7 +80,8 @@ def sample_content_chunks() -> list[ContentChunk]:
     """Create a list of sample ContentChunk objects for testing."""
     return [
         ContentChunk(
-            id="chunk_1",
+            id="cont_doc1xxxxxxxxxxxxxx01",
+            chunk_id="chunk_1",
             text="First chunk",
             order=1,
             start_page=1,
@@ -87,7 +89,8 @@ def sample_content_chunks() -> list[ContentChunk]:
             metadata=ContentMetadata(key="doc1.pdf", mime_type="application/pdf"),
         ),
         ContentChunk(
-            id="chunk_2",
+            id="cont_doc2xxxxxxxxxxxxxx02",
+            chunk_id="chunk_2",
             text="Second chunk",
             order=2,
             start_page=3,

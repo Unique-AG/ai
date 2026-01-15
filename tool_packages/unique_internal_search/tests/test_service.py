@@ -1701,7 +1701,7 @@ class TestInternalSearchTool:
 
         # Assert
         assert isinstance(references[0].source_id, str)
-        assert references[0].source_id == "chunk_123"
+        assert references[0].source_id == "cont_abcdefghijklmnopqrstuv"
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -2248,6 +2248,7 @@ class TestInternalSearchTool:
             chunk_relevancy_sorter=mock_chunk_relevancy_sorter,
             chat_id="chat_123",
             logger=mock_logger,
+            company_id="company_123",
         )
         mock_content_service.search_contents_async = AsyncMock(return_value=[])
 
