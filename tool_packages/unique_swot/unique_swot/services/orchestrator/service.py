@@ -1,5 +1,5 @@
 from logging import getLogger
-from typing import AsyncIterator, Protocol
+from typing import AsyncIterator, Generator, Protocol
 
 from tqdm.asyncio import tqdm
 from unique_toolkit.chat.service import ChatService
@@ -31,7 +31,15 @@ class StepNotifier(Protocol):
 class ProgressNotifier(Protocol):
     """This class is responsible for notifying the user of the progress of the SWOT analysis."""
 
-    async def update(self, *, progress: int | float, progress_title: str | None): ...
+    async def update(self, *, progress: int | float, title: str | None = None): ...
+
+    async def increment(self, fraction: float): ...
+
+    @property
+    def step_size(self) -> int | float: ...
+
+    @step_size.setter
+    def step_size(self, value: int | float) -> None: ...
 
 
 class SourceCollector(Protocol):
@@ -74,6 +82,7 @@ class ReportingAgent(Protocol):
         content: Content,
         source_registry: SourceRegistry,
         step_notifier: StepNotifier,
+        progress_notifier: ProgressNotifier,
     ) -> None: ...
 
     def get_reports(self) -> SWOTReportComponents: ...
@@ -107,25 +116,36 @@ class SWOTOrchestrator:
             step_notifier=self._step_notifier
         )
 
+        await self._progress_notifier.update(progress=5)
+
         source_iterator = await self._source_iterator.iterate(
             contents=contents, step_notifier=self._step_notifier
         )
 
-        total_steps = len(contents)
-        increment = 0
-        if total_steps > 0:
-            increment = 80 / total_steps
+        await self._progress_notifier.update(progress=10)
 
-        index = 0
+        total_steps = len(contents)
+
+        if total_steps == 0:
+            # Early return if there are no sources to process (this should never happen)
+            raise ValueError("No sources to process")
+
+        step_size, progress_sequence = _create_progress_sequence(
+            start=10, stop=80, steps=total_steps
+        )
+
+        # This is for "agent generating" progress tracking
+        self._progress_notifier.step_size = step_size
+
         async for content in tqdm(
             source_iterator, total=total_steps, desc="Processing sources"
         ):
+            await self._progress_notifier.update(
+                progress=next(progress_sequence),
+            )
+
             source_title = _get_content_title(content)
 
-            await self._progress_notifier.update(
-                progress=(index * increment),
-                progress_title=f"Processing source `{source_title}`",
-            )
             source_selection_result = await self._source_selector.select(
                 company_name=company_name,
                 content=content,
@@ -144,12 +164,26 @@ class SWOTOrchestrator:
                 content=content,
                 step_notifier=self._step_notifier,
                 source_registry=self._source_registry,
+                progress_notifier=self._progress_notifier,
             )
-
-            index += 1
 
         return self._reporting_agent.get_reports()
 
 
 def _get_content_title(content: Content) -> str:
     return content.title or content.key or "Unknown Title"
+
+
+def _create_progress_sequence(
+    start: int, stop: int, steps: int
+) -> tuple[float, Generator[float, None, None]]:
+    step_size = (stop - start) / steps
+
+    def frange(start):
+        if steps == 0:
+            raise ValueError("step must not be zero")
+
+        for i in range(steps):
+            yield start + i * step_size
+
+    return step_size, frange(start)

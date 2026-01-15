@@ -13,28 +13,40 @@ from unique_swot.utils import load_template
 _PROMPTS_DIR = Path(__file__).parent
 
 
-REPORT_TEMPLATE: str = load_template(_PROMPTS_DIR, "report_template.j2")
+REPORT_BODY_TEMPLATE: str = load_template(_PROMPTS_DIR, "report_body_template.j2")
+REPORT_STRUCTURE_TEMPLATE: str = load_template(
+    _PROMPTS_DIR, "report_structure_template.j2"
+)
 
 
-class DocxRendererType(StrEnum):
+class RendererType(StrEnum):
     DOCX = "docx"
     CHAT = "chat"
-    STREAM = "stream"
 
 
 class ReportRendererConfig(BaseModel):
     model_config = get_configuration_dict()
 
-    report_template: Annotated[
+    report_structure_template: Annotated[
         str,
-        RJSFMetaTag.StringWidget.textarea(rows=len(REPORT_TEMPLATE.split("\n"))),
+        RJSFMetaTag.StringWidget.textarea(
+            rows=len(REPORT_STRUCTURE_TEMPLATE.split("\n"))
+        ),
     ] = Field(
-        default=REPORT_TEMPLATE,
+        default=REPORT_STRUCTURE_TEMPLATE,
+        description="Jinja2 template for the report structure.",
+    )
+
+    report_body_template: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(rows=len(REPORT_BODY_TEMPLATE.split("\n"))),
+    ] = Field(
+        default=REPORT_BODY_TEMPLATE,
         description="Jinja2 template for the report.",
     )
 
-    renderer_type: DocxRendererType = Field(
-        default=DocxRendererType.DOCX,
+    renderer_type: RendererType = Field(
+        default=RendererType.DOCX,
         description="The type of renderer to use.",
     )
 

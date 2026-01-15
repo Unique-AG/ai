@@ -26,9 +26,6 @@ from unique_swot.services.citations import CitationManager
 from unique_swot.services.generation.agentic.agent import GenerationAgent
 from unique_swot.services.generation.agentic.executor import AgenticPlanExecutor
 from unique_swot.services.generation.models.registry import SWOTReportRegistry
-
-# from unique_swot.services.generation.extraction.agent import ExtractorAgent
-# from unique_swot.services.generation.reporting.agent import ProgressiveReportingAgent
 from unique_swot.services.memory.base import SwotMemoryService
 from unique_swot.services.notification.notifier import StepNotifier
 from unique_swot.services.notification.progress import ProgressNotifier
@@ -175,15 +172,10 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
 
             step_notifier = self._get_step_notifier()
 
-            await self._chat_service.modify_assistant_message_async(
-                content=session_config.swot_analysis.render_session_info()
-            )
-            await self._chat_service.create_assistant_message_async(
-                content=" "
-            )  # Must be none empty message to be able to initialize the progress bar
+            progress_title = session_config.swot_analysis.render_session_info()
 
             # initialize progress bar
-            await progress_notifier.start()
+            await progress_notifier.start(title=progress_title)
 
             # This service is used to orchestrate the SWOT analysis
             orchestrator = SWOTOrchestrator(
@@ -214,10 +206,7 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
                     content_chunks=[],
                 )
 
-            await progress_notifier.update(
-                progress=90,
-                progress_title="Generating SWOT analysis report",
-            )
+            await progress_notifier.update(progress=90)
 
             citation_manager = self._get_citation_manager(content_chunk_registry)
 
@@ -228,30 +217,25 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
 
             summarization_agent = self._get_summarization_agent()
 
-            (
-                start_text,
-                summarization_result,
-                num_references,
-            ) = await summarization_agent.summarize(
-                company_name=company_name,
+            executive_summary = report_handler.render_body(
                 result=result,
-                citation_manager=citation_manager,
-                report_handler=report_handler,
+            )
+
+            summarization_result = await summarization_agent.summarize(
+                company_name=company_name, markdown_report=executive_summary
             )
 
             await progress_notifier.finish()
 
             report_handler.deliver_report(
-                start_text=start_text,
                 executive_summary=summarization_result,
-                result=result,
+                body=executive_summary,
                 session_config=session_config.swot_analysis,
                 docx_template_fields={
                     "title": f"{company_name} SWOT Analysis Report",
                     "date": datetime.now().strftime("%Y-%m-%d"),
                 },
                 ingest_docx=self.config.report_renderer_config.ingest_docx_report,
-                num_existing_references=num_references,
             )
 
             return ToolCallResponse(
@@ -389,8 +373,7 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
             chat_service=self._chat_service,
             docx_renderer=report_docx_renderer,
             citation_manager=citation_manager,
-            renderer_type=report_renderer_config.renderer_type,
-            template_name=report_renderer_config.report_template,
+            renderer_config=report_renderer_config,
         )
 
     def _get_step_notifier(self) -> StepNotifier:
@@ -415,7 +398,7 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
     def _get_summarization_agent(self) -> SummarizationAgent:
         return SummarizationAgent(
             llm=self.config.report_summarization_config.language_model,
-            chat_service=self._chat_service,
+            llm_service=self._language_model_service,
             summarization_config=self.config.report_summarization_config,
         )
 

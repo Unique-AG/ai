@@ -15,6 +15,7 @@ from unique_swot.services.generation.models.base import (
 )
 from unique_swot.services.generation.models.registry import SWOTReportRegistry
 from unique_swot.services.orchestrator.service import (
+    ProgressNotifier,
     SourceRegistry,
     StepNotifier,
 )
@@ -62,6 +63,7 @@ class GenerationAgent:
         source_registry: SourceRegistry,
         plan: SWOTPlan,
         step_notifier: StepNotifier,
+        progress_notifier: ProgressNotifier,
     ):
         _LOGGER.info("Starting SWOT Analysis generation Agent")
         # Prepare the source splits
@@ -82,6 +84,8 @@ class GenerationAgent:
             sources=[document_reference],
             progress=0,
         )
+
+        fraction_step = 1 / len(components_step)
 
         for index, (component, step) in enumerate(components_step):
             await step_notifier.notify(
@@ -123,6 +127,8 @@ class GenerationAgent:
                     continue
                 case _:
                     raise ValueError(f"Invalid operation: {step.operation}")
+
+            await progress_notifier.increment(fraction=fraction_step)
 
         await step_notifier.notify(
             title=self.notification_title,
