@@ -2,7 +2,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Annotated, Any, Generic, Literal, TypeVar
 
-from pydantic import BaseModel, Field, ValidationInfo, field_validator, model_validator
+from pydantic import Field, ValidationInfo, field_validator, model_validator
 from pydantic.json_schema import SkipJsonSchema
 from unique_deep_research.config import DeepResearchToolConfig
 from unique_deep_research.service import DeepResearchTool
@@ -40,6 +40,7 @@ from unique_toolkit.agentic.tools.config import get_configuration_dict
 from unique_toolkit.agentic.tools.openai_builtin.manager import (
     OpenAICodeInterpreterConfig,
 )
+from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 from unique_toolkit.agentic.tools.tool import ToolBuildConfig
 from unique_toolkit.agentic.tools.tool_progress_reporter import (
     ToolProgressReporterConfig,
@@ -64,10 +65,8 @@ class SpaceType(StrEnum):
 T = TypeVar("T", bound=SpaceType)
 
 
-class SpaceConfigBase(BaseModel, Generic[T]):
+class SpaceConfigBase(BaseToolConfig, Generic[T]):
     """Base class for space configuration."""
-
-    model_config = get_configuration_dict(frozen=True)
     type: T = Field(description="The type of the space.")
 
     project_name: str = Field(
@@ -133,11 +132,8 @@ UniqueAISpaceConfig.model_rebuild()
 LIMIT_MAX_TOOL_CALLS_PER_ITERATION = 50
 
 
-class QwenConfig(BaseModel):
+class QwenConfig(BaseToolConfig):
     """Qwen specific configuration."""
-
-    model_config = get_configuration_dict()
-
     forced_tool_call_instruction: str = Field(
         default=QWEN_FORCED_TOOL_CALL_INSTRUCTION,
         description="This instruction is appended to the user message for every forced tool call.",
@@ -149,17 +145,12 @@ class QwenConfig(BaseModel):
     )
 
 
-class ModelSpecificConfig(BaseModel):
+class ModelSpecificConfig(BaseToolConfig):
     """Model-specific loop configurations."""
-
-    model_config = get_configuration_dict()
-
     qwen: QwenConfig = QwenConfig()
 
 
-class LoopConfiguration(BaseModel):
-    model_config = get_configuration_dict()
-
+class LoopConfiguration(BaseToolConfig):
     max_tool_calls_per_iteration: Annotated[
         int,
         *ClipInt(min_value=1, max_value=LIMIT_MAX_TOOL_CALLS_PER_ITERATION),
@@ -172,8 +163,7 @@ class LoopConfiguration(BaseModel):
     model_specific: ModelSpecificConfig = ModelSpecificConfig()
 
 
-class EvaluationConfig(BaseModel):
-    model_config = get_configuration_dict()
+class EvaluationConfig(BaseToolConfig):
     hallucination_config: HallucinationConfig = HallucinationConfig()
 
 
@@ -182,9 +172,7 @@ class EvaluationConfig(BaseModel):
 # ------------------------------------------------------------
 
 
-class UniqueAIPromptConfig(BaseModel):
-    model_config = get_configuration_dict(frozen=True)
-
+class UniqueAIPromptConfig(BaseToolConfig):
     system_prompt_template: str = Field(
         default_factory=lambda: (
             Path(__file__).parent / "prompts" / "system_prompt.jinja2"
@@ -206,35 +194,16 @@ class UniqueAIPromptConfig(BaseModel):
     )
 
 
-class UniqueAIServices(BaseModel):
+class UniqueAIServices(BaseToolConfig):
     """Determine the services the agent is using
 
     All services are optional and can be disabled by setting them to None.
     """
+    follow_up_questions_config: FollowUpQuestionsConfig = FollowUpQuestionsConfig()
 
-    model_config = get_configuration_dict(frozen=True)
+    stock_ticker_config: StockTickerConfig = StockTickerConfig()
 
-    follow_up_questions_config: (
-        Annotated[
-            FollowUpQuestionsConfig,
-            Field(
-                title="Active",
-            ),
-        ]
-        | DeactivatedNone
-    ) = FollowUpQuestionsConfig()
-
-    stock_ticker_config: (
-        Annotated[StockTickerConfig, Field(title="Active")] | DeactivatedNone
-    ) = StockTickerConfig()
-
-    evaluation_config: (
-        Annotated[
-            EvaluationConfig,
-            Field(title="Active"),
-        ]
-        | DeactivatedNone
-    ) = EvaluationConfig(
+    evaluation_config: EvaluationConfig = EvaluationConfig(
         hallucination_config=HallucinationConfig(),
     )
 
@@ -247,9 +216,7 @@ class UniqueAIServices(BaseModel):
     )
 
 
-class InputTokenDistributionConfig(BaseModel):
-    model_config = get_configuration_dict(frozen=True)
-
+class InputTokenDistributionConfig(BaseToolConfig):
     percent_for_history: float = Field(
         default=0.2,
         ge=0.0,
@@ -261,9 +228,7 @@ class InputTokenDistributionConfig(BaseModel):
         return int(self.percent_for_history * max_input_token)
 
 
-class SubAgentsReferencingConfig(BaseModel):
-    model_config = get_configuration_dict()
-
+class SubAgentsReferencingConfig(BaseToolConfig):
     referencing_instructions_for_system_prompt: str = Field(
         default=REFERENCING_INSTRUCTIONS_FOR_SYSTEM_PROMPT,
         description="Referencing instructions for the main agent's system prompt.",
@@ -274,9 +239,7 @@ class SubAgentsReferencingConfig(BaseModel):
     )
 
 
-class SubAgentsConfig(BaseModel):
-    model_config = get_configuration_dict()
-
+class SubAgentsConfig(BaseToolConfig):
     referencing_config: (
         Annotated[SubAgentsReferencingConfig, Field(title="Active")] | DeactivatedNone
     ) = SubAgentsReferencingConfig()
@@ -291,9 +254,7 @@ class SubAgentsConfig(BaseModel):
     )
 
 
-class CodeInterpreterExtendedConfig(BaseModel):
-    model_config = get_configuration_dict()
-
+class CodeInterpreterExtendedConfig(BaseToolConfig):
     generated_files_config: DisplayCodeInterpreterFilesPostProcessorConfig = Field(
         default=DisplayCodeInterpreterFilesPostProcessorConfig(),
         title="Generated files config",
@@ -317,9 +278,7 @@ class CodeInterpreterExtendedConfig(BaseModel):
     )
 
 
-class ResponsesApiConfig(BaseModel):
-    model_config = get_configuration_dict(frozen=True)
-
+class ResponsesApiConfig(BaseToolConfig):
     code_interpreter: (
         Annotated[CodeInterpreterExtendedConfig, Field(title="Active")]
         | DeactivatedNone
@@ -334,11 +293,8 @@ class ResponsesApiConfig(BaseModel):
     )
 
 
-class ExperimentalConfig(BaseModel):
+class ExperimentalConfig(BaseToolConfig):
     """Experimental features this part of the configuration might evolve in the future continuously"""
-
-    model_config = get_configuration_dict(frozen=True)
-
     thinking_steps_display: SkipJsonSchema[bool] = False
 
     # TODO: The temperature should be used via the additional_llm_options
@@ -364,9 +320,7 @@ class ExperimentalConfig(BaseModel):
     responses_api_config: ResponsesApiConfig = ResponsesApiConfig()
 
 
-class UniqueAIAgentConfig(BaseModel):
-    model_config = get_configuration_dict(frozen=True)
-
+class UniqueAIAgentConfig(BaseToolConfig):
     max_loop_iterations: int = 8
 
     input_token_distribution: InputTokenDistributionConfig = Field(
@@ -381,9 +335,7 @@ class UniqueAIAgentConfig(BaseModel):
     experimental: ExperimentalConfig = ExperimentalConfig()
 
 
-class UniqueAIConfig(BaseModel):
-    model_config = get_configuration_dict(frozen=True)
-
+class UniqueAIConfig(BaseToolConfig):
     space: UniqueAISpaceConfig = UniqueAISpaceConfig()
 
     agent: UniqueAIAgentConfig = UniqueAIAgentConfig()

@@ -1,6 +1,7 @@
 from typing import Any
 
 from pydantic import Field
+from pydantic.json_schema import SkipJsonSchema
 
 from unique_toolkit._common.validators import LMI
 from unique_toolkit.agentic.evaluation.config import EvaluationMetricConfig
@@ -24,8 +25,8 @@ USER_MSG_DEFAULT_KEY = "userPromptDefault"
 
 
 class HallucinationConfig(EvaluationMetricConfig):
-    enabled: bool = False
-    name: EvaluationMetricName = EvaluationMetricName.HALLUCINATION
+    enabled: SkipJsonSchema[bool] = False
+    name: SkipJsonSchema[EvaluationMetricName] = EvaluationMetricName.HALLUCINATION
     language_model: LMI = LanguageModelInfo.from_name(
         DEFAULT_GPT_4o,
     )
