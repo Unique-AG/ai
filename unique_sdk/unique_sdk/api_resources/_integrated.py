@@ -88,11 +88,19 @@ class Integrated(APIResource["Integrated"]):
         name: str | None
         arguments: str | None
 
-    class ResponsesStreamResult(TypedDict):
+    class StreamResult(TypedDict, total=False):
+        message: Message
+        toolCalls: List["Integrated.ToolCall"]
+        usage: dict[str, Any]
+        stoppedByUser: bool
+
+    class ResponsesStreamResult(TypedDict, total=False):
         id: str
         message: Message
         toolCalls: List["Integrated.ToolCall"]
         output: list["ResponseOutputItem"]
+        usage: dict[str, Any]
+        stoppedByUser: bool
 
     @classmethod
     def chat_stream_completion(
@@ -100,15 +108,18 @@ class Integrated(APIResource["Integrated"]):
         user_id: str,
         company_id: str,
         **params: Unpack["Integrated.CreateStream"],
-    ) -> "Message":
+    ) -> "Integrated.StreamResult":
         """
         Executes a call to the language model and streams to the chat in real-time.
         It automatically inserts references that are mentioned by the model.
         In the form of [sourceX]. The reference documents must be given as a list in searchContext.
+
+        Returns:
+            StreamResult containing message, toolCalls, usage, and stoppedByUser flag.
         """
         url = "/integrated/chat/stream-completions"
         return cast(
-            "Message",
+            "Integrated.StreamResult",
             cls._static_request(
                 "post",
                 url,
@@ -124,15 +135,18 @@ class Integrated(APIResource["Integrated"]):
         user_id: str,
         company_id: str,
         **params: Unpack["Integrated.CreateStream"],
-    ) -> "Message":
+    ) -> "Integrated.StreamResult":
         """
         Executes a call to the language model and streams to the chat in real-time.
         It automatically inserts references that are mentioned by the model.
         In the form of [sourceX]. The reference documents must be given as a list in searchContext.
+
+        Returns:
+            StreamResult containing message, toolCalls, usage, and stoppedByUser flag.
         """
         url = "/integrated/chat/stream-completions"
         return cast(
-            "Message",
+            "Integrated.StreamResult",
             await cls._static_request_async(
                 "post",
                 url,
