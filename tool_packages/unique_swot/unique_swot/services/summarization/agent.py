@@ -56,7 +56,7 @@ class SummarizationAgent:
         except Exception as e:
             # If an error occur during the summarization, we return an empty string
             _LOGGER.exception(f"Error summarizing report: {e}")
-            return "An error occurred during summarization. Please try again."
+            return "An error occurred during generating the executive summary. Please try again."
 
         summarization_result = response.choices[0].message.content
 

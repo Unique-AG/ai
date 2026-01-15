@@ -1,11 +1,11 @@
-{% if executive_summary is not none and executive_summary |length > 0 %}
+{% if executive_summary |length > 0 %}
 # Executive Overview
 
 {{ executive_summary }}
 {% endif %}
 
 
-{%if body is not none and body |length > 0 %}
+{%if body |length > 0 %}
 # In-Depth SWOT Assessment
 
 {{ body }}

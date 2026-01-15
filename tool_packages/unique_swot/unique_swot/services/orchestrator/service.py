@@ -144,8 +144,6 @@ class SWOTOrchestrator:
                 progress=next(progress_sequence),
             )
 
-            source_title = _get_content_title(content)
-
             source_selection_result = await self._source_selector.select(
                 company_name=company_name,
                 content=content,
@@ -154,10 +152,10 @@ class SWOTOrchestrator:
 
             if not source_selection_result.should_select:
                 # Skip the source if it is not selected
-                _LOGGER.info(f"Skipping source `{source_title}` as it is not selected")
+                _LOGGER.info("Skipping source because it is not selected")
                 continue
-            else:
-                _LOGGER.info(f"Selecting source `{source_title}` as it is selected")
+
+            _LOGGER.info("Selecting source because it is selected")
 
             await self._reporting_agent.generate(
                 plan=plan,
@@ -168,10 +166,6 @@ class SWOTOrchestrator:
             )
 
         return self._reporting_agent.get_reports()
-
-
-def _get_content_title(content: Content) -> str:
-    return content.title or content.key or "Unknown Title"
 
 
 def _create_progress_sequence(
