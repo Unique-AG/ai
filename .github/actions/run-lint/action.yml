@@ -30,6 +30,11 @@ runs:
         python_version: ${{ inputs.python_version }}
         package_manager_version: ${{ inputs.package_manager_version }}
 
+    - name: Install dependencies
+      shell: bash
+      working-directory: ${{ inputs.package_dir }}
+      run: ${{ steps.install_pm.outputs.install_cmd }}
+
     - name: Run Ruff format check
       shell: bash
       working-directory: ${{ inputs.package_dir }}
