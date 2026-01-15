@@ -2,8 +2,7 @@ name: "[CI] Pytest - All Packages"
 
 on:
   pull_request:
-  push:
-    branches: [main]
+  merge_group:
   workflow_dispatch:
     inputs:
       package:
