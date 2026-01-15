@@ -44,8 +44,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.0.4] - 2025-09-17
 - Updated to latest toolkit
-
-## [0.0.4] - 2025-08-25
 - Moved to to postprocessor location.
 
 ## [0.0.3] - 2025-08-22
