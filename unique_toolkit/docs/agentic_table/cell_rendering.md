@@ -39,6 +39,8 @@ References are a special component in the unique platform.
 A set of references are associated with a message with an ID and are stored and maintained in the backend.
 You might have seen these IDs when working with the chat service. When generating text and including references, you will need to use the following format:
 
+![References](images/references.png)
+
 ```markdown
 [X&msg_<message_id>]
 ```
@@ -56,6 +58,8 @@ In the above example, the message refers to the first (0 indexed) reference in t
 ## Cell Selection
 
 Cell metadata allows you to control the visual styling and state of individual cells in the Agentic Table. This includes selection state, selection method, and agreement status.
+
+![Cell Selection](images/selection.png)
 
 ```python
 AgenticTableService.set_cell_metadata(

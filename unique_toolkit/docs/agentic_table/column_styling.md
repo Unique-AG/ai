@@ -91,7 +91,12 @@ Cell renderers control how cells are displayed and interacted with in the column
 
 - `CellRendererTypes.CHECKBOX_LOCK_CELL_RENDERER`: Renders cells as checkboxes with lock functionality
 - `CellRendererTypes.COLLABORATOR_DROPDOWN`: Renders a dropdown for selecting collaborators
+
+![Collaborator Dropdown](images/assignee.png)
+
 - `CellRendererTypes.REVIEW_STATUS_DROPDOWN`: Renders a dropdown for selecting review status
+
+![Review Status Dropdown](images/review_status.png)
 - `CellRendererTypes.CUSTOM_CELL_RENDERER`: Markdown renderer for rendering markdown text
 - `CellRendererTypes.SELECTABLE_CELL_RENDERER`: Markdown rendering + cells as selectable (for cell selection functionality)
 
@@ -148,6 +153,8 @@ await service.set_column_style(column=1, editable=True)
 ## Selectable Cells
 
 To enable cell selection functionality in a column, use the `SELECTABLE_CELL_RENDERER` renderer type. This allows users to select individual cells, which can then be used with cell metadata (see [Cell Rendering](cell_rendering.md) for more details on cell selection).
+
+![Cell Selection](images/selection.png)
 
 **Example:**
 ```python
