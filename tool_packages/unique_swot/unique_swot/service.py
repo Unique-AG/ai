@@ -225,8 +225,6 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
                 company_name=company_name, markdown_report=executive_summary
             )
 
-            await progress_notifier.finish()
-
             report_handler.deliver_report(
                 executive_summary=summarization_result,
                 body=executive_summary,
@@ -237,6 +235,8 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
                 },
                 ingest_docx=self.config.report_renderer_config.ingest_docx_report,
             )
+
+            await progress_notifier.finish()
 
             return ToolCallResponse(
                 id=tool_call.id,  # type: ignore
