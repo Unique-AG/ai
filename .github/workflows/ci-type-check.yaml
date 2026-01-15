@@ -108,7 +108,7 @@ jobs:
         uses: ./.github/actions/create-type-baseline
         with:
           package_dir: ${{ matrix.dir }}
-          branch: ${{ github.base_ref }}
+          branch: ${{ github.base_ref || 'main' }}
           python_version: ${{ matrix.python }}
 
       - name: Run type check
@@ -126,6 +126,6 @@ jobs:
         run: |
           bash ${{ github.workspace }}/.github/scripts/report-type-errors.sh \
             -r /tmp/reviewdog \
-            -b ${{ github.base_ref }} \
+            -b ${{ github.base_ref || 'main' }} \
             ${{ github.workspace }}/${{ matrix.dir }} \
             /tmp/basedpyright.json || true
