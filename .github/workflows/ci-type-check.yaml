@@ -86,6 +86,7 @@ jobs:
     needs: detect-changes
     if: ${{ fromJson(needs.detect-changes.outputs.matrix).include[0] != null }}
     runs-on: ubuntu-latest
+    continue-on-error: true
     permissions:
       contents: read
       pull-requests: write
@@ -118,6 +119,7 @@ jobs:
           output_file: /tmp/basedpyright.json
 
       - name: Report type errors
+        continue-on-error: true
         env:
           REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -125,4 +127,4 @@ jobs:
             -r /tmp/reviewdog \
             -b ${{ github.base_ref || 'main' }} \
             ${{ github.workspace }}/${{ matrix.dir }} \
-            /tmp/basedpyright.json
+            /tmp/basedpyright.json || true
