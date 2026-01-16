@@ -97,7 +97,7 @@ class WebSearchConfig(BaseToolConfig):
     )
 
     web_search_active_mode: WebSearchMode = Field(
-        default=WebSearchMode.V1,
+        default=DEFAULT_WEB_SEARCH_MODE_CONFIG,
         description="Web Search Active Mode",
     )
 
