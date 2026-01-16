@@ -212,21 +212,16 @@ cmd_coverage() {
         
         if [[ "$HAS_CHANGES" == true ]]; then
             echo ""
-            print_warn "You have uncommitted changes."
-            print_warn "Diff-based coverage requires checking out $BASE_REF temporarily."
+            print_error "You have uncommitted changes."
+            print_error "Diff-based coverage requires a clean workspace."
             echo ""
-            echo "Options:"
-            echo "  1. Press ENTER to continue (changes will be auto-stashed and restored)"
-            echo "  2. Press Ctrl+C to abort and handle manually:"
-            echo "     a) git stash"
-            echo "     b) ./dev.sh coverage --dir $(basename $PACKAGE_DIR)   # runs on clean code"
-            echo "     c) git stash pop"
-            echo "     d) ./dev.sh coverage --dir $(basename $PACKAGE_DIR)   # runs with your changes"
+            echo "Please either:"
+            echo "  1. Commit your changes:  git add . && git commit -m 'WIP'"
+            echo "  2. Stash your changes:   git stash"
             echo ""
-            print_error "IMPORTANT: If you stash manually, the FIRST run checks clean code only."
-            print_error "You MUST run AGAIN after 'git stash pop' to check your actual changes!"
+            echo "Then run this command again."
             echo ""
-            read -p "Press ENTER to continue with auto-stash, or Ctrl+C to abort... "
+            exit 1
         fi
         
         # Check if the CI script exists
@@ -275,50 +270,76 @@ cmd_typecheck() {
         
         if [[ "$HAS_CHANGES" == true ]]; then
             echo ""
-            print_warn "You have uncommitted changes."
-            print_warn "Baseline computation requires checking out $BASE_REF temporarily."
+            print_error "You have uncommitted changes."
+            print_error "Baseline computation requires a clean workspace to checkout $BASE_REF."
             echo ""
-            echo "Options:"
-            echo "  1. Press ENTER to continue (changes will be auto-stashed and restored)"
-            echo "  2. Press Ctrl+C to abort and handle manually:"
-            echo "     a) git stash"
-            echo "     b) ./dev.sh typecheck --dir $PACKAGE_NAME   # computes baseline only"
-            echo "     c) git stash pop"
-            echo "     d) ./dev.sh typecheck --dir $PACKAGE_NAME   # actual check with your changes"
+            echo "Please either:"
+            echo "  1. Commit your changes:  git add . && git commit -m 'WIP'"
+            echo "  2. Stash your changes:   git stash"
             echo ""
-            print_error "IMPORTANT: If you stash manually, the FIRST run only caches the baseline."
-            print_error "You MUST run AGAIN after 'git stash pop' to check your actual changes!"
+            echo "Then run this command again. After baseline is cached, you can:"
+            echo "  - Unstash: git stash pop"
+            echo "  - Or continue working on your commit"
             echo ""
-            read -p "Press ENTER to continue with auto-stash, or Ctrl+C to abort... "
+            exit 1
         fi
         
-        # Stash any uncommitted changes
-        STASH_RESULT=$(git stash push -m "dev.sh typecheck baseline" 2>&1) || true
-        NEEDS_UNSTASH=false
-        if [[ "$STASH_RESULT" != *"No local changes"* ]]; then
-            NEEDS_UNSTASH=true
-            print_info "Stashed uncommitted changes."
+        # Save current branch name (not SHA, to avoid detached HEAD)
+        CURRENT_BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null)
+        if [[ -z "$CURRENT_BRANCH" ]]; then
+            print_error "Already in detached HEAD state. Please checkout a branch first."
+            exit 1
         fi
+        print_info "Current branch: $CURRENT_BRANCH"
         
-        # Save current branch/commit
-        CURRENT_REF=$(git rev-parse HEAD)
+        # Function to restore original state
+        restore_branch() {
+            print_info "Restoring to branch: $CURRENT_BRANCH"
+            rm -rf .basedpyright 2>/dev/null || true
+            git checkout "$CURRENT_BRANCH" --quiet 2>/dev/null || git checkout "$CURRENT_BRANCH"
+        }
         
-        # Checkout base ref
+        # Set trap to restore branch on any error or exit
+        trap restore_branch EXIT
+        
+        # Checkout base ref (this creates detached HEAD, which is expected)
+        print_info "Checking out $BASE_REF for baseline..."
         git checkout "$BASE_REF" --quiet 2>/dev/null || git checkout "$BASE_SHA" --quiet
         
-        # Install deps and generate baseline
+        # Install deps and generate baseline using --writebaseline (same as CI)
         if [[ "$PM" == "uv" ]]; then
             uv sync --quiet 2>/dev/null || true
         else
             poetry install --quiet 2>/dev/null || true
         fi
         
-        # Run basedpyright to generate baseline JSON
-        print_info "Generating baseline from $BASE_REF..."
-        $RUN basedpyright --outputjson > "$BASELINE_FILE" 2>/dev/null || true
+        # Create .basedpyright directory and run with --writebaseline
+        print_info "Generating baseline from $BASE_REF using --writebaseline..."
+        mkdir -p .basedpyright
+        $RUN basedpyright --writebaseline 2>&1 || true
         
-        # Return to original state
-        git checkout "$CURRENT_REF" --quiet 2>/dev/null || git checkout - --quiet
+        # Copy baseline to cache
+        if [[ -f .basedpyright/baseline.json ]]; then
+            cp .basedpyright/baseline.json "$BASELINE_FILE"
+            print_success "Baseline created with $(jq '[.files[] | length] | add // 0' "$BASELINE_FILE" 2>/dev/null || echo "?") known errors"
+        else
+            # No errors in base branch, create empty baseline
+            echo '{"files":{}}' > "$BASELINE_FILE"
+            print_success "Baseline created (no errors in $BASE_REF)"
+        fi
+        
+        # Clean up .basedpyright on base branch before switching back
+        rm -rf .basedpyright 2>/dev/null || true
+        
+        # Remove trap before manually restoring (to avoid double execution)
+        trap - EXIT
+        
+        # Return to original branch
+        print_info "Returning to branch: $CURRENT_BRANCH"
+        git checkout "$CURRENT_BRANCH" --quiet 2>/dev/null || {
+            print_error "Failed to checkout $CURRENT_BRANCH, trying without --quiet..."
+            git checkout "$CURRENT_BRANCH"
+        }
         
         # Reinstall deps for current branch
         if [[ "$PM" == "uv" ]]; then
@@ -327,43 +348,36 @@ cmd_typecheck() {
             poetry install --quiet 2>/dev/null || true
         fi
         
-        # Unstash if needed
-        if [[ "$NEEDS_UNSTASH" == true ]]; then
-            git stash pop --quiet 2>/dev/null || true
-        fi
-        
         print_success "Baseline cached at: $BASELINE_FILE"
         
         # Clean up old baselines (keep only latest 3)
         ls -t "$CACHE_DIR"/baseline-*.json 2>/dev/null | tail -n +4 | xargs rm -f 2>/dev/null || true
     fi
     
-    # Run type check with baseline
+    # Copy cached baseline to .basedpyright/baseline.json so basedpyright uses it
     print_info "Running basedpyright with baseline..."
+    mkdir -p .basedpyright
+    cp "$BASELINE_FILE" .basedpyright/baseline.json
     
-    # Create temp baseline in .basedpyright format (in package dir temporarily)
-    TEMP_BASELINE_DIR="$PACKAGE_DIR/.basedpyright"
-    TEMP_BASELINE="$TEMP_BASELINE_DIR/.basedpyrightbaseline.json"
-    
-    mkdir -p "$TEMP_BASELINE_DIR"
-    
-    # Convert output JSON to baseline format if needed
-    if [[ -f "$BASELINE_FILE" ]]; then
-        cp "$BASELINE_FILE" "$TEMP_BASELINE" 2>/dev/null || true
-    fi
+    # Ensure cleanup happens even on error
+    cleanup_basedpyright() {
+        rm -rf .basedpyright 2>/dev/null || true
+    }
+    trap cleanup_basedpyright EXIT
     
     set +e
     $RUN basedpyright "${EXTRA_ARGS[@]}"
     EXIT_CODE=$?
     set -e
     
-    # Clean up temp baseline dir
-    rm -rf "$TEMP_BASELINE_DIR" 2>/dev/null || true
+    # Clean up .basedpyright directory
+    trap - EXIT
+    rm -rf .basedpyright 2>/dev/null || true
     
     if [[ $EXIT_CODE -eq 0 ]]; then
-        print_success "Type check complete!"
+        print_success "Type check complete! No new type errors."
     else
-        print_warn "Type check completed with errors (exit code: $EXIT_CODE)"
+        print_warn "Type check found new errors (exit code: $EXIT_CODE)"
     fi
 }
 
