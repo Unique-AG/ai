@@ -38,27 +38,27 @@ jobs:
         with:
           filters: |
             toolkit:
-              - 'unique_toolkit/**/!(docs/**|*mkdocs.yaml)'
+              - 'unique_toolkit/**/!(*.md|docs/**|.entangled/**|*mkdocs.yaml)'
             sdk:
-              - 'unique_sdk/**'
+              - 'unique_sdk/**/!(*.md)'
             mcp:
-              - 'unique_mcp/**'
+              - 'unique_mcp/**/!(*.md)'
             orchestrator:
-              - 'unique_orchestrator/**'
+              - 'unique_orchestrator/**/!(*.md)'
             web_search:
-              - 'tool_packages/unique_web_search/**'
+              - 'tool_packages/unique_web_search/**/!(*.md)'
             swot:
-              - 'tool_packages/unique_swot/**'
+              - 'tool_packages/unique_swot/**/!(*.md)'
             follow_up_questions:
-              - 'postprocessors/unique_follow_up_questions/**'
+              - 'postprocessors/unique_follow_up_questions/**/!(*.md)'
             stock_ticker:
-              - 'postprocessors/unique_stock_ticker/**'
+              - 'postprocessors/unique_stock_ticker/**/!(*.md)'
             deep_research:
-              - 'tool_packages/unique_deep_research/**'
+              - 'tool_packages/unique_deep_research/**/!(*.md)'
             internal_search:
-              - 'tool_packages/unique_internal_search/**'
+              - 'tool_packages/unique_internal_search/**/!(*.md)'
             quartr:
-              - 'connectors/unique_quartr/**'
+              - 'connectors/unique_quartr/**/!(*.md)'
 
       - name: Select packages
         id: set-matrix
