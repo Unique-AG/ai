@@ -377,7 +377,8 @@ cmd_typecheck() {
     if [[ $EXIT_CODE -eq 0 ]]; then
         print_success "Type check complete! No new type errors."
     else
-        print_warn "Type check found new errors (exit code: $EXIT_CODE)"
+        print_error "Type check found new errors (exit code: $EXIT_CODE)"
+        exit $EXIT_CODE
     fi
 }
 
@@ -396,7 +397,7 @@ cmd_all() {
     else
         SCRIPT_PATH="$(git rev-parse --show-toplevel)/.github/scripts/check-types.sh"
         if [[ -f "$SCRIPT_PATH" ]]; then
-            bash "$SCRIPT_PATH" "$PACKAGE_DIR" --base-ref "$BASE_REF" || true
+            bash "$SCRIPT_PATH" "$PACKAGE_DIR" --base-ref "$BASE_REF"
         else
             $RUN basedpyright
         fi
