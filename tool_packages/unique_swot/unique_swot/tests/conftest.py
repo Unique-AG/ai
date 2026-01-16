@@ -312,7 +312,10 @@ def mock_llm():
     """Mock LLM (Language Model Interface) for testing."""
     llm = Mock()
     llm.name = "test-model"
-    llm.encoder_name = "cl100k_base"
+    # encoder_name should be an object with a .value attribute (enum-like)
+    encoder_name_mock = Mock()
+    encoder_name_mock.value = "cl100k_base"
+    llm.encoder_name = encoder_name_mock
     return llm
 
 

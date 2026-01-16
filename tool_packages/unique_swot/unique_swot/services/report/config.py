@@ -55,6 +55,6 @@ class ReportRendererConfig(BaseModel):
         description="The configuration for the DOCX renderer.",
     )
     ingest_docx_report: bool = Field(
-        default=True,
+        default=False,
         description="Whether to ingest the DOCX report into the chat.",
     )

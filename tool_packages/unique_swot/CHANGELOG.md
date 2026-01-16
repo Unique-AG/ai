@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-01-16
+### Added
+- Adaptive batch processing for large documents to prevent skipped files
+  - `batch_sequence_generator` utility for token-aware content batching
+  - Automatic document splitting based on configurable `max_tokens_per_extraction_batch`
+  - Documents that exceed token limits are now processed in manageable batches instead of being skipped
+  - Per-batch progress notifications with clear batch indicators (e.g., "Batch 1 of 3")
+  - `create_batch_notification` helper for consistent batch messaging
+- Enhanced progress tracking for multi-batch processing
+  - Initial notification when documents are split into multiple batches
+  - Granular progress updates for each batch within SWOT components
+  - Improved user visibility into long-running extraction operations
+- Progress UI component with real-time overall progress tracking
+  - `ProgressNotifier` with `increment()` and `update()` methods for fine-grained control
+  - Percentage-based progress updates displayed to users
+  - Dynamic progress calculation based on number of sources and SWOT components
+  - Automatic progress increments for each completed batch and component
+
+### Changed
+- Generation agent now splits large documents into batches before processing
+- Batch splitting occurs prior to `handle_generate_operation`, ensuring safe token-limited content is passed
+- Progress notification system updated to show batch-level granularity
+- Orchestrator calculates and distributes progress increments across the entire workflow
+- Progress tracking now includes both source-level and component-level granularity
+
+### Fixed
+- Large documents no longer cause file processing to be skipped due to token limit violations
+- All documents, regardless of size, are now processed through adaptive batching
+
+### Improved
+- Processing reliability: Large documents are automatically handled without manual intervention
+- User experience: Clear progress indicators for long document processing with overall completion percentage
+- Extraction quality: Token limits respected per batch, preventing LLM context overflow
+- Transparency: Users can now see exactly where the analysis is in the overall workflow
+
 ## [1.1.5] - 2026-01-15
 - Add `pytest-cov` dev dependency for coverage testing
 

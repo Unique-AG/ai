@@ -76,7 +76,8 @@ async def test_generation_agent_generate_workflow(
     source_registry = Mock()
     source_registry.register.return_value = "chunk_generated_id"
 
-    prompts_config = Mock()
+    config = Mock()
+    config.max_tokens_per_extraction_batch = 1000
 
     agent = GenerationAgent(
         company_name="ACME Corp",
@@ -84,7 +85,7 @@ async def test_generation_agent_generate_workflow(
         llm_service=mock_language_model_service,
         registry=mock_swot_report_registry,
         executor=mock_agentic_executor,
-        prompts_config=prompts_config,
+        config=config,
     )
 
     content = _make_content()
@@ -124,7 +125,8 @@ async def test_generation_agent_prepares_source_batches(
     chunk_ids = ["chunk_id_1", "chunk_id_2"]
     source_registry.register.side_effect = chunk_ids
 
-    prompts_config = Mock()
+    config = Mock()
+    config.max_tokens_per_extraction_batch = 1000
 
     agent = GenerationAgent(
         company_name="ACME Corp",
@@ -132,7 +134,7 @@ async def test_generation_agent_prepares_source_batches(
         llm_service=mock_language_model_service,
         registry=mock_swot_report_registry,
         executor=mock_agentic_executor,
-        prompts_config=prompts_config,
+        config=config,
     )
 
     content = _make_content()
@@ -174,7 +176,8 @@ async def test_generation_agent_skips_not_requested_operations(
     source_registry = Mock()
     source_registry.register.return_value = "chunk_id"
 
-    prompts_config = Mock()
+    config = Mock()
+    config.max_tokens_per_extraction_batch = 1000
 
     agent = GenerationAgent(
         company_name="ACME Corp",
@@ -182,7 +185,7 @@ async def test_generation_agent_skips_not_requested_operations(
         llm_service=mock_language_model_service,
         registry=mock_swot_report_registry,
         executor=mock_agentic_executor,
-        prompts_config=prompts_config,
+        config=config,
     )
 
     content = _make_content()
@@ -232,7 +235,8 @@ async def test_generation_agent_handles_modify_operation(
     source_registry = Mock()
     source_registry.register.return_value = "chunk_id"
 
-    prompts_config = Mock()
+    config = Mock()
+    config.max_tokens_per_extraction_batch = 1000
 
     agent = GenerationAgent(
         company_name="ACME Corp",
@@ -240,7 +244,7 @@ async def test_generation_agent_handles_modify_operation(
         llm_service=mock_language_model_service,
         registry=mock_swot_report_registry,
         executor=mock_agentic_executor,
-        prompts_config=prompts_config,
+        config=config,
     )
 
     content = _make_content()
@@ -289,7 +293,8 @@ async def test_generation_agent_sends_notifications(
     source_registry = Mock()
     source_registry.register.return_value = "chunk_id"
 
-    prompts_config = Mock()
+    config = Mock()
+    config.max_tokens_per_extraction_batch = 1000
 
     agent = GenerationAgent(
         company_name="ACME Corp",
@@ -297,7 +302,7 @@ async def test_generation_agent_sends_notifications(
         llm_service=mock_language_model_service,
         registry=mock_swot_report_registry,
         executor=mock_agentic_executor,
-        prompts_config=prompts_config,
+        config=config,
     )
 
     content = _make_content()
@@ -330,7 +335,8 @@ def test_generation_agent_get_reports(
         )
     ]
 
-    prompts_config = Mock()
+    config = Mock()
+    config.max_tokens_per_extraction_batch = 1000
 
     agent = GenerationAgent(
         company_name="ACME Corp",
@@ -338,7 +344,7 @@ def test_generation_agent_get_reports(
         llm_service=mock_language_model_service,
         registry=registry,
         executor=mock_agentic_executor,
-        prompts_config=prompts_config,
+        config=config,
     )
 
     reports = agent.get_reports()
@@ -357,7 +363,8 @@ def test_generation_agent_notification_title_property(
     mock_agentic_executor,
 ):
     """Test notification_title property getter and setter."""
-    prompts_config = Mock()
+    config = Mock()
+    config.max_tokens_per_extraction_batch = 1000
 
     agent = GenerationAgent(
         company_name="ACME Corp",
@@ -365,7 +372,7 @@ def test_generation_agent_notification_title_property(
         llm_service=mock_language_model_service,
         registry=mock_swot_report_registry,
         executor=mock_agentic_executor,
-        prompts_config=prompts_config,
+        config=config,
     )
 
     # Default title

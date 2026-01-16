@@ -392,7 +392,7 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
             registry=SWOTReportRegistry(),
             company_name=company_name,
             executor=executor,
-            prompts_config=self.config.report_generation_config.agentic_generator_config.prompts_config,
+            config=self.config.report_generation_config.agentic_generator_config,
         )
 
     def _get_summarization_agent(self) -> SummarizationAgent:

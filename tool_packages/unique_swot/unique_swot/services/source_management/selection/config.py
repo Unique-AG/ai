@@ -10,7 +10,7 @@ class SourceSelectionConfig(BaseModel):
     model_config = get_configuration_dict()
 
     max_number_of_selected_chunks: int = Field(
-        default=5,
+        default=50,
         description="The maximum number of chunks to select to make the decision of selecting the source.",
     )
     prompt_config: SourceSelectionPromptConfig = Field(
