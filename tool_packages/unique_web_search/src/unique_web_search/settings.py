@@ -28,7 +28,7 @@ class Base(BaseSettings):
     log_level: str | None = None
     tiktoken_cache_dir: str = "./tiktoken_cache/"
 
-    web_search_mode: WebSearchMode | None = None
+    web_search_mode: WebSearchMode = "v2"
 
     # Active search engines
     active_search_engines: list[str] = ["google"]
@@ -107,13 +107,6 @@ class Base(BaseSettings):
             default_crawlers.append("tavily")
 
         return default_crawlers
-
-    @property
-    def default_web_search_mode(self) -> WebSearchMode:
-        if self.web_search_mode is None:
-            _LOGGER.warning("No default web search mode set, using v1")
-            return "v1"
-        return self.web_search_mode
 
     @property
     def azure_identity_credential_type(self) -> AZURE_IDENTITY_CREDENTIAL_TYPE:
