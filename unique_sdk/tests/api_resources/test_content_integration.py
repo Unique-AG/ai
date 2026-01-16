@@ -27,17 +27,17 @@ from unique_sdk.api_resources._content import Content
 
 
 def assert_content(content: Content, skip_fields: list[str] | None = None) -> None:
-    assert has_all_fields(content, Content, skip_fields=skip_fields), (
-        f"Content does not have all required fields: {get_missing_fields(content, Content)}"
-    )
+    assert has_all_fields(
+        content, Content, skip_fields=skip_fields
+    ), f"Content does not have all required fields: {get_missing_fields(content, Content)}"
 
 
 def assert_content_info(
     content_info: Content.ContentInfo, skip_fields: list[str] | None = None
 ) -> None:
-    assert has_all_fields(content_info, Content.ContentInfo, skip_fields=skip_fields), (
-        f"Content info does not have all required fields: {get_missing_fields(content_info, Content.ContentInfo)}"
-    )
+    assert has_all_fields(
+        content_info, Content.ContentInfo, skip_fields=skip_fields
+    ), f"Content info does not have all required fields: {get_missing_fields(content_info, Content.ContentInfo)}"
 
 
 def assert_paginated_content_info(
@@ -47,9 +47,7 @@ def assert_paginated_content_info(
 ) -> None:
     assert has_all_fields(
         result, Content.PaginatedContentInfos, skip_fields=skip_fields
-    ), (
-        f"Result does not have all required fields: {get_missing_fields(result, Content.PaginatedContentInfos)}"
-    )
+    ), f"Result does not have all required fields: {get_missing_fields(result, Content.PaginatedContentInfos)}"
 
     # Assert
     assert isinstance(result["totalCount"], int)
@@ -59,9 +57,7 @@ def assert_paginated_content_info(
             # TODO: Fix the type that we can remove the skip_fields
             assert has_all_fields(
                 content_info, Content.ContentInfo, skip_fields=content_info_skip_fields
-            ), (
-                f"Content info does not have all required fields: {get_missing_fields(content_info, Content.ContentInfo)}"
-            )
+            ), f"Content info does not have all required fields: {get_missing_fields(content_info, Content.ContentInfo)}"
 
 
 def assert_paginated_content_infos(
@@ -71,9 +67,7 @@ def assert_paginated_content_infos(
 ) -> None:
     assert has_all_fields(
         result, Content.PaginatedContentInfos, skip_fields=skip_fields
-    ), (
-        f"Result does not have all required fields: {get_missing_fields(result, Content.PaginatedContentInfos)}"
-    )
+    ), f"Result does not have all required fields: {get_missing_fields(result, Content.PaginatedContentInfos)}"
 
     # Assert
     assert isinstance(result["totalCount"], int)
@@ -83,17 +77,15 @@ def assert_paginated_content_infos(
             # TODO: Fix the type that we can remove the skip_fields
             assert has_all_fields(
                 content_info, Content.ContentInfo, skip_fields=content_info_skip_fields
-            ), (
-                f"Content info does not have all required fields: {get_missing_fields(content_info, Content.ContentInfo)}"
-            )
+            ), f"Content info does not have all required fields: {get_missing_fields(content_info, Content.ContentInfo)}"
 
 
 def assert_delete_response(
     result: Content.DeleteResponse, skip_fields: list[str] | None = None
 ) -> None:
-    assert has_all_fields(result, Content.DeleteResponse, skip_fields=skip_fields), (
-        f"Delete response does not have all required fields: {get_missing_fields(result, Content.DeleteResponse)}"
-    )
+    assert has_all_fields(
+        result, Content.DeleteResponse, skip_fields=skip_fields
+    ), f"Delete response does not have all required fields: {get_missing_fields(result, Content.DeleteResponse)}"
 
 
 @pytest.fixture(scope="module")
