@@ -39,9 +39,7 @@ jobs:
         with:
           filters: |
             toolkit:
-              - 'unique_toolkit/**'
-              - '!unique_toolkit/docs/**'
-              - '!unique_toolkit/.entangled/**'
+              - 'unique_toolkit/**/!(docs/**|.entangled/**|*mkdocs.yaml)'
             sdk:
               - 'unique_sdk/**'
             mcp:
@@ -88,7 +86,6 @@ jobs:
     needs: detect-changes
     if: ${{ fromJson(needs.detect-changes.outputs.matrix).include[0] != null }}
     runs-on: ubuntu-latest
-    continue-on-error: true
     permissions:
       contents: read
       pull-requests: write
@@ -121,7 +118,6 @@ jobs:
           output_file: /tmp/basedpyright.json
 
       - name: Report type errors
-        continue-on-error: true
         env:
           REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -129,4 +125,4 @@ jobs:
             -r /tmp/reviewdog \
             -b ${{ github.base_ref || 'main' }} \
             ${{ github.workspace }}/${{ matrix.dir }} \
-            /tmp/basedpyright.json || true
+            /tmp/basedpyright.json
