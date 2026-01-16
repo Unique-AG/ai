@@ -156,6 +156,9 @@ dmypy.json
 # pytype static type analyzer
 .pytype/
 
+# basedpyright (temporary baseline folder)
+.basedpyright/
+
 # Cython debug symbols
 cython_debug/
 

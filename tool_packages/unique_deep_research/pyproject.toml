@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_deep_research"
-version = "3.0.25"
+version = "3.0.26"
 description = "Deep Research Tool for complex research tasks"
 authors = [
     "Martin Fadler <martin.fadler@unique.ch>",
@@ -40,6 +40,7 @@ pytest-cov = "^7.0.0"
 ruff = "^0.12.10"
 deptry = "^0.24.0"
 basedpyright = "^1.35.0"
+poethepoet = "^0.32.0"
 opik = "^1.8.42"
 google = "^3.0.0"
 google-genai = "^1.46.0"
@@ -48,6 +49,17 @@ google-genai = "^1.46.0"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poe.tasks]
+lint = "ruff check ."
+lint-fix = "ruff check . --fix"
+format = "ruff format ."
+test = "pytest"
+typecheck = "basedpyright"
+depcheck = "deptry ."
+coverage = "pytest --cov=unique_deep_research --cov-report=term-missing"
+ci-typecheck = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/dev.sh typecheck" }
+ci-coverage = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/dev.sh coverage" }
 
 [tool.deptry]
 known_first_party = ["unique_deep_research"]

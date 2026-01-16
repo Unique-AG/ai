@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_quartr"
-version = "0.2.4"
+version = "0.2.5"
 description = "Unique Quartr API client"
 authors = [
     "Rami Azouz <rami.ext@unique.ch>",
@@ -24,12 +24,24 @@ pytest-cov = "^4.1.0"
 pytest-mock = "^3.12.0"
 deptry = "^0.24.0"
 basedpyright = "^1.35.0"
+poethepoet = "^0.32.0"
 unique-toolkit = { path = "../../unique_toolkit",  develop = true }
 
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poe.tasks]
+lint = "ruff check ."
+lint-fix = "ruff check . --fix"
+format = "ruff format ."
+test = "pytest"
+typecheck = "basedpyright"
+depcheck = "deptry ."
+coverage = "pytest --cov=unique_quartr --cov-report=term-missing"
+ci-typecheck = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/dev.sh typecheck" }
+ci-coverage = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/dev.sh coverage" }
 
 [tool.deptry]
 known_first_party = ["unique_quartr", "unique_toolkit"]

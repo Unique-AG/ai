@@ -1,6 +1,6 @@
 [project]
 name = "unique_web_search"
-version = "1.8.0"
+version = "1.8.1"
 description = ""
 readme = "README.md"
 requires-python = ">=3.12,<4.0"
@@ -48,7 +48,19 @@ dev = [
   "pytest-mock>=3.14.0,<4",
   "ruff>=0.12.10,<0.13",
   "basedpyright>=1.35.0",
+  "poethepoet>=0.32.0",
 ]
+
+[tool.poe.tasks]
+lint = "ruff check ."
+lint-fix = "ruff check . --fix"
+format = "ruff format ."
+test = "pytest"
+typecheck = "basedpyright"
+depcheck = "deptry ."
+coverage = "pytest --cov=unique_web_search --cov-report=term-missing"
+ci-typecheck = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/dev.sh typecheck" }
+ci-coverage = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/dev.sh coverage" }
 
 [tool.deptry]
 known_first_party = ["unique_web_search"]

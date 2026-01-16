@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_toolkit"
-version = "1.43.7"
+version = "1.43.8"
 description = ""
 authors = [
     "Cedric Klinkert <cedric.klinkert@unique.ch>",
@@ -67,6 +67,7 @@ pytest-asyncio = "^0.23.8"
 pytest-mock = "^3.14.0"
 ipykernel = "^6.29.5"
 deptry = "^0.24.0"
+poethepoet = "^0.32.0"
 # unique-sdk = { path = "../unique_sdk" }
 mkdocs = "^1.6.1"
 mkdocs-material = "^9.6.11"
@@ -84,6 +85,17 @@ pandas = "^2.3.3"
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
+[tool.poe.tasks]
+lint = "ruff check ."
+lint-fix = "ruff check . --fix"
+format = "ruff format ."
+test = "pytest"
+typecheck = "basedpyright"
+depcheck = "deptry ."
+coverage = "pytest --cov=unique_toolkit --cov-report=term-missing"
+ci-typecheck = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/dev.sh typecheck" }
+ci-coverage = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/dev.sh coverage" }
+
 [tool.deptry]
 known_first_party = ["unique_toolkit"]
 extend_exclude = ["docs", "tests", "unique_toolkit/.*/test", "unique_toolkit/.*/tests"]
@@ -100,15 +112,6 @@ exclude = [".venv", "docs"]
 extend-select = ["I"]
 
 [tool.basedpyright]
-# Type checking mode: "off", "basic", "standard", "strict", "recommended", or "all"
 typeCheckingMode = "standard"
-# Exclude test files, virtual environments, and site-packages from type checking
-excludePaths = [
-    "**/test_*.py",
-    "**/tests/**",
-    "**/.venv/**",
-    "**/venv/**",
-    "**/site-packages/**",
-    "**/__pycache__/**",
-    "**/.pytest_cache/**",
-]
+include = ["unique_toolkit"]
+exclude = ["**/tests/**", "**/test_*.py"]

@@ -1,6 +1,5 @@
 """Tests for the SwotAnalysisToolConfig."""
 
-
 from unique_swot.config import SwotAnalysisToolConfig
 
 
