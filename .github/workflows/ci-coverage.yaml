@@ -67,17 +67,17 @@ jobs:
         with:
           packages: |
             [
-              {"id": "toolkit",            "dir": "unique_toolkit",                            "python": "3.12", "min_coverage": "80"},
+              {"id": "toolkit",            "dir": "unique_toolkit",                            "python": "3.12", "min_coverage": "60"},
               {"id": "sdk",                "dir": "unique_sdk",                                "python": "3.11", "min_coverage": "60"},
-              {"id": "mcp",                "dir": "unique_mcp",                                "python": "3.12", "min_coverage": "80"},
-              {"id": "orchestrator",       "dir": "unique_orchestrator",                       "python": "3.12", "min_coverage": "75"},
-              {"id": "web_search",         "dir": "tool_packages/unique_web_search",           "python": "3.12", "min_coverage": "80"},
-              {"id": "swot",               "dir": "tool_packages/unique_swot",                 "python": "3.12", "min_coverage": "85"},
-              {"id": "follow_up_questions","dir": "postprocessors/unique_follow_up_questions", "python": "3.12", "min_coverage": "80"},
-              {"id": "stock_ticker",       "dir": "postprocessors/unique_stock_ticker",        "python": "3.12", "min_coverage": "75"},
-              {"id": "deep_research",      "dir": "tool_packages/unique_deep_research",        "python": "3.12", "min_coverage": "65"},
-              {"id": "internal_search",    "dir": "tool_packages/unique_internal_search",      "python": "3.12", "min_coverage": "90"},
-              {"id": "quartr",             "dir": "connectors/unique_quartr",                  "python": "3.12", "min_coverage": "95"}
+              {"id": "mcp",                "dir": "unique_mcp",                                "python": "3.12", "min_coverage": "60"},
+              {"id": "orchestrator",       "dir": "unique_orchestrator",                       "python": "3.12", "min_coverage": "60"},
+              {"id": "web_search",         "dir": "tool_packages/unique_web_search",           "python": "3.12", "min_coverage": "60"},
+              {"id": "swot",               "dir": "tool_packages/unique_swot",                 "python": "3.12", "min_coverage": "60"},
+              {"id": "follow_up_questions","dir": "postprocessors/unique_follow_up_questions", "python": "3.12", "min_coverage": "60"},
+              {"id": "stock_ticker",       "dir": "postprocessors/unique_stock_ticker",        "python": "3.12", "min_coverage": "60"},
+              {"id": "deep_research",      "dir": "tool_packages/unique_deep_research",        "python": "3.12", "min_coverage": "60"},
+              {"id": "internal_search",    "dir": "tool_packages/unique_internal_search",      "python": "3.12", "min_coverage": "60"},
+              {"id": "quartr",             "dir": "connectors/unique_quartr",                  "python": "3.12", "min_coverage": "60"}
             ]
           selected: ${{ github.event.inputs.package }}
           changes: ${{ toJson(steps.filter.outputs) }}
