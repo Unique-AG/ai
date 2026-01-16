@@ -38,8 +38,7 @@ jobs:
         with:
           filters: |
             toolkit:
-              - 'unique_toolkit/**'
-              - '!unique_toolkit/docs/**'
+              - 'unique_toolkit/**/!(docs/**|*mkdocs.yaml)'
             sdk:
               - 'unique_sdk/**'
             mcp:
