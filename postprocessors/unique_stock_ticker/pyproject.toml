@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_stock_ticker"
-version = "1.0.9"
+version = "1.0.10"
 description = ""
 authors = [
     "Martin Fadler <martin.fadler@unique.ch>",
@@ -33,6 +33,7 @@ unique-sdk = { path = "../../unique_sdk" }
 unique-toolkit = { path = "../../unique_toolkit" }
 ruff = "^0.12.10"
 deptry = "^0.24.0"
+basedpyright = "^1.35.0"
 
 
 [build-system]
@@ -47,6 +48,11 @@ extend_exclude = ["unique_stock_ticker/detection/tests"]
 # pyopenssl: Required by Six API client (http_adapter.py) via urllib3.contrib.pyopenssl
 # Not directly imported as 'pyopenssl', so deptry sees it as unused
 DEP002 = ["pyopenssl"]
+
+[tool.basedpyright]
+typeCheckingMode = "standard"
+include = ["unique_stock_ticker"]
+exclude = ["**/tests/**", "**/test_*.py"]
 
 [tool.ruff]
 target-version = "py311"

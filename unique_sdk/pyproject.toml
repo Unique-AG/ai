@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_sdk"
-version = "0.10.68"
+version = "0.10.69"
 description = ""
 authors = [
     "Martin Fadler <martin.fadler@unique.ch>",
@@ -29,7 +29,7 @@ openai = {version = "^1.105.0", optional = true}
 ruff = "0.11.7"
 pytest = "^8.0"
 tox = "^4.11.4"
-pyright = "^1.1.341"
+basedpyright = "^1.35.0"
 pytest-cov = "^4.1.0"
 pytest-asyncio = "^0.24.0"
 python-dotenv = "^1.1.0"
@@ -56,9 +56,10 @@ target-version = "py311"
 [tool.ruff.lint]
 extend-select = ["I"]
 
-[tool.pyright]
+[tool.basedpyright]
+typeCheckingMode = "standard"
 include = ["unique_sdk"]
-exclude = ["build", "**/__pycache__"]
+exclude = ["build", "**/__pycache__", "**/tests/**", "**/test_*.py"]
 
 [tool.tox]
 legacy_tox_ini = """

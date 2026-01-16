@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_internal_search"
-version = "1.2.18"
+version = "1.2.19"
 description = ""
 authors = [
     "Martin Fadler <martin.fadler@unique.ch>",
@@ -24,6 +24,7 @@ pytest-asyncio = "^0.24.0"
 ruff = "^0.12.10"
 pytest-cov = "^7.0.0"
 deptry = "^0.24.0"
+basedpyright = "^1.35.0"
 
 
 [build-system]
@@ -33,6 +34,11 @@ build-backend = "poetry.core.masonry.api"
 [tool.deptry]
 known_first_party = ["unique_internal_search"]
 extend_exclude = ["tests"]
+
+[tool.basedpyright]
+typeCheckingMode = "standard"
+include = ["unique_internal_search"]
+exclude = ["**/tests/**", "**/test_*.py"]
 
 [tool.ruff]
 target-version = "py311"
