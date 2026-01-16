@@ -5690,7 +5690,7 @@ unique-web-search = ">=1.7.0,<2.0.0"
 
 [[package]]
 name = "unique-follow-up-questions"
-version = "1.1.12"
+version = "1.1.13"
 description = ""
 optional = false
 python-versions = "^3.12"
@@ -5709,7 +5709,7 @@ url = "../postprocessors/unique_follow_up_questions"
 
 [[package]]
 name = "unique-internal-search"
-version = "1.2.19"
+version = "1.2.20"
 description = ""
 optional = false
 python-versions = "^3.12"
@@ -5745,7 +5745,7 @@ unique-toolkit = ">=1.38.1,<2.0.0"
 
 [[package]]
 name = "unique-sdk"
-version = "0.10.70"
+version = "0.10.71"
 description = ""
 optional = false
 python-versions = "^3.11"
@@ -5771,7 +5771,7 @@ url = "../unique_sdk"
 
 [[package]]
 name = "unique-stock-ticker"
-version = "1.0.10"
+version = "1.0.11"
 description = ""
 optional = false
 python-versions = "^3.12"
