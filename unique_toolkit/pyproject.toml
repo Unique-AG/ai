@@ -112,15 +112,6 @@ exclude = [".venv", "docs"]
 extend-select = ["I"]
 
 [tool.basedpyright]
-# Type checking mode: "off", "basic", "standard", "strict", "recommended", or "all"
 typeCheckingMode = "standard"
-# Exclude test files, virtual environments, and site-packages from type checking
-excludePaths = [
-    "**/test_*.py",
-    "**/tests/**",
-    "**/.venv/**",
-    "**/venv/**",
-    "**/site-packages/**",
-    "**/__pycache__/**",
-    "**/.pytest_cache/**",
-]
+include = ["unique_toolkit"]
+exclude = ["**/tests/**", "**/test_*.py"]
