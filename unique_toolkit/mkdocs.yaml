@@ -58,6 +58,8 @@ nav:
       - Smart Rules: knowledge_base/smart_rules.md
     - Agentic Table:
       - agentic_table/index.md
+      - Column Styling: agentic_table/column_styling.md
+      - Cell rendering: agentic_table/cell_rendering.md
   - Examples:
     - OpenAI: plattforms/openai/openai.md
     - Chat:
