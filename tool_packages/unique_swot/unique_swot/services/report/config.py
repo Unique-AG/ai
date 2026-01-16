@@ -56,5 +56,5 @@ class ReportRendererConfig(BaseModel):
     )
     ingest_docx_report: bool = Field(
         default=False,
-        description="Whether to ingest the DOCX report into the chat.",
+        description="Ingesting the DOCX report into the chat allows the user to ask follow-up questions. It also allows side view when clicking on the reference.",
     )
