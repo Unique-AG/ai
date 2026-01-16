@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_follow_up_questions"
-version = "1.1.10"
+version = "1.1.11"
 description = ""
 authors = [
     "Martin Fadler <martin.fadler@unique.ch>",
@@ -21,6 +21,7 @@ unique-toolkit = "^1.38.1"
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.4.1"
 pytest-asyncio = "^0.25.0"
+pytest-cov = "^7.0.0"
 deptry = "^0.24.0"
 unique-sdk = { path = "../../unique_sdk" }
 unique-toolkit = { path = "../../unique_toolkit" }

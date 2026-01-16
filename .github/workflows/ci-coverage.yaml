@@ -1,8 +1,7 @@
-name: "[CI] Dependency Checks"
+name: "[CI] Coverage - All Packages"
 
 on:
   pull_request:
-  merge_group:
   workflow_dispatch:
     inputs:
       package:
@@ -67,34 +66,41 @@ jobs:
         with:
           packages: |
             [
-              {"id": "toolkit",            "dir": "unique_toolkit",                            "python": "3.12"},
-              {"id": "sdk",                "dir": "unique_sdk",                                "python": "3.11"},
-              {"id": "mcp",                "dir": "unique_mcp",                                "python": "3.12"},
-              {"id": "orchestrator",       "dir": "unique_orchestrator",                       "python": "3.12"},
-              {"id": "web_search",         "dir": "tool_packages/unique_web_search",           "python": "3.12"},
-              {"id": "swot",               "dir": "tool_packages/unique_swot",                 "python": "3.12"},
-              {"id": "follow_up_questions","dir": "postprocessors/unique_follow_up_questions", "python": "3.12"},
-              {"id": "stock_ticker",       "dir": "postprocessors/unique_stock_ticker",        "python": "3.12"},
-              {"id": "deep_research",      "dir": "tool_packages/unique_deep_research",        "python": "3.12"},
-              {"id": "internal_search",    "dir": "tool_packages/unique_internal_search",      "python": "3.12"},
-              {"id": "quartr",             "dir": "connectors/unique_quartr",                  "python": "3.12"}
+              {"id": "toolkit",            "dir": "unique_toolkit",                            "python": "3.12", "min_coverage": "60"},
+              {"id": "sdk",                "dir": "unique_sdk",                                "python": "3.11", "min_coverage": "60"},
+              {"id": "mcp",                "dir": "unique_mcp",                                "python": "3.12", "min_coverage": "60"},
+              {"id": "orchestrator",       "dir": "unique_orchestrator",                       "python": "3.12", "min_coverage": "60"},
+              {"id": "web_search",         "dir": "tool_packages/unique_web_search",           "python": "3.12", "min_coverage": "60"},
+              {"id": "swot",               "dir": "tool_packages/unique_swot",                 "python": "3.12", "min_coverage": "60"},
+              {"id": "follow_up_questions","dir": "postprocessors/unique_follow_up_questions", "python": "3.12", "min_coverage": "60"},
+              {"id": "stock_ticker",       "dir": "postprocessors/unique_stock_ticker",        "python": "3.12", "min_coverage": "60"},
+              {"id": "deep_research",      "dir": "tool_packages/unique_deep_research",        "python": "3.12", "min_coverage": "60"},
+              {"id": "internal_search",    "dir": "tool_packages/unique_internal_search",      "python": "3.12", "min_coverage": "60"},
+              {"id": "quartr",             "dir": "connectors/unique_quartr",                  "python": "3.12", "min_coverage": "60"}
             ]
           selected: ${{ github.event.inputs.package }}
           changes: ${{ toJson(steps.filter.outputs) }}
 
-  check:
+  coverage:
     needs: detect-changes
     if: ${{ fromJson(needs.detect-changes.outputs.matrix).include[0] != null }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
-    name: deps-${{ matrix.id }}
+    name: cov-${{ matrix.id }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Run min-deps tests with deptry
-        uses: ./.github/actions/run-min-tests-and-deptry
+      - name: Run coverage check
+        uses: ./.github/actions/run-coverage-check
         with:
           package_dir: ${{ matrix.dir }}
           python_version: ${{ matrix.python }}
+          base_ref: origin/${{ github.base_ref || 'main' }}
+          min_coverage: ${{ matrix.min_coverage }}
