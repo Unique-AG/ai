@@ -36,7 +36,6 @@ from unique_toolkit.agentic.tools.a2a import (
     REFERENCING_INSTRUCTIONS_FOR_USER_PROMPT,
 )
 from unique_toolkit.agentic.tools.a2a.evaluation import SubAgentEvaluationServiceConfig
-from unique_toolkit.agentic.tools.config import get_configuration_dict
 from unique_toolkit.agentic.tools.openai_builtin.manager import (
     OpenAICodeInterpreterConfig,
 )
@@ -67,6 +66,7 @@ T = TypeVar("T", bound=SpaceType)
 
 class SpaceConfigBase(BaseToolConfig, Generic[T]):
     """Base class for space configuration."""
+
     type: T = Field(description="The type of the space.")
 
     project_name: str = Field(
@@ -134,6 +134,7 @@ LIMIT_MAX_TOOL_CALLS_PER_ITERATION = 50
 
 class QwenConfig(BaseToolConfig):
     """Qwen specific configuration."""
+
     forced_tool_call_instruction: str = Field(
         default=QWEN_FORCED_TOOL_CALL_INSTRUCTION,
         description="This instruction is appended to the user message for every forced tool call.",
@@ -147,6 +148,7 @@ class QwenConfig(BaseToolConfig):
 
 class ModelSpecificConfig(BaseToolConfig):
     """Model-specific loop configurations."""
+
     qwen: QwenConfig = QwenConfig()
 
 
@@ -199,6 +201,7 @@ class UniqueAIServices(BaseToolConfig):
 
     All services are optional and can be disabled by setting them to None.
     """
+
     follow_up_questions_config: FollowUpQuestionsConfig = FollowUpQuestionsConfig()
 
     stock_ticker_config: StockTickerConfig = StockTickerConfig()
@@ -295,6 +298,7 @@ class ResponsesApiConfig(BaseToolConfig):
 
 class ExperimentalConfig(BaseToolConfig):
     """Experimental features this part of the configuration might evolve in the future continuously"""
+
     thinking_steps_display: SkipJsonSchema[bool] = False
 
     # TODO: The temperature should be used via the additional_llm_options
