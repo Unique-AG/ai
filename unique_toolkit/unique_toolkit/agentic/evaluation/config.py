@@ -1,9 +1,10 @@
 from typing import Any
 
-from humps import camelize
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
+from pydantic.json_schema import SkipJsonSchema
 
 from unique_toolkit._common.validators import LMI
+from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
@@ -11,19 +12,10 @@ from .schemas import (
     EvaluationMetricName,
 )
 
-model_config = ConfigDict(
-    alias_generator=camelize,
-    populate_by_name=True,
-    arbitrary_types_allowed=True,
-    validate_default=True,
-)
 
-
-class EvaluationMetricConfig(BaseModel):
-    model_config = model_config
-
-    enabled: bool = False
-    name: EvaluationMetricName
+class EvaluationMetricConfig(BaseToolConfig):
+    enabled: SkipJsonSchema[bool] = False
+    name: SkipJsonSchema[EvaluationMetricName]
     language_model: LMI = LanguageModelInfo.from_name(
         DEFAULT_GPT_4o,
     )
