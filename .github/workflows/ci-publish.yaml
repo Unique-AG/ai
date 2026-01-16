@@ -121,6 +121,7 @@ jobs:
           package_dir: ${{ matrix.dir }}
           package_name: ${{ matrix.pypi_name }}
           python_version: ${{ matrix.python }}
+          poetry_version: '2.1.3'
           check_version: 'true'
           pypi_token: ${{ secrets.PYPI_TOKEN }}
 
