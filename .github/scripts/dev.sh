@@ -316,7 +316,7 @@ cmd_typecheck() {
         # Create .basedpyright directory and run with --writebaseline
         print_info "Generating baseline from $BASE_REF using --writebaseline..."
         mkdir -p .basedpyright
-        $RUN basedpyright --writebaseline 2>&1 || true
+        $RUN basedpyright --writebaseline > /dev/null 2>&1 || true
         
         # Copy baseline to cache
         if [[ -f .basedpyright/baseline.json ]]; then
