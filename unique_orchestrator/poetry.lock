@@ -5820,7 +5820,7 @@ url = "../tool_packages/unique_swot"
 
 [[package]]
 name = "unique-toolkit"
-version = "1.43.7"
+version = "1.43.8"
 description = ""
 optional = false
 python-versions = "^3.12"

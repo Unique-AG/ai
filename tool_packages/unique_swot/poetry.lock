@@ -2936,7 +2936,7 @@ files = [
 
 [[package]]
 name = "unique-quartr"
-version = "0.2.4"
+version = "0.2.5"
 description = "Unique Quartr API client"
 optional = false
 python-versions = "^3.12"
@@ -2982,7 +2982,7 @@ openai = ["openai (>=1.105.0,<2.0.0)"]
 
 [[package]]
 name = "unique-toolkit"
-version = "1.43.6"
+version = "1.43.7"
 description = ""
 optional = false
 python-versions = "^3.12"

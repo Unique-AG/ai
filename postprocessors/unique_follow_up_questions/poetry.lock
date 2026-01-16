@@ -2917,7 +2917,7 @@ files = [
 
 [[package]]
 name = "unique-sdk"
-version = "0.10.70"
+version = "0.10.71"
 description = ""
 optional = false
 python-versions = "^3.11"
@@ -2943,7 +2943,7 @@ url = "../../unique_sdk"
 
 [[package]]
 name = "unique-toolkit"
-version = "1.43.6"
+version = "1.43.7"
 description = ""
 optional = false
 python-versions = "^3.12"
