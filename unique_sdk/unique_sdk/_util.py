@@ -274,3 +274,9 @@ def retry_on_error(
         return sync_wrapper
 
     return decorator
+
+
+# TODO: Remove this test function after verifying reviewdog comments work
+def _test_type_error() -> int:
+    """This function intentionally has a type error for CI testing."""
+    return "this is not an int"  # Type error: returning str instead of int
