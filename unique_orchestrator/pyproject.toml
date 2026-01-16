@@ -27,6 +27,7 @@ pytest-cov = "^7.0.0"
 ruff = "^0.11.7"
 deptry = "^0.24.0"
 basedpyright = "^1.35.0"
+poethepoet = "^0.32.0"
 unique-sdk = { path = "../unique_sdk" }
 unique-toolkit = { path = "../unique_toolkit", develop = true }
 unique-stock-ticker = { path = "../postprocessors/unique_stock_ticker", develop = true }
@@ -38,6 +39,17 @@ unique-web-search = { path = "../tool_packages/unique_web_search", develop = tru
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poe.tasks]
+lint = "ruff check ."
+lint-fix = "ruff check . --fix"
+format = "ruff format ."
+test = "pytest"
+typecheck = "basedpyright"
+depcheck = "deptry ."
+coverage = "pytest --cov=unique_orchestrator --cov-report=term-missing"
+ci-typecheck = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/dev.sh typecheck" }
+ci-coverage = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/dev.sh coverage" }
 
 [tool.deptry]
 known_first_party = ["unique_orchestrator", "unique_toolkit", "unique_stock_ticker", "unique_follow_up_questions", "unique_internal_search", "unique_deep_research", "unique_web_search", "unique_swot"]

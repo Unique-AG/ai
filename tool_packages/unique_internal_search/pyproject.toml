@@ -25,11 +25,23 @@ ruff = "^0.12.10"
 pytest-cov = "^7.0.0"
 deptry = "^0.24.0"
 basedpyright = "^1.35.0"
+poethepoet = "^0.32.0"
 
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poe.tasks]
+lint = "ruff check ."
+lint-fix = "ruff check . --fix"
+format = "ruff format ."
+test = "pytest"
+typecheck = "basedpyright"
+depcheck = "deptry ."
+coverage = "pytest --cov=unique_internal_search --cov-report=term-missing"
+ci-typecheck = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/dev.sh typecheck" }
+ci-coverage = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/dev.sh coverage" }
 
 [tool.deptry]
 known_first_party = ["unique_internal_search"]
