@@ -250,7 +250,6 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
 
             await self._chat_service.modify_assistant_message_async(
                 content=f"Error running SWOT Analysis for {company_name}: {e}",
-                set_completed_at=True,
             )
             _LOGGER.exception(f"Error running SWOT plan: {e}")
             return ToolCallResponse(
@@ -258,6 +257,11 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
                 name=self.name,
                 content=f"Error running SWOT plan: {e}",
                 content_chunks=[],
+            )
+
+        finally:
+            await self._chat_service.modify_assistant_message_async(
+                set_completed_at=True,
             )
 
     @override
