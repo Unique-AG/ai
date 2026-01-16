@@ -26,11 +26,9 @@ from unique_swot.services.citations import CitationManager
 from unique_swot.services.generation.agentic.agent import GenerationAgent
 from unique_swot.services.generation.agentic.executor import AgenticPlanExecutor
 from unique_swot.services.generation.models.registry import SWOTReportRegistry
-
-# from unique_swot.services.generation.extraction.agent import ExtractorAgent
-# from unique_swot.services.generation.reporting.agent import ProgressiveReportingAgent
 from unique_swot.services.memory.base import SwotMemoryService
 from unique_swot.services.notification.notifier import StepNotifier
+from unique_swot.services.notification.progress import ProgressNotifier
 from unique_swot.services.orchestrator.service import SWOTOrchestrator
 from unique_swot.services.report import ReportDeliveryService, ReportRendererConfig
 from unique_swot.services.schemas import SWOTPlan
@@ -132,6 +130,7 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
                 content_chunks=[],
             )
         company_name = session_config.swot_analysis.company_listing.name
+        progress_notifier = self._get_progress_notifier(company_name=company_name)
 
         try:
             plan = SWOTPlan.model_validate(tool_call.arguments)
@@ -173,17 +172,10 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
 
             step_notifier = self._get_step_notifier()
 
-            await step_notifier.notify(
-                title=f"Started SWOT Analysis for {company_name}",
-                description=session_config.swot_analysis.render_session_info(),
-                sources=[],
-                progress=100,
-                completed=True,
-            )
+            progress_title = session_config.swot_analysis.render_session_info()
 
-            await self._chat_service.modify_assistant_message_async(
-                content=f"**SWOT Analysis Initiated**\n\n- {session_config.swot_analysis.render_session_info()}\n\nAnalyzing data sources and generating comprehensive insights may take some time. Track real-time progress in the steps sidebar.",
-            )
+            # initialize progress bar
+            await progress_notifier.start(title=progress_title)
 
             # This service is used to orchestrate the SWOT analysis
             orchestrator = SWOTOrchestrator(
@@ -194,12 +186,15 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
                 reporting_agent=reporting_agent,
                 memory_service=memory_service,
                 source_registry=content_chunk_registry,
+                chat_service=self._chat_service,
+                progress_notifier=progress_notifier,
             )
 
             # Generate markdown report
             result = await orchestrator.run(company_name=company_name, plan=plan)
 
             if result.is_empty():
+                await progress_notifier.finish()
                 await self._chat_service.modify_assistant_message_async(
                     content=f"No SWOT analysis results found for the {company_name} with the selected sources. Please make sure to select the correct sources and try again.",
                     set_completed_at=True,
@@ -211,6 +206,8 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
                     content_chunks=[],
                 )
 
+            await progress_notifier.update(progress=90)
+
             citation_manager = self._get_citation_manager(content_chunk_registry)
 
             report_handler = self._get_report_delivery_service(
@@ -220,29 +217,26 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
 
             summarization_agent = self._get_summarization_agent()
 
-            (
-                start_text,
-                summarization_result,
-                num_references,
-            ) = await summarization_agent.summarize(
-                company_name=company_name,
+            executive_summary = report_handler.render_body(
                 result=result,
-                citation_manager=citation_manager,
-                report_handler=report_handler,
+            )
+
+            summarization_result = await summarization_agent.summarize(
+                company_name=company_name, markdown_report=executive_summary
             )
 
             report_handler.deliver_report(
-                start_text=start_text,
                 executive_summary=summarization_result,
-                result=result,
+                body=executive_summary,
                 session_config=session_config.swot_analysis,
                 docx_template_fields={
                     "title": f"{company_name} SWOT Analysis Report",
                     "date": datetime.now().strftime("%Y-%m-%d"),
                 },
                 ingest_docx=self.config.report_renderer_config.ingest_docx_report,
-                num_existing_references=num_references,
             )
+
+            await progress_notifier.finish()
 
             return ToolCallResponse(
                 id=tool_call.id,  # type: ignore
@@ -252,6 +246,8 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
             )
 
         except Exception as e:
+            await progress_notifier.finish(failed=True)
+
             await self._chat_service.modify_assistant_message_async(
                 content=f"Error running SWOT Analysis for {company_name}: {e}",
                 set_completed_at=True,
@@ -377,8 +373,7 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
             chat_service=self._chat_service,
             docx_renderer=report_docx_renderer,
             citation_manager=citation_manager,
-            renderer_type=report_renderer_config.renderer_type,
-            template_name=report_renderer_config.report_template,
+            renderer_config=report_renderer_config,
         )
 
     def _get_step_notifier(self) -> StepNotifier:
@@ -397,14 +392,20 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
             registry=SWOTReportRegistry(),
             company_name=company_name,
             executor=executor,
-            prompts_config=self.config.report_generation_config.agentic_generator_config.prompts_config,
+            config=self.config.report_generation_config.agentic_generator_config,
         )
 
     def _get_summarization_agent(self) -> SummarizationAgent:
         return SummarizationAgent(
             llm=self.config.report_summarization_config.language_model,
-            chat_service=self._chat_service,
+            llm_service=self._language_model_service,
             summarization_config=self.config.report_summarization_config,
+        )
+
+    def _get_progress_notifier(self, *, company_name: str) -> ProgressNotifier:
+        return ProgressNotifier(
+            chat_service=self._chat_service,
+            company_name=company_name,
         )
 
 

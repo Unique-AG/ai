@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.43.6] - 2026-01-13
+- Update message execution pipeline functions and service
+
 ## [1.43.5] - 2026-01-13
 - Add deptry to dev dependencies for CI dependency checks
 - Fix missing base_settings fixture parameter in FastAPI test

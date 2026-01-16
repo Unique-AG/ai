@@ -1,20 +1,26 @@
+import json
 from logging import getLogger
 
 from unique_toolkit import LanguageModelService
 from unique_toolkit._common.validators import LMI
 from unique_toolkit.content import Content
 
+from unique_swot.services.generation.agentic.config import AgenticGeneratorConfig
 from unique_swot.services.generation.agentic.executor import AgenticPlanExecutor
 from unique_swot.services.generation.agentic.operations import (
     handle_generate_operation,
 )
-from unique_swot.services.generation.agentic.prompts.config import AgenticPromptsConfig
+from unique_swot.services.generation.agentic.utils import (
+    batch_sequence_generator,
+    create_batch_notification,
+)
 from unique_swot.services.generation.context import SWOTComponent
 from unique_swot.services.generation.models.base import (
     SWOTReportComponents,
 )
 from unique_swot.services.generation.models.registry import SWOTReportRegistry
 from unique_swot.services.orchestrator.service import (
+    ProgressNotifier,
     SourceRegistry,
     StepNotifier,
 )
@@ -36,7 +42,7 @@ class GenerationAgent:
         llm_service: LanguageModelService,
         registry: SWOTReportRegistry,
         executor: AgenticPlanExecutor,
-        prompts_config: AgenticPromptsConfig,
+        config: AgenticGeneratorConfig,
     ):
         self._llm_service = llm_service
         self._registry = registry
@@ -45,7 +51,7 @@ class GenerationAgent:
         self._llm = llm
         self._executor = executor
         self._title = "Generating SWOT report"
-        self._prompts_config = prompts_config
+        self._config = config
 
     @property
     def notification_title(self) -> str:
@@ -62,6 +68,7 @@ class GenerationAgent:
         source_registry: SourceRegistry,
         plan: SWOTPlan,
         step_notifier: StepNotifier,
+        progress_notifier: ProgressNotifier,
     ):
         _LOGGER.info("Starting SWOT Analysis generation Agent")
         # Prepare the source splits
@@ -83,46 +90,71 @@ class GenerationAgent:
             progress=0,
         )
 
-        for index, (component, step) in enumerate(components_step):
+        fraction_step = 1 / len(components_step)
+
+        batches_generator = batch_sequence_generator(
+            encoder_name=self._llm.encoder_name.value,
+            source_batches=source_batches,
+            max_tokens_per_extraction_batch=self._config.max_tokens_per_extraction_batch,
+            serializer=json.dumps,
+        )
+
+        batches = list(batches_generator)
+        total_batches = len(batches)
+
+        if total_batches > 1:
             await step_notifier.notify(
                 title=self.notification_title,
-                progress=int(index / len(components_step) * 100),
-                description=f"Processing {component.value}...",
+                description=f"This document is too large to extract. It will be split into {len(batches)} batches.",
             )
-            match step.operation:
-                case SWOTOperation.GENERATE:
-                    await handle_generate_operation(
-                        component=component,
-                        source_batches=source_batches,
-                        step_notifier=step_notifier,
-                        company_name=self._company_name,
-                        llm=self._llm,
-                        llm_service=self._llm_service,
-                        notification_title=self.notification_title,
-                        swot_report_registry=self._swot_report_registry,
-                        executor=self._executor,
-                        prompts_config=self._prompts_config,
-                    )
-                case SWOTOperation.MODIFY:
-                    _LOGGER.warning(
-                        "Modification operation not supported yet. Using generate operation instead."
-                    )
-                    await handle_generate_operation(
-                        component=component,
-                        source_batches=source_batches,
-                        step_notifier=step_notifier,
-                        company_name=self._company_name,
-                        llm=self._llm,
-                        llm_service=self._llm_service,
-                        notification_title=self.notification_title,
-                        swot_report_registry=self._swot_report_registry,
-                        executor=self._executor,
-                        prompts_config=self._prompts_config,
-                    )
-                case SWOTOperation.NOT_REQUESTED:
-                    continue
-                case _:
-                    raise ValueError(f"Invalid operation: {step.operation}")
+
+        for index, (component, step) in enumerate(components_step):
+            for i, batch in enumerate(batches, start=1):
+                await step_notifier.notify(
+                    title=self.notification_title,
+                    progress=int(index / len(components_step) * 100),
+                    description=create_batch_notification(
+                        component=component.value,
+                        batch_index=i,
+                        total_batches=len(batches),
+                    ),
+                )
+                match step.operation:
+                    case SWOTOperation.GENERATE:
+                        await handle_generate_operation(
+                            component=component,
+                            source_batches=batch,
+                            step_notifier=step_notifier,
+                            company_name=self._company_name,
+                            llm=self._llm,
+                            llm_service=self._llm_service,
+                            notification_title=self.notification_title,
+                            swot_report_registry=self._swot_report_registry,
+                            executor=self._executor,
+                            config=self._config,
+                        )
+                    case SWOTOperation.MODIFY:
+                        _LOGGER.warning(
+                            "Modification operation not supported yet. Using generate operation instead."
+                        )
+                        await handle_generate_operation(
+                            component=component,
+                            source_batches=batch,
+                            step_notifier=step_notifier,
+                            company_name=self._company_name,
+                            llm=self._llm,
+                            llm_service=self._llm_service,
+                            notification_title=self.notification_title,
+                            swot_report_registry=self._swot_report_registry,
+                            executor=self._executor,
+                            config=self._config,
+                        )
+                    case SWOTOperation.NOT_REQUESTED:
+                        continue
+                    case _:
+                        raise ValueError(f"Invalid operation: {step.operation}")
+
+            await progress_notifier.increment(fraction=fraction_step)
 
         await step_notifier.notify(
             title=self.notification_title,
