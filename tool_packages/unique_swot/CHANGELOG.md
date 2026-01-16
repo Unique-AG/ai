@@ -40,6 +40,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Extraction quality: Token limits respected per batch, preventing LLM context overflow
 - Transparency: Users can now see exactly where the analysis is in the overall workflow
 
+## [1.1.6] - 2026-01-16
+- Add unified type checking CI with basedpyright
+
 ## [1.1.5] - 2026-01-15
 - Add `pytest-cov` dev dependency for coverage testing
 

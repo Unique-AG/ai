@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_quartr"
-version = "0.2.3"
+version = "0.2.4"
 description = "Unique Quartr API client"
 authors = [
     "Rami Azouz <rami.ext@unique.ch>",
@@ -23,6 +23,7 @@ pytest = "^8.0.0"
 pytest-cov = "^4.1.0"
 pytest-mock = "^3.12.0"
 deptry = "^0.24.0"
+basedpyright = "^1.35.0"
 unique-toolkit = { path = "../../unique_toolkit",  develop = true }
 
 
@@ -36,6 +37,11 @@ extend_exclude = ["tests"]
 
 [tool.deptry.per_rule_ignores]
 DEP002 = ["unique-toolkit"]
+
+[tool.basedpyright]
+typeCheckingMode = "standard"
+include = ["unique_quartr"]
+exclude = ["**/tests/**", "**/test_*.py"]
 
 [tool.ruff]
 target-version = "py311"

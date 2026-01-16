@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_orchestrator"
-version = "1.11.9"
+version = "1.11.10"
 description = ""
 authors = ["Andreas Hauri <andreas.hauri@unique.ai>"]
 readme = ["README.md", "CHANGELOG.md"]
@@ -26,6 +26,7 @@ pytest-asyncio = "^0.24.0"
 pytest-cov = "^7.0.0"
 ruff = "^0.11.7"
 deptry = "^0.24.0"
+basedpyright = "^1.35.0"
 unique-sdk = { path = "../unique_sdk" }
 unique-toolkit = { path = "../unique_toolkit", develop = true }
 unique-stock-ticker = { path = "../postprocessors/unique_stock_ticker", develop = true }
@@ -44,6 +45,11 @@ extend_exclude = ["unique_orchestrator/tests"]
 
 [tool.deptry.per_rule_ignores]
 DEP002 = ["unique-toolkit", "unique-stock-ticker", "unique-follow-up-questions", "unique-internal-search", "unique-deep-research", "unique-web-search", "unique-swot"]
+
+[tool.basedpyright]
+typeCheckingMode = "standard"
+include = ["unique_orchestrator"]
+exclude = ["**/tests/**", "**/test_*.py"]
 
 [tool.ruff]
 target-version = "py311"
