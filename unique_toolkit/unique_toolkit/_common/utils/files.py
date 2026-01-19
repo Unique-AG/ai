@@ -12,7 +12,9 @@ class FileMimeType(StrEnum):
     PPT = "application/vnd.ms-powerpoint"
     PPTX = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
     CSV = "text/csv"
-    EXCEL = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    HTML = "text/html"
+    MD = "text/markdown"
+    TXT = "text/plain"
     JSON = "application/json"
 
 
@@ -30,6 +32,12 @@ def get_common_name(extension: FileMimeType) -> str:
             return "json"
         case FileMimeType.CSV:
             return "csv"
+        case FileMimeType.TXT:
+            return "text"
+        case FileMimeType.MD:
+            return "markdown"
+        case FileMimeType.HTML:
+            return "html"
         case _:
             return "unknown"
 
