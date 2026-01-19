@@ -12,16 +12,13 @@ class FileMimeType(StrEnum):
     PPT = "application/vnd.ms-powerpoint"
     PPTX = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
     CSV = "text/csv"
-    HTML = "text/html"
-    MD = "text/markdown"
-    TXT = "text/plain"
     EXCEL = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     JSON = "application/json"
 
 
 def get_common_name(extension: FileMimeType) -> str:
     match extension:
-        case FileMimeType.DOCX:
+        case FileMimeType.DOCX | FileMimeType.DOC:
             return "docx"
         case FileMimeType.XLSX | FileMimeType.XLS:
             return "excel"
@@ -49,12 +46,12 @@ def is_pdf_mime(filepath: Path) -> bool:
 
 def is_xlsx_mime(filepath: Path) -> bool:
     mime_type, _ = mimetypes.guess_type(filepath)
-    return mime_type in [FileMimeType.XLSX, FileMimeType.XLSX]
+    return mime_type in [FileMimeType.XLSX, FileMimeType.XLS]
 
 
 def is_pptx_mime(filepath: Path) -> bool:
     mime_type, _ = mimetypes.guess_type(filepath)
-    return mime_type in [FileMimeType.PPTX, FileMimeType.PPTX]
+    return mime_type in [FileMimeType.PPTX, FileMimeType.PPT]
 
 
 def is_json_mime(filepath: Path) -> bool:
