@@ -1,7 +1,12 @@
+from typing import TYPE_CHECKING, Any
+
 from fastmcp.server.auth.oidc_proxy import OIDCProxy
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from unique_mcp.util.find_env_file import find_env_file
+
+if TYPE_CHECKING:
+    from key_value.aio.protocols import AsyncKeyValue
 
 
 class ZitadelOIDCProxySettings(BaseSettings):
@@ -24,6 +29,8 @@ def create_zitadel_oidc_proxy(
     *,
     mcp_server_base_url: str = "http://localhost:8003",
     zitadel_oidc_proxy_settings: ZitadelOIDCProxySettings | None = None,
+    client_storage: "AsyncKeyValue | None" = None,
+    **kwargs: Any,
 ) -> OIDCProxy:
     """Create a Zitadel OIDC proxy instance.
 
@@ -43,4 +50,6 @@ def create_zitadel_oidc_proxy(
         client_secret=settings.client_secret,
         base_url=mcp_server_base_url,
         token_endpoint_auth_method="client_secret_post",
+        client_storage=client_storage,
+        **kwargs,
     )
