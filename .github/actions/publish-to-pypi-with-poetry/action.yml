@@ -6,8 +6,8 @@ inputs:
     description: 'Path to the package directory (e.g., ./unique_sdk)'
     required: true
   package_name:
-    description: 'Package name on PyPI (for version checking, optional)'
-    required: false
+    description: 'Package name on PyPI (for version checking)'
+    required: true
   python_version:
     description: 'Python version to use'
     required: false
@@ -19,11 +19,7 @@ inputs:
   check_version:
     description: 'Check if version already exists on PyPI before publishing'
     required: false
-    default: 'false'
-  use_custom_setup:
-    description: 'Use custom setup-python-poetry action instead of standard setup'
-    required: false
-    default: 'false'
+    default: 'true'
   pypi_token:
     description: 'PyPI API token for publishing'
     required: true
@@ -32,21 +28,15 @@ runs:
   using: 'composite'
   steps:
     - name: Set up Python
-      if: inputs.use_custom_setup != 'true'
       uses: actions/setup-python@v5
       with:
         python-version: ${{ inputs.python_version }}
 
     - name: Install Poetry
-      if: inputs.use_custom_setup != 'true'
       shell: bash
       run: |
         POETRY_VERSION='${{ inputs.poetry_version }}'
         PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install poetry==$POETRY_VERSION
-
-    - name: Setup Python and Poetry
-      if: inputs.use_custom_setup == 'true'
-      uses: ./.github/actions/setup-python-poetry
 
     - name: Install dependencies
       shell: bash
@@ -59,37 +49,33 @@ runs:
       run: poetry build
 
     - name: Get version
-      if: inputs.check_version == 'true'
       id: get_version
       shell: bash
       working-directory: ${{ inputs.package_dir }}
-      run: echo "version=$(poetry version -s)" >> $GITHUB_OUTPUT
+      run: |
+        VERSION=$(poetry version -s)
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Package version: $VERSION"
 
-    - name: Publish to PyPI (with version check)
-      if: inputs.check_version == 'true'
+    - name: Check PyPI version and publish
       shell: bash
       working-directory: ${{ inputs.package_dir }}
+      env:
+        POETRY_PYPI_TOKEN_PYPI: ${{ inputs.pypi_token }}
       run: |
         CURRENT_VERSION="${{ steps.get_version.outputs.version }}"
-        LATEST_VERSION=$(curl -s https://pypi.org/pypi/${{ inputs.package_name }}/json | jq -r '.info.version' 2>/dev/null || echo "0.0.0")
-        if [ "$LATEST_VERSION" = "null" ]; then
-          LATEST_VERSION="0.0.0"
+        
+        if [ "${{ inputs.check_version }}" = "true" ]; then
+          LATEST_VERSION=$(curl -s https://pypi.org/pypi/${{ inputs.package_name }}/json | jq -r '.info.version' 2>/dev/null || echo "0.0.0")
+          if [ "$LATEST_VERSION" = "null" ]; then
+            LATEST_VERSION="0.0.0"
+          fi
+          
+          if [ "$CURRENT_VERSION" = "$LATEST_VERSION" ]; then
+            echo "Version $CURRENT_VERSION already exists on PyPI. Skipping publish."
+            exit 0
+          fi
         fi
         
-        if [ "$CURRENT_VERSION" = "$LATEST_VERSION" ]; then
-          echo "Version $CURRENT_VERSION already exists on PyPI. Skipping publish."
-        else
-          echo "New version detected. Publishing $CURRENT_VERSION to PyPI..."
-          poetry publish
-        fi
-      env:
-        POETRY_PYPI_TOKEN_PYPI: ${{ inputs.pypi_token }}
-
-    - name: Publish to PyPI
-      if: inputs.check_version != 'true'
-      shell: bash
-      working-directory: ${{ inputs.package_dir }}
-      run: poetry publish
-      env:
-        POETRY_PYPI_TOKEN_PYPI: ${{ inputs.pypi_token }}
-
+        echo "Publishing $CURRENT_VERSION to PyPI..."
+        poetry publish
