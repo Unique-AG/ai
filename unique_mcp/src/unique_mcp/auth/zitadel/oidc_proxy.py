@@ -37,7 +37,7 @@ def create_zitadel_oidc_proxy(
     Args:
         mcp_server_base_url: Base URL of the MCP server (e.g., http://localhost:8003).
         zitadel_oidc_proxy_settings: Optional settings instance. If not provided,
-            a new instance will be created with default values.
+            a new instance will be created.
 
     Returns:
         Configured OIDCProxy instance
