@@ -44,7 +44,7 @@ def get_common_name(extension: FileMimeType) -> str:
 
 def is_docx_mime(filepath: Path) -> bool:
     mime_type, _ = mimetypes.guess_type(filepath)
-    return mime_type == FileMimeType.DOCX
+    return mime_type in [FileMimeType.DOCX, FileMimeType.DOC]
 
 
 def is_pdf_mime(filepath: Path) -> bool:
@@ -67,10 +67,7 @@ def is_json_mime(filepath: Path) -> bool:
     return mime_type == FileMimeType.JSON
 
 
-
-def is_valid_mime(
-        filepath: Path, valid_mimes: list[FileMimeType]
-) -> bool:
+def is_valid_mime(filepath: Path, valid_mimes: list[FileMimeType]) -> bool:
     mime_type, _ = mimetypes.guess_type(filepath)
     return mime_type in valid_mimes
 

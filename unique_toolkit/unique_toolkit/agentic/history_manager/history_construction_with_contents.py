@@ -10,6 +10,7 @@ from pydantic import RootModel
 from unique_toolkit._common.token.token_counting import (
     num_tokens_per_language_model_message,
 )
+from unique_toolkit._common.utils import files as FileUtils
 from unique_toolkit.app import ChatEventUserMessage
 from unique_toolkit.chat.schemas import ChatMessage
 from unique_toolkit.chat.schemas import ChatMessageRole as ChatRole
@@ -111,7 +112,7 @@ def download_encoded_images(
 ) -> list[str]:
     base64_encoded_images = []
     for im in contents:
-        if is_image_content(im.key):
+        if FileUtils.is_image_content(im.key):
             try:
                 file_bytes = content_service.download_content_to_bytes(
                     content_id=im.id,
@@ -183,8 +184,12 @@ def get_full_history_with_contents(
             text = ""
 
         if len(c.contents) > 0:
-            file_contents = [co for co in c.contents if is_file_content(co.key)]
-            image_contents = [co for co in c.contents if is_image_content(co.key)]
+            file_contents = [
+                co for co in c.contents if FileUtils.is_file_content(co.key)
+            ]
+            image_contents = [
+                co for co in c.contents if FileUtils.is_image_content(co.key)
+            ]
 
             content = (
                 text
