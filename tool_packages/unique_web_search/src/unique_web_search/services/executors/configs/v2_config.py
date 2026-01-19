@@ -1,6 +1,6 @@
 from typing import Annotated, Literal
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic.json_schema import SkipJsonSchema
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit.agentic.tools.config import get_configuration_dict
@@ -13,12 +13,12 @@ from unique_web_search.services.executors.configs.prompts import (
     DEFAULT_TOOL_DESCRIPTION,
     DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
 )
-from unique_web_search.services.helpers import beta_model_title_generator
+from unique_web_search.services.helpers import clean_model_title_generator
 
 
 class WebSearchV2Config(BaseWebSearchModeConfig[WebSearchMode.V2]):
     model_config = get_configuration_dict(
-        model_title_generator=beta_model_title_generator
+        model_title_generator=clean_model_title_generator
     )
     mode: SkipJsonSchema[Literal[WebSearchMode.V2]] = WebSearchMode.V2
 
@@ -46,3 +46,10 @@ class WebSearchV2Config(BaseWebSearchModeConfig[WebSearchMode.V2]):
         default=DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT["v2"],
         description="Description of the tool's capabilities, intended for inclusion in system prompts to inform the language model what the tool can do.",
     )
+
+    @field_validator("mode", mode="before")
+    @classmethod
+    def validate_mode(cls, v: str) -> Literal["v2"]:
+        if "v2" in v.lower():  # Make sure to handle "v2 (beta)" as well
+            return "v2"
+        raise ValueError(f"Invalid mode: {v}")
