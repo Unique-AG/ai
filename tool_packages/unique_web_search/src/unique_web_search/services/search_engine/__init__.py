@@ -50,8 +50,8 @@ SearchEngineTypes = (
     | BingSearch
     | BraveSearch
     | FireCrawlSearch
-    | VertexAIConfig
-    | CustomAPIConfig
+    | VertexAI
+    | CustomAPI
 )
 SearchEngineConfigTypes = (
     GoogleConfig
