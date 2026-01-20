@@ -237,7 +237,7 @@ class UniqueAIServices(BaseToolConfig):
                 number_of_questions=0,
             )
         return follow_up_questions_config
-    
+
     @field_validator("evaluation_config", mode="before")
     @classmethod
     def check_if_evaluation_config_is_none(cls, evaluation_config):
@@ -245,6 +245,7 @@ class UniqueAIServices(BaseToolConfig):
         if not evaluation_config:
             return EvaluationConfig()
         return evaluation_config
+
 
 class InputTokenDistributionConfig(BaseToolConfig):
     percent_for_history: float = Field(
