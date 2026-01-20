@@ -42,18 +42,14 @@ class TestUniqueAIServicesFollowUpQuestionsConfigValidator:
         """Test that a default FollowUpQuestionsConfig with number_of_questions=0 is returned when config is None"""
         services = UniqueAIServices(follow_up_questions_config=None)
 
-        assert isinstance(
-            services.follow_up_questions_config, FollowUpQuestionsConfig
-        )
+        assert isinstance(services.follow_up_questions_config, FollowUpQuestionsConfig)
         assert services.follow_up_questions_config.number_of_questions == 0
 
     def test_returns_default_config_when_empty_dict(self):
         """Test that a default FollowUpQuestionsConfig with number_of_questions=0 is returned when config is empty dict"""
         services = UniqueAIServices(follow_up_questions_config={})
 
-        assert isinstance(
-            services.follow_up_questions_config, FollowUpQuestionsConfig
-        )
+        assert isinstance(services.follow_up_questions_config, FollowUpQuestionsConfig)
         assert services.follow_up_questions_config.number_of_questions == 0
 
     def test_returns_provided_config_when_valid(self):
@@ -65,7 +61,9 @@ class TestUniqueAIServicesFollowUpQuestionsConfigValidator:
 
     def test_returns_provided_dict_config_when_valid(self):
         """Test that the provided dict config is used when it contains valid data"""
-        services = UniqueAIServices(follow_up_questions_config={"number_of_questions": 7})
+        services = UniqueAIServices(
+            follow_up_questions_config={"number_of_questions": 7}
+        )
 
         assert services.follow_up_questions_config.number_of_questions == 7
 
@@ -97,4 +95,3 @@ class TestUniqueAIServicesEvaluationConfigValidator:
         services = UniqueAIServices(evaluation_config={"hallucination_config": {}})
 
         assert isinstance(services.evaluation_config, EvaluationConfig)
-
