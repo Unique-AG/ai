@@ -1,6 +1,7 @@
 from logging import getLogger
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic.json_schema import SkipJsonSchema
 from unique_toolkit._common.chunk_relevancy_sorter.config import (
     ChunkRelevancySortConfig,
@@ -8,6 +9,7 @@ from unique_toolkit._common.chunk_relevancy_sorter.config import (
 from unique_toolkit._common.feature_flags.schema import (
     FeatureExtendedSourceSerialization,
 )
+from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit._common.validators import LMI, get_LMI_default_field
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.tools.config import get_configuration_dict
@@ -95,7 +97,7 @@ class WebSearchConfig(BaseToolConfig):
     )
 
     web_search_active_mode: WebSearchMode = Field(
-        default=WebSearchMode.V1,
+        default=DEFAULT_WEB_SEARCH_MODE_CONFIG,
         description="Web Search Active Mode",
     )
 
@@ -107,7 +109,7 @@ class WebSearchConfig(BaseToolConfig):
     web_search_mode_config_v2: WebSearchV2Config = Field(
         default_factory=WebSearchV2Config,
         description="Web Search Mode Configuration V2",
-        title="Web Search Mode Configuration V2 (Beta)",
+        title="Web Search Mode Configuration V2",
     )
 
     search_engine_config: ActivatedSearchEngine = Field(  # type: ignore (This type is computed at runtime so pyright is not able to infer it)
@@ -144,12 +146,19 @@ class WebSearchConfig(BaseToolConfig):
         title="Evaluation Check List",
     )
 
-    tool_format_information_for_system_prompt: str = Field(
+    tool_format_information_for_system_prompt: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(
+            rows=int(
+                len(DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT.split("\n")) / 3
+            )
+        ),
+    ] = Field(
         default=DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT,
         description="Tool format information for system prompt. This is used to format the tool response for the system prompt.",
     )
 
-    experimental_features: ExperimentalFeatures = ExperimentalFeatures()
+    experimental_features: SkipJsonSchema[ExperimentalFeatures] = ExperimentalFeatures()
 
     debug: bool = Field(
         default=False,
@@ -179,3 +188,10 @@ class WebSearchConfig(BaseToolConfig):
             if self.web_search_active_mode == WebSearchMode.V1
             else self.web_search_mode_config_v2
         )
+
+    @field_validator("web_search_active_mode", mode="before")
+    @classmethod
+    def validate_web_search_active_mode(cls, v: str) -> Literal["v1", "v2"]:
+        if "v2" in v.lower():  # Make sure to handle "v2 (beta)" as well
+            return "v2"
+        return "v1"

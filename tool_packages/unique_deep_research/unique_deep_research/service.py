@@ -227,12 +227,12 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         # Question answer and message execution will have the same message id, so we need to check if it is a message execution
         if await self.is_followup_question_answer() and not self.is_message_execution():
             self.logger.info("This is a follow-up question answer")
-            self.write_message_log_text_message(
-                "**Waiting for deep research to start**"
-            )
             self.chat_service.create_message_execution(
                 message_id=self.event.payload.assistant_message.id,
                 type=MessageExecutionType.DEEP_RESEARCH,
+            )
+            self.write_message_log_text_message(
+                "**Waiting for deep research to start**"
             )
             return ToolCallResponse(
                 id=tool_call.id or "",

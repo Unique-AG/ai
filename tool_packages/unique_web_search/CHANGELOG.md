@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.2] - 2025-01-19
+- Parse mode "v2 (beta)" as "v2" for search mode
+
+## [1.8.1] - 2026-01-16
+- Add local CI testing commands via poethepoet (poe lint, poe test, poe ci-typecheck, etc.)
+
+## [1.8.0] - 2026-01-16
+- Make V2 mode as default search mode
+
+## [1.7.8] - 2026-01-16
+- Add unified type checking CI with basedpyright
+
+## [1.7.7] - 2026-01-15
+- Add `pytest-cov` dev dependency for coverage testing
+
+## [1.7.6] - 2026-01-13
+- Cleanup configuration
+
+## [1.7.5] - 2026-01-12
+- Include feature flag to have message logs compatible with new ChatUI
+
 ## [1.7.4] - 2025-12-29
 - Switch from poetry to uv and introduce lowest-direct version testing and deptry for transitive dependency usage errors and detection
 of unused dependencies

@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.21] - 2026-01-20
+- Fix tool naming for uploaded search
+
+## [1.2.20] - 2026-01-16
+- Add local CI testing commands via poethepoet (poe lint, poe test, poe ci-typecheck, etc.)
+
+## [1.2.19] - 2026-01-16
+- Add unified type checking CI with basedpyright
+
+## [1.2.18] - 2026-01-13
+- Fix test suite: add missing `__init__.py`, mock fixtures, and `_message_step_logger` attribute
+
+## [1.2.17] - 2026-01-13
+- Removing unused parameters from config
+- Activating multiple search string execution by default
+
+## [1.2.16] - 2026-01-12
+- Fix message logswith new ChatUI
+
+## [1.2.15] - 2026-01-12
+- Include feature flag to have message logs compatible with new ChatUI
+
 ## [1.2.14] - 2026-01-05
 - Bump unique_toolkit version
 

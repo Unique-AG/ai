@@ -5,6 +5,54 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.43.8] - 2026-01-16
+- Add local CI testing commands via poethepoet (poe lint, poe test, poe ci-typecheck, etc.)
+
+## [1.43.7] - 2026-01-15
+- Cleanup hallucination config that is displayed in space config
+
+## [1.43.6] - 2026-01-13
+- Update message execution pipeline functions and service
+
+## [1.43.5] - 2026-01-13
+- Add deptry to dev dependencies for CI dependency checks
+- Fix missing base_settings fixture parameter in FastAPI test
+
+## [1.43.4] - 2026-01-14
+- chore(deps-dev): bump aiohttp from 3.13.2 to 3.13.3
+
+## [1.43.3] - 2026-01-13
+- Changing default `assessment_type` in `SubAgentEvaluationServiceConfig` to `HALLUCINATION`
+
+## [1.43.2] - 2026-01-12
+- `DocxGeneratorService`: Alignment need to be specified by the template rather than in code
+
+## [1.43.1] - 2026-01-12
+- Remove accidental example report.md from repo
+
+## [1.43.0] - 2026-01-11
+- Add `WriteUpAgent` as an experimental service
+
+## [1.42.9] - 2026-01-11
+- Include feature flag to have message logs compatible with new ChatUI
+
+## [1.42.8] - 2026-01-08
+- Add validator to `BaseMetadata` in case `additional_sheet_information` is empty
+- Add more code snippets to create references and pull file metadata
+
+## [1.42.7] - 2026-01-08
+- Add aliases for endpoint secret env var.
+
+## [1.42.6] - 2026-01-07
+- Remove double redundant condition
+
+## [1.42.5] - 2026-01-07
+- Add Mapping of metadata to the `search_content` calls
+- Remove additional indentation by the markdown to docx converter
+
+## [1.42.4] - 2026-01-07
+- Added `additionalSheetInformation` to magic table event.
+
 ## [1.42.3] - 2026-01-05
 - Added example code for agentic table
 
@@ -22,8 +70,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.40.0] - 2025-12-22
 - Add option to use retrieve referenced chunks from their order
-
-## [1.40.0] - 2025-12-22
 - Add `hide_in_chat` parameter to `upload_to_chat_from_bytes` and `upload_to_chat_from_bytes_async`
 - Hide code interpreter files in chat 
 - Code Interpreter files are now uploaded to chat by default
@@ -153,8 +199,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.28.1] - 2025-11-19
 - Remove `chat_service` from DocXGeneratorService
-
-## [1.28.1] - 2025-11-19
 - Set review standards in pyright for toolkit
 - Refactor type check pipeline
 
@@ -591,9 +635,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.8.26] - 2025-08-27
 - Optimized MCP manager
 
-## [0.8.26] - 2025-08-27
-- Optimized MCP manager
-
 ## [0.8.25] - 2025-08-27
 - Load environment variables automatically from plattform dirs or environment
 - General Endpoint definition utility
@@ -615,8 +656,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.8.20] - 2025-08-24
 - Fixed forced-tool-calls
-
-## [0.8.20] - 2025-08-05
 - Bump SDK version to support the latest features.
 
 ## [0.8.19] - 2025-08-24
@@ -851,8 +890,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.6.3] - 2025-02-27
 - Simplified imports for services. `from unique_toolkit.language_model import LanguageModelService` -> `from unique_toolkit import LanguageModelService` to reduce number of import lines.
-
-## [0.6.3] - 2025-02-26
 - Add `builder` method to `LanguageModelMessages` class
 
 ## [0.6.2] - 2025-02-25

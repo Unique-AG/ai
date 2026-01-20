@@ -5,8 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.10.67] - 2026-01-20
+## [0.10.72] - 2026-01-20
 - Expose elicitation functions [BETA feature].
+
+## [0.10.71] - 2026-01-16
+- Add local CI testing commands via poethepoet (poe lint, poe test, poe ci-typecheck, etc.)
+
+## [0.10.70] - 2026-01-13
+- Adding additional parameters `isQueueable`, `executionOptions` and `progressTitle` to the message execution
+
+## [0.10.69] - 2026-01-16
+- Add unified type checking CI with basedpyright
+
+## [0.10.68] - 2026-01-13
+- Add missing direct dependencies (httpx, anyio, aiohttp, regex, tiktoken) for deptry compliance
+
+## [0.10.67] - 2026-01-14
+- chore(deps): bump requests from 2.31.0 to 2.32.4 in examples/custom-assistant
 
 ## [0.10.66] - 2026-01-05
 - Expose appliedIngestionConfig field on content search.

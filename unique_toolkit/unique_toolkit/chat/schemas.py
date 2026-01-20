@@ -230,5 +230,9 @@ class MessageExecution(BaseModel):
     type: MessageExecutionType = MessageExecutionType.DEEP_RESEARCH
     seconds_remaining: int | None = None
     percentage_completed: int | None = None
+    is_queueable: bool | None = None
+    execution_options: dict | None = None
+    progress_title: str | None = None
+    position_in_queue: int | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None

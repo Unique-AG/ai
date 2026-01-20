@@ -48,7 +48,8 @@ def base_internal_search_config() -> InternalSearchConfig:
 def sample_content_chunk() -> ContentChunk:
     """Create a sample ContentChunk for testing."""
     return ContentChunk(
-        id="chunk_123",
+        id="cont_abcdefghijklmnopqrstuv",
+        chunk_id="chunk_123",
         text="Sample chunk text",
         order=1,
         start_page=1,
@@ -79,7 +80,8 @@ def sample_content_chunks() -> list[ContentChunk]:
     """Create a list of sample ContentChunk objects for testing."""
     return [
         ContentChunk(
-            id="chunk_1",
+            id="cont_doc1xxxxxxxxxxxxxx01",
+            chunk_id="chunk_1",
             text="First chunk",
             order=1,
             start_page=1,
@@ -87,7 +89,8 @@ def sample_content_chunks() -> list[ContentChunk]:
             metadata=ContentMetadata(key="doc1.pdf", mime_type="application/pdf"),
         ),
         ContentChunk(
-            id="chunk_2",
+            id="cont_doc2xxxxxxxxxxxxxx02",
+            chunk_id="chunk_2",
             text="Second chunk",
             order=2,
             start_page=3,
@@ -101,6 +104,8 @@ def sample_content_chunks() -> list[ContentChunk]:
 def mock_base_event() -> BaseEvent:
     """Create a mock BaseEvent for testing."""
     event: BaseEvent = Mock(spec=BaseEvent)
+    event.company_id = "company_123"
+    event.user_id = "user_123"
     return event
 
 
@@ -108,6 +113,8 @@ def mock_base_event() -> BaseEvent:
 def mock_chat_event() -> ChatEvent:
     """Create a mock ChatEvent with chat_id for testing."""
     event: ChatEvent = Mock(spec=ChatEvent)
+    event.company_id = "company_123"
+    event.user_id = "user_123"
     payload = Mock()
     payload.chat_id = "chat_123"
     event.payload = payload
@@ -118,6 +125,8 @@ def mock_chat_event() -> ChatEvent:
 def mock_event() -> Event:
     """Create a mock Event with chat_id for testing."""
     event: Event = Mock(spec=Event)
+    event.company_id = "company_123"
+    event.user_id = "user_123"
     payload = Mock()
     payload.chat_id = "chat_456"
     event.payload = payload

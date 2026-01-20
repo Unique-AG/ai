@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_toolkit"
-version = "1.42.3"
+version = "1.43.8"
 description = ""
 authors = [
     "Cedric Klinkert <cedric.klinkert@unique.ch>",
@@ -21,7 +21,6 @@ typing-extensions = "^4.9.0"
 pydantic = "^2.8.2"
 pyhumps = "^3.8.0"
 numpy = "^2.1.0"
-python-dotenv = "^1.0.1"
 regex = "^2024.5.15"
 tiktoken = "^0.12.0"
 pydantic-settings = "^2.10.1"
@@ -29,14 +28,16 @@ sseclient = "^0.0.27"
 openai = "^1.99.9"
 platformdirs = "^4.0.0"
 pillow = "^10.4.0"
-unique-sdk = "^0.10.65"
+unique-sdk = "^0.10.67"
 jambo = "^0.1.2"
 jinja2 = "^3.1.6"
-mkdocs-multirepo-plugin = "^0.8.3"
-mkdocs-mermaid2-plugin = "^1.2.2"
 docxtpl = "^0.20.1"
 markdown-it-py = "^4.0.0"
-docxcompose = "^1.4.0"
+python-docx = "^1.1.0"
+requests = "^2.32.0"
+httpx = "^0.28.0"
+aiohttp = "^3.12.0"
+pandas = "^2.3.0"
 
 [tool.poetry.group.langchain]
 optional = true
@@ -45,6 +46,7 @@ optional = true
 openai = "^1.97.0"
 langchain = "^0.3.27"
 langchain-openai = "^0.3.28"
+langchain-core = "^0.3.0"
 
 [tool.poetry.group.fastapi]
 optional = true
@@ -63,10 +65,9 @@ pytest-cov = "^4.1.0"
 pre-commit = "^3.7.1"
 pytest-asyncio = "^0.23.8"
 pytest-mock = "^3.14.0"
-platformdirs = "^4.0.0"
-pillow = "^10.4.0"
 ipykernel = "^6.29.5"
-jinja2 = "^3.1.6"
+deptry = "^0.24.0"
+poethepoet = "^0.32.0"
 # unique-sdk = { path = "../unique_sdk" }
 mkdocs = "^1.6.1"
 mkdocs-material = "^9.6.11"
@@ -77,12 +78,30 @@ entangled-cli = "^2.1.13"
 mkdocs-entangled-plugin = "^0.4.0"
 isort = "^6.0.1"
 mkdocs-codeinclude-plugin = "^0.2.1"
-aiohttp = "^3.12.15"
+aiohttp = "^3.13.3"
 pandas = "^2.3.3"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poe.tasks]
+lint = "ruff check ."
+lint-fix = "ruff check . --fix"
+format = "ruff format ."
+test = "pytest"
+typecheck = "basedpyright"
+depcheck = "deptry ."
+coverage = "pytest --cov=unique_toolkit --cov-report=term-missing"
+ci-typecheck = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/dev.sh typecheck" }
+ci-coverage = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/dev.sh coverage" }
+
+[tool.deptry]
+known_first_party = ["unique_toolkit"]
+extend_exclude = ["docs", "tests", "unique_toolkit/.*/test", "unique_toolkit/.*/tests"]
+
+[tool.deptry.per_rule_ignores]
+DEP004 = ["langchain_openai", "langchain_core"]
 
 [tool.ruff]
 target-version = "py311"
@@ -93,15 +112,6 @@ exclude = [".venv", "docs"]
 extend-select = ["I"]
 
 [tool.basedpyright]
-# Type checking mode: "off", "basic", "standard", "strict", "recommended", or "all"
 typeCheckingMode = "standard"
-# Exclude test files, virtual environments, and site-packages from type checking
-excludePaths = [
-    "**/test_*.py",
-    "**/tests/**",
-    "**/.venv/**",
-    "**/venv/**",
-    "**/site-packages/**",
-    "**/__pycache__/**",
-    "**/.pytest_cache/**",
-]
+include = ["unique_toolkit"]
+exclude = ["**/tests/**", "**/test_*.py"]

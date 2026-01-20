@@ -688,9 +688,10 @@ class TestInternalSearchTool:
 
         # Act
         def setup_tool(self, configuration, event, *args, **kwargs):
-            # Set _event attribute that Tool base class expects
+            # Set attributes that Tool base class expects
             setattr(self, "_event", event)
             setattr(self, "logger", mock_logger)
+            setattr(self, "_message_step_logger", None)
 
         with patch("unique_internal_search.service.Tool.__init__", setup_tool):
             tool = InternalSearchTool(
@@ -732,9 +733,10 @@ class TestInternalSearchTool:
 
         # Act
         def setup_tool(self, configuration, event, *args, **kwargs):
-            # Set _event attribute that Tool base class expects
+            # Set attributes that Tool base class expects
             setattr(self, "_event", event)
             setattr(self, "logger", mock_logger)
+            setattr(self, "_message_step_logger", None)
 
         with patch("unique_internal_search.service.Tool.__init__", setup_tool):
             tool = InternalSearchTool(
@@ -776,9 +778,10 @@ class TestInternalSearchTool:
             mock_sorter_class.from_event.return_value = Mock()
 
             def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set _event attribute that Tool base class expects
+                # Set attributes that Tool base class expects
                 setattr(self, "_event", event)
                 setattr(self, "logger", mock_logger)
+                setattr(self, "_message_step_logger", None)
 
             with (
                 patch("unique_internal_search.service.Tool.__init__", setup_tool),
@@ -835,9 +838,10 @@ class TestInternalSearchTool:
             mock_sorter_class.from_event.return_value = Mock()
 
             def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set _event attribute that Tool base class expects
+                # Set attributes that Tool base class expects
                 setattr(self, "_event", event)
                 setattr(self, "logger", mock_logger)
+                setattr(self, "_message_step_logger", None)
 
             with (
                 patch("unique_internal_search.service.Tool.__init__", setup_tool),
@@ -890,9 +894,10 @@ class TestInternalSearchTool:
             mock_content_service.search_contents_async = AsyncMock(return_value=[])
 
             def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set _event attribute that Tool base class expects
+                # Set attributes that Tool base class expects
                 setattr(self, "_event", event)
                 setattr(self, "logger", mock_logger)
+                setattr(self, "_message_step_logger", None)
 
             with patch("unique_internal_search.service.Tool.__init__", setup_tool):
                 tool = InternalSearchTool(
@@ -942,9 +947,10 @@ class TestInternalSearchTool:
             mock_content_service.search_contents_async = AsyncMock(return_value=[])
 
             def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set _event attribute that Tool base class expects
+                # Set attributes that Tool base class expects
                 setattr(self, "_event", event)
                 setattr(self, "logger", mock_logger)
+                setattr(self, "_message_step_logger", None)
 
             with patch("unique_internal_search.service.Tool.__init__", setup_tool):
                 tool = InternalSearchTool(
@@ -994,9 +1000,10 @@ class TestInternalSearchTool:
             mock_content_service.search_contents_async = AsyncMock(return_value=[])
 
             def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set _event attribute that Tool base class expects
+                # Set attributes that Tool base class expects
                 setattr(self, "_event", event)
                 setattr(self, "logger", mock_logger)
+                setattr(self, "_message_step_logger", None)
 
             with patch("unique_internal_search.service.Tool.__init__", setup_tool):
                 tool = InternalSearchTool(
@@ -1041,9 +1048,10 @@ class TestInternalSearchTool:
             mock_sorter_class.from_event.return_value = Mock()
 
             def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set _event attribute that Tool base class expects
+                # Set attributes that Tool base class expects
                 setattr(self, "_event", event)
                 setattr(self, "logger", mock_logger)
+                setattr(self, "_message_step_logger", None)
 
             with patch("unique_internal_search.service.Tool.__init__", setup_tool):
                 tool = InternalSearchTool(
@@ -1094,9 +1102,10 @@ class TestInternalSearchTool:
             mock_sorter_class.from_event.return_value = Mock()
 
             def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set _event attribute that Tool base class expects
+                # Set attributes that Tool base class expects
                 setattr(self, "_event", event)
                 setattr(self, "logger", mock_logger)
+                setattr(self, "_message_step_logger", None)
 
             with patch("unique_internal_search.service.Tool.__init__", setup_tool):
                 tool = InternalSearchTool(
@@ -1140,9 +1149,10 @@ class TestInternalSearchTool:
             mock_sorter_class.from_event.return_value = Mock()
 
             def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set _event attribute that Tool base class expects
+                # Set attributes that Tool base class expects
                 setattr(self, "_event", event)
                 setattr(self, "logger", mock_logger)
+                setattr(self, "_message_step_logger", None)
 
             with patch("unique_internal_search.service.Tool.__init__", setup_tool):
                 tool = InternalSearchTool(
@@ -1187,9 +1197,10 @@ class TestInternalSearchTool:
             mock_sorter_class.from_event.return_value = Mock()
 
             def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set _event attribute that Tool base class expects
+                # Set attributes that Tool base class expects
                 setattr(self, "_event", event)
                 setattr(self, "logger", mock_logger)
+                setattr(self, "_message_step_logger", None)
 
             with patch("unique_internal_search.service.Tool.__init__", setup_tool):
                 tool = InternalSearchTool(
@@ -1234,9 +1245,10 @@ class TestInternalSearchTool:
             mock_sorter_class.from_event.return_value = Mock()
 
             def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set _event attribute that Tool base class expects
+                # Set attributes that Tool base class expects
                 setattr(self, "_event", event)
                 setattr(self, "logger", mock_logger)
+                setattr(self, "_message_step_logger", None)
 
             with patch("unique_internal_search.service.Tool.__init__", setup_tool):
                 tool = InternalSearchTool(
@@ -1284,9 +1296,10 @@ class TestInternalSearchTool:
             mock_sorter_class.from_event.return_value = Mock()
 
             def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set _event attribute that Tool base class expects
+                # Set attributes that Tool base class expects
                 setattr(self, "_event", event)
                 setattr(self, "logger", mock_logger)
+                setattr(self, "_message_step_logger", None)
 
             with patch("unique_internal_search.service.Tool.__init__", setup_tool):
                 tool = InternalSearchTool(
@@ -1331,9 +1344,10 @@ class TestInternalSearchTool:
             mock_sorter_class.from_event.return_value = Mock()
 
             def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set _event attribute that Tool base class expects
+                # Set attributes that Tool base class expects
                 setattr(self, "_event", event)
                 setattr(self, "logger", mock_logger)
+                setattr(self, "_message_step_logger", None)
 
             with patch("unique_internal_search.service.Tool.__init__", setup_tool):
                 tool = InternalSearchTool(
@@ -1383,9 +1397,10 @@ class TestInternalSearchTool:
             mock_sorter_class.from_event.return_value = Mock()
 
             def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set _event attribute that Tool base class expects
+                # Set attributes that Tool base class expects
                 setattr(self, "_event", event)
                 setattr(self, "logger", mock_logger)
+                setattr(self, "_message_step_logger", None)
 
             with patch("unique_internal_search.service.Tool.__init__", setup_tool):
                 tool = InternalSearchTool(
@@ -1445,9 +1460,10 @@ class TestInternalSearchTool:
             mock_sorter_class.from_event.return_value = Mock()
 
             def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set _event attribute that Tool base class expects
+                # Set attributes that Tool base class expects
                 setattr(self, "_event", event)
                 setattr(self, "logger", mock_logger)
+                setattr(self, "_message_step_logger", None)
 
             with (
                 patch("unique_internal_search.service.Tool.__init__", setup_tool),
@@ -1513,9 +1529,10 @@ class TestInternalSearchTool:
             mock_sorter_class.from_event.return_value = Mock()
 
             def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set _event attribute that Tool base class expects
+                # Set attributes that Tool base class expects
                 setattr(self, "_event", event)
                 setattr(self, "logger", mock_logger)
+                setattr(self, "_message_step_logger", None)
 
             with (
                 patch("unique_internal_search.service.Tool.__init__", setup_tool),
@@ -1579,6 +1596,7 @@ class TestInternalSearchTool:
         def setup_tool(self, configuration, event, *args, **kwargs):
             setattr(self, "_event", event)
             setattr(self, "logger", mock_logger)
+            setattr(self, "_message_step_logger", None)
 
         with patch("unique_internal_search.service.Tool.__init__", setup_tool):
             tool = InternalSearchTool(
@@ -1623,6 +1641,7 @@ class TestInternalSearchTool:
         def setup_tool(self, configuration, event, *args, **kwargs):
             setattr(self, "_event", event)
             setattr(self, "logger", mock_logger)
+            setattr(self, "_message_step_logger", None)
 
         with patch("unique_internal_search.service.Tool.__init__", setup_tool):
             tool = InternalSearchTool(
@@ -1667,6 +1686,7 @@ class TestInternalSearchTool:
         def setup_tool(self, configuration, event, *args, **kwargs):
             setattr(self, "_event", event)
             setattr(self, "logger", mock_logger)
+            setattr(self, "_message_step_logger", None)
 
         with patch("unique_internal_search.service.Tool.__init__", setup_tool):
             tool = InternalSearchTool(
@@ -1681,7 +1701,7 @@ class TestInternalSearchTool:
 
         # Assert
         assert isinstance(references[0].source_id, str)
-        assert references[0].source_id == "chunk_123"
+        assert references[0].source_id == "cont_abcdefghijklmnopqrstuv"
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -1711,6 +1731,7 @@ class TestInternalSearchTool:
         def setup_tool(self, configuration, event, *args, **kwargs):
             setattr(self, "_event", event)
             setattr(self, "logger", mock_logger)
+            setattr(self, "_message_step_logger", None)
 
         with patch("unique_internal_search.service.Tool.__init__", setup_tool):
             tool = InternalSearchTool(
@@ -1761,6 +1782,7 @@ class TestInternalSearchTool:
         def setup_tool(self, configuration, event, *args, **kwargs):
             setattr(self, "_event", event)
             setattr(self, "logger", mock_logger)
+            setattr(self, "_message_step_logger", None)
 
         with patch("unique_internal_search.service.Tool.__init__", setup_tool):
             tool = InternalSearchTool(
@@ -1812,6 +1834,7 @@ class TestInternalSearchTool:
         def setup_tool(self, configuration, event, *args, **kwargs):
             setattr(self, "_event", event)
             setattr(self, "logger", mock_logger)
+            setattr(self, "_message_step_logger", None)
 
         with patch("unique_internal_search.service.Tool.__init__", setup_tool):
             tool = InternalSearchTool(
@@ -1856,6 +1879,7 @@ class TestInternalSearchTool:
         def setup_tool(self, configuration, event, *args, **kwargs):
             setattr(self, "_event", event)
             setattr(self, "logger", mock_logger)
+            setattr(self, "_message_step_logger", None)
 
         with patch("unique_internal_search.service.Tool.__init__", setup_tool):
             tool = InternalSearchTool(
@@ -1912,6 +1936,7 @@ class TestInternalSearchTool:
         def setup_tool(self, configuration, event, *args, **kwargs):
             setattr(self, "_event", event)
             setattr(self, "logger", mock_logger)
+            setattr(self, "_message_step_logger", None)
 
         with patch("unique_internal_search.service.Tool.__init__", setup_tool):
             tool = InternalSearchTool(
@@ -1934,7 +1959,7 @@ class TestInternalSearchTool:
     @pytest.mark.asyncio
     @patch("unique_internal_search.service.ContentService")
     @patch("unique_internal_search.service.ChunkRelevancySorter")
-    async def test_define_reference_list_for_message_log__skips_chunks__with_empty_name(
+    async def test_define_reference_list_for_message_log__includes_chunks__with_empty_name(
         self,
         mock_sorter_class: Any,
         mock_content_service_class: Any,
@@ -1945,9 +1970,9 @@ class TestInternalSearchTool:
         mock_chat_event: Any,
     ) -> None:
         """
-        Purpose: Verify _define_reference_list_for_message_log skips chunks with empty name (no title and no key).
-        Why this matters: Only chunks with valid names should be included in references.
-        Setup summary: Create chunks with empty name, call _define_reference_list_for_message_log, verify they are skipped.
+        Purpose: Verify _define_reference_list_for_message_log includes chunks even with empty name (no title and no key).
+        Why this matters: All chunks should be included in references, even with empty names.
+        Setup summary: Create chunks with empty name, call _define_reference_list_for_message_log, verify all are included.
         """
 
         # Arrange
@@ -1970,6 +1995,7 @@ class TestInternalSearchTool:
         def setup_tool(self, configuration, event, *args, **kwargs):
             setattr(self, "_event", event)
             setattr(self, "logger", mock_logger)
+            setattr(self, "_message_step_logger", None)
 
         with patch("unique_internal_search.service.Tool.__init__", setup_tool):
             tool = InternalSearchTool(
@@ -1982,9 +2008,10 @@ class TestInternalSearchTool:
             content_chunks=content_chunks
         )
 
-        # Assert
-        assert len(references) == 1
+        # Assert - all chunks should be included, even with empty names
+        assert len(references) == 2
         assert references[0].name == "doc1.pdf"
+        assert references[1].name == ""
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -2002,7 +2029,7 @@ class TestInternalSearchTool:
         Setup summary: Set max_search_strings to 2, provide 4 strings in tool_call, verify only 2 execute.
         """
         # Arrange
-        base_internal_search_config.experimental_features.enable_multiple_search_strings_execution = True
+        base_internal_search_config.enable_multiple_search_strings_execution = True
         base_internal_search_config.max_search_strings = 2
 
         with (
@@ -2027,9 +2054,10 @@ class TestInternalSearchTool:
             mock_sorter_class.from_event.return_value = Mock()
 
             def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set _event attribute that Tool base class expects
+                # Set attributes that Tool base class expects
                 setattr(self, "_event", event)
                 setattr(self, "logger", mock_logger)
+                setattr(self, "_message_step_logger", None)
 
             with (
                 patch("unique_internal_search.service.Tool.__init__", setup_tool),
@@ -2078,7 +2106,7 @@ class TestInternalSearchTool:
         Setup summary: Enable multiple search strings, mock search calls, verify all searches execute.
         """
         # Arrange
-        base_internal_search_config.experimental_features.enable_multiple_search_strings_execution = True
+        base_internal_search_config.enable_multiple_search_strings_execution = True
         service = InternalSearchService(
             config=base_internal_search_config,
             content_service=mock_content_service,
@@ -2125,7 +2153,7 @@ class TestInternalSearchTool:
         Setup summary: Provide duplicate search strings, verify only unique searches execute.
         """
         # Arrange
-        base_internal_search_config.experimental_features.enable_multiple_search_strings_execution = True
+        base_internal_search_config.enable_multiple_search_strings_execution = True
         service = InternalSearchService(
             config=base_internal_search_config,
             content_service=mock_content_service,
@@ -2167,7 +2195,7 @@ class TestInternalSearchTool:
         Setup summary: Set max_search_strings to 3, provide 5 strings, verify only 3 execute.
         """
         # Arrange
-        base_internal_search_config.experimental_features.enable_multiple_search_strings_execution = True
+        base_internal_search_config.enable_multiple_search_strings_execution = True
         base_internal_search_config.max_search_strings = 3
         service = InternalSearchService(
             config=base_internal_search_config,
@@ -2220,6 +2248,7 @@ class TestInternalSearchTool:
             chunk_relevancy_sorter=mock_chunk_relevancy_sorter,
             chat_id="chat_123",
             logger=mock_logger,
+            company_id="company_123",
         )
         mock_content_service.search_contents_async = AsyncMock(return_value=[])
 
@@ -2250,3 +2279,326 @@ class TestInternalSearchTool:
         # Should have results from the 2 successful queries (not from the failed one)
         # Each successful query returns sample_content_chunks which has content
         assert len(result) > 0
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_prepare_message_log_details__returns_message_log_details__with_queries(
+        self,
+        base_internal_search_config: InternalSearchConfig,
+        mock_content_service: ContentService,
+        mock_chunk_relevancy_sorter: Any,
+        mock_logger: Any,
+    ) -> None:
+        """
+        Purpose: Verify _prepare_message_log_details returns MessageLogDetails with InternalSearch events.
+        Why this matters: Message log details are needed for tracking search queries in the UI.
+        Setup summary: Create service, call _prepare_message_log_details, verify correct structure.
+        """
+        # Arrange
+        service = InternalSearchService(
+            config=base_internal_search_config,
+            content_service=mock_content_service,
+            chunk_relevancy_sorter=mock_chunk_relevancy_sorter,
+            chat_id="chat_123",
+            logger=mock_logger,
+        )
+        query_list = ["query1", "query2"]
+
+        # Act
+        result = await service._prepare_message_log_details(query_list=query_list)
+
+        # Assert
+        assert result is not None
+        assert len(result.data) == 2
+        assert result.data[0].type == "InternalSearch"
+        assert result.data[0].text == "query1"
+        assert result.data[1].type == "InternalSearch"
+        assert result.data[1].text == "query2"
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_prepare_message_log_details__returns_empty_data__when_empty_query_list(
+        self,
+        base_internal_search_config: InternalSearchConfig,
+        mock_content_service: ContentService,
+        mock_chunk_relevancy_sorter: Any,
+        mock_logger: Any,
+    ) -> None:
+        """
+        Purpose: Verify _prepare_message_log_details returns empty data when query list is empty.
+        Why this matters: Ensures graceful handling of empty inputs.
+        Setup summary: Create service, call _prepare_message_log_details with empty list, verify empty data.
+        """
+        # Arrange
+        service = InternalSearchService(
+            config=base_internal_search_config,
+            content_service=mock_content_service,
+            chunk_relevancy_sorter=mock_chunk_relevancy_sorter,
+            chat_id="chat_123",
+            logger=mock_logger,
+        )
+        query_list: list[str] = []
+
+        # Act
+        result = await service._prepare_message_log_details(query_list=query_list)
+
+        # Assert
+        assert result is not None
+        assert len(result.data) == 0
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_create_or_update_active_message_log__returns_none__when_no_message_step_logger(
+        self,
+        base_internal_search_config: InternalSearchConfig,
+        mock_content_service: ContentService,
+        mock_chunk_relevancy_sorter: Any,
+        mock_logger: Any,
+    ) -> None:
+        """
+        Purpose: Verify _create_or_update_active_message_log returns None when message_step_logger is None.
+        Why this matters: Ensures method handles missing logger gracefully.
+        Setup summary: Create service without message_step_logger, call method, verify returns None.
+        """
+        # Arrange
+        service = InternalSearchService(
+            config=base_internal_search_config,
+            content_service=mock_content_service,
+            chunk_relevancy_sorter=mock_chunk_relevancy_sorter,
+            chat_id="chat_123",
+            logger=mock_logger,
+            message_step_logger=None,
+        )
+        search_strings_list = ["query1"]
+
+        # Act
+        result = await service._create_or_update_active_message_log(
+            progress_message="Test progress",
+            search_strings_list=search_strings_list,
+        )
+
+        # Assert
+        assert result is None
+
+    @pytest.mark.ai
+    @patch("unique_internal_search.service.ContentService")
+    @patch("unique_internal_search.service.ChunkRelevancySorter")
+    def test_get_tool_call_result_for_loop_history__returns_tool_message__with_sources(
+        self,
+        mock_chunk_relevancy_sorter_class: Any,
+        mock_content_service_class: Any,
+        base_internal_search_config: InternalSearchConfig,
+        mock_chat_event: Any,
+        mock_logger: Any,
+        mock_agent_chunks_handler: Any,
+        sample_content_chunks: list[ContentChunk],
+    ) -> None:
+        """
+        Purpose: Verify get_tool_call_result_for_loop_history returns LanguageModelToolMessage with sources.
+        Why this matters: Ensures tool results are properly formatted for loop history.
+        Setup summary: Create tool, call get_tool_call_result_for_loop_history, verify message structure.
+        """
+        # Arrange
+        mock_content_service = Mock(spec=ContentService)
+        mock_content_service._metadata_filter = None
+        mock_content_service_class.from_event.return_value = mock_content_service
+
+        mock_sorter = Mock()
+        mock_chunk_relevancy_sorter_class.from_event.return_value = mock_sorter
+
+        def setup_tool(self, configuration, event, *args, **kwargs):
+            setattr(self, "_event", event)
+            setattr(self, "logger", mock_logger)
+            setattr(self, "_message_step_logger", None)
+
+        with patch("unique_internal_search.service.Tool.__init__", setup_tool):
+            tool = InternalSearchTool(
+                configuration=base_internal_search_config,
+                event=mock_chat_event,
+            )
+
+        tool_response = ToolCallResponse(
+            id="tool_call_123",
+            name="InternalSearch",
+            content_chunks=sample_content_chunks,
+            debug_info={},
+        )
+
+        # Act
+        result = tool.get_tool_call_result_for_loop_history(
+            tool_response=tool_response,
+            agent_chunks_handler=mock_agent_chunks_handler,
+        )
+
+        # Assert
+        assert result is not None
+        assert result.tool_call_id == "tool_call_123"
+        assert result.name == "InternalSearch"
+        assert isinstance(result.content, str)
+
+    @pytest.mark.ai
+    @patch("unique_internal_search.service.ContentService")
+    @patch("unique_internal_search.service.ChunkRelevancySorter")
+    def test_get_tool_call_result_for_loop_history__handles_empty_chunks__gracefully(
+        self,
+        mock_chunk_relevancy_sorter_class: Any,
+        mock_content_service_class: Any,
+        base_internal_search_config: InternalSearchConfig,
+        mock_chat_event: Any,
+        mock_logger: Any,
+        mock_agent_chunks_handler: Any,
+    ) -> None:
+        """
+        Purpose: Verify get_tool_call_result_for_loop_history handles empty content_chunks.
+        Why this matters: Ensures robustness when search returns no results.
+        Setup summary: Create tool, call get_tool_call_result_for_loop_history with empty chunks, verify no error.
+        """
+        # Arrange
+        mock_content_service = Mock(spec=ContentService)
+        mock_content_service._metadata_filter = None
+        mock_content_service_class.from_event.return_value = mock_content_service
+
+        mock_sorter = Mock()
+        mock_chunk_relevancy_sorter_class.from_event.return_value = mock_sorter
+
+        def setup_tool(self, configuration, event, *args, **kwargs):
+            setattr(self, "_event", event)
+            setattr(self, "logger", mock_logger)
+            setattr(self, "_message_step_logger", None)
+
+        with patch("unique_internal_search.service.Tool.__init__", setup_tool):
+            tool = InternalSearchTool(
+                configuration=base_internal_search_config,
+                event=mock_chat_event,
+            )
+
+        tool_response = ToolCallResponse(
+            id="tool_call_123",
+            name="InternalSearch",
+            content_chunks=[],
+            debug_info={},
+        )
+
+        # Act
+        result = tool.get_tool_call_result_for_loop_history(
+            tool_response=tool_response,
+            agent_chunks_handler=mock_agent_chunks_handler,
+        )
+
+        # Assert
+        assert result is not None
+        assert result.tool_call_id == "tool_call_123"
+        assert result.name == "InternalSearch"
+
+    @pytest.mark.ai
+    @patch("unique_internal_search.service.ContentService")
+    @patch("unique_internal_search.service.ChunkRelevancySorter")
+    def test_get_tool_call_result_for_loop_history__handles_none_chunks__gracefully(
+        self,
+        mock_chunk_relevancy_sorter_class: Any,
+        mock_content_service_class: Any,
+        base_internal_search_config: InternalSearchConfig,
+        mock_chat_event: Any,
+        mock_logger: Any,
+        mock_agent_chunks_handler: Any,
+    ) -> None:
+        """
+        Purpose: Verify get_tool_call_result_for_loop_history handles None content_chunks.
+        Why this matters: Ensures robustness when content_chunks is None.
+        Setup summary: Create tool, call get_tool_call_result_for_loop_history with None chunks, verify no error.
+        """
+        # Arrange
+        mock_content_service = Mock(spec=ContentService)
+        mock_content_service._metadata_filter = None
+        mock_content_service_class.from_event.return_value = mock_content_service
+
+        mock_sorter = Mock()
+        mock_chunk_relevancy_sorter_class.from_event.return_value = mock_sorter
+
+        def setup_tool(self, configuration, event, *args, **kwargs):
+            setattr(self, "_event", event)
+            setattr(self, "logger", mock_logger)
+            setattr(self, "_message_step_logger", None)
+
+        with patch("unique_internal_search.service.Tool.__init__", setup_tool):
+            tool = InternalSearchTool(
+                configuration=base_internal_search_config,
+                event=mock_chat_event,
+            )
+
+        tool_response = ToolCallResponse(
+            id="tool_call_123",
+            name="InternalSearch",
+            content_chunks=None,
+            debug_info={},
+        )
+
+        # Act
+        result = tool.get_tool_call_result_for_loop_history(
+            tool_response=tool_response,
+            agent_chunks_handler=mock_agent_chunks_handler,
+        )
+
+        # Assert
+        assert result is not None
+        assert result.tool_call_id == "tool_call_123"
+        assert result.name == "InternalSearch"
+
+    @pytest.mark.ai
+    @patch("unique_internal_search.service.ContentService")
+    @patch("unique_internal_search.service.ChunkRelevancySorter")
+    def test_get_tool_call_result_for_loop_history__uses_correct_source_numbering(
+        self,
+        mock_chunk_relevancy_sorter_class: Any,
+        mock_content_service_class: Any,
+        base_internal_search_config: InternalSearchConfig,
+        mock_chat_event: Any,
+        mock_logger: Any,
+        sample_content_chunks: list[ContentChunk],
+    ) -> None:
+        """
+        Purpose: Verify get_tool_call_result_for_loop_history uses existing source count for numbering.
+        Why this matters: Source numbering must continue from existing chunks to avoid duplicates.
+        Setup summary: Create tool with existing chunks in handler, verify source numbering continues correctly.
+        """
+        # Arrange
+        mock_content_service = Mock(spec=ContentService)
+        mock_content_service._metadata_filter = None
+        mock_content_service_class.from_event.return_value = mock_content_service
+
+        mock_sorter = Mock()
+        mock_chunk_relevancy_sorter_class.from_event.return_value = mock_sorter
+
+        def setup_tool(self, configuration, event, *args, **kwargs):
+            setattr(self, "_event", event)
+            setattr(self, "logger", mock_logger)
+            setattr(self, "_message_step_logger", None)
+
+        with patch("unique_internal_search.service.Tool.__init__", setup_tool):
+            tool = InternalSearchTool(
+                configuration=base_internal_search_config,
+                event=mock_chat_event,
+            )
+
+        # Mock handler with existing chunks
+        mock_handler = Mock()
+        mock_handler.chunks = [Mock(), Mock(), Mock()]  # 3 existing chunks
+
+        tool_response = ToolCallResponse(
+            id="tool_call_123",
+            name="InternalSearch",
+            content_chunks=sample_content_chunks,
+            debug_info={},
+        )
+
+        # Act
+        result = tool.get_tool_call_result_for_loop_history(
+            tool_response=tool_response,
+            agent_chunks_handler=mock_handler,
+        )
+
+        # Assert
+        assert result is not None
+        # The sources string should reference source numbers starting from 4 (after existing 3)
+        # This verifies the max_source_number is being used correctly
+        mock_logger.debug.assert_called()

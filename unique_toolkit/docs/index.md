@@ -11,3 +11,5 @@ Unique Toolkit enables python developers access to the unique platform through i
     - [Event Driven Applications](application_types/event_driven/index.md), that act upon an event obtained from an UI
 4. [Supported Models](modules/language_models/language_model_overview.md): A list of all supported models and their capabilities
 5. [API Reference](api.md)
+
+[TOC]

@@ -1,9 +1,9 @@
 [project]
 name = "unique_web_search"
-version = "1.7.4"
+version = "1.8.2"
 description = ""
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.12,<4.0"
 authors = [
   { name = "Andreas Hauri", email = "andreas@unique.ch" },
   { name = "Gustav Hartz", email = "gustav.hartz.ext@unique.ch" },
@@ -23,7 +23,7 @@ dependencies = [
   "unidecode>=1.4.0,<2",
   "azure-ai-projects>=1.0.0,<2",
   "azure-identity>=1.25.0,<2",
-  "unique-toolkit>=1.38.3,<2",
+  "unique-toolkit>=1.42.9,<2",
   "azure-core>=1.36.0,<2",
   "google-cloud-aiplatform>=1.128.0,<2",
   "google-auth>=2.43.0,<3",
@@ -44,12 +44,31 @@ dev = [
   "deptry>=0.24.0",
   "pytest>=8.4.1,<9",
   "pytest-asyncio>=1.2.0,<2",
+  "pytest-cov>=7.0.0,<8",
   "pytest-mock>=3.14.0,<4",
   "ruff>=0.12.10,<0.13",
+  "basedpyright>=1.35.0",
+  "poethepoet>=0.32.0",
 ]
+
+[tool.poe.tasks]
+lint = "ruff check ."
+lint-fix = "ruff check . --fix"
+format = "ruff format ."
+test = "pytest"
+typecheck = "basedpyright"
+depcheck = "deptry ."
+coverage = "pytest --cov=unique_web_search --cov-report=term-missing"
+ci-typecheck = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/dev.sh typecheck" }
+ci-coverage = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/dev.sh coverage" }
 
 [tool.deptry]
 known_first_party = ["unique_web_search"]
+
+[tool.basedpyright]
+typeCheckingMode = "standard"
+include = ["unique_web_search"]
+exclude = ["**/tests/**", "**/test_*.py"]
 
 [tool.ruff]
 target-version = "py312"

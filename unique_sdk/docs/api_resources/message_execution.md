@@ -21,6 +21,9 @@ Track execution progress for operations like:
 
     - `messageId` (str, required) - Message ID to track
     - `type` (Literal["DEEP_RESEARCH"], required) - Execution type
+    - `isQueueable` (bool, optional) - Whether the execution can be queued
+    - `executionOptions` (dict | None, optional) - Additional execution options
+    - `progressTitle` (str | None, optional) - Title to display for progress tracking
 
     **Returns:**
 
@@ -33,7 +36,9 @@ Track execution progress for operations like:
         user_id=user_id,
         company_id=company_id,
         messageId="msg_a0jgnt1jrqv143uzr750waxw",
-        type="DEEP_RESEARCH"
+        type="DEEP_RESEARCH",
+        isQueueable=True,
+        progressTitle="Researching..."
     )
     ```
 
@@ -69,6 +74,7 @@ Track execution progress for operations like:
     - `status` (Literal["COMPLETED", "FAILED"] | None, optional) - Execution status
     - `secondsRemaining` (int | None, optional) - Estimated seconds remaining
     - `percentageCompleted` (int | None, optional) - Progress percentage (0-100)
+    - `progressTitle` (str | None, optional) - Title to display for progress tracking
 
     **Returns:**
 
@@ -82,7 +88,8 @@ Track execution progress for operations like:
         company_id=company_id,
         messageId="msg_a0jgnt1jrqv143uzr750waxw",
         status="COMPLETED",
-        percentageCompleted=100
+        percentageCompleted=100,
+        progressTitle="Research complete"
     )
     ```
 
@@ -100,6 +107,9 @@ Track execution progress for operations like:
     - `type` (Literal["DEEP_RESEARCH"]) - Execution type
     - `secondsRemaining` (int | None) - Estimated seconds remaining
     - `percentageCompleted` (int | None) - Progress percentage (0-100)
+    - `isQueueable` (bool) - Whether the execution can be queued
+    - `executionOptions` (dict | None) - Additional execution options
+    - `progressTitle` (str | None) - Title to display for progress tracking
     - `positionInQueue` (int | None) - Position in execution queue
     - `createdAt` (str) - Creation timestamp (ISO 8601)
     - `updatedAt` (str) - Last update timestamp (ISO 8601)

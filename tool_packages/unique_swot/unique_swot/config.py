@@ -22,7 +22,7 @@ If the user simply says RUN, It means that he expects the tool to generate a new
 
 
 class SwotAnalysisToolConfig(BaseToolConfig):
-    cache_scope_id: str = Field(
+    cache_scope_id: SkipJsonSchema[str] = Field(
         default="",
         description="The scope id for the SWOT analysis cache.",
     )

@@ -1,6 +1,6 @@
 [project]
 name = "unique-mcp"
-version = "0.1.1"
+version = "0.1.3"
 description = "Add your description here"
 readme = "README.md"
 authors = [
@@ -30,6 +30,7 @@ dev = [
     "basedpyright>=1.33.0",
     "deptry>=0.24.0",
     "python-dep-tree>=0.19.9",
+    "poethepoet>=0.32.0",
 ]
 
 [tool.pytest.ini_options]
@@ -43,6 +44,19 @@ typeCheckingMode = "standard"
 
 [tool.deptry]
 known_first_party = ["unique_mcp"]
+
+[tool.poe.tasks]
+# Run from package directory: uv run poe <task>
+lint = "ruff check ."
+lint-fix = "ruff check . --fix"
+format = "ruff format ."
+test = "pytest"
+typecheck = "basedpyright"
+depcheck = "deptry ."
+coverage = "pytest --cov=unique_mcp --cov-report=term-missing"
+# Full CI-like checks (with baseline)
+ci-typecheck = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/dev.sh typecheck" }
+ci-coverage = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/dev.sh coverage" }
 
 [tool.ruff.lint]
 select = ["E"]

@@ -1,8 +1,11 @@
-from .agentic_table_example_column_definition import example_column_definitions
+from logging import getLogger
+
+from unique_sdk.api_resources._agentic_table import ActivityStatus
+
 from unique_toolkit.agentic_table.schemas import MagicTableSheetCreatedPayload
 from unique_toolkit.agentic_table.service import AgenticTableService
-from unique_sdk.api_resources._agentic_table import ActivityStatus
-from logging import getLogger
+
+from .agentic_table_example_column_definition import example_column_definitions
 
 logger = getLogger(__name__)
 
@@ -34,7 +37,7 @@ async def handle_sheet_created(
 
     # Set headers in row 0
     for col_def in example_column_definitions.columns:
-        await at_service.set_cell(row=0, column=col_def.order, text=col_def.name)
+        await at_service.set_cell(row=0, column=col_def.order, text=col_def.name.value)
 
     logger.info(f"Set {len(example_column_definitions.columns)} column headers")
 

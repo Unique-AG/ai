@@ -17,6 +17,10 @@ inputs:
     description: 'Package manager version to install (e.g., "1.8.3" for Poetry, ignored for uv)'
     required: false
     default: '1.8.3'
+  install_args:
+    description: 'Additional arguments for install command (e.g., "--with fastapi" for poetry)'
+    required: false
+    default: ''
   test_args:
     description: 'Additional arguments to pass to pytest'
     required: false
@@ -34,9 +38,15 @@ runs:
         python_version: ${{ inputs.python_version }}
         package_manager_version: ${{ inputs.package_manager_version }}
 
+    # Note: install-package-manager already installs deps via setup-poetry/setup-uv
+    # Only run explicit install if install_args is provided (e.g., --with fastapi)
+    - name: Install extra dependencies
+      if: inputs.install_args != ''
+      shell: bash
+      working-directory: ${{ inputs.package_dir }}
+      run: ${{ steps.install_pm.outputs.install_cmd }} ${{ inputs.install_args }}
+
     - name: Run pytest
       shell: bash
       working-directory: ${{ inputs.package_dir }}
-      run: |
-        ${{ steps.install_pm.outputs.run_cmd }} pytest ${{ inputs.test_args }}
-
+      run: ${{ steps.install_pm.outputs.run_cmd }} pytest ${{ inputs.test_args }}

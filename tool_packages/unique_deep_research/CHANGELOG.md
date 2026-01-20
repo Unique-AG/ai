@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.26] - 2026-01-16
+- Add local CI testing commands via poethepoet (poe lint, poe test, poe ci-typecheck, etc.)
+
+## [3.0.25] - 2026-01-16
+- Add unified type checking CI with basedpyright
+
+## [3.0.24] - 2026-01-15
+- Add `pytest-cov` dev dependency for coverage testing
+
+## [3.0.23] - 2026-01-13
+- Add missing `pytest-asyncio` dev dependency
+- Fix tests to use `.invoke()` method for StructuredTool objects
+
+## [3.0.22] - 2026-01-13
+- Fixing bug with message logs
 
 ## [3.0.21] - 2025-12-29
 - Bump unique_sdk version to `0.10.58`

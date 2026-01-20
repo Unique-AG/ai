@@ -6,7 +6,6 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
-from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
 from docxtpl import DocxTemplate
 
 from unique_toolkit._common.docx_generator.config import DocxGeneratorConfig
@@ -28,18 +27,15 @@ class TestHeadingField:
         heading = HeadingField(text="Test Heading")
         assert heading.text == "Test Heading"
         assert heading.level == 4
-        assert heading.alignment == WD_PARAGRAPH_ALIGNMENT.LEFT
 
     def test_heading_field_custom_values(self):
         """Test HeadingField with custom values."""
         heading = HeadingField(
             text="Custom Heading",
             level=2,
-            alignment=WD_PARAGRAPH_ALIGNMENT.CENTER,
         )
         assert heading.text == "Custom Heading"
         assert heading.level == 2
-        assert heading.alignment == WD_PARAGRAPH_ALIGNMENT.CENTER
 
     def test_heading_field_str(self):
         """Test HeadingField string representation."""
@@ -59,7 +55,6 @@ class TestHeadingField:
         _ = heading.add(mock_doc)
 
         mock_doc.add_heading.assert_called_once_with("Test Heading", level=2)
-        assert mock_paragraph.alignment == WD_PARAGRAPH_ALIGNMENT.LEFT
 
 
 class TestParagraphField:
@@ -70,18 +65,15 @@ class TestParagraphField:
         paragraph = ParagraphField(text="Test paragraph")
         assert paragraph.text == "Test paragraph"
         assert paragraph.style is None
-        assert paragraph.alignment == WD_PARAGRAPH_ALIGNMENT.LEFT
 
     def test_paragraph_field_custom_values(self):
         """Test ParagraphField with custom values."""
         paragraph = ParagraphField(
             text="Custom paragraph",
             style="Normal",
-            alignment=WD_PARAGRAPH_ALIGNMENT.RIGHT,
         )
         assert paragraph.text == "Custom paragraph"
         assert paragraph.style == "Normal"
-        assert paragraph.alignment == WD_PARAGRAPH_ALIGNMENT.RIGHT
 
     def test_paragraph_field_str(self):
         """Test ParagraphField string representation."""
@@ -101,7 +93,6 @@ class TestParagraphField:
         _ = paragraph.add(mock_doc)
 
         mock_doc.add_paragraph.assert_called_once_with("Test paragraph", style="Normal")
-        assert mock_paragraph.alignment == WD_PARAGRAPH_ALIGNMENT.LEFT
 
 
 class TestRunField:
@@ -113,7 +104,6 @@ class TestRunField:
         assert run.text == "Test run"
         assert run.italic is False
         assert run.bold is False
-        assert run.alignment == WD_PARAGRAPH_ALIGNMENT.LEFT
 
     def test_run_field_custom_values(self):
         """Test RunField with custom values."""
@@ -121,12 +111,10 @@ class TestRunField:
             text="Bold italic text",
             italic=True,
             bold=True,
-            alignment=WD_PARAGRAPH_ALIGNMENT.CENTER,
         )
         assert run.text == "Bold italic text"
         assert run.italic is True
         assert run.bold is True
-        assert run.alignment == WD_PARAGRAPH_ALIGNMENT.CENTER
 
     def test_run_field_str(self):
         """Test RunField string representation."""
@@ -145,7 +133,6 @@ class TestRunsField:
         runs_field = RunsField(runs=runs)
         assert len(runs_field.runs) == 2
         assert runs_field.style is None
-        assert runs_field.alignment == WD_PARAGRAPH_ALIGNMENT.LEFT
 
     def test_runs_field_custom_values(self):
         """Test RunsField with custom values."""
@@ -153,11 +140,9 @@ class TestRunsField:
         runs_field = RunsField(
             runs=runs,
             style="List Bullet",
-            alignment=WD_PARAGRAPH_ALIGNMENT.RIGHT,
         )
         assert len(runs_field.runs) == 1
         assert runs_field.style == "List Bullet"
-        assert runs_field.alignment == WD_PARAGRAPH_ALIGNMENT.RIGHT
 
     def test_runs_field_str(self):
         """Test RunsField string representation."""
@@ -351,15 +336,6 @@ This is a paragraph with **bold** and *italic* text.
         assert isinstance(result[0], HeadingField)
         assert result[0].text == "Heading"
 
-    def test_parse_markdown_heading_replacement(self):
-        """Test markdown heading level replacement."""
-        markdown = "## Second Level"
-        result = DocxGeneratorService.parse_markdown_to_list_content_fields(markdown)
-
-        assert len(result) == 1
-        assert isinstance(result[0], HeadingField)
-        assert result[0].level == 4  # ## is replaced with ####
-
     def test_parse_markdown_offset_header_level(self):
         """Test markdown parsing with header level offset."""
         markdown = "#### Test Heading"
@@ -380,20 +356,6 @@ This is a paragraph with **bold** and *italic* text.
         assert isinstance(result[0], HeadingField)
         # The regex captures everything up to the closing underscore
         assert result[0].text == "Page123Some text"
-
-    def test_parse_markdown_removes_relevant_sources(self):
-        """Test that 'Relevant sources' heading is removed."""
-        markdown = """#### Main Heading
-
-# Relevant sources
-
-Some content"""
-        result = DocxGeneratorService.parse_markdown_to_list_content_fields(markdown)
-
-        # Check that no heading with "Relevant sources" text exists
-        for item in result:
-            if isinstance(item, HeadingField):
-                assert "Relevant sources" not in item.text
 
     def test_parse_markdown_empty_string(self):
         """Test parsing empty markdown string."""

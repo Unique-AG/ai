@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.11] - 2026-01-16
+- Add local CI testing commands via poethepoet (poe lint, poe test, poe ci-typecheck, etc.)
+
+## [1.0.10] - 2026-01-16
+- Add unified type checking CI with basedpyright
+
+## [1.0.9] - 2026-01-15
+- Add `pytest-cov` dev dependency for coverage testing
+
+## [1.0.8] - 2026-01-13
+- Add missing `pytest-asyncio` dev dependency
+
+## [1.0.7] - 2026-01-13
+- Fix test import path from `agentic` to `unique_toolkit.agentic`
+
 ## [1.0.6] - 2025-12-29
 - Bump unique_sdk version to `0.10.58`
 

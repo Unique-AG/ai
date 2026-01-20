@@ -212,3 +212,84 @@ def sample_content_chunks():
         title="Test Page 2",
     )
     return [chunk1, chunk2]
+
+
+@pytest.fixture
+def sample_web_search_results():
+    """Sample WebSearchResult list for testing executors."""
+    return [
+        WebSearchResult(
+            url="https://example.com/page1",
+            title="Example Page 1",
+            snippet="Snippet 1",
+            content="Content 1",
+        ),
+        WebSearchResult(
+            url="https://example.com/page2",
+            title="Example Page 2",
+            snippet="Snippet 2",
+            content="Content 2",
+        ),
+    ]
+
+
+@pytest.fixture
+def mock_executor_dependencies():
+    """Mock dependencies for executor initialization."""
+    from unittest.mock import AsyncMock
+
+    from unique_web_search.utils import WebSearchDebugInfo
+
+    mock_lm_service = Mock()
+    mock_lm_service.complete_async = AsyncMock()
+
+    mock_lm = Mock()
+    mock_lm.name = "test-model"
+
+    mock_search_service = Mock()
+    mock_search_service.search = AsyncMock(return_value=[])
+    mock_search_service.requires_scraping = False
+    mock_search_service.config = Mock()
+    mock_search_service.config.search_engine_name = Mock()
+    mock_search_service.config.search_engine_name.name = "TEST"
+
+    mock_crawler_service = Mock()
+    mock_crawler_service.crawl = AsyncMock(return_value=[])
+    mock_crawler_service.config = Mock()
+    mock_crawler_service.config.crawler_type = Mock()
+    mock_crawler_service.config.crawler_type.name = "TEST"
+
+    mock_content_processor = Mock()
+    mock_content_processor.run = AsyncMock(return_value=[])
+    mock_content_processor.config = Mock()
+    mock_content_processor.config.strategy = Mock()
+    mock_content_processor.config.strategy.name = "TEST"
+
+    mock_message_log_callback = Mock(return_value=None)
+
+    mock_chunk_relevancy_sorter = Mock()
+    mock_chunk_relevancy_sorter.run = AsyncMock(return_value=Mock(content_chunks=[]))
+
+    mock_chunk_relevancy_sort_config = Mock()
+    mock_chunk_relevancy_sort_config.enabled = False
+
+    mock_content_reducer = Mock(return_value=[])
+
+    mock_tool_call = Mock()
+    mock_tool_call.id = "test-tool-call-id"
+
+    debug_info = WebSearchDebugInfo(parameters={})
+
+    return {
+        "language_model_service": mock_lm_service,
+        "language_model": mock_lm,
+        "search_service": mock_search_service,
+        "crawler_service": mock_crawler_service,
+        "content_processor": mock_content_processor,
+        "message_log_callback": mock_message_log_callback,
+        "chunk_relevancy_sorter": mock_chunk_relevancy_sorter,
+        "chunk_relevancy_sort_config": mock_chunk_relevancy_sort_config,
+        "content_reducer": mock_content_reducer,
+        "tool_call": mock_tool_call,
+        "debug_info": debug_info,
+    }

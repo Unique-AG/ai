@@ -13,6 +13,7 @@ unique_toolkit = { path = "./unique_toolkit", develop = true }
 #unique_toolkit = "^0.9.1"
 mkdocs-multirepo-plugin = "^0.8.3"
 mkdocs-mermaid2-plugin = "^1.2.2"
+griffe-pydantic = "^1.1.8"
 
 [tool.poetry.group.dev.dependencies]
 mkdocs = "^1.6.1"

@@ -3,6 +3,7 @@ from unittest.mock import Mock
 from unique_toolkit.content import ContentChunk
 
 from unique_swot.services.citations import CitationManager
+from unique_swot.services.report.config import RendererType
 
 
 def _make_chunk(chunk_id="a", title="Test Doc", start_page=1, end_page=2):
@@ -25,7 +26,9 @@ def test_add_citations_docx_format():
     registry.retrieve.return_value = _make_chunk()
     manager = CitationManager(content_chunk_registry=registry)
 
-    processed = manager.add_citations_to_report("**References:** [chunk_a]", "docx")
+    processed = manager.map_citations_to_report(
+        "**References:** [chunk_a]", RendererType.DOCX
+    )
 
     assert "[chunk_a]" not in processed
     assert "p1" in processed or "p2" in processed  # Page numbers included
@@ -38,21 +41,9 @@ def test_add_citations_chat_format():
     registry.retrieve.return_value = _make_chunk()
     manager = CitationManager(content_chunk_registry=registry)
 
-    processed = manager.add_citations_to_report("See ref [chunk_a]", "chat")
+    processed = manager.map_citations_to_report("See ref [chunk_a]", RendererType.CHAT)
 
     assert "<sup>1</sup>" in processed
-    assert "[chunk_a]" not in processed
-
-
-def test_add_citations_stream_format():
-    """Test stream citation format with [source1] style."""
-    registry = Mock()
-    registry.retrieve.return_value = _make_chunk()
-    manager = CitationManager(content_chunk_registry=registry)
-
-    processed = manager.add_citations_to_report("See ref [chunk_a]", "stream")
-
-    assert "[source1]" in processed
     assert "[chunk_a]" not in processed
 
 
@@ -62,7 +53,9 @@ def test_missing_chunk_uses_placeholder():
     registry.retrieve.return_value = None
     manager = CitationManager(content_chunk_registry=registry)
 
-    processed = manager.add_citations_to_report("See ref [chunk_missing]", "docx")
+    processed = manager.map_citations_to_report(
+        "See ref [chunk_missing]", RendererType.DOCX
+    )
 
     assert "[???]" in processed
     assert "[chunk_missing]" not in processed
@@ -74,8 +67,8 @@ def test_duplicate_citations_reuse_same_reference():
     registry.retrieve.return_value = _make_chunk()
     manager = CitationManager(content_chunk_registry=registry)
 
-    processed = manager.add_citations_to_report(
-        "First [chunk_a] and second [chunk_a]", "chat"
+    processed = manager.map_citations_to_report(
+        "First [chunk_a] and second [chunk_a]", RendererType.CHAT
     )
 
     # Both should use the same superscript
@@ -90,8 +83,8 @@ def test_multiple_citations_sequential_numbering():
     registry.retrieve.side_effect = [_make_chunk("a"), _make_chunk("b")]
     manager = CitationManager(content_chunk_registry=registry)
 
-    processed = manager.add_citations_to_report(
-        "First [chunk_a] and second [chunk_b]", "chat"
+    processed = manager.map_citations_to_report(
+        "First [chunk_a] and second [chunk_b]", RendererType.CHAT
     )
 
     assert "<sup>1</sup>" in processed
@@ -104,7 +97,7 @@ def test_get_references_builds_content_references():
     registry = Mock()
     registry.retrieve.return_value = _make_chunk()
     manager = CitationManager(content_chunk_registry=registry)
-    manager.add_citations_to_report("See [chunk_a]", "chat")
+    manager.map_citations_to_report("See [chunk_a]", RendererType.CHAT)
 
     refs = manager.get_references("msg1")
 
@@ -123,7 +116,7 @@ def test_get_citations_for_docx():
         _make_chunk("b", "Doc B"),
     ]
     manager = CitationManager(content_chunk_registry=registry)
-    manager.add_citations_to_report("[chunk_a] and [chunk_b]", "docx")
+    manager.map_citations_to_report("[chunk_a] and [chunk_b]", RendererType.DOCX)
 
     citations = manager.get_citations_for_docx()
 
@@ -132,28 +125,13 @@ def test_get_citations_for_docx():
     assert "[2] Doc B" in citations
 
 
-def test_reset_maps_clears_all_state():
-    """Test that reset_maps clears all internal state."""
-    registry = Mock()
-    registry.retrieve.return_value = _make_chunk()
-    manager = CitationManager(content_chunk_registry=registry)
-
-    manager.add_citations_to_report("[chunk_a]", "chat")
-    assert len(manager.get_referenced_content_chunks()) == 1
-
-    manager.reset_maps()
-
-    assert len(manager.get_referenced_content_chunks()) == 0
-    assert len(manager.get_citations_map()) == 0
-
-
 def test_page_range_formatting():
     """Test that page ranges are formatted correctly."""
     registry = Mock()
     registry.retrieve.return_value = _make_chunk("a", "Test Doc", 5, 7)
     manager = CitationManager(content_chunk_registry=registry)
 
-    processed = manager.add_citations_to_report("[chunk_a]", "docx")
+    processed = manager.map_citations_to_report("[chunk_a]", RendererType.DOCX)
 
     # Should include both page numbers
     assert "5" in processed
@@ -166,6 +144,6 @@ def test_single_page_formatting():
     registry.retrieve.return_value = _make_chunk("a", "Test Doc", 5, 5)
     manager = CitationManager(content_chunk_registry=registry)
 
-    processed = manager.add_citations_to_report("[chunk_a]", "docx")
+    processed = manager.map_citations_to_report("[chunk_a]", RendererType.DOCX)
 
     assert "p5" in processed
