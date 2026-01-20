@@ -230,7 +230,7 @@ class UniqueAIServices(BaseToolConfig):
 
     @field_validator("follow_up_questions_config", mode="before")
     @classmethod
-    def check_if_follow_up_questions_config_is_one(cls, follow_up_questions_config):
+    def check_if_follow_up_questions_config_is_none(cls, follow_up_questions_config):
         """Check if the follow up questions config is none and return a default config. Required for backward compatibility."""
         if not follow_up_questions_config:
             return FollowUpQuestionsConfig(

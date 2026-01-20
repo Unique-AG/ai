@@ -36,7 +36,7 @@ class TestUniqueAIServicesStockTickerConfigValidator:
 
 
 class TestUniqueAIServicesFollowUpQuestionsConfigValidator:
-    """Test suite for UniqueAIServices.check_if_follow_up_questions_config_is_one validator"""
+    """Test suite for UniqueAIServices.check_if_follow_up_questions_config_is_none validator"""
 
     def test_returns_default_config_when_none(self):
         """Test that a default FollowUpQuestionsConfig with number_of_questions=0 is returned when config is None"""
