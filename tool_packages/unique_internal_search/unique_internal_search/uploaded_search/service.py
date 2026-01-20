@@ -23,6 +23,7 @@ from unique_internal_search.uploaded_search.config import UploadedSearchConfig
 
 class UploadedSearchTool(Tool[UploadedSearchConfig]):
     name = "UploadedSearch"
+    _display_name = "Uploaded Search"
 
     def __init__(
         self,
@@ -39,6 +40,7 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
         self._internal_search_tool = InternalSearchTool(
             config, event, None, *args, **kwargs
         )
+        self._internal_search_tool._display_name = self._display_name
         if isinstance(event, ChatEvent):
             self._user_query = event.payload.user_message.text
         else:
@@ -54,6 +56,10 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
                 message=message,
                 state=ProgressState.RUNNING,
             )
+
+    @override
+    def display_name(self) -> str:
+        return self._display_name
 
     @override
     def tool_description(self) -> LanguageModelToolDescription:
