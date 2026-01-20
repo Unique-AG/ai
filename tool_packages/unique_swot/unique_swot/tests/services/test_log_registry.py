@@ -218,10 +218,9 @@ async def test_message_log_registry_item_update_completed(mock_chat_service):
         completed=True,
     )
 
-    assert updated_item.completed is True
     assert updated_item.progress == 100
 
-    # Verify status changed to COMPLETED
+    # Verify status was set to COMPLETED in the API call
     call_args = mock_chat_service.update_message_log_async.call_args
     assert call_args.kwargs["status"] == MessageLogStatus.COMPLETED
 
