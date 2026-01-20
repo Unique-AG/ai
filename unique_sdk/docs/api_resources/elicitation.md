@@ -86,7 +86,7 @@ Elicitations are requests for user input that can be displayed as forms or exter
 
     **Returns:**
 
-    Returns a list of [`Elicitation`](#elicitation) objects.
+    Returns an [`Elicitations`](#elicitations) object.
 
     **Example:**
 
@@ -96,7 +96,7 @@ Elicitations are requests for user input that can be displayed as forms or exter
         company_id=company_id,
     )
     
-    for elicitation in pending:
+    for elicitation in pending['elicitations']:
         print(f"Pending: {elicitation['id']} - {elicitation['message']}")
     ```
 
@@ -201,7 +201,17 @@ Elicitations are requests for user input that can be displayed as forms or exter
     - `updatedAt` (str, optional) - Last update timestamp (ISO 8601)
     - `expiresAt` (str, optional) - Expiration timestamp (ISO 8601)
 
-    **Returned by:** `create_elicitation()`, `get_pending_elicitations()`, `get_elicitation()`
+    **Returned by:** `create_elicitation()`, `get_elicitation()`
+
+#### Elicitations {#elicitations}
+
+??? note "The `Elicitations` object contains a list of elicitations"
+
+    **Fields:**
+
+    - `elicitations` (List[Elicitation]) - List of elicitation objects. See [`Elicitation`](#elicitation) for properties.
+
+    **Returned by:** `get_pending_elicitations()`
 
 #### ElicitationResponseResult {#elicitationresponseresult}
 

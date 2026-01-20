@@ -132,12 +132,12 @@ class Elicitation(APIResource["Elicitation"]):
         cls,
         user_id: str,
         company_id: str,
-    ) -> List["Elicitation.Elicitation"]:
+    ) -> "Elicitation.Elicitations":
         """
         Get all pending elicitation requests for a user in a company.
         """
         return cast(
-            List["Elicitation.Elicitation"],
+            "Elicitation.Elicitations",
             cls._static_request(
                 "get",
                 "/elicitation/pending",
@@ -151,12 +151,12 @@ class Elicitation(APIResource["Elicitation"]):
         cls,
         user_id: str,
         company_id: str,
-    ) -> List["Elicitation.Elicitation"]:
+    ) -> "Elicitation.Elicitations":
         """
         Async get all pending elicitation requests for a user in a company.
         """
         return cast(
-            List["Elicitation.Elicitation"],
+            "Elicitation.Elicitations",
             await cls._static_request_async(
                 "get",
                 "/elicitation/pending",
