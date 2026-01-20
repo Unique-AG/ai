@@ -280,7 +280,7 @@ class LanguageModelSystemMessage(LanguageModelMessage):
         if mode == "completions":
             return ChatCompletionSystemMessageParam(role="system", content=content)
         elif mode == "responses":
-            return EasyInputMessageParam(role="user", content=content)
+            return EasyInputMessageParam(role="system", content=content)
 
 
 # Equivalent to
