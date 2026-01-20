@@ -218,6 +218,34 @@ class UniqueAIServices(BaseToolConfig):
         ToolProgressReporterConfig()
     )
 
+    @field_validator("stock_ticker_config", mode="before")
+    @classmethod
+    def check_if_stock_ticker_config_is_none(cls, stock_ticker_config):
+        """Check if the stock ticker config is none and return a default config. Required for backward compatibility."""
+        if not stock_ticker_config:
+            return StockTickerConfig(
+                enabled=False,
+            )
+        return stock_ticker_config
+
+    @field_validator("follow_up_questions_config", mode="before")
+    @classmethod
+    def check_if_follow_up_questions_config_is_none(cls, follow_up_questions_config):
+        """Check if the follow up questions config is none and return a default config. Required for backward compatibility."""
+        if not follow_up_questions_config:
+            return FollowUpQuestionsConfig(
+                number_of_questions=0,
+            )
+        return follow_up_questions_config
+
+    @field_validator("evaluation_config", mode="before")
+    @classmethod
+    def check_if_evaluation_config_is_none(cls, evaluation_config):
+        """Check if the evaluation config is none and return a default config. Required for backward compatibility."""
+        if not evaluation_config:
+            return EvaluationConfig()
+        return evaluation_config
+
 
 class InputTokenDistributionConfig(BaseToolConfig):
     percent_for_history: float = Field(
