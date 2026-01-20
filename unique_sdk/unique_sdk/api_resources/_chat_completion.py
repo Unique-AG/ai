@@ -43,6 +43,7 @@ class ChatCompletion(APIResource["ChatCompletion"]):
         ]
         timeout: NotRequired[Optional["int"]]
         messages: List[ChatCompletionRequestMessage]
+        options: NotRequired[dict]
 
     model: Literal[
         "AZURE_GPT_4_0613",
