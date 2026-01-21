@@ -136,9 +136,9 @@ LIMIT_MAX_TOOL_CALLS_PER_ITERATION = 50
 class QwenConfig(BaseToolConfig):
     """Qwen specific configuration."""
 
-    max_loop_iterations: int | None = Field(
+    max_loop_iterations: int = Field(
         default=QWEN_MAX_LOOP_ITERATIONS,
-        description="Maximum number of agentic loop iterations for Qwen models. If None, uses the global max_loop_iterations.",
+        description="Maximum number of agentic loop iterations for Qwen models.",
     )
 
     forced_tool_call_instruction: str = Field(
