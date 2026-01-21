@@ -10,7 +10,7 @@ class Search(APIResource["Search"]):
     class CreateParams(RequestOptions):
         chatId: NotRequired[Optional[str]]
         searchString: str
-        searchType: Literal["VECTOR", "COMBINED"]
+        searchType: Literal["VECTOR", "COMBINED", "FULL_TEXT", "POSTGRES_FULL_TEXT"]
         language: NotRequired[Optional[str]]
         reranker: NotRequired[Optional[dict[str, Any]]]
         scopeIds: NotRequired[Optional[list[str]]]
