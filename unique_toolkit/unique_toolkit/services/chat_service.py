@@ -1,5 +1,4 @@
 import logging
-from functools import cached_property
 from typing import Any, Sequence, overload
 
 import unique_sdk
@@ -113,7 +112,7 @@ class ChatService(ChatServiceDeprecated):
         """Initialize ChatService with lazy-loaded service properties."""
         super().__init__(*args, **kwargs)
 
-    @cached_property
+    @property
     def elicitation(self):
         """Get the ElicitationService for this chat session.
 
@@ -134,7 +133,7 @@ class ChatService(ChatServiceDeprecated):
             company_id=self._company_id,
             user_id=self._user_id,
             chat_id=self._chat_id,
-            message_id=self._user_message_id,
+            message_id=self._assistant_message_id,
         )
 
     async def update_debug_info_async(self, debug_info: dict):
