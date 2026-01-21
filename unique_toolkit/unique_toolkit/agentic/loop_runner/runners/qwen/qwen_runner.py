@@ -26,10 +26,8 @@ QWEN_FORCED_TOOL_CALL_INSTRUCTION = (
     "Do NOT provide natural language explanations, summaries, or any text outside the <tool_call> block."
 )
 
-QWEN_LAST_ITERATION_INSTRUCTION = """
-The maximum number of loop iteration have been reached. Not further tool calls are allowed.
-"""
-Based on the found information, an answer should be generated"
+QWEN_LAST_ITERATION_INSTRUCTION = """The maximum number of loop iteration have been reached. Not further tool calls are allowed.
+Based on the found information, an answer should be generated"""
 
 
 class QwenLoopIterationRunner(LoopIterationRunner):
