@@ -554,7 +554,7 @@ def _build_loop_iteration_runner(
         runner = QwenLoopIterationRunner(
             qwen_forced_tool_call_instruction=qwen_config.forced_tool_call_instruction,
             qwen_last_iteration_instruction=qwen_config.last_iteration_instruction,
-            max_loop_iterations=qwen_config.max_loop_iterations or config.agent.max_loop_iterations,
+            max_loop_iterations=qwen_config.max_loop_iterations,
             chat_service=chat_service,
         )
 

@@ -131,12 +131,15 @@ class UniqueAISpaceConfig(SpaceConfigBase):
 UniqueAISpaceConfig.model_rebuild()
 
 LIMIT_MAX_TOOL_CALLS_PER_ITERATION = 50
+LIMIT_MAX_LOOP_ITERATIONS = 10
 
 
 class QwenConfig(BaseToolConfig):
     """Qwen specific configuration."""
 
-    max_loop_iterations: int = Field(
+    max_loop_iterations: Annotated[
+        int, *ClipInt(min_value=1, max_value=LIMIT_MAX_LOOP_ITERATIONS)
+    ] = Field(
         default=QWEN_MAX_LOOP_ITERATIONS,
         description="Maximum number of agentic loop iterations for Qwen models.",
     )
