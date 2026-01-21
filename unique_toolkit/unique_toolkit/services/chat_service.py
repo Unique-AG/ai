@@ -108,6 +108,39 @@ logger = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
 class ChatService(ChatServiceDeprecated):
     """Provides all functionalities to manage the chat session."""
 
+    def __init__(self, *args, **kwargs):
+        """Initialize ChatService with lazy-loaded service properties."""
+        super().__init__(*args, **kwargs)
+        self._elicitation_service = None
+
+    @property
+    def elicitation(self):
+        """Get the ElicitationService for this chat session.
+
+        Returns:
+            ElicitationService: An ElicitationService instance with chat context.
+
+        Example:
+            >>> chat_service = ChatService(event)
+            >>> elicitation = chat_service.elicitation.create(
+            ...     mode="FORM",
+            ...     message="Please approve",
+            ...     tool_name="approval_tool"
+            ... )
+        """
+        if self._elicitation_service is None:
+            from unique_toolkit.elicitation.service import (
+                ElicitationService,
+            )
+
+            self._elicitation_service = ElicitationService(
+                company_id=self._company_id,
+                user_id=self._user_id,
+                chat_id=self._chat_id,
+                message_id=self._user_message_id,
+            )
+        return self._elicitation_service
+
     async def update_debug_info_async(self, debug_info: dict):
         """Updates the debug information for the chat session.
 
