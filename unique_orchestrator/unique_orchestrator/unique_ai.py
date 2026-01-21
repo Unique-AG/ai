@@ -11,7 +11,7 @@ from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
 from unique_toolkit.agentic.evaluation.evaluation_manager import EvaluationManager
 from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
-from unique_toolkit.agentic.loop_runner import LoopIterationRunner
+from unique_toolkit.agentic.loop_runner import LoopIterationRunner, is_qwen_model
 from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
     PostprocessorManager,
@@ -50,6 +50,14 @@ EMPTY_MESSAGE_WARNING = (
 class UniqueAI:
     start_text = ""
     current_iteration_index = 0
+
+    @property
+    def _effective_max_loop_iterations(self) -> int:
+        """Get the effective max loop iterations based on the model type."""
+        if is_qwen_model(model=self._config.space.language_model):
+            qwen_config = self._config.agent.experimental.loop_configuration.model_specific.qwen
+            return qwen_config.max_loop_iterations or self._config.agent.max_loop_iterations
+        return self._config.agent.max_loop_iterations
 
     @overload
     def __init__(
@@ -154,7 +162,8 @@ class UniqueAI:
             )
 
         ## Loop iteration
-        for i in range(self._config.agent.max_loop_iterations):
+        max_iterations = self._effective_max_loop_iterations
+        for i in range(max_iterations):
             self.current_iteration_index = i
             self._logger.info(f"Starting iteration {i + 1}...")
 
@@ -177,7 +186,7 @@ class UniqueAI:
                 self._logger.info("Exiting loop.")
                 break
 
-            if i == self._config.agent.max_loop_iterations - 1:
+            if i == max_iterations - 1:
                 self._logger.error("Max iterations reached.")
                 await self._chat_service.modify_assistant_message_async(
                     content="I have reached the maximum number of self-reflection iterations. Please clarify your request and try again...",
@@ -349,7 +358,7 @@ class UniqueAI:
             project_name=self._config.space.project_name,
             custom_instructions=self._config.space.custom_instructions,
             max_tools_per_iteration=self._config.agent.experimental.loop_configuration.max_tool_calls_per_iteration,
-            max_loop_iterations=self._config.agent.max_loop_iterations,
+            max_loop_iterations=self._effective_max_loop_iterations,
             current_iteration=self.current_iteration_index + 1,
             mcp_server_system_prompts=mcp_server_system_prompts,
             use_sub_agent_references=use_sub_agent_references,
