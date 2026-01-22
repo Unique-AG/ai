@@ -17,6 +17,7 @@ from unique_toolkit._common.referencing import (
 )
 from unique_toolkit._common.utils.jinja.render import render_template
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
+from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.tools.a2a.response_watcher import SubAgentResponseWatcher
 from unique_toolkit.agentic.tools.a2a.tool._memory import (
     get_sub_agent_short_term_memory_manager,
@@ -39,6 +40,7 @@ from unique_toolkit.agentic.tools.tool_progress_reporter import (
     ToolProgressReporter,
 )
 from unique_toolkit.app import ChatEvent
+from unique_toolkit.chat.schemas import MessageLog, MessageLogStatus
 from unique_toolkit.content import ContentChunk
 from unique_toolkit.language_model import (
     LanguageModelFunction,
@@ -82,6 +84,9 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
         # Synchronization state
         self._sequence_number = 1
         self._lock = asyncio.Lock()
+
+        # Message log state
+        self._active_message_log: MessageLog | None = None
 
     @staticmethod
     def get_sub_agent_reference_format(
@@ -167,6 +172,10 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                 state=ProgressState.STARTED,
             )
 
+            self._create_or_update_message_log(
+                progress_message="_Waiting for another run of this sub agent to finish_",
+            )
+
         # When reusing the chat id, executing the sub agent in parrallel leads to race conditions and undefined behavior.
         # To avoid this, we use a lock to serialize the execution of the same sub agent.
         context = self._lock if self.config.reuse_chat else contextlib.nullcontext()
@@ -179,6 +188,10 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                 tool_call=tool_call,
                 message=tool_input,
                 state=ProgressState.RUNNING,
+            )
+
+            self._create_or_update_message_log(
+                progress_message=f"_{tool_input}_",
             )
 
             # Check if there is a saved chat id in short term memory
@@ -242,6 +255,12 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                 state=ProgressState.FINISHED,
             )
 
+            # Update message log entry to completed
+            self._create_or_update_message_log(
+                progress_message=f"_{tool_input}_",
+                status=MessageLogStatus.COMPLETED,
+            )
+
             return ToolCallResponse(
                 id=tool_call.id,
                 name=tool_call.name,
@@ -282,13 +301,31 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
         message: str,
         state: ProgressState,
     ) -> None:
-        if self.tool_progress_reporter is not None:
+        if (
+            self.tool_progress_reporter is not None
+            and not feature_flags.is_new_answers_ui_enabled(self._company_id)
+        ):
             await self.tool_progress_reporter.notify_from_tool_call(
                 tool_call=tool_call,
                 name=self._display_name,
                 message=message,
                 state=state,
             )
+
+    def _create_or_update_message_log(
+        self,
+        *,
+        progress_message: str | None = None,
+        status: MessageLogStatus = MessageLogStatus.RUNNING,
+    ) -> None:
+        self._active_message_log = (
+            self._message_step_logger.create_or_update_message_log(
+                active_message_log=self._active_message_log,
+                header=self._display_name,
+                progress_message=progress_message,
+                status=status,
+            )
+        )
 
     def _notify_watcher(
         self,
@@ -334,6 +371,10 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                 tool_call=tool_call,
                 message="Timeout while waiting for response from sub agent.",
                 state=ProgressState.FAILED,
+            )
+            self._create_or_update_message_log(
+                progress_message="_Timeout while waiting for response from sub agent_",
+                status=MessageLogStatus.FAILED,
             )
 
             raise TimeoutError(
