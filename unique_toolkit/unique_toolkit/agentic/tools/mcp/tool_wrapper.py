@@ -5,6 +5,7 @@ from typing import Any, Dict
 import unique_sdk
 
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
+from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.tools.mcp.models import MCPToolConfig
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
@@ -13,6 +14,7 @@ from unique_toolkit.agentic.tools.tool_progress_reporter import (
     ToolProgressReporter,
 )
 from unique_toolkit.app.schemas import ChatEvent, McpServer, McpTool
+from unique_toolkit.chat.schemas import MessageLog, MessageLogStatus
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelToolDescription,
@@ -36,6 +38,9 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
         super().__init__(config, event, tool_progress_reporter)
         self._mcp_tool = mcp_tool
         self._mcp_server = mcp_server
+
+        # Message log state
+        self._active_message_log: MessageLog | None = None
 
     def tool_description(self) -> LanguageModelToolDescription:
         """Convert MCP tool schema to LanguageModelToolDescription"""
@@ -102,8 +107,15 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
         """Execute the MCP tool using SDK to call public API"""
         self.logger.info(f"Running MCP tool: {self.name}")
 
+        # Create message log entry for the MCP tool run
+        self._create_or_update_message_log(
+            progress_message="Executing MCP tool_",
+        )
+
         # Notify progress if reporter is available
-        if self._tool_progress_reporter:
+        if self._tool_progress_reporter and not feature_flags.is_new_answers_ui_enabled(
+            self.event.company_id
+        ):
             await self._tool_progress_reporter.notify_from_tool_call(
                 tool_call=tool_call,
                 name=f"**{self.display_name()}**",
@@ -131,7 +143,10 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
             )
 
             # Notify completion
-            if self._tool_progress_reporter:
+            if (
+                self._tool_progress_reporter
+                and not feature_flags.is_new_answers_ui_enabled(self.event.company_id)
+            ):
                 await self._tool_progress_reporter.notify_from_tool_call(
                     tool_call=tool_call,
                     name=f"**{self.display_name()}**",
@@ -139,19 +154,34 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
                     state=ProgressState.FINISHED,
                 )
 
+            # Update message log entry to completed
+            self._create_or_update_message_log(
+                progress_message="_Finished executing MCP tool_",
+                status=MessageLogStatus.COMPLETED,
+            )
+
             return tool_response
 
         except Exception as e:
             self.logger.error(f"Error executing MCP tool {self.name}: {e}")
 
             # Notify failure
-            if self._tool_progress_reporter:
+            if (
+                self._tool_progress_reporter
+                and not feature_flags.is_new_answers_ui_enabled(self.event.company_id)
+            ):
                 await self._tool_progress_reporter.notify_from_tool_call(
                     tool_call=tool_call,
                     name=f"**{self.display_name()}**",
                     message=f"MCP tool failed: {str(e)}",
                     state=ProgressState.FAILED,
                 )
+
+            # Update message log entry to failed
+            self._create_or_update_message_log(
+                progress_message="_Failed executing MCP tool_",
+                status=MessageLogStatus.FAILED,
+            )
 
             return ToolCallResponse(
                 id=tool_call.id or "",
@@ -163,6 +193,21 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
                 },
                 error_message=str(e),
             )
+
+    def _create_or_update_message_log(
+        self,
+        *,
+        progress_message: str | None = None,
+        status: MessageLogStatus = MessageLogStatus.RUNNING,
+    ) -> None:
+        self._active_message_log = (
+            self._message_step_logger.create_or_update_message_log(
+                active_message_log=self._active_message_log,
+                header=self.display_name(),
+                progress_message=progress_message,
+                status=status,
+            )
+        )
 
     def _extract_and_validate_arguments(
         self, tool_call: LanguageModelFunction
