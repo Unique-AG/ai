@@ -7,6 +7,7 @@ The Space API manages conversational spaces (assistants) and their chats in Uniq
 Spaces are conversational assistants with configured tools, scope rules, and modules. Use this API to:
 
 - Create spaces
+- Delete spaces
 - Manage space access control
 - Send messages to spaces
 - Manage space chats
@@ -351,6 +352,30 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     )
     ```
 
+??? example "`unique_sdk.Space.delete_space` - Delete a space"
+
+    Delete a space (assistant) by ID. Requires manage access to the space. (compatible with release > 2026.06)
+
+    **Parameters:**
+
+    - `space_id` (str, required) - Space/assistant ID to delete
+
+    **Returns:**
+
+    Returns a [`DeleteSpaceResponse`](#deletespaceresponse) object.
+
+    **Example:**
+
+    ```python
+    result = unique_sdk.Space.delete_space(
+        user_id=user_id,
+        company_id=company_id,
+        space_id="assistant_hjcdga64bkcjnhu4"
+    )
+
+    print(f"Deleted space: {result['id']}")
+    ```
+
 ## Use Cases
 
 ??? example "Chat Against File"
@@ -653,6 +678,16 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     - `chat_id` (str) - ID of the deleted chat
 
     **Returned by:** `Space.delete_chat()`
+
+#### DeleteSpaceResponse {#deletespaceresponse}
+
+??? note "The `DeleteSpaceResponse` object contains the deleted space ID"
+
+    **Fields:**
+
+    - `id` (str) - ID of the deleted space
+
+    **Returned by:** `Space.delete_space()`
 
 ## Related Resources
 
