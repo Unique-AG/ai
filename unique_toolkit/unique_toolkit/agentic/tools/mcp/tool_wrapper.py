@@ -109,7 +109,7 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
 
         # Create message log entry for the MCP tool run
         self._create_or_update_message_log(
-            progress_message="Executing MCP tool_",
+            progress_message="_Executing MCP tool_",
         )
 
         # Notify progress if reporter is available
