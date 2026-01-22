@@ -198,6 +198,9 @@ class Space(APIResource["Space"]):
     class DeleteSpaceAccessResponse(TypedDict):
         success: bool
 
+    class DeleteSpaceResponse(TypedDict):
+        id: str
+
     id: str
     name: str
     defaultForCompanyId: Optional[str]
@@ -568,5 +571,45 @@ class Space(APIResource["Space"]):
                 user_id,
                 company_id,
                 params=params,
+            ),
+        )
+
+    @classmethod
+    def delete_space(
+        cls,
+        user_id: str,
+        company_id: str,
+        space_id: str,
+    ) -> "Space.DeleteSpaceResponse":
+        """
+        Delete a space.
+        """
+        return cast(
+            "Space.DeleteSpaceResponse",
+            cls._static_request(
+                "delete",
+                f"/space/{space_id}",
+                user_id,
+                company_id,
+            ),
+        )
+
+    @classmethod
+    async def delete_space_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        space_id: str,
+    ) -> "Space.DeleteSpaceResponse":
+        """
+        Async delete a space.
+        """
+        return cast(
+            "Space.DeleteSpaceResponse",
+            await cls._static_request_async(
+                "delete",
+                f"/space/{space_id}",
+                user_id,
+                company_id,
             ),
         )
