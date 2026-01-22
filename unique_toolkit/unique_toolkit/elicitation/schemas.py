@@ -1,15 +1,19 @@
 from datetime import datetime
 from enum import StrEnum
-from typing import Any, Literal
+from typing import Any
 
 from humps import camelize
-from pydantic import BaseModel, ConfigDict, Field, field_serializer
+from pydantic import AnyUrl, BaseModel, ConfigDict, Field, field_serializer
 
 # set config to convert camelCase to snake_case
 model_config = ConfigDict(
     alias_generator=camelize,
     populate_by_name=True,
 )
+
+
+class ElicitationObject(StrEnum):
+    ELICITATION = "elicitation"
 
 
 class ElicitationMode(StrEnum):
@@ -44,8 +48,10 @@ class Elicitation(BaseModel):
     model_config = model_config
 
     id: str = Field(description="Unique identifier for the elicitation")
-    object: str = Field(description="Object type, always 'elicitation'")
-    source: str = Field(description="Source of the elicitation (API or MCP)")
+    object: ElicitationObject = Field(description="Object type, always 'elicitation'")
+    source: ElicitationSource = Field(
+        description="Source of the elicitation (API or MCP)"
+    )
     mode: ElicitationMode = Field(description="Elicitation mode: FORM or URL")
     status: ElicitationStatus = Field(
         description="Current status of the elicitation request"
@@ -63,7 +69,7 @@ class Elicitation(BaseModel):
         serialization_alias="schema",
         description="JSON schema for FORM mode elicitation",
     )
-    url: str | None = Field(default=None, description="URL for URL mode elicitation")
+    url: AnyUrl | None = Field(default=None, description="URL for URL mode elicitation")
     external_elicitation_id: str | None = Field(
         default=None, description="External elicitation ID for tracking"
     )
@@ -132,7 +138,7 @@ class CreateElicitationParams(BaseModel):
 
     model_config = model_config
 
-    mode: Literal["FORM", "URL"] = Field(description="Elicitation mode")
+    mode: ElicitationMode = Field(description="Elicitation mode")
     message: str = Field(description="Message to display to the user")
     tool_name: str = Field(description="Name of the tool requesting elicitation")
     json_schema: dict[str, Any] | None = Field(
@@ -141,7 +147,7 @@ class CreateElicitationParams(BaseModel):
         serialization_alias="schema",
         description="JSON schema for FORM mode elicitation",
     )
-    url: str | None = Field(default=None, description="URL for URL mode elicitation")
+    url: AnyUrl | None = Field(default=None, description="URL for URL mode elicitation")
     external_elicitation_id: str | None = Field(
         default=None, description="External elicitation ID for tracking"
     )
@@ -167,9 +173,7 @@ class RespondToElicitationParams(BaseModel):
     model_config = model_config
 
     elicitation_id: str = Field(description="The elicitation ID to respond to")
-    action: Literal["ACCEPT", "DECLINE", "CANCEL"] = Field(
-        description="Action to take on the elicitation"
-    )
+    action: ElicitationAction = Field(description="Action to take on the elicitation")
     content: dict[str, str | int | bool | list[str]] | None = Field(
         default=None, description="Response content for ACCEPT action"
     )
