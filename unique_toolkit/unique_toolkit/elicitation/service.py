@@ -1,7 +1,8 @@
-from typing import Any, Literal
+from typing import Any
 
 from unique_toolkit._common.validate_required_values import validate_required_values
 from unique_toolkit.app.schemas import BaseEvent, ChatEvent, Event
+from unique_toolkit.elicitation import ElicitationAction, ElicitationMode
 from unique_toolkit.elicitation.functions import (
     create_elicitation,
     create_elicitation_async,
@@ -106,7 +107,7 @@ class ElicitationService:
 
     def create(
         self,
-        mode: Literal["FORM", "URL"],
+        mode: ElicitationMode,
         message: str,
         tool_name: str,
         json_schema: dict[str, Any] | None = None,
@@ -155,7 +156,7 @@ class ElicitationService:
 
     async def create_async(
         self,
-        mode: Literal["FORM", "URL"],
+        mode: ElicitationMode,
         message: str,
         tool_name: str,
         json_schema: dict[str, Any] | None = None,
@@ -282,7 +283,7 @@ class ElicitationService:
     def respond(
         self,
         elicitation_id: str,
-        action: Literal["ACCEPT", "DECLINE", "CANCEL"],
+        action: ElicitationAction,
         content: dict[str, str | int | bool | list[str]] | None = None,
     ) -> ElicitationResponseResult:
         """
@@ -310,7 +311,7 @@ class ElicitationService:
     async def respond_async(
         self,
         elicitation_id: str,
-        action: Literal["ACCEPT", "DECLINE", "CANCEL"],
+        action: ElicitationAction,
         content: dict[str, str | int | bool | list[str]] | None = None,
     ) -> ElicitationResponseResult:
         """

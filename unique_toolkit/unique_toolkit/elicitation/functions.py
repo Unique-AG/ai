@@ -1,13 +1,16 @@
 import logging
-from typing import Any, Literal
+from typing import Any
 
 import unique_sdk
+from pydantic import AnyUrl
 
 from unique_toolkit.elicitation.constants import DOMAIN_NAME
 from unique_toolkit.elicitation.schemas import (
     CreateElicitationParams,
     Elicitation,
+    ElicitationAction,
     ElicitationList,
+    ElicitationMode,
     ElicitationResponseResult,
     RespondToElicitationParams,
 )
@@ -18,7 +21,8 @@ _LOGGER = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
 def create_elicitation(
     user_id: str,
     company_id: str,
-    mode: Literal["FORM", "URL"],
+    *,
+    mode: ElicitationMode,
     message: str,
     tool_name: str,
     json_schema: dict[str, Any] | None = None,
@@ -54,12 +58,14 @@ def create_elicitation(
     """
     _LOGGER.info(f"Creating elicitation in {mode} mode for tool: {tool_name}")
     try:
+        url_obj = AnyUrl(url) if url else None
+
         params_obj = CreateElicitationParams(
             mode=mode,
             message=message,
             tool_name=tool_name,
             json_schema=json_schema,
-            url=url,
+            url=url_obj,
             external_elicitation_id=external_elicitation_id,
             chat_id=chat_id,
             message_id=message_id,
@@ -76,14 +82,15 @@ def create_elicitation(
         )
         return Elicitation.model_validate(response)
     except Exception as e:
-        _LOGGER.error(f"Error creating elicitation: {e}")
+        _LOGGER.exception(f"Error creating elicitation: {e}")
         raise e
 
 
 async def create_elicitation_async(
     user_id: str,
     company_id: str,
-    mode: Literal["FORM", "URL"],
+    *,
+    mode: ElicitationMode,
     message: str,
     tool_name: str,
     json_schema: dict[str, Any] | None = None,
@@ -119,12 +126,13 @@ async def create_elicitation_async(
     """
     _LOGGER.info(f"Creating elicitation (async) in {mode} mode for tool: {tool_name}")
     try:
+        url_obj = AnyUrl(url) if url else None
         params_obj = CreateElicitationParams(
             mode=mode,
             message=message,
             tool_name=tool_name,
             json_schema=json_schema,
-            url=url,
+            url=url_obj,
             external_elicitation_id=external_elicitation_id,
             chat_id=chat_id,
             message_id=message_id,
@@ -141,7 +149,7 @@ async def create_elicitation_async(
         )
         return Elicitation.model_validate(response)
     except Exception as e:
-        _LOGGER.error(f"Error creating elicitation: {e}")
+        _LOGGER.exception(f"Error creating elicitation: {e}")
         raise e
 
 
@@ -171,9 +179,9 @@ def get_elicitation(
             company_id=company_id,
             elicitation_id=elicitation_id,
         )
-        return Elicitation.model_validate(response)
+        return Elicitation.model_validate(response, by_alias=True)
     except Exception as e:
-        _LOGGER.error(f"Error getting elicitation {elicitation_id}: {e}")
+        _LOGGER.exception(f"Error getting elicitation {elicitation_id}: {e}")
         raise e
 
 
@@ -203,9 +211,9 @@ async def get_elicitation_async(
             company_id=company_id,
             elicitation_id=elicitation_id,
         )
-        return Elicitation.model_validate(response)
+        return Elicitation.model_validate(response, by_alias=True)
     except Exception as e:
-        _LOGGER.error(f"Error getting elicitation {elicitation_id}: {e}")
+        _LOGGER.exception(f"Error getting elicitation {elicitation_id}: {e}")
         raise e
 
 
@@ -232,9 +240,9 @@ def get_pending_elicitations(
             user_id=user_id,
             company_id=company_id,
         )
-        return ElicitationList.model_validate(response)
+        return ElicitationList.model_validate(response, by_alias=True)
     except Exception as e:
-        _LOGGER.error(f"Error getting pending elicitations: {e}")
+        _LOGGER.exception(f"Error getting pending elicitations: {e}")
         raise e
 
 
@@ -261,9 +269,9 @@ async def get_pending_elicitations_async(
             user_id=user_id,
             company_id=company_id,
         )
-        return ElicitationList.model_validate(response)
+        return ElicitationList.model_validate(response, by_alias=True)
     except Exception as e:
-        _LOGGER.error(f"Error getting pending elicitations: {e}")
+        _LOGGER.exception(f"Error getting pending elicitations: {e}")
         raise e
 
 
@@ -271,7 +279,8 @@ def respond_to_elicitation(
     user_id: str,
     company_id: str,
     elicitation_id: str,
-    action: Literal["ACCEPT", "DECLINE", "CANCEL"],
+    *,
+    action: ElicitationAction,
     content: dict[str, str | int | bool | list[str]] | None = None,
 ) -> ElicitationResponseResult:
     """
@@ -305,9 +314,9 @@ def respond_to_elicitation(
             company_id=company_id,
             **params,
         )
-        return ElicitationResponseResult.model_validate(response)
+        return ElicitationResponseResult.model_validate(response, by_alias=True)
     except Exception as e:
-        _LOGGER.error(f"Error responding to elicitation {elicitation_id}: {e}")
+        _LOGGER.exception(f"Error responding to elicitation {elicitation_id}: {e}")
         raise e
 
 
@@ -315,7 +324,8 @@ async def respond_to_elicitation_async(
     user_id: str,
     company_id: str,
     elicitation_id: str,
-    action: Literal["ACCEPT", "DECLINE", "CANCEL"],
+    *,
+    action: ElicitationAction,
     content: dict[str, str | int | bool | list[str]] | None = None,
 ) -> ElicitationResponseResult:
     """
@@ -351,7 +361,7 @@ async def respond_to_elicitation_async(
             company_id=company_id,
             **params,
         )
-        return ElicitationResponseResult.model_validate(response)
+        return ElicitationResponseResult.model_validate(response, by_alias=True)
     except Exception as e:
-        _LOGGER.error(f"Error responding to elicitation {elicitation_id}: {e}")
+        _LOGGER.exception(f"Error responding to elicitation {elicitation_id}: {e}")
         raise e
