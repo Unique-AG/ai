@@ -221,7 +221,9 @@ class TestEffectiveMaxLoopIterations:
             lambda model: False,
         )
         agent_max_iterations: int = 7
-        mock_unique_ai_with_config._config.agent.max_loop_iterations = agent_max_iterations
+        mock_unique_ai_with_config._config.agent.max_loop_iterations = (
+            agent_max_iterations
+        )
         mock_unique_ai_with_config._config.agent.experimental.loop_configuration.model_specific.qwen.max_loop_iterations = 3
 
         # Act
