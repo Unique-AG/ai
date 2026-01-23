@@ -5,8 +5,8 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.11.14] - 2026-01-21
-- Orchestrator side to lower non used agent runs, especially for Qwen
+## [1.11.14] - 2026-01-21
+- Add Qwen-specific loop iteration limits to reduce unnecessary agent runs
 
 ## [1.11.13] - 2026-01-20
 - Fix configuration for backward compatibility
