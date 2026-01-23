@@ -237,11 +237,11 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
         return ToolPrompts(
             name="python",  # https://platform.openai.com/docs/guides/tools-code-interpreter
             display_name=self.DISPLAY_NAME,
-            tool_description=self._config.tool_description,
+            tool_description="",
             tool_system_prompt=self._config.tool_description_for_system_prompt,
-            tool_format_information_for_system_prompt=self._config.tool_format_information_for_system_prompt,
+            tool_format_information_for_system_prompt="",
             tool_user_prompt=self._config.tool_description_for_user_prompt,
-            tool_format_information_for_user_prompt=self._config.tool_format_information_for_user_prompt,
+            tool_format_information_for_user_prompt="",
             input_model={},
         )
 
