@@ -7,8 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.44.0] - 2026-01-13
 - Add LoopIterationRunner abstraction for the responses api 
-- Change Code Interpreter internal name to `AzureCodeInterpreter`
-- Add Responses API capability to models that support it
 
 ## [1.43.11] - 2026-01-23
 - Add `RESPONSES_API` Capablity to some models that were missing it

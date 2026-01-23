@@ -61,11 +61,9 @@ class OpenAICodeInterpreterConfig(BaseToolConfig):
         description="If set, the files uploaded to the chat will be uploaded to the container where code is executed.",
     )
 
-    tool_description: SkipJsonSchema[str] = (
-        Field(  # We cannot send a tool description to the model as it is a built-in tool.
-            default=DEFAULT_TOOL_DESCRIPTION,
-            description="The description of the tool that will be sent to the model.",
-        )
+    tool_description: str = Field(
+        default=DEFAULT_TOOL_DESCRIPTION,
+        description="The description of the tool that will be sent to the model.",
     )
     tool_description_for_system_prompt: str = Field(
         default=DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,

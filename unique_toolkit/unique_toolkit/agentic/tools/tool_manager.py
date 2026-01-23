@@ -438,8 +438,8 @@ def _convert_to_forced_tool(
         }
     else:
         if tool_name in OpenAIBuiltInToolName:
-            # Built-in tools have a special syntax for forcing
-            return OpenAIBuiltInToolName.to_forced_tool(tool_name)
+            # Built-in have a special syntax for forcing
+            return {"type": tool_name}  # type: ignore
         else:
             return {
                 "name": tool_name,
