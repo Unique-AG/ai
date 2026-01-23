@@ -29,14 +29,6 @@ from unique_toolkit.agentic.history_manager.history_manager import (
     HistoryManager,
     HistoryManagerConfig,
 )
-from unique_toolkit.agentic.loop_runner import (
-    BasicLoopIterationRunner,
-    BasicLoopIterationRunnerConfig,
-    LoopIterationRunner,
-    PlanningMiddleware,
-    QwenLoopIterationRunner,
-    is_qwen_model,
-)
 from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
     PostprocessorManager,
@@ -77,6 +69,7 @@ from unique_toolkit.content import Content
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.protocols.support import ResponsesSupportCompleteWithReferences
 
+from unique_orchestrator._builders import build_loop_iteration_runner
 from unique_orchestrator.config import UniqueAIConfig
 from unique_orchestrator.unique_ai import UniqueAI
 
@@ -110,6 +103,7 @@ async def build_unique_ai(
 class _CommonComponents(NamedTuple):
     chat_service: ChatService
     content_service: ContentService
+    llm_service: LanguageModelService
     uploaded_documents: list[Content]
     thinking_manager: ThinkingManager
     reference_manager: ReferenceManager
@@ -124,7 +118,6 @@ class _CommonComponents(NamedTuple):
     mcp_manager: MCPManager
     a2a_manager: A2AManager
     mcp_servers: list[McpServer]
-    loop_iteration_runner: LoopIterationRunner
 
 
 def _build_common(
@@ -133,6 +126,8 @@ def _build_common(
     config: UniqueAIConfig,
 ) -> _CommonComponents:
     chat_service = ChatService(event)
+
+    llm_service = LanguageModelService.from_event(event)
 
     content_service = ContentService.from_event(event)
 
@@ -224,16 +219,10 @@ def _build_common(
             )
         )
 
-    loop_iteration_runner = _build_loop_iteration_runner(
-        config=config,
-        history_manager=history_manager,
-        llm_service=LanguageModelService.from_event(event),
-        chat_service=chat_service,
-    )
-
     return _CommonComponents(
         chat_service=chat_service,
         content_service=content_service,
+        llm_service=llm_service,
         uploaded_documents=uploaded_documents,
         thinking_manager=thinking_manager,
         reference_manager=reference_manager,
@@ -247,7 +236,6 @@ def _build_common(
         postprocessor_manager=postprocessor_manager,
         response_watcher=response_watcher,
         message_step_logger=MessageStepLogger(chat_service),
-        loop_iteration_runner=loop_iteration_runner,
     )
 
 
@@ -328,6 +316,13 @@ async def _build_responses(
     )
 
     postprocessor_manager = common_components.postprocessor_manager
+    loop_iteration_runner = build_loop_iteration_runner(
+        config=config,
+        history_manager=common_components.history_manager,
+        llm_service=common_components.llm_service,
+        chat_service=common_components.chat_service,
+        use_responses_api=True,
+    )
 
     class ResponsesStreamingHandler(ResponsesSupportCompleteWithReferences):
         def complete_with_references(self, *args, **kwargs):
@@ -372,7 +367,7 @@ async def _build_responses(
         debug_info_manager=debug_info_manager,
         message_step_logger=common_components.message_step_logger,
         mcp_servers=event.payload.mcp_servers,
-        loop_iteration_runner=common_components.loop_iteration_runner,
+        loop_iteration_runner=loop_iteration_runner,
     )
 
 
@@ -446,6 +441,14 @@ def _build_completions(
         response_watcher=common_components.response_watcher,
     )
 
+    loop_iteration_runner = build_loop_iteration_runner(
+        config=config,
+        history_manager=common_components.history_manager,
+        llm_service=common_components.llm_service,
+        chat_service=common_components.chat_service,
+        use_responses_api=False,
+    )
+
     return UniqueAI(
         event=event,
         config=config,
@@ -462,7 +465,7 @@ def _build_completions(
         debug_info_manager=debug_info_manager,
         mcp_servers=event.payload.mcp_servers,
         message_step_logger=common_components.message_step_logger,
-        loop_iteration_runner=common_components.loop_iteration_runner,
+        loop_iteration_runner=loop_iteration_runner,
     )
 
 
@@ -535,35 +538,3 @@ def _add_sub_agents_evaluation(
             response_watcher=response_watcher,
         )
         evaluation_manager.add_evaluation(sub_agent_evaluation)
-
-
-def _build_loop_iteration_runner(
-    config: UniqueAIConfig,
-    history_manager: HistoryManager,
-    llm_service: LanguageModelService,
-    chat_service: ChatService,
-) -> LoopIterationRunner:
-    runner = BasicLoopIterationRunner(
-        config=BasicLoopIterationRunnerConfig(
-            max_loop_iterations=config.agent.max_loop_iterations
-        )
-    )
-
-    if is_qwen_model(model=config.space.language_model):
-        qwen_config = config.agent.experimental.loop_configuration.model_specific.qwen
-        runner = QwenLoopIterationRunner(
-            qwen_forced_tool_call_instruction=qwen_config.forced_tool_call_instruction,
-            qwen_last_iteration_instruction=qwen_config.last_iteration_instruction,
-            max_loop_iterations=qwen_config.max_loop_iterations,
-            chat_service=chat_service,
-        )
-
-    if config.agent.experimental.loop_configuration.planning_config is not None:
-        runner = PlanningMiddleware(
-            loop_runner=runner,
-            config=config.agent.experimental.loop_configuration.planning_config,
-            history_manager=history_manager,
-            llm_service=llm_service,
-        )
-
-    return runner
