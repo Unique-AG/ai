@@ -25,6 +25,7 @@ from unique_toolkit.agentic.history_manager.history_manager import (
 from unique_toolkit.agentic.loop_runner import (
     QWEN_FORCED_TOOL_CALL_INSTRUCTION,
     QWEN_LAST_ITERATION_INSTRUCTION,
+    QWEN_MAX_LOOP_ITERATIONS,
     PlanningConfig,
 )
 from unique_toolkit.agentic.responses_api import (
@@ -130,10 +131,18 @@ class UniqueAISpaceConfig(SpaceConfigBase):
 UniqueAISpaceConfig.model_rebuild()
 
 LIMIT_MAX_TOOL_CALLS_PER_ITERATION = 50
+LIMIT_MAX_LOOP_ITERATIONS = 10
 
 
 class QwenConfig(BaseToolConfig):
     """Qwen specific configuration."""
+
+    max_loop_iterations: Annotated[
+        int, *ClipInt(min_value=1, max_value=LIMIT_MAX_LOOP_ITERATIONS)
+    ] = Field(
+        default=QWEN_MAX_LOOP_ITERATIONS,
+        description="Maximum number of agentic loop iterations for Qwen models.",
+    )
 
     forced_tool_call_instruction: str = Field(
         default=QWEN_FORCED_TOOL_CALL_INSTRUCTION,
@@ -353,7 +362,9 @@ class ExperimentalConfig(BaseToolConfig):
 
 
 class UniqueAIAgentConfig(BaseToolConfig):
-    max_loop_iterations: int = 8
+    max_loop_iterations: Annotated[
+        int, *ClipInt(min_value=1, max_value=LIMIT_MAX_LOOP_ITERATIONS)
+    ] = 5
 
     input_token_distribution: InputTokenDistributionConfig = Field(
         default=InputTokenDistributionConfig(),
