@@ -48,6 +48,7 @@ Handling User Queries:
 
 
 DEFAULT_TOOL_DESCRIPTION_FOR_USER_PROMPT = ""
+DEFAULT_TOOL_DESCRIPTION = "Use this tool to run python code, e.g to generate plots, process excel files, perform calculations, etc."
 
 
 class OpenAICodeInterpreterConfig(BaseToolConfig):
@@ -55,7 +56,10 @@ class OpenAICodeInterpreterConfig(BaseToolConfig):
         default=True,
         description="If set, the files uploaded to the chat will be uploaded to the container where code is executed.",
     )
-
+    tool_description: str = Field(
+        default=DEFAULT_TOOL_DESCRIPTION,
+        description="The description of the tool that will be included in the system prompt.",
+    )
     tool_description_for_system_prompt: str = Field(
         default=DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
         description="The description of the tool that will be included in the system prompt.",
