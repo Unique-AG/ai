@@ -362,7 +362,9 @@ class ExperimentalConfig(BaseToolConfig):
 
 
 class UniqueAIAgentConfig(BaseToolConfig):
-    max_loop_iterations: int = 5
+    max_loop_iterations: Annotated[
+        int, *ClipInt(min_value=1, max_value=LIMIT_MAX_LOOP_ITERATIONS)
+    ] = 5
 
     input_token_distribution: InputTokenDistributionConfig = Field(
         default=InputTokenDistributionConfig(),

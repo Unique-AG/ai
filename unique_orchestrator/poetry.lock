@@ -5709,7 +5709,7 @@ url = "../postprocessors/unique_follow_up_questions"
 
 [[package]]
 name = "unique-internal-search"
-version = "1.2.20"
+version = "1.2.21"
 description = ""
 optional = false
 python-versions = "^3.12"
@@ -5745,7 +5745,7 @@ unique-toolkit = ">=1.38.1,<2.0.0"
 
 [[package]]
 name = "unique-sdk"
-version = "0.10.71"
+version = "0.10.74"
 description = ""
 optional = false
 python-versions = "^3.11"
@@ -5797,7 +5797,7 @@ url = "../postprocessors/unique_stock_ticker"
 
 [[package]]
 name = "unique-swot"
-version = "1.2.1"
+version = "1.2.3"
 description = "Unique Swot package is a tool that for conducting a swot analysis based on internal and external documents"
 optional = false
 python-versions = "^3.12"
@@ -5820,7 +5820,7 @@ url = "../tool_packages/unique_swot"
 
 [[package]]
 name = "unique-toolkit"
-version = "1.43.8"
+version = "1.43.10"
 description = ""
 optional = false
 python-versions = "^3.12"
@@ -5857,7 +5857,7 @@ url = "../unique_toolkit"
 
 [[package]]
 name = "unique-web-search"
-version = "1.8.0"
+version = "1.8.2"
 description = ""
 optional = false
 python-versions = ">=3.12,<4.0"
@@ -6464,4 +6464,4 @@ cffi = ["cffi (>=1.17,<2.0) ; platform_python_implementation != \"PyPy\" and pyt
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "5a35356e891796078b3532eaaca0da5bfecf1822806f53acb13a1cbf747ae8f1"
+content-hash = "bc154233e491f0f723369c324bee13ad7f4c76dedfb13b0afaa7abb452931f75"
