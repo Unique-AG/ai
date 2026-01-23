@@ -418,9 +418,10 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
 
             # Prepare configuration for LangGraph
             additional_openai_proxy_headers = {
+                "x-company-id": self.company_id,
                 "x-user-id": self.user_id,
-                "x-chat-id": self.chat_id,
                 "x-assistant-id": self.event.payload.assistant_id,
+                "x-chat-id": self.chat_id,
             }
             # Extract tool enablement settings from engine config if it's a UniqueEngine
             enable_web_tools = True
