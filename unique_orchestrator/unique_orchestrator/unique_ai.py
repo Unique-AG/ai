@@ -51,16 +51,6 @@ class UniqueAI:
     start_text = ""
     current_iteration_index = 0
 
-    @property
-    def _effective_max_loop_iterations(self) -> int:
-        """Get the effective max loop iterations based on the model type."""
-        if is_qwen_model(model=self._config.space.language_model):
-            qwen_config = (
-                self._config.agent.experimental.loop_configuration.model_specific.qwen
-            )
-            return qwen_config.max_loop_iterations
-        return self._config.agent.max_loop_iterations
-
     @overload
     def __init__(
         self,
@@ -146,6 +136,16 @@ class UniqueAI:
         # Helper variable to support control loop
         self._tool_took_control = False
         self._loop_iteration_runner = loop_iteration_runner
+
+    @property
+    def _effective_max_loop_iterations(self) -> int:
+        """Get the effective max loop iterations based on the model type."""
+        if is_qwen_model(model=self._config.space.language_model):
+            qwen_config = (
+                self._config.agent.experimental.loop_configuration.model_specific.qwen
+            )
+            return qwen_config.max_loop_iterations
+        return self._config.agent.max_loop_iterations
 
     ############################################################
     # Override of base methods
