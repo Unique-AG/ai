@@ -55,7 +55,9 @@ class UniqueAI:
     def _effective_max_loop_iterations(self) -> int:
         """Get the effective max loop iterations based on the model type."""
         if is_qwen_model(model=self._config.space.language_model):
-            qwen_config = self._config.agent.experimental.loop_configuration.model_specific.qwen
+            qwen_config = (
+                self._config.agent.experimental.loop_configuration.model_specific.qwen
+            )
             return qwen_config.max_loop_iterations
         return self._config.agent.max_loop_iterations
 
