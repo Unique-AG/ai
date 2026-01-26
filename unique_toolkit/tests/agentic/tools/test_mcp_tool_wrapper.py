@@ -155,53 +155,17 @@ class TestMCPToolWrapperInitialization:
         # Arrange
         mock_progress_reporter = Mock(spec=ToolProgressReporter)
 
-        with patch(
-            "unique_toolkit.agentic.tools.mcp.tool_wrapper.feature_flags.is_new_answers_ui_enabled",
-            return_value=False,
-        ):
-            # Act
-            wrapper = MCPToolWrapper(
-                mcp_server=mock_mcp_server,
-                mcp_tool=mock_mcp_tool,
-                config=mock_mcp_tool_config,
-                event=mock_chat_event,
-                tool_progress_reporter=mock_progress_reporter,
-            )
+        # Act - progress reporter should be stored as-is (no feature flag check in __init__)
+        wrapper = MCPToolWrapper(
+            mcp_server=mock_mcp_server,
+            mcp_tool=mock_mcp_tool,
+            config=mock_mcp_tool_config,
+            event=mock_chat_event,
+            tool_progress_reporter=mock_progress_reporter,
+        )
 
-            # Assert
-            assert wrapper._tool_progress_reporter == mock_progress_reporter
-
-    @pytest.mark.ai
-    def test_init__sets_progress_reporter_to_none__when_new_ui_enabled_AI(
-        self,
-        mock_mcp_server: McpServer,
-        mock_mcp_tool: McpTool,
-        mock_mcp_tool_config: MCPToolConfig,
-        mock_chat_event: ChatEvent,
-    ) -> None:
-        """
-        Purpose: Verify that progress reporter is set to None when new UI is enabled.
-        Why this matters: New UI has different progress tracking mechanism.
-        Setup summary: Create wrapper with mock progress reporter (with new UI enabled), verify it's None.
-        """
-        # Arrange
-        mock_progress_reporter = Mock(spec=ToolProgressReporter)
-
-        with patch(
-            "unique_toolkit.agentic.tools.mcp.tool_wrapper.feature_flags.is_new_answers_ui_enabled",
-            return_value=True,
-        ):
-            # Act
-            wrapper = MCPToolWrapper(
-                mcp_server=mock_mcp_server,
-                mcp_tool=mock_mcp_tool,
-                config=mock_mcp_tool_config,
-                event=mock_chat_event,
-                tool_progress_reporter=mock_progress_reporter,
-            )
-
-            # Assert
-            assert wrapper._tool_progress_reporter is None
+        # Assert
+        assert wrapper._tool_progress_reporter == mock_progress_reporter
 
 
 class TestMCPToolWrapperToolDescription:
@@ -762,17 +726,13 @@ class TestMCPToolWrapperRun:
         mock_progress_reporter = Mock(spec=ToolProgressReporter)
         mock_progress_reporter.notify_from_tool_call = AsyncMock()
 
-        with patch(
-            "unique_toolkit.agentic.tools.mcp.tool_wrapper.feature_flags.is_new_answers_ui_enabled",
-            return_value=False,
-        ):
-            wrapper = MCPToolWrapper(
-                mcp_server=mock_mcp_server,
-                mcp_tool=mock_mcp_tool,
-                config=mock_mcp_tool_config,
-                event=mock_chat_event,
-                tool_progress_reporter=mock_progress_reporter,
-            )
+        wrapper = MCPToolWrapper(
+            mcp_server=mock_mcp_server,
+            mcp_tool=mock_mcp_tool,
+            config=mock_mcp_tool_config,
+            event=mock_chat_event,
+            tool_progress_reporter=mock_progress_reporter,
+        )
 
         tool_call = LanguageModelFunction(
             id="call_123",
@@ -780,7 +740,17 @@ class TestMCPToolWrapperRun:
             arguments={"query": "test"},
         )
 
-        with patch("unique_sdk.MCP.call_tool") as mock_sdk_call:
+        # Mock feature flags to return False (new UI disabled)
+        mock_feature_flags = Mock()
+        mock_feature_flags.is_new_answers_ui_enabled.return_value = False
+
+        with (
+            patch("unique_sdk.MCP.call_tool") as mock_sdk_call,
+            patch(
+                "unique_toolkit.agentic.tools.mcp.tool_wrapper.feature_flags",
+                mock_feature_flags,
+            ),
+        ):
             mock_sdk_call.return_value = {"result": "ok"}
 
             # Act
@@ -811,23 +781,19 @@ class TestMCPToolWrapperRun:
         """
         Purpose: Verify progress reporter is NOT notified when new UI is enabled.
         Why this matters: New UI has different progress tracking mechanism.
-        Setup summary: Create wrapper with mock reporter (with new UI enabled, so reporter is set to None), execute tool, verify no notifications.
+        Setup summary: Create wrapper with mock reporter (with new UI enabled), execute tool, verify no notifications.
         """
         # Arrange
         mock_progress_reporter = Mock(spec=ToolProgressReporter)
         mock_progress_reporter.notify_from_tool_call = AsyncMock()
 
-        with patch(
-            "unique_toolkit.agentic.tools.mcp.tool_wrapper.feature_flags.is_new_answers_ui_enabled",
-            return_value=True,
-        ):
-            wrapper = MCPToolWrapper(
-                mcp_server=mock_mcp_server,
-                mcp_tool=mock_mcp_tool,
-                config=mock_mcp_tool_config,
-                event=mock_chat_event,
-                tool_progress_reporter=mock_progress_reporter,
-            )
+        wrapper = MCPToolWrapper(
+            mcp_server=mock_mcp_server,
+            mcp_tool=mock_mcp_tool,
+            config=mock_mcp_tool_config,
+            event=mock_chat_event,
+            tool_progress_reporter=mock_progress_reporter,
+        )
 
         tool_call = LanguageModelFunction(
             id="call_123",
@@ -835,7 +801,17 @@ class TestMCPToolWrapperRun:
             arguments={"query": "test"},
         )
 
-        with patch("unique_sdk.MCP.call_tool") as mock_sdk_call:
+        # Mock feature flags to return True (new UI enabled)
+        mock_feature_flags = Mock()
+        mock_feature_flags.is_new_answers_ui_enabled.return_value = True
+
+        with (
+            patch("unique_sdk.MCP.call_tool") as mock_sdk_call,
+            patch(
+                "unique_toolkit.agentic.tools.mcp.tool_wrapper.feature_flags",
+                mock_feature_flags,
+            ),
+        ):
             mock_sdk_call.return_value = {"result": "ok"}
 
             # Act
@@ -845,7 +821,7 @@ class TestMCPToolWrapperRun:
             assert response.error_message == ""
             assert response.name == "test_mcp_tool"
 
-            # But progress reporter should NOT be called (it was set to None during init)
+            # But progress reporter should NOT be called (new UI is enabled)
             assert mock_progress_reporter.notify_from_tool_call.call_count == 0
 
     @pytest.mark.ai
@@ -860,23 +836,19 @@ class TestMCPToolWrapperRun:
         """
         Purpose: Verify progress reporter is NOT notified on failure when new UI is enabled.
         Why this matters: New UI has different error tracking mechanism.
-        Setup summary: Create wrapper with reporter (with new UI enabled, so reporter is set to None), cause failure, verify no notifications.
+        Setup summary: Create wrapper with reporter (with new UI enabled), cause failure, verify no notifications.
         """
         # Arrange
         mock_progress_reporter = Mock(spec=ToolProgressReporter)
         mock_progress_reporter.notify_from_tool_call = AsyncMock()
 
-        with patch(
-            "unique_toolkit.agentic.tools.mcp.tool_wrapper.feature_flags.is_new_answers_ui_enabled",
-            return_value=True,
-        ):
-            wrapper = MCPToolWrapper(
-                mcp_server=mock_mcp_server,
-                mcp_tool=mock_mcp_tool,
-                config=mock_mcp_tool_config,
-                event=mock_chat_event,
-                tool_progress_reporter=mock_progress_reporter,
-            )
+        wrapper = MCPToolWrapper(
+            mcp_server=mock_mcp_server,
+            mcp_tool=mock_mcp_tool,
+            config=mock_mcp_tool_config,
+            event=mock_chat_event,
+            tool_progress_reporter=mock_progress_reporter,
+        )
 
         tool_call = LanguageModelFunction(
             id="call_123",
@@ -884,7 +856,17 @@ class TestMCPToolWrapperRun:
             arguments={"query": "test"},
         )
 
-        with patch("unique_sdk.MCP.call_tool") as mock_sdk_call:
+        # Mock feature flags to return True (new UI enabled)
+        mock_feature_flags = Mock()
+        mock_feature_flags.is_new_answers_ui_enabled.return_value = True
+
+        with (
+            patch("unique_sdk.MCP.call_tool") as mock_sdk_call,
+            patch(
+                "unique_toolkit.agentic.tools.mcp.tool_wrapper.feature_flags",
+                mock_feature_flags,
+            ),
+        ):
             mock_sdk_call.side_effect = Exception("Test error")
 
             # Act
@@ -893,7 +875,7 @@ class TestMCPToolWrapperRun:
             # Assert - error should still be captured in response
             assert response.error_message == "Test error"
 
-            # But progress reporter should NOT be called (it was set to None during init)
+            # But progress reporter should NOT be called (new UI is enabled)
             assert mock_progress_reporter.notify_from_tool_call.call_count == 0
 
     @pytest.mark.ai
@@ -914,17 +896,13 @@ class TestMCPToolWrapperRun:
         mock_progress_reporter = Mock(spec=ToolProgressReporter)
         mock_progress_reporter.notify_from_tool_call = AsyncMock()
 
-        with patch(
-            "unique_toolkit.agentic.tools.mcp.tool_wrapper.feature_flags.is_new_answers_ui_enabled",
-            return_value=False,
-        ):
-            wrapper = MCPToolWrapper(
-                mcp_server=mock_mcp_server,
-                mcp_tool=mock_mcp_tool,
-                config=mock_mcp_tool_config,
-                event=mock_chat_event,
-                tool_progress_reporter=mock_progress_reporter,
-            )
+        wrapper = MCPToolWrapper(
+            mcp_server=mock_mcp_server,
+            mcp_tool=mock_mcp_tool,
+            config=mock_mcp_tool_config,
+            event=mock_chat_event,
+            tool_progress_reporter=mock_progress_reporter,
+        )
 
         tool_call = LanguageModelFunction(
             id="call_123",
@@ -932,7 +910,17 @@ class TestMCPToolWrapperRun:
             arguments={"query": "test"},
         )
 
-        with patch("unique_sdk.MCP.call_tool") as mock_sdk_call:
+        # Mock feature flags to return False (new UI disabled)
+        mock_feature_flags = Mock()
+        mock_feature_flags.is_new_answers_ui_enabled.return_value = False
+
+        with (
+            patch("unique_sdk.MCP.call_tool") as mock_sdk_call,
+            patch(
+                "unique_toolkit.agentic.tools.mcp.tool_wrapper.feature_flags",
+                mock_feature_flags,
+            ),
+        ):
             mock_sdk_call.side_effect = Exception("Test error")
 
             # Act
@@ -947,7 +935,8 @@ class TestMCPToolWrapperRun:
             assert "failed" in second_call.kwargs["message"]
 
     @pytest.mark.ai
-    def test_init__checks_feature_flag_with_company_id__AI(
+    @pytest.mark.asyncio
+    async def test_run__checks_feature_flag_with_company_id__AI(
         self,
         mock_mcp_server: McpServer,
         mock_mcp_tool: McpTool,
@@ -955,28 +944,46 @@ class TestMCPToolWrapperRun:
         mock_chat_event: ChatEvent,
     ) -> None:
         """
-        Purpose: Verify feature flag is checked with the correct company_id from the event during initialization.
+        Purpose: Verify feature flag is checked with the correct company_id from the event during run.
         Why this matters: Feature flags are company-specific.
-        Setup summary: Create wrapper, verify feature flag is called with correct company_id.
+        Setup summary: Create wrapper, run tool, verify feature flag is called with correct company_id.
         """
         # Arrange
         mock_progress_reporter = Mock(spec=ToolProgressReporter)
+        mock_progress_reporter.notify_from_tool_call = AsyncMock()
 
-        with patch(
-            "unique_toolkit.agentic.tools.mcp.tool_wrapper.feature_flags.is_new_answers_ui_enabled",
-            return_value=False,
-        ) as mock_feature_flag:
+        wrapper = MCPToolWrapper(
+            mcp_server=mock_mcp_server,
+            mcp_tool=mock_mcp_tool,
+            config=mock_mcp_tool_config,
+            event=mock_chat_event,
+            tool_progress_reporter=mock_progress_reporter,
+        )
+
+        tool_call = LanguageModelFunction(
+            id="call_123",
+            name="test_mcp_tool",
+            arguments={"query": "test"},
+        )
+
+        # Mock feature flags to track calls
+        mock_feature_flags = Mock()
+        mock_feature_flags.is_new_answers_ui_enabled.return_value = False
+
+        with (
+            patch("unique_sdk.MCP.call_tool") as mock_sdk_call,
+            patch(
+                "unique_toolkit.agentic.tools.mcp.tool_wrapper.feature_flags",
+                mock_feature_flags,
+            ),
+        ):
+            mock_sdk_call.return_value = {"result": "ok"}
+
             # Act
-            MCPToolWrapper(
-                mcp_server=mock_mcp_server,
-                mcp_tool=mock_mcp_tool,
-                config=mock_mcp_tool_config,
-                event=mock_chat_event,
-                tool_progress_reporter=mock_progress_reporter,
-            )
+            await wrapper.run(tool_call)
 
             # Assert - feature flag should be called with the company_id from the event
-            mock_feature_flag.assert_called_with("company_456")
+            mock_feature_flags.is_new_answers_ui_enabled.assert_called_with("company_456")
 
     @pytest.mark.ai
     @pytest.mark.asyncio
