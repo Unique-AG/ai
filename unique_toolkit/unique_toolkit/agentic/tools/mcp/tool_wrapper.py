@@ -39,9 +39,6 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
         self._mcp_tool = mcp_tool
         self._mcp_server = mcp_server
 
-        # Message log state
-        self._active_message_log: MessageLog | None = None
-
     def tool_description(self) -> LanguageModelToolDescription:
         """Convert MCP tool schema to LanguageModelToolDescription"""
         # Create a Pydantic model from the MCP tool's input schema
@@ -104,12 +101,15 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
         return []
 
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
+        active_message_log: MessageLog | None = None
+
         """Execute the MCP tool using SDK to call public API"""
         self.logger.info(f"Running MCP tool: {self.name}")
 
         # Create message log entry for the MCP tool run
-        self._create_or_update_message_log(
+        active_message_log = self._create_or_update_message_log(
             progress_message="_Executing MCP tool_",
+            active_message_log=active_message_log,
         )
 
         # Notify progress if reporter is available
@@ -155,9 +155,10 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
                 )
 
             # Update message log entry to completed
-            self._create_or_update_message_log(
+            active_message_log =self._create_or_update_message_log(
                 progress_message="_Completed MCP tool_",
                 status=MessageLogStatus.COMPLETED,
+                active_message_log=active_message_log,
             )
 
             return tool_response
@@ -178,7 +179,7 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
                 )
 
             # Update message log entry to failed
-            self._create_or_update_message_log(
+            active_message_log = self._create_or_update_message_log(
                 progress_message="_Failed executing MCP tool_",
                 status=MessageLogStatus.FAILED,
             )
@@ -199,10 +200,11 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
         *,
         progress_message: str | None = None,
         status: MessageLogStatus = MessageLogStatus.RUNNING,
-    ) -> None:
-        self._active_message_log = (
+        active_message_log: MessageLog | None = None,
+    ) -> MessageLog | None:
+        active_message_log = (
             self._message_step_logger.create_or_update_message_log(
-                active_message_log=self._active_message_log,
+                active_message_log=active_message_log,
                 header=self.display_name(),
                 progress_message=progress_message,
                 status=status,
