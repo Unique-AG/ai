@@ -66,6 +66,9 @@ ci-coverage = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/d
 known_first_party = ["unique_deep_research"]
 extend_exclude = ["benchmarking", "tests"]
 
+[tool.deptry.per_rule_ignores]
+DEP002 = ["langchain-openai"]
+
 [tool.basedpyright]
 typeCheckingMode = "standard"
 include = ["unique_deep_research"]
