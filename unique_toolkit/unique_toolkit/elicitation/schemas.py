@@ -36,8 +36,8 @@ class ElicitationStatus(StrEnum):
 
 
 class ElicitationSource(StrEnum):
-    API = "API"
-    MCP = "MCP"
+    API = "INTERNAL_TOOL"
+    MCP = "MCP_SERVER"
 
 
 class Elicitation(BaseModel):

@@ -80,6 +80,11 @@ class ExperimentalFeatures(FeatureExtendedSourceSerialization): ...
 
 class WebSearchConfig(BaseToolConfig):
     language_model: LMI = get_LMI_default_field(DEFAULT_MODEL_NAME)
+    
+    activate_query_elicitation: bool = Field(
+        default=True,
+        description="Whether to activate query elicitation",
+    )
 
     limit_token_sources: SkipJsonSchema[int] = Field(
         default=60_000,  # TODO: Remove SkipJsonSchema once UI (Spaces 2.0) can be configured to not include certain fields
