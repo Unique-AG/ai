@@ -3075,6 +3075,7 @@ files = [
 
 [package.dependencies]
 langchain-core = ">=1.1.0,<2.0.0"
+langchain-openai = {version = "*", optional = true, markers = "extra == \"openai\""}
 langgraph = ">=1.0.2,<1.1.0"
 pydantic = ">=2.7.4,<3.0.0"
 
@@ -6849,4 +6850,4 @@ cffi = ["cffi (>=1.17,<2.0)", "cffi (>=2.0.0b)"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "9985256765f572f3a4bc6668cc9777ec11460eb27a72c4e61ac6a3d74c4b0bd7"
+content-hash = "ef860eadbf9a7232e040d7cec9f583e0ea88355916b0848250f3f3f6bb8961fb"

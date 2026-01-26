@@ -19,7 +19,6 @@ unique-toolkit = "^1.38.3"
 jinja2 = "^3.1.2"
 openai = "^1.99.0"
 langgraph = "^1.0.0"
-langchain = "^1.1.0"
 langchain-core = "^1.0.0"
 unique-web-search = "^1.7.0"
 httpx = "^0.28.0"
@@ -28,7 +27,7 @@ timeout-decorator = "^0.5.0"
 beautifulsoup4 = "^4.12.0"
 fake-useragent = "^2.0.0"
 markdownify = "^0.14.0"
-langchain-openai = "^1.1.7"
+langchain = {version = "^1.1.0", extras = ["openai"]}
 
 
 [tool.poetry.group.dev.dependencies]
@@ -65,9 +64,6 @@ ci-coverage = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/d
 [tool.deptry]
 known_first_party = ["unique_deep_research"]
 extend_exclude = ["benchmarking", "tests"]
-
-[tool.deptry.per_rule_ignores]
-DEP002 = ["langchain-openai"]
 
 [tool.basedpyright]
 typeCheckingMode = "standard"
