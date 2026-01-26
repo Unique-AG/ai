@@ -2,6 +2,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
+from unique_toolkit.agentic.feature_flags import FeatureFlags
 from unique_toolkit.agentic.tools.a2a.tool.config import SubAgentToolConfig
 from unique_toolkit.agentic.tools.a2a.tool.service import SubAgentTool
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
@@ -234,8 +235,9 @@ class TestSubAgentToolProgressNotifications:
             arguments={"user_message": "test message"},
         )
 
-        with patch(
-            "unique_toolkit.agentic.tools.a2a.tool.service.feature_flags.is_new_answers_ui_enabled",
+        with patch.object(
+            FeatureFlags,
+            "is_new_answers_ui_enabled",
             return_value=False,
         ):
             # Act
@@ -283,8 +285,9 @@ class TestSubAgentToolProgressNotifications:
             arguments={"user_message": "test message"},
         )
 
-        with patch(
-            "unique_toolkit.agentic.tools.a2a.tool.service.feature_flags.is_new_answers_ui_enabled",
+        with patch.object(
+            FeatureFlags,
+            "is_new_answers_ui_enabled",
             return_value=True,
         ):
             # Act
@@ -354,8 +357,9 @@ class TestSubAgentToolProgressNotifications:
             arguments={"user_message": "test message"},
         )
 
-        with patch(
-            "unique_toolkit.agentic.tools.a2a.tool.service.feature_flags.is_new_answers_ui_enabled",
+        with patch.object(
+            FeatureFlags,
+            "is_new_answers_ui_enabled",
             return_value=False,
         ) as mock_feature_flag:
             # Act
@@ -486,6 +490,13 @@ class TestSubAgentToolRun:
             response_watcher=mock_response_watcher,
         )
 
+        # Mock the message step logger
+        mock_message_log = Mock()
+        tool._message_step_logger = Mock()
+        tool._message_step_logger.create_or_update_message_log = Mock(
+            return_value=mock_message_log
+        )
+
         tool_call = LanguageModelFunction(
             id="call_123",
             name="TestSubAgent",
@@ -500,8 +511,9 @@ class TestSubAgentToolRun:
         }
 
         with (
-            patch(
-                "unique_toolkit.agentic.tools.a2a.tool.service.feature_flags.is_new_answers_ui_enabled",
+            patch.object(
+                FeatureFlags,
+                "is_new_answers_ui_enabled",
                 return_value=False,
             ),
             patch(
@@ -566,6 +578,13 @@ class TestSubAgentToolRun:
             response_watcher=mock_response_watcher,
         )
 
+        # Mock the message step logger
+        mock_message_log = Mock()
+        tool._message_step_logger = Mock()
+        tool._message_step_logger.create_or_update_message_log = Mock(
+            return_value=mock_message_log
+        )
+
         tool_call = LanguageModelFunction(
             id="call_123",
             name="TestSubAgent",
@@ -580,8 +599,9 @@ class TestSubAgentToolRun:
         }
 
         with (
-            patch(
-                "unique_toolkit.agentic.tools.a2a.tool.service.feature_flags.is_new_answers_ui_enabled",
+            patch.object(
+                FeatureFlags,
+                "is_new_answers_ui_enabled",
                 return_value=True,
             ),
             patch(
@@ -651,8 +671,9 @@ class TestSubAgentToolRun:
         }
 
         with (
-            patch(
-                "unique_toolkit.agentic.tools.a2a.tool.service.feature_flags.is_new_answers_ui_enabled",
+            patch.object(
+                FeatureFlags,
+                "is_new_answers_ui_enabled",
                 return_value=True,
             ),
             patch(
@@ -704,6 +725,13 @@ class TestSubAgentToolRun:
             display_name="Test Sub Agent",
         )
 
+        # Mock the message step logger
+        mock_message_log = Mock()
+        tool._message_step_logger = Mock()
+        tool._message_step_logger.create_or_update_message_log = Mock(
+            return_value=mock_message_log
+        )
+
         tool_call = LanguageModelFunction(
             id="call_123",
             name="TestSubAgent",
@@ -711,8 +739,9 @@ class TestSubAgentToolRun:
         )
 
         with (
-            patch(
-                "unique_toolkit.agentic.tools.a2a.tool.service.feature_flags.is_new_answers_ui_enabled",
+            patch.object(
+                FeatureFlags,
+                "is_new_answers_ui_enabled",
                 return_value=True,
             ),
             patch(
@@ -765,8 +794,9 @@ class TestSubAgentToolRun:
         )
 
         with (
-            patch(
-                "unique_toolkit.agentic.tools.a2a.tool.service.feature_flags.is_new_answers_ui_enabled",
+            patch.object(
+                FeatureFlags,
+                "is_new_answers_ui_enabled",
                 return_value=True,
             ),
             patch(
