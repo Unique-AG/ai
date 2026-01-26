@@ -156,7 +156,7 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
 
             # Update message log entry to completed
             self._create_or_update_message_log(
-                progress_message="_Finished executing MCP tool_",
+                progress_message="_Completed MCP tool_",
                 status=MessageLogStatus.COMPLETED,
             )
 
