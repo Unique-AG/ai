@@ -103,7 +103,6 @@ class TestSubAgentToolInitialization:
         assert tool._display_name == "Test Sub Agent"
         assert tool._user_id == "user_123"
         assert tool._company_id == "company_456"
-        assert tool._active_message_log is None
 
     @pytest.mark.ai
     def test_init__accepts_optional_progress_reporter__with_reporter_AI(
@@ -416,9 +415,10 @@ class TestSubAgentToolMessageLog:
         )
 
         # Act
-        tool._create_or_update_message_log(
+        result = tool._create_or_update_message_log(
             progress_message="_Running sub agent_",
             status=MessageLogStatus.RUNNING,
+            active_message_log=None,
         )
 
         # Assert
@@ -428,7 +428,7 @@ class TestSubAgentToolMessageLog:
             progress_message="_Running sub agent_",
             status=MessageLogStatus.RUNNING,
         )
-        assert tool._active_message_log == mock_message_log
+        assert result == mock_message_log
 
     @pytest.mark.ai
     def test_create_or_update_message_log__updates_existing_log__when_exists_AI(
@@ -451,16 +451,16 @@ class TestSubAgentToolMessageLog:
 
         existing_log = Mock()
         updated_log = Mock()
-        tool._active_message_log = existing_log
         tool._message_step_logger = Mock()
         tool._message_step_logger.create_or_update_message_log = Mock(
             return_value=updated_log
         )
 
         # Act
-        tool._create_or_update_message_log(
+        result = tool._create_or_update_message_log(
             progress_message="_Finished_",
             status=MessageLogStatus.COMPLETED,
+            active_message_log=existing_log,
         )
 
         # Assert
@@ -470,7 +470,7 @@ class TestSubAgentToolMessageLog:
             progress_message="_Finished_",
             status=MessageLogStatus.COMPLETED,
         )
-        assert tool._active_message_log == updated_log
+        assert result == updated_log
 
 
 class TestSubAgentToolRun:
