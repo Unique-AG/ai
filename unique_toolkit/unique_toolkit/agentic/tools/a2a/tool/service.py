@@ -322,13 +322,11 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
         status: MessageLogStatus = MessageLogStatus.RUNNING,
         active_message_log: MessageLog | None = None,
     ) -> MessageLog | None:
-        return (
-            self._message_step_logger.create_or_update_message_log(
-                active_message_log=active_message_log,
-                header=self._display_name,
-                progress_message=progress_message,
-                status=status,
-            )
+        return self._message_step_logger.create_or_update_message_log(
+            active_message_log=active_message_log,
+            header=self._display_name,
+            progress_message=progress_message,
+            status=status,
         )
 
     def _notify_watcher(
