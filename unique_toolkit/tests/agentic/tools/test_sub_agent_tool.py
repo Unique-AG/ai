@@ -48,18 +48,18 @@ def mock_sub_agent_config() -> SubAgentToolConfig:
     )
 
 
-@pytest.fixture
-def sub_agent_tool(
-    mock_sub_agent_config: SubAgentToolConfig,
-    mock_chat_event: ChatEvent,
-) -> SubAgentTool:
-    """Create a SubAgentTool instance for testing."""
-    return SubAgentTool(
-        configuration=mock_sub_agent_config,
-        event=mock_chat_event,
-        name="TestSubAgent",
-        display_name="Test Sub Agent",
-    )
+# @pytest.fixture
+# def sub_agent_tool(
+#     mock_sub_agent_config: SubAgentToolConfig,
+#     mock_chat_event: ChatEvent,
+# ) -> SubAgentTool:
+#     """Create a SubAgentTool instance for testing."""
+#     return SubAgentTool(
+#         configuration=mock_sub_agent_config,
+#         event=mock_chat_event,
+#         name="TestSubAgent",
+#         display_name="Test Sub Agent",
+#     )
 
 
 class TestSubAgentToolInitialization:
