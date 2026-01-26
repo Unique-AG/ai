@@ -202,7 +202,7 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
         status: MessageLogStatus = MessageLogStatus.RUNNING,
         active_message_log: MessageLog | None = None,
     ) -> MessageLog | None:
-        active_message_log = self._message_step_logger.create_or_update_message_log(
+        return self._message_step_logger.create_or_update_message_log(
             active_message_log=active_message_log,
             header=self.display_name(),
             progress_message=progress_message,
