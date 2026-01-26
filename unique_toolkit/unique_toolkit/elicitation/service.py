@@ -2,7 +2,6 @@ from typing import Any
 
 from unique_toolkit._common.validate_required_values import validate_required_values
 from unique_toolkit.app.schemas import BaseEvent, ChatEvent, Event
-from unique_toolkit.elicitation import ElicitationAction, ElicitationMode
 from unique_toolkit.elicitation.functions import (
     create_elicitation,
     create_elicitation_async,
@@ -15,7 +14,9 @@ from unique_toolkit.elicitation.functions import (
 )
 from unique_toolkit.elicitation.schemas import (
     Elicitation,
+    ElicitationAction,
     ElicitationList,
+    ElicitationMode,
     ElicitationResponseResult,
 )
 
@@ -27,11 +28,11 @@ class ElicitationService:
 
     def __init__(
         self,
+        *,
         user_id: str,
         company_id: str,
         chat_id: str | None = None,
         message_id: str | None = None,
-        mcp_server_id: str | None = None,
     ):
         """
         Initialize the ElicitationService.
@@ -48,7 +49,6 @@ class ElicitationService:
         self._user_id = user_id
         self._chat_id = chat_id
         self._message_id = message_id
-        self._mcp_server_id = mcp_server_id
 
     @classmethod
     def from_event(cls, event: BaseEvent):
@@ -77,44 +77,18 @@ class ElicitationService:
             message_id=message_id,
         )
 
-    @property
-    def user_id(self) -> str:
-        """Get the user ID."""
-        return self._user_id
-
-    @property
-    def company_id(self) -> str:
-        """Get the company ID."""
-        return self._company_id
-
-    @property
-    def chat_id(self) -> str | None:
-        """Get the chat ID."""
-        return self._chat_id
-
-    @property
-    def message_id(self) -> str | None:
-        """Get the message ID."""
-        return self._message_id
-
-    @property
-    def mcp_server_id(self) -> str | None:
-        """Get the MCP server ID."""
-        return self._mcp_server_id
-
     # Create Methods
     ############################################################################
 
     def create(
         self,
+        *,
         mode: ElicitationMode,
         message: str,
         tool_name: str,
         json_schema: dict[str, Any] | None = None,
         url: str | None = None,
         external_elicitation_id: str | None = None,
-        chat_id: str | None = None,
-        message_id: str | None = None,
         expires_in_seconds: int | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> Elicitation:
@@ -148,22 +122,21 @@ class ElicitationService:
             json_schema=json_schema,
             url=url,
             external_elicitation_id=external_elicitation_id,
-            chat_id=chat_id or self._chat_id,
-            message_id=message_id or self._message_id,
+            chat_id=self._chat_id,
+            message_id=self._message_id,
             expires_in_seconds=expires_in_seconds,
             metadata=metadata,
         )
 
     async def create_async(
         self,
+        *,
         mode: ElicitationMode,
         message: str,
         tool_name: str,
         json_schema: dict[str, Any] | None = None,
         url: str | None = None,
         external_elicitation_id: str | None = None,
-        chat_id: str | None = None,
-        message_id: str | None = None,
         expires_in_seconds: int | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> Elicitation:
@@ -197,8 +170,8 @@ class ElicitationService:
             json_schema=json_schema,
             url=url,
             external_elicitation_id=external_elicitation_id,
-            chat_id=chat_id or self._chat_id,
-            message_id=message_id or self._message_id,
+            chat_id=self._chat_id,
+            message_id=self._message_id,
             expires_in_seconds=expires_in_seconds,
             metadata=metadata,
         )
@@ -282,6 +255,7 @@ class ElicitationService:
 
     def respond(
         self,
+        *,
         elicitation_id: str,
         action: ElicitationAction,
         content: dict[str, str | int | bool | list[str]] | None = None,
@@ -310,6 +284,7 @@ class ElicitationService:
 
     async def respond_async(
         self,
+        *,
         elicitation_id: str,
         action: ElicitationAction,
         content: dict[str, str | int | bool | list[str]] | None = None,

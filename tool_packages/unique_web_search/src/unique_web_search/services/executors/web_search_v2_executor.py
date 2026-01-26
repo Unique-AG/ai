@@ -1,17 +1,7 @@
 import asyncio
 import logging
 from time import time
-from typing import Callable, Optional
 
-from unique_toolkit import LanguageModelService
-from unique_toolkit._common.chunk_relevancy_sorter.config import (
-    ChunkRelevancySortConfig,
-)
-from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
-from unique_toolkit._common.validators import LMI
-from unique_toolkit.agentic.tools.tool_progress_reporter import (
-    ToolProgressReporter,
-)
 from unique_toolkit.content import ContentChunk
 from unique_toolkit.language_model import LanguageModelFunction
 
@@ -20,18 +10,19 @@ from unique_web_search.schema import (
     StepType,
     WebSearchPlan,
 )
-from unique_web_search.services.content_processing import ContentProcessor, WebPageChunk
-from unique_web_search.services.crawlers import CrawlerTypes
 from unique_web_search.services.executors.base_executor import (
     BaseWebSearchExecutor,
-    MessageLogCallback,
     WebSearchLogEntry,
 )
-from unique_web_search.services.search_engine import SearchEngineTypes
+from unique_web_search.services.executors.context import (
+    ExecutorCallbacks,
+    ExecutorConfiguration,
+    ExecutorServiceContext,
+)
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
-from unique_web_search.utils import StepDebugInfo, WebSearchDebugInfo
+from unique_web_search.utils import StepDebugInfo
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -46,37 +37,19 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
 
     def __init__(
         self,
-        search_service: SearchEngineTypes,
-        language_model_service: LanguageModelService,
-        language_model: LMI,
-        crawler_service: CrawlerTypes,
+        services: ExecutorServiceContext,
+        config: ExecutorConfiguration,
+        callbacks: ExecutorCallbacks,
         tool_call: LanguageModelFunction,
         tool_parameters: WebSearchPlan,
-        company_id: str,
-        content_processor: ContentProcessor,
-        message_log_callback: MessageLogCallback,
-        chunk_relevancy_sorter: ChunkRelevancySorter | None,
-        chunk_relevancy_sort_config: ChunkRelevancySortConfig,
-        content_reducer: Callable[[list[WebPageChunk]], list[WebPageChunk]],
-        debug_info: WebSearchDebugInfo,
-        tool_progress_reporter: Optional[ToolProgressReporter] = None,
         max_steps: int = 3,
     ):
         super().__init__(
-            search_service=search_service,
-            language_model_service=language_model_service,
-            language_model=language_model,
-            crawler_service=crawler_service,
+            services=services,
+            config=config,
+            callbacks=callbacks,
             tool_call=tool_call,
             tool_parameters=tool_parameters,
-            company_id=company_id,
-            content_processor=content_processor,
-            chunk_relevancy_sorter=chunk_relevancy_sorter,
-            chunk_relevancy_sort_config=chunk_relevancy_sort_config,
-            content_reducer=content_reducer,
-            debug_info=debug_info,
-            tool_progress_reporter=tool_progress_reporter,
-            message_log_callback=message_log_callback,
         )
 
         self.tool_parameters = tool_parameters
@@ -178,7 +151,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
         time_start = time()
         _LOGGER.info(f"Company {self.company_id} Searching with {self.search_service}")
 
-        results = await self.search_service.search(step.query_or_url)
+        results = await self._search_with_elicitation(step.query_or_url)
         self.queries_for_log.append(
             WebSearchLogEntry(
                 type=StepType.SEARCH,
@@ -288,7 +261,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
                 f"Number of steps is greater than the maximum number of steps: {len(self.tool_parameters.steps)} > {self.max_steps}"
             )
             _LOGGER.info(f"Reducing number of steps to {self.max_steps}")
-            self.tool_parameters.steps = self.tool_parameters.steps[: self.max_steps]
+            self.tool_parameters.steps = self.tool_parameters.steps[: self.max_steps-1]
             self.debug_info.steps.append(
                 StepDebugInfo(
                     step_name="enforce_max_steps",

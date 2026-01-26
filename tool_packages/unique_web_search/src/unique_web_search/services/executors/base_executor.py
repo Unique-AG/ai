@@ -1,86 +1,65 @@
 import logging
 from abc import ABC, abstractmethod
 from time import time
-from typing import Callable, Optional, Protocol
 
-from pydantic import BaseModel
-from unique_toolkit import LanguageModelService
-from unique_toolkit._common.chunk_relevancy_sorter.config import (
-    ChunkRelevancySortConfig,
-)
-from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
-from unique_toolkit._common.validators import LMI
 from unique_toolkit.agentic.tools.tool_progress_reporter import (
     ProgressState,
-    ToolProgressReporter,
 )
-from unique_toolkit.chat.schemas import MessageLog, MessageLogStatus
 from unique_toolkit.content import ContentChunk
 from unique_toolkit.language_model import LanguageModelFunction
 
-from unique_web_search.schema import StepType, WebSearchPlan, WebSearchToolParameters
-from unique_web_search.services.content_processing import ContentProcessor, WebPageChunk
-from unique_web_search.services.crawlers import CrawlerTypes
-from unique_web_search.services.search_engine import SearchEngineTypes
+from unique_web_search.schema import WebSearchPlan, WebSearchToolParameters
+from unique_web_search.services.content_processing import WebPageChunk
+from unique_web_search.services.executors.context import (
+    ExecutorCallbacks,
+    ExecutorConfiguration,
+    ExecutorServiceContext,
+    WebSearchLogEntry,
+)
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
-from unique_web_search.utils import StepDebugInfo, WebSearchDebugInfo
+from unique_web_search.utils import StepDebugInfo
 
 _LOGGER = logging.getLogger(__name__)
-
-
-class WebSearchLogEntry(BaseModel):
-    type: StepType
-    message: str
-    web_search_results: list[WebSearchResult]
-
-
-class MessageLogCallback(Protocol):
-    def __call__(
-        self,
-        *,
-        progress_message: str | None = None,
-        queries_for_log: list[WebSearchLogEntry] | list[str] | None = None,
-        status: MessageLogStatus | None = None,
-    ) -> MessageLog | None: ...
 
 
 class BaseWebSearchExecutor(ABC):
     def __init__(
         self,
-        search_service: SearchEngineTypes,
-        language_model_service: LanguageModelService,
-        language_model: LMI,
-        crawler_service: CrawlerTypes,
+        services: ExecutorServiceContext,
+        config: ExecutorConfiguration,
+        callbacks: ExecutorCallbacks,
         tool_call: LanguageModelFunction,
         tool_parameters: WebSearchPlan | WebSearchToolParameters,
-        company_id: str,
-        content_processor: ContentProcessor,
-        message_log_callback: MessageLogCallback,
-        chunk_relevancy_sorter: ChunkRelevancySorter | None,
-        chunk_relevancy_sort_config: ChunkRelevancySortConfig,
-        debug_info: WebSearchDebugInfo,
-        content_reducer: Callable[[list[WebPageChunk]], list[WebPageChunk]],
-        tool_progress_reporter: Optional[ToolProgressReporter] = None,
     ):
-        self.company_id = company_id
-        self.search_service = search_service
-        self.crawler_service = crawler_service
-        self.language_model_service = language_model_service
-        self.tool_progress_reporter = tool_progress_reporter
-        self.language_model = language_model
-        self.content_processor = content_processor
-        self.chunk_relevancy_sorter = chunk_relevancy_sorter
-        self.chunk_relevancy_sort_config = chunk_relevancy_sort_config
+        # Extract from service context
+        self.search_service = services.search_engine_service
+        self.crawler_service = services.crawler_service
+        self.content_processor = services.content_processor
+        self.language_model_service = services.language_model_service
+        self.chunk_relevancy_sorter = services.chunk_relevancy_sorter
+
+        # Extract from configuration
+        self.language_model = config.language_model
+        self.chunk_relevancy_sort_config = config.chunk_relevancy_sort_config
+        self.company_id = config.company_id
+        self.debug_info = config.debug_info
+
+        # Extract from callbacks
+        self._message_log_callback = callbacks.message_log_callback
+        self.content_reducer = callbacks.content_reducer
+        self.query_elicitation_creator = callbacks.query_elicitation_creator
+        self.query_elicitation_evaluator = callbacks.query_elicitation_evaluator
+        self.tool_progress_reporter = callbacks.tool_progress_reporter
+
+        # Store tool parameters
         self.tool_call = tool_call
         self.tool_parameters = tool_parameters
-        self.content_reducer = content_reducer
+
+        # Initialize notification state
         self._notify_name = ""
         self._notify_message = ""
-
-        self.debug_info = debug_info
-        self._message_log_callback = message_log_callback
 
         async def notify_callback() -> None:
             _LOGGER.debug(f"{self.notify_name}: {self.notify_message}")
@@ -167,3 +146,22 @@ class BaseWebSearchExecutor(ABC):
             return sorted_chunks.content_chunks
         else:
             return content
+
+
+    async def _search_with_elicitation(self, query: str, *args, **kwargs) -> list[WebSearchResult]:
+        # Create a query elicitation
+        elicitation = await self.query_elicitation_creator(query)
+        
+        _LOGGER.info(f"Query `{query}` elicitation created: {elicitation.id}")
+        
+        # Wait for the elicitation to be accepted
+        elicitation_accepted = await self.query_elicitation_evaluator(elicitation.id)
+        
+        _LOGGER.info(f"Query elicitation accepted: {elicitation_accepted}")
+        
+        if not elicitation_accepted:
+            _LOGGER.warning(f"Query elicitation not accepted: {elicitation.id}. Returning empty list.")
+            return []
+        
+        # Search the web with the query
+        return await self.search_service.search(query, *args, **kwargs)
