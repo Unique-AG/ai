@@ -191,7 +191,7 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
             )
 
             self._create_or_update_message_log(
-                progress_message=f"_{tool_input}_",
+                progress_message="_Executing Sub Agent_",
             )
 
             # Check if there is a saved chat id in short term memory
@@ -257,7 +257,7 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
 
             # Update message log entry to completed
             self._create_or_update_message_log(
-                progress_message=f"_{tool_input}_",
+                progress_message="_Completed Sub Agent_",
                 status=MessageLogStatus.COMPLETED,
             )
 
