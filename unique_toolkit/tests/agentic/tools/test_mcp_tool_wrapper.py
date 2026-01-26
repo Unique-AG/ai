@@ -997,7 +997,9 @@ class TestMCPToolWrapperRun:
             await wrapper.run(tool_call)
 
             # Assert - feature flag should be called with the company_id from the event
-            mock_feature_flags.is_new_answers_ui_enabled.assert_called_with("company_456")
+            mock_feature_flags.is_new_answers_ui_enabled.assert_called_with(
+                "company_456"
+            )
 
     @pytest.mark.ai
     @pytest.mark.asyncio
