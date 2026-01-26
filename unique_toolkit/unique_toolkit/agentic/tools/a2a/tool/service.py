@@ -85,9 +85,6 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
         self._sequence_number = 1
         self._lock = asyncio.Lock()
 
-        # Message log state
-        self._active_message_log: MessageLog | None = None
-
     @staticmethod
     def get_sub_agent_reference_format(
         name: str, sequence_number: int, reference_number: int
@@ -156,6 +153,8 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
 
     @override
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
+        active_message_log: MessageLog | None = None
+
         if self.config.tool_input_json_schema is not None:
             tool_input = json.dumps(tool_call.arguments)
         else:
@@ -172,8 +171,9 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                 state=ProgressState.STARTED,
             )
 
-            self._create_or_update_message_log(
+            active_message_log = self._create_or_update_message_log(
                 progress_message="_Waiting for another run of this sub agent to finish_",
+                active_message_log=active_message_log,
             )
 
         # When reusing the chat id, executing the sub agent in parrallel leads to race conditions and undefined behavior.
@@ -190,8 +190,9 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                 state=ProgressState.RUNNING,
             )
 
-            self._create_or_update_message_log(
+            active_message_log = self._create_or_update_message_log(
                 progress_message="_Executing Sub Agent_",
+                active_message_log=active_message_log,
             )
 
             # Check if there is a saved chat id in short term memory
@@ -201,6 +202,7 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                 tool_user_message=tool_input,
                 chat_id=chat_id,
                 tool_call=tool_call,
+                active_message_log=active_message_log,
             )
 
             self._should_run_evaluation |= (
@@ -256,9 +258,10 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
             )
 
             # Update message log entry to completed
-            self._create_or_update_message_log(
+            active_message_log = self._create_or_update_message_log(
                 progress_message="_Completed Sub Agent_",
                 status=MessageLogStatus.COMPLETED,
+                active_message_log=active_message_log,
             )
 
             return ToolCallResponse(
@@ -317,10 +320,11 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
         *,
         progress_message: str | None = None,
         status: MessageLogStatus = MessageLogStatus.RUNNING,
-    ) -> None:
-        self._active_message_log = (
+        active_message_log: MessageLog | None = None,
+    ) -> MessageLog | None:
+        return (
             self._message_step_logger.create_or_update_message_log(
-                active_message_log=self._active_message_log,
+                active_message_log=active_message_log,
                 header=self._display_name,
                 progress_message=progress_message,
                 status=status,
@@ -353,6 +357,7 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
         tool_user_message: str,
         chat_id: str | None,
         tool_call: LanguageModelFunction,
+        active_message_log: MessageLog | None = None,
     ) -> unique_sdk.Space.Message:
         try:
             return await send_message_and_wait_for_completion(
@@ -372,9 +377,10 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                 message="Timeout while waiting for response from sub agent.",
                 state=ProgressState.FAILED,
             )
-            self._create_or_update_message_log(
+            active_message_log = self._create_or_update_message_log(
                 progress_message="_Timeout while waiting for response from sub agent_",
                 status=MessageLogStatus.FAILED,
+                active_message_log=active_message_log,
             )
 
             raise TimeoutError(
