@@ -78,14 +78,16 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
         results: list[WebSearchResult] = []
         self.notify_name = "**Searching Web**"
         self.notify_message = self.tool_parameters.objective
+
         await self.notify_callback()
         self._message_log_callback(
             progress_message="_Searching Web_", queries_for_log=self.queries_for_log
         )
 
+        elicitated_steps = await self._elicitate_steps(self.tool_parameters.steps)
+
         tasks = [
-            asyncio.create_task(self._execute_step(step))
-            for step in self.tool_parameters.steps
+            asyncio.create_task(self._execute_step(step)) for step in elicitated_steps
         ]
 
         results_nested = await asyncio.gather(*tasks, return_exceptions=True)
@@ -151,7 +153,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
         time_start = time()
         _LOGGER.info(f"Company {self.company_id} Searching with {self.search_service}")
 
-        results = await self._search_with_elicitation(step.query_or_url)
+        results = await self.search_service.search(step.query_or_url)
         self.queries_for_log.append(
             WebSearchLogEntry(
                 type=StepType.SEARCH,
@@ -261,7 +263,9 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
                 f"Number of steps is greater than the maximum number of steps: {len(self.tool_parameters.steps)} > {self.max_steps}"
             )
             _LOGGER.info(f"Reducing number of steps to {self.max_steps}")
-            self.tool_parameters.steps = self.tool_parameters.steps[: self.max_steps-1]
+            self.tool_parameters.steps = self.tool_parameters.steps[
+                : self.max_steps - 1
+            ]
             self.debug_info.steps.append(
                 StepDebugInfo(
                     step_name="enforce_max_steps",
@@ -273,3 +277,43 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
                     },
                 )
             )
+
+    async def _elicitate_steps(self, steps: list[Step]) -> list[Step]:
+        """Elicit user approval for search steps while preserving read URL steps.
+
+        This method partitions the steps into search and read URL types. Search steps
+        require query elicitation for user approval/modification, while read URL steps
+        are passed through unchanged. The elicited queries replace the original search
+        steps, maintaining the step order (search steps first, then read URL steps).
+
+        Args:
+            steps: List of planned steps to elicit
+
+        Returns:
+            List of approved steps with elicited search queries and original read URL steps
+        """
+        # Partition steps by type in a single pass
+        search_steps, read_url_steps = [], []
+        for step in steps:
+            if step.step_type == StepType.SEARCH:
+                search_steps.append(step)
+            else:  # StepType.READ_URL
+                read_url_steps.append(step)
+
+        # Early return if no search steps require elicitation
+        if not search_steps:
+            return read_url_steps
+
+        # Extract queries and elicit user approval/modifications
+        search_queries = [step.query_or_url for step in search_steps]
+        elicited_queries = await self._elicitate_queries(search_queries)
+
+        # Reconstruct search steps with elicited queries
+        # Note: Objectives are cleared as elicitation may have changed query intent
+        elicited_search_steps = [
+            Step(step_type=StepType.SEARCH, query_or_url=query, objective="")
+            for query in elicited_queries
+        ]
+
+        # Return elicited search steps followed by unchanged read URL steps
+        return elicited_search_steps + read_url_steps

@@ -80,10 +80,16 @@ class ExperimentalFeatures(FeatureExtendedSourceSerialization): ...
 
 class WebSearchConfig(BaseToolConfig):
     language_model: LMI = get_LMI_default_field(DEFAULT_MODEL_NAME)
-    
+
     activate_query_elicitation: bool = Field(
         default=True,
         description="Whether to activate query elicitation",
+    )
+    query_elicitation_timeout_seconds: int = Field(
+        default=60,
+        description="Timeout in seconds for query elicitation approval",
+        ge=1,
+        le=300,
     )
 
     limit_token_sources: SkipJsonSchema[int] = Field(

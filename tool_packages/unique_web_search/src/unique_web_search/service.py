@@ -1,4 +1,3 @@
-import asyncio
 import logging
 from time import time
 
@@ -39,24 +38,23 @@ from unique_web_search.services.executors.context import (
     ExecutorConfiguration,
     ExecutorServiceContext,
 )
+from unique_web_search.services.query_elicitation import QueryElicitationService
 from unique_web_search.services.search_engine import get_search_engine_service
 from unique_web_search.utils import WebSearchDebugInfo, reduce_sources_to_token_limit
 
 _LOGGER = logging.getLogger(__name__)
+
+
 class WebSearchTool(Tool[WebSearchConfig]):
     name = "WebSearch"
 
     def __init__(self, configuration: WebSearchConfig, *args, **kwargs):
         super().__init__(configuration, *args, **kwargs)
         self.language_model = self.config.language_model
-        
-        self.query_elicitation_creator = self._get_query_elicitation_creator()
-        self.query_elicitation_evaluator = self._get_query_elicitation_evaluator()
 
         self.search_engine_service = get_search_engine_service(
             self.config.search_engine_config,
             self.language_model_service,
-            
         )
         self.crawler_service = get_crawler_service(self.config.crawler_config)
         self.chunk_relevancy_sorter = ChunkRelevancySorter(self.event)
@@ -197,6 +195,16 @@ class WebSearchTool(Tool[WebSearchConfig]):
                 status=status,
             )
 
+        # Initialize query elicitation service and get callbacks
+        elicitation_service = QueryElicitationService(
+            chat_service=self._chat_service,
+            display_name=self.display_name(),
+            timeout_seconds=self.config.query_elicitation_timeout_seconds,
+        )
+        query_elicitation_creator, query_elicitation_evaluator = (
+            elicitation_service.get_callbacks()
+        )
+
         # Build context objects
         services = ExecutorServiceContext(
             search_engine_service=self.search_engine_service,
@@ -217,8 +225,8 @@ class WebSearchTool(Tool[WebSearchConfig]):
         callbacks = ExecutorCallbacks(
             message_log_callback=message_log_callback,
             content_reducer=self.content_reducer,
-            query_elicitation_creator=self.query_elicitation_creator,
-            query_elicitation_evaluator=self.query_elicitation_evaluator,
+            query_elicitation_creator=query_elicitation_creator,
+            query_elicitation_evaluator=query_elicitation_evaluator,
             tool_progress_reporter=self.tool_progress_reporter
             if not feature_flags.is_new_answers_ui_enabled(self.company_id)
             else None,
@@ -268,7 +276,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
             queries_for_log = [
                 WebSearchLogEntry(
                     type=StepType.SEARCH,
-                    message=query, # type: ignore
+                    message=query,  # type: ignore
                     web_search_results=[],
                 )
                 for query in queries_for_log
@@ -278,7 +286,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
             data=[
                 MessageLogEvent(
                     type="WebSearch",
-                    text=query_for_log.message, # type: ignore
+                    text=query_for_log.message,  # type: ignore
                 )
                 for query_for_log in queries_for_log
             ]
@@ -286,7 +294,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
         references = []
         sequence_number = 0
         for query_for_log in queries_for_log:
-            for web_search_result in query_for_log.web_search_results: # type: ignore
+            for web_search_result in query_for_log.web_search_results:  # type: ignore
                 references.append(
                     web_search_result.to_content_reference(sequence_number)
                 )
@@ -319,36 +327,6 @@ class WebSearchTool(Tool[WebSearchConfig]):
             )
         )
         return self._active_message_log
-    
-    def _get_query_elicitation_creator(self):
-        from pydantic import BaseModel
-        from unique_toolkit.elicitation import Elicitation, ElicitationMode
-        class QueryElicitation(BaseModel):
-            name: str
-        
-        async def creator(query: str) -> Elicitation:
-            return await self._chat_service.elicitation.create_async(
-                mode=ElicitationMode.FORM,
-                tool_name=self.display_name(),
-                message=query,
-                json_schema=QueryElicitation.model_json_schema(),
-            )
 
-        return creator
-    
-    def _get_query_elicitation_evaluator(self):
-        from unique_toolkit.elicitation import ElicitationStatus
-        async def evaluator(elicitation_id: str) -> bool:
-            for _ in range(60): # 60 seconds timeout # TODO: Make this configurable
-                await asyncio.sleep(1)
-                elicitation = await self._chat_service.elicitation.get_async(
-                    elicitation_id=elicitation_id,
-                )
-                if elicitation.status == ElicitationStatus.ACCEPTED:
-                    _LOGGER.info(f"Query elicitation {elicitation.id} accepted")
-                    return True
-            return False
-
-        return evaluator
 
 ToolFactory.register_tool(WebSearchTool, WebSearchConfig)

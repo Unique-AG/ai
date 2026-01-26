@@ -160,39 +160,37 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
         self.notify_name = "**Refining Query**"
         self.notify_message = query_params_to_human_string(query, date_restrict)
         await self.notify_callback()
-        
+
         self._active_message_log = self._message_log_callback(
             progress_message=f"_Refining Query:_ {self.notify_message}"
         )
         refined_queries, objective = await self._refine_query(query)
 
+        elicitated_queries = await self._elicitate_queries(refined_queries)
+
         web_search_results = []
         # Pass query strings only - callback handles creating WebSearchLogEntry objects
         queries_wo_results = [
             query_params_to_human_string(refined_query, date_restrict)
-            for refined_query in refined_queries
+            for refined_query in elicitated_queries
         ]
         self._active_message_log = self._message_log_callback(
             queries_for_log=queries_wo_results
         )
 
         queries_for_log = []
-        for index, refined_query in enumerate(refined_queries):
+        for index, query in enumerate(elicitated_queries):
             if len(refined_queries) > 1:
                 self.notify_name = (
-                    f"**Searching Web {index + 1}/{len(refined_queries)}**"
+                    f"**Searching Web {index + 1}/{len(elicitated_queries)}**"
                 )
             else:
                 self.notify_name = "**Searching Web**"
 
-            self.notify_message = query_params_to_human_string(
-                refined_query, date_restrict
-            )
+            self.notify_message = query_params_to_human_string(query, date_restrict)
             await self.notify_callback()
 
-            search_results = await self._search(
-                refined_query, date_restrict=date_restrict
-            )
+            search_results = await self._search(query, date_restrict=date_restrict)
             queries_for_log.append(
                 WebSearchLogEntry(
                     type=StepType.SEARCH,
@@ -283,7 +281,7 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
     ) -> list[WebSearchResult]:
         start_time = time()
         _LOGGER.info(f"Company {self.company_id} Searching with {self.search_service}")
-        search_results = await self._search_with_elicitation(
+        search_results = await self.search_service.search(
             query, date_restrict=date_restrict
         )
         end_time = time()
