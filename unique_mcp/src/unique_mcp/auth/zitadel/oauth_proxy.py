@@ -1,8 +1,13 @@
+from typing import TYPE_CHECKING, Any
+
 from fastmcp.server.auth.oauth_proxy import OAuthProxy
 from fastmcp.server.auth.providers.jwt import JWTVerifier
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from unique_mcp.util.find_env_file import find_env_file
+
+if TYPE_CHECKING:
+    from key_value.aio.protocols import AsyncKeyValue
 
 
 class ZitadelOAuthProxySettings(BaseSettings):
@@ -39,6 +44,8 @@ def create_zitadel_oauth_proxy(
     *,
     mcp_server_base_url: str = "http://localhost:8003",
     zitadel_oauth_proxy_settings: ZitadelOAuthProxySettings | None = None,
+    client_storage: "AsyncKeyValue | None" = None,
+    **kwargs: Any,
 ) -> OAuthProxy:
     """Create a Zitadel OAuth proxy instance.
 
@@ -84,4 +91,6 @@ def create_zitadel_oauth_proxy(
         token_endpoint_auth_method="client_secret_post",
         extra_authorize_params=None,
         extra_token_params=None,
+        client_storage=client_storage,
+        **kwargs,
     )

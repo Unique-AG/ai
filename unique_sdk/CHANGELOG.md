@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.74] - 2026-01-22
+- Add delete space function.
+
+## [0.10.73] - 2026-01-21
+- added searchtype `FULL_TEXT` and `POSTGRES_FULL_TEXT`
+
+## [0.10.72] - 2026-01-20
+- Expose elicitation functions [BETA feature].
+
 ## [0.10.71] - 2026-01-16
 - Add local CI testing commands via poethepoet (poe lint, poe test, poe ci-typecheck, etc.)
 

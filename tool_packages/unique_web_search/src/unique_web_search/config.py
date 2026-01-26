@@ -1,7 +1,7 @@
 from logging import getLogger
-from typing import Annotated
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic.json_schema import SkipJsonSchema
 from unique_toolkit._common.chunk_relevancy_sorter.config import (
     ChunkRelevancySortConfig,
@@ -109,7 +109,7 @@ class WebSearchConfig(BaseToolConfig):
     web_search_mode_config_v2: WebSearchV2Config = Field(
         default_factory=WebSearchV2Config,
         description="Web Search Mode Configuration V2",
-        title="Web Search Mode Configuration V2 (Beta)",
+        title="Web Search Mode Configuration V2",
     )
 
     search_engine_config: ActivatedSearchEngine = Field(  # type: ignore (This type is computed at runtime so pyright is not able to infer it)
@@ -188,3 +188,10 @@ class WebSearchConfig(BaseToolConfig):
             if self.web_search_active_mode == WebSearchMode.V1
             else self.web_search_mode_config_v2
         )
+
+    @field_validator("web_search_active_mode", mode="before")
+    @classmethod
+    def validate_web_search_active_mode(cls, v: str) -> Literal["v1", "v2"]:
+        if "v2" in v.lower():  # Make sure to handle "v2 (beta)" as well
+            return "v2"
+        return "v1"

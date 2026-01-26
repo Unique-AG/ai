@@ -18,13 +18,16 @@ from unique_toolkit.chat.service import ChatService, LanguageModelStreamResponse
 
 _LOGGER = logging.getLogger(__name__)
 
+QWEN_MAX_LOOP_ITERATIONS = 3
+
 QWEN_FORCED_TOOL_CALL_INSTRUCTION = (
     "**Tool Call Instruction:** \nYou MUST call the tool {TOOL_NAME}. "
     "You must start the response with <tool_call>. "
     "Do NOT provide natural language explanations, summaries, or any text outside the <tool_call> block."
 )
 
-QWEN_LAST_ITERATION_INSTRUCTION = "The maximum number of loop iteration have been reached. Not further tool calls are allowed. Based on the found information, an answer should be generated"
+QWEN_LAST_ITERATION_INSTRUCTION = """The maximum number of loop iteration have been reached. Not further tool calls are allowed.
+Based on the found information, an answer should be generated"""
 
 
 class QwenLoopIterationRunner(LoopIterationRunner):

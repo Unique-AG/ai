@@ -19,9 +19,7 @@ def get_default_web_search_mode_config() -> WebSearchMode:
         case "v2":
             return WebSearchMode.V2
         case _:
-            raise ValueError(
-                f"Invalid web search mode: {env_settings.default_web_search_mode}"
-            )
+            raise ValueError(f"Invalid web search mode: {env_settings.web_search_mode}")
 
 
 __all__ = [

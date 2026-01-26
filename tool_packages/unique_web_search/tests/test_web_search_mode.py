@@ -4,7 +4,6 @@ import os
 from unittest.mock import patch
 
 import pytest
-from pydantic import ValidationError
 from unique_toolkit.language_model.infos import (
     LanguageModelInfo,
     LanguageModelName,
@@ -233,12 +232,13 @@ class TestWebSearchConfigDefaultMode:
         assert config.web_search_active_mode == WebSearchMode.V2
 
     def test_web_search_config_rejects_invalid_mode(self, mock_language_model_info):
-        """Test WebSearchConfig rejects invalid web_search_active_mode values."""
-        with pytest.raises(ValidationError):
-            WebSearchConfig(
-                language_model=mock_language_model_info,
-                web_search_active_mode="invalid",  # type: ignore
-            )
+        """Test WebSearchConfig defaults to v1 for invalid web_search_active_mode values."""
+        # The validator defaults to v1 for invalid values instead of raising an error
+        config = WebSearchConfig(
+            language_model=mock_language_model_info,
+            web_search_active_mode="invalid",  # type: ignore
+        )
+        assert config.web_search_active_mode == WebSearchMode.V1
 
 
 class TestWebSearchModeIntegration:

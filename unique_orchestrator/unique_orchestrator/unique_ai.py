@@ -11,7 +11,11 @@ from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
 from unique_toolkit.agentic.evaluation.evaluation_manager import EvaluationManager
 from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
-from unique_toolkit.agentic.loop_runner import LoopIterationRunner
+from unique_toolkit.agentic.loop_runner import (
+    LoopIterationRunner,
+    ResponsesLoopIterationRunner,
+    is_qwen_model,
+)
 from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
     PostprocessorManager,
@@ -60,27 +64,6 @@ class UniqueAI:
         chat_service: ChatService,
         content_service: ContentService,
         debug_info_manager: DebugInfoManager,
-        streaming_handler: ResponsesSupportCompleteWithReferences,
-        reference_manager: ReferenceManager,
-        thinking_manager: ThinkingManager,
-        tool_manager: ResponsesApiToolManager,
-        history_manager: HistoryManager,
-        evaluation_manager: EvaluationManager,
-        postprocessor_manager: PostprocessorManager,
-        message_step_logger: MessageStepLogger,
-        mcp_servers: list[McpServer],
-        loop_iteration_runner: LoopIterationRunner,
-    ) -> None: ...
-
-    @overload
-    def __init__(
-        self,
-        logger: Logger,
-        event: ChatEvent,
-        config: UniqueAIConfig,
-        chat_service: ChatService,
-        content_service: ContentService,
-        debug_info_manager: DebugInfoManager,
         streaming_handler: SupportCompleteWithReferences,
         reference_manager: ReferenceManager,
         thinking_manager: ThinkingManager,
@@ -91,6 +74,28 @@ class UniqueAI:
         message_step_logger: MessageStepLogger,
         mcp_servers: list[McpServer],
         loop_iteration_runner: LoopIterationRunner,
+    ) -> None: ...
+
+    # Responses API Dependencies
+    @overload
+    def __init__(
+        self,
+        logger: Logger,
+        event: ChatEvent,
+        config: UniqueAIConfig,
+        chat_service: ChatService,
+        content_service: ContentService,
+        debug_info_manager: DebugInfoManager,
+        streaming_handler: ResponsesSupportCompleteWithReferences,
+        reference_manager: ReferenceManager,
+        thinking_manager: ThinkingManager,
+        tool_manager: ResponsesApiToolManager,
+        history_manager: HistoryManager,
+        evaluation_manager: EvaluationManager,
+        postprocessor_manager: PostprocessorManager,
+        message_step_logger: MessageStepLogger,
+        mcp_servers: list[McpServer],
+        loop_iteration_runner: ResponsesLoopIterationRunner,
     ) -> None: ...
 
     def __init__(
@@ -111,7 +116,7 @@ class UniqueAI:
         postprocessor_manager: PostprocessorManager,
         message_step_logger: MessageStepLogger,
         mcp_servers: list[McpServer],
-        loop_iteration_runner: LoopIterationRunner,
+        loop_iteration_runner: LoopIterationRunner | ResponsesLoopIterationRunner,
     ) -> None:
         self._logger = logger
         self._event = event
@@ -137,6 +142,16 @@ class UniqueAI:
         self._tool_took_control = False
         self._loop_iteration_runner = loop_iteration_runner
 
+    @property
+    def _effective_max_loop_iterations(self) -> int:
+        """Get the effective max loop iterations based on the model type."""
+        if is_qwen_model(model=self._config.space.language_model):
+            qwen_config = (
+                self._config.agent.experimental.loop_configuration.model_specific.qwen
+            )
+            return qwen_config.max_loop_iterations
+        return self._config.agent.max_loop_iterations
+
     ############################################################
     # Override of base methods
     ############################################################
@@ -154,7 +169,8 @@ class UniqueAI:
             )
 
         ## Loop iteration
-        for i in range(self._config.agent.max_loop_iterations):
+        max_iterations = self._effective_max_loop_iterations
+        for i in range(max_iterations):
             self.current_iteration_index = i
             self._logger.info(f"Starting iteration {i + 1}...")
 
@@ -177,7 +193,7 @@ class UniqueAI:
                 self._logger.info("Exiting loop.")
                 break
 
-            if i == self._config.agent.max_loop_iterations - 1:
+            if i == max_iterations - 1:
                 self._logger.error("Max iterations reached.")
                 await self._chat_service.modify_assistant_message_async(
                     content="I have reached the maximum number of self-reflection iterations. Please clarify your request and try again...",
@@ -204,14 +220,14 @@ class UniqueAI:
         return await self._loop_iteration_runner(
             messages=messages,
             iteration_index=self.current_iteration_index,
-            streaming_handler=self._streaming_handler,
+            streaming_handler=self._streaming_handler,  # type: ignore (constructor accepts only compatible arguments)
             model=self._config.space.language_model,
-            tools=self._tool_manager.get_tool_definitions(),
+            tools=self._tool_manager.get_tool_definitions(),  # type: ignore (as above)
             content_chunks=self._reference_manager.get_chunks(),
             start_text=self.start_text,
             debug_info=self._debug_info_manager.get(),
             temperature=self._config.agent.experimental.temperature,
-            tool_choices=self._tool_manager.get_forced_tools(),
+            tool_choices=self._tool_manager.get_forced_tools(),  # type: ignore (as above)
             other_options=self._config.agent.experimental.additional_llm_options,
         )
 
@@ -349,7 +365,7 @@ class UniqueAI:
             project_name=self._config.space.project_name,
             custom_instructions=self._config.space.custom_instructions,
             max_tools_per_iteration=self._config.agent.experimental.loop_configuration.max_tool_calls_per_iteration,
-            max_loop_iterations=self._config.agent.max_loop_iterations,
+            max_loop_iterations=self._effective_max_loop_iterations,
             current_iteration=self.current_iteration_index + 1,
             mcp_server_system_prompts=mcp_server_system_prompts,
             use_sub_agent_references=use_sub_agent_references,
@@ -564,7 +580,7 @@ class UniqueAIResponsesApi(UniqueAI):
         postprocessor_manager: PostprocessorManager,
         message_step_logger: MessageStepLogger,
         mcp_servers: list[McpServer],
-        loop_iteration_runner: LoopIterationRunner,
+        loop_iteration_runner: ResponsesLoopIterationRunner,
     ) -> None:
         super().__init__(
             logger,
@@ -573,10 +589,10 @@ class UniqueAIResponsesApi(UniqueAI):
             chat_service=chat_service,
             content_service=content_service,
             debug_info_manager=debug_info_manager,
-            streaming_handler=streaming_handler,  # type: ignore
+            streaming_handler=streaming_handler,
             reference_manager=reference_manager,
             thinking_manager=thinking_manager,
-            tool_manager=tool_manager,  # type: ignore
+            tool_manager=tool_manager,
             history_manager=history_manager,
             evaluation_manager=evaluation_manager,
             postprocessor_manager=postprocessor_manager,

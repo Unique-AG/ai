@@ -5,8 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.43.9] - 2026-01-19
+## [1.45.1] - 2026-01-26
 - Add FileMimeType utility helpers
+
+## [1.45.0] - 2026-01-23
+- Remove unused code execution options from config
+
+## [1.44.0] - 2026-01-23
+- Add LoopIterationRunner abstraction for the responses api 
+
+## [1.43.11] - 2026-01-23
+- Add `RESPONSES_API` Capablity to some models that were missing it
+
+## [1.43.10] - 2026-01-21
+- Lowering the max iterations of the main agents and hard blocking Qwen3 from using too many agent rounds
+
+## [1.43.9] - 2026-01-20
+- Fix system message role conversion in responses API mode (was incorrectly set to "user", now correctly set to "system")
 
 ## [1.43.8] - 2026-01-16
 - Add local CI testing commands via poethepoet (poe lint, poe test, poe ci-typecheck, etc.)

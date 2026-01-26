@@ -7,8 +7,6 @@ from unique_toolkit.agentic.tools.openai_builtin.base import (
 )
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 
-DEFAULT_TOOL_DESCRIPTION = "Use this tool to run python code, e.g to generate plots, process excel files, perform calculations, etc."
-
 DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT = """
 Use this tool to run python code, e.g to generate plots, process excel files, perform calculations, etc.
 
@@ -48,11 +46,9 @@ Handling User Queries:
 - After exhausting all possible solutions without success, inform the user of what was tried and request clarification/help.
 """.strip()
 
-DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT = ""
-
-DEFAULT_TOOL_FORMAT_INFORMATION_FOR_USER_PROMPT = ""
 
 DEFAULT_TOOL_DESCRIPTION_FOR_USER_PROMPT = ""
+DEFAULT_TOOL_DESCRIPTION = "Use this tool to run python code, e.g to generate plots, process excel files, perform calculations, etc."
 
 
 class OpenAICodeInterpreterConfig(BaseToolConfig):
@@ -60,19 +56,13 @@ class OpenAICodeInterpreterConfig(BaseToolConfig):
         default=True,
         description="If set, the files uploaded to the chat will be uploaded to the container where code is executed.",
     )
-
     tool_description: str = Field(
         default=DEFAULT_TOOL_DESCRIPTION,
-        description="The description of the tool that will be sent to the model.",
+        description="The description of the tool that will be included in the system prompt.",
     )
     tool_description_for_system_prompt: str = Field(
         default=DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
         description="The description of the tool that will be included in the system prompt.",
-    )
-    tool_format_information_for_system_prompt: SkipJsonSchema[str] = Field(
-        # Since the tool is executed in Azure, it's not always possible to have dynamic format information
-        default=DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT,
-        description="The format information of the tool that will be included in the system prompt.",
     )
     tool_description_for_user_prompt: SkipJsonSchema[str] = (
         Field(  # At the moment, this is not appended to the user prompt
@@ -80,13 +70,6 @@ class OpenAICodeInterpreterConfig(BaseToolConfig):
             description="The description of the tool that will be included in the user prompt.",
         )
     )
-    tool_format_information_for_user_prompt: SkipJsonSchema[str] = (
-        Field(  # At the moment, this is not appended to the user prompt
-            default=DEFAULT_TOOL_FORMAT_INFORMATION_FOR_USER_PROMPT,
-            description="The format information of the tool that will be included in the user prompt.",
-        )
-    )
-
     expires_after_minutes: int = Field(
         default=20,
         description="The number of minutes after which the container will be deleted.",
