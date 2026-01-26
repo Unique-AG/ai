@@ -9,10 +9,14 @@ class FileMimeType(StrEnum):
     PDF = "application/pdf"
     DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     DOC = "application/msword"
+    # TODO: clean up duplicates and make the monolith compatible with this.
     XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    MSEXCEL = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     XLS = "application/vnd.ms-excel"
+    EXCEL = "application/vnd.ms-excel"
     PPT = "application/vnd.ms-powerpoint"
     PPTX = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+    MSPPT = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
     CSV = "text/csv"
     HTML = "text/html"
     MD = "text/markdown"
@@ -42,12 +46,12 @@ class FileMimeType(StrEnum):
     @classmethod
     def is_xlsx_mime(cls, filepath: Path) -> bool:
         mime_type = cls.get_mime_from_file_path(filepath)
-        return mime_type in {cls.XLSX, cls.XLS}
+        return mime_type in {cls.XLSX, cls.XLS, cls.MSEXCEL, cls.EXCEL}
 
     @classmethod
     def is_pptx_mime(cls, filepath: Path) -> bool:
         mime_type = cls.get_mime_from_file_path(filepath)
-        return mime_type in {cls.PPTX, cls.PPT}
+        return mime_type in {cls.PPTX, cls.PPT, cls.MSPPT}
 
     @classmethod
     def is_json_mime(cls, filepath: Path) -> bool:
@@ -64,9 +68,14 @@ def get_common_name(extension: FileMimeType) -> str:
     match extension:
         case FileMimeType.DOCX | FileMimeType.DOC:
             return "docx"
-        case FileMimeType.XLSX | FileMimeType.XLS:
+        case (
+            FileMimeType.XLSX
+            | FileMimeType.XLS
+            | FileMimeType.MSEXCEL
+            | FileMimeType.EXCEL
+        ):
             return "excel"
-        case FileMimeType.PPT | FileMimeType.PPTX:
+        case FileMimeType.PPT | FileMimeType.PPTX | FileMimeType.MSPPT:
             return "powerpoint"
         case FileMimeType.PDF:
             return "pdf"
