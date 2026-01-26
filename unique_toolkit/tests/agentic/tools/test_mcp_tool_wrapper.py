@@ -620,7 +620,10 @@ class TestMCPToolWrapperRun:
             arguments={"query": "test"},
         )
 
-        with patch("unique_sdk.MCP.call_tool") as mock_sdk_call:
+        with (
+            patch("unique_sdk.MCP.call_tool") as mock_sdk_call,
+            patch.object(mcp_tool_wrapper, "_create_or_update_message_log"),
+        ):
             mock_sdk_call.return_value = {"result": "success", "data": [1, 2, 3]}
 
             # Act
@@ -659,7 +662,10 @@ class TestMCPToolWrapperRun:
             arguments={"query": "test", "limit": 5},
         )
 
-        with patch("unique_sdk.MCP.call_tool") as mock_sdk_call:
+        with (
+            patch("unique_sdk.MCP.call_tool") as mock_sdk_call,
+            patch.object(mcp_tool_wrapper, "_create_or_update_message_log"),
+        ):
             mock_sdk_call.return_value = {"result": "ok"}
 
             # Act
@@ -693,7 +699,10 @@ class TestMCPToolWrapperRun:
             arguments={"query": "test"},
         )
 
-        with patch("unique_sdk.MCP.call_tool") as mock_sdk_call:
+        with (
+            patch("unique_sdk.MCP.call_tool") as mock_sdk_call,
+            patch.object(mcp_tool_wrapper, "_create_or_update_message_log"),
+        ):
             mock_sdk_call.side_effect = Exception("SDK error occurred")
 
             # Act
@@ -750,6 +759,7 @@ class TestMCPToolWrapperRun:
                 "unique_toolkit.agentic.tools.mcp.tool_wrapper.feature_flags",
                 mock_feature_flags,
             ),
+            patch.object(wrapper, "_create_or_update_message_log"),
         ):
             mock_sdk_call.return_value = {"result": "ok"}
 
@@ -811,6 +821,7 @@ class TestMCPToolWrapperRun:
                 "unique_toolkit.agentic.tools.mcp.tool_wrapper.feature_flags",
                 mock_feature_flags,
             ),
+            patch.object(wrapper, "_create_or_update_message_log"),
         ):
             mock_sdk_call.return_value = {"result": "ok"}
 
@@ -866,6 +877,7 @@ class TestMCPToolWrapperRun:
                 "unique_toolkit.agentic.tools.mcp.tool_wrapper.feature_flags",
                 mock_feature_flags,
             ),
+            patch.object(wrapper, "_create_or_update_message_log"),
         ):
             mock_sdk_call.side_effect = Exception("Test error")
 
@@ -920,6 +932,7 @@ class TestMCPToolWrapperRun:
                 "unique_toolkit.agentic.tools.mcp.tool_wrapper.feature_flags",
                 mock_feature_flags,
             ),
+            patch.object(wrapper, "_create_or_update_message_log"),
         ):
             mock_sdk_call.side_effect = Exception("Test error")
 
@@ -976,6 +989,7 @@ class TestMCPToolWrapperRun:
                 "unique_toolkit.agentic.tools.mcp.tool_wrapper.feature_flags",
                 mock_feature_flags,
             ),
+            patch.object(wrapper, "_create_or_update_message_log"),
         ):
             mock_sdk_call.return_value = {"result": "ok"}
 
@@ -1003,7 +1017,10 @@ class TestMCPToolWrapperRun:
             arguments={"query": "test"},
         )
 
-        with patch("unique_sdk.MCP.call_tool") as mock_sdk_call:
+        with (
+            patch("unique_sdk.MCP.call_tool") as mock_sdk_call,
+            patch.object(mcp_tool_wrapper, "_create_or_update_message_log"),
+        ):
             mock_sdk_call.return_value = {"result": "ok"}
 
             # Act
@@ -1031,7 +1048,10 @@ class TestMCPToolWrapperRun:
             arguments='{"query": "test"}',
         )
 
-        with patch("unique_sdk.MCP.call_tool") as mock_sdk_call:
+        with (
+            patch("unique_sdk.MCP.call_tool") as mock_sdk_call,
+            patch.object(mcp_tool_wrapper, "_create_or_update_message_log"),
+        ):
             mock_sdk_call.return_value = {"result": "ok"}
 
             # Act
@@ -1112,7 +1132,10 @@ class TestMCPToolWrapperEdgeCases:
             arguments={"query": "test"},
         )
 
-        with patch("unique_sdk.MCP.call_tool") as mock_sdk_call:
+        with (
+            patch("unique_sdk.MCP.call_tool") as mock_sdk_call,
+            patch.object(mcp_tool_wrapper, "_create_or_update_message_log"),
+        ):
             mock_sdk_call.return_value = {}
 
             # Act
@@ -1148,7 +1171,10 @@ class TestMCPToolWrapperEdgeCases:
             arguments=complex_args,
         )
 
-        with patch("unique_sdk.MCP.call_tool") as mock_sdk_call:
+        with (
+            patch("unique_sdk.MCP.call_tool") as mock_sdk_call,
+            patch.object(mcp_tool_wrapper, "_create_or_update_message_log"),
+        ):
             mock_sdk_call.return_value = {"result": "ok"}
 
             # Act
