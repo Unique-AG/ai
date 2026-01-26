@@ -147,21 +147,18 @@ class BaseWebSearchExecutor(ABC):
         else:
             return content
 
-
-    async def _search_with_elicitation(self, query: str, *args, **kwargs) -> list[WebSearchResult]:
+    async def _elicitate_queries(self, queries: list[str]) -> list[str]:
         # Create a query elicitation
-        elicitation = await self.query_elicitation_creator(query)
-        
-        _LOGGER.info(f"Query `{query}` elicitation created: {elicitation.id}")
-        
+        elicitation = await self.query_elicitation_creator(queries)
+
+        _LOGGER.info(f"Query `{queries}` elicitation created: {elicitation.id}")
+
         # Wait for the elicitation to be accepted
-        elicitation_accepted = await self.query_elicitation_evaluator(elicitation.id)
-        
-        _LOGGER.info(f"Query elicitation accepted: {elicitation_accepted}")
-        
-        if not elicitation_accepted:
-            _LOGGER.warning(f"Query elicitation not accepted: {elicitation.id}. Returning empty list.")
+        try:
+            elicitation_accepted = await self.query_elicitation_evaluator(
+                elicitation.id
+            )
+            return elicitation_accepted
+        except Exception as e:
+            _LOGGER.exception(f"Error eliciting queries: {e}")
             return []
-        
-        # Search the web with the query
-        return await self.search_service.search(query, *args, **kwargs)
