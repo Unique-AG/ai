@@ -1,4 +1,3 @@
-
 import pytest
 
 from unique_toolkit.agentic.tools.tool_progress_reporter import (
