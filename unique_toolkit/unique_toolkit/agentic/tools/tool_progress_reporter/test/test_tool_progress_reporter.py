@@ -490,9 +490,7 @@ class TestMessageLogToolProgressReporter:
         )
 
         # Assert
-        call_kwargs = (
-            message_log_reporter._message_step_logger.create_or_update_message_log.call_args.kwargs
-        )
+        call_kwargs = message_log_reporter._message_step_logger.create_or_update_message_log.call_args.kwargs
         assert call_kwargs["active_message_log"] is None
         assert call_kwargs["header"] == "Test Tool"
         assert call_kwargs["progress_message"] == "Processing"
@@ -573,9 +571,7 @@ class TestMessageLogToolProgressReporter:
         )
 
         # Assert
-        call_kwargs = (
-            message_log_reporter._message_step_logger.create_or_update_message_log.call_args.kwargs
-        )
+        call_kwargs = message_log_reporter._message_step_logger.create_or_update_message_log.call_args.kwargs
         assert call_kwargs["references"] == references
 
     @pytest.mark.ai

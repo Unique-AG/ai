@@ -10,7 +10,6 @@ from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.agentic.tools.tool_progress_reporter import (
     ProgressState,
-    ToolProgressReporter,
     ToolProgressReporterProtocol,
 )
 from unique_toolkit.app.schemas import ChatEvent, McpServer, McpTool
