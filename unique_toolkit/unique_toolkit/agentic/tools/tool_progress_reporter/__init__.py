@@ -4,6 +4,7 @@ from unique_toolkit.agentic.tools.tool_progress_reporter.base import (
 )
 from unique_toolkit.agentic.tools.tool_progress_reporter.chat import (
     DUMMY_REFERENCE_PLACEHOLDER,
+    ToolExecutionStatus,
     ToolProgressReporter,
     ToolProgressReporterConfig,
     ToolWithToolProgressReporter,
@@ -26,4 +27,5 @@ __all__ = [
     "MessageLogToolProgressReporter",
     "CompositeToolProgressReporter",
     "DUMMY_REFERENCE_PLACEHOLDER",
+    "ToolExecutionStatus",
 ]
