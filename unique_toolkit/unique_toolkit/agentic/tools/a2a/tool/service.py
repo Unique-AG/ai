@@ -37,10 +37,9 @@ from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.agentic.tools.tool_progress_reporter import (
     ProgressState,
-    ToolProgressReporter,
+    ToolProgressReporterProtocol,
 )
 from unique_toolkit.app import ChatEvent
-from unique_toolkit.chat.schemas import MessageLog, MessageLogStatus
 from unique_toolkit.content import ContentChunk
 from unique_toolkit.language_model import (
     LanguageModelFunction,
@@ -59,11 +58,14 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
         self,
         configuration: SubAgentToolConfig,
         event: ChatEvent,
-        tool_progress_reporter: ToolProgressReporter | None = None,
+        tool_progress_reporter: ToolProgressReporterProtocol | None = None,
         name: str = "SubAgentTool",
         display_name: str = "SubAgentTool",
         response_watcher: SubAgentResponseWatcher | None = None,
-    ):
+    ) -> None:
+        # The type error below is due to the fact that the Tool class expects a ToolProgressReporter
+        # This class can handle any class that implements ToolProgressReporterProtocol
+        # For now, we leave this as is.
         super().__init__(configuration, event, tool_progress_reporter)
         self._user_id = event.user_id
         self._company_id = event.company_id
@@ -151,10 +153,25 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
     ) -> list[EvaluationMetricName]:
         return []
 
-    @override
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
-        active_message_log: MessageLog | None = None
+        try:
+            return await self._run(tool_call)
+        except TimeoutError as e:
+            await self._notify_progress(
+                tool_call=tool_call,
+                message="Timeout while waiting for response from sub agent",
+                state=ProgressState.FAILED,
+            )
+            raise e
+        except Exception as e:
+            await self._notify_progress(
+                tool_call=tool_call,
+                message="Error while running sub agent",
+                state=ProgressState.FAILED,
+            )
+            raise e
 
+    async def _run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
         if self.config.tool_input_json_schema is not None:
             tool_input = json.dumps(tool_call.arguments)
         else:
@@ -171,11 +188,6 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                 state=ProgressState.STARTED,
             )
 
-            active_message_log = self._create_or_update_message_log(
-                progress_message="_Waiting for another run of this sub agent to finish_",
-                active_message_log=active_message_log,
-            )
-
         # When reusing the chat id, executing the sub agent in parrallel leads to race conditions and undefined behavior.
         # To avoid this, we use a lock to serialize the execution of the same sub agent.
         context = self._lock if self.config.reuse_chat else contextlib.nullcontext()
@@ -190,19 +202,12 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                 state=ProgressState.RUNNING,
             )
 
-            active_message_log = self._create_or_update_message_log(
-                progress_message="_Executing Sub Agent_",
-                active_message_log=active_message_log,
-            )
-
             # Check if there is a saved chat id in short term memory
             chat_id = await self._get_chat_id()
 
             response = await self._execute_and_handle_timeout(
                 tool_user_message=tool_input,
                 chat_id=chat_id,
-                tool_call=tool_call,
-                active_message_log=active_message_log,
             )
 
             self._should_run_evaluation |= (
@@ -257,13 +262,6 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                 state=ProgressState.FINISHED,
             )
 
-            # Update message log entry to completed
-            active_message_log = self._create_or_update_message_log(
-                progress_message="_Completed Sub Agent_",
-                status=MessageLogStatus.COMPLETED,
-                active_message_log=active_message_log,
-            )
-
             return ToolCallResponse(
                 id=tool_call.id,
                 name=tool_call.name,
@@ -315,20 +313,6 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                 state=state,
             )
 
-    def _create_or_update_message_log(
-        self,
-        *,
-        progress_message: str | None = None,
-        status: MessageLogStatus = MessageLogStatus.RUNNING,
-        active_message_log: MessageLog | None = None,
-    ) -> MessageLog | None:
-        return self._message_step_logger.create_or_update_message_log(
-            active_message_log=active_message_log,
-            header=self._display_name,
-            progress_message=progress_message,
-            status=status,
-        )
-
     def _notify_watcher(
         self,
         response: unique_sdk.Space.Message,
@@ -354,8 +338,6 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
         self,
         tool_user_message: str,
         chat_id: str | None,
-        tool_call: LanguageModelFunction,
-        active_message_log: MessageLog | None = None,
     ) -> unique_sdk.Space.Message:
         try:
             return await send_message_and_wait_for_completion(
@@ -370,17 +352,6 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                 stop_condition=self.config.stop_condition,
             )
         except TimeoutError as e:
-            await self._notify_progress(
-                tool_call=tool_call,
-                message="Timeout while waiting for response from sub agent.",
-                state=ProgressState.FAILED,
-            )
-            active_message_log = self._create_or_update_message_log(
-                progress_message="_Timeout while waiting for response from sub agent_",
-                status=MessageLogStatus.FAILED,
-                active_message_log=active_message_log,
-            )
-
             raise TimeoutError(
                 "Timeout while waiting for response from sub agent. The user should consider increasing the max wait time.",
             ) from e

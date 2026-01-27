@@ -9,7 +9,9 @@ from unique_toolkit.agentic.tools.mcp.models import MCPToolConfig
 from unique_toolkit.agentic.tools.mcp.tool_wrapper import MCPToolWrapper
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 from unique_toolkit.agentic.tools.tool import Tool
-from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
+from unique_toolkit.agentic.tools.tool_progress_reporter import (
+    ToolProgressReporterProtocol,
+)
 from unique_toolkit.app.schemas import ChatEvent, McpServer
 
 
@@ -18,7 +20,7 @@ class MCPManager:
         self,
         mcp_servers: list[McpServer],
         event: ChatEvent,
-        tool_progress_reporter: ToolProgressReporter,
+        tool_progress_reporter: ToolProgressReporterProtocol,
     ):
         self._mcp_servers = mcp_servers
         self._event = event

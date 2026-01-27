@@ -1,16 +1,21 @@
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
+from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
 from unique_toolkit.agentic.tools.tool_progress_reporter import (
     DUMMY_REFERENCE_PLACEHOLDER,
+    CompositeToolProgressReporter,
+    MessageLogToolProgressReporter,
     ProgressState,
     ToolExecutionStatus,
     ToolProgressReporter,
     ToolProgressReporterConfig,
+    ToolProgressReporterProtocol,
     ToolWithToolProgressReporter,
     track_tool_progress,
 )
+from unique_toolkit.chat.schemas import MessageLog, MessageLogStatus
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.schemas import ContentReference
 from unique_toolkit.language_model.schemas import LanguageModelFunction
@@ -443,3 +448,279 @@ class TestToolProgressReporterConfig:
         # Should only have the progress start text and newlines, no actual messages
         assert "Test Tool" not in content
         assert "Processing" not in content
+
+
+class TestMessageLogToolProgressReporter:
+    """Tests for MessageLogToolProgressReporter."""
+
+    @pytest.fixture
+    def message_step_logger(self) -> Mock:
+        """Create a mock MessageStepLogger."""
+        logger = Mock(spec=MessageStepLogger)
+        logger.create_or_update_message_log = Mock(
+            return_value=MessageLog(
+                message_log_id="log_1", order=1, status=MessageLogStatus.RUNNING
+            )
+        )
+        return logger
+
+    @pytest.fixture
+    def message_log_reporter(
+        self, message_step_logger: Mock
+    ) -> MessageLogToolProgressReporter:
+        """Create a MessageLogToolProgressReporter instance."""
+        return MessageLogToolProgressReporter(message_step_logger)
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_notify_from_tool_call__creates_message_log__on_first_call(
+        self, message_log_reporter: MessageLogToolProgressReporter, tool_call
+    ) -> None:
+        """
+        Purpose: Verify that first call creates a new message log entry.
+        Why this matters: New tool calls should create fresh message log entries.
+        Setup summary: Call notify_from_tool_call, verify create_or_update_message_log called with None.
+        """
+        # Act
+        await message_log_reporter.notify_from_tool_call(
+            tool_call=tool_call,
+            name="Test Tool",
+            message="Processing",
+            state=ProgressState.RUNNING,
+        )
+
+        # Assert
+        call_kwargs = (
+            message_log_reporter._message_step_logger.create_or_update_message_log.call_args.kwargs
+        )
+        assert call_kwargs["active_message_log"] is None
+        assert call_kwargs["header"] == "Test Tool"
+        assert call_kwargs["progress_message"] == "Processing"
+        assert call_kwargs["status"] == MessageLogStatus.RUNNING
+        assert call_kwargs["references"] is None
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_notify_from_tool_call__updates_existing_log__on_subsequent_call(
+        self,
+        message_log_reporter: MessageLogToolProgressReporter,
+        message_step_logger: Mock,
+        tool_call,
+    ) -> None:
+        """
+        Purpose: Verify that subsequent calls update the existing message log.
+        Why this matters: Updates to same tool call should modify existing entry, not create new.
+        Setup summary: Call twice with same tool_call, verify second call passes existing log.
+        """
+        # Arrange
+        first_log = MessageLog(
+            message_log_id="log_1", order=1, status=MessageLogStatus.RUNNING
+        )
+        message_step_logger.create_or_update_message_log.return_value = first_log
+
+        # Act - First call
+        await message_log_reporter.notify_from_tool_call(
+            tool_call=tool_call,
+            name="Test Tool",
+            message="Starting",
+            state=ProgressState.STARTED,
+        )
+
+        # Act - Second call
+        await message_log_reporter.notify_from_tool_call(
+            tool_call=tool_call,
+            name="Test Tool",
+            message="Completed",
+            state=ProgressState.FINISHED,
+        )
+
+        # Assert - Second call should pass the existing log
+        calls = message_step_logger.create_or_update_message_log.call_args_list
+        assert len(calls) == 2
+        assert calls[0].kwargs["active_message_log"] is None
+        assert calls[1].kwargs["active_message_log"] == first_log
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_notify_from_tool_call__forwards_references__when_provided(
+        self, message_log_reporter: MessageLogToolProgressReporter, tool_call
+    ) -> None:
+        """
+        Purpose: Verify that references are forwarded to the message step logger.
+        Why this matters: References should be passed through for display in the UI.
+        Setup summary: Call with references, verify they are passed to create_or_update_message_log.
+        """
+        # Arrange
+        references = [
+            ContentReference(
+                sequence_number=1,
+                id="ref_1",
+                message_id="msg_1",
+                name="Reference 1",
+                source="source",
+                source_id="src_1",
+                url="http://example.com",
+            )
+        ]
+
+        # Act
+        await message_log_reporter.notify_from_tool_call(
+            tool_call=tool_call,
+            name="Test Tool",
+            message="Found results",
+            state=ProgressState.FINISHED,
+            references=references,
+        )
+
+        # Assert
+        call_kwargs = (
+            message_log_reporter._message_step_logger.create_or_update_message_log.call_args.kwargs
+        )
+        assert call_kwargs["references"] == references
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_notify_from_tool_call__tracks_multiple_tool_calls__independently(
+        self,
+        message_log_reporter: MessageLogToolProgressReporter,
+        message_step_logger: Mock,
+    ) -> None:
+        """
+        Purpose: Verify that different tool calls are tracked independently.
+        Why this matters: Parallel tool calls should each have their own message log.
+        Setup summary: Call with different tool_call ids, verify separate logs are tracked.
+        """
+        # Arrange
+        tool_call_1 = LanguageModelFunction(id="tool_1", name="search")
+        tool_call_2 = LanguageModelFunction(id="tool_2", name="analyze")
+        log_1 = MessageLog(
+            message_log_id="log_1", order=1, status=MessageLogStatus.RUNNING
+        )
+        log_2 = MessageLog(
+            message_log_id="log_2", order=2, status=MessageLogStatus.RUNNING
+        )
+        message_step_logger.create_or_update_message_log.side_effect = [log_1, log_2]
+
+        # Act
+        await message_log_reporter.notify_from_tool_call(
+            tool_call=tool_call_1,
+            name="Search",
+            message="Searching",
+            state=ProgressState.RUNNING,
+        )
+        await message_log_reporter.notify_from_tool_call(
+            tool_call=tool_call_2,
+            name="Analyze",
+            message="Analyzing",
+            state=ProgressState.RUNNING,
+        )
+
+        # Assert
+        assert message_log_reporter._active_message_logs["tool_1"] == log_1
+        assert message_log_reporter._active_message_logs["tool_2"] == log_2
+
+
+class TestCompositeToolProgressReporter:
+    """Tests for CompositeToolProgressReporter."""
+
+    @pytest.fixture
+    def mock_reporter_1(self) -> Mock:
+        """Create first mock reporter."""
+        reporter = Mock(spec=ToolProgressReporterProtocol)
+        reporter.notify_from_tool_call = AsyncMock()
+        return reporter
+
+    @pytest.fixture
+    def mock_reporter_2(self) -> Mock:
+        """Create second mock reporter."""
+        reporter = Mock(spec=ToolProgressReporterProtocol)
+        reporter.notify_from_tool_call = AsyncMock()
+        return reporter
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_notify_from_tool_call__calls_all_reporters__with_same_args(
+        self, mock_reporter_1: Mock, mock_reporter_2: Mock, tool_call
+    ) -> None:
+        """
+        Purpose: Verify that composite broadcasts to all reporters with identical arguments.
+        Why this matters: All reporters should receive the same notification data.
+        Setup summary: Create composite with two reporters, call notify, verify both called.
+        """
+        # Arrange
+        composite = CompositeToolProgressReporter([mock_reporter_1, mock_reporter_2])
+        references = [
+            ContentReference(
+                sequence_number=1,
+                id="ref_1",
+                message_id="msg_1",
+                name="Ref",
+                source="src",
+                source_id="src_1",
+                url="http://example.com",
+            )
+        ]
+
+        # Act
+        await composite.notify_from_tool_call(
+            tool_call=tool_call,
+            name="Test Tool",
+            message="Processing",
+            state=ProgressState.RUNNING,
+            references=references,
+        )
+
+        # Assert
+        for reporter in [mock_reporter_1, mock_reporter_2]:
+            reporter.notify_from_tool_call.assert_called_once_with(
+                tool_call=tool_call,
+                name="Test Tool",
+                message="Processing",
+                state=ProgressState.RUNNING,
+                references=references,
+            )
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_notify_from_tool_call__handles_empty_list__without_error(
+        self, tool_call
+    ) -> None:
+        """
+        Purpose: Verify that composite handles empty reporter list gracefully.
+        Why this matters: Edge case where no reporters are configured should not crash.
+        Setup summary: Create composite with empty list, call notify, verify no error.
+        """
+        # Arrange
+        composite = CompositeToolProgressReporter([])
+
+        # Act & Assert - Should not raise
+        await composite.notify_from_tool_call(
+            tool_call=tool_call,
+            name="Test Tool",
+            message="Processing",
+            state=ProgressState.RUNNING,
+        )
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_notify_from_tool_call__calls_single_reporter__when_one_provided(
+        self, mock_reporter_1: Mock, tool_call
+    ) -> None:
+        """
+        Purpose: Verify that composite works correctly with a single reporter.
+        Why this matters: Common case where only one reporter type is needed.
+        Setup summary: Create composite with one reporter, verify it's called.
+        """
+        # Arrange
+        composite = CompositeToolProgressReporter([mock_reporter_1])
+
+        # Act
+        await composite.notify_from_tool_call(
+            tool_call=tool_call,
+            name="Test Tool",
+            message="Done",
+            state=ProgressState.FINISHED,
+        )
+
+        # Assert
+        mock_reporter_1.notify_from_tool_call.assert_called_once()

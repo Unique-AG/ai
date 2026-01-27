@@ -1,12 +1,15 @@
 import re
 from datetime import datetime
-from enum import StrEnum
 from functools import wraps
-from typing import Protocol, TypedDict
+from typing import Protocol, TypedDict, override
 
 from pydantic import BaseModel, Field
 
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
+from unique_toolkit.agentic.tools.tool_progress_reporter.base import (
+    ProgressState,
+    ToolProgressReporterProtocol,
+)
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.schemas import ContentReference
 from unique_toolkit.language_model.schemas import (
@@ -16,13 +19,6 @@ from unique_toolkit.language_model.schemas import (
 
 ARROW = "&#8594;&nbsp;"
 DUMMY_REFERENCE_PLACEHOLDER = "<sup></sup>"
-
-
-class ProgressState(StrEnum):
-    STARTED = "started"
-    RUNNING = "running"
-    FAILED = "failed"
-    FINISHED = "finished"
 
 
 class ToolExecutionStatus(BaseModel):
@@ -67,7 +63,7 @@ class ToolProgressReporterConfig(BaseModel):
     )
 
 
-class ToolProgressReporter:
+class ToolProgressReporter(ToolProgressReporterProtocol):
     def __init__(
         self,
         chat_service: ChatService,
@@ -97,13 +93,14 @@ class ToolProgressReporter:
         if stream_response.message.text:
             self.tool_statuses = {}
 
+    @override
     async def notify_from_tool_call(
         self,
         tool_call: LanguageModelFunction,
         name: str,
         message: str,
         state: ProgressState,
-        references: list[ContentReference] = [],
+        references: list[ContentReference] | None = None,
         requires_new_assistant_message: bool = False,
     ):
         """
@@ -122,7 +119,7 @@ class ToolProgressReporter:
             name=name,
             message=message,
             state=state,
-            references=references,
+            references=references or [],
             timestamp=self._get_timestamp_for_tool_call(tool_call),
         )
         self.requires_new_assistant_message = (

@@ -3,7 +3,9 @@ from logging import Logger
 from unique_toolkit.agentic.tools.a2a.response_watcher import SubAgentResponseWatcher
 from unique_toolkit.agentic.tools.a2a.tool import SubAgentTool, SubAgentToolConfig
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
-from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
+from unique_toolkit.agentic.tools.tool_progress_reporter import (
+    ToolProgressReporterProtocol,
+)
 from unique_toolkit.app.schemas import ChatEvent
 
 
@@ -11,7 +13,7 @@ class A2AManager:
     def __init__(
         self,
         logger: Logger,
-        tool_progress_reporter: ToolProgressReporter,
+        tool_progress_reporter: ToolProgressReporterProtocol,
         response_watcher: SubAgentResponseWatcher,
     ):
         self._logger = logger

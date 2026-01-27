@@ -11,7 +11,7 @@ from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.agentic.tools.tool_progress_reporter import (
     ProgressState,
-    ToolProgressReporter,
+    ToolProgressReporterProtocol,
 )
 from unique_toolkit.app.schemas import ChatEvent, McpServer, McpTool
 from unique_toolkit.chat.schemas import MessageLog, MessageLogStatus
@@ -32,9 +32,12 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
         mcp_tool: McpTool,
         config: MCPToolConfig,
         event: ChatEvent,
-        tool_progress_reporter: ToolProgressReporter | None = None,
+        tool_progress_reporter: ToolProgressReporterProtocol | None = None,
     ):
         self.name = mcp_tool.name
+        # The type error below is due to the fact that the Tool class expects a ToolProgressReporter
+        # This class can handle any class that implements ToolProgressReporterProtocol
+        # For now, we leave this as is.
         super().__init__(config, event, tool_progress_reporter)
         self._mcp_tool = mcp_tool
         self._mcp_server = mcp_server
