@@ -22,6 +22,7 @@ from unique_toolkit.agentic.evaluation.evaluation_manager import EvaluationManag
 from unique_toolkit.agentic.evaluation.hallucination.hallucination_evaluation import (
     HallucinationEvaluation,
 )
+from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.history_manager import (
     history_manager as history_manager_module,
 )
@@ -62,7 +63,12 @@ from unique_toolkit.agentic.tools.tool_manager import (
     ToolManager,
     ToolManagerConfig,
 )
-from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
+from unique_toolkit.agentic.tools.tool_progress_reporter import (
+    CompositeToolProgressReporter,
+    MessageLogToolProgressReporter,
+    ToolProgressReporter,
+    ToolProgressReporterProtocol,
+)
 from unique_toolkit.app.schemas import ChatEvent, McpServer
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content import Content
@@ -135,10 +141,24 @@ def _build_common(
 
     response_watcher = SubAgentResponseWatcher()
 
+    message_step_logger = MessageStepLogger(chat_service)
+
     tool_progress_reporter = ToolProgressReporter(
         chat_service=chat_service,
         config=config.agent.services.tool_progress_reporter_config,
     )
+
+    composite_reporters: list[ToolProgressReporterProtocol] = [
+        MessageLogToolProgressReporter(message_step_logger)
+    ]
+
+    if not feature_flags.is_new_answers_ui_enabled(event.company_id):
+        composite_reporters.append(tool_progress_reporter)
+
+    composite_tool_progress_reporter = CompositeToolProgressReporter(
+        composite_reporters
+    )
+
     thinking_manager_config = ThinkingManagerConfig(
         thinking_steps_display=config.agent.experimental.thinking_steps_display
     )
@@ -178,11 +198,11 @@ def _build_common(
     mcp_manager = MCPManager(
         mcp_servers=event.payload.mcp_servers,
         event=event,
-        tool_progress_reporter=tool_progress_reporter,
+        tool_progress_reporter=composite_tool_progress_reporter,
     )
     a2a_manager = A2AManager(
         logger=logger,
-        tool_progress_reporter=tool_progress_reporter,
+        tool_progress_reporter=composite_tool_progress_reporter,
         response_watcher=response_watcher,
     )
 
@@ -235,7 +255,7 @@ def _build_common(
         mcp_servers=event.payload.mcp_servers,
         postprocessor_manager=postprocessor_manager,
         response_watcher=response_watcher,
-        message_step_logger=MessageStepLogger(chat_service),
+        message_step_logger=message_step_logger,
     )
 
 
