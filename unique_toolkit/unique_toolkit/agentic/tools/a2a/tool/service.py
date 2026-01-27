@@ -153,6 +153,7 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
     ) -> list[EvaluationMetricName]:
         return []
 
+    @override
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
         try:
             return await self._run(tool_call)
