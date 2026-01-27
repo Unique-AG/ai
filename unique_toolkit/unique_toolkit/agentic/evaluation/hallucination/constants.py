@@ -4,12 +4,14 @@ from pydantic import Field
 from pydantic.json_schema import SkipJsonSchema
 
 from unique_toolkit._common.validators import LMI
-from unique_toolkit.agentic.evaluation.config import EvaluationMetricConfig
+from unique_toolkit.agentic.evaluation.config import (
+    EvaluationMetricConfig,
+    EvaluationMetricPromptsConfig,
+    PromptType,
+)
 from unique_toolkit.agentic.evaluation.hallucination.prompts import (
-    HALLUCINATION_METRIC_SYSTEM_MSG,
-    HALLUCINATION_METRIC_SYSTEM_MSG_DEFAULT,
-    HALLUCINATION_METRIC_USER_MSG,
-    HALLUCINATION_METRIC_USER_MSG_DEFAULT,
+    system_prompt_loader,
+    user_prompt_loader,
 )
 from unique_toolkit.agentic.evaluation.schemas import (
     EvaluationMetricInputFieldName,
@@ -18,10 +20,10 @@ from unique_toolkit.agentic.evaluation.schemas import (
 from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
-SYSTEM_MSG_KEY = "systemPrompt"
-USER_MSG_KEY = "userPrompt"
-SYSTEM_MSG_DEFAULT_KEY = "systemPromptDefault"
-USER_MSG_DEFAULT_KEY = "userPromptDefault"
+
+class HallucinationPromptsConfig(EvaluationMetricPromptsConfig):
+    system_prompt_template: PromptType = Field(default_factory=system_prompt_loader)
+    user_prompt_template: PromptType = Field(default_factory=user_prompt_loader)
 
 
 class HallucinationConfig(EvaluationMetricConfig):
@@ -30,16 +32,14 @@ class HallucinationConfig(EvaluationMetricConfig):
     language_model: LMI = LanguageModelInfo.from_name(
         DEFAULT_GPT_4o,
     )
+    prompts_config: HallucinationPromptsConfig = Field(  # type: ignore[assignment]
+        default_factory=HallucinationPromptsConfig,
+        description="The prompts config for the hallucination metric",
+    )
     additional_llm_options: dict[str, Any] = Field(
         default={},
         description="Additional options to pass to the language model.",
     )
-    custom_prompts: dict = {
-        SYSTEM_MSG_KEY: HALLUCINATION_METRIC_SYSTEM_MSG,
-        USER_MSG_KEY: HALLUCINATION_METRIC_USER_MSG,
-        SYSTEM_MSG_DEFAULT_KEY: HALLUCINATION_METRIC_SYSTEM_MSG_DEFAULT,
-        USER_MSG_DEFAULT_KEY: HALLUCINATION_METRIC_USER_MSG_DEFAULT,
-    }
     score_to_label: dict = {
         "LOW": "GREEN",
         "MEDIUM": "YELLOW",
