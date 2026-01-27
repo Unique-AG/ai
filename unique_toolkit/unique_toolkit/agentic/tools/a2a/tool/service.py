@@ -17,7 +17,6 @@ from unique_toolkit._common.referencing import (
 )
 from unique_toolkit._common.utils.jinja.render import render_template
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
-from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.tools.a2a.response_watcher import SubAgentResponseWatcher
 from unique_toolkit.agentic.tools.a2a.tool._memory import (
     get_sub_agent_short_term_memory_manager,
@@ -303,10 +302,7 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
         message: str,
         state: ProgressState,
     ) -> None:
-        if (
-            self.tool_progress_reporter is not None
-            and not feature_flags.is_new_answers_ui_enabled(self._company_id)
-        ):
+        if self.tool_progress_reporter is not None:
             await self.tool_progress_reporter.notify_from_tool_call(
                 tool_call=tool_call,
                 name=self._display_name,
