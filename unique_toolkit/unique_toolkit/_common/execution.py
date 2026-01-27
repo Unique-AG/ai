@@ -181,7 +181,8 @@ FailureReturnType = TypeVar("FailureReturnType")
 
 
 def failsafe(
-    failure_return_value: FailureReturnType, exceptions: Iterable[Type[Exception]] = (Exception,),
+    failure_return_value: FailureReturnType,
+    exceptions: Iterable[Type[Exception]] = (Exception,),
     ignored_exceptions: Iterable[Type[Exception]] = (),
     log_exceptions: bool = True,
     log_exc_info: bool = True,
