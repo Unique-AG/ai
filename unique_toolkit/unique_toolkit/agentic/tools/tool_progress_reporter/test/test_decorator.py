@@ -75,6 +75,7 @@ class TestToolProgressDecorator:
         Why this matters: Users need to see failure status when tool execution fails.
         Setup summary: Execute decorated method that raises, verify status is FAILED.
         """
+
         # Arrange
         class ErrorTool(ToolWithToolProgressReporter):
             def __init__(self, tool_progress_reporter: ToolProgressReporter) -> None:
