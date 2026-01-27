@@ -13,6 +13,7 @@ from unique_toolkit.agentic.evaluation.hallucination.prompts import (
     system_prompt_loader,
     user_prompt_loader,
 )
+from unique_toolkit.agentic.evaluation.hallucination.utils import SourceSelectionMode
 from unique_toolkit.agentic.evaluation.schemas import (
     EvaluationMetricInputFieldName,
     EvaluationMetricName,
@@ -27,6 +28,10 @@ class HallucinationPromptsConfig(EvaluationMetricPromptsConfig):
 
 
 class HallucinationConfig(EvaluationMetricConfig):
+    source_selection_mode: SourceSelectionMode = Field(
+        default=SourceSelectionMode.FROM_ORIGINAL_RESPONSE
+    )
+    ref_pattern: str = Field(default=r"[\[<]?source(\d+)[>\]]?")
     enabled: SkipJsonSchema[bool] = False
     name: SkipJsonSchema[EvaluationMetricName] = EvaluationMetricName.HALLUCINATION
     language_model: LMI = LanguageModelInfo.from_name(
