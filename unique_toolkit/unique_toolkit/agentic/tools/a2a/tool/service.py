@@ -17,6 +17,7 @@ from unique_toolkit._common.referencing import (
 )
 from unique_toolkit._common.utils.jinja.render import render_template
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
+from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.tools.a2a.response_watcher import SubAgentResponseWatcher
 from unique_toolkit.agentic.tools.a2a.tool._memory import (
     get_sub_agent_short_term_memory_manager,
@@ -39,6 +40,7 @@ from unique_toolkit.agentic.tools.tool_progress_reporter import (
     ToolProgressReporter,
 )
 from unique_toolkit.app import ChatEvent
+from unique_toolkit.chat.schemas import MessageLog, MessageLogStatus
 from unique_toolkit.content import ContentChunk
 from unique_toolkit.language_model import (
     LanguageModelFunction,
@@ -151,107 +153,144 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
 
     @override
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
-        if self.config.tool_input_json_schema is not None:
-            tool_input = json.dumps(tool_call.arguments)
-        else:
-            tool_input = SubAgentToolInput.model_validate(
-                tool_call.arguments
-            ).user_message
+        active_message_log: MessageLog | None = None
 
-        timestamp = datetime.now()
-
-        if self._lock.locked():
-            await self._notify_progress(
-                tool_call=tool_call,
-                message=f"Waiting for another run of `{self.display_name()}` to finish",
-                state=ProgressState.STARTED,
-            )
-
-        # When reusing the chat id, executing the sub agent in parrallel leads to race conditions and undefined behavior.
-        # To avoid this, we use a lock to serialize the execution of the same sub agent.
-        context = self._lock if self.config.reuse_chat else contextlib.nullcontext()
-
-        async with context:
-            sequence_number = self._sequence_number
-            self._sequence_number += 1
-
-            await self._notify_progress(
-                tool_call=tool_call,
-                message=tool_input,
-                state=ProgressState.RUNNING,
-            )
-
-            # Check if there is a saved chat id in short term memory
-            chat_id = await self._get_chat_id()
-
-            response = await self._execute_and_handle_timeout(
-                tool_user_message=tool_input,
-                chat_id=chat_id,
-                tool_call=tool_call,
-            )
-
-            self._should_run_evaluation |= (
-                response["assessment"] is not None and len(response["assessment"]) > 0
-            )  # Run evaluation if any sub agent returned an assessment
-
-            self._notify_watcher(response, sequence_number, timestamp)
-
-            if chat_id is None:
-                await self._save_chat_id(response["chatId"])
-
-            if response["text"] is None:
-                raise ValueError("No response returned from sub agent")
-
-            has_refs = False
-            content = ""
-            content_chunks = None
-            if self.config.returns_content_chunks:
-                content_chunks = _ContentChunkList.validate_json(response["text"])
+        try:
+            if self.config.tool_input_json_schema is not None:
+                tool_input = json.dumps(tool_call.arguments)
             else:
-                has_refs = self.config.use_sub_agent_references and _response_has_refs(
-                    response
+                tool_input = SubAgentToolInput.model_validate(
+                    tool_call.arguments
+                ).user_message
+
+            timestamp = datetime.now()
+
+            if self._lock.locked():
+                await self._notify_progress(
+                    tool_call=tool_call,
+                    message=f"Waiting for another run of `{self.display_name()}` to finish",
+                    state=ProgressState.STARTED,
                 )
-                content = response["text"]
-                if has_refs:
-                    refs = response["references"]
-                    assert refs is not None  # Checked in _response_has_refs
-                    content = _prepare_sub_agent_response_refs(
-                        response=content,
-                        name=self.name,
-                        sequence_number=sequence_number,
-                        refs=refs,
-                    )
-                    content = _remove_extra_refs(content, refs=refs)
+
+                active_message_log = self._create_or_update_message_log(
+                    progress_message="_Waiting for another run of this sub agent to finish_",
+                    active_message_log=active_message_log,
+                )
+
+            # When reusing the chat id, executing the sub agent in parrallel leads to race conditions and undefined behavior.
+            # To avoid this, we use a lock to serialize the execution of the same sub agent.
+            context = self._lock if self.config.reuse_chat else contextlib.nullcontext()
+
+            async with context:
+                sequence_number = self._sequence_number
+                self._sequence_number += 1
+
+                await self._notify_progress(
+                    tool_call=tool_call,
+                    message=tool_input,
+                    state=ProgressState.RUNNING,
+                )
+
+                active_message_log = self._create_or_update_message_log(
+                    progress_message=f"_Executing sub agent with input: {tool_input}_",
+                    active_message_log=active_message_log,
+                )
+
+                # Check if there is a saved chat id in short term memory
+                chat_id = await self._get_chat_id()
+
+                response = await self._execute_and_handle_timeout(
+                    tool_user_message=tool_input,
+                    chat_id=chat_id,
+                    tool_call=tool_call,
+                    active_message_log=active_message_log,
+                )
+
+                self._should_run_evaluation |= (
+                    response["assessment"] is not None
+                    and len(response["assessment"]) > 0
+                )  # Run evaluation if any sub agent returned an assessment
+
+                self._notify_watcher(response, sequence_number, timestamp)
+
+                if chat_id is None:
+                    await self._save_chat_id(response["chatId"])
+
+                if response["text"] is None:
+                    raise ValueError("No response returned from sub agent")
+
+                has_refs = False
+                content = ""
+                content_chunks = None
+                if self.config.returns_content_chunks:
+                    content_chunks = _ContentChunkList.validate_json(response["text"])
                 else:
-                    content = _remove_extra_refs(content, refs=[])
+                    has_refs = (
+                        self.config.use_sub_agent_references
+                        and _response_has_refs(response)
+                    )
+                    content = response["text"]
+                    if has_refs:
+                        refs = response["references"]
+                        assert refs is not None  # Checked in _response_has_refs
+                        content = _prepare_sub_agent_response_refs(
+                            response=content,
+                            name=self.name,
+                            sequence_number=sequence_number,
+                            refs=refs,
+                        )
+                        content = _remove_extra_refs(content, refs=refs)
+                    else:
+                        content = _remove_extra_refs(content, refs=[])
 
-            system_reminders = []
-            if not self.config.returns_content_chunks:
-                system_reminders = _get_sub_agent_system_reminders(
-                    response=response["text"],
-                    configs=self.config.system_reminders_config,
-                    name=self.name,
-                    display_name=self.display_name(),
-                    sequence_number=sequence_number,
-                    has_refs=has_refs,
+                system_reminders = []
+                if not self.config.returns_content_chunks:
+                    system_reminders = _get_sub_agent_system_reminders(
+                        response=response["text"],
+                        configs=self.config.system_reminders_config,
+                        name=self.name,
+                        display_name=self.display_name(),
+                        sequence_number=sequence_number,
+                        has_refs=has_refs,
+                    )
+
+                await self._notify_progress(
+                    tool_call=tool_call,
+                    message=tool_input,
+                    state=ProgressState.FINISHED,
                 )
 
+                # Update message log entry to completed
+                active_message_log = self._create_or_update_message_log(
+                    progress_message=f"_Completed sub agent with input: {tool_input}_",
+                    status=MessageLogStatus.COMPLETED,
+                    active_message_log=active_message_log,
+                )
+
+                return ToolCallResponse(
+                    id=tool_call.id,
+                    name=tool_call.name,
+                    content=_format_response(
+                        tool_name=self.name,
+                        text=content,
+                        system_reminders=system_reminders,
+                    ),
+                    content_chunks=content_chunks,
+                )
+        except TimeoutError as e:
+            raise e
+        except Exception as e:
             await self._notify_progress(
                 tool_call=tool_call,
-                message=tool_input,
-                state=ProgressState.FINISHED,
+                message="Error while running sub agent",
+                state=ProgressState.FAILED,
             )
-
-            return ToolCallResponse(
-                id=tool_call.id,
-                name=tool_call.name,
-                content=_format_response(
-                    tool_name=self.name,
-                    text=content,
-                    system_reminders=system_reminders,
-                ),
-                content_chunks=content_chunks,
+            active_message_log = self._create_or_update_message_log(
+                progress_message="_Error while running sub agent_",
+                status=MessageLogStatus.FAILED,
+                active_message_log=active_message_log,
             )
+            raise e
 
     async def _get_chat_id(self) -> str | None:
         if not self.config.reuse_chat:
@@ -282,13 +321,30 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
         message: str,
         state: ProgressState,
     ) -> None:
-        if self.tool_progress_reporter is not None:
+        if (
+            self.tool_progress_reporter is not None
+            and not feature_flags.is_new_answers_ui_enabled(self._company_id)
+        ):
             await self.tool_progress_reporter.notify_from_tool_call(
                 tool_call=tool_call,
                 name=self._display_name,
                 message=message,
                 state=state,
             )
+
+    def _create_or_update_message_log(
+        self,
+        *,
+        progress_message: str | None = None,
+        status: MessageLogStatus = MessageLogStatus.RUNNING,
+        active_message_log: MessageLog | None = None,
+    ) -> MessageLog | None:
+        return self._message_step_logger.create_or_update_message_log(
+            active_message_log=active_message_log,
+            header=self._display_name,
+            progress_message=progress_message,
+            status=status,
+        )
 
     def _notify_watcher(
         self,
@@ -316,6 +372,7 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
         tool_user_message: str,
         chat_id: str | None,
         tool_call: LanguageModelFunction,
+        active_message_log: MessageLog | None = None,
     ) -> unique_sdk.Space.Message:
         try:
             return await send_message_and_wait_for_completion(
@@ -334,6 +391,11 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                 tool_call=tool_call,
                 message="Timeout while waiting for response from sub agent.",
                 state=ProgressState.FAILED,
+            )
+            active_message_log = self._create_or_update_message_log(
+                progress_message="_Timeout while waiting for response from sub agent_",
+                status=MessageLogStatus.FAILED,
+                active_message_log=active_message_log,
             )
 
             raise TimeoutError(
