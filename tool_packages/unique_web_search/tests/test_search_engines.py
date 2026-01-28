@@ -769,6 +769,90 @@ class TestCustomAPISearch:
         service = get_search_engine_service(config, Mock(), Mock())
         assert isinstance(service, CustomAPI)
 
+    def test_custom_api_client_config_property_empty_when_env_none(self, mocker):
+        """Test _client_config property returns empty dict when env setting is None."""
+        mocker.patch(
+            "unique_web_search.services.search_engine.custom_api.env_settings.custom_web_search_api_client_config",
+            None,
+        )
+
+        config = CustomAPIConfig(search_engine_name=SearchEngineType.CUSTOM_API)
+        search = CustomAPI(config)
+
+        assert search._client_config == {}
+
+    def test_custom_api_client_config_property_parses_json(self, mocker):
+        """Test _client_config property parses JSON from env settings."""
+        client_config_json = '{"timeout": 60, "verify": true, "max_redirects": 5}'
+        mocker.patch(
+            "unique_web_search.services.search_engine.custom_api.env_settings.custom_web_search_api_client_config",
+            client_config_json,
+        )
+
+        config = CustomAPIConfig(search_engine_name=SearchEngineType.CUSTOM_API)
+        search = CustomAPI(config)
+
+        assert search._client_config == {"timeout": 60, "verify": True, "max_redirects": 5}
+
+    def test_custom_api_additional_query_params_property(self):
+        """Test _additional_query_params property parses JSON."""
+        config = CustomAPIConfig(
+            search_engine_name=SearchEngineType.CUSTOM_API,
+            api_additional_query_params='{"limit": 10, "offset": 0}',
+        )
+
+        search = CustomAPI(config)
+
+        assert search._additional_query_params == {"limit": 10, "offset": 0}
+
+    def test_custom_api_additional_body_params_property(self):
+        """Test _additional_body_params property parses JSON."""
+        config = CustomAPIConfig(
+            search_engine_name=SearchEngineType.CUSTOM_API,
+            api_additional_body_params='{"filter": "news", "safe": true}',
+        )
+
+        search = CustomAPI(config)
+
+        assert search._additional_body_params == {"filter": "news", "safe": True}
+
+    @pytest.mark.asyncio
+    async def test_custom_api_uses_client_config_in_request(self, mocker):
+        """Test CustomAPI uses _client_config when creating AsyncClient."""
+        client_config_json = '{"follow_redirects": true, "max_redirects": 10}'
+        mocker.patch(
+            "unique_web_search.services.search_engine.custom_api.env_settings.custom_web_search_api_client_config",
+            client_config_json,
+        )
+
+        config = CustomAPIConfig(
+            search_engine_name=SearchEngineType.CUSTOM_API,
+            api_endpoint="https://api.example.com",
+        )
+
+        mock_response = Mock()
+        mock_response.json.return_value = {"results": []}
+
+        mock_client = AsyncMock()
+        mock_client.request = AsyncMock(return_value=mock_response)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        mock_async_client_class = Mock(return_value=mock_client)
+        mocker.patch(
+            "unique_web_search.services.search_engine.custom_api.AsyncClient",
+            mock_async_client_class,
+        )
+
+        search = CustomAPI(config)
+        await search.search("test query")
+
+        # Verify AsyncClient was created with client config in addition to timeout
+        call_kwargs = mock_async_client_class.call_args[1]
+        assert call_kwargs["timeout"] == 120  # default timeout
+        assert call_kwargs["follow_redirects"] is True
+        assert call_kwargs["max_redirects"] == 10
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

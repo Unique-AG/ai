@@ -66,6 +66,7 @@ class Base(BaseSettings):
     custom_web_search_api_headers: str | None = None
     custom_web_search_api_additional_query_params: str | None = None
     custom_web_search_api_additional_body_params: str | None = None
+    custom_web_search_api_client_config: str | None = None
 
     # Proxy settings
     ## Shared settings
@@ -139,6 +140,7 @@ class Base(BaseSettings):
         "custom_web_search_api_headers",
         "custom_web_search_api_additional_query_params",
         "custom_web_search_api_additional_body_params",
+        "custom_web_search_api_client_config",
         mode="after",
     )
     def validate_json(cls, v: str | None, info: ValidationInfo) -> str | None:

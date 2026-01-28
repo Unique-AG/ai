@@ -1,5 +1,5 @@
 import json
-from typing import Literal, TypeVar
+from typing import Any, Literal, TypeVar
 
 from httpx import AsyncClient
 from pydantic import Field
@@ -86,7 +86,10 @@ class CustomAPI(SearchEngine[CustomAPIConfig]):
     async def search(self, query: str, **kwargs) -> list[WebSearchResult]:
         params, body = self._prepare_request_params_and_body(query)
 
-        async with AsyncClient(timeout=self.config.timeout) as client:
+        async with AsyncClient(
+            timeout=self.config.timeout,
+            **self._client_config,
+        ) as client:
             response = await client.request(
                 method=self._request_method,
                 headers=self._headers,
@@ -117,6 +120,12 @@ class CustomAPI(SearchEngine[CustomAPIConfig]):
     @property
     def _additional_body_params(self) -> dict[str, str]:
         return json.loads(self.config.api_additional_body_params)
+
+    @property
+    def _client_config(self) -> dict[str, Any]:
+        if env_settings.custom_web_search_api_client_config is None:
+            return {}
+        return json.loads(env_settings.custom_web_search_api_client_config)
 
     def _prepare_request_params_and_body(self, query: str) -> tuple[dict, dict]:
         params = self._additional_query_params
