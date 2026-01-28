@@ -86,10 +86,10 @@ class CustomAPI(SearchEngine[CustomAPIConfig]):
     async def search(self, query: str, **kwargs) -> list[WebSearchResult]:
         params, body = self._prepare_request_params_and_body(query)
 
-        async with AsyncClient(
-            timeout=self.config.timeout,
-            **self._client_config,
-        ) as client:
+        async_client_params = self._client_config | {
+            "timeout": self.config.timeout,
+        }
+        async with AsyncClient(**async_client_params) as client:
             response = await client.request(
                 method=self._request_method,
                 headers=self._headers,
