@@ -1,5 +1,7 @@
 import base64
+import json
 import mimetypes
+import re
 from datetime import datetime
 from enum import StrEnum
 
@@ -8,6 +10,7 @@ import tiktoken
 from pydantic import RootModel
 
 from unique_toolkit._common.token.token_counting import (
+    num_token_for_language_model_messages,
     num_tokens_per_language_model_message,
 )
 from unique_toolkit._common.utils import files as FileUtils
@@ -17,8 +20,9 @@ from unique_toolkit.chat.schemas import ChatMessageRole as ChatRole
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.schemas import Content
 from unique_toolkit.content.service import ContentService
-from unique_toolkit.language_model import LanguageModelMessageRole as LLMRole
+from unique_toolkit.language_model import LanguageModelAssistantMessage, LanguageModelMessage, LanguageModelMessageRole
 from unique_toolkit.language_model.infos import EncoderName
+from unique_toolkit.language_model.reference import _preprocess_message
 from unique_toolkit.language_model.schemas import LanguageModelMessages
 
 # TODO: Test this once it moves into the unique toolkit
@@ -156,18 +160,258 @@ def file_content_serialization(
                 + file_names,
             )
 
-def get_full_history_with_tools(
+def _get_last_message_by_role(
+    messages: list[ChatMessage],
+    role: ChatRole,
+) -> ChatMessage | None:
+    """Return the last message with the given role, or None if not found."""
+    return next((msg for msg in reversed(messages) if msg.role == role), None)
+
+def _construct_history_from_gpt_request(
     chat_service: ChatService,
-) -> list[ChatMessage]:
+) -> list[LanguageModelMessage]:
     chat_history = chat_service.get_full_history()
 
-    assistant_messages = [msg for msg in chat_history if msg.role == ChatRole.ASSISTANT]
-    last_assistant_message = assistant_messages[-1] if assistant_messages else None
+    if len(chat_history) == 0:
+        return []
 
-    messages_with_gpt_request = [msg for msg in chat_history if msg.gpt_request is not None]
-    last_message_with_gpt_request = messages_with_gpt_request[-1] if messages_with_gpt_request else None
+    last_assistant_message = _get_last_message_by_role(chat_history, ChatRole.ASSISTANT)
+    last_user_message = _get_last_message_by_role(chat_history, ChatRole.USER)
 
-    return [last_assistant_message, last_message_with_gpt_request]
+    if not last_user_message or not last_user_message.gpt_request or not last_assistant_message:
+        return []
+
+    # Convert gpt_request messages to ChatMessage, excluding system messages
+    history = [
+        LanguageModelMessage(
+            role=LanguageModelMessageRole(msg.get("role")),
+            content=msg.get("content"),
+        )
+        for msg in last_user_message.gpt_request
+        if msg.get("role") != ChatRole.SYSTEM
+    ]
+
+    return [*history, LanguageModelAssistantMessage(content=last_assistant_message.content)]
+
+def _extract_cited_sources(messages: list[LanguageModelMessage]) -> set[int]:
+    """Extract all cited source numbers from assistant messages.
+
+    Scans the content of all assistant messages for citation patterns
+    like [source1], [source2], etc. and returns the set of source numbers.
+
+    Args:
+        messages: List of chat messages to scan.
+
+    Returns:
+        A set of integers representing the cited source numbers.
+    """
+    cited_sources: set[int] = set()
+    pattern = re.compile(r"\[source(\d+)\]", re.IGNORECASE)
+
+    for message in messages:
+        if message.role != ChatRole.ASSISTANT:
+            continue
+
+        if not isinstance(message.content, str):
+            continue
+
+        content = _preprocess_message(message.content)
+        matches = pattern.findall(content)
+        cited_sources.update(int(match) for match in matches)
+
+    return cited_sources
+
+
+def _build_source_id_mapping(messages: list[ChatMessage]) -> dict[int, int]:
+    """Build a mapping from old source IDs to new sequential IDs.
+
+    Scans tool messages in order and assigns new sequential IDs (starting from 1)
+    based on the order sources appear.
+
+    Args:
+        messages: List of chat messages to scan.
+
+    Returns:
+        A dictionary mapping old source IDs to new sequential IDs.
+    """
+    old_to_new: dict[int, int] = {}
+    next_id = 0
+
+    for message in messages:
+        if message.role != ChatRole.TOOL:
+            continue
+
+        if not message.content:
+            continue
+
+        try:
+            content_data = json.loads(message.content)
+
+            if not isinstance(content_data, list):
+                if isinstance(content_data, dict) and "source_number" in content_data:
+                    content_data = [content_data]
+                else:
+                    continue
+
+            for item in content_data:
+                source_num = item.get("source_number")
+                if source_num is not None and source_num not in old_to_new:
+                    old_to_new[source_num] = next_id
+                    next_id += 1
+
+        except (json.JSONDecodeError, TypeError):
+            continue
+
+    return old_to_new
+
+
+def _reorder_source_ids(messages: list[LanguageModelMessage]) -> list[LanguageModelMessage]:
+    """Reorder source IDs to be sequential starting from 1.
+
+    Updates source_number fields in tool messages and [sourceN] references
+    in assistant messages to use new sequential IDs based on the order
+    sources appear in tool messages.
+    """
+    old_to_new = _build_source_id_mapping(messages)
+
+    if not old_to_new:
+        return messages
+
+    for message in messages:
+        if message.role == ChatRole.TOOL and message.content:
+            try:
+                if not isinstance(message.content, str):
+                    continue
+                content_data = json.loads(message.content)
+
+                if not isinstance(content_data, list):
+                    if isinstance(content_data, dict) and "source_number" in content_data:
+                        content_data = [content_data]
+                    else:
+                        continue
+
+                for item in content_data:
+                    old_source = item.get("source_number")
+                    if old_source is not None and old_source in old_to_new:
+                        item["source_number"] = old_to_new[old_source]
+
+                message.content = json.dumps(content_data)
+
+            except (json.JSONDecodeError, TypeError):
+                continue
+
+        elif message.role == ChatRole.ASSISTANT and message.content:
+            # Replace [sourceN] patterns with new IDs
+            def replace_source(match: re.Match) -> str:
+                old_id = int(match.group(1))
+                new_id = old_to_new.get(old_id, old_id)
+                if new_id is None: # If the source number is not found, return an empty string. This references al
+                    return ""
+                return f"[source{new_id}]"
+
+            if not isinstance(message.content, str):
+                continue
+            message.content = re.sub(
+                r"\[source(\d+)\]",
+                replace_source,
+                message.content,
+                flags=re.IGNORECASE,
+            )
+
+    return messages
+
+
+def _remove_uncited_sources_from_tool_messages(
+    messages: list[LanguageModelMessage],
+    cited_sources: set[int],
+) -> list[LanguageModelMessage]:
+    """Remove uncited sources from tool messages with InternalSearch format.
+
+    Goes through all messages with role 'tool' and checks if the content
+    follows the InternalSearch format (JSON array with source_number entries).
+    If so, keeps only the dicts where source_number is in cited_sources.
+    """
+    for message in messages:
+        if message.role != ChatRole.TOOL:
+            continue
+
+        if not message.content:
+            continue
+
+        try:
+            if not isinstance(message.content, str):
+                continue
+            content_data = json.loads(message.content)
+
+            # Check if it's a list of dicts with source_number keys
+            if not isinstance(content_data, list):
+                if not isinstance(content_data, dict) or "source_number" not in content_data:
+                    continue
+                content_data = [content_data]
+
+            # Filter to keep only cited sources
+            filtered_data = [
+                item for item in content_data
+                if item.get("source_number") in cited_sources
+            ]
+
+            message.content = json.dumps(filtered_data)
+
+        except (json.JSONDecodeError, TypeError):
+            # Content is not valid JSON, skip this message
+            continue
+
+    return messages
+
+def _count_message_tokens(messages: LanguageModelMessages) -> int:
+        """Count tokens in messages using the configured encoding model."""
+        return num_token_for_language_model_messages(
+            messages=messages,
+            encode=tiktoken.get_encoding("cl100k_base").encode, # TODO: Make this configurable
+        )
+        
+def _limit_to_token_window(
+    messages: list[LanguageModelMessage], token_limit: int
+) -> list[LanguageModelMessage]:
+    selected_messages = []
+    token_count = 0
+    for msg in messages[::-1]:
+        msg_token_count = _count_message_tokens(
+            messages=LanguageModelMessages(root=[msg])
+        )
+        if token_count + msg_token_count > token_limit:
+            break
+        selected_messages.append(msg)
+        token_count += msg_token_count
+    return selected_messages[::-1]
+
+def get_full_history_with_tool_calls(
+    chat_service: ChatService,
+    token_limit: int,
+) -> list[LanguageModelMessage]:
+    # Construct full history from gpt request
+    history = _construct_history_from_gpt_request(chat_service)
+
+    if len(history) == 0:
+        return []
+
+    # Clean up sources from last assistant message.
+    if history[-1].role == ChatRole.ASSISTANT and isinstance(history[-1].content, str):
+        history[-1].content = _preprocess_message(history[-1].content)
+
+    # Extract cited sources from assistant messages
+    cited_sources = _extract_cited_sources(history)
+
+    # Remove uncited sources from tool messages
+    history = _remove_uncited_sources_from_tool_messages(history, cited_sources)
+
+    # Limit to token window
+    history = _limit_to_token_window(history, token_limit)
+
+    # Reorder source ids starting from 0
+    history = _reorder_source_ids(history)
+
+    return history
 
 
 def get_full_history_with_contents(
