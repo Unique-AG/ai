@@ -1,9 +1,14 @@
 import re
+from typing import TYPE_CHECKING
 
 import tiktoken
 import unique_sdk
 
+from unique_toolkit._common.token import count_tokens_for_model
 from unique_toolkit.content.schemas import Content, ContentChunk, ContentMetadata
+
+if TYPE_CHECKING:
+    from unique_toolkit.language_model.infos import LanguageModelInfo
 
 
 def _map_content_id_to_chunks(content_chunks: list[ContentChunk]):
@@ -170,19 +175,27 @@ def pick_content_chunks_for_token_window(
     return picked_chunks
 
 
-def count_tokens(text: str, encoding_model="cl100k_base") -> int:
+def count_tokens(
+    text: str, 
+    encoding_model: str = "cl100k_base",
+    model_info: "LanguageModelInfo | None" = None,
+) -> int:
     """
     Counts the number of tokens in the provided text.
 
-    This function encodes the input text using a predefined encoding scheme
-    and returns the number of tokens in the encoded text.
-
     Parameters:
     - text (str): The text to count tokens for.
+    - encoding_model (str): The tiktoken encoding model to use (default: "cl100k_base").
+        Only used when model_info is not provided.
+    - model_info (LanguageModelInfo | None): Optional model info for model-aware token counting.
+        When provided, uses LiteLLM with the appropriate tokenizer for the model.
 
     Returns:
     - int: The number of tokens in the text.
     """
+    if model_info is not None:
+        return count_tokens_for_model(text, model_info)
+    
     encoding = tiktoken.get_encoding(encoding_model)
     return len(encoding.encode(text))
 

@@ -148,6 +148,87 @@ def get_encoder_name(model_name: LanguageModelName) -> EncoderName:
             return EncoderName.CL100K_BASE
 
 
+def get_litellm_name(model_name: LanguageModelName) -> str:
+    value = model_name.value
+    
+    if value.startswith("litellm:"):
+        match model_name:
+            case LanguageModelName.ANTHROPIC_CLAUDE_3_7_SONNET:
+                return "anthropic/claude-3-7-sonnet-20250219"
+            case LanguageModelName.ANTHROPIC_CLAUDE_3_7_SONNET_THINKING:
+                return "anthropic/claude-3-7-sonnet-20250219"
+            case LanguageModelName.ANTHROPIC_CLAUDE_HAIKU_4_5:
+                return "anthropic/claude-haiku-4.5"
+            case LanguageModelName.ANTHROPIC_CLAUDE_SONNET_4:
+                return "anthropic/claude-sonnet-4"
+            case LanguageModelName.ANTHROPIC_CLAUDE_SONNET_4_5:
+                return "anthropic/claude-sonnet-4.5"
+            case LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4:
+                return "anthropic/claude-opus-4"
+            case LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4_1:
+                return "anthropic/claude-opus-4.1"
+            case LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4_5:
+                return "anthropic/claude-opus-4.5"
+            case LanguageModelName.GEMINI_2_0_FLASH:
+                return "gemini/gemini-2.0-flash-exp"
+            case LanguageModelName.GEMINI_2_5_FLASH:
+                return "gemini/gemini-2.5-flash"
+            case LanguageModelName.GEMINI_2_5_FLASH_LITE:
+                return "gemini/gemini-2.5-flash-lite"
+            case LanguageModelName.GEMINI_2_5_FLASH_LITE_PREVIEW_0617:
+                return "gemini/gemini-2.5-flash-lite-preview-0617"
+            case LanguageModelName.GEMINI_2_5_FLASH_PREVIEW_0520:
+                return "gemini/gemini-2.5-flash-preview-0520"
+            case LanguageModelName.GEMINI_2_5_PRO:
+                return "gemini/gemini-2.5-pro"
+            case LanguageModelName.GEMINI_2_5_PRO_EXP_0325:
+                return "gemini/gemini-2.5-pro-exp-0325"
+            case LanguageModelName.GEMINI_2_5_PRO_PREVIEW_0605:
+                return "gemini/gemini-2.5-pro-preview-0605"
+            case LanguageModelName.GEMINI_3_FLASH_PREVIEW:
+                return "gemini/gemini-3-flash-preview"
+            case LanguageModelName.GEMINI_3_PRO_PREVIEW:
+                return "gemini/gemini-3-pro-preview"
+            case LanguageModelName.LITELLM_QWEN_3 | LanguageModelName.LITELLM_QWEN_3_THINKING:
+                return "qwen/qwen2-72b-instruct"
+            case LanguageModelName.LITELLM_DEEPSEEK_R1:
+                return "deepseek/deepseek-reasoner"
+            case LanguageModelName.LITELLM_DEEPSEEK_V3:
+                return "deepseek/deepseek-chat"
+            case _:
+                return value.replace("litellm:", "")
+    
+    if value.startswith("AZURE_"):
+        match model_name:
+            case LanguageModelName.AZURE_GPT_35_TURBO_0125:
+                return "azure/gpt-35-turbo"
+            case (
+                LanguageModelName.AZURE_GPT_4_0613 
+                | LanguageModelName.AZURE_GPT_4_32K_0613
+                | LanguageModelName.AZURE_GPT_4_TURBO_2024_0409
+            ):
+                return "azure/gpt-4"
+            case (
+                LanguageModelName.AZURE_GPT_4o_2024_0513 
+                | LanguageModelName.AZURE_GPT_4o_2024_0806
+                | LanguageModelName.AZURE_GPT_4o_2024_1120
+            ):
+                return "azure/gpt-4o"
+            case LanguageModelName.AZURE_GPT_4o_MINI_2024_0718:
+                return "azure/gpt-4o-mini"
+            case LanguageModelName.AZURE_o1_MINI_2024_0912:
+                return "azure/o1-mini"
+            case LanguageModelName.AZURE_o1_2024_1217:
+                return "azure/o1"
+            case LanguageModelName.AZURE_o3_MINI_2025_0131:
+                return "azure/o3-mini"
+            case _:
+                model_base = value.replace("AZURE_", "").lower()
+                return f"azure/{model_base}"
+    
+    return value
+
+
 class LanguageModelProvider(StrEnum):
     AZURE = "AZURE"
     CUSTOM = "CUSTOM"
