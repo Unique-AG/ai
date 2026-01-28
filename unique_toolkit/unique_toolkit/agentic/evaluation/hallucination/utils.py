@@ -180,7 +180,7 @@ class SourceSelectionMode(StrEnum):
 def context_text_from_stream_response(
     response: LanguageModelStreamResponse,
     selected_chunks: list[ContentChunk],
-    source_selection_mode: SourceSelectionMode = SourceSelectionMode.FROM_IDS,
+    source_selection_mode: SourceSelectionMode = SourceSelectionMode.FROM_ORIGINAL_RESPONSE,
     ref_pattern: str = r"[\[<]?source(\d+)[>\]]?",
 ) -> list[str]:
     """Extract context text from stream response based on selected chunks.
