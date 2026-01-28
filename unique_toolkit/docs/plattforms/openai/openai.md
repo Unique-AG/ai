@@ -15,7 +15,7 @@ from openai.types.shared_params.function_definition import FunctionDefinition
 -->
 
 ## Common Imports
-In this documentation we skip some imports as the documentation provides working python code through the [Entangled](https://entangled.github.io/manual.html#), where are imports are declared. A link to the an example using the code blocks presented in this documentation will be found at the bottom of this page.
+In this documentation we skip some imports as the documentation provides working python code through the [Entangled](https://entangled.github.io/), where are imports are declared. A link to the an example using the code blocks presented in this documentation will be found at the bottom of this page.
 
 Nevertheless, we list the common imports that are particular to the unique toolkit when working with the openAI client.
 
