@@ -140,6 +140,7 @@ class MagicTableUpdateCellPayload(
 class ArtifactType(StrEnum):
     QUESTIONS = "QUESTIONS"
     FULL_REPORT = "FULL_REPORT"
+    AGENTIC_REPORT = "AGENTIC_REPORT"
 
 
 class ArtifactData(BaseModel):
