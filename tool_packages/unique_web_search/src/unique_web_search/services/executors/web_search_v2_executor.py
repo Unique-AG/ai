@@ -1,17 +1,7 @@
 import asyncio
 import logging
 from time import time
-from typing import Callable, Optional
 
-from unique_toolkit import LanguageModelService
-from unique_toolkit._common.chunk_relevancy_sorter.config import (
-    ChunkRelevancySortConfig,
-)
-from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
-from unique_toolkit._common.validators import LMI
-from unique_toolkit.agentic.tools.tool_progress_reporter import (
-    ToolProgressReporter,
-)
 from unique_toolkit.content import ContentChunk
 from unique_toolkit.language_model import LanguageModelFunction
 
@@ -20,18 +10,19 @@ from unique_web_search.schema import (
     StepType,
     WebSearchPlan,
 )
-from unique_web_search.services.content_processing import ContentProcessor, WebPageChunk
-from unique_web_search.services.crawlers import CrawlerTypes
 from unique_web_search.services.executors.base_executor import (
     BaseWebSearchExecutor,
-    MessageLogCallback,
     WebSearchLogEntry,
 )
-from unique_web_search.services.search_engine import SearchEngineTypes
+from unique_web_search.services.executors.context import (
+    ExecutorCallbacks,
+    ExecutorConfiguration,
+    ExecutorServiceContext,
+)
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
-from unique_web_search.utils import StepDebugInfo, WebSearchDebugInfo
+from unique_web_search.utils import StepDebugInfo
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -46,37 +37,19 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
 
     def __init__(
         self,
-        search_service: SearchEngineTypes,
-        language_model_service: LanguageModelService,
-        language_model: LMI,
-        crawler_service: CrawlerTypes,
+        services: ExecutorServiceContext,
+        config: ExecutorConfiguration,
+        callbacks: ExecutorCallbacks,
         tool_call: LanguageModelFunction,
         tool_parameters: WebSearchPlan,
-        company_id: str,
-        content_processor: ContentProcessor,
-        message_log_callback: MessageLogCallback,
-        chunk_relevancy_sorter: ChunkRelevancySorter | None,
-        chunk_relevancy_sort_config: ChunkRelevancySortConfig,
-        content_reducer: Callable[[list[WebPageChunk]], list[WebPageChunk]],
-        debug_info: WebSearchDebugInfo,
-        tool_progress_reporter: Optional[ToolProgressReporter] = None,
         max_steps: int = 3,
     ):
         super().__init__(
-            search_service=search_service,
-            language_model_service=language_model_service,
-            language_model=language_model,
-            crawler_service=crawler_service,
+            services=services,
+            config=config,
+            callbacks=callbacks,
             tool_call=tool_call,
             tool_parameters=tool_parameters,
-            company_id=company_id,
-            content_processor=content_processor,
-            chunk_relevancy_sorter=chunk_relevancy_sorter,
-            chunk_relevancy_sort_config=chunk_relevancy_sort_config,
-            content_reducer=content_reducer,
-            debug_info=debug_info,
-            tool_progress_reporter=tool_progress_reporter,
-            message_log_callback=message_log_callback,
         )
 
         self.tool_parameters = tool_parameters
@@ -105,14 +78,16 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
         results: list[WebSearchResult] = []
         self.notify_name = "**Searching Web**"
         self.notify_message = self.tool_parameters.objective
+
         await self.notify_callback()
         self._message_log_callback(
             progress_message="_Searching Web_", queries_for_log=self.queries_for_log
         )
 
+        elicitated_steps = await self._elicitate_steps(self.tool_parameters.steps)
+
         tasks = [
-            asyncio.create_task(self._execute_step(step))
-            for step in self.tool_parameters.steps
+            asyncio.create_task(self._execute_step(step)) for step in elicitated_steps
         ]
 
         results_nested = await asyncio.gather(*tasks, return_exceptions=True)
@@ -288,7 +263,9 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
                 f"Number of steps is greater than the maximum number of steps: {len(self.tool_parameters.steps)} > {self.max_steps}"
             )
             _LOGGER.info(f"Reducing number of steps to {self.max_steps}")
-            self.tool_parameters.steps = self.tool_parameters.steps[: self.max_steps]
+            self.tool_parameters.steps = self.tool_parameters.steps[
+                : self.max_steps - 1
+            ]
             self.debug_info.steps.append(
                 StepDebugInfo(
                     step_name="enforce_max_steps",
@@ -300,3 +277,43 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
                     },
                 )
             )
+
+    async def _elicitate_steps(self, steps: list[Step]) -> list[Step]:
+        """Elicit user approval for search steps while preserving read URL steps.
+
+        This method partitions the steps into search and read URL types. Search steps
+        require query elicitation for user approval/modification, while read URL steps
+        are passed through unchanged. The elicited queries replace the original search
+        steps, maintaining the step order (search steps first, then read URL steps).
+
+        Args:
+            steps: List of planned steps to elicit
+
+        Returns:
+            List of approved steps with elicited search queries and original read URL steps
+        """
+        # Partition steps by type in a single pass
+        search_steps, read_url_steps = [], []
+        for step in steps:
+            if step.step_type == StepType.SEARCH:
+                search_steps.append(step)
+            else:  # StepType.READ_URL
+                read_url_steps.append(step)
+
+        # Early return if no search steps require elicitation
+        if not search_steps:
+            return read_url_steps
+
+        # Extract queries and elicit user approval/modifications
+        search_queries = [step.query_or_url for step in search_steps]
+        elicited_queries = await self._elicitate_queries(search_queries)
+
+        # Reconstruct search steps with elicited queries
+        # Note: Objectives are cleared as elicitation may have changed query intent
+        elicited_search_steps = [
+            Step(step_type=StepType.SEARCH, query_or_url=query, objective="")
+            for query in elicited_queries
+        ]
+
+        # Return elicited search steps followed by unchanged read URL steps
+        return elicited_search_steps + read_url_steps

@@ -14,6 +14,9 @@ from typing import (
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
 
+ACTION_TYPES = Literal["ACCEPT", "DECLINE", "CANCEL"]
+SOURCE_TYPES = Literal["INTERNAL_TOOL", "MCP_SERVER"]
+MODE_TYPES = Literal["FORM", "URL"]
 
 class Elicitation(APIResource["Elicitation"]):
     OBJECT_NAME: ClassVar[Literal["elicitation"]] = "elicitation"
@@ -23,7 +26,7 @@ class Elicitation(APIResource["Elicitation"]):
         Parameters for creating an elicitation request.
         """
 
-        mode: Literal["FORM", "URL"]
+        mode: MODE_TYPES
         message: str
         toolName: str
         schema: NotRequired[Optional[Dict[str, Any]]]
@@ -40,7 +43,7 @@ class Elicitation(APIResource["Elicitation"]):
         """
 
         elicitationId: str
-        action: Literal["ACCEPT", "DECLINE", "CANCEL"]
+        action: ACTION_TYPES
         content: NotRequired[Optional[Dict[str, str | int | bool | List[str]]]]
 
     class Elicitation(TypedDict):
@@ -50,7 +53,7 @@ class Elicitation(APIResource["Elicitation"]):
 
         id: str
         object: str
-        source: str
+        source: SOURCE_TYPES
         mode: str
         status: str
         message: str

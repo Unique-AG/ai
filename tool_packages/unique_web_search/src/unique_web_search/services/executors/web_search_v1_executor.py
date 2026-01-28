@@ -1,38 +1,31 @@
 import logging
 from time import time
-from typing import Callable, Literal, Optional, overload, override
+from typing import Literal, overload, override
 
 from pydantic import Field
 from unique_toolkit import LanguageModelService
-from unique_toolkit._common.chunk_relevancy_sorter.config import (
-    ChunkRelevancySortConfig,
-)
-from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
 from unique_toolkit._common.utils.structured_output.schema import StructuredOutputModel
 from unique_toolkit._common.validators import LMI
-from unique_toolkit.agentic.tools.tool_progress_reporter import (
-    ToolProgressReporter,
-)
 from unique_toolkit.content import ContentChunk
 from unique_toolkit.language_model import LanguageModelFunction
 from unique_toolkit.language_model.builder import MessagesBuilder
 
 from unique_web_search.schema import StepType, WebSearchToolParameters
-from unique_web_search.services.content_processing import ContentProcessor, WebPageChunk
-from unique_web_search.services.crawlers import CrawlerTypes
 from unique_web_search.services.executors.base_executor import (
     BaseWebSearchExecutor,
-    MessageLogCallback,
     WebSearchLogEntry,
 )
 from unique_web_search.services.executors.configs import RefineQueryMode
-from unique_web_search.services.search_engine import SearchEngineTypes
+from unique_web_search.services.executors.context import (
+    ExecutorCallbacks,
+    ExecutorConfiguration,
+    ExecutorServiceContext,
+)
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
 from unique_web_search.utils import (
     StepDebugInfo,
-    WebSearchDebugInfo,
     query_params_to_human_string,
 )
 
@@ -139,39 +132,21 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
     @override
     def __init__(
         self,
-        company_id: str,
-        language_model_service: LanguageModelService,
-        language_model: LMI,
-        search_service: SearchEngineTypes,
-        crawler_service: CrawlerTypes,
-        content_processor: ContentProcessor,
-        message_log_callback: MessageLogCallback,
-        chunk_relevancy_sorter: ChunkRelevancySorter | None,
-        chunk_relevancy_sort_config: ChunkRelevancySortConfig,
-        content_reducer: Callable[[list[WebPageChunk]], list[WebPageChunk]],
+        services: ExecutorServiceContext,
+        config: ExecutorConfiguration,
+        callbacks: ExecutorCallbacks,
         tool_call: LanguageModelFunction,
         tool_parameters: WebSearchToolParameters,
         refine_query_system_prompt: str,
-        debug_info: WebSearchDebugInfo,
-        tool_progress_reporter: Optional[ToolProgressReporter] = None,
         mode: RefineQueryMode = RefineQueryMode.BASIC,
         max_queries: int = 10,
     ):
         super().__init__(
-            search_service=search_service,
-            language_model_service=language_model_service,
-            language_model=language_model,
-            crawler_service=crawler_service,
+            services=services,
+            config=config,
+            callbacks=callbacks,
             tool_call=tool_call,
             tool_parameters=tool_parameters,
-            company_id=company_id,
-            content_processor=content_processor,
-            chunk_relevancy_sorter=chunk_relevancy_sorter,
-            chunk_relevancy_sort_config=chunk_relevancy_sort_config,
-            debug_info=debug_info,
-            content_reducer=content_reducer,
-            tool_progress_reporter=tool_progress_reporter,
-            message_log_callback=message_log_callback,
         )
         self.mode = mode
         self.tool_parameters = tool_parameters
@@ -185,38 +160,37 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
         self.notify_name = "**Refining Query**"
         self.notify_message = query_params_to_human_string(query, date_restrict)
         await self.notify_callback()
+
         self._active_message_log = self._message_log_callback(
             progress_message=f"_Refining Query:_ {self.notify_message}"
         )
         refined_queries, objective = await self._refine_query(query)
 
+        elicitated_queries = await self._elicitate_queries(refined_queries)
+
         web_search_results = []
         # Pass query strings only - callback handles creating WebSearchLogEntry objects
         queries_wo_results = [
             query_params_to_human_string(refined_query, date_restrict)
-            for refined_query in refined_queries
+            for refined_query in elicitated_queries
         ]
         self._active_message_log = self._message_log_callback(
             queries_for_log=queries_wo_results
         )
 
         queries_for_log = []
-        for index, refined_query in enumerate(refined_queries):
+        for index, query in enumerate(elicitated_queries):
             if len(refined_queries) > 1:
                 self.notify_name = (
-                    f"**Searching Web {index + 1}/{len(refined_queries)}**"
+                    f"**Searching Web {index + 1}/{len(elicitated_queries)}**"
                 )
             else:
                 self.notify_name = "**Searching Web**"
 
-            self.notify_message = query_params_to_human_string(
-                refined_query, date_restrict
-            )
+            self.notify_message = query_params_to_human_string(query, date_restrict)
             await self.notify_callback()
 
-            search_results = await self._search(
-                refined_query, date_restrict=date_restrict
-            )
+            search_results = await self._search(query, date_restrict=date_restrict)
             queries_for_log.append(
                 WebSearchLogEntry(
                     type=StepType.SEARCH,
