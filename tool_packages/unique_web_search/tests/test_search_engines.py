@@ -792,7 +792,11 @@ class TestCustomAPISearch:
         config = CustomAPIConfig(search_engine_name=SearchEngineType.CUSTOM_API)
         search = CustomAPI(config)
 
-        assert search._client_config == {"timeout": 60, "verify": True, "max_redirects": 5}
+        assert search._client_config == {
+            "timeout": 60,
+            "verify": True,
+            "max_redirects": 5,
+        }
 
     def test_custom_api_additional_query_params_property(self):
         """Test _additional_query_params property parses JSON."""
