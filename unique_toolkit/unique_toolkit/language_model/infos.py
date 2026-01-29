@@ -91,7 +91,7 @@ class LanguageModelName(StrEnum):
     def get_litellm_name(self) -> str:
         """Get the LiteLLM-compatible model name for this model."""
         value = self.value
-        
+
         if value.startswith("litellm:"):
             match self:
                 case LanguageModelName.ANTHROPIC_CLAUDE_3_7_SONNET:
@@ -130,7 +130,10 @@ class LanguageModelName(StrEnum):
                     return "gemini/gemini-3-flash-preview"
                 case LanguageModelName.GEMINI_3_PRO_PREVIEW:
                     return "gemini/gemini-3-pro-preview"
-                case LanguageModelName.LITELLM_QWEN_3 | LanguageModelName.LITELLM_QWEN_3_THINKING:
+                case (
+                    LanguageModelName.LITELLM_QWEN_3
+                    | LanguageModelName.LITELLM_QWEN_3_THINKING
+                ):
                     return "qwen/qwen2-72b-instruct"
                 case LanguageModelName.LITELLM_DEEPSEEK_R1:
                     return "deepseek/deepseek-reasoner"
@@ -138,19 +141,19 @@ class LanguageModelName(StrEnum):
                     return "deepseek/deepseek-chat"
                 case _:
                     return value.replace("litellm:", "")
-        
+
         if value.startswith("AZURE_"):
             match self:
                 case LanguageModelName.AZURE_GPT_35_TURBO_0125:
                     return "azure/gpt-35-turbo"
                 case (
-                    LanguageModelName.AZURE_GPT_4_0613 
+                    LanguageModelName.AZURE_GPT_4_0613
                     | LanguageModelName.AZURE_GPT_4_32K_0613
                     | LanguageModelName.AZURE_GPT_4_TURBO_2024_0409
                 ):
                     return "azure/gpt-4"
                 case (
-                    LanguageModelName.AZURE_GPT_4o_2024_0513 
+                    LanguageModelName.AZURE_GPT_4o_2024_0513
                     | LanguageModelName.AZURE_GPT_4o_2024_0806
                     | LanguageModelName.AZURE_GPT_4o_2024_1120
                 ):
@@ -166,7 +169,7 @@ class LanguageModelName(StrEnum):
                 case _:
                     model_base = value.replace("AZURE_", "").lower()
                     return f"azure/{model_base}"
-        
+
         return value
 
 

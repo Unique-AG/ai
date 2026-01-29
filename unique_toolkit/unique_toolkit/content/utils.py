@@ -169,7 +169,7 @@ def pick_content_chunks_for_token_window(
         token_count += searchtoken_count
 
     return picked_chunks
-    
+
 
 @deprecated("Use unique_toolkit._common.token.count_tokens_for_model instead")
 def count_tokens(text: str, encoding_model="cl100k_base") -> int:

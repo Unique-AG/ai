@@ -20,13 +20,15 @@ class TestTokenService:
     """Test the model-agnostic token counting service."""
 
     def test_openai_model_tiktoken_compatibility(self):
-        model_info = LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_4o_2024_0806)
-        
+        model_info = LanguageModelInfo.from_name(
+            LanguageModelName.AZURE_GPT_4o_2024_0806
+        )
+
         service_count = count_tokens_for_model(TEST_TEXT, model_info)
-        
+
         encoder = tiktoken.get_encoding(model_info.encoder_name)
         tiktoken_count = len(encoder.encode(TEST_TEXT))
-        
+
         # LiteLLM wraps text in message format internally, adding ~10 tokens for formatting
         # Allow 25% difference to account for message overhead
         diff_percentage = abs(service_count - tiktoken_count) / tiktoken_count * 100
@@ -38,19 +40,19 @@ class TestTokenService:
     def test_qwen_uses_custom_tokenizer(self):
         """Test that Qwen models use custom tokenizer, not tiktoken fallback."""
         model_info = LanguageModelInfo.from_name(LanguageModelName.LITELLM_QWEN_3)
-        
+
         # Count with service (should use custom Qwen tokenizer)
         service_count = count_tokens_for_model(TEST_TEXT, model_info)
-        
+
         # Count with tiktoken (what we DON'T want)
         encoder = tiktoken.get_encoding("cl100k_base")
         tiktoken_count = len(encoder.encode(TEST_TEXT))
-        
+
         # These should be different (Qwen has different tokenization)
         assert service_count != tiktoken_count, (
             "Qwen token count matches tiktoken, suggesting custom tokenizer not used"
         )
-        
+
         # Qwen should produce reasonable token counts
         assert service_count > 0
         assert service_count < len(TEST_TEXT)  # Sanity check
@@ -58,26 +60,28 @@ class TestTokenService:
     def test_deepseek_uses_custom_tokenizer(self):
         """Test that DeepSeek models use custom tokenizer."""
         model_info = LanguageModelInfo.from_name(LanguageModelName.LITELLM_DEEPSEEK_R1)
-        
+
         # Count with service (should use custom DeepSeek tokenizer)
         service_count = count_tokens_for_model(TEST_TEXT, model_info)
-        
+
         # Count with tiktoken (what we DON'T want)
         encoder = tiktoken.get_encoding("cl100k_base")
         tiktoken_count = len(encoder.encode(TEST_TEXT))
-        
+
         # These should be different
         assert service_count != tiktoken_count, (
             "DeepSeek token count matches tiktoken, suggesting custom tokenizer not used"
         )
-        
+
         # Sanity checks
         assert service_count > 0
         assert service_count < len(TEST_TEXT)
 
     def test_empty_text_returns_zero(self):
         """Test that empty text returns 0 tokens."""
-        model_info = LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_4o_2024_0806)
+        model_info = LanguageModelInfo.from_name(
+            LanguageModelName.AZURE_GPT_4o_2024_0806
+        )
         assert count_tokens_for_model("", model_info) == 0
         assert count_tokens_for_model("   ", model_info) > 0  # Whitespace counts
 
@@ -99,10 +103,12 @@ class TestTokenService:
         """Test that various models produce valid token counts."""
         model_info = LanguageModelInfo.from_name(model_name)
         count = count_tokens_for_model(TEST_TEXT_SHORT, model_info)
-        
+
         # Basic sanity checks
         assert count > 0, f"Model {model_name} returned 0 tokens"
-        assert count < len(TEST_TEXT_SHORT), f"Model {model_name} token count > text length"
+        assert count < len(TEST_TEXT_SHORT), (
+            f"Model {model_name} token count > text length"
+        )
 
 
 @pytest.mark.ai
@@ -112,17 +118,15 @@ class TestBackwardCompatibility:
     def test_content_utils_backward_compatibility(self):
         """Test that content.utils.count_tokens works without model_info (legacy)."""
         count = content_count_tokens(TEST_TEXT_SHORT)
-        
+
         encoder = tiktoken.get_encoding("cl100k_base")
         expected = len(encoder.encode(TEST_TEXT_SHORT))
         assert count == expected
 
-
-
     def test_content_utils_with_custom_encoding(self):
         """Test content.utils.count_tokens with custom encoding (legacy)."""
         count = content_count_tokens(TEST_TEXT_SHORT, encoding_model="o200k_base")
-        
+
         # Should match tiktoken with o200k_base
         encoder = tiktoken.get_encoding("o200k_base")
         expected = len(encoder.encode(TEST_TEXT_SHORT))
@@ -135,19 +139,40 @@ class TestLiteLLMMapping:
 
     def test_azure_models_mapped_correctly(self):
         """Test that Azure models are mapped to azure/ prefix."""
-        assert LanguageModelName.AZURE_GPT_4o_2024_0806.get_litellm_name() == "azure/gpt-4o"
-        assert LanguageModelName.AZURE_GPT_35_TURBO_0125.get_litellm_name() == "azure/gpt-35-turbo"
-        assert LanguageModelName.AZURE_GPT_4o_MINI_2024_0718.get_litellm_name() == "azure/gpt-4o-mini"
+        assert (
+            LanguageModelName.AZURE_GPT_4o_2024_0806.get_litellm_name()
+            == "azure/gpt-4o"
+        )
+        assert (
+            LanguageModelName.AZURE_GPT_35_TURBO_0125.get_litellm_name()
+            == "azure/gpt-35-turbo"
+        )
+        assert (
+            LanguageModelName.AZURE_GPT_4o_MINI_2024_0718.get_litellm_name()
+            == "azure/gpt-4o-mini"
+        )
 
     def test_qwen_models_mapped_correctly(self):
         """Test that Qwen models are mapped correctly."""
-        assert LanguageModelName.LITELLM_QWEN_3.get_litellm_name() == "qwen/qwen2-72b-instruct"
-        assert LanguageModelName.LITELLM_QWEN_3_THINKING.get_litellm_name() == "qwen/qwen2-72b-instruct"
+        assert (
+            LanguageModelName.LITELLM_QWEN_3.get_litellm_name()
+            == "qwen/qwen2-72b-instruct"
+        )
+        assert (
+            LanguageModelName.LITELLM_QWEN_3_THINKING.get_litellm_name()
+            == "qwen/qwen2-72b-instruct"
+        )
 
     def test_deepseek_models_mapped_correctly(self):
         """Test that DeepSeek models are mapped correctly."""
-        assert LanguageModelName.LITELLM_DEEPSEEK_R1.get_litellm_name() == "deepseek/deepseek-reasoner"
-        assert LanguageModelName.LITELLM_DEEPSEEK_V3.get_litellm_name() == "deepseek/deepseek-chat"
+        assert (
+            LanguageModelName.LITELLM_DEEPSEEK_R1.get_litellm_name()
+            == "deepseek/deepseek-reasoner"
+        )
+        assert (
+            LanguageModelName.LITELLM_DEEPSEEK_V3.get_litellm_name()
+            == "deepseek/deepseek-chat"
+        )
 
     def test_claude_models_mapped_correctly(self):
         """Test that Claude models are mapped correctly."""
