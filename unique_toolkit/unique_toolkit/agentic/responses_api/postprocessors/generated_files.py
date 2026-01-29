@@ -156,6 +156,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 continue
 
             is_image = (guess_type(filename)[0] or "").startswith("image/")
+            is_html = (guess_type(filename)[0] or "") == "text/html"
 
             # Images
             if is_image:
@@ -165,6 +166,15 @@ class DisplayCodeInterpreterFilesPostProcessor(
                         filename=filename,
                         content_id=content_id,
                     )
+                )
+                changed |= replaced
+
+            # HTML
+            elif is_html:
+                loop_response.message.text, replaced = _replace_container_html_citation(
+                    text=loop_response.message.text,
+                    filename=filename,
+                    content_id=content_id,
                 )
                 changed |= replaced
 
@@ -298,6 +308,30 @@ def _replace_container_image_citation(
     return re.sub(
         image_markdown,
         f"![image](unique://content/{content_id})",
+        text,
+    ), True
+
+
+def _replace_container_html_citation(
+    text: str, filename: str, content_id: str
+) -> tuple[str, bool]:
+    html_markdown = rf"!?\[.*?\]\(sandbox:/mnt/data/{re.escape(filename)}\)"
+
+    if not re.search(html_markdown, text):
+        logger.info("No HTML markdown found for %s", filename)
+        return text, False
+
+    logger.info("Displaying HTML %s", filename)
+    html_rendering_block = f"""```HtmlRendering
+100%
+500px
+
+unique://content/{content_id}
+
+```"""
+    return re.sub(
+        html_markdown,
+        html_rendering_block,
         text,
     ), True
 
