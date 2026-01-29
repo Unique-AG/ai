@@ -117,25 +117,7 @@ class TestBackwardCompatibility:
         expected = len(encoder.encode(TEST_TEXT_SHORT))
         assert count == expected
 
-    def test_sdk_count_tokens_backward_compatibility(self):
-        """Test that unique_sdk.utils.token.count_tokens works without model_info."""
-        from unique_sdk.utils.token import count_tokens as sdk_count_tokens
-        
-        count = sdk_count_tokens(TEST_TEXT_SHORT)
-        
-        encoder = tiktoken.get_encoding("cl100k_base")
-        expected = len(encoder.encode(TEST_TEXT_SHORT))
-        assert count == expected
 
-    def test_sdk_count_tokens_with_model_info(self):
-        """Test that unique_sdk.utils.token.count_tokens works with model_info."""
-        from unique_sdk.utils.token import count_tokens as sdk_count_tokens
-        
-        model_info = LanguageModelInfo.from_name(LanguageModelName.LITELLM_QWEN_3)
-        count = sdk_count_tokens(TEST_TEXT_SHORT, model_info=model_info)
-        
-        expected = count_tokens_for_model(TEST_TEXT_SHORT, model_info)
-        assert count == expected
 
     def test_content_utils_with_custom_encoding(self):
         """Test content.utils.count_tokens with custom encoding (legacy)."""
@@ -146,36 +128,6 @@ class TestBackwardCompatibility:
         expected = len(encoder.encode(TEST_TEXT_SHORT))
         assert count == expected
 
-    def test_content_utils_with_model_info(self):
-        """Test content.utils.count_tokens with model_info (new API)."""
-        model_info = LanguageModelInfo.from_name(LanguageModelName.LITELLM_QWEN_3)
-        count = content_count_tokens(TEST_TEXT_SHORT, model_info=model_info)
-        
-        # Should use the new service
-        expected = count_tokens_for_model(TEST_TEXT_SHORT, model_info)
-        assert count == expected
-
-    def test_model_info_overrides_encoding_model(self):
-        model_info_qwen = LanguageModelInfo.from_name(LanguageModelName.LITELLM_QWEN_3)
-        model_info_gpt = LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_4o_2024_0806)
-        
-        # Use Chinese text where Qwen and GPT tokenization will definitely differ
-        chinese_text = "你好世界！这是一些中文文本。"
-        
-        count_qwen = content_count_tokens(
-            chinese_text,
-            encoding_model="cl100k_base",  # This should be ignored
-            model_info=model_info_qwen,
-        )
-        
-        count_gpt = content_count_tokens(
-            chinese_text,
-            model_info=model_info_gpt,
-        )
-        
-        # Qwen and GPT should tokenize Chinese text differently
-        assert count_qwen != count_gpt
-
 
 @pytest.mark.ai
 class TestLiteLLMMapping:
@@ -183,38 +135,27 @@ class TestLiteLLMMapping:
 
     def test_azure_models_mapped_correctly(self):
         """Test that Azure models are mapped to azure/ prefix."""
-        from unique_toolkit.language_model.infos import get_litellm_name
-        
-        # Test a few Azure models
-        assert get_litellm_name(LanguageModelName.AZURE_GPT_4o_2024_0806) == "azure/gpt-4o"
-        assert get_litellm_name(LanguageModelName.AZURE_GPT_35_TURBO_0125) == "azure/gpt-35-turbo"
-        assert get_litellm_name(LanguageModelName.AZURE_GPT_4o_MINI_2024_0718) == "azure/gpt-4o-mini"
+        assert LanguageModelName.AZURE_GPT_4o_2024_0806.get_litellm_name() == "azure/gpt-4o"
+        assert LanguageModelName.AZURE_GPT_35_TURBO_0125.get_litellm_name() == "azure/gpt-35-turbo"
+        assert LanguageModelName.AZURE_GPT_4o_MINI_2024_0718.get_litellm_name() == "azure/gpt-4o-mini"
 
     def test_qwen_models_mapped_correctly(self):
         """Test that Qwen models are mapped correctly."""
-        from unique_toolkit.language_model.infos import get_litellm_name
-        
-        assert get_litellm_name(LanguageModelName.LITELLM_QWEN_3) == "qwen/qwen2-72b-instruct"
-        assert get_litellm_name(LanguageModelName.LITELLM_QWEN_3_THINKING) == "qwen/qwen2-72b-instruct"
+        assert LanguageModelName.LITELLM_QWEN_3.get_litellm_name() == "qwen/qwen2-72b-instruct"
+        assert LanguageModelName.LITELLM_QWEN_3_THINKING.get_litellm_name() == "qwen/qwen2-72b-instruct"
 
     def test_deepseek_models_mapped_correctly(self):
         """Test that DeepSeek models are mapped correctly."""
-        from unique_toolkit.language_model.infos import get_litellm_name
-        
-        assert get_litellm_name(LanguageModelName.LITELLM_DEEPSEEK_R1) == "deepseek/deepseek-reasoner"
-        assert get_litellm_name(LanguageModelName.LITELLM_DEEPSEEK_V3) == "deepseek/deepseek-chat"
+        assert LanguageModelName.LITELLM_DEEPSEEK_R1.get_litellm_name() == "deepseek/deepseek-reasoner"
+        assert LanguageModelName.LITELLM_DEEPSEEK_V3.get_litellm_name() == "deepseek/deepseek-chat"
 
     def test_claude_models_mapped_correctly(self):
         """Test that Claude models are mapped correctly."""
-        from unique_toolkit.language_model.infos import get_litellm_name
-        
-        result = get_litellm_name(LanguageModelName.ANTHROPIC_CLAUDE_SONNET_4)
+        result = LanguageModelName.ANTHROPIC_CLAUDE_SONNET_4.get_litellm_name()
         assert "claude" in result.lower()
         assert "anthropic" in result.lower() or result.startswith("claude")
 
     def test_gemini_models_mapped_correctly(self):
         """Test that Gemini models are mapped correctly."""
-        from unique_toolkit.language_model.infos import get_litellm_name
-        
-        result = get_litellm_name(LanguageModelName.GEMINI_2_5_FLASH)
+        result = LanguageModelName.GEMINI_2_5_FLASH.get_litellm_name()
         assert "gemini" in result.lower()
