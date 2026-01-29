@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.46.0] - 2026-01-29
 - Add model-agnostic token counting with `count_tokens_for_model()` and bundled Qwen/DeepSeek tokenizers
 
+## [1.45.5] - 2026-01-29
+- Add HTML rendering support for code interpreter generated files
+
 ## [1.45.4] - 2026-01-26
 - Add ArtifactType `AGENTIC_REPORT`
 
