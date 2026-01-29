@@ -156,6 +156,20 @@ def file_content_serialization(
                 + file_names,
             )
 
+def get_full_history_with_tools(
+    chat_service: ChatService,
+) -> list[ChatMessage]:
+    chat_history = chat_service.get_full_history()
+
+    assistant_messages = [msg for msg in chat_history if msg.role == ChatRole.ASSISTANT]
+    last_assistant_message = assistant_messages[-1] if assistant_messages else None
+
+    messages_with_gpt_request = [msg for msg in chat_history if msg.gpt_request is not None and msg.role == ChatRole.USER]
+    last_message_with_gpt_request = messages_with_gpt_request[-1] if messages_with_gpt_request else None
+    if last_message_with_gpt_request is not None:
+        last_assistant_message.append(last_message_with_gpt_request)
+    return last_assistant_message
+
 
 def get_full_history_with_contents(
     user_message: ChatEventUserMessage,
