@@ -7,7 +7,6 @@ from unique_toolkit._common.token import count_tokens_for_model
 from unique_toolkit.content.utils import count_tokens as content_count_tokens
 from unique_toolkit.language_model.infos import LanguageModelInfo, LanguageModelName
 
-
 TEST_TEXT = """Hello, how are you today? I'm working on a project that involves 
 counting tokens for different language models. This includes models like GPT-4, 
 Claude, and Qwen. 你好世界！这是一些中文文本。"""

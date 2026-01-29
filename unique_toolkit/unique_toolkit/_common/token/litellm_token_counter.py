@@ -2,8 +2,8 @@ from functools import lru_cache
 from pathlib import Path
 
 import litellm
-from tokenizers import Tokenizer
 import tiktoken
+from tokenizers import Tokenizer
 
 from unique_toolkit.language_model.infos import LanguageModelInfo, LanguageModelName
 
