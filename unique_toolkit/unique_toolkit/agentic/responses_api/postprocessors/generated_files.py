@@ -171,12 +171,10 @@ class DisplayCodeInterpreterFilesPostProcessor(
 
             # HTML
             elif is_html:
-                loop_response.message.text, replaced = (
-                    _replace_container_html_citation(
-                        text=loop_response.message.text,
-                        filename=filename,
-                        content_id=content_id,
-                    )
+                loop_response.message.text, replaced = _replace_container_html_citation(
+                    text=loop_response.message.text,
+                    filename=filename,
+                    content_id=content_id,
                 )
                 changed |= replaced
 
