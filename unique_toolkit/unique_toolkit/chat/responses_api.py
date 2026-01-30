@@ -236,27 +236,26 @@ def _attempt_extract_reasoning_from_options(
 def _attempt_extract_verbosity_from_options(
     options: dict[str, Any],
 ) -> ResponseTextConfigParam | None:
-    text_config: dict[str, Any] | str | None = None
+    if "verbosity" in options:
+        return TypeAdapter(ResponseTextConfigParam).validate_python(
+            {"verbosity": options["verbosity"]}
+        )
 
     # Responses API
     if "text" in options:
-        text_config = options["text"]
+        text_config: dict[str, Any] | str = options["text"]
         # Handle case where text is stored as JSON string (UI limitation)
         if isinstance(text_config, str):
             try:
                 text_config = json.loads(text_config)
+                return TypeAdapter(ResponseTextConfigParam).validate_python(text_config)
             except (json.JSONDecodeError, TypeError):
                 logger.warning(
                     f"Failed to parse text as JSON string: {text_config}. "
                     "Continuing with raw value."
                 )
-
-    # Completions API
-    elif "verbosity" in options:
-        text_config = {"verbosity": options["verbosity"]}
-
-    if text_config is not None:
-        return TypeAdapter(ResponseTextConfigParam).validate_python(text_config)
+        if isinstance(text_config, dict):
+            return TypeAdapter(ResponseTextConfigParam).validate_python(text_config)
 
     return None
 
