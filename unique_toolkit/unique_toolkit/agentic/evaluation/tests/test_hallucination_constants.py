@@ -368,7 +368,9 @@ def test_hallucination_config__accepts_custom_source_selection_mode__on_initiali
 
 
 @pytest.mark.ai
-def test_hallucination_config__accepts_custom_reference_pattern__on_initialization() -> None:
+def test_hallucination_config__accepts_custom_reference_pattern__on_initialization() -> (
+    None
+):
     """
     Purpose: Verify that reference_pattern can be customized during initialization.
     Why this matters: Allows support for different reference citation formats.
