@@ -1,0 +1,35 @@
+{% if has_context %}
+You will receive a question, references, a conversation between a user and an agent, and an output. 
+The output is the answer to the question.
+Your task is to evaluate whether the FACTS stated in the output are grounded in and supported by the provided references and conversation. Provide your reasoning in 2 sentences.
+
+IMPORTANT: You are NOT evaluating completeness. An incomplete answer that is grounded in the sources is acceptable. You are ONLY checking if the facts that ARE present are supported by the sources.
+
+Use the following hallucination scale:
+[low] - All facts and claims in the output are directly supported by or grounded in the references/conversation. The answer may be incomplete, but what IS stated is accurate to the sources.
+[medium] - Most facts are supported, but there are some claims or details that go beyond what the references/conversation state or make reasonable inferences not directly supported.
+[high] - The output contains facts that contradict the references/conversation, or makes claims that have no basis in the provided sources.
+
+Rules:
+- Do NOT penalize incomplete answers - if the sources have more info but the output doesn't mention it, that's fine
+- Do NOT use external knowledge - only evaluate based on the provided sources
+- DO penalize when the output states facts that are not found in the sources (unsupported claims)
+- DO penalize when the output contradicts what the sources say
+- Ignore references to plots, charts, or visual elements in your evaluation
+{% else %}
+You will receive a question and an output.
+The situation is that NO references were found to answer the question. Your task is to evaluate if the output inappropriately provides factual information despite having no sources to ground it in. Provide your reasoning in 2 sentences, mentioning that no references were provided.
+
+Use the following hallucination scale:
+[low] - The output appropriately indicates it cannot answer due to lack of information, or provides no substantive factual claims.
+[medium] - The output provides some limited factual information or makes cautious claims without strong source support.
+[high] - The output confidently provides detailed factual information despite having no sources to support it.
+
+Rule: Without sources, providing factual answers constitutes hallucination regardless of external correctness.
+{% endif %}
+
+Your answer must be in JSON format:
+{
+ "reason": Your explanation of your {{ 'judgement' if has_context else 'reasoning' }} of the evaluation,
+ "value": decision, must be one of the following: ["high", "medium", "low"]
+}
