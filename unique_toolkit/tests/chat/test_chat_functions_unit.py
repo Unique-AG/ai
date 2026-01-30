@@ -390,6 +390,35 @@ def test_pick_messages_in_reverse_for_token_window_empty():
     )
 
 
+@pytest.mark.ai
+def test_pick_messages_in_reverse_for_token_window_with_model_info():
+    """Test that model_info is passed to count_tokens for model-aware counting."""
+    from unique_toolkit.language_model.infos import LanguageModelInfo, LanguageModelName
+
+    model_info = LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_4o_2024_0513)
+    messages = [
+        ChatMessage(
+            id="1",
+            role=ChatMessageRole.USER,
+            text="Hello world",
+            chat_id="chat123",
+        ),
+        ChatMessage(
+            id="2",
+            role=ChatMessageRole.ASSISTANT,
+            text="Hi there!",
+            chat_id="chat123",
+        ),
+    ]
+
+    result = pick_messages_in_reverse_for_token_window(
+        messages, limit=100, model_info=model_info
+    )
+
+    assert len(result) > 0
+    assert all(isinstance(msg, ChatMessage) for msg in result)
+
+
 @patch.object(unique_sdk.Integrated, "chat_stream_completion")
 def test_stream_complete_basic(mock_stream):
     mock_stream.return_value = {

@@ -83,6 +83,7 @@ from unique_toolkit.language_model.constants import (
     DEFAULT_COMPLETE_TIMEOUT,
 )
 from unique_toolkit.language_model.infos import (
+    LanguageModelInfo,
     LanguageModelName,
 )
 from unique_toolkit.language_model.schemas import (
@@ -514,6 +515,7 @@ class ChatService(ChatServiceDeprecated):
         token_limit: int,
         percent_of_max_tokens: float = DEFAULT_PERCENT_OF_MAX_TOKENS,
         max_messages: int = DEFAULT_MAX_MESSAGES,
+        model_info: LanguageModelInfo | None = None,
     ) -> tuple[list[ChatMessage], list[ChatMessage]]:
         """Loads the chat history for the chat session synchronously.
 
@@ -521,6 +523,7 @@ class ChatService(ChatServiceDeprecated):
             token_limit (int): The maximum number of tokens to load.
             percent_of_max_tokens (float): The percentage of the maximum tokens to load. Defaults to 0.15.
             max_messages (int): The maximum number of messages to load. Defaults to 4.
+            model_info (LanguageModelInfo | None): Optional model info for accurate token counting.
 
         Returns:
             tuple[list[ChatMessage], list[ChatMessage]]: The selected and full chat history.
@@ -538,6 +541,7 @@ class ChatService(ChatServiceDeprecated):
             full_history=full_history,
             max_tokens=int(round(token_limit * percent_of_max_tokens)),
             max_messages=max_messages,
+            model_info=model_info,
         )
 
         return full_history, selected_history
@@ -547,6 +551,7 @@ class ChatService(ChatServiceDeprecated):
         token_limit: int,
         percent_of_max_tokens: float = DEFAULT_PERCENT_OF_MAX_TOKENS,
         max_messages: int = DEFAULT_MAX_MESSAGES,
+        model_info: LanguageModelInfo | None = None,
     ) -> tuple[list[ChatMessage], list[ChatMessage]]:
         """Loads the chat history for the chat session asynchronously.
 
@@ -554,6 +559,7 @@ class ChatService(ChatServiceDeprecated):
             token_limit (int): The maximum number of tokens to load.
             percent_of_max_tokens (float): The percentage of the maximum tokens to load. Defaults to 0.15.
             max_messages (int): The maximum number of messages to load. Defaults to 4.
+            model_info (LanguageModelInfo | None): Optional model info for accurate token counting.
 
         Returns:
             tuple[list[ChatMessage], list[ChatMessage]]: The selected and full chat history.
@@ -571,6 +577,7 @@ class ChatService(ChatServiceDeprecated):
             full_history=full_history,
             max_tokens=int(round(token_limit * percent_of_max_tokens)),
             max_messages=max_messages,
+            model_info=model_info,
         )
 
         return full_history, selected_history
