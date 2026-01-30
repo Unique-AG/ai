@@ -91,7 +91,7 @@ def get_search_engine_service(
         case SearchEngineType.BING:
             return BingSearch(search_engine_config, language_model_service)
         case SearchEngineType.BRAVE:
-            return BraveSearch(search_engine_config, language_model_service)
+            return BraveSearch(search_engine_config)
         case SearchEngineType.VERTEXAI:
             return VertexAI(search_engine_config)
         case SearchEngineType.CUSTOM_API:
