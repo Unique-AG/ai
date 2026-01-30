@@ -253,7 +253,7 @@ async def supervisor_tools(
         all_tool_messages.extend(research_tool_messages)
 
     except Exception as e:
-        _LOGGER.error(f"Research execution failed: {e}")
+        _LOGGER.error(f"Research execution failed: {e}", exc_info=True)
         return Command(
             goto="__end__",
             update={
@@ -596,7 +596,9 @@ async def _handle_conduct_research_batch(
     tool_messages = []
     for observation, tool_call in zip(tool_results, allowed_calls):
         if isinstance(observation, Exception):
-            _LOGGER.error(f"Research task failed: {str(observation)}", exc_info=observation)
+            _LOGGER.error(
+                f"Research task failed: {str(observation)}", exc_info=observation
+            )
             error_content = f"Research task failed: {str(observation)}"
             tool_messages.append(
                 ToolMessage(

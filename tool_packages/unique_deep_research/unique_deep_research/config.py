@@ -1,19 +1,19 @@
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
-from typing import Generic, Literal, TypeVar
+from typing import Any, Generic, Literal, TypeVar
 
 from jinja2 import Environment, FileSystemLoader
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from unique_toolkit._common.validators import LMI, get_LMI_default_field
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 from unique_toolkit.language_model.infos import LanguageModelName
 from unique_web_search.config import (
-    ActivatedCrawler,
     ActivatedSearchEngine,
     DefaultSearchEngine,
 )
+from unique_web_search.services.search_engine import GoogleConfig
 
 # Global template environment for the deep research tool
 TEMPLATE_DIR = Path(__file__).parent / "templates"
@@ -80,27 +80,41 @@ class OpenAIEngine(BaseEngine[Literal[DeepResearchEngine.OPENAI]]):
 class WebToolsConfig(BaseModel):
     model_config = get_configuration_dict()
 
-    search_engine_type: ActivatedSearchEngine = Field(  # pyright: ignore[reportInvalidTypeForm]
+    enable: bool = Field(
+        default=True,
+        description="Whether to enable web search",
+    )
+
+    search_engine: ActivatedSearchEngine = Field(  # pyright: ignore[reportInvalidTypeForm]
         default=DefaultSearchEngine,
-        description="The type of search engine to use for web search tools",
+        description="The type of search engine to use for web search",
     )
 
 
 class Tools(BaseModel):
     model_config = get_configuration_dict()
 
-    web_tools: bool = Field(
-        default=True,
-        description="Allow agent to use web search tools to access the web",
-    )
-    web_tools_config: WebToolsConfig = Field(
+    web_tools: WebToolsConfig = Field(
         default=WebToolsConfig(),
-        description="The configuration for web search tools",
+        description="Configuration for web search tools",
     )
     internal_tools: bool = Field(
         default=True,
         description="Allow agent to use internal search tools access information from the knowledge base and uploaded documents",
     )
+
+    @field_validator("web_tools", mode="before")
+    @classmethod
+    def handle_bool_case(cls, v: Any) -> Any:
+        if isinstance(v, bool):
+            if v:
+                # Backward compatibility with old config behaviour
+                return WebToolsConfig(
+                    enable=True, search_engine=GoogleConfig(fetch_size=10)
+                )
+            else:
+                return WebToolsConfig(enable=False)
+        return v
 
 
 class UniqueEngine(BaseEngine[Literal[DeepResearchEngine.UNIQUE]]):

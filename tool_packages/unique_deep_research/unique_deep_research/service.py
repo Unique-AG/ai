@@ -394,7 +394,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             self.write_message_log_text_message("**Research done**")
             return result
         except Exception as e:
-            self.logger.error(f"Research failed: {e}")
+            self.logger.error(f"Research failed: {e}", exc_info=True)
             return "", []
 
     async def custom_research(self, research_brief: str) -> tuple[str, list[Any]]:
@@ -699,7 +699,9 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                         if event.response.error:
                             return event.response.error.message, []
             except Exception as e:
-                self.logger.error(f"Error processing research stream event: {e}")
+                self.logger.error(
+                    f"Error processing research stream event: {e}", exc_info=True
+                )
 
         self.logger.error("Stream ended without completion")
         return "", []

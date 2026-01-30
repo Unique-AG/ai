@@ -23,7 +23,6 @@ from unique_toolkit.chat.schemas import (
 from unique_toolkit.content import ContentReference
 from unique_toolkit.content.schemas import ContentChunk, ContentSearchType
 from unique_web_search.services.search_engine import get_search_engine_service
-from unique_web_search.services.search_engine.google import GoogleConfig, GoogleSearch
 
 from .utils import (
     get_citation_manager,
@@ -157,7 +156,9 @@ async def web_search(query: str, config: RunnableConfig) -> str:
         raise ValueError("RunnableConfig missing 'configurable' section")
 
     configurable = config["configurable"]
-    engine_config = configurable["engine_config"].tools.web_tools_config.search_engine_type
+    engine_config = configurable[
+        "engine_config"
+    ].tools.web_tools_config.search_engine_type
 
     search_engine_service = get_search_engine_service(
         engine_config, configurable["language_model_service"]
