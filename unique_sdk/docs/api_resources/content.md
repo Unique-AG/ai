@@ -9,6 +9,7 @@ The Content resource provides methods to:
 - Search and retrieve content from the knowledge base
 - Upload new documents and files
 - Update existing content (title, location, metadata)
+- Update content ingestion state
 - Delete content
 - Ingest magic table sheets
 
@@ -412,6 +413,32 @@ The Content resource provides methods to:
         company_id=company_id,
         contentId="cont_ok2343q5owbce80w78hudawu5",
         parentFolderPath="/Company/Revisions"
+    )
+    ```
+
+??? example "`unique_sdk.Content.update_ingestion_state` - Update content ingestion state"
+
+    Update the ingestion state of a content item. This can be used to re-queue content for ingestion or mark it with a specific state.
+
+    **Parameters:**
+
+    - `contentId` (str, required) - ID of the content to update
+    - `ingestionState` (str, required) - The new ingestion state to set.
+
+    **Returns:**
+
+    Returns a [`ContentInfo`](#contentinfo) object.
+
+    **Example:**
+
+    Re-queue content for ingestion:
+
+    ```python
+    unique_sdk.Content.update_ingestion_state(
+        user_id=user_id,
+        company_id=company_id,
+        contentId="cont_ok2343q5owbce80w78hudawu5",
+        ingestionState="QUEUED"
     )
     ```
 
