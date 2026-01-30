@@ -596,7 +596,7 @@ async def _handle_conduct_research_batch(
     tool_messages = []
     for observation, tool_call in zip(tool_results, allowed_calls):
         if isinstance(observation, Exception):
-            _LOGGER.error(f"Research task failed: {str(observation)}")
+            _LOGGER.error(f"Research task failed: {str(observation)}", exc_info=observation)
             error_content = f"Research task failed: {str(observation)}"
             tool_messages.append(
                 ToolMessage(

@@ -1,13 +1,19 @@
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
-from typing import Literal
+from typing import Generic, Literal, TypeVar
 
 from jinja2 import Environment, FileSystemLoader
 from pydantic import BaseModel, Field
 from unique_toolkit._common.validators import LMI, get_LMI_default_field
+from unique_toolkit.agentic.tools.config import get_configuration_dict
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 from unique_toolkit.language_model.infos import LanguageModelName
+from unique_web_search.config import (
+    ActivatedCrawler,
+    ActivatedSearchEngine,
+    DefaultSearchEngine,
+)
 
 # Global template environment for the deep research tool
 TEMPLATE_DIR = Path(__file__).parent / "templates"
@@ -32,10 +38,14 @@ class UniqueCustomEngineConfig:
 RESPONSES_API_TIMEOUT_SECONDS = 3600
 
 
-class BaseEngine(BaseModel):
-    engine_type: Literal[DeepResearchEngine.UNIQUE, DeepResearchEngine.OPENAI] = Field(
-        description="The type of engine to use for deep research"
-    )
+T = TypeVar("T", bound=DeepResearchEngine)
+
+
+class BaseEngine(BaseModel, Generic[T]):
+    model_config = get_configuration_dict()
+
+    engine_type: T = Field(description="The type of engine to use for deep research")
+
     small_model: LMI = get_LMI_default_field(
         LanguageModelName.AZURE_GPT_4o_2024_1120,
         description="A smaller fast model for less demanding tasks",
@@ -55,7 +65,9 @@ class BaseEngine(BaseModel):
         return DeepResearchEngine(self.engine_type)
 
 
-class OpenAIEngine(BaseEngine):
+class OpenAIEngine(BaseEngine[Literal[DeepResearchEngine.OPENAI]]):
+    model_config = get_configuration_dict()
+
     engine_type: Literal[DeepResearchEngine.OPENAI] = Field(
         default=DeepResearchEngine.OPENAI
     )
@@ -65,10 +77,25 @@ class OpenAIEngine(BaseEngine):
     )
 
 
+class WebToolsConfig(BaseModel):
+    model_config = get_configuration_dict()
+
+    search_engine_type: ActivatedSearchEngine = Field(  # pyright: ignore[reportInvalidTypeForm]
+        default=DefaultSearchEngine,
+        description="The type of search engine to use for web search tools",
+    )
+
+
 class Tools(BaseModel):
+    model_config = get_configuration_dict()
+
     web_tools: bool = Field(
         default=True,
         description="Allow agent to use web search tools to access the web",
+    )
+    web_tools_config: WebToolsConfig = Field(
+        default=WebToolsConfig(),
+        description="The configuration for web search tools",
     )
     internal_tools: bool = Field(
         default=True,
@@ -76,7 +103,9 @@ class Tools(BaseModel):
     )
 
 
-class UniqueEngine(BaseEngine):
+class UniqueEngine(BaseEngine[Literal[DeepResearchEngine.UNIQUE]]):
+    model_config = get_configuration_dict()
+
     engine_type: Literal[DeepResearchEngine.UNIQUE] = Field(
         default=DeepResearchEngine.UNIQUE
     )

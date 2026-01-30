@@ -207,7 +207,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         except Exception as e:
             if self.is_message_execution():
                 await self._update_execution_status(MessageExecutionUpdateStatus.FAILED)
-            self.logger.error(f"Deep Research tool run failed: {e}")
+            self.logger.error(f"Deep Research tool run failed: {e}", exc_info=True)
             await self.chat_service.modify_assistant_message_async(
                 content="Deep Research failed to complete for an unknown reason",
                 set_completed_at=True,
@@ -433,6 +433,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             config = {
                 "configurable": {
                     "engine_config": self.config.engine,
+                    "language_model_service": self.language_model_service,
                     "openai_client": self.client,
                     "chat_service": self.chat_service,
                     "content_service": self.content_service,
