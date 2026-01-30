@@ -156,21 +156,11 @@ async def web_search(query: str, config: RunnableConfig) -> str:
         raise ValueError("RunnableConfig missing 'configurable' section")
 
     configurable = config["configurable"]
-    engine_config = configurable[
-        "engine_config"
-    ].tools.web_tools.search_engine
+    engine_config = configurable["engine_config"].tools.web_tools.search_engine
 
     search_engine_service = get_search_engine_service(
         engine_config, configurable["language_model_service"]
     )
-
-    # if not google_settings.is_configured:
-    #     _LOGGER.error("Google Search not configured")
-    #     raise ValueError("Google Search not configured")
-
-    # Create Google search configuration and service
-    # google_config = GoogleConfig(fetch_size=10)
-    # google_search = GoogleSearch(google_config)
 
     # Perform the search
     search_results = await search_engine_service.search(query)
