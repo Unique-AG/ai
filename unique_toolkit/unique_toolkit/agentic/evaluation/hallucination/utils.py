@@ -1,10 +1,13 @@
 import re
-from enum import StrEnum
 from logging import getLogger
 
 from unique_toolkit._common.utils.jinja.render import render_template
 from unique_toolkit.agentic.evaluation.config import EvaluationMetricConfig
 from unique_toolkit.agentic.evaluation.exception import EvaluatorException
+from unique_toolkit.agentic.evaluation.hallucination.constants import (
+    SourceSelectionMode,
+    hallucination_required_input_fields,
+)
 from unique_toolkit.agentic.evaluation.output_parser import parse_eval_metric_result
 from unique_toolkit.agentic.evaluation.schemas import (
     EvaluationMetricInput,
@@ -20,10 +23,6 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelUserMessage,
 )
 from unique_toolkit.language_model.service import LanguageModelService
-
-from .constants import (
-    hallucination_required_input_fields,
-)
 
 _LOGGER = getLogger(__name__)
 
@@ -171,12 +170,6 @@ def _compose_msgs(
     return LanguageModelMessages([system_msg, user_msg])
 
 
-class SourceSelectionMode(StrEnum):
-    FROM_IDS = "FROM_IDS"
-    FROM_ORDER = "FROM_ORDER"
-    FROM_ORIGINAL_RESPONSE = "FROM_ORIGINAL_RESPONSE"
-
-
 def context_text_from_stream_response(
     response: LanguageModelStreamResponse,
     selected_chunks: list[ContentChunk],
@@ -222,7 +215,7 @@ def context_text_from_stream_response(
         _LOGGER.info(f"Selecting context text using {source_selection_mode} mode.")
         referenced_chunks = strategies[source_selection_mode]()
     except Exception as e:
-        _LOGGER.error(f"Error selecting context text: {e}")
+        _LOGGER.exception(f"Error selecting context text: {e}")
         _LOGGER.info("Falling back to default source selection mode.")
         referenced_chunks = _default_source_selection_mode(
             response_references, selected_chunks
@@ -299,7 +292,9 @@ def _from_original_response_source_selection_mode(
         raise ValueError("original_text is required for FROM_ORIGINAL_RESPONSE mode")
     _LOGGER.debug("Processing original text for source extraction")
     source_number_matches = re.findall(ref_pattern, original_text)
-    source_numbers = {int(num) for num in source_number_matches}
+
+    # Remove duplicates and preserve order
+    source_numbers = list(dict.fromkeys(int(num) for num in source_number_matches))
 
     # Add bounds checking
     max_index = len(selected_chunks) - 1

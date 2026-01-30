@@ -1,3 +1,4 @@
+from enum import StrEnum
 from typing import Any
 
 from pydantic import Field
@@ -13,13 +14,18 @@ from unique_toolkit.agentic.evaluation.hallucination.prompts import (
     system_prompt_loader,
     user_prompt_loader,
 )
-from unique_toolkit.agentic.evaluation.hallucination.utils import SourceSelectionMode
 from unique_toolkit.agentic.evaluation.schemas import (
     EvaluationMetricInputFieldName,
     EvaluationMetricName,
 )
 from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit.language_model.infos import LanguageModelInfo
+
+
+class SourceSelectionMode(StrEnum):
+    FROM_IDS = "FROM_IDS"
+    FROM_ORDER = "FROM_ORDER"
+    FROM_ORIGINAL_RESPONSE = "FROM_ORIGINAL_RESPONSE"
 
 
 class HallucinationPromptsConfig(EvaluationMetricPromptsConfig):

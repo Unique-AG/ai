@@ -6,17 +6,12 @@ from pydantic.json_schema import SkipJsonSchema
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 from unique_toolkit._common.validators import LMI
+from unique_toolkit.agentic.evaluation.schemas import (
+    EvaluationMetricName,
+)
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit.language_model.infos import LanguageModelInfo
-
-from .hallucination.prompts import system_prompt_loader, user_prompt_loader
-from .schemas import (
-    EvaluationMetricName,
-)
-
-DEFAULT_SYSTEM_PROMPT_TEMPLATE = system_prompt_loader()
-DEFAULT_USER_PROMPT_TEMPLATE = user_prompt_loader()
 
 PromptType = Annotated[str, RJSFMetaTag.StringWidget.textarea(rows=5)]
 
