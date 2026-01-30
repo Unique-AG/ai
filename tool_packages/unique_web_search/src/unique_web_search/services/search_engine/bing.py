@@ -2,11 +2,13 @@ import logging
 from typing import Literal
 
 from azure.ai.agents.models import ListSortOrder
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from unique_toolkit import LanguageModelService
-from unique_toolkit._common.validators import LMI
+from unique_toolkit._common.validators import LMI, get_LMI_default_field
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 from unique_toolkit.language_model.builder import MessagesBuilder
+from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
+from unique_toolkit.language_model.infos import ModelCapabilities
 
 from unique_web_search.services.search_engine.base import (
     BaseSearchEngineConfig,
@@ -47,6 +49,17 @@ class BingSearchConfig(
     BaseSearchEngineConfig[SearchEngineType.BING], BingSearchOptionalQueryParams
 ):
     search_engine_name: Literal[SearchEngineType.BING] = SearchEngineType.BING
+    language_model: LMI = get_LMI_default_field(DEFAULT_GPT_4o)
+
+    @field_validator("language_model", mode="after")
+    @classmethod
+    def validate_language_model(cls, v: LMI) -> LMI:
+        if ModelCapabilities.STRUCTURED_OUTPUT not in v.capabilities:
+            raise ValueError(
+                f"Language model '{v.name}' does not support structured output. "
+                f"BingSearch requires a model with structured output capability."
+            )
+        return v
 
 
 class BingSearch(SearchEngine[BingSearchConfig]):
@@ -54,11 +67,10 @@ class BingSearch(SearchEngine[BingSearchConfig]):
         self,
         config: BingSearchConfig,
         language_model_service: LanguageModelService,
-        lmi: LMI,
     ):
         super().__init__(config)
         self.language_model_service = language_model_service
-        self.lmi = lmi
+        self.lmi = config.language_model
         self.credentials = get_crendentials()
         self.is_configured = credentials_are_valid(self.credentials)
 
