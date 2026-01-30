@@ -82,7 +82,7 @@ class WebToolsConfig(BaseModel):
 
     enable: bool = Field(
         default=True,
-        description="Whether to enable web search",
+        description="Allow agent to use web search tools to access the web",
     )
 
     search_engine: ActivatedSearchEngine = Field(  # pyright: ignore[reportInvalidTypeForm]
