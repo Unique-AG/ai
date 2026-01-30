@@ -195,9 +195,9 @@ def test_hallucination_config__has_default_regex_pattern__for_source_references(
     None
 ):
     """
-    Purpose: Verify that default ref_pattern is correctly configured.
+    Purpose: Verify that default reference_pattern is correctly configured.
     Why this matters: Pattern must match common source reference formats.
-    Setup summary: Create default config, assert ref_pattern value.
+    Setup summary: Create default config, assert reference_pattern value.
     """
     # Arrange - No setup needed
 
@@ -205,24 +205,24 @@ def test_hallucination_config__has_default_regex_pattern__for_source_references(
     config: HallucinationConfig = HallucinationConfig()
 
     # Assert
-    assert config.ref_pattern == r"[\[<]?source(\d+)[>\]]?"
+    assert config.reference_pattern == r"[\[<]?source(\d+)[>\]]?"
 
 
 @pytest.mark.ai
-def test_hallucination_config__uses_valid_regex__for_ref_pattern() -> None:
+def test_hallucination_config__uses_valid_regex__for_reference_pattern() -> None:
     """
-    Purpose: Verify that ref_pattern is a valid regular expression.
+    Purpose: Verify that reference_pattern is a valid regular expression.
     Why this matters: Invalid regex would cause runtime errors during extraction.
-    Setup summary: Create config, compile ref_pattern, assert no errors.
+    Setup summary: Create config, compile reference_pattern, assert no errors.
     """
     # Arrange
     config: HallucinationConfig = HallucinationConfig()
 
     # Act & Assert
     try:
-        re.compile(config.ref_pattern)
+        re.compile(config.reference_pattern)
     except re.error:
-        pytest.fail("ref_pattern is not a valid regex")
+        pytest.fail("reference_pattern is not a valid regex")
 
 
 @pytest.mark.ai
@@ -368,9 +368,9 @@ def test_hallucination_config__accepts_custom_source_selection_mode__on_initiali
 
 
 @pytest.mark.ai
-def test_hallucination_config__accepts_custom_ref_pattern__on_initialization() -> None:
+def test_hallucination_config__accepts_custom_reference_pattern__on_initialization() -> None:
     """
-    Purpose: Verify that ref_pattern can be customized during initialization.
+    Purpose: Verify that reference_pattern can be customized during initialization.
     Why this matters: Allows support for different reference citation formats.
     Setup summary: Initialize with custom pattern, assert it's stored.
     """
@@ -378,10 +378,10 @@ def test_hallucination_config__accepts_custom_ref_pattern__on_initialization() -
     custom_pattern: str = r"ref:(\d+)"
 
     # Act
-    config: HallucinationConfig = HallucinationConfig(ref_pattern=custom_pattern)
+    config: HallucinationConfig = HallucinationConfig(reference_pattern=custom_pattern)
 
     # Assert
-    assert config.ref_pattern == custom_pattern
+    assert config.reference_pattern == custom_pattern
 
 
 @pytest.mark.ai
@@ -419,7 +419,7 @@ def test_hallucination_config__serializes_to_dict__with_all_fields() -> None:
     # Assert
     assert "source_selection_mode" in config_dict
     assert config_dict["source_selection_mode"] == "FROM_ORDER"
-    assert "ref_pattern" in config_dict
+    assert "reference_pattern" in config_dict
     assert "prompts_config" in config_dict
 
 
@@ -479,7 +479,7 @@ def test_hallucination_metric_default_config__has_expected_default_settings__con
     # Act & Assert
     assert config.name == EvaluationMetricName.HALLUCINATION
     assert config.source_selection_mode == SourceSelectionMode.FROM_ORIGINAL_RESPONSE
-    assert config.ref_pattern == r"[\[<]?source(\d+)[>\]]?"
+    assert config.reference_pattern == r"[\[<]?source(\d+)[>\]]?"
 
 
 @pytest.mark.ai

@@ -174,7 +174,7 @@ def context_text_from_stream_response(
     response: LanguageModelStreamResponse,
     selected_chunks: list[ContentChunk],
     source_selection_mode: SourceSelectionMode = SourceSelectionMode.FROM_ORIGINAL_RESPONSE,
-    ref_pattern: str = r"[\[<]?source(\d+)[>\]]?",
+    reference_pattern: str = r"[\[<]?source(\d+)[>\]]?",
 ) -> list[str]:
     """Extract context text from stream response based on selected chunks.
 
@@ -204,7 +204,7 @@ def context_text_from_stream_response(
             response_references, selected_chunks
         ),
         SourceSelectionMode.FROM_ORIGINAL_RESPONSE: lambda: _from_original_response_source_selection_mode(
-            response.message.original_text, selected_chunks, ref_pattern
+            response.message.original_text, selected_chunks, reference_pattern
         ),
     }
 
@@ -276,7 +276,7 @@ def _from_order_source_selection_mode(
 def _from_original_response_source_selection_mode(
     original_text: str | None,
     selected_chunks: list[ContentChunk],
-    ref_pattern: str,
+    reference_pattern: str,
 ) -> list[ContentChunk]:
     """Extract referenced chunks from original text using regex pattern.
 
@@ -291,7 +291,7 @@ def _from_original_response_source_selection_mode(
     if original_text is None:
         raise ValueError("original_text is required for FROM_ORIGINAL_RESPONSE mode")
     _LOGGER.debug("Processing original text for source extraction")
-    source_number_matches = re.findall(ref_pattern, original_text)
+    source_number_matches = re.findall(reference_pattern, original_text)
 
     # Remove duplicates and preserve order
     source_numbers = list(dict.fromkeys(int(num) for num in source_number_matches))

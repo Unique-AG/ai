@@ -37,7 +37,7 @@ class HallucinationConfig(EvaluationMetricConfig):
     source_selection_mode: SourceSelectionMode = Field(
         default=SourceSelectionMode.FROM_ORIGINAL_RESPONSE
     )
-    ref_pattern: str = Field(default=r"[\[<]?source(\d+)[>\]]?")
+    reference_pattern: str = Field(default=r"[\[<]?source(\d+)[>\]]?")
     enabled: SkipJsonSchema[bool] = False
     name: SkipJsonSchema[EvaluationMetricName] = EvaluationMetricName.HALLUCINATION
     language_model: LMI = LanguageModelInfo.from_name(
