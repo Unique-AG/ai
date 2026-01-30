@@ -303,47 +303,26 @@ def _prepare_responses_args(
 
     openai_options: unique_sdk.Integrated.CreateStreamResponsesOpenaiParams = {}
 
-    if params.temperature is not None:
-        openai_options["temperature"] = params.temperature
+    explicit_options = {
+        "temperature": params.temperature,
+        "reasoning": params.reasoning,
+        "text": params.text,
+        "include": include,
+        "instructions": instructions,
+        "max_output_tokens": max_output_tokens,
+        "metadata": metadata,
+        "parallel_tool_calls": parallel_tool_calls,
+        "tool_choice": tool_choice,
+        "tools": params.tools,
+        "top_p": top_p,
+    }
 
-    if params.reasoning is not None:
-        openai_options["reasoning"] = params.reasoning
-
-    if params.text is not None:
-        openai_options["text"] = params.text
-
-    if include is not None:
-        openai_options["include"] = include
-
-    if instructions is not None:
-        openai_options["instructions"] = instructions
-
-    if max_output_tokens is not None:
-        openai_options["max_output_tokens"] = max_output_tokens
-
-    if metadata is not None:
-        openai_options["metadata"] = metadata
-
-    if parallel_tool_calls is not None:
-        openai_options["parallel_tool_calls"] = parallel_tool_calls
-
-    if tool_choice is not None:
-        openai_options["tool_choice"] = tool_choice
-
-    if params.tools is not None:
-        openai_options["tools"] = params.tools
-
-    if top_p is not None:
-        openai_options["top_p"] = top_p
+    openai_options.update({k: v for k, v in explicit_options.items() if v is not None})
 
     # allow any other openai.resources.responses.Response.create options
     if other_options is not None:
-        # Only add options that haven't been explicitly set above
-        # This prevents raw values from overwriting parsed/validated ones
-        # and works generically for any parameter
-        for key, value in other_options.items():
-            if key not in openai_options:
-                openai_options[key] = value  # type: ignore
+        for k, v in other_options.items():
+            openai_options.setdefault(k, v)  # type: ignore
 
     options["options"] = openai_options
 
