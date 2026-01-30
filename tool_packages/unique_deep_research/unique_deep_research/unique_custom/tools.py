@@ -22,8 +22,7 @@ from unique_toolkit.chat.schemas import (
 )
 from unique_toolkit.content import ContentReference
 from unique_toolkit.content.schemas import ContentChunk, ContentSearchType
-from unique_web_search.client_settings import get_google_search_settings
-from unique_web_search.services.search_engine.google import GoogleConfig, GoogleSearch
+from unique_web_search.services.search_engine import get_search_engine_service
 
 from .utils import (
     get_citation_manager,
@@ -153,18 +152,18 @@ async def web_search(query: str, config: RunnableConfig) -> str:
     You can search again with a new query if you need more results.
     Should be followed up by web_fetch to get the complete content of the results.
     """
-    google_settings = get_google_search_settings()
+    if "configurable" not in config:
+        raise ValueError("RunnableConfig missing 'configurable' section")
 
-    if not google_settings.is_configured:
-        _LOGGER.error("Google Search not configured")
-        raise ValueError("Google Search not configured")
+    configurable = config["configurable"]
+    engine_config = configurable["engine_config"].tools.web_tools.search_engine
 
-    # Create Google search configuration and service
-    google_config = GoogleConfig(fetch_size=10)
-    google_search = GoogleSearch(google_config)
+    search_engine_service = get_search_engine_service(
+        engine_config, configurable["language_model_service"]
+    )
 
     # Perform the search
-    search_results = await google_search.search(query)
+    search_results = await search_engine_service.search(query)
     write_tool_message_log(
         config,
         "**Searching the web**",
