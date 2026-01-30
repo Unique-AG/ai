@@ -427,7 +427,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             enable_web_tools = True
             enable_internal_tools = True
             if isinstance(self.config.engine, UniqueEngine):
-                enable_web_tools = self.config.engine.tools.web_tools
+                enable_web_tools = self.config.engine.tools.web_tools.enable
                 enable_internal_tools = self.config.engine.tools.internal_tools
 
             config = {
