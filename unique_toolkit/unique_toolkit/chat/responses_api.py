@@ -197,8 +197,10 @@ def _prepare_responses_params_util(
     log_exc_info=False,
     logger=logger,
 )
-def _attempt_extract_reasoning_from_options(options: dict) -> Reasoning | None:
-    reasoning = None
+def _attempt_extract_reasoning_from_options(
+    options: dict[str, Any],
+) -> Reasoning | None:
+    reasoning: dict[str, Any] | str | None = None
 
     # Responses API
     if "reasoning" in options:
@@ -232,9 +234,9 @@ def _attempt_extract_reasoning_from_options(options: dict) -> Reasoning | None:
     logger=logger,
 )
 def _attempt_extract_verbosity_from_options(
-    options: dict,
+    options: dict[str, Any],
 ) -> ResponseTextConfigParam | None:
-    text_config = None
+    text_config: dict[str, Any] | str | None = None
 
     # Responses API
     if "text" in options:
