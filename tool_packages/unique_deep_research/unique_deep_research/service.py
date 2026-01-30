@@ -699,9 +699,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                         if event.response.error:
                             return event.response.error.message, []
             except Exception as e:
-                self.logger.exception(
-                    f"Error processing research stream event: {e}"
-                )
+                self.logger.exception(f"Error processing research stream event: {e}")
 
         self.logger.error("Stream ended without completion")
         return "", []

@@ -86,8 +86,10 @@ class WebToolsConfig(BaseModel):
     )
 
     search_engine: ActivatedSearchEngine = Field(  # pyright: ignore[reportInvalidTypeForm]
-        default=DefaultSearchEngine,
-        description="The type of search engine to use for web search",
+        default_factory=DefaultSearchEngine,  # pyright: ignore[reportArgumentType]
+        description="Search Engine Configuration",
+        discriminator="search_engine_name",
+        title="Search Engine Configuration",
     )
 
 
