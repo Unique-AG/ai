@@ -683,6 +683,46 @@ class TestCustomAPISearch:
         with pytest.raises(HTTPError):
             await search.search("test query")
 
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_custom_api_search__raises_value_error__on_failed_request(
+        self, mocker
+    ) -> None:
+        """
+        Purpose: Verify that CustomAPI raises ValueError when HTTP response indicates failure.
+        Why this matters: Failed API requests must propagate errors to callers for proper handling.
+        Setup summary: Mock HTTP response with non-success status code; assert ValueError raised.
+        """
+        # Arrange
+        config = CustomAPIConfig(
+            search_engine_name=SearchEngineType.CUSTOM_API,
+            api_endpoint="https://api.example.com/search",
+        )
+
+        mock_response = Mock()
+        mock_response.is_success = False
+        mock_response.status_code = 500
+        mock_response.text = "Internal Server Error"
+
+        mock_client = AsyncMock()
+        mock_client.request = AsyncMock(return_value=mock_response)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        mocker.patch(
+            "unique_web_search.services.search_engine.custom_api.AsyncClient",
+            return_value=mock_client,
+        )
+
+        search = CustomAPI(config)
+
+        # Act & Assert
+        with pytest.raises(ValueError) as exc_info:
+            await search.search("test query")
+
+        assert "500" in str(exc_info.value)
+        assert "Internal Server Error" in str(exc_info.value)
+
     @pytest.mark.asyncio
     async def test_custom_api_search_handles_invalid_response(self, mocker):
         """Test CustomAPI search handles invalid JSON response."""
