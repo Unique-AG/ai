@@ -1,3 +1,4 @@
+import json
 import logging
 from typing import Any, NamedTuple, Sequence
 
@@ -202,6 +203,15 @@ def _attempt_extract_reasoning_from_options(options: dict) -> Reasoning | None:
     # Responses API
     if "reasoning" in options:
         reasoning = options["reasoning"]
+        # Handle case where reasoning is stored as JSON string (UI limitation)
+        if isinstance(reasoning, str):
+            try:
+                reasoning = json.loads(reasoning)
+            except (json.JSONDecodeError, TypeError):
+                logger.warning(
+                    f"Failed to parse reasoning as JSON string: {reasoning}. "
+                    "Continuing with raw value."
+                )
 
     # Completions API
     elif "reasoning_effort" in options:
@@ -224,18 +234,27 @@ def _attempt_extract_reasoning_from_options(options: dict) -> Reasoning | None:
 def _attempt_extract_verbosity_from_options(
     options: dict,
 ) -> ResponseTextConfigParam | None:
-    reasoning = None
+    text_config = None
 
     # Responses API
     if "text" in options:
-        reasoning = options["text"]
+        text_config = options["text"]
+        # Handle case where text is stored as JSON string (UI limitation)
+        if isinstance(text_config, str):
+            try:
+                text_config = json.loads(text_config)
+            except (json.JSONDecodeError, TypeError):
+                logger.warning(
+                    f"Failed to parse text as JSON string: {text_config}. "
+                    "Continuing with raw value."
+                )
 
     # Completions API
     elif "verbosity" in options:
-        reasoning = {"verbosity": options["verbosity"]}
+        text_config = {"verbosity": options["verbosity"]}
 
-    if reasoning is not None:
-        return TypeAdapter(ResponseTextConfigParam).validate_python(reasoning)
+    if text_config is not None:
+        return TypeAdapter(ResponseTextConfigParam).validate_python(text_config)
 
     return None
 
@@ -318,7 +337,12 @@ def _prepare_responses_args(
 
     # allow any other openai.resources.responses.Response.create options
     if other_options is not None:
-        openai_options.update(other_options)  # type: ignore
+        # Only add options that haven't been explicitly set above
+        # This prevents raw values from overwriting parsed/validated ones
+        # and works generically for any parameter
+        for key, value in other_options.items():
+            if key not in openai_options:
+                openai_options[key] = value  # type: ignore
 
     options["options"] = openai_options
 
