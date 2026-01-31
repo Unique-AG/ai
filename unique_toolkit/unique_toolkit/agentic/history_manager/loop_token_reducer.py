@@ -248,10 +248,10 @@ class LoopTokenReducer:
                 else FileContentSerialization.FILE_NAME
             ),
         )
-        if remove_from_text is not None:
-            full_history.root = await self._clean_messages(
-                full_history.root, remove_from_text
-            )
+        # if remove_from_text is not None:
+        #     full_history.root = await self._clean_messages(
+        #         full_history.root, remove_from_text
+        #     )
 
         limited_history_messages = self._limit_to_token_window(
             full_history.root, self._max_history_tokens

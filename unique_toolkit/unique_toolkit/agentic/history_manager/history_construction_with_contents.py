@@ -173,6 +173,10 @@ def get_full_history_with_contents(
     )
 
     builder = LanguageModelMessages([]).builder()
+    from unique_toolkit.language_model import (
+        LanguageModelFunctionCall,
+        LanguageModelFunction
+    )
     for c in grouped_elements:
         # LanguageModelUserMessage has not field original content
         text = c.original_content if c.original_content else c.content
@@ -182,7 +186,6 @@ def get_full_history_with_contents(
                     "Content or original_content of LanguageModelMessages should exist.",
                 )
             text = ""
-
         if len(c.contents) > 0:
             file_contents = [
                 co for co in c.contents if FileUtils.is_file_content(co.key)
@@ -216,11 +219,57 @@ def get_full_history_with_contents(
                     role=map_chat_llm_message_role[c.role],
                     content=content,
                 )
+                if c.role == ChatRole.USER and c.gpt_request is not None:
+                    for gpt_request in c.gpt_request:
+                        if gpt_request.get('tool_calls'):
+                            tool_calls = [
+                                LanguageModelFunction(**tool_call['function'])
+                                for tool_call in gpt_request.get('tool_calls')
+                            ]
+                            builder.assistant_message_append(
+                                content=gpt_request.get('content'),
+                                tool_calls=tool_calls,
+                            )
+                        
+                        
+                        if gpt_request.get('name'):
+                            builder.tool_message_append(
+                                name=gpt_request.get('name'),
+                                tool_call_id=gpt_request.get('tool_call_id'),
+                                content=gpt_request.get('content'),
+                            )
         else:
             builder.message_append(
                 role=map_chat_llm_message_role[c.role],
                 content=text,
             )
+            if c.role == ChatRole.USER and c.gpt_request is not None:
+                for gpt_request in c.gpt_request:
+                    if gpt_request.get('tool_calls'):
+                        tool_calls = [
+                            LanguageModelFunction(
+                                id=tool_call.get('id'),
+                                name=tool_call.get('function', {}).get('name'),
+                                arguments=tool_call.get('function', {}).get('arguments'),
+                            )
+                            for tool_call in gpt_request.get('tool_calls')
+                        ]
+                        builder.assistant_message_append(
+                            content=gpt_request.get('content'),
+                            tool_calls=tool_calls,
+                        )
+                        
+                        
+                    if gpt_request.get('name') and gpt_request.get('role') == 'tool':
+                        builder.tool_message_append(
+                            name=gpt_request.get('name'),
+                            tool_call_id=gpt_request.get('tool_call_id'),
+                            content=gpt_request.get('content'),
+                        )
+                # builder.assistant_message_append(
+                #     content=c.gpt_request[-1].get('content'),
+                #     # tool_calls=c.gpt_request[-2].get('tool_calls'),
+                # )
     return builder.build()
 
 
