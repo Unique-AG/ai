@@ -90,6 +90,16 @@ class LanguageModelFunction(BaseModel):
     name: str
     arguments: dict[str, Any] | None = None
 
+    @classmethod
+    def from_tool_call(cls, tool_call: dict) -> "LanguageModelFunction":
+        """Parse a tool call dict (e.g. from gpt_request) into LanguageModelFunction."""
+        function = tool_call.get("function") or {}
+        return cls(
+            id=tool_call.get("id"),
+            name=function.get("name"),
+            arguments=function.get("arguments"),
+        )
+
     @field_validator("arguments", mode="before")
     def set_arguments(cls, value: Any) -> Any:
         if isinstance(value, str):

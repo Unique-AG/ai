@@ -17,7 +17,10 @@ from unique_toolkit.chat.schemas import ChatMessageRole as ChatRole
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.schemas import Content
 from unique_toolkit.content.service import ContentService
-from unique_toolkit.language_model import LanguageModelMessageRole as LLMRole
+from unique_toolkit.language_model import (
+    LanguageModelFunction,
+    LanguageModelMessageRole as LLMRole,
+)
 from unique_toolkit.language_model.infos import EncoderName
 from unique_toolkit.language_model.schemas import LanguageModelMessages
 
@@ -105,6 +108,36 @@ def get_chat_history_with_contents(
     )
 
 
+def _append_last_tool_calls_and_tool_message(builder, gpt_request: list) -> None:
+    """Append only the last assistant (with tool_calls) and last tool message.
+
+    Ensures idempotency: only one assistant_message_append and one
+    tool_message_append per gpt_request list on each iteration of grouped_elements.
+    """
+    last_assistant_with_tool_calls = None
+    last_tool_message = None
+    for item in gpt_request:
+        if item.get("tool_calls"):
+            last_assistant_with_tool_calls = item
+        if item.get("name") and item.get("role") == "tool":
+            last_tool_message = item
+    if last_assistant_with_tool_calls is not None:
+        tool_calls = [
+            LanguageModelFunction.from_tool_call(tc)
+            for tc in last_assistant_with_tool_calls.get("tool_calls", [])
+        ]
+        builder.assistant_message_append(
+            content=last_assistant_with_tool_calls.get("content"),
+            tool_calls=tool_calls,
+        )
+    if last_tool_message is not None:
+        builder.tool_message_append(
+            name=last_tool_message.get("name"),
+            tool_call_id=last_tool_message.get("tool_call_id"),
+            content=last_tool_message.get("content"),
+        )
+
+
 def download_encoded_images(
     contents: list[Content],
     content_service: ContentService,
@@ -173,10 +206,6 @@ def get_full_history_with_contents(
     )
 
     builder = LanguageModelMessages([]).builder()
-    from unique_toolkit.language_model import (
-        LanguageModelFunctionCall,
-        LanguageModelFunction
-    )
     for c in grouped_elements:
         # LanguageModelUserMessage has not field original content
         text = c.original_content if c.original_content else c.content
@@ -220,56 +249,20 @@ def get_full_history_with_contents(
                     content=content,
                 )
                 if c.role == ChatRole.USER and c.gpt_request is not None:
-                    for gpt_request in c.gpt_request:
-                        if gpt_request.get('tool_calls'):
-                            tool_calls = [
-                                LanguageModelFunction(**tool_call['function'])
-                                for tool_call in gpt_request.get('tool_calls')
-                            ]
-                            builder.assistant_message_append(
-                                content=gpt_request.get('content'),
-                                tool_calls=tool_calls,
-                            )
-                        
-                        
-                        if gpt_request.get('name'):
-                            builder.tool_message_append(
-                                name=gpt_request.get('name'),
-                                tool_call_id=gpt_request.get('tool_call_id'),
-                                content=gpt_request.get('content'),
-                            )
+                    _append_last_tool_calls_and_tool_message(
+                        builder=builder,
+                        gpt_request=c.gpt_request,
+                    )
         else:
             builder.message_append(
                 role=map_chat_llm_message_role[c.role],
                 content=text,
             )
             if c.role == ChatRole.USER and c.gpt_request is not None:
-                for gpt_request in c.gpt_request:
-                    if gpt_request.get('tool_calls'):
-                        tool_calls = [
-                            LanguageModelFunction(
-                                id=tool_call.get('id'),
-                                name=tool_call.get('function', {}).get('name'),
-                                arguments=tool_call.get('function', {}).get('arguments'),
-                            )
-                            for tool_call in gpt_request.get('tool_calls')
-                        ]
-                        builder.assistant_message_append(
-                            content=gpt_request.get('content'),
-                            tool_calls=tool_calls,
-                        )
-                        
-                        
-                    if gpt_request.get('name') and gpt_request.get('role') == 'tool':
-                        builder.tool_message_append(
-                            name=gpt_request.get('name'),
-                            tool_call_id=gpt_request.get('tool_call_id'),
-                            content=gpt_request.get('content'),
-                        )
-                # builder.assistant_message_append(
-                #     content=c.gpt_request[-1].get('content'),
-                #     # tool_calls=c.gpt_request[-2].get('tool_calls'),
-                # )
+                _append_last_tool_calls_and_tool_message(
+                    builder=builder,
+                    gpt_request=c.gpt_request,
+                )
     return builder.build()
 
 
