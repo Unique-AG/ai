@@ -9,9 +9,11 @@ from unique_toolkit._common.token.token_counting import (
     num_token_for_language_model_messages,
 )
 from unique_toolkit._common.validators import LMI
+from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.history_manager.history_construction_with_contents import (
     FileContentSerialization,
     get_full_history_with_contents,
+    get_full_history_with_contents_with_tools
 )
 from unique_toolkit.agentic.reference_manager.reference_manager import ReferenceManager
 from unique_toolkit.app.schemas import ChatEvent
@@ -64,6 +66,7 @@ class LoopTokenReducer:
         self._content_service = ContentService.from_event(event)
         self._user_message = event.payload.user_message
         self._chat_id = event.payload.chat_id
+        self._company_id = event.company_id
         self._effective_token_limit = int(
             self._language_model.token_limits.token_limit_input
             * (1 - MAX_INPUT_TOKENS_SAFETY_PERCENTAGE)
@@ -237,21 +240,35 @@ class LoopTokenReducer:
         Returns:
             list[LanguageModelMessage]: The history
         """
-        full_history = get_full_history_with_contents(
-            user_message=self._user_message,
-            chat_id=self._chat_id,
-            chat_service=self._chat_service,
-            content_service=self._content_service,
-            file_content_serialization_type=(
-                FileContentSerialization.NONE
-                if self._has_uploaded_content_config
-                else FileContentSerialization.FILE_NAME
-            ),
-        )
-        # if remove_from_text is not None:
-        #     full_history.root = await self._clean_messages(
-        #         full_history.root, remove_from_text
-        #     )
+        if feature_flags.is_full_history_with_content_and_tools_enabled(self._company_id):
+            self._logger.info(f"Using full history with content and tools")
+            full_history = get_full_history_with_contents_with_tools(
+                user_message=self._user_message,
+                chat_id=self._chat_id,
+                chat_service=self._chat_service,
+                content_service=self._content_service,
+                file_content_serialization_type=(
+                    FileContentSerialization.NONE
+                    if self._has_uploaded_content_config
+                    else FileContentSerialization.FILE_NAME
+                ),
+            )
+        else:
+            full_history = get_full_history_with_contents(
+                user_message=self._user_message,
+                chat_id=self._chat_id,
+                chat_service=self._chat_service,
+                content_service=self._content_service,
+                file_content_serialization_type=(
+                    FileContentSerialization.NONE
+                    if self._has_uploaded_content_config
+                    else FileContentSerialization.FILE_NAME
+                ),
+            )
+        if remove_from_text is not None:
+            full_history.root = await self._clean_messages(
+                full_history.root, remove_from_text
+            )
 
         limited_history_messages = self._limit_to_token_window(
             full_history.root, self._max_history_tokens

@@ -15,6 +15,11 @@ class FeatureFlags(BaseSettings):
         description="Enable new answers UI (UN-14411). Can be 'true' or comma-separated company IDs.",
     )
 
+    feature_flag_full_history_with_content_and_tools: str = Field(
+        default="",
+        description="When enabled, log in get_history_from_db. Can be 'true' or comma-separated company IDs.",
+    )
+
     model_config = SettingsConfigDict(
         extra="ignore",
         case_sensitive=False,
@@ -23,6 +28,16 @@ class FeatureFlags(BaseSettings):
     def is_new_answers_ui_enabled(self, company_id: str | None = None) -> bool:
         """Check if new answers UI is enabled for the given company."""
         value = self.feature_flag_enable_new_answers_ui_un_14411
+        return value.lower() == "true" or bool(
+            company_id and company_id in [id.strip() for id in value.split(",")]
+        )
+
+    def is_full_history_with_content_and_tools_enabled(
+        self, company_id: str | None = None
+    ) -> bool:
+        """Check if full_history_with_content_and_tools is enabled for the given company."""
+        return True
+        value = self.feature_flag_full_history_with_content_and_tools
         return value.lower() == "true" or bool(
             company_id and company_id in [id.strip() for id in value.split(",")]
         )

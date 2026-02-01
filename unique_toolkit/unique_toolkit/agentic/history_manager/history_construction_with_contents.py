@@ -273,6 +273,73 @@ def get_full_history_with_contents(
     )
 
     builder = LanguageModelMessages([]).builder()
+    for c in grouped_elements:
+        # LanguageModelUserMessage has not field original content
+        text = c.original_content if c.original_content else c.content
+        if text is None:
+            if c.role == ChatRole.USER:
+                raise ValueError(
+                    "Content or original_content of LanguageModelMessages should exist.",
+                )
+            text = ""
+
+        if len(c.contents) > 0:
+            file_contents = [
+                co for co in c.contents if FileUtils.is_file_content(co.key)
+            ]
+            image_contents = [
+                co for co in c.contents if FileUtils.is_image_content(co.key)
+            ]
+
+            content = (
+                text
+                + "\n\n"
+                + file_content_serialization(
+                    file_contents,
+                    file_content_serialization_type,
+                )
+            )
+            content = content.strip()
+
+            if include_images and len(image_contents) > 0:
+                builder.image_message_append(
+                    content=content,
+                    images=download_encoded_images(
+                        contents=image_contents,
+                        content_service=content_service,
+                        chat_id=chat_id,
+                    ),
+                    role=map_chat_llm_message_role[c.role],
+                )
+            else:
+                builder.message_append(
+                    role=map_chat_llm_message_role[c.role],
+                    content=content,
+                )
+        else:
+            builder.message_append(
+                role=map_chat_llm_message_role[c.role],
+                content=text,
+            )
+    return builder.build()
+
+
+def get_full_history_with_contents_with_tools(
+    user_message: ChatEventUserMessage,
+    chat_id: str,
+    chat_service: ChatService,
+    content_service: ContentService,
+    include_images: ImageContentInclusion = ImageContentInclusion.ALL,
+    file_content_serialization_type: FileContentSerialization = FileContentSerialization.FILE_NAME,
+) -> LanguageModelMessages:
+    grouped_elements = get_chat_history_with_contents(
+        user_message=user_message,
+        chat_id=chat_id,
+        chat_history=chat_service.get_full_history(),
+        content_service=content_service,
+    )
+
+    builder = LanguageModelMessages([]).builder()
     for i, c in enumerate(grouped_elements):
         # LanguageModelUserMessage has not field original content
         text = c.original_content if c.original_content else c.content
