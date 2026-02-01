@@ -33,7 +33,7 @@ class FeatureFlags(BaseSettings):
         )
 
     def is_full_history_with_content_and_tools_enabled(
-            self, company_id: str | None = None
+        self, company_id: str | None = None
     ) -> bool:
         """Check if full_history_with_content_and_tools is enabled for the given company."""
         value = self.feature_flag_enable_full_history_with_content_and_tools_un_15966

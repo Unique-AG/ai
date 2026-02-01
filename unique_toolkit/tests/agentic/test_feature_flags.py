@@ -18,7 +18,9 @@ def test_feature_flags__has_empty_default_value() -> None:
     with patch.dict(os.environ, {}, clear=True):
         flags = FeatureFlags()
         assert flags.feature_flag_enable_new_answers_ui_un_14411 == ""
-        assert flags.feature_flag_enable_full_history_with_content_and_tools_un_15966 == ""
+        assert (
+            flags.feature_flag_enable_full_history_with_content_and_tools_un_15966 == ""
+        )
 
 
 @pytest.mark.parametrize(
@@ -31,11 +33,9 @@ def test_feature_flags__has_empty_default_value() -> None:
         ("company1,company2", "company3", False),
         ("", "company1", False),
         ("true", "", True),
-    ]
+    ],
 )
-def test_feature_flags(
-        env_var: str, company_id: str, feature_flag_value: bool
-) -> None:
+def test_feature_flags(env_var: str, company_id: str, feature_flag_value: bool) -> None:
     with patch.dict(
         os.environ,
         {
@@ -46,5 +46,7 @@ def test_feature_flags(
     ):
         flags = FeatureFlags()
         assert flags.is_new_answers_ui_enabled(company_id) == feature_flag_value
-        assert flags.is_full_history_with_content_and_tools_enabled(company_id) == feature_flag_value
-
+        assert (
+            flags.is_full_history_with_content_and_tools_enabled(company_id)
+            == feature_flag_value
+        )

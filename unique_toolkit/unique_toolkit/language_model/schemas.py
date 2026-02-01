@@ -126,6 +126,16 @@ class LanguageModelFunction(BaseModel):
 
         return True
 
+    @classmethod
+    def from_tool_call(cls, tool_call: dict) -> "LanguageModelFunction":
+        """Parse a tool call dict (e.g. from gpt_request) into LanguageModelFunction."""
+        function = tool_call.get("function") or {}
+        return cls(
+            id=tool_call.get("id"),
+            name=function.get("name"),
+            arguments=function.get("arguments"),
+        )
+
     @overload
     def to_openai_param(
         self, mode: Literal["completions"] = "completions"
