@@ -1,5 +1,7 @@
 import base64
+import json
 import mimetypes
+import re
 from datetime import datetime
 from enum import StrEnum
 
@@ -108,11 +110,71 @@ def get_chat_history_with_contents(
     )
 
 
-def _append_last_tool_calls_and_tool_message(builder, gpt_request: list) -> None:
+# Pattern for [sourceN] where N is the source id (e.g. [source0], [source1])
+_SOURCE_REF_PATTERN = re.compile(r"\[source(\d+)\]", re.IGNORECASE)
+
+
+def _extract_referenced_source_numbers(text: str | None) -> set[int]:
+    """Extract source ids referenced in text like [source0], [source1]."""
+    if not text:
+        return set()
+    return {int(m) for m in _SOURCE_REF_PATTERN.findall(text)}
+
+
+def _trim_tool_content_to_used_sources(
+    original_content: str | None,
+    tool_content: str | None,
+) -> str:
+    """Keep only sources that are referenced in original_content.
+
+    original_content uses citations like [source0], [source1].
+    tool_content is a JSON string: list of {source_number: id, content: "..."}.
+    Returns trimmed JSON string with only referenced sources.
+    """
+    if not tool_content or not tool_content.strip():
+        return tool_content or ""
+    referenced = _extract_referenced_source_numbers(original_content)
+    if not referenced:
+        return tool_content
+    try:
+        data = json.loads(tool_content)
+    except (json.JSONDecodeError, TypeError):
+        return tool_content
+    def _source_num_in_refs(item: dict) -> bool:
+        sn = item.get("source_number")
+        if sn is None:
+            return False
+        try:
+            return int(sn) in referenced
+        except (TypeError, ValueError):
+            return False
+
+    if isinstance(data, list):
+        trimmed = [
+            item
+            for item in data
+            if isinstance(item, dict) and _source_num_in_refs(item)
+        ]
+        return json.dumps(trimmed) if trimmed else "No relevant sources found."
+    if isinstance(data, dict) and _source_num_in_refs(data):
+        return tool_content
+    if isinstance(data, dict):
+        return "No relevant sources found."
+    return tool_content
+
+
+def _append_last_tool_calls_and_tool_message(
+    builder,
+    gpt_request: list,
+    original_content_from_next: str | None = None,
+) -> None:
     """Append only the last assistant (with tool_calls) and last tool message.
 
     Ensures idempotency: only one assistant_message_append and one
     tool_message_append per gpt_request list on each iteration of grouped_elements.
+
+    When trimming tool content to used sources, uses original_content_from_next
+    (the original_content of the next item in grouped_elements) when provided.
     """
     last_assistant_with_tool_calls = None
     last_tool_message = None
@@ -131,10 +193,15 @@ def _append_last_tool_calls_and_tool_message(builder, gpt_request: list) -> None
             tool_calls=tool_calls,
         )
     if last_tool_message is not None:
+        tool_content = last_tool_message.get("content")
+        trimmed_content = _trim_tool_content_to_used_sources(
+            original_content=original_content_from_next,
+            tool_content=tool_content,
+        )
         builder.tool_message_append(
             name=last_tool_message.get("name"),
             tool_call_id=last_tool_message.get("tool_call_id"),
-            content=last_tool_message.get("content"),
+            content=trimmed_content,
         )
 
 
@@ -206,7 +273,7 @@ def get_full_history_with_contents(
     )
 
     builder = LanguageModelMessages([]).builder()
-    for c in grouped_elements:
+    for i, c in enumerate(grouped_elements):
         # LanguageModelUserMessage has not field original content
         text = c.original_content if c.original_content else c.content
         if text is None:
@@ -215,6 +282,11 @@ def get_full_history_with_contents(
                     "Content or original_content of LanguageModelMessages should exist.",
                 )
             text = ""
+        # When there's gpt_request, use original_content of the next grouped_elements item for trimming sources
+        next_c = grouped_elements[i + 1] if i + 1 < len(grouped_elements.root) else None
+        original_content_from_next = (
+            (next_c.original_content or next_c.content) if next_c else None
+        )
         if len(c.contents) > 0:
             file_contents = [
                 co for co in c.contents if FileUtils.is_file_content(co.key)
@@ -252,6 +324,7 @@ def get_full_history_with_contents(
                     _append_last_tool_calls_and_tool_message(
                         builder=builder,
                         gpt_request=c.gpt_request,
+                        original_content_from_next=original_content_from_next,
                     )
         else:
             builder.message_append(
@@ -262,6 +335,7 @@ def get_full_history_with_contents(
                 _append_last_tool_calls_and_tool_message(
                     builder=builder,
                     gpt_request=c.gpt_request,
+                    original_content_from_next=original_content_from_next,
                 )
     return builder.build()
 
