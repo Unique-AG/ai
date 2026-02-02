@@ -598,3 +598,37 @@ def test_hallucination_required_input_fields__contains_only_valid_enum_values__f
     # Act & Assert
     for field in hallucination_required_input_fields:
         assert isinstance(field, EvaluationMetricInputFieldName)
+
+
+@pytest.mark.ai
+def test_hallucination_config__excludes_source_selection_mode__from_json_schema() -> (
+    None
+):
+    """
+    Purpose: Verify that source_selection_mode is not included in JSON schema.
+    Why this matters: SkipJsonSchema annotation should exclude internal fields from schema.
+    Setup summary: Generate JSON schema, assert source_selection_mode is not present.
+    """
+    # Arrange - No setup needed
+
+    # Act
+    schema: dict = HallucinationConfig.model_json_schema()
+
+    # Assert
+    assert "source_selection_mode" not in schema.get("properties", {})
+
+
+@pytest.mark.ai
+def test_hallucination_config__excludes_reference_pattern__from_json_schema() -> None:
+    """
+    Purpose: Verify that reference_pattern is not included in JSON schema.
+    Why this matters: SkipJsonSchema annotation should exclude internal fields from schema.
+    Setup summary: Generate JSON schema, assert reference_pattern is not present.
+    """
+    # Arrange - No setup needed
+
+    # Act
+    schema: dict = HallucinationConfig.model_json_schema()
+
+    # Assert
+    assert "reference_pattern" not in schema.get("properties", {})
