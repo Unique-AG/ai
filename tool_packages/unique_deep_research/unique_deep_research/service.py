@@ -207,7 +207,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         except Exception as e:
             if self.is_message_execution():
                 await self._update_execution_status(MessageExecutionUpdateStatus.FAILED)
-            self.logger.error(f"Deep Research tool run failed: {e}")
+            self.logger.exception(f"Deep Research tool run failed: {e}")
             await self.chat_service.modify_assistant_message_async(
                 content="Deep Research failed to complete for an unknown reason",
                 set_completed_at=True,
@@ -394,7 +394,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             self.write_message_log_text_message("**Research done**")
             return result
         except Exception as e:
-            self.logger.error(f"Research failed: {e}")
+            self.logger.exception(f"Research failed: {e}")
             return "", []
 
     async def custom_research(self, research_brief: str) -> tuple[str, list[Any]]:
@@ -427,12 +427,13 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             enable_web_tools = True
             enable_internal_tools = True
             if isinstance(self.config.engine, UniqueEngine):
-                enable_web_tools = self.config.engine.tools.web_tools
+                enable_web_tools = self.config.engine.tools.web_tools.enable
                 enable_internal_tools = self.config.engine.tools.internal_tools
 
             config = {
                 "configurable": {
                     "engine_config": self.config.engine,
+                    "language_model_service": self.language_model_service,
                     "openai_client": self.client,
                     "chat_service": self.chat_service,
                     "content_service": self.content_service,
@@ -470,7 +471,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
 
         except Exception as e:
             error_msg = f"Custom research failed: {str(e)}"
-            self.logger.error(error_msg, exc_info=True)
+            self.logger.exception(error_msg)
             return error_msg, []
 
     async def openai_research(self, research_brief: str) -> tuple[str, list[Any]]:
@@ -698,7 +699,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                         if event.response.error:
                             return event.response.error.message, []
             except Exception as e:
-                self.logger.error(f"Error processing research stream event: {e}")
+                self.logger.exception(f"Error processing research stream event: {e}")
 
         self.logger.error("Stream ended without completion")
         return "", []
