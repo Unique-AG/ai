@@ -195,6 +195,7 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     - `chatId` (str, optional) - Continue existing chat or start new
     - `toolChoices` (List[str], optional) - List of tools to use (e.g., `["WebSearch", "InternalSearch"]`)
     - `scopeRules` (Dict[str, Any], optional) - UniqueQL filter for document scope
+    - `correlation` ([`Space.Correlation`](#spacecorrelation), optional) - Correlation data to link this message to a parent message in another chat
 
     **Returns:**
 
@@ -243,6 +244,22 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
                     "value": "uniquepathid://scope_engineering_docs"
                 }
             ]
+        }
+    )
+    ```
+
+    **Example - With Correlation:**
+
+    ```python
+    message = unique_sdk.Space.create_message(
+        user_id=user_id,
+        company_id=company_id,
+        assistantId="assistant_abc123",
+        text="Follow up on the previous analysis",
+        correlation={
+            "parentMessageId": "msg_xyz789",
+            "parentChatId": "chat_abc123",
+            "parentAssistantId": "assistant_def456",
         }
     )
     ```
@@ -668,6 +685,18 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     - `type` (str) - Access type ("USE", "MANAGE", or "UPLOAD")
 
     **Used in:** `Space.assistantAccess`, `SpaceAccessResponse.access`, `AddSpaceAccessResponse.access`
+
+#### Space.Correlation {#spacecorrelation}
+
+??? note "The `Space.Correlation` type defines correlation data to link a message to a parent message in another chat"
+
+    **Fields:**
+
+    - `parentMessageId` (str, required) - The ID of the parent message
+    - `parentChatId` (str, required) - The ID of the parent chat
+    - `parentAssistantId` (str, required) - The ID of the parent assistant
+
+    **Used in:** `Space.create_message()`
 
 #### DeleteChatResponse {#deletechatresponse}
 
