@@ -3,6 +3,7 @@ import re
 from typing import Any, Sequence
 
 import unique_sdk
+from numpy import cumsum
 from openai.types.chat import ChatCompletionToolChoiceOptionParam
 from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
 from pydantic import BaseModel
@@ -396,13 +397,10 @@ def _construct_message_create_params(
     }
 
 
-def get_selection_from_history(
-    full_history: list[ChatMessage],
-    max_tokens: int,
-    max_messages=DEFAULT_MAX_MESSAGES,
-    model_info: LanguageModelInfo | None = None,
-) -> list[ChatMessage]:
-    messages = full_history[-max_messages:]
+def _filter_messages(messages: list[ChatMessage]) -> list[ChatMessage]:
+    """
+    Removes empty messages and maps the roles different from assistant to user.
+    """
     filtered_messages = [m for m in messages if m.content]
     mapped_messages = []
 
@@ -414,6 +412,48 @@ def get_selection_from_history(
             else ChatMessageRole.USER
         )
         mapped_messages.append(m)
+
+    return mapped_messages
+
+
+def select_messages(
+    history: list[ChatMessage],
+    *,
+    model_info: LanguageModelInfo,
+    max_tokens: int = 10_000,
+    max_messages: int = DEFAULT_MAX_MESSAGES,
+) -> list[ChatMessage]:
+    """
+    Selects messages from the history to be used for the chat session.
+
+    Args:
+        history (list[ChatMessage]): The history of messages.
+        model_info (LanguageModelInfo): The model info.
+        max_tokens (int): The maximum number of tokens to select.
+
+    Returns:
+        list[ChatMessage]: The selected messages.
+    """
+
+    filtered_messages = _filter_messages(history[-max_messages:])
+    token_per_message_reversed = [
+        count_tokens_for_model(m.content or "", model_info) for m in filtered_messages
+    ]
+    token_per_message_reversed.reverse()
+    token_per_message_cumsum = cumsum(token_per_message_reversed)
+    to_take: list[bool] = (token_per_message_cumsum < max_tokens).tolist()
+    to_take.reverse()
+
+    return [m for m, tt in zip(filtered_messages, to_take, strict=False) if tt]
+
+
+def get_selection_from_history(
+    full_history: list[ChatMessage],
+    max_tokens: int,
+    max_messages=DEFAULT_MAX_MESSAGES,
+    model_info: LanguageModelInfo | None = None,
+) -> list[ChatMessage]:
+    mapped_messages = _filter_messages(full_history[-max_messages:])
 
     return pick_messages_in_reverse_for_token_window(
         messages=mapped_messages,

@@ -10,17 +10,17 @@ from unique_toolkit.language_model.infos import LanguageModelInfo, LanguageModel
 
 DEFAULT_ENCODING = os.getenv("UNIQUE_DEFAULT_TOKENIZER_ENCODING", "cl100k_base")
 
-CUSTOM_TOKENIZER_MODELS: dict[LanguageModelName, Path] = {
-    LanguageModelName.LITELLM_QWEN_3: Path("tokenizers/qwen/tokenizer.json"),
-    LanguageModelName.LITELLM_QWEN_3_THINKING: Path("tokenizers/qwen/tokenizer.json"),
-    LanguageModelName.LITELLM_DEEPSEEK_R1: Path("tokenizers/deepseek/tokenizer.json"),
-    LanguageModelName.LITELLM_DEEPSEEK_V3: Path("tokenizers/deepseek/tokenizer.json"),
+CUSTOM_TOKENIZER_MODELS: dict[LanguageModelName, str] = {
+    LanguageModelName.LITELLM_QWEN_3: "qwen",
+    LanguageModelName.LITELLM_QWEN_3_THINKING: "qwen",
+    LanguageModelName.LITELLM_DEEPSEEK_R1: "deepseek",
+    LanguageModelName.LITELLM_DEEPSEEK_V3: "deepseek",
 }
 
 
 @lru_cache(maxsize=10)
-def _load_tokenizer(tokenizer_path: Path) -> Tokenizer:
-    full_path = Path(__file__).parent / tokenizer_path
+def _load_tokenizer(tokenizer_name: str) -> Tokenizer:
+    full_path = Path(__file__).parent / "tokenizers" / tokenizer_name / "tokenizer.json"
     if not full_path.exists():
         raise FileNotFoundError(
             f"Tokenizer file not found: {full_path}. "
@@ -33,8 +33,8 @@ def _get_custom_tokenizer(model_name: LanguageModelName) -> dict | None:
     if model_name not in CUSTOM_TOKENIZER_MODELS:
         return None
 
-    tokenizer_path = CUSTOM_TOKENIZER_MODELS[model_name]
-    tokenizer = _load_tokenizer(tokenizer_path)
+    tokenizer_name = CUSTOM_TOKENIZER_MODELS[model_name]
+    tokenizer = _load_tokenizer(tokenizer_name)
 
     return {
         "type": "huggingface_tokenizer",
@@ -60,17 +60,14 @@ def count_tokens_for_model(
     if not text:
         return 0
 
-    # Fallback to tiktoken if no model provided
     if model is None:
         encoder = tiktoken.get_encoding(DEFAULT_ENCODING)
         return len(encoder.encode(text))
 
     if isinstance(model, LanguageModelName):
-        model_info = LanguageModelInfo.from_name(model)
-    else:
-        model_info = model
-
-    model_name = model_info.name
+        model_name = model
+    elif isinstance(model, LanguageModelInfo):
+        model_name = model.name
 
     litellm_model_name = model_name
     custom_tokenizer = None
@@ -84,6 +81,7 @@ def count_tokens_for_model(
             text=text,
             custom_tokenizer=custom_tokenizer,
         )
+
     return token_counter(
         model=litellm_model_name,
         text=text,
