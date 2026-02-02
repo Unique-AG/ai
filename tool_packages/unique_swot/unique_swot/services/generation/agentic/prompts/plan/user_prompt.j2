@@ -1,27 +1,63 @@
 Facts (id -> text):
 {{ fact_view }}
 
-Existing sections for {{ component }} (may be empty):
+Existing chapters for {{ component }} (may be empty):
 {{ existing_sections_view }}
 
 Task:
-- Group facts by topic and produce the minimal ordered commands to keep sections accurate and non-duplicative.
-- Prefer update_section when facts refine, extend, or change an existing section; note what should be replaced or amended based on the newer facts.
-- Use create_section only when no suitable section exists for the topic.
-- Reference fact ids explicitly in reasoning and in source_facts_ids; do not leave source_facts_ids empty.
-- Order commands so they can be applied sequentially from older to newer facts.
+Design a comprehensive plan that organizes facts into substantial chapters with detailed guidance for deep, contextual writing.
+
+ENRICHMENT AND CONSOLIDATION PRINCIPLE (CRITICAL):
+Prioritize enriching and updating existing chapters over creating new ones.
+- Frame chapters around BROAD STRATEGIC THEMES that matter to decision-makers
+- STRONGLY PREFER updating existing chapters—even if it means broadening their scope to accommodate new facts
+- Consolidate related topics: Don't create separate chapters for "Revenue" and "Margins" and "Cash"—combine into "Financial Performance"
+- Think EXPANSIVELY: Can this fit into an existing chapter by broadening its scope?
+- Ask: "What BROADER theme could unite this with an existing chapter?"
+- When facts overlap or are redundant, instruct the writer to SYNTHESIZE and CONSOLIDATE the information
+- Focus on depth and non-redundancy: better to have substantial, well-organized chapters than many narrow, repetitive ones
+
+IMPORTANT - Update vs Create Decision:
+You are building the report iteratively. Chapters are organized by STRATEGIC THEME, not by time or narrow topic.
+- STRONGLY PREFER update_section when new facts relate to an existing chapter's theme (even if the data is from a different time period)
+- Consider BROADENING existing chapters: Can facts be added by expanding an existing chapter's scope under a broader theme?
+- UPDATE commands CAN change the chapter title (h2) to better reflect the evolved scope
+- Only use create_section when facts introduce a completely NEW strategic theme that truly cannot fit into any existing chapter
+- Before creating a new chapter, ask: "Could this fit into an existing chapter if we broaden its framing or evolve its title?"
+- When updating, ALWAYS instruct writers to identify and eliminate redundancy—synthesize overlapping information, NEVER repeat or duplicate
+- Example: If an existing chapter covers "Financial Performance" and new facts provide updated revenue/earnings, UPDATE it—don't create a new chapter
+
+For each command:
+1. Group facts by strategic theme to create thematic coherence and comprehensive chapters
+2. Write detailed, thorough instructions that guide the chapter writer on:
+   - How to structure the narrative within the chapter
+   - Which terms, acronyms, or concepts need explanation
+   - How to elaborate on each fact with proper context and reasoning
+   - What connections to draw between facts to tell a coherent story
+   - How to substantiate claims (e.g., explain WHY something is "best-in-class" rather than just stating it)
+   - What background information readers need to understand the significance
+   - For UPDATE commands: whether the chapter title (h2) should evolve to reflect broader scope
+   - How to improve storytelling and narrative flow when integrating new facts
+
+3. Prefer update_section when facts refine, extend, or change an existing chapter; note specifically what should be replaced or amended based on the newer facts and how to integrate them into the narrative. When facts are redundant with existing content, instruct the writer to consolidate and summarize rather than duplicate. Specify if the chapter title should evolve.
+4. Use create_section only when no suitable chapter exists for the topic and the topic cannot reasonably fit into existing chapters even with broader framing.
+5. Reference fact ids explicitly in reasoning and in source_facts_ids; do not leave source_facts_ids empty.
+6. Order commands so they can be applied sequentially from older to newer facts.
+
+Focus on creating instructions that will lead to comprehensive, well-explained, insightful chapters rather than surface-level summaries. Emphasize elimination of redundancy and improvement of narrative flow.
 
 Output:
 A JSON object matching GenerationPlan:
 {
   "commands": [
     {
-      "reasoning": "<why this command, cite fact ids>",
+      "reasoning": "<why this command, what it accomplishes, cite fact ids>",
       "command": "create_section" | "update_section",
-      "instruction": "<clear, actionable instruction to the writer; include what to add/update/replace>",
+      "instruction": "<detailed, comprehensive instruction covering structure, what to explain, how to elaborate, and how to build narrative>",
       "target_section_id": "<section id or null>",
       "source_facts_ids": ["<fact-id>", ...]
     }
   ]
 }
-Keep reasoning and instructions concise.
+
+Write thorough, detailed instructions that enable deep analysis. Do not prioritize brevity over completeness.

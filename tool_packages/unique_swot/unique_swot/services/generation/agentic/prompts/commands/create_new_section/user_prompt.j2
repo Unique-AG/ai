@@ -6,13 +6,22 @@ Facts to use (each is vetted evidence):
 - [{{ id }}]: {{ fact }}
 {% endfor %}
 
-Important:
+Important Guidelines:
+- Follow the instruction carefully, using it as guidance for structure, narrative, and what to elaborate.
 - Do not remove or alter the [chunk_id] citations already present in the facts.
 - Ensure each factual statement in the output retains its supporting citations.
+- Explain any technical terms, acronyms, or industry concepts encountered in the facts.
+- Elaborate on each point: provide context, reasoning, and explain why it matters.
+- Synthesize and integrate: When multiple facts address closely related points, weave them together into cohesive entries rather than creating separate entries for each.
+- Substantiate all evaluative claims (e.g., "strong," "best-in-class," "leading") with specific evidence from the facts.
+- Build a coherent narrative that progresses logically through the topic.
+- Focus on the most material, impactful insights—depth on what matters most, not exhaustive coverage.
+- Favor fewer, richer entries that integrate related points over many brief, fragmented entries.
 
 Produce a JSON object matching {{model_name}}:
 ```
 {{model_schema}}
 ```
-Use only the facts above; 2-4 entries is typical.
+
+Focus on creating content that provides deep understanding and insight, not surface-level summaries.
 

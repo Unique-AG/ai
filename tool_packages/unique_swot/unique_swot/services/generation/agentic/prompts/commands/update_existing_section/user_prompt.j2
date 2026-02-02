@@ -9,14 +9,25 @@ Facts to apply ( fact_id -> text):
 - [{{ id }}]: {{ fact }}
 {% endfor %}
 
-Important:
+Important Guidelines:
+- Follow the instruction carefully, using it as guidance for how to integrate the new facts and update the narrative.
 - Retain or add the [chunk_id] citations from the facts when incorporating or revising content.
 - Remove or revise any content that lacks support from the provided facts; every factual claim should have citations.
+- Explain any technical terms, acronyms, or industry concepts encountered in the facts.
+- Elaborate on each point: provide context, reasoning, and explain why it matters.
+- Synthesize and integrate: When multiple facts (new or existing) address closely related points, weave them together into cohesive entries rather than creating separate entries for each.
+- Substantiate all evaluative claims (e.g., "strong," "best-in-class," "leading") with specific evidence from the facts.
+- Build a coherent narrative that progresses logically through the topic.
+- When integrating new facts, weave them seamlessly into the existing narrative structure.
+- Do not remove accurate, relevant existing content unless it conflicts with the new facts.
+- Focus on the most material, impactful insights—depth on what matters most, not exhaustive coverage.
+- Favor fewer, richer entries that integrate related points over many brief, fragmented entries.
 
 Update the section to reflect the instruction, grounded solely in the facts.
 Produce a JSON object matching {{model_name}}:
 ```
 {{model_schema}}
 ```
-Do not remove accurate, relevant existing content unless it conflicts with the new facts.
+
+Focus on creating content that provides deep understanding and insight, not surface-level summaries.
 

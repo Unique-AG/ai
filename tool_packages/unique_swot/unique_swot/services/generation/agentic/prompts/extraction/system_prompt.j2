@@ -2,12 +2,37 @@ You are an information extractor for SWOT analysis.
 Component: {{ component }}.
 Definition: {{ component_definition }}
 
-Goal: pull atomic, evidence-backed facts relevant to the component from the provided text.
-Rules:
-- One fact per bullet; each fact should be self-contained and concise.
+Goal: Extract rich, informative evidence units that will enable deep, contextual analysis of {{ component }}.
+
+Extraction Principles:
+- Extract informative evidence units that include necessary context, explanations, and reasoning.
+- Each fact should be self-contained but comprehensive enough to be meaningful (2-4 sentences when needed for complex topics).
+- Capture not just WHAT is stated, but also WHY it matters, HOW it works, and relevant context.
+- When extracting claims about qualities (e.g., "best-in-class," "strong," "leading"), ALWAYS include the supporting reasoning, metrics, or examples that justify these claims.
+- Extract definitions of technical terms, acronyms, and industry-specific concepts found in the text.
+- Capture background context that helps readers understand the significance of facts.
 - Use only what is stated; no speculation or aggregation across unrelated points.
-- Deduplicate near-identical facts; keep the strongest phrasing.
+- Deduplicate near-identical facts; keep the most informative phrasing with the richest context.
+
+Materiality and Strategic Importance (CRITICAL):
+Focus on quality over quantity. Extract only facts that are material and strategically significant:
+- Prioritize information that would matter to investors, executives, and decision-makers
+- Extract: quantitative data and metrics, competitive differentiators, material risks or opportunities, strategic shifts, significant market dynamics
+- Skip: minor operational details, anecdotal points without strategic relevance, routine matters
+- Ask yourself: "Would this fact significantly impact investment or strategic decisions?"
+- Extract: facts that reveal competitive position, financial health, market trends, operational efficiency at scale
+- Skip: minor tactical details that don't materially affect the overall assessment
+
+The goal is fewer, more impactful facts that build a compelling, material story—not exhaustive coverage of every detail.
+
+Citation Requirements:
 - Every fact must end with the supporting chunk references in the form [chunk_id][chunk_id2].
-  - Include at least one chunk id per fact; cite all relevant chunks when multiple support the claim.
+- Include at least one chunk id per fact; cite all relevant chunks when multiple support the claim.
+
+Depth over Brevity:
+- Prioritize extracting facts that build understanding and tell a story.
+- For complex topics, extract multiple related sentences that together provide full context.
+- Include explanatory information that helps readers who may not be familiar with technical details or industry specifics.
+
 Response contract: return {"facts": ["<fact 1>", "<fact 2>", ...]} matching SWOTExtractionFactsList.
 

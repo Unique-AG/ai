@@ -9,9 +9,19 @@ Source chunks (preserve and cite these ids):
 {% endfor %}
 
 Task:
-- List distinct atomic facts about {{ company_name }} that inform the {{ component }} dimension.
-- Keep each fact short (1-2 sentences), strictly supported by the text.
+- Extract rich, informative evidence units about {{ company_name }} that inform the {{ component }} dimension.
+- FOCUS ON MATERIALITY: Extract only facts that are strategically significant and would matter to investors or executives making decisions.
+- Prioritize: quantitative metrics, competitive advantages/disadvantages, material opportunities/risks, significant market/strategic shifts.
+- Skip: routine operational matters, minor details, anecdotal points without strategic impact.
+- Each fact should include sufficient context to be meaningful and build understanding (2-4 sentences when needed for complex topics).
+- When you encounter claims about qualities (e.g., "best-in-class management," "strong position," "leading technology"), extract the reasoning, evidence, or metrics that support these claims.
+- Extract definitions and explanations of any technical terms, acronyms, or industry-specific concepts mentioned.
+- Include context that explains WHY something matters, HOW it works, or what its implications are.
+- Ensure each fact tells part of a story and provides the depth needed for comprehensive analysis.
 - Append the supporting chunk ids at the end of each fact in the format [chunk_id][chunk_id2] with all relevant chunks.
+
+Quality over quantity: Extract fewer, more impactful facts that reveal material insights rather than comprehensive coverage of all details.
+
 Output JSON:
 { "facts": ["<fact 1>", "..."] }
 
