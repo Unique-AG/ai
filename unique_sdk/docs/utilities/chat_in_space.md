@@ -28,6 +28,7 @@ The Chat in Space utilities provide:
     - `poll_interval` (optional) - Seconds between polls (default: 1.0)
     - `max_wait` (optional) - Maximum seconds to wait (default: 60.0)
     - `stop_condition` (optional) - When to stop: `"stoppedStreamingAt"` or `"completedAt"` (default: `"stoppedStreamingAt"`)
+    - `correlation` (optional) - Correlation data to link this message to a parent message in another chat. Should contain: `parentMessageId`, `parentChatId`, `parentAssistantId`
 
     **Returns:**
 
@@ -84,6 +85,22 @@ The Chat in Space utilities provide:
                     "value": "uniquepathid://scope_engineering_docs"
                 }
             ]
+        }
+    )
+    ```
+
+    **Example - With Correlation:**
+
+    ```python
+    message = await send_message_and_wait_for_completion(
+        user_id=user_id,
+        company_id=company_id,
+        assistant_id="assistant_abc123",
+        text="Follow up on the previous analysis",
+        correlation={
+            "parentMessageId": "msg_xyz789",
+            "parentChatId": "chat_abc123",
+            "parentAssistantId": "assistant_def456",
         }
     )
     ```
