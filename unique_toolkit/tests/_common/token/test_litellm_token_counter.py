@@ -7,11 +7,11 @@ from unique_toolkit._common.token import count_tokens_for_model
 from unique_toolkit.content.utils import count_tokens as content_count_tokens
 from unique_toolkit.language_model.infos import LanguageModelInfo, LanguageModelName
 
-TEST_TEXT = """Hello, how are you today? I'm working on a project that involves 
+_TEST_TEXT = """Hello, how are you today? I'm working on a project that involves 
 counting tokens for different language models. This includes models like GPT-4, 
 Claude, and Qwen. 你好世界！这是一些中文文本。"""
 
-TEST_TEXT_SHORT = "Hello, how are you?"
+_TEST_TEXT_SHORT = "Hello, how are you?"
 
 
 @pytest.mark.ai
@@ -23,10 +23,10 @@ class TestTokenService:
             LanguageModelName.AZURE_GPT_4o_2024_0806
         )
 
-        service_count = count_tokens_for_model(TEST_TEXT, model_info)
+        service_count = count_tokens_for_model(_TEST_TEXT, model_info)
 
         encoder = tiktoken.get_encoding(model_info.encoder_name)
-        tiktoken_count = len(encoder.encode(TEST_TEXT))
+        tiktoken_count = len(encoder.encode(_TEST_TEXT))
 
         # LiteLLM wraps text in message format internally, adding ~10 tokens for formatting
         # Allow 25% difference to account for message overhead
@@ -41,11 +41,11 @@ class TestTokenService:
         model_info = LanguageModelInfo.from_name(LanguageModelName.LITELLM_QWEN_3)
 
         # Count with service (should use custom Qwen tokenizer)
-        service_count = count_tokens_for_model(TEST_TEXT, model_info)
+        service_count = count_tokens_for_model(_TEST_TEXT, model_info)
 
         # Count with tiktoken (what we DON'T want)
         encoder = tiktoken.get_encoding("cl100k_base")
-        tiktoken_count = len(encoder.encode(TEST_TEXT))
+        tiktoken_count = len(encoder.encode(_TEST_TEXT))
 
         # These should be different (Qwen has different tokenization)
         assert service_count != tiktoken_count, (
@@ -54,18 +54,18 @@ class TestTokenService:
 
         # Qwen should produce reasonable token counts
         assert service_count > 0
-        assert service_count < len(TEST_TEXT)  # Sanity check
+        assert service_count < len(_TEST_TEXT)  # Sanity check
 
     def test_deepseek_uses_custom_tokenizer(self):
         """Test that DeepSeek models use custom tokenizer."""
         model_info = LanguageModelInfo.from_name(LanguageModelName.LITELLM_DEEPSEEK_R1)
 
         # Count with service (should use custom DeepSeek tokenizer)
-        service_count = count_tokens_for_model(TEST_TEXT, model_info)
+        service_count = count_tokens_for_model(_TEST_TEXT, model_info)
 
         # Count with tiktoken (what we DON'T want)
         encoder = tiktoken.get_encoding("cl100k_base")
-        tiktoken_count = len(encoder.encode(TEST_TEXT))
+        tiktoken_count = len(encoder.encode(_TEST_TEXT))
 
         # These should be different
         assert service_count != tiktoken_count, (
@@ -74,7 +74,7 @@ class TestTokenService:
 
         # Sanity checks
         assert service_count > 0
-        assert service_count < len(TEST_TEXT)
+        assert service_count < len(_TEST_TEXT)
 
     def test_empty_text_returns_zero(self):
         """Test that empty text returns 0 tokens."""
@@ -101,11 +101,11 @@ class TestTokenService:
     def test_various_models_produce_valid_counts(self, model_name):
         """Test that various models produce valid token counts."""
         model_info = LanguageModelInfo.from_name(model_name)
-        count = count_tokens_for_model(TEST_TEXT_SHORT, model_info)
+        count = count_tokens_for_model(_TEST_TEXT_SHORT, model_info)
 
         # Basic sanity checks
         assert count > 0, f"Model {model_name} returned 0 tokens"
-        assert count < len(TEST_TEXT_SHORT), (
+        assert count < len(_TEST_TEXT_SHORT), (
             f"Model {model_name} token count > text length"
         )
 
@@ -116,19 +116,19 @@ class TestBackwardCompatibility:
 
     def test_content_utils_backward_compatibility(self):
         """Test that content.utils.count_tokens works without model_info (legacy)."""
-        count = content_count_tokens(TEST_TEXT_SHORT)
+        count = content_count_tokens(_TEST_TEXT_SHORT)
 
         encoder = tiktoken.get_encoding("cl100k_base")
-        expected = len(encoder.encode(TEST_TEXT_SHORT))
+        expected = len(encoder.encode(_TEST_TEXT_SHORT))
         assert count == expected
 
     def test_content_utils_with_custom_encoding(self):
         """Test content.utils.count_tokens with custom encoding (legacy)."""
-        count = content_count_tokens(TEST_TEXT_SHORT, encoding_model="o200k_base")
+        count = content_count_tokens(_TEST_TEXT_SHORT, encoding_model="o200k_base")
 
         # Should match tiktoken with o200k_base
         encoder = tiktoken.get_encoding("o200k_base")
-        expected = len(encoder.encode(TEST_TEXT_SHORT))
+        expected = len(encoder.encode(_TEST_TEXT_SHORT))
         assert count == expected
 
 
