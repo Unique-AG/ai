@@ -21,6 +21,7 @@ async def send_message_and_wait_for_completion(
     poll_interval: float = 1.0,
     max_wait: float = 60.0,
     stop_condition: Literal["stoppedStreamingAt", "completedAt"] = "stoppedStreamingAt",
+    correlation: "Space.Correlation | None" = None,
 ) -> "Space.Message":
     """
     Sends a prompt asynchronously and polls for completion. (until stoppedStreamingAt is not None)
@@ -30,10 +31,14 @@ async def send_message_and_wait_for_completion(
         company_id: The company ID.
         assistant_id: The assistant ID.
         text: The prompt text.
+        tool_choices: List of tool names to use.
+        scope_rules: Scope rules for filtering content.
+        chat_id: Optional chat ID to continue an existing chat.
         poll_interval: Seconds between polls.
         max_wait: Maximum seconds to wait for completion.
         stop_condition: Defines when to expect a response back, when the assistant stop streaming or when it completes the message. (default: "stoppedStreamingAt")
-        **kwargs: Additional parameters for the prompt.
+        correlation: Optional correlation data to link this message to a parent message in another chat.
+            Should contain: parentMessageId, parentChatId, parentAssistantId.
 
     Returns:
         The completed Space.Message.
@@ -46,6 +51,7 @@ async def send_message_and_wait_for_completion(
         text=text,
         toolChoices=tool_choices,
         scopeRules=scope_rules,
+        correlation=correlation,
     )
     chat_id = response.get("chatId")
     message_id = response.get("id")

@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.10.75] - 2026-02-02
 - Add correlation parameter to Message.create for linking messages to parent messages in other chats.
+- Add correlation parameter to Space.create_message and send_message_and_wait_for_completion utility.
 
 ## [0.10.74] - 2026-01-22
 - Add delete space function.
