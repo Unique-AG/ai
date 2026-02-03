@@ -15,6 +15,11 @@ class FeatureFlags(BaseSettings):
         description="Enable new answers UI (UN-14411). Can be 'true' or comma-separated company IDs.",
     )
 
+    feature_flag_enable_html_rendering_un_15131: str = Field(
+        default="",
+        description="Enable HTML rendering for code interpreter files (UN-15131). Can be 'true' or comma-separated company IDs.",
+    )
+
     model_config = SettingsConfigDict(
         extra="ignore",
         case_sensitive=False,
@@ -23,6 +28,13 @@ class FeatureFlags(BaseSettings):
     def is_new_answers_ui_enabled(self, company_id: str | None = None) -> bool:
         """Check if new answers UI is enabled for the given company."""
         value = self.feature_flag_enable_new_answers_ui_un_14411
+        return value.lower() == "true" or bool(
+            company_id and company_id in [id.strip() for id in value.split(",")]
+        )
+
+    def is_html_rendering_enabled(self, company_id: str | None = None) -> bool:
+        """Check if HTML rendering is enabled for the given company."""
+        value = self.feature_flag_enable_html_rendering_un_15131
         return value.lower() == "true" or bool(
             company_id and company_id in [id.strip() for id in value.split(",")]
         )
