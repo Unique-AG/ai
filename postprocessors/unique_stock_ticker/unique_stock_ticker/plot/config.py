@@ -12,7 +12,7 @@ from unique_toolkit.agentic.tools.config import get_configuration_dict
 class OffSetDate(BaseModel):
     model_config = get_configuration_dict()
 
-    anchor: Literal["today"] = Field()
+    anchor: Literal["today"]
     offset: timedelta = Field(default_factory=lambda: timedelta(days=0))
 
     @computed_field
@@ -38,4 +38,3 @@ class StockTickerDataRetrievalConfig(BaseModel):
         if isinstance(self.start_date, OffSetDate):
             return self.start_date.date
         return self.start_date
-
