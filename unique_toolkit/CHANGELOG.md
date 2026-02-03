@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.45.9] - 2026-02-03
 - Add feature flag `FEATURE_FLAG_ENABLE_HTML_RENDERING_UN_15131` for HTML rendering support
+- Put HTML rendering for code interpreter files behind the feature flag
 
 ## [1.45.8] - 2026-02-02
 - Hallucination: Hide Source Selection Mode and Reference pattern from schema
