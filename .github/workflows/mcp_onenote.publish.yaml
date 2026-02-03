@@ -9,12 +9,6 @@ concurrency:
 
 on:
   workflow_dispatch:
-  pull_request:
-    branches:
-      - main
-    paths:
-      - .github/workflows/mcp_onenote.publish.yaml
-      - tutorials/mcp/mcp_onenote/**
   push:
     branches:
       - main
@@ -23,7 +17,7 @@ on:
       - tutorials/mcp/mcp_onenote/**
 
 jobs:
-  terraform:
+  publish:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -37,4 +31,3 @@ jobs:
           confluence_api_key: ${{ secrets.ATLASSIAN_UNIQUE_CODE_PUBLISHER_APIKEY }}
           confluence_username: ${{ secrets.ATLASSIAN_UNIQUE_CODE_PUBLISHER_USERNAME }}
           docs_path: tutorials/mcp/mcp_onenote/docs
-          non_default_branch_allowed: true # experimental service and publishing
