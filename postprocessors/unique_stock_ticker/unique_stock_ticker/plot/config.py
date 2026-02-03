@@ -1,8 +1,24 @@
 from datetime import date, timedelta
-from typing import Any
+from typing import Literal
 
-from pydantic import BaseModel, Field, TypeAdapter, ValidationError, field_validator
+from pydantic import (
+    BaseModel,
+    Field,
+    computed_field,
+)
 from unique_toolkit.agentic.tools.config import get_configuration_dict
+
+
+class OffSetDate(BaseModel):
+    model_config = get_configuration_dict()
+
+    anchor: Literal["today"] = Field()
+    offset: timedelta = Field(default_factory=lambda: timedelta(days=0))
+
+    @computed_field
+    @property
+    def date(self) -> date:
+        return date.today() + self.offset
 
 
 class StockTickerDataRetrievalConfig(BaseModel):
@@ -12,26 +28,14 @@ class StockTickerDataRetrievalConfig(BaseModel):
 
     model_config = get_configuration_dict()
 
-    start_date: date = Field(
+    start_date: date | OffSetDate = Field(
         default_factory=lambda: date(date.today().year, 1, 1)  # Start of year
     )
     period: timedelta = timedelta(minutes=30)
 
-    @field_validator(
-        "start_date", mode="before", json_schema_input_type=date | timedelta
-    )
-    @classmethod
-    def handle_timedelta(cls, v: Any) -> Any:
-        try:
-            timeframe = TypeAdapter(timedelta).validate_python(v)
-        except ValidationError:
-            return v
+    @property
+    def effective_start_date(self) -> date:
+        if isinstance(self.start_date, OffSetDate):
+            return self.start_date.date
+        return self.start_date
 
-        return date.today() + timeframe
-
-    @field_validator("start_date", mode="after")
-    @classmethod
-    def check_start_date_is_in_the_past(cls, v: date) -> date:
-        if v > date.today():
-            raise ValueError("Start date must be in the past")
-        return v

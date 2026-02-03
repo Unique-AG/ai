@@ -66,6 +66,6 @@ async def retrieve_tickers_and_plot_history(
         plotting_backend=plotting_backend,
         tickers=found_tickers,
         instrument_types=instrument_types,
-        start_date=stock_ticker_config.data_retrieval_config.start_date,
+        start_date=stock_ticker_config.data_retrieval_config.effective_start_date,
         period=stock_ticker_config.data_retrieval_config.period,
     )
