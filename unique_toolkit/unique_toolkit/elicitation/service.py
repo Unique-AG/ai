@@ -66,7 +66,7 @@ class ElicitationService:
                 company_id=event.company_id,
                 user_id=event.user_id,
                 chat_id=event.payload.chat_id,
-                message_id=event.payload.user_message.id,
+                message_id=event.payload.assistant_message.id,
             )
 
     @classmethod
