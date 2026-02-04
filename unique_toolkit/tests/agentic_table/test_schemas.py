@@ -1,4 +1,4 @@
-from unique_sdk.api_resources._agentic_table import MagicTableAction
+from unique_sdk import MagicTableAction
 
 from unique_toolkit.agentic_table.schemas import (
     ArtifactData,
