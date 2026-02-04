@@ -1,10 +1,11 @@
 # ============================================================================
 # Container Group
-# Depends on: foundation.tf, container-registry.tf, key-vault.tf, identity.tf, 
-#             container-mcp-search.tf, container-caddy.tf
+# Depends on: foundation.tf, container-registry.tf, key-vault.tf, log-analytics.tf,
+#             identity.tf, container-mcp-search.tf, container-caddy.tf
 # 
 # This file defines the Azure Container Group that hosts all containers.
 # Container configurations are defined in their respective files.
+# Logs are automatically sent to Log Analytics workspace for persistent storage.
 # ============================================================================
 
 # ----------------------------------------------------------------------------
@@ -24,6 +25,14 @@ resource "azurerm_container_group" "main" {
   os_type             = "Linux"
   ip_address_type     = "Public"
   dns_name_label      = "aci-${local.base_name}-${local.suffix}"
+
+  # Send logs to Log Analytics workspace for persistent storage and querying
+  diagnostics {
+    log_analytics {
+      workspace_id  = azurerm_log_analytics_workspace.main.workspace_id
+      workspace_key = azurerm_log_analytics_workspace.main.primary_shared_key
+    }
+  }
 
   # Use managed identity if enabled, otherwise rely on admin credentials
   dynamic "identity" {
@@ -112,5 +121,6 @@ resource "azurerm_container_group" "main" {
 
   depends_on = [
     azurerm_key_vault_access_policy.aci,
+    azurerm_log_analytics_workspace.main,
   ]
 }

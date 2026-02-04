@@ -1,54 +1,130 @@
 {
     "folders": [
         {
+            "name": "Root",
+            "path": "."
+        },
+        {
             "name": "unique_toolkit",
             "path": "unique_toolkit"
         },
         {
             "name": "unique_sdk",
             "path": "unique_sdk"
-        }
+        },
+        {
+            "name": "unique_orchestrator",
+            "path": "unique_orchestrator"
+        },
+        {
+            "name": "unique_mcp",
+            "path": "unique_mcp"
+        },
+        {
+            "name": "connectors/unique_quartr",
+            "path": "connectors/unique_quartr"
+        },
+        {
+            "name": "connectors/unique_six",
+            "path": "connectors/unique_six"
+        },
+        {
+            "name": "connectors/unique_search_proxy",
+            "path": "connectors/unique_search_proxy"
+        },
+        {
+            "name": "tool_packages/unique_swot",
+            "path": "tool_packages/unique_swot"
+        },
+        {
+            "name": "tool_packages/unique_web_search",
+            "path": "tool_packages/unique_web_search"
+        },
+        {
+            "name": "tool_packages/unique_deep_research",
+            "path": "tool_packages/unique_deep_research"
+        },
+        {
+            "name": "tool_packages/unique_internal_search",
+            "path": "tool_packages/unique_internal_search"
+        },
     ],
     "settings": {
+        // Global workspace settings - apply to all folders
+        // Folder-specific settings should go in each folder's .vscode/settings.json
+
+        // Global Python analysis paths (for cross-repo imports)
         "python.analysis.extraPaths": [
             "${workspaceFolder}/unique_toolkit",
-            "${workspaceFolder}/unique_sdk"
+            "${workspaceFolder}/unique_sdk/unique_sdk",
+            "${workspaceFolder}/unique_orchestrator/unique_orchestrator",
+            "${workspaceFolder}/unique_mcp/src",
+            "${workspaceFolder}/connectors",
+            "${workspaceFolder}/postprocessors",
+            "${workspaceFolder}/tool_packages"
         ],
-        "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+        "python.analysis.autoImportCompletions": true,
+        "python.analysis.typeCheckingMode": "basic",
         "python.testing.pytestEnabled": true,
         "python.testing.unittestEnabled": false,
         "python.testing.nosetestsEnabled": false,
+
+        // Global cursorpyright settings
+        "cursorpyright.analysis.autoImportCompletions": true,
+        "cursorpyright.analysis.extraPaths": [
+            "${workspaceFolder}/unique_toolkit",
+            "${workspaceFolder}/unique_sdk/unique_sdk",
+            "${workspaceFolder}/unique_orchestrator/unique_orchestrator",
+            "${workspaceFolder}/unique_mcp/src",
+            "${workspaceFolder}/connectors",
+            "${workspaceFolder}/postprocessors",
+            "${workspaceFolder}/tool_packages"
+        ],
+        "cursorpyright.analysis.typeCheckingMode": "basic",
+
+        // Global file associations
+        "files.associations": {
+            "*.j2": "jinja",
+            "*.jinja2": "jinja",
+            "*.jinja": "jinja"
+        },
+
+        // Global file exclusions
+        "files.exclude": {
+            "**/__pycache__": true,
+            "**/*.pyc": true,
+            "**/.pytest_cache": true,
+            "**/.mypy_cache": true
+        },
+        "search.exclude": {
+            "**/node_modules": true,
+            "**/bower_components": true,
+            "**/*.code-workspace": true
+        },
+
+        // Global editor settings
         "[python]": {
             "editor.formatOnSave": true,
-            "editor.defaultFormatter": "ms-python.python"
-        }
-    },
-    "launch": {
-        "configurations": [
-            {
-                "name": "unique_toolkit: pytest",
-                "type": "python",
-                "request": "launch",
-                "module": "pytest",
-                "cwd": "${workspaceFolder}/unique_toolkit",
-                "python": "${workspaceFolder}/unique_toolkit/.venv/bin/python",
-                "args": [
-                    "tests",
-                    "-v"
-                ]
-            },
-            {
-                "name": "unique_sdk: pytest",
-                "type": "python",
-                "request": "launch",
-                "module": "pytest",
-                "cwd": "${workspaceFolder}/unique_sdk",
-                "python": "${workspaceFolder}/unique_sdk/.venv/bin/python",
-                "args": [
-                    "tests",
-                    "-v"
-                ]
+            "editor.defaultFormatter": "ms-python.python",
+            "editor.codeActionsOnSave": {
+                "source.organizeImports": "explicit"
             }
+        },
+        "editor.rulers": [88, 120],
+        "editor.tabSize": 4,
+        "editor.insertSpaces": true,
+        "files.trimTrailingWhitespace": true,
+        "files.insertFinalNewline": true,
+        "files.trimFinalNewlines": true
+    },
+    "extensions": {
+        "recommendations": [
+            "ms-python.python",
+            "ms-python.debugpy",
+            "charliermarsh.ruff",
+            "tamasfe.even-better-toml",
+            "redhat.vscode-yaml",
+            "detachhead.basedpyright"
         ]
     },
     "testExplorer": {

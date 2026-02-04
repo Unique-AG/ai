@@ -54,12 +54,12 @@ locals {
       "sh",
       "-c",
       <<-EOF
-        cat > /etc/caddy/Caddyfile << 'CADDYFILE'
+        cat > /etc/caddy/Caddyfile << CADDYFILE
         {
-            email {env.CADDY_EMAIL}
+            email $${CADDY_EMAIL}
         }
 
-        {env.DOMAIN_NAME} {
+        $${DOMAIN_NAME} {
             reverse_proxy localhost:8000
 
             header {

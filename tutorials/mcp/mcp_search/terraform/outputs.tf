@@ -92,6 +92,20 @@ output "application_url" {
   value       = "https://${var.domain_name}"
 }
 
+output "test_endpoint_command" {
+  description = "Command to test the MCP endpoint"
+  value       = <<-EOF
+    # Test via domain (if DNS is configured)
+    curl -v https://${var.domain_name}/health
+    
+    # Or test via direct FQDN
+    curl -v http://${azurerm_container_group.main.fqdn}/health
+    
+    # Or test direct container access (bypassing Caddy)
+    curl -v http://${azurerm_container_group.main.fqdn}:8000/health
+  EOF
+}
+
 output "aci_direct_url" {
   description = "Direct URL to access via ACI (for testing before DNS setup)"
   value       = "http://${azurerm_container_group.main.fqdn}"
@@ -133,4 +147,75 @@ output "dns_configuration" {
     Or create a CNAME record:
       ${var.domain_name} -> ${azurerm_container_group.main.fqdn}
   EOF
+}
+
+# ============================================================================
+# Log Viewing Commands
+# ============================================================================
+
+output "view_logs_mcp_search" {
+  description = "Command to view MCP Search container logs"
+  value       = "az container logs --name ${azurerm_container_group.main.name} --resource-group ${data.azurerm_resource_group.main.name} --container-name mcp-search"
+}
+
+output "view_logs_caddy" {
+  description = "Command to view Caddy container logs"
+  value       = "az container logs --name ${azurerm_container_group.main.name} --resource-group ${data.azurerm_resource_group.main.name} --container-name caddy"
+}
+
+output "view_logs_all" {
+  description = "Command to view all container logs"
+  value       = "az container logs --name ${azurerm_container_group.main.name} --resource-group ${data.azurerm_resource_group.main.name}"
+}
+
+output "follow_logs_mcp_search" {
+  description = "Command to follow MCP Search container logs (live)"
+  value       = "az container logs --name ${azurerm_container_group.main.name} --resource-group ${data.azurerm_resource_group.main.name} --container-name mcp-search --follow"
+}
+
+output "follow_logs_caddy" {
+  description = "Command to follow Caddy container logs (live)"
+  value       = "az container logs --name ${azurerm_container_group.main.name} --resource-group ${data.azurerm_resource_group.main.name} --container-name caddy --follow"
+}
+
+output "check_status_command" {
+  description = "Command to check container instance status"
+  value       = "az container show --name ${azurerm_container_group.main.name} --resource-group ${data.azurerm_resource_group.main.name} --query instanceView.state --output tsv"
+}
+
+output "container_details_command" {
+  description = "Command to view detailed container information"
+  value       = "az container show --name ${azurerm_container_group.main.name} --resource-group ${data.azurerm_resource_group.main.name} --output table"
+}
+
+# ============================================================================
+# Log Analytics Outputs
+# ============================================================================
+
+output "log_analytics_workspace_id" {
+  description = "The ID of the Log Analytics workspace"
+  value       = azurerm_log_analytics_workspace.main.id
+}
+
+output "log_analytics_workspace_name" {
+  description = "The name of the Log Analytics workspace"
+  value       = azurerm_log_analytics_workspace.main.name
+}
+
+output "log_analytics_query_command" {
+  description = "Command to query logs in Log Analytics"
+  value       = <<-EOF
+    # Query logs using Azure CLI
+    az monitor log-analytics query \
+      --workspace ${azurerm_log_analytics_workspace.main.id} \
+      --analytics-query "ContainerInstanceLog_CL | where ContainerGroup_s == '${azurerm_container_group.main.name}' | order by TimeGenerated desc | take 100"
+
+    # Or use KQL queries in Azure Portal:
+    # Navigate to: https://portal.azure.com -> Log Analytics workspaces -> ${azurerm_log_analytics_workspace.main.name} -> Logs
+  EOF
+}
+
+output "log_analytics_portal_url" {
+  description = "URL to access Log Analytics in Azure Portal"
+  value       = "https://portal.azure.com/#@${data.azurerm_client_config.current.tenant_id}/resource${azurerm_log_analytics_workspace.main.id}/logs"
 }

@@ -106,11 +106,37 @@ build_and_push_image() {
     az acr login --name "$ACR_NAME"
     
     # Build and push using ACR Tasks (builds in Azure)
+    # Retry logic for network issues
     log_info "Building image using ACR Tasks..."
     cd "$PROJECT_DIR"
-    az acr build --registry "$ACR_NAME" --image mcp-search:latest .
     
-    log_info "Image pushed successfully to $ACR_LOGIN_SERVER/mcp-search:latest"
+    local max_retries=3
+    local retry_count=0
+    local success=false
+    
+    while [ $retry_count -lt $max_retries ] && [ "$success" = false ]; do
+        if [ $retry_count -gt 0 ]; then
+            log_warn "Retry attempt $retry_count of $max_retries..."
+            sleep 5
+        fi
+        
+        if az acr build --registry "$ACR_NAME" --image mcp-search:latest .; then
+            success=true
+            log_info "Image built and pushed successfully to $ACR_LOGIN_SERVER/mcp-search:latest"
+        else
+            retry_count=$((retry_count + 1))
+            if [ $retry_count -lt $max_retries ]; then
+                log_warn "Build failed, will retry..."
+            else
+                log_error "Build failed after $max_retries attempts."
+                log_info "This might be due to Docker Hub rate limiting or network issues."
+                log_info "You can try:"
+                log_info "  1. Wait a few minutes and retry: ./deploy.sh build"
+                log_info "  2. Build locally and push: docker build -t $ACR_LOGIN_SERVER/mcp-search:latest . && docker push $ACR_LOGIN_SERVER/mcp-search:latest"
+                exit 1
+            fi
+        fi
+    done
 }
 
 restart_container() {
@@ -127,6 +153,207 @@ restart_container() {
     
     az container restart --name "$ACI_NAME" --resource-group "$RESOURCE_GROUP"
     log_info "Container restarted successfully."
+}
+
+view_logs() {
+    local container_name=""
+    local follow=""
+    local use_log_analytics=""
+    
+    # Parse arguments
+    shift  # Skip the command name
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -f|--follow)
+                follow="-f"
+                shift
+                ;;
+            --analytics|-a)
+                use_log_analytics="--analytics"
+                shift
+                ;;
+            mcp-search|caddy)
+                container_name="$1"
+                shift
+                ;;
+            *)
+                log_warn "Unknown argument: $1"
+                shift
+                ;;
+        esac
+    done
+    
+    cd "$SCRIPT_DIR"
+    ACI_NAME=$(terraform output -raw aci_name 2>/dev/null || echo "")
+    RESOURCE_GROUP=$(terraform output -raw resource_group_name 2>/dev/null || echo "")
+    WORKSPACE_ID=$(terraform output -raw log_analytics_workspace_id 2>/dev/null || echo "")
+    
+    if [ -z "$ACI_NAME" ] || [ -z "$RESOURCE_GROUP" ]; then
+        log_error "Could not get ACI details from Terraform."
+        exit 1
+    fi
+    
+    # Use Log Analytics if available and requested
+    if [ -n "$WORKSPACE_ID" ] && [ -n "$use_log_analytics" ]; then
+        log_info "Querying logs from Log Analytics workspace..."
+        
+        local query="ContainerInstanceLog_CL | where ContainerGroup_s == '$ACI_NAME'"
+        if [ -n "$container_name" ]; then
+            query="$query | where ContainerName_s == '$container_name'"
+            log_info "Filtering logs for container: $container_name"
+        fi
+        query="$query | order by TimeGenerated desc | take 100"
+        
+        if [ -n "$follow" ]; then
+            log_warn "Log Analytics doesn't support --follow. Showing recent logs. Use Azure Portal for live monitoring."
+            query="$query | take 50"
+        fi
+        
+        az monitor log-analytics query \
+            --workspace "$WORKSPACE_ID" \
+            --analytics-query "$query" \
+            --output table
+    else
+        # Use container logs (real-time, but limited retention)
+        local cmd="az container logs --name $ACI_NAME --resource-group $RESOURCE_GROUP"
+        
+        if [ -n "$container_name" ]; then
+            cmd="$cmd --container-name $container_name"
+            log_info "Viewing logs for container: $container_name"
+            if [ -n "$WORKSPACE_ID" ]; then
+                log_info "Tip: Use --analytics flag for persistent logs from Log Analytics"
+            fi
+        else
+            log_info "Viewing logs for all containers"
+            if [ -n "$WORKSPACE_ID" ]; then
+                log_info "Tip: Use --analytics flag for persistent logs from Log Analytics"
+            fi
+        fi
+        
+        if [ -n "$follow" ]; then
+            cmd="$cmd --follow"
+            log_info "Following logs (live updates)..."
+        fi
+        
+        eval "$cmd" || {
+            if [ -n "$WORKSPACE_ID" ]; then
+                log_warn "Container logs unavailable. Querying Log Analytics instead..."
+                view_logs logs "$container_name" "" "--analytics"
+            else
+                log_error "Failed to retrieve logs. Check container status with: ./deploy.sh status"
+                exit 1
+            fi
+        }
+    fi
+}
+
+check_container_status() {
+    log_info "Checking container instance status..."
+    
+    cd "$SCRIPT_DIR"
+    ACI_NAME=$(terraform output -raw aci_name 2>/dev/null || echo "")
+    RESOURCE_GROUP=$(terraform output -raw resource_group_name 2>/dev/null || echo "")
+    
+    if [ -z "$ACI_NAME" ] || [ -z "$RESOURCE_GROUP" ]; then
+        log_error "Could not get ACI details from Terraform."
+        exit 1
+    fi
+    
+    log_info "Container Group: $ACI_NAME"
+    log_info "Resource Group: $RESOURCE_GROUP"
+    echo ""
+    
+    # Get container group status
+    log_info "Container Group Status:"
+    az container show \
+        --name "$ACI_NAME" \
+        --resource-group "$RESOURCE_GROUP" \
+        --query "{State:instanceView.state, FQDN:fqdn, IP:ipAddress.ip, Containers:containers[*].{Name:name, Image:image, State:instanceView.currentState.state, RestartCount:instanceView.restartCount}}" \
+        --output table
+    
+    echo ""
+    log_info "Container Instances Details:"
+    az container show \
+        --name "$ACI_NAME" \
+        --resource-group "$RESOURCE_GROUP" \
+        --query "containers[*].{Name:name, Image:image, CPU:cpu, Memory:memory, Ports:ports[*].{Port:port, Protocol:protocol}}" \
+        --output table
+    
+    echo ""
+    log_info "Events (recent):"
+    az container show \
+        --name "$ACI_NAME" \
+        --resource-group "$RESOURCE_GROUP" \
+        --query "containers[*].instanceView.events[-5:].{Time:timestamp, Type:type, Message:message}" \
+        --output table
+}
+
+test_mcp_endpoint() {
+    log_info "Testing MCP endpoint..."
+    
+    cd "$SCRIPT_DIR"
+    DOMAIN_NAME=$(terraform output -raw application_url 2>/dev/null | sed 's|https\?://||' || echo "")
+    ACI_FQDN=$(terraform output -raw aci_fqdn 2>/dev/null || echo "")
+    ACI_IP=$(terraform output -raw aci_ip_address 2>/dev/null || echo "")
+    
+    if [ -z "$ACI_FQDN" ] && [ -z "$ACI_IP" ]; then
+        log_error "Could not get container endpoint details from Terraform."
+        exit 1
+    fi
+    
+    # Try domain first if available, otherwise use FQDN, then IP
+    if [ -n "$DOMAIN_NAME" ]; then
+        ENDPOINT="https://${DOMAIN_NAME}"
+        log_info "Testing via domain: $ENDPOINT"
+    elif [ -n "$ACI_FQDN" ]; then
+        ENDPOINT="http://${ACI_FQDN}"
+        log_info "Testing via FQDN: $ENDPOINT"
+    else
+        ENDPOINT="http://${ACI_IP}"
+        log_info "Testing via IP: $ENDPOINT"
+    fi
+    
+    echo ""
+    log_info "Testing root endpoint (/)..."
+    if curl -s -f -m 10 "$ENDPOINT/" > /dev/null 2>&1; then
+        log_info "✓ Root endpoint is responding"
+        curl -s -w "\nHTTP Status: %{http_code}\n" "$ENDPOINT/" | head -20
+    else
+        log_error "✗ Root endpoint failed or timed out"
+    fi
+    
+    echo ""
+    log_info "Testing health endpoint (/health)..."
+    if curl -s -f -m 10 "$ENDPOINT/health" > /dev/null 2>&1; then
+        log_info "✓ Health endpoint is responding"
+        curl -s -w "\nHTTP Status: %{http_code}\n" "$ENDPOINT/health"
+    else
+        log_warn "✗ Health endpoint failed or timed out (container might still be starting)"
+        log_info "Response:"
+        curl -s -w "\nHTTP Status: %{http_code}\n" "$ENDPOINT/health" || true
+    fi
+    
+    echo ""
+    log_info "Testing direct container access (bypassing Caddy)..."
+    if [ -n "$ACI_FQDN" ]; then
+        DIRECT_ENDPOINT="http://${ACI_FQDN}:8000"
+        log_info "Testing: $DIRECT_ENDPOINT/health"
+        if curl -s -f -m 10 "$DIRECT_ENDPOINT/health" > /dev/null 2>&1; then
+            log_info "✓ Direct container access is working"
+            curl -s -w "\nHTTP Status: %{http_code}\n" "$DIRECT_ENDPOINT/health"
+        else
+            log_warn "✗ Direct container access failed"
+            curl -s -w "\nHTTP Status: %{http_code}\n" "$DIRECT_ENDPOINT/health" || true
+        fi
+    fi
+    
+    echo ""
+    log_info "Summary:"
+    log_info "  Application URL: $ENDPOINT"
+    log_info "  Health check: $ENDPOINT/health"
+    if [ -n "$ACI_FQDN" ]; then
+        log_info "  Direct access: http://${ACI_FQDN}:8000/health"
+    fi
 }
 
 show_outputs() {
@@ -231,10 +458,23 @@ usage() {
     echo "  build           - Build and push Docker image to ACR"
     echo "  restart         - Restart the container instance"
     echo "  deploy          - Full deployment (init, plan, apply, build, restart)"
+    echo "  status          - Check container instance status and health"
+    echo "  test            - Test MCP endpoint with curl (health check)"
+    echo "  logs [container] [-f] [--analytics] - View container logs"
+    echo "                        container: mcp-search, caddy, or omit for all"
+    echo "                        -f: follow logs (live updates, container logs only)"
+    echo "                        --analytics: query Log Analytics (persistent logs)"
     echo "  outputs         - Show Terraform outputs"
     echo "  create-backend  - Show storage account details for Terraform backend"
     echo "  migrate-backend - Migrate local state to Azure Storage backend"
     echo "  destroy         - Destroy all infrastructure"
+    echo ""
+    echo "Log Examples:"
+    echo "  ./deploy.sh logs                    # View all container logs (real-time)"
+    echo "  ./deploy.sh logs mcp-search          # View MCP Search logs"
+    echo "  ./deploy.sh logs caddy               # View Caddy logs"
+    echo "  ./deploy.sh logs mcp-search -f       # Follow MCP Search logs (live)"
+    echo "  ./deploy.sh logs mcp-search --analytics # Query Log Analytics (persistent)"
     echo ""
 }
 
@@ -267,6 +507,18 @@ case "${1:-}" in
         build_and_push_image
         restart_container
         show_outputs
+        ;;
+    status)
+        check_prerequisites
+        check_container_status
+        ;;
+    test)
+        check_prerequisites
+        test_mcp_endpoint
+        ;;
+    logs)
+        check_prerequisites
+        view_logs "$@"
         ;;
     outputs)
         show_outputs

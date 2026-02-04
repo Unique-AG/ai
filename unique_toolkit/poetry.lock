@@ -1908,6 +1908,22 @@ pytest = ["pytest (>=7.0.0)", "rich (>=13.9.4)", "vcrpy (>=7.0.0)"]
 vcr = ["vcrpy (>=7.0.0)"]
 
 [[package]]
+name = "lizard"
+version = "1.21.0"
+description = "A code analyzer without caring the C/C++ header files. It works with Java, C/C++, JavaScript, Python, Ruby, Swift, Objective C. Metrics includes cyclomatic complexity number etc."
+optional = false
+python-versions = "*"
+groups = ["dev"]
+files = [
+    {file = "lizard-1.21.0-py2.py3-none-any.whl", hash = "sha256:0d47e603bee2616790c73a2fa415bbba720926f72997008c9a738ff560ba78ae"},
+    {file = "lizard-1.21.0.tar.gz", hash = "sha256:35e62e2a42e06d379de4545f5866eb562c0b4fce5aeae779ec9dbda946e0b958"},
+]
+
+[package.dependencies]
+pathspec = "*"
+pygments = "*"
+
+[[package]]
 name = "lxml"
 version = "6.0.2"
 description = "Powerful and Pythonic XML processing library combining libxml2/libxslt with the ElementTree API."
@@ -5440,4 +5456,4 @@ cffi = ["cffi (>=1.17,<2.0) ; platform_python_implementation != \"PyPy\" and pyt
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "f1ddf8e5000177deb696eaa47fe88ab8985578d582794cf465de9e363ae97bec"
+content-hash = "fd118163506900440ebcb5f945bc4e8ae369ed1e4ab35105fee97587d0e06146"

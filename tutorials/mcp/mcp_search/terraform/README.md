@@ -38,6 +38,7 @@ flowchart TB
 | Container Registry | `acrsearchmcp<suffix>` | Stores Docker images |
 | Key Vault | `kv-search-mcp-<suffix>` | Stores application secrets |
 | Storage Account | `stsearchmcp<suffix>` | Stores Caddy certificates + Terraform state |
+| Log Analytics Workspace | `law-search-mcp-<suffix>` | Centralized logging (30 days retention) |
 | Container Instance | `aci-search-mcp-<suffix>` | Runs the application containers |
 | Managed Identity | `id-search-mcp-<suffix>` | Provides secure access to resources |
 
@@ -287,11 +288,107 @@ The following files are automatically excluded from git:
 ./deploy.sh build           # Build and push Docker image to ACR
 ./deploy.sh restart         # Restart the container instance
 ./deploy.sh deploy          # Full deployment (all of the above)
+./deploy.sh status          # Check container instance status and health
+./deploy.sh test            # Test MCP endpoint with curl (health check)
+./deploy.sh logs [container] [-f]  # View container logs
 ./deploy.sh outputs         # Show Terraform outputs
 ./deploy.sh create-backend  # Show storage account details for Terraform backend
 ./deploy.sh migrate-backend # Migrate local state to Azure Storage backend
 ./deploy.sh destroy         # Destroy all infrastructure
 ```
+
+### Checking Container Status
+
+Check if your containers are running and view their current state:
+
+```bash
+# Check container status, health, and recent events
+./deploy.sh status
+```
+
+This shows:
+- Container group state (Running, Stopped, etc.)
+- Individual container states
+- Container images and resource allocation
+- Recent events and errors
+- Restart counts
+
+### Testing the MCP Endpoint
+
+Test if your MCP application is responding:
+
+```bash
+# Test the endpoint with curl
+./deploy.sh test
+```
+
+This will:
+- Test the root endpoint (`/`)
+- Test the health endpoint (`/health`)
+- Test direct container access (bypassing Caddy)
+- Show HTTP status codes and responses
+
+**Manual testing:**
+```bash
+# Test via domain (if DNS configured)
+curl https://$(terraform output -raw application_url | sed 's|https\?://||')/health
+
+# Test via direct FQDN
+curl http://$(terraform output -raw aci_fqdn)/health
+
+# Test direct container access (bypassing Caddy)
+curl http://$(terraform output -raw aci_fqdn):8000/health
+```
+
+### Viewing Container Logs
+
+View logs from your containers to monitor application behavior and troubleshoot issues. Logs are available in two ways:
+
+#### 1. Real-time Container Logs (Limited Retention)
+
+```bash
+# View all container logs
+./deploy.sh logs
+
+# View logs from a specific container
+./deploy.sh logs mcp-search   # MCP Search application logs
+./deploy.sh logs caddy        # Caddy reverse proxy logs
+
+# Follow logs in real-time (live updates)
+./deploy.sh logs mcp-search -f
+./deploy.sh logs caddy -f
+```
+
+#### 2. Log Analytics (Persistent Storage, 30 days retention)
+
+For persistent logs with advanced querying capabilities:
+
+```bash
+# Query logs from Log Analytics workspace
+./deploy.sh logs mcp-search --analytics
+./deploy.sh logs caddy --analytics
+
+# Or use Azure CLI directly
+az monitor log-analytics query \
+  --workspace $(terraform output -raw log_analytics_workspace_id) \
+  --analytics-query "ContainerInstanceLog_CL | where ContainerGroup_s == '$(terraform output -raw aci_name)' | order by TimeGenerated desc | take 100"
+```
+
+**Access Log Analytics in Azure Portal:**
+```bash
+# Get the portal URL
+terraform output log_analytics_portal_url
+```
+
+**Container Names:**
+- `mcp-search` - The MCP Search application container
+- `caddy` - The Caddy reverse proxy container
+
+**Why Log Analytics?**
+- ✅ **Persistent storage**: 30 days retention (configurable)
+- ✅ **Advanced querying**: KQL queries for complex log analysis
+- ✅ **Better troubleshooting**: Historical logs even if containers restart
+- ✅ **Centralized**: All container logs in one place
 
 ## Updating the Application
 
@@ -305,7 +402,78 @@ After making code changes:
 ./deploy.sh restart
 ```
 
+### Docker Build Issues
+
+If you encounter network timeouts or Docker Hub rate limiting during `./deploy.sh build`:
+
+**Option 1: Retry** (often resolves transient network issues)
+```bash
+./deploy.sh build
+```
+
+**Option 2: Build locally and push**
+```bash
+# Login to ACR
+az acr login --name $(terraform output -raw acr_name)
+
+# Build locally
+docker build -t $(terraform output -raw acr_login_server)/mcp-search:latest .
+
+# Push to ACR
+docker push $(terraform output -raw acr_login_server)/mcp-search:latest
+
+# Restart container
+./deploy.sh restart
+```
+
+**Option 3: Use ACR's public image caching**
+The build script automatically retries up to 3 times. If it still fails, wait a few minutes and try again, or use the local build method above.
+
 ## Troubleshooting
+
+### No Logs or Containers Not Running
+
+If you're not seeing logs or suspect containers aren't running:
+
+```bash
+# 1. Check container status first
+./deploy.sh status
+
+# 2. If containers are stopped, restart them
+./deploy.sh restart
+
+# 3. View logs after restart
+./deploy.sh logs mcp-search -f
+
+# 4. Check container events for errors
+az container show \
+  --name $(terraform output -raw aci_name) \
+  --resource-group $(terraform output -raw resource_group_name) \
+  --query "containers[*].instanceView.events" \
+  --output table
+```
+
+**Common Issues:**
+
+1. **Container Image Not Found**: Make sure you've built and pushed the image:
+   ```bash
+   ./deploy.sh build
+   ```
+
+2. **Container Crashed**: Check events for crash reasons:
+   ```bash
+   ./deploy.sh status
+   ```
+
+3. **No Logs Yet**: Containers might be starting up. Wait a few seconds and try again, or use `-f` to follow:
+   ```bash
+   ./deploy.sh logs mcp-search -f
+   ```
+
+4. **Container Group Stopped**: Restart the container group:
+   ```bash
+   ./deploy.sh restart
+   ```
 
 ### Subscription ID Error
 
@@ -348,6 +516,13 @@ az provider show --namespace Microsoft.KeyVault --query "registrationState"
 az provider show --namespace Microsoft.Storage --query "registrationState"
 az provider show --namespace Microsoft.ContainerInstance --query "registrationState"
 ```
+
+**Required Resource Providers:**
+- `Microsoft.ContainerRegistry` - For Azure Container Registry
+- `Microsoft.KeyVault` - For Azure Key Vault
+- `Microsoft.Storage` - For Storage Account
+- `Microsoft.ContainerInstance` - For Azure Container Instances
+- `Microsoft.OperationalInsights` - For Log Analytics workspace
 
 **Note**: If you don't have permissions to register providers, ask your Azure subscription administrator to register them. Registration typically takes 1-2 minutes per provider.
 
