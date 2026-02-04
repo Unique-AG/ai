@@ -172,7 +172,7 @@ class InternalSearchService:
 
         # Apply chunk relevancy sorter if enabled
         if self.config.chunk_relevancy_sort_config.enabled:
-            if feature_flags.is_new_answers_ui_enabled(self.company_id):
+            if feature_flags.enable_new_answers_ui_un_14411.is_enabled(self.company_id):
                 self._active_message_log = (
                     await self._create_or_update_active_message_log(
                         progress_message="_Resorting search results_",
@@ -180,7 +180,7 @@ class InternalSearchService:
                     )
                 )
             for i, result in enumerate(found_chunks_per_search_string):
-                if not feature_flags.is_new_answers_ui_enabled(self.company_id):
+                if not feature_flags.enable_new_answers_ui_un_14411.is_enabled(self.company_id):
                     await self.post_progress_message(
                         f"{result.query} (_Resorting {len(result.chunks)} search results_ 🔄 in query {i + 1}/{len(found_chunks_per_search_string)})",
                         **kwargs,
@@ -201,7 +201,7 @@ class InternalSearchService:
                 found_chunks_per_search_string
             )
 
-        if feature_flags.is_new_answers_ui_enabled(self.company_id):
+        if feature_flags.enable_new_answers_ui_un_14411.is_enabled(self.company_id):
             progress_message = "_Postprocessing search results_"
             self._active_message_log = await self._create_or_update_active_message_log(
                 progress_message=progress_message,
@@ -547,7 +547,7 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             search_strings_list=search_strings_list,
         )
 
-        if not feature_flags.is_new_answers_ui_enabled(self.company_id):
+        if not feature_flags.enable_new_answers_ui_un_14411.is_enabled(self.company_id):
             await self.post_progress_message(
                 f"{'; '.join(search_strings_list)}", tool_call
             )
@@ -577,7 +577,7 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             debug_info=self.debug_info,
         )
 
-        if self.tool_progress_reporter and not feature_flags.is_new_answers_ui_enabled(
+        if self.tool_progress_reporter and not feature_flags.enable_new_answers_ui_un_14411.is_enabled(
             self.company_id
         ):
             await self.tool_progress_reporter.notify_from_tool_call(
