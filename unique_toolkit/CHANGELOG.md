@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.46.0] - 2026-02-04
+- Add model-agnostic token counting via `LanguageModelInfo.get_encoder()`
+- Add bundled Qwen/DeepSeek tokenizers for accurate token counting
+- Deprecate `content.utils.count_tokens()` in favor of `_common.token.count_tokens()`
+
 ## [1.45.9] - 2026-02-03
 - Add feature flag `FEATURE_FLAG_ENABLE_HTML_RENDERING_UN_15131` for HTML rendering support
 - Put HTML rendering for code interpreter files behind the feature flag
