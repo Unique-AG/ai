@@ -2,6 +2,7 @@ import logging
 from abc import ABC, abstractmethod
 from time import time
 
+from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.tools.tool_progress_reporter import (
     ProgressState,
 )
@@ -148,6 +149,9 @@ class BaseWebSearchExecutor(ABC):
             return content
 
     async def _elicitate_queries(self, queries: list[str]) -> list[str]:
+        if not feature_flags.enable_elicitation_un_15809.is_enabled(self.company_id):
+            return queries
+        
         # Create a query elicitation
         elicitation = await self.query_elicitation_creator(queries)
 

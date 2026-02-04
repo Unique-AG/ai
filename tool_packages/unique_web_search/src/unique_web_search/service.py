@@ -135,7 +135,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
             )
 
             if (
-                not feature_flags.is_new_answers_ui_enabled(self.company_id)
+                not feature_flags.enable_new_answers_ui_un_14411.is_enabled(self.company_id)
                 and self.tool_progress_reporter
             ):
                 await self.tool_progress_reporter.notify_from_tool_call(
@@ -159,7 +159,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
             )
 
             if (
-                not feature_flags.is_new_answers_ui_enabled(self.company_id)
+                not feature_flags.enable_new_answers_ui_un_14411.is_enabled(self.company_id)
                 and self.tool_progress_reporter
             ):
                 await self.tool_progress_reporter.notify_from_tool_call(
@@ -228,7 +228,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
             query_elicitation_creator=query_elicitation_creator,
             query_elicitation_evaluator=query_elicitation_evaluator,
             tool_progress_reporter=self.tool_progress_reporter
-            if not feature_flags.is_new_answers_ui_enabled(self.company_id)
+            if not feature_flags.enable_new_answers_ui_un_14411.is_enabled(self.company_id)
             else None,
         )
 
