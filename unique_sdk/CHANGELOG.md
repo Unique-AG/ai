@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.76] - 2026-02-03
+- Add Cursor commands for SDK development (`@implement-api`, `@generate-release-notes`).
+
 ## [0.10.75] - 2026-02-02
 - Add correlation parameter to Message.create for linking messages to parent messages in other chats.
 - Add correlation parameter to Space.create_message and send_message_and_wait_for_completion utility.
