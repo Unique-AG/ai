@@ -1,9 +1,13 @@
 # Original source
 # https://github.com/openai/openai-cookbook/blob/main/examples/How_to_count_tokens_with_tiktoken.ipynb
 
-import json
-from typing import Any, Callable
+from __future__ import annotations
 
+import json
+import os
+from typing import TYPE_CHECKING, Any, Callable
+
+import tiktoken
 from pydantic import BaseModel
 
 from unique_toolkit._common.token.image_token_counting import (
@@ -14,6 +18,11 @@ from unique_toolkit.language_model import (
     LanguageModelMessages,
     LanguageModelName,
 )
+
+if TYPE_CHECKING:
+    from unique_toolkit.language_model.infos import LanguageModelInfo
+
+DEFAULT_ENCODING = os.getenv("UNIQUE_DEFAULT_TOKENIZER_ENCODING", "cl100k_base")
 
 
 class SpecialToolCallingTokens(BaseModel):
@@ -202,3 +211,15 @@ def num_token_for_language_model_messages(
     encode: Callable[[str], list[int]],
 ) -> int:
     return num_tokens_from_messages(messages_to_openai_messages(messages), encode)
+
+
+def count_tokens(text: str, model: LanguageModelInfo | None = None) -> int:
+    """Count tokens for a text string using the model's tokenizer."""
+    if not text:
+        return 0
+
+    if model is None:
+        encoder = tiktoken.get_encoding(DEFAULT_ENCODING)
+        return len(encoder.encode(text))
+
+    return len(model.get_encoder()(text))

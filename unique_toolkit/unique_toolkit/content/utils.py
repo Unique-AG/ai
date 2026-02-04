@@ -2,6 +2,7 @@ import re
 
 import tiktoken
 import unique_sdk
+from typing_extensions import deprecated
 
 from unique_toolkit.content.schemas import Content, ContentChunk, ContentMetadata
 
@@ -170,6 +171,7 @@ def pick_content_chunks_for_token_window(
     return picked_chunks
 
 
+@deprecated("Use unique_toolkit._common.token.count_tokens(text, model_info) instead.")
 def count_tokens(text: str, encoding_model="cl100k_base") -> int:
     """
     Counts the number of tokens in the provided text.
