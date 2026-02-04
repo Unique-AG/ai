@@ -113,7 +113,7 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
         )
 
         # Notify progress if reporter is available
-        if self._tool_progress_reporter and not feature_flags.is_new_answers_ui_enabled(
+        if self._tool_progress_reporter and not feature_flags.enable_new_answers_ui_un_14411.is_enabled(
             self.event.company_id
         ):
             await self._tool_progress_reporter.notify_from_tool_call(
@@ -145,7 +145,7 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
             # Notify completion
             if (
                 self._tool_progress_reporter
-                and not feature_flags.is_new_answers_ui_enabled(self.event.company_id)
+                and not feature_flags.enable_new_answers_ui_un_14411.is_enabled(self.event.company_id)
             ):
                 await self._tool_progress_reporter.notify_from_tool_call(
                     tool_call=tool_call,
@@ -169,7 +169,7 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
             # Notify failure
             if (
                 self._tool_progress_reporter
-                and not feature_flags.is_new_answers_ui_enabled(self.event.company_id)
+                and not feature_flags.enable_new_answers_ui_un_14411.is_enabled(self.event.company_id)
             ):
                 await self._tool_progress_reporter.notify_from_tool_call(
                     tool_call=tool_call,

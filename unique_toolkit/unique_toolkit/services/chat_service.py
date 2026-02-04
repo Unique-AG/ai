@@ -117,15 +117,12 @@ class ChatService(ChatServiceDeprecated):
     @property
     def elicitation(self) -> ElicitationService:
         """Get the ElicitationService for this chat session."""
-        if self._elicitation_service is None:
-            self._elicitation_service = ElicitationService(
-                company_id=self._company_id,
-                user_id=self._user_id,
-                chat_id=self._chat_id,
-                message_id=self._assistant_message_id,
-            )
+        if self._elicitation_service is not None:
             return self._elicitation_service
 
+        # Create the ElicitationService from the chat event (dynamically selects correlation or chat and message)
+        self._elicitation_service = ElicitationService.from_chat_event(self._event)
+        
         return self._elicitation_service
 
     async def update_debug_info_async(self, debug_info: dict):

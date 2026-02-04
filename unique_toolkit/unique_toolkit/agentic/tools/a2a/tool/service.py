@@ -323,7 +323,7 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
     ) -> None:
         if (
             self.tool_progress_reporter is not None
-            and not feature_flags.is_new_answers_ui_enabled(self._company_id)
+            and not feature_flags.enable_new_answers_ui_un_14411.is_enabled(self._company_id)
         ):
             await self.tool_progress_reporter.notify_from_tool_call(
                 tool_call=tool_call,

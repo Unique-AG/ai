@@ -1,7 +1,7 @@
 from typing import Any
 
 from unique_toolkit._common.validate_required_values import validate_required_values
-from unique_toolkit.app.schemas import BaseEvent, ChatEvent, Event
+from unique_toolkit.app.schemas import ChatEvent, Correlation
 from unique_toolkit.elicitation.functions import (
     create_elicitation,
     create_elicitation_async,
@@ -51,28 +51,46 @@ class ElicitationService:
         self._message_id = message_id
 
     @classmethod
-    def from_event(cls, event: BaseEvent):
+    def from_chat_event(cls, event: ChatEvent):
         """
         Create an ElicitationService from an event.
-
-        Args:
-            event (BaseEvent): The event object.
-
-        Returns:
-            ElicitationService: The ElicitationService instance.
         """
-        chat_id = None
-        message_id = None
+        if event.payload.correlation:
+            return cls.from_correlation(
+                company_id=event.company_id,
+                user_id=event.user_id,
+                correlation=event.payload.correlation,
+            )
+        else:
+            return cls.from_chat_and_message(
+                company_id=event.company_id,
+                user_id=event.user_id,
+                chat_id=event.payload.chat_id,
+                message_id=event.payload.user_message.id,
+            )
 
-        if isinstance(event, (ChatEvent, Event)):
-            chat_id = event.payload.chat_id
-            # Use user_message.id as the message_id
-            if hasattr(event.payload, "user_message") and event.payload.user_message:
-                message_id = event.payload.user_message.id
-
+    @classmethod
+    def from_correlation(cls, company_id: str, user_id: str, correlation: Correlation):
+        """
+        Create an ElicitationService from a correlation.
+        """
         return cls(
-            company_id=event.company_id,
-            user_id=event.user_id,
+            company_id=company_id,
+            user_id=user_id,
+            chat_id=correlation.parent_chat_id,
+            message_id=correlation.parent_message_id,
+        )
+
+    @classmethod
+    def from_chat_and_message(
+        cls, company_id: str, user_id: str, chat_id: str, message_id: str
+    ):
+        """
+        Create an ElicitationService from a chat and message.
+        """
+        return cls(
+            company_id=company_id,
+            user_id=user_id,
             chat_id=chat_id,
             message_id=message_id,
         )
