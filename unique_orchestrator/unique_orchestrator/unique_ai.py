@@ -163,7 +163,9 @@ class UniqueAI:
         """
         self._logger.info("Start LoopAgent...")
 
-        if not feature_flags.is_new_answers_ui_enabled(self._event.company_id):
+        if not feature_flags.enable_new_answers_ui_un_14411.is_enabled(
+            self._event.company_id
+        ):
             self._chat_service.modify_assistant_message(
                 content="Starting agentic loop..."  # TODO: this must be more informative
             )
