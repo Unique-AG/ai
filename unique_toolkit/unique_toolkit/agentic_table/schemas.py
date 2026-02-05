@@ -39,6 +39,7 @@ class MagicTableEventTypes(StrEnum):
     SHEET_COMPLETED = "unique.magic-table.sheet-completed"
     LIBRARY_SHEET_ROW_VERIFIED = "unique.magic-table.library-sheet-row.verified"
     SHEET_CREATED = "unique.magic-table.sheet-created"
+    RERUN_ROW = "unique.magic-table.rerun-row"
 
 
 class BaseMetadata(BaseModel):
@@ -204,6 +205,30 @@ class MagicTableLibrarySheetRowVerifiedPayload(
 ): ...
 
 
+########## Rerun Row Payload ##########
+
+
+class RerunRowMetadata(BaseMetadata):
+    model_config = get_configuration_dict()
+    source_file_ids: list[str] = Field(
+        description="The IDs of the source files to be used for this rerun"
+    )
+    row_order: int = Field(description="The row index of the row to rerun.")
+    context: str = Field(default="", description="The context text for the rerun.")
+
+    @field_validator("context", mode="before")
+    @classmethod
+    def normalize_context(cls, v):
+        if v is None:
+            return ""
+        return v
+
+
+class MagicTableRerunRowPayload(
+    MagicTableBasePayload[Literal[MagicTableAction.RERUN_ROW], RerunRowMetadata]
+): ...
+
+
 ########### Magic Table Event definition ###########
 
 
@@ -214,6 +239,7 @@ PayloadTypes = (
     | MagicTableSheetCompletedPayload
     | MagicTableLibrarySheetRowVerifiedPayload
     | MagicTableSheetCreatedPayload
+    | MagicTableRerunRowPayload
 )
 
 MagicTablePayloadTypes = Annotated[PayloadTypes, Field(discriminator="action")]

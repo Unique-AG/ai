@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_toolkit"
-version = "1.45.9"
+version = "1.45.10"
 description = ""
 authors = [
     "Cedric Klinkert <cedric.klinkert@unique.ch>",
@@ -28,7 +28,7 @@ sseclient = "^0.0.27"
 openai = "^1.99.9"
 platformdirs = "^4.0.0"
 pillow = "^10.4.0"
-unique-sdk = "^0.10.67"
+unique-sdk = "^0.10.77"
 jambo = "^0.1.2"
 jinja2 = "^3.1.6"
 docxtpl = "^0.20.1"
