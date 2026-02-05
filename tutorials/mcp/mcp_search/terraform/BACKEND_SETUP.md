@@ -269,11 +269,39 @@ container_name = "tfstate-dev"
 
 ## State Locking
 
-Azure Storage backend automatically provides state locking:
-- When you run `terraform apply`, it creates a lock file
+Azure Storage backend automatically provides state locking to prevent concurrent modifications:
+
+### How It Works
+- When you run `terraform apply`, it creates a lock on the state file
 - Other users will see: "Error: Error acquiring the state lock"
 - Lock is released when `terraform apply` completes (or fails)
-- Manual unlock: `terraform force-unlock <lock-id>`
+
+### Handling Lock Errors
+
+If you see a state lock error:
+
+```
+Error: Error acquiring the state lock
+Lock Info:
+  ID:        xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+  Path:      ...
+  Operation: OperationTypePlan
+  Who:       user@host
+  Created:   2026-02-05 14:30:00.000000000 +0000 UTC
+```
+
+**Do NOT automatically bypass the lock!** The lock exists for a reason:
+
+1. **Wait for the other operation to complete** - Another team member may be running Terraform
+2. **Check if the operation is still running** - Contact the person shown in "Who:"
+3. **If the operation was interrupted** (e.g., Ctrl+C, network loss), manually unlock:
+
+```bash
+# Only use this if you're SURE no other operation is running
+terraform force-unlock <LOCK_ID>
+```
+
+**Warning**: Force-unlocking while another operation is running can corrupt your state file!
 
 ## Troubleshooting
 
