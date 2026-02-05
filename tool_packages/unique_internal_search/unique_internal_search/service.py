@@ -133,20 +133,22 @@ class InternalSearchService:
         ###
         chat_only = await self.is_chat_only(**kwargs)
 
-        """
-        Handle the fact that metadata can exclude uploaded content
-        and that the search service is hardcoded to use the metadata_filter 
-        from the event if set to None
-        """
-        # Take a backup of the metadata filter
+        # Take a backup of the metadata filter to restore later
         metadata_filter_copy = self.content_service._metadata_filter
 
-        if metadata_filter is None:
-            metadata_filter = self.content_service._metadata_filter
-        if chat_only and metadata_filter:
-            # if this is not set to none search_content_chunks_async will overwrite it inside its call thats why it needs to stay.
+        # Determine the effective metadata filter:
+        # - chat_only=True: no metadata filtering (must also clear service filter
+        #   because search_content_chunks_async would otherwise use it)
+        # - chat_only=False: use provided filter or fall back to service default
+        if chat_only:
             self.content_service._metadata_filter = None
             metadata_filter = None
+        else:
+            if metadata_filter is None:
+                metadata_filter = self.content_service._metadata_filter
+            # If still no metadata filter available, treat as chat_only. No metadata filter means that no files are selected from the knowledge base.
+            if metadata_filter is None:
+                chat_only = True
 
         # Run all searches in parallel
         results = await asyncio.gather(
