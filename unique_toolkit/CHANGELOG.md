@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add correlation support to sub-agent tool for better message tracking
 - Update MCP tool wrapper and sub-agent tool to use new feature flag system
 
+## [1.45.10] - 2026-02-05
+- Add `RERUN_ROW` event type and `MagicTableRerunRowPayload` for targeted row re-execution in Agentic Tables
+
 ## [1.45.9] - 2026-02-03
 - Add feature flag `FEATURE_FLAG_ENABLE_HTML_RENDERING_UN_15131` for HTML rendering support
 - Put HTML rendering for code interpreter files behind the feature flag
