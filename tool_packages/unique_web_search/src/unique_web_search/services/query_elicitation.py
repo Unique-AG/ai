@@ -11,7 +11,10 @@ from typing import Self
 from pydantic import BaseModel, ConfigDict, Field, create_model
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.elicitation import (
-    Elicitation,
+    ElicitationCancelledException,
+    ElicitationDeclinedException,
+    ElicitationExpiredException,
+    ElicitationFailedException,
     ElicitationMode,
     ElicitationStatus,
 )
@@ -84,56 +87,26 @@ class QueryElicitationService:
         self._display_name = display_name
         self._timeout_seconds = timeout_seconds
 
-    def get_callbacks(self):
-        """Get creator and evaluator callbacks for query elicitation.
+    async def __call__(self, queries: list[str]) -> list[str]:
+        try:
+            _LOGGER.info("Creating elicitation...")
 
-        Returns a tuple of two async functions that can be used by executors:
-        - creator: Creates an elicitation with pre-populated queries
-        - evaluator: Waits for and evaluates the elicitation response
-
-        The callbacks close over this service instance, maintaining Protocol
-        compatibility with ElicitationCreator and ElicitationEvaluator.
-
-        Returns:
-            Tuple of (creator, evaluator) async callables
-        """
-
-        async def creator(queries: list[str]) -> Elicitation:
-            """Create an elicitation with the provided queries.
-
-            Args:
-                queries: List of query strings to present to the user
-
-            Returns:
-                Created elicitation object
-            """
             model = QueryElicitationModel.create_model_with_default_queries(queries)
-            return await self._chat_service.elicitation.create_async(
+            elicitation = await self._chat_service.elicitation.create_async(
                 mode=ElicitationMode.FORM,
                 tool_name=self._display_name,
                 message="Approve Web Search?",
                 json_schema=model.model_json_schema(),
                 expires_in_seconds=self._timeout_seconds,
             )
+            _LOGGER.info(
+                f"Elicitation created: {elicitation.id}. Waiting for user response for {self._timeout_seconds} seconds..."
+            )
 
-        async def evaluator(elicitation_id: str) -> list[str]:
-            """Evaluate an elicitation by waiting for user response.
-
-            Polls the elicitation status until it's accepted or times out.
-
-            Args:
-                elicitation_id: ID of the elicitation to evaluate
-
-            Returns:
-                List of approved/modified queries from the user
-
-            Raises:
-                ValueError: If elicitation is not accepted within timeout
-            """
             for _ in range(self._timeout_seconds):
                 await asyncio.sleep(1)
                 elicitation = await self._chat_service.elicitation.get_async(
-                    elicitation_id=elicitation_id,
+                    elicitation_id=elicitation.id,
                 )
                 if elicitation.status == ElicitationStatus.ACCEPTED:
                     _LOGGER.info(f"Query elicitation {elicitation.id} accepted")
@@ -141,6 +114,30 @@ class QueryElicitationService:
                         elicitation.response_content
                     ).queries
 
-            raise ValueError(f"Query elicitation {elicitation_id} not accepted")
+                elif elicitation.status == ElicitationStatus.DECLINED:
+                    _LOGGER.info(f"Query elicitation {elicitation.id} declined")
+                    raise ElicitationDeclinedException(
+                        f"Elicitation triggerd with queries {queries} was declined"
+                    )
 
-        return creator, evaluator
+                elif elicitation.status == ElicitationStatus.CANCELLED:
+                    _LOGGER.info(f"Query elicitation {elicitation.id} cancelled")
+                    raise ElicitationCancelledException(
+                        f"Elicitation triggerd with queries {queries} was cancelled"
+                    )
+
+            raise ElicitationExpiredException(
+                f"Query elicitation {elicitation.id} not accepted"
+            )
+        except (
+            ElicitationDeclinedException,
+            ElicitationCancelledException,
+            ElicitationExpiredException,
+        ):
+            # Re-raise these specific elicitation exceptions to preserve their messages
+            raise
+        except Exception as e:
+            _LOGGER.exception(f"Error eliciting queries: {e}")
+            raise ElicitationFailedException(
+                "Unexpected error occurred while eliciting queries"
+            )

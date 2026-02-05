@@ -5,7 +5,7 @@ for web search executors, reducing parameter redundancy in __init__ methods.
 """
 
 from dataclasses import dataclass
-from typing import Awaitable, Optional, Protocol, TypeVar
+from typing import Optional, Protocol, TypeVar
 
 from pydantic import BaseModel
 from unique_toolkit import LanguageModelService
@@ -17,10 +17,7 @@ from unique_toolkit._common.validators import LMI
 from unique_toolkit.agentic.tools.tool_progress_reporter import (
     ToolProgressReporter,
 )
-from unique_toolkit.chat.schemas import MessageLog, MessageLogStatus
-from unique_toolkit.elicitation import Elicitation
 
-from unique_web_search.schema import StepType
 from unique_web_search.services.content_processing import ContentProcessor, WebPageChunk
 from unique_web_search.services.crawlers import CrawlerTypes
 from unique_web_search.services.search_engine import SearchEngineTypes
@@ -28,12 +25,6 @@ from unique_web_search.services.search_engine.schema import WebSearchResult
 from unique_web_search.utils import WebSearchDebugInfo
 
 ElicitationModel = TypeVar("ElicitationModel", bound=BaseModel)
-
-
-class WebSearchLogEntry(BaseModel):
-    type: StepType
-    message: str
-    web_search_results: list[WebSearchResult]
 
 
 @dataclass
@@ -84,21 +75,17 @@ class ContentReducer(Protocol):
 
 
 class MessageLogCallback(Protocol):
-    def __call__(
-        self,
-        *,
-        progress_message: str | None = None,
-        queries_for_log: list[WebSearchLogEntry] | list[str] | None = None,
-        status: MessageLogStatus | None = None,
-    ) -> MessageLog | None: ...
+    async def log_progress(self, progress_message: str) -> None: ...
+
+    async def log_queries(self, queries: list[str]) -> None: ...
+
+    async def log_web_search_results(
+        self, web_search_results: list[WebSearchResult]
+    ) -> None: ...
 
 
-class ElicitationCreator(Protocol):
-    def __call__(self, queries: list[str]) -> Awaitable[Elicitation]: ...
-
-
-class ElicitationEvaluator(Protocol):
-    def __call__(self, elicitation_id: str) -> Awaitable[list[str]]: ...
+class QueryElicitationProtocol(Protocol):
+    async def __call__(self, queries: list[str]) -> list[str]: ...
 
 
 @dataclass
@@ -118,6 +105,5 @@ class ExecutorCallbacks:
 
     message_log_callback: MessageLogCallback
     content_reducer: ContentReducer
-    query_elicitation_creator: ElicitationCreator
-    query_elicitation_evaluator: ElicitationEvaluator
+    query_elicitation: QueryElicitationProtocol
     tool_progress_reporter: Optional[ToolProgressReporter] = None

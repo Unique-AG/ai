@@ -12,7 +12,6 @@ from unique_web_search.schema import (
 )
 from unique_web_search.services.executors.base_executor import (
     BaseWebSearchExecutor,
-    WebSearchLogEntry,
 )
 from unique_web_search.services.executors.context import (
     ExecutorCallbacks,
@@ -54,7 +53,6 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
 
         self.tool_parameters = tool_parameters
         self.max_steps = max_steps
-        self.queries_for_log: list[WebSearchLogEntry] = []
 
     @property
     def notify_name(self):
@@ -72,7 +70,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
     def notify_message(self, value):
         self._notify_message = value
 
-    async def run(self) -> tuple[list[ContentChunk], list[WebSearchLogEntry]]:
+    async def run(self) -> list[ContentChunk]:
         await self._enforce_max_steps()
 
         results: list[WebSearchResult] = []
@@ -80,9 +78,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
         self.notify_message = self.tool_parameters.objective
 
         await self.notify_callback()
-        self._message_log_callback(
-            progress_message="_Searching Web_", queries_for_log=self.queries_for_log
-        )
+        await self._message_log_callback.log_progress("_Searching Web_")
 
         elicitated_steps = await self._elicitate_steps(self.tool_parameters.steps)
 
@@ -108,10 +104,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
         self.notify_name = "**Analyzing Web Pages**"
         self.notify_message = self.tool_parameters.expected_outcome
         await self.notify_callback()
-        self._message_log_callback(
-            progress_message="_Analyzing Web Pages_",
-            queries_for_log=self.queries_for_log,
-        )
+        await self._message_log_callback.log_progress("_Analyzing Web Pages_")
 
         content_results = await self._content_processing(
             self.tool_parameters.objective, results
@@ -121,16 +114,13 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
             self.notify_name = "**Resorting Sources**"
             self.notify_message = self.tool_parameters.objective
             await self.notify_callback()
-            self._message_log_callback(
-                progress_message="_Resorting Sources_",
-                queries_for_log=self.queries_for_log,
-            )
+            await self._message_log_callback.log_progress("_Resorting Sources_")
 
         relevant_sources = await self._select_relevant_sources(
             self.tool_parameters.objective, content_results
         )
 
-        return relevant_sources, self.queries_for_log
+        return relevant_sources
 
     async def _execute_step(self, step: Step) -> list[WebSearchResult]:
         if step.step_type == StepType.SEARCH:
@@ -153,14 +143,9 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
         time_start = time()
         _LOGGER.info(f"Company {self.company_id} Searching with {self.search_service}")
 
+        await self._message_log_callback.log_queries([step.query_or_url])
         results = await self.search_service.search(step.query_or_url)
-        self.queries_for_log.append(
-            WebSearchLogEntry(
-                type=StepType.SEARCH,
-                message=step.query_or_url,
-                web_search_results=results,
-            )
-        )
+        await self._message_log_callback.log_web_search_results(results)
 
         delta_time = time() - time_start
 
@@ -220,20 +205,17 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
         )
         time_start = time()
         _LOGGER.info(f"Company {self.company_id} Crawling with {self.crawler_service}")
+
         results = await self.crawler_service.crawl([step.query_or_url])
-        self.queries_for_log.append(
-            WebSearchLogEntry(
-                type=StepType.READ_URL,
-                message=f"{step.query_or_url}",
-                web_search_results=[
-                    WebSearchResult(
-                        url=step.query_or_url,
-                        content=results[0],  # .content or "",
-                        snippet=step.objective,
-                        title=step.objective,
-                    )
-                ],
-            )
+        await self._message_log_callback.log_web_search_results(
+            [
+                WebSearchResult(
+                    url=step.query_or_url,
+                    content=results[0],  # .content or "",
+                    snippet=step.objective,
+                    title=step.objective,
+                )
+            ]
         )
         delta_time = time() - time_start
         _LOGGER.debug(
@@ -306,7 +288,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
 
         # Extract queries and elicit user approval/modifications
         search_queries = [step.query_or_url for step in search_steps]
-        elicited_queries = await self._elicitate_queries(search_queries)
+        elicited_queries = await self._ff_elicitate_queries(search_queries)
 
         # Reconstruct search steps with elicited queries
         # Note: Objectives are cleared as elicitation may have changed query intent

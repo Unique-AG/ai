@@ -2,7 +2,6 @@ from unique_web_search.services.executors.context import (
     ExecutorCallbacks,
     ExecutorConfiguration,
     ExecutorServiceContext,
-    WebSearchLogEntry,
 )
 from unique_web_search.services.executors.web_search_v1_executor import (
     WebSearchV1Executor,
@@ -17,5 +16,4 @@ __all__ = [
     "ExecutorServiceContext",
     "ExecutorConfiguration",
     "ExecutorCallbacks",
-    "WebSearchLogEntry",
 ]

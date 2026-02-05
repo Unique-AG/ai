@@ -10,10 +10,9 @@ from unique_toolkit.content import ContentChunk
 from unique_toolkit.language_model import LanguageModelFunction
 from unique_toolkit.language_model.builder import MessagesBuilder
 
-from unique_web_search.schema import StepType, WebSearchToolParameters
+from unique_web_search.schema import WebSearchToolParameters
 from unique_web_search.services.executors.base_executor import (
     BaseWebSearchExecutor,
-    WebSearchLogEntry,
 )
 from unique_web_search.services.executors.configs import RefineQueryMode
 from unique_web_search.services.executors.context import (
@@ -153,7 +152,7 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
         self.refine_query_system_prompt = refine_query_system_prompt
         self.max_queries = max_queries
 
-    async def run(self) -> tuple[list[ContentChunk], list[WebSearchLogEntry]]:
+    async def run(self) -> list[ContentChunk]:
         query = self.tool_parameters.query
         date_restrict = self.tool_parameters.date_restrict
 
@@ -161,24 +160,22 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
         self.notify_message = query_params_to_human_string(query, date_restrict)
         await self.notify_callback()
 
-        self._active_message_log = self._message_log_callback(
-            progress_message=f"_Refining Query:_ {self.notify_message}"
+        await self._message_log_callback.log_progress(
+            f"_Refining Query:_ {self.notify_message}"
         )
         refined_queries, objective = await self._refine_query(query)
 
-        elicitated_queries = await self._elicitate_queries(refined_queries)
+        elicitated_queries = await self._ff_elicitate_queries(refined_queries)
 
         web_search_results = []
         # Pass query strings only - callback handles creating WebSearchLogEntry objects
+
         queries_wo_results = [
             query_params_to_human_string(refined_query, date_restrict)
             for refined_query in elicitated_queries
         ]
-        self._active_message_log = self._message_log_callback(
-            queries_for_log=queries_wo_results
-        )
+        await self._message_log_callback.log_queries(queries_wo_results)
 
-        queries_for_log = []
         for index, query in enumerate(elicitated_queries):
             if len(refined_queries) > 1:
                 self.notify_name = (
@@ -189,29 +186,19 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
 
             self.notify_message = query_params_to_human_string(query, date_restrict)
             await self.notify_callback()
+            await self._message_log_callback.log_progress(self.notify_message)
 
             search_results = await self._search(query, date_restrict=date_restrict)
-            queries_for_log.append(
-                WebSearchLogEntry(
-                    type=StepType.SEARCH,
-                    message=self.notify_message,
-                    web_search_results=search_results,
-                )
-            )
+
+            await self._message_log_callback.log_web_search_results(search_results)
 
             web_search_results.extend(search_results)
-
-        self._active_message_log = self._message_log_callback(
-            queries_for_log=queries_for_log
-        )
 
         if self.search_service.requires_scraping:
             self.notify_name = "**Crawling URLs**"
             self.notify_message = f"{len(web_search_results)} URLs to fetch"
             await self.notify_callback()
-            self._active_message_log = self._message_log_callback(
-                progress_message="_Crawling URLs_", queries_for_log=queries_for_log
-            )
+            await self._message_log_callback.log_progress("_Crawling URLs_")
             crawl_results = await self._crawl(web_search_results)
             for web_search_result, crawl_result in zip(
                 web_search_results, crawl_results
@@ -221,9 +208,7 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
         self.notify_name = "**Analyzing Web Pages**"
         self.notify_message = objective
         await self.notify_callback()
-        self._active_message_log = self._message_log_callback(
-            progress_message="_Analyzing Web Pages_", queries_for_log=queries_for_log
-        )
+        await self._message_log_callback.log_progress("_Analyzing Web Pages_")
 
         content_results = await self._content_processing(objective, web_search_results)
 
@@ -231,15 +216,13 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
             self.notify_name = "**Resorting Sources**"
             self.notify_message = objective
             await self.notify_callback()
-            self._active_message_log = self._message_log_callback(
-                progress_message="_Resorting Sources_", queries_for_log=queries_for_log
-            )
+            await self._message_log_callback.log_progress("_Resorting Sources_")
 
         relevant_sources = await self._select_relevant_sources(
             objective, content_results
         )
 
-        return relevant_sources, queries_for_log
+        return relevant_sources
 
     async def _refine_query(self, query: str) -> tuple[list[str], str]:
         start_time = time()

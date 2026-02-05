@@ -15,7 +15,6 @@ from unique_web_search.services.executors.context import (
     ExecutorCallbacks,
     ExecutorConfiguration,
     ExecutorServiceContext,
-    WebSearchLogEntry,
 )
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
@@ -50,8 +49,7 @@ class BaseWebSearchExecutor(ABC):
         # Extract from callbacks
         self._message_log_callback = callbacks.message_log_callback
         self.content_reducer = callbacks.content_reducer
-        self.query_elicitation_creator = callbacks.query_elicitation_creator
-        self.query_elicitation_evaluator = callbacks.query_elicitation_evaluator
+        self.query_elicitation = callbacks.query_elicitation
         self.tool_progress_reporter = callbacks.tool_progress_reporter
 
         # Store tool parameters
@@ -91,9 +89,7 @@ class BaseWebSearchExecutor(ABC):
         self._notify_message = value
 
     @abstractmethod
-    async def run(
-        self,
-    ) -> tuple[list[ContentChunk], list[WebSearchLogEntry]]:
+    async def run(self) -> list[ContentChunk]:
         raise NotImplementedError("Subclasses must implement this method.")
 
     async def _content_processing(
@@ -148,21 +144,11 @@ class BaseWebSearchExecutor(ABC):
         else:
             return content
 
-    async def _elicitate_queries(self, queries: list[str]) -> list[str]:
+    async def _ff_elicitate_queries(self, queries: list[str]) -> list[str]:
         if not feature_flags.enable_elicitation_un_15809.is_enabled(self.company_id):
             return queries
-        
+
         # Create a query elicitation
-        elicitation = await self.query_elicitation_creator(queries)
+        elicitation = await self.query_elicitation(queries)
 
-        _LOGGER.info(f"Query `{queries}` elicitation created: {elicitation.id}")
-
-        # Wait for the elicitation to be accepted
-        try:
-            elicitation_accepted = await self.query_elicitation_evaluator(
-                elicitation.id
-            )
-            return elicitation_accepted
-        except Exception as e:
-            _LOGGER.exception(f"Error eliciting queries: {e}")
-            return []
+        return elicitation
