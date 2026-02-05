@@ -29,7 +29,11 @@ from unique_toolkit.app import (
     EventName,
 )
 from unique_toolkit.content.schemas import ContentChunk
-from unique_toolkit.language_model.infos import LanguageModelInfo, LanguageModelName
+from unique_toolkit.language_model.infos import (
+    EncoderName,
+    LanguageModelInfo,
+    LanguageModelName,
+)
 from unique_toolkit.language_model.schemas import (
     LanguageModelAssistantMessage,
     LanguageModelMessage,
