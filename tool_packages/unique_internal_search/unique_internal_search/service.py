@@ -150,6 +150,15 @@ class InternalSearchService:
             if metadata_filter is None:
                 chat_only = True
 
+        has_no_searchable_content = (
+            metadata_filter is None and await self.get_uploaded_files() is None
+        )
+        if has_no_searchable_content:
+            self.debug_info = self._build_debug_info(
+                search_strings, metadata_filter, chat_only
+            )
+            return []
+
         # Run all searches in parallel
         results = await asyncio.gather(
             *[
@@ -233,12 +242,22 @@ class InternalSearchService:
         else:
             selected_chunks = sort_content_chunks(selected_chunks)
 
-        self.debug_info = {
+        self.debug_info = self._build_debug_info(
+            search_strings, metadata_filter, chat_only
+        )
+        return selected_chunks
+
+    def _build_debug_info(
+        self,
+        search_strings: list[str],
+        metadata_filter: dict | None,
+        chat_only: bool,
+    ) -> dict:
+        return {
             "searchStrings": search_strings,
             "metadataFilter": metadata_filter,
             "chatOnly": chat_only,
         }
-        return selected_chunks
 
     async def _search_single_string(
         self,
@@ -562,11 +581,23 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             active_message_log=self._active_message_log,
         )
 
-        self._active_message_log = await self._create_or_update_active_message_log(
-            chunks=selected_chunks,
-            search_strings_list=search_strings_list,
-            status=MessageLogStatus.COMPLETED,
-        )
+        if len(selected_chunks) == 0:
+            self._active_message_log = await self._create_or_update_active_message_log(
+                progress_message="_No files available for search._",
+                search_strings_list=[],
+                status=MessageLogStatus.COMPLETED,
+            )
+            if not feature_flags.is_new_answers_ui_enabled(self.company_id):
+                await self.post_progress_message(
+                    message="_No files available for search._",
+                    tool_call=tool_call,
+                )
+        else:
+            self._active_message_log = await self._create_or_update_active_message_log(
+                chunks=selected_chunks,
+                search_strings_list=search_strings_list,
+                status=MessageLogStatus.COMPLETED,
+            )
 
         ## Modify metadata in chunks
         selected_chunks = append_metadata_in_chunks(
