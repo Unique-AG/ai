@@ -302,9 +302,21 @@ test_mcp_endpoint() {
     fi
     
     # Try domain first if available, otherwise use FQDN, then IP
-    if [ -n "$DOMAIN_NAME" ]; then
-        ENDPOINT="https://${DOMAIN_NAME}"
-        log_info "Testing via domain: $ENDPOINT"
+    if [ -n "$DOMAIN_NAME" ] && [ "$DOMAIN_NAME" != "null" ]; then
+        # Check if domain resolves (basic DNS check)
+        if nslookup "$DOMAIN_NAME" > /dev/null 2>&1; then
+            ENDPOINT="https://${DOMAIN_NAME}"
+            log_info "Testing via domain: $ENDPOINT"
+        else
+            log_warn "Domain $DOMAIN_NAME does not resolve, using FQDN instead"
+            if [ -n "$ACI_FQDN" ]; then
+                ENDPOINT="http://${ACI_FQDN}"
+                log_info "Testing via FQDN: $ENDPOINT"
+            else
+                ENDPOINT="http://${ACI_IP}"
+                log_info "Testing via IP: $ENDPOINT"
+            fi
+        fi
     elif [ -n "$ACI_FQDN" ]; then
         ENDPOINT="http://${ACI_FQDN}"
         log_info "Testing via FQDN: $ENDPOINT"
@@ -348,12 +360,38 @@ test_mcp_endpoint() {
     fi
     
     echo ""
+    log_info "Testing MCP protocol endpoints..."
+    if [ -n "$ACI_FQDN" ]; then
+        MCP_ENDPOINT="http://${ACI_FQDN}:8000"
+    else
+        MCP_ENDPOINT="$ENDPOINT"
+    fi
+    
+    log_info "Testing MCP initialization endpoint..."
+    INIT_RESPONSE=$(curl -s -m 10 -X POST "$MCP_ENDPOINT/mcp" \
+        -H "Content-Type: application/json" \
+        -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test-client","version":"1.0"}}}' 2>&1)
+    
+    if echo "$INIT_RESPONSE" | grep -q "jsonrpc"; then
+        log_info "✓ MCP protocol endpoint is responding"
+        echo "$INIT_RESPONSE" | head -10
+    else
+        log_warn "✗ MCP protocol endpoint test failed (may require authentication)"
+        log_info "Response: $INIT_RESPONSE"
+    fi
+    
+    echo ""
     log_info "Summary:"
     log_info "  Application URL: $ENDPOINT"
     log_info "  Health check: $ENDPOINT/health"
     if [ -n "$ACI_FQDN" ]; then
         log_info "  Direct access: http://${ACI_FQDN}:8000/health"
+        log_info "  MCP endpoint: http://${ACI_FQDN}:8000/mcp"
     fi
+    log_info ""
+    log_info "To test MCP protocol with authentication, use an MCP client:"
+    log_info "  - MCP Inspector: https://modelcontextprotocol.io/inspector"
+    log_info "  - Or use the Python client from src/mcp_search/mcp_client.py"
 }
 
 show_outputs() {

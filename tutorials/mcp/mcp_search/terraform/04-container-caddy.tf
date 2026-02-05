@@ -57,9 +57,28 @@ locals {
         cat > /etc/caddy/Caddyfile << CADDYFILE
         {
             email $${CADDY_EMAIL}
+            # Disable automatic HTTPS for testing (enable when DNS is configured)
+            auto_https disable_redirects
         }
 
+        # Serve domain (HTTPS when DNS configured, HTTP fallback)
         $${DOMAIN_NAME} {
+            reverse_proxy localhost:8000
+
+            header {
+                X-Content-Type-Options nosniff
+                X-Frame-Options DENY
+                Referrer-Policy strict-origin-when-cross-origin
+            }
+
+            log {
+                output stdout
+                format json
+            }
+        }
+
+        # Serve HTTP on port 80 for any host (testing without DNS)
+        :80 {
             reverse_proxy localhost:8000
 
             header {

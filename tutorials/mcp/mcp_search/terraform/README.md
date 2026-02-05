@@ -318,7 +318,7 @@ This shows:
 Test if your MCP application is responding:
 
 ```bash
-# Test the endpoint with curl
+# Automated test (recommended)
 ./deploy.sh test
 ```
 
@@ -326,19 +326,28 @@ This will:
 - Test the root endpoint (`/`)
 - Test the health endpoint (`/health`)
 - Test direct container access (bypassing Caddy)
+- Test MCP protocol endpoint (`/mcp`)
 - Show HTTP status codes and responses
 
-**Manual testing:**
+**Quick manual tests:**
 ```bash
-# Test via domain (if DNS configured)
-curl https://$(terraform output -raw application_url | sed 's|https\?://||')/health
+# Get endpoint URLs
+terraform output application_url
+terraform output aci_fqdn
 
-# Test via direct FQDN
+# Test health endpoint
 curl http://$(terraform output -raw aci_fqdn)/health
 
-# Test direct container access (bypassing Caddy)
+# Test direct container access
 curl http://$(terraform output -raw aci_fqdn):8000/health
+
+# Test MCP protocol endpoint
+curl -X POST http://$(terraform output -raw aci_fqdn):8000/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}'
 ```
+
+**📖 For detailed testing instructions, see [TESTING.md](./TESTING.md)**
 
 ### Viewing Container Logs
 
