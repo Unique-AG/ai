@@ -4,7 +4,6 @@ import logging
 from typing import Any, Callable
 
 from jinja2 import Template
-from tiktoken import get_encoding
 
 from unique_toolkit._common.experimental.write_up_agent.schemas import (
     GroupData,
@@ -55,25 +54,12 @@ class GenerationHandler:
         self._config = config
         self._renderer = renderer
 
-        # TODO [UN-16142]: Use token counter from toolkit
-        try:
-            encoder = get_encoding(self._config.language_model.encoder_name)
-        except Exception as e:
-            _LOGGER.warning(
-                f"Failed to get encoder for model {self._config.language_model.name}: {e}"
-            )
-            encoder = get_encoding("cl100k_base")
+        encoder = self._config.language_model.get_encoder()
 
         def token_counter(text: str) -> int:
-            return len(encoder.encode(text))
+            return len(encoder(text))
 
-        # Token counter (use provided or default to character approximation)
         self._token_counter = token_counter
-
-    def _default_token_counter(self, text: str) -> int:
-        """Default token counter using tiktoken encoding with cl100k_base."""
-        default_encoder = get_encoding("cl100k_base")
-        return len(default_encoder.encode(text))
 
     def process_groups(
         self,
