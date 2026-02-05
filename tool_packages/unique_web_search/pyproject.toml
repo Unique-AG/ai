@@ -76,6 +76,6 @@ target-version = "py312"
 [tool.ruff.lint]
 extend-select = ["I"]
 
-[tool.uv.sources]
-unique-sdk = { path = "../../unique-sdk", editable = true }
-unique_toolkit = { path = "../../unique_toolkit", editable = true }
+# [tool.uv.sources]
+# unique-sdk = { path = "../../unique-sdk", editable = true }
+# unique_toolkit = { path = "../../unique_toolkit", editable = true }
