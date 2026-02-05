@@ -148,8 +148,3 @@ variable "use_managed_identity_for_acr" {
   default     = true
 }
 
-variable "grant_rg_user_access_admin" {
-  description = "Grant current user 'User Access Administrator' role at resource group level to enable role assignments. Requires Contributor or Owner permissions."
-  type        = bool
-  default     = false
-}

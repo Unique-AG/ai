@@ -45,10 +45,6 @@ zitadel_client_secret = "your-zitadel-client-secret"
 # (will use ACR admin credentials instead of managed identity)
 # use_managed_identity_for_acr = false
 
-# Grant yourself User Access Administrator at resource group level
-# (requires Contributor or Owner permissions - run once, then you can create role assignments)
-# grant_rg_user_access_admin = true
-
 # tags = {
 #   project     = "mcp-search"
 #   managed_by  = "terraform"

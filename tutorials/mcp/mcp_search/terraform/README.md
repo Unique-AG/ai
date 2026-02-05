@@ -552,18 +552,7 @@ Add to your `terraform.tfvars`:
 use_managed_identity_for_acr = false
 ```
 
-**Solution 2** (Recommended): Grant yourself User Access Administrator at resource group level
-
-If you have Contributor or Owner permissions on the resource group:
-
-Add to your `terraform.tfvars`:
-```hcl
-grant_rg_user_access_admin = true
-```
-
-Run `terraform apply` once. After this succeeds, you can set `grant_rg_user_access_admin = false`.
-
-**Solution 3**: Ask an admin to grant the role
+**Solution 2**: Ask an admin to grant the role
 
 Have a subscription Owner or User Access Administrator run:
 ```bash
@@ -573,7 +562,7 @@ az role assignment create \
   --scope "/subscriptions/<subscription-id>/resourceGroups/<resource-group-name>"
 ```
 
-**Note**: The managed identity is still created and used for Key Vault access (via access policies, not role assignments), so that works regardless of this setting.
+**Note**: If you have Owner permissions on the resource group, you already have the ability to create role assignments. The managed identity is still created and used for Key Vault access via RBAC, so that works regardless of this setting.
 
 ### View Container Logs
 

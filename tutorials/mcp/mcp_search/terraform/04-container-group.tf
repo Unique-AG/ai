@@ -120,7 +120,7 @@ resource "azurerm_container_group" "main" {
   tags = var.tags
 
   depends_on = [
-    azurerm_key_vault_access_policy.aci,
+    azurerm_role_assignment.kv_secrets_user,
     azurerm_log_analytics_workspace.main,
   ]
 }

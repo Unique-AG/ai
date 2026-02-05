@@ -15,20 +15,15 @@ resource "azurerm_key_vault" "main" {
   soft_delete_retention_days = 7
   purge_protection_enabled   = false
 
-  # Access policy for Terraform deployment
-  access_policy {
-    tenant_id = data.azurerm_client_config.current.tenant_id
-    object_id = data.azurerm_client_config.current.object_id
-
-    secret_permissions = [
-      "Get",
-      "List",
-      "Set",
-      "Delete",
-      "Purge",
-      "Recover",
-    ]
-  }
+  # Use RBAC instead of access policies (access policies are deprecated)
+  enable_rbac_authorization = true
 
   tags = var.tags
+}
+
+# Grant Terraform deployment identity access to manage secrets via RBAC
+resource "azurerm_role_assignment" "kv_secrets_officer" {
+  scope                = azurerm_key_vault.main.id
+  role_definition_name = "Key Vault Secrets Officer"
+  principal_id         = data.azurerm_client_config.current.object_id
 }
