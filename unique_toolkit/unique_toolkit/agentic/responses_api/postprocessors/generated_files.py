@@ -172,7 +172,9 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 changed |= replaced
 
             # HTML (behind feature flag)
-            elif is_html and feature_flags.is_html_rendering_enabled(self._company_id):
+            elif is_html and feature_flags.enable_html_rendering_un_15131.is_enabled(
+                self._company_id
+            ):
                 loop_response.message.text, replaced = _replace_container_html_citation(
                     text=loop_response.message.text,
                     filename=filename,
@@ -189,8 +191,11 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 )
                 changed |= replaced
 
-            is_html_rendered = is_html and feature_flags.is_html_rendering_enabled(
-                self._company_id
+            is_html_rendered = (
+                is_html
+                and feature_flags.enable_html_rendering_un_15131.is_enabled(
+                    self._company_id
+                )
             )
             if replaced and not is_image and not is_html_rendered:
                 loop_response.message.references.append(

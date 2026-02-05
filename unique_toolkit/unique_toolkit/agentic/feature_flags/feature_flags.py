@@ -69,8 +69,8 @@ class FeatureFlags(BaseSettings):
         description="Enable elicitation (UN-15809)",
     )
 
-    feature_flag_enable_html_rendering_un_15131: str = Field(
-        default="",
+    enable_html_rendering_un_15131: FeatureFlag = Field(
+        default=FeatureFlag(False),
         description="Enable HTML rendering for code interpreter files (UN-15131). Can be 'true' or comma-separated company IDs.",
     )
 
@@ -82,9 +82,7 @@ class FeatureFlags(BaseSettings):
         env_file_encoding="utf-8",
     )
 
-    @field_validator(
-        "enable_new_answers_ui_un_14411", "enable_elicitation_un_15809", mode="before"
-    )
+    @field_validator("*", mode="before")
     @classmethod
     def parse_feature_flag(cls, v: Any) -> FeatureFlag:
         """Parse all feature flag fields from environment variables.
@@ -117,13 +115,6 @@ class FeatureFlags(BaseSettings):
 
         # Default to disabled (this handles default factory functions too)
         return FeatureFlag(False)
-
-    def is_html_rendering_enabled(self, company_id: str | None = None) -> bool:
-        """Check if HTML rendering is enabled for the given company."""
-        value = self.feature_flag_enable_html_rendering_un_15131
-        return value.lower() == "true" or bool(
-            company_id and company_id in [id.strip() for id in value.split(",")]
-        )
 
 
 # Initialize once at module load - import this where needed
