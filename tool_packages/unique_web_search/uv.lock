@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 2
 requires-python = ">=3.12, <4.0"
 resolution-markers = [
     "python_full_version >= '3.14'",
@@ -3437,8 +3437,8 @@ wheels = [
 
 [[package]]
 name = "unique-toolkit"
-version = "1.45.4"
-source = { registry = "https://pypi.org/simple" }
+version = "1.45.8"
+source = { editable = "../../unique_toolkit" }
 dependencies = [
     { name = "aiohttp" },
     { name = "docxtpl" },
@@ -3462,9 +3462,30 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "unique-sdk" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/77/a6/4ff8776c967fffa46a4e737c9612d196eeea642bf0ebb86ada100b8c907a/unique_toolkit-1.45.4.tar.gz", hash = "sha256:7dce157bbe280249dad85646d6540914184678fbb356898eaaa1d348c19c7d0d", size = 314935, upload-time = "2026-01-28T09:05:58.689Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/95/0b/de0e7766e500ca4c6ad70273bcf6e33979b127f26a6efdf093a6147db06e/unique_toolkit-1.45.4-py3-none-any.whl", hash = "sha256:81517c39735fab850aea51d5809c1efe96f9f11e661a46aeb55a53a37631d63f", size = 395455, upload-time = "2026-01-28T09:05:57.357Z" },
+
+[package.metadata]
+requires-dist = [
+    { name = "aiohttp", specifier = ">=3.12.0,<4.0.0" },
+    { name = "docxtpl", specifier = ">=0.20.1,<0.21.0" },
+    { name = "httpx", specifier = ">=0.28.0,<0.29.0" },
+    { name = "jambo", specifier = ">=0.1.2,<0.2.0" },
+    { name = "jinja2", specifier = ">=3.1.6,<4.0.0" },
+    { name = "markdown-it-py", specifier = ">=4.0.0,<5.0.0" },
+    { name = "numpy", specifier = ">=2.1.0,<3.0.0" },
+    { name = "openai", specifier = ">=1.99.9,<2.0.0" },
+    { name = "pandas", specifier = ">=2.3.0,<3.0.0" },
+    { name = "pillow", specifier = ">=10.4.0,<11.0.0" },
+    { name = "platformdirs", specifier = ">=4.0.0,<5.0.0" },
+    { name = "pydantic", specifier = ">=2.8.2,<3.0.0" },
+    { name = "pydantic-settings", specifier = ">=2.10.1,<3.0.0" },
+    { name = "pyhumps", specifier = ">=3.8.0,<4.0.0" },
+    { name = "python-docx", specifier = ">=1.1.0,<2.0.0" },
+    { name = "regex", specifier = ">=2024.5.15,<2025.0.0" },
+    { name = "requests", specifier = ">=2.32.0,<3.0.0" },
+    { name = "sseclient", specifier = ">=0.0.27,<0.0.28" },
+    { name = "tiktoken", specifier = ">=0.12.0,<0.13.0" },
+    { name = "typing-extensions", specifier = ">=4.9.0,<5.0.0" },
+    { name = "unique-sdk", specifier = ">=0.10.72,<0.11.0" },
 ]
 
 [[package]]
@@ -3531,7 +3552,7 @@ requires-dist = [
     { name = "timeout-decorator", specifier = ">=0.5.0,<1" },
     { name = "typing-extensions", specifier = ">=4.14.1,<5" },
     { name = "unidecode", specifier = ">=1.4.0,<2" },
-    { name = "unique-toolkit", specifier = ">=1.45.0,<2" },
+    { name = "unique-toolkit", editable = "../../unique_toolkit" },
 ]
 
 [package.metadata.requires-dev]

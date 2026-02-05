@@ -76,7 +76,7 @@ class VertexAI(SearchEngine[VertexAIConfig]):
         self,
         config: VertexAIConfig,
     ):
-        super().__init__(config)
+        super().__init__(config=config)
         self._client = get_vertex_client()
         self.is_configured = self._client is not None
 

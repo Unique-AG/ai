@@ -1,3 +1,4 @@
+import logging
 from time import time
 
 from typing_extensions import override
@@ -10,30 +11,31 @@ from unique_toolkit.agentic.tools.tool import (
     Tool,
 )
 from unique_toolkit.agentic.tools.tool_progress_reporter import ProgressState
-from unique_toolkit.chat.schemas import (
-    MessageLog,
-    MessageLogDetails,
-    MessageLogEvent,
-    MessageLogStatus,
-)
-from unique_toolkit.content import ContentReference
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelToolDescription,
 )
 
 from unique_web_search.config import WebSearchConfig
-from unique_web_search.schema import StepType, WebSearchPlan, WebSearchToolParameters
+from unique_web_search.schema import WebSearchPlan, WebSearchToolParameters
 from unique_web_search.services.content_processing import ContentProcessor, WebPageChunk
 from unique_web_search.services.crawlers import get_crawler_service
 from unique_web_search.services.executors import (
     WebSearchV1Executor,
     WebSearchV2Executor,
 )
-from unique_web_search.services.executors.base_executor import WebSearchLogEntry
 from unique_web_search.services.executors.configs import WebSearchMode
+from unique_web_search.services.executors.context import (
+    ExecutorCallbacks,
+    ExecutorConfiguration,
+    ExecutorServiceContext,
+)
+from unique_web_search.services.message_log import WebSearchMessageLogger
+from unique_web_search.services.query_elicitation import QueryElicitationService
 from unique_web_search.services.search_engine import get_search_engine_service
 from unique_web_search.utils import WebSearchDebugInfo, reduce_sources_to_token_limit
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class WebSearchTool(Tool[WebSearchConfig]):
@@ -59,7 +61,6 @@ class WebSearchTool(Tool[WebSearchConfig]):
         )
         self.debug = self.config.debug
         self._display_name = kwargs.get("display_name", "Web Search")
-        self._active_message_log: MessageLog | None = None
 
         def content_reducer(web_page_chunks: list[WebPageChunk]) -> list[WebPageChunk]:
             return reduce_sources_to_token_limit(
@@ -113,28 +114,30 @@ class WebSearchTool(Tool[WebSearchConfig]):
         )
 
         debug_info = WebSearchDebugInfo(parameters=parameters.model_dump())
-        executor = self._get_executor(tool_call, parameters, debug_info)
+
+        web_search_message_logger = WebSearchMessageLogger(
+            message_step_logger=self._message_step_logger,
+            tool_display_name=self.display_name(),
+        )
+        executor = self._get_executor(
+            tool_call, parameters, debug_info, web_search_message_logger
+        )
+
+        notify_from_tool_call = self._ff_tool_progress_reporter_callback()
 
         try:
-            content_chunks, queries_for_log = await executor.run()
+            content_chunks = await executor.run()
             debug_info.num_chunks_in_final_prompts = len(content_chunks)
             debug_info.execution_time = time() - start_time
 
-            self._active_message_log = self.create_or_update_active_message_log(
-                queries_for_log=queries_for_log,
-                status=MessageLogStatus.COMPLETED,
-            )
+            await web_search_message_logger.finished()
 
-            if (
-                not feature_flags.is_new_answers_ui_enabled(self.company_id)
-                and self.tool_progress_reporter
-            ):
-                await self.tool_progress_reporter.notify_from_tool_call(
-                    tool_call=tool_call,
-                    name=executor.notify_name,
-                    message=executor.notify_message,
-                    state=ProgressState.FINISHED,
-                )
+            await notify_from_tool_call(
+                tool_call=tool_call,
+                name=executor.notify_name,
+                message=executor.notify_message,
+                state=ProgressState.FINISHED,
+            )
 
             return ToolCallResponse(
                 id=tool_call.id,  # type: ignore
@@ -145,20 +148,14 @@ class WebSearchTool(Tool[WebSearchConfig]):
         except Exception as e:
             self.logger.exception(f"Error executing WebSearch tool: {e}")
 
-            self._active_message_log = self.create_or_update_active_message_log(
-                status=MessageLogStatus.COMPLETED,
-            )
+            await web_search_message_logger.failed()
 
-            if (
-                not feature_flags.is_new_answers_ui_enabled(self.company_id)
-                and self.tool_progress_reporter
-            ):
-                await self.tool_progress_reporter.notify_from_tool_call(
-                    tool_call=tool_call,
-                    name=executor.notify_name,
-                    message=executor.notify_message,
-                    state=ProgressState.FAILED,
-                )
+            await notify_from_tool_call(
+                tool_call=tool_call,
+                name=executor.notify_name,
+                message=executor.notify_message,
+                state=ProgressState.FAILED,
+            )
 
             return ToolCallResponse(
                 id=tool_call.id,  # type: ignore
@@ -172,63 +169,60 @@ class WebSearchTool(Tool[WebSearchConfig]):
         tool_call: LanguageModelFunction,
         parameters: WebSearchPlan | WebSearchToolParameters,
         debug_info: WebSearchDebugInfo,
+        web_search_message_logger: WebSearchMessageLogger,
     ) -> WebSearchV1Executor | WebSearchV2Executor:
-        # Create callback that wraps the service's create_or_update_active_message_log method
-        def message_log_callback(
-            *,
-            progress_message: str | None = None,
-            queries_for_log: list[WebSearchLogEntry] | list[str] | None = None,
-            status: MessageLogStatus | None = None,
-        ) -> MessageLog | None:
-            return self.create_or_update_active_message_log(
-                progress_message=progress_message,
-                queries_for_log=queries_for_log,
-                status=status,
-            )
+        # Initialize query elicitation service and get callbacks
+        elicitation_service = QueryElicitationService(
+            chat_service=self._chat_service,
+            display_name=self.display_name(),
+            timeout_seconds=self.config.query_elicitation_timeout_seconds,
+        )
+
+        # Build context objects
+        services = ExecutorServiceContext(
+            search_engine_service=self.search_engine_service,
+            crawler_service=self.crawler_service,
+            content_processor=self.content_processor,
+            language_model_service=self.language_model_service,
+            chunk_relevancy_sorter=self.chunk_relevancy_sorter,
+        )
+
+        config = ExecutorConfiguration(
+            language_model=self.language_model,
+            chunk_relevancy_sort_config=self.config.chunk_relevancy_sort_config,
+            company_id=self.company_id,
+            debug_info=debug_info,
+            activate_query_elicitation=self.config.activate_query_elicitation,
+        )
+
+        callbacks = ExecutorCallbacks(
+            message_log_callback=web_search_message_logger,
+            content_reducer=self.content_reducer,
+            query_elicitation=elicitation_service,
+            tool_progress_reporter=self._ff_tool_progress_reporter(),
+        )
 
         if isinstance(parameters, WebSearchPlan):
             assert self.config.web_search_mode_config.mode == WebSearchMode.V2
             return WebSearchV2Executor(
-                search_service=self.search_engine_service,
-                language_model_service=self.language_model_service,
-                language_model=self.language_model,
-                crawler_service=self.crawler_service,
+                services=services,
+                config=config,
+                callbacks=callbacks,
                 tool_call=tool_call,
                 tool_parameters=parameters,
-                company_id=self.company_id,
-                content_processor=self.content_processor,
-                chunk_relevancy_sorter=self.chunk_relevancy_sorter,
-                chunk_relevancy_sort_config=self.config.chunk_relevancy_sort_config,
-                tool_progress_reporter=self.tool_progress_reporter
-                if not feature_flags.is_new_answers_ui_enabled(self.company_id)
-                else None,
-                content_reducer=self.content_reducer,
                 max_steps=self.config.web_search_mode_config.max_steps,
-                debug_info=debug_info,
-                message_log_callback=message_log_callback,
             )
         elif isinstance(parameters, WebSearchToolParameters):
             assert self.config.web_search_mode_config.mode == WebSearchMode.V1
             return WebSearchV1Executor(
-                search_service=self.search_engine_service,
-                language_model_service=self.language_model_service,
-                language_model=self.language_model,
-                crawler_service=self.crawler_service,
+                services=services,
+                config=config,
+                callbacks=callbacks,
                 tool_call=tool_call,
                 tool_parameters=parameters,
-                company_id=self.company_id,
+                refine_query_system_prompt=self.config.web_search_mode_config.refine_query_mode.system_prompt,
                 mode=self.config.web_search_mode_config.refine_query_mode.mode,
                 max_queries=self.config.web_search_mode_config.max_queries,
-                content_processor=self.content_processor,
-                chunk_relevancy_sorter=self.chunk_relevancy_sorter,
-                chunk_relevancy_sort_config=self.config.chunk_relevancy_sort_config,
-                tool_progress_reporter=self.tool_progress_reporter
-                if not feature_flags.is_new_answers_ui_enabled(self.company_id)
-                else None,
-                content_reducer=self.content_reducer,
-                refine_query_system_prompt=self.config.web_search_mode_config.refine_query_mode.system_prompt,
-                debug_info=debug_info,
-                message_log_callback=message_log_callback,
             )
         else:
             raise ValueError(f"Invalid parameters: {parameters}")
@@ -244,65 +238,29 @@ class WebSearchTool(Tool[WebSearchConfig]):
             return []
         return evaluation_check_list
 
-    def _prepare_message_logs_entries(
-        self, queries_for_log: list[WebSearchLogEntry] | list[str]
-    ) -> tuple[MessageLogDetails, list[ContentReference]]:
-        # Handle list of strings (query strings only)
-        if queries_for_log and isinstance(queries_for_log[0], str):
-            queries_for_log = [
-                WebSearchLogEntry(
-                    type=StepType.SEARCH,
-                    message=query,
-                    web_search_results=[],
+    def _ff_tool_progress_reporter(self):
+        if not feature_flags.enable_new_answers_ui_un_14411.is_enabled(self.company_id):
+            return self.tool_progress_reporter
+        return None
+
+    def _ff_tool_progress_reporter_callback(self):
+        async def notify_from_tool_call(
+            tool_call: LanguageModelFunction,
+            name: str,
+            message: str,
+            state: ProgressState,
+        ):
+            if (
+                not feature_flags.enable_new_answers_ui_un_14411.is_enabled(
+                    self.company_id
                 )
-                for query in queries_for_log
-            ]
-
-        details = MessageLogDetails(
-            data=[
-                MessageLogEvent(
-                    type="WebSearch",
-                    text=query_for_log.message,
+                and self.tool_progress_reporter is not None
+            ):
+                await self.tool_progress_reporter.notify_from_tool_call(
+                    tool_call, name, message, state
                 )
-                for query_for_log in queries_for_log
-            ]
-        )
-        references = []
-        sequence_number = 0
-        for query_for_log in queries_for_log:
-            for web_search_result in query_for_log.web_search_results:
-                references.append(
-                    web_search_result.to_content_reference(sequence_number)
-                )
-                sequence_number += 1
 
-        return details, references
-
-    def create_or_update_active_message_log(
-        self,
-        *,
-        progress_message: str | None = None,
-        queries_for_log: list[WebSearchLogEntry] | list[str] | None = None,
-        status: MessageLogStatus | None = None,
-    ) -> MessageLog | None:
-        details = MessageLogDetails(data=[])
-        reference_list = []
-        if queries_for_log is not None:
-            details, reference_list = self._prepare_message_logs_entries(
-                queries_for_log
-            )
-
-        self._active_message_log = (
-            self._message_step_logger.create_or_update_message_log(
-                active_message_log=self._active_message_log,
-                header=self._display_name,
-                progress_message=progress_message,
-                details=details,
-                references=reference_list,
-                **({"status": status} if status is not None else {}),
-            )
-        )
-        return self._active_message_log
+        return notify_from_tool_call
 
 
 ToolFactory.register_tool(WebSearchTool, WebSearchConfig)
