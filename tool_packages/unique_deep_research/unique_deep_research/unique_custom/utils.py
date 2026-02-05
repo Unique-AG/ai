@@ -570,6 +570,7 @@ async def ainvoke_with_token_handling(
         try:
             return await model.ainvoke(prepared_messages)
         except Exception as e:
+            _LOGGER.exception(f"Error invoking model: {e}")
             # Handle token errors by truncating history and retrying
             if is_token_error(e):
                 # Filtering is not perfect, so in unlikely case we need to truncate the message history to the last AI message
