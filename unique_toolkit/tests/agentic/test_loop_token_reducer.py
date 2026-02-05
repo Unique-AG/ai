@@ -860,7 +860,7 @@ def test_get_encoder__returns_correct_encoder__for_model_AI(
     language_model_info: LanguageModelInfo,
 ) -> None:
     """
-    Purpose: Verify _get_encoder returns correct tiktoken encoder.
+    Purpose: Verify _get_encoder returns correct encoder callable.
     Why this matters: Correct encoder is essential for accurate token counting.
     """
     # Arrange & Act
@@ -868,30 +868,28 @@ def test_get_encoder__returns_correct_encoder__for_model_AI(
 
     # Assert
     assert encoder is not None
+    assert callable(encoder)
     # Verify encoder works by encoding a simple string
-    tokens = encoder.encode("Hello world")
+    tokens = encoder("Hello world")
     assert len(tokens) > 0
 
 
 @pytest.mark.ai
-def test_get_encoder__uses_default__when_encoder_name_is_none_AI(
+def test_get_encoder__uses_model_get_encoder_AI(
     loop_token_reducer: LoopTokenReducer,
+    language_model_info: LanguageModelInfo,
 ) -> None:
     """
-    Purpose: Verify _get_encoder uses default when model has no encoder name.
-    Why this matters: Fallback to default encoder prevents errors.
+    Purpose: Verify _get_encoder uses language_model.get_encoder().
+    Why this matters: Ensures encoder is retrieved from model_info correctly.
     """
-    # Arrange
-    mock_model = MagicMock()
-    mock_model.encoder_name = None
-
-    # Act
-    encoder = loop_token_reducer._get_encoder(mock_model)
+    # Arrange & Act
+    encoder = loop_token_reducer._get_encoder(language_model_info)
 
     # Assert
     assert encoder is not None
-    # cl100k_base is the default
-    tokens = encoder.encode("Test")
+    assert callable(encoder)
+    tokens = encoder("Test")
     assert len(tokens) > 0
 
 
