@@ -1,11 +1,15 @@
+from typing import TYPE_CHECKING
+
 from unique_toolkit._common.token import count_tokens
 from unique_toolkit.chat.schemas import ChatMessage
-from unique_toolkit.language_model.infos import LanguageModelInfo
+
+if TYPE_CHECKING:
+    from unique_toolkit.language_model.infos import LanguageModelInfo
 
 
 def convert_chat_history_to_injectable_string(
     history: list[ChatMessage],
-    model_info: LanguageModelInfo | None = None,
+    model_info: "LanguageModelInfo | None" = None,
 ) -> tuple[list[str], int]:
     """
     Converts chat history to a string that can be injected into the model.
