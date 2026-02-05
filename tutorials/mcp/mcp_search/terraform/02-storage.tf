@@ -19,14 +19,6 @@ resource "azurerm_storage_account" "main" {
     versioning_enabled = true
   }
 
-  # Ignore changes to static website properties to avoid 404 errors
-  # when Terraform tries to read non-existent static website configuration
-  lifecycle {
-    ignore_changes = [
-      # Ignore static website properties that may not exist
-      # This prevents 404 errors when Terraform tries to read them
-    ]
-  }
 
   tags = var.tags
 }

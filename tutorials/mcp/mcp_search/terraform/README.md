@@ -125,10 +125,13 @@ terraform plan -out=tfplan
 # Apply the configuration
 terraform apply tfplan
 
-# Build and push Docker image
+# Build and push Docker image (automatically tagged with git SHA + timestamp)
 az acr login --name $(terraform output -raw acr_name)
 cd ..
-az acr build --registry $(terraform output -raw acr_name) --image mcp-search:latest .
+# Images are tagged with {git-sha}-{timestamp} format for traceability
+az acr build --registry $(terraform output -raw acr_name) \
+  --image mcp-search:$(git rev-parse --short HEAD)-$(date +%Y%m%d-%H%M%S) \
+  --image mcp-search:latest .
 ```
 
 ### 5. Configure DNS
@@ -151,7 +154,9 @@ terraform output aci_ip_address
 |----------|-------------|
 | `resource_group_name` | Name of the Azure Resource Group |
 | `location` | Azure region (e.g., `westeurope`) |
-| `domain_name` | Domain name for the application |
+| `base_name` | Base name for resources with hyphens (e.g., `search-mcp` → `kv-search-mcp-xxx`) |
+| `base_name_clean` | Base name without hyphens for Storage/ACR (e.g., `searchmcp` → `stsearchmcpxxx`) |
+| `domain_name` | Domain name for HTTPS (must be a domain you own with DNS pointing to ACI, or use the ACI FQDN for HTTP-only) |
 | `caddy_email` | Email for Let's Encrypt notifications |
 | `unique_app_key` | UNIQUE_APP_KEY environment variable |
 | `unique_app_id` | UNIQUE_APP_ID environment variable |
@@ -194,8 +199,11 @@ Set environment variables with the `TF_VAR_` prefix:
 ```bash
 export TF_VAR_resource_group_name="rg-mcp-search"
 export TF_VAR_location="westeurope"
-export TF_VAR_domain_name="mcp-search.example.com"
-export TF_VAR_caddy_email="admin@example.com"
+export TF_VAR_base_name="search-mcp"
+export TF_VAR_base_name_clean="searchmcp"
+# Use a domain you own (requires DNS setup) or the ACI FQDN after deployment
+export TF_VAR_domain_name="mcp-search.yourdomain.com"
+export TF_VAR_caddy_email="admin@yourdomain.com"
 export TF_VAR_unique_app_key="your-key"
 export TF_VAR_unique_app_id="your-id"
 export TF_VAR_unique_api_base_url="https://api.unique.ch"
@@ -404,12 +412,17 @@ terraform output log_analytics_portal_url
 After making code changes:
 
 ```bash
-# Build and push new image
+# Build and push new image (tagged with git SHA + timestamp for traceability)
 ./deploy.sh build
 
 # Restart container to pull new image
 ./deploy.sh restart
 ```
+
+The build command automatically:
+- Tags images with `{git-sha}-{timestamp}` format (e.g., `a1b2c3d-20260205-143052`)
+- Also tags as `latest` for container compatibility
+- Logs the full git SHA for deployment traceability
 
 ### Docker Build Issues
 
@@ -425,11 +438,17 @@ If you encounter network timeouts or Docker Hub rate limiting during `./deploy.s
 # Login to ACR
 az acr login --name $(terraform output -raw acr_name)
 
-# Build locally
-docker build -t $(terraform output -raw acr_login_server)/mcp-search:latest .
+# Generate version tag
+IMAGE_TAG="$(git rev-parse --short HEAD)-$(date +%Y%m%d-%H%M%S)"
+ACR_SERVER=$(terraform output -raw acr_login_server)
 
-# Push to ACR
-docker push $(terraform output -raw acr_login_server)/mcp-search:latest
+# Build locally with versioned tag
+docker build -t ${ACR_SERVER}/mcp-search:${IMAGE_TAG} .
+docker tag ${ACR_SERVER}/mcp-search:${IMAGE_TAG} ${ACR_SERVER}/mcp-search:latest
+
+# Push both tags to ACR
+docker push ${ACR_SERVER}/mcp-search:${IMAGE_TAG}
+docker push ${ACR_SERVER}/mcp-search:latest
 
 # Restart container
 ./deploy.sh restart

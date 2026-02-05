@@ -9,9 +9,25 @@
 resource_group_name = "rg-mcp-search"
 location            = "westeurope"
 
+# Base name for resources (used in naming conventions)
+# - base_name: used for resources that allow hyphens (e.g., kv-search-mcp-xxx)
+# - base_name_clean: same but without hyphens for Storage/ACR (e.g., stsearchmcpxxx)
+base_name       = "search-mcp"
+base_name_clean = "searchmcp"
+
 # Domain Configuration
-domain_name = "mcp-search.example.com"
-caddy_email = "admin@example.com"
+# NOTE: For HTTPS with a custom domain, you must:
+#   1. Own the domain and have DNS control
+#   2. After deployment, create a CNAME record pointing to the ACI FQDN
+#      (run `terraform output aci_fqdn` to get it)
+#
+# For testing without a custom domain, use the ACI FQDN directly:
+#   domain_name = "aci-search-mcp-SUFFIX.REGION.azurecontainer.io"
+#   (The actual FQDN is only known after first deployment)
+#
+# Example with custom domain you own:
+domain_name = "mcp-search.yourdomain.com"
+caddy_email = "admin@yourdomain.com"
 
 # ============================================================================
 # Application Secrets
@@ -41,8 +57,9 @@ zitadel_client_secret = "your-zitadel-client-secret"
 # caddy_container_memory = 0.5
 # app_image_tag        = "latest"
 
-# Set to false if you don't have User Access Administrator permissions
-# (will use ACR admin credentials instead of managed identity)
+# Set to false if you don't have permissions to create role assignments
+# (requires Owner, User Access Administrator, or similar role)
+# When false, uses ACR admin credentials instead of managed identity
 # use_managed_identity_for_acr = false
 
 # tags = {

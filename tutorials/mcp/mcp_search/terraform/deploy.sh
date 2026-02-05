@@ -67,24 +67,22 @@ init_terraform() {
 plan_infrastructure() {
     log_info "Planning infrastructure changes..."
     cd "$SCRIPT_DIR"
-    terraform plan -out=tfplan || {
-        if echo "$?" | grep -q "Error acquiring the state lock"; then
-            log_warn "State lock detected. Attempting with -lock=false..."
-            terraform plan -lock=false -out=tfplan
-        else
-            exit 1
-        fi
-    }
+    if ! terraform plan -out=tfplan; then
+        log_error "Terraform plan failed."
+        log_info "If you see a state lock error, wait for the other operation to complete"
+        log_info "or manually run: terraform force-unlock <LOCK_ID>"
+        exit 1
+    fi
 }
 
 apply_infrastructure() {
     log_info "Applying infrastructure changes..."
     cd "$SCRIPT_DIR"
-    # Check if plan was created with -lock=false
     if [ -f tfplan ]; then
-        terraform apply -lock=false tfplan
-    else
         terraform apply tfplan
+    else
+        log_error "No plan file found. Run './deploy.sh plan' first."
+        exit 1
     fi
 }
 
@@ -101,14 +99,22 @@ build_and_push_image() {
         exit 1
     fi
     
+    # Get git SHA for versioning
+    cd "$PROJECT_DIR"
+    GIT_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+    GIT_SHA_FULL=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
+    TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+    IMAGE_TAG="${GIT_SHA}-${TIMESTAMP}"
+    
+    log_info "Building image with tag: $IMAGE_TAG (git: $GIT_SHA_FULL)"
+    
     # Login to ACR
     log_info "Logging in to Azure Container Registry..."
     az acr login --name "$ACR_NAME"
     
     # Build and push using ACR Tasks (builds in Azure)
-    # Retry logic for network issues
+    # Tag with both specific version and latest for container compatibility
     log_info "Building image using ACR Tasks..."
-    cd "$PROJECT_DIR"
     
     local max_retries=3
     local retry_count=0
@@ -120,9 +126,16 @@ build_and_push_image() {
             sleep 5
         fi
         
-        if az acr build --registry "$ACR_NAME" --image mcp-search:latest .; then
+        # Build with versioned tag and latest tag
+        if az acr build --registry "$ACR_NAME" \
+            --image "mcp-search:${IMAGE_TAG}" \
+            --image "mcp-search:latest" \
+            .; then
             success=true
-            log_info "Image built and pushed successfully to $ACR_LOGIN_SERVER/mcp-search:latest"
+            log_info "Image built and pushed successfully!"
+            log_info "  Versioned: $ACR_LOGIN_SERVER/mcp-search:${IMAGE_TAG}"
+            log_info "  Latest:    $ACR_LOGIN_SERVER/mcp-search:latest"
+            log_info "  Git SHA:   $GIT_SHA_FULL"
         else
             retry_count=$((retry_count + 1))
             if [ $retry_count -lt $max_retries ]; then
@@ -132,7 +145,11 @@ build_and_push_image() {
                 log_info "This might be due to Docker Hub rate limiting or network issues."
                 log_info "You can try:"
                 log_info "  1. Wait a few minutes and retry: ./deploy.sh build"
-                log_info "  2. Build locally and push: docker build -t $ACR_LOGIN_SERVER/mcp-search:latest . && docker push $ACR_LOGIN_SERVER/mcp-search:latest"
+                log_info "  2. Build locally and push:"
+                log_info "     docker build -t $ACR_LOGIN_SERVER/mcp-search:${IMAGE_TAG} ."
+                log_info "     docker tag $ACR_LOGIN_SERVER/mcp-search:${IMAGE_TAG} $ACR_LOGIN_SERVER/mcp-search:latest"
+                log_info "     docker push $ACR_LOGIN_SERVER/mcp-search:${IMAGE_TAG}"
+                log_info "     docker push $ACR_LOGIN_SERVER/mcp-search:latest"
                 exit 1
             fi
         fi
@@ -238,7 +255,13 @@ view_logs() {
         eval "$cmd" || {
             if [ -n "$WORKSPACE_ID" ]; then
                 log_warn "Container logs unavailable. Querying Log Analytics instead..."
-                view_logs logs "$container_name" "" "--analytics"
+                # Build args for recursive call (first arg is dummy, gets shifted)
+                local retry_args=("_")
+                if [ -n "$container_name" ]; then
+                    retry_args+=("$container_name")
+                fi
+                retry_args+=("--analytics")
+                view_logs "${retry_args[@]}"
             else
                 log_error "Failed to retrieve logs. Check container status with: ./deploy.sh status"
                 exit 1
