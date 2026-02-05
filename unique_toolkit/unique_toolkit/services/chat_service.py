@@ -78,6 +78,7 @@ from unique_toolkit.content.schemas import (
     ContentChunk,
     ContentReference,
 )
+from unique_toolkit.elicitation.service import ElicitationService
 from unique_toolkit.language_model.constants import (
     DEFAULT_COMPLETE_TEMPERATURE,
     DEFAULT_COMPLETE_TIMEOUT,
@@ -107,6 +108,22 @@ logger = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
 
 class ChatService(ChatServiceDeprecated):
     """Provides all functionalities to manage the chat session."""
+
+    def __init__(self, *args, **kwargs):
+        """Initialize ChatService with lazy-loaded service properties."""
+        super().__init__(*args, **kwargs)
+        self._elicitation_service: ElicitationService | None = None
+
+    @property
+    def elicitation(self) -> ElicitationService:
+        """Get the ElicitationService for this chat session."""
+        if self._elicitation_service is not None:
+            return self._elicitation_service
+
+        # Create the ElicitationService from the chat event (dynamically selects correlation or chat and message)
+        self._elicitation_service = ElicitationService.from_chat_event(self._event)
+        
+        return self._elicitation_service
 
     async def update_debug_info_async(self, debug_info: dict):
         """Updates the debug information for the chat session.
