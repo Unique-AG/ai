@@ -538,6 +538,7 @@ class ChatService(ChatServiceDeprecated):
             full_history=full_history,
             max_tokens=int(round(token_limit * percent_of_max_tokens)),
             max_messages=max_messages,
+            model_info=None,  # TODO: Pass language_model when available
         )
 
         return full_history, selected_history
@@ -571,6 +572,7 @@ class ChatService(ChatServiceDeprecated):
             full_history=full_history,
             max_tokens=int(round(token_limit * percent_of_max_tokens)),
             max_messages=max_messages,
+            model_info=None,  # TODO: Pass language_model when available
         )
 
         return full_history, selected_history
