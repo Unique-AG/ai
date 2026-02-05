@@ -5,7 +5,7 @@ import pytest
 
 from unique_web_search.schema import WebSearchPlan, WebSearchToolParameters
 from unique_web_search.service import WebSearchTool
-from unique_web_search.services.executors.base_executor import WebSearchLogEntry
+from unique_web_search.services.executors import WebSearchLogEntry
 
 
 class TestWebSearchToolDescription:
