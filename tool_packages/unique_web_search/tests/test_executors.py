@@ -461,10 +461,8 @@ class TestWebSearchV2ExecutorRun:
     @pytest.mark.asyncio
     async def test_run__returns_content_chunks_and_log_entries__when_execution_succeeds(
         self,
-
         executor_context_objects: dict,
-
-                mock_executor_dependencies: dict,
+        mock_executor_dependencies: dict,
         sample_web_search_plan: WebSearchPlan,
         sample_web_search_results: list[WebSearchResult],
     ) -> None:
@@ -485,23 +483,11 @@ class TestWebSearchV2ExecutorRun:
         mock_executor_dependencies["content_reducer"].return_value = []
 
         executor = WebSearchV2Executor(
-
-
             services=executor_context_objects["services"],
-
-
             config=executor_context_objects["config"],
-
-
             callbacks=executor_context_objects["callbacks"],
-
-
             tool_call=mock_executor_dependencies["tool_call"],
-
-
             tool_parameters=sample_web_search_plan,
-
-
         )
 
         content_chunks = await executor.run()
@@ -516,10 +502,8 @@ class TestWebSearchV2ExecutorExecuteStep:
     @pytest.mark.asyncio
     async def test_execute_step__calls_search_step__when_step_type_is_search(
         self,
-
         executor_context_objects: dict,
-
-                mock_executor_dependencies: dict,
+        mock_executor_dependencies: dict,
         sample_web_search_plan: WebSearchPlan,
         sample_web_search_results: list[WebSearchResult],
     ) -> None:
@@ -537,23 +521,11 @@ class TestWebSearchV2ExecutorExecuteStep:
         ].config.search_engine_name.name = "TEST"
 
         executor = WebSearchV2Executor(
-
-
             services=executor_context_objects["services"],
-
-
             config=executor_context_objects["config"],
-
-
             callbacks=executor_context_objects["callbacks"],
-
-
             tool_call=mock_executor_dependencies["tool_call"],
-
-
             tool_parameters=sample_web_search_plan,
-
-
         )
 
         step = Step(
@@ -573,10 +545,8 @@ class TestWebSearchV2ExecutorExecuteStep:
     @pytest.mark.asyncio
     async def test_execute_step__calls_read_url_step__when_step_type_is_read_url(
         self,
-
         executor_context_objects: dict,
-
-                mock_executor_dependencies: dict,
+        mock_executor_dependencies: dict,
         sample_web_search_plan: WebSearchPlan,
     ) -> None:
         """
@@ -590,23 +560,11 @@ class TestWebSearchV2ExecutorExecuteStep:
         mock_executor_dependencies["crawler_service"].config.crawler_type.name = "TEST"
 
         executor = WebSearchV2Executor(
-
-
             services=executor_context_objects["services"],
-
-
             config=executor_context_objects["config"],
-
-
             callbacks=executor_context_objects["callbacks"],
-
-
             tool_call=mock_executor_dependencies["tool_call"],
-
-
             tool_parameters=sample_web_search_plan,
-
-
         )
 
         step = Step(
@@ -630,10 +588,8 @@ class TestWebSearchV2ExecutorExecuteSearchStep:
     @pytest.mark.asyncio
     async def test_execute_search_step__returns_search_results__when_no_scraping_required(
         self,
-
         executor_context_objects: dict,
-
-                mock_executor_dependencies: dict,
+        mock_executor_dependencies: dict,
         sample_web_search_plan: WebSearchPlan,
         sample_web_search_results: list[WebSearchResult],
     ) -> None:
@@ -651,23 +607,11 @@ class TestWebSearchV2ExecutorExecuteSearchStep:
         ].config.search_engine_name.name = "TEST"
 
         executor = WebSearchV2Executor(
-
-
             services=executor_context_objects["services"],
-
-
             config=executor_context_objects["config"],
-
-
             callbacks=executor_context_objects["callbacks"],
-
-
             tool_call=mock_executor_dependencies["tool_call"],
-
-
             tool_parameters=sample_web_search_plan,
-
-
         )
 
         step = Step(
@@ -685,10 +629,8 @@ class TestWebSearchV2ExecutorExecuteSearchStep:
     @pytest.mark.asyncio
     async def test_execute_search_step__crawls_urls__when_scraping_required(
         self,
-
         executor_context_objects: dict,
-
-                mock_executor_dependencies: dict,
+        mock_executor_dependencies: dict,
         sample_web_search_plan: WebSearchPlan,
         sample_web_search_results: list[WebSearchResult],
     ) -> None:
@@ -710,23 +652,11 @@ class TestWebSearchV2ExecutorExecuteSearchStep:
         mock_executor_dependencies["crawler_service"].config.crawler_type.name = "TEST"
 
         executor = WebSearchV2Executor(
-
-
             services=executor_context_objects["services"],
-
-
             config=executor_context_objects["config"],
-
-
             callbacks=executor_context_objects["callbacks"],
-
-
             tool_call=mock_executor_dependencies["tool_call"],
-
-
             tool_parameters=sample_web_search_plan,
-
-
         )
 
         step = Step(
@@ -744,10 +674,8 @@ class TestWebSearchV2ExecutorExecuteSearchStep:
     @pytest.mark.asyncio
     async def test_execute_search_step__adds_log_entry__after_search(
         self,
-
         executor_context_objects: dict,
-
-                mock_executor_dependencies: dict,
+        mock_executor_dependencies: dict,
         sample_web_search_plan: WebSearchPlan,
         sample_web_search_results: list[WebSearchResult],
     ) -> None:
@@ -765,23 +693,11 @@ class TestWebSearchV2ExecutorExecuteSearchStep:
         ].config.search_engine_name.name = "TEST"
 
         executor = WebSearchV2Executor(
-
-
             services=executor_context_objects["services"],
-
-
             config=executor_context_objects["config"],
-
-
             callbacks=executor_context_objects["callbacks"],
-
-
             tool_call=mock_executor_dependencies["tool_call"],
-
-
             tool_parameters=sample_web_search_plan,
-
-
         )
 
         step = Step(
@@ -793,7 +709,9 @@ class TestWebSearchV2ExecutorExecuteSearchStep:
         await executor._execute_search_step(step)
 
         # Verify message log callback was called for logging the search
-        mock_executor_dependencies["message_log_callback"].log_web_search_results.assert_called()
+        mock_executor_dependencies[
+            "message_log_callback"
+        ].log_web_search_results.assert_called()
 
 
 class TestWebSearchV2ExecutorExecuteReadUrlStep:
@@ -803,10 +721,8 @@ class TestWebSearchV2ExecutorExecuteReadUrlStep:
     @pytest.mark.asyncio
     async def test_execute_read_url_step__returns_web_search_results__with_crawled_content(
         self,
-
         executor_context_objects: dict,
-
-                mock_executor_dependencies: dict,
+        mock_executor_dependencies: dict,
         sample_web_search_plan: WebSearchPlan,
     ) -> None:
         """
@@ -820,23 +736,11 @@ class TestWebSearchV2ExecutorExecuteReadUrlStep:
         mock_executor_dependencies["crawler_service"].config.crawler_type.name = "TEST"
 
         executor = WebSearchV2Executor(
-
-
             services=executor_context_objects["services"],
-
-
             config=executor_context_objects["config"],
-
-
             callbacks=executor_context_objects["callbacks"],
-
-
             tool_call=mock_executor_dependencies["tool_call"],
-
-
             tool_parameters=sample_web_search_plan,
-
-
         )
 
         step = Step(
@@ -855,10 +759,8 @@ class TestWebSearchV2ExecutorExecuteReadUrlStep:
     @pytest.mark.asyncio
     async def test_execute_read_url_step__adds_log_entry__after_crawl(
         self,
-
         executor_context_objects: dict,
-
-                mock_executor_dependencies: dict,
+        mock_executor_dependencies: dict,
         sample_web_search_plan: WebSearchPlan,
     ) -> None:
         """
@@ -872,23 +774,11 @@ class TestWebSearchV2ExecutorExecuteReadUrlStep:
         mock_executor_dependencies["crawler_service"].config.crawler_type.name = "TEST"
 
         executor = WebSearchV2Executor(
-
-
             services=executor_context_objects["services"],
-
-
             config=executor_context_objects["config"],
-
-
             callbacks=executor_context_objects["callbacks"],
-
-
             tool_call=mock_executor_dependencies["tool_call"],
-
-
             tool_parameters=sample_web_search_plan,
-
-
         )
 
         step = Step(
@@ -900,7 +790,9 @@ class TestWebSearchV2ExecutorExecuteReadUrlStep:
         await executor._execute_read_url_step(step)
 
         # Verify message log callback was called for logging progress
-        mock_executor_dependencies["message_log_callback"].log_web_search_results.assert_called()
+        mock_executor_dependencies[
+            "message_log_callback"
+        ].log_web_search_results.assert_called()
 
 
 class TestWebSearchV2ExecutorEnforceMaxSteps:
@@ -910,10 +802,8 @@ class TestWebSearchV2ExecutorEnforceMaxSteps:
     @pytest.mark.asyncio
     async def test_enforce_max_steps__does_not_truncate__when_under_limit(
         self,
-
         executor_context_objects: dict,
-
-                mock_executor_dependencies: dict,
+        mock_executor_dependencies: dict,
     ) -> None:
         """
         Purpose: Verify _enforce_max_steps doesn't truncate steps when under the limit.
@@ -947,10 +837,8 @@ class TestWebSearchV2ExecutorEnforceMaxSteps:
     @pytest.mark.asyncio
     async def test_enforce_max_steps__truncates_steps__when_over_limit(
         self,
-
         executor_context_objects: dict,
-
-                mock_executor_dependencies: dict,
+        mock_executor_dependencies: dict,
     ) -> None:
         """
         Purpose: Verify _enforce_max_steps truncates steps when over the limit.
@@ -995,10 +883,8 @@ class TestWebSearchV2ExecutorDebugInfo:
     @pytest.mark.asyncio
     async def test_execute_search_step__adds_debug_info__for_each_operation(
         self,
-
         executor_context_objects: dict,
-
-                mock_executor_dependencies: dict,
+        mock_executor_dependencies: dict,
         sample_web_search_plan: WebSearchPlan,
         sample_web_search_results: list[WebSearchResult],
     ) -> None:
@@ -1016,23 +902,11 @@ class TestWebSearchV2ExecutorDebugInfo:
         ].config.search_engine_name.name = "TEST"
 
         executor = WebSearchV2Executor(
-
-
             services=executor_context_objects["services"],
-
-
             config=executor_context_objects["config"],
-
-
             callbacks=executor_context_objects["callbacks"],
-
-
             tool_call=mock_executor_dependencies["tool_call"],
-
-
             tool_parameters=sample_web_search_plan,
-
-
         )
 
         step = Step(
