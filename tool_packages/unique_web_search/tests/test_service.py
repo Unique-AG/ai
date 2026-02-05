@@ -5,7 +5,6 @@ import pytest
 
 from unique_web_search.schema import WebSearchPlan, WebSearchToolParameters
 from unique_web_search.service import WebSearchTool
-from unique_web_search.services.executors import WebSearchLogEntry
 
 
 class TestWebSearchToolDescription:
@@ -32,7 +31,7 @@ class TestWebSearchToolDescription:
 
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v1
-        tool.tool_parameter_calls = None
+        tool.tool_parameter_calls = None  # type: ignore
 
         result = tool.tool_description()
 
@@ -63,7 +62,7 @@ class TestWebSearchToolDescription:
 
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v2
-        tool.tool_parameter_calls = None
+        tool.tool_parameter_calls = None  # type: ignore
 
         result = tool.tool_description()
 
@@ -216,6 +215,14 @@ class TestWebSearchToolGetExecutor:
         mocker.patch("unique_web_search.service.get_crawler_service")
         mocker.patch("unique_web_search.service.ChunkRelevancySorter")
         mocker.patch("unique_web_search.service.ContentProcessor")
+        
+        # Mock QueryElicitationService
+        mock_elicitation_service = Mock()
+        mocker.patch(
+            "unique_web_search.service.QueryElicitationService",
+            return_value=mock_elicitation_service,
+        )
+        
         mocker.patch.object(
             WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None
         )
@@ -231,14 +238,19 @@ class TestWebSearchToolGetExecutor:
         tool.chunk_relevancy_sorter = Mock()
         tool.content_reducer = Mock()
         tool._tool_progress_reporter = None
+        tool._chat_service = Mock()
+        tool._display_name = "Web Search"
+        tool.settings = Mock()
+        tool.settings.display_name = "Web Search"
 
         tool_call = Mock()
         parameters = WebSearchPlan(
             objective="test", query_analysis="test", steps=[], expected_outcome="test"
         )
         debug_info = Mock()
+        web_search_message_logger = Mock()
 
-        result = tool._get_executor(tool_call, parameters, debug_info)
+        result = tool._get_executor(tool_call, parameters, debug_info, web_search_message_logger)
 
         assert isinstance(result, WebSearchV2Executor)
 
@@ -261,6 +273,14 @@ class TestWebSearchToolGetExecutor:
         mocker.patch("unique_web_search.service.get_crawler_service")
         mocker.patch("unique_web_search.service.ChunkRelevancySorter")
         mocker.patch("unique_web_search.service.ContentProcessor")
+        
+        # Mock QueryElicitationService
+        mock_elicitation_service = Mock()
+        mocker.patch(
+            "unique_web_search.service.QueryElicitationService",
+            return_value=mock_elicitation_service,
+        )
+        
         mocker.patch.object(
             WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None
         )
@@ -276,12 +296,18 @@ class TestWebSearchToolGetExecutor:
         tool.chunk_relevancy_sorter = Mock()
         tool.content_reducer = Mock()
         tool._tool_progress_reporter = None
+        tool._chat_service = Mock()
+        tool._display_name = "Web Search"
+        tool.settings = Mock()
+        tool.settings.display_name = "Web Search"
+        tool._chat_service = Mock()
 
         tool_call = Mock()
         parameters = WebSearchToolParameters(query="test", date_restrict=None)
         debug_info = Mock()
+        web_search_message_logger = Mock()
 
-        result = tool._get_executor(tool_call, parameters, debug_info)
+        result = tool._get_executor(tool_call, parameters, debug_info, web_search_message_logger)
 
         assert isinstance(result, WebSearchV1Executor)
 
@@ -300,59 +326,67 @@ class TestWebSearchToolGetExecutor:
         mocker.patch("unique_web_search.service.get_crawler_service")
         mocker.patch("unique_web_search.service.ChunkRelevancySorter")
         mocker.patch("unique_web_search.service.ContentProcessor")
+        
+        # Mock QueryElicitationService
+        mock_elicitation_service = Mock()
+        mocker.patch(
+            "unique_web_search.service.QueryElicitationService",
+            return_value=mock_elicitation_service,
+        )
+        
         mocker.patch.object(
             WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None
         )
 
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v1
+        tool._chat_service = Mock()
+        tool._display_name = "Web Search"
+        tool.settings = Mock()
+        tool.settings.display_name = "Web Search"
+        tool.search_engine_service = Mock()
+        tool._language_model_service = Mock()
+        tool.language_model = Mock()
+        tool.crawler_service = Mock()
+        tool.company_id = "test-company"
+        tool.content_processor = Mock()
+        tool.chunk_relevancy_sorter = Mock()
+        tool.content_reducer = Mock()
+        tool._tool_progress_reporter = None
 
         tool_call = Mock()
-        parameters = "invalid"
+        parameters = "invalid"  # type: ignore
         debug_info = Mock()
+        web_search_message_logger = Mock()
 
         with pytest.raises(ValueError) as exc_info:
-            tool._get_executor(tool_call, parameters, debug_info)
+            tool._get_executor(tool_call, parameters, debug_info, web_search_message_logger)  # type: ignore
 
         assert isinstance(exc_info.value, ValueError)
         assert "Invalid parameters" in str(exc_info.value)
 
 
 class TestWebSearchToolPrepareMessageLogsEntries:
-    """Test WebSearchTool._prepare_message_logs_entries() method."""
+    """Test WebSearchTool._prepare_message_logs_entries() method.
+    
+    NOTE: This test class is deprecated as WebSearchLogEntry has been removed.
+    The message_log service now handles logging directly.
+    """
 
     @pytest.mark.ai
-    def test_prepare_message_logs_entries__returns_details_and_references(
+    def test_prepare_message_logs_entries__deprecated(
         self,
-        sample_web_search_log_entries: list[WebSearchLogEntry],
         mocker: Any,
     ) -> None:
         """
-        Purpose: Verify _prepare_message_logs_entries creates MessageLogDetails and ContentReference list.
-        Why this matters: Ensures message logs are properly formatted for logging system.
-        Setup summary: Mock WebSearchTool and provide sample log entries.
+        Purpose: This test is deprecated as WebSearchLogEntry has been removed.
+        Why this matters: The message_log service now handles logging directly.
+        Setup summary: Placeholder for deprecated functionality.
         """
-        mocker.patch("unique_web_search.service.get_search_engine_service")
-        mocker.patch("unique_web_search.service.get_crawler_service")
-        mocker.patch("unique_web_search.service.ChunkRelevancySorter")
-        mocker.patch("unique_web_search.service.ContentProcessor")
-        mocker.patch.object(
-            WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None
-        )
-
-        tool = WebSearchTool.__new__(WebSearchTool)
-
-        details, references = tool._prepare_message_logs_entries(
-            sample_web_search_log_entries
-        )
-
-        assert hasattr(details, "data")
-        assert isinstance(references, list)
-        assert len(details.data) == 1
-        assert details.data[0].type == "WebSearch"
-        assert details.data[0].text == "test query"
-        assert len(references) == 2
-        assert all(hasattr(ref, "url") for ref in references)
+        # This test is deprecated and should be removed or refactored
+        # The WebSearchLogEntry class no longer exists
+        # Message logging is now handled by WebSearchMessageLogger
+        pass
 
 
 class TestWebSearchToolGetEvaluationChecksBasedOnToolResponse:
@@ -430,7 +464,6 @@ class TestWebSearchToolRun:
         mock_web_search_config_v1: Mock,
         sample_web_search_tool_parameters: WebSearchToolParameters,
         sample_content_chunks: list,
-        sample_web_search_log_entries: list[WebSearchLogEntry],
         mocker: Any,
     ) -> None:
         """
@@ -440,7 +473,7 @@ class TestWebSearchToolRun:
         """
         mock_executor = AsyncMock()
         mock_executor.run = AsyncMock(
-            return_value=(sample_content_chunks, sample_web_search_log_entries)
+            return_value=sample_content_chunks
         )
         mock_executor.notify_name = "test-name"
         mock_executor.notify_message = "test-message"
@@ -460,6 +493,14 @@ class TestWebSearchToolRun:
         mocker.patch(
             "unique_web_search.service.WebSearchDebugInfo", mock_debug_info_class
         )
+        
+        # Mock WebSearchMessageLogger
+        mock_message_logger = Mock()
+        mock_message_logger.finished = AsyncMock()
+        mocker.patch(
+            "unique_web_search.service.WebSearchMessageLogger",
+            return_value=mock_message_logger,
+        )
 
         mocker.patch.object(
             WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None
@@ -472,10 +513,10 @@ class TestWebSearchToolRun:
         tool.logger = Mock()
         tool._message_step_logger = Mock()
         tool._tool_progress_reporter = None
-        tool._active_message_log = None
         tool._display_name = "WebSearch"
         tool.company_id = "test-company"
         tool.debug = False
+        tool.name = "WebSearch"
         tool.settings = Mock()
         tool.settings.display_name = "WebSearch"
 
@@ -529,6 +570,14 @@ class TestWebSearchToolRun:
         mocker.patch(
             "unique_web_search.service.WebSearchDebugInfo", mock_debug_info_class
         )
+        
+        # Mock WebSearchMessageLogger
+        mock_message_logger = Mock()
+        mock_message_logger.failed = AsyncMock()
+        mocker.patch(
+            "unique_web_search.service.WebSearchMessageLogger",
+            return_value=mock_message_logger,
+        )
 
         mocker.patch.object(
             WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None
@@ -541,10 +590,12 @@ class TestWebSearchToolRun:
         tool.logger = Mock()
         tool._message_step_logger = Mock()
         tool._tool_progress_reporter = None
-        tool._active_message_log = None
         tool._display_name = "WebSearch"
         tool.company_id = "test-company"
         tool.debug = False
+        tool.name = "WebSearch"
+        tool.settings = Mock()
+        tool.settings.display_name = "WebSearch"
 
         tool_call = Mock()
         tool_call.id = "test-id"
@@ -572,7 +623,6 @@ class TestWebSearchToolRun:
         mock_tool_progress_reporter: Mock,
         sample_web_search_tool_parameters: WebSearchToolParameters,
         sample_content_chunks: list,
-        sample_web_search_log_entries: list[WebSearchLogEntry],
         mocker: Any,
     ) -> None:
         """
@@ -582,7 +632,7 @@ class TestWebSearchToolRun:
         """
         mock_executor = AsyncMock()
         mock_executor.run = AsyncMock(
-            return_value=(sample_content_chunks, sample_web_search_log_entries)
+            return_value=sample_content_chunks
         )
         mock_executor.notify_name = "test-name"
         mock_executor.notify_message = "test-message"
@@ -602,6 +652,14 @@ class TestWebSearchToolRun:
         mocker.patch(
             "unique_web_search.service.WebSearchDebugInfo", mock_debug_info_class
         )
+        
+        # Mock WebSearchMessageLogger
+        mock_message_logger = Mock()
+        mock_message_logger.finished = AsyncMock()
+        mocker.patch(
+            "unique_web_search.service.WebSearchMessageLogger",
+            return_value=mock_message_logger,
+        )
 
         mocker.patch.object(
             WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None
@@ -614,16 +672,16 @@ class TestWebSearchToolRun:
         tool.logger = Mock()
         tool._message_step_logger = Mock()
         tool._tool_progress_reporter = mock_tool_progress_reporter
-        tool._active_message_log = None
         tool._display_name = "WebSearch"
         tool.company_id = "test-company"
         tool.debug = False
+        tool.name = "WebSearch"
         tool.settings = Mock()
         tool.settings.display_name = "WebSearch"
 
         # Mock feature_flags to ensure the progress reporter code path is taken
         mock_feature_flags = mocker.patch("unique_web_search.service.feature_flags")
-        mock_feature_flags.is_new_answers_ui_enabled.return_value = False
+        mock_feature_flags.enable_new_answers_ui_un_14411.is_enabled.return_value = False
 
         tool_call = Mock()
         tool_call.id = "test-id"
@@ -633,5 +691,8 @@ class TestWebSearchToolRun:
 
         assert mock_tool_progress_reporter.notify_from_tool_call.called
         call_args = mock_tool_progress_reporter.notify_from_tool_call.call_args
-        assert call_args[1]["name"] == "test-name"
-        assert call_args[1]["message"] == "test-message"
+        # The call_args are (args, kwargs), and arguments are passed as positional
+        args, kwargs = call_args
+        assert len(args) == 4  # tool_call, name, message, state
+        assert args[1] == "test-name"  # name argument
+        assert args[2] == "test-message"  # message argument
