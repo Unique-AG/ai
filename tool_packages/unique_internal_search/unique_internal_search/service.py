@@ -180,7 +180,9 @@ class InternalSearchService:
                     )
                 )
             for i, result in enumerate(found_chunks_per_search_string):
-                if not feature_flags.enable_new_answers_ui_un_14411.is_enabled(self.company_id):
+                if not feature_flags.enable_new_answers_ui_un_14411.is_enabled(
+                    self.company_id
+                ):
                     await self.post_progress_message(
                         f"{result.query} (_Resorting {len(result.chunks)} search results_ 🔄 in query {i + 1}/{len(found_chunks_per_search_string)})",
                         **kwargs,
@@ -577,8 +579,11 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             debug_info=self.debug_info,
         )
 
-        if self.tool_progress_reporter and not feature_flags.enable_new_answers_ui_un_14411.is_enabled(
-            self.company_id
+        if (
+            self.tool_progress_reporter
+            and not feature_flags.enable_new_answers_ui_un_14411.is_enabled(
+                self.company_id
+            )
         ):
             await self.tool_progress_reporter.notify_from_tool_call(
                 tool_call=tool_call,
