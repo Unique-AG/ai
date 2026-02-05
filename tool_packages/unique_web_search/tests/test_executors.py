@@ -924,32 +924,3 @@ class TestWebSearchV2ExecutorDebugInfo:
         )
         assert search_step is not None
         assert search_step.extra["query"] == "test query"
-
-
-class TestWebSearchV1ExecutorNotifyNameBugFix:
-    """Tests for WebSearchV1Executor notify_name calculation bug fix.
-
-    The bug fix (line 180) changed from len(refined_queries) to len(elicitated_queries).
-    This is tested indirectly by existing executor tests that verify iteration logic.
-    """
-
-    @pytest.mark.ai
-    def test_bug_fix__uses_elicitated_queries_variable__at_line_180(self) -> None:
-        """
-        Purpose: Document that line 180 bug fix uses correct variable name.
-        Why this matters: Ensures notify_name counter matches actual iteration count.
-        Setup summary: This test documents the fix; actual behavior is tested in integration tests.
-        """
-        # Arrange & Act & Assert
-        # This test serves as documentation of the bug fix.
-        # The fix changed line 180 from:
-        #   if len(refined_queries) > 1:
-        # To:
-        #   if len(elicitated_queries) > 1:
-        #
-        # This ensures the notify_name counter reflects the actual number of
-        # queries being iterated (elicitated_queries), not the refined count.
-        #
-        # The fix is verified by existing integration tests that check
-        # the iteration behavior and search execution flow.
-        assert True  # Placeholder test documenting the fix

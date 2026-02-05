@@ -107,7 +107,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
 
     @override
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
-        self.logger.info("Running the WebSearch tool")
+        _LOGGER.info("Running the WebSearch tool")
         start_time = time()
         parameters = self.tool_parameter_calls.model_validate(
             tool_call.arguments,
@@ -146,7 +146,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
                 content_chunks=content_chunks,
             )
         except Exception as e:
-            self.logger.exception(f"Error executing WebSearch tool: {e}")
+            _LOGGER.exception(f"Error executing WebSearch tool: {e}")
 
             await web_search_message_logger.failed()
 
