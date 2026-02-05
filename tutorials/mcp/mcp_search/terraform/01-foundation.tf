@@ -19,8 +19,5 @@ resource "random_string" "suffix" {
 
 # Local values for naming conventions
 locals {
-  # Base name for resources (Azure naming has different constraints)
-  base_name       = "search-mcp"
-  base_name_clean = "searchmcp" # For resources that don't allow hyphens
-  suffix          = random_string.suffix.result
+  suffix = random_string.suffix.result
 }

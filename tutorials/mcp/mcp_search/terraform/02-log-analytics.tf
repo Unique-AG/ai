@@ -8,7 +8,7 @@
 # ============================================================================
 
 resource "azurerm_log_analytics_workspace" "main" {
-  name                = "law-${local.base_name}-${local.suffix}"
+  name                = "law-${var.base_name}-${local.suffix}"
   location            = var.location
   resource_group_name = data.azurerm_resource_group.main.name
   sku                 = "PerGB2018"

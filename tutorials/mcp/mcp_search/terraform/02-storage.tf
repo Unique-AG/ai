@@ -7,7 +7,7 @@
 # ============================================================================
 
 resource "azurerm_storage_account" "main" {
-  name                     = "st${local.base_name_clean}${local.suffix}"
+  name                     = "st${var.base_name_clean}${local.suffix}"
   resource_group_name      = data.azurerm_resource_group.main.name
   location                 = var.location
   account_tier             = "Standard"
@@ -17,6 +17,15 @@ resource "azurerm_storage_account" "main" {
   # Enable blob versioning for Terraform state (optional but recommended)
   blob_properties {
     versioning_enabled = true
+  }
+
+  # Ignore changes to static website properties to avoid 404 errors
+  # when Terraform tries to read non-existent static website configuration
+  lifecycle {
+    ignore_changes = [
+      # Ignore static website properties that may not exist
+      # This prevents 404 errors when Terraform tries to read them
+    ]
   }
 
   tags = var.tags

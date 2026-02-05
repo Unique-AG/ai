@@ -18,6 +18,16 @@ variable "location" {
   type        = string
 }
 
+variable "base_name" {
+  description = "Base name for resources (used in naming conventions)"
+  type        = string
+}
+
+variable "base_name_clean" {
+  description = "Base name without hyphens (for resources that don't allow hyphens)"
+  type        = string
+}
+
 variable "domain_name" {
   description = "The domain name for the application (used for Caddy/Let's Encrypt)"
   type        = string

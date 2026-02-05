@@ -19,12 +19,12 @@ resource "azurerm_key_vault_secret" "acr_password" {
 }
 
 resource "azurerm_container_group" "main" {
-  name                = "aci-${local.base_name}-${local.suffix}"
+  name                = "aci-${var.base_name}-${local.suffix}"
   resource_group_name = data.azurerm_resource_group.main.name
   location            = var.location
   os_type             = "Linux"
   ip_address_type     = "Public"
-  dns_name_label      = "aci-${local.base_name}-${local.suffix}"
+  dns_name_label      = "aci-${var.base_name}-${local.suffix}"
 
   # Send logs to Log Analytics workspace for persistent storage and querying
   diagnostics {

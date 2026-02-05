@@ -5,7 +5,7 @@
 
 # User Assigned Managed Identity for ACI
 resource "azurerm_user_assigned_identity" "aci" {
-  name                = "id-${local.base_name}-${local.suffix}"
+  name                = "id-${var.base_name}-${local.suffix}"
   resource_group_name = data.azurerm_resource_group.main.name
   location            = var.location
 

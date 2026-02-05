@@ -7,7 +7,7 @@
 # ============================================================================
 
 resource "azurerm_key_vault" "main" {
-  name                       = "kv-${local.base_name}-${local.suffix}"
+  name                       = "kv-${var.base_name}-${local.suffix}"
   resource_group_name        = data.azurerm_resource_group.main.name
   location                   = var.location
   tenant_id                  = data.azurerm_client_config.current.tenant_id

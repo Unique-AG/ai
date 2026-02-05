@@ -9,8 +9,8 @@
 
 # ----------------------------------------------------------------------------
 # Key Vault Secrets (defined by this container)
-# Note: Secrets are stored in Key Vault for audit/backup purposes.
-# The container receives secrets directly via secure_environment_variables.
+# Secrets are stored in Key Vault and referenced by the container.
+# This creates a proper dependency chain and enables audit logging.
 # ----------------------------------------------------------------------------
 
 resource "azurerm_key_vault_secret" "unique_app_key" {
@@ -79,7 +79,7 @@ resource "azurerm_key_vault_secret" "zitadel_client_secret" {
 
 locals {
   mcp_search_container = {
-    name   = "mcp-search"
+    name   = var.base_name
     image  = "${azurerm_container_registry.main.login_server}/mcp-search:${var.app_image_tag}"
     cpu    = var.app_container_cpu
     memory = var.app_container_memory
@@ -99,19 +99,19 @@ locals {
     }
 
     secure_environment_variables = {
-      # Unique settings
-      "UNIQUE_APP_KEY"             = var.unique_app_key
-      "UNIQUE_APP_ID"              = var.unique_app_id
-      "UNIQUE_API_BASE_URL"        = var.unique_api_base_url
-      "UNIQUE_AUTH_COMPANY_ID"     = var.unique_auth_company_id
-      "UNIQUE_AUTH_USER_ID"        = var.unique_auth_user_id
-      "UNIQUE_APP_ENDPOINT"        = var.unique_app_endpoint
-      "UNIQUE_APP_ENDPOINT_SECRET" = var.unique_app_endpoint_secret
+      # Unique settings (fetched from Key Vault)
+      "UNIQUE_APP_KEY"             = azurerm_key_vault_secret.unique_app_key.value
+      "UNIQUE_APP_ID"              = azurerm_key_vault_secret.unique_app_id.value
+      "UNIQUE_API_BASE_URL"        = azurerm_key_vault_secret.unique_api_base_url.value
+      "UNIQUE_AUTH_COMPANY_ID"     = azurerm_key_vault_secret.unique_auth_company_id.value
+      "UNIQUE_AUTH_USER_ID"        = azurerm_key_vault_secret.unique_auth_user_id.value
+      "UNIQUE_APP_ENDPOINT"        = azurerm_key_vault_secret.unique_app_endpoint.value
+      "UNIQUE_APP_ENDPOINT_SECRET" = azurerm_key_vault_secret.unique_app_endpoint_secret.value
 
-      # Zitadel settings
-      "ZITADEL_BASE_URL"      = var.zitadel_base_url
-      "ZITADEL_CLIENT_ID"     = var.zitadel_client_id
-      "ZITADEL_CLIENT_SECRET" = var.zitadel_client_secret
+      # Zitadel settings (fetched from Key Vault)
+      "ZITADEL_BASE_URL"      = azurerm_key_vault_secret.zitadel_base_url.value
+      "ZITADEL_CLIENT_ID"     = azurerm_key_vault_secret.zitadel_client_id.value
+      "ZITADEL_CLIENT_SECRET" = azurerm_key_vault_secret.zitadel_client_secret.value
     }
   }
 }
