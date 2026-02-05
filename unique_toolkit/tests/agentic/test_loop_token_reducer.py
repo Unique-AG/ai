@@ -30,7 +30,6 @@ from unique_toolkit.app import (
 )
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.language_model.infos import (
-    EncoderName,
     LanguageModelInfo,
     LanguageModelName,
 )
