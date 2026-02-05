@@ -55,7 +55,7 @@ class Elicitation(APIResource["Elicitation"]):
         id: str
         object: str
         source: SOURCE_TYPES
-        mode: str
+        mode: MODE_TYPES
         status: str
         message: str
         mcpServerId: NotRequired[Optional[str]]
