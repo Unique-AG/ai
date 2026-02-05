@@ -1,0 +1,56 @@
+# ============================================================================
+# Required Variables
+# ============================================================================
+
+# Azure Subscription (optional - uses default from Azure CLI if not set)
+# subscription_id = "12345678-1234-1234-1234-123456789012"
+
+# Azure Resource Group and Location
+resource_group_name = "rg-mcp-search"
+location            = "westeurope"
+
+# Domain Configuration
+domain_name = "mcp-search.example.com"
+caddy_email = "admin@example.com"
+
+# ============================================================================
+# Application Secrets
+# ============================================================================
+
+# Unique Settings
+unique_app_key             = "your-unique-app-key"
+unique_app_id              = "your-unique-app-id"
+unique_api_base_url        = "https://api.unique.ch"
+unique_auth_company_id     = "your-company-id"
+unique_auth_user_id        = "your-user-id"
+unique_app_endpoint        = "https://your-app-endpoint"
+unique_app_endpoint_secret = "your-endpoint-secret"
+
+# Zitadel Settings
+zitadel_base_url      = "https://your-zitadel-instance.zitadel.cloud"
+zitadel_client_id     = "your-zitadel-client-id"
+zitadel_client_secret = "your-zitadel-client-secret"
+
+# ============================================================================
+# Optional Variables (uncomment to override defaults)
+# ============================================================================
+
+# app_container_cpu    = 1
+# app_container_memory = 1.5
+# caddy_container_cpu  = 0.5
+# caddy_container_memory = 0.5
+# app_image_tag        = "latest"
+
+# Set to false if you don't have User Access Administrator permissions
+# (will use ACR admin credentials instead of managed identity)
+# use_managed_identity_for_acr = false
+
+# Grant yourself User Access Administrator at resource group level
+# (requires Contributor or Owner permissions - run once, then you can create role assignments)
+# grant_rg_user_access_admin = true
+
+# tags = {
+#   project     = "mcp-search"
+#   managed_by  = "terraform"
+#   environment = "production"
+# }
