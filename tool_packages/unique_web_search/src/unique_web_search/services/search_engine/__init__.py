@@ -3,7 +3,6 @@ from functools import reduce
 from typing import TypeAlias
 
 from unique_toolkit import LanguageModelService
-from unique_toolkit._common.validators import LMI
 
 from unique_web_search.services.search_engine.base import (
     BaseSearchEngineConfig,
@@ -79,7 +78,6 @@ ENGINE_NAME_TO_CONFIG = {
 def get_search_engine_service(
     search_engine_config: SearchEngineConfigTypes,
     language_model_service: LanguageModelService,
-    lmi: LMI,
 ):
     match search_engine_config.search_engine_name:
         case SearchEngineType.FIRECRAWL:
@@ -91,9 +89,9 @@ def get_search_engine_service(
         case SearchEngineType.TAVILY:
             return TavilySearch(search_engine_config)
         case SearchEngineType.BING:
-            return BingSearch(search_engine_config, language_model_service, lmi)
+            return BingSearch(search_engine_config, language_model_service)
         case SearchEngineType.BRAVE:
-            return BraveSearch(search_engine_config, language_model_service, lmi)
+            return BraveSearch(search_engine_config)
         case SearchEngineType.VERTEXAI:
             return VertexAI(search_engine_config)
         case SearchEngineType.CUSTOM_API:

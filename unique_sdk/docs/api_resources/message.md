@@ -67,6 +67,7 @@ Manage chat messages and integrate with the Unique AI chat system. Includes supp
     - `references` (List[Reference], optional) - List of source references. See [`Message.Reference`](#messagereference) for structure.
     - `debugInfo` (Dict[str, Any], optional) - Debug information dictionary
     - `completedAt` (datetime, optional) - Completion timestamp
+    - `correlation` ([`Correlation`](#messagecorrelation), optional) - Correlation data to link this message to a parent message in another chat
 
     **Returns:**
 
@@ -81,7 +82,25 @@ Manage chat messages and integrate with the Unique AI chat system. Includes supp
         chatId=chat_id,
         assistantId=assistant_id,
         text="Hello.",
-        role="ASSISTANT",  # or "USER"
+        role="ASSISTANT",
+    )
+    ```
+
+    **Example with correlation:**
+
+    ```python
+    message = unique_sdk.Message.create(
+        user_id=user_id,
+        company_id=company_id,
+        chatId=chat_id,
+        assistantId=assistant_id,
+        text="Hello.",
+        role="ASSISTANT",
+        correlation={
+            "parentMessageId": "msg_abc123",
+            "parentChatId": "chat_xyz789",
+            "parentAssistantId": "assistant_def456",
+        },
     )
     ```
 
@@ -262,6 +281,18 @@ Manage chat messages and integrate with the Unique AI chat system. Includes supp
     - `source` (str, required) - Source name/path
 
     **Used in:** `Message.create()`, `Message.modify()`, `Message.create_event()`
+
+#### Message.Correlation {#messagecorrelation}
+
+??? note "The `Message.Correlation` type defines correlation data to link a message to a parent message in another chat"
+
+    **Fields:**
+
+    - `parentMessageId` (str, required) - The ID of the parent message
+    - `parentChatId` (str, required) - The ID of the parent chat
+    - `parentAssistantId` (str, required) - The ID of the parent assistant
+
+    **Used in:** `Message.create()`
 
 ## Return Types
 

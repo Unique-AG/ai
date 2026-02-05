@@ -5,9 +5,9 @@ on:
   push:
     # Both conditions must be met (AND logic):
     # 1. Push must be to main branch
-    # 2. Push must include changes to postprocessors/stock_ticker/** files
+    # 2. Push must include changes to postprocessors/unique_stock_ticker/** files
     paths:
-      - 'postprocessors/stock_ticker/**'
+      - 'postprocessors/unique_stock_ticker/**'
     branches:
       - main
 

@@ -4,6 +4,10 @@ import pytest
 from httpx import HTTPError
 
 from unique_web_search.services.search_engine import (
+    BingSearch,
+    BingSearchConfig,
+    BraveSearch,
+    BraveSearchConfig,
     get_default_search_engine_config,
     get_search_engine_config_types_from_names,
     get_search_engine_service,
@@ -35,26 +39,44 @@ class TestSearchEngineFactory:
     def test_get_google_search_engine_service(self):
         """Test getting Google search engine service."""
         config = GoogleConfig(search_engine_name=SearchEngineType.GOOGLE)
-        service = get_search_engine_service(config, Mock(), Mock())
+        service = get_search_engine_service(config, Mock())
         assert isinstance(service, GoogleSearch)
 
     def test_get_jina_search_engine_service(self):
         """Test getting Jina search engine service."""
         config = JinaConfig(search_engine_name=SearchEngineType.JINA)
-        service = get_search_engine_service(config, Mock(), Mock())
+        service = get_search_engine_service(config, Mock())
         assert isinstance(service, JinaSearch)
 
     def test_get_tavily_search_engine_service(self):
         """Test getting Tavily search engine service."""
         config = TavilyConfig(search_engine_name=SearchEngineType.TAVILY)
-        service = get_search_engine_service(config, Mock(), Mock())
+        service = get_search_engine_service(config, Mock())
         assert isinstance(service, TavilySearch)
 
     def test_get_vertexai_search_engine_service(self):
         """Test getting VertexAI search engine service."""
         config = VertexAIConfig(search_engine_name=SearchEngineType.VERTEXAI)
-        service = get_search_engine_service(config, Mock(), Mock())
+        service = get_search_engine_service(config, Mock())
         assert isinstance(service, VertexAI)
+
+    def test_get_custom_api_search_engine_service(self):
+        """Test getting CustomAPI search engine service."""
+        config = CustomAPIConfig(search_engine_name=SearchEngineType.CUSTOM_API)
+        service = get_search_engine_service(config, Mock())
+        assert isinstance(service, CustomAPI)
+
+    def test_get_bing_search_engine_service(self):
+        """Test getting Bing search engine service."""
+        config = BingSearchConfig(search_engine_name=SearchEngineType.BING)
+        service = get_search_engine_service(config, Mock())
+        assert isinstance(service, BingSearch)
+
+    def test_get_brave_search_engine_service(self):
+        """Test getting Brave search engine service."""
+        config = BraveSearchConfig(search_engine_name=SearchEngineType.BRAVE)
+        service = get_search_engine_service(config, Mock())
+        assert isinstance(service, BraveSearch)
 
     def test_get_config_types_from_names_single(self):
         """Test getting config types from single engine name."""
@@ -661,6 +683,46 @@ class TestCustomAPISearch:
         with pytest.raises(HTTPError):
             await search.search("test query")
 
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_custom_api_search__raises_value_error__on_failed_request(
+        self, mocker
+    ) -> None:
+        """
+        Purpose: Verify that CustomAPI raises ValueError when HTTP response indicates failure.
+        Why this matters: Failed API requests must propagate errors to callers for proper handling.
+        Setup summary: Mock HTTP response with non-success status code; assert ValueError raised.
+        """
+        # Arrange
+        config = CustomAPIConfig(
+            search_engine_name=SearchEngineType.CUSTOM_API,
+            api_endpoint="https://api.example.com/search",
+        )
+
+        mock_response = Mock()
+        mock_response.is_success = False
+        mock_response.status_code = 500
+        mock_response.text = "Internal Server Error"
+
+        mock_client = AsyncMock()
+        mock_client.request = AsyncMock(return_value=mock_response)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        mocker.patch(
+            "unique_web_search.services.search_engine.custom_api.AsyncClient",
+            return_value=mock_client,
+        )
+
+        search = CustomAPI(config)
+
+        # Act & Assert
+        with pytest.raises(ValueError) as exc_info:
+            await search.search("test query")
+
+        assert "500" in str(exc_info.value)
+        assert "Internal Server Error" in str(exc_info.value)
+
     @pytest.mark.asyncio
     async def test_custom_api_search_handles_invalid_response(self, mocker):
         """Test CustomAPI search handles invalid JSON response."""
@@ -766,7 +828,7 @@ class TestCustomAPISearch:
     def test_get_custom_api_search_engine_service(self):
         """Test getting CustomAPI search engine service via factory."""
         config = CustomAPIConfig(search_engine_name=SearchEngineType.CUSTOM_API)
-        service = get_search_engine_service(config, Mock(), Mock())
+        service = get_search_engine_service(config, Mock())
         assert isinstance(service, CustomAPI)
 
     def test_custom_api_client_config_property_empty_when_env_none(self, mocker):

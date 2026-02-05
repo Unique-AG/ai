@@ -355,7 +355,7 @@ async def execute_tool_safely(
             _LOGGER.warning(f"Token limit exceeded in tool {tool_name}: {str(e)}")
             return f"Tool {tool_name} failed due to token limit: {str(e)}"
         else:
-            _LOGGER.error(f"Error executing tool {tool_name}: {str(e)}")
+            _LOGGER.exception(f"Error executing tool {tool_name}: {str(e)}")
             return f"Error executing tool {tool_name}: {str(e)}"
 
 
@@ -588,7 +588,7 @@ async def ainvoke_with_token_handling(
                 )
                 await asyncio.sleep(delay)
             else:
-                _LOGGER.error(
+                _LOGGER.exception(
                     f"Model invocation failed after {max_retries + 1} attempts: {str(e)}"
                 )
                 raise e

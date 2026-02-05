@@ -46,7 +46,6 @@ class WebSearchTool(Tool[WebSearchConfig]):
         self.search_engine_service = get_search_engine_service(
             self.config.search_engine_config,
             self.language_model_service,
-            self.language_model,
         )
         self.crawler_service = get_crawler_service(self.config.crawler_config)
         self.chunk_relevancy_sorter = ChunkRelevancySorter(self.event)

@@ -55,6 +55,11 @@ class Space(APIResource["Space"]):
     class DeleteSpaceAccessParams(RequestOptions):
         accessIds: List[str]
 
+    class Correlation(TypedDict):
+        parentMessageId: str
+        parentChatId: str
+        parentAssistantId: str
+
     class CreateMessageParams(RequestOptions):
         """
         Parameters for querying the assistant for a message.
@@ -65,6 +70,7 @@ class Space(APIResource["Space"]):
         text: NotRequired[str | None]
         toolChoices: NotRequired[List[str] | None]
         scopeRules: NotRequired[dict | None]
+        correlation: NotRequired["Space.Correlation | None"]
 
     class GetChatMessagesParams(RequestOptions):
         """

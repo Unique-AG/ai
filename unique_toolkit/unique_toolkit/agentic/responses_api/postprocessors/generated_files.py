@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field, RootModel
 
 from unique_toolkit import ChatService
 from unique_toolkit._common.execution import failsafe_async
+from unique_toolkit.agentic.feature_flags.feature_flags import feature_flags
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
     ResponsesApiPostprocessor,
 )
@@ -94,6 +95,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
         self._chat_service = chat_service
         self._client = client
         self._config = config
+        self._company_id = company_id
 
         if self._config.upload_to_chat and self._chat_service is None:
             raise ValueError("ChatService is required if uploadToChat is True")
@@ -169,8 +171,10 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 )
                 changed |= replaced
 
-            # HTML
-            elif is_html:
+            # HTML (behind feature flag)
+            elif is_html and feature_flags.enable_html_rendering_un_15131.is_enabled(
+                self._company_id
+            ):
                 loop_response.message.text, replaced = _replace_container_html_citation(
                     text=loop_response.message.text,
                     filename=filename,
@@ -178,7 +182,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 )
                 changed |= replaced
 
-            # Files
+            # Files (including HTML when feature flag is disabled)
             else:
                 loop_response.message.text, replaced = _replace_container_file_citation(
                     text=loop_response.message.text,
@@ -187,7 +191,13 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 )
                 changed |= replaced
 
-            if replaced and not is_image:
+            is_html_rendered = (
+                is_html
+                and feature_flags.enable_html_rendering_un_15131.is_enabled(
+                    self._company_id
+                )
+            )
+            if replaced and not is_image and not is_html_rendered:
                 loop_response.message.references.append(
                     ContentReference(
                         sequence_number=ref_number,

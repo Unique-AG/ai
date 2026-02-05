@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.46.0] - 2026-02-05
+- Add `ElicitationService` to manage user elicitation requests with both sync and async methods
+- Add elicitation schemas: `Elicitation`, `ElicitationMode`, `ElicitationAction`, `ElicitationStatus`, `ElicitationSource`
+- Add elicitation exceptions: `ElicitationCancelledException`, `ElicitationDeclinedException`, `ElicitationExpiredException`, `ElicitationFailedException`
+- Add `elicitation` property to `ChatService` for easy access to elicitation functionality
+- Refactor feature flags system with new `FeatureFlag` class supporting both boolean and company-specific enablement
+- Add feature flag `FEATURE_FLAG_ENABLE_ELICITATION_UN_15809` for elicitation support
+- Add async methods to `MessageStepLogger`: `create_message_log_entry_async`, `update_message_log_entry_async`, `create_or_update_message_log_async`
+- Add `Correlation` schema to `ChatEventPayload` for tracking parent message relationships across chats
+- Add correlation support to sub-agent tool for better message tracking
+- Update MCP tool wrapper and sub-agent tool to use new feature flag system
+
+## [1.45.10] - 2026-02-05
+- Add `RERUN_ROW` event type and `MagicTableRerunRowPayload` for targeted row re-execution in Agentic Tables
+
+## [1.45.9] - 2026-02-03
+- Add feature flag `FEATURE_FLAG_ENABLE_HTML_RENDERING_UN_15131` for HTML rendering support
+- Put HTML rendering for code interpreter files behind the feature flag
+
+## [1.45.8] - 2026-02-02
+- Hallucination: Hide Source Selection Mode and Reference pattern from schema
+
+## [1.45.7] - 2026-01-30
+- Add JSON string parsing support for reasoning and text parameters in responses API (UI compatibility)
+- Fix variable name bug in `_attempt_extract_verbosity_from_options` function
+- Improve `other_options` handling to prevent overwriting explicitly set parameters
+
+## [1.45.6] - 2026-01-30
+- hallucination evaluator: Use original response to retrieve referenced chunk
+
 ## [1.45.5] - 2026-01-29
 - Add HTML rendering support for code interpreter generated files
 
