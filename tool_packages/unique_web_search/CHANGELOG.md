@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.0] - 2026-02-05
+
+### Added
+- **Query Elicitation**: New `QueryElicitationService` for user approval of search queries before execution
+  - Users can review and modify proposed queries through an interactive form
+  - Configurable timeout and enable/disable options
+  - Support for handling declined, cancelled, expired, or failed elicitations
+  - Query Elicitation is behind a feature flag
+- **Message Logging Service**: New `WebSearchMessageLogger` for improved progress tracking and state management
+
+### Changed
+- Refactored executor architecture to use dependency injection with context objects
+- Updated feature flag from `is_new_answers_ui_enabled` to `enable_new_answers_ui_un_14411.is_enabled`
+
 ## [1.9.1] - 2025-01-30
 - Raise error for failed Custom API search engine requests
 

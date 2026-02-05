@@ -35,6 +35,7 @@ from unique_web_search.services.executors.configs import (
     WebSearchV2Config,
     get_default_web_search_mode_config,
 )
+from unique_web_search.services.query_elicitation import QueryElicitationConfig
 from unique_web_search.services.search_engine import (
     get_default_search_engine_config,
     get_search_engine_config_types_from_names,
@@ -75,7 +76,11 @@ class AnswerGenerationConfig(BaseModel):
     )
 
 
-class ExperimentalFeatures(FeatureExtendedSourceSerialization): ...
+class ExperimentalFeatures(FeatureExtendedSourceSerialization):
+    query_elicitation_config: QueryElicitationConfig = Field(
+        default_factory=QueryElicitationConfig,
+        description="Query elicitation configuration",
+    )
 
 
 class WebSearchConfig(BaseToolConfig):
@@ -158,7 +163,11 @@ class WebSearchConfig(BaseToolConfig):
         description="Tool format information for system prompt. This is used to format the tool response for the system prompt.",
     )
 
-    experimental_features: SkipJsonSchema[ExperimentalFeatures] = ExperimentalFeatures()
+    experimental_features: ExperimentalFeatures = Field(
+        default_factory=ExperimentalFeatures,
+        description="Experimental features",
+        title="Experimental Features",
+    )
 
     debug: bool = Field(
         default=False,
