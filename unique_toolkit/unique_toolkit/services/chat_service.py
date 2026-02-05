@@ -122,7 +122,7 @@ class ChatService(ChatServiceDeprecated):
 
         # Create the ElicitationService from the chat event (dynamically selects correlation or chat and message)
         self._elicitation_service = ElicitationService.from_chat_event(self._event)
-        
+
         return self._elicitation_service
 
     async def update_debug_info_async(self, debug_info: dict):

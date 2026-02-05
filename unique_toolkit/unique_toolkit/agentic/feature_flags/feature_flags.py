@@ -82,7 +82,9 @@ class FeatureFlags(BaseSettings):
         env_file_encoding="utf-8",
     )
 
-    @field_validator("*", mode="before")
+    @field_validator(
+        "enable_new_answers_ui_un_14411", "enable_elicitation_un_15809", mode="before"
+    )
     @classmethod
     def parse_feature_flag(cls, v: Any) -> FeatureFlag:
         """Parse all feature flag fields from environment variables.

@@ -2,7 +2,6 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from unique_toolkit.agentic.feature_flags import FeatureFlags
 from unique_toolkit.agentic.tools.a2a.tool.config import SubAgentToolConfig
 from unique_toolkit.agentic.tools.a2a.tool.service import SubAgentTool
 from unique_toolkit.agentic.tools.factory import ToolFactory
@@ -248,9 +247,9 @@ class TestSubAgentToolProgressNotifications:
             arguments={"user_message": "test message"},
         )
 
-        with patch.object(
-            FeatureFlags,
-            "is_new_answers_ui_enabled",
+        # Mock the FeatureFlag's is_enabled method to return False
+        with patch(
+            "unique_toolkit.agentic.tools.a2a.tool.service.feature_flags.enable_new_answers_ui_un_14411.is_enabled",
             return_value=False,
         ):
             # Act
@@ -298,9 +297,9 @@ class TestSubAgentToolProgressNotifications:
             arguments={"user_message": "test message"},
         )
 
-        with patch.object(
-            FeatureFlags,
-            "is_new_answers_ui_enabled",
+        # Mock the FeatureFlag's is_enabled method to return True
+        with patch(
+            "unique_toolkit.agentic.tools.a2a.tool.service.feature_flags.enable_new_answers_ui_un_14411.is_enabled",
             return_value=True,
         ):
             # Act
@@ -370,11 +369,12 @@ class TestSubAgentToolProgressNotifications:
             arguments={"user_message": "test message"},
         )
 
-        with patch.object(
-            FeatureFlags,
-            "is_new_answers_ui_enabled",
-            return_value=False,
-        ) as mock_feature_flag:
+        # Mock the FeatureFlag's is_enabled method as a Mock to track calls
+        with patch(
+            "unique_toolkit.agentic.tools.a2a.tool.service.feature_flags.enable_new_answers_ui_un_14411.is_enabled"
+        ) as mock_is_enabled:
+            mock_is_enabled.return_value = False
+
             # Act
             await tool._notify_progress(
                 tool_call=tool_call,
@@ -383,7 +383,7 @@ class TestSubAgentToolProgressNotifications:
             )
 
             # Assert - feature flag should be called with the company_id from the event
-            mock_feature_flag.assert_called_with("company_456")
+            mock_is_enabled.assert_called_once_with("company_456")
 
 
 class TestSubAgentToolMessageLog:
@@ -525,9 +525,8 @@ class TestSubAgentToolRun:
         }
 
         with (
-            patch.object(
-                FeatureFlags,
-                "is_new_answers_ui_enabled",
+            patch(
+                "unique_toolkit.agentic.tools.a2a.tool.service.feature_flags.enable_new_answers_ui_un_14411.is_enabled",
                 return_value=False,
             ),
             patch(
@@ -613,9 +612,8 @@ class TestSubAgentToolRun:
         }
 
         with (
-            patch.object(
-                FeatureFlags,
-                "is_new_answers_ui_enabled",
+            patch(
+                "unique_toolkit.agentic.tools.a2a.tool.service.feature_flags.enable_new_answers_ui_un_14411.is_enabled",
                 return_value=True,
             ),
             patch(
@@ -685,9 +683,8 @@ class TestSubAgentToolRun:
         }
 
         with (
-            patch.object(
-                FeatureFlags,
-                "is_new_answers_ui_enabled",
+            patch(
+                "unique_toolkit.agentic.tools.a2a.tool.service.feature_flags.enable_new_answers_ui_un_14411.is_enabled",
                 return_value=True,
             ),
             patch(
@@ -753,9 +750,8 @@ class TestSubAgentToolRun:
         )
 
         with (
-            patch.object(
-                FeatureFlags,
-                "is_new_answers_ui_enabled",
+            patch(
+                "unique_toolkit.agentic.tools.a2a.tool.service.feature_flags.enable_new_answers_ui_un_14411.is_enabled",
                 return_value=True,
             ),
             patch(
@@ -808,9 +804,8 @@ class TestSubAgentToolRun:
         )
 
         with (
-            patch.object(
-                FeatureFlags,
-                "is_new_answers_ui_enabled",
+            patch(
+                "unique_toolkit.agentic.tools.a2a.tool.service.feature_flags.enable_new_answers_ui_un_14411.is_enabled",
                 return_value=True,
             ),
             patch(
