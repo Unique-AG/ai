@@ -8,6 +8,7 @@ from typing import cast, override
 
 import unique_sdk
 from pydantic import Field, TypeAdapter, create_model
+from unique_sdk.api_resources._space import Space
 from unique_sdk.utils.chat_in_space import send_message_and_wait_for_completion
 
 from unique_toolkit._common.referencing import (
@@ -323,7 +324,9 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
     ) -> None:
         if (
             self.tool_progress_reporter is not None
-            and not feature_flags.is_new_answers_ui_enabled(self._company_id)
+            and not feature_flags.enable_new_answers_ui_un_14411.is_enabled(
+                self._company_id
+            )
         ):
             await self.tool_progress_reporter.notify_from_tool_call(
                 tool_call=tool_call,
@@ -385,6 +388,11 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                 tool_choices=self.config.forced_tools,
                 max_wait=self.config.max_wait,
                 stop_condition=self.config.stop_condition,
+                correlation=Space.Correlation(
+                    parentMessageId=self._chat_service._assistant_message_id,
+                    parentChatId=self._event.payload.chat_id,
+                    parentAssistantId=self.config.assistant_id,
+                ),
             )
         except TimeoutError as e:
             await self._notify_progress(

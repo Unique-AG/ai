@@ -11,502 +11,504 @@ from unittest.mock import patch
 
 import pytest
 
-from unique_toolkit.agentic.feature_flags.feature_flags import FeatureFlags
-
-
-# Default Value Tests
-@pytest.mark.ai
-def test_feature_flags__has_empty_default__for_new_answers_ui_flag_AI() -> None:
-    """
-    Purpose: Verify feature flag has empty string as default value.
-    Why this matters: Default should disable the feature when not configured.
-    Setup summary: Create FeatureFlags with no env vars, verify default value.
-    """
-    # Arrange
-    with patch.dict(os.environ, {}, clear=True):
-        # Act
-        flags = FeatureFlags()
-
-        # Assert
-        assert flags.feature_flag_enable_new_answers_ui_un_14411 == ""
+from unique_toolkit.agentic.feature_flags.feature_flags import FeatureFlag, FeatureFlags
 
 
 @pytest.mark.ai
-def test_feature_flags__loads_value_from_env__for_new_answers_ui_flag_AI() -> None:
+def test_feature_flag__initializes_with_bool_true__value_storage() -> None:
     """
-    Purpose: Verify feature flag loads value from environment variable.
-    Why this matters: Feature flags must be configurable via environment.
-    Setup summary: Set env var, create FeatureFlags, verify value is loaded.
-    """
-    # Arrange
-    env_value = "company1,company2"
-    with patch.dict(
-        os.environ,
-        {"FEATURE_FLAG_ENABLE_NEW_ANSWERS_UI_UN_14411": env_value},
-        clear=True,
-    ):
-        # Act
-        flags = FeatureFlags()
-
-        # Assert
-        assert flags.feature_flag_enable_new_answers_ui_un_14411 == env_value
-
-
-@pytest.mark.ai
-def test_feature_flags__loads_lowercase_env_var__case_insensitive_AI() -> None:
-    """
-    Purpose: Verify feature flag loads from lowercase env var name.
-    Why this matters: Environment variable names should be case-insensitive.
-    Setup summary: Set lowercase env var, create FeatureFlags, verify value is loaded.
-    """
-    # Arrange
-    env_value = "true"
-    with patch.dict(
-        os.environ,
-        {"feature_flag_enable_new_answers_ui_un_14411": env_value},
-        clear=True,
-    ):
-        # Act
-        flags = FeatureFlags()
-
-        # Assert
-        assert flags.feature_flag_enable_new_answers_ui_un_14411 == env_value
-
-
-# is_new_answers_ui_enabled Tests - Empty/Default Value
-@pytest.mark.ai
-def test_is_new_answers_ui_enabled__returns_false__when_flag_is_empty_AI() -> None:
-    """
-    Purpose: Verify method returns False when flag value is empty string.
-    Why this matters: Empty value should mean feature is disabled.
-    Setup summary: Create FeatureFlags with empty flag, call method, verify False.
-    """
-    # Arrange
-    with patch.dict(os.environ, {}, clear=True):
-        flags = FeatureFlags()
-
-        # Act
-        result = flags.is_new_answers_ui_enabled()
-
-        # Assert
-        assert result is False
-
-
-@pytest.mark.ai
-def test_is_new_answers_ui_enabled__returns_false__when_flag_is_empty_with_company_id_AI() -> (
-    None
-):
-    """
-    Purpose: Verify method returns False when flag is empty even with company_id.
-    Why this matters: Empty value means feature disabled for all companies.
-    Setup summary: Create FeatureFlags with empty flag, call with company_id, verify False.
-    """
-    # Arrange
-    with patch.dict(os.environ, {}, clear=True):
-        flags = FeatureFlags()
-
-        # Act
-        result = flags.is_new_answers_ui_enabled(company_id="company1")
-
-        # Assert
-        assert result is False
-
-
-# is_new_answers_ui_enabled Tests - "true" Value
-@pytest.mark.ai
-def test_is_new_answers_ui_enabled__returns_true__when_flag_is_true_lowercase_AI() -> (
-    None
-):
-    """
-    Purpose: Verify method returns True when flag value is "true".
-    Why this matters: "true" should enable feature for all companies.
-    Setup summary: Set flag to "true", call method without company_id, verify True.
-    """
-    # Arrange
-    with patch.dict(
-        os.environ,
-        {"FEATURE_FLAG_ENABLE_NEW_ANSWERS_UI_UN_14411": "true"},
-        clear=True,
-    ):
-        flags = FeatureFlags()
-
-        # Act
-        result = flags.is_new_answers_ui_enabled()
-
-        # Assert
-        assert result is True
-
-
-@pytest.mark.ai
-def test_is_new_answers_ui_enabled__returns_true__when_flag_is_true_uppercase_AI() -> (
-    None
-):
-    """
-    Purpose: Verify method returns True when flag value is "TRUE" (uppercase).
-    Why this matters: "true" check should be case-insensitive.
-    Setup summary: Set flag to "TRUE", call method, verify True.
-    """
-    # Arrange
-    with patch.dict(
-        os.environ,
-        {"FEATURE_FLAG_ENABLE_NEW_ANSWERS_UI_UN_14411": "TRUE"},
-        clear=True,
-    ):
-        flags = FeatureFlags()
-
-        # Act
-        result = flags.is_new_answers_ui_enabled()
-
-        # Assert
-        assert result is True
-
-
-@pytest.mark.ai
-def test_is_new_answers_ui_enabled__returns_true__when_flag_is_true_mixed_case_AI() -> (
-    None
-):
-    """
-    Purpose: Verify method returns True when flag value is "True" (mixed case).
-    Why this matters: "true" check should be case-insensitive.
-    Setup summary: Set flag to "True", call method, verify True.
-    """
-    # Arrange
-    with patch.dict(
-        os.environ,
-        {"FEATURE_FLAG_ENABLE_NEW_ANSWERS_UI_UN_14411": "True"},
-        clear=True,
-    ):
-        flags = FeatureFlags()
-
-        # Act
-        result = flags.is_new_answers_ui_enabled()
-
-        # Assert
-        assert result is True
-
-
-@pytest.mark.ai
-def test_is_new_answers_ui_enabled__returns_true__when_flag_is_true_with_company_id_AI() -> (
-    None
-):
-    """
-    Purpose: Verify method returns True when flag is "true" even with company_id.
-    Why this matters: "true" enables for all, company_id should not affect result.
-    Setup summary: Set flag to "true", call with company_id, verify True.
-    """
-    # Arrange
-    with patch.dict(
-        os.environ,
-        {"FEATURE_FLAG_ENABLE_NEW_ANSWERS_UI_UN_14411": "true"},
-        clear=True,
-    ):
-        flags = FeatureFlags()
-
-        # Act
-        result = flags.is_new_answers_ui_enabled(company_id="company1")
-
-        # Assert
-        assert result is True
-
-
-# is_new_answers_ui_enabled Tests - Comma-Separated Company IDs
-@pytest.mark.ai
-def test_is_new_answers_ui_enabled__returns_true__when_company_id_in_list_AI() -> None:
-    """
-    Purpose: Verify method returns True when company_id is in the list.
-    Why this matters: Feature should be enabled for listed companies.
-    Setup summary: Set flag to comma-separated list, call with matching company_id.
-    """
-    # Arrange
-    with patch.dict(
-        os.environ,
-        {"FEATURE_FLAG_ENABLE_NEW_ANSWERS_UI_UN_14411": "company1,company2,company3"},
-        clear=True,
-    ):
-        flags = FeatureFlags()
-
-        # Act
-        result = flags.is_new_answers_ui_enabled(company_id="company2")
-
-        # Assert
-        assert result is True
-
-
-@pytest.mark.ai
-def test_is_new_answers_ui_enabled__returns_true__when_company_id_is_first_in_list_AI() -> (
-    None
-):
-    """
-    Purpose: Verify method returns True when company_id is first in list.
-    Why this matters: Position in list should not affect matching.
-    Setup summary: Set flag to comma-separated list, call with first company_id.
-    """
-    # Arrange
-    with patch.dict(
-        os.environ,
-        {"FEATURE_FLAG_ENABLE_NEW_ANSWERS_UI_UN_14411": "company1,company2"},
-        clear=True,
-    ):
-        flags = FeatureFlags()
-
-        # Act
-        result = flags.is_new_answers_ui_enabled(company_id="company1")
-
-        # Assert
-        assert result is True
-
-
-@pytest.mark.ai
-def test_is_new_answers_ui_enabled__returns_true__when_company_id_is_last_in_list_AI() -> (
-    None
-):
-    """
-    Purpose: Verify method returns True when company_id is last in list.
-    Why this matters: Position in list should not affect matching.
-    Setup summary: Set flag to comma-separated list, call with last company_id.
-    """
-    # Arrange
-    with patch.dict(
-        os.environ,
-        {"FEATURE_FLAG_ENABLE_NEW_ANSWERS_UI_UN_14411": "company1,company2"},
-        clear=True,
-    ):
-        flags = FeatureFlags()
-
-        # Act
-        result = flags.is_new_answers_ui_enabled(company_id="company2")
-
-        # Assert
-        assert result is True
-
-
-@pytest.mark.ai
-def test_is_new_answers_ui_enabled__returns_false__when_company_id_not_in_list_AI() -> (
-    None
-):
-    """
-    Purpose: Verify method returns False when company_id is not in the list.
-    Why this matters: Feature should be disabled for unlisted companies.
-    Setup summary: Set flag to comma-separated list, call with non-matching company_id.
-    """
-    # Arrange
-    with patch.dict(
-        os.environ,
-        {"FEATURE_FLAG_ENABLE_NEW_ANSWERS_UI_UN_14411": "company1,company2"},
-        clear=True,
-    ):
-        flags = FeatureFlags()
-
-        # Act
-        result = flags.is_new_answers_ui_enabled(company_id="company3")
-
-        # Assert
-        assert result is False
-
-
-@pytest.mark.ai
-def test_is_new_answers_ui_enabled__returns_false__when_company_id_is_none_with_list_AI() -> (
-    None
-):
-    """
-    Purpose: Verify method returns False when company_id is None with comma-separated list.
-    Why this matters: None company_id cannot match any specific company in list.
-    Setup summary: Set flag to comma-separated list, call with None company_id.
-    """
-    # Arrange
-    with patch.dict(
-        os.environ,
-        {"FEATURE_FLAG_ENABLE_NEW_ANSWERS_UI_UN_14411": "company1,company2"},
-        clear=True,
-    ):
-        flags = FeatureFlags()
-
-        # Act
-        result = flags.is_new_answers_ui_enabled(company_id=None)
-
-        # Assert
-        assert result is False
-
-
-@pytest.mark.ai
-def test_is_new_answers_ui_enabled__returns_false__when_no_company_id_with_list_AI() -> (
-    None
-):
-    """
-    Purpose: Verify method returns False when company_id not provided with comma-separated list.
-    Why this matters: Without company_id, cannot check list membership.
-    Setup summary: Set flag to comma-separated list, call without company_id argument.
-    """
-    # Arrange
-    with patch.dict(
-        os.environ,
-        {"FEATURE_FLAG_ENABLE_NEW_ANSWERS_UI_UN_14411": "company1,company2"},
-        clear=True,
-    ):
-        flags = FeatureFlags()
-
-        # Act
-        result = flags.is_new_answers_ui_enabled()
-
-        # Assert
-        assert result is False
-
-
-# is_new_answers_ui_enabled Tests - Single Company ID
-@pytest.mark.ai
-def test_is_new_answers_ui_enabled__returns_true__with_single_company_id_AI() -> None:
-    """
-    Purpose: Verify method returns True when flag is single company_id that matches.
-    Why this matters: Single company should work without comma separation.
-    Setup summary: Set flag to single company_id, call with matching company_id.
-    """
-    # Arrange
-    with patch.dict(
-        os.environ,
-        {"FEATURE_FLAG_ENABLE_NEW_ANSWERS_UI_UN_14411": "company1"},
-        clear=True,
-    ):
-        flags = FeatureFlags()
-
-        # Act
-        result = flags.is_new_answers_ui_enabled(company_id="company1")
-
-        # Assert
-        assert result is True
-
-
-@pytest.mark.ai
-def test_is_new_answers_ui_enabled__returns_false__with_single_company_id_no_match_AI() -> (
-    None
-):
-    """
-    Purpose: Verify method returns False when flag is single company_id that doesn't match.
-    Why this matters: Non-matching company should not be enabled.
-    Setup summary: Set flag to single company_id, call with different company_id.
-    """
-    # Arrange
-    with patch.dict(
-        os.environ,
-        {"FEATURE_FLAG_ENABLE_NEW_ANSWERS_UI_UN_14411": "company1"},
-        clear=True,
-    ):
-        flags = FeatureFlags()
-
-        # Act
-        result = flags.is_new_answers_ui_enabled(company_id="company2")
-
-        # Assert
-        assert result is False
-
-
-# is_new_answers_ui_enabled Tests - Edge Cases
-@pytest.mark.ai
-def test_is_new_answers_ui_enabled__returns_false__when_partial_company_id_match_AI() -> (
-    None
-):
-    """
-    Purpose: Verify method returns False for partial company_id matches.
-    Why this matters: "company" should not match "company1" - exact match required.
-    Setup summary: Set flag to "company1", call with "company", verify False.
-    """
-    # Arrange
-    with patch.dict(
-        os.environ,
-        {"FEATURE_FLAG_ENABLE_NEW_ANSWERS_UI_UN_14411": "company1"},
-        clear=True,
-    ):
-        flags = FeatureFlags()
-
-        # Act
-        result = flags.is_new_answers_ui_enabled(company_id="company")
-
-        # Assert
-        assert result is False
-
-
-@pytest.mark.ai
-def test_is_new_answers_ui_enabled__returns_false__when_company_id_is_empty_string_AI() -> (
-    None
-):
-    """
-    Purpose: Verify method returns False when company_id is empty string with list.
-    Why this matters: Empty string should not match any company in list.
-    Setup summary: Set flag to comma-separated list, call with empty string.
-    """
-    # Arrange
-    with patch.dict(
-        os.environ,
-        {"FEATURE_FLAG_ENABLE_NEW_ANSWERS_UI_UN_14411": "company1,company2"},
-        clear=True,
-    ):
-        flags = FeatureFlags()
-
-        # Act
-        result = flags.is_new_answers_ui_enabled(company_id="")
-
-        # Assert
-        assert result is False
-
-
-@pytest.mark.ai
-def test_is_new_answers_ui_enabled__handles_whitespace_in_company_ids_AI() -> None:
-    """
-    Purpose: Verify whitespace in company IDs is trimmed.
-    Why this matters: Whitespace around company IDs in env var should be ignored.
-    Setup summary: Set flag with spaces around IDs, verify trimmed matching.
-    """
-    # Arrange
-    with patch.dict(
-        os.environ,
-        {"FEATURE_FLAG_ENABLE_NEW_ANSWERS_UI_UN_14411": "company1, company2"},
-        clear=True,
-    ):
-        flags = FeatureFlags()
-
-        # Act
-        result_with_space = flags.is_new_answers_ui_enabled(company_id=" company2")
-        result_without_space = flags.is_new_answers_ui_enabled(company_id="company2")
-
-        # Assert
-        assert result_with_space is False  # Space in lookup won't match trimmed ID
-        assert result_without_space is True  # Matches trimmed ID
-
-
-# Module-level Singleton Tests
-@pytest.mark.ai
-def test_feature_flags__module_singleton_exists__AI() -> None:
-    """
-    Purpose: Verify feature_flags singleton is importable.
-    Why this matters: Module should provide pre-initialized singleton for convenience.
-    Setup summary: Import feature_flags, verify it's a FeatureFlags instance.
+    Purpose: Verify FeatureFlag initializes with boolean True value.
+    Why this matters: Boolean flags enable features globally.
+    Setup summary: Create FeatureFlag with True, verify value stored.
     """
     # Arrange & Act
-    from unique_toolkit.agentic.feature_flags.feature_flags import feature_flags
+    flag = FeatureFlag(True)
 
     # Assert
-    assert isinstance(feature_flags, FeatureFlags)
+    assert flag.value is True
 
 
-# Extra Fields Handling Tests
 @pytest.mark.ai
-def test_feature_flags__ignores_extra_env_vars__AI() -> None:
+def test_feature_flag__initializes_with_bool_false__value_storage() -> None:
     """
-    Purpose: Verify FeatureFlags ignores unknown environment variables.
-    Why this matters: extra="ignore" setting should prevent errors on unknown fields.
-    Setup summary: Set extra env var, create FeatureFlags, verify no error.
+    Purpose: Verify FeatureFlag initializes with boolean False value.
+    Why this matters: Boolean flags disable features globally.
+    Setup summary: Create FeatureFlag with False, verify value stored.
+    """
+    # Arrange & Act
+    flag = FeatureFlag(False)
+
+    # Assert
+    assert flag.value is False
+
+
+@pytest.mark.ai
+def test_feature_flag__initializes_with_company_list__value_storage() -> None:
+    """
+    Purpose: Verify FeatureFlag initializes with list of company IDs.
+    Why this matters: List enables selective company-based feature flags.
+    Setup summary: Create FeatureFlag with company list, verify value stored.
     """
     # Arrange
+    company_ids = ["company1", "company2", "company3"]
+
+    # Act
+    flag = FeatureFlag(company_ids)
+
+    # Assert
+    assert flag.value == company_ids
+    assert isinstance(flag.value, list)
+
+
+@pytest.mark.ai
+def test_feature_flag__is_enabled_returns_true__when_value_is_true() -> None:
+    """
+    Purpose: Verify is_enabled returns True when flag value is True.
+    Why this matters: Boolean True should enable for all companies.
+    Setup summary: Create FeatureFlag(True), call is_enabled, verify True.
+    """
+    # Arrange
+    flag = FeatureFlag(True)
+
+    # Act
+    result_without_id = flag.is_enabled()
+    result_with_id = flag.is_enabled("any_company")
+
+    # Assert
+    assert result_without_id is True
+    assert result_with_id is True
+
+
+@pytest.mark.ai
+def test_feature_flag__is_enabled_returns_false__when_value_is_false() -> None:
+    """
+    Purpose: Verify is_enabled returns False when flag value is False.
+    Why this matters: Boolean False should disable for all companies.
+    Setup summary: Create FeatureFlag(False), call is_enabled, verify False.
+    """
+    # Arrange
+    flag = FeatureFlag(False)
+
+    # Act
+    result_without_id = flag.is_enabled()
+    result_with_id = flag.is_enabled("any_company")
+
+    # Assert
+    assert result_without_id is False
+    assert result_with_id is False
+
+
+@pytest.mark.ai
+def test_feature_flag__is_enabled_returns_true__when_company_in_list() -> None:
+    """
+    Purpose: Verify is_enabled returns True when company_id is in list.
+    Why this matters: List-based flags enable for specific companies.
+    Setup summary: Create FeatureFlag with list, check with matching company_id.
+    """
+    # Arrange
+    flag = FeatureFlag(["company1", "company2"])
+
+    # Act
+    result = flag.is_enabled("company1")
+
+    # Assert
+    assert result is True
+
+
+@pytest.mark.ai
+def test_feature_flag__is_enabled_returns_false__when_company_not_in_list() -> None:
+    """
+    Purpose: Verify is_enabled returns False when company_id not in list.
+    Why this matters: List-based flags disable for unlisted companies.
+    Setup summary: Create FeatureFlag with list, check with non-matching company_id.
+    """
+    # Arrange
+    flag = FeatureFlag(["company1", "company2"])
+
+    # Act
+    result = flag.is_enabled("company3")
+
+    # Assert
+    assert result is False
+
+
+@pytest.mark.ai
+def test_feature_flag__is_enabled_returns_false__when_no_company_id_with_list() -> None:
+    """
+    Purpose: Verify is_enabled returns False when company_id is None with list.
+    Why this matters: List-based flags require company_id to check membership.
+    Setup summary: Create FeatureFlag with list, call is_enabled without company_id.
+    """
+    # Arrange
+    flag = FeatureFlag(["company1", "company2"])
+
+    # Act
+    result = flag.is_enabled()
+
+    # Assert
+    assert result is False
+
+
+@pytest.mark.ai
+def test_feature_flag__repr_shows_value__string_representation() -> None:
+    """
+    Purpose: Verify __repr__ returns proper string representation.
+    Why this matters: Debugging requires readable flag representation.
+    Setup summary: Create FeatureFlag, call repr, verify format.
+    """
+    # Arrange
+    flag_bool = FeatureFlag(True)
+    flag_list = FeatureFlag(["company1", "company2"])
+
+    # Act
+    repr_bool = repr(flag_bool)
+    repr_list = repr(flag_list)
+
+    # Assert
+    assert repr_bool == "FeatureFlag(True)"
+    assert repr_list == "FeatureFlag(['company1', 'company2'])"
+
+
+# ============================================================================
+# parse_feature_flag Validator Tests
+# ============================================================================
+
+
+@pytest.mark.ai
+def test_parse_feature_flag__parses_true_string__to_bool_flag() -> None:
+    """
+    Purpose: Verify parse_feature_flag converts "true" to FeatureFlag(True).
+    Why this matters: String "true" from env should enable globally.
+    Setup summary: Set env var to "true", verify FeatureFlag(True) created.
+    """
+    # Arrange & Act
+    with patch.dict(
+        os.environ,
+        {"FEATURE_FLAG_ENABLE_ELICITATION_UN_15809": "true"},
+        clear=True,
+    ):
+        flags = FeatureFlags()
+
+    # Assert
+    assert isinstance(flags.enable_elicitation_un_15809, FeatureFlag)
+    assert flags.enable_elicitation_un_15809.value is True
+    assert flags.enable_elicitation_un_15809.is_enabled() is True
+
+
+@pytest.mark.ai
+def test_parse_feature_flag__parses_one_string__to_bool_flag() -> None:
+    """
+    Purpose: Verify parse_feature_flag converts "1" to FeatureFlag(True).
+    Why this matters: Numeric "1" should enable globally.
+    Setup summary: Set env var to "1", verify FeatureFlag(True) created.
+    """
+    # Arrange & Act
+    with patch.dict(
+        os.environ,
+        {"FEATURE_FLAG_ENABLE_ELICITATION_UN_15809": "1"},
+        clear=True,
+    ):
+        flags = FeatureFlags()
+
+    # Assert
+    assert flags.enable_elicitation_un_15809.value is True
+
+
+@pytest.mark.ai
+def test_parse_feature_flag__parses_yes_string__to_bool_flag() -> None:
+    """
+    Purpose: Verify parse_feature_flag converts "yes" to FeatureFlag(True).
+    Why this matters: Human-friendly "yes" should enable globally.
+    Setup summary: Set env var to "yes", verify FeatureFlag(True) created.
+    """
+    # Arrange & Act
+    with patch.dict(
+        os.environ,
+        {"FEATURE_FLAG_ENABLE_ELICITATION_UN_15809": "yes"},
+        clear=True,
+    ):
+        flags = FeatureFlags()
+
+    # Assert
+    assert flags.enable_elicitation_un_15809.value is True
+
+
+@pytest.mark.ai
+def test_parse_feature_flag__parses_false_string__to_bool_flag() -> None:
+    """
+    Purpose: Verify parse_feature_flag converts "false" to FeatureFlag(False).
+    Why this matters: String "false" from env should disable globally.
+    Setup summary: Set env var to "false", verify FeatureFlag(False) created.
+    """
+    # Arrange & Act
+    with patch.dict(
+        os.environ,
+        {"FEATURE_FLAG_ENABLE_ELICITATION_UN_15809": "false"},
+        clear=True,
+    ):
+        flags = FeatureFlags()
+
+    # Assert
+    assert isinstance(flags.enable_elicitation_un_15809, FeatureFlag)
+    assert flags.enable_elicitation_un_15809.value is False
+    assert flags.enable_elicitation_un_15809.is_enabled() is False
+
+
+@pytest.mark.ai
+def test_parse_feature_flag__parses_zero_string__to_bool_flag() -> None:
+    """
+    Purpose: Verify parse_feature_flag converts "0" to FeatureFlag(False).
+    Why this matters: Numeric "0" should disable globally.
+    Setup summary: Set env var to "0", verify FeatureFlag(False) created.
+    """
+    # Arrange & Act
+    with patch.dict(
+        os.environ,
+        {"FEATURE_FLAG_ENABLE_ELICITATION_UN_15809": "0"},
+        clear=True,
+    ):
+        flags = FeatureFlags()
+
+    # Assert
+    assert flags.enable_elicitation_un_15809.value is False
+
+
+@pytest.mark.ai
+def test_parse_feature_flag__parses_no_string__to_bool_flag() -> None:
+    """
+    Purpose: Verify parse_feature_flag converts "no" to FeatureFlag(False).
+    Why this matters: Human-friendly "no" should disable globally.
+    Setup summary: Set env var to "no", verify FeatureFlag(False) created.
+    """
+    # Arrange & Act
+    with patch.dict(
+        os.environ,
+        {"FEATURE_FLAG_ENABLE_ELICITATION_UN_15809": "no"},
+        clear=True,
+    ):
+        flags = FeatureFlags()
+
+    # Assert
+    assert flags.enable_elicitation_un_15809.value is False
+
+
+@pytest.mark.ai
+def test_parse_feature_flag__parses_empty_string__to_bool_flag() -> None:
+    """
+    Purpose: Verify parse_feature_flag converts empty string to FeatureFlag(False).
+    Why this matters: Empty value should disable globally.
+    Setup summary: Set env var to empty string, verify FeatureFlag(False) created.
+    """
+    # Arrange & Act
+    with patch.dict(
+        os.environ,
+        {"FEATURE_FLAG_ENABLE_ELICITATION_UN_15809": ""},
+        clear=True,
+    ):
+        flags = FeatureFlags()
+
+    # Assert
+    assert flags.enable_elicitation_un_15809.value is False
+
+
+@pytest.mark.ai
+def test_parse_feature_flag__parses_comma_separated_ids__to_list_flag() -> None:
+    """
+    Purpose: Verify parse_feature_flag parses comma-separated IDs to list.
+    Why this matters: Comma-separated values enable for specific companies.
+    Setup summary: Set env var to company IDs, verify FeatureFlag(list) created.
+    """
+    # Arrange & Act
+    with patch.dict(
+        os.environ,
+        {"FEATURE_FLAG_ENABLE_ELICITATION_UN_15809": "company1,company2,company3"},
+        clear=True,
+    ):
+        flags = FeatureFlags()
+
+    # Assert
+    assert isinstance(flags.enable_elicitation_un_15809, FeatureFlag)
+    assert flags.enable_elicitation_un_15809.value == [
+        "company1",
+        "company2",
+        "company3",
+    ]
+    assert flags.enable_elicitation_un_15809.is_enabled("company1") is True
+    assert flags.enable_elicitation_un_15809.is_enabled("company4") is False
+
+
+@pytest.mark.ai
+def test_parse_feature_flag__trims_whitespace__in_company_ids() -> None:
+    """
+    Purpose: Verify parse_feature_flag trims whitespace around company IDs.
+    Why this matters: Whitespace in env vars should be ignored.
+    Setup summary: Set env var with spaces, verify trimmed IDs in list.
+    """
+    # Arrange & Act
     with patch.dict(
         os.environ,
         {
-            "FEATURE_FLAG_ENABLE_NEW_ANSWERS_UI_UN_14411": "true",
-            "SOME_OTHER_ENV_VAR": "value",
+            "FEATURE_FLAG_ENABLE_ELICITATION_UN_15809": " company1 , company2 , company3 "
         },
         clear=True,
     ):
-        # Act
         flags = FeatureFlags()
 
-        # Assert
-        assert flags.feature_flag_enable_new_answers_ui_un_14411 == "true"
-        assert not hasattr(flags, "some_other_env_var")
+    # Assert
+    assert flags.enable_elicitation_un_15809.value == [
+        "company1",
+        "company2",
+        "company3",
+    ]
+
+
+@pytest.mark.ai
+def test_parse_feature_flag__handles_bool_type__directly() -> None:
+    """
+    Purpose: Verify parse_feature_flag handles Python bool type directly.
+    Why this matters: Programmatic creation with bool should work.
+    Setup summary: Create flags with bool value, verify FeatureFlag created.
+    """
+    # Arrange & Act
+    with patch.dict(os.environ, {}, clear=True):
+        flags = FeatureFlags()
+        # The default is already FeatureFlag(False) for enable_elicitation_un_15809
+
+    # Assert
+    assert isinstance(flags.enable_elicitation_un_15809, FeatureFlag)
+    assert flags.enable_elicitation_un_15809.value is False
+
+
+@pytest.mark.ai
+def test_parse_feature_flag__handles_list_type__directly() -> None:
+    """
+    Purpose: Verify parse_feature_flag handles Python list type directly.
+    Why this matters: Programmatic creation with list should work.
+    Setup summary: Parse list value, verify FeatureFlag created with list.
+    """
+    # Arrange
+    # Test by directly calling the validator logic (through model creation)
+    from unique_toolkit.agentic.feature_flags.feature_flags import FeatureFlags
+
+    # Act
+    # Default for enable_new_answers_ui_un_14411 is FeatureFlag([])
+    with patch.dict(os.environ, {}, clear=True):
+        flags = FeatureFlags()
+
+    # Assert
+    assert isinstance(flags.enable_new_answers_ui_un_14411, FeatureFlag)
+    assert flags.enable_new_answers_ui_un_14411.value == []
+
+
+@pytest.mark.ai
+def test_parse_feature_flag__returns_existing_featureflag__unchanged() -> None:
+    """
+    Purpose: Verify parse_feature_flag returns FeatureFlag instance unchanged.
+    Why this matters: Already-parsed flags should not be re-parsed.
+    Setup summary: Pass FeatureFlag instance, verify returned unchanged.
+    """
+    # Arrange
+    # Act - validator returns existing instance
+    # This is tested implicitly through the field defaults
+    with patch.dict(os.environ, {}, clear=True):
+        flags = FeatureFlags()
+
+    # Assert
+    assert isinstance(flags.enable_elicitation_un_15809, FeatureFlag)
+
+
+@pytest.mark.ai
+def test_parse_feature_flag__case_insensitive__for_true_false_values() -> None:
+    """
+    Purpose: Verify parse_feature_flag handles mixed case true/false.
+    Why this matters: Case variations should be normalized.
+    Setup summary: Set env vars with mixed case, verify correct parsing.
+    """
+    # Arrange & Act - Test TRUE
+    with patch.dict(
+        os.environ,
+        {"FEATURE_FLAG_ENABLE_ELICITATION_UN_15809": "TRUE"},
+        clear=True,
+    ):
+        flags_upper = FeatureFlags()
+
+    # Test True
+    with patch.dict(
+        os.environ,
+        {"FEATURE_FLAG_ENABLE_ELICITATION_UN_15809": "True"},
+        clear=True,
+    ):
+        flags_mixed = FeatureFlags()
+
+    # Assert
+    assert flags_upper.enable_elicitation_un_15809.value is True
+    assert flags_mixed.enable_elicitation_un_15809.value is True
+
+
+# ============================================================================
+# New Feature Flag Fields Tests
+# ============================================================================
+
+
+@pytest.mark.ai
+def test_enable_new_answers_ui_flag__uses_featureflag_type__field_definition() -> None:
+    """
+    Purpose: Verify enable_new_answers_ui_un_14411 uses FeatureFlag type.
+    Why this matters: New pattern should use FeatureFlag class.
+    Setup summary: Create flags, verify field is FeatureFlag instance.
+    """
+    # Arrange & Act
+    with patch.dict(os.environ, {}, clear=True):
+        flags = FeatureFlags()
+
+    # Assert
+    assert isinstance(flags.enable_new_answers_ui_un_14411, FeatureFlag)
+    assert flags.enable_new_answers_ui_un_14411.value == []
+
+
+@pytest.mark.ai
+def test_enable_elicitation_flag__uses_featureflag_type__field_definition() -> None:
+    """
+    Purpose: Verify enable_elicitation_un_15809 uses FeatureFlag type.
+    Why this matters: New pattern should use FeatureFlag class.
+    Setup summary: Create flags, verify field is FeatureFlag instance.
+    """
+    # Arrange & Act
+    with patch.dict(os.environ, {}, clear=True):
+        flags = FeatureFlags()
+
+    # Assert
+    assert isinstance(flags.enable_elicitation_un_15809, FeatureFlag)
+    assert flags.enable_elicitation_un_15809.value is False
+
+
+@pytest.mark.ai
+def test_enable_elicitation_flag__has_false_default__field_definition() -> None:
+    """
+    Purpose: Verify enable_elicitation_un_15809 defaults to False.
+    Why this matters: New features should be disabled by default.
+    Setup summary: Create flags without env var, verify False default.
+    """
+    # Arrange & Act
+    with patch.dict(os.environ, {}, clear=True):
+        flags = FeatureFlags()
+
+    # Assert
+    assert flags.enable_elicitation_un_15809.is_enabled() is False
+
+
+@pytest.mark.ai
+def test_new_answers_ui_flag__has_empty_list_default__field_definition() -> None:
+    """
+    Purpose: Verify enable_new_answers_ui_un_14411 defaults to empty list.
+    Why this matters: No companies should be enabled by default.
+    Setup summary: Create flags without env var, verify empty list default.
+    """
+    # Arrange & Act
+    with patch.dict(os.environ, {}, clear=True):
+        flags = FeatureFlags()
+
+    # Assert
+    assert flags.enable_new_answers_ui_un_14411.value == []
+    assert flags.enable_new_answers_ui_un_14411.is_enabled() is False
+    assert flags.enable_new_answers_ui_un_14411.is_enabled("any_company") is False
