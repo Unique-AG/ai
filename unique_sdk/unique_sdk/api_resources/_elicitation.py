@@ -18,6 +18,7 @@ ACTION_TYPES = Literal["ACCEPT", "DECLINE", "CANCEL"]
 SOURCE_TYPES = Literal["INTERNAL_TOOL", "MCP_SERVER"]
 MODE_TYPES = Literal["FORM", "URL"]
 
+
 class Elicitation(APIResource["Elicitation"]):
     OBJECT_NAME: ClassVar[Literal["elicitation"]] = "elicitation"
 
