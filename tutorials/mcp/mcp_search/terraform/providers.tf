@@ -42,9 +42,8 @@ terraform {
 provider "azurerm" {
   subscription_id = var.subscription_id # Optional - uses default from Azure CLI if not set
 
-  # Disable automatic resource provider registration if you don't have permissions
-  # Required providers will need to be registered manually by a subscription admin
-  resource_provider_registrations = "none"
+  # Automatically register required Azure resource providers
+  resource_provider_registrations = "extended"
 
   features {
     key_vault {
