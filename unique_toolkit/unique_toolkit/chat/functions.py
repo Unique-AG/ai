@@ -10,6 +10,7 @@ from typing_extensions import deprecated
 from unique_sdk._list_object import ListObject
 
 from unique_toolkit._common import _time_utils
+from unique_toolkit._common.token import count_tokens
 from unique_toolkit.chat.constants import (
     DEFAULT_MAX_MESSAGES,
 )
@@ -28,7 +29,6 @@ from unique_toolkit.chat.schemas import (
     MessageLogStatus,
     MessageLogUncitedReferences,
 )
-from unique_toolkit._common.token import count_tokens
 from unique_toolkit.content.schemas import ContentChunk, ContentReference
 from unique_toolkit.language_model.constants import (
     DEFAULT_COMPLETE_TEMPERATURE,
