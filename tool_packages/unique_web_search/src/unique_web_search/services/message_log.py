@@ -19,12 +19,15 @@ class WebSearchMessageLogger:
         self._status = MessageLogStatus.RUNNING
         self._details: MessageLogDetails = MessageLogDetails(data=[])
         self._references: list[ContentReference] = []
+        self._progress_message = ""
 
     async def finished(self) -> None:
         self._status = MessageLogStatus.COMPLETED
+        await self._propagate_message_log()
 
     async def failed(self) -> None:
         self._status = MessageLogStatus.FAILED
+        await self._propagate_message_log()
 
     async def log_progress(self, progress_message: str) -> None:
         self._progress_message = progress_message

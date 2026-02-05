@@ -5,9 +5,8 @@ for web search executors, reducing parameter redundancy in __init__ methods.
 """
 
 from dataclasses import dataclass
-from typing import Optional, Protocol, TypeVar
+from typing import Optional, Protocol
 
-from pydantic import BaseModel
 from unique_toolkit import LanguageModelService
 from unique_toolkit._common.chunk_relevancy_sorter.config import (
     ChunkRelevancySortConfig,
@@ -23,8 +22,6 @@ from unique_web_search.services.crawlers import CrawlerTypes
 from unique_web_search.services.search_engine import SearchEngineTypes
 from unique_web_search.services.search_engine.schema import WebSearchResult
 from unique_web_search.utils import WebSearchDebugInfo
-
-ElicitationModel = TypeVar("ElicitationModel", bound=BaseModel)
 
 
 @dataclass
@@ -97,8 +94,7 @@ class ExecutorCallbacks:
     Attributes:
         message_log_callback: Callback for logging messages and progress
         content_reducer: Function to reduce content chunks based on token limits
-        query_elicitation_creator: Function to create query elicitations
-        query_elicitation_evaluator: Function to evaluate query elicitations
+        query_elicitation: Function to elicit queries from the user
         tool_progress_reporter: Optional reporter for tool execution progress
     """
 

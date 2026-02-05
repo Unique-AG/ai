@@ -177,7 +177,7 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
         await self._message_log_callback.log_queries(queries_wo_results)
 
         for index, query in enumerate(elicitated_queries):
-            if len(refined_queries) > 1:
+            if len(elicitated_queries) > 1:
                 self.notify_name = (
                     f"**Searching Web {index + 1}/{len(elicitated_queries)}**"
                 )
