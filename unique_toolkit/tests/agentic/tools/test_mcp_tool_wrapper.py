@@ -751,7 +751,9 @@ class TestMCPToolWrapperRun:
 
         # Mock feature flags to return False (new UI disabled)
         mock_feature_flags = Mock()
-        mock_feature_flags.is_new_answers_ui_enabled.return_value = False
+        mock_feature_flags.enable_new_answers_ui_un_14411.is_enabled = Mock(
+            return_value=False,
+        )
 
         with (
             patch("unique_sdk.MCP.call_tool") as mock_sdk_call,
@@ -811,15 +813,11 @@ class TestMCPToolWrapperRun:
             arguments={"query": "test"},
         )
 
-        # Mock feature flags to return True (new UI enabled)
-        mock_feature_flags = Mock()
-        mock_feature_flags.is_new_answers_ui_enabled.return_value = True
-
         with (
             patch("unique_sdk.MCP.call_tool") as mock_sdk_call,
             patch(
-                "unique_toolkit.agentic.tools.mcp.tool_wrapper.feature_flags",
-                mock_feature_flags,
+                "unique_toolkit.agentic.tools.mcp.tool_wrapper.feature_flags.enable_new_answers_ui_un_14411.is_enabled",
+                return_value=True,
             ),
             patch.object(wrapper, "_create_or_update_message_log"),
         ):
@@ -869,7 +867,9 @@ class TestMCPToolWrapperRun:
 
         # Mock feature flags to return True (new UI enabled)
         mock_feature_flags = Mock()
-        mock_feature_flags.is_new_answers_ui_enabled.return_value = True
+        mock_feature_flags.enable_new_answers_ui_un_14411.is_enabled = Mock(
+            return_value=True,
+        )
 
         with (
             patch("unique_sdk.MCP.call_tool") as mock_sdk_call,
@@ -924,7 +924,9 @@ class TestMCPToolWrapperRun:
 
         # Mock feature flags to return False (new UI disabled)
         mock_feature_flags = Mock()
-        mock_feature_flags.is_new_answers_ui_enabled.return_value = False
+        mock_feature_flags.enable_new_answers_ui_un_14411.is_enabled = Mock(
+            return_value=False,
+        )
 
         with (
             patch("unique_sdk.MCP.call_tool") as mock_sdk_call,
@@ -981,7 +983,9 @@ class TestMCPToolWrapperRun:
 
         # Mock feature flags to track calls
         mock_feature_flags = Mock()
-        mock_feature_flags.is_new_answers_ui_enabled.return_value = False
+        mock_feature_flags.enable_new_answers_ui_un_14411.is_enabled = Mock(
+            return_value=False,
+        )
 
         with (
             patch("unique_sdk.MCP.call_tool") as mock_sdk_call,
@@ -997,7 +1001,7 @@ class TestMCPToolWrapperRun:
             await wrapper.run(tool_call)
 
             # Assert - feature flag should be called with the company_id from the event
-            mock_feature_flags.is_new_answers_ui_enabled.assert_called_with(
+            mock_feature_flags.enable_new_answers_ui_un_14411.is_enabled.assert_called_with(
                 "company_456"
             )
 

@@ -156,7 +156,7 @@ async def web_search(query: str, config: RunnableConfig) -> str:
         raise ValueError("RunnableConfig missing 'configurable' section")
 
     configurable = config["configurable"]
-    engine_config = configurable["engine_config"].tools.web_tools.search_engine
+    engine_config = configurable["engine_config"].tools.web_tools_config.search_engine
 
     search_engine_service = get_search_engine_service(
         engine_config, configurable["language_model_service"]
