@@ -37,7 +37,7 @@ GUIDELINES:
 
 10. **Sources**
 - Ask the user to specify the sources that they want to use for the research
-{% if engine_type == "Unique" %}
+{% if has_web_tools and has_internal_tools %}
 * InternalSearch to access internal company documentations, including information on policies, procedures, benefits, groups, financial details, and specific individuals knowledge base
 * WebSearch to search the web for current information and general knowledge
 {% endif %}
@@ -50,7 +50,7 @@ GUIDELINES:
 - If the query is in a specific language, the output should be in that language too
 
 <Important Information>
-{% if engine_type == "Unique" %}
+{% if engine_type == "Unique" and has_internal_tools %}
 - The user can select information you will have access to during the research, but you can not see it before the research starts. Thus if the user asks questions about the "uploaded files" or "selected files", you should your follow up questions should be more generic and mention this limitation, but importantly that you will use the information you have access to during the research. Just not in these follow up questions.
 {% endif %}
 {% if engine_type == "OpenAI" %}

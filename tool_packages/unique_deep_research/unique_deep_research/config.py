@@ -85,6 +85,10 @@ class WebToolsConfig(BaseModel):
         discriminator="search_engine_name",
         title="Search Engine Configuration",
     )
+    enable_web_fetch: bool = Field(
+        default=True,
+        description="Enable or disable the web fetch tool for retrieving content from URLs",
+    )
 
 
 class Tools(BaseModel):

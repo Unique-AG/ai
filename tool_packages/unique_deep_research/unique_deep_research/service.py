@@ -157,6 +157,20 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         """
         return self.execution_id is not None
 
+    @property
+    def has_web_tools(self) -> bool:
+        """Check if web tools are available. Defaults to True for OpenAI engine."""
+        if isinstance(self.config.engine, UniqueEngine):
+            return self.config.engine.tools.web_tools
+        return True
+
+    @property
+    def has_internal_tools(self) -> bool:
+        """Check if internal tools are available. Defaults to False for OpenAI engine."""
+        if isinstance(self.config.engine, UniqueEngine):
+            return self.config.engine.tools.internal_tools
+        return False
+
     async def get_followup_question_message_id(self) -> str | None:
         """
         Get the follow-up question message id.
@@ -781,7 +795,9 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             {
                 "role": "system",
                 "content": self.env.get_template("clarifying_agent.j2").render(
-                    engine_type=self.config.engine.get_type().value
+                    engine_type=self.config.engine.get_type().value,
+                    has_web_tools=self.has_web_tools,
+                    has_internal_tools=self.has_internal_tools,
                 ),
             },
             *relevant_interactions,
@@ -805,7 +821,11 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                 "role": "system",
                 "content": self.env.get_template(
                     "research_instructions_agent.j2"
-                ).render(engine_type=self.config.engine.get_type().value),
+                ).render(
+                    engine_type=self.config.engine.get_type().value,
+                    has_web_tools=self.has_web_tools,
+                    has_internal_tools=self.has_internal_tools,
+                ),
             }
         ] + messages
 

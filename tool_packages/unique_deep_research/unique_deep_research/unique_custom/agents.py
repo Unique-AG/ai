@@ -315,6 +315,10 @@ async def researcher(
     # Get tool configuration for template
     configurable = config.get("configurable", {})
     enable_internal_tools = configurable.get("enable_internal_tools", True)
+    engine_config = configurable.get("engine_config")
+    enable_web_fetch = (
+        engine_config.tools.web_tools_config.enable_web_fetch if engine_config else True
+    )
 
     researcher_prompt = TEMPLATE_ENV.get_template(
         "unique/research_agent_system.j2"
@@ -322,6 +326,7 @@ async def researcher(
         date=get_today_str(),
         tools=tools_description,
         enable_internal_tools=enable_internal_tools,
+        enable_web_fetch=enable_web_fetch,
     )
 
     # Get model with additional headers from config

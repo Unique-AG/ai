@@ -498,7 +498,12 @@ def get_research_tools(config: RunnableConfig) -> List[Any]:
 
     # Add web tools if enabled
     if enable_web_tools:
-        tools.extend([web_search, web_fetch])
+        web_tools = [web_search]
+        # Check if web_fetch is enabled in the config
+        engine_config = configurable.get("engine_config")
+        if engine_config and engine_config.tools.web_tools_config.enable_web_fetch:
+            web_tools.append(web_fetch)
+        tools.extend(web_tools)
 
     # Add internal tools if enabled
     if enable_internal_tools:
