@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 from typing import Generic, Literal, TypeVar
@@ -24,14 +23,6 @@ class DeepResearchEngine(StrEnum):
 
     OPENAI = "OpenAI"
     UNIQUE = "Unique"
-
-
-# Hardcoded configuration for the unique custom engine
-@dataclass
-class UniqueCustomEngineConfig:
-    max_parallel_researchers: int = 5
-    max_research_iterations_lead_researcher: int = 6
-    max_research_iterations_sub_researcher: int = 10
 
 
 RESPONSES_API_TIMEOUT_SECONDS = 3600
@@ -116,6 +107,18 @@ class UniqueEngine(BaseEngine[Literal[DeepResearchEngine.UNIQUE]]):
     )
     tools: Tools = Field(
         default=Tools(),
+    )
+    max_parallel_researchers: int = Field(
+        default=5,
+        description="Maximum number of research subagents that can run in parallel",
+    )
+    max_research_iterations_lead_researcher: int = Field(
+        default=6,
+        description="Maximum number of research iterations for the lead researcher",
+    )
+    max_research_iterations_sub_researcher: int = Field(
+        default=10,
+        description="Maximum number of research iterations for the research sub-agents",
     )
 
 

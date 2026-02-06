@@ -23,7 +23,7 @@ from langgraph.types import Command
 from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.framework_utilities.utils import get_default_headers
 
-from ..config import TEMPLATE_ENV, UniqueCustomEngineConfig
+from ..config import TEMPLATE_ENV
 from .state import (
     AgentState,
     ResearcherOutputState,
@@ -107,9 +107,11 @@ async def setup_research_supervisor(
     research_brief = state.get("research_brief")
     assert research_brief, "Research brief is required"
 
+    engine_config = get_engine_config(config)
+
     # Initialize supervisor state with config values
-    max_concurrent = UniqueCustomEngineConfig.max_parallel_researchers
-    max_iterations = UniqueCustomEngineConfig.max_research_iterations_lead_researcher
+    max_concurrent = engine_config.max_parallel_researchers
+    max_iterations = engine_config.max_research_iterations_lead_researcher
 
     # Get supervisor tools and format their descriptions
     supervisor_tools = get_supervisor_tools()
@@ -119,10 +121,6 @@ async def setup_research_supervisor(
     research_tools = get_research_tools(config)
     research_tools_description = format_tools_for_prompt(research_tools)
 
-    # Get tool configuration for template
-    configurable = config.get("configurable", {})
-    enable_internal_tools = configurable.get("enable_internal_tools", True)
-
     supervisor_system_prompt = TEMPLATE_ENV.get_template(
         "unique/lead_agent_system.j2"
     ).render(
@@ -131,7 +129,7 @@ async def setup_research_supervisor(
         max_concurrent_research_units=max_concurrent,
         max_researcher_iterations=max_iterations,
         research_tools_description=research_tools_description,
-        enable_internal_tools=enable_internal_tools,
+        enable_internal_tools=engine_config.tools.internal_tools,
     )
 
     return Command(
@@ -158,13 +156,13 @@ async def research_supervisor(
     _LOGGER.info("Research supervisor determining next steps")
 
     # Configure the supervisor model with tools
-    custom_config = get_engine_config(config)
+    engine_config = get_engine_config(config)
 
     model_config = {
-        "model": custom_config.research_model.name,
+        "model": engine_config.research_model.name,
         "max_tokens": min(
             10_000,
-            int(custom_config.research_model.token_limits.token_limit_output * 0.9),
+            int(engine_config.research_model.token_limits.token_limit_output * 0.9),
         ),
     }
 
@@ -173,7 +171,7 @@ async def research_supervisor(
 
     # Check if we should force tool usage
     research_iterations = state.get("research_iterations", 0)
-    max_iterations = UniqueCustomEngineConfig.max_research_iterations_lead_researcher
+    max_iterations = engine_config.max_research_iterations_lead_researcher
     should_force_complete = research_iterations >= max_iterations
 
     # Get model with additional headers from config
@@ -196,7 +194,7 @@ async def research_supervisor(
     supervisor_messages = state.get("supervisor_messages", [])
 
     response = await ainvoke_with_token_handling(
-        research_model, supervisor_messages, model_info=custom_config.research_model
+        research_model, supervisor_messages, model_info=engine_config.research_model
     )
     if should_force_complete and not response.tool_calls:
         _LOGGER.error("Failed to force research_complete tool call")
@@ -221,8 +219,10 @@ async def supervisor_tools(
     research_iterations = state.get("research_iterations", 0)
     most_recent_message = supervisor_messages[-1] if supervisor_messages else None
 
+    engine_config = get_engine_config(config)
+
     # Check exit conditions
-    max_iterations = UniqueCustomEngineConfig.max_research_iterations_lead_researcher
+    max_iterations = engine_config.max_research_iterations_lead_researcher
     exceeded_iterations = research_iterations >= max_iterations
 
     # Extract tool calls if available
@@ -395,9 +395,11 @@ async def researcher_tools(
     researcher_messages = state.get("researcher_messages", [])
     most_recent_message = researcher_messages[-1] if researcher_messages else None
 
+    engine_config = get_engine_config(config)
+
     # Check iteration limit
     research_iterations = state.get("research_iterations", 0)
-    max_iterations = UniqueCustomEngineConfig.max_research_iterations_sub_researcher
+    max_iterations = engine_config.max_research_iterations_sub_researcher
     exceeded_iterations = research_iterations >= max_iterations
 
     # Check if any tool calls were made
@@ -573,7 +575,9 @@ async def _handle_conduct_research_batch(
     _LOGGER.info(f"Delegating {len(conduct_research_calls)} research tasks...")
 
     # Limit concurrent research tasks to prevent resource exhaustion
-    max_concurrent = UniqueCustomEngineConfig.max_parallel_researchers
+    engine_config = get_engine_config(config)
+
+    max_concurrent = engine_config.max_parallel_researchers
     allowed_calls = conduct_research_calls[:max_concurrent]
     skipped_calls = conduct_research_calls[max_concurrent:]
 
