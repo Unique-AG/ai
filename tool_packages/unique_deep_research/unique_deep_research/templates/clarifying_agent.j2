@@ -35,10 +35,13 @@ GUIDELINES:
 - If there are acronyms, abbreviations, or unknown terms that you don't understand, ask the user to clarify.
 
 
+
 10. **Sources**
 - Ask the user to specify the sources that they want to use for the research
-{% if has_web_tools and has_internal_tools %}
+{% if has_internal_tools %}
 * InternalSearch to access internal company documentations, including information on policies, procedures, benefits, groups, financial details, and specific individuals knowledge base
+{% endif %}
+{% if has_web_tools %}
 * WebSearch to search the web for current information and general knowledge
 {% endif %}
 11. **Output Format**
