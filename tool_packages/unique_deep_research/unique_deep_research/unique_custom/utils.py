@@ -28,7 +28,7 @@ from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
-from ..config import BaseEngine
+from ..config import UniqueEngine
 from .citation import GlobalCitationManager
 from .state import AgentState, ResearcherState, SupervisorState
 
@@ -172,7 +172,7 @@ def get_message_id_from_config(config: RunnableConfig) -> str:
     return str(message_id)
 
 
-def get_engine_config(config: RunnableConfig) -> BaseEngine:
+def get_engine_config(config: RunnableConfig) -> UniqueEngine:
     """
     Extract custom engine configuration from RunnableConfig.
 
@@ -194,11 +194,11 @@ def get_engine_config(config: RunnableConfig) -> BaseEngine:
 
     custom_config = config["configurable"].get("engine_config")
     if not custom_config:
-        raise KeyError("custom_engine_config missing from RunnableConfig")
+        raise KeyError("engine_config missing from RunnableConfig")
 
-    if not isinstance(custom_config, BaseEngine):
+    if not isinstance(custom_config, UniqueEngine):
         raise TypeError(
-            f"engine_config is {type(custom_config)}, expected DeepResearchToolConfig"
+            f"engine_config is {type(custom_config)}, expected UniqueEngine"
         )
 
     return custom_config

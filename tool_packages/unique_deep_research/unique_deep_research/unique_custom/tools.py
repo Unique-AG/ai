@@ -27,6 +27,7 @@ from unique_web_search.services.search_engine import get_search_engine_service
 from .utils import (
     get_citation_manager,
     get_content_service_from_config,
+    get_engine_config,
     write_tool_message_log,
 )
 
@@ -491,14 +492,17 @@ def get_research_tools(config: RunnableConfig) -> List[Any]:
         research_complete,
     ]
 
-    # Get tool configuration from the config
-    configurable = config.get("configurable", {})
-    enable_web_tools = configurable.get("enable_web_tools", True)
-    enable_internal_tools = configurable.get("enable_internal_tools", True)
+    engine_config = get_engine_config(config)
+    enable_web_tools = engine_config.tools.web_tools
+    enable_web_fetch = engine_config.tools.web_tools_config.enable_web_fetch
+    enable_internal_tools = engine_config.tools.internal_tools
 
     # Add web tools if enabled
     if enable_web_tools:
-        tools.extend([web_search, web_fetch])
+        web_tools = [web_search]
+        if enable_web_fetch:
+            web_tools.append(web_fetch)
+        tools.extend(web_tools)
 
     # Add internal tools if enabled
     if enable_internal_tools:

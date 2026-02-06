@@ -11,7 +11,7 @@ from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
-from unique_deep_research.config import BaseEngine
+from unique_deep_research.config import UniqueEngine
 from unique_deep_research.unique_custom.utils import (
     ainvoke_with_token_handling,
     cleanup_request_counter,
@@ -189,7 +189,7 @@ def test_get_engine_config__returns_engine_config__from_config() -> None:
     Setup summary: Create config with engine config and verify retrieval.
     """
     # Arrange
-    mock_engine_config = Mock(spec=BaseEngine)
+    mock_engine_config = Mock(spec=UniqueEngine)
     config = {"configurable": {"engine_config": mock_engine_config}}
 
     # Act
@@ -210,9 +210,7 @@ def test_get_engine_config__raises_error__when_config_missing() -> None:
     config = {"configurable": {}}
 
     # Act & Assert
-    with pytest.raises(
-        KeyError, match="custom_engine_config missing from RunnableConfig"
-    ):
+    with pytest.raises(KeyError, match="engine_config missing from RunnableConfig"):
         get_engine_config(cast(Any, config))
 
 
