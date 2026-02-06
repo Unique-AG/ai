@@ -739,6 +739,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             ],
             temperature=0.1,
             max_tokens=5000,
+            **self.config.engine.advanced_config.large_model.additional_llm_options,
         )
 
         formatted_result = response.choices[0].message.content
@@ -798,6 +799,8 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             messages=messages,
             model_name=self.config.engine.small_model.name,
             content_chunks=None,
+            other_options=self.config.engine.advanced_config.small_model.additional_llm_options
+            or None,
         )
         assert isinstance(response.choices[0].message.content, str), (
             "No clarifying questions generated"
@@ -824,6 +827,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         research_response = await self.client.chat.completions.create(
             model=self.config.engine.large_model.name,
             messages=chat_messages,
+            **self.config.engine.advanced_config.large_model.additional_llm_options,
         )
 
         research_instructions = research_response.choices[0].message.content

@@ -1,6 +1,6 @@
 from enum import StrEnum
 from pathlib import Path
-from typing import Generic, Literal, TypeVar
+from typing import Any, Generic, Literal, TypeVar
 
 from jinja2 import Environment, FileSystemLoader
 from pydantic import BaseModel, Field
@@ -31,6 +31,32 @@ RESPONSES_API_TIMEOUT_SECONDS = 3600
 T = TypeVar("T", bound=DeepResearchEngine)
 
 
+class ModelAdvancedConfig(BaseModel):
+    model_config = get_configuration_dict()
+
+    additional_llm_options: dict[str, Any] = Field(
+        default={},
+        description="Additional options to pass to the LLM.",
+    )
+
+
+class AdvancedConfig(BaseModel):
+    model_config = get_configuration_dict()
+
+    small_model: ModelAdvancedConfig = Field(
+        default=ModelAdvancedConfig(),
+        description="Advanced configuration for the small model",
+    )
+    large_model: ModelAdvancedConfig = Field(
+        default=ModelAdvancedConfig(),
+        description="Advanced configuration for the large model",
+    )
+    research_model: ModelAdvancedConfig = Field(
+        default=ModelAdvancedConfig(),
+        description="Advanced configuration for the research model",
+    )
+
+
 class BaseEngine(BaseModel, Generic[T]):
     model_config = get_configuration_dict()
 
@@ -49,6 +75,11 @@ class BaseEngine(BaseModel, Generic[T]):
     research_model: LMI = get_LMI_default_field(
         LanguageModelName.AZURE_GPT_5_2025_0807,
         description="The main research model to be used for conducting research",
+    )
+
+    advanced_config: AdvancedConfig = Field(
+        default=AdvancedConfig(),
+        description="Advanced configuration",
     )
 
     def get_type(self) -> DeepResearchEngine:
