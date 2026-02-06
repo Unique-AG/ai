@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 from langchain_core.runnables import RunnableConfig
 
+from unique_deep_research.config import UniqueEngine
 from unique_deep_research.unique_custom.tools import (
     _get_internal_data_citation,
     _get_internal_data_title,
@@ -109,7 +110,7 @@ def test_get_research_tools__returns_list_of_tools__with_expected_tools() -> Non
     Setup summary: Call get_research_tools, assert expected tools in list.
     """
     # Arrange
-    config = RunnableConfig()
+    config = RunnableConfig(configurable={"engine_config": UniqueEngine()})
 
     # Act
     tools = get_research_tools(config)
