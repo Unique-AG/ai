@@ -455,8 +455,6 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                 "message_id": self.event.payload.assistant_message.id,
                 "citation_manager": citation_manager,
                 "additional_openai_proxy_headers": additional_openai_proxy_headers,
-                "enable_web_tools": self.has_web_tools,
-                "enable_internal_tools": self.has_web_tools,
             },
         }
 

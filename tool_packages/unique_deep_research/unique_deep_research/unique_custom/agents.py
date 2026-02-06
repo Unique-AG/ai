@@ -300,12 +300,12 @@ async def researcher(
     research_tools = get_research_tools(config)
 
     # Configure the researcher model
-    custom_config = get_engine_config(config)
+    engine_config = get_engine_config(config)
     model_config = {
-        "model": custom_config.research_model.name,
+        "model": engine_config.research_model.name,
         "max_tokens": min(
             10_000,
-            int(custom_config.research_model.token_limits.token_limit_output * 0.9),
+            int(engine_config.research_model.token_limits.token_limit_output * 0.9),
         ),
     }
 
@@ -313,11 +313,10 @@ async def researcher(
     tools_description = format_tools_for_prompt(research_tools)
 
     # Get tool configuration for template
-    configurable = config.get("configurable", {})
-    enable_internal_tools = configurable.get("enable_internal_tools", True)
-    engine_config = configurable.get("engine_config")
+    enable_internal_tools = engine_config.tools.internal_tools
     enable_web_fetch = (
-        engine_config.tools.web_tools_config.enable_web_fetch if engine_config else True
+        engine_config.tools.web_tools
+        and engine_config.tools.web_tools_config.enable_web_fetch
     )
 
     researcher_prompt = TEMPLATE_ENV.get_template(
@@ -340,7 +339,7 @@ async def researcher(
     researcher_messages = state.get("researcher_messages", [])
     messages = [SystemMessage(content=researcher_prompt)] + researcher_messages
     response = await ainvoke_with_token_handling(
-        research_model, messages, model_info=custom_config.research_model
+        research_model, messages, model_info=engine_config.research_model
     )
 
     return Command(
