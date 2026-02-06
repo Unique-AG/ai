@@ -82,21 +82,13 @@ def get_configurable_model(config: RunnableConfig):
     # Merge additional headers with base headers
     merged_headers = {**base_default_headers, **additional_openai_proxy_headers}
 
-    engine_config = get_engine_config(config)
-
-    base_fields = {"model", "max_tokens"}
-
-    adv = engine_config.advanced_config
-    for model_cfg in [adv.small_model, adv.large_model, adv.research_model]:
-        base_fields.update(model_cfg.additional_llm_options.keys())
-
     # Create and return a new model instance with merged headers
     return init_chat_model(
         model_provider="openai",
         openai_api_key=_unique_settings.app.key.get_secret_value(),
         openai_api_base=_unique_settings.api.openai_proxy_url(),
         default_headers=merged_headers,
-        configurable_fields=tuple(base_fields),
+        configurable_fields=("model", "max_tokens"),
     )
 
 
@@ -118,8 +110,10 @@ async def setup_research_supervisor(
     engine_config = get_engine_config(config)
 
     # Initialize supervisor state with config values
-    max_concurrent = engine_config.max_parallel_researchers
-    max_iterations = engine_config.max_research_iterations_lead_researcher
+    max_concurrent = engine_config.advanced_config.max_parallel_researchers
+    max_iterations = (
+        engine_config.advanced_config.max_research_iterations_lead_researcher
+    )
 
     # Get supervisor tools and format their descriptions
     supervisor_tools = get_supervisor_tools()
@@ -172,7 +166,6 @@ async def research_supervisor(
             10_000,
             int(engine_config.research_model.token_limits.token_limit_output * 0.9),
         ),
-        **engine_config.advanced_config.research_model.additional_llm_options,
     }
 
     # Available tools for the supervisor
@@ -180,7 +173,9 @@ async def research_supervisor(
 
     # Check if we should force tool usage
     research_iterations = state.get("research_iterations", 0)
-    max_iterations = engine_config.max_research_iterations_lead_researcher
+    max_iterations = (
+        engine_config.advanced_config.max_research_iterations_lead_researcher
+    )
     should_force_complete = research_iterations >= max_iterations
 
     # Get model with additional headers from config
@@ -231,7 +226,9 @@ async def supervisor_tools(
     engine_config = get_engine_config(config)
 
     # Check exit conditions
-    max_iterations = engine_config.max_research_iterations_lead_researcher
+    max_iterations = (
+        engine_config.advanced_config.max_research_iterations_lead_researcher
+    )
     exceeded_iterations = research_iterations >= max_iterations
 
     # Extract tool calls if available
@@ -316,7 +313,6 @@ async def researcher(
             10_000,
             int(engine_config.research_model.token_limits.token_limit_output * 0.9),
         ),
-        **engine_config.advanced_config.research_model.additional_llm_options,
     }
 
     # Prepare system prompt with dynamic tool descriptions
@@ -408,7 +404,9 @@ async def researcher_tools(
 
     # Check iteration limit
     research_iterations = state.get("research_iterations", 0)
-    max_iterations = engine_config.max_research_iterations_sub_researcher
+    max_iterations = (
+        engine_config.advanced_config.max_research_iterations_sub_researcher
+    )
     exceeded_iterations = research_iterations >= max_iterations
 
     # Check if any tool calls were made
@@ -459,7 +457,6 @@ async def compress_research(
             15_000,
             int(custom_config.large_model.token_limits.token_limit_output * 0.9),
         ),
-        **custom_config.advanced_config.large_model.additional_llm_options,
     }
 
     # PROMPTS
@@ -536,7 +533,6 @@ async def final_report_generation(
         "max_tokens": min(
             30_000, int(custom_config.large_model.token_limits.token_limit_output * 0.9)
         ),
-        **custom_config.advanced_config.large_model.additional_llm_options,
     }
     # Get model with additional headers from config
     model = get_configurable_model(config)
@@ -588,7 +584,7 @@ async def _handle_conduct_research_batch(
     # Limit concurrent research tasks to prevent resource exhaustion
     engine_config = get_engine_config(config)
 
-    max_concurrent = engine_config.max_parallel_researchers
+    max_concurrent = engine_config.advanced_config.max_parallel_researchers
     allowed_calls = conduct_research_calls[:max_concurrent]
     skipped_calls = conduct_research_calls[max_concurrent:]
 
