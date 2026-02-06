@@ -320,6 +320,7 @@ async def researcher(
 
     # Get tool configuration for template
     enable_internal_tools = engine_config.tools.internal_tools
+    enable_web_tools = engine_config.tools.web_tools
     enable_web_fetch = (
         engine_config.tools.web_tools
         and engine_config.tools.web_tools_config.enable_web_fetch
@@ -331,6 +332,7 @@ async def researcher(
         date=get_today_str(),
         tools=tools_description,
         enable_internal_tools=enable_internal_tools,
+        enable_web_tools=enable_web_tools,
         enable_web_fetch=enable_web_fetch,
     )
 
