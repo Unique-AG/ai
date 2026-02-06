@@ -9,7 +9,6 @@ from unique_web_search.schema import (
     WebSearchPlan,
     WebSearchToolParameters,
 )
-from unique_web_search.services.executors.base_executor import WebSearchLogEntry
 from unique_web_search.services.executors.configs import WebSearchMode
 from unique_web_search.services.search_engine.schema import WebSearchResult
 
@@ -145,9 +144,26 @@ def mock_chat_service():
 @pytest.fixture
 def mock_message_step_logger():
     """Mock message step logger for WebSearchTool."""
+    from unittest.mock import AsyncMock
+
     logger = Mock()
     logger.create_message_log_entry = Mock()
+    logger.create_or_update_message_log_async = AsyncMock()
     return logger
+
+
+@pytest.fixture
+def mock_message_log():
+    """Mock MessageLog for testing."""
+    from unique_toolkit.chat.schemas import MessageLog, MessageLogStatus
+
+    return MessageLog(
+        message_log_id="test-message-log-id",
+        message_id="test-message-id",
+        order=1,
+        text="Test message log",
+        status=MessageLogStatus.RUNNING,
+    )
 
 
 @pytest.fixture
@@ -162,26 +178,13 @@ def mock_tool_progress_reporter():
 
 @pytest.fixture
 def sample_web_search_log_entries():
-    """Sample WebSearchLogEntry list for testing."""
-    result1 = WebSearchResult(
-        url="https://example.com/page1",
-        title="Example Page 1",
-        snippet="Snippet 1",
-        content="Content 1",
-    )
-    result2 = WebSearchResult(
-        url="https://example.com/page2",
-        title="Example Page 2",
-        snippet="Snippet 2",
-        content="Content 2",
-    )
-    return [
-        WebSearchLogEntry(
-            type=StepType.SEARCH,
-            message="test query",
-            web_search_results=[result1, result2],
-        )
-    ]
+    """Sample WebSearchLogEntry list for testing.
+
+    NOTE: WebSearchLogEntry was removed from the codebase.
+    This fixture returns an empty list for backward compatibility.
+    Tests should be refactored to use the message_log service instead.
+    """
+    return []
 
 
 @pytest.fixture
@@ -265,7 +268,10 @@ def mock_executor_dependencies():
     mock_content_processor.config.strategy = Mock()
     mock_content_processor.config.strategy.name = "TEST"
 
-    mock_message_log_callback = Mock(return_value=None)
+    mock_message_log_callback = Mock()
+    mock_message_log_callback.log_progress = AsyncMock()
+    mock_message_log_callback.log_queries = AsyncMock()
+    mock_message_log_callback.log_web_search_results = AsyncMock()
 
     mock_chunk_relevancy_sorter = Mock()
     mock_chunk_relevancy_sorter.run = AsyncMock(return_value=Mock(content_chunks=[]))
@@ -274,6 +280,8 @@ def mock_executor_dependencies():
     mock_chunk_relevancy_sort_config.enabled = False
 
     mock_content_reducer = Mock(return_value=[])
+
+    mock_query_elicitation = AsyncMock(side_effect=lambda queries: queries)
 
     mock_tool_call = Mock()
     mock_tool_call.id = "test-tool-call-id"
@@ -290,6 +298,46 @@ def mock_executor_dependencies():
         "chunk_relevancy_sorter": mock_chunk_relevancy_sorter,
         "chunk_relevancy_sort_config": mock_chunk_relevancy_sort_config,
         "content_reducer": mock_content_reducer,
+        "query_elicitation": mock_query_elicitation,
         "tool_call": mock_tool_call,
         "debug_info": debug_info,
+    }
+
+
+@pytest.fixture
+def executor_context_objects(mock_executor_dependencies: dict):
+    """Create ExecutorServiceContext, ExecutorConfiguration, and ExecutorCallbacks from mock dependencies."""
+    from unique_web_search.services.executors.context import (
+        ExecutorCallbacks,
+        ExecutorConfiguration,
+        ExecutorServiceContext,
+    )
+
+    services = ExecutorServiceContext(
+        search_engine_service=mock_executor_dependencies["search_service"],
+        crawler_service=mock_executor_dependencies["crawler_service"],
+        content_processor=mock_executor_dependencies["content_processor"],
+        language_model_service=mock_executor_dependencies["language_model_service"],
+        chunk_relevancy_sorter=mock_executor_dependencies["chunk_relevancy_sorter"],
+    )
+
+    config = ExecutorConfiguration(
+        language_model=mock_executor_dependencies["language_model"],
+        chunk_relevancy_sort_config=mock_executor_dependencies[
+            "chunk_relevancy_sort_config"
+        ],
+        company_id="test-company",
+        debug_info=mock_executor_dependencies["debug_info"],
+    )
+
+    callbacks = ExecutorCallbacks(
+        message_log_callback=mock_executor_dependencies["message_log_callback"],
+        content_reducer=mock_executor_dependencies["content_reducer"],
+        query_elicitation=mock_executor_dependencies["query_elicitation"],
+    )
+
+    return {
+        "services": services,
+        "config": config,
+        "callbacks": callbacks,
     }

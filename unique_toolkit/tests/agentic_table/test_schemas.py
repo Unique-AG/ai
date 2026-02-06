@@ -5,6 +5,9 @@ from unique_toolkit.agentic_table.schemas import (
     ArtifactType,
     BaseMetadata,
     MagicTableGenerateArtifactPayload,
+    MagicTableRerunRowPayload,
+    RerunRowMetadata,
+    SheetType,
 )
 
 
@@ -232,3 +235,170 @@ class TestBaseMetadata:
             metadata.additional_sheet_information["clientInformation"]["clientId"]
             == "123"
         )
+
+
+class TestRerunRowMetadata:
+    """Test suite for RerunRowMetadata model."""
+
+    def test_rerun_row_metadata_creation(self):
+        """Test RerunRowMetadata creation with required fields."""
+        metadata = RerunRowMetadata(
+            source_file_ids=["file-1", "file-2"],
+            row_order=5,
+            sheet_type=SheetType.DEFAULT,
+        )
+        assert metadata.source_file_ids == ["file-1", "file-2"]
+        assert metadata.row_order == 5
+        assert metadata.sheet_type == SheetType.DEFAULT
+        assert metadata.context == ""  # Default value
+
+    def test_rerun_row_metadata_with_context(self):
+        """Test RerunRowMetadata creation with optional context."""
+        metadata = RerunRowMetadata(
+            source_file_ids=["file-1"],
+            row_order=10,
+            sheet_type=SheetType.LIBRARY,
+            context="Additional context for rerun",
+        )
+        assert metadata.context == "Additional context for rerun"
+
+    def test_rerun_row_metadata_context_none_normalized(self):
+        """Test that None context is normalized to empty string."""
+        metadata = RerunRowMetadata(
+            source_file_ids=["file-1"],
+            row_order=1,
+            sheet_type=SheetType.DEFAULT,
+            context=None,
+        )
+        assert metadata.context == ""
+
+    def test_rerun_row_metadata_with_additional_sheet_information(self):
+        """Test RerunRowMetadata with inherited additional_sheet_information."""
+        additional_info = {"clientId": "123", "category": "DDQ"}
+        metadata = RerunRowMetadata(
+            source_file_ids=["file-1"],
+            row_order=3,
+            sheet_type=SheetType.DEFAULT,
+            additional_sheet_information=additional_info,
+        )
+        assert metadata.additional_sheet_information == additional_info
+
+    def test_rerun_row_metadata_serialization(self):
+        """Test RerunRowMetadata serialization to dict."""
+        metadata = RerunRowMetadata(
+            source_file_ids=["file-1", "file-2"],
+            row_order=5,
+            sheet_type=SheetType.DEFAULT,
+            context="Test context",
+        )
+        serialized = metadata.model_dump()
+        assert serialized["source_file_ids"] == ["file-1", "file-2"]
+        assert serialized["row_order"] == 5
+        assert serialized["context"] == "Test context"
+
+    def test_rerun_row_metadata_deserialization_from_json(self):
+        """Test RerunRowMetadata deserialization from JSON with camelCase."""
+        json_data = """{
+            "sourceFileIds": ["file-abc", "file-xyz"],
+            "rowOrder": 7,
+            "sheetType": "DEFAULT",
+            "context": "Rerun for correction"
+        }"""
+        metadata = RerunRowMetadata.model_validate_json(json_data)
+        assert metadata.source_file_ids == ["file-abc", "file-xyz"]
+        assert metadata.row_order == 7
+        assert metadata.sheet_type == SheetType.DEFAULT
+        assert metadata.context == "Rerun for correction"
+
+
+class TestMagicTableRerunRowPayload:
+    """Test suite for MagicTableRerunRowPayload - validates payload structure
+    matches monorepo's rfp_agent usage."""
+
+    def test_rerun_row_payload_creation(self):
+        """Test MagicTableRerunRowPayload creation matching monorepo pattern."""
+        payload = MagicTableRerunRowPayload(
+            name="rfp_agent",
+            sheet_name="Test Sheet",
+            action=MagicTableAction.RERUN_ROW,
+            chat_id="chat-123",
+            assistant_id="asst-123",
+            table_id="table-123",
+            metadata=RerunRowMetadata(
+                source_file_ids=["file-1", "file-2"],
+                row_order=5,
+                sheet_type=SheetType.DEFAULT,
+                context="Rerun context",
+            ),
+        )
+        assert payload.name == "rfp_agent"
+        assert payload.action == MagicTableAction.RERUN_ROW
+        assert payload.metadata.source_file_ids == ["file-1", "file-2"]
+        assert payload.metadata.row_order == 5
+        assert payload.metadata.context == "Rerun context"
+
+    def test_rerun_row_payload_without_context(self):
+        """Test payload creation without optional context (like monorepo test_handle_rerun_row_invalid_row)."""
+        payload = MagicTableRerunRowPayload(
+            name="rfp_agent",
+            sheet_name="Test Sheet",
+            action=MagicTableAction.RERUN_ROW,
+            chat_id="chat-123",
+            assistant_id="asst-123",
+            table_id="table-123",
+            metadata=RerunRowMetadata(
+                source_file_ids=["file-1"],
+                row_order=99,
+                sheet_type=SheetType.DEFAULT,
+            ),
+        )
+        assert payload.metadata.row_order == 99
+        assert payload.metadata.context == ""
+
+    def test_rerun_row_payload_serialization(self):
+        """Test payload serialization maintains structure."""
+        payload = MagicTableRerunRowPayload(
+            name="rfp_agent",
+            sheet_name="Test Sheet",
+            action=MagicTableAction.RERUN_ROW,
+            chat_id="chat-123",
+            assistant_id="asst-123",
+            table_id="table-123",
+            metadata=RerunRowMetadata(
+                source_file_ids=["file-1"],
+                row_order=1,
+                sheet_type=SheetType.DEFAULT,
+            ),
+        )
+        serialized = payload.model_dump()
+        assert serialized["action"] == "RerunRow"
+        assert serialized["metadata"]["source_file_ids"] == ["file-1"]
+        assert serialized["metadata"]["row_order"] == 1
+
+    def test_rerun_row_payload_deserialization_from_json(self):
+        """Test payload deserialization from JSON (simulating API request)."""
+        json_data = """{
+            "name": "rfp_agent",
+            "sheetName": "Test Sheet",
+            "action": "RerunRow",
+            "chatId": "chat-456",
+            "assistantId": "asst-456",
+            "tableId": "table-456",
+            "metadata": {
+                "sourceFileIds": ["file-a", "file-b"],
+                "rowOrder": 10,
+                "sheetType": "DEFAULT",
+                "context": "Retry with new sources"
+            }
+        }"""
+        payload = MagicTableRerunRowPayload.model_validate_json(json_data)
+        assert payload.name == "rfp_agent"
+        assert payload.action == MagicTableAction.RERUN_ROW
+        assert payload.chat_id == "chat-456"
+        assert payload.metadata.source_file_ids == ["file-a", "file-b"]
+        assert payload.metadata.row_order == 10
+        assert payload.metadata.context == "Retry with new sources"
+
+    def test_rerun_row_action_enum_value(self):
+        """Test that RERUN_ROW action is correctly recognized."""
+        assert MagicTableAction.RERUN_ROW == "RerunRow"

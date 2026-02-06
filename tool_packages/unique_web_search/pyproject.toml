@@ -1,38 +1,38 @@
 [project]
 name = "unique_web_search"
-version = "1.9.1"
+version = "1.10.0"
 description = ""
 readme = "README.md"
 requires-python = ">=3.12,<4.0"
 authors = [
-  { name = "Andreas Hauri", email = "andreas@unique.ch" },
-  { name = "Gustav Hartz", email = "gustav.hartz.ext@unique.ch" },
-  { name = "Rami Azouz", email = "rami.ext@unique.ch" },
+    { name = "Andreas Hauri", email = "andreas@unique.ch" },
+    { name = "Gustav Hartz", email = "gustav.hartz.ext@unique.ch" },
+    { name = "Rami Azouz", email = "rami.ext@unique.ch" },
 ]
 license = { text = "Proprietary" }
 dependencies = [
-  "typing-extensions>=4.14.1,<5",
-  "pydantic>=2.12.3,<3",
-  "pydantic-settings>=2.10.1,<3",
-  "timeout-decorator>=0.5.0,<1",
-  "markdownify>=0.14.1,<1",
-  "fake-useragent>=2.2.0,<3",
-  "crawl4ai>=0.6.3,<1",
-  "firecrawl>=3.3.2,<4",
-  "tavily-python>=0.7.11,<1",
-  "unidecode>=1.4.0,<2",
-  "azure-ai-projects>=1.0.0,<2",
-  "azure-identity>=1.25.0,<2",
-  "unique-toolkit>=1.45.0,<2",
-  "azure-core>=1.36.0,<2",
-  "google-cloud-aiplatform>=1.128.0,<2",
-  "google-auth>=2.43.0,<3",
-  "google-generativeai>=0.8.5,<0.9",
-  "langchain-text-splitters>=1.0.0,<2",
-  "httpx>=0.28.1",
-  "tiktoken>=0.12.0",
-  "openai>=1.109.1",
-  "certifi>=2025.11.12",
+    "typing-extensions>=4.14.1,<5",
+    "pydantic>=2.12.3,<3",
+    "pydantic-settings>=2.10.1,<3",
+    "timeout-decorator>=0.5.0,<1",
+    "markdownify>=0.14.1,<1",
+    "fake-useragent>=2.2.0,<3",
+    "crawl4ai>=0.6.3,<1",
+    "firecrawl>=3.3.2,<4",
+    "tavily-python>=0.7.11,<1",
+    "unidecode>=1.4.0,<2",
+    "azure-ai-projects>=1.0.0,<2",
+    "azure-identity>=1.25.0,<2",
+    "unique-toolkit>=1.45.0,<2",
+    "azure-core>=1.36.0,<2",
+    "google-cloud-aiplatform>=1.128.0,<2",
+    "google-auth>=2.43.0,<3",
+    "google-generativeai>=0.8.5,<0.9",
+    "langchain-text-splitters>=1.0.0,<2",
+    "httpx>=0.28.1",
+    "tiktoken>=0.12.0",
+    "openai>=1.109.1",
+    "certifi>=2025.11.12",
 ]
 
 [build-system]
@@ -41,14 +41,14 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
-  "deptry>=0.24.0",
-  "pytest>=8.4.1,<9",
-  "pytest-asyncio>=1.2.0,<2",
-  "pytest-cov>=7.0.0,<8",
-  "pytest-mock>=3.14.0,<4",
-  "ruff>=0.12.10,<0.13",
-  "basedpyright>=1.35.0",
-  "poethepoet>=0.32.0",
+    "deptry>=0.24.0",
+    "pytest>=8.4.1,<9",
+    "pytest-asyncio>=1.2.0,<2",
+    "pytest-cov>=7.0.0,<8",
+    "pytest-mock>=3.14.0,<4",
+    "ruff>=0.12.10,<0.13",
+    "basedpyright>=1.35.0",
+    "poethepoet>=0.32.0",
 ]
 
 [tool.poe.tasks]
@@ -75,3 +75,7 @@ target-version = "py312"
 
 [tool.ruff.lint]
 extend-select = ["I"]
+
+# [tool.uv.sources]
+# unique-sdk = { path = "../../unique-sdk", editable = true }
+# unique_toolkit = { path = "../../unique_toolkit", editable = true }

@@ -114,4 +114,5 @@ from .api_resources._agentic_table import (
     SelectionMethod as SelectionMethod,
     AgreementStatus as AgreementStatus,
     RowVerificationStatus as RowVerificationStatus,
+    MagicTableAction as MagicTableAction,
 )

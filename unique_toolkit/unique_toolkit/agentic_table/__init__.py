@@ -19,12 +19,15 @@ from .schemas import (
     MagicTableEventTypes,
     MagicTableGenerateArtifactPayload,
     MagicTableLibrarySheetRowVerifiedPayload,
+    MagicTableRerunRowPayload,
     MagicTableSheet,
     MagicTableSheetCompletedPayload,
     MagicTableSheetCreatedPayload,
     MagicTableUpdateCellPayload,
+    RerunRowMetadata,
     RowMetadataEntry,
     SelectionMethod,
+    SheetType,
 )
 from .service import AgenticTableService
 
@@ -46,11 +49,14 @@ __all__ = [
     "MagicTableEventTypes",
     "MagicTableGenerateArtifactPayload",
     "MagicTableLibrarySheetRowVerifiedPayload",
+    "MagicTableRerunRowPayload",
     "MagicTableSheet",
     "MagicTableSheetCompletedPayload",
     "MagicTableSheetCreatedPayload",
     "MagicTableUpdateCellPayload",
+    "RerunRowMetadata",
     "RowMetadataEntry",
     "RowVerificationStatus",
     "SelectionMethod",
+    "SheetType",
 ]
