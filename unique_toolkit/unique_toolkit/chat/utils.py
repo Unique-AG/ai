@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 
 def convert_chat_history_to_injectable_string(
     history: list[ChatMessage],
-    model_info: "LanguageModelInfo | None" = None,
+    model_info: LanguageModelInfo | None = None,
 ) -> tuple[list[str], int]:
     """
     Converts chat history to a string that can be injected into the model.

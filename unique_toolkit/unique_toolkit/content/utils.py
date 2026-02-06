@@ -140,7 +140,7 @@ def _generate_pages_postfix(chunks: list[ContentChunk]) -> str:
 def pick_content_chunks_for_token_window(
     content_chunks: list[ContentChunk],
     token_limit: int,
-    model_info: "LanguageModelInfo | None" = None,
+    model_info: LanguageModelInfo | None = None,
     encoding_model: str = "cl100k_base",
 ):
     """

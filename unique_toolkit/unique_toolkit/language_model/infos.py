@@ -1925,7 +1925,7 @@ class LanguageModel:
         return self._model_info.version
 
     @property
-    def encoder_name(self) -> EncoderName | str | None:
+    def encoder_name(self) -> EncoderName | str:
         """
         Returns the encoder_name used for the model.
         """
