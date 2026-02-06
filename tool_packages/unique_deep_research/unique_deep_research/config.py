@@ -105,14 +105,17 @@ class UniqueEngineAdvancedConfig(BaseModel):
     max_parallel_researchers: int = Field(
         default=5,
         description="Maximum number of research subagents that can run in parallel",
+        ge=1,
     )
     max_research_iterations_lead_researcher: int = Field(
         default=6,
         description="Maximum number of research iterations for the lead researcher",
+        ge=1,
     )
     max_research_iterations_sub_researcher: int = Field(
         default=10,
         description="Maximum number of research iterations for the research sub-agents",
+        ge=1,
     )
 
 
