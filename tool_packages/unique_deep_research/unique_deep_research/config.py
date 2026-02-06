@@ -127,7 +127,8 @@ class UniqueEngine(BaseEngine[Literal[DeepResearchEngine.UNIQUE]]):
     )
     advanced_config: UniqueEngineAdvancedConfig = Field(
         default_factory=UniqueEngineAdvancedConfig,
-        description="Advanced configuration for the Unique engine",
+        title="Advanced",
+        description="Advanced configuration",
     )
 
 
