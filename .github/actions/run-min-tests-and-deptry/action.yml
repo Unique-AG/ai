@@ -30,7 +30,7 @@ runs:
       shell: bash
       working-directory: ${{ inputs.package_dir }}
       run: |
-        uv venv
+        uv venv --clear
         uv pip install -e . --resolution=lowest-direct
         uv export --only-group dev --no-hashes | uv pip install -r -
 
